@@ -173,7 +173,7 @@ def _validate_workload(max_input_tokens, max_output_tokens, inventory_rows, cach
 
 def private_boundary_memory(vocabulary, hidden, *, lookup_rows, head_calls,
                             concurrent_requests=1, shared_matrix=True,
-                            head_dispatch="serial", head_output_encoding="u32"):
+                            head_dispatch="serial", head_output_encoding="u32", head_certificate=None):
     """Allocation owners for packed128 lookup plus full additive wrap32 head.
 
     A context shares immutable table storage, never its replay ledger. Scratch
@@ -188,7 +188,7 @@ def private_boundary_memory(vocabulary, hidden, *, lookup_rows, head_calls,
     if type(shared_matrix) is not bool:
         raise BenchmarkMemoryError("private boundary sharing evidence must be explicit")
     if head_dispatch not in ("serial", "parallel") or head_output_encoding not in (
-        "u32", "uniform_residues"
+        "u32", "uniform_residues", "row_residues"
     ):
         raise BenchmarkMemoryError("private boundary head execution choice is unsupported")
     table, scales = vocabulary * hidden, 4 * vocabulary
@@ -204,7 +204,7 @@ def private_boundary_memory(vocabulary, hidden, *, lookup_rows, head_calls,
     # Keep the original full-width frame allowance. Parallel HTTP owners add two
     # conservative 8 MiB thread stacks and simultaneous framing/response copies.
     parallel_work = concurrent_requests * (16 * MiB + 4 * head_frame) if head_dispatch == "parallel" else 0
-    head_bits = (2 * hidden * 128 * 127).bit_length() if head_output_encoding == "uniform_residues" else 32
+    head_bits = (2 * hidden * 128 * 127).bit_length() if head_output_encoding != "u32" else 32
     if head_bits > 32:
         raise BenchmarkMemoryError("private boundary head exceeds exact wrapping ring")
     head_payload = (vocabulary * head_bits + 7) // 8
@@ -212,6 +212,27 @@ def private_boundary_memory(vocabulary, hidden, *, lookup_rows, head_calls,
     # owners; reduced traffic never licenses a smaller original allocation bound.
     client_codec_work = concurrent_requests * (10 * vocabulary + 4 * head_payload) if head_output_encoding == "uniform_residues" else 0
     worker_codec_work = concurrent_requests * (9 * vocabulary + 2 * head_payload) if head_output_encoding == "uniform_residues" else 0
+    certificate_work = {}
+    if head_output_encoding == "row_residues":
+        from .private_boundary_certificate import validate_pin
+        try:
+            artifact_bytes = validate_pin(head_certificate)["size_bytes"]
+        except ValueError as exc:
+            raise BenchmarkMemoryError(str(exc)) from exc
+        # Full-width original frame owners remain. Certificate read/hash/JSON,
+        # bounded zlib expansion, bytearray conversion, native Vec + Python i64
+        # output overlap and every retained u8 layout are additional owners.
+        client_codec_work = concurrent_requests * (24 * vocabulary + 4 * head_payload
+                                                   + 4 * artifact_bytes + 128 * 1024)
+        worker_codec_work = concurrent_requests * (16 * vocabulary + 2 * head_payload
+                                                   + 4 * artifact_bytes + 2 * MiB)
+        certificate_work = {"head_layout_bytes_per_owner": vocabulary,
+            "certificate_artifact_bytes_per_recipient": artifact_bytes,
+            "certificate_three_recipient_delivery_bytes": 3 * artifact_bytes,
+            "certificate_publication_work_bytes": 2 * MiB + 8 * vocabulary + 4 * artifact_bytes,
+            "certificate_publication_source_import_separate": True}
+    elif head_certificate is not None:
+        raise BenchmarkMemoryError("unexpected head certificate")
     worker_work += worker_codec_work
     native_table = table + scales + (0 if shared_matrix else table + scales)
     # The native publisher borrows the existing head Arc, hashes one row at a
@@ -249,7 +270,8 @@ def private_boundary_memory(vocabulary, hidden, *, lookup_rows, head_calls,
             "worker_head_codec_work_bytes": worker_codec_work,
             "worker_peak_bytes": worker_peak, "client_work_bytes": client_work,
             "client_tied_weight_bytes": 0, "lookup_rows_bound": lookup_rows,
-            "head_calls_bound": head_calls, "concurrent_request_bound": concurrent_requests}
+            "head_calls_bound": head_calls, "concurrent_request_bound": concurrent_requests,
+            **certificate_work}
 
 
 def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
@@ -398,7 +420,8 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
             head_calls=max_output_tokens, concurrent_requests=concurrent_requests,
             shared_matrix=shared,
             head_dispatch=pipeline.components["boundary"].params.get("head_dispatch", "serial"),
-            head_output_encoding=pipeline.components["boundary"].params.get("head_output_encoding", "u32"))
+            head_output_encoding=pipeline.components["boundary"].params.get("head_output_encoding", "u32"),
+            head_certificate=pipeline.components["boundary"].params.get("head_certificate"))
     masks *= concurrent_requests
     mask_cursors *= concurrent_requests
     legacy_masks *= concurrent_requests

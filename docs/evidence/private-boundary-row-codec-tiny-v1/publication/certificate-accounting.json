@@ -1,0 +1,13 @@
+{
+  "missing_owners": [
+    "client",
+    "boundary_a",
+    "boundary_b"
+  ],
+  "delivery_locations": {
+    "client": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+    "boundary_a": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+    "boundary_b": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert"
+  },
+  "derivation": "Local offline publisher; actual native head/source/scale binding and full row scan. Generated fixture only. See publication.json; three-owner delivery is scenario arithmetic, not measured network."
+}

@@ -16,6 +16,16 @@ pub struct PrivateBoundaryPhase {
     pub head_rows: u64,
 }
 
+/// Caller-approved, externally authenticated publisher artifact. A path is not
+/// authentication; Python checks actual bytes and workers rescan owned weights.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct HeadCertificatePin {
+    pub path: String,
+    pub digest: String,
+    pub size_bytes: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrivateBoundaryContract {
@@ -38,6 +48,8 @@ pub struct PrivateBoundaryContract {
         skip_serializing_if = "is_existing_kernel"
     )]
     pub head_kernel: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub head_certificate: Option<HeadCertificatePin>,
     pub weight_bits: u64,
     pub activation_bits: u64,
     pub head_ring_bits: u64,
@@ -74,7 +86,9 @@ fn is_existing_kernel(value: &str) -> bool {
     value == "existing"
 }
 
-fn options(pipeline: &ExperimentPipeline) -> Result<(String, String, String), String> {
+fn options(
+    pipeline: &ExperimentPipeline,
+) -> Result<(String, String, String, Option<HeadCertificatePin>), String> {
     let params = &pipeline
         .components
         .get("boundary")
@@ -83,7 +97,7 @@ fn options(pipeline: &ExperimentPipeline) -> Result<(String, String, String), St
     if params.keys().any(|key| {
         !matches!(
             key.as_str(),
-            "head_dispatch" | "head_output_encoding" | "head_kernel"
+            "head_dispatch" | "head_output_encoding" | "head_kernel" | "head_certificate"
         )
     }) {
         return Err("unknown private boundary option".into());
@@ -98,10 +112,41 @@ fn options(pipeline: &ExperimentPipeline) -> Result<(String, String, String), St
                 .ok_or_else(|| format!("unsupported private boundary {key}")),
         }
     };
+    let encoding = choice(
+        "head_output_encoding",
+        "u32",
+        &["u32", "uniform_residues", "row_residues"],
+    )?;
+    let certificate = params
+        .get("head_certificate")
+        .map(|value| {
+            serde_json::from_value::<HeadCertificatePin>(value.clone())
+                .map_err(|_| "invalid private head certificate pin".to_string())
+        })
+        .transpose()?;
+    if (encoding == "row_residues") != certificate.is_some() {
+        return Err(
+            "row_residues requires an explicit caller-approved head certificate only".into(),
+        );
+    }
+    if let Some(pin) = &certificate {
+        if !std::path::Path::new(&pin.path).is_absolute()
+            || pin.path.len() > 4096
+            || !(13..=1_048_576).contains(&pin.size_bytes)
+            || pin.digest.len() != 64
+            || !pin
+                .digest
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err("invalid private head certificate pin".into());
+        }
+    }
     Ok((
         choice("head_dispatch", "serial", &["serial", "parallel"])?,
-        choice("head_output_encoding", "u32", &["u32", "uniform_residues"])?,
+        encoding,
         choice("head_kernel", "existing", &["existing", "byte_dot"])?,
+        certificate,
     ))
 }
 
@@ -266,7 +311,7 @@ pub(crate) fn lower(
     let pipeline: ExperimentPipeline = serde_json::from_slice(composition)
         .map_err(|error| format!("invalid private boundary composition: {error}"))?;
     validate_composition(&pipeline)?;
-    let (head_dispatch, head_output_encoding, head_kernel) = options(&pipeline)?;
+    let (head_dispatch, head_output_encoding, head_kernel, head_certificate) = options(&pipeline)?;
     if !plan.transformations.is_empty() || !plan.token_feedback {
         return Err("private boundary requires original full-vocabulary token feedback".into());
     }
@@ -328,6 +373,7 @@ pub(crate) fn lower(
         head_dispatch,
         head_output_encoding,
         head_kernel,
+        head_certificate,
         weight_bits: 8,
         activation_bits: 8,
         head_ring_bits,
@@ -391,11 +437,13 @@ mod tests {
         assert!(baseline_value.get("head_dispatch").is_none());
         assert!(baseline_value.get("head_output_encoding").is_none());
         assert!(baseline_value.get("head_kernel").is_none());
+        assert!(baseline_value.get("head_certificate").is_none());
         let restored: PrivateBoundaryContract =
             serde_json::from_value(baseline_value.clone()).unwrap();
         assert_eq!(restored.head_dispatch, "serial");
         assert_eq!(restored.head_output_encoding, "u32");
         assert_eq!(restored.head_kernel, "existing");
+        assert!(restored.head_certificate.is_none());
         assert_eq!(serde_json::to_value(restored).unwrap(), baseline_value);
         for dispatch in ["serial", "parallel"] {
             for encoding in ["u32", "uniform_residues"] {
@@ -444,6 +492,7 @@ mod tests {
             json!({"head_kernel":true}),
             json!({"head_kernel":null}),
             json!({"unknown":"parallel"}),
+            json!({"head_certificate":{"path":"/public/head.cert", "digest":"a".repeat(64), "size_bytes":4096}}),
         ] {
             let mut composition = composition();
             composition["components"]["boundary"]["params"] = params;
@@ -452,6 +501,55 @@ mod tests {
                     .is_err()
             );
             assert!(lower(&plan, &canonical_bytes(&composition)).is_err());
+        }
+    }
+
+    #[test]
+    fn source_row_certificate_binds_all_native_schedules_without_changing_steps() {
+        let pin = json!({"path":"/public/head.cert", "digest":"a".repeat(64), "size_bytes":4096});
+        for family in ["qwen2", "qwen3", "llama"] {
+            let plan = plan(family, true);
+            let baseline =
+                crate::lower_decoder_runtime_schedule(&plan, &canonical_bytes(&composition()))
+                    .unwrap();
+            for dispatch in ["serial", "parallel"] {
+                for kernel in ["existing", "byte_dot"] {
+                    let mut selected = composition();
+                    selected["components"]["boundary"]["params"] = json!({
+                        "head_dispatch":dispatch, "head_kernel":kernel,
+                        "head_output_encoding":"row_residues", "head_certificate":pin});
+                    let schedule =
+                        crate::lower_decoder_runtime_schedule(&plan, &canonical_bytes(&selected))
+                            .unwrap();
+                    let contract = schedule.private_boundary.as_ref().unwrap();
+                    assert_eq!(
+                        contract.head_certificate.as_ref().unwrap().digest,
+                        "a".repeat(64)
+                    );
+                    assert_eq!(schedule.prefill, baseline.prefill);
+                    assert_eq!(schedule.decode, baseline.decode);
+                    assert_ne!(schedule.digest(), baseline.digest());
+                    let mut substituted = selected.clone();
+                    substituted["components"]["boundary"]["params"]["head_certificate"]["digest"] =
+                        json!("b".repeat(64));
+                    let different = crate::lower_decoder_runtime_schedule(
+                        &plan,
+                        &canonical_bytes(&substituted),
+                    )
+                    .unwrap();
+                    assert_ne!(schedule.digest(), different.digest());
+                    for bad_pin in [
+                        json!(null),
+                        json!({}),
+                        json!({"path":"relative", "digest":"a".repeat(64), "size_bytes":4096}),
+                        json!({"path":"/public/head.cert", "digest":"a".repeat(64), "size_bytes":true}),
+                        json!({"path":"/public/head.cert", "digest":"a".repeat(64), "size_bytes":1048577}),
+                    ] {
+                        selected["components"]["boundary"]["params"]["head_certificate"] = bad_pin;
+                        assert!(lower(&plan, &canonical_bytes(&selected)).is_err());
+                    }
+                }
+            }
         }
     }
 

@@ -1,0 +1,381 @@
+{
+  "schema": "pllm.private_boundary_row_codec_archive.v1",
+  "complete": true,
+  "files": {
+    "publication-v1/publication.json": {
+      "original_path": "target/certified-head-qwen-publication-v1/publication.json",
+      "size_bytes": 753,
+      "sha256": "257664e6029f26ffd698d3abbba830b3a8fecc7b85f9eb22936d931f5b9a2b6e"
+    },
+    "publication-v1/launcher.log": {
+      "original_path": "target/certified-head-qwen-publication-v1.log",
+      "size_bytes": 1333,
+      "sha256": "c6b3a02a3ad0a9b75da9647bf458b7a0ff0c62b1cd9446ac70203f63f031e06b"
+    },
+    "publication-v2/150x64-candidate.json": {
+      "original_path": "target/certified-head-qwen-publication-v2/150x64-candidate.json",
+      "size_bytes": 2722,
+      "sha256": "889069e6fdd0e8947fb148ace82b25b4367f40d31f6a6e148641c8b0279036ad"
+    },
+    "publication-v2/150x64-control.json": {
+      "original_path": "target/certified-head-qwen-publication-v2/150x64-control.json",
+      "size_bytes": 2450,
+      "sha256": "9c1c870f28a6ca584f0f0d69f77c9b87d4ccfa18cbaf84edefa22d8c28773b03"
+    },
+    "publication-v2/150x64-native-head-commitments.json": {
+      "original_path": "target/certified-head-qwen-publication-v2/150x64-native-head-commitments.json",
+      "size_bytes": 1011,
+      "sha256": "6eb553fd3c3bd8f9f473a0dfd72782c8e1d944c27b59416408a3700273524e2f"
+    },
+    "publication-v2/150x8-candidate.json": {
+      "original_path": "target/certified-head-qwen-publication-v2/150x8-candidate.json",
+      "size_bytes": 2721,
+      "sha256": "488dcc0dd1127b07dc434156eb51d792ef172b5cd88d2f6ef5c7418ddfd1e8c9"
+    },
+    "publication-v2/150x8-control.json": {
+      "original_path": "target/certified-head-qwen-publication-v2/150x8-control.json",
+      "size_bytes": 2449,
+      "sha256": "6af8893f485ab36cc07b7eb0adc09b19b01ed66ba00a9b53b0dfafb42b006674"
+    },
+    "publication-v2/150x8-native-head-commitments.json": {
+      "original_path": "target/certified-head-qwen-publication-v2/150x8-native-head-commitments.json",
+      "size_bytes": 1011,
+      "sha256": "7c93f46442c6d017471ea1816e19e23d4ccffa5c7987ec284e3fdab1dd7ac39e"
+    },
+    "publication-v2/certificate-accounting.json": {
+      "original_path": "target/certified-head-qwen-publication-v2/certificate-accounting.json",
+      "size_bytes": 685,
+      "sha256": "c63a97ab5dcfcb37a6614be2aaabdc5fb891da8418b989ed163c873c873f2982"
+    },
+    "publication-v2/head.cert": {
+      "original_path": "target/certified-head-qwen-publication-v2/head.cert",
+      "size_bytes": 11364,
+      "sha256": "8b7a59c0ca47cabbb1db7b5731b7edbb8210eddaf9e4220367e4a9bb37e95d1e"
+    },
+    "publication-v2/publication.json": {
+      "original_path": "target/certified-head-qwen-publication-v2/publication.json",
+      "size_bytes": 8334,
+      "sha256": "2b9b16fcf756f5d86d7d222c66de0e2a0f4b9376398967323a394cd3d50886b0"
+    },
+    "publication-v2/launcher.log": {
+      "original_path": "target/certified-head-qwen-publication-v2.log",
+      "size_bytes": 80,
+      "sha256": "360f75254be3354733931a1d2d8b544d900ff26073d613950859481f242bd88e"
+    },
+    "150x8/certified-head-qwen150x8-v1.json": {
+      "original_path": "target/certified-head-qwen150x8-v1.json",
+      "size_bytes": 953670,
+      "sha256": "4f1cd5524bcde8ebcf5bdae74606586be1254b3f8b88efb52ba5fc0cd39d49e7"
+    },
+    "150x8/certified-head-qwen150x8-v1.plan.json": {
+      "original_path": "target/certified-head-qwen150x8-v1.plan.json",
+      "size_bytes": 55961,
+      "sha256": "bb1539ae58b3469cde4cbc4ad2bb91d8044b5bc921a400917e5b67e5d659d71f"
+    },
+    "150x8/certified-head-qwen150x8-v1.receipt.json": {
+      "original_path": "target/certified-head-qwen150x8-v1.receipt.json",
+      "size_bytes": 467,
+      "sha256": "4633d9a973cc39f8446dacc713f91b1170234c791752a473ead494717bb5bc4c"
+    },
+    "150x8/certified-head-qwen150x8-v1.summary.json": {
+      "original_path": "target/certified-head-qwen150x8-v1.summary.json",
+      "size_bytes": 369906,
+      "sha256": "35b03197700f259a897fa20baa0ac55be04c66fb0ba8bd58d05e998e25047cbd"
+    },
+    "150x8/certified-head-qwen150x8-v1.progress.json": {
+      "original_path": "target/certified-head-qwen150x8-v1.progress.json",
+      "size_bytes": 169,
+      "sha256": "027a8ebff00fa94209f5efebf0aaf2ae56d6e0a9947b84c9b9b89f1b11de5539"
+    },
+    "150x8/certified-head-qwen150x8-v1.log": {
+      "original_path": "target/certified-head-qwen150x8-v1.log",
+      "size_bytes": 598,
+      "sha256": "158dc8423145cc0558119241c23e6ec78c4d39a00b1784f312aec269dc439116"
+    },
+    "preflight/certified-head-qwen150x8-preflight-v2.plan.json": {
+      "original_path": "target/certified-head-qwen150x8-preflight-v2.plan.json",
+      "size_bytes": 55961,
+      "sha256": "f2c4d6be2a65238ca9a1fb91aa033a8df7c824e3f6139d67da46cf5f3c8d429c"
+    },
+    "preflight/certified-head-qwen150x8-preflight-v2.progress.json": {
+      "original_path": "target/certified-head-qwen150x8-preflight-v2.progress.json",
+      "size_bytes": 119,
+      "sha256": "8f3621a956f2be9b2ad59b8c531b66d99fd56852da2481481ac5a9351bf161ca"
+    },
+    "preflight/certified-head-qwen150x64-preflight-v2.plan.json": {
+      "original_path": "target/certified-head-qwen150x64-preflight-v2.plan.json",
+      "size_bytes": 55975,
+      "sha256": "4a07c54fc07211fc3e5189731651b16c3940c9feb797f0d1ae58b3749df45e74"
+    },
+    "preflight/certified-head-qwen150x64-preflight-v2.progress.json": {
+      "original_path": "target/certified-head-qwen150x64-preflight-v2.progress.json",
+      "size_bytes": 119,
+      "sha256": "8f3621a956f2be9b2ad59b8c531b66d99fd56852da2481481ac5a9351bf161ca"
+    },
+    "preflight/launcher.log": {
+      "original_path": "target/certified-head-qwen-preflight-v2.log",
+      "size_bytes": 1162,
+      "sha256": "981130dea57e45071cb38935c2163ffdbde602bd8fda5873693e943fe19bbd60"
+    },
+    "validation/installed-wheel-577.log": {
+      "original_path": "target/certified-head-final-checks-v1.log",
+      "size_bytes": 1530,
+      "sha256": "f8ebe6d442ee08f64377092cb5db6c095a5b8234b5679bf7a64abee5acb3bcf5"
+    },
+    "source-snapshots/benchmarks/__init__.py": {
+      "original_path": "benchmarks/__init__.py",
+      "size_bytes": 86,
+      "sha256": "2ce4b5902be75b7bbf0c2d2fee471e1989737f8983e7519302019e57bfe023a7"
+    },
+    "source-snapshots/benchmarks/research/__init__.py": {
+      "original_path": "benchmarks/research/__init__.py",
+      "size_bytes": 45,
+      "sha256": "eec334d400930bc338253bc62a66946cf36e92da23c5bbefac67fcbe4217ff67"
+    },
+    "source-snapshots/benchmarks/research/private_boundary_row_codec.py": {
+      "original_path": "benchmarks/research/private_boundary_row_codec.py",
+      "size_bytes": 34469,
+      "sha256": "4a36132d1d8b8fe5ff2b14a5a7fc2913cbae26018c2e3b2738451e824c978f53"
+    },
+    "source-snapshots/benchmarks/research/private_boundary_byte_dot.py": {
+      "original_path": "benchmarks/research/private_boundary_byte_dot.py",
+      "size_bytes": 13123,
+      "sha256": "982f26392c19b0aa0970fc44aaf5ddfebce68a121290d37a5d3c564543dee665"
+    },
+    "source-snapshots/benchmarks/research/private_boundary_decode.py": {
+      "original_path": "benchmarks/research/private_boundary_decode.py",
+      "size_bytes": 24884,
+      "sha256": "02db9015992714d77d64838ca068f4ca704bb73a79f14de62cb353294ddf6566"
+    },
+    "source-snapshots/benchmarks/research/private_boundary_decode_confirmation.py": {
+      "original_path": "benchmarks/research/private_boundary_decode_confirmation.py",
+      "size_bytes": 36521,
+      "sha256": "92e7052e78f766e30ada8ef08be2f59a0ee9d4b96cbd8de7ca4974f085041536"
+    },
+    "source-snapshots/benchmarks/research/private_boundary_tiers.py": {
+      "original_path": "benchmarks/research/private_boundary_tiers.py",
+      "size_bytes": 13628,
+      "sha256": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867"
+    },
+    "source-snapshots/benchmarks/research/sota_combinations.py": {
+      "original_path": "benchmarks/research/sota_combinations.py",
+      "size_bytes": 18546,
+      "sha256": "2ec2441542e06674e7c6c7b179e7126ff2f4ff682922fec45cb658517bdfe375"
+    },
+    "source-snapshots/benchmarks/research/historical_evidence.py": {
+      "original_path": "benchmarks/research/historical_evidence.py",
+      "size_bytes": 4454,
+      "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"
+    },
+    "source-snapshots/examples/prepared_sdk.py": {
+      "original_path": "examples/prepared_sdk.py",
+      "size_bytes": 3631,
+      "sha256": "6a7d1dd38eeb3e7b9428b547c96902de27fb079c0b8e615bece40ea31f42c0bb"
+    },
+    "source-snapshots/scripts/benchmark_sota_combinations.py": {
+      "original_path": "scripts/benchmark_sota_combinations.py",
+      "size_bytes": 9112,
+      "sha256": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d"
+    },
+    "source-snapshots/scripts/benchmark_private_boundary_row_codec.py": {
+      "original_path": "scripts/benchmark_private_boundary_row_codec.py",
+      "size_bytes": 9560,
+      "sha256": "ec6be1794bd8f2a9469219872f8871d7d01f2c3b624ff334e7e13f2551ccc030"
+    },
+    "source-snapshots/scripts/summarize_private_boundary_row_codec.py": {
+      "original_path": "scripts/summarize_private_boundary_row_codec.py",
+      "size_bytes": 4946,
+      "sha256": "f243813e46fe49ba0cd4246805f6be0fad29b0114df1871a2d8a1ad53c4a17f3"
+    },
+    "source-snapshots/sdk/runtime/private_boundary_certificate.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_certificate.py",
+      "size_bytes": 13190,
+      "sha256": "e1d3ae97df90483fce0f560f1cb90ebad1b0399f0241a5bde105a907b7eb63ed"
+    },
+    "source-snapshots/sdk/runtime/private_boundary_head_codec.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_head_codec.py",
+      "size_bytes": 9341,
+      "sha256": "d679c5d446144222e4b1d9c0c48333b18e80f1e7723fcaeb2db2c4bcd05a822a"
+    },
+    "source-snapshots/sdk/runtime/private_boundary_transport.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_transport.py",
+      "size_bytes": 23935,
+      "sha256": "d66afdad0794325b76b7e8ec57a2463a0281e5047c80b8f44adad1601dffe4e0"
+    },
+    "source-snapshots/sdk/runtime/benchmark_response_audit.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/benchmark_response_audit.py",
+      "size_bytes": 4800,
+      "sha256": "526573a484b96e760ce4b96d057bb0caa88397490d91412954923ad60babb30c"
+    },
+    "source-snapshots/sdk/runtime/benchmark_response_target.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/benchmark_response_target.py",
+      "size_bytes": 25162,
+      "sha256": "5aec63bd4886798eb2dec4cbdcfd59ceb632a14137782c1310ddcca1d670fe33"
+    },
+    "source-snapshots/sdk/runtime/private_boundary_protocol.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_protocol.py",
+      "size_bytes": 12301,
+      "sha256": "4fe37872dfd786455033266ab5bfa4918a1b54c41884662d0e078d4945b48c2a"
+    },
+    "source-snapshots/sdk/runtime/private_boundary_loader.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_loader.py",
+      "size_bytes": 17186,
+      "sha256": "a8e7334e0efbf632c61757f1af2dcd1529ec0ebdd279673fd7dc519d3b5af8ca"
+    },
+    "source-snapshots/sdk/runtime/model_binding.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/model_binding.py",
+      "size_bytes": 129654,
+      "sha256": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a"
+    },
+    "source-snapshots/sdk/runtime/quantization.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/quantization.py",
+      "size_bytes": 10047,
+      "sha256": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412"
+    },
+    "source-snapshots/sdk/_benchmark_worker.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_worker.py",
+      "size_bytes": 11256,
+      "sha256": "4a9246d078425e20de004c57f5b833bc2f8e6b6d222b1463e58d986ad9ae0668"
+    },
+    "source-snapshots/sdk/_benchmark_workload.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_workload.py",
+      "size_bytes": 1332,
+      "sha256": "20e0a5a3280c2f4972f2e9e2116e3497c598a0a6cef0b8774ca9c18a7f3cf021"
+    },
+    "source-snapshots/sdk/_benchmark_contract.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+      "size_bytes": 29889,
+      "sha256": "3d869d8c32dde595b103655e4d976fbf2a3d76d05ed427124aac77ed9bda451e"
+    },
+    "source-snapshots/sdk/runtime/benchmark_context.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/benchmark_context.py",
+      "size_bytes": 1371,
+      "sha256": "c488152a07c63021f7873508faab78aa0f28c0b0145d6a5e97309925c4ecf64a"
+    },
+    "source-snapshots/sdk/runtime/topology_accounting.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/topology_accounting.py",
+      "size_bytes": 28422,
+      "sha256": "8384e353f03600154dd4f35fccc853f97395d818f019bad762a5f02c73a7cce6"
+    },
+    "source-snapshots/sdk/runtime/dashboard.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/dashboard.py",
+      "size_bytes": 86230,
+      "sha256": "aac76f65645c0bc77fbac894b8ebaa60d32e3ea5ab02a361ef7fcae6e25f6b0b"
+    },
+    "source-snapshots/sdk/deployment/execution.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/deployment/execution.py",
+      "size_bytes": 24168,
+      "sha256": "4bb29796a22f04d998a29f589970e346e32a836c2e9a95e76a2ccac379ec3208"
+    },
+    "source-snapshots/sdk/runtime/transformer_client.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/transformer_client.py",
+      "size_bytes": 107020,
+      "sha256": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574"
+    },
+    "publisher-inputs/scripts/prepare_private_boundary_row_codec.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/scripts/prepare_private_boundary_row_codec.py",
+      "size_bytes": 12422,
+      "sha256": "dff404d6153846436603fb4bdc9af2fd3792717d4153b5b3336fbc66549bbeb3"
+    },
+    "publisher-inputs/scripts/frontier_probe_support.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/scripts/frontier_probe_support.py",
+      "size_bytes": 3683,
+      "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5"
+    },
+    "publisher-inputs/target/certified-head-inputs-v1/150x8-control.json": {
+      "original_path": "target/certified-head-inputs-v1/150x8-control.json",
+      "size_bytes": 2449,
+      "sha256": "6af8893f485ab36cc07b7eb0adc09b19b01ed66ba00a9b53b0dfafb42b006674"
+    },
+    "publisher-inputs/target/certified-head-inputs-v1/150x64-control.json": {
+      "original_path": "target/certified-head-inputs-v1/150x64-control.json",
+      "size_bytes": 2450,
+      "sha256": "9c1c870f28a6ca584f0f0d69f77c9b87d4ccfa18cbaf84edefa22d8c28773b03"
+    },
+    "publisher-inputs/docs/evidence/compact-private-head-qwen25-v1.json": {
+      "original_path": "docs/evidence/compact-private-head-qwen25-v1.json",
+      "size_bytes": 2746230,
+      "sha256": "5b482e1b96ab73a4cae02f856f082e910e3d6c7debfebd4338f29c7f5d769126"
+    },
+    "public-prompt.txt": {
+      "original_path": "target/prepared-frontier-artifacts/prompt.txt",
+      "size_bytes": 670,
+      "sha256": "152f4785641e580301bfcca40cfa5dc2cbc7bdc12fbf6eaeaddaef9cd2e36387"
+    },
+    "150x64-rejected-v1/certified-head-qwen150x64-v1.json": {
+      "original_path": "target/certified-head-qwen150x64-v1.json",
+      "size_bytes": 409486,
+      "sha256": "bf143b709597079c9bca9035a9861badb394771df4f09705f16bdd58a25f269f"
+    },
+    "150x64-rejected-v1/certified-head-qwen150x64-v1.plan.json": {
+      "original_path": "target/certified-head-qwen150x64-v1.plan.json",
+      "size_bytes": 55975,
+      "sha256": "c3e1bef3a7c057638181510b85e6bf451bbb22e64e6c7081021178a43be2c7d0"
+    },
+    "150x64-rejected-v1/certified-head-qwen150x64-v1.progress.json": {
+      "original_path": "target/certified-head-qwen150x64-v1.progress.json",
+      "size_bytes": 200,
+      "sha256": "0a23808c09cbee97a1a545728504c6edcf2bfe48d20b1ecaad884e753c87487c"
+    },
+    "150x64-rejected-v1/certified-head-qwen150x64-v1.log": {
+      "original_path": "target/certified-head-qwen150x64-v1.log",
+      "size_bytes": 629,
+      "sha256": "26d038855fd816aba32afdf3f6d20728531f484fea505b78115e9431134b5dda"
+    },
+    "150x8/certified-head-qwen150x8-independent-audit-v1.json": {
+      "original_path": "target/certified-head-qwen150x8-independent-audit-v1.json",
+      "size_bytes": 11021,
+      "sha256": "55d381ee256e4b628806c984ad3588b59ae2d29f2868c5edeca399fb3e397b76"
+    },
+    "150x64/certified-head-qwen150x64-v2.json": {
+      "original_path": "target/certified-head-qwen150x64-v2.json",
+      "size_bytes": 1119564,
+      "sha256": "0735d900ba97f670535292659ecc08653d3cb86716e5eb2c6279435ff01c7101"
+    },
+    "150x64/certified-head-qwen150x64-v2.plan.json": {
+      "original_path": "target/certified-head-qwen150x64-v2.plan.json",
+      "size_bytes": 55975,
+      "sha256": "126b3d01c38ae61fcf73ff95e90cc5ef02efd1edd5279a620f6fc5825187706b"
+    },
+    "150x64/certified-head-qwen150x64-v2.receipt.json": {
+      "original_path": "target/certified-head-qwen150x64-v2.receipt.json",
+      "size_bytes": 467,
+      "sha256": "9114f2781f83cfbdaed4454bccc04d62de69e8e7e8fcf5a85abe71c36a4c13ad"
+    },
+    "150x64/certified-head-qwen150x64-v2.summary.json": {
+      "original_path": "target/certified-head-qwen150x64-v2.summary.json",
+      "size_bytes": 370047,
+      "sha256": "8c43bf9b1a0d9b9b597875c0638052e6bb0da5276028c075c1061b41be778e11"
+    },
+    "150x64/certified-head-qwen150x64-v2.progress.json": {
+      "original_path": "target/certified-head-qwen150x64-v2.progress.json",
+      "size_bytes": 169,
+      "sha256": "027a8ebff00fa94209f5efebf0aaf2ae56d6e0a9947b84c9b9b89f1b11de5539"
+    },
+    "150x64/certified-head-qwen150x64-v2.log": {
+      "original_path": "target/certified-head-qwen150x64-v2.log",
+      "size_bytes": 598,
+      "sha256": "9cd9c78ccb83dc2c4900cf2f0cfe2829bb3a41c4a578a07f83dc38f561e23743"
+    },
+    "150x64/certified-head-qwen150x64-independent-audit-v1.json": {
+      "original_path": "target/certified-head-qwen150x64-independent-audit-v1.json",
+      "size_bytes": 12150,
+      "sha256": "a7536da27ce3bc31d3b11e05ce733ba75fc610ef7d81186d7bbec1d797a3165d"
+    }
+  },
+  "scope": {
+    "150x8": "accepted_source_present_initial_screen",
+    "150x64": "accepted_source_present_initial_screen",
+    "150x64-rejected-v1": "excluded_memory_admission_attempt",
+    "cohorts_pooled": false,
+    "independent_confirmation": false,
+    "chart_scoring_admitted": false,
+    "external_dependencies": [
+      "native binary",
+      "interpreter and dependency environment",
+      "source checkpoint",
+      "indexed tokenizer"
+    ],
+    "source_snapshots": "inert provenance; never automatically executed"
+  }
+}

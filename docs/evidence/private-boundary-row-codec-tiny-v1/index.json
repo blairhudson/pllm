@@ -1,0 +1,384 @@
+{
+  "accepted_attempt": "attempts/certified-head-tiny-cohort-v6.json",
+  "accepted_summary": "attempts/certified-head-tiny-cohort-v6.summary.json",
+  "checked_values": 83352,
+  "external_dependencies": "Native binary, full installed dependency closure, source checkpoint/tokenizer caches and generated fixture are not copied. Original BuildRef/source inventories and wheel SHA256 remain. Frozen Python source snapshots are inert provenance, never auto-executed.",
+  "files": {
+    "attempts/certified-head-tiny-cohort-v1.log": {
+      "original_path": "target/certified-head-tiny-cohort-v1.log",
+      "sha256": "65653c8371f516675f8832097f22adfa60090d50f0f74c9e5ddb32fd38f633c3",
+      "size_bytes": 204
+    },
+    "attempts/certified-head-tiny-cohort-v1.progress.json": {
+      "original_path": "target/certified-head-tiny-cohort-v1.progress.json",
+      "sha256": "65653c8371f516675f8832097f22adfa60090d50f0f74c9e5ddb32fd38f633c3",
+      "size_bytes": 204
+    },
+    "attempts/certified-head-tiny-cohort-v2.json": {
+      "original_path": "target/certified-head-tiny-cohort-v2.json",
+      "sha256": "20927cc55057cb6595ac0e1792ad7f2b1303122a40aa71e40d1b3fdd749ed2dc",
+      "size_bytes": 830923
+    },
+    "attempts/certified-head-tiny-cohort-v2.log": {
+      "original_path": "target/certified-head-tiny-cohort-v2.log",
+      "sha256": "fe3f3726e0893e17203992742cb16e34505f2271e2a70f1aa5916279ac8ee749",
+      "size_bytes": 207
+    },
+    "attempts/certified-head-tiny-cohort-v2.plan.json": {
+      "original_path": "target/certified-head-tiny-cohort-v2.plan.json",
+      "sha256": "498a309161861bd0928666c1dbb426aa81ddf90e794eacbce54d8c05048d7932",
+      "size_bytes": 39516
+    },
+    "attempts/certified-head-tiny-cohort-v2.progress.json": {
+      "original_path": "target/certified-head-tiny-cohort-v2.progress.json",
+      "sha256": "fe3f3726e0893e17203992742cb16e34505f2271e2a70f1aa5916279ac8ee749",
+      "size_bytes": 207
+    },
+    "attempts/certified-head-tiny-cohort-v3.json": {
+      "original_path": "target/certified-head-tiny-cohort-v3.json",
+      "sha256": "97b1cbc8601cb506712ff9f95cc0f67a61bf7a9472c91ee720641814a96b9cc8",
+      "size_bytes": 836361
+    },
+    "attempts/certified-head-tiny-cohort-v3.log": {
+      "original_path": "target/certified-head-tiny-cohort-v3.log",
+      "sha256": "071797a637edb974284f7622a55aafeba6273f9ca996be3a83bceeda436dfc3c",
+      "size_bytes": 199
+    },
+    "attempts/certified-head-tiny-cohort-v3.plan.json": {
+      "original_path": "target/certified-head-tiny-cohort-v3.plan.json",
+      "sha256": "bb31889dd09ec538281bf61c293d8ac4184e186eca7b72cb91cdd8166c87181f",
+      "size_bytes": 40562
+    },
+    "attempts/certified-head-tiny-cohort-v3.progress.json": {
+      "original_path": "target/certified-head-tiny-cohort-v3.progress.json",
+      "sha256": "071797a637edb974284f7622a55aafeba6273f9ca996be3a83bceeda436dfc3c",
+      "size_bytes": 199
+    },
+    "attempts/certified-head-tiny-cohort-v4.json": {
+      "original_path": "target/certified-head-tiny-cohort-v4.json",
+      "sha256": "1a0b36fa582a431b5caec6820d6f754bfaa8ce5ec721128e733abe02e4bc1fd1",
+      "size_bytes": 836331
+    },
+    "attempts/certified-head-tiny-cohort-v4.log": {
+      "original_path": "target/certified-head-tiny-cohort-v4.log",
+      "sha256": "e9b53158f0fbc1366814000e8255f95537420054d4bbb86d98aa45538603824a",
+      "size_bytes": 202
+    },
+    "attempts/certified-head-tiny-cohort-v4.plan.json": {
+      "original_path": "target/certified-head-tiny-cohort-v4.plan.json",
+      "sha256": "6923b0cde01b57e349dce153f5c28a55e36e0677c808972d4e050fdcfcc6d7a9",
+      "size_bytes": 40562
+    },
+    "attempts/certified-head-tiny-cohort-v4.progress.json": {
+      "original_path": "target/certified-head-tiny-cohort-v4.progress.json",
+      "sha256": "e9b53158f0fbc1366814000e8255f95537420054d4bbb86d98aa45538603824a",
+      "size_bytes": 202
+    },
+    "attempts/certified-head-tiny-cohort-v5.json": {
+      "original_path": "target/certified-head-tiny-cohort-v5.json",
+      "sha256": "aa24b47e77e9001cc4d58f4d070a4d30e96d07a1d34135f5474303ec0b80c84d",
+      "size_bytes": 836281
+    },
+    "attempts/certified-head-tiny-cohort-v5.log": {
+      "original_path": "target/certified-head-tiny-cohort-v5.log",
+      "sha256": "b525d259e48c2590f526097a4f435275aab8060175d9897eb9f2b567f44596f2",
+      "size_bytes": 207
+    },
+    "attempts/certified-head-tiny-cohort-v5.plan.json": {
+      "original_path": "target/certified-head-tiny-cohort-v5.plan.json",
+      "sha256": "0179d61c588e9188a02889b38efb6f2f31f04d77be2ccc09b0823d50625ec07c",
+      "size_bytes": 40757
+    },
+    "attempts/certified-head-tiny-cohort-v5.progress.json": {
+      "original_path": "target/certified-head-tiny-cohort-v5.progress.json",
+      "sha256": "b525d259e48c2590f526097a4f435275aab8060175d9897eb9f2b567f44596f2",
+      "size_bytes": 207
+    },
+    "attempts/certified-head-tiny-cohort-v6.json": {
+      "original_path": "target/certified-head-tiny-cohort-v6.json",
+      "sha256": "080ebd748b352a2837fea6003d49b76ddf35cc56a04b57f081c1dd8d8c1defc2",
+      "size_bytes": 836341
+    },
+    "attempts/certified-head-tiny-cohort-v6.log": {
+      "original_path": "target/certified-head-tiny-cohort-v6.log",
+      "sha256": "027a8ebff00fa94209f5efebf0aaf2ae56d6e0a9947b84c9b9b89f1b11de5539",
+      "size_bytes": 169
+    },
+    "attempts/certified-head-tiny-cohort-v6.plan.json": {
+      "original_path": "target/certified-head-tiny-cohort-v6.plan.json",
+      "sha256": "7a4a54aecd478318b5d82d72762bf307e1d1aea6fcf587a5c392387f2188fc2d",
+      "size_bytes": 41381
+    },
+    "attempts/certified-head-tiny-cohort-v6.progress.json": {
+      "original_path": "target/certified-head-tiny-cohort-v6.progress.json",
+      "sha256": "027a8ebff00fa94209f5efebf0aaf2ae56d6e0a9947b84c9b9b89f1b11de5539",
+      "size_bytes": 169
+    },
+    "attempts/certified-head-tiny-cohort-v6.receipt.json": {
+      "original_path": "target/certified-head-tiny-cohort-v6.receipt.json",
+      "sha256": "ad3ed1e2eb497c5bf3d15966dcf5df57a5439ebd1354d9b07308ea43c3508bb5",
+      "size_bytes": 467
+    },
+    "attempts/certified-head-tiny-cohort-v6.summary.json": {
+      "original_path": "target/certified-head-tiny-cohort-v6.summary.json",
+      "sha256": "b34f9b5771d73cf838cc377f0331462f2feacd6baac9fdfcf21c16f80f52d625",
+      "size_bytes": 355942
+    },
+    "blocked-qwen-publication/launcher.log.txt": {
+      "original_path": "target/certified-head-qwen-publication-v1.log",
+      "sha256": "c6b3a02a3ad0a9b75da9647bf458b7a0ff0c62b1cd9446ac70203f63f031e06b",
+      "size_bytes": 1333
+    },
+    "blocked-qwen-publication/publication.json": {
+      "original_path": "target/certified-head-qwen-publication-v1/publication.json",
+      "sha256": "257664e6029f26ffd698d3abbba830b3a8fecc7b85f9eb22936d931f5b9a2b6e",
+      "size_bytes": 753
+    },
+    "build/installed-provenance.log": {
+      "original_path": "target/certified-head-sdk-build-v3/installed-provenance.log",
+      "sha256": "84c257dc47c0a5a5cb0f2e07a9e5706f78fdaae2f7c66272ede5e2d3bb7ab6d6",
+      "size_bytes": 637
+    },
+    "build/progress.json": {
+      "original_path": "target/certified-head-sdk-build-v3/progress.json",
+      "sha256": "d2ee074cfeb29c4e555b4a3bc6f4d0390527cc289b10b150c64f23a722f7ecf1",
+      "size_bytes": 243
+    },
+    "build/sources.json": {
+      "original_path": "target/certified-head-sdk-build-v3/sources.json",
+      "sha256": "42c58c95976983a0423c9a7d33d07b288bdb028a6520c4b4189469260f1268b7",
+      "size_bytes": 62528
+    },
+    "build/wheel-install.log": {
+      "original_path": "target/certified-head-sdk-build-v3/wheel-install.log",
+      "sha256": "e0f98772bc59659de442e56f624437a8bc632a73c43ce452c15906c31c911d33",
+      "size_bytes": 759
+    },
+    "inputs/150x64-control.json": {
+      "original_path": "target/certified-head-inputs-v1/150x64-control.json",
+      "sha256": "9c1c870f28a6ca584f0f0d69f77c9b87d4ccfa18cbaf84edefa22d8c28773b03",
+      "size_bytes": 2450
+    },
+    "inputs/150x8-control.json": {
+      "original_path": "target/certified-head-inputs-v1/150x8-control.json",
+      "sha256": "6af8893f485ab36cc07b7eb0adc09b19b01ed66ba00a9b53b0dfafb42b006674",
+      "size_bytes": 2449
+    },
+    "inputs/tiny-control.json": {
+      "original_path": "target/certified-head-inputs-v1/tiny-control.json",
+      "sha256": "884c00c1c4f9ebdb8a20034f050fec3810f4159882b0a3cab40dbf449119e542",
+      "size_bytes": 2195
+    },
+    "inputs/tiny-prompt-v2.txt": {
+      "original_path": "target/certified-head-inputs-v1/tiny-prompt-v2.txt",
+      "sha256": "48cfb43977511101d104649ab0eb365e708d8c8fa5d771feb24fa8f0fc86c620",
+      "size_bytes": 85
+    },
+    "inputs/tiny-prompt.txt": {
+      "original_path": "target/certified-head-inputs-v1/tiny-prompt.txt",
+      "sha256": "ad408facf6bbecdb3eb44882ae2f080462679ca592294a6b5da2ced6209fdc49",
+      "size_bytes": 35
+    },
+    "publication/128x2-candidate.json": {
+      "original_path": "target/certified-head-tiny-publication-v4/128x2-candidate.json",
+      "sha256": "ec1b27a49d574f55c13478a24097a9ac823b1476a72b083a5c31f4f4f4153532",
+      "size_bytes": 2466
+    },
+    "publication/128x2-control.json": {
+      "original_path": "target/certified-head-tiny-publication-v4/128x2-control.json",
+      "sha256": "884c00c1c4f9ebdb8a20034f050fec3810f4159882b0a3cab40dbf449119e542",
+      "size_bytes": 2195
+    },
+    "publication/128x2-native-head-commitments.json": {
+      "original_path": "target/certified-head-tiny-publication-v4/128x2-native-head-commitments.json",
+      "sha256": "6e40aae603491b6bacd32f3b94276897c8f92b2eafcc02b81a028f416292bd0f",
+      "size_bytes": 1011
+    },
+    "publication/certificate-accounting.json": {
+      "original_path": "target/certified-head-tiny-publication-v4/certificate-accounting.json",
+      "sha256": "f0f1db5854ea1c0d3f8f20a821de6dee7719025c1851efb456ec35ce5ffd459b",
+      "size_bytes": 642
+    },
+    "publication/head.cert": {
+      "original_path": "target/certified-head-tiny-publication-v4/head.cert",
+      "sha256": "17d75001fb252c3e0bfb83c119c7464ddb16a3d53051d6b22b26fae743fc81b9",
+      "size_bytes": 1445
+    },
+    "publication/publication.json": {
+      "original_path": "target/certified-head-tiny-publication-v4/publication.json",
+      "sha256": "77767eef280992ffc4e2624498ba5718f83c837a8a76916af9424fff6d81fc03",
+      "size_bytes": 4889
+    },
+    "source-snapshots/benchmarks/__init__.py": {
+      "original_path": "benchmarks/__init__.py",
+      "sha256": "2ce4b5902be75b7bbf0c2d2fee471e1989737f8983e7519302019e57bfe023a7",
+      "size_bytes": 86
+    },
+    "source-snapshots/benchmarks/research/__init__.py": {
+      "original_path": "benchmarks/research/__init__.py",
+      "sha256": "eec334d400930bc338253bc62a66946cf36e92da23c5bbefac67fcbe4217ff67",
+      "size_bytes": 45
+    },
+    "source-snapshots/benchmarks/research/historical_evidence.py": {
+      "original_path": "benchmarks/research/historical_evidence.py",
+      "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c",
+      "size_bytes": 4454
+    },
+    "source-snapshots/benchmarks/research/private_boundary_byte_dot.py": {
+      "original_path": "benchmarks/research/private_boundary_byte_dot.py",
+      "sha256": "982f26392c19b0aa0970fc44aaf5ddfebce68a121290d37a5d3c564543dee665",
+      "size_bytes": 13123
+    },
+    "source-snapshots/benchmarks/research/private_boundary_decode.py": {
+      "original_path": "benchmarks/research/private_boundary_decode.py",
+      "sha256": "02db9015992714d77d64838ca068f4ca704bb73a79f14de62cb353294ddf6566",
+      "size_bytes": 24884
+    },
+    "source-snapshots/benchmarks/research/private_boundary_decode_confirmation.py": {
+      "original_path": "benchmarks/research/private_boundary_decode_confirmation.py",
+      "sha256": "92e7052e78f766e30ada8ef08be2f59a0ee9d4b96cbd8de7ca4974f085041536",
+      "size_bytes": 36521
+    },
+    "source-snapshots/benchmarks/research/private_boundary_row_codec.py": {
+      "original_path": "benchmarks/research/private_boundary_row_codec.py",
+      "sha256": "4a36132d1d8b8fe5ff2b14a5a7fc2913cbae26018c2e3b2738451e824c978f53",
+      "size_bytes": 34469
+    },
+    "source-snapshots/benchmarks/research/private_boundary_tiers.py": {
+      "original_path": "benchmarks/research/private_boundary_tiers.py",
+      "sha256": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867",
+      "size_bytes": 13628
+    },
+    "source-snapshots/benchmarks/research/sota_combinations.py": {
+      "original_path": "benchmarks/research/sota_combinations.py",
+      "sha256": "2ec2441542e06674e7c6c7b179e7126ff2f4ff682922fec45cb658517bdfe375",
+      "size_bytes": 18546
+    },
+    "source-snapshots/examples/prepared_sdk.py": {
+      "original_path": "examples/prepared_sdk.py",
+      "sha256": "6a7d1dd38eeb3e7b9428b547c96902de27fb079c0b8e615bece40ea31f42c0bb",
+      "size_bytes": 3631
+    },
+    "source-snapshots/scripts/benchmark_private_boundary_row_codec.py": {
+      "original_path": "scripts/benchmark_private_boundary_row_codec.py",
+      "sha256": "ec6be1794bd8f2a9469219872f8871d7d01f2c3b624ff334e7e13f2551ccc030",
+      "size_bytes": 9560
+    },
+    "source-snapshots/scripts/benchmark_sota_combinations.py": {
+      "original_path": "scripts/benchmark_sota_combinations.py",
+      "sha256": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d",
+      "size_bytes": 9112
+    },
+    "source-snapshots/scripts/frontier_probe_support.py": {
+      "original_path": "scripts/frontier_probe_support.py",
+      "sha256": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+      "size_bytes": 3683
+    },
+    "source-snapshots/scripts/prepare_private_boundary_row_codec.py": {
+      "original_path": "scripts/prepare_private_boundary_row_codec.py",
+      "sha256": "dff404d6153846436603fb4bdc9af2fd3792717d4153b5b3336fbc66549bbeb3",
+      "size_bytes": 12422
+    },
+    "source-snapshots/scripts/summarize_private_boundary_row_codec.py": {
+      "original_path": "scripts/summarize_private_boundary_row_codec.py",
+      "sha256": "f243813e46fe49ba0cd4246805f6be0fad29b0114df1871a2d8a1ad53c4a17f3",
+      "size_bytes": 4946
+    },
+    "source-snapshots/sdk/_benchmark_contract.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_contract.py",
+      "sha256": "3d869d8c32dde595b103655e4d976fbf2a3d76d05ed427124aac77ed9bda451e",
+      "size_bytes": 29889
+    },
+    "source-snapshots/sdk/_benchmark_worker.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_worker.py",
+      "sha256": "4a9246d078425e20de004c57f5b833bc2f8e6b6d222b1463e58d986ad9ae0668",
+      "size_bytes": 11256
+    },
+    "source-snapshots/sdk/_benchmark_workload.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/_benchmark_workload.py",
+      "sha256": "20e0a5a3280c2f4972f2e9e2116e3497c598a0a6cef0b8774ca9c18a7f3cf021",
+      "size_bytes": 1332
+    },
+    "source-snapshots/sdk/deployment/execution.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/deployment/execution.py",
+      "sha256": "4bb29796a22f04d998a29f589970e346e32a836c2e9a95e76a2ccac379ec3208",
+      "size_bytes": 24168
+    },
+    "source-snapshots/sdk/runtime/benchmark_context.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/benchmark_context.py",
+      "sha256": "c488152a07c63021f7873508faab78aa0f28c0b0145d6a5e97309925c4ecf64a",
+      "size_bytes": 1371
+    },
+    "source-snapshots/sdk/runtime/benchmark_response_audit.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/benchmark_response_audit.py",
+      "sha256": "526573a484b96e760ce4b96d057bb0caa88397490d91412954923ad60babb30c",
+      "size_bytes": 4800
+    },
+    "source-snapshots/sdk/runtime/benchmark_response_target.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/benchmark_response_target.py",
+      "sha256": "5aec63bd4886798eb2dec4cbdcfd59ceb632a14137782c1310ddcca1d670fe33",
+      "size_bytes": 25162
+    },
+    "source-snapshots/sdk/runtime/dashboard.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/dashboard.py",
+      "sha256": "aac76f65645c0bc77fbac894b8ebaa60d32e3ea5ab02a361ef7fcae6e25f6b0b",
+      "size_bytes": 86230
+    },
+    "source-snapshots/sdk/runtime/model_binding.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/model_binding.py",
+      "sha256": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a",
+      "size_bytes": 129654
+    },
+    "source-snapshots/sdk/runtime/private_boundary_certificate.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_certificate.py",
+      "sha256": "e1d3ae97df90483fce0f560f1cb90ebad1b0399f0241a5bde105a907b7eb63ed",
+      "size_bytes": 13190
+    },
+    "source-snapshots/sdk/runtime/private_boundary_head_codec.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_head_codec.py",
+      "sha256": "d679c5d446144222e4b1d9c0c48333b18e80f1e7723fcaeb2db2c4bcd05a822a",
+      "size_bytes": 9341
+    },
+    "source-snapshots/sdk/runtime/private_boundary_loader.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_loader.py",
+      "sha256": "a8e7334e0efbf632c61757f1af2dcd1529ec0ebdd279673fd7dc519d3b5af8ca",
+      "size_bytes": 17186
+    },
+    "source-snapshots/sdk/runtime/private_boundary_protocol.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_protocol.py",
+      "sha256": "4fe37872dfd786455033266ab5bfa4918a1b54c41884662d0e078d4945b48c2a",
+      "size_bytes": 12301
+    },
+    "source-snapshots/sdk/runtime/private_boundary_transport.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/private_boundary_transport.py",
+      "sha256": "d66afdad0794325b76b7e8ec57a2463a0281e5047c80b8f44adad1601dffe4e0",
+      "size_bytes": 23935
+    },
+    "source-snapshots/sdk/runtime/quantization.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/quantization.py",
+      "sha256": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+      "size_bytes": 10047
+    },
+    "source-snapshots/sdk/runtime/topology_accounting.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/topology_accounting.py",
+      "sha256": "8384e353f03600154dd4f35fccc853f97395d818f019bad762a5f02c73a7cce6",
+      "size_bytes": 28422
+    },
+    "source-snapshots/sdk/runtime/transformer_client.py": {
+      "original_path": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/lib/python3.13/site-packages/pllm/runtime/transformer_client.py",
+      "sha256": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574",
+      "size_bytes": 107020
+    }
+  },
+  "followup_memory_diagnostic": {
+    "existing_swap_bytes": 2400845824,
+    "host_reserve_bytes": 4294967296,
+    "post_reserve_available_bytes": 6444630016,
+    "publisher_required_bytes": 6690704256,
+    "scope": "Separate post-rejection diagnostic; not the unrecorded exact admission-time snapshot."
+  },
+  "maximum_observed_swap_growth_bytes": 0,
+  "qwen_publication": "Host memory rejected before worker/tensor loading. No Qwen certificate or response cohort produced.",
+  "schema": "pllm.private_boundary_row_codec_archive.v1",
+  "scope": "Generated-source functionality only; six clients, exact state and public source/codec commitments. Original rejected attempts remain rejected. No real-checkpoint serving or tier claim."
+}

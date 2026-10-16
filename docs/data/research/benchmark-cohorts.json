@@ -1,5 +1,43 @@
 {
   "schema": "pllm.research_cohorts.v1",
+  "row_codec_coverage": [
+    {
+      "id": "qwen25-private-boundary-row-codec-sdk-150-8",
+      "adapter": "private-boundary-row-codec-coverage-v1",
+      "evidenceTier": "screen",
+      "status": "accepted-archived-pending-chart-audit",
+      "inputTokens": 150,
+      "outputCap": 8,
+      "cases": ["parallel-uniform-residues", "parallel-row-residues"],
+      "roles": ["client", "inference", "preparation", "boundary_a", "boundary_b"],
+      "reference": "docs/research/private-boundary-row-codec-evidence.md",
+      "archive": {
+        "report": {"file": "docs/evidence/private-boundary-row-codec-qwen25-v1/150x8/certified-head-qwen150x8-v1.json", "sha256": "4f1cd5524bcde8ebcf5bdae74606586be1254b3f8b88efb52ba5fc0cd39d49e7"},
+        "plan": {"file": "docs/evidence/private-boundary-row-codec-qwen25-v1/150x8/certified-head-qwen150x8-v1.plan.json", "sha256": "bb1539ae58b3469cde4cbc4ad2bb91d8044b5bc921a400917e5b67e5d659d71f"},
+        "receipt": {"file": "docs/evidence/private-boundary-row-codec-qwen25-v1/150x8/certified-head-qwen150x8-v1.receipt.json", "sha256": "4633d9a973cc39f8446dacc713f91b1170234c791752a473ead494717bb5bc4c"},
+        "summary": {"file": "docs/evidence/private-boundary-row-codec-qwen25-v1/150x8/certified-head-qwen150x8-v1.summary.json", "sha256": "35b03197700f259a897fa20baa0ac55be04c66fb0ba8bd58d05e998e25047cbd"}
+      },
+      "cohort": null
+    },
+    {
+      "id": "qwen25-private-boundary-row-codec-sdk-150-64",
+      "adapter": "private-boundary-row-codec-coverage-v1",
+      "evidenceTier": "screen",
+      "status": "accepted-archived-pending-chart-audit",
+      "inputTokens": 150,
+      "outputCap": 64,
+      "cases": ["parallel-uniform-residues", "parallel-row-residues"],
+      "roles": ["client", "inference", "preparation", "boundary_a", "boundary_b"],
+      "reference": "docs/research/private-boundary-row-codec-evidence.md",
+      "archive": {
+        "report": {"file": "docs/evidence/private-boundary-row-codec-qwen25-v1/150x64/certified-head-qwen150x64-v2.json", "sha256": "0735d900ba97f670535292659ecc08653d3cb86716e5eb2c6279435ff01c7101"},
+        "plan": {"file": "docs/evidence/private-boundary-row-codec-qwen25-v1/150x64/certified-head-qwen150x64-v2.plan.json", "sha256": "126b3d01c38ae61fcf73ff95e90cc5ef02efd1edd5279a620f6fc5825187706b"},
+        "receipt": {"file": "docs/evidence/private-boundary-row-codec-qwen25-v1/150x64/certified-head-qwen150x64-v2.receipt.json", "sha256": "9114f2781f83cfbdaed4454bccc04d62de69e8e7e8fcf5a85abe71c36a4c13ad"},
+        "summary": {"file": "docs/evidence/private-boundary-row-codec-qwen25-v1/150x64/certified-head-qwen150x64-v2.summary.json", "sha256": "8c43bf9b1a0d9b9b597875c0638052e6bb0da5276028c075c1061b41be778e11"}
+      },
+      "cohort": null
+    }
+  ],
   "historical_factory": {"file": "benchmarks/research/historical_evidence.py", "sha256": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c"},
   "adapted_cohorts": [
     {

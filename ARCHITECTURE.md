@@ -276,6 +276,41 @@ rises 0.39%; arithmetic bodies remain identical. Largest complete-client peak is
 222.42 MiB, within observed Low, but the 2.43% lower median RSS has mixed paired
 changes and establishes no causal memory gain. This non-winning speed screen
 retains its build/cohort and leaves automatic kernel selection unimplemented.
+The explicit `PrivateLookupAndFullHead(head_output_encoding="row_residues",
+head_certificate=...)` additionally admits source-certified per-row head widths.
+An independently approved actual-byte artifact pin binds source, matrix, scales,
+quantizer, geometry and layout; both workers recompute every bound from immutable
+native weights, while the thin client receives no vocabulary matrix. This retains
+the trusted-publisher and non-collusion contracts rather than proving an untrusted
+publisher's assertion. Head-only publication reserves live host/container capacity
+before tensor reads. Native schedules bind the pin and a separate reply namespace;
+bounded import, full integer reconstruction and one-use failure retirement preserve
+complete generated Qwen2/Qwen3/Llama logits, KV, tokens and RNG through SDK/gateway
+execution. Certificate/codec owners add to full-frame admission, with offline
+publication and caller-managed artifact delivery charged separately. A six-client
+generated-source smoke preserves 83,352 checked logit/KV values with zero observed
+swap growth; actual frames reconcile and receipt-backed replay reproduces its
+summary. A separately admitted Qwen publisher matches the independent full-row
+scan and retains an 11,364-byte certificate; its source import and publication
+costs remain distinct from matched serving measurements. A separate six-client
+Qwen2.5 150+8 initial screen preserves 52,561,920 checked logit/KV values with zero
+observed swap growth under shared native 100/40 caps. Exact head payload falls
+8.31% and complete TCP streams 0.17%; median decode throughput rises 2.41%, while
+full request time rises 1.18% and five-owner cold CPU 6.62%. Largest complete-client
+peak is 221.66 MiB, within observed Low. Lower median RSS has mixed paired changes
+and a higher largest peak, establishing no memory improvement. Separate publication
+and declared 34,092-byte three-owner certificate delivery remain outside response
+counters. The first 150+64 cohort is memory-admission blocked after one control
+and remains excluded. A separate six-client retry preserves 486,555,648 checked
+values with zero swap growth. Exact head replies save 5,048,064 bytes per request;
+TCP streams fall 0.91%, decode rises 0.87% and full request time is effectively
+unchanged, while five-owner cold CPU rises 2.86%. Largest candidate complete-client
+peak is 217.83 MiB, with mixed paired RSS changes. Both initial screens retain
+separate cohorts and independent-confirmation gates; neither establishes an
+overall SOTA or causal client-memory improvement.
+Contract and benchmark:
+`docs/research/private-boundary-row-codec-sdk.md` and
+`docs/research/private-boundary-row-codec-benchmark.md`.
 The boundary component now admits optional parallel head dispatch and exact
 uniform-residue head replies. Native source/schedule commitments bind both choices;
 the original serial/u32 defaults retain their identity. Paired authenticated calls
@@ -368,7 +403,8 @@ cross-stage MLP transport, fixed-weight correlations and checkpoint-specific tin
 helpers. All 151,936 pinned Qwen head rows are scanned twice; 759,680 native
 reconstruction values preserve exact integers. Mostly 23-bit row replies reduce
 modeled payload 8.31% versus uniform 25-bit replies, with a 7.88 ms/head analytical
-upload-floor difference. Thin-client certificate admission remains open. Six
+upload-floor difference. This source scan does not exercise thin-client certificate
+admission; the separately installed contract above supplies that owner. Six
 fresh synthetic 150/288-row conveyor workers conserve outputs and 86.14 MB of
 framed bodies with zero observed swap growth; fixed-order single samples establish
 no causal speedup. Exact small-matrix correlation controls still relocate work
@@ -379,6 +415,15 @@ arithmetic bodies rise 32.39%. Six other recorded checkpoint helpers remain
 untrained. These separate construction, transport and quality results establish
 no serving SOTA or whole-client memory tier. Contracts, original attempts and
 replay: `docs/research/sota-breakthrough-reference.md`.
+The separate checkpoint-specific compression gate freezes 544 fresh public cases
+and a 19,776-parameter byte-CNN helper. Its Qwen2.5 full-input admission screen
+stops at the frozen seventeenth QA error: 13 of 30 completed cases pass, and even
+perfect remaining QA reaches only 47/64, below the required 75%. A pre-child
+memory rejection remains separately charged; four valid workers observe zero
+swap growth. Labels, fitting and held-out evaluation remain unrun. This is a
+negative local-clear baseline gate, not a trained useful helper or serving
+traffic/memory result. Original artifacts and replay:
+`docs/research/checkpoint-compression-reference.md`.
 An internal compiler-bound initial-attention region additionally tiles public query
 rows and KV-head groups through the original score, scale, mask, softmax and value
 operators. Exclusive consumers and source/schedule/numeric commitments precede

@@ -1,0 +1,92 @@
+{
+  "schema": "pllm.private_boundary_row_codec_publication.v1",
+  "complete": true,
+  "tiny": true,
+  "source_lock_digest": "ef8a8250c5c884ee20891ec8d6fff560b98f3f314ab1004f41e95fc35f2313bd",
+  "publication": {
+    "elapsed_seconds": 0.10692779161036015,
+    "process_cpu_seconds": 0.10492000000000007,
+    "artifact": {
+      "path": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+      "digest": "17d75001fb252c3e0bfb83c119c7464ddb16a3d53051d6b22b26fae743fc81b9",
+      "size_bytes": 1445
+    }
+  },
+  "independent_source_binding": [
+    {
+      "workload": "128x2",
+      "native_commitments": {
+        "parallel-uniform-residues": {
+          "pipeline_digest": "afd9b34986f4f68b40307de830f2d78f52adbee052f3e3484866178d2827dd49",
+          "composition_digest": "afd9b34986f4f68b40307de830f2d78f52adbee052f3e3484866178d2827dd49",
+          "schedule_digest": "8895d8ef068c09dfb1a6345af479cbeed51c1ec4f9ffabaac34f8ca942b0a7cb",
+          "descriptor_digest": "8f0d1465cfb9b9c78da1b7173c7392f913b256f4cd3a3c0cb58da0e50167b8d0",
+          "numeric_body_fingerprint": "c54421cb6363f1e84bb5738ddd86a61faf95d9cf9d73df6dace12d3b894a023b"
+        },
+        "parallel-row-residues": {
+          "pipeline_digest": "c5c9835c1c58c3a4c1ba9aa749988b254e3ad25356e85a5c485e93a3bee3abfd",
+          "composition_digest": "c5c9835c1c58c3a4c1ba9aa749988b254e3ad25356e85a5c485e93a3bee3abfd",
+          "schedule_digest": "64f716b3d959256f1ab6b62a3155815c5479544d6d659ed2e8261a021bc81fac",
+          "descriptor_digest": "51a22dd6e17902ed51ef76acf7157fe693048d807b3321f6918fc1f8f09f1ff5",
+          "numeric_body_fingerprint": "c54421cb6363f1e84bb5738ddd86a61faf95d9cf9d73df6dace12d3b894a023b"
+        }
+      },
+      "certificate_metadata": {
+        "bounds_digest": "0334744e56882904e749c99f10baf5bf9d075d424e1e8232ae7dc7bc81a07fa6",
+        "implementation": {
+          "pllm._native": "536b0b444a15c6a7d4bbf55bf47f10c93c95db269b64bd333a52edf3d8c11921",
+          "pllm.runtime.private_boundary_certificate": "e1d3ae97df90483fce0f560f1cb90ebad1b0399f0241a5bde105a907b7eb63ed",
+          "pllm.runtime.private_boundary_loader": "a8e7334e0efbf632c61757f1af2dcd1529ec0ebdd279673fd7dc519d3b5af8ca",
+          "pllm.runtime.quantization": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412"
+        },
+        "layout": "zlib-u8-minimal-signed-widths-v1",
+        "numeric": "signed-i8-row-major-bias-free/symmetric-qmax127/int-wrap32/f32-separate-multiplies/v1",
+        "schema": "pllm.private_boundary.row_certificate.v1",
+        "source": {
+          "activation_bits": 8,
+          "checkpoint_digest": "5f46bb6b0d3f9ac70f33ee3546646641758b08c59c78eb253e56b13e215648b4",
+          "head_scales_digest": "1e7ef8f1f0eb2b3559786cefc4cf6c0378e01266217b002a2989df7cf5ba6c98",
+          "head_weight_digest": "9dfde5166ea8b9196eb9403ca555db0836712aefd1d2ab18477c608c072471ce",
+          "hidden": 32,
+          "lookup_digest": "20728a603a132ceb03f77f3f546c546e5eab16e7ceb1351b2c0b0946a509f513",
+          "model_config_digest": "e7052426df4e590417e11f5e4fe53ca805fed8cd7140a9e7068b50dde5b87e85",
+          "signed_output_bound": 281178,
+          "source_digest": "ef8a8250c5c884ee20891ec8d6fff560b98f3f314ab1004f41e95fc35f2313bd",
+          "vocabulary": 258,
+          "weight_bits": 8
+        },
+        "widths_digest": "4f9ff548d400a2f6e2174f48cdd1921337f421086194bf833d3b6ed0f843890e",
+        "artifact_digest": "17d75001fb252c3e0bfb83c119c7464ddb16a3d53051d6b22b26fae743fc81b9",
+        "artifact_size_bytes": 1445
+      },
+      "width_histogram": {
+        "18": 11,
+        "19": 246,
+        "20": 1
+      },
+      "payload_bytes_per_role": 612
+    }
+  ],
+  "source_allocation_estimate_bytes": 537540528,
+  "worker_measured_window_seconds": 0.4229437503963709,
+  "worker_measured_window_cpu_seconds": 0.41499800000000003,
+  "worker_lifetime_peak_rss_bytes": 79609856,
+  "scope": "offline publisher and independent source binding; timings exclude child import/startup; no serving or network claim",
+  "sources": {
+    "/Users/blairhudson/workspace/pllm/scripts/prepare_private_boundary_row_codec.py": "dff404d6153846436603fb4bdc9af2fd3792717d4153b5b3336fbc66549bbeb3",
+    "/Users/blairhudson/workspace/pllm/scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+    "target/certified-head-inputs-v1/tiny-control.json": "884c00c1c4f9ebdb8a20034f050fec3810f4159882b0a3cab40dbf449119e542"
+  },
+  "build": {
+    "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+    "expected_digest": "db5b5374935fa41416a869383495ed68ac391ecb3535537d262110504e4a5f10"
+  },
+  "host": {
+    "total": 34359738368,
+    "available": 11469553664,
+    "swap_used": 3408986112,
+    "disk_free": 34322214912
+  },
+  "guard_error": null,
+  "maximum_observed_swap_growth_bytes": 0
+}

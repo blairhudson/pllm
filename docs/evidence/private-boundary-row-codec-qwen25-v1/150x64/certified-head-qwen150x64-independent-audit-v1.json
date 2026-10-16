@@ -1,0 +1,166 @@
+{
+  "schema": "pllm.independent_read_only_audit.v1",
+  "auditor": "GPT-6.1 Sol independent delegated evidence check",
+  "result": "Qualified pass: initial source-present 150+64 v2 screen; no blocking discrepancy found in audited target artifacts.",
+  "method": "Independent standard-library JSON/SHA256/zlib/struct/arithmetic and static source inspection. No SDK execution, tensor access, providers, native builds, installs or tests. No complete frozen-summarizer replay claimed.",
+  "cohort_policy": "Six v2 clients only. No pooling with 150+8 or rejected 150+64 v1; rejected v1 files not opened.",
+  "files_sha256": {
+    "target/certified-head-qwen150x64-v2.json": "0735d900ba97f670535292659ecc08653d3cb86716e5eb2c6279435ff01c7101",
+    "target/certified-head-qwen150x64-v2.plan.json": "126b3d01c38ae61fcf73ff95e90cc5ef02efd1edd5279a620f6fc5825187706b",
+    "target/certified-head-qwen150x64-v2.receipt.json": "9114f2781f83cfbdaed4454bccc04d62de69e8e7e8fcf5a85abe71c36a4c13ad",
+    "target/certified-head-qwen150x64-v2.summary.json": "8c43bf9b1a0d9b9b597875c0638052e6bb0da5276028c075c1061b41be778e11",
+    "target/certified-head-qwen-publication-v2/publication.json": "2b9b16fcf756f5d86d7d222c66de0e2a0f4b9376398967323a394cd3d50886b0",
+    "target/certified-head-qwen-publication-v2/150x64-native-head-commitments.json": "6eb553fd3c3bd8f9f473a0dfd72782c8e1d944c27b59416408a3700273524e2f",
+    "docs/evidence/compact-private-head-qwen25-v1.json": "5b482e1b96ab73a4cae02f856f082e910e3d6c7debfebd4338f29c7f5d769126",
+    "target/certified-head-qwen-publication-v2/head.cert": "8b7a59c0ca47cabbb1db7b5731b7edbb8210eddaf9e4220367e4a9bb37e95d1e"
+  },
+  "provenance": {
+    "cohort": "64ab66b1a55316572f1246aaaccbf41227cde3714bab6a1a8c6a440969376352",
+    "canonical_plan_digest": "5701896db1add744ac00ef9182933db60a9dfcce9f480b7cf25329d60a65a12c",
+    "receipt_matches_exact_reconstructed_record": true,
+    "suite_matches_plan": true,
+    "schedule": "control0,row0,row1,control1,row2,control2",
+    "all_six_fresh_complete_and_cohort_bound": true,
+    "build_digest": "db5b5374935fa41416a869383495ed68ac391ecb3535537d262110504e4a5f10",
+    "source_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "native_sha256": "536b0b444a15c6a7d4bbf55bf47f10c93c95db269b64bd333a52edf3d8c11921",
+    "source_counts_verified": {"frozen": 36, "verifier": 30, "installed_sdk_py_json": 313},
+    "exact_source_manifests": "frozen_sources/verifier_sources in hash-pinned v2 plan; sdk_sources in hash-pinned raw execution.build.attributes",
+    "all_manifest_hashes_match_current_files": true,
+    "installed_sdk_inventory_exact": true,
+    "build_attributes_canonical_digest_and_python_native_hashes_match": true,
+    "all_publication_source_hashes_match": true,
+    "native_file_plan_publication_150x64_binding_equal": true,
+    "separate_cohort_not_separate_implementation": "New v2 cohort, same pinned build/source/certificate as source-present 150+8. 150x64 schedule/descriptor pins verified independently, not inferred from 150+8.",
+    "limitations": "Unsigned receipt is public record consistency, not worker authentication or proof of private prompt/salt preimage. Dependency package file inventories not independently rehashed."
+  },
+  "certificate": {
+    "actual_archived_pin_bytes_equal": true,
+    "size_bytes": 11364,
+    "width_histogram": {"21": 1, "22": 11794, "23": 139982, "24": 159},
+    "total_bits_per_role": 3482891,
+    "candidate_payload_bytes_per_role_per_call": 435362,
+    "control_uniform25_payload_bytes_per_role_per_call": 474800,
+    "widths_digest": "3f4f1b6f337200127f5cae8da53825270661f8190941bc4a0ed1dda4149e0794",
+    "bounds_digest_le_u32": "3c21ee8b9fc07ccd6bbdc0eb378a2d2786a12ff89dda915f937b974a884e5af1",
+    "maximum_bound": 4534154,
+    "all_151936_widths_equal_approved_scan_and_minimal_signed_bounds": true,
+    "approved_scan_bounds_u64_and_certificate_u32_digests_verified": true,
+    "all_four_publisher_implementation_hashes_match_actual_files": true,
+    "all_six_descriptor_source_native_and_certificate_pins_verified": true,
+    "experiment_pair_diff_only_codec_and_certificate": true,
+    "scope": "Trusted source-certified publisher assertion and archived scan consistency, not independent tensor/quantization recomputation or cryptographic quantization proof."
+  },
+  "state_and_work": {
+    "checked_values": 486555648,
+    "checked_values_per_client": 81092608,
+    "state_commitment": "d5282244d81ac2c2508eba54fa3d783207a22930ddbf7a48d4525213ed2ab54b",
+    "input_tokens_each": 150,
+    "output_tokens_each": 64,
+    "sampled_selections_each": 64,
+    "executed_decode_steps_each": 63,
+    "selection_positions": [150, 213],
+    "cache_lengths_per_selection": 24,
+    "checked_values_formula_per_selection": "151936 + position * 6144",
+    "prepared_rows_each": 20001,
+    "reported_logits_active_kv_selection_rng_output_commitments_exactly_equal": true,
+    "state_bindings_equal_after_only_numeric_body_field_removal": true,
+    "numeric_body_fingerprints_also_equal_and_native_pinned": true,
+    "all_source_prompt_wan_sampling_tokens_output_build_identities_equal": true,
+    "all_public_workload_comparison_and_measurement_digests_rebuilt": true,
+    "all_private_input_commitments_equal": true,
+    "cap_reached_not_natural_eos": true,
+    "scope": "Equality of reported salted commitments, not independent recomputation of underlying tensor values or global quality."
+  },
+  "raw_recomputed_medians": {
+    "control": {
+      "decode_tps": 2.4663730506420003,
+      "full_seconds": 120.221089458,
+      "ttft_seconds": 47.044276334,
+      "five_owner_cpu_seconds": 84.37811738399999,
+      "complete_client_peak_bytes": 230162432,
+      "covered_body_bytes": 548440539,
+      "tcp_stream_bytes": 553613897
+    },
+    "candidate": {
+      "decode_tps": 2.487945128370194,
+      "full_seconds": 120.106604125,
+      "ttft_seconds": 47.125979625,
+      "five_owner_cpu_seconds": 86.789715256,
+      "complete_client_peak_bytes": 228048896,
+      "covered_body_bytes": 543392475,
+      "tcp_stream_bytes": 548565841
+    },
+    "candidate_change_percent": {
+      "decode_tps": 0.8746478040934758,
+      "full_seconds": -0.09522899311271704,
+      "ttft_seconds": 0.17367318060104164,
+      "five_owner_cpu_seconds": 2.858084473519318,
+      "covered_body_bytes": -0.9204396176118568,
+      "tcp_stream_bytes": -0.9118369367812296
+    },
+    "decode_formula": "63 / raw generation_seconds; percentage changes are ratios of arm medians, not medians of paired percentages",
+    "cached_summary_priority_medians_agree": true,
+    "metric_raw_values_denominators_and_scope_metadata_checked": true,
+    "cpu_owners_each_client": ["client", "preparation", "inference", "boundary_a", "boundary_b"],
+    "cpu_sum_verified_each_client": true,
+    "cpu_totals_by_replicate": {
+      "control": [92.959866344, 84.37811738399999, 83.633629392],
+      "candidate": [90.820357344, 86.789715256, 84.58811392]
+    },
+    "cpu_scope": "All five owners through first completed response; excludes cleanup, not client-only CPU."
+  },
+  "memory": {
+    "complete_client_peaks_by_replicate": {
+      "control": [212041728, 230801408, 230162432],
+      "candidate": [226181120, 228048896, 228409344]
+    },
+    "maximum_complete_client_peak_bytes": {"control": 230801408, "candidate": 228409344},
+    "all_six_sdk_lifetime_peaks_equal_final_process_peak": true,
+    "maximum_observed_host_swap_growth_bytes_all_six": 0,
+    "scope": "Whole measured fresh SDK/supervisor/dashboard/relay/audit worker lifetime, idle launcher excluded; not global/provider RSS. Final process peak has no separate finalized raw observation. Swap guard samples every 0.25 seconds, not proof of no transient swap activity."
+  },
+  "traffic": {
+    "head_calls_each": 64,
+    "roles": 2,
+    "control_head_outer_body_bytes": 60802050,
+    "candidate_head_outer_body_bytes": 55753986,
+    "head_saved_bytes_per_request": 5048064,
+    "head_saved_bytes_per_call": 78876,
+    "subframe_header_bytes_each_arm": 9472,
+    "outer_envelope_bytes_each_arm": 18178,
+    "paired_candidate_minus_control": [
+      {"replicate": 0, "covered_body_bytes": -5048064, "tcp_stream_bytes": -5048055, "head_payload_bytes": -5048064, "head_header_bytes": 0, "head_envelope_bytes": 0, "lifecycle_control_bytes": 0, "prepared_reply_bytes": 0, "covered_body_residual_bytes": 0, "stream_minus_covered_body_delta_bytes": 9},
+      {"replicate": 1, "covered_body_bytes": -5048064, "tcp_stream_bytes": -5048064, "head_payload_bytes": -5048064, "head_header_bytes": 0, "head_envelope_bytes": 0, "lifecycle_control_bytes": 0, "prepared_reply_bytes": 0, "covered_body_residual_bytes": 0, "stream_minus_covered_body_delta_bytes": 0},
+      {"replicate": 2, "covered_body_bytes": -5048064, "tcp_stream_bytes": -5048055, "head_payload_bytes": -5048064, "head_header_bytes": 0, "head_envelope_bytes": 0, "lifecycle_control_bytes": 0, "prepared_reply_bytes": 0, "covered_body_residual_bytes": 0, "stream_minus_covered_body_delta_bytes": 9}
+    ],
+    "stream_residual_localization": "Pairs 0 and 2: inference->client stream grows 9 bytes while covered inference->client bodies unchanged. Each boundary->client stream shrinks exactly 2524032 bytes. Residual retained; no unsupported attribution to particular HTTP/control field.",
+    "prepared_stage_reply_absolute_delta_each_pair": 0,
+    "prepared_reply_metadata_delta_bound_bytes": 59152,
+    "all_96_stage_nonreply_edges_equal": true,
+    "prepared_fixed_and_boundary_counter_sets_equal": true,
+    "startup_and_request_edges_independently_rebuilt_from_raw_privacy_counters": true,
+    "edge_stage_sums_directed_tcp_bounds_material_conservation_verified": true,
+    "partial_traffic_attribution_conservation_verified": true,
+    "scope": "Native directed TCP stream payload and covered serialized application bodies, not physical wire. Partial body attribution remains partial. Do not substitute median total TCP delta for exact paired head savings."
+  },
+  "setup": {
+    "certificate_bytes": 11364,
+    "declared_missing_owners": ["client", "boundary_a", "boundary_b"],
+    "extra_setup_fixed_byte_budget": 34092,
+    "head_saving_minus_declared_certificate_budget": 5013972,
+    "scope": "Scenario arithmetic only. Response target source-present; checkpoint resolution, offline publication/derivation and certificate distribution not included. Publication metrics separate, not six-client serving setup observations."
+  },
+  "checks": {
+    "initial_independent_named_checks": 139,
+    "initial_failed_checks": [],
+    "supplemental_exact_checks": "All six comparison/measurement digests, raw privacy-counter edge reconstruction and priority summary median agreement passed. Frozen guard source hashes unchanged from prior static review. No claim-breaking bypass observed for this pinned evidence."
+  },
+  "actionable_caveats": [
+    "Initial source-present screen only: three replicates per arm, one public prompt, capped greedy generation. Decode median +0.87465%; full request median only 0.09523% lower, TTFT 0.17367% higher, five-owner CPU 2.85808% higher. No statistically confirmed whole-request improvement, SOTA or global quality claim.",
+    "Historical approved scan uses older build/native/loader/head-codec pins. Current native and those two Python files differ from historical source_locks; source identities, row widths and bounds agree, and current publication/build independently pinned. Do not label historical scan same-build execution.",
+    "Receipt and caller-approved native commitments prove public consistency, not malicious-worker security, private-input preimages or signed provenance. No model/native execution performed by this audit.",
+    "Archive destination docs/evidence/private-boundary-row-codec-qwen25-v1/150x64/ absent at initial lookup. Parent archival copy not verified by this report; compare byte hashes above after archival. This does not block target-artifact screen result.",
+    "Keep accepted fresh v2 cohort separate from 150+8 and rejected v1. Rejected attempts neither silently replace accepted observations nor become completed memory samples."
+  ]
+}

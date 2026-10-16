@@ -31,6 +31,15 @@ def generated_boundary(tmp_path, family="llama", reduction=None, *, boundary_opt
     document = msgpack.unpackb(engine.client_bundle("private-boundary"), raw=False)
     config = json.loads((path / "config.json").read_text())
     plan = lower_model(config, batch=1, max_input_tokens=8, max_new_tokens=4)
+    if boundary_options and boundary_options.get("head_output_encoding") == "row_residues":
+        from pllm import Deployment, ExecutionBudget, Experiment
+        source_recipe = Experiment("certificate-publisher", MaskedLinearCpu(
+            Model.path(str(path), model_id="private-boundary"),
+            boundary=PrivateLookupAndFullHead(), topology=PreparedBoundaryRoles()),
+            Deployment.local(root=str(tmp_path / "publisher")),
+            ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=4))
+        pin = PrivateLookupAndFullHead.publish_head_certificate(source_recipe, tmp_path / "head.cert")
+        boundary_options = {**boundary_options, "head_certificate": pin}
     composition = MaskedLinearCpu(Model("private-boundary"), boundary=PrivateLookupAndFullHead(**(boundary_options or {})),
         topology=PreparedBoundaryRoles(), quantization=SymmetricPerRow(causal_reduction=reduction))
     return engine, original, document, plan, composition

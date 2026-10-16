@@ -1,0 +1,86 @@
+{
+  "schema": "pllm.experiment.v2",
+  "name": "prepared-sdk",
+  "pipeline": {
+    "model": {
+      "source": "/Users/blairhudson/workspace/pllm/target/certified-head-inputs-v1/tiny-model",
+      "model_id": "certified-row-smoke",
+      "local_files_only": true
+    },
+    "components": {
+      "linear": {
+        "component": "pllm/masked-linear",
+        "params": {
+          "output_encoding": "row_residues",
+          "prefill_chunk_rows": 16,
+          "request_encoding": "stage_packed"
+        }
+      },
+      "preparation": {
+        "component": "pllm/model-aware-corrections",
+        "params": {
+          "storage": "paged"
+        }
+      },
+      "inference": {
+        "component": "pllm/inference",
+        "params": {}
+      },
+      "kernels": {
+        "component": "pllm/cpu",
+        "params": {
+          "threads": 1
+        }
+      },
+      "quantization": {
+        "component": "pllm/symmetric-per-row-quantization/v1",
+        "params": {
+          "weight_bits": 8,
+          "activation_bits": 8,
+          "causal_reduction": "prefix_f32"
+        }
+      },
+      "inventory": {
+        "component": "pllm/prepared-inventory-policy/v1",
+        "params": {
+          "policy": "request-sized",
+          "rows": 1,
+          "refill": "on-demand",
+          "stage_window": 4,
+          "stage_window_bytes": 67108864,
+          "allocation": "demand"
+        }
+      },
+      "delivery": {
+        "component": "pllm/client-bundle-transport/v1",
+        "params": {
+          "encoding": "artifacts",
+          "compression": "zlib",
+          "batch_objects": 64,
+          "storage": "paged",
+          "provider_cache_bytes": 536870912
+        }
+      },
+      "boundary": {
+        "component": "pllm/private-lookup-full-head/v1",
+        "params": {
+          "head_dispatch": "parallel",
+          "head_output_encoding": "uniform_residues"
+        }
+      },
+      "topology": {
+        "component": "pllm/prepared-body-two-online-boundary/v1",
+        "params": {}
+      }
+    }
+  },
+  "deployment": {
+    "kind": "local",
+    "root": ".pllm/prepared-sdk"
+  },
+  "budget": {
+    "requests": 1,
+    "max_input_tokens": 128,
+    "max_new_tokens": 2
+  }
+}

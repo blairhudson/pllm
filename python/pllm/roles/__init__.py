@@ -161,26 +161,48 @@ class PrivateLookupAndFullHead(BoundaryPlacement):
         lifecycle_phase="offline+online",
         parameter_schema={"type": "object", "additionalProperties": False, "properties": {
             "head_dispatch": {"type": "string", "enum": ["serial", "parallel"]},
-            "head_output_encoding": {"type": "string", "enum": ["u32", "uniform_residues"]},
+            "head_output_encoding": {"type": "string", "enum": ["u32", "uniform_residues", "row_residues"]},
             "head_kernel": {"type": "string", "enum": ["existing", "byte_dot"]},
+            "head_certificate": {"type": "object", "additionalProperties": False,
+                "required": ["path", "digest", "size_bytes"], "properties": {
+                    "path": {"type": "string"}, "digest": {"type": "string"},
+                    "size_bytes": {"type": "integer", "minimum": 13, "maximum": 1048576}}},
         }},
         capabilities=("private-packed128-token-lookup", "two-party-full-vocabulary-head"),
         role_eligibility=("client", "boundary_a", "boundary_b"),
     )
 
     def __init__(self, head_dispatch: str = "serial", head_output_encoding: str = "u32",
-                 *, head_kernel: str = "existing") -> None:
+                 *, head_kernel: str = "existing", head_certificate: dict | None = None) -> None:
         params = {}
         for name, value, default, allowed in (
             ("head_dispatch", head_dispatch, "serial", ("serial", "parallel")),
-            ("head_output_encoding", head_output_encoding, "u32", ("u32", "uniform_residues")),
+            ("head_output_encoding", head_output_encoding, "u32", ("u32", "uniform_residues", "row_residues")),
             ("head_kernel", head_kernel, "existing", ("existing", "byte_dot")),
         ):
             if type(value) is not str or value not in allowed:
                 raise ConfigurationError(f"{name} must be one of {allowed}")
             if value != default:
                 params[name] = value
+        if (head_output_encoding == "row_residues") != (head_certificate is not None):
+            raise ConfigurationError("row_residues requires an explicit caller-approved head_certificate pin only")
+        if head_certificate is not None:
+            from pllm.runtime.private_boundary_certificate import validate_pin
+            try:
+                params["head_certificate"] = validate_pin(head_certificate)
+            except ValueError as exc:
+                raise ConfigurationError(str(exc)) from exc
         super().__init__(self.descriptor.component, params)
+
+    @staticmethod
+    def publish_head_certificate(experiment, path):
+        """Publish from a locked source recipe without row_residues selected.
+
+        Caller must independently approve/authenticate the returned pin before
+        distributing it to clients. Publication alone supplies no authenticity.
+        """
+        from pllm.runtime.private_boundary_certificate import publish_from_source
+        return publish_from_source(experiment, path)
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

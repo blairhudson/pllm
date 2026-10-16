@@ -1,0 +1,16 @@
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files:  14%|█▍        | 1/7 [00:00<00:01,  3.52it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 23.82it/s]
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 3882.59it/s]
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 3981.57it/s]
+{
+  "schema": "pllm.private_boundary_row_codec_progress.v1",
+  "status": "admitted",
+  "measurement_complete": false
+}
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 2743.94it/s]
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 3800.17it/s]
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 4046.32it/s]
+{
+  "schema": "pllm.private_boundary_row_codec_progress.v1",
+  "status": "admitted",
+  "measurement_complete": false
+}

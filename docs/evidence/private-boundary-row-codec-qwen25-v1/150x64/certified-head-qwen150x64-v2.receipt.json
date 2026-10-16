@@ -1,0 +1,9 @@
+{
+  "schema": "pllm.private_boundary_row_codec_receipt.v1",
+  "status": "completed",
+  "post_run_checks": "passed",
+  "cohort": "64ab66b1a55316572f1246aaaccbf41227cde3714bab6a1a8c6a440969376352",
+  "plan_digest": "5701896db1add744ac00ef9182933db60a9dfcce9f480b7cf25329d60a65a12c",
+  "raw_report_digest": "0735d900ba97f670535292659ecc08653d3cb86716e5eb2c6279435ff01c7101",
+  "public_prompt_digest": "5f5fb5b4c59f8568eaa9203fe50b7a3089c4c718fe886e848f7f778b5dc89fd7"
+}

@@ -65,7 +65,10 @@ def test_tiny_source_identity_survives_supervised_roles(tmp_path):
         "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}),
         ("byte-dot", {"head_kernel": "byte_dot"}),
         ("byte-dot-parallel-residues", {"head_kernel": "byte_dot", "head_dispatch": "parallel",
-                                       "head_output_encoding": "uniform_residues"}))
+                                       "head_output_encoding": "uniform_residues"}),
+        ("row-parallel", {"head_dispatch": "parallel", "head_output_encoding": "row_residues"}),
+        ("row-byte-dot-parallel", {"head_kernel": "byte_dot", "head_dispatch": "parallel",
+                                  "head_output_encoding": "row_residues"}))
 ])
 def roles(request, tmp_path_factory):
     family, boundary_options = request.param
@@ -74,6 +77,10 @@ def roles(request, tmp_path_factory):
         hidden_size=8, intermediate_size=16, num_hidden_layers=1,
         num_attention_heads=2, num_key_value_heads=1, head_dim=4, vocab_size=258,
         with_qkv_bias=family == "qwen2", qk_norm=family == "qwen3")
+    if boundary_options.get("head_output_encoding") == "row_residues":
+        publisher = experiment(checkpoint, folder / "publisher", private=True)
+        pin = PrivateLookupAndFullHead.publish_head_certificate(publisher, folder / "head.cert")
+        boundary_options = {**boundary_options, "head_certificate": pin}
     topology = build_roles(experiment(checkpoint, folder / "private", private=True,
         boundary_options=boundary_options), engine_threads=1)
     try:
@@ -204,6 +211,43 @@ def assert_sender_ledger(client, records):
     assert ledger["total_wire_bytes"] is None  # HTTP bodies are not TCP/header measurements.
 
 
+def test_state_audit_records_public_head_contract_and_actual_lengths(roles, exchanges):
+    from pllm.runtime.benchmark_response_audit import response_state_audit
+    from pllm.runtime.private_boundary_head_codec import HEADER
+
+    topology, _, folder = roles
+    with topology.client(bundle_cache_dir=str(folder / "head-audit-cache"),
+                         background_inventory_refill=False) as client:
+        with response_state_audit(b"h" * 32) as records:
+            response = client.responses.create(input="Hi", max_output_tokens=3, temperature=0)
+        assert_capped(response)
+        assert len(records) == 1 and not records[0]["failed"]
+        evidence = records[0]["private_boundary_head"]
+        assert evidence["schema"] == "pllm.private_boundary_head_accounting.v1"
+        assert evidence["descriptor"]["vocabulary"] == 258
+        layout = evidence["layout"]
+        assert sum(layout["width_counts"].values()) == 258
+        assert layout["total_bits"] == sum(int(width) * count for width, count in layout["width_counts"].items())
+        assert layout["payload_bytes_per_role"] == (layout["total_bits"] + 7) // 8
+        for role in ROLES:
+            replies = [unpack_frame(reply, response=True) for actual_role, path, phase, payload, status, reply
+                in exchanges if actual_role == role and phase == "online" and status == 200
+                and unpack_frame(payload)["operation"] == "head"]
+            bodies = [len(reply) for actual_role, path, phase, payload, status, reply
+                in exchanges if actual_role == role and phase == "online" and status == 200
+                and unpack_frame(payload)["operation"] == "head"]
+            counts = evidence["roles"][role]
+            assert counts["replies"] == len(replies) == len(records[0]["selections"]) == 3
+            assert counts["outer_body_bytes"] == sum(bodies)
+            assert counts["subframe_bytes"] == sum(len(frame) for row in replies for frame in row["frames"])
+            assert counts["header_bytes"] == 3 * layout["subframe_header_bytes"]
+            assert counts["payload_bytes"] == 3 * layout["payload_bytes_per_role"]
+            assert counts["subframe_bytes"] == counts["header_bytes"] + counts["payload_bytes"]
+        assert layout["subframe_header_bytes"] in (0, HEADER.size)
+        assert sum(row["outer_body_bytes"] for row in evidence["roles"].values()) == (
+            client.privacy_audit.to_dict()["private_boundary_head_download_bytes"])
+
+
 def test_generated_five_role_sdk_matches_ordinary_full_vocab(roles, exchanges):
     topology, checkpoint, folder = roles
     with topology.client(bundle_cache_dir=folder / "cache-private", background_inventory_refill=False) as client:
@@ -295,15 +339,19 @@ def test_gateway_request_uses_same_real_boundary_and_teardown(roles, exchanges):
     assert_boundary_sessions_retired(topology, exchanges, "complete")
 
 
-def test_async_cancel_drains_parallel_head_pair_before_sdk_retirement(tmp_path, exchanges, monkeypatch):
+@pytest.mark.parametrize("encoding", ["uniform_residues", "row_residues"])
+def test_async_cancel_drains_parallel_head_pair_before_sdk_retirement(tmp_path, exchanges, monkeypatch, encoding):
     from pllm.runtime.client import AsyncResponsesResource
 
     checkpoint = create_tiny_llama_checkpoint(tmp_path / "model", model_type="qwen2", seed=179,
         hidden_size=8, intermediate_size=16, num_hidden_layers=1,
         num_attention_heads=2, num_key_value_heads=1, head_dim=4, vocab_size=258,
         with_qkv_bias=True)
-    selected = experiment(checkpoint, tmp_path / "async", private=True, boundary_options={
-        "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"})
+    options = {"head_dispatch": "parallel", "head_output_encoding": encoding}
+    if encoding == "row_residues":
+        options["head_certificate"] = PrivateLookupAndFullHead.publish_head_certificate(
+            experiment(checkpoint, tmp_path / "publisher", private=True), tmp_path / "head.cert")
+    selected = experiment(checkpoint, tmp_path / "async", private=True, boundary_options=options)
     entered = [threading.Event(), threading.Event()]
     release = threading.Event()
     original = PrivateBoundaryTransport._post
@@ -395,7 +443,8 @@ def test_native_wan_five_role_response_conserves_boundary_directions(tmp_path, e
         assert topology.closed and all(not row.running for row in topology.statuses)
 
 
-def test_composed_artifacts_zlib_paged_demand_packed_residue_response(tmp_path, exchanges):
+@pytest.mark.parametrize("encoding", ["uniform_residues", "row_residues"])
+def test_composed_artifacts_zlib_paged_demand_packed_residue_response(tmp_path, exchanges, encoding):
     """Keep the composed benchmark controls enabled on actual generated source."""
     from pllm.preparation import ModelAwareCorrections, PreparedInventory
     from pllm.protocols import ClientBundleTransport, MaskedLinear
@@ -405,8 +454,12 @@ def test_composed_artifacts_zlib_paged_demand_packed_residue_response(tmp_path, 
         hidden_size=8, intermediate_size=16, num_hidden_layers=1,
         num_attention_heads=2, num_key_value_heads=1, head_dim=4, vocab_size=258,
         with_qkv_bias=True)
+    options = {"head_dispatch": "parallel", "head_output_encoding": encoding}
+    if encoding == "row_residues":
+        options["head_certificate"] = PrivateLookupAndFullHead.publish_head_certificate(
+            experiment(checkpoint, tmp_path / "publisher", private=True), tmp_path / "head.cert")
     pipeline = MaskedLinearCpu(Model.path(str(checkpoint), model_id="boundary-sdk"),
-        boundary=PrivateLookupAndFullHead(head_dispatch="parallel", head_output_encoding="uniform_residues"),
+        boundary=PrivateLookupAndFullHead(**options),
         topology=PreparedBoundaryRoles(),
         linear=MaskedLinear(prefill_pruning="terminal", request_encoding="stage_packed",
                             output_encoding="row_residues"),

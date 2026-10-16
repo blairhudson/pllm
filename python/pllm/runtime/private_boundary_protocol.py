@@ -112,16 +112,23 @@ class BoundaryDescriptor:
     head_dispatch: str = "serial"
     head_output_encoding: str = "u32"
     head_kernel: str = "existing"
+    head_certificate_digest: str = ""
 
     def __post_init__(self):
         if type(self.head_kernel) is not str or self.head_kernel not in ("existing", "byte_dot"):
             raise BoundaryError("invalid head kernel")
         if type(self.head_dispatch) is not str or self.head_dispatch not in ("serial", "parallel"):
             raise BoundaryError("invalid head dispatch")
-        if type(self.head_output_encoding) is not str or self.head_output_encoding not in ("u32", "uniform_residues"):
+        if type(self.head_output_encoding) is not str or self.head_output_encoding not in ("u32", "uniform_residues", "row_residues"):
             raise BoundaryError("invalid head output encoding")
+        if self.head_output_encoding == "row_residues":
+            digest(self.head_certificate_digest, "head certificate digest")
+            if self.activation_bits != 8:
+                raise BoundaryError("source-certified head requires W8A8")
+        elif self.head_certificate_digest != "":
+            raise BoundaryError("certificate requires row_residues")
         for field in fields(self):
-            if field.name.endswith("digest"):
+            if field.name.endswith("digest") and field.name != "head_certificate_digest":
                 digest(getattr(self, field.name), field.name)
         integer(self.vocabulary, 1, 262144, "vocabulary")
         integer(self.hidden, 1, 65532, "hidden")
@@ -149,14 +156,14 @@ class BoundaryDescriptor:
     def to_dict(self) -> dict:
         row = {"schema": SCHEMA + ".descriptor", **asdict(self)}
         for name, default in (("head_dispatch", "serial"), ("head_output_encoding", "u32"),
-                              ("head_kernel", "existing")):
+                              ("head_kernel", "existing"), ("head_certificate_digest", "")):
             if row[name] == default:
                 del row[name]
         return row
 
     @classmethod
     def from_dict(cls, value: Any):
-        optional = {"head_dispatch", "head_output_encoding", "head_kernel"}
+        optional = {"head_dispatch", "head_output_encoding", "head_kernel", "head_certificate_digest"}
         required = {"schema", *(f.name for f in fields(cls))} - optional
         if type(value) is not dict or not required <= set(value) or set(value) - required - optional:
             raise BoundaryError("boundary fields differ")

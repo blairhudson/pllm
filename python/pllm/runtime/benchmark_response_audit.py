@@ -91,6 +91,10 @@ def response_state_audit(salt):
                 "checked_values": checked, "logits_and_active_kv": digest.hexdigest(),
                 "selected_token": _commit(salt, int(token)), "rng_before": before,
                 "rng_after": _commit(salt, runtime.rng.bit_generator.state)})
+            if runtime._boundary is not None:
+                # One bounded latest public snapshot, not per-token payloads or
+                # an unbounded trace. Existing audit scratch prices this owner.
+                record["private_boundary_head"] = runtime._boundary.head_output_accounting
             selections += 1
             return token
         except BaseException:

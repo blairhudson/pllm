@@ -55,6 +55,7 @@ def test_default_digest_and_wire_are_historical():
     d = descriptor(head_output_encoding="u32")
     old = asdict(d)
     del old["head_output_encoding"], old["head_dispatch"], old["head_kernel"]
+    del old["head_certificate_digest"]
     expected = {"schema": SCHEMA + ".descriptor", **old}
     assert d.to_dict() == expected
     assert d.digest == hashlib.sha256(b"pllm/private-boundary-descriptor/v1\0" + canonical(expected)).hexdigest()

@@ -1,0 +1,555 @@
+"""Bounded accounting of already-recorded topology application-body counters.
+
+This is deliberately *not* a wire meter: uninstrumented control frames, HTTP/TLS
+framing, transport retries, and setup before the separately captured initial
+inventory remain outside coverage. Version 3 also counts correction acks.
+"""
+
+from __future__ import annotations
+
+import math
+from collections.abc import Mapping
+from typing import Any
+
+ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v1"
+CONTROL_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v2"
+CONTROL_COVERAGE = "prepared_protocol_and_instrumented_lifecycle_controls_v2"
+ACK_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v3"
+ACK_COVERAGE = "prepared_protocol_lifecycle_controls_and_correction_acks_v3"
+BOUNDARY_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v4"
+BOUNDARY_COVERAGE = "prepared_body_and_private_boundary_lifecycle_v4"
+BOUNDARY_ROLES = ("client", "inference", "preparation", "boundary_a", "boundary_b")
+
+# Count every serialized body once, from the sending side of one edge. Other
+# audit counters (masked_online_*, upload_bytes, and server metrics) overlap.
+_PREPARED_BODY_COUNTERS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
+    ("client", "preparation", "offline", (
+        "session_authorization_upload_bytes", "preparation_upload_bytes",
+    )),
+    ("preparation", "client", "offline", (
+        "session_authorization_download_bytes", "preparation_download_bytes",
+    )),
+    ("preparation", "inference", "offline", ("correction_push_bytes",)),
+    ("inference", "client", "cold", ("bundle_network_bytes",)),
+    ("client", "inference", "online", ("inference_upload_bytes",)),
+    ("inference", "client", "online", ("inference_download_bytes",)),
+)
+_REQUIRED_COUNTERS = frozenset(
+    key for _, _, _, fields in _PREPARED_BODY_COUNTERS for key in fields
+)
+_CONTROL_BODY_COUNTERS = (
+    ("client", "inference", "control", ("inference_control_upload_bytes",)),
+    ("inference", "client", "control", ("inference_control_download_bytes",)),
+    ("client", "preparation", "control", ("preparation_control_upload_bytes",)),
+    ("preparation", "client", "control", ("preparation_control_download_bytes",)),
+)
+_CONTROL_REQUIRED = frozenset(key for _, _, _, fields in _CONTROL_BODY_COUNTERS for key in fields)
+_ROLES = ("client", "preparation", "inference")
+_STAGE_COUNTERS = {
+    ("client", "preparation"): "preparation_upload_bytes",
+    ("preparation", "client"): "preparation_download_bytes",
+    ("preparation", "inference"): "correction_push_bytes",
+    ("client", "inference"): "inference_upload_bytes",
+    ("inference", "client"): "inference_download_bytes",
+}
+_CLIENT_ONLY_ZERO_COUNTERS = (
+    "inference_upload_bytes", "inference_download_bytes",
+    "preparation_upload_bytes", "preparation_download_bytes",
+    "correction_push_bytes", "plaintext_prompt_bytes_sent", "plaintext_token_ids_sent",
+)
+
+
+def body_coverage_identity(ledger: Mapping[str, Any]) -> str | None:
+    """Original scope stays identifiable; partial new coverage never ranks."""
+    if not isinstance(ledger, Mapping):
+        return None
+    coverage = ledger.get("body_counter_coverage")
+    if coverage == BOUNDARY_COVERAGE:
+        return coverage if all(ledger.get(key) is True for key in (
+            "tracked_body_counter_set_present", "boundary_body_counter_set_present",
+            "correction_ack_counter_set_present", "control_body_counter_set_present")) else None
+    if coverage == ACK_COVERAGE:
+        return coverage if ledger.get("correction_ack_counter_set_present") is True and ledger.get("control_body_counter_set_present") is True else None
+    if coverage == CONTROL_COVERAGE:
+        return coverage if ledger.get("control_body_counter_set_present") is True else None
+    if ledger.get("schema") in {CONTROL_ACCOUNTING_SCHEMA, ACK_ACCOUNTING_SCHEMA, BOUNDARY_ACCOUNTING_SCHEMA}:
+        return None
+    return coverage or ledger.get("schema", ACCOUNTING_SCHEMA)
+
+
+def accounting_coverage_identity(accounting: Mapping[str, Any] | None) -> str | None:
+    """One coverage contract across startup, warmups and measured windows."""
+    if accounting is None:
+        return "historical_coverage_not_recorded"
+    rows = [accounting.get("startup"), *accounting.get("warmups", []), *accounting.get("runs", [])]
+    # Historical client-owned startup is a model-ownership record, not a body
+    # ledger. It has no control coverage and must not relabel the run bodies.
+    identities = [body_coverage_identity(row) for row in rows if isinstance(row, Mapping)
+                  and ("body_bytes_by_edge" in row or "body_counter_coverage" in row)]
+    if not identities:
+        return "historical_coverage_not_recorded"
+    return identities[0] if None not in identities and len(set(identities)) == 1 else None
+
+
+def online_body_counter_total(counters: Mapping[str, Any], roles: tuple[str, ...]) -> int | None:
+    """Non-overlapping online counters for a measured lifecycle boundary."""
+    if set(roles) == {"client", "worker_a", "worker_b"}:
+        fields = tuple(
+            f"role_link.{role}.online_{direction}_bytes"
+            for role in ("worker_a", "worker_b") for direction in ("upload", "download")
+        )
+    elif set(roles) == set(BOUNDARY_ROLES):
+        fields = ("inference_upload_bytes", "inference_download_bytes", *(
+            f"role_link.{role}.online_{direction}_bytes"
+            for role in ("boundary_a", "boundary_b") for direction in ("upload", "download")))
+    elif set(roles) in ({"client"}, {"client", "preparation", "inference"}):
+        fields = ("inference_upload_bytes", "inference_download_bytes")
+    else:
+        return None
+    if any(type(counters.get(key)) is not int or counters[key] < 0 for key in fields):
+        return None
+    total = sum(counters[key] for key in fields)
+    return None if roles == ("client",) and total else total
+
+
+def measured_decode_window(
+    privacy: Mapping[str, Any], *, output_tokens: int, roles: tuple[str, ...]
+) -> tuple[int, int] | None:
+    """Admit a completed response's phase counters only after conservation."""
+    prefill = privacy.get("generation_prefill_online_body_bytes")
+    decode = privacy.get("generation_decode_online_body_bytes")
+    if (
+        type(output_tokens) is not int or output_tokens < 1
+        or privacy.get("generation_completed_responses") != 1
+        or privacy.get("generation_output_tokens") != output_tokens
+        or privacy.get("generation_decode_output_tokens") != output_tokens - 1
+        or type(prefill) is not int or prefill < 0
+        or type(decode) is not int or decode < 0
+        or prefill + decode != online_body_counter_total(privacy, roles)
+    ):
+        return None
+    return decode, output_tokens - 1
+
+
+def client_owned_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Account only inference-graph links for an all-client role placement."""
+    privacy = record.get("privacy")
+    counters: dict[str, Any] = privacy if type(privacy) is dict else {}
+    complete = all(
+        type(counters.get(key)) is int and counters[key] == 0
+        for key in _CLIENT_ONLY_ZERO_COUNTERS
+    )
+    processes = record.get("processes")
+    raw_client = processes.get("client") if type(processes) is dict else None
+    raw_cpu = raw_client.get("cpu_seconds") if type(raw_client) is dict else None
+    cpu = (
+        float(raw_cpu)
+        if isinstance(raw_cpu, (int, float)) and not isinstance(raw_cpu, bool)
+        and math.isfinite(raw_cpu) and raw_cpu >= 0
+        else None
+    )
+    return {
+        "schema": ACCOUNTING_SCHEMA,
+        "scope": "client-owned semantic execution; no inference-provider graph links",
+        "tracked_body_counter_set_present": complete,
+        "body_bytes_by_edge": [] if complete else None,
+        "client_serialized_body_bytes": 0 if complete else None,
+        "all_link_serialized_body_bytes": 0 if complete else None,
+        "online_client_serialized_body_bytes": 0 if complete else None,
+        "online_all_link_serialized_body_bytes": 0 if complete else None,
+        "run_window_cpu_seconds_by_role": {"client": cpu} if cpu is not None else None,
+        "aggregate_run_window_cpu_seconds": cpu,
+        "total_wire_bytes": None,
+        "full_response_compute_cap_checked": False,
+        "unmeasured": [
+            "client model import and cold checkpoint distribution",
+            "client peak memory, energy, and disk activity",
+            "application/dashboard HTTP traffic outside the inference role graph",
+        ],
+    }
+
+
+def prepared_body_accounting(
+    record: Mapping[str, Any], *, initial_preparation: bool = False,
+) -> dict[str, Any]:
+    """Return the covered body/CPU ledger, or explicitly unavailable fields.
+
+    No coarser ``upload_bytes`` or OTLP receive-side metric is added: those
+    would double-count bodies already charged to the source of the edge.
+    """
+    privacy = record.get("privacy")
+    counters: dict[str, Any] = privacy if type(privacy) is dict else {}
+    base_complete = (
+        _REQUIRED_COUNTERS <= counters.keys()
+        and all(type(counters[key]) is int and counters[key] >= 0 for key in _REQUIRED_COUNTERS)
+    )
+    controls_present = bool(_CONTROL_REQUIRED & counters.keys())
+    controls_complete = _CONTROL_REQUIRED <= counters.keys() and all(
+        type(counters[key]) is int and counters[key] >= 0 for key in _CONTROL_REQUIRED)
+    acks_present = "correction_ack_bytes" in counters
+    acks_complete = (type(counters.get("correction_ack_bytes")) is int
+        and counters["correction_ack_bytes"] >= 0
+        and type(counters.get("correction_ack_accounted_push_bytes")) is int
+        and counters["correction_ack_accounted_push_bytes"] == counters.get("correction_push_bytes"))
+    complete = base_complete and (not controls_present or controls_complete)
+    complete = complete and (not acks_present or acks_complete)
+    control_bytes = sum(counters[key] for key in _CONTROL_REQUIRED) if controls_complete else None
+    links: list[dict[str, str | int]] | None = None
+    client_bytes: int | None = None
+    all_bytes: int | None = None
+    online_client_bytes: int | None = None
+    online_all_bytes: int | None = None
+    if complete:
+        links = [
+            {"source": source, "destination": destination, "phase": phase,
+             "serialized_body_bytes": sum(counters[field] for field in fields)}
+            for source, destination, phase, fields in (
+                *_PREPARED_BODY_COUNTERS, *(_CONTROL_BODY_COUNTERS if controls_complete else ()))
+        ]
+        if acks_present:
+            links.append({"source": "inference", "destination": "preparation", "phase": "offline",
+                          "serialized_body_bytes": counters["correction_ack_bytes"]})
+        client_bytes = sum(
+            int(item["serialized_body_bytes"]) for item in links
+            if "client" in (item["source"], item["destination"])
+        )
+        all_bytes = sum(int(item["serialized_body_bytes"]) for item in links)
+        online_client_bytes = sum(
+            int(item["serialized_body_bytes"]) for item in links
+            if item["phase"] == "online" and "client" in (item["source"], item["destination"])
+        )
+        online_all_bytes = sum(
+            int(item["serialized_body_bytes"]) for item in links if item["phase"] == "online"
+        )
+
+    processes = record.get("processes")
+    cpu: dict[str, float] | None = None
+    if type(processes) is dict and all(
+        type(processes.get(role)) is dict
+        and type(processes[role].get("cpu_seconds")) in (int, float)
+        and math.isfinite(processes[role]["cpu_seconds"])
+        and processes[role]["cpu_seconds"] >= 0
+        for role in _ROLES
+    ):
+        cpu = {role: float(processes[role]["cpu_seconds"]) for role in _ROLES}
+    result = {
+        "schema": ACK_ACCOUNTING_SCHEMA if acks_present else CONTROL_ACCOUNTING_SCHEMA if controls_present else ACCOUNTING_SCHEMA,
+        "body_counter_coverage": ACK_COVERAGE if acks_present else CONTROL_COVERAGE if controls_present else ACCOUNTING_SCHEMA,
+        "correction_ack_counter_set_present": acks_complete if acks_present else None,
+        "control_body_counter_set_present": controls_complete if controls_present else None,
+        "lifecycle_control_serialized_body_bytes": control_bytes,
+        "control_scope": "instrumented POST admission, ready, complete and cancellation bodies, including rejected work",
+        "scope": (
+            "initial inventory and client-bundle serialized bodies; startup CPU unmeasured"
+            if initial_preparation else
+            "recorded prepared-protocol serialized bodies and run-window CPU samples only"
+        ) + ("; instrumented lifecycle control bodies included once in separate control phase" if controls_complete else
+             "; lifecycle control coverage incomplete; directed totals unavailable" if controls_present else ""),
+        "tracked_body_counter_set_present": complete,
+        "body_bytes_by_edge": links,
+        "client_serialized_body_bytes": client_bytes,
+        "all_link_serialized_body_bytes": all_bytes,
+        "online_client_serialized_body_bytes": online_client_bytes,
+        "online_all_link_serialized_body_bytes": online_all_bytes,
+        "run_window_cpu_seconds_by_role": cpu,
+        "aggregate_run_window_cpu_seconds": sum(cpu.values()) if cpu is not None else None,
+        "total_wire_bytes": None,
+        "full_response_compute_cap_checked": False,
+        "unmeasured": [
+            ("HTTP/TLS/WebSocket framing and uninstrumented control endpoints" if controls_complete
+             else "HTTP/TLS/WebSocket framing and control traffic"),
+            *([] if acks_present and acks_complete else ["inference-to-preparation correction acknowledgements"]),
+            "duplicate or failed transport attempts not represented by client audit counters",
+            (
+                "model import and checkpoint distribution before initial inventory"
+                if initial_preparation else
+                "process/model startup, client bundle transfer, and offline inventory prepared before the run window"
+            ),
+            "GPU work, uninstrumented client work, and cold checkpoint distribution",
+        ],
+    }
+    from .benchmark_communication import prepared_window_attribution
+    result["traffic_attribution"] = prepared_window_attribution(counters, result)
+    return result
+
+
+def prepared_stage_body_attribution(
+    before: Mapping[tuple[str, str, str], int],
+    after: Mapping[tuple[str, str, str], int],
+    privacy: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Reconcile ephemeral OTLP stage counters with recorded protocol bodies.
+
+    The other covered setup/control/bundle bodies have no stage and remain in
+    ``prepared_body_accounting``. Reject missing or delayed OTLP samples rather
+    than treating a partial stage list as a complete byte attribution.
+    """
+    if len(before) > 1024 or len(after) > 1024:
+        raise ValueError("stage telemetry exceeds bounded cardinality")
+    by_stage: dict[str, dict[str, int]] = {}
+    for key in set(before) | set(after):
+        if (
+            type(key) is not tuple or len(key) != 3
+            or any(type(item) is not str or not item or len(item) > 128 for item in key)
+            or type(before.get(key, 0)) is not int or type(after.get(key, 0)) is not int
+            or before.get(key, 0) < 0 or after.get(key, 0) < before.get(key, 0)
+        ):
+            raise ValueError("invalid or decreasing stage telemetry")
+        source, destination, stage = key
+        if (source, destination) not in _STAGE_COUNTERS:
+            continue
+        delta = after.get(key, 0) - before.get(key, 0)
+        if delta:
+            edge = f"{source}->{destination}"
+            by_stage.setdefault(stage, {})[edge] = delta
+    measured = {
+        f"{source}->{destination}": sum(
+            row.get(f"{source}->{destination}", 0) for row in by_stage.values()
+        )
+        for source, destination in _STAGE_COUNTERS
+    }
+    expected = {
+        f"{source}->{destination}": privacy.get(field)
+        for (source, destination), field in _STAGE_COUNTERS.items()
+    }
+    complete = ("telemetry", "overflow", "stage") not in after and all(
+        type(expected[edge]) is int and expected[edge] == amount
+        for edge, amount in measured.items()
+    )
+    return {
+        "schema": "pllm.prepared_stage_body_attribution.v1",
+        "scope": "ephemeral cumulative OTLP stage-body deltas; no full wire or per-token telemetry",
+        "reconciled_with_protocol_bodies": complete,
+        "body_bytes_by_stage_and_edge": (
+            {stage: dict(sorted(edges.items())) for stage, edges in sorted(by_stage.items())}
+            if complete else None
+        ),
+        "measured_body_bytes_by_edge": measured,
+        "expected_stage_body_bytes_by_edge": expected,
+        "unmeasured": [
+            "session authorization, bundle delivery and other bodies with no semantic stage",
+            "HTTP/TLS/WebSocket framing, full wire, and model distribution",
+        ],
+    }
+
+
+def two_worker_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Count observed worker setup, online, teardown and bundle bodies once."""
+    privacy = record.get("privacy")
+    counters: dict[str, Any] = privacy if type(privacy) is dict else {}
+    roles = ("worker_a", "worker_b")
+    fields = (
+        f"role_link.{role}.{phase}_{direction}_bytes"
+        for role in roles
+        for phase in ("setup", "online", "teardown")
+        for direction in ("upload", "download")
+    )
+    required = frozenset(fields) | {"bundle_network_bytes"}
+    complete = required <= counters.keys() and all(
+        type(counters[key]) is int and counters[key] >= 0 for key in required
+    )
+    edges: list[dict[str, str | int]] | None = None
+    if complete:
+        edges = []
+        for role in roles:
+            for phase in ("setup", "online", "teardown"):
+                for direction in ("upload", "download"):
+                    source, destination = (
+                        ("client", role) if direction == "upload" else (role, "client")
+                    )
+                    edges.append({
+                        "source": source, "destination": destination,
+                        "phase": phase,
+                        "serialized_body_bytes": counters[
+                            f"role_link.{role}.{phase}_{direction}_bytes"
+                        ],
+                    })
+        edges.append({
+            "source": "worker_a", "destination": "client", "phase": "bundle",
+            "serialized_body_bytes": counters["bundle_network_bytes"],
+        })
+    processes = record.get("processes")
+    cpu: dict[str, float] | None = None
+    if type(processes) is dict and all(
+        type(processes.get(role)) is dict
+        and type(processes[role].get("cpu_seconds")) in (int, float)
+        and math.isfinite(processes[role]["cpu_seconds"])
+        and processes[role]["cpu_seconds"] >= 0
+        for role in ("client", *roles)
+    ):
+        cpu = {
+            role: float(processes[role]["cpu_seconds"])
+            for role in ("client", *roles)
+        }
+    return {
+        "schema": ACCOUNTING_SCHEMA,
+        "scope": "authenticated two-worker HTTP application bodies and run-window CPU",
+        "tracked_body_counter_set_present": complete,
+        "body_bytes_by_edge": edges,
+        "client_serialized_body_bytes": (
+            sum(int(edge["serialized_body_bytes"]) for edge in edges) if edges is not None
+            else None
+        ),
+        "all_link_serialized_body_bytes": (
+            sum(int(edge["serialized_body_bytes"]) for edge in edges) if edges is not None
+            else None
+        ),
+        "online_client_serialized_body_bytes": (
+            sum(int(edge["serialized_body_bytes"]) for edge in edges
+                if edge["phase"] == "online") if edges is not None else None
+        ),
+        "online_all_link_serialized_body_bytes": (
+            sum(int(edge["serialized_body_bytes"]) for edge in edges
+                if edge["phase"] == "online") if edges is not None else None
+        ),
+        "run_window_cpu_seconds_by_role": cpu,
+        "aggregate_run_window_cpu_seconds": sum(cpu.values()) if cpu is not None else None,
+        "total_wire_bytes": None,
+        "full_response_compute_cap_checked": False,
+        "unmeasured": [
+            "HTTP headers, TLS and transport framing",
+            "model descriptor and authenticated monitoring request bodies",
+            "worker model import and cold checkpoint distribution",
+            "peak client memory, energy, and disk activity",
+        ],
+    }
+
+
+def private_boundary_body_accounting(record: Mapping[str, Any], *, initial_preparation=False) -> dict[str, Any]:
+    """Prepared body plus both boundary links; sender-side HTTP bodies once.
+
+    Native operation diagnostics are explanatory, not additional wire charges.
+    Missing/rejected-operation counters invalidate totals rather than become zero.
+    Source distribution is a separate delivery case, outside this covered ledger.
+    """
+    base = prepared_body_accounting(record, initial_preparation=initial_preparation)
+    counters = record.get("privacy")
+    counters = counters if isinstance(counters, Mapping) else {}
+    fields = tuple(f"role_link.{role}.{phase}_{direction}_bytes"
+        for role in ("boundary_a", "boundary_b") for phase in ("setup", "online", "teardown")
+        for direction in ("upload", "download"))
+    boundary_complete = (all(type(counters.get(key)) is int and counters[key] >= 0 for key in fields)
+        and type(counters.get("private_boundary_body_coverage_failures")) is int
+        and counters["private_boundary_body_coverage_failures"] == 0)
+    complete = boundary_complete and body_coverage_identity(base) == ACK_COVERAGE
+    edges = None
+    if complete:
+        edges = [*base["body_bytes_by_edge"], *(
+            {"source": "client" if direction == "upload" else role,
+             "destination": role if direction == "upload" else "client", "phase": phase,
+             "serialized_body_bytes": counters[f"role_link.{role}.{phase}_{direction}_bytes"]}
+            for role in ("boundary_a", "boundary_b") for phase in ("setup", "online", "teardown")
+            for direction in ("upload", "download"))]
+    processes = record.get("processes")
+    cpu = None
+    if isinstance(processes, Mapping) and all(isinstance(processes.get(role), Mapping)
+            and type(processes[role].get("cpu_seconds")) in (int, float)
+            and math.isfinite(processes[role]["cpu_seconds"])
+            and processes[role]["cpu_seconds"] >= 0 for role in BOUNDARY_ROLES):
+        cpu = {role: float(processes[role]["cpu_seconds"]) for role in BOUNDARY_ROLES}
+    result = {**base, "schema": BOUNDARY_ACCOUNTING_SCHEMA, "body_counter_coverage": BOUNDARY_COVERAGE,
+        "boundary_body_counter_set_present": boundary_complete, "tracked_body_counter_set_present": complete,
+        "scope": "prepared-body plus two private-boundary sender-side application bodies; not native payload plus HTTP",
+        "body_bytes_by_edge": edges, "run_window_cpu_seconds_by_role": cpu,
+        "aggregate_run_window_cpu_seconds": sum(cpu.values()) if cpu is not None else None,
+        "total_wire_bytes": None, "source_distribution_bytes": None,
+        "unknown_reasons": ([] if complete else ["prepared v3 or boundary lifecycle/failed-attempt coverage incomplete"])}
+    for key, online, client in (("all_link_serialized_body_bytes", False, False),
+            ("client_serialized_body_bytes", False, True),
+            ("online_all_link_serialized_body_bytes", True, False),
+            ("online_client_serialized_body_bytes", True, True)):
+        result[key] = sum(edge["serialized_body_bytes"] for edge in edges
+            if (not online or edge["phase"] == "online")
+            and (not client or "client" in (edge["source"], edge["destination"]))) if edges is not None else None
+    from .benchmark_communication import private_boundary_window_attribution
+    result["traffic_attribution"] = private_boundary_window_attribution(counters, result)
+    return result
+
+
+def source_delivery_accounting(case: str, measured_edges=None) -> dict[str, Any]:
+    """Keep prepositioned source and missing-worker deliveries separate.
+
+    Missing-worker evidence must include both artifact and full-source deliveries
+    to both workers. Never synthesize application bytes or TCP from file sizes.
+    """
+    if case not in {"source-present", "missing-workers"}:
+        raise ValueError("unknown source delivery case")
+    valid = isinstance(measured_edges, list) and 0 < len(measured_edges) <= 32
+    if valid:
+        valid = all(isinstance(edge, Mapping)
+            and edge.get("kind") in {"artifact", "full-source"}
+            and edge.get("destination") in {"boundary_a", "boundary_b"}
+            and type(edge.get("application_bytes")) is int and edge["application_bytes"] >= 0
+            and (edge.get("tcp_stream_bytes") is None or (
+                type(edge["tcp_stream_bytes"]) is int and edge["tcp_stream_bytes"] >= edge["application_bytes"]))
+            for edge in measured_edges)
+    if valid and case == "missing-workers":
+        valid = {(edge["destination"], edge["kind"]) for edge in measured_edges} == {
+            (role, kind) for role in ("boundary_a", "boundary_b") for kind in ("artifact", "full-source")}
+    tcp_complete = valid and all(type(edge.get("tcp_stream_bytes")) is int for edge in measured_edges)
+    return {"schema": "pllm.private_boundary_source_delivery.v1", "case": case,
+        "measured": valid, "edges": measured_edges if valid else None,
+        "application_bytes": sum(edge["application_bytes"] for edge in measured_edges) if valid else None,
+        "tcp_stream_bytes": sum(edge["tcp_stream_bytes"] for edge in measured_edges) if tcp_complete else None,
+        "physical_wire_bytes": None, "prepositioned_source_not_free": case == "source-present"}
+
+
+def cold_process_cpu_accounting(
+    readings: Mapping[str, Any] | None,
+    *,
+    roles: tuple[str, ...],
+    first_measurement_is_cold: bool,
+) -> dict[str, Any]:
+    """Account cumulative CPU from role birth/dashboard start through first response.
+
+    A missing role or a replaced PID invalidates the aggregate. No sampled GPU
+    time, upstream source distribution, or later warm-run CPU is inferred here.
+    """
+    expected = frozenset(roles)
+
+    def checked(key: str) -> dict[str, float] | None:
+        value = readings.get(key) if readings is not None else None
+        if type(value) is not dict or set(value) != expected:
+            return None
+        result: dict[str, float] = {}
+        for role in roles:
+            sample = value[role]
+            if type(sample) not in (int, float) or not math.isfinite(sample) or sample < 0:
+                return None
+            result[role] = float(sample)
+        return result
+
+    startup = checked("startup")
+    complete = checked("first_response") if first_measurement_is_cold else None
+    if startup is not None and complete is not None and any(
+        complete[role] < startup[role] for role in roles
+    ):
+        complete = None
+    return {
+        "schema": "pllm.topology_process_cpu.v1",
+        "scope": (
+            "dashboard/client CPU from benchmark startup and role CPU from process birth; "
+            "through the first cold measured response"
+        ),
+        "startup_cpu_seconds_by_role": startup,
+        "aggregate_startup_cpu_seconds": sum(startup.values()) if startup is not None else None,
+        "cold_first_response_cpu_seconds_by_role": complete,
+        "aggregate_cold_first_response_cpu_seconds": (
+            sum(complete.values()) if complete is not None else None
+        ),
+        "full_response_compute_cap_checked": False,
+        "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger",
+        ],
+    }
+
+
+__all__ = [
+    "ACCOUNTING_SCHEMA", "client_owned_body_accounting", "cold_process_cpu_accounting",
+    "prepared_body_accounting",
+    "prepared_stage_body_attribution",
+    "two_worker_body_accounting",
+    "private_boundary_body_accounting", "source_delivery_accounting",
+]

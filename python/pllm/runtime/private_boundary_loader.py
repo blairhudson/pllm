@@ -37,6 +37,7 @@ class LoadedPrivateBoundary:
 
 def load_private_boundary(
     experiment: Experiment, *, cache_dir: str | Path | None = None,
+    _admit_import: Callable | None = None,
 ) -> LoadedPrivateBoundary:
     """Resolve original source lock and import one semantically declared head.
 
@@ -50,6 +51,13 @@ def load_private_boundary(
     from .models import StageSpec
     from .transformer_engine import MaskedTransformerEngine
 
+    if _admit_import is not None:
+        # Metadata-only publication preflight must not materialize Model.tiny()
+        # or download an absent source before its tensor import is reserved.
+        model = experiment.pipeline.model
+        if (model.kind not in {"huggingface", "safetensors", "vllm", "mlx", "mlx-lm"}
+                or (not Path(model.source).expanduser().is_dir() and not model.local_files_only)):
+            raise BoundaryError("publication requires an existing local or explicitly offline cached checkpoint")
     experiment.resolve()
     options = resolve_runtime_composition(experiment.pipeline)
     if options is None or not getattr(options, "private_boundary", False):
@@ -102,15 +110,22 @@ def load_private_boundary(
         raise BoundaryError("private boundary has no admitted head")
     manifest = replace(source.manifest, metadata={**source.manifest.metadata,
                                                "stage_origin": "semantic_schedule_v1"})
+    # The publisher acquires an outer-lifetime reservation here, after all
+    # source/semantic/header checks and before importer/native or tensor owners.
+    # The callback must keep its owner alive through the subsequent publication.
+    if _admit_import is not None:
+        _admit_import(source, head_spec, store)
     kernels = experiment.pipeline.components["kernels"]
     importer = MaskedTransformerEngine(threads=kernels.params.get("threads", 1),
                                       weight_bits=8, activation_bits=8)
     # Deliberately never call importer.load(): that loads a decoder graph.
-    head = importer._load_stage(store, head_spec, manifest)
-    if head.bias is not None or head.compiled_weight is None or head.compiled_weight._matrix is None:
-        raise BoundaryError("private boundary requires an immutable native bias-free head")
-    tokenizer = importer._load_tokenizer_descriptor(source.path, manifest, dict(config))
-    store.clear_cache()
+    try:
+        head = importer._load_stage(store, head_spec, manifest)
+        if head.bias is not None or head.compiled_weight is None or head.compiled_weight._matrix is None:
+            raise BoundaryError("private boundary requires an immutable native bias-free head")
+        tokenizer = importer._load_tokenizer_descriptor(source.path, manifest, dict(config))
+    finally:
+        store.clear_cache()
     return LoadedPrivateBoundary(source, plan, schedule, head, tokenizer, raw_config)
 
 
@@ -138,7 +153,7 @@ def build_private_boundary_contract(loaded: LoadedPrivateBoundary, experiment: E
     try:
         if boundary is None or boundary.component != PrivateLookupAndFullHead.descriptor.component:
             raise ValueError("private boundary component is absent")
-        boundary_options = dict(PrivateLookupAndFullHead.from_params(boundary.params).params)
+        boundary_options = PrivateLookupAndFullHead.from_params(boundary.params).to_spec()["params"]
     except ValueError as exc:
         raise BoundaryError("private boundary options are unsupported") from exc
     max_input = integer(plan["prefill"]["query_sequence"], 1, MAX_LOOKUP_ROWS, "plan input bound")
@@ -232,7 +247,11 @@ def build_private_boundary_contract(loaded: LoadedPrivateBoundary, experiment: E
         head_dispatch=contract.get("head_dispatch", "serial"),
         head_output_encoding=contract.get("head_output_encoding", "u32"),
         head_kernel=contract.get("head_kernel", "existing"),
+        head_certificate_digest=contract.get("head_certificate", {}).get("digest", ""),
     )
+    if descriptor.head_output_encoding == "row_residues":
+        from .private_boundary_certificate import import_certificate
+        import_certificate(boundary_options["head_certificate"], descriptor, weights=matrix.weight_view())
     plan_digest = loaded.plan.digest
 
     def admit(actual, requested):
@@ -280,6 +299,7 @@ def create_private_boundary_role_app(
         head_scales=loaded.head.weight_scales, role_id=role_id,
         api_key=api_key, peer_credential_digest=peer_credential_digest,
         admit=lambda actual, requested: admit(actual, trusted_admit(actual, requested)),
+        head_certificate=experiment.pipeline.components["boundary"].params.get("head_certificate"),
     )
     app.state.private_boundary_source = loaded
     return app

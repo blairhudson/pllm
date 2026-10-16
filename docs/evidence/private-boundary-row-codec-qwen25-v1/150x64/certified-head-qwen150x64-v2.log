@@ -1,0 +1,10 @@
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 2033.53it/s]
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 3814.49it/s]
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 3810.53it/s]
+{
+  "schema": "pllm.private_boundary_row_codec_progress.v1",
+  "status": "completed",
+  "measurement_complete": true,
+  "clients": 6,
+  "maximum_swap_growth_bytes": 0
+}

@@ -8,6 +8,7 @@ import { defaultMetrics, priorities, sotaMetrics } from '../lib/research-ranking
 import { historicalRows } from './research-historical.mjs';
 import { adaptedCohorts } from './research-scorecard-adapters.mjs';
 import { clientMemoryEvidence } from './research-memory.mjs';
+import { rowCodecCoverage } from './research-row-codec-coverage.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -378,7 +379,8 @@ export function buildScorecard({ trafficAttributionConsumer = null } = {}) {
       }
   }
   const clientMemoryTiers = JSON.parse(fs.readFileSync(path.join(root, 'python/pllm/search/client_memory_tiers.json')));
-  return { schema: 'pllm.research_scorecard.v1', clientMemoryTiers, metrics, defaultMetrics, sotaMetrics, priorities, papers, cohorts };
+  return { schema: 'pllm.research_scorecard.v1', clientMemoryTiers, metrics, defaultMetrics, sotaMetrics, priorities, papers, cohorts,
+    rowCodecCoverage: rowCodecCoverage(manifest.row_codec_coverage) };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

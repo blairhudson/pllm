@@ -85,6 +85,59 @@ Against maintained prepared execution, traffic falls 23.70% and full requests
 24.19%, but decode remains 32.78% slower. See the
 [head-choice screen](/research/sota/#exact-boundary-decode-screen) for scope and replay.
 
+## Source-certified per-row replies
+
+`head_output_encoding="row_residues"` uses a separate exact width for every
+vocabulary row. Select it with an independently approved `head_certificate` pin
+containing an absolute local `path`, actual-byte SHA-256 `digest` and `size_bytes`.
+The client authenticates this bounded public artifact; both boundary workers
+recompute its row bounds against their immutable native weights. The client
+continues to reconstruct every original integer and float32 logit without
+receiving a vocabulary matrix.
+
+```python
+from pllm import ConfigurationError
+from pllm.roles import PrivateLookupAndFullHead
+
+def certified_boundary(approved_pin):
+    return PrivateLookupAndFullHead(
+        head_dispatch="parallel",
+        head_output_encoding="row_residues",
+        head_certificate=approved_pin,
+    )
+
+try:
+    certified_boundary(None)
+except ConfigurationError:
+    missing_pin_rejected = True
+else:
+    missing_pin_rejected = False
+assert missing_pin_rejected
+```
+
+The offline trusted publisher creates an artifact with
+`PrivateLookupAndFullHead.publish_head_certificate(experiment, path)` using a
+source recipe without row residues. Head-only import is admitted against live
+host/container headroom before tensor loading. The returned pin still needs
+independent publisher approval: a worker-supplied digest is not authentication.
+Publication, local artifact reads and distribution have separate costs. This
+selection currently supports local prepared-boundary children with tied W8A8
+heads; admission retains full-frame allowances and adds certificate/codec owners.
+
+Generated decoder/SDK checks preserve complete logits, active KV, selections and
+RNG for both head kernels. A separate six-client Qwen2.5 150+8 initial screen
+preserves 52.56 million checked values with zero observed swap growth: head payload
+falls 8.31%, total TCP traffic 0.17%, and decode improves 2.41%, while full requests
+are 1.18% slower. Largest complete-client peak is 221.66 MiB; mixed paired RSS
+changes establish no memory improvement. A separate 150+64 six-client screen
+preserves 486.56 million checked values with zero swap growth: TCP traffic falls
+0.91%, decode improves 0.87%, full requests are effectively unchanged and
+five-owner cold CPU rises 2.86%. Largest candidate peak is 217.83 MiB, also with
+mixed paired RSS changes. Certificate distribution is separately budgeted;
+independent confirmation remains open for both screens.
+See the [source-certificate contract](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-row-codec-sdk.md)
+and [matched benchmark](https://github.com/blairhudson/pllm/blob/main/docs/research/private-boundary-row-codec-benchmark.md).
+
 ## Exact head kernel choice
 
 ```python

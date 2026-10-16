@@ -287,6 +287,11 @@ def execute_response(p, m):
                     runs[0]["tokens"]["output_tokens"], runs[0]["tokens"]["output_tokens"] + 1}
                 or not 1 <= len(stage_records[0]["selections"]) <= scenario.max_output_tokens):
             raise TargetUnavailable("response_state_audit_incomplete", status="failed")
+        # Public delivery identity differs across exact numeric alternatives.
+        # Keep it outside the full-state binding and output comparison digest.
+        head_accounting = stage_records[0].pop("private_boundary_head", None)
+        if head_accounting is not None:
+            m.details["private_boundary_head"] = head_accounting
         m.details["response_state_audit"] = {"schema": "pllm.response_state_audit.v1", "bindings": stage_records,
             "scope": "every sampled full logit vector, active full KV, position, selection and greedy RNG",
             "terminal_eos_selection_may_exceed_emitted_count": True,

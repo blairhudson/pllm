@@ -1,0 +1,16 @@
+{
+  "parallel-uniform-residues": {
+    "pipeline_digest": "afd9b34986f4f68b40307de830f2d78f52adbee052f3e3484866178d2827dd49",
+    "composition_digest": "afd9b34986f4f68b40307de830f2d78f52adbee052f3e3484866178d2827dd49",
+    "schedule_digest": "8895d8ef068c09dfb1a6345af479cbeed51c1ec4f9ffabaac34f8ca942b0a7cb",
+    "descriptor_digest": "8f0d1465cfb9b9c78da1b7173c7392f913b256f4cd3a3c0cb58da0e50167b8d0",
+    "numeric_body_fingerprint": "c54421cb6363f1e84bb5738ddd86a61faf95d9cf9d73df6dace12d3b894a023b"
+  },
+  "parallel-row-residues": {
+    "pipeline_digest": "c5c9835c1c58c3a4c1ba9aa749988b254e3ad25356e85a5c485e93a3bee3abfd",
+    "composition_digest": "c5c9835c1c58c3a4c1ba9aa749988b254e3ad25356e85a5c485e93a3bee3abfd",
+    "schedule_digest": "64f716b3d959256f1ab6b62a3155815c5479544d6d659ed2e8261a021bc81fac",
+    "descriptor_digest": "51a22dd6e17902ed51ef76acf7157fe693048d807b3321f6918fc1f8f09f1ff5",
+    "numeric_body_fingerprint": "c54421cb6363f1e84bb5738ddd86a61faf95d9cf9d73df6dace12d3b894a023b"
+  }
+}

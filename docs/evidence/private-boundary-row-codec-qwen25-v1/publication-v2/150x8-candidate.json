@@ -1,0 +1,97 @@
+{
+  "schema": "pllm.experiment.v2",
+  "name": "local-boundary-control",
+  "pipeline": {
+    "model": {
+      "source": "Qwen/Qwen2.5-0.5B-Instruct",
+      "revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+    },
+    "components": {
+      "delivery": {
+        "component": "pllm/client-bundle-transport/v1",
+        "params": {
+          "encoding": "artifacts",
+          "compression": "zlib",
+          "batch_objects": 64,
+          "storage": "paged"
+        }
+      },
+      "inference": {
+        "component": "pllm/inference",
+        "params": {}
+      },
+      "inventory": {
+        "component": "pllm/prepared-inventory-policy/v1",
+        "params": {
+          "policy": "request-sized",
+          "rows": 1,
+          "refill": "on-demand",
+          "stage_window": 4,
+          "stage_window_bytes": 67108864,
+          "allocation": "demand"
+        }
+      },
+      "kernels": {
+        "component": "pllm/cpu",
+        "params": {
+          "threads": 1
+        }
+      },
+      "linear": {
+        "component": "pllm/masked-linear",
+        "params": {
+          "output_encoding": "row_residues",
+          "prefill_chunk_rows": 16,
+          "request_encoding": "stage_packed",
+          "prefill_pruning": "terminal"
+        }
+      },
+      "preparation": {
+        "component": "pllm/model-aware-corrections",
+        "params": {
+          "storage": "paged"
+        }
+      },
+      "quantization": {
+        "component": "pllm/symmetric-per-row-quantization/v1",
+        "params": {
+          "weight_bits": 8,
+          "activation_bits": 8,
+          "causal_reduction": "prefix_f32"
+        }
+      },
+      "tokenizer": {
+        "component": "pllm/indexed-tokenizer/v1",
+        "params": {
+          "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer",
+          "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe"
+        }
+      },
+      "boundary": {
+        "component": "pllm/private-lookup-full-head/v1",
+        "params": {
+          "head_dispatch": "parallel",
+          "head_output_encoding": "row_residues",
+          "head_certificate": {
+            "path": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert",
+            "digest": "8b7a59c0ca47cabbb1db7b5731b7edbb8210eddaf9e4220367e4a9bb37e95d1e",
+            "size_bytes": 11364
+          }
+        }
+      },
+      "topology": {
+        "component": "pllm/prepared-body-two-online-boundary/v1",
+        "params": {}
+      }
+    }
+  },
+  "deployment": {
+    "kind": "local",
+    "root": "target/private-boundary-cohort"
+  },
+  "budget": {
+    "requests": 1,
+    "max_input_tokens": 150,
+    "max_new_tokens": 8
+  }
+}

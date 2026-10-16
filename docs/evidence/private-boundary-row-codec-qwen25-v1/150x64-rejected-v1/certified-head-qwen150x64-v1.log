@@ -1,0 +1,10 @@
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 2805.55it/s]
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 3841.94it/s]
+Fetching 7 files:   0%|          | 0/7 [00:00<?, ?it/s]Fetching 7 files: 100%|██████████| 7/7 [00:00<00:00, 3892.88it/s]
+{
+  "schema": "pllm.private_boundary_row_codec_progress.v1",
+  "status": "rejected",
+  "measurement_complete": false,
+  "failure_code": "row_codec_changed_or_mixed_cell",
+  "error_type": "Rejected"
+}

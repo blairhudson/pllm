@@ -60,6 +60,8 @@ def prepared_body(engine, compiled):
 
 
 def boundary_workers(engine, compiled, admission):
+    from pllm.configuration import Pipeline
+    pin = Pipeline.from_spec(json.loads(compiled._canonical_composition)).components["boundary"].params.get("head_certificate")
     descriptor = compiled.private_boundary_descriptor()
     head = engine.models[compiled._bundle.model_id].stages["lm_head"]
     keys = {ROLES[0]: "a" * 32, ROLES[1]: "b" * 32}
@@ -76,7 +78,7 @@ def boundary_workers(engine, compiled, admission):
         app = create_private_boundary_worker_app(descriptor=descriptor, head=head.compiled_weight,
             head_scales=head.weight.scales, role_id=role, api_key=keys[role],
             peer_credential_digest=hashlib.sha256(keys[ROLES[1 - index]].encode()).hexdigest(),
-            admit=admit)
+            admit=admit, head_certificate=pin)
 
         def exchange(request, app=app):
             async def call():
@@ -88,7 +90,8 @@ def boundary_workers(engine, compiled, admission):
 
         clients.append(httpx.Client(base_url=f"http://localhost:{8100 + index}", transport=httpx.MockTransport(exchange)))
     transport = PrivateBoundaryTransport(worker_a=clients[0], worker_b=clients[1],
-        api_key_a=keys[ROLES[0]], api_key_b=keys[ROLES[1]], descriptor=descriptor, head_scales=head.weight.scales)
+        api_key_a=keys[ROLES[0]], api_key_b=keys[ROLES[1]], descriptor=descriptor, head_scales=head.weight.scales,
+        head_certificate=pin)
     return transport.open(admission), clients
 
 
@@ -98,8 +101,11 @@ def boundary_workers(engine, compiled, admission):
     {"head_output_encoding": "uniform_residues"},
     {"head_dispatch": "parallel", "head_output_encoding": "uniform_residues"},
     {"head_kernel": "byte_dot"},
-    {"head_kernel": "byte_dot", "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"}],
-    ids=["serial-u32", "parallel-u32", "serial-residues", "parallel-residues", "byte-dot", "byte-dot-parallel-residues"])
+    {"head_kernel": "byte_dot", "head_dispatch": "parallel", "head_output_encoding": "uniform_residues"},
+    *[{"head_dispatch": dispatch, "head_output_encoding": "row_residues", "head_kernel": kernel}
+      for dispatch in ("serial", "parallel") for kernel in ("existing", "byte_dot")]],
+    ids=["serial-u32", "parallel-u32", "serial-residues", "parallel-residues", "byte-dot", "byte-dot-parallel-residues",
+         "row-serial-existing", "row-serial-byte-dot", "row-parallel-existing", "row-parallel-byte-dot"])
 def test_full_logits_kv_tokens_rng_and_repeated_feedback(tmp_path, family, reduction, boundary_options, monkeypatch):
     from pllm.runtime.native import CompiledMatrix
     integer_outputs = []

@@ -1,0 +1,11 @@
+{
+  "complete": false,
+  "sources": {
+    "/Users/blairhudson/workspace/pllm/scripts/prepare_private_boundary_row_codec.py": "dff404d6153846436603fb4bdc9af2fd3792717d4153b5b3336fbc66549bbeb3",
+    "/Users/blairhudson/workspace/pllm/scripts/frontier_probe_support.py": "6f060bf3403b5991f0f3728a54e02cc1080148b6ffc667948fbf675214779bc5",
+    "target/certified-head-inputs-v1/150x8-control.json": "6af8893f485ab36cc07b7eb0adc09b19b01ed66ba00a9b53b0dfafb42b006674",
+    "target/certified-head-inputs-v1/150x64-control.json": "9c1c870f28a6ca584f0f0d69f77c9b87d4ccfa18cbaf84edefa22d8c28773b03",
+    "docs/evidence/compact-private-head-qwen25-v1.json": "5b482e1b96ab73a4cae02f856f082e910e3d6c7debfebd4338f29c7f5d769126"
+  },
+  "failure_type": "RuntimeError"
+}

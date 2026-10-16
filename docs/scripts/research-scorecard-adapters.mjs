@@ -644,6 +644,9 @@ export function epochPrefixCohorts(spec, document, helpers) {
 }
 
 export function adaptedCohorts(spec, read, helpers) {
+  if (['private-boundary-row-codec-v1', 'private-boundary-row-codec-coverage-v1'].includes(spec.adapter)) {
+    throw new Error('Row-codec evidence is coverage-only pending independent read-only audit; no summary-to-score fallback');
+  }
   const { document, plan } = readBound(spec, read);
   if (spec.adapter === 'benchmark-suite-v1') return benchmarkSuiteCohorts(spec, document, plan, helpers);
   if (spec.adapter === 'epoch-prefix-v1') return epochPrefixCohorts(spec, document, helpers);

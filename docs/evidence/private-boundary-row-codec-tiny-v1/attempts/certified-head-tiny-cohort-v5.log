@@ -1,0 +1,7 @@
+{
+  "schema": "pllm.private_boundary_row_codec_progress.v1",
+  "status": "rejected",
+  "measurement_complete": false,
+  "failure_code": "row_codec_planned_input_count_mismatch",
+  "error_type": "Rejected"
+}

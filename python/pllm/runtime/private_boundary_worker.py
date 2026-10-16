@@ -47,6 +47,7 @@ def create_private_boundary_worker_app(
     role_id: str, api_key: str, peer_credential_digest: str,
     admit: Callable[[BoundaryDescriptor, BoundaryAdmission], BoundaryAdmission],
     lookup_root=None, max_sessions: int = 8, idle_seconds: float = 90.0,
+    head_certificate: dict | None = None,
 ) -> FastAPI:
     """Bind actual native weights/table to mandatory trusted decoder admission.
 
@@ -102,7 +103,7 @@ def create_private_boundary_worker_app(
         row_l1 = max(row_l1, int(np.max(np.sum(np.abs(chunk), axis=1, dtype=np.int64))))
     if row_l1 * ((1 << (descriptor.activation_bits - 1)) - 1) > descriptor.signed_output_bound:
         raise BoundaryError("actual head exceeds committed signed bound")
-    head_codec = HeadOutputCodec(descriptor)
+    head_codec = HeadOutputCodec(descriptor, certificate=head_certificate, weights=weights)
     if lookup_root is None:
         constructor = getattr(_native.PrivatePageServer, "from_matrix", None)
         if constructor is None:

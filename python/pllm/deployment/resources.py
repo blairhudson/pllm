@@ -148,6 +148,26 @@ class _ClientCapacity:
                 raise NetworkError("CLIENT_MEMORY_OBSERVATION_UNAVAILABLE") from exc
 
     @contextmanager
+    def hold_bytes(self, incremental_bytes):
+        """Reserve already-priced incremental owners without a planning record.
+
+        Share the SDK reservation ledger and atomic live host/cgroup observation.
+        Resident allocations never receive speculative reuse credit.
+        """
+        integer(incremental_bytes, "incremental_memory_bytes", minimum=1)
+        token = object()
+        with self.lock:
+            resources = self.observe()
+            if incremental_bytes > resources.headroom_bytes:
+                raise NetworkError("CLIENT_MEMORY_CAPACITY_CHANGED")
+            self._owners[token] = incremental_bytes
+        try:
+            yield resources
+        finally:
+            with self.lock:
+                self._owners.pop(token, None)
+
+    @contextmanager
     def hold(self, select):
         token = object()
         with self.lock:
@@ -189,3 +209,8 @@ class _ClientCapacity:
 
 
 _capacity = _ClientCapacity()
+
+
+def reserve_incremental_memory(incremental_bytes):
+    """Hold a conservative byte price through the lifetime of its local owners."""
+    return _capacity.hold_bytes(incremental_bytes)

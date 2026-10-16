@@ -4442,6 +4442,7 @@ class RuntimeClient:
 
         try:
             if self._private_boundary:
+                from pllm.configuration import Pipeline
                 from .private_boundary_transport import PrivateBoundaryTransport
 
                 if compiled is None or self._boundary_connections is None:
@@ -4450,6 +4451,7 @@ class RuntimeClient:
                 boundary_transport = PrivateBoundaryTransport(
                     worker_a=url_a, worker_b=url_b, api_key_a=key_a, api_key_b=key_b,
                     descriptor=compiled.private_boundary_descriptor(),
+                    head_certificate=Pipeline.from_spec(json.loads(compiled._canonical_composition)).components["boundary"].params.get("head_certificate"),
                     head_scales=state.bundle.stages["lm_head"].weight_scales,
                     timeout=self._boundary_timeout,
                 )

@@ -48,6 +48,7 @@ class PrivateBoundaryTransport:
         self, *, worker_a: httpx.Client | str, worker_b: httpx.Client | str,
         api_key_a: str, api_key_b: str, descriptor: BoundaryDescriptor,
         head_scales: np.ndarray, bias: np.ndarray | None = None, timeout: float = 30.0,
+        head_certificate: dict | None = None,
     ):
         if type(descriptor) is not BoundaryDescriptor:
             raise BoundaryError("boundary requires an immutable descriptor")
@@ -72,8 +73,10 @@ class PrivateBoundaryTransport:
         if origins[0] == origins[1]:
             raise BoundaryError("boundary requires distinct origins")
         self.descriptor = descriptor
-        self._head_codec = (HeadOutputCodec(descriptor)
-                            if descriptor.head_output_encoding == "uniform_residues" else None)
+        self._head_codec = (HeadOutputCodec(descriptor, certificate=head_certificate)
+                            if descriptor.head_output_encoding != "u32" else None)
+        if descriptor.head_output_encoding == "u32" and head_certificate is not None:
+            raise BoundaryError("unexpected head certificate")
         self._scales = np.frombuffer(raw_scales, "<f4")  # immutable private copy
         self._owned = tuple(type(c) is str for c in arguments)
         clients = []
@@ -110,6 +113,10 @@ class PrivateBoundaryTransport:
         self._coverage_complete = True
         self._diagnostics = {op: {"calls": 0, "rows": 0, "upload_bytes": 0, "download_bytes": 0}
                              for op in ("lookup", "head")}
+        self._head_frame_counts = {role: {key: 0 for key in (
+            "replies", "outer_body_bytes", "subframe_bytes", "header_bytes", "payload_bytes")}
+            for role in ROLES}
+        self._head_layout = None
 
     @property
     def session_id(self) -> str | None:
@@ -136,6 +143,34 @@ class PrivateBoundaryTransport:
     def operation_counters(self) -> dict[str, dict[str, int]]:
         with self._state_lock:
             return {op: dict(values) for op, values in self._diagnostics.items()}
+
+    @property
+    def head_output_accounting(self):
+        """Snapshot public source/layout and actually received head-frame lengths.
+
+        Layout construction is lazy: the response evidence audit pays for it.
+        Counters include accepted outer envelopes; codec validation and complete
+        state parity are separate acceptance gates. No share bytes are retained.
+        """
+        from copy import deepcopy
+        with self._lock, self._state_lock:
+            if self._head_layout is None:
+                if self._head_codec is not None:
+                    self._head_layout = self._head_codec.public_layout()
+                elif self.descriptor.head_output_encoding == "u32":
+                    vocabulary = self.descriptor.vocabulary
+                    self._head_layout = {
+                        "widths_digest": hashlib.sha256(bytes([32]) * vocabulary).hexdigest(),
+                        "width_counts": {"32": vocabulary}, "total_bits": 32 * vocabulary,
+                        "payload_bytes_per_role": 4 * vocabulary, "subframe_header_bytes": 0,
+                        "certificate": None,
+                    }
+                else:
+                    raise BoundaryError("head evidence requires a live layout owner")
+            return {"schema": "pllm.private_boundary_head_accounting.v1",
+                "descriptor": self.descriptor.to_dict(), "descriptor_digest": self.descriptor.digest,
+                "layout": deepcopy(self._head_layout),
+                "roles": {role: dict(values) for role, values in self._head_frame_counts.items()}}
 
     def _post(self, index, path, payload, phase, *, limit, operation=None):
         role = ROLES[index]
@@ -236,6 +271,19 @@ class PrivateBoundaryTransport:
                     or row["epoch"] != self._epoch or row["sequence"] != sequence
                     or row["operation"] != operation or len(row["frames"]) != len(frames)):
                 raise BoundaryError("boundary reply ownership differs")
+            if operation == "head":
+                from .private_boundary_head_codec import HEADER
+                subframes = sum(len(frame) for frame in row["frames"])
+                headers = 0 if self._head_codec is None else HEADER.size * len(row["frames"])
+                if subframes < headers:
+                    raise BoundaryError("boundary head reply is shorter than its codec header")
+                with self._state_lock:
+                    counts = self._head_frame_counts[ROLES[index]]
+                    counts["replies"] += len(row["frames"])
+                    counts["outer_body_bytes"] += len(raw)
+                    counts["subframe_bytes"] += subframes
+                    counts["header_bytes"] += headers
+                    counts["payload_bytes"] += subframes - headers
             return row["frames"]
 
         if operation == "head" and self.descriptor.head_dispatch == "parallel":

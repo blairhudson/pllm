@@ -1,0 +1,16 @@
+{
+  "parallel-uniform-residues": {
+    "pipeline_digest": "329050030cfa8610c1fffec3efcf097a23cdc0bc0b628693694f00e01121ee9d",
+    "composition_digest": "329050030cfa8610c1fffec3efcf097a23cdc0bc0b628693694f00e01121ee9d",
+    "schedule_digest": "aed51bffc3025b1f5a431865575ed521dfa8a3f7a5d1b59cd83f869e0324f916",
+    "descriptor_digest": "919ddaad8c1d864f5380374f96abfab915930aeb879bc604f5e5550d28e80719",
+    "numeric_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+  },
+  "parallel-row-residues": {
+    "pipeline_digest": "77eed93c6c3c13a59f4031687ab7a2508226c09b14ab2be21702d9bcc332e92c",
+    "composition_digest": "77eed93c6c3c13a59f4031687ab7a2508226c09b14ab2be21702d9bcc332e92c",
+    "schedule_digest": "d45126e34c3ecfe942019cf18842dbd8f7fd20602963d5815efea33abd1c59e8",
+    "descriptor_digest": "f56d086891207d88d15264be5f1538b4964254acd4d5680ec2460ad13cbd274d",
+    "numeric_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+  }
+}

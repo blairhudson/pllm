@@ -532,6 +532,9 @@ class CompiledRuntimeModel:
         contract = schedule.get("private_boundary")
         if type(contract) is not dict:
             raise RuntimeBindingError("compiled plan has no private boundary contract")
+        return self._private_boundary_descriptor_from_contract(contract)
+
+    def _private_boundary_descriptor_from_contract(self, contract):
         from .private_boundary_protocol import BoundaryDescriptor
         descriptor = self._bundle.privacy["private_boundary"]
         head = next(row for row in self._stages if row.stage_id == "lm_head")
@@ -546,6 +549,7 @@ class CompiledRuntimeModel:
             head_dispatch=contract.get("head_dispatch", "serial"),
             head_output_encoding=contract.get("head_output_encoding", "u32"),
             head_kernel=contract.get("head_kernel", "existing"),
+            head_certificate_digest=contract.get("head_certificate", {}).get("digest", ""),
             signed_output_bound=self._bundle.stages[head.stage_id].seeded_profile.signed_output_bound)
 
     def private_boundary_admission(self, prefill_rows: int, decode_steps: int, *, full_prefill_head: bool = False):
@@ -1225,8 +1229,8 @@ def _validate_private_boundary_contract(contract, document, *, plan_digest, comp
     from pllm.roles import PrivateLookupAndFullHead
 
     try:
-        boundary_options = dict(PrivateLookupAndFullHead.from_params(
-            {} if boundary_params is None else boundary_params).params)
+        boundary_options = PrivateLookupAndFullHead.from_params(
+            {} if boundary_params is None else boundary_params).to_spec()["params"]
     except ValueError as exc:
         raise RuntimeBindingError("private boundary options are unsupported") from exc
     if boundary_options.get("head_kernel") == "byte_dot" and (
@@ -2569,6 +2573,13 @@ def _compile_runtime_model(
         runtime_schedule_digest=runtime_schedule_digest,
         tokenizer_digest=tokenizer_digest,
     )
+    if private_boundary and runtime_schedule_spec["private_boundary"].get("head_output_encoding") == "row_residues":
+        from .private_boundary_certificate import import_certificate
+        try:
+            import_certificate(composition.components["boundary"].params["head_certificate"],
+                result._private_boundary_descriptor_from_contract(runtime_schedule_spec["private_boundary"]))
+        except ValueError as exc:
+            raise RuntimeBindingError(str(exc)) from exc
     if runtime_options.prepared_output_encoding == "row_residues":
         from .residue_codec import compiled_row_layout
         try:

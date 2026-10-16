@@ -47,6 +47,36 @@ class Measurement:
     def commitment(self, value):
         return hmac.new(self.salt, canonical(value), hashlib.sha256).hexdigest()
 
+    def finalize_workload(self, target, *, completed=True):
+        """Publish replayable public identity only for new completed state audits.
+
+        Ordinary/failed targets retain the exact original private HMAC identity.
+        No salt, raw inputs or unsalted private-input hash enters the witness.
+        """
+        if not (completed and target.kind == "response"
+                and target.to_spec()["parameters"].get("state_audit") is True):
+            self.comparison["workload_digest"] = self.commitment({
+                "target_workload": self.comparison["workload_digest"], "inputs": self.inputs})
+            return
+        from pllm._benchmark_workload import (
+            PRIVATE_INPUT_SCHEMA, binding_digest, measurement_binding, workload_binding,
+        )
+        from pllm.runtime.benchmark_context import context_bytes
+        config = self.details["report"]["configuration"]
+        if set(self.inputs) != {"prompt"}:
+            raise ValueError("state audit private input contract changed")
+        # Independent cross-reference to the response driver's salted prompt hash.
+        prompt = hashlib.sha256(b"pllm.benchmark.prompt.v1\0" + self.salt
+                                + context_bytes(self.inputs["prompt"])).hexdigest()
+        if prompt != config["prompt_digest"] or self.fixture["digest"] != config["source_lock_digest"]:
+            raise ValueError("response fixture/private prompt commitment mismatch")
+        binding = workload_binding(self.comparison["workload_digest"], self.commitment({
+            "schema": PRIVATE_INPUT_SCHEMA, "inputs": self.inputs}), prompt, self.fixture["digest"])
+        measurement = measurement_binding(self.comparison["measurement_digest"])
+        self.details.update(workload_binding=binding, workload_measurement=measurement)
+        self.comparison.update(workload_digest=binding_digest(binding), measurement_digest=binding_digest(measurement))
+        self.limitations += ["Public workload witness permits consistency replay, not worker authentication or private-input preimage verification."]
+
     def admit(self, required):
         # Reuse the same reserve and no-swap admission as ordinary benchmarks.
         from pllm.runtime.benchmark_memory import host_memory
@@ -150,8 +180,13 @@ def main():
         m.metric("process.peak_rss", observed_peak, kind="memory", role=role, window="process_birth_through_target",
                   scope="process_lifetime_high_water")
         m.metric("process.cpu", cpu_birth, kind="cpu", role=role, window="process_birth_through_target")
-        m.comparison["workload_digest"] = m.commitment({"target_workload": m.comparison["workload_digest"],
-                                                       "inputs": m.inputs})
+        try:
+            m.finalize_workload(target, completed=status == "completed")
+        except BaseException:
+            # Binding errors must not disclose an input-bearing exception string or
+            # leave apparently completed evidence. Preserve ordinary failure framing.
+            status, failure = "failed", "workload_binding_failed"
+            m.finalize_workload(target, completed=False)
         from pllm._benchmark_build import hardware_identity
         environment = {"platform": sys.platform, "machine": os.uname().machine,
                        "release": os.uname().release, "threads": m.sampling.threads,

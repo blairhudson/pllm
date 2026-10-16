@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/scripts/prepare_private_boundary_row_codec.py", line 205, in <module>
+    main()
+    ~~~~^^
+  File "/Users/blairhudson/workspace/pllm/scripts/prepare_private_boundary_row_codec.py", line 190, in main
+    with fresh_workers(Path(__file__).resolve(), memory_bytes=payload["memory_bytes"], timeout=600) as (run, guard, host):
+         ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/Users/blairhudson/workspace/pllm/scripts/frontier_probe_support.py", line 23, in fresh_workers
+    with _fresh_workers(script, memory_bytes=memory_bytes, timeout=timeout) as workers:
+         ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/Users/blairhudson/workspace/pllm/scripts/frontier_probe_support.py", line 37, in _fresh_workers
+    raise RuntimeError("frontier probe exceeds post-reserve headroom")
+RuntimeError: frontier probe exceeds post-reserve headroom

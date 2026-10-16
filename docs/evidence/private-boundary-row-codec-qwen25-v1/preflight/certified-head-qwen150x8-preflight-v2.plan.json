@@ -1,0 +1,936 @@
+{
+  "schema": "pllm.private_boundary_row_codec_plan.v1",
+  "suite": {
+    "schema": "pllm.benchmark_suite.v1",
+    "name": "private-boundary-row-codec-v1",
+    "cases": [
+      {
+        "name": "parallel-uniform-residues",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "target/private-boundary-cohort"
+                },
+                "name": "local-boundary-control",
+                "pipeline": {
+                  "components": {
+                    "boundary": {
+                      "component": "pllm/private-lookup-full-head/v1",
+                      "params": {
+                        "head_dispatch": "parallel",
+                        "head_output_encoding": "uniform_residues"
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    },
+                    "topology": {
+                      "component": "pllm/prepared-body-two-online-boundary/v1",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": null
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "db5b5374935fa41416a869383495ed68ac391ecb3535537d262110504e4a5f10"
+        },
+        "budgets": []
+      },
+      {
+        "name": "parallel-row-residues",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 150,
+                  "max_new_tokens": 8,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": "target/private-boundary-cohort"
+                },
+                "name": "local-boundary-control",
+                "pipeline": {
+                  "components": {
+                    "boundary": {
+                      "component": "pllm/private-lookup-full-head/v1",
+                      "params": {
+                        "head_certificate": {
+                          "digest": "8b7a59c0ca47cabbb1db7b5731b7edbb8210eddaf9e4220367e4a9bb37e95d1e",
+                          "path": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert",
+                          "size_bytes": 11364
+                        },
+                        "head_dispatch": "parallel",
+                        "head_output_encoding": "row_residues"
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "prefill_pruning": "terminal",
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "tokenizer": {
+                      "component": "pllm/indexed-tokenizer/v1",
+                      "params": {
+                        "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe",
+                        "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer"
+                      }
+                    },
+                    "topology": {
+                      "component": "pllm/prepared-body-two-online-boundary/v1",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+                    "source": "Qwen/Qwen2.5-0.5B-Instruct"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": null
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 8,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "db5b5374935fa41416a869383495ed68ac391ecb3535537d262110504e4a5f10"
+        },
+        "budgets": []
+      }
+    ],
+    "sampling": {
+      "processes": 3,
+      "repetitions": 1,
+      "warmups": 0,
+      "timeout_seconds": 3600,
+      "order": "balanced",
+      "threads": 1,
+      "memory_bytes": 8589934592
+    }
+  },
+  "control": {
+    "schema": "pllm.experiment.v2",
+    "name": "local-boundary-control",
+    "pipeline": {
+      "model": {
+        "source": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+      },
+      "components": {
+        "delivery": {
+          "component": "pllm/client-bundle-transport/v1",
+          "params": {
+            "encoding": "artifacts",
+            "compression": "zlib",
+            "batch_objects": 64,
+            "storage": "paged"
+          }
+        },
+        "inference": {
+          "component": "pllm/inference",
+          "params": {}
+        },
+        "inventory": {
+          "component": "pllm/prepared-inventory-policy/v1",
+          "params": {
+            "policy": "request-sized",
+            "rows": 1,
+            "refill": "on-demand",
+            "stage_window": 4,
+            "stage_window_bytes": 67108864,
+            "allocation": "demand"
+          }
+        },
+        "kernels": {
+          "component": "pllm/cpu",
+          "params": {
+            "threads": 1
+          }
+        },
+        "linear": {
+          "component": "pllm/masked-linear",
+          "params": {
+            "output_encoding": "row_residues",
+            "prefill_chunk_rows": 16,
+            "request_encoding": "stage_packed",
+            "prefill_pruning": "terminal"
+          }
+        },
+        "preparation": {
+          "component": "pllm/model-aware-corrections",
+          "params": {
+            "storage": "paged"
+          }
+        },
+        "quantization": {
+          "component": "pllm/symmetric-per-row-quantization/v1",
+          "params": {
+            "weight_bits": 8,
+            "activation_bits": 8,
+            "causal_reduction": "prefix_f32"
+          }
+        },
+        "tokenizer": {
+          "component": "pllm/indexed-tokenizer/v1",
+          "params": {
+            "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer",
+            "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe"
+          }
+        },
+        "boundary": {
+          "component": "pllm/private-lookup-full-head/v1",
+          "params": {
+            "head_dispatch": "parallel",
+            "head_output_encoding": "uniform_residues"
+          }
+        },
+        "topology": {
+          "component": "pllm/prepared-body-two-online-boundary/v1",
+          "params": {}
+        }
+      }
+    },
+    "deployment": {
+      "kind": "local",
+      "root": "target/private-boundary-cohort"
+    },
+    "budget": {
+      "requests": 1,
+      "max_input_tokens": 150,
+      "max_new_tokens": 8
+    }
+  },
+  "candidate": {
+    "schema": "pllm.experiment.v2",
+    "name": "local-boundary-control",
+    "pipeline": {
+      "model": {
+        "source": "Qwen/Qwen2.5-0.5B-Instruct",
+        "revision": "7ae557604adf67be50417f59c2c2f167def9a775"
+      },
+      "components": {
+        "delivery": {
+          "component": "pllm/client-bundle-transport/v1",
+          "params": {
+            "encoding": "artifacts",
+            "compression": "zlib",
+            "batch_objects": 64,
+            "storage": "paged"
+          }
+        },
+        "inference": {
+          "component": "pllm/inference",
+          "params": {}
+        },
+        "inventory": {
+          "component": "pllm/prepared-inventory-policy/v1",
+          "params": {
+            "policy": "request-sized",
+            "rows": 1,
+            "refill": "on-demand",
+            "stage_window": 4,
+            "stage_window_bytes": 67108864,
+            "allocation": "demand"
+          }
+        },
+        "kernels": {
+          "component": "pllm/cpu",
+          "params": {
+            "threads": 1
+          }
+        },
+        "linear": {
+          "component": "pllm/masked-linear",
+          "params": {
+            "output_encoding": "row_residues",
+            "prefill_chunk_rows": 16,
+            "request_encoding": "stage_packed",
+            "prefill_pruning": "terminal"
+          }
+        },
+        "preparation": {
+          "component": "pllm/model-aware-corrections",
+          "params": {
+            "storage": "paged"
+          }
+        },
+        "quantization": {
+          "component": "pllm/symmetric-per-row-quantization/v1",
+          "params": {
+            "weight_bits": 8,
+            "activation_bits": 8,
+            "causal_reduction": "prefix_f32"
+          }
+        },
+        "tokenizer": {
+          "component": "pllm/indexed-tokenizer/v1",
+          "params": {
+            "path": "/Users/blairhudson/workspace/pllm/target/prepared-frontier-artifacts/tokenizer",
+            "digest": "48f6b4c9614323433845732098ed418d4bf7e9cb01bb07711ad72f3a9de12ffe"
+          }
+        },
+        "boundary": {
+          "component": "pllm/private-lookup-full-head/v1",
+          "params": {
+            "head_dispatch": "parallel",
+            "head_output_encoding": "row_residues",
+            "head_certificate": {
+              "path": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert",
+              "digest": "8b7a59c0ca47cabbb1db7b5731b7edbb8210eddaf9e4220367e4a9bb37e95d1e",
+              "size_bytes": 11364
+            }
+          }
+        },
+        "topology": {
+          "component": "pllm/prepared-body-two-online-boundary/v1",
+          "params": {}
+        }
+      }
+    },
+    "deployment": {
+      "kind": "local",
+      "root": "target/private-boundary-cohort"
+    },
+    "budget": {
+      "requests": 1,
+      "max_input_tokens": 150,
+      "max_new_tokens": 8
+    }
+  },
+  "preflight": [
+    {
+      "case": "parallel-uniform-residues",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 13334265856,
+          "swap_used": 3486842880,
+          "disk_free": 37769416704,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 8589934592
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "329050030cfa8610c1fffec3efcf097a23cdc0bc0b628693694f00e01121ee9d",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 812393882,
+          "provider_peak_bytes": {
+            "boundary_a": 1147915520,
+            "boundary_b": 1147915520,
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 3009736320,
+            "boundary_b": 3009736320,
+            "inference": 2736165120,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 136134656,
+            "scales_bytes": 607744,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 136742400,
+            "worker_import_work_bytes": 410834944,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 2431872,
+            "worker_retained_metadata_and_source_scales_bytes": 101271040,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 18752,
+            "worker_lookup_scratch_bytes": 9723904,
+            "head_dispatch": "parallel",
+            "head_output_encoding": "uniform_residues",
+            "head_reply_bits": 25,
+            "head_payload_bytes_per_worker": 474800,
+            "client_parallel_head_work_bytes": 19255296,
+            "client_head_codec_work_bytes": 3418560,
+            "worker_head_codec_work_bytes": 2317024,
+            "worker_peak_bytes": 918332416,
+            "client_work_bytes": 31917312,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 157,
+            "head_calls_bound": 8,
+            "concurrent_request_bound": 1
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 5944765082,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 136742400,
+              "boundary_b": 136742400,
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 410834944,
+              "boundary_b": 410834944,
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 46386688,
+            "client_bundle_work_bytes": 109550592,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 5978319514,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 5944765082,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          }
+        },
+        "enforced_wan": true
+      }
+    },
+    {
+      "case": "parallel-row-residues",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 13182615552,
+          "swap_used": 3486842880,
+          "disk_free": 37768364032,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 8589934592
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "ce4148eeb623d36367d1d18201aaee33967d004aacbd22d493f7bc31cf8eedaa",
+          "pipeline_digest": "77eed93c6c3c13a59f4031687ab7a2508226c09b14ab2be21702d9bcc332e92c",
+          "max_input_tokens": 150,
+          "max_output_tokens": 8,
+          "compiled_input_bound": 150,
+          "inventory_rows": 157,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 815273422,
+          "provider_peak_bytes": {
+            "boundary_a": 1147915520,
+            "boundary_b": 1147915520,
+            "inference": 1683009920,
+            "preparation": 1153530240
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 3009736320,
+            "boundary_b": 3009736320,
+            "inference": 2736165120,
+            "preparation": 2649440640
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 136134656,
+            "scales_bytes": 607744,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 136742400,
+            "worker_import_work_bytes": 410834944,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 2431872,
+            "worker_retained_metadata_and_source_scales_bytes": 101271040,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 18752,
+            "worker_lookup_scratch_bytes": 9723904,
+            "head_dispatch": "parallel",
+            "head_output_encoding": "row_residues",
+            "head_reply_bits": 25,
+            "head_payload_bytes_per_worker": 474800,
+            "client_parallel_head_work_bytes": 19255296,
+            "client_head_codec_work_bytes": 5722192,
+            "worker_head_codec_work_bytes": 5523184,
+            "worker_peak_bytes": 918332416,
+            "client_work_bytes": 34220944,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 157,
+            "head_calls_bound": 8,
+            "concurrent_request_bound": 1,
+            "head_layout_bytes_per_owner": 151936,
+            "certificate_artifact_bytes_per_recipient": 11364,
+            "certificate_three_recipient_delivery_bytes": 34092,
+            "certificate_publication_work_bytes": 3358096,
+            "certificate_publication_source_import_separate": true
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 5947644622,
+          "components": {
+            "per_engine_i8_and_native_bytes": 630095872,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 136742400,
+              "boundary_b": 136742400,
+              "inference": 493961216,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 410834944,
+              "boundary_b": 410834944,
+              "inference": 272269312,
+              "preparation": 161659904
+            },
+            "legacy_per_engine_i8_and_native_bytes": 1260191744,
+            "float_quantization_work_bytes": 25525248,
+            "legacy_largest_loading_temporary_bytes": 544538624,
+            "largest_loading_temporary_bytes": 272269312,
+            "raw_client_bundle_bytes": 46386688,
+            "client_bundle_work_bytes": 109550592,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 33554432,
+            "client_tokenizer_snapshot_disk_bytes": 67108864,
+            "preparation_additional_paged_disk_bytes": 493961216,
+            "client_mask_bytes": 26899168,
+            "provider_correction_bytes": 381984768,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {},
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {},
+            "legacy_client_mask_bytes": 1219264512,
+            "client_mask_cursor_bytes": 211680,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 152714600,
+            "client_live_tensor_bytes": 129564008,
+            "client_rotary_coefficient_bytes": 76800,
+            "client_state_work_bytes": 23150592,
+            "legacy_client_tensor_work_bytes": 1147109920,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 272269312,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 5981199054,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 5947644622,
+            "docker": null,
+            "required_disk_bytes": 4024622080
+          }
+        },
+        "enforced_wan": true
+      }
+    }
+  ],
+  "frozen_sources": {
+    "benchmarks/__init__.py": "2ce4b5902be75b7bbf0c2d2fee471e1989737f8983e7519302019e57bfe023a7",
+    "benchmarks/research/__init__.py": "eec334d400930bc338253bc62a66946cf36e92da23c5bbefac67fcbe4217ff67",
+    "benchmarks/research/private_boundary_row_codec.py": "4a36132d1d8b8fe5ff2b14a5a7fc2913cbae26018c2e3b2738451e824c978f53",
+    "benchmarks/research/private_boundary_byte_dot.py": "982f26392c19b0aa0970fc44aaf5ddfebce68a121290d37a5d3c564543dee665",
+    "benchmarks/research/private_boundary_decode.py": "02db9015992714d77d64838ca068f4ca704bb73a79f14de62cb353294ddf6566",
+    "benchmarks/research/private_boundary_decode_confirmation.py": "92e7052e78f766e30ada8ef08be2f59a0ee9d4b96cbd8de7ca4974f085041536",
+    "benchmarks/research/private_boundary_tiers.py": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867",
+    "benchmarks/research/sota_combinations.py": "2ec2441542e06674e7c6c7b179e7126ff2f4ff682922fec45cb658517bdfe375",
+    "benchmarks/research/historical_evidence.py": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c",
+    "examples/prepared_sdk.py": "6a7d1dd38eeb3e7b9428b547c96902de27fb079c0b8e615bece40ea31f42c0bb",
+    "scripts/benchmark_sota_combinations.py": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d",
+    "scripts/benchmark_private_boundary_row_codec.py": "ec6be1794bd8f2a9469219872f8871d7d01f2c3b624ff334e7e13f2551ccc030",
+    "scripts/summarize_private_boundary_row_codec.py": "f243813e46fe49ba0cd4246805f6be0fad29b0114df1871a2d8a1ad53c4a17f3",
+    "sdk/runtime/private_boundary_certificate.py": "e1d3ae97df90483fce0f560f1cb90ebad1b0399f0241a5bde105a907b7eb63ed",
+    "sdk/runtime/private_boundary_head_codec.py": "d679c5d446144222e4b1d9c0c48333b18e80f1e7723fcaeb2db2c4bcd05a822a",
+    "sdk/runtime/private_boundary_transport.py": "d66afdad0794325b76b7e8ec57a2463a0281e5047c80b8f44adad1601dffe4e0",
+    "sdk/runtime/benchmark_response_audit.py": "526573a484b96e760ce4b96d057bb0caa88397490d91412954923ad60babb30c",
+    "sdk/runtime/benchmark_response_target.py": "5aec63bd4886798eb2dec4cbdcfd59ceb632a14137782c1310ddcca1d670fe33",
+    "sdk/runtime/private_boundary_protocol.py": "4fe37872dfd786455033266ab5bfa4918a1b54c41884662d0e078d4945b48c2a",
+    "sdk/runtime/private_boundary_loader.py": "a8e7334e0efbf632c61757f1af2dcd1529ec0ebdd279673fd7dc519d3b5af8ca",
+    "sdk/runtime/model_binding.py": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a",
+    "sdk/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "sdk/_benchmark_worker.py": "4a9246d078425e20de004c57f5b833bc2f8e6b6d222b1463e58d986ad9ae0668",
+    "sdk/_benchmark_workload.py": "20e0a5a3280c2f4972f2e9e2116e3497c598a0a6cef0b8774ca9c18a7f3cf021",
+    "sdk/_benchmark_contract.py": "3d869d8c32dde595b103655e4d976fbf2a3d76d05ed427124aac77ed9bda451e",
+    "sdk/runtime/benchmark_context.py": "c488152a07c63021f7873508faab78aa0f28c0b0145d6a5e97309925c4ecf64a",
+    "sdk/runtime/topology_accounting.py": "8384e353f03600154dd4f35fccc853f97395d818f019bad762a5f02c73a7cce6",
+    "sdk/runtime/dashboard.py": "aac76f65645c0bc77fbac894b8ebaa60d32e3ea5ab02a361ef7fcae6e25f6b0b",
+    "sdk/deployment/execution.py": "4bb29796a22f04d998a29f589970e346e32a836c2e9a95e76a2ccac379ec3208",
+    "sdk/runtime/transformer_client.py": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574",
+    "target/certified-head-qwen-publication-v2/150x8-control.json": "6af8893f485ab36cc07b7eb0adc09b19b01ed66ba00a9b53b0dfafb42b006674",
+    "target/certified-head-qwen-publication-v2/150x8-candidate.json": "488dcc0dd1127b07dc434156eb51d792ef172b5cd88d2f6ef5c7418ddfd1e8c9",
+    "target/certified-head-qwen-publication-v2/certificate-accounting.json": "c63a97ab5dcfcb37a6614be2aaabdc5fb891da8418b989ed163c873c873f2982",
+    "target/prepared-frontier-artifacts/prompt.txt": "152f4785641e580301bfcca40cfa5dc2cbc7bdc12fbf6eaeaddaef9cd2e36387",
+    "target/certified-head-qwen-publication-v2/150x8-native-head-commitments.json": "7c93f46442c6d017471ea1816e19e23d4ccffa5c7987ec284e3fdab1dd7ac39e",
+    "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert": "8b7a59c0ca47cabbb1db7b5731b7edbb8210eddaf9e4220367e4a9bb37e95d1e"
+  },
+  "tiny": false,
+  "max_output_tokens": 8,
+  "verifier_sources": {
+    "benchmarks/__init__.py": "2ce4b5902be75b7bbf0c2d2fee471e1989737f8983e7519302019e57bfe023a7",
+    "benchmarks/research/__init__.py": "eec334d400930bc338253bc62a66946cf36e92da23c5bbefac67fcbe4217ff67",
+    "benchmarks/research/private_boundary_row_codec.py": "4a36132d1d8b8fe5ff2b14a5a7fc2913cbae26018c2e3b2738451e824c978f53",
+    "benchmarks/research/private_boundary_byte_dot.py": "982f26392c19b0aa0970fc44aaf5ddfebce68a121290d37a5d3c564543dee665",
+    "benchmarks/research/private_boundary_decode.py": "02db9015992714d77d64838ca068f4ca704bb73a79f14de62cb353294ddf6566",
+    "benchmarks/research/private_boundary_decode_confirmation.py": "92e7052e78f766e30ada8ef08be2f59a0ee9d4b96cbd8de7ca4974f085041536",
+    "benchmarks/research/private_boundary_tiers.py": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867",
+    "benchmarks/research/sota_combinations.py": "2ec2441542e06674e7c6c7b179e7126ff2f4ff682922fec45cb658517bdfe375",
+    "benchmarks/research/historical_evidence.py": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c",
+    "examples/prepared_sdk.py": "6a7d1dd38eeb3e7b9428b547c96902de27fb079c0b8e615bece40ea31f42c0bb",
+    "scripts/benchmark_sota_combinations.py": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d",
+    "scripts/benchmark_private_boundary_row_codec.py": "ec6be1794bd8f2a9469219872f8871d7d01f2c3b624ff334e7e13f2551ccc030",
+    "scripts/summarize_private_boundary_row_codec.py": "f243813e46fe49ba0cd4246805f6be0fad29b0114df1871a2d8a1ad53c4a17f3",
+    "sdk/runtime/private_boundary_certificate.py": "e1d3ae97df90483fce0f560f1cb90ebad1b0399f0241a5bde105a907b7eb63ed",
+    "sdk/runtime/private_boundary_head_codec.py": "d679c5d446144222e4b1d9c0c48333b18e80f1e7723fcaeb2db2c4bcd05a822a",
+    "sdk/runtime/private_boundary_transport.py": "d66afdad0794325b76b7e8ec57a2463a0281e5047c80b8f44adad1601dffe4e0",
+    "sdk/runtime/benchmark_response_audit.py": "526573a484b96e760ce4b96d057bb0caa88397490d91412954923ad60babb30c",
+    "sdk/runtime/benchmark_response_target.py": "5aec63bd4886798eb2dec4cbdcfd59ceb632a14137782c1310ddcca1d670fe33",
+    "sdk/runtime/private_boundary_protocol.py": "4fe37872dfd786455033266ab5bfa4918a1b54c41884662d0e078d4945b48c2a",
+    "sdk/runtime/private_boundary_loader.py": "a8e7334e0efbf632c61757f1af2dcd1529ec0ebdd279673fd7dc519d3b5af8ca",
+    "sdk/runtime/model_binding.py": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a",
+    "sdk/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "sdk/_benchmark_worker.py": "4a9246d078425e20de004c57f5b833bc2f8e6b6d222b1463e58d986ad9ae0668",
+    "sdk/_benchmark_workload.py": "20e0a5a3280c2f4972f2e9e2116e3497c598a0a6cef0b8774ca9c18a7f3cf021",
+    "sdk/_benchmark_contract.py": "3d869d8c32dde595b103655e4d976fbf2a3d76d05ed427124aac77ed9bda451e",
+    "sdk/runtime/benchmark_context.py": "c488152a07c63021f7873508faab78aa0f28c0b0145d6a5e97309925c4ecf64a",
+    "sdk/runtime/topology_accounting.py": "8384e353f03600154dd4f35fccc853f97395d818f019bad762a5f02c73a7cce6",
+    "sdk/runtime/dashboard.py": "aac76f65645c0bc77fbac894b8ebaa60d32e3ea5ab02a361ef7fcae6e25f6b0b",
+    "sdk/deployment/execution.py": "4bb29796a22f04d998a29f589970e346e32a836c2e9a95e76a2ccac379ec3208",
+    "sdk/runtime/transformer_client.py": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574"
+  },
+  "public_input_counts": {
+    "150": 150
+  },
+  "prompt_digest": "152f4785641e580301bfcca40cfa5dc2cbc7bdc12fbf6eaeaddaef9cd2e36387",
+  "public_prompt": {
+    "path": "target/prepared-frontier-artifacts/prompt.txt",
+    "sha256": "152f4785641e580301bfcca40cfa5dc2cbc7bdc12fbf6eaeaddaef9cd2e36387",
+    "size_bytes": 670
+  },
+  "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "certificate": {
+    "artifact": {
+      "path": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert",
+      "digest": "8b7a59c0ca47cabbb1db7b5731b7edbb8210eddaf9e4220367e4a9bb37e95d1e",
+      "size_bytes": 11364
+    },
+    "artifact_bytes": 11364,
+    "artifact_base64": "UExMTUJSQzF6BQAAeyJib3VuZHNfZGlnZXN0IjoiM2MyMWVlOGI5ZmMwN2NjZDZiYmRjMGViMzc4YTJkMjc4NmExMmZmODlkZGE5MTVmOTM3Yjk3NGE4ODRlNWFmMSIsImltcGxlbWVudGF0aW9uIjp7InBsbG0uX25hdGl2ZSI6IjUzNmIwYjQ0NGExNWM2YTdkNGJiZjU1YmY0N2YxMGM5M2M5NWRiMjY5YjY0YmQzMzNhNTJlZGYzZDhjMTE5MjEiLCJwbGxtLnJ1bnRpbWUucHJpdmF0ZV9ib3VuZGFyeV9jZXJ0aWZpY2F0ZSI6ImUxZDNhZTk3ZGY5MDQ4M2ZjZTBmNTYwZjFjYjkwZWJhZDFiMDM5OWYwMjQxYTViZGUxMDVhOTA3YjdlYjYzZWQiLCJwbGxtLnJ1bnRpbWUucHJpdmF0ZV9ib3VuZGFyeV9sb2FkZXIiOiJhOGU3MzM0ZTBlZmJmNjMyYzYxNzU3ZjFhZjJkY2QxNTI5ZWMwZWJkZDI3OTY3M2ZkN2RjNTE5ZDNiNWFmOGNhIiwicGxsbS5ydW50aW1lLnF1YW50aXphdGlvbiI6Ijg5YzcwMTNlNTY5Y2Y0MzRkNmNkNTRmNmZjMzAxNWJjODllNWEyZTA4ZTM1MWQzYjRhNDhkMDcxZDM5OGQ0MTIifSwibGF5b3V0IjoiemxpYi11OC1taW5pbWFsLXNpZ25lZC13aWR0aHMtdjEiLCJudW1lcmljIjoic2lnbmVkLWk4LXJvdy1tYWpvci1iaWFzLWZyZWUvc3ltbWV0cmljLXFtYXgxMjcvaW50LXdyYXAzMi9mMzItc2VwYXJhdGUtbXVsdGlwbGllcy92MSIsInNjaGVtYSI6InBsbG0ucHJpdmF0ZV9ib3VuZGFyeS5yb3dfY2VydGlmaWNhdGUudjEiLCJzb3VyY2UiOnsiYWN0aXZhdGlvbl9iaXRzIjo4LCJjaGVja3BvaW50X2RpZ2VzdCI6ImY2OTMyMjA1NzI1M2M0ZmI4NTNjMTBlNzNkYTVkODQxMTEyNjJlMGZiMWVkYmEzMzkzM2I5ZTViOGNhZjU5ZmQiLCJoZWFkX3NjYWxlc19kaWdlc3QiOiI3NzE3YjMxOTBjMDljMmUzOGVhYmQxMTg4NGU0YzgzYTQ4MTAzMDg5Y2FiMDFhYTlkMmQ3MDExZDFh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",
+    "artifact_bytes_verified": true,
+    "delivery_locations": {
+      "client": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert",
+      "boundary_a": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert",
+      "boundary_b": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert"
+    },
+    "declared_missing_owners": [
+      "client",
+      "boundary_a",
+      "boundary_b"
+    ],
+    "extra_setup_fixed_byte_budget": 34092,
+    "extra_setup_fixed_byte_budget_origin": "scenario arithmetic; not network measurement",
+    "publisher_distribution_network_bytes": null,
+    "publisher_distribution_seconds": null,
+    "derivation": "Local offline publisher; actual native head/source/scale binding and full row scan. All widths/source pins match independent archived checkpoint scan. See publication.json; three-owner delivery is scenario arithmetic, not measured network.",
+    "derivation_cpu_seconds": null,
+    "cold_network_complete": false,
+    "sota_claim_admissible": false,
+    "integration_status": "raw source/layout/frame telemetry required by cohort audit"
+  },
+  "certificate_declaration": {
+    "missing_owners": [
+      "client",
+      "boundary_a",
+      "boundary_b"
+    ],
+    "delivery_locations": {
+      "client": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert",
+      "boundary_a": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert",
+      "boundary_b": "/Users/blairhudson/workspace/pllm/target/certified-head-qwen-publication-v2/head.cert"
+    },
+    "derivation": "Local offline publisher; actual native head/source/scale binding and full row scan. All widths/source pins match independent archived checkpoint scan. See publication.json; three-owner delivery is scenario arithmetic, not measured network."
+  },
+  "native_head_commitments": {
+    "parallel-uniform-residues": {
+      "pipeline_digest": "329050030cfa8610c1fffec3efcf097a23cdc0bc0b628693694f00e01121ee9d",
+      "composition_digest": "329050030cfa8610c1fffec3efcf097a23cdc0bc0b628693694f00e01121ee9d",
+      "schedule_digest": "aed51bffc3025b1f5a431865575ed521dfa8a3f7a5d1b59cd83f869e0324f916",
+      "descriptor_digest": "919ddaad8c1d864f5380374f96abfab915930aeb879bc604f5e5550d28e80719",
+      "numeric_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+    },
+    "parallel-row-residues": {
+      "pipeline_digest": "77eed93c6c3c13a59f4031687ab7a2508226c09b14ab2be21702d9bcc332e92c",
+      "composition_digest": "77eed93c6c3c13a59f4031687ab7a2508226c09b14ab2be21702d9bcc332e92c",
+      "schedule_digest": "d45126e34c3ecfe942019cf18842dbd8f7fd20602963d5815efea33abd1c59e8",
+      "descriptor_digest": "f56d086891207d88d15264be5f1538b4964254acd4d5680ec2460ad13cbd274d",
+      "numeric_body_fingerprint": "5d631be30158b3ea2a72cae355ce09a3b304bbfddde48b5758c339c346a34974"
+    }
+  },
+  "execution": "one private salt; six serial complete fresh SDK workers; native shared100/40",
+  "schedule": [
+    [
+      "parallel-uniform-residues",
+      0
+    ],
+    [
+      "parallel-row-residues",
+      0
+    ],
+    [
+      "parallel-row-residues",
+      1
+    ],
+    [
+      "parallel-uniform-residues",
+      1
+    ],
+    [
+      "parallel-row-residues",
+      2
+    ],
+    [
+      "parallel-uniform-residues",
+      2
+    ]
+  ],
+  "pending": null,
+  "output_policy": "natural EOS; no prompt, stop, budget or component rewriting"
+}

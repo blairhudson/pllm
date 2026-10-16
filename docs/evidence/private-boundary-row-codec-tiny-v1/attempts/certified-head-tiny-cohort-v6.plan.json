@@ -1,0 +1,920 @@
+{
+  "schema": "pllm.private_boundary_row_codec_plan.v1",
+  "suite": {
+    "schema": "pllm.benchmark_suite.v1",
+    "name": "private-boundary-row-codec-v1",
+    "cases": [
+      {
+        "name": "parallel-uniform-residues",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 128,
+                  "max_new_tokens": 2,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": ".pllm/prepared-sdk"
+                },
+                "name": "prepared-sdk",
+                "pipeline": {
+                  "components": {
+                    "boundary": {
+                      "component": "pllm/private-lookup-full-head/v1",
+                      "params": {
+                        "head_dispatch": "parallel",
+                        "head_output_encoding": "uniform_residues"
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "provider_cache_bytes": 536870912,
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "topology": {
+                      "component": "pllm/prepared-body-two-online-boundary/v1",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "local_files_only": true,
+                    "model_id": "certified-row-smoke",
+                    "source": "/Users/blairhudson/workspace/pllm/target/certified-head-inputs-v1/tiny-model"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": null
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 2,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "db5b5374935fa41416a869383495ed68ac391ecb3535537d262110504e4a5f10"
+        },
+        "budgets": []
+      },
+      {
+        "name": "parallel-row-residues",
+        "target": {
+          "kind": "response",
+          "parameters": {
+            "backend": "native",
+            "model": {
+              "config": null,
+              "experiment": {
+                "budget": {
+                  "max_input_tokens": 128,
+                  "max_new_tokens": 2,
+                  "requests": 1
+                },
+                "deployment": {
+                  "kind": "local",
+                  "root": ".pllm/prepared-sdk"
+                },
+                "name": "prepared-sdk",
+                "pipeline": {
+                  "components": {
+                    "boundary": {
+                      "component": "pllm/private-lookup-full-head/v1",
+                      "params": {
+                        "head_certificate": {
+                          "digest": "17d75001fb252c3e0bfb83c119c7464ddb16a3d53051d6b22b26fae743fc81b9",
+                          "path": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+                          "size_bytes": 1445
+                        },
+                        "head_dispatch": "parallel",
+                        "head_output_encoding": "row_residues"
+                      }
+                    },
+                    "delivery": {
+                      "component": "pllm/client-bundle-transport/v1",
+                      "params": {
+                        "batch_objects": 64,
+                        "compression": "zlib",
+                        "encoding": "artifacts",
+                        "provider_cache_bytes": 536870912,
+                        "storage": "paged"
+                      }
+                    },
+                    "inference": {
+                      "component": "pllm/inference",
+                      "params": {}
+                    },
+                    "inventory": {
+                      "component": "pllm/prepared-inventory-policy/v1",
+                      "params": {
+                        "allocation": "demand",
+                        "policy": "request-sized",
+                        "refill": "on-demand",
+                        "rows": 1,
+                        "stage_window": 4,
+                        "stage_window_bytes": 67108864
+                      }
+                    },
+                    "kernels": {
+                      "component": "pllm/cpu",
+                      "params": {
+                        "threads": 1
+                      }
+                    },
+                    "linear": {
+                      "component": "pllm/masked-linear",
+                      "params": {
+                        "output_encoding": "row_residues",
+                        "prefill_chunk_rows": 16,
+                        "request_encoding": "stage_packed"
+                      }
+                    },
+                    "preparation": {
+                      "component": "pllm/model-aware-corrections",
+                      "params": {
+                        "storage": "paged"
+                      }
+                    },
+                    "quantization": {
+                      "component": "pllm/symmetric-per-row-quantization/v1",
+                      "params": {
+                        "activation_bits": 8,
+                        "causal_reduction": "prefix_f32",
+                        "weight_bits": 8
+                      }
+                    },
+                    "topology": {
+                      "component": "pllm/prepared-body-two-online-boundary/v1",
+                      "params": {}
+                    }
+                  },
+                  "model": {
+                    "local_files_only": true,
+                    "model_id": "certified-row-smoke",
+                    "source": "/Users/blairhudson/workspace/pllm/target/certified-head-inputs-v1/tiny-model"
+                  }
+                },
+                "schema": "pllm.experiment.v2"
+              },
+              "profile": null
+            },
+            "scenario": {
+              "count": 1,
+              "kind": "cold",
+              "max_output_tokens": 2,
+              "name": "request"
+            },
+            "state_audit": true,
+            "wan": {
+              "download_mbps": 100.0,
+              "parties": [],
+              "role_parties": [],
+              "schema": "pllm.wan_conditions.v1",
+              "upload_mbps": 40.0
+            }
+          },
+          "schema": "pllm.benchmark_target.v1"
+        },
+        "build": {
+          "python": "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
+          "expected_digest": "db5b5374935fa41416a869383495ed68ac391ecb3535537d262110504e4a5f10"
+        },
+        "budgets": []
+      }
+    ],
+    "sampling": {
+      "processes": 3,
+      "repetitions": 1,
+      "warmups": 0,
+      "timeout_seconds": 3600,
+      "order": "balanced",
+      "threads": 1,
+      "memory_bytes": 8589934592
+    }
+  },
+  "control": {
+    "schema": "pllm.experiment.v2",
+    "name": "prepared-sdk",
+    "pipeline": {
+      "model": {
+        "source": "/Users/blairhudson/workspace/pllm/target/certified-head-inputs-v1/tiny-model",
+        "model_id": "certified-row-smoke",
+        "local_files_only": true
+      },
+      "components": {
+        "linear": {
+          "component": "pllm/masked-linear",
+          "params": {
+            "output_encoding": "row_residues",
+            "prefill_chunk_rows": 16,
+            "request_encoding": "stage_packed"
+          }
+        },
+        "preparation": {
+          "component": "pllm/model-aware-corrections",
+          "params": {
+            "storage": "paged"
+          }
+        },
+        "inference": {
+          "component": "pllm/inference",
+          "params": {}
+        },
+        "kernels": {
+          "component": "pllm/cpu",
+          "params": {
+            "threads": 1
+          }
+        },
+        "quantization": {
+          "component": "pllm/symmetric-per-row-quantization/v1",
+          "params": {
+            "weight_bits": 8,
+            "activation_bits": 8,
+            "causal_reduction": "prefix_f32"
+          }
+        },
+        "inventory": {
+          "component": "pllm/prepared-inventory-policy/v1",
+          "params": {
+            "policy": "request-sized",
+            "rows": 1,
+            "refill": "on-demand",
+            "stage_window": 4,
+            "stage_window_bytes": 67108864,
+            "allocation": "demand"
+          }
+        },
+        "delivery": {
+          "component": "pllm/client-bundle-transport/v1",
+          "params": {
+            "encoding": "artifacts",
+            "compression": "zlib",
+            "batch_objects": 64,
+            "storage": "paged",
+            "provider_cache_bytes": 536870912
+          }
+        },
+        "boundary": {
+          "component": "pllm/private-lookup-full-head/v1",
+          "params": {
+            "head_dispatch": "parallel",
+            "head_output_encoding": "uniform_residues"
+          }
+        },
+        "topology": {
+          "component": "pllm/prepared-body-two-online-boundary/v1",
+          "params": {}
+        }
+      }
+    },
+    "deployment": {
+      "kind": "local",
+      "root": ".pllm/prepared-sdk"
+    },
+    "budget": {
+      "requests": 1,
+      "max_input_tokens": 128,
+      "max_new_tokens": 2
+    }
+  },
+  "candidate": {
+    "schema": "pllm.experiment.v2",
+    "name": "prepared-sdk",
+    "pipeline": {
+      "model": {
+        "source": "/Users/blairhudson/workspace/pllm/target/certified-head-inputs-v1/tiny-model",
+        "model_id": "certified-row-smoke",
+        "local_files_only": true
+      },
+      "components": {
+        "linear": {
+          "component": "pllm/masked-linear",
+          "params": {
+            "output_encoding": "row_residues",
+            "prefill_chunk_rows": 16,
+            "request_encoding": "stage_packed"
+          }
+        },
+        "preparation": {
+          "component": "pllm/model-aware-corrections",
+          "params": {
+            "storage": "paged"
+          }
+        },
+        "inference": {
+          "component": "pllm/inference",
+          "params": {}
+        },
+        "kernels": {
+          "component": "pllm/cpu",
+          "params": {
+            "threads": 1
+          }
+        },
+        "quantization": {
+          "component": "pllm/symmetric-per-row-quantization/v1",
+          "params": {
+            "weight_bits": 8,
+            "activation_bits": 8,
+            "causal_reduction": "prefix_f32"
+          }
+        },
+        "inventory": {
+          "component": "pllm/prepared-inventory-policy/v1",
+          "params": {
+            "policy": "request-sized",
+            "rows": 1,
+            "refill": "on-demand",
+            "stage_window": 4,
+            "stage_window_bytes": 67108864,
+            "allocation": "demand"
+          }
+        },
+        "delivery": {
+          "component": "pllm/client-bundle-transport/v1",
+          "params": {
+            "encoding": "artifacts",
+            "compression": "zlib",
+            "batch_objects": 64,
+            "storage": "paged",
+            "provider_cache_bytes": 536870912
+          }
+        },
+        "boundary": {
+          "component": "pllm/private-lookup-full-head/v1",
+          "params": {
+            "head_dispatch": "parallel",
+            "head_output_encoding": "row_residues",
+            "head_certificate": {
+              "path": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+              "digest": "17d75001fb252c3e0bfb83c119c7464ddb16a3d53051d6b22b26fae743fc81b9",
+              "size_bytes": 1445
+            }
+          }
+        },
+        "topology": {
+          "component": "pllm/prepared-body-two-online-boundary/v1",
+          "params": {}
+        }
+      }
+    },
+    "deployment": {
+      "kind": "local",
+      "root": ".pllm/prepared-sdk"
+    },
+    "budget": {
+      "requests": 1,
+      "max_input_tokens": 128,
+      "max_new_tokens": 2
+    }
+  },
+  "preflight": [
+    {
+      "case": "parallel-uniform-residues",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 10766352384,
+          "swap_used": 2409234432,
+          "disk_free": 38934650880,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6471385088
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "be4e55c98ad0dd83bfa5521b931ce7036a04bac7543a4fdd45d3ef30145671cf",
+          "pipeline_digest": "afd9b34986f4f68b40307de830f2d78f52adbee052f3e3484866178d2827dd49",
+          "max_input_tokens": 128,
+          "max_output_tokens": 2,
+          "compiled_input_bound": 128,
+          "inventory_rows": 129,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 506050852,
+          "provider_peak_bytes": {
+            "boundary_a": 463011735,
+            "boundary_b": 463011735,
+            "inference": 535559920,
+            "preparation": 464404720
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 840860775,
+            "boundary_b": 840860775,
+            "inference": 651039200,
+            "preparation": 380596400
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 8256,
+            "scales_bytes": 1032,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 9288,
+            "worker_import_work_bytes": 57344,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 4160,
+            "worker_retained_metadata_and_source_scales_bytes": 100664328,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 16576,
+            "worker_lookup_scratch_bytes": 16512,
+            "head_dispatch": "parallel",
+            "head_output_encoding": "uniform_residues",
+            "head_reply_bits": 20,
+            "head_payload_bytes_per_worker": 645,
+            "client_parallel_head_work_bytes": 16814624,
+            "client_head_codec_work_bytes": 5160,
+            "worker_head_codec_work_bytes": 3612,
+            "worker_peak_bytes": 370409388,
+            "client_work_bytes": 17059136,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 129,
+            "head_calls_bound": 2,
+            "concurrent_request_bound": 1
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 2432038962,
+          "components": {
+            "per_engine_i8_and_native_bytes": 34944,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 9288,
+              "boundary_b": 9288,
+              "inference": 26688,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 57344,
+              "boundary_b": 57344,
+              "inference": 239424,
+              "preparation": 239424
+            },
+            "legacy_per_engine_i8_and_native_bytes": 69888,
+            "float_quantization_work_bytes": 231168,
+            "legacy_largest_loading_temporary_bytes": 231168,
+            "largest_loading_temporary_bytes": 231168,
+            "raw_client_bundle_bytes": 33577664,
+            "client_bundle_work_bytes": 83932544,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "preparation_additional_paged_disk_bytes": 26688,
+            "client_mask_bytes": 347656,
+            "provider_correction_bytes": 528384,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {
+              "inference": 536870912
+            },
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {
+              "inference": 50331648
+            },
+            "legacy_client_mask_bytes": 1717248,
+            "client_mask_cursor_bytes": 17416,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 8222344,
+            "client_live_tensor_bytes": 8024200,
+            "client_rotary_coefficient_bytes": 8192,
+            "client_state_work_bytes": 198144,
+            "legacy_client_tensor_work_bytes": 5981760,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 110520,
+            "per_engine_compiled_disk_bytes": 0,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 2465593394,
+            "docker": null,
+            "required_disk_bytes": 2885754304
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 2432038962,
+            "docker": null,
+            "required_disk_bytes": 2885754304
+          }
+        },
+        "enforced_wan": true
+      }
+    },
+    {
+      "case": "parallel-row-residues",
+      "admission": {
+        "schema": "pllm.benchmark_memory.v1",
+        "admitted": true,
+        "requested_backend": "native",
+        "selected_backend": "native",
+        "host": {
+          "total": 34359738368,
+          "available": 10766696448,
+          "swap_used": 2409234432,
+          "disk_free": 38934646784,
+          "reserve_bytes": 4294967296,
+          "admission_budget_bytes": 6471729152
+        },
+        "estimate": {
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "model_plan_digest": "be4e55c98ad0dd83bfa5521b931ce7036a04bac7543a4fdd45d3ef30145671cf",
+          "pipeline_digest": "c5c9835c1c58c3a4c1ba9aa749988b254e3ad25356e85a5c485e93a3bee3abfd",
+          "max_input_tokens": 128,
+          "max_output_tokens": 2,
+          "compiled_input_bound": 128,
+          "inventory_rows": 129,
+          "kernel": "cpu",
+          "preparation_decode_epoch_tokens": null,
+          "concurrent_response_bound": 1,
+          "allocation_slack_percent": 25,
+          "client_peak_bytes": 506226432,
+          "provider_peak_bytes": {
+            "boundary_a": 465642658,
+            "boundary_b": 465642658,
+            "inference": 535559920,
+            "preparation": 464404720
+          },
+          "docker_provider_peak_bytes": {
+            "boundary_a": 843491698,
+            "boundary_b": 843491698,
+            "inference": 651039200,
+            "preparation": 380596400
+          },
+          "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
+          "preparation_storage": "paged",
+          "preparation_kernel": "native",
+          "bundle_storage": "streamed_paged_v2; shared native weight snapshots; raw cache remains a separate disk owner",
+          "mask_storage": "one_active_stage_v1; one benchmark response at a time",
+          "verification_allocation": null,
+          "private_boundary_allocation": {
+            "scope": "private_boundary_allocation_owners_v1",
+            "table_bytes": 8256,
+            "scales_bytes": 1032,
+            "shared_immutable_matrix": true,
+            "worker_native_table_bytes": 9288,
+            "worker_import_work_bytes": 57344,
+            "publisher_table_export_bytes": 0,
+            "publisher_descriptor_work_bytes": 4160,
+            "worker_retained_metadata_and_source_scales_bytes": 100664328,
+            "worker_root_context_ledger_bytes": 1048576,
+            "worker_session_ledger_bytes": 16576,
+            "worker_lookup_scratch_bytes": 16512,
+            "head_dispatch": "parallel",
+            "head_output_encoding": "row_residues",
+            "head_reply_bits": 20,
+            "head_payload_bytes_per_worker": 645,
+            "client_parallel_head_work_bytes": 16814624,
+            "client_head_codec_work_bytes": 145624,
+            "worker_head_codec_work_bytes": 2108350,
+            "worker_peak_bytes": 372514126,
+            "client_work_bytes": 17199600,
+            "client_tied_weight_bytes": 0,
+            "lookup_rows_bound": 129,
+            "head_calls_bound": 2,
+            "concurrent_request_bound": 1,
+            "head_layout_bytes_per_owner": 258,
+            "certificate_artifact_bytes_per_recipient": 1445,
+            "certificate_three_recipient_delivery_bytes": 4335,
+            "certificate_publication_work_bytes": 2104996,
+            "certificate_publication_source_import_separate": true
+          },
+          "tensor_storage": "full_kv_bounded_live_roots_v2; completed benchmark response histories are retired",
+          "native_total_peak_bytes": 2437476388,
+          "components": {
+            "per_engine_i8_and_native_bytes": 34944,
+            "per_role_i8_and_native_bytes": {
+              "boundary_a": 9288,
+              "boundary_b": 9288,
+              "inference": 26688,
+              "preparation": 0
+            },
+            "per_role_loading_temporary_bytes": {
+              "boundary_a": 57344,
+              "boundary_b": 57344,
+              "inference": 239424,
+              "preparation": 239424
+            },
+            "legacy_per_engine_i8_and_native_bytes": 69888,
+            "float_quantization_work_bytes": 231168,
+            "legacy_largest_loading_temporary_bytes": 231168,
+            "largest_loading_temporary_bytes": 231168,
+            "raw_client_bundle_bytes": 33577664,
+            "client_bundle_work_bytes": 83932544,
+            "client_paged_metadata_bytes": 0,
+            "client_additional_paged_disk_bytes": 134217728,
+            "client_weight_snapshot_disk_bytes": 0,
+            "client_public_artifact_work_bytes": 0,
+            "client_tokenizer_snapshot_disk_bytes": 0,
+            "preparation_additional_paged_disk_bytes": 26688,
+            "client_mask_bytes": 347656,
+            "provider_correction_bytes": 528384,
+            "client_nonlinear_work_bytes": 0,
+            "per_provider_nonlinear_work_bytes": 0,
+            "provider_artifact_cache_disk_bytes": {
+              "inference": 536870912
+            },
+            "preparation_digit_workspace_bytes": 0,
+            "provider_artifact_cache_work_bytes": {
+              "inference": 50331648
+            },
+            "legacy_client_mask_bytes": 1717248,
+            "client_mask_cursor_bytes": 17416,
+            "verifier_bytes": 0,
+            "legacy_verifier_bytes": 0,
+            "client_tensor_work_bytes": 8222344,
+            "client_live_tensor_bytes": 8024200,
+            "client_rotary_coefficient_bytes": 8192,
+            "client_state_work_bytes": 198144,
+            "legacy_client_tensor_work_bytes": 5981760,
+            "client_cache_bytes": 0,
+            "per_provider_metal_bytes": 0,
+            "client_inflight_owner_bytes": 0,
+            "client_inflight_copy_work_bytes": 0,
+            "client_metal_bytes": 0,
+            "checkpoint_bytes": 110520,
+            "per_engine_compiled_disk_bytes": 0,
+            "response_state_audit_bytes": 33554432
+          },
+          "limitations": []
+        },
+        "candidates": {
+          "native": {
+            "admitted": true,
+            "reasons": [],
+            "required_host_bytes": 2471030820,
+            "docker": null,
+            "required_disk_bytes": 2885754304
+          },
+          "docker": {
+            "admitted": false,
+            "reasons": [
+              "Docker memory capacity is unavailable"
+            ],
+            "required_host_bytes": 2437476388,
+            "docker": null,
+            "required_disk_bytes": 2885754304
+          }
+        },
+        "enforced_wan": true
+      }
+    }
+  ],
+  "frozen_sources": {
+    "benchmarks/__init__.py": "2ce4b5902be75b7bbf0c2d2fee471e1989737f8983e7519302019e57bfe023a7",
+    "benchmarks/research/__init__.py": "eec334d400930bc338253bc62a66946cf36e92da23c5bbefac67fcbe4217ff67",
+    "benchmarks/research/private_boundary_row_codec.py": "4a36132d1d8b8fe5ff2b14a5a7fc2913cbae26018c2e3b2738451e824c978f53",
+    "benchmarks/research/private_boundary_byte_dot.py": "982f26392c19b0aa0970fc44aaf5ddfebce68a121290d37a5d3c564543dee665",
+    "benchmarks/research/private_boundary_decode.py": "02db9015992714d77d64838ca068f4ca704bb73a79f14de62cb353294ddf6566",
+    "benchmarks/research/private_boundary_decode_confirmation.py": "92e7052e78f766e30ada8ef08be2f59a0ee9d4b96cbd8de7ca4974f085041536",
+    "benchmarks/research/private_boundary_tiers.py": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867",
+    "benchmarks/research/sota_combinations.py": "2ec2441542e06674e7c6c7b179e7126ff2f4ff682922fec45cb658517bdfe375",
+    "benchmarks/research/historical_evidence.py": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c",
+    "examples/prepared_sdk.py": "6a7d1dd38eeb3e7b9428b547c96902de27fb079c0b8e615bece40ea31f42c0bb",
+    "scripts/benchmark_sota_combinations.py": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d",
+    "scripts/benchmark_private_boundary_row_codec.py": "ec6be1794bd8f2a9469219872f8871d7d01f2c3b624ff334e7e13f2551ccc030",
+    "scripts/summarize_private_boundary_row_codec.py": "f243813e46fe49ba0cd4246805f6be0fad29b0114df1871a2d8a1ad53c4a17f3",
+    "sdk/runtime/private_boundary_certificate.py": "e1d3ae97df90483fce0f560f1cb90ebad1b0399f0241a5bde105a907b7eb63ed",
+    "sdk/runtime/private_boundary_head_codec.py": "d679c5d446144222e4b1d9c0c48333b18e80f1e7723fcaeb2db2c4bcd05a822a",
+    "sdk/runtime/private_boundary_transport.py": "d66afdad0794325b76b7e8ec57a2463a0281e5047c80b8f44adad1601dffe4e0",
+    "sdk/runtime/benchmark_response_audit.py": "526573a484b96e760ce4b96d057bb0caa88397490d91412954923ad60babb30c",
+    "sdk/runtime/benchmark_response_target.py": "5aec63bd4886798eb2dec4cbdcfd59ceb632a14137782c1310ddcca1d670fe33",
+    "sdk/runtime/private_boundary_protocol.py": "4fe37872dfd786455033266ab5bfa4918a1b54c41884662d0e078d4945b48c2a",
+    "sdk/runtime/private_boundary_loader.py": "a8e7334e0efbf632c61757f1af2dcd1529ec0ebdd279673fd7dc519d3b5af8ca",
+    "sdk/runtime/model_binding.py": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a",
+    "sdk/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "sdk/_benchmark_worker.py": "4a9246d078425e20de004c57f5b833bc2f8e6b6d222b1463e58d986ad9ae0668",
+    "sdk/_benchmark_workload.py": "20e0a5a3280c2f4972f2e9e2116e3497c598a0a6cef0b8774ca9c18a7f3cf021",
+    "sdk/_benchmark_contract.py": "3d869d8c32dde595b103655e4d976fbf2a3d76d05ed427124aac77ed9bda451e",
+    "sdk/runtime/benchmark_context.py": "c488152a07c63021f7873508faab78aa0f28c0b0145d6a5e97309925c4ecf64a",
+    "sdk/runtime/topology_accounting.py": "8384e353f03600154dd4f35fccc853f97395d818f019bad762a5f02c73a7cce6",
+    "sdk/runtime/dashboard.py": "aac76f65645c0bc77fbac894b8ebaa60d32e3ea5ab02a361ef7fcae6e25f6b0b",
+    "sdk/deployment/execution.py": "4bb29796a22f04d998a29f589970e346e32a836c2e9a95e76a2ccac379ec3208",
+    "sdk/runtime/transformer_client.py": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574",
+    "target/certified-head-tiny-publication-v4/128x2-control.json": "884c00c1c4f9ebdb8a20034f050fec3810f4159882b0a3cab40dbf449119e542",
+    "target/certified-head-tiny-publication-v4/128x2-candidate.json": "ec1b27a49d574f55c13478a24097a9ac823b1476a72b083a5c31f4f4f4153532",
+    "target/certified-head-tiny-publication-v4/certificate-accounting.json": "f0f1db5854ea1c0d3f8f20a821de6dee7719025c1851efb456ec35ce5ffd459b",
+    "target/certified-head-inputs-v1/tiny-prompt-v2.txt": "48cfb43977511101d104649ab0eb365e708d8c8fa5d771feb24fa8f0fc86c620",
+    "target/certified-head-tiny-publication-v4/128x2-native-head-commitments.json": "6e40aae603491b6bacd32f3b94276897c8f92b2eafcc02b81a028f416292bd0f",
+    "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert": "17d75001fb252c3e0bfb83c119c7464ddb16a3d53051d6b22b26fae743fc81b9"
+  },
+  "tiny": true,
+  "max_output_tokens": 8,
+  "verifier_sources": {
+    "benchmarks/__init__.py": "2ce4b5902be75b7bbf0c2d2fee471e1989737f8983e7519302019e57bfe023a7",
+    "benchmarks/research/__init__.py": "eec334d400930bc338253bc62a66946cf36e92da23c5bbefac67fcbe4217ff67",
+    "benchmarks/research/private_boundary_row_codec.py": "4a36132d1d8b8fe5ff2b14a5a7fc2913cbae26018c2e3b2738451e824c978f53",
+    "benchmarks/research/private_boundary_byte_dot.py": "982f26392c19b0aa0970fc44aaf5ddfebce68a121290d37a5d3c564543dee665",
+    "benchmarks/research/private_boundary_decode.py": "02db9015992714d77d64838ca068f4ca704bb73a79f14de62cb353294ddf6566",
+    "benchmarks/research/private_boundary_decode_confirmation.py": "92e7052e78f766e30ada8ef08be2f59a0ee9d4b96cbd8de7ca4974f085041536",
+    "benchmarks/research/private_boundary_tiers.py": "b764d9af11e95bb86dc2e53dcfe00592560951238d4b28a66fbbd294746eb867",
+    "benchmarks/research/sota_combinations.py": "2ec2441542e06674e7c6c7b179e7126ff2f4ff682922fec45cb658517bdfe375",
+    "benchmarks/research/historical_evidence.py": "ef5757722e99fd0cda68dda9cb4c0ab67d8e6ff3da0609a287ed64c245d8ff3c",
+    "examples/prepared_sdk.py": "6a7d1dd38eeb3e7b9428b547c96902de27fb079c0b8e615bece40ea31f42c0bb",
+    "scripts/benchmark_sota_combinations.py": "9ab7c75ba74a4c63a39837a269ac5f93d426b6028718f3ceea794d9f1f07848d",
+    "scripts/benchmark_private_boundary_row_codec.py": "ec6be1794bd8f2a9469219872f8871d7d01f2c3b624ff334e7e13f2551ccc030",
+    "scripts/summarize_private_boundary_row_codec.py": "f243813e46fe49ba0cd4246805f6be0fad29b0114df1871a2d8a1ad53c4a17f3",
+    "sdk/runtime/private_boundary_certificate.py": "e1d3ae97df90483fce0f560f1cb90ebad1b0399f0241a5bde105a907b7eb63ed",
+    "sdk/runtime/private_boundary_head_codec.py": "d679c5d446144222e4b1d9c0c48333b18e80f1e7723fcaeb2db2c4bcd05a822a",
+    "sdk/runtime/private_boundary_transport.py": "d66afdad0794325b76b7e8ec57a2463a0281e5047c80b8f44adad1601dffe4e0",
+    "sdk/runtime/benchmark_response_audit.py": "526573a484b96e760ce4b96d057bb0caa88397490d91412954923ad60babb30c",
+    "sdk/runtime/benchmark_response_target.py": "5aec63bd4886798eb2dec4cbdcfd59ceb632a14137782c1310ddcca1d670fe33",
+    "sdk/runtime/private_boundary_protocol.py": "4fe37872dfd786455033266ab5bfa4918a1b54c41884662d0e078d4945b48c2a",
+    "sdk/runtime/private_boundary_loader.py": "a8e7334e0efbf632c61757f1af2dcd1529ec0ebdd279673fd7dc519d3b5af8ca",
+    "sdk/runtime/model_binding.py": "cfc078ba592764212c2dcbab9b28fd5f41cee01abe761587eef8a2a7932d1e7a",
+    "sdk/runtime/quantization.py": "89c7013e569cf434d6cd54f6fc3015bc89e5a2e08e351d3b4a48d071d398d412",
+    "sdk/_benchmark_worker.py": "4a9246d078425e20de004c57f5b833bc2f8e6b6d222b1463e58d986ad9ae0668",
+    "sdk/_benchmark_workload.py": "20e0a5a3280c2f4972f2e9e2116e3497c598a0a6cef0b8774ca9c18a7f3cf021",
+    "sdk/_benchmark_contract.py": "3d869d8c32dde595b103655e4d976fbf2a3d76d05ed427124aac77ed9bda451e",
+    "sdk/runtime/benchmark_context.py": "c488152a07c63021f7873508faab78aa0f28c0b0145d6a5e97309925c4ecf64a",
+    "sdk/runtime/topology_accounting.py": "8384e353f03600154dd4f35fccc853f97395d818f019bad762a5f02c73a7cce6",
+    "sdk/runtime/dashboard.py": "aac76f65645c0bc77fbac894b8ebaa60d32e3ea5ab02a361ef7fcae6e25f6b0b",
+    "sdk/deployment/execution.py": "4bb29796a22f04d998a29f589970e346e32a836c2e9a95e76a2ccac379ec3208",
+    "sdk/runtime/transformer_client.py": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574"
+  },
+  "public_input_counts": {
+    "tiny": 104
+  },
+  "prompt_digest": "48cfb43977511101d104649ab0eb365e708d8c8fa5d771feb24fa8f0fc86c620",
+  "public_prompt": {
+    "path": "target/certified-head-inputs-v1/tiny-prompt-v2.txt",
+    "sha256": "48cfb43977511101d104649ab0eb365e708d8c8fa5d771feb24fa8f0fc86c620",
+    "size_bytes": 85
+  },
+  "source_lock_digest": "ef8a8250c5c884ee20891ec8d6fff560b98f3f314ab1004f41e95fc35f2313bd",
+  "certificate": {
+    "artifact": {
+      "path": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+      "digest": "17d75001fb252c3e0bfb83c119c7464ddb16a3d53051d6b22b26fae743fc81b9",
+      "size_bytes": 1445
+    },
+    "artifact_bytes": 1445,
+    "artifact_base64": "UExMTUJSQzF1BQAAeyJib3VuZHNfZGlnZXN0IjoiMDMzNDc0NGU1Njg4MjkwNGU3NDljOTlmMTBiYWY1YmY5ZDA3NWQ0MjRlMWU4MjMyYWU3ZGM3YmM4MWEwN2ZhNiIsImltcGxlbWVudGF0aW9uIjp7InBsbG0uX25hdGl2ZSI6IjUzNmIwYjQ0NGExNWM2YTdkNGJiZjU1YmY0N2YxMGM5M2M5NWRiMjY5YjY0YmQzMzNhNTJlZGYzZDhjMTE5MjEiLCJwbGxtLnJ1bnRpbWUucHJpdmF0ZV9ib3VuZGFyeV9jZXJ0aWZpY2F0ZSI6ImUxZDNhZTk3ZGY5MDQ4M2ZjZTBmNTYwZjFjYjkwZWJhZDFiMDM5OWYwMjQxYTViZGUxMDVhOTA3YjdlYjYzZWQiLCJwbGxtLnJ1bnRpbWUucHJpdmF0ZV9ib3VuZGFyeV9sb2FkZXIiOiJhOGU3MzM0ZTBlZmJmNjMyYzYxNzU3ZjFhZjJkY2QxNTI5ZWMwZWJkZDI3OTY3M2ZkN2RjNTE5ZDNiNWFmOGNhIiwicGxsbS5ydW50aW1lLnF1YW50aXphdGlvbiI6Ijg5YzcwMTNlNTY5Y2Y0MzRkNmNkNTRmNmZjMzAxNWJjODllNWEyZTA4ZTM1MWQzYjRhNDhkMDcxZDM5OGQ0MTIifSwibGF5b3V0IjoiemxpYi11OC1taW5pbWFsLXNpZ25lZC13aWR0aHMtdjEiLCJudW1lcmljIjoic2lnbmVkLWk4LXJvdy1tYWpvci1iaWFzLWZyZWUvc3ltbWV0cmljLXFtYXgxMjcvaW50LXdyYXAzMi9mMzItc2VwYXJhdGUtbXVsdGlwbGllcy92MSIsInNjaGVtYSI6InBsbG0ucHJpdmF0ZV9ib3VuZGFyeS5yb3dfY2VydGlmaWNhdGUudjEiLCJzb3VyY2UiOnsiYWN0aXZhdGlvbl9iaXRzIjo4LCJjaGVja3BvaW50X2RpZ2VzdCI6IjVmNDZiYjZiMGQzZjlhYzcwZjMzZWUzNTQ2NjQ2NjQxNzU4YjA4YzU5Yzc4ZWIyNTNlNTZiMTNlMjE1NjQ4YjQiLCJoZWFkX3NjYWxlc19kaWdlc3QiOiIxZTdlZjhmMWYwZWIyYjM1NTk3ODZjZWZjNGNmNmMwMzc4ZTAxMjY2MjE3YjAwMmEyOTg5ZGY3Y2Y1YmE2Yzk4IiwiaGVhZF93ZWlnaHRfZGlnZXN0IjoiOWRmZGU1MTY2ZWE4YjkxOTZlYjk0MDNjYTU1NWRiMDgzNjcxMmFlZmQxZDJhYjE4NDc3YzYwOGMwNzI0NzFjZSIsImhpZGRlbiI6MzIsImxvb2t1cF9kaWdlc3QiOiIyMDcyOGE2MDNhMTMyY2ViMDNmNzdmM2Y1NDZjNTQ2ZTVlYWIxNmU3Y2ViMTM1MWIyYzBiMDk0NmE1MDlmNTEzIiwibW9kZWxfY29uZmlnX2RpZ2VzdCI6ImU3MDUyNDI2ZGY0ZTU5MDQxN2UxMWY1ZTRmZTUzY2E4MDVmZWQ4Y2Q3MTQwYTllNzA2OGI1MGRkZTViODdlODUiLCJzaWduZWRfb3V0cHV0X2JvdW5kIjoyODExNzgsInNvdXJjZV9kaWdlc3QiOiJlZjhhODI1MGM1Yzg4NGVlMjA4OTFlYzhkNmZmZjU2MGI5OGYzZjMxNGFiMTAwNGY0MWU5NWZjMzVmMjMxM2JkIiwidm9jYWJ1bGFyeSI6MjU4LCJ3ZWlnaHRfYml0cyI6OH0sIndpZHRoc19kaWdlc3QiOiI0ZjlmZjU0OGQ0MDBhMmY2ZTIxNzRmNDhjZGQxOTIxMzM3ZjQyMTA4NjE5NGJmODMzZDNiNmVkMGY4NDM4OTBlIn142hMWxguEoJgoIISHK4RdkRAuzcRZJkSik1CACIQCAKtTEx0=",
+    "artifact_bytes_verified": true,
+    "delivery_locations": {
+      "client": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+      "boundary_a": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+      "boundary_b": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert"
+    },
+    "declared_missing_owners": [
+      "client",
+      "boundary_a",
+      "boundary_b"
+    ],
+    "extra_setup_fixed_byte_budget": 4335,
+    "extra_setup_fixed_byte_budget_origin": "scenario arithmetic; not network measurement",
+    "publisher_distribution_network_bytes": null,
+    "publisher_distribution_seconds": null,
+    "derivation": "Local offline publisher; actual native head/source/scale binding and full row scan. Generated fixture only. See publication.json; three-owner delivery is scenario arithmetic, not measured network.",
+    "derivation_cpu_seconds": null,
+    "cold_network_complete": false,
+    "sota_claim_admissible": false,
+    "integration_status": "raw source/layout/frame telemetry required by cohort audit"
+  },
+  "certificate_declaration": {
+    "missing_owners": [
+      "client",
+      "boundary_a",
+      "boundary_b"
+    ],
+    "delivery_locations": {
+      "client": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+      "boundary_a": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert",
+      "boundary_b": "/Users/blairhudson/workspace/pllm/target/certified-head-tiny-publication-v4/head.cert"
+    },
+    "derivation": "Local offline publisher; actual native head/source/scale binding and full row scan. Generated fixture only. See publication.json; three-owner delivery is scenario arithmetic, not measured network."
+  },
+  "native_head_commitments": {
+    "parallel-uniform-residues": {
+      "pipeline_digest": "afd9b34986f4f68b40307de830f2d78f52adbee052f3e3484866178d2827dd49",
+      "composition_digest": "afd9b34986f4f68b40307de830f2d78f52adbee052f3e3484866178d2827dd49",
+      "schedule_digest": "8895d8ef068c09dfb1a6345af479cbeed51c1ec4f9ffabaac34f8ca942b0a7cb",
+      "descriptor_digest": "8f0d1465cfb9b9c78da1b7173c7392f913b256f4cd3a3c0cb58da0e50167b8d0",
+      "numeric_body_fingerprint": "c54421cb6363f1e84bb5738ddd86a61faf95d9cf9d73df6dace12d3b894a023b"
+    },
+    "parallel-row-residues": {
+      "pipeline_digest": "c5c9835c1c58c3a4c1ba9aa749988b254e3ad25356e85a5c485e93a3bee3abfd",
+      "composition_digest": "c5c9835c1c58c3a4c1ba9aa749988b254e3ad25356e85a5c485e93a3bee3abfd",
+      "schedule_digest": "64f716b3d959256f1ab6b62a3155815c5479544d6d659ed2e8261a021bc81fac",
+      "descriptor_digest": "51a22dd6e17902ed51ef76acf7157fe693048d807b3321f6918fc1f8f09f1ff5",
+      "numeric_body_fingerprint": "c54421cb6363f1e84bb5738ddd86a61faf95d9cf9d73df6dace12d3b894a023b"
+    }
+  },
+  "execution": "one private salt; six serial complete fresh SDK workers; native shared100/40",
+  "schedule": [
+    [
+      "parallel-uniform-residues",
+      0
+    ],
+    [
+      "parallel-row-residues",
+      0
+    ],
+    [
+      "parallel-row-residues",
+      1
+    ],
+    [
+      "parallel-uniform-residues",
+      1
+    ],
+    [
+      "parallel-row-residues",
+      2
+    ],
+    [
+      "parallel-uniform-residues",
+      2
+    ]
+  ],
+  "pending": null,
+  "output_policy": "natural EOS; no prompt, stop, budget or component rewriting"
+}
