@@ -4,6 +4,20 @@ Decision date: 16 October 2026. Status: execution started; neither paper is read
 for submission. This is the consolidated publication strategy, manuscript
 scaffolds, critique, and delivery plan agreed with the author.
 
+## Approved shorter framework-paper study
+
+[`FRAMEWORK-REWRITE-PLAN.md`](FRAMEWORK-REWRITE-PLAN.md) defines the approved
+six-page structure, ten-method selection, client budgets, and measurement priorities.
+Traffic and memory have separate phase results.
+Memory results include every non-client role and their simultaneous aggregate peaks.
+The expanded study requires new implementation and measurement evidence before completion claims.
+Existing measurement contracts and historical evidence keep their original scope.
+The author requires genuine independent reimplementations of all ten selected
+papers. Substantial adaptations need approval before implementation. The
+[`coverage audit`](TEN-METHOD-COVERAGE.md) records six component adaptations and
+zero qualified complete reimplementations at the start of this study. Existing
+configuration benchmarks cannot replace the approved ten-system comparison.
+
 ## Execution update: evidence and revised decision
 
 The original scaffolds below remain the design record. The current comparison

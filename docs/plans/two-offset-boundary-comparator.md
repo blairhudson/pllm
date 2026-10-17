@@ -2,6 +2,12 @@
 
 ## Decision and promotion boundary
 
+**Later study decision:** the author requires a source-faithful GKM
+reimplementation for the ten-method framework study. The W8A8/ring32 and DPF
+tracks below remain proposed adaptations. They need explicit approval and cannot
+replace the original fixed-point, lookup, and verification contracts. This older
+plan is not implementation authorization for those substitutions.
+
 Plan date: **16 October 2026**. Start implementation **after the parent's current
 publication-audit commit**; pin that resulting revision and recheck these seams.
 This plan follows [COMPETITOR-QUALIFICATION.md](../../paper/COMPETITOR-QUALIFICATION.md)

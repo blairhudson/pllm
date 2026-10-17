@@ -14,6 +14,12 @@ milestones. `CLAIMS-AND-EVIDENCE.md` maps placeholders to existing evidence and
 remaining work; `IMPLEMENTATION-STATUS.md` records progress.
 `WRITING-GUIDE.md` defines the ASD-STE100 Issue 9 rules and technical terms for all three documents.
 
+The approved framework rewrite is a six-page main paper backed by complete
+reimplementations of ten selected methods. See `FRAMEWORK-REWRITE-PLAN.md`,
+`TEN-METHOD-COVERAGE.md`, and `reproduction-contracts/README.md`. Substantial
+adaptations require the author's approval before implementation. The current
+manuscript and historical configuration results do not complete that study.
+
 Publication evidence has separate, auditable owners:
 
 - `COMPARISON-CONTRACT.md` and `comparison-contract.v1.json`: normative definitions,
@@ -69,7 +75,8 @@ An extracted archive can run its included builder directly:
 The build enforces US Letter output with total-document guards of 20 pages for
 the framework paper, 16 for the method paper, and two for the whitepaper. The
 technical limits include references/appendices and are not arXiv requirements;
-main-text writing targets are 10–12 and 8–10 pages respectively. It writes PDFs under `docs/build/papers/`,
+the approved framework rewrite targets six main-text pages, while the method
+paper target remains 8–10 pages. It writes PDFs under `docs/build/papers/`,
 copies downloadable PDFs and deterministic source archives to
 `docs/public/downloads/`, and renders the website pages under
 `docs/content/research/`. All these outputs are ignored by Git. The ordinary

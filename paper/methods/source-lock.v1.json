@@ -1,0 +1,111 @@
+{
+  "schema": "pllm.ten_method_source_lock.v1",
+  "kind": "research_specification_sources_not_execution_evidence",
+  "coverage_audit": "paper/TEN-METHOD-COVERAGE.md",
+  "source_manifest": "paper/prior-art-sources.json",
+  "identity": "SHA-256 identifies the exact reviewed PDF bytes. A mutable URL does not identify a version independently of that hash.",
+  "cache_policy": "PDFs are local, ignored research inputs. Historical source records remain unchanged. Fetches must match the selected hash before use.",
+  "sources": [
+    {
+      "id": "gupta-katz-miers",
+      "name": "Private and Verifiable Outsourcing of Open-Weight LLM Inference",
+      "version": "ePrint 2026/1849, hash-pinned revision",
+      "url": "https://eprint.iacr.org/2026/1849.pdf",
+      "cache": "papers/r19-open-weight-verifiable.pdf",
+      "bytes": 432619,
+      "sha256": "e1863980621e0bbd2d446b43f2d9415318ebeec400b0e6c818685752f6448e1d",
+      "contract": "paper/methods/delegation-contracts.md"
+    },
+    {
+      "id": "maverick",
+      "name": "Maverick",
+      "version": "arXiv:2609.10264v1",
+      "url": "https://arxiv.org/pdf/2609.10264v1",
+      "cache": "papers/r24-maverick.pdf",
+      "bytes": 590747,
+      "sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+      "contract": "paper/methods/delegation-contracts.md"
+    },
+    {
+      "id": "sigma",
+      "name": "SIGMA",
+      "version": "PoPETs 2024(4), 61–79",
+      "url": "https://petsymposium.org/popets/2024/popets-2024-0107.pdf",
+      "cache": "papers/r13-sigma.pdf",
+      "bytes": 3564461,
+      "sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+      "contract": "paper/methods/shared-computation-contracts.md"
+    },
+    {
+      "id": "fusefss",
+      "name": "FuseFSS",
+      "version": "arXiv:2606.09551v1",
+      "url": "https://arxiv.org/pdf/2606.09551v1",
+      "cache": "papers/r14-fusefss.pdf",
+      "bytes": 579897,
+      "sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+      "contract": "paper/methods/shared-computation-contracts.md"
+    },
+    {
+      "id": "bumblebee",
+      "name": "BumbleBee",
+      "version": "NDSS 2025 final",
+      "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-57-paper.pdf",
+      "cache": "papers/r22-bumblebee-final.pdf",
+      "bytes": 1059933,
+      "sha256": "184bbe5104f183d4df66db2413f89c96c6c814e0b0ec6297f19745a1fa6e203b",
+      "contract": "paper/methods/shared-computation-contracts.md",
+      "cache_origin": "Verified byte-identical copy of the historical bumblebee-final snapshot; the older papers/r22-bumblebee.pdf remains separate."
+    },
+    {
+      "id": "puma",
+      "name": "PUMA",
+      "version": "arXiv:2307.12533v3",
+      "url": "https://arxiv.org/pdf/2307.12533v3",
+      "cache": "papers/puma.pdf",
+      "bytes": 265549,
+      "sha256": "84c82810a16be95b41200ba8e0071c39a8cadb15a45008ff8e75e295e0960973",
+      "contract": "paper/methods/shared-computation-contracts.md"
+    },
+    {
+      "id": "nexus",
+      "name": "NEXUS",
+      "version": "NDSS 2025, DOI 10.14722/ndss.2025.230868",
+      "url": "https://www.ndss-symposium.org/wp-content/uploads/2025-868-paper.pdf",
+      "cache": "papers/r21-nexus.pdf",
+      "bytes": 1761262,
+      "sha256": "c809182345f27f76e21d983d97dffa0d086dbcd17dabc265f0df9fb6ca9b70f2",
+      "contract": "paper/methods/encrypted-computation-contracts.md"
+    },
+    {
+      "id": "thor",
+      "name": "THOR",
+      "version": "ePrint 2024/1881, hash-pinned revision",
+      "url": "https://eprint.iacr.org/2024/1881.pdf",
+      "cache": "papers/thor.pdf",
+      "bytes": 2109310,
+      "sha256": "ddb57004b56ee8e00beffc4f563fd0921242753fda6c704065d4900b792439cd",
+      "contract": "paper/methods/encrypted-computation-contracts.md"
+    },
+    {
+      "id": "cachemir",
+      "name": "CacheMir",
+      "version": "arXiv:2602.11470v1",
+      "url": "https://arxiv.org/pdf/2602.11470v1",
+      "cache": "papers/cachemir.pdf",
+      "bytes": 1906558,
+      "sha256": "67db77545b62a4ec0f6906706b947492e6d1bcd9a37b84e5afc32445b41c98e7",
+      "contract": "paper/methods/encrypted-computation-contracts.md"
+    },
+    {
+      "id": "rosetta",
+      "name": "ROSETTA",
+      "version": "arXiv:2609.16915v1",
+      "url": "https://arxiv.org/pdf/2609.16915v1",
+      "cache": "papers/rosetta.pdf",
+      "bytes": 2885494,
+      "sha256": "b4c7195d32808881b2da8b3a6876b571d8215bbc02aaafaa78ef327aa27fb4e8",
+      "contract": "paper/methods/encrypted-computation-contracts.md"
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-10-17",
+  "scope": "Static native-Rust HE backend qualification; no dependency adoption or execution",
+  "raw_source_url_template": "https://raw.githubusercontent.com/{repository}/{commit}/{path}",
+  "hash_scope": "Selected inspected files only; not a full-artifact audit",
+  "input_snapshots": [
+    {
+      "path": "paper/methods/encrypted-computation-contracts.md",
+      "sha256": "528ccffab51b1f82128e35d5818c6749541372b8224956f7f01f30f2aead045b"
+    },
+    {
+      "path": "paper/reproduction-contracts/encrypted-inference.md",
+      "sha256": "e9b599cc720311614115a6d3b139d87ed0fe6dac8d8752702e09323e4effb795"
+    }
+  ],
+  "sources": [
+    {
+      "id": "poulpy",
+      "repository": "poulpy-fhe/poulpy",
+      "commit": "ca3532570ff62b96599a74f7adb85de7726b0446",
+      "version": "0.9.0",
+      "tag": "v0.9.0",
+      "released": "2026-10-08",
+      "license": "Apache-2.0",
+      "implementation": "native-rust",
+      "toolchain": "nightly-2026-05-14",
+      "disposition": "Best native CKKS candidate; maturity, torus adaptation and source-profile admission unresolved",
+      "files": [
+        {"path": "README.md", "sha256": "91aa426a837563b44dcb1426aeb74381067b64bef68abc4b856b07308ce34409"},
+        {"path": "docs/bootstrapping.md", "sha256": "21f9d24ed6ce3be21cc419389041c47b4de4f1e7637c066740148bfe6a20fc06"},
+        {"path": "poulpy-ckks/src/reference/bootstrapping.rs", "sha256": "b26dc1b8d7943af2353c7e815a6d3a6ab3d5be390af788d260603c964109d271"},
+        {"path": "poulpy-bin-fhe/src/api/bdd/glwe_blind_rotation.rs", "sha256": "267435dbdb81515b50f09228c93d40a41371ad1e403d4c6e3df2382eeb561681"},
+        {"path": "poulpy-bin-fhe/src/reference/blind_rotation/algorithm.rs", "sha256": "ec1d29785cd614033f57df355aa7f0fc300c8c42ffacfe8db374edccef36b2e1"},
+        {"path": "SECURITY.md", "sha256": "06baa4c62dd4d258a19f5bc13c1e4266928911ffdb73d8b1f53355b4287a497d"}
+      ]
+    },
+    {
+      "id": "tfhe-rs",
+      "repository": "zama-ai/tfhe-rs",
+      "commit": "187fc0b95ab35352422deec6c027d0bd8743b6db",
+      "version": "1.8.1",
+      "tag": "tfhe-rs-1.8.1",
+      "released": "2026-09-17",
+      "license": "BSD-3-Clause-Clear",
+      "license_note": "LICENSE grants no patent rights; README states a separate commercial-patent policy",
+      "implementation": "native-rust-cpu",
+      "disposition": "Encrypted-GLWE accumulator primitive present; CKKS and full ROSETTA bridge not qualified",
+      "files": [
+        {"path": "LICENSE", "sha256": "ca1883efce06b433378ad2b3b57bc9e580177b22d663829ba94aaaa3cbc37105"},
+        {"path": "tfhe/src/core_crypto/algorithms/lwe_programmable_bootstrapping/fft64_pbs.rs", "sha256": "e561eda2e243b5ce1308d7f0cfbdc63a877d5adbd84939936144b26b74cc003f"},
+        {"path": "tfhe/src/core_crypto/fft_impl/fft64/crypto/bootstrap.rs", "sha256": "2b789c4cc9959d01ee72a597c0de0316ac315ae3ede1ba128143f350c0b34b9b"}
+      ]
+    },
+    {
+      "id": "fhe-rs",
+      "repository": "tlepoint/fhe.rs",
+      "commit": "98a087f1bf5f7fa95196ebe16b0e1b0eeb632442",
+      "snapshot_date": "2026-10-16",
+      "checkout_version": "0.2.0",
+      "registry_latest_observed": "0.1.1",
+      "registry_url": "https://crates.io/api/v1/crates/fhe",
+      "license": "MIT",
+      "implementation": "native-rust",
+      "disposition": "Inspected exports are BFV and experimental multiparty BFV; not CKKS bootstrap",
+      "files": [
+        {"path": "README.md", "sha256": "33543816c40a398a439d781145e29d038bd026e357ffa4263afe82d70509d09e"},
+        {"path": "crates/fhe/src/lib.rs", "sha256": "0b0892410c0a6a62cc37b80b1b682ce022d3670b26dda0096e18c8d2c1680868"}
+      ]
+    },
+    {
+      "id": "fheanor",
+      "repository": "FeanorTheElf/fheanor",
+      "commit": "2ba00539204cc03816dd258b57fad94904f54d41",
+      "snapshot_date": "2026-07-19",
+      "checkout_version": "0.11.9",
+      "license": "MIT",
+      "license_evidence": "Cargo.toml and Readme.md declarations",
+      "implementation": "rust-with-optional-intel-hexl",
+      "disposition": "Research/alpha toolkit; BFV/BGV bootstrap, not qualified CKKS",
+      "files": [
+        {"path": "Readme.md", "sha256": "9a0e03f15912fd0d25ff383a29e8b92629d371b6d03cb369266fc4b3fa109fea"},
+        {"path": "Cargo.toml", "sha256": "f729aaac30b0126e772236cd3a021ff64ab2008d4620933e14237eabfc3dadd6"}
+      ]
+    },
+    {
+      "id": "openfhe-rs",
+      "repository": "fairmath/openfhe-rs",
+      "commit": "a60b38a101e9cccbada7629245c6a79a4c65741e",
+      "snapshot_date": "2025-02-26",
+      "checkout_version": "0.3.2",
+      "license": "BSD-2-Clause",
+      "implementation": "rust-cxx-wrapper-over-cpp-openfhe",
+      "disposition": "High-level bootstrap/switch bindings; compatibility with current upstream and raw accumulator binding unqualified",
+      "files": [
+        {"path": "README.md", "sha256": "39b8349d195557c55c0c1d26be251956f424388e89e6928ec4f96823cc6129fd"},
+        {"path": "src/lib.rs", "sha256": "3f4e6a0611dd1e80be7c160a33495f6abaeda1db9ff8fd13db9975f42deeb080"}
+      ]
+    },
+    {
+      "id": "openfhe",
+      "repository": "openfheorg/openfhe-development",
+      "commit": "b59e1f291965f14fbee5172cd83a20f5b856204f",
+      "version": "1.6.1",
+      "tag": "v1.6.1",
+      "released": "2026-10-09",
+      "license": "BSD-2-Clause",
+      "implementation": "cpp",
+      "disposition": "Current RNS-CKKS bootstrap and raw encrypted accumulator; foreign-backend approval and complete bridge qualification required",
+      "files": [
+        {"path": "README.md", "sha256": "fc74e3d6e3aadc8b4b6f6b7591ddd64b93bea0ef22cf196386a43cfe97493f9b"},
+        {"path": "src/binfhe/include/rgsw-acc-cggi.h", "sha256": "c239118c82172a3d8d9f416ba386be9a654e2fd673ba7b732630008469334b84"}
+      ]
+    },
+    {
+      "id": "sunscreen",
+      "repository": "Sunscreen-tech/Sunscreen",
+      "commit": "f8ee4a0dc32418f2acd9e176c6f0af73cdf68d40",
+      "snapshot_date": "2025-08-31",
+      "crate": "seal_fhe",
+      "checkout_version": "0.8.1",
+      "license": "AGPL-3.0-only",
+      "implementation": "rust-wrapper-over-cpp-seal",
+      "seal_submodule_commit": "8426f35e35a67d382fa76451e2d8ff2940098bed",
+      "disposition": "Inspected wrapper explicitly excludes CKKS",
+      "files": [
+        {"path": "seal_fhe/src/lib.rs", "sha256": "71b9f5c04d38b559b8485dc76c0eb53c41ee1068c04b34948d35d21ca9a278d0"},
+        {"path": "seal_fhe/Cargo.toml", "sha256": "23859f134a8381c54883a6d9be4554e55696c9257829a860398aedd99c642043"}
+      ]
+    },
+    {
+      "id": "lit-openfhe-rs",
+      "repository": "LIT-Protocol/openfhe-rs",
+      "commit": "b0b901d0a1f6afb59387e778cbbc6c2fbb483fc9",
+      "snapshot_date": "2026-06-08",
+      "checkout_version": "0.1.0",
+      "license": "Apache-2.0 OR MIT",
+      "license_evidence": "Cargo.toml declaration; retrieved LICENSE text is Apache-2.0",
+      "implementation": "rust-port-separate-from-fairmath-wrapper",
+      "disposition": "Archived/no longer maintained according to pinned README; no complete CKKS qualification",
+      "files": [
+        {"path": "README.md", "sha256": "00393cb8a7bb05dc7d3668275a7d02f8343e507e8d823f0d912ca7221c61fadc"}
+      ]
+    },
+    {
+      "id": "seal",
+      "repository": "microsoft/SEAL",
+      "commit": "79ad62fb50fb59880c7b717275c82fe497634639",
+      "version": "4.7.0",
+      "tag": "v4.7.0",
+      "released": "2026-10-14",
+      "license": "MIT",
+      "implementation": "cpp",
+      "disposition": "Inspected public Evaluator has leveled operations and no bootstrap entry point",
+      "files": [
+        {"path": "native/src/seal/evaluator.h", "sha256": "315c9020104af14370abb59af2289f5f3457626597b0d242cfdf7fdb8dc908bd"}
+      ]
+    }
+  ]
+}
