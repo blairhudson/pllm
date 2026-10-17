@@ -1,0 +1,4 @@
+[toolchain]
+channel = "nightly-2026-05-14"
+profile = "minimal"
+targets = ["aarch64-apple-darwin"]

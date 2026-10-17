@@ -1,0 +1,342 @@
+{
+  "contract": {
+    "build": {
+      "additional_swap_bytes": 0,
+      "additional_swapout_pages": 0,
+      "compile_owner_ceiling_bytes": 4294967296,
+      "compile_seconds": 900,
+      "disk_reserve_bytes": 8589934592,
+      "estimate_basis": "operational admission allocation, not measured compiler use or a proven compiler-space estimate; abort on guard breach",
+      "estimated_download_and_build_disk_bytes": 4294967296,
+      "failed_attempt_logs": "append-only unique receipt directories; never overwrite prior attempts",
+      "global_toolchain_changes": false,
+      "host_reserve_bytes": 4294967296,
+      "jobs": 2,
+      "resolution_seconds": 300,
+      "root_workspace_changes": false,
+      "tests": "compile native tests with cargo test --release --locked --no-run; execute only focused Python guard/oracle tests during build-only phase",
+      "toolchain_or_resolution_owner_ceiling_bytes": 1073741824,
+      "toolchain_setup_seconds": 300
+    },
+    "dependency": {
+      "backend": "poulpy_cpu_portable::NTT4x30Portable<Standard>",
+      "commit": "ca3532570ff62b96599a74f7adb85de7726b0446",
+      "features": [
+        "poulpy-cpu-portable/enable-ckks"
+      ],
+      "foreign_he_runtime": false,
+      "license": "Apache-2.0",
+      "lock_policy": "standalone Cargo.lock; --locked builds; every receipt binds actual source and lock hashes",
+      "nightly": "nightly-2026-05-14",
+      "repository": "https://github.com/poulpy-fhe/poulpy",
+      "target": "aarch64-apple-darwin",
+      "task_executor": "SerialTaskExecutor",
+      "upstream_test_utils": false,
+      "version": "0.9.0"
+    },
+    "fixture": {
+      "all_slots_public": true,
+      "comparison": "every real and imaginary component of all 32768 slots at each checkpoint; padding is transformed by the same full-vector oracle and is not assumed zero",
+      "imag": "((29*j mod 129)-64)/2048 for 0<=j<127; 0 otherwise",
+      "padding_slots": 32641,
+      "range_imag": [
+        -0.03125,
+        0.03125
+      ],
+      "range_real": [
+        -0.0625,
+        0.0625
+      ],
+      "real": "((17*j mod 129)-64)/1024 for 0<=j<127; 0 otherwise",
+      "valid_slots": 127
+    },
+    "keys": {
+      "automorphism_count": 33,
+      "conjugation_galois_element": -1,
+      "encapsulation_switch_count": 2,
+      "evaluation_key_policy": "eager unprepared bundle followed by eager prepared bundle; preparation borrows raw bundle so both coexist",
+      "forbidden": [
+        "evaluator secret access",
+        "decrypt-reencrypt refresh",
+        "public fixture replacement of ciphertext",
+        "deterministic public secret seeds",
+        "implicit parameter or backend fallback"
+      ],
+      "owner_boundary": "future Rust private modules; no process-isolation claim; current blocked artifact creates no key or ciphertext",
+      "ownership": "client module privately owns raw/prepared dense secret and all sampling sources; ephemeral sparse secret stays inside client key generation; evaluator receives public context, encrypted evaluation keys and ciphertext only",
+      "rotation_shifts": [
+        1,
+        2,
+        3,
+        4,
+        8,
+        16,
+        24,
+        32,
+        64,
+        96,
+        128,
+        256,
+        384,
+        512,
+        1024,
+        1536,
+        2048,
+        4096,
+        6144,
+        8192,
+        16384,
+        24576,
+        30720,
+        31232,
+        31744,
+        32256,
+        32640,
+        32672,
+        32704,
+        32736,
+        32760,
+        32764
+      ],
+      "seed_policy": "fresh 32-byte OS-random seeds per domain, generated only by client, not recorded or shared with evaluator; public fixture reproducible independently",
+      "tensor_count": 1
+    },
+    "model_inference_qualified": false,
+    "numeric_checks": {
+      "error_limits_status": "predeclared qualification thresholds, not guaranteed library precision",
+      "finite_required": true,
+      "fresh_and_pre_refresh_1_max_absolute_error": 9.5367431640625e-07,
+      "oracle": "independent Python integer/Fraction affine reference, no Poulpy encoder or plaintext arithmetic used",
+      "per_slot_comparisons_required": true,
+      "pre_refresh_2_and_final_max_absolute_error": 0.000244140625,
+      "refresh_1_max_absolute_error": 6.103515625e-05,
+      "relative_error": "record where oracle != 0; absolute bounds are acceptance rule"
+    },
+    "operations": {
+      "backend_rejection_tests_executed": false,
+      "desired_refreshes": 2,
+      "entry_reduction_qualification": "unimplemented; must prove numeric scale preservation with real operations before any execution; metadata-only widening or narrowing is insufficient evidence",
+      "final_oracle": "4*x[(j+9) mod 32768]+i/32",
+      "maximum_refreshes": 2,
+      "refresh_stage_contract": [
+        {
+          "k": 40,
+          "log_delta": 35,
+          "slots": "Complex",
+          "stage": "entry"
+        },
+        {
+          "k": 1427,
+          "log_delta": 58,
+          "slots": "Complex",
+          "stage": "encapsulated_mod_up"
+        },
+        {
+          "k": 1227,
+          "log_delta": 58,
+          "slots": "Real_pair",
+          "stage": "coeffs_to_slots"
+        },
+        {
+          "k": 763,
+          "log_delta": 58,
+          "slots": "Real_pair",
+          "stage": "eval_mod_each_half_serial"
+        },
+        {
+          "k": 623,
+          "log_delta": 58,
+          "slots": "Complex",
+          "stage": "slots_to_coeffs"
+        },
+        {
+          "k": 600,
+          "log_delta": 35,
+          "slots": "Complex",
+          "stage": "restore_output_scale"
+        }
+      ],
+      "required_rejections": [
+        "missing_conjugation_key",
+        "missing_rotation_key",
+        "wrong_key_fingerprint",
+        "wrong_key_shape",
+        "wrong_entry_width",
+        "wrong_scale",
+        "wrong_degree",
+        "wrong_rank",
+        "wrong_slot_kind",
+        "wrong_sparsity",
+        "insufficient_scratch",
+        "third_refresh"
+      ],
+      "sequence": [
+        "client_encrypt",
+        "rotate_left_1",
+        "conjugate",
+        "multiply_2",
+        "add_(1/64-i/128)",
+        "refresh_1",
+        "rotate_left_8",
+        "conjugate",
+        "multiply_2",
+        "add_(-1/32+i/64)",
+        "reduce_to_entry_40_scale_35",
+        "refresh_2",
+        "client_final_check"
+      ],
+      "setup_refreshes": 0,
+      "stage_contract_status": "source-derived expectations; not observed execution",
+      "warmup_refreshes": 0
+    },
+    "paper_numerics_qualified": false,
+    "parameters": {
+      "base2k": 52,
+      "bootstrap_k": 1427,
+      "c2s_schedule": [
+        [
+          4,
+          8192
+        ],
+        [
+          4,
+          512
+        ],
+        [
+          4,
+          32
+        ],
+        [
+          3,
+          4
+        ]
+      ],
+      "dense_key_modulus_cap": 1714,
+      "dense_secret_hamming_weight": 1024,
+      "dense_to_sparse_key": {
+        "dnum": 1,
+        "dsize": 1,
+        "k_aux": 68,
+        "limbs": 3,
+        "total_k": 120
+      },
+      "ephemeral_sparse_secret_hamming_weight": 32,
+      "eval_mod": {
+        "coeffs_log_budget": 4,
+        "coeffs_log_delta": 42,
+        "degree": 30,
+        "interval": 16,
+        "inverse_degree": null,
+        "kind": "CosHKEven",
+        "log_delta": 58,
+        "log_interval_reduction": 3
+      },
+      "high_key": {
+        "dnum": 7,
+        "dsize": 4,
+        "k_aux": 224,
+        "limbs": 33,
+        "total_k": 1680
+      },
+      "input_k": 40,
+      "input_output_log_delta": 35,
+      "log_sparsity": 0,
+      "output_k": 600,
+      "parameter_qualification": {
+        "admission": "blocked; publisher modulus caps and reference-vector precision are not independent parameter qualification",
+        "lattice_estimator_receipt": null,
+        "preset_modulus_checks": "source-reviewed; native comparison awaits admitted compilation and parent-owned execution",
+        "whole_circuit_failure_probability_receipt": null
+      },
+      "preset": "n16_d35_k600_p19_c2s",
+      "rank": 1,
+      "ring_degree": 65536,
+      "s2c_schedule": [
+        [
+          3,
+          4
+        ],
+        [
+          4,
+          32
+        ],
+        [
+          4,
+          512
+        ],
+        [
+          4,
+          8192
+        ]
+      ],
+      "slot_kind": "Complex",
+      "slots": 32768,
+      "sparse_key_modulus_cap": 120
+    },
+    "production_security_qualified": false,
+    "profile": "poulpy_v0_9_0_n16_d35_k600_p19_c2s_ntt4x30_eager_torus_only",
+    "resources": {
+      "additional_swap_bytes": 0,
+      "additional_swapout_pages": 0,
+      "admission": "blocked even by prepared automorphism payload alone; unbounded categories must never be treated as zero",
+      "admission_headroom": "macOS free+speculative physical pages only; inactive/anonymous pages and existing swap are never counted as available",
+      "cleanup": "new child process group; TERM then KILL on any error/timeout/resource breach; kill remaining group after root exit; retain traces and explicit cleanup status",
+      "cpu_threads": 1,
+      "full_owner_bound_bytes": null,
+      "guard_reserve_bytes": 67108864,
+      "host_reserve_bytes": 4294967296,
+      "known_lower_bounds": {
+        "automorphism_preparation_overlap_payload_bytes": 39966474240,
+        "one_prepared_high_key_payload_bytes": 968884224,
+        "one_raw_high_key_payload_bytes": 242221056,
+        "prepared_automorphism_payload_bytes": 31973179392,
+        "prepared_word_bytes": 32,
+        "raw_automorphism_payload_bytes": 7993294848,
+        "raw_word_bytes": 8
+      },
+      "maximum_sample_gap_seconds": 2.0,
+      "output_ceiling_bytes": 67108864,
+      "owner_envelope_ceiling_bytes": 8589934592,
+      "resource_sample_interval_seconds": 0.1,
+      "run_seconds": 600,
+      "setup_seconds": 600,
+      "trace_ceiling_bytes": 67108864,
+      "unbounded_categories": [
+        "client secret and encoder",
+        "context generation and simultaneous prepared/unprepared matrices",
+        "module plans and table cache",
+        "setup scratch",
+        "evaluation scratch",
+        "ciphertext copies and public affine operands",
+        "allocator and runtime overhead",
+        "client decoding and oracle records"
+      ]
+    },
+    "schema": "pllm.poulpy-refresh-qualification.v1",
+    "source_method_mapping": false,
+    "status": "blocked_before_keygen"
+  },
+  "execution_owner": "coordinating_parent",
+  "input_sha256": {
+    "benchmarks/native/poulpy_refresh/.cargo/config.toml": "83e52e168505696d716e211e09afb56eb3c1ddaa82d949cbc3c386e0b1f9abdc",
+    "benchmarks/native/poulpy_refresh/Cargo.lock": null,
+    "benchmarks/native/poulpy_refresh/Cargo.toml": "6ddc7c4d7fe1d5019bbba0458cd3b8e734b498c88c7f1a7068a80e590a6c4a96",
+    "benchmarks/native/poulpy_refresh/build_only.py": "83f8dd9fde053bc5d99453a6de3b50b6ceddd0bc27bfa6cfbb6ad8ff7e86b852",
+    "benchmarks/native/poulpy_refresh/contract.json": "bf04b0a127d8fb1d17135853e99619a45f30cdea11acea1e7faf43c923fb6099",
+    "benchmarks/native/poulpy_refresh/rust-toolchain.toml": "f6be8beaee366fa65ccc7f3eefa0d8484fb837f8b3057630c0b66e74376cd0a9",
+    "benchmarks/native/poulpy_refresh/src/main.rs": "90523963f6724e6f92037166bf9a2e33870ba66acc4dcadbd869a67c7f9346ed",
+    "benchmarks/native/poulpy_refresh/tests/test_guard.py": "fd6610450a88e4b8e13f778bb5de443c4a82119f297cca8f4d240959a990a07b",
+    "scripts/qualify_rust_ckks_refresh.py": "613a46099cfb0aede7d7f7793e68737308354ce33bde3bce2daf46d9814824b8"
+  },
+  "key_lower_bound": {
+    "automorphism_preparation_overlap_payload_bytes": 39966474240,
+    "one_prepared_high_key_payload_bytes": 968884224,
+    "one_raw_high_key_payload_bytes": 242221056,
+    "prepared_automorphism_payload_bytes": 31973179392,
+    "prepared_word_bytes": 32,
+    "raw_automorphism_payload_bytes": 7993294848,
+    "raw_word_bytes": 8
+  },
+  "phase": "qualify",
+  "schema": "pllm.poulpy-build-freeze.v1"
+}

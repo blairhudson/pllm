@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "rustup",
+    "run",
+    "1.85.1",
+    "cargo",
+    "generate-lockfile",
+    "--manifest-path",
+    "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/Cargo.toml"
+  ],
+  "owner_cap": 1073741824,
+  "seconds": 300
+}

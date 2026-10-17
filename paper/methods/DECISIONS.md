@@ -124,6 +124,15 @@ Each method still needs an explicit source mapping. TFHE-rs, OpenFHE, and
 Lattigo adoption are separate decisions. No model-performance result follows
 from a successful refresh test.
 
+**First gate result:** the pinned eager `NTT4x30Portable` key bundle rejects
+before allocation. Its 33 prepared automorphism keys alone need 29.78 GiB.
+Borrowed preparation also keeps raw keys live, for a 37.22 GiB overlap before
+other owners. No encrypted refresh or native build completed. The
+[admission contract](../../benchmarks/native/poulpy_refresh/README.md) preserves
+the rejected attempts and independent arithmetic. A bounded key-residency design
+must retain the approved parameters and price every live owner before execution.
+The 8 GiB cap remains unchanged.
+
 ## Decision record
 
 | ID | State | Blocks |

@@ -1,9 +1,31 @@
 {
   "schema_version": 1,
   "review_date": "2026-10-17",
-  "scope": "Static native-Rust HE backend qualification; no dependency adoption or execution",
+  "scope": "Current native-Rust capabilities plus user-approved bounded Poulpy torus qualification; eager-key profile blocked before allocation; no HE execution",
   "raw_source_url_template": "https://raw.githubusercontent.com/{repository}/{commit}/{path}",
   "hash_scope": "Selected inspected files only; not a full-artifact audit",
+  "bounded_qualification": {
+    "contract": "benchmarks/native/poulpy_refresh/contract.json",
+    "implementation": "benchmarks/native/poulpy_refresh/",
+    "guard": "scripts/qualify_rust_ckks_refresh.py",
+    "status": "blocked_before_keygen",
+    "native_build_status": "blocked_prelaunch",
+    "standalone_dependency_lock_status": "not_generated_resolver_not_admitted",
+    "nightly_install_status": "not_attempted_after_insufficient_headroom",
+    "encrypted_refreshes": 0,
+    "python_tests_passed": 10,
+    "prepared_automorphism_payload_lower_bound_bytes": 31973179392,
+    "raw_plus_prepared_automorphism_payload_lower_bound_bytes": 39966474240,
+    "approved_owner_ceiling_bytes": 8589934592,
+    "full_owner_upper_bound_bytes": null,
+    "source_method_representation_mapping_approved": false,
+    "receipts": [
+      "benchmarks/native/poulpy_refresh/receipts/20261017T121458-resolve-2b6f9ccd/result.json",
+      "benchmarks/native/poulpy_refresh/receipts/20261017T121523-build-041be5c7/result.json",
+      "benchmarks/native/poulpy_refresh/receipts/20261017T122803-qualify-57963441/result.json",
+      "benchmarks/native/poulpy_refresh/receipts/20261017T123127-qualify-f7cd5fac/result.json"
+    ]
+  },
   "input_snapshots": [
     {
       "path": "paper/methods/encrypted-computation-contracts.md",
@@ -25,14 +47,25 @@
       "license": "Apache-2.0",
       "implementation": "native-rust",
       "toolchain": "nightly-2026-05-14",
-      "disposition": "Best native CKKS candidate; maturity, torus adaptation and source-profile admission unresolved",
+      "disposition": "Pinned generic primitives approved for bounded torus-only qualification; eager NTT prepared keys exceed 8-GiB owner cap; source-method mapping and full admission unresolved",
       "files": [
         {"path": "README.md", "sha256": "91aa426a837563b44dcb1426aeb74381067b64bef68abc4b856b07308ce34409"},
         {"path": "docs/bootstrapping.md", "sha256": "21f9d24ed6ce3be21cc419389041c47b4de4f1e7637c066740148bfe6a20fc06"},
         {"path": "poulpy-ckks/src/reference/bootstrapping.rs", "sha256": "b26dc1b8d7943af2353c7e815a6d3a6ab3d5be390af788d260603c964109d271"},
         {"path": "poulpy-bin-fhe/src/api/bdd/glwe_blind_rotation.rs", "sha256": "267435dbdb81515b50f09228c93d40a41371ad1e403d4c6e3df2382eeb561681"},
         {"path": "poulpy-bin-fhe/src/reference/blind_rotation/algorithm.rs", "sha256": "ec1d29785cd614033f57df355aa7f0fc300c8c42ffacfe8db374edccef36b2e1"},
-        {"path": "SECURITY.md", "sha256": "06baa4c62dd4d258a19f5bc13c1e4266928911ffdb73d8b1f53355b4287a497d"}
+        {"path": "SECURITY.md", "sha256": "06baa4c62dd4d258a19f5bc13c1e4266928911ffdb73d8b1f53355b4287a497d"},
+        {"path": "poulpy-ckks/src/presets/bootstrapping.rs", "sha256": "e560839af98169ef38fd994814be34f6dc9592d18a9cca6a577ecba137ad251f"},
+        {"path": "poulpy-ckks/src/layouts/dft.rs", "sha256": "e7c0b6626bb175098ff3d9d791a59b23835a7c410dc95314c5314f7ef06bd8b7"},
+        {"path": "poulpy-ckks/src/layouts/bootstrapping_keys.rs", "sha256": "83ce4467147c01a21a59eacd1e3554ac1d77079041a14d04dd67cb17299eb399"},
+        {"path": "poulpy-core/src/layouts/linear_transformation.rs", "sha256": "d3e039c3539ebe04cfc6749ac00e385beb5e3f941a5e6f31e6684cfd7e10b0ad"},
+        {"path": "poulpy-core/src/layouts/mod.rs", "sha256": "d6b5ecbc6890737504a33089440f19b67524726e57f4d555a64f9fea708fab02"},
+        {"path": "poulpy-core/src/api/bytes_of.rs", "sha256": "fb306a576dfd52eb5d2a847336dc0e18552610da6d3b518722cdde421b260e12"},
+        {"path": "poulpy-hal/src/layouts/module.rs", "sha256": "70eb38b2c1783606d6bb134148a818098ca2fdd2591d20b612a5ae8bb51bade8"},
+        {"path": "poulpy-cpu-portable/src/ntt4x30/module.rs", "sha256": "f5a7de110752a1dcbc6f393831959f8c3c9a3ef1e03dcdcd8a062b3afc5f9352"},
+        {"path": "poulpy-cpu-portable/src/kernels/ntt4x30/types.rs", "sha256": "0fad5a5f9e7cc8adb4c66734468ed9157276ccedcfe22f3443d7e49bf11bf0fe"},
+        {"path": "rust-toolchain.toml", "sha256": "51d73953fa257d1fc0509d622832daa1d763120ff7849a601f882c8a4e7b4577"},
+        {"path": "Cargo.lock", "sha256": "4f841f88c4b03c5ecea115f3277c52757bb874ab2536c5d85ca046445c902a39", "note": "Upstream workspace lock only; not the missing standalone probe dependency closure"}
       ]
     },
     {

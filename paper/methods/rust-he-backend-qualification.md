@@ -1,6 +1,6 @@
 # Rust HE backend qualification
 
-Review date: **17 October 2026**. Status: **static capability qualification; no backend adopted**.
+Review date: **17 October 2026**. Status: **bounded Poulpy qualification approved; eager-key profile blocked before allocation; no HE execution**.
 
 ## 1. Decision
 
@@ -10,11 +10,11 @@ Review date: **17 October 2026**. Status: **static capability qualification; no 
 
 No inspected candidate is admitted here as a complete, mature, source-matching native-Rust backend for all four methods. The remaining gaps are specific below; this is not a claim about every Rust library or unpublished implementation.
 
-**Recommended next bounded slice:** qualify one ciphertext-only CKKS refresh chain using Poulpy's existing degree-65536 preset, with independent PLLM ownership, layout, precision and capacity checks. First obtain approval for this particular dependency/maturity decision and its torus representation. Keep full source-system reproduction blocked until the source-profile mapping is resolved. Do not respond to a failed qualification by silently adopting Lattigo.
+**Approved bounded slice:** qualify one ciphertext-only CKKS refresh chain using Poulpy's existing degree-65536 preset, with independent PLLM ownership, layout, precision and capacity checks. User subsequently approved the pinned generic dependency for this bounded torus-only qualification, two sequential refreshes, one thread and an 8-GiB full owner ceiling. **Admission now rejects the straightforward eager-key implementation: prepared automorphism keys alone need 29.78 GiB.** See §8.1 and the [admission implementation](../../benchmarks/native/poulpy_refresh/README.md). Full source-system reproduction remains blocked; torus-to-source-method mapping and Lattigo adoption are not approved.
 
 Already approved by the user: **Apple-M CPU development and Qwen2.5-0.5B as the common model**. These do not need to be requested again. They do not approve Lattigo, a particular Rust dependency, changed cryptographic parameters, or an unexamined nonlinear/conversion algorithm. Qwen is the common-workload adaptation; the original BERT and source-decoder obligations remain identified in the existing contracts.
 
-This review supplements [encrypted-computation-contracts.md](encrypted-computation-contracts.md) and [encrypted-inference.md](../reproduction-contracts/encrypted-inference.md). Their Lattigo recommendations were proposals, not adoption. Their older library pins remain historical evidence, not current release claims. Only this report and [its source manifest](rust-he-backend-sources.json) are owned by this work.
+This review supplements [encrypted-computation-contracts.md](encrypted-computation-contracts.md) and [encrypted-inference.md](../reproduction-contracts/encrypted-inference.md). Their Lattigo recommendations were proposals, not adoption. Their older library pins remain historical evidence, not current release claims. This work owns this report, [its source manifest](rust-he-backend-sources.json), `benchmarks/native/poulpy_refresh/` and `scripts/qualify_rust_ckks_refresh.py`; root Cargo files and other agents' lifecycle/GKM files are outside its scope.
 
 ## 2. Requirements used for qualification
 
@@ -145,20 +145,20 @@ Poulpy's generic approximation fitting and functional-bootstrap facilities must 
 
 ## 7. First bounded slice and approval boundary
 
-### Proposed slice: `rust-ckks-refresh-qualification-v1`
+### Approved bounded slice: `rust-ckks-refresh-qualification-v1`
 
 Use **Poulpy v0.9.0**, standard-ring degree **65536**, and the existing **`n16_d35_k600_p19_c2s`** fixture. Begin with the portable exact NTT backend; qualify NEON against it before using accelerated results. This chooses an existing real refresh implementation and source-size ring while keeping a deliberately small tensor. It is a **library qualification profile**, not a claimed source cryptographic reproduction or a Qwen inference result.
 
-Before implementation, freeze dependency/toolchain identity, the parameter/key graph, the admitted plaintext interval, expected scale/width transitions, numerical thresholds and an allocation upper bound. Review the preset's security bounds including evaluation-key auxiliary widths. If the mature-primitive requirement cannot be supported, stop this candidate rather than lower that requirement.
+Before execution, freeze dependency/toolchain identity, the parameter/key graph, the admitted plaintext interval, expected scale/width transitions, numerical thresholds and an allocation upper bound. The [contract](../../benchmarks/native/poulpy_refresh/contract.json) records these requirements and explicit blocking unknowns. Complete dependency locking, full-owner upper bounds and independent parameter-analysis receipts are missing; no encrypted execution is admitted. Review auxiliary widths and maturity evidence without lowering those requirements.
 
-Proposed subsequent execution, **only after approval**:
+Approved intended execution, **only after complete admission and under the coordinating parent's serial execution ownership**:
 
 1. Client creates one ownership/key epoch, including the dense secret and client-generated sparse-encapsulation/switching material. A separate evaluator state contains no secret key/decryptor; import the explicit evaluation-key package through PLLM's own boundary.
 2. Encrypt one deterministic, bounded dense vector with known valid/padding slots. Independently check rotations, conjugation and a small plaintext–ciphertext affine map against a clear oracle.
 3. Consume capacity to the preset's legal entry, perform one real bootstrap, evaluate another small operation, and return to the legal entry width before the second refresh. Verify restored `k`, `log_delta`, layout, nonmutation of retained inputs and client-only final decryption. Compare all slots, not only one decoded value.
 4. Report maximum absolute error, RMSE, error growth, actual operations, key/ciphertext/scratch bytes and observed peak memory. Treat upstream 19-bit reference precision as a fixture claim; freeze a justified local acceptance bound before execution. Test rejected entry widths/key-layout mismatches without falling back to client refresh.
 
-Suggested initial cap for approval: **one worker/thread, one live input vector, at most two sequential refreshes, 8 GiB process-memory ceiling and ten-minute execution ceiling after build/setup**. First estimate the complete keys/context/setup/scratch footprint; reject before allocation if it cannot fit. Setup/build also need an explicit separate budget. These limits are a proposed bounded experiment, not a claim that it will fit or finish on the user's Mac. No timing benchmark campaign is part of this slice.
+Approved cap: **one CPU thread, one live input vector, at most two sequential refreshes, 8 GiB total admitted owner envelope and ten-minute execution ceiling after separately bounded build/setup**. Include complete keys/context/setup/copies/scratch plus host reserve and zero additional swap. The frozen build-only guard budgets resolution/toolchain setup at 300 seconds / 1 GiB each and sequential binary/test compilation at 900 seconds / 4 GiB total, with jobs ≤2, 4 GiB physical host reserve and explicit disk reserve. Those are operational ceilings, not measured performance estimates or a guarantee of completion. No timing benchmark campaign is part of this slice.
 
 A successful result would establish an owned Rust evaluator with real refresh and a tested capacity/precision contract. It would not complete NEXUS, THOR, CacheMir, ROSETTA, Qwen inference or the mature/security qualification for other parameter sets. The next crypto-specific gate for ROSETTA is an encrypted-affine accumulator test and the fully specified CKKS→small-ring/LWE→CKKS round trip; model execution follows those gates.
 
@@ -166,9 +166,9 @@ A successful result would establish an owned Rust evaluator with real refresh an
 
 | Decision | Requested scope |
 | --- | --- |
-| **Dependency and maturity** | Accept Poulpy's pinned generic primitives for a bounded qualification after reviewing the maturity evidence; pin nightly/toolchain and dependency resolution. No dependency addition is authorized by this report. TFHE-rs is a separate optional primitive dependency, not implicitly selected. |
-| **Representation/profile adaptation** | Permit torus widths/bit-level capacity in a separately named profile, with fresh key/security/error analysis and explicit mapping to source operations. If exact source RNS chains are mandatory, Poulpy cannot satisfy that field; a different qualified backend or separately approved cryptographic development is needed. |
-| **Execution** | Approve the bounded build/setup/runtime budgets and admission limits above. Apple-M platform approval is already given. |
+| **Dependency and maturity** | Pinned Poulpy generic primitives are approved for bounded qualification. Successful local qualification and production/security/maturity admission are separate questions. TFHE-rs remains a separate optional dependency. |
+| **Representation/profile adaptation** | A distinctly named torus qualification profile is approved. Source-method representation mapping is expressly not approved and needs a separate decision. |
+| **Execution** | Dependency resolution/build is allowed, jobs ≤2, pinned nightly without changing global default. Parent owns serial actual qualification. Current eager-key profile is rejected at 8 GiB; changed key residency needs a reviewed complete bound before execution. |
 | **Changed method behavior, if necessary** | Obtain approval before alternative index-bit conversion, altered trace/recovery arithmetic, different bootstrap/approximation schedules or changed compiler cost semantics. Faithful resolution of missing source constants should be researched first. |
 | **Foreign-backend fallback, only if chosen** | Separately approve C++/OpenFHE with a qualified Rust binding, or Go/Lattigo. Neither is inferred from failure to qualify a native candidate. |
 
@@ -176,9 +176,29 @@ The existing source numerical, key-ownership, circuit-privacy, output/feedback a
 
 ## 8. Evidence and validation receipt
 
-Primary sources were discovered with current web searches, GitHub release/commit/tree APIs and the crates.io `fhe` registry response, then inspected as text at immutable commits. For released candidates the release pin was used; for libraries without a suitable release pin the inspected default-branch snapshot is explicitly identified. No upstream source was executed, imported, built, benchmarked, installed as a dependency or vendored into PLLM. No model weights were fetched. Temporary text copies were used only for static inspection and SHA-256 receipts.
+Primary sources were discovered with current web searches, GitHub release/commit/tree APIs and the crates.io `fhe` registry response, then inspected as text at immutable commits. For released candidates the release pin was used; for libraries without a suitable release pin the inspected default-branch snapshot is explicitly identified. No upstream source was executed or benchmarked; no model weights were fetched. Temporary text/archive copies were used for inspection and SHA-256 receipts. The subsequent approved build-only preparation added a standalone dependency declaration, but guards prevented resolver/compiler launch; dependencies have not been installed or built by this work.
 
-The manifest pins nine repositories, source-input snapshots, release/version distinctions, licenses and selected-file SHA-256 values. Hashes identify inspected bytes, not full-artifact audits or authors' evaluated builds. Its two contract hashes identify the read snapshots; concurrent work on those files is not owned by this report. Static validation passed for JSON, 21 selected-file hashes, two input hashes, 43 immutable-link targets, three local links and balanced fences. **No cryptographic execution or performance evidence was produced.**
+The manifest pins nine repositories, source-input snapshots, release/version distinctions, licenses and selected-file SHA-256 values. Hashes identify inspected bytes, not full-artifact audits or authors' evaluated builds. Its two contract hashes identify the original read snapshots; concurrent work on those files is not owned by this report. Original static validation covered JSON, 21 selected-file hashes, two input hashes, 43 immutable-link targets, three local links and balanced fences. The build-only investigation adds eleven Poulpy source hashes and the admission evidence below. **No cryptographic execution or performance evidence was produced.**
+
+### 8.1 Approved build-only investigation: explicit blocked result
+
+The standalone [probe directory](../../benchmarks/native/poulpy_refresh/README.md) freezes the intended two-refresh, full-public complex-vector contract and implements **admission only**. Native code requests the pinned public preset's Galois inventory and backend byte sizes without constructing a module, context, key, ciphertext or scratch. Python independently derives the same geometry, implements an exact binary-rational affine oracle and guards prospective build children. No evaluator or synthetic refresh result is presented as completed.
+
+**Exact memory blocker:** [preset construction][P16] gives `N=65536`, radix 52, rank 1, `dnum=7`, `dsize=4`, `k_aux=224`, hence 33 stored limbs. [DFT index/key derivation][P17] and [BSGS decomposition][P18] yield 32 distinct rotations plus conjugation. [HAL sizing][P19] stores rectangular payloads; [portable NTT types][P20] specify **32-byte** prepared coefficients (four u64 lanes), while raw coefficients are i64. One raw high-modulus key therefore needs `65536×7×1×2×33×8 = 242,221,056` bytes; prepared storage needs `968,884,224` bytes.
+
+| Automorphism payload only | Bytes | GiB |
+| --- | ---: | ---: |
+| 33 raw keys | 7,993,294,848 | 7.4443359375 |
+| 33 prepared keys | 31,973,179,392 | 29.77734375 |
+| Raw + prepared overlap | 39,966,474,240 | 37.2216796875 |
+
+The overlap is real: [`BootstrappingKeySet::prepare(&self, ...)`][P-key-bundle] borrows the complete raw key set while constructing the prepared set. Tensor/switching keys, contexts, secrets, setup copies, scratch and other owners are **additional**, not included in these lower bounds. Since even the prepared automorphism payload exceeds 8 GiB, an incomplete total upper bound cannot justify admission. Restricting valid slots does not shrink full-ring keys. The portable backend explicitly uses [`SerialTaskExecutor`][P21]; a small thread count does not solve this storage failure.
+
+**Build preparation also blocked:** `receipts/20261017T121458-resolve-2b6f9ccd/result.json` records 93,601,792 bytes (89.27 MiB) free/speculative physical memory, below the frozen 1-GiB resolver owner allowance plus 4-GiB host reserve. No resolver child launched. `receipts/20261017T121523-build-041be5c7/result.json` records the resulting missing standalone lock; no compiler launched. There is no generated `Cargo.lock`, no installed dated nightly from this work, and no successful native build/test claim. The root stable workspace/manifests/lock were not edited.
+
+Ten focused Python tests passed: integer geometry/inventory drift, fail-closed admission, independently composed exact affine references, all-slot/padding and finite/shape checks, conservative macOS memory parsing, swapout rejection even when current swap use declines, deadline enforcement after the final observation, and real lightweight process-group timeout cleanup including a grandchild. Parent review found that a delayed final observation could accept an expired deadline. The repaired guard measures the completed observation and reaps exited leaders before signals to empty process groups. These tests execute **no upstream/native cryptography** and are not backend illegal-key/entry/layout tests. Historical attempt freezes and results are retained. The current contract corrects an initial prospective wording to make native comparison explicitly pending; prelaunch receipt statuses were always blocked.
+
+**Handoff:** guards and independent oracle tests are available, but a two-refresh evaluator is **not ready for encrypted execution**. Remaining work requires a reviewed key-residency design that can fit the same approved envelope, complete setup/context/copy/scratch bounds, dependency/toolchain compilation, independent parameter qualification, and actual owned client/public evaluator, stage/entry checks and negative cryptographic tests. No memory increase, different security profile or foreign-backend adoption is inferred. Parent owns subsequent serial execution and decision/index updates.
 
 ### Primary-source locators
 
@@ -216,6 +236,12 @@ All code/document locators below resolve under the commits in the manifest. Rele
 [P14]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/rust-toolchain.toml
 [P15]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/SECURITY.md
 [P-release]: https://github.com/poulpy-fhe/poulpy/releases/tag/v0.9.0
+[P16]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-ckks/src/presets/bootstrapping.rs#L259-L290
+[P17]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-ckks/src/layouts/dft.rs#L470-L592
+[P18]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-core/src/layouts/linear_transformation.rs#L215-L247
+[P19]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-hal/src/layouts/module.rs#L307-L339
+[P20]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-cpu-portable/src/kernels/ntt4x30/types.rs#L23-L35
+[P21]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-cpu-portable/src/ntt4x30/module.rs#L70-L82
 [T1]: https://github.com/zama-ai/tfhe-rs/blob/187fc0b95ab35352422deec6c027d0bd8743b6db/README.md
 [T2]: https://github.com/zama-ai/tfhe-rs/blob/187fc0b95ab35352422deec6c027d0bd8743b6db/tfhe/src/core_crypto/algorithms/lwe_programmable_bootstrapping/fft64_pbs.rs#L186-L248
 [T3]: https://github.com/zama-ai/tfhe-rs/blob/187fc0b95ab35352422deec6c027d0bd8743b6db/tfhe/src/core_crypto/fft_impl/fft64/crypto/bootstrap.rs#L294-L379

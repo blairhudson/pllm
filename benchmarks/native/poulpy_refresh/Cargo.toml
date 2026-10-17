@@ -1,0 +1,22 @@
+[package]
+name = "pllm-poulpy-refresh-qualification"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Deliberately separate from PLLM's stable workspace and lockfile.
+[workspace]
+resolver = "3"
+
+[dependencies]
+poulpy-ckks = { git = "https://github.com/poulpy-fhe/poulpy", rev = "ca3532570ff62b96599a74f7adb85de7726b0446", version = "=0.9.0" }
+poulpy-core = { git = "https://github.com/poulpy-fhe/poulpy", rev = "ca3532570ff62b96599a74f7adb85de7726b0446", version = "=0.9.0" }
+poulpy-hal = { git = "https://github.com/poulpy-fhe/poulpy", rev = "ca3532570ff62b96599a74f7adb85de7726b0446", version = "=0.9.0" }
+poulpy-cpu-portable = { git = "https://github.com/poulpy-fhe/poulpy", rev = "ca3532570ff62b96599a74f7adb85de7726b0446", version = "=0.9.0", features = ["enable-ckks"] }
+
+[profile.release]
+opt-level = 2
+debug = false
+lto = false
+codegen-units = 2
+panic = "unwind"

@@ -1,0 +1,16 @@
+{
+  "input_sha256_after": {
+    "benchmarks/native/poulpy_refresh/.cargo/config.toml": "83e52e168505696d716e211e09afb56eb3c1ddaa82d949cbc3c386e0b1f9abdc",
+    "benchmarks/native/poulpy_refresh/Cargo.lock": null,
+    "benchmarks/native/poulpy_refresh/Cargo.toml": "6ddc7c4d7fe1d5019bbba0458cd3b8e734b498c88c7f1a7068a80e590a6c4a96",
+    "benchmarks/native/poulpy_refresh/contract.json": "00a99619ac9111fbf3ef1a25bf077dffd453e213f3fabceb79f5ffadd9e46de6",
+    "benchmarks/native/poulpy_refresh/rust-toolchain.toml": "f6be8beaee366fa65ccc7f3eefa0d8484fb837f8b3057630c0b66e74376cd0a9",
+    "benchmarks/native/poulpy_refresh/src/main.rs": "b2b702b0598c0f631e5508d081873bb185f1e22554fab9d5da214c12aecefbff",
+    "benchmarks/native/poulpy_refresh/tests/test_guard.py": "514abd60ece761db2c1c4ad6a9e03f286b96ad7e1016f32be6061ffce4292f04",
+    "scripts/qualify_rust_ckks_refresh.py": "bf63c5fc10a7fdab226ce65560bace1f3eef4b4d0ff2e21c95ad0bdf0839eb7b"
+  },
+  "performance_claim": false,
+  "reason": "standalone_dependency_lock_missing",
+  "receipt_directory": "benchmarks/native/poulpy_refresh/receipts/20261017T121523-build-041be5c7",
+  "status": "blocked_prelaunch"
+}

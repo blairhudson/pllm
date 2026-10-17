@@ -1,0 +1,6 @@
+/target/
+/receipts/*/stdout.log
+/receipts/*/stderr.log
+/receipts/*/resources.jsonl
+/.guard.lock
+__pycache__/

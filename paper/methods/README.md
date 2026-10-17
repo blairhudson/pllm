@@ -22,6 +22,8 @@ and Qwen2.5-0.5B-Instruct as the common model. The
 [Rust HE review](rust-he-backend-qualification.md) identifies Poulpy as the
 approved bounded qualification candidate. Its torus representation still needs
 an explicit mapping to each source method; no Go backend has been approved.
+The [first admission gate](../../benchmarks/native/poulpy_refresh/README.md)
+rejects the eager key bundle before allocation. No encrypted refresh has run.
 
 Implement the published algorithms in reusable native, compiler, and runtime
 components. Use upstream code only as specification and oracle material.

@@ -1,0 +1,43 @@
+{
+  "baseline_host": {
+    "free_speculative_bytes": 93601792,
+    "page_bytes": 16384,
+    "physical_bytes": 34359738368,
+    "swap_used_bytes": 3123445760,
+    "swapout_pages": 78854617
+  },
+  "cleanup": {
+    "complete": true,
+    "remaining_pids": []
+  },
+  "command": [
+    "rustup",
+    "run",
+    "1.85.1",
+    "cargo",
+    "generate-lockfile",
+    "--manifest-path",
+    "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/Cargo.toml"
+  ],
+  "elapsed_seconds": 0.012526332400739193,
+  "exit_code": null,
+  "host_reserve_bytes": 4294967296,
+  "input_sha256_after": {
+    "benchmarks/native/poulpy_refresh/.cargo/config.toml": "83e52e168505696d716e211e09afb56eb3c1ddaa82d949cbc3c386e0b1f9abdc",
+    "benchmarks/native/poulpy_refresh/Cargo.lock": null,
+    "benchmarks/native/poulpy_refresh/Cargo.toml": "6ddc7c4d7fe1d5019bbba0458cd3b8e734b498c88c7f1a7068a80e590a6c4a96",
+    "benchmarks/native/poulpy_refresh/contract.json": "00a99619ac9111fbf3ef1a25bf077dffd453e213f3fabceb79f5ffadd9e46de6",
+    "benchmarks/native/poulpy_refresh/rust-toolchain.toml": "f6be8beaee366fa65ccc7f3eefa0d8484fb837f8b3057630c0b66e74376cd0a9",
+    "benchmarks/native/poulpy_refresh/src/main.rs": "b2b702b0598c0f631e5508d081873bb185f1e22554fab9d5da214c12aecefbff",
+    "benchmarks/native/poulpy_refresh/tests/test_guard.py": "514abd60ece761db2c1c4ad6a9e03f286b96ad7e1016f32be6061ffce4292f04",
+    "scripts/qualify_rust_ckks_refresh.py": "bf63c5fc10a7fdab226ce65560bace1f3eef4b4d0ff2e21c95ad0bdf0839eb7b"
+  },
+  "owner_ceiling_bytes": 1073741824,
+  "peak_observed_owner_rss_bytes": 0,
+  "performance_claim": false,
+  "reason": "insufficient_conservative_physical_headroom",
+  "receipt_directory": "benchmarks/native/poulpy_refresh/receipts/20261017T121458-resolve-2b6f9ccd",
+  "seconds_ceiling": 300,
+  "status": "blocked_prelaunch",
+  "trace_complete": false
+}

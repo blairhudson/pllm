@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "rustup",
+    "run",
+    "nightly-2026-05-14",
+    "cargo",
+    "test",
+    "--release",
+    "--locked",
+    "--no-run",
+    "--target",
+    "aarch64-apple-darwin",
+    "--jobs",
+    "2",
+    "--manifest-path",
+    "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/Cargo.toml"
+  ],
+  "owner_cap": 4294967296,
+  "seconds": 900
+}
