@@ -130,15 +130,19 @@ The token/head source shape is **151,936 × 896**. A shared source identity does
 not deduplicate the 544,538,624-byte float32 table against the 272,269,312-byte
 i16 head. The scanner itself retains neither representation.
 
-### Group and publication-layout blocker
+### Compiler groups and the remaining publication gate
 
-Native `classify_remote_groups` is private to
-`crates/pllm-compiler/src/decoder_runtime_schedule.rs`. The existing Python
-group/schedule API requires a runtime composition; no source-numeric GKM
-composition is admitted by this probe. It does not construct a W8A8 composition
-to stand in for GKM or invent a fused-stage schedule. **Fused group roles and
-final publication layout remain blocked.** Exact per-operation source bounds
-can still be computed by a successful scan.
+The historical attempts had no composition-independent group API. The separate
+[decoder matrix inventory](decoder-matrix-inventory.md) now reuses the native
+grouping authority without selecting W8A8 or another numerical profile.
+Its native checks pass; rebuilt Python binding checks remain blocked by the
+wheel-build host-swap guard. The scanner consumes and reconciles this metadata
+when the installed native extension provides it, otherwise it rejects.
+
+Configuration-only native extraction identifies 96 body groups plus the head
+and lookup. This does not complete the historical source scan or admit their
+GKM encodings. **The final GKM publication layout remains unadmitted.** The old
+receipts keep their original per-operation geometry and failure status.
 
 For the explicitly **conditional unfused** layout of one matrix per semantic
 linear/head operation, geometry alone gives:

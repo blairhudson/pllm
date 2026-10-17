@@ -151,8 +151,8 @@ struct RemoteGroupKey {
     singleton: Option<String>,
 }
 
-struct RemoteGroup<'a> {
-    operations: Vec<&'a ModelOperation>,
+pub(crate) struct RemoteGroup<'a> {
+    pub(crate) operations: Vec<&'a ModelOperation>,
 }
 
 fn remote_operator(operator: ModelOperator) -> bool {
@@ -1244,7 +1244,7 @@ fn last_width(operation: &ModelOperation) -> Result<u64, String> {
         .ok_or_else(|| format!("operation {} has no output width", operation.id))
 }
 
-fn classify_remote_groups(
+pub(crate) fn classify_remote_groups(
     graph: &DecoderGraph,
 ) -> Result<(BTreeMap<&str, RemoteGroup<'_>>, BTreeSet<&str>), String> {
     let layers: BTreeSet<_> = graph

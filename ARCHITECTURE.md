@@ -620,11 +620,22 @@ acceptance. Non-cloneable pending-role slots and shared publication/window lease
 bound owned payloads; malformed or duplicate responses poison the transaction.
 Fallible dynamic allocation and a process-local logical payload allowance do not
 price caller buffers, allocator overhead or fixed-handle allocation failure.
-This capsule has no compiled decoder, SDK, role transport, seeded-share codec or
-checkpoint-quality result. A separate pinned Qwen source scanner has stopped on
-host swapout before decoding any tensor; its header geometry does not establish
-numeric admission. Contracts: `docs/research/gkm-delegation-capsule.md` and
-`docs/research/gkm-checkpoint-bounds.md`.
+The optional native seeded profile uses AES-128 over duplicated little-endian
+64-bit counters, with independent OS-generated linear/lookup keys per complete
+window. Only designated worker One expands its seed-only views. Shared leases,
+exact stream consumption and sticky failure state retain final-window acceptance;
+bounded maximum-shape allocation and ownership checks pass. Seed transport and
+persistent restart accounting remain absent. This capsule has no compiled decoder,
+SDK, role transport or checkpoint-quality result. A separate pinned Qwen source
+scanner has stopped on host swapout before decoding any tensor; its header
+geometry does not establish numeric admission. Contracts:
+`docs/research/gkm-delegation-capsule.md` and
+`docs/research/gkm-checkpoint-bounds.md`. A separate composition-independent native
+matrix inventory reuses compiler grouping and binds declared source/bias geometry
+under matching typed/JSON metadata limits. Its native tests preserve legacy schedule
+digests; rebuilt Python binding checks remain host-swap blocked. This metadata does
+not admit a source numerical graph or authenticate checkpoint contents. Contracts:
+`docs/research/gkm-seeded-shares.md` and `docs/research/decoder-matrix-inventory.md`.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The separate direct `pllm.native.PagedGEMM` API owns an authenticated private

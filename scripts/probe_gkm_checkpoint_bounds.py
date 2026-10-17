@@ -373,7 +373,96 @@ def compare_oracle(raw, dtype, values, rounded, indices):
     return checked
 
 
-def semantic_inventory(plan, tensors, *, tensor_api=None):
+def compiler_groups(plan, tensors, artifacts, native_api):
+    """Bind compiler-owned grouping to this plan and the inspected source headers.
+
+    This consumes metadata, not a runtime composition or a GKM publication. The
+    native inventory supplies grouping; Python only reconciles its source owners.
+    """
+    lower = getattr(native_api, "decoder_matrix_inventory", None)
+    if not callable(lower):
+        raise Rejected("native matrix inventory unavailable; rebuild the extension")
+    raw, digest = lower(plan.canonical_bytes())
+    if not isinstance(raw, bytes) or not 0 < len(raw) <= 8 * MIB:
+        raise Rejected("invalid or oversized native matrix inventory")
+    expected_digest = hashlib.sha256(b"pllm.decoder_matrix_inventory.v1\0" + raw).hexdigest()
+    if digest != expected_digest:
+        raise Rejected("native matrix inventory digest mismatch")
+    inventory = document(raw)
+    model = plan.to_dict()
+    if (not isinstance(inventory, dict)
+            or inventory.get("schema_version") != "pllm.decoder_matrix_inventory.v1"
+            or inventory.get("model_plan_digest") != plan.digest
+            or inventory.get("model_config_digest") != model.get("config_digest")):
+        raise Rejected("native matrix inventory plan/configuration binding mismatch")
+    expected = {row["id"]: row for row in artifacts}
+    for phase in ("prefill", "decode"):
+        graph = model[phase]
+        phase_inventory = inventory.get(phase, {})
+        if (not isinstance(phase_inventory, dict)
+                or any(phase_inventory.get(key) != graph.get(key)
+                       for key in ("mode", "batch", "query_sequence", "maximum_key_sequence"))):
+            raise Rejected("native matrix inventory phase binding mismatch")
+        groups = phase_inventory.get("groups")
+        if not isinstance(groups, list) or not 0 < len(groups) <= len(expected):
+            raise Rejected("native matrix inventory group coverage mismatch")
+        operations = {row["id"]: row for row in graph["operations"]}
+        seen = set()
+        for order, group in enumerate(groups):
+            if not isinstance(group, dict):
+                raise Rejected("native matrix inventory group must be an object")
+            members = group.get("members", [])
+            if group.get("order") != order or not isinstance(members, list) or not members:
+                raise Rejected("native matrix inventory group order or members mismatch")
+            offset = 0
+            source_axis = None
+            for member in members:
+                if not isinstance(member, dict):
+                    raise Rejected("native matrix inventory member must be an object")
+                op_id = member.get("operation_id")
+                if op_id not in expected or op_id in seen:
+                    raise Rejected("native matrix inventory operation coverage mismatch")
+                seen.add(op_id)
+                artifact = expected[op_id]
+                token = artifact["operator"] == "token_lookup"
+                bias = artifact["bias_key"]
+                if (member.get("weight_id") != artifact["source_key"]
+                        or member.get("source_shape") != tensors[artifact["source_key"]]["shape"]
+                        or member.get("bias_id") != bias
+                        or member.get("bias_shape") != (None if bias is None else tensors[bias]["shape"])
+                        or member.get("output_shape") != operations[op_id]["output_shape"]
+                        or group.get("operator") != artifact["operator"]
+                        or group.get("layer") != artifact["layer"]
+                        or [group.get("input_id")] != artifact["input_ids"]
+                        or group.get("artifact_kind") != ("token_table" if token else "matrix")
+                        or group.get("orientation") != ("vocabulary_feature" if token else "output_input")):
+                    raise Rejected("native matrix inventory source/header ownership mismatch")
+                rows, columns = tensors[artifact["source_key"]]["shape"]
+                width, axis = (columns, rows) if token else (rows, columns)
+                if (type(member.get("output_offset")) is not int
+                        or type(member.get("output_width")) is not int
+                        or member["output_offset"] != offset or member["output_width"] != width
+                        or (source_axis is not None and source_axis != axis)):
+                    raise Rejected("native matrix inventory output-slice geometry mismatch")
+                offset += width
+                source_axis = axis
+            input_shape = ([graph["batch"], graph["query_sequence"]] if token else
+                           operations[group["input_id"]]["output_shape"])
+            logical_shape = [source_axis, offset] if token else [offset, source_axis]
+            if (group.get("input_shape") != input_shape or group.get("logical_shape") != logical_shape
+                    or not isinstance(group.get("input_shape"), list)
+                    or not isinstance(group.get("logical_shape"), list)
+                    or any(type(value) is not int for value in group["input_shape"] + group["logical_shape"])):
+                raise Rejected("native matrix inventory grouped geometry mismatch")
+        if seen != set(expected):
+            raise Rejected("native matrix inventory operation coverage mismatch")
+    return {"status": "compiler_metadata_only", "digest": digest,
+            "canonical_size_bytes": len(raw), "inventory": inventory,
+            "final_gkm_publication_layout": "not_admitted",
+            "scope": "declared source grouping; not source integrity, numeric or runtime admission"}
+
+
+def semantic_inventory(plan, tensors, *, tensor_api=None, matrix_api=None):
     if tensor_api is None:
         tensor_api = importlib.import_module("pllm.runtime.semantic_tensors")
     required = tensor_api.required_checkpoint_tensors(plan)
@@ -404,12 +493,12 @@ def semantic_inventory(plan, tensors, *, tensor_api=None):
         phases.append(rows)
     if phases[0] != phases[1]:
         raise Rejected("linear/table source ownership differs between phases")
+    groups = ({"status": "blocked", "groups": None,
+               "reason": "Compiler inventory not requested; per-operation source bounds only. "
+                         "GKM numeric and final publication admission remain unresolved."}
+              if matrix_api is None else compiler_groups(plan, tensors, phases[0], matrix_api))
     return {"artifacts": phases[0], "local_tensors": {key: list(shape) for key, shape in local.items()},
-            "fused_groups": {"status": "blocked", "groups": None,
-                "reason": "Existing classify_remote_groups is private Rust; Python runtime_schedule "
-                          "requires a runtime composition. No GKM source-numeric composition is "
-                          "admitted here. Per-operation source bounds are available; fused GKM "
-                          "groups, numeric schedule and final publication layout are unresolved."}}
+            "fused_groups": groups}
 
 
 def process_estimate(tensors):
@@ -542,7 +631,7 @@ def geometry(inventory, tensors, source_bytes):
     sum_n = sum(row["shape_out_in"][1] for row in linear)
     sum_m = sum(row["shape_out_in"][0] for row in linear)
     table_rows = sum(tensors[key]["shape"][0] for key in unique_table)
-    return {"source_files_retained_disk_bytes": source_bytes,
+    result = {"source_files_retained_disk_bytes": source_bytes,
             "source_tensor_payload_bytes": sum(row["elements"] * SIZES[row["dtype"]] for row in tensors.values()),
             "body_linear_artifacts": len(linear) - len(unique_head),
             "body_i16_bytes_per_worker": 2 * elements(unique_body),
@@ -564,7 +653,27 @@ def geometry(inventory, tensors, source_bytes):
                 "condition": "one matrix per lowered semantic linear/output-head operation; final groups unresolved"},
             "excluded_from_geometry": ["decoded EC owners and MSM scratch", "runtime copies and allocator overhead",
                 "KV, local execution and verifier queues", "source publication generation and delivery scratch"],
-            "payloads_are_not_RSS_or_serving_admission": True}
+             "payloads_are_not_RSS_or_serving_admission": True}
+    if inventory["fused_groups"]["status"] == "compiler_metadata_only":
+        groups = inventory["fused_groups"]["inventory"]["prefill"]["groups"]
+        matrices = [group for group in groups if group["artifact_kind"] == "matrix"]
+        grouped_m_max = max(group["logical_shape"][0] for group in matrices)
+        grouped_n = sum(group["logical_shape"][1] for group in matrices)
+        grouped_m = sum(group["logical_shape"][0] for group in matrices)
+        result["conditional_compiler_grouped_publication"] = {
+            "status": "geometry_only_not_published",
+            "inventory_digest": inventory["fused_groups"]["digest"],
+            "matrix_count": len(matrices),
+            "body_group_count": sum(group["operator"] == "linear" for group in matrices),
+            "head_group_count": sum(group["operator"] == "output_head" for group in matrices),
+            "table_group_count": sum(group["artifact_kind"] == "token_table" for group in groups),
+            "global_R_elements": grouped_m_max, "S_elements": grouped_n,
+            "compressed_points_33_bytes_each": 33 * (grouped_m_max + grouped_n),
+            "owner_secret_scalar_payload_32_bytes_each": 32 * grouped_m_max,
+            "client_accumulator_scalar_payload_32_bytes_each": 32 * (grouped_m + grouped_n),
+            "condition": "compiler logical row concatenation only; GKM numeric graph, resource "
+                         "admission, source bytes and publication construction remain separate"}
+    return result
 
 
 def source_pin():
@@ -630,7 +739,8 @@ def scan(report, output, guard):
         config_raw = sources["config.json"].read(0, sources["config.json"].size, "source_metadata")
         config = document(config_raw)
         plan = modules["pllm.modeling"].lower_model(config, batch=1, max_input_tokens=1, max_new_tokens=1)
-        inventory = semantic_inventory(plan, tensors, tensor_api=modules["pllm.runtime.semantic_tensors"])
+        inventory = semantic_inventory(plan, tensors,
+            tensor_api=modules["pllm.runtime.semantic_tensors"], matrix_api=modules["pllm._native"])
         recheck_imported_modules(bindings, report["executed_metadata"], "after_semantic_lowering")
         estimate = process_estimate(tensors)
         guard.estimate = estimate["complete_process_estimate_bytes"]
@@ -808,14 +918,14 @@ def main(argv=None):
     sys.path.insert(0, str(ROOT))
     started = time.monotonic()
     guard = None
-    report = {"schema": "pllm.gkm_checkpoint_bounds.v2", "status": "failed", "source_numeric_admission": "blocked",
+    report = {"schema": "pllm.gkm_checkpoint_bounds.v3", "status": "failed", "source_numeric_admission": "blocked",
         "complete_gkm_admission": "blocked", "scope": "offline_public_weight_source_scan_publication_work",
         "source": {"repo_id": "Qwen/Qwen2.5-0.5B-Instruct", "revision": PIN},
         "bootstrap_process_estimate_bytes": PROCESS_CEILING,
         "numeric_profile": "nearest-even(exact_binary_value*2048), signed-i16 weights, ring64 linear arithmetic",
         "activation_ranges_observed": False, "model_inference_executed": False,
         "quality_privacy_serving_eligibility_established": False,
-        "remaining_gates": ["GKM fused-group schedule and publication owner layout",
+        "remaining_gates": ["GKM numeric schedule and publication owner layout",
             "admitted actual encoded-input bounds at every stage", "bias/local float32 operation placement and order",
             "complete original numerical graph, verification and lifecycle", "original-model and common-model quality criteria"],
         "pid": os.getpid(), "python": sys.version, "platform": sys.platform}

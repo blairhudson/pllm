@@ -38,6 +38,13 @@ Its source-resolution decisions precede a verified linear capsule, private
 embedding lookup, compiler-bound decoder, and two-worker SDK request. A primitive
 or generated fixture alone cannot qualify the complete method.
 
+The bounded [native capsule](../../docs/research/gkm-delegation-capsule.md) and
+[seeded-share profile](../../docs/research/gkm-seeded-shares.md) now pass their
+arithmetic and ownership checks. The separate
+[matrix inventory](../../docs/research/decoder-matrix-inventory.md) extracts
+compiler groups without selecting W8A8. Native metadata tests pass; its rebuilt
+Python binding and the source numeric scan remain host-resource blocked.
+
 ## Current validation host
 
 The inspected local host has an Apple M5, ten logical CPUs, and 32 GiB of RAM.

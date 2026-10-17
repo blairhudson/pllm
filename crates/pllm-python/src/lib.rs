@@ -1270,6 +1270,23 @@ fn decoder_coverage<'py>(
 }
 
 #[pyfunction]
+fn decoder_matrix_inventory<'py>(
+    py: Python<'py>,
+    plan: &Bound<'_, PyBytes>,
+) -> PyResult<(Bound<'py, PyBytes>, String)> {
+    // Immutable Python bytes remain alive for the detached metadata-only call.
+    // Native admission bounds bytes and streaming parsing before plan allocation.
+    let bytes = plan.as_bytes();
+    let inventory = py
+        .detach(|| pllm_compiler::decoder_matrix_inventory_bytes(bytes))
+        .map_err(invalid)?;
+    Ok((
+        PyBytes::new(py, inventory.canonical_bytes()),
+        inventory.digest().to_string(),
+    ))
+}
+
+#[pyfunction]
 fn decoder_runtime_schedule<'py>(
     py: Python<'py>,
     plan: &Bound<'_, PyBytes>,
@@ -1799,6 +1816,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(lower_model, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_coverage, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_runtime_schedule, module)?)?;
+    module.add_function(wrap_pyfunction!(decoder_matrix_inventory, module)?)?;
     module.add_function(wrap_pyfunction!(lower_gated_multiply_q7, module)?)?;
     module.add_function(wrap_pyfunction!(apply_model_component, module)?)?;
     module.add_function(wrap_pyfunction!(deployment_benchmark_report, module)?)?;

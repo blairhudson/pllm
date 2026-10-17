@@ -22,7 +22,12 @@ use std::sync::{Mutex, OnceLock};
 mod compact_protected;
 mod decoder_boundary;
 mod decoder_continuation;
+mod decoder_matrix_inventory;
 mod decoder_runtime_schedule;
+pub use decoder_matrix_inventory::{
+    decoder_matrix_inventory_bytes, lower_decoder_matrix_inventory, DecoderMatrixInventory,
+    DECODER_MATRIX_INVENTORY_MAX_PLAN_BYTES, DECODER_MATRIX_INVENTORY_SCHEMA_VERSION,
+};
 pub use decoder_boundary::{PrivateBoundaryContract, PrivateBoundaryPhase};
 mod execution_capsule;
 pub use execution_capsule::ExecutionCapsule;

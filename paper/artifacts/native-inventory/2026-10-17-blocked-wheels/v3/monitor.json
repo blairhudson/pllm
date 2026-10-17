@@ -1,0 +1,30 @@
+[
+  {
+    "available_bytes": 12441485312,
+    "elapsed_seconds": 0.011932416819036007,
+    "owned_rss_bytes": 11681792,
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12441485312,
+    "elapsed_seconds": 0.2811476672068238,
+    "owned_rss_bytes": 53346304,
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12441485312,
+    "elapsed_seconds": 0.5455505000427365,
+    "owned_rss_bytes": 40091648,
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12435324928,
+    "elapsed_seconds": 0.8139353338629007,
+    "owned_rss_bytes": 30867456,
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 704512
+  }
+]

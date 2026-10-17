@@ -1,0 +1,13 @@
+{
+  "cached_build": true,
+  "cleanup_errors": [],
+  "elapsed_seconds": 0.8954657502472401,
+  "exit_code": -15,
+  "max_swap_used_growth_bytes": 0,
+  "max_swapout_growth_bytes": 704512,
+  "maximum_sampled_owned_rss_bytes": 53346304,
+  "source_changed": false,
+  "status": "failed",
+  "stop_reason": "host_swap_growth",
+  "wheel_sha256": {}
+}
