@@ -1,0 +1,67 @@
+{
+  "files": [
+    {
+      "bytes": 5356,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4-preflight/receipt.json",
+      "path": "preflight/receipt.json",
+      "sha256": "4bb65b55b47c368770b2517399745fa161af829c0e9a306f404e952f7b433498"
+    },
+    {
+      "bytes": 387,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/build.log",
+      "path": "v4/build.log",
+      "sha256": "9579b4059ea88c4acda6e12ba8893c9d6fdd719906537b67ebe4b8c976e4674d"
+    },
+    {
+      "bytes": 572,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/command.json",
+      "path": "v4/command.json",
+      "sha256": "8930fd46bea331930fdb9a5edbce2dd714cebd07d22117e3e35c310c63e442b1"
+    },
+    {
+      "bytes": 6143,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/guard.py",
+      "path": "v4/guard.py",
+      "sha256": "f661a8104edda431f9c123c54f090e9da1c8bd51f5be1f4beefb93fea8d8605e"
+    },
+    {
+      "bytes": 200,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/host-before.json",
+      "path": "v4/host-before.json",
+      "sha256": "269400402d386078b1c652ebcc867eb06ef617fea7109cf7687c31504d6bcf11"
+    },
+    {
+      "bytes": 931,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/monitor.json",
+      "path": "v4/monitor.json",
+      "sha256": "7494afb92f9045aa83bbcc49452cee7f961ddda2c39feb1afbf87aa594f601d0"
+    },
+    {
+      "bytes": 340,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/receipt.json",
+      "path": "v4/receipt.json",
+      "sha256": "bcc0b733c507a48d0695de45b32a4358eeaa976cf009047aa9a322d7bed94aa6"
+    },
+    {
+      "bytes": 118788,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/sources-after.json",
+      "path": "v4/sources-after.json",
+      "sha256": "c11da3b463788835363124c7af7b16ec4dc53d33cdb342440a13dec7183f09eb"
+    },
+    {
+      "bytes": 118788,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/sources-before.json",
+      "path": "v4/sources-before.json",
+      "sha256": "c11da3b463788835363124c7af7b16ec4dc53d33cdb342440a13dec7183f09eb"
+    },
+    {
+      "bytes": 86,
+      "origin": "target/research/gkm-inventory-wheel-2026-10-17-v4/stop.json",
+      "path": "v4/stop.json",
+      "sha256": "ee5841c093bb4dc936ea8f2fb6f6af0e7e0cc65a8fb1e00fc4b78da651226b8f"
+    }
+  ],
+  "schema_version": "pllm.blocked_native_build_archive.v1",
+  "status": "no_accepted_wheel",
+  "total_bytes": 251591
+}

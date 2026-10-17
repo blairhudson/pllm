@@ -56,20 +56,26 @@ one full head, and one lookup table from configuration alone.
 The checkpoint scanner now consumes this native metadata and independently checks
 plan/configuration digests, phase fields, complete operation coverage, source
 headers, biases, orientations, concatenated dimensions, and output slices.
-It reports conditional grouped publication
-geometry separately from its earlier conditional unfused geometry. The 45 Python
+It reports conditional grouped publication geometry separately from its earlier
+conditional unfused geometry. The 45 Python
 scanner/metadata tests initially passed against the existing installed package
 with binding doubles. A further nine malformed-geometry controls brought that
 suite to 54 passing tests; three generated-family native checks were deliberately
 excluded. Those tests do not establish execution of the new binding.
 
 Two binding tests and the three generated-family native checks need a rebuilt
-extension. The latest cached wheel attempt stopped on 704,512 bytes of host
+extension. The third cached wheel attempt stopped on 704,512 bytes of host
 swapout growth, with clean retirement and no source change. It produced no wheel.
 The earlier headroom rejection and cleanup-permission failure remain separate
 attempts. The guard does not attribute host-wide swapout to compilation.
 Original receipts and available driver snapshots are retained in the
 [blocked-build archive](../../paper/artifacts/native-inventory/2026-10-17-blocked-wheels/README.md).
+A fourth attempt followed a separate 30-second quiet preflight with at least
+12,448,366,592 available host bytes. Its unchanged guard then stopped on 65,536
+bytes of host swapout growth. Cleanup passed and source snapshots matched, but
+no wheel was produced. The [follow-up archive](../../paper/artifacts/native-inventory/2026-10-17-blocked-followup/README.md)
+retains both observations. A quiet preflight does not establish build admission
+through completion.
 
 This metadata does not authenticate checkpoint contents, validate local operator
 semantics, admit a source numerical graph, prove state handoff, or select GKM
