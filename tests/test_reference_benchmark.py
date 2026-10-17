@@ -136,7 +136,8 @@ def test_delegated_quality_failure_retires_workers_without_report(tmp_path, monk
 
 
 @pytest.mark.rust
-def test_delegated_quality_cli_uses_ordinary_report(tmp_path):
+@pytest.mark.parametrize("margin", [0, 40])
+def test_delegated_quality_cli_uses_ordinary_report(tmp_path, margin):
     pytest.importorskip("transformers")
     from test_delegated_sdk import experiment_fixture
 
@@ -149,13 +150,13 @@ def test_delegated_quality_cli_uses_ordinary_report(tmp_path):
         sys.executable, "-m", "pllm", "benchmark", "quality",
         "--experiment", str(config), "--prompts-file", str(prompts),
         "--decode-steps", "2", "--reference-storage", "streamed", "--format", "json",
-        "--memory-safety-margin-percent", "40",
+        "--memory-safety-margin-percent", str(margin),
     ], capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stderr
     report = json.loads(result.stdout)["data"]["report"]
     assert report["schema_version"] == "pllm.reference_quality_benchmark.v1"
     assert report["candidates"][0]["same_token_decode"]["sample_count"] == 2
-    assert report["candidates"][0]["memory_admission"]["estimate"]["allocation_slack_percent"] == 40
+    assert report["candidates"][0]["memory_admission"]["estimate"]["allocation_slack_percent"] == margin
     assert "hello world" not in result.stdout
 
 

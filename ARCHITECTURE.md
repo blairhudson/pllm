@@ -2101,9 +2101,10 @@ pressure query block warning/critical launches and stop active benchmark work.
 The macOS budget uses reclaimable physical pages without another total-RAM reserve;
 inactive anonymous pages, compressor capacity and swap are excluded. The shared
 `memory_safety_margin_percent` option, exposed by both benchmark CLI commands as
-`--memory-safety-margin-percent`, adds 1–100% above expected allocation (default
-25%). Runtime monitoring retains that workload-sized margin. Other platforms
-retain their existing available-memory and host-reserve contracts.
+`--memory-safety-margin-percent`, adds 0–100% above expected allocation (default
+25%; zero removes the margin). Runtime monitoring retains that workload-sized
+margin. Other platforms retain their existing available-memory and host-reserve
+contracts.
 The attempted Qwen3-4B cohort exhausted a 32 GiB host after Docker was raised to
 20 GiB; no successful result was produced. Single-snapshot stage ownership,
 bounded float loading, segmented bundle delivery and role-specific weight retention

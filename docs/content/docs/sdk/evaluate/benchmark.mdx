@@ -74,9 +74,10 @@ Its full Desktop VM budget is charged against host headroom, and each provider
 gets a cgroup hard limit with additional swap disabled.
 
 `--memory-budget-mib` can tighten admission but cannot override host limits.
-`--memory-safety-margin-percent` sets a 1–100% allocation margin for `benchmark run`
+`--memory-safety-margin-percent` sets a 0–100% allocation margin for `benchmark run`
 and `benchmark quality`; the SDK spelling is `memory_safety_margin_percent`.
-The default remains 25%. Reports retain the margin, pressure, reclaimable-memory
+Use `0` to remove the margin; the default remains 25%.
+Reports retain the margin, pressure, reclaimable-memory
 components and required bytes. A smaller margin never overrides pressure,
 physical headroom, explicit memory budgets or native payload limits.
 During execution a 250 ms host-pressure monitor stops owned provider work if

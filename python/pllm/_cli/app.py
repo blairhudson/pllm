@@ -372,7 +372,7 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument("--memory-budget-mib", type=int,
                                help="tighten total host-memory admission budget (MiB); cannot override host headroom")
     benchmark_run.add_argument("--memory-safety-margin-percent", type=int, default=25,
-                               help="allocation safety margin above expected peak (1-100; default 25)")
+                               help="allocation safety margin above expected peak (0-100; default 25; 0 disables margin)")
     benchmark_run.add_argument("--docker-image", help="use an existing runtime image instead of building the checkout")
     benchmark_run.add_argument("--docker-network-profile", help="LinkConditions JSON for provider-egress latency/rate/loss")
     wan_mode = benchmark_run.add_mutually_exclusive_group()
@@ -513,7 +513,7 @@ def build_parser() -> _Parser:
     benchmark_quality.add_argument("--decode-steps", type=int, choices=range(9), default=0,
                                    help="same-token cached decode steps per prompt (0-8)")
     benchmark_quality.add_argument("--memory-safety-margin-percent", type=int, default=25,
-                                   help="allocation safety margin above expected peak (1-100; default 25)")
+                                   help="allocation safety margin above expected peak (0-100; default 25; 0 disables margin)")
     benchmark_quality.add_argument("--output", type=Path, help="write the prompt-free JSON report")
     benchmark_quality.add_argument("--force", action="store_true", help="replace --output")
 
@@ -937,8 +937,8 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         raise ResolutionError("BENCHMARK_BACKEND", "choose --docker or --backend, not both")
     if args.memory_budget_mib is not None and args.memory_budget_mib < 1:
         raise ResolutionError("BENCHMARK_MEMORY", "memory budget must be positive MiB")
-    if not 1 <= args.memory_safety_margin_percent <= 100:
-        raise ResolutionError("BENCHMARK_MEMORY", "memory safety margin must be from 1 to 100 percent")
+    if not 0 <= args.memory_safety_margin_percent <= 100:
+        raise ResolutionError("BENCHMARK_MEMORY", "memory safety margin must be from 0 to 100 percent")
     memory_budget_bytes = None if args.memory_budget_mib is None else args.memory_budget_mib << 20
     configuration["provider_backend"] = backend
     configuration["memory_budget_bytes"] = memory_budget_bytes
@@ -1219,8 +1219,8 @@ def _benchmark_quality(
 
     if not 1 <= len(args.experiment) <= 8 or not 1 <= args.top_k <= 100:
         raise ResolutionError("QUALITY_BOUNDS", "quality requires 1-8 Experiments and top-k 1-100")
-    if not 1 <= args.memory_safety_margin_percent <= 100:
-        raise ResolutionError("QUALITY_MEMORY", "memory safety margin must be from 1 to 100 percent")
+    if not 0 <= args.memory_safety_margin_percent <= 100:
+        raise ResolutionError("QUALITY_MEMORY", "memory safety margin must be from 0 to 100 percent")
     experiments = []
     for target_name in args.experiment:
         target = resolve_target(

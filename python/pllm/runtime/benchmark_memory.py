@@ -136,8 +136,8 @@ def _docker_usage_bytes(text: str) -> int:
 
 
 def _memory_margin(percent: int) -> int:
-    if type(percent) is not int or not 1 <= percent <= 100:
-        raise ValueError("memory safety margin must be an integer from 1 to 100 percent")
+    if type(percent) is not int or not 0 <= percent <= 100:
+        raise ValueError("memory safety margin must be an integer from 0 to 100 percent")
     return percent
 
 

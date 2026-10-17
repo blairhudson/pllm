@@ -19,12 +19,14 @@ def _mac_host(*, pressure="normal", available=12 * memory.GiB):
 
 
 @pytest.mark.parametrize("pressure", ["warning", "critical"])
-def test_pressure_rejects_before_inspection_and_aborts_running_owners(monkeypatch, pressure):
+@pytest.mark.parametrize("margin", [0, 25])
+def test_pressure_rejects_before_inspection_and_aborts_running_owners(monkeypatch, pressure, margin):
     from pllm.profiles import MaskedLinearCpu
     from pllm.sources import _tiny_model_config
 
     estimate = memory.estimate_memory(_tiny_model_config(), MaskedLinearCpu(Model.tiny()),
-                                     max_input_tokens=16, max_output_tokens=2)
+                                     max_input_tokens=16, max_output_tokens=2,
+                                     memory_safety_margin_percent=margin)
     normal = _mac_host()
     report = memory.admit_memory(estimate, normal)
     assert report["admitted"]
@@ -35,7 +37,7 @@ def test_pressure_rejects_before_inspection_and_aborts_running_owners(monkeypatc
         guard.check()
     monkeypatch.setattr(memory, "host_memory", lambda: pressured)
     with pytest.raises(memory.BenchmarkMemoryError, match="before model inspection"):
-        memory.benchmark_memory(object())
+        memory.benchmark_memory(object(), memory_safety_margin_percent=margin)
     with pytest.raises(NetworkError, match="CLIENT_MEMORY_PRESSURE"):
         _ClientCapacity().observe()
 
@@ -65,7 +67,7 @@ def test_reclaimable_memory_uses_workload_margin_without_total_ram_reserve(monke
         guard.check()
 
 
-@pytest.mark.parametrize("margin", [0, -1, 101, True, 1.5, "25"])
+@pytest.mark.parametrize("margin", [-1, 101, True, False, 1.5, "25"])
 def test_invalid_margin_rejects_before_os_or_source_access(monkeypatch, margin):
     monkeypatch.setattr(memory, "host_memory", lambda: pytest.fail("sampled before validation"))
     with pytest.raises(ValueError, match="safety margin"):
@@ -100,13 +102,21 @@ def test_live_native_observation():
     assert 0 <= host.available <= host.total
 
 
-def test_cli_preflight_prices_selected_margin_without_launch(monkeypatch, capsys):
+@pytest.mark.parametrize("margin", [0, 40])
+def test_cli_preflight_prices_selected_margin_without_launch(monkeypatch, capsys, margin):
     from pllm.cli import main
 
     monkeypatch.setattr(memory, "host_memory", _mac_host)
     main(["benchmark", "run", "--tiny", "--backend", "native", "--preflight-only",
-          "--memory-safety-margin-percent", "40", "--format", "json"])
+          "--memory-safety-margin-percent", str(margin), "--format", "json"])
     report = json.loads(capsys.readouterr().out)["data"]["candidates"][0]
-    assert report["estimate"]["allocation_slack_percent"] == 40
+    assert report["estimate"]["allocation_slack_percent"] == margin
     assert report["host"]["reserve_bytes"] == 0
     assert report["runtime_floor_bytes"] == report["candidates"]["native"]["safety_margin_bytes"]
+    if margin == 0:
+        assert report["runtime_floor_bytes"] == 0
+        native = report["candidates"]["native"]
+        required = native["required_host_bytes"]
+        assert required == native["expected_peak_bytes"]
+        assert memory.admit_memory(report["estimate"], _mac_host(available=required))["admitted"]
+        assert not memory.admit_memory(report["estimate"], _mac_host(available=required - 1))["admitted"]
