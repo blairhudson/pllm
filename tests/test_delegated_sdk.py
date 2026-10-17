@@ -46,6 +46,22 @@ def active_sessions(core):
     return result
 
 
+@pytest.mark.parametrize("tokens", [(7,), (7, 9, 1), [7, 9], (True, 9), (32, 9)])
+def test_quality_continuation_rejects_before_transport_material(tmp_path, monkeypatch, tokens):
+    from pllm.runtime.delegated_source import admit_source
+
+    experiment, _, _ = experiment_fixture(tmp_path)
+    source = admit_source(experiment)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("native material loaded before continuation admission")
+
+    monkeypatch.setattr(AdmittedSource, "load_transport", forbidden)
+    with pytest.raises(ValueError, match="continuation"):
+        transport.execute_request(experiment, source, (3, 4), 3, {}, 60,
+                                  lambda: False, decode_tokens=tokens)
+
+
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
 @pytest.mark.parametrize("tied", [False, True])
 def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, tied, record_property):

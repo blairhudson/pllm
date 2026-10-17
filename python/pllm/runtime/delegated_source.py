@@ -170,7 +170,7 @@ def _unchanged(root, source_bytes, identities, capacity="capsule"):
 def _locked(root, model, source_bytes, identities, capacity="capsule"):
     """Run the actual shared lock implementation through a fixed-size file view."""
     _unchanged(root, source_bytes, identities, capacity)
-    if not Path(model.source).expanduser().is_dir():
+    if not root.is_dir():
         raise DelegatedSourceError("GKM local source changed after admission")
     locked = model_loader._source_lock(_LockPath(root, dict(identities)), model)
     _unchanged(root, source_bytes, identities, capacity)
@@ -261,6 +261,15 @@ class _LockPath:
 
     def is_file(self):
         return self.filename in self.identities
+
+    def is_symlink(self):
+        return self.path.is_symlink()
+
+    def readlink(self):
+        return self.path.readlink()
+
+    def resolve(self, *, strict=False):
+        return self.path.resolve(strict=strict)
 
     def glob(self, pattern):
         return (self / name for name in self.identities if fnmatchcase(name, pattern))
@@ -866,8 +875,17 @@ def _admit_source(
         decoder_contract(_tiny_model_config(), input_rows=input_rows, decode_steps=decode_steps)
         raise DelegatedSourceError("GKM Model.tiny() full vocabulary is unsupported")
     if model.kind not in {"huggingface", "safetensors"}:
-        raise DelegatedSourceError("GKM source requires a local HF/Safetensors Model")
+        raise DelegatedSourceError("GKM source requires an HF/Safetensors Model")
     root = Path(model.source).expanduser()
+    if model.kind == "huggingface" and not root.exists() and not root.is_absolute():
+        # Resolve through the shared Hub cache without constructing an ordinary
+        # W8A8 graph. Native geometry admission still precedes tensor decoding.
+        from .hf_hub import resolve_huggingface_source
+
+        root = resolve_huggingface_source(
+            model.source, model_id=model.model_id, revision=model.revision,
+            local_files_only=model.local_files_only,
+        ).path
     if not root.is_dir():
         raise DelegatedSourceError("GKM source requires an existing local HF/Safetensors directory")
     root = root.resolve()

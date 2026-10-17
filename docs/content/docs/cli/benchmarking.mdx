@@ -183,7 +183,7 @@ this benchmark path with matching body fingerprints and token counts.
 ## Compare numeric quality
 
 [`pllm benchmark quality`](/cli/reference/benchmark/quality/) compares
-Experiment quantization choices against the same pinned float32 reference,
+Experiment numeric choices against the same pinned float32 reference,
 tokenizer and public prompt cohort. To reproduce the two-prompt Qwen3-0.6B
 numeric diagnostic (a local copy can be supplied through
 `PLLM_REAL_QWEN3_PATH`). In a source checkout, install its optional reference
@@ -213,6 +213,14 @@ Every candidate and the reference consume the first candidate's greedy token
 trajectory. Reports retain only its digest and separate decode aggregates;
 the Experiment output budget must allow prefill plus those decode steps.
 These are same-token numeric comparisons, not free-generation or task scores.
+
+The [paper factories](https://github.com/blairhudson/pllm/blob/main/examples/papers/README.md)
+use one shared source, budget and prompt file with both `benchmark run` and
+`benchmark quality`. GKM's quality candidate executes its two-worker protocol
+and final verification; prepared candidates use local clear kernels. Source and
+token cohorts must agree even when numeric profiles differ. Whole-topology memory
+admission applies to GKM; `QUALITY_MEMORY` means no accepted quality report was
+produced. Check available capacity with `benchmark run --preflight-only` first.
 
 The same source-locked two-prompt comparison was also run for
 [Qwen2.5-0.5B-Instruct](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen2.5-0.5b-reference-quality-2026-09-24.json):

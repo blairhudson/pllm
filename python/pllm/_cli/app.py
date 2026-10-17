@@ -1262,6 +1262,7 @@ def _benchmark_quality(
             emit_machine("benchmark.quality", data, output_format)
         return
 
+    from pllm.runtime.benchmark_memory import BenchmarkMemoryError
     from pllm.runtime.reference_benchmark import (
         ReferenceBenchmarkError,
         run_reference_benchmark,
@@ -1271,6 +1272,8 @@ def _benchmark_quality(
         report = run_reference_benchmark(experiments, prompts, top_k=args.top_k,
                                          reference_storage=args.reference_storage,
                                          decode_steps=args.decode_steps)
+    except BenchmarkMemoryError as exc:
+        raise RuntimeFailure("QUALITY_MEMORY", str(exc)) from exc
     except (ReferenceBenchmarkError, TypeError, ValueError) as exc:
         raise RuntimeFailure("QUALITY_FAILED", str(exc)) from exc
     if output is not None:

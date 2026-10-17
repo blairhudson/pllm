@@ -26,7 +26,7 @@ from pllm import _native
 from pllm.deployment.resources import reserve_incremental_memory
 
 from .client import ProtocolError
-from .delegated_decoder import _execute_verified_window, result_payload_limit
+from .delegated_decoder import _execute_verified_window, _validate_decode_tokens, result_payload_limit
 from .delegated_protocol import clear_failure_frames, digest, limits, pack, read_json, unpack
 
 
@@ -437,7 +437,8 @@ class _NativeExchange:
         self.native.abort()
 
 
-def execute_request(experiment, source, token_ids, output_tokens, connections, timeout, cancelled):
+def execute_request(experiment, source, token_ids, output_tokens, connections, timeout, cancelled,
+                    *, decode_tokens=None):
     """Return complete accepted state; all error paths retire local and remote owners."""
     capacity = getattr(source, "capacity", "capsule")
     expanded = capacity == "decoder"
@@ -446,6 +447,7 @@ def execute_request(experiment, source, token_ids, output_tokens, connections, t
             or any(type(token) is not int or not 0 <= token < source.contract["vocabulary"] for token in token_ids)
             or type(output_tokens) is not int or not 1 <= output_tokens <= (65 if expanded else 9) or not callable(cancelled)):
         raise ValueError("GKM request exceeds the bounded transport contract")
+    _validate_decode_tokens(decode_tokens, output_tokens - 1, source.contract["vocabulary"])
     connections = dict(zip(_ROLES, _connections(connections), strict=True))
     # Full-budget source admission is already sealed. Actual native binding must
     # also precede value loading, even for a smaller request.
@@ -466,7 +468,7 @@ def execute_request(experiment, source, token_ids, output_tokens, connections, t
                             native.starts(), experiment, source, native.request_id(), len(token_ids), output_tokens)
                 return _execute_verified_window(
                     _NativeExchange(native, peers, len(decoder["matrices"]) - 1),
-                    decoder, tuple(token_ids), cancelled=cancelled,
+                    decoder, tuple(token_ids), cancelled=cancelled, decode_tokens=decode_tokens,
                 )
             finally:
                 try:

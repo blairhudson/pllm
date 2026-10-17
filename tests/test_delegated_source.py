@@ -58,6 +58,70 @@ def forbid_values(monkeypatch):
     monkeypatch.setattr(source._AdmittedTensorStore, "get", forbidden)
 
 
+@pytest.mark.parametrize("offline", [False, True])
+@pytest.mark.parametrize("revision", [None, "a" * 40])
+def test_hub_source_uses_shared_resolver_and_retains_original_model(tmp_path, monkeypatch,
+                                                                 offline, revision):
+    from pllm.runtime.hf_hub import ResolvedModelSource
+
+    write_source_fixture(tmp_path)
+    model = Model.hf("fixture/source", revision=revision, local_files_only=offline)
+    calls = []
+
+    def resolve(name, **kwargs):
+        calls.append((name, kwargs))
+        return ResolvedModelSource(tmp_path, name, name, kwargs["revision"])
+
+    monkeypatch.setattr("pllm.runtime.hf_hub.resolve_huggingface_source", resolve)
+    forbid_values(monkeypatch)
+    admitted = source.admit_source(model, input_rows=3, decode_steps=2)
+    assert admitted.model == model and admitted.path == tmp_path
+    assert calls == [("fixture/source", {
+        "model_id": None, "revision": revision, "local_files_only": offline,
+    })]
+    assert admitted.source.manifest.metadata["model_spec"] == model.to_spec()
+    assert (admitted.checkpoint_digest, admitted.source_lock_digest, dict(admitted.source_lock)) == (
+        model_loader._source_lock(tmp_path, model)
+    )
+
+
+@pytest.mark.parametrize("changed", [None, "revision", "blob"])
+def test_hub_snapshot_checks_original_revision_and_blob_identity(tmp_path, monkeypatch, changed):
+    from pllm.runtime.hf_hub import ResolvedModelSource
+
+    commit = "a" * 40
+    root = tmp_path / "models--fixture--source"
+    snapshot = root / "snapshots" / commit
+    blobs = root / "blobs"
+    blobs.mkdir(parents=True)
+    write_source_fixture(snapshot)
+    for path in snapshot.iterdir():
+        content = path.read_bytes()
+        blob = blobs / hashlib.sha256(content).hexdigest()
+        path.rename(blob)
+        path.symlink_to(blob)
+    if changed == "blob":
+        blob = (snapshot / "model.safetensors").resolve()
+        content = bytearray(blob.read_bytes())
+        content[-1] ^= 1
+        blob.write_bytes(content)
+    model = Model.hf("fixture/source", revision="b" * 40 if changed == "revision" else commit,
+                     local_files_only=True)
+    monkeypatch.setattr("pllm.runtime.hf_hub.resolve_huggingface_source", lambda *a, **kw:
+                        ResolvedModelSource(snapshot, model.source, model.source, commit))
+    forbid_values(monkeypatch)
+    if changed is not None:
+        with pytest.raises(ValueError, match="pinned revision" if changed == "revision" else "blob digest"):
+            source.admit_source(model, input_rows=3, decode_steps=2)
+        return
+    admitted = source.admit_source(model, input_rows=3, decode_steps=2)
+    assert admitted.source_lock["repo_id"] == model.source
+    assert admitted.source_lock["commit"] == commit
+    assert (admitted.checkpoint_digest, admitted.source_lock_digest, dict(admitted.source_lock)) == (
+        model_loader._source_lock(snapshot, model)
+    )
+
+
 def forbid_ordinary_loading(monkeypatch):
     monkeypatch.setattr(model_loader, "resolve_model", forbidden)
     monkeypatch.setattr(model_loader, "load_hf_directory", forbidden)
@@ -628,14 +692,10 @@ def test_existing_recorded_source_identity_is_verified_not_reinvented(tmp_path):
         admit(tmp_path)
 
 
-@pytest.mark.parametrize("revision", [None, "a" * 40])
-def test_remote_sources_are_explicitly_local_only(tmp_path, monkeypatch, revision):
-    import huggingface_hub
-
-    monkeypatch.setattr(huggingface_hub, "hf_hub_download", forbidden)
-    monkeypatch.setattr(huggingface_hub, "snapshot_download", forbidden)
+def test_missing_absolute_source_never_resolves_as_hub_identifier(tmp_path, monkeypatch):
+    monkeypatch.setattr("pllm.runtime.hf_hub.resolve_huggingface_source", forbidden)
     with pytest.raises(ValueError, match="existing local"):
-        source.admit_source(Model.hf("nonexistent/gkm-fixture", revision=revision),
+        source.admit_source(Model.path(str(tmp_path / "missing")),
                             input_rows=1, decode_steps=0)
 
 

@@ -126,11 +126,17 @@ These targets may be declarative JSON/YAML files or explicit SDK objects such as
 
 For numeric fidelity, the separate
 [`pllm benchmark quality`](/cli/reference/benchmark/quality/) compares the
-same token cohort against a pinned float32 model reference, including
-[W4A4/W8A8 examples](/sdk/components/quantization/). Its local clear-kernel
-scores cannot be substituted for online role latency, memory, disk or network
-measurements; match configuration and source-lock digests before interpreting
-the two reports together.
+same token cohort against a pinned float32 model reference. It supports
+[W4A4/W8A8 examples](/sdk/components/quantization/) through local clear kernels
+and [verified delegation](/sdk/inference/verified-delegation/) through its two
+workers and final verification. `--decode-steps` supplies one shared token
+trajectory to every candidate. These quality scores do not measure serving
+costs; match configuration and source-lock digests between the two reports.
+
+The [paper experiment factories](https://github.com/blairhudson/pllm/blob/main/examples/papers/README.md)
+share one model, workload budget and prompt file across both commands. Each
+implemented method supplies an ordinary `Experiment`; the SDK owns execution
+and metrics.
 
 ### Network I/O experiments
 

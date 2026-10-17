@@ -5,12 +5,13 @@ description: "Run a bounded GKM composition through two workers with request-end
 
 `OpenWeightVerifiableCpu` uses two worker processes and a trusted client. The
 client releases output only after the complete request passes native verification.
-Generated checkpoints pass the ordinary SDK path. Official Qwen metadata fits the
-explicit Decoder policy, but its recorded execution attempt is host-memory blocked.
+Generated checkpoints pass the ordinary SDK path. A pinned Qwen2.5-0.5B request
+also completes four input tokens and two verified outputs under the explicit
+Decoder policy. This short functionality check does not establish model quality.
 
 ## Configure one Experiment
 
-Provide a complete local Safetensors checkpoint and genuine `tokenizer.json`,
+Provide a complete Safetensors checkpoint and genuine `tokenizer.json`,
 with at most 256 vocabulary entries and shapes within native limits. The default
 `Model.tiny()` has 258 entries and cannot serve as this Capsule fixture.
 
@@ -40,14 +41,23 @@ bytes. Ordinary W8A8 quantization is not part of this composition.
 The optional `linear=OpenWeightVerifiableOutsourcing(capacity="decoder")` selects
 larger, source-derived native bounds. The public example accepts
 `--capacity decoder`. Six generated two-worker cases with 1,100 vocabulary entries
-pass complete-logit/KV checks; the full-Qwen attempt still requires more safe host
-memory. Numerical admission and whole-topology memory checks apply before execution.
+pass complete-logit/KV checks. Numerical admission and whole-topology memory
+checks apply before execution.
 The default `"capsule"` keeps its existing serialized identity and limits.
 
 The [public example](https://github.com/blairhudson/pllm/blob/main/examples/delegated_sdk.py)
 also saves canonical Experiment JSON and invokes `BenchmarkTarget.response`.
 The same saved Experiment works with `pllm gateway --local --experiment` and
 `pllm benchmark run --experiment`.
+
+[`examples/papers/gkm.py`](https://github.com/blairhudson/pllm/blob/main/examples/papers/gkm.py)
+provides a reusable Decoder-capacity factory with a shared pinned model, budget
+and prompt file. `Model.hf(...)` uses the ordinary Hub resolver and preserves
+source-lock and revision checks; `local_files_only=True` uses the existing cache.
+Run the factory through `pllm benchmark run` for costs and
+`pllm benchmark quality` for prefill and same-token decode agreement with FP32.
+The quality path uses real workers and final verification. Its forced decode
+inputs do not change the ordinary SDK response contract below.
 
 ## Response contract
 

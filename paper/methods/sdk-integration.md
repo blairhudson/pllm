@@ -33,6 +33,21 @@ configuration round trips and operator execution do not establish complete SDK
 response support. A native or internal reference remains a reference until its
 ordinary public execution path passes the required tests.
 
+## Reusable paper configurations and measurements
+
+The study's executable entry points live in `examples/papers/`: one small Python
+Experiment factory per implemented method, a shared model/budget, and one input
+file. Run them with `pllm benchmark run` and `pllm benchmark quality`. Missing
+execution or measurement capabilities belong in the shared SDK. Method-specific
+benchmark runners, metric implementations and one-use archive tools are not the
+implementation path. Existing archived measurements retain their original scope.
+
+GKM is the first paper factory. Its quality adapter uses the installed worker
+transport and native acceptance, then the existing common float32 reference and
+agreement metrics. Same-token decode is a quality-driver input; ordinary SDK
+responses retain fixed-count greedy generation. The remaining nine factories
+arrive with their executable SDK compositions.
+
 ## Bounded GKM milestone and remaining gates
 
 The [bounded decoder](../../docs/research/gkm-decoder-reference.md) reuses source
@@ -72,8 +87,9 @@ open.
 
 Broader activation coverage, original-model and common-Qwen
 quality and matched resource/performance evidence remain open. Seeded network
-frames, stochastic or early-EOS generation, continuation, remote source discovery
-and automatic network planning remain unsupported.
+frames, stochastic or early-EOS generation, continuation and automatic network
+planning remain unsupported. Hub checkpoint resolution now uses the shared SDK
+resolver while preserving the original model specification and source lock.
 
 ### Integration seams
 

@@ -315,7 +315,17 @@ def execute_gkm_reference(
     return _execute_verified_window(native, contract, token_ids)
 
 
-def _execute_verified_window(native, contract, token_ids, *, cancelled=None) -> GkmDecoderResult:
+def _validate_decode_tokens(tokens, steps, vocabulary):
+    """Bound the shared quality driver's optional teacher-forced continuation."""
+    if tokens is not None and (
+        type(tokens) is not tuple or len(tokens) != steps
+        or any(type(token) is not int or not 0 <= token < vocabulary for token in tokens)
+    ):
+        raise ValueError("GKM quality continuation differs from the admitted decode geometry")
+
+
+def _execute_verified_window(native, contract, token_ids, *, cancelled=None,
+                             decode_tokens=None) -> GkmDecoderResult:
     """Shared local semantics; native finish gates all returned state and tokens.
 
     The local reference and the role-separated runtime supply distinct native
@@ -326,6 +336,7 @@ def _execute_verified_window(native, contract, token_ids, *, cancelled=None) -> 
     try:
         if json.loads(native.contract()) != contract:
             raise ValueError("GKM compiled contract mismatch")
+        _validate_decode_tokens(decode_tokens, contract["decode_steps"], contract["vocabulary"])
         if (
             type(token_ids) is not tuple
             or len(token_ids) != contract["input_rows"]
@@ -344,8 +355,8 @@ def _execute_verified_window(native, contract, token_ids, *, cancelled=None) -> 
             logits.append(vector)
             selected.append(token)
             if step < decode_steps:
-                current = (token,)
-                executed.append(token)
+                current = (token if decode_tokens is None else decode_tokens[step],)
+                executed.append(current[0])
         if cancelled is not None and cancelled():
             raise RuntimeError("GKM request cancelled")
         acceptance = native.finish()

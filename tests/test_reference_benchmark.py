@@ -45,6 +45,145 @@ def test_reference_benchmark_rejects_malformed_cohorts_before_import() -> None:
 
 
 @pytest.mark.rust
+@pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+def test_delegated_quality_uses_verified_worker_outputs_and_forced_decode(tmp_path, family):
+    import numpy as np
+
+    from pllm.runtime.delegated_source import admit_source
+    from pllm.runtime.reference_benchmark import _delegated_candidate
+    from test_delegated_decoder import clear_oracle
+    from test_delegated_sdk import experiment_fixture
+
+    experiment, config, arrays = experiment_fixture(tmp_path, family=family)
+    admitted = admit_source(experiment)
+    continuation = (7, 9)
+    metadata, prefill, decode, ids, selected = _delegated_candidate(
+        experiment, ("hello world",), admitted, 2, [continuation],
+    )
+    expected = clear_oracle(config, arrays, ids[0], 2, decode_tokens=continuation)
+    assert [row.tobytes() for row in prefill + decode] == list(expected[0])
+    assert selected == [continuation]
+    assert metadata["numeric_profile"] == admitted.contract["numeric_profile"]
+    assert metadata["execution"] == "two-worker-request-end-verified"
+    assert metadata["weight_bits"] == 16 and metadata["activation_bits"] is None
+    assert all(np.isfinite(row).all() for row in prefill + decode)
+
+
+@pytest.mark.rust
+@pytest.mark.parametrize("delegated_first", [True, False])
+def test_quality_compares_delegated_and_prepared_on_one_token_trajectory(tmp_path, delegated_first):
+    pytest.importorskip("transformers")
+    from examples.papers.gkm import experiment as delegated_experiment
+    from examples.papers.prepared import experiment as prepared_experiment
+    from test_delegated_sdk import experiment_fixture
+
+    fixture, _, _ = experiment_fixture(tmp_path)
+    delegated = delegated_experiment(fixture.pipeline.model, fixture.budget)
+    prepared = prepared_experiment(fixture.pipeline.model, fixture.budget)
+    experiments = [delegated, prepared] if delegated_first else [prepared, delegated]
+    report = run_reference_benchmark(experiments, ["hello world"], decode_steps=2,
+                                     reference_storage="streamed")
+    assert report["cohort"]["same_token_decode"]["teacher_configuration_digest"] == experiments[0].configuration_digest()
+    assert report["cohort"]["input_token_counts"] == [2]
+    assert [row["weight_bits"] for row in report["candidates"]] == ([16, 8] if delegated_first else [8, 16])
+    for row in report["candidates"]:
+        assert row["sample_count"] == 1 and row["same_token_decode"]["sample_count"] == 2
+        assert 0 <= row["top1_agreement"] <= 1
+        assert row["max_abs_logit_error"] >= 0
+    assert report["scope"] == "local-compiled-decoder-prefill-and-same-token-decode-reference"
+    encoded = json.dumps(report, allow_nan=False)
+    assert "hello world" not in encoded and '"logits"' not in encoded and '"token_ids"' not in encoded
+
+
+@pytest.mark.rust
+def test_delegated_quality_failure_retires_workers_without_report(tmp_path, monkeypatch):
+    from pllm.runtime import delegated_source, servers
+    from pllm.runtime.reference_benchmark import _delegated_candidate
+    from test_delegated_sdk import experiment_fixture
+
+    experiment, _, _ = experiment_fixture(tmp_path)
+    admitted = delegated_source.admit_source(experiment)
+    original_load = delegated_source.AdmittedSource.load_transport
+    original_build = servers.build_roles
+    topologies = []
+
+    class RejectFinish:
+        def __init__(self, owner):
+            self.owner = owner
+
+        def __getattr__(self, name):
+            return getattr(self.owner, name)
+
+        def finish(self):
+            self.owner.finish()
+            raise ValueError("controlled final verification rejection")
+
+    def load(self, *args, **kwargs):
+        owner = original_load(self, *args, **kwargs)
+        return RejectFinish(owner) if kwargs.get("worker") is None else owner
+
+    def build(*args, **kwargs):
+        topology = original_build(*args, **kwargs)
+        topologies.append(topology)
+        return topology
+
+    monkeypatch.setattr(delegated_source.AdmittedSource, "load_transport", load)
+    monkeypatch.setattr(servers, "build_roles", build)
+    with pytest.raises(ValueError, match="final verification"):
+        _delegated_candidate(experiment, ("hello world",), admitted, 1, None)
+    assert len(topologies) == 1
+    assert all(not status.running for status in topologies[0].statuses)
+
+
+@pytest.mark.rust
+def test_delegated_quality_cli_uses_ordinary_report(tmp_path):
+    pytest.importorskip("transformers")
+    from test_delegated_sdk import experiment_fixture
+
+    experiment, _, _ = experiment_fixture(tmp_path)
+    config = tmp_path / "experiment.json"
+    config.write_bytes(experiment.canonical_bytes())
+    prompts = tmp_path / "prompts.json"
+    prompts.write_text(json.dumps(["hello world"]))
+    result = subprocess.run([
+        sys.executable, "-m", "pllm", "benchmark", "quality",
+        "--experiment", str(config), "--prompts-file", str(prompts),
+        "--decode-steps", "2", "--reference-storage", "streamed", "--format", "json",
+    ], capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)["data"]["report"]
+    assert report["schema_version"] == "pllm.reference_quality_benchmark.v1"
+    assert report["candidates"][0]["same_token_decode"]["sample_count"] == 2
+    assert "hello world" not in result.stdout
+
+
+def test_quality_cli_reports_memory_rejection_without_success_file(tmp_path, monkeypatch, capsys):
+    from pllm.cli import main
+    from pllm.runtime import reference_benchmark
+    from pllm.runtime.benchmark_memory import BenchmarkMemoryError
+
+    config = tmp_path / "experiment.json"
+    config.write_bytes(_experiment("memory-rejected", 8).canonical_bytes())
+    prompts = tmp_path / "prompts.json"
+    prompts.write_text(json.dumps(["hello world"]))
+    output = tmp_path / "quality.json"
+
+    def reject(*args, **kwargs):
+        raise BenchmarkMemoryError("benchmark memory preflight rejected: required exceeds available")
+
+    monkeypatch.setattr(reference_benchmark, "run_reference_benchmark", reject)
+    with pytest.raises(SystemExit) as error:
+        main(["benchmark", "quality", "--experiment", str(config),
+              "--prompts-file", str(prompts), "--output", str(output), "--format", "json"])
+    assert error.value.code == 6
+    captured = capsys.readouterr()
+    assert captured.out == "" and not output.exists()
+    diagnostic = json.loads(captured.err)
+    assert diagnostic["error"]["code"] == "QUALITY_MEMORY"
+    assert "required exceeds available" in diagnostic["error"]["message"]
+
+
+@pytest.mark.rust
 def test_streamed_quality_reference_matches_resident_metrics_and_cohort():
     pytest.importorskip("transformers")
     experiment = _experiment("streamed-tiny-w8", 8)

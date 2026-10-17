@@ -1,4 +1,4 @@
-"""Bounded local compiled-decoder quality comparison against a pinned FP32 reference."""
+"""Compiled-decoder quality comparison against a shared pinned FP32 reference."""
 
 from __future__ import annotations
 
@@ -74,6 +74,60 @@ def _prompts(value: Sequence[str]) -> tuple[str, ...]:
     return tuple(value)
 
 
+def _delegated_candidate(experiment, prompts, source, decode_steps, continuations):
+    """Run the installed two-worker path; return only finally accepted logits."""
+    from threading import Event
+
+    from .benchmark_memory import MemoryWatchdog, benchmark_memory, require_admission
+    from .delegated_transport import execute_request
+    from .servers import build_roles
+
+    tokenizer = source.tokenizer()
+    ids = tuple(tuple(tokenizer.encode(
+        prompt, add_bos=source.tokenizer_descriptor.get("add_bos_token", True),
+    )) for prompt in prompts)
+    del tokenizer
+    if any(not 1 <= len(row) <= experiment.budget.max_input_tokens for row in ids):
+        raise ReferenceBenchmarkError("tokenized prompt exceeds the Experiment input budget")
+    report = benchmark_memory(experiment, backend="native")
+    require_admission(report)
+    cancelled = Event()
+    guard = MemoryWatchdog(report, lambda _: cancelled.set())
+    actual, decoded, selected = [], [], []
+    result = None
+    try:
+        guard.start()
+        with build_roles(experiment) as topology:
+            for index, row in enumerate(ids):
+                guard.check()
+                result = execute_request(
+                    experiment, source, row, decode_steps + 1,
+                    topology.worker_connections(), 3600.0, cancelled.is_set,
+                    decode_tokens=None if continuations is None else continuations[index],
+                )
+                guard.check()
+                actual.append(np.frombuffer(result.logits[0], dtype="<f4").copy())
+                decoded.extend(np.frombuffer(value, dtype="<f4").copy() for value in result.logits[1:])
+                selected.append(result.executed[len(row):])
+                result = None  # Complete KV retires before the next request.
+    finally:
+        guard.close()
+        result = None
+    kernel = experiment.pipeline.components["kernels"]
+    contract = source.contract
+    metadata = {
+        "name": experiment.name,
+        "configuration_digest": experiment.configuration_digest(),
+        "pipeline_digest": experiment.pipeline.digest(),
+        "weight_bits": 16, "activation_bits": None,
+        "numeric_profile": contract["numeric_profile"],
+        "local_numeric_profile": contract["local_numeric_profile"],
+        "kernel_threads": kernel.params.get("threads"), "kernel_backend": kernel.component,
+        "execution": "two-worker-request-end-verified",
+    }
+    return metadata, actual, decoded, ids, selected
+
+
 def run_reference_benchmark(
     experiments: Sequence[Experiment],
     prompts: Sequence[str],
@@ -84,9 +138,9 @@ def run_reference_benchmark(
 ) -> dict[str, Any]:
     """Measure prefill and optional same-token decode without recording private payloads.
 
-    This clear-kernel diagnostic shares the compiled numeric path with public
-    masked-linear execution, but neither starts provider roles nor measures wire
-    traffic or private online latency. Reference setup cost is excluded.
+    Masked-linear candidates use their compiled clear kernels. Delegated candidates
+    use their installed worker topology and final verification barrier. Serving
+    costs belong to benchmark run; this report measures numeric agreement only.
     Optional decode uses the first candidate's greedy tokens for every candidate
     and the reference; it reports those comparisons separately from prefill.
     """
@@ -107,14 +161,15 @@ def run_reference_benchmark(
             raise ReferenceBenchmarkError("quality candidates must be Experiments")
         experiment.resolve()
         runtime_options = resolve_runtime_composition(experiment.pipeline)
-        if (
+        delegated = runtime_options is not None and runtime_options.client_runtime == "compiled_gkm_v1"
+        if not delegated and (
             runtime_options is None
             or runtime_options.client_runtime != "masked_transformer_v1"
             or runtime_options.privacy_mode != "public"
             or runtime_options.verification_component is not None
         ):
             raise ReferenceBenchmarkError(
-                "quality diagnostic requires baseline masked-linear composition"
+                "quality diagnostic requires a supported compiled numeric composition"
             )
         if not 1 <= experiment.budget.max_input_tokens <= 128:
             raise ReferenceBenchmarkError("quality diagnostic requires at most 128 input tokens")
@@ -122,7 +177,14 @@ def run_reference_benchmark(
             raise ReferenceBenchmarkError("decode steps exceed the Experiment output budget")
         if len(prompt_set) > experiment.budget.requests:
             raise ReferenceBenchmarkError("prompt cohort exceeds the Experiment request budget")
-        resolved = resolve_model(experiment.pipeline.model)
+        admitted = None
+        if delegated:
+            from .delegated_source import admit_source
+
+            admitted = admit_source(experiment)
+            resolved = admitted.source
+        else:
+            resolved = resolve_model(experiment.pipeline.model)
         if resolved.path is None or resolved.manifest.metadata.get("config_only"):
             raise ReferenceBenchmarkError(
                 "quality diagnostic requires an imported weight checkpoint"
@@ -140,15 +202,15 @@ def run_reference_benchmark(
             raise ReferenceBenchmarkError("quality Experiments must bind the same source lock")
         source_lock = resolved.source_lock_digest
         resolved_source = resolved
-        configurations.append((experiment, runtime_options, resolved))
+        configurations.append((experiment, runtime_options, resolved, admitted))
     assert resolved_source is not None and resolved_source.path is not None
-    names = [experiment.name for experiment, _, _ in configurations]
-    digests = [experiment.configuration_digest() for experiment, _, _ in configurations]
+    names = [experiment.name for experiment, _, _, _ in configurations]
+    digests = [experiment.configuration_digest() for experiment, _, _, _ in configurations]
     if len(set(names)) != len(names) or len(set(digests)) != len(digests):
         raise ReferenceBenchmarkError(
             "quality candidates must have unique names and configurations"
         )
-    # Hold only bounded logits from clear candidates, release their stage kernels,
+    # Hold only bounded logits from candidates, release their execution owners,
     # then load the float32 reference. This avoids keeping two large model bodies
     # resident at once and does not put logits or token IDs in the report.
     logit_bytes = ((len(experiments) + 1) * len(prompt_set)
@@ -175,8 +237,21 @@ def run_reference_benchmark(
     decode_cohort: list[tuple[int, ...]] = []
     pending_decode: list[list[np.ndarray]] = []
     pending: list[tuple[dict[str, Any], list[np.ndarray]]] = []
-    for experiment, options, resolved in configurations:
+    for experiment, options, resolved, admitted in configurations:
         assert resolved.path is not None
+        if admitted is not None:
+            metadata, actual_rows, decode_rows, current_cohort, selected = _delegated_candidate(
+                experiment, prompt_set, admitted, decode_steps,
+                None if token_cohort is None else decode_cohort,
+            )
+            if token_cohort is not None and token_cohort != current_cohort:
+                raise ReferenceBenchmarkError("quality candidates tokenized the cohort differently")
+            if token_cohort is None:
+                decode_cohort = selected
+            token_cohort = current_cohort
+            pending.append((metadata, actual_rows))
+            pending_decode.append(decode_rows)
+            continue
         model_id = resolved.manifest.id
         kernel_choice = experiment.pipeline.components["kernels"]
         threads = kernel_choice.params.get("threads")
@@ -284,7 +359,7 @@ def run_reference_benchmark(
 
         with StreamedFloat32Reference(
             resolved_source.path,
-            max_input_tokens=max(item.budget.max_input_tokens for item, _, _ in configurations),
+            max_input_tokens=max(item.budget.max_input_tokens for item, _, _, _ in configurations),
             max_decode_steps=decode_steps,
         ) as reference:
             trajectories = [reference.trajectory(ids, continuation)
@@ -361,10 +436,11 @@ def run_reference_benchmark(
     }
     if loading is not None:
         environment["reference_weight_storage"] = "module-streamed"
+    delegated = any(admitted is not None for _, _, _, admitted in configurations)
+    scope = "local-compiled-decoder" if delegated else "local-compiled-clear-kernel"
     return {
         "schema_version": SCHEMA,
-        "scope": ("local-compiled-clear-kernel-prefill-and-same-token-decode-reference"
-                  if decode_steps else "local-compiled-clear-kernel-prefill-reference"),
+        "scope": scope + ("-prefill-and-same-token-decode-reference" if decode_steps else "-prefill-reference"),
         "model": {
             "id": resolved_source.manifest.id,
             "checkpoint_digest": checkpoint_digest,
@@ -389,7 +465,8 @@ def run_reference_benchmark(
         "candidates": candidates,
         **({"reference_loading": loading} if loading is not None else {}),
         "limitations": [
-            "local clear integer kernels, not a provider transport or privacy measurement",
+            ("local worker execution; serving costs require benchmark run; no independent-operator privacy measurement"
+             if delegated else "local clear integer kernels, not a provider transport or privacy measurement"),
             "prefill and optional same-token decode agreement, not full-generation or task accuracy",
             "float32 reference loading and evaluation excluded from provider latency and cost",
         ],

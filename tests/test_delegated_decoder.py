@@ -62,7 +62,7 @@ def fixture(cfg, rows=3, decode=2, *, capacity="capsule"):
     return contract, arrays, {key: value.tobytes() for key, value in arrays.items()}
 
 
-def clear_oracle(cfg, tensors, tokens, decode_steps):
+def clear_oracle(cfg, tensors, tokens, decode_steps, *, decode_tokens=None):
     def linear(value, weight, bias=None):
         encoded = [[round(float(w) * 2048) for w in row] for row in tensors[weight]]
         output = np.empty((len(value), len(encoded)), dtype=np.float32)
@@ -161,8 +161,8 @@ def clear_oracle(cfg, tensors, tokens, decode_steps):
         selections.append(token)
         position += len(ids)
         if step < decode_steps:
-            ids = (token,)
-            executed.append(token)
+            ids = (token if decode_tokens is None else decode_tokens[step],)
+            executed.append(ids[0])
     kv = tuple(
         (tuple(k.shape), k.astype("<f4").tobytes(), v.astype("<f4").tobytes()) for k, v in caches
     )
