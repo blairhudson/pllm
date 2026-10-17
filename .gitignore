@@ -10,6 +10,8 @@ __pycache__/
 coverage.xml
 htmlcov/
 build/
+!paper/artifacts/gkm-sdk/*/build/
+!paper/artifacts/gkm-sdk/*/build/**
 !docs/content/docs/build/
 !docs/content/docs/build/**
 !docs/public/releases/*/docs/build/
