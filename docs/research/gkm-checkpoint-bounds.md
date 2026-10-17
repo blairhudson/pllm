@@ -1,12 +1,49 @@
 # GKM checkpoint bounds: pinned common-model source gate
 
-Date: **17 October 2026**. Result: **blocked by observed host swapout; no source
-numeric admission**. Header/semantic geometry is available. Weight maxima,
-out-of-range counts and L1 bounds are **unmeasured**, not zero.
+Date: **17 October 2026**. Latest result: **source numeric admission passed;
+complete GKM admission blocked**. A rebuilt installed wheel now executes the
+compiler inventory. The third scan completes source verification and numeric
+bounds; the first two failed receipts remain unchanged.
+
+## Accepted third scan
+
+The [installed-build/source archive](../../paper/artifacts/native-inventory/2026-10-17-installed-v6/README.md)
+retains the build, all test attempts, selected executed-source snapshots, source
+report and its separate finalization receipt. The corrected installed suite passes
+67 tests, including all five previously blocked binding/generated-family checks.
+
+All **290 tensors / 494,032,768 elements** are scanned. All **169 linear/head
+tensors** fit signed i16 after nearest-even/2048 encoding. Nonfinite count is zero;
+maximum absolute linear source/encoded values are **1.6875 / 3,456**. Maximum row
+L1 is **636,971**, giving a conditional uniform encoded-input ceiling of
+**14,480,050,170,030**. This does not measure actual activations. The **179**
+out-of-i16 local coefficients are diagnostic only; those owners remain float32.
+The independent scalar oracle checks **5,858** sampled values.
+
+All seven official source hashes and selected imported module identities pass
+before/after checks. The observed scan interval is 12.243 seconds, cumulative
+scanner CPU 12.170 seconds, and high-water RSS at the final observation
+110,460,928 bytes. Actual swap use and compressor swapouts remain constant.
+Final receipt formatting and interpreter exit remain outside the observation.
+These are source-publication costs, not serving measurements.
+
+The original report deliberately retains `pending_receipt_finalization`.
+Acceptance requires its hash-bound `finalization.json`, whose source admission
+is `pass` and complete-GKM admission remains `blocked`.
+
+### Historical counter interpretation
+
+The first two scans used macOS psutil's `sout`, which measures pageouts rather
+than compressor swapouts. Their failures remain failed, but the counter increments
+below cannot establish actual compressor swap activity. `scripts/host_swap.py`
+now reads `HOST_VM_INFO64.swapouts` directly and rejects missing, changed or
+regressing telemetry. During scan three, diagnostic pageouts increased 4,014,080
+bytes while actual swapouts stayed fixed. Page-scaled activity is not physical
+disk-I/O measurement.
 
 **Post-run review:** the historical scanner did not bind imported Python metadata
 modules reliably and timestamped telemetry before the observation completed.
-Those defects are repaired in working code and checked with fixtures only.
+Those defects were repaired and subsequently exercised by the third scan.
 Historical receipts remain failed; the repairs do not retroactively complete
 their provenance, source locks or numeric evidence.
 
@@ -44,8 +81,8 @@ Receipts were written under `target/` before this document:
 These costs belong to **publication/source inspection**. They are neither model
 throughput nor serving RSS. Swap used stayed constant at 3,115,057,152 bytes;
 increased cumulative swapout independently triggered rejection. The receipts do
-not attribute host-wide swapout to this process. No guard was weakened and no
-further source scan was attempted after the second failure.
+not attribute host-wide activity to this process. This paragraph records the
+two original attempts; the separately admitted third scan appears above.
 
 ### Immutable negative-evidence archive
 
@@ -80,17 +117,17 @@ outputs use `target/research/gkm-checkpoint-bounds-maintenance-2026-10-17/`.
   `18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45`.
 - Safetensors header SHA-256 (32,280 header bytes; length prefix excluded):
   `bd808652be103f0e4e29786b9aa8829e0f38607880486926c7246ee2de577a76`.
-- **Expected**, not completely reverified, `model.safetensors` LFS SHA-256:
+- `model.safetensors` LFS SHA-256, completely verified by scan three:
   `fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe`.
-  Official size: **988,097,824 bytes**. Full hashing was interrupted.
+  Official size: **988,097,824 bytes**. The earlier hashing attempts were interrupted.
 - Semantic plan digest:
   `f7cb9f16061e34582333fba0c26c9e864c7dbc35668f1ed1484bbf4511d3d030`.
 
 The second attempt completed official hash checks for `config.json`,
 `generation_config.json` and `merges.txt`. It did **not** complete the full
 checkpoint/tokenizer source lock or before/after content/identity verification.
-Header geometry below therefore remains provisional until complete source-lock
-verification succeeds. No download or source-cache modification occurred.
+The third scan separately completes that lock and verifies the geometry below.
+No download or source-cache modification occurred.
 Historical checkout hashes also cannot establish the imported Python metadata
 implementation's identity; that provenance gap is preserved in the archive.
 
@@ -135,13 +172,13 @@ i16 head. The scanner itself retains neither representation.
 The historical attempts had no composition-independent group API. The separate
 [decoder matrix inventory](decoder-matrix-inventory.md) now reuses the native
 grouping authority without selecting W8A8 or another numerical profile.
-Its native checks pass; rebuilt Python binding checks remain blocked by the
-wheel-build host-swap guard. The scanner consumes and reconciles this metadata
+Its native and rebuilt Python binding checks pass. The scanner consumes and reconciles this metadata
 when the installed native extension provides it, otherwise it rejects.
 
-Configuration-only native extraction identifies 96 body groups plus the head
-and lookup. This does not complete the historical source scan or admit their
-GKM encodings. **The final GKM publication layout remains unadmitted.** The old
+Installed extraction and the source scan identify 96 body groups plus the head
+and lookup. Grouped geometry gives 97 matrices, 11,024,640 compressed-point payload
+bytes and 20,422,656 client accumulator bytes. No publication was constructed.
+**The final GKM publication layout remains unadmitted.** The old
 receipts keep their original per-operation geometry and failure status.
 
 For the explicitly **conditional unfused** layout of one matrix per semantic
@@ -315,16 +352,16 @@ maintenance receipts and do not rerun the source scan.
 
 | Question | Result |
 | --- | --- |
-| Source numeric scan completed? | **No**, host swapout guard rejected both attempts. |
-| Finite / i16 out-of-range counts? | **Unknown**; no tensor decoded. |
-| Actual weight or rounded maxima? | **Unknown**. |
-| Exact matrix L1 / encoded-input maxima? | **Unknown**. |
-| Complete checkpoint/tokenizer identity verified? | **No**, source hashing interrupted. |
-| Header/semantic owner geometry? | Available, provisional pending complete source lock. |
-| Source-faithful fused GKM groups/publication layout? | Blocked on metadata/API integration. |
+| Source numeric scan completed? | **Yes**, third attempt; earlier failures remain archived. |
+| Nonfinite / linear i16 out-of-range counts? | **0 / 0**; 179 local-only coefficients exceed i16 diagnostically. |
+| Maximum absolute linear weight / rounded value? | **1.6875 / 3,456**. |
+| Maximum matrix-row L1 / conditional uniform encoded-input bound? | **636,971 / 14,480,050,170,030**; actual inputs unmeasured. |
+| Complete checkpoint/tokenizer identity verified? | **Yes**, all seven source hashes. |
+| Header/semantic owner geometry? | Verified; 96 body groups, head and lookup. |
+| Source-faithful fused GKM groups/publication layout? | Compiler metadata verified; numerical/publication construction still unadmitted. |
 | Actual activation bounds, quality, privacy, serving eligibility? | Not established by this gate. |
 
-After resource admission and a complete successful scan, remaining work still
-includes actual encoded-input bounds at every stage, the original local numeric
+After this source-only gate, remaining work includes actual encoded-input bounds
+at every stage, the original local numeric
 graph and bias order, publication/verification bindings, verified acceptance and
 lifecycle, original-model validation, and frozen common-model quality criteria.

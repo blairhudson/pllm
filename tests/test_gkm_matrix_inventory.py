@@ -146,6 +146,9 @@ def test_actual_native_inventory_reconciles_generated_family_source_headers(fami
               "num_hidden_layers": 2, "num_attention_heads": 2, "num_key_value_heads": 1,
               "vocab_size": 32, "max_position_embeddings": 32, "hidden_act": "silu",
               "rms_norm_eps": 1e-6, "rope_theta": 10000.0, "tie_word_embeddings": True}
+    if family == "qwen3":
+        config.update(head_dim=4, attention_bias=False, attention_dropout=0.0,
+                      use_sliding_window=False, use_cache=True, max_window_layers=2)
     plan = lower_model(config, batch=1, max_input_tokens=1, max_new_tokens=1)
     tensors = {key: {"shape": list(shape), "elements": probe.math.prod(shape), "dtype": "BF16"}
                for key, shape in required_checkpoint_tensors(plan).items()}

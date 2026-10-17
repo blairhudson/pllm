@@ -1,0 +1,5 @@
+{
+  "exit_code_before_cleanup": null,
+  "pid": 50683,
+  "reason": "host_swap_growth"
+}

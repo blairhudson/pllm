@@ -1,0 +1,5 @@
+Using Python 3.13.15 environment at: target/research/gkm-inventory-wheel-2026-10-17-v6/venv
+error: No solution found when resolving dependencies
+  cause: Because annotated-doc was not found in the cache and you require annotated-doc==0.0.5, we can conclude that your requirements are unsatisfiable.
+
+hint: Packages were unavailable because the network was disabled. When the network is disabled, registry packages may only be read from the cache.

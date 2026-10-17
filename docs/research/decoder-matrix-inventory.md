@@ -1,6 +1,6 @@
 # Decoder matrix inventory
 
-Status: **native metadata extraction checked; installed Python binding checks open**.
+Status: **native metadata and installed Python binding checks pass**.
 This inventory exposes the compiler's existing matrix groups without selecting
 a numerical profile or a runtime composition.
 
@@ -63,16 +63,23 @@ with binding doubles. A further nine malformed-geometry controls brought that
 suite to 54 passing tests; three generated-family native checks were deliberately
 excluded. Those tests do not establish execution of the new binding.
 
-Two binding tests and the three generated-family native checks need a rebuilt
-extension. The third cached wheel attempt stopped on 704,512 bytes of host
-swapout growth, with clean retirement and no source change. It produced no wheel.
+The two binding tests and three generated-family checks now pass in the sixth
+cached wheel's isolated environment, within a 67-test suite. Earlier fixture
+failures and their corrected Qwen3 configuration are preserved. The
+[accepted archive](../../paper/artifacts/native-inventory/2026-10-17-installed-v6/README.md)
+binds the build, wheel hash, tests and completed source scan. This is a cached
+local build, not a clean-release attestation.
+
+Historically, the third cached wheel attempt stopped on 704,512 bytes of reported
+`sout` growth, with clean retirement and no source change. It produced no wheel.
 The earlier headroom rejection and cleanup-permission failure remain separate
-attempts. The guard does not attribute host-wide swapout to compilation.
+attempts. On macOS that psutil counter measures pageouts, not compressor swapouts;
+these increments cannot establish actual swap activity or attribute it to compilation.
 Original receipts and available driver snapshots are retained in the
 [blocked-build archive](../../paper/artifacts/native-inventory/2026-10-17-blocked-wheels/README.md).
 A fourth attempt followed a separate 30-second quiet preflight with at least
 12,448,366,592 available host bytes. Its unchanged guard then stopped on 65,536
-bytes of host swapout growth. Cleanup passed and source snapshots matched, but
+bytes of reported `sout` growth. Cleanup passed and source snapshots matched, but
 no wheel was produced. The [follow-up archive](../../paper/artifacts/native-inventory/2026-10-17-blocked-followup/README.md)
 retains both observations. A quiet preflight does not establish build admission
 through completion.
@@ -80,5 +87,5 @@ through completion.
 This metadata does not authenticate checkpoint contents, validate local operator
 semantics, admit a source numerical graph, prove state handoff, or select GKM
 execution. The plan's configuration digest remains a caller declaration.
-The earlier [checkpoint scan](gkm-checkpoint-bounds.md) remains interrupted;
-no new source scan or matrix publication was performed.
+The separate third [checkpoint scan](gkm-checkpoint-bounds.md) passes source-only
+numeric admission. No matrix publication or GKM decoder execution was performed.

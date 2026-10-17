@@ -21,6 +21,9 @@ import pytest
 from scripts.gkm_checkpoint_oracle import scalar_bits
 from scripts import probe_gkm_checkpoint_bounds as probe
 
+SWAP_IDENTITY = {"schema": "pllm.host_swap_observation.v1",
+                 "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts", "page_bytes": 16384}
+
 
 class NoPressure:
     def check(self, **kwargs):
@@ -242,7 +245,7 @@ def test_atomic_output_preserves_failed_attempt(tmp_path):
     ({"rss_bytes": probe.PROCESS_CEILING + 1}, "process_estimate_exceeded"),
 ])
 def test_resource_guard_has_no_swap_allowance(mutation, reason):
-    baseline = {"total_bytes": 32 * probe.GIB, "available_bytes": 10 * probe.GIB,
+    baseline = {**SWAP_IDENTITY, "total_bytes": 32 * probe.GIB, "available_bytes": 10 * probe.GIB,
                 "swap_used_bytes": 100, "swapout_bytes": 200, "rss_bytes": 50 * probe.MIB}
     assert probe.resource_reason(baseline | mutation, baseline, probe.PROCESS_CEILING, elapsed=0, cpu=0) == reason
     assert probe.resource_reason(baseline, baseline, probe.PROCESS_CEILING, elapsed=301, cpu=0) == "publication_scan_time_budget_exceeded"
@@ -288,7 +291,7 @@ def test_official_source_hash_mismatch_rejects(tmp_path):
 
 
 def test_failed_preflight_keeps_receipt_and_never_enters_source_scan(tmp_path, monkeypatch):
-    baseline = {"total_bytes": 32 * probe.GIB, "available_bytes": probe.HOST_RESERVE,
+    baseline = {**SWAP_IDENTITY, "total_bytes": 32 * probe.GIB, "available_bytes": probe.HOST_RESERVE,
                 "swap_used_bytes": 100, "swapout_bytes": 200, "rss_bytes": 50 * probe.MIB}
     original_guard = probe.Guard
     monkeypatch.setattr(probe, "ROOT", tmp_path)
@@ -355,7 +358,8 @@ def test_metadata_import_binding_includes_packages_native_and_actual_oracle(monk
     monkeypatch.setattr(probe.importlib, "import_module", lambda name: requested.append(name) or object())
     modules = probe.imported_metadata_modules()
     assert set(modules) == {"pllm", "pllm.runtime", "pllm.modeling", "pllm.model_loader",
-                            "pllm.runtime.semantic_tensors", "pllm._native", "scripts.gkm_checkpoint_oracle"}
+                             "pllm.runtime.semantic_tensors", "pllm._native", "scripts.gkm_checkpoint_oracle",
+                             "scripts.host_swap"}
     assert requested == list(modules)
 
 
@@ -368,7 +372,7 @@ class Clock:
 
 
 def healthy_host():
-    return {"total_bytes": 32 * probe.GIB, "available_bytes": 10 * probe.GIB,
+    return {**SWAP_IDENTITY, "total_bytes": 32 * probe.GIB, "available_bytes": 10 * probe.GIB,
             "swap_used_bytes": 100, "swapout_bytes": 200, "rss_bytes": 50 * probe.MIB}
 
 

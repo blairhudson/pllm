@@ -1,0 +1,277 @@
+{
+  "files": [
+    {
+      "bytes": 1760,
+      "path": "build/build.log",
+      "sha256": "80e190569d99dddc2b480796a01789d6d91d710b0f60960d62e1eb1495a69ebe",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/build.log"
+    },
+    {
+      "bytes": 25592,
+      "path": "build/build_paper_release.py",
+      "sha256": "5ef79392a8bb250c5674d8e939fe2f54a9e91009a4d6736914e2933f676ae9cc",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/build_paper_release.py"
+    },
+    {
+      "bytes": 8066,
+      "path": "build/check_cached_wheel.py",
+      "sha256": "f634598e145b7a5b6c2564cda382cd4e2d9ee7abd49e05fe7a4e0581605877a9",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/check_cached_wheel.py"
+    },
+    {
+      "bytes": 636,
+      "path": "build/command.json",
+      "sha256": "bf67db0506cc281903a13f571e1afbb1b1579f3de21d771e87d05fa04c4fca8b",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/command.json"
+    },
+    {
+      "bytes": 415,
+      "path": "build/host-before.json",
+      "sha256": "00cd9e7796a1b09347fcfa7dbb87bb595422525a5ebe96cd25913d9e2bc4bd10",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/host-before.json"
+    },
+    {
+      "bytes": 4989,
+      "path": "build/host_swap.py",
+      "sha256": "377f6636e67bbc610d8205f4f9af78b0acfdec36ca9677f7e8821994aefe3aa6",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/host_swap.py"
+    },
+    {
+      "bytes": 2801,
+      "path": "build/install-local-wheels.log",
+      "sha256": "3e202e1376d22bc5311d25fbdff6d72476890d4d9d8f6a83b0029ed440f379de",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/install-local-wheels.log"
+    },
+    {
+      "bytes": 447,
+      "path": "build/install.log",
+      "sha256": "df5682bdb96f5cbbca9f04926c29a244ecd73c018d9beebfb3570dc630270e8f",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/install.log"
+    },
+    {
+      "bytes": 39434,
+      "path": "build/installed-checks-v2.json",
+      "sha256": "1e221800cab11fe3247150ffb9f5565d9ff7e8f9998b318743988c5d754b58c9",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/installed-checks-v2.json"
+    },
+    {
+      "bytes": 42517,
+      "path": "build/installed-checks.json",
+      "sha256": "8c84c19a849d3652581cf0a677ccd278be52c05fbecfb134327fd5801448a225",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/installed-checks.json"
+    },
+    {
+      "bytes": 3005,
+      "path": "build/inventory-tests-v2.log",
+      "sha256": "88737634dd65374b445ae2b15daf1d3690e6648c96f6dfa3cd868dea50484577",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/inventory-tests-v2.log"
+    },
+    {
+      "bytes": 13942,
+      "path": "build/inventory-tests-v2.xml",
+      "sha256": "ef9b5da8ba147878c1191af480ee2bcc8f8ab7af309e9a8b75bc5c68799c2e1b",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/inventory-tests-v2.xml"
+    },
+    {
+      "bytes": 99,
+      "path": "build/inventory-tests-v3.log",
+      "sha256": "0669e16c060881f856b2a6803db1876c02df2a1ba37d8a4be12038fae8f854dd",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/inventory-tests-v3.log"
+    },
+    {
+      "bytes": 11284,
+      "path": "build/inventory-tests-v3.xml",
+      "sha256": "7011d6d0ce92b34cbdc4ac72150ee11f4747bc01ed92b30438c24a7834fe7e41",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/inventory-tests-v3.xml"
+    },
+    {
+      "bytes": 2934,
+      "path": "build/inventory-tests.log",
+      "sha256": "10e789d8c2ba697c94fe37fbdd937998044f77e385eb8891224c6894b2672c0e",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/inventory-tests.log"
+    },
+    {
+      "bytes": 13865,
+      "path": "build/inventory-tests.xml",
+      "sha256": "ea54baf171d550c6ccac84afea56e5bee81da39ed80ae47fa0bb365b95b1b922",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/inventory-tests.xml"
+    },
+    {
+      "bytes": 207401,
+      "path": "build/monitor.json",
+      "sha256": "99329195a7eeac593298e209f8a410d1aaf7bb5fd370f90ce7ba4af0fba67fb6",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/monitor.json"
+    },
+    {
+      "bytes": 280,
+      "path": "build/observer-hashes.json",
+      "sha256": "6da333949bab6e8dbc7debad33c6c120fd8d5309863fc1f45f2c0fab5690bd7b",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/observer-hashes.json"
+    },
+    {
+      "bytes": 645,
+      "path": "build/receipt.json",
+      "sha256": "9b526d0c826770b3d1ced522d239ab020594be494eab1b9d12d44397990e9c91",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/receipt.json"
+    },
+    {
+      "bytes": 11550,
+      "path": "build/requirements.txt",
+      "sha256": "ba937db9239c901a00449a2edbec1be6b1906fad3a70389ede7fa0c096884fe5",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/requirements.txt"
+    },
+    {
+      "bytes": 118788,
+      "path": "build/sources-after.json",
+      "sha256": "c11da3b463788835363124c7af7b16ec4dc53d33cdb342440a13dec7183f09eb",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/sources-after.json"
+    },
+    {
+      "bytes": 118788,
+      "path": "build/sources-before.json",
+      "sha256": "c11da3b463788835363124c7af7b16ec4dc53d33cdb342440a13dec7183f09eb",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/sources-before.json"
+    },
+    {
+      "bytes": 99,
+      "path": "build/stop.json",
+      "sha256": "e939c20e59576b16d44793876e66fa1607fcd3b8ade651551082a2d634300b3c",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v6/stop.json"
+    },
+    {
+      "bytes": 1052,
+      "path": "rejected-v5/build.log",
+      "sha256": "3ac2d312e15a01bc804d82509b9d3249e08763cb5cbc6270899a68c9b83ee402",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/build.log"
+    },
+    {
+      "bytes": 572,
+      "path": "rejected-v5/command.json",
+      "sha256": "70bcb47012ebbc1da1d2a16e5bc2cb99f18a91648c8b58a6100a2ba4936d804b",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/command.json"
+    },
+    {
+      "bytes": 6143,
+      "path": "rejected-v5/guard.py",
+      "sha256": "f661a8104edda431f9c123c54f090e9da1c8bd51f5be1f4beefb93fea8d8605e",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/guard.py"
+    },
+    {
+      "bytes": 200,
+      "path": "rejected-v5/host-before.json",
+      "sha256": "57a349cb8e5a20d7d82ddcafd96c22860c39e0d0adcad93ef6c3585f663a140f",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/host-before.json"
+    },
+    {
+      "bytes": 13285,
+      "path": "rejected-v5/monitor.json",
+      "sha256": "c9f898a13a3b6cf6580cf1e6cf006a5ec9cf16f7889322db35fd8c2e256e99c0",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/monitor.json"
+    },
+    {
+      "bytes": 341,
+      "path": "rejected-v5/receipt.json",
+      "sha256": "8b35e9142a91f38144878cf7c1db39460044772990b85a051770306f45e452a1",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/receipt.json"
+    },
+    {
+      "bytes": 118788,
+      "path": "rejected-v5/sources-after.json",
+      "sha256": "c11da3b463788835363124c7af7b16ec4dc53d33cdb342440a13dec7183f09eb",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/sources-after.json"
+    },
+    {
+      "bytes": 118788,
+      "path": "rejected-v5/sources-before.json",
+      "sha256": "c11da3b463788835363124c7af7b16ec4dc53d33cdb342440a13dec7183f09eb",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/sources-before.json"
+    },
+    {
+      "bytes": 87,
+      "path": "rejected-v5/stop.json",
+      "sha256": "50b3db7dc96f9c8281531f0cc27d9d04e272c9a0ee8ee7e2876b1dd0326c2008",
+      "source": "target/research/gkm-inventory-wheel-2026-10-17-v5/stop.json"
+    },
+    {
+      "bytes": 17651,
+      "path": "scan/admission.json",
+      "sha256": "01c433b2b7015bf1c4d340f8209a34783773c1e24956ffb2f2e3a4e5aa0b3902",
+      "source": "target/research/gkm-checkpoint-bounds-2026-10-17-v3/admission.json"
+    },
+    {
+      "bytes": 2686,
+      "path": "scan/finalization.json",
+      "sha256": "21beb56268a45b3dde36380d3267cf2e3135d32c513ee802e54055c834f13f93",
+      "source": "target/research/gkm-checkpoint-bounds-2026-10-17-v3/finalization.json"
+    },
+    {
+      "bytes": 871014,
+      "path": "scan/report.json",
+      "sha256": "bfd9d83e6cc9449215e59ff63e9cfcc1bc60a9180e00b1f61bdf001757b8fffd",
+      "source": "target/research/gkm-checkpoint-bounds-2026-10-17-v3/report.json"
+    },
+    {
+      "bytes": 892,
+      "path": "sources/benchmarks/research/common.py",
+      "sha256": "f71a0b420cad306c050111adc5e78339162a5c8752f2593e47d77fff3990af37",
+      "source": "benchmarks/research/common.py"
+    },
+    {
+      "bytes": 9148,
+      "path": "sources/paper/methods/DECISIONS.md",
+      "sha256": "1cd6fd5904b293394e89946e14caf3440393a6691a52609b765a5c6f7b1481b7",
+      "source": "paper/methods/DECISIONS.md"
+    },
+    {
+      "bytes": 60263,
+      "path": "sources/paper/methods/delegation-contracts.md",
+      "sha256": "2e6137bb6b2fb660e2a86690be7788c3ef885348238bbf339c24531a551021ba",
+      "source": "paper/methods/delegation-contracts.md"
+    },
+    {
+      "bytes": 1920,
+      "path": "sources/scripts/gkm_checkpoint_oracle.py",
+      "sha256": "ad8683a96813e6b428627594831010126c8d21fc54a50b79bce8ecc2aa701a17",
+      "source": "scripts/gkm_checkpoint_oracle.py"
+    },
+    {
+      "bytes": 4989,
+      "path": "sources/scripts/host_swap.py",
+      "sha256": "377f6636e67bbc610d8205f4f9af78b0acfdec36ca9677f7e8821994aefe3aa6",
+      "source": "scripts/host_swap.py"
+    },
+    {
+      "bytes": 54325,
+      "path": "sources/scripts/probe_gkm_checkpoint_bounds.py",
+      "sha256": "c0263d14aa03be4233d2927d4480a03eb99f0d576553f6012035bdaff8606ce1",
+      "source": "scripts/probe_gkm_checkpoint_bounds.py"
+    },
+    {
+      "bytes": 2200,
+      "path": "sources/tests/test_decoder_matrix_inventory_native.py",
+      "sha256": "10f35aaa14fa0e4045d6744ffd63bdfd804a1015305617ed923d4aa1294641e3",
+      "source": "tests/test_decoder_matrix_inventory_native.py"
+    },
+    {
+      "bytes": 24088,
+      "path": "sources/tests/test_gkm_checkpoint_bounds.py",
+      "sha256": "7d932750fdc30111e882fc527e12962135651c7af1494e0a6262e452c455ad12",
+      "source": "tests/test_gkm_checkpoint_bounds.py"
+    },
+    {
+      "bytes": 9587,
+      "path": "sources/tests/test_gkm_matrix_inventory.py",
+      "sha256": "b9b59aaca1e5bff32416602c3d40de7c0b503313a0066cb291b895e114e3218d",
+      "source": "tests/test_gkm_matrix_inventory.py"
+    },
+    {
+      "bytes": 3652,
+      "path": "sources/tests/test_host_swap.py",
+      "sha256": "dc3315b73eb75cec956ed234ebcbf4a6291f940bee4e7dd6b8549eb284c134b5",
+      "source": "tests/test_host_swap.py"
+    }
+  ],
+  "retained_wheel": "target/research/gkm-inventory-wheel-2026-10-17-v6/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+  "schema": "pllm.gkm_installed_source_archive.v1",
+  "scope": "cached local build, installed binding checks and source-only numeric admission; no decoder execution"
+}

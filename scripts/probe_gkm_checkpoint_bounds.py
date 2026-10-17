@@ -141,14 +141,18 @@ class InputFile:
 
 def host_snapshot():
     import psutil
+    from scripts.host_swap import swap_snapshot
 
-    memory, swap = psutil.virtual_memory(), psutil.swap_memory()
+    memory, swap = psutil.virtual_memory(), swap_snapshot()
     return {"total_bytes": memory.total, "available_bytes": memory.available,
-            "swap_used_bytes": swap.used, "swapout_bytes": swap.sout,
+            **swap,
             "rss_bytes": psutil.Process().memory_info().rss}
 
 
 def resource_reason(sample, baseline, estimate, *, elapsed, cpu):
+    from scripts.host_swap import validate_counter_identity
+
+    validate_counter_identity(sample, baseline)
     reserve = max(HOST_RESERVE, sample["total_bytes"] // 8)
     if sample["available_bytes"] < reserve:
         return "host_reserve_breach"
@@ -239,7 +243,8 @@ def work_observation(started, *, clock=time.monotonic):
 def imported_metadata_modules():
     """Use import-system objects, never checkout paths, as executed origins."""
     names = ("pllm", "pllm.runtime", "pllm.modeling", "pllm.model_loader",
-             "pllm.runtime.semantic_tensors", "pllm._native", "scripts.gkm_checkpoint_oracle")
+             "pllm.runtime.semantic_tensors", "pllm._native", "scripts.gkm_checkpoint_oracle",
+             "scripts.host_swap")
     return {name: importlib.import_module(name) for name in names}
 
 
@@ -756,6 +761,7 @@ def scan(report, output, guard):
             "host": guard.report(), "geometry": report["geometry"], "source": report["source"],
             "executed_metadata": report["executed_metadata"]})
         code_paths = [Path(__file__).resolve(), ROOT / "scripts/gkm_checkpoint_oracle.py",
+                      ROOT / "scripts/host_swap.py",
                       ROOT / "tests/test_gkm_checkpoint_bounds.py", ROOT / "benchmarks/research/common.py",
                       ROOT / "paper/methods/DECISIONS.md", ROOT / "paper/methods/delegation-contracts.md"]
         code = [open_input(path) for path in code_paths]
@@ -830,6 +836,7 @@ def receipt_code_identity():
     """Bind even a failed bootstrap to the small probe/oracle/test sources."""
     result = {}
     for path in (Path(__file__).resolve(), ROOT / "scripts/gkm_checkpoint_oracle.py",
+                 ROOT / "scripts/host_swap.py",
                  ROOT / "tests/test_gkm_checkpoint_bounds.py"):
         fd = os.open(path, os.O_RDONLY | os.O_CLOEXEC | os.O_NONBLOCK)
         try:

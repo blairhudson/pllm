@@ -42,8 +42,10 @@ The bounded [native capsule](../../docs/research/gkm-delegation-capsule.md) and
 [seeded-share profile](../../docs/research/gkm-seeded-shares.md) now pass their
 arithmetic and ownership checks. The separate
 [matrix inventory](../../docs/research/decoder-matrix-inventory.md) extracts
-compiler groups without selecting W8A8. Native metadata tests pass; its rebuilt
-Python binding and the source numeric scan remain host-resource blocked.
+compiler groups without selecting W8A8. Native metadata and rebuilt Python
+binding tests pass. The pinned Qwen source scan also passes its source-only
+numeric gate after correcting macOS swap telemetry. Complete numeric-graph,
+publication, actual-input-bound, state and transport admission remain open.
 
 ## Current validation host
 
