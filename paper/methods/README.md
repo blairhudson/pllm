@@ -24,6 +24,9 @@ approved bounded qualification candidate. Its torus representation still needs
 an explicit mapping to each source method; no Go backend has been approved.
 The [first admission gate](../../benchmarks/native/poulpy_refresh/README.md)
 rejects the eager key bundle before allocation. No encrypted refresh has run.
+The [staged owner review](poulpy-staged-owner-bound.md) rejects one bounded-key
+allocation policy and records the remaining ownership gaps for a tighter policy.
+The approved 8 GiB ceiling and cryptographic parameters remain unchanged.
 
 Implement the published algorithms in reusable native, compiler, and runtime
 components. Use upstream code only as specification and oracle material.

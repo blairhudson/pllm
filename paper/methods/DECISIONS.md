@@ -133,6 +133,15 @@ the rejected attempts and independent arithmetic. A bounded key-residency design
 must retain the approved parameters and price every live owner before execution.
 The 8 GiB cap remains unchanged.
 
+The separate [staged owner review](poulpy-staged-owner-bound.md) also rejects
+the proposed five-wide-ciphertext, seven-key policy when it uses the direct
+public phase scratch query. Its charged subset is 8,613,846,336 bytes, already
+23,911,744 bytes above the cap. The matrix-aware query has a smaller lower
+bound, but no complete upper bound: allocator retention, private preparation
+buffers, typed cross-role storage, and coefficient-solver setup remain unresolved.
+These source calculations authorize no encrypted execution. Parameter security
+and second-refresh numerical admission remain separate gates.
+
 ## Decision record
 
 | ID | State | Blocks |

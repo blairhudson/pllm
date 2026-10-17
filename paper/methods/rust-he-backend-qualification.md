@@ -14,6 +14,13 @@ No inspected candidate is admitted here as a complete, mature, source-matching n
 
 Already approved by the user: **Apple-M CPU development and Qwen2.5-0.5B as the common model**. These do not need to be requested again. They do not approve Lattigo, a particular Rust dependency, changed cryptographic parameters, or an unexamined nonlinear/conversion algorithm. Qwen is the common-workload adaptation; the original BERT and source-decoder obligations remain identified in the existing contracts.
 
+The subsequent [staged owner-bound review](poulpy-staged-owner-bound.md) retains
+the same parameters and 8 GiB ceiling. One seven-key allocation policy already
+exceeds that ceiling by 23,911,744 bytes. The tighter matrix-aware policy has no
+complete allocator-inclusive bound. This is source-only admission evidence;
+no encrypted refresh has run, and parameter-security and numerical re-entry
+qualification remain open.
+
 This review supplements [encrypted-computation-contracts.md](encrypted-computation-contracts.md) and [encrypted-inference.md](../reproduction-contracts/encrypted-inference.md). Their Lattigo recommendations were proposals, not adoption. Their older library pins remain historical evidence, not current release claims. This work owns this report, [its source manifest](rust-he-backend-sources.json), `benchmarks/native/poulpy_refresh/` and `scripts/qualify_rust_ckks_refresh.py`; root Cargo files and other agents' lifecycle/GKM files are outside its scope.
 
 ## 2. Requirements used for qualification
