@@ -48,9 +48,15 @@ pub(crate) fn validate_pipeline(pipeline: &ExperimentPipeline) -> Result<(), Str
             .components
             .get(slot)
             .ok_or_else(|| reject("incomplete SDK composition"))?;
-        if component.component != identity
-            || serde_json::to_value(&component.params).unwrap() != params
-        {
+        let mut actual = serde_json::to_value(&component.params).unwrap();
+        if slot == "linear" {
+            if let Some(capacity) = actual.as_object_mut().unwrap().remove("capacity") {
+                if capacity != "decoder" {
+                    return Err(reject("unsupported SDK capacity"));
+                }
+            }
+        }
+        if component.component != identity || actual != params {
             return Err(reject(
                 "incompatible SDK numerical, role, kernel or acceptance choice",
             ));
@@ -59,13 +65,27 @@ pub(crate) fn validate_pipeline(pipeline: &ExperimentPipeline) -> Result<(), Str
     Ok(())
 }
 
+fn capacity(pipeline: &ExperimentPipeline) -> pllm_core::gkm::Capacity {
+    if pipeline.components["linear"]
+        .params
+        .get("capacity")
+        .and_then(serde_json::Value::as_str)
+        == Some("decoder")
+    {
+        pllm_core::gkm::Capacity::Decoder
+    } else {
+        pllm_core::gkm::Capacity::Capsule
+    }
+}
+
 pub(crate) fn validate_experiment(document: &ExperimentDocument) -> Result<(), String> {
     validate_pipeline(&document.pipeline)?;
     if !matches!(document.deployment, ExperimentDeployment::Local { .. }) {
         return Err(reject("network-planned delegation is not admitted"));
     }
-    if !(1..=32).contains(&document.budget.max_input_tokens)
-        || !(1..=9).contains(&document.budget.max_new_tokens)
+    let expanded = capacity(&document.pipeline) == pllm_core::gkm::Capacity::Decoder;
+    if !(1..=if expanded { 512 } else { 32 }).contains(&document.budget.max_input_tokens)
+        || !(1..=if expanded { 65 } else { 9 }).contains(&document.budget.max_new_tokens)
         || !(1..=64).contains(&document.budget.requests)
     {
         return Err(reject("SDK workload exceeds the bounded request envelope"));
@@ -119,10 +139,12 @@ impl GkmRuntimeContract {
         }
         // Admit the complete declared envelope before lowering the actual query.
         // A small request must never disguise an oversized saved configuration.
-        let envelope = GkmDecoderContract::compile(
+        let capacity = capacity(&document.pipeline);
+        let envelope = GkmDecoderContract::compile_with_capacity(
             config,
             document.budget.max_input_tokens as usize,
             document.budget.max_new_tokens as usize - 1,
+            capacity,
         )?;
         let decoder = if input_rows as u64 == document.budget.max_input_tokens
             && output_tokens as u64 == document.budget.max_new_tokens
@@ -130,7 +152,12 @@ impl GkmRuntimeContract {
             envelope
         } else {
             drop(envelope);
-            GkmDecoderContract::compile(config, input_rows, output_tokens - 1)?
+            GkmDecoderContract::compile_with_capacity(
+                config,
+                input_rows,
+                output_tokens - 1,
+                capacity,
+            )?
         };
         Ok(Self {
             schema_version: SCHEMA,

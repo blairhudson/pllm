@@ -44,6 +44,10 @@ _MAX_HEADER_BYTES = 64 << 10
 _MAX_TOKENIZER_BYTES = 256 << 10
 _MAX_FILES = 64
 _MAX_EXPERIMENT_BYTES = 32 << 10
+_DECODER_SOURCE_BYTES = 4 << 30
+_DECODER_METADATA_BYTES = 32 << 20
+_DECODER_TOKENIZER_BYTES = 16 << 20
+_DECODER_HEADER_BYTES = 4 << 20
 _DECODER_SCHEMA = "pllm.gkm.decoder-reference.v1"
 _RUNTIME_SCHEMA = "pllm.gkm.sdk-contract.v1"
 _DTYPES = {"F32": np.dtype("<f4"), "F16": np.dtype("<f2"),
@@ -107,24 +111,35 @@ def _read_bounded(path: Path, limit: int) -> bytes:
     before = _identity(path)
     if before[9] > limit:
         raise DelegatedSourceError(f"GKM {path.name} exceeds its byte limit")
-    return _read_range(path, before, 0, before[9])
+    return _read_range(path, before, 0, before[9], limit=limit)
 
 
-def _files(root: Path, source_bytes: int) -> tuple[tuple[str, tuple[int, ...]], ...]:
+def _files(root: Path, source_bytes: int, capacity="capsule") -> tuple[tuple[str, tuple[int, ...]], ...]:
     """Bound directory traversal and every file before any shared hashing/reader."""
     result = []
     total = 0
+    expanded = capacity == "decoder"
+    metadata_limit = _DECODER_METADATA_BYTES if expanded else _MAX_METADATA_BYTES
+    header_limit = _DECODER_HEADER_BYTES if expanded else _MAX_HEADER_BYTES
+    limits = dict(_METADATA_LIMITS)
+    if expanded:
+        limits.update({"tokenizer.json": _DECODER_TOKENIZER_BYTES,
+                       "merges.txt": 8 << 20, "vocab.json": 8 << 20})
     with os.scandir(root) as entries:
-        for entry in entries:
-            if len(result) >= _MAX_FILES:
+        for count, entry in enumerate(entries):
+            if count >= _MAX_FILES:
                 raise DelegatedSourceError("GKM source file cardinality exceeds its limit")
             name = entry.name
-            if name in _METADATA_LIMITS:
-                limit = _METADATA_LIMITS[name]
+            if name in limits:
+                limit = limits[name]
             elif name.endswith(".safetensors.index.json"):
-                limit = _MAX_HEADER_BYTES
+                limit = header_limit
             elif name.endswith(".safetensors"):
-                limit = source_bytes + _MAX_HEADER_BYTES + 8
+                limit = source_bytes + header_limit + 8
+            elif expanded and not name.endswith((".bin", ".gguf", ".npz", ".json")):
+                # Shared source locking ignores documentation and unrelated
+                # derived artifacts. Never read them; traversal remains bounded.
+                continue
             else:
                 raise DelegatedSourceError(f"GKM unsupported source file: {name}")
             identity = _identity(root / name)
@@ -132,7 +147,7 @@ def _files(root: Path, source_bytes: int) -> tuple[tuple[str, tuple[int, ...]], 
             if size > limit:
                 raise DelegatedSourceError(f"GKM {name} exceeds its byte limit")
             total += size
-            if total > source_bytes + _MAX_METADATA_BYTES:
+            if total > source_bytes + metadata_limit:
                 raise DelegatedSourceError("GKM source files exceed their total byte limit")
             result.append((name, identity))
     names = {name for name, _ in result}
@@ -143,22 +158,22 @@ def _files(root: Path, source_bytes: int) -> tuple[tuple[str, tuple[int, ...]], 
     return tuple(sorted(result))
 
 
-def _unchanged(root, source_bytes, identities):
+def _unchanged(root, source_bytes, identities, capacity="capsule"):
     try:
-        current = _files(root, source_bytes)
+        current = _files(root, source_bytes, capacity)
     except (OSError, DelegatedSourceError) as exc:
         raise DelegatedSourceError("GKM source changed after admission") from exc
     if current != identities:
         raise DelegatedSourceError("GKM source changed after admission")
 
 
-def _locked(root, model, source_bytes, identities):
+def _locked(root, model, source_bytes, identities, capacity="capsule"):
     """Run the actual shared lock implementation through a fixed-size file view."""
-    _unchanged(root, source_bytes, identities)
+    _unchanged(root, source_bytes, identities, capacity)
     if not Path(model.source).expanduser().is_dir():
         raise DelegatedSourceError("GKM local source changed after admission")
     locked = model_loader._source_lock(_LockPath(root, dict(identities)), model)
-    _unchanged(root, source_bytes, identities)
+    _unchanged(root, source_bytes, identities, capacity)
     return locked
 
 
@@ -268,9 +283,9 @@ class _LockPath:
         return _read_range(self.path, identity, 0, identity[9]).decode(encoding)
 
 
-def _read_range(path, identity, offset, size):
+def _read_range(path, identity, offset, size, *, limit=_MAX_SOURCE_BYTES):
     if (type(offset) is not int or type(size) is not int or offset < 0
-            or not 0 <= size <= _MAX_SOURCE_BYTES or offset + size > identity[9]):
+            or not 0 <= size <= min(limit, _DECODER_METADATA_BYTES) or offset + size > identity[9]):
         raise DelegatedSourceError("GKM source read range exceeds admitted file bounds")
     with path.open("rb") as stream:
         if _stat_identity(os.fstat(stream.fileno())) != identity[6:]:
@@ -308,7 +323,11 @@ class _AdmittedTensorStore(SafeTensorStore):
 def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
     """Bound all headers/ranges before shared shape and float-dtype preflight."""
 
-    _unchanged(root, contract["source_float32_bytes"], identities)
+    capacity = _capacity(contract)
+    expanded = capacity == "decoder"
+    header_limit = _DECODER_HEADER_BYTES if expanded else _MAX_HEADER_BYTES
+    metadata_limit = _DECODER_METADATA_BYTES if expanded else _MAX_METADATA_BYTES
+    _unchanged(root, contract["source_float32_bytes"], identities, capacity)
     shapes = {key: tuple(shape) for key, shape in contract["source_shapes"].items()}
     locations = {}
     specs = {}
@@ -323,8 +342,8 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
         prefix = _read_range(path, identity, 0, 8)
         size = int.from_bytes(prefix, "little")
         header_bytes += size
-        if (len(prefix) != 8 or size > _MAX_HEADER_BYTES or size + 8 > identity[9]
-                or header_bytes > _MAX_METADATA_BYTES):
+        if (len(prefix) != 8 or size > header_limit or size + 8 > identity[9]
+                or header_bytes > metadata_limit):
             raise DelegatedSourceError("GKM Safetensors header exceeds its byte limit")
         header = _json(_read_range(path, identity, 8, size), "Safetensors header")
         metadata = header.pop("__metadata__", {})
@@ -339,8 +358,9 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
             if (type(item) is not dict or set(item) != {"dtype", "shape", "data_offsets"}
                     or type(item["dtype"]) is not str or item["dtype"] not in _DTYPES
                     or type(item["shape"]) is not list or not 1 <= len(item["shape"]) <= 2
-                    or any(type(d) is not int or not 1 <= d <= 4096 for d in item["shape"])
-                    or math.prod(item["shape"]) > 262144):
+                    or any(type(d) is not int or not 1 <= d <= (262144 if expanded else 4096)
+                           for d in item["shape"])
+                    or math.prod(item["shape"]) > (1 << 28 if expanded else 262144)):
                 raise DelegatedSourceError("GKM source tensor has unsupported shape or dtype")
             shape, dtype = tuple(item["shape"]), item["dtype"]
             offsets = item["data_offsets"]
@@ -364,7 +384,7 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
     if len(indexes) > 1:
         raise DelegatedSourceError("GKM multiple Safetensors indexes are unsupported")
     if indexes:
-        index = _json(_read_bounded(root / indexes[0], _MAX_HEADER_BYTES), "tensor index")
+        index = _json(_read_bounded(root / indexes[0], header_limit), "tensor index")
         # Exact equality also rejects external paths, unlisted shards/tensors,
         # hidden extras, duplicate ownership and absent index entries.
         if index.get("weight_map") != locations:
@@ -376,7 +396,7 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
     preflight_semantic_checkpoint(plan, store)
     if {store.resolve(name) for name in shapes} != set(locations):
         raise DelegatedSourceError("GKM source tensor identities differ")
-    _unchanged(root, contract["source_float32_bytes"], identities)
+    _unchanged(root, contract["source_float32_bytes"], identities, capacity)
     return store, tuple(sorted(specs.items()))
 
 
@@ -412,7 +432,8 @@ def _manifest(root, model, raw, identities):
 def _tokenizer(root, manifest, config, contract):
     from tokenizers import Tokenizer as HFTokenizer
 
-    raw = _read_bounded(root / "tokenizer.json", _MAX_TOKENIZER_BYTES)
+    expanded = _capacity(contract) == "decoder"
+    raw = _read_bounded(root / "tokenizer.json", _DECODER_TOKENIZER_BYTES if expanded else _MAX_TOKENIZER_BYTES)
     document = _json(raw, "tokenizer.json")
     # Batch-one execution has no admitted padding owner. Reject before creating
     # the tokenizer: a tiny document can request a billion padded output IDs.
@@ -423,8 +444,9 @@ def _tokenizer(root, manifest, config, contract):
     model = document.get("model")
     vocab = model.get("vocab") if isinstance(model, dict) else None
     added = document.get("added_tokens", [])
-    if (not isinstance(vocab, (dict, list)) or not 1 <= len(vocab) <= 256
-            or not isinstance(added, list) or len(added) > 256):
+    maximum = contract["vocabulary"] if expanded else 256
+    if (not isinstance(vocab, (dict, list)) or not 1 <= len(vocab) <= maximum
+            or not isinstance(added, list) or len(added) > maximum):
         raise DelegatedSourceError("GKM tokenizer vocabulary exceeds its complete-table limit")
     # Bound numeric IDs before the native tokenizer can build reverse indexes.
     # A small JSON object with sparse billion-wide IDs is not a small vocabulary.
@@ -459,10 +481,13 @@ def _tokenizer(root, manifest, config, contract):
         raise DelegatedSourceError("GKM invalid tokenizer.json model") from exc
     tokenizer = TokenizersJSONTokenizer(inner, bos, eos_ids[0])
     complete = inner.get_vocab(with_added_tokens=True)
-    if (tokenizer.vocab_size != contract["vocabulary"] or len(complete) != contract["vocabulary"]
-            or set(complete.values()) != set(range(contract["vocabulary"]))
+    expected_size = tokenizer.vocab_size if expanded else contract["vocabulary"]
+    if (not 1 <= expected_size <= contract["vocabulary"] or len(complete) != expected_size
+            or set(complete.values()) != set(range(expected_size))
             or any(inner.id_to_token(i) != text for text, i in complete.items())):
         raise DelegatedSourceError("GKM tokenizer must cover the complete table/head vocabulary")
+    if any(i >= expected_size for i in [bos, *eos_ids]):
+        raise DelegatedSourceError("GKM special tokens require original tokenizer entries")
     if inner.truncation is not None:
         raise DelegatedSourceError("GKM tokenizer must not silently truncate source input")
     # Same descriptor/wrapper contract as the ordinary client, built entirely
@@ -518,7 +543,8 @@ class AdmittedSource:
                 or not 1 <= rows <= experiment.budget.max_input_tokens
                 or not 1 <= outputs <= experiment.budget.max_new_tokens):
             raise DelegatedSourceError("GKM actual request exceeds the admitted Experiment budget")
-        decoder_bytes = decoder_contract(self.config, input_rows=rows, decode_steps=outputs - 1)
+        decoder_bytes = decoder_contract(self.config, input_rows=rows, decode_steps=outputs - 1,
+                                         capacity=self.capacity)
         return _bind_runtime(experiment, encoded, self.config_bytes, decoder_bytes,
                              self.source_lock_digest, self.tokenizer_digest)
 
@@ -529,6 +555,10 @@ class AdmittedSource:
     @property
     def contract_digest(self) -> str:
         return hashlib.sha256(_DECODER_SCHEMA.encode() + b"\0" + self.contract_bytes).hexdigest()
+
+    @property
+    def capacity(self) -> str:
+        return _capacity(self.contract)
 
     @property
     def runtime_contract_digest(self) -> str:
@@ -585,8 +615,10 @@ class AdmittedSource:
     def load_values(self) -> LoadedSource:
         """Load exact admitted tensors after the caller has reserved its payload."""
         contract = self.contract
+        if self.capacity != "capsule":
+            raise DelegatedSourceError("GKM decoder capacity requires streaming native source import")
         expected_lock = (self.checkpoint_digest, self.source_lock_digest, self.source_lock)
-        if _locked(self.path, self.model, self.source_float32_bytes, self._identities) != expected_lock:
+        if _locked(self.path, self.model, self.source_float32_bytes, self._identities, self.capacity) != expected_lock:
             raise DelegatedSourceError("GKM source lock changed after admission")
         store, specs = _store(self.path, self._identities, contract)
         tensors = {}
@@ -605,7 +637,7 @@ class AdmittedSource:
                 store.drop(name)
             if sum(map(len, tensors.values())) != self.source_float32_bytes:
                 raise DelegatedSourceError("GKM source byte accounting differs")
-            if _locked(self.path, self.model, self.source_float32_bytes, self._identities) != expected_lock:
+            if _locked(self.path, self.model, self.source_float32_bytes, self._identities, self.capacity) != expected_lock:
                 raise DelegatedSourceError("GKM source lock changed while loading values")
             return LoadedSource(self, tensors, {name: tensors[name] for name in contract["local_tensors"]})
         except BaseException:
@@ -625,7 +657,7 @@ class AdmittedSource:
         self.runtime_contract(experiment, rows, outputs)
         contract = self.contract
         expected_lock = (self.checkpoint_digest, self.source_lock_digest, self.source_lock)
-        if _locked(self.path, self.model, self.source_float32_bytes, self._identities) != expected_lock:
+        if _locked(self.path, self.model, self.source_float32_bytes, self._identities, self.capacity) != expected_lock:
             raise DelegatedSourceError("GKM source lock changed after admission")
         store, specs = _store(self.path, self._identities, contract)
         importer = native = None
@@ -658,7 +690,7 @@ class AdmittedSource:
                     del frame
             if total != self.source_float32_bytes:
                 raise DelegatedSourceError("GKM source byte accounting differs")
-            if _locked(self.path, self.model, self.source_float32_bytes, self._identities) != expected_lock:
+            if _locked(self.path, self.model, self.source_float32_bytes, self._identities, self.capacity) != expected_lock:
                 raise DelegatedSourceError("GKM source lock changed while loading values")
             if cancelled is not None and cancelled():
                 raise DelegatedSourceError("GKM source import cancelled")
@@ -734,22 +766,35 @@ class LoadedSource:
         self.close()
 
 
+def _capacity(contract):
+    resources = contract.get("decoder_resources")
+    if resources is None:
+        return "capsule"
+    if type(resources) is not dict or resources.get("profile") != "pllm.gkm.decoder-capacity.v1":
+        raise DelegatedSourceError("GKM invalid native capacity contract")
+    return "decoder"
+
+
 def _validate_contract(contract):
+    expanded = _capacity(contract) == "decoder"
     shapes = contract.get("source_shapes")
     if (contract.get("schema_version") != _DECODER_SCHEMA or type(shapes) is not dict
-            or not 1 <= len(shapes) <= 256):
+            or not 1 <= len(shapes) <= (2048 if expanded else 256)):
         raise DelegatedSourceError("GKM invalid native source-shape contract")
     for name, shape in shapes.items():
         if (type(name) is not str or not name or type(shape) is not list or not 1 <= len(shape) <= 2
-                or any(type(d) is not int or not 1 <= d <= 4096 for d in shape)
-                or math.prod(shape) > 262144):
+                or any(type(d) is not int or not 1 <= d <= (262144 if expanded else 4096) for d in shape)
+                or math.prod(shape) > (1 << 28 if expanded else 262144)):
             raise DelegatedSourceError("GKM native source shape exceeds its limit")
     source_bytes = sum(math.prod(shape) * 4 for shape in shapes.values())
     if (type(contract.get("source_float32_bytes")) is not int
-            or source_bytes != contract["source_float32_bytes"] or not 0 < source_bytes <= _MAX_SOURCE_BYTES
-            or type(contract.get("vocabulary")) is not int or not 1 <= contract["vocabulary"] <= 256
+            or source_bytes != contract["source_float32_bytes"]
+            or not 0 < source_bytes <= (_DECODER_SOURCE_BYTES if expanded else _MAX_SOURCE_BYTES)
+            or type(contract.get("vocabulary")) is not int
+            or not 1 <= contract["vocabulary"] <= (262144 if expanded else 256)
             or type(contract.get("execution_payload_estimate_bytes")) is not int
-            or not source_bytes <= contract["execution_payload_estimate_bytes"] <= 64 << 20
+            or not 0 < contract["execution_payload_estimate_bytes"] <= (_DECODER_SOURCE_BYTES if expanded else 64 << 20)
+            or (not expanded and contract["execution_payload_estimate_bytes"] < source_bytes)
             or type(contract.get("local_tensors")) is not list
             or any(type(name) is not str or name not in shapes for name in contract["local_tensors"])):
         raise DelegatedSourceError("GKM native source payload exceeds its bounded contract")
@@ -794,7 +839,7 @@ def _bind_runtime(experiment, experiment_bytes, config_bytes, decoder_bytes,
     return result
 
 
-def admit_source(
+def _admit_source(
     model_or_experiment: Model | Experiment | str | Mapping[str, Any], *,
     input_rows: int | None = None, decode_steps: int | None = None,
 ) -> AdmittedSource:
@@ -834,19 +879,23 @@ def admit_source(
         if isinstance(cfg, dict) and any(cfg.get(key) is not None for key in ("quantization", "quantization_config")):
             raise DelegatedSourceError("GKM requires original unquantized floating-point tensors")
     # Full-envelope geometry precedes hashing, header readers and tokenizers.
-    envelope_bytes = decoder_contract(raw_config, input_rows=input_rows, decode_steps=decode_steps)
+    capacity = "capsule" if experiment is None else experiment.pipeline.components["linear"].params.get("capacity", "capsule")
+    envelope_bytes = decoder_contract(raw_config, input_rows=input_rows, decode_steps=decode_steps, capacity=capacity)
     envelope = _json(envelope_bytes, "native envelope contract")
     source_bytes = _validate_contract(envelope)
-    identities = _files(root, source_bytes)
+    if _capacity(envelope) != capacity:
+        raise DelegatedSourceError("GKM native capacity differs from Experiment")
+    identities = _files(root, source_bytes, capacity)
     if dict(identities)["config.json"] != original_identity:
         raise DelegatedSourceError("GKM source configuration changed during admission")
     store, specs = _store(root, identities, envelope)
     store.clear_cache()
-    checkpoint, lock_digest, lock = _locked(root, model, source_bytes, identities)
+    checkpoint, lock_digest, lock = _locked(root, model, source_bytes, identities, capacity)
     hashes = {row["path"]: row["sha256"] for row in lock["files"]}
     if hashes["config.json"] != hashlib.sha256(original).hexdigest():
         raise DelegatedSourceError("GKM source configuration differs from its lock")
-    tokenizer_bytes = _read_bounded(root / "tokenizer.json", _MAX_TOKENIZER_BYTES)
+    tokenizer_bytes = _read_bounded(root / "tokenizer.json", _DECODER_TOKENIZER_BYTES
+                                    if capacity == "decoder" else _MAX_TOKENIZER_BYTES)
     tokenizer_digest = hashlib.sha256(tokenizer_bytes).hexdigest()
     if hashes["tokenizer.json"] != tokenizer_digest:
         raise DelegatedSourceError("GKM tokenizer differs from its source lock")
@@ -860,7 +909,7 @@ def admit_source(
     descriptor = _tokenizer(root, manifest, manifest.metadata["text_config"], envelope)
     if descriptor.pop("model") != tokenizer_bytes:
         raise DelegatedSourceError("GKM tokenizer changed during construction")
-    if _locked(root, model, source_bytes, identities) != (checkpoint, lock_digest, lock):
+    if _locked(root, model, source_bytes, identities, capacity) != (checkpoint, lock_digest, lock):
         raise DelegatedSourceError("GKM source lock changed during admission")
     manifest.metadata.update(model_spec=model.to_spec(), checkpoint_digest=checkpoint,
                              source_lock_digest=lock_digest, source_lock=lock, config_only=False)
@@ -871,6 +920,21 @@ def admit_source(
         _canonical(manifest.to_dict(include_fingerprint=False)), _canonical(descriptor), identities, specs,
         experiment_bytes, runtime_bytes,
     )
+
+
+def admit_source(model_or_experiment, *, input_rows=None, decode_steps=None) -> AdmittedSource:
+    """Admit source metadata and the complete native envelope before tensor reads."""
+    if (isinstance(model_or_experiment, Experiment)
+            and model_or_experiment.pipeline.components.get("linear") is not None
+            and model_or_experiment.pipeline.components["linear"].params.get("capacity") == "decoder"):
+        from pllm.deployment.resources import reserve_incremental_memory
+
+        _experiment_bytes(model_or_experiment)
+        # Full-vocabulary JSON parsing, reverse indexes, tokenizer construction,
+        # source graph copies and retained raw bytes are real metadata owners.
+        with reserve_incremental_memory(384 << 20):
+            return _admit_source(model_or_experiment, input_rows=input_rows, decode_steps=decode_steps)
+    return _admit_source(model_or_experiment, input_rows=input_rows, decode_steps=decode_steps)
 
 
 __all__ = ["AdmittedSource", "DelegatedSourceError", "LoadedSource", "admit_source"]

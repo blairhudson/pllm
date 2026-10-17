@@ -5,16 +5,16 @@
 
 use std::sync::atomic::{AtomicU8, AtomicUsize};
 
-use super::super::{Stage, MAX_VOCABULARY, NUMERIC_PROFILE};
+use super::super::{Stage, NUMERIC_PROFILE};
 use super::*;
 
-/// Additional process-global allowance. This does not replace, enlarge, or
-/// reclassify the existing 16 MiB complete-publication envelope.
+/// Capsule process allowance, also subject to the shared Decoder process cap.
 pub const MAX_PROCESS_WIRE_BYTES: usize = 8 << 20;
 pub const MAX_PUBLICATION_WIRE_BYTES: usize = 512 << 10;
 pub const MAX_WIRE_FRAME_BYTES: usize = 8192;
 
 static WIRE_BYTES: AtomicUsize = AtomicUsize::new(0);
+static CAPSULE_WIRE_BYTES: AtomicUsize = AtomicUsize::new(0);
 
 /// Logical payload accounting, not RSS. Includes wire-owned public source
 /// copies, schedules, control/scratch allowances, and every retained output frame.
@@ -26,30 +26,58 @@ pub struct WireResources {
 
 impl WireResources {
     pub fn current() -> Self {
+        Self::current_with_capacity(Capacity::Capsule)
+    }
+
+    /// Capsule reports its unchanged sub-pool; Decoder reports the complete
+    /// process pool, including Capsule reservations. These are overlapping caps.
+    pub fn current_with_capacity(capacity: Capacity) -> Self {
         Self {
-            process_live_bytes: WIRE_BYTES.load(Ordering::Acquire),
-            process_limit_bytes: MAX_PROCESS_WIRE_BYTES,
+            process_live_bytes: if capacity == Capacity::Capsule {
+                CAPSULE_WIRE_BYTES.load(Ordering::Acquire)
+            } else {
+                WIRE_BYTES.load(Ordering::Acquire)
+            },
+            process_limit_bytes: capacity.max_process_wire_bytes(),
         }
     }
 }
 
-pub(crate) struct WirePermit(usize);
+pub(crate) struct WirePermit {
+    bytes: usize,
+    capacity: Capacity,
+}
 
 impl WirePermit {
-    pub(crate) fn acquire(bytes: usize) -> Result<Self, Error> {
-        WIRE_BYTES
+    pub(crate) fn acquire(bytes: usize, capacity: Capacity) -> Result<Self, Error> {
+        if capacity == Capacity::Capsule {
+            CAPSULE_WIRE_BYTES
+                .fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
+                    used.checked_add(bytes)
+                        .filter(|&n| n <= MAX_PROCESS_WIRE_BYTES)
+                })
+                .map_err(|_| Error::Limit)?;
+        }
+        let result = WIRE_BYTES
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |used| {
                 used.checked_add(bytes)
-                    .filter(|&n| n <= MAX_PROCESS_WIRE_BYTES)
+                    .filter(|&n| n <= Capacity::Decoder.max_process_wire_bytes())
             })
-            .map_err(|_| Error::Limit)?;
-        Ok(Self(bytes))
+            .map_err(|_| Error::Limit);
+        if result.is_err() && capacity == Capacity::Capsule {
+            CAPSULE_WIRE_BYTES.fetch_sub(bytes, Ordering::AcqRel);
+        }
+        result?;
+        Ok(Self { bytes, capacity })
     }
 }
 
 impl Drop for WirePermit {
     fn drop(&mut self) {
-        WIRE_BYTES.fetch_sub(self.0, Ordering::AcqRel);
+        WIRE_BYTES.fetch_sub(self.bytes, Ordering::AcqRel);
+        if self.capacity == Capacity::Capsule {
+            CAPSULE_WIRE_BYTES.fetch_sub(self.bytes, Ordering::AcqRel);
+        }
     }
 }
 
@@ -75,11 +103,20 @@ impl WireBytes {
         self.bytes.is_empty()
     }
 
-    pub(crate) fn allocate(length: usize) -> Result<Self, Error> {
-        if length > MAX_PUBLICATION_WIRE_BYTES {
+    pub fn capacity(&self) -> Capacity {
+        self._permit.capacity
+    }
+
+    pub(crate) fn allocate(length: usize, capacity: Capacity) -> Result<Self, Error> {
+        if length > capacity.max_publication_wire_bytes() {
             return Err(Error::Limit);
         }
-        let permit = WirePermit::acquire(length + size_of::<Self>() + 64)?;
+        let permit = WirePermit::acquire(
+            length
+                .checked_add(size_of::<Self>() + 64)
+                .ok_or(Error::Limit)?,
+            capacity,
+        )?;
         let bytes = payload::capacity(length)?;
         // Never grow a buffer beyond the capacity admitted before allocation.
         if bytes.capacity() != length {
@@ -106,6 +143,9 @@ pub(crate) struct Cursor<'a> {
 impl<'a> Cursor<'a> {
     pub(crate) fn new(bytes: &'a [u8]) -> Self {
         Self { bytes, at: 0 }
+    }
+    pub(crate) fn position(&self) -> usize {
+        self.at
     }
     pub(crate) fn take(&mut self, length: usize) -> Result<&'a [u8], Error> {
         let end = self.at.checked_add(length).ok_or(Error::Limit)?;
@@ -199,10 +239,11 @@ fn encode_frame(
         return Err(Error::Binding);
     }
     let length = HEADER.checked_add(body.len()).ok_or(Error::Limit)?;
-    if length > MAX_WIRE_FRAME_BYTES {
+    let capacity = lease.budget.publication.capacity;
+    if length > capacity.max_wire_frame_bytes() {
         return Err(Error::Limit);
     }
-    let mut out = WireBytes::allocate(length)?;
+    let mut out = WireBytes::allocate(length, capacity)?;
     out._lease = Some(Arc::clone(lease));
     out.extend(MAGIC);
     out.extend(&[kind, 0]); // Version 1 admits full shares only, never seed frames.
@@ -232,8 +273,8 @@ struct Frame<'a> {
 }
 
 impl<'a> Frame<'a> {
-    fn decode(bytes: &'a [u8], kind: u8) -> Result<Self, Error> {
-        if bytes.len() > MAX_WIRE_FRAME_BYTES {
+    fn decode(bytes: &'a [u8], kind: u8, owner: &Publication) -> Result<Self, Error> {
+        if bytes.len() > owner.capacity.max_wire_frame_bytes() {
             return Err(Error::Limit);
         }
         let mut cursor = Cursor::new(bytes);
@@ -271,7 +312,7 @@ impl<'a> Frame<'a> {
             profile: SharingProfile::FullShares,
         };
         if total == 0
-            || total as usize > MAX_WINDOW_STEPS
+            || total as usize > owner.capacity.max_window_steps()
             || ordinal >= total
             || sequence >= MAX_WINDOWS
             || cursor.array::<32>()? != request_id(&binding)
@@ -279,17 +320,8 @@ impl<'a> Frame<'a> {
             return Err(Error::Binding);
         }
         let dimensions = (cursor.u32()? as usize, cursor.u32()? as usize);
-        if dimensions.0 == 0
-            || dimensions.1 == 0
-            || dimensions.1 > MAX_DIMENSION
-            || dimensions.0
-                > if step == Step::Lookup {
-                    MAX_VOCABULARY
-                } else {
-                    MAX_DIMENSION
-                }
-        {
-            return Err(Error::Shape);
+        if publication != owner.digest || dimensions != shape(owner, step)? {
+            return Err(Error::Binding);
         }
         let length = cursor.u32()? as usize;
         let body = cursor.take(length)?;
@@ -346,8 +378,16 @@ impl Window {
         if self.profile != SharingProfile::FullShares || self.completed != 0 {
             return Err(Error::Binding);
         }
+        let max_values = self
+            .publication
+            .matrices
+            .iter()
+            .map(|m| m.rows.max(m.columns))
+            .max()
+            .unwrap();
         let permit = WirePermit::acquire(
-            size_of::<ClientWireWindow>() + 2 * MAX_DIMENSION * 8 + MAX_WINDOW_STEPS * 33 + 1024,
+            size_of::<ClientWireWindow>() + 2 * max_values * 8 + self.plan.len() * 33 + 1024,
+            self.publication.capacity,
         )?;
         Ok(ClientWireWindow {
             request: self.request_id(),
@@ -373,7 +413,7 @@ impl ClientWireWindow {
         if self.started {
             return Err(Error::Retired);
         }
-        let mut body = [0u8; MAX_WINDOW_STEPS * 33];
+        let mut body = payload::filled(window.plan.len() * 33, 0u8)?;
         for (bytes, &step) in body.chunks_exact_mut(33).zip(window.plan.iter()) {
             bytes.copy_from_slice(&step_bytes(step));
         }
@@ -413,8 +453,8 @@ impl ClientWireWindow {
         let pending = self.take_ready()?.linear(input)?;
         let encode = |worker| {
             let share = pending.share(worker);
-            let mut bytes = Zeroizing::new([0u8; MAX_DIMENSION * 8]);
             let values = share.values().ok_or(Error::Binding)?;
+            let mut bytes = Zeroizing::new(payload::filled(values.len() * 8, 0u8)?);
             for (out, value) in bytes.chunks_exact_mut(8).zip(values) {
                 out.copy_from_slice(&value.to_le_bytes());
             }
@@ -456,12 +496,12 @@ impl ClientWireWindow {
             ClientState::Linear(pending) => {
                 let decode = |worker, bytes| {
                     let share = pending.share(worker);
-                    let frame = Frame::decode(bytes, REPLY)?;
+                    let frame = Frame::decode(bytes, REPLY, &pending.window.publication)?;
                     frame.validate(share.binding(), &pending.window.publication)?;
                     if frame.body.len() != share.rows * 8 {
                         return Err(Error::Shape);
                     }
-                    let mut values = Zeroizing::new([0u64; MAX_DIMENSION]);
+                    let mut values = Zeroizing::new(payload::filled(share.rows, 0u64)?);
                     for (out, bytes) in values.iter_mut().zip(frame.body.chunks_exact(8)) {
                         *out = u64::from_le_bytes(bytes.try_into().unwrap());
                     }
@@ -474,7 +514,7 @@ impl ClientWireWindow {
             ClientState::Lookup(pending) => {
                 let decode = |worker, bytes| {
                     let share = pending.share(worker);
-                    let frame = Frame::decode(bytes, REPLY)?;
+                    let frame = Frame::decode(bytes, REPLY, &pending.window.publication)?;
                     frame.validate(share.binding(), &pending.window.publication)?;
                     LookupResponse::from_untrusted(&share, frame.binding, frame.body)
                 };
@@ -501,6 +541,15 @@ impl ClientWireWindow {
     pub fn abort(&mut self) {
         self.state = None;
     }
+}
+
+// Constructor rollback must destroy every admitted payload before releasing its
+// wire reservation. A guard fixes that order independently of function parameter
+// or local-variable drop order, including a failed native Budget admission.
+struct AdmittedWorkerSources {
+    matrices: Vec<I16Matrix>,
+    table: FloatTable,
+    permit: WirePermit,
 }
 
 struct WorkerSource {
@@ -550,19 +599,41 @@ impl WorkerWire {
         stages: &[Stage<'_>],
         table: &FloatTable,
     ) -> Result<Self, Error> {
-        let permit =
-            Self::validate_sources(&publication, authenticated_owner_digest, stages, table)?;
+        let permit = Self::validate_sources(
+            &publication,
+            authenticated_owner_digest,
+            stages.iter().map(|s| (s.id, s.matrix)),
+            table,
+        )?;
+        // Reject exhausted publication handles before any variable-size source
+        // copy. On later copy/validation failures, locals destroy those payloads
+        // before this budget and the earlier wire permit are released.
+        let budget = Budget::new(&publication)?;
         let mut matrices = payload::capacity(stages.len())?;
         for stage in stages {
-            matrices.push(I16Matrix::from_encoded(
+            matrices.push(I16Matrix::from_encoded_with_capacity(
                 stage.matrix.rows,
                 stage.matrix.columns,
                 &stage.matrix.weights,
                 &stage.matrix.input_bounds,
+                publication.capacity,
             )?);
         }
-        let table = FloatTable::from_le_bytes(table.vocabulary, table.width, &table.bytes)?;
-        Self::with_sources(publication, worker, matrices, table, permit)
+        let table = FloatTable::from_le_bytes_with_capacity(
+            table.vocabulary,
+            table.width,
+            &table.bytes,
+            publication.capacity,
+        )?;
+        Ok(Self::with_sources(
+            budget,
+            worker,
+            AdmittedWorkerSources {
+                matrices,
+                table,
+                permit,
+            },
+        ))
     }
 
     /// Moves immutable source owners into one party without duplicating their
@@ -582,21 +653,27 @@ impl WorkerWire {
         {
             return Err(Error::Shape);
         }
-        let stages = payload::collect(
-            ids.iter()
-                .zip(&matrices)
-                .map(|(&id, matrix)| Stage { id, matrix }),
+        let permit = Self::validate_sources(
+            &publication,
+            authenticated_owner_digest,
+            ids.iter().copied().zip(&matrices),
+            &table,
         )?;
-        let permit =
-            Self::validate_sources(&publication, authenticated_owner_digest, &stages, &table)?;
-        drop(stages);
-        Self::with_sources(publication, worker, matrices, table, permit)
+        // These owners arrived as parameters, whose destruction would follow
+        // local permit destruction on `?`. Adopt them before fallible admission.
+        let sources = AdmittedWorkerSources {
+            matrices,
+            table,
+            permit,
+        };
+        let budget = Budget::new(&publication)?;
+        Ok(Self::with_sources(budget, worker, sources))
     }
 
-    fn validate_sources(
+    fn validate_sources<'a>(
         publication: &Publication,
         authenticated_owner_digest: [u8; 32],
-        stages: &[Stage<'_>],
+        stages: impl ExactSizeIterator<Item = ([u8; 32], &'a I16Matrix)>,
         table: &FloatTable,
     ) -> Result<WirePermit, Error> {
         if publication.digest != authenticated_owner_digest
@@ -607,12 +684,13 @@ impl WorkerWire {
         {
             return Err(Error::Binding);
         }
-        for (stage, expected) in stages.iter().zip(&publication.matrices) {
-            if stage.id != expected.id
-                || stage.matrix.digest != expected.digest
-                || stage.matrix.shape() != (expected.rows, expected.columns)
-                || stage.matrix.input_bounds != expected.input_bounds
-                || stage.matrix.output_bounds != expected.output_bounds
+        let count = stages.len();
+        for ((id, matrix), expected) in stages.zip(&publication.matrices) {
+            if id != expected.id
+                || matrix.digest != expected.digest
+                || matrix.shape() != (expected.rows, expected.columns)
+                || matrix.input_bounds != expected.input_bounds
+                || matrix.output_bounds != expected.output_bounds
             {
                 return Err(Error::Binding);
             }
@@ -631,33 +709,29 @@ impl WorkerWire {
             resources.source_weight_bytes
                 + resources.source_bound_bytes
                 + resources.source_table_bytes
-                + stages.len() * size_of::<I16Matrix>()
+                + count * size_of::<I16Matrix>()
                 + size_of::<WorkerSource>()
                 + size_of::<Self>()
                 + 1024,
+            publication.capacity,
         )
     }
 
-    fn with_sources(
-        publication: Arc<Publication>,
-        worker: Worker,
-        matrices: Vec<I16Matrix>,
-        table: FloatTable,
-        permit: WirePermit,
-    ) -> Result<Self, Error> {
-        let budget = Budget::new(&publication)?;
-        Ok(Self {
+    fn with_sources(budget: Arc<Budget>, worker: Worker, sources: AdmittedWorkerSources) -> Self {
+        // No fallible transition after moving fields out of the rollback guard.
+        // WorkerSource likewise keeps its permit after all payload fields.
+        Self {
             source: Some(Arc::new(WorkerSource {
-                matrices,
-                table,
+                matrices: sources.matrices,
+                table: sources.table,
                 worker,
                 budget,
-                _permit: permit,
+                _permit: sources.permit,
             })),
             session: None,
             last_sequence: None,
             active: None,
-        })
+        }
     }
 
     /// `authenticated_start` must be authenticated to this worker's configured
@@ -704,9 +778,9 @@ impl WorkerWire {
         // Reuse the native process and admission-owner cumulative counters.
         reserve(&source.budget.windows, 1, MAX_WINDOWS)?;
         reserve(&PROCESS_WINDOWS, 1, MAX_PROCESS_WINDOWS)?;
-        let frame = Frame::decode(bytes, START)?;
-        let binding = frame.binding;
         let publication = &source.budget.publication;
+        let frame = Frame::decode(bytes, START, publication)?;
+        let binding = frame.binding;
         if binding.publication != publication.digest
             || binding.worker != source.worker
             || binding.ordinal != 0
@@ -757,10 +831,17 @@ impl WorkerWire {
             return Err(Error::Binding);
         }
         let permit = WirePermit::acquire(
-            MAX_WINDOW_STEPS * size_of::<Step>()
-                + 3 * MAX_DIMENSION * 8
+            binding.total as usize * size_of::<Step>()
+                + publication
+                    .matrices
+                    .iter()
+                    .map(|m| m.columns * 8 + m.rows * 16)
+                    .max()
+                    .unwrap()
+                    .max(publication.width * 4)
                 + size_of::<WorkerWireWindow>()
                 + 1024,
+            publication.capacity,
         )?;
         let lease = Lease::acquire(&source.budget)?;
         let mut plan = payload::capacity(binding.total as usize)?;
@@ -849,7 +930,7 @@ impl WorkerWireWindow {
         expected.ordinal = self.completed as u32;
         expected.step = step;
         expected.artifact = artifact(publication, step)?;
-        let frame = Frame::decode(bytes, REQUEST)?;
+        let frame = Frame::decode(bytes, REQUEST, publication)?;
         frame.validate(expected, publication)?;
         let response = match step {
             Step::Linear(id) => {
@@ -857,12 +938,12 @@ impl WorkerWireWindow {
                 if frame.body.len() != matrix.columns * 8 {
                     return Err(Error::Shape);
                 }
-                let mut input = Zeroizing::new([0u64; MAX_DIMENSION]);
+                let mut input = Zeroizing::new(payload::filled(matrix.columns, 0u64)?);
                 for (out, word) in input.iter_mut().zip(frame.body.chunks_exact(8)) {
                     *out = u64::from_le_bytes(word.try_into().unwrap());
                 }
                 let values = matrix.multiply_share(&input[..matrix.columns])?;
-                let mut body = Zeroizing::new([0u8; MAX_DIMENSION * 8]);
+                let mut body = Zeroizing::new(payload::filled(matrix.rows * 8, 0u8)?);
                 for (out, value) in body.chunks_exact_mut(8).zip(values.iter()) {
                     out.copy_from_slice(&value.to_le_bytes());
                 }

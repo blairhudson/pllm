@@ -1,7 +1,7 @@
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
-use super::{payload, Error, MAX_DIMENSION, NUMERIC_PROFILE};
+use super::{payload, Capacity, Error, NUMERIC_PROFILE};
 
 fn rounded(value: f64) -> Result<f64, Error> {
     if !value.is_finite() {
@@ -47,6 +47,7 @@ pub fn rescale_signed(value: i64) -> f32 {
 /// All row sums `sum(abs(w[j]) * bound[j])` must be strictly below 2^63.
 /// Bounds are on quantized inputs, not floats and not uniform worker shares.
 pub struct I16Matrix {
+    pub(super) capacity: Capacity,
     pub(super) rows: usize,
     pub(super) columns: usize,
     pub(super) weights: Vec<i16>,
@@ -56,11 +57,13 @@ pub struct I16Matrix {
 }
 
 impl I16Matrix {
-    fn validate_shape(rows: usize, columns: usize, length: usize) -> Result<(), Error> {
-        if rows == 0 || columns == 0 || rows > MAX_DIMENSION || columns > MAX_DIMENSION {
-            return Err(Error::Limit);
-        }
-        if rows.checked_mul(columns) != Some(length) {
+    fn validate_shape(
+        rows: usize,
+        columns: usize,
+        length: usize,
+        capacity: Capacity,
+    ) -> Result<(), Error> {
+        if capacity.matrix_elements(rows, columns)? != length {
             return Err(Error::Shape);
         }
         Ok(())
@@ -72,12 +75,23 @@ impl I16Matrix {
         weights: &[i16],
         input_bounds: &[u64],
     ) -> Result<Self, Error> {
-        Self::validate_encoded(rows, columns, weights, input_bounds)?;
+        Self::from_encoded_with_capacity(rows, columns, weights, input_bounds, Capacity::Capsule)
+    }
+
+    pub fn from_encoded_with_capacity(
+        rows: usize,
+        columns: usize,
+        weights: &[i16],
+        input_bounds: &[u64],
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        Self::validate_encoded(rows, columns, weights, input_bounds, capacity)?;
         Self::from_validated_owned(
             rows,
             columns,
             payload::copy(weights)?,
             payload::copy(input_bounds)?,
+            capacity,
         )
     }
 
@@ -86,8 +100,9 @@ impl I16Matrix {
         columns: usize,
         weights: &[i16],
         input_bounds: &[u64],
+        capacity: Capacity,
     ) -> Result<(), Error> {
-        Self::validate_shape(rows, columns, weights.len())?;
+        Self::validate_shape(rows, columns, weights.len(), capacity)?;
         if input_bounds.len() != columns {
             return Err(Error::Shape);
         }
@@ -112,8 +127,24 @@ impl I16Matrix {
         weights: Vec<i16>,
         input_bounds: Vec<u64>,
     ) -> Result<Self, Error> {
-        Self::validate_encoded(rows, columns, &weights, &input_bounds)?;
-        Self::from_validated_owned(rows, columns, weights, input_bounds)
+        Self::from_encoded_owned_with_capacity(
+            rows,
+            columns,
+            weights,
+            input_bounds,
+            Capacity::Capsule,
+        )
+    }
+
+    pub fn from_encoded_owned_with_capacity(
+        rows: usize,
+        columns: usize,
+        weights: Vec<i16>,
+        input_bounds: Vec<u64>,
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        Self::validate_encoded(rows, columns, &weights, &input_bounds, capacity)?;
+        Self::from_validated_owned(rows, columns, weights, input_bounds, capacity)
     }
 
     fn from_validated_owned(
@@ -121,6 +152,7 @@ impl I16Matrix {
         columns: usize,
         weights: Vec<i16>,
         input_bounds: Vec<u64>,
+        capacity: Capacity,
     ) -> Result<Self, Error> {
         if weights.capacity() != weights.len() || input_bounds.capacity() != input_bounds.len() {
             return Err(Error::Limit);
@@ -142,6 +174,7 @@ impl I16Matrix {
             hash.update(weight.to_le_bytes());
         }
         Ok(Self {
+            capacity,
             rows,
             columns,
             weights,
@@ -157,7 +190,7 @@ impl I16Matrix {
         weights: &[f64],
         input_bounds: &[u64],
     ) -> Result<Self, Error> {
-        Self::validate_shape(rows, columns, weights.len())?;
+        Self::validate_shape(rows, columns, weights.len(), Capacity::Capsule)?;
         if input_bounds.len() != columns {
             return Err(Error::Shape);
         }
@@ -186,6 +219,10 @@ impl I16Matrix {
         (self.rows, self.columns)
     }
 
+    pub fn capacity(&self) -> Capacity {
+        self.capacity
+    }
+
     pub fn digest(&self) -> [u8; 32] {
         self.digest
     }
@@ -207,7 +244,7 @@ impl I16Matrix {
 }
 
 fn row_bound(row: &[i16], bounds: &[u64]) -> u128 {
-    // Public geometry limits make this sum < 2^87, well inside u128.
+    // Decoder geometry limits make this sum <= 2^92, well inside u128.
     row.iter()
         .zip(bounds)
         .map(|(&w, &b)| u128::from(w.unsigned_abs()) * u128::from(b))

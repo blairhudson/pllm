@@ -105,3 +105,56 @@ fn declared_envelope_and_source_preflight_precede_actual_small_query() {
     // Per-field limits fit, but the complete native scheduled window does not.
     assert!(compile(&e, &config(), 1, 1).is_err());
 }
+
+#[test]
+fn explicit_decoder_capacity_preserves_default_and_admits_full_source_geometry() {
+    let original = experiment();
+    let legacy = compile(&original, &config(), 2, 2).unwrap();
+    let legacy_json: Value = serde_json::from_slice(&legacy.canonical_bytes()).unwrap();
+    assert!(legacy_json["decoder"].get("decoder_resources").is_none());
+    let mut expanded = original.clone();
+    expanded["pipeline"]["components"]["linear"]["params"]["capacity"] = json!("decoder");
+    let changed = compile(&expanded, &config(), 2, 2).unwrap();
+    assert_ne!(legacy.digest(), changed.digest());
+    assert_eq!(
+        legacy.digest(),
+        compile(&original, &config(), 2, 2).unwrap().digest()
+    );
+    let full = json!({"model_type":"qwen2", "hidden_size":896, "intermediate_size":4864,
+        "num_hidden_layers":24,"num_attention_heads":14,"num_key_value_heads":2,
+        "vocab_size":151936,"max_position_embeddings":32768,"hidden_act":"silu",
+        "rms_norm_eps":1e-6,"rope_theta":1000000.,"tie_word_embeddings":true});
+    expanded["budget"]["max_input_tokens"] = json!(150);
+    expanded["budget"]["max_new_tokens"] = json!(8);
+    let admitted = compile(&expanded, &full, 150, 8).unwrap();
+    let value: Value = serde_json::from_slice(&admitted.canonical_bytes()).unwrap();
+    let decoder = &value["decoder"];
+    let resources = &decoder["decoder_resources"];
+    assert_eq!(decoder["matrices"].as_array().unwrap().len(), 97);
+    assert_eq!(decoder["source_shapes"].as_object().unwrap().len(), 290);
+    assert_eq!(resources["profile"], "pllm.gkm.decoder-capacity.v1");
+    assert!(resources["source_import_bytes"].as_u64().unwrap() > 1_532_461_056);
+    assert!(resources["worker_payload_bytes"].as_u64().unwrap() > 1_532_461_056);
+    assert!(
+        resources["client_payload_bytes"].as_u64().unwrap()
+            > resources["worker_payload_bytes"].as_u64().unwrap()
+    );
+    assert!(resources["client_payload_bytes"].as_u64().unwrap() < 4u64 << 30);
+    assert_eq!(resources["source_chunk_bytes"], 65536);
+    assert!(compile(&original, &full, 1, 1).is_err());
+    expanded["budget"]["max_input_tokens"] = json!(513);
+    assert!(compile(&expanded, &full, 1, 1).is_err());
+}
+
+#[test]
+fn decoder_capacity_must_be_explicit_and_stays_full_share() {
+    for capacity in [json!("capsule"), json!("unknown"), json!(false), json!(1)] {
+        let mut e = experiment();
+        e["pipeline"]["components"]["linear"]["params"]["capacity"] = capacity;
+        assert!(resolve_experiment(&canonical_bytes(&e)).is_err());
+    }
+    let mut e = experiment();
+    e["pipeline"]["components"]["linear"]["params"]["capacity"] = json!("decoder");
+    e["pipeline"]["components"]["linear"]["params"]["sharing"] = json!("seeded");
+    assert!(resolve_experiment(&canonical_bytes(&e)).is_err());
+}

@@ -1,6 +1,6 @@
 //! Bounded GKM decoder composition: source lowering, original fixed-point
 //! boundaries, full client-local float32 state, and one final verified window.
-//! This is an in-process research owner, not an installed Pipeline or transport.
+//! Capsule reference and separately admitted full-share SDK transport contracts.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -29,6 +29,27 @@ const MAX_CONFIG_BYTES: usize = 16 << 10;
 const MAX_ELEMENTS: u64 = 1 << 18;
 const MAX_SOURCE_BYTES: usize = 8 << 20;
 
+/// Full-share SDK capacity. These public limits are independent of the numeric
+/// profile; the historical in-process capsule retains its original limits.
+pub const GKM_DECODER_SOURCE_BYTES: usize = gkm::Capacity::Decoder.max_publication_bytes();
+pub const GKM_DECODER_EXECUTION_BYTES: usize = gkm::Capacity::Decoder.max_publication_bytes();
+
+#[derive(Serialize)]
+struct DecoderResources {
+    profile: &'static str,
+    source_import_bytes: usize,
+    publication_payload_bytes: usize,
+    window_payload_bytes: usize,
+    client_tensor_bytes: usize,
+    accepted_result_bytes: usize,
+    source_chunk_bytes: usize,
+    publication_frame_bytes: usize,
+    operation_frame_bytes: usize,
+    client_payload_bytes: usize,
+    worker_payload_bytes: usize,
+    request_linear_macs_per_worker: u64,
+}
+
 #[derive(Serialize)]
 struct Member {
     weight: String,
@@ -45,8 +66,8 @@ struct Matrix {
     members: Vec<Member>,
 }
 
-/// Constructed only by source lowering and checked against the capsule's
-/// existing geometry/resource limits before any tensor or secret allocation.
+/// Constructed only by source lowering and checked against the explicitly
+/// selected capacity before any tensor or secret allocation.
 #[derive(Serialize)]
 pub struct GkmDecoderContract {
     schema_version: &'static str,
@@ -69,6 +90,8 @@ pub struct GkmDecoderContract {
     capsule_payload_allowance_bytes: usize,
     execution_payload_estimate_bytes: usize,
     window_steps: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    decoder_resources: Option<DecoderResources>,
 }
 
 fn reject(message: &str) -> String {
@@ -87,12 +110,160 @@ fn bind_shape(
     Ok(())
 }
 
+fn tensor_owner_bytes(shape: &[u64]) -> Result<usize, String> {
+    shape.iter().try_fold(8usize, |bytes, dimension| {
+        usize::try_from(*dimension)
+            .ok()
+            .and_then(|n| bytes.checked_mul(n))
+            .ok_or_else(|| reject("tensor owner overflow"))
+    })
+}
+
+fn owner_sum(values: impl IntoIterator<Item = usize>) -> Result<usize, String> {
+    values
+        .into_iter()
+        .try_fold(0usize, |sum, n| sum.checked_add(n))
+        .ok_or_else(|| reject("owner allowance overflow"))
+}
+
+fn owner_product(values: &[usize]) -> Result<usize, String> {
+    values
+        .iter()
+        .try_fold(1usize, |product, n| product.checked_mul(*n))
+        .ok_or_else(|| reject("owner allowance overflow"))
+}
+
+fn decoder_tensor_bytes(
+    plan: &DecoderPlan,
+    prefill: &DecoderRuntimePhaseSchedule,
+    decode: &DecoderRuntimePhaseSchedule,
+    vocabulary: usize,
+    decode_steps: usize,
+) -> Result<usize, String> {
+    let mut peak = 0usize;
+    for (graph, schedule) in [(&plan.prefill, prefill), (&plan.decode, decode)] {
+        // Tokens, absolute positions, attention mask and sequence lengths stay
+        // owned independently of graph outputs. Price eight-byte mask elements
+        // and retain these public-geometry roots for the complete phase.
+        let inputs = owner_product(&[
+            graph.batch as usize,
+            owner_sum([owner_product(&[3, graph.query_sequence as usize])?, 1])?,
+            8,
+        ])?;
+        let operations: BTreeMap<_, _> = graph
+            .operations
+            .iter()
+            .map(|op| (op.id.as_str(), op))
+            .collect();
+        let logits = graph
+            .operations
+            .iter()
+            .find(|op| op.operator == ModelOperator::GreedyTokenSelection)
+            .and_then(|op| op.inputs.first())
+            .ok_or_else(|| reject("missing logits root"))?;
+        let mut remaining = BTreeMap::new();
+        for key in schedule.steps.iter().flat_map(|step| &step.input_ids) {
+            *remaining.entry(key.as_str()).or_insert(0usize) += 1;
+        }
+        let mut owners = BTreeMap::<&str, BTreeSet<&str>>::new();
+        let mut sizes = BTreeMap::<&str, usize>::new();
+        let mut live = BTreeSet::new();
+        for step in &schedule.steps {
+            let combined = step.operation_ids[0].as_str();
+            if step.executor != DecoderRuntimeExecutor::ClientLocal {
+                // Grouped gate/up members alias one complete reconstructed array.
+                let bytes = step.operation_ids.iter().try_fold(0usize, |bytes, id| {
+                    owner_sum([
+                        bytes,
+                        tensor_owner_bytes(&operations[id.as_str()].output_shape)?,
+                    ])
+                })?;
+                sizes.insert(combined, bytes);
+            }
+            for id in &step.operation_ids {
+                let id = id.as_str();
+                let op = operations[id];
+                let mut roots = BTreeSet::new();
+                if step.executor != DecoderRuntimeExecutor::ClientLocal {
+                    roots.insert(combined);
+                } else {
+                    sizes.insert(id, tensor_owner_bytes(&op.output_shape)?);
+                    roots.insert(id);
+                    if matches!(
+                        op.operator,
+                        ModelOperator::Reshape
+                            | ModelOperator::LastToken
+                            | ModelOperator::CacheSuffix
+                    ) {
+                        // Price both a possible copy and every retained full root.
+                        // Narrow views cannot retire their much larger backing owner.
+                        for input in &op.inputs {
+                            if let Some(prior) = owners.get(input.as_str()) {
+                                roots.extend(prior);
+                            }
+                        }
+                    }
+                }
+                owners.insert(id, roots);
+                live.insert(id);
+            }
+            let roots: BTreeSet<_> = live
+                .iter()
+                .flat_map(|id| owners[id].iter().copied())
+                .collect();
+            let bytes = owner_sum(std::iter::once(inputs).chain(roots.iter().map(|id| sizes[id])))?;
+            peak = peak.max(bytes);
+            for key in &step.input_ids {
+                let count = remaining.get_mut(key.as_str()).unwrap();
+                *count -= 1;
+                if *count == 0 && key != logits {
+                    live.remove(key.as_str());
+                }
+            }
+        }
+    }
+    // Full KV grows geometrically in the common local executor. Price original
+    // storage, replacement, final snapshots and byte copies independently of
+    // temporary tensor lifetimes. Eight-byte elements also cover numeric scratch.
+    let key_rows = plan.decode.maximum_key_sequence as usize;
+    let capacity_rows = key_rows
+        .max(64)
+        .checked_next_power_of_two()
+        .ok_or_else(|| reject("KV capacity overflow"))?;
+    let state = plan
+        .decode
+        .state_outputs
+        .iter()
+        .try_fold(0usize, |total, state| {
+            let per_row = tensor_owner_bytes(&state.shape)?
+                .checked_div(key_rows)
+                .ok_or_else(|| reject("KV capacity overflow"))?;
+            owner_sum([total, owner_product(&[per_row, capacity_rows])?])
+        })?;
+    owner_sum([
+        owner_product(&[peak, 6])?,
+        owner_product(&[state, 6])?,
+        owner_product(&[vocabulary, 4, owner_sum([decode_steps, 3])?])?,
+    ])
+}
+
 impl GkmDecoderContract {
     pub fn compile(config: &[u8], input_rows: usize, decode_steps: usize) -> Result<Self, String> {
+        Self::compile_with_capacity(config, input_rows, decode_steps, gkm::Capacity::Capsule)
+    }
+
+    pub fn compile_with_capacity(
+        config: &[u8],
+        input_rows: usize,
+        decode_steps: usize,
+        capacity: gkm::Capacity,
+    ) -> Result<Self, String> {
+        let expanded = capacity == gkm::Capacity::Decoder;
+        let max_elements = if expanded { 1 << 24 } else { MAX_ELEMENTS };
         if config.is_empty()
             || config.len() > MAX_CONFIG_BYTES
-            || !(1..=32).contains(&input_rows)
-            || decode_steps > 8
+            || !(1..=if expanded { 512 } else { 32 }).contains(&input_rows)
+            || decode_steps > if expanded { 64 } else { 8 }
         {
             return Err(reject("configuration or workload limit"));
         }
@@ -104,12 +275,20 @@ impl GkmDecoderContract {
                 max_new_tokens: decode_steps as u64 + 1,
             },
             pllm_models::DecoderExpansionBudget {
-                max_layers: gkm::MAX_STAGES as u64,
-                max_feature_width: gkm::MAX_DIMENSION as u64,
-                max_attention_heads: gkm::MAX_DIMENSION as u64,
+                max_layers: if expanded { 64 } else { gkm::MAX_STAGES as u64 },
+                max_feature_width: capacity.max_columns() as u64,
+                max_attention_heads: if expanded {
+                    128
+                } else {
+                    gkm::MAX_DIMENSION as u64
+                },
                 // The complete head uses the same matrix-row limit as the body.
-                max_vocabulary: gkm::MAX_DIMENSION as u64,
-                max_tensor_elements: MAX_ELEMENTS,
+                max_vocabulary: capacity.max_rows() as u64,
+                max_tensor_elements: if expanded {
+                    capacity.max_matrix_elements() as u64
+                } else {
+                    MAX_ELEMENTS
+                },
             },
         )
         .map_err(|error| error.to_string())?;
@@ -145,7 +324,7 @@ impl GkmDecoderContract {
                     .output_shape
                     .iter()
                     .try_fold(1u64, |n, d| n.checked_mul(*d))
-                    .is_none_or(|n| n > MAX_ELEMENTS)
+                    .is_none_or(|n| n > max_elements)
                     || ["output_dtype", "compute_dtype"].iter().any(|key| {
                         op.attributes.get(*key).is_some_and(|dtype| {
                             op.operator != ModelOperator::OutputHead
@@ -214,6 +393,7 @@ impl GkmDecoderContract {
         let mut width = 0;
         let mut matrices = Vec::new();
         let mut calls = 0usize;
+        let mut linear_macs = 0u64;
         for step in &prefill.steps {
             if step.executor == DecoderRuntimeExecutor::ClientLocal {
                 continue;
@@ -285,15 +465,23 @@ impl GkmDecoderContract {
                 return Err(reject("unsupported linear row schedule"));
             }
             calls += row_count as usize;
+            linear_macs = linear_macs
+                .checked_add((rows as u64) * (columns as u64) * (row_count + decode_steps as u64))
+                .ok_or_else(|| reject("linear work overflow"))?;
         }
         let table = table.ok_or_else(|| reject("missing token table"))?;
         let window_steps = calls + decode_steps * (matrices.len() + 1);
-        if window_steps > gkm::MAX_WINDOW_STEPS {
+        if window_steps > capacity.max_window_steps() {
             return Err(reject("complete window exceeds capsule capacity"));
         }
+        if expanded && linear_macs > 1u64 << 37 {
+            return Err(reject("complete request exceeds linear work capacity"));
+        }
         let shapes: Vec<_> = matrices.iter().map(|m| (m.rows, m.columns)).collect();
-        let resources = gkm::PublicationResources::for_shapes(&shapes, vocabulary, width)
-            .map_err(|e| e.to_string())?;
+        let resources = gkm::PublicationResources::for_shapes_with_capacity(
+            &shapes, vocabulary, width, capacity,
+        )
+        .map_err(|e| e.to_string())?;
         let source_float32_bytes = source_shapes
             .values()
             .try_fold(0usize, |sum, shape| {
@@ -303,29 +491,106 @@ impl GkmDecoderContract {
                     .and_then(|n| sum.checked_add(n))
             })
             .ok_or_else(|| reject("source byte overflow"))?;
-        if source_float32_bytes > MAX_SOURCE_BYTES {
+        if source_float32_bytes
+            > if expanded {
+                GKM_DECODER_SOURCE_BYTES
+            } else {
+                MAX_SOURCE_BYTES
+            }
+        {
             return Err(reject("source payload limit"));
         }
-        let graph_bytes = [&plan.prefill, &plan.decode]
-            .iter()
-            .map(|graph| {
-                graph
-                    .operations
+        let (execution_payload_estimate_bytes, decoder_resources) = if expanded {
+            let local_bytes = local_tensors.iter().try_fold(0usize, |sum, name| {
+                owner_sum([
+                    sum,
+                    owner_product(&[4, owner_product(&source_shapes[name])?])?,
+                ])
+            })?;
+            let source_import_bytes = owner_sum([
+                resources.source_weight_bytes,
+                resources.source_bound_bytes,
+                resources.source_table_bytes,
+                local_bytes,
+            ])?;
+            let tensor_bytes =
+                decoder_tensor_bytes(&plan, &prefill, &decode, vocabulary, decode_steps)?;
+            // Returned immutable float32 logits and active full KV are already
+            // covered by the tensor overlap allowance. Expose their exact bound
+            // (plus a bounded acceptance receipt) before any SDK execution.
+            let accepted_result_bytes = owner_sum([
+                16 << 10,
+                owner_product(&[4, vocabulary, owner_sum([decode_steps, 1])?])?,
+                plan.decode
+                    .state_outputs
                     .iter()
-                    .map(|op| op.output_shape.iter().product::<u64>() * 8)
-                    .sum::<u64>()
-            })
-            .max()
-            .unwrap_or(0) as usize;
-        // Retain an intentionally conservative estimate for all simultaneous
-        // source copies, six graph/scratch/state/snapshot owners and metadata.
-        // Interpreter/library overhead and caller source loading are not priced.
-        let execution_payload_estimate_bytes = resources.admitted_payload_bytes
-            + 3 * source_float32_bytes
-            + 6 * graph_bytes
-            + (16 << 20);
-        if execution_payload_estimate_bytes > 64 << 20 {
-            return Err(reject("complete reference payload estimate exceeds 64 MiB"));
+                    .try_fold(0usize, |sum, state| {
+                        owner_sum([sum, tensor_owner_bytes(&state.shape)? / 2])
+                    })?,
+            ])?;
+            // The streamed importer transfers its final owners. It has no whole
+            // float32 dictionary or duplicate encoded weights. Core admission
+            // already includes source, publication, scratch and eight windows.
+            // Outer frames coexist with native export/import plus HTTP/msgpack
+            // copies. Tokenizer metadata/indexes and graph metadata are separate.
+            let outer = 4 * capacity.max_publication_wire_bytes()
+                + 8 * capacity.max_wire_frame_bytes()
+                + (384 << 20);
+            let worker_bytes = owner_sum([
+                resources.admitted_payload_bytes,
+                outer,
+                owner_product(&[2, local_bytes])?,
+            ])?;
+            let client_bytes = owner_sum([worker_bytes, tensor_bytes])?;
+            (
+                client_bytes,
+                Some(DecoderResources {
+                    profile: "pllm.gkm.decoder-capacity.v1",
+                    source_import_bytes,
+                    publication_payload_bytes: resources.native_publication_payload_bytes,
+                    window_payload_bytes: resources.max_window_payload_bytes,
+                    client_tensor_bytes: tensor_bytes,
+                    accepted_result_bytes,
+                    source_chunk_bytes: GKM_SOURCE_CHUNK_BYTES,
+                    publication_frame_bytes: capacity.max_publication_wire_bytes(),
+                    operation_frame_bytes: capacity.max_wire_frame_bytes(),
+                    client_payload_bytes: client_bytes,
+                    worker_payload_bytes: worker_bytes,
+                    request_linear_macs_per_worker: linear_macs,
+                }),
+            )
+        } else {
+            // Preserve the original Capsule estimate and digest, without ever
+            // constructing discarded eager-copy estimates for Decoder owners.
+            let mut graph_bytes = 0;
+            for graph in [&plan.prefill, &plan.decode] {
+                let bytes = graph.operations.iter().try_fold(0usize, |sum, op| {
+                    owner_sum([sum, tensor_owner_bytes(&op.output_shape)?])
+                })?;
+                graph_bytes = graph_bytes.max(bytes);
+            }
+            (
+                owner_sum([
+                    resources.admitted_payload_bytes,
+                    owner_product(&[3, source_float32_bytes])?,
+                    owner_product(&[6, graph_bytes])?,
+                    16 << 20,
+                ])?,
+                None,
+            )
+        };
+        if execution_payload_estimate_bytes
+            > if expanded {
+                GKM_DECODER_EXECUTION_BYTES
+            } else {
+                64 << 20
+            }
+        {
+            return Err(reject(if expanded {
+                "complete decoder payload estimate exceeds 4 GiB"
+            } else {
+                "complete reference payload estimate exceeds 64 MiB"
+            }));
         }
         // Native capsule already reserves source owners, eight live windows,
         // commitment work and import scratch. Source float buffers, Python state,
@@ -351,6 +616,7 @@ impl GkmDecoderContract {
             capsule_payload_allowance_bytes: resources.admitted_payload_bytes,
             execution_payload_estimate_bytes,
             window_steps,
+            decoder_resources,
         })
     }
 
@@ -362,6 +628,14 @@ impl GkmDecoderContract {
     }
     pub fn source_shapes(&self) -> &BTreeMap<String, Vec<usize>> {
         &self.source_shapes
+    }
+
+    pub fn capacity(&self) -> gkm::Capacity {
+        if self.decoder_resources.is_some() {
+            gkm::Capacity::Decoder
+        } else {
+            gkm::Capacity::Capsule
+        }
     }
 
     fn window_plan(&self) -> Vec<Step> {
@@ -412,6 +686,11 @@ fn bind_source(
     contract: &GkmDecoderContract,
     tensors: &BTreeMap<String, &[u8]>,
 ) -> Result<BoundSource, String> {
+    if contract.capacity() != gkm::Capacity::Capsule {
+        return Err(reject(
+            "decoder capacity requires bounded streaming source import",
+        ));
+    }
     if tensors.len() != contract.source_shapes.len() {
         return Err(reject("source tensor set mismatch"));
     }

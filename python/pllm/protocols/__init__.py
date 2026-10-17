@@ -240,6 +240,7 @@ class OpenWeightVerifiableOutsourcing(ProtocolMethod):
             "properties": {
                 "sharing": {"type": "string", "const": "full"},
                 "generation": {"type": "string", "const": "fixed_length_greedy"},
+                "capacity": {"type": "string", "const": "decoder"},
             },
             "required": ["sharing", "generation"],
         },
@@ -253,15 +254,19 @@ class OpenWeightVerifiableOutsourcing(ProtocolMethod):
     )
 
     def __init__(self, *, sharing: Literal["full"] = "full",
-                 generation: Literal["fixed_length_greedy"] = "fixed_length_greedy") -> None:
+                  generation: Literal["fixed_length_greedy"] = "fixed_length_greedy",
+                  capacity: Literal["capsule", "decoder"] = "capsule") -> None:
         if type(sharing) is not str or sharing != "full":
             raise ConfigurationError("GKM remote sharing must be full; seeded transport is not admitted")
         if type(generation) is not str or generation != "fixed_length_greedy":
             raise ConfigurationError("GKM generation must be fixed_length_greedy")
-        super().__init__(self.descriptor.component, {"sharing": sharing, "generation": generation})
+        if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
+            raise ConfigurationError("GKM capacity must be capsule or decoder")
+        super().__init__(self.descriptor.component, {"sharing": sharing, "generation": generation,
+            **({"capacity": capacity} if capacity != "capsule" else {})})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return dict(self.params)
+        return {**self.params, "capacity": self.params.get("capacity", "capsule")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

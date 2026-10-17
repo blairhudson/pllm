@@ -756,12 +756,17 @@ class RuntimeComposition:
     generation_policy: str | None = None
     verification_window: str | None = None
     setup_owner: str | None = None
+    delegation_capacity: str = "capsule"
 
 
 def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     """Describe the exact bounded contract; native capability still gates execution."""
+    linear = pipeline.components.get("linear")
+    capacity = linear.params.get("capacity", "capsule") if linear is not None else "capsule"
+    if capacity not in {"capsule", "decoder"}:
+        return None
     expected = {
-        "linear": _DEFAULT_GKM_LINEAR,
+        "linear": OpenWeightVerifiableOutsourcing(capacity=capacity),
         "kernels": _DEFAULT_KERNELS,
         "verification": _DEFAULT_GKM_VERIFICATION,
         "topology": _DEFAULT_GKM_ROLES,
@@ -790,6 +795,7 @@ def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
         generation_policy="fixed_length_greedy",
         verification_window="request_end",
         setup_owner="client",
+        delegation_capacity=capacity,
     )
 
 

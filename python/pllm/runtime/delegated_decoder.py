@@ -17,12 +17,26 @@ from typing import Any
 import numpy as np
 
 from pllm import _native
+from .delegated_protocol import clear_failure_frames
 from .semantic_executor import SemanticLocalOperators
 from .transformer_client import LayerCache
 
 
 _MAX_CONFIG_BYTES = 16 << 10
 _MAX_CONFIG_DEPTH = 64
+
+
+def result_payload_limit(contract, *, capacity="capsule"):
+    """Return the native-admitted immutable result allowance before execution."""
+    if capacity == "capsule":
+        return 16 << 20
+    resources = contract.get("decoder_resources", {})
+    limit = resources.get("accepted_result_bytes")
+    total = contract.get("execution_payload_estimate_bytes")
+    if (capacity != "decoder" or type(limit) is not int or type(total) is not int
+            or not 0 < limit <= total <= 4 << 30):
+        raise ValueError("GKM decoder result has no admitted bound")
+    return limit
 
 
 def _encode_config(config: Mapping[str, Any]) -> bytes:
@@ -150,11 +164,16 @@ class GkmDecoderResult:
     acceptance: bytes
 
 
-def decoder_contract(config: Mapping[str, Any], *, input_rows: int, decode_steps: int) -> bytes:
+def decoder_contract(config: Mapping[str, Any], *, input_rows: int, decode_steps: int,
+                     capacity: str = "capsule") -> bytes:
     """Check public geometry before the caller reads or converts any tensors."""
     if type(input_rows) is not int or type(decode_steps) is not int:
         raise ValueError("GKM workload sizes must be integers")
     encoded = _encode_config(config)
+    if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
+        raise ValueError("GKM capacity must be capsule or decoder")
+    if capacity != "capsule":
+        return _native.gkm_decoder_contract(encoded, input_rows, decode_steps, capacity=capacity)
     return _native.gkm_decoder_contract(encoded, input_rows, decode_steps)
 
 
@@ -243,6 +262,8 @@ class _Request(SemanticLocalOperators):
             return logits.tobytes(), int(np.argmax(logits))
         finally:
             values.clear()
+            pending.clear()
+            source = rows = combined = output = value = logits = stored = cache = None
 
     def retire(self):
         self._native.abort()
@@ -300,7 +321,8 @@ def _execute_verified_window(native, contract, token_ids, *, cancelled=None) -> 
     The local reference and the role-separated runtime supply distinct native
     owners. Neither receives a callback that can publish tentative results.
     """
-    request = None
+    request = vector = kv = acceptance = None
+    logits = selected = executed = current = None
     try:
         if json.loads(native.contract()) != contract:
             raise ValueError("GKM compiled contract mismatch")
@@ -338,7 +360,14 @@ def _execute_verified_window(native, contract, token_ids, *, cancelled=None) -> 
         return GkmDecoderResult(
             tuple(logits), kv, tuple(selected), tuple(executed), request.position, acceptance
         )
+    except BaseException as error:
+        clear_failure_frames(error)
+        raise
     finally:
-        if request is not None:
-            request.retire()
-        native.abort()
+        try:
+            if request is not None:
+                request.retire()
+        finally:
+            request = vector = kv = acceptance = None
+            logits = selected = executed = current = None
+            native.abort()

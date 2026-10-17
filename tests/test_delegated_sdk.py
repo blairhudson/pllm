@@ -12,6 +12,7 @@ import pytest
 from pllm import AsyncOpenAI, Model, OpenAI, _native
 from pllm.configuration import Deployment, ExecutionBudget, Experiment
 from pllm.profiles import OpenWeightVerifiableCpu
+from pllm.protocols import OpenWeightVerifiableOutsourcing
 from pllm.runtime import delegated_transport as transport
 from pllm.runtime.delegated_source import AdmittedSource
 from pllm.runtime.client import ProtocolError
@@ -21,12 +22,15 @@ from test_delegated_decoder import clear_oracle
 from test_delegated_source import write_source_fixture
 
 
-def experiment_fixture(path, *, family="qwen2", tied=True, requests=4):
-    cfg, _, arrays, _ = write_source_fixture(path / "source", family=family, tied=tied)
+def experiment_fixture(path, *, family="qwen2", tied=True, requests=4,
+                       capacity="capsule", vocabulary=32, rows=8):
+    cfg, _, arrays, _ = write_source_fixture(path / "source", family=family, tied=tied,
+                                           capacity=capacity, vocabulary=vocabulary)
     experiment = Experiment(
-        "gkm-sdk", OpenWeightVerifiableCpu(Model.path(str(path / "source"))),
+        "gkm-sdk", OpenWeightVerifiableCpu(Model.path(str(path / "source")),
+            linear=OpenWeightVerifiableOutsourcing(capacity=capacity)),
         Deployment.local(root=str(path / "roles")),
-        ExecutionBudget(requests=requests, max_input_tokens=8, max_new_tokens=3),
+        ExecutionBudget(requests=requests, max_input_tokens=rows, max_new_tokens=3),
     )
     return Experiment.from_spec(json.loads(experiment.canonical_bytes())), cfg, arrays
 

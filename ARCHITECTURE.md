@@ -1631,6 +1631,20 @@ A separate cached wheel passes 571 installed Python and 120 native checks,
 including generated two-process decoder parity and gateway/benchmark execution.
 All 362 installed package files match; the build observes zero swap growth.
 Evidence and replay: `paper/artifacts/gkm-sdk/source-stream.md`.
+The explicit `OpenWeightVerifiableOutsourcing(capacity="decoder")` additionally
+binds larger native source, publication, wire, operation and result envelopes.
+Default Capsule identities remain unchanged. Geometry-derived complete-result
+admission and failure cleanup precede refund of client or worker capacity;
+outstanding replies retain their host reservation until the final body retires.
+A separate cached wheel passes 640 installed Python and 134 native checks plus
+Clippy, with all 362 package files matching. Six generated Qwen2/Qwen3/Llama
+two-worker cases preserve 20,376 complete logit/KV values at 1,100 vocabulary rows.
+Pinned Qwen metadata admits 97 matrices and 1,537,852,928 imported source bytes,
+but its 64-input/two-output whole-topology preflight requires 10.83 GiB against
+8.11 GiB of safe host headroom. It rejects before tensor-value decoding or worker
+launch; full-checkpoint activation, quality and performance remain open.
+Contract and original evidence: `docs/research/gkm-decoder-capacity.md` and
+`paper/artifacts/gkm-sdk/decoder-capacity.md`.
 `pllm.profiles` provides typed
 slot contracts for the two-service-role public baseline and shipped one-provider
 proprietary engines while generic serialized pipelines remain available. An

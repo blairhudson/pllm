@@ -1,0 +1,7 @@
+{
+  "argv": [
+    "target/research/gkm-capacity-validation-v1/run_installed.py",
+    "target/research/gkm-capacity-wheel-v3"
+  ],
+  "sha256": "e260579640f918deacc0dcdfd5fde6b9702b8266ea40868de30ed08a86006e19"
+}

@@ -1,0 +1,11 @@
+{
+  "exit_codes": {
+    "clippy": 0,
+    "compiler-tests": 0,
+    "core-tests": 0,
+    "ownership-tests": 0,
+    "source-import-tests": 0,
+    "wire-tests": 0
+  },
+  "source_changed": false
+}

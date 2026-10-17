@@ -10,6 +10,11 @@ Python checks and 120 native checks. Its ordered, bounded native importer is use
 by the same SDK, gateway and benchmark path. The original counts below retain
 their `local-v1` scope.
 
+The separate [explicit Decoder-capacity slice](decoder-capacity.md) passes 640
+installed Python and 134 native checks. It preserves complete generated results
+through the ordinary SDK. Its full-Qwen attempt is host-admission blocked before
+tensor-value decoding or worker launch.
+
 ## Accepted checks
 
 - **547 Python tests pass**, with no skips, in a fresh Python 3.13 environment.

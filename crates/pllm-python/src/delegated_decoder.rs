@@ -8,15 +8,24 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBool, PyBytes, PyDict};
 
 #[pyfunction]
+#[pyo3(signature = (config, input_rows, decode_steps, *, capacity="capsule"))]
 fn gkm_decoder_contract<'py>(
     py: Python<'py>,
     config: &Bound<'_, PyBytes>,
     input_rows: usize,
     decode_steps: usize,
+    capacity: &str,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let config = config.as_bytes();
+    let capacity = match capacity {
+        "capsule" => pllm_core::gkm::Capacity::Capsule,
+        "decoder" => pllm_core::gkm::Capacity::Decoder,
+        _ => return Err(crate::invalid("GKM invalid decoder capacity".into())),
+    };
     let contract = py
-        .detach(|| GkmDecoderContract::compile(config, input_rows, decode_steps))
+        .detach(|| {
+            GkmDecoderContract::compile_with_capacity(config, input_rows, decode_steps, capacity)
+        })
         .map_err(crate::invalid)?;
     Ok(PyBytes::new(py, &contract.canonical_bytes()))
 }

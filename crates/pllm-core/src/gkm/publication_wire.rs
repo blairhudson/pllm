@@ -1,6 +1,6 @@
 use k256::{elliptic_curve::sec1::FromEncodedPoint, AffinePoint, EncodedPoint};
 
-use super::super::window::wire::{Cursor, WireBytes, MAX_PUBLICATION_WIRE_BYTES};
+use super::super::window::wire::{Cursor, WireBytes};
 use super::*;
 
 const MAGIC: &[u8; 8] = b"PLGKMP01";
@@ -49,7 +49,7 @@ impl Publication {
                 length += point_length(point);
             }
         }
-        let mut out = WireBytes::allocate(length)?;
+        let mut out = WireBytes::allocate(length, self.capacity)?;
         out.extend(MAGIC);
         out.extend(&self.digest);
         out.extend(&self.context);
@@ -90,7 +90,15 @@ impl Publication {
     /// unchanged complete-publication envelope is then reserved before payload
     /// allocation. Caller-owned inbound bytes are outside that envelope.
     pub fn import_wire(bytes: &[u8], authenticated_owner_digest: [u8; 32]) -> Result<Self, Error> {
-        if bytes.len() > MAX_PUBLICATION_WIRE_BYTES {
+        Self::import_wire_with_capacity(bytes, authenticated_owner_digest, Capacity::Capsule)
+    }
+
+    pub fn import_wire_with_capacity(
+        bytes: &[u8],
+        authenticated_owner_digest: [u8; 32],
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        if bytes.len() > capacity.max_publication_wire_bytes() {
             return Err(Error::Limit);
         }
         let mut cursor = Cursor::new(bytes);
@@ -107,23 +115,26 @@ impl Publication {
         }
 
         let context = cursor.array()?;
-        let stages = count(&mut cursor, MAX_STAGES)?;
-        let rows = count(&mut cursor, MAX_DIMENSION)?;
+        let stages = count(&mut cursor, capacity.max_stages())?;
+        let rows = count(&mut cursor, capacity.max_rows())?;
         for _ in 0..rows {
             read_point(&mut cursor)?;
         }
-        let mut shapes = [(0usize, 0usize); MAX_STAGES];
-        let mut ids = [[0u8; 32]; MAX_STAGES];
+        // Only offsets are retained during preflight (2 KiB on 64-bit). IDs and
+        // shapes stay in the borrowed authenticated frame, never wide stack arrays.
+        let mut offsets = [0usize; Capacity::Decoder.max_stages()];
+        let mut max_rows = 0;
         for stage in 0..stages {
-            let id = cursor.array()?;
-            if ids[..stage].contains(&id) {
+            offsets[stage] = cursor.position();
+            let id = cursor.array::<32>()?;
+            if offsets[..stage].iter().any(|&at| bytes[at..at + 32] == id) {
                 return Err(Error::Binding);
             }
-            ids[stage] = id;
             cursor.take(32)?;
-            let m = count(&mut cursor, MAX_DIMENSION)?;
-            let n = count(&mut cursor, MAX_DIMENSION)?;
-            shapes[stage] = (m, n);
+            let m = count(&mut cursor, capacity.max_rows())?;
+            let n = count(&mut cursor, capacity.max_columns())?;
+            capacity.matrix_elements(m, n)?;
+            max_rows = max_rows.max(m);
             for _ in 0..n {
                 if cursor.u64()? > 1u64 << 63 {
                     return Err(Error::Bound);
@@ -138,17 +149,25 @@ impl Publication {
                 read_point(&mut cursor)?;
             }
         }
-        if shapes[..stages].iter().map(|s| s.0).max() != Some(rows) {
+        if max_rows != rows {
             return Err(Error::Shape);
         }
         cursor.take(32)?;
-        let vocabulary = count(&mut cursor, MAX_VOCABULARY)?;
-        let width = count(&mut cursor, MAX_DIMENSION)?;
+        let vocabulary = count(&mut cursor, capacity.max_vocabulary())?;
+        let width = count(&mut cursor, capacity.max_columns())?;
         cursor.take(vocabulary * 32)?;
         cursor.finish()?;
-        let resources = PublicationResources::for_shapes(&shapes[..stages], vocabulary, width)?;
-        let admission =
-            PublicationPermit::acquire(&PROCESS_PUBLICATIONS, resources.admitted_payload_bytes)?;
+        let shapes = offsets[..stages].iter().map(|&at| {
+            let rows = u64::from_le_bytes(bytes[at + 64..at + 72].try_into().unwrap()) as usize;
+            let columns = u64::from_le_bytes(bytes[at + 72..at + 80].try_into().unwrap()) as usize;
+            (rows, columns)
+        });
+        let resources = PublicationResources::for_shape_iter(shapes, vocabulary, width, capacity)?;
+        let admission = PublicationPermit::acquire(
+            &PROCESS_PUBLICATIONS,
+            resources.admitted_payload_bytes,
+            capacity,
+        )?;
 
         // A second bounded pass builds the already-validated immutable owners.
         let mut cursor = Cursor::new(&bytes[88..]); // prefix, context, stage count, R count
@@ -193,6 +212,7 @@ impl Publication {
         }
         cursor.finish()?;
         Ok(Self {
+            capacity,
             context,
             matrices,
             r,

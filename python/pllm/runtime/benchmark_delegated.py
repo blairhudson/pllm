@@ -31,8 +31,10 @@ def admit_options(experiment, *, backend=None, docker=False, docker_image=None,
     if temperature is not None and (type(temperature) not in (int, float) or temperature != 0):
         raise ValueError("GKM benchmarking requires fixed-length greedy generation")
     budget = experiment.budget
+    expanded = experiment.pipeline.components["linear"].params.get("capacity") == "decoder"
     if (experiment.pipeline.model.kind == "tiny"
-            or not 1 <= budget.max_input_tokens <= 32 or not 1 <= budget.max_new_tokens <= 9
+            or not 1 <= budget.max_input_tokens <= (512 if expanded else 32)
+            or not 1 <= budget.max_new_tokens <= (65 if expanded else 9)
             or not 1 <= budget.requests <= 64 or type(output_tokens) is not int
             or not 1 <= output_tokens <= budget.max_new_tokens
             or type(requests) is not int or not 1 <= requests <= budget.requests):

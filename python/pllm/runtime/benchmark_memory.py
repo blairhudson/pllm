@@ -300,25 +300,34 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
     """Price the bounded source/verified-window owners, never an int8 schedule."""
     from .delegated_decoder import decoder_contract
 
-    if (type(outputs) is not int or not 1 <= outputs <= 9
+    capacity = pipeline.components["linear"].params.get("capacity", "capsule")
+    expanded = capacity == "decoder"
+    if (type(outputs) is not int or not 1 <= outputs <= (65 if expanded else 9)
             or cache_bytes or cache_bound is not None):
         raise BenchmarkMemoryError("GKM requires a bounded full-KV response without cache reuse")
     try:
-        raw_contract = decoder_contract(config, input_rows=rows, decode_steps=outputs - 1)
+        raw_contract = (decoder_contract(config, input_rows=rows, decode_steps=outputs - 1,
+                                        capacity=capacity) if expanded else
+                        decoder_contract(config, input_rows=rows, decode_steps=outputs - 1))
         contract = json.loads(raw_contract)
     except (ValueError, TypeError, OverflowError) as exc:
         raise BenchmarkMemoryError("GKM source or workload exceeds native numerical admission") from exc
     source = contract["source_float32_bytes"]
-    # The complete decoder contract preflights source, publication, windows and
-    # tensor workspace together under its 64 MiB bound. Charge that entire bound
-    # in EACH role, plus retained source/copies and a separate 64 MiB allowance
-    # for bounded transport frames, publication import/export and tokenizer work.
+    # Capsule preserves its complete 64 MiB allowance and legacy source-copy
+    # estimate in every role. Decoder uses separate native client/worker bounds
+    # for streamed sources, publication, windows, tensors and metadata. Both add
+    # outer process/transport allowance and the ordinary allocation margin.
     # These are conservative owner allowances, not measured RSS or tier results.
     native = 64 * MiB
     transport = 64 * MiB
     source_owners = 3 * source
+    if expanded:
+        native = contract["decoder_resources"]["client_payload_bytes"]
+        source_owners = 0  # Streamed native ownership is already included above.
     role = _slack(_PROCESS_BYTES + native + transport + source_owners)
-    providers = {name: role for name in ("worker_a", "worker_b")}
+    worker = (_slack(_PROCESS_BYTES + contract["decoder_resources"]["worker_payload_bytes"] + transport)
+              if expanded else role)
+    providers = {name: worker for name in ("worker_a", "worker_b")}
     return {
         "scope": "conservative allocation estimate; not measured peak RSS",
         "model_plan_digest": None, "model_config_digest": contract["plan"]["config_digest"],
@@ -327,14 +336,20 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         "inventory_rows": 0, "kernel": "cpu", "runtime_kind": "gkm",
         "concurrent_response_bound": 1, "allocation_slack_percent": 25,
         "client_peak_bytes": role, "provider_peak_bytes": providers,
-        "docker_provider_peak_bytes": {}, "native_total_peak_bytes": 3 * role,
+        "docker_provider_peak_bytes": {}, "native_total_peak_bytes": role + 2 * worker,
         "preparation_storage": "none", "preparation_kernel": "none",
-        "weight_storage": "source float32 plus exact i16 native snapshots",
+        "weight_storage": ("streamed native i16 weights and original float32 lookup" if expanded
+                           else "source float32 plus exact i16 native snapshots"),
         "bundle_storage": "trusted client-owned publication; bounded source loading",
         "mask_storage": "one pending explicit-share pair per verified window",
         "tensor_storage": "complete client-local float32 logits and full KV",
         "verification_allocation": {
             "native_allowance_per_role_bytes": native,
+            "native_allowance_by_role_bytes": {
+                "client": native,
+                **{name: (contract["decoder_resources"]["worker_payload_bytes"]
+                          if expanded else native) for name in providers},
+            },
             "contract_execution_payload_estimate_bytes": contract["execution_payload_estimate_bytes"],
             "publication_window_payload_allowance_bytes": contract["capsule_payload_allowance_bytes"],
             "transport_and_tokenizer_allowance_per_role_bytes": transport,

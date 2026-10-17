@@ -5,14 +5,14 @@ description: "Run a bounded GKM composition through two workers with request-end
 
 `OpenWeightVerifiableCpu` uses two worker processes and a trusted client. The
 client releases output only after the complete request passes native verification.
-This is a generated-checkpoint conformance path; official Qwen checkpoints exceed
-its current admission limits.
+Generated checkpoints pass the ordinary SDK path. Official Qwen metadata fits the
+explicit Decoder policy, but its recorded execution attempt is host-memory blocked.
 
 ## Configure one Experiment
 
 Provide a complete local Safetensors checkpoint and genuine `tokenizer.json`,
 with at most 256 vocabulary entries and shapes within native limits. The default
-`Model.tiny()` has 258 entries and cannot serve as this fixture.
+`Model.tiny()` has 258 entries and cannot serve as this Capsule fixture.
 
 ```python
 from pllm import Deployment, ExecutionBudget, Experiment, Model, OpenAI
@@ -36,6 +36,13 @@ The profile composes `OpenWeightVerifiableOutsourcing`, `PublishedLinearVerify`,
 `TwoOnlineDelegationRoles`, one-thread CPU kernels and client-local full KV.
 It preserves the source's fixed-point arithmetic and original float32 lookup
 bytes. Ordinary W8A8 quantization is not part of this composition.
+
+The optional `linear=OpenWeightVerifiableOutsourcing(capacity="decoder")` selects
+larger, source-derived native bounds. The public example accepts
+`--capacity decoder`. Six generated two-worker cases with 1,100 vocabulary entries
+pass complete-logit/KV checks; the full-Qwen attempt still requires more safe host
+memory. Numerical admission and whole-topology memory checks apply before execution.
+The default `"capsule"` keeps its existing serialized identity and limits.
 
 The [public example](https://github.com/blairhudson/pllm/blob/main/examples/delegated_sdk.py)
 also saves canonical Experiment JSON and invokes `BenchmarkTarget.response`.

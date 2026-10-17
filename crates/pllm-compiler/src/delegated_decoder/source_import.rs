@@ -19,11 +19,15 @@ static LIVE_IMPORT_BYTES: AtomicUsize = AtomicUsize::new(0);
 struct ImportPermit(usize);
 
 impl ImportPermit {
-    fn acquire(bytes: usize) -> Result<Self, String> {
+    fn acquire(bytes: usize, capacity: gkm::Capacity) -> Result<Self, String> {
+        let limit = if capacity == gkm::Capacity::Decoder {
+            gkm::Capacity::Decoder.max_publication_bytes()
+        } else {
+            MAX_LIVE_IMPORT_BYTES
+        };
         LIVE_IMPORT_BYTES
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |live| {
-                live.checked_add(bytes)
-                    .filter(|&total| total <= MAX_LIVE_IMPORT_BYTES)
+                live.checked_add(bytes).filter(|&total| total <= limit)
             })
             .map_err(|_| reject("source import payload allowance exhausted"))?;
         Ok(Self(bytes))
@@ -71,9 +75,13 @@ impl GkmTransportImport {
             .iter()
             .map(|m| (m.rows, m.columns))
             .collect();
-        let resources =
-            gkm::PublicationResources::for_shapes(&shapes, decoder.vocabulary, decoder.width)
-                .map_err(|e| e.to_string())?;
+        let resources = gkm::PublicationResources::for_shapes_with_capacity(
+            &shapes,
+            decoder.vocabulary,
+            decoder.width,
+            decoder.capacity(),
+        )
+        .map_err(|e| e.to_string())?;
         let local_bytes = decoder
             .local_tensors
             .iter()
@@ -86,6 +94,7 @@ impl GkmTransportImport {
                 + resources.source_bound_bytes
                 + resources.source_table_bytes
                 + local_bytes,
+            decoder.capacity(),
         )?;
         let mut weights = Vec::new();
         weights
@@ -201,11 +210,12 @@ impl GkmTransportImport {
             .map_err(|_| reject("source import allocation"))?;
         for (matrix, weights) in decoder.matrices.iter().zip(buffers.weights) {
             matrices.push(
-                I16Matrix::from_encoded_owned(
+                I16Matrix::from_encoded_owned_with_capacity(
                     matrix.rows,
                     matrix.columns,
                     weights,
                     filled(matrix.columns, INPUT_BOUND)?,
+                    decoder.capacity(),
                 )
                 .map_err(|e| e.to_string())?,
             );
@@ -213,10 +223,11 @@ impl GkmTransportImport {
         Ok((
             BoundSource {
                 matrices,
-                table: FloatTable::from_le_bytes_owned(
+                table: FloatTable::from_le_bytes_owned_with_capacity(
                     decoder.vocabulary,
                     decoder.width,
                     buffers.table,
+                    decoder.capacity(),
                 )
                 .map_err(|e| e.to_string())?,
                 local: buffers.local,

@@ -1,0 +1,14 @@
+{
+  "available_bytes": 13439123456,
+  "swap": {
+    "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+    "page_bytes": 16384,
+    "pageout_bytes_diagnostic": 192136691712,
+    "psutil_sout_bytes_diagnostic": 192136691712,
+    "psutil_version": "7.2.2",
+    "schema": "pllm.host_swap_observation.v1",
+    "swap_used_bytes": 5912854528,
+    "swapout_bytes": 1301468823552,
+    "swapout_pages": 79435353
+  }
+}

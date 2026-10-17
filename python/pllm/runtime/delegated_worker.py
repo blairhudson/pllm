@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import aclosing, asynccontextmanager
 import hashlib
 import json
 import os
@@ -20,7 +20,8 @@ from pllm import _native
 from pllm.configuration import Experiment
 from pllm.deployment.resources import reserve_incremental_memory
 
-from .delegated_protocol import ADMISSION_BYTES, FRAME_BYTES, ROLES, digest, pack, unpack
+from .delegated_protocol import ROLES, digest, limits, pack, unpack
+from .delegated_protocol import clear_failure_frames as _clear_failure_frames
 from .delegated_source import admit_source
 from .delegated_transport import request_memory_bytes
 
@@ -33,13 +34,118 @@ async def _body(request, limit):
         raise ValueError("GKM invalid bounded body declaration")
     expected = int(lengths[0])
     raw = bytearray()
-    async for block in request.stream():
-        if len(raw) + len(block) > expected:
-            raise ValueError("GKM body exceeds declared length")
-        raw.extend(block)
-    if len(raw) != expected:
-        raise ValueError("GKM body length mismatch")
-    return bytes(raw)
+    block = None
+    try:
+        # A rejected block can still be held by the suspended stream generator.
+        # Close it before returning control to the reservation owner.
+        async with aclosing(request.stream()) as stream:
+            async for block in stream:
+                if len(raw) + len(block) > expected:
+                    raise ValueError("GKM body exceeds declared length")
+                raw.extend(block)
+        if len(raw) != expected:
+            raise ValueError("GKM body length mismatch")
+        return bytes(raw)
+    finally:
+        # Cancellation/timeout tracebacks must not retain partial input buffers.
+        raw = block = None
+
+
+class _Reservation:
+    """One host charge shared by the native root and its outstanding replies."""
+
+    def __init__(self, manager):
+        self._closed = True
+        self._manager = None
+        self._references = 0
+        manager.__enter__()
+        self._manager = manager
+        self._references = 1
+        self._closed = False
+
+    def lease(self):
+        if self._closed:
+            raise ValueError("GKM reservation root is retired")
+        return _ReplyLease(self)
+
+    def _release(self):
+        self._references -= 1
+        if self._references == 0:
+            manager, self._manager = self._manager, None
+            manager.__exit__(None, None, None)
+
+    def close(self):
+        if not self._closed:
+            self._closed = True
+            self._release()
+
+    def __del__(self):
+        self.close()
+
+
+class _ReplyLease:
+    def __init__(self, reservation):
+        self._reservation = reservation
+        reservation._references += 1
+
+    def close(self):
+        reservation, self._reservation = self._reservation, None
+        if reservation is not None:
+            reservation._release()
+
+    def __del__(self):
+        self.close()
+
+
+class _PayloadResponse(Response):
+    """Keep the original reply charged until send retirement or unsent destruction.
+
+    Server concurrency bounds live replies. Transport/caller copies have their
+    own admission; no registry or detached response queue is retained here.
+    """
+
+    def __init__(self, content, reservation, *, limit, **kwargs):
+        self._lease = None
+        self._sending = False
+        self.body = b""
+        try:
+            self._lease = reservation.lease()
+            if not 0 < len(content) <= limit:
+                raise ValueError("GKM reply exceeds its bounded owner")
+            super().__init__(content, **kwargs)
+        except BaseException as error:
+            content = None
+            _clear_failure_frames(error)
+            self.close()
+            raise
+
+    def close(self):
+        # An explicit close cannot refund a body still borrowed by an active send.
+        # __call__ always completes this cleanup after that send has unwound.
+        if self._sending:
+            return
+        self.body = b""
+        lease, self._lease = self._lease, None
+        if lease is not None:
+            lease.close()
+
+    async def __call__(self, scope, receive, send):
+        if self._lease is None or self._sending:
+            raise RuntimeError("GKM reply is retired or already sending")
+        self._sending = True
+        try:
+            await super().__call__(scope, receive, send)
+        except BaseException as error:
+            # Failed send frames can retain the message and its original body.
+            # They must drain before close releases the last reservation claim.
+            _clear_failure_frames(error)
+            raise
+        finally:
+            self._sending = False
+            self.close()
+
+    def __del__(self):
+        self.close()
 
 
 class _Owner:
@@ -52,6 +158,8 @@ class _Owner:
             raise ValueError("GKM worker requires its exact Experiment")
         self.experiment, self.role, self.key, self.ttl = experiment, role, api_key, ttl
         self.source = admit_source(experiment)
+        self.frame_limit, self.admission_limit = limits(
+            experiment.pipeline.components["linear"].params.get("capacity", "capsule"))
         self.epoch = secrets.token_hex(32)
         self.lock = asyncio.Lock()
         self.active = None
@@ -65,13 +173,16 @@ class _Owner:
         try:
             if self.active is not None:
                 self.active.abort()
+        except BaseException as error:
+            _clear_failure_frames(error)
+            raise
         finally:
             self.active = None
             self.request = None
             self.deadline = 0
             if self.reservation is not None:
                 reservation, self.reservation = self.reservation, None
-                reservation.__exit__(None, None, None)
+                reservation.close()
 
     def expire(self):
         if self.active is not None and time.monotonic() >= self.deadline:
@@ -86,7 +197,7 @@ class _Owner:
         return {"schema": "pllm.gkm.worker.v1", "role": self.role, "epoch": self.epoch,
                 "configuration": self.experiment.configuration_digest(),
                 "source_lock": self.source.source_lock_digest,
-                "tokenizer": self.source.tokenizer_digest, "frame_limit": FRAME_BYTES}
+                "tokenizer": self.source.tokenizer_digest, "frame_limit": self.frame_limit}
 
 
 def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str, *, ttl=300.0):
@@ -139,9 +250,15 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
             # cannot cancel an unrelated request merely by attempting to start.
             if owner.closed or owner.active is not None:
                 return Response(status_code=409)
+            body_reservation = None
+            raw = value = None
             try:
-                raw = await asyncio.wait_for(_body(request, ADMISSION_BYTES), timeout=owner.ttl)
-                value = unpack(raw)
+                if getattr(owner.source, "capacity", "capsule") == "decoder":
+                    reservation = reserve_incremental_memory(4 * owner.admission_limit)
+                    reservation.__enter__()
+                    body_reservation = reservation
+                raw = await asyncio.wait_for(_body(request, owner.admission_limit), timeout=owner.ttl)
+                value = unpack(raw, limit=owner.admission_limit)
                 if set(value) != {"schema", "request", "epoch", "configuration", "source_lock",
                                   "tokenizer", "input_rows", "output_tokens", "publication", "pin", "start"}:
                     raise ValueError("GKM invalid admission fields")
@@ -160,9 +277,8 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 # Complete Experiment envelope and actual query must admit BEFORE
                 # loading source values or allocating any publication/session.
                 contract = owner.source.runtime_contract(experiment, rows, outputs)
-                reservation = reserve_incremental_memory(request_memory_bytes(owner.source))
-                reservation.__enter__()
-                owner.reservation = reservation
+                owner.reservation = _Reservation(
+                    reserve_incremental_memory(request_memory_bytes(owner.source, worker=True)))
                 native = owner.source.load_transport(experiment, rows, outputs, worker=(
                     value["publication"], value["pin"], ROLES.index(role), value["start"],
                 ))
@@ -172,14 +288,24 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 owner.deadline = time.monotonic() + owner.ttl
                 if await request.is_disconnected():
                     raise ValueError("GKM admission disconnected")
-                return Response(pack({"schema": "pllm.gkm.ready.v1", "request": rid, "role": role,
+                return _PayloadResponse(pack({"schema": "pllm.gkm.ready.v1", "request": rid, "role": role,
                     "contract_sha256": hashlib.sha256(contract).hexdigest(), "epoch": owner.epoch}),
-                    media_type="application/msgpack")
+                    owner.reservation, limit=16 << 10, media_type="application/msgpack")
             except BaseException as error:
+                # Reraised cancellation can retain source/import arguments in
+                # its traceback after this handler returns. Keep stack metadata,
+                # but release inactive frame locals while reservations still hold.
+                _clear_failure_frames(error)
                 owner.retire()
                 if not isinstance(error, Exception):
                     raise
                 return Response(status_code=400)
+            finally:
+                # Retire both received and decoded publication copies before
+                # releasing their temporary reservation, including failed imports.
+                raw = value = None
+                if body_reservation is not None:
+                    body_reservation.__exit__(None, None, None)
 
     async def operation(request: Request):
         if not owner.authenticated(request):
@@ -192,34 +318,47 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 return Response(status_code=400)
             if owner.closed or owner.active is None or rid != owner.request:
                 return Response(status_code=404)
+            raw = result = receipt = response = None
             try:
                 action = request.path_params["action"]
                 if action == "step":
-                    raw = await asyncio.wait_for(_body(request, FRAME_BYTES),
+                    raw = await asyncio.wait_for(_body(request, owner.frame_limit),
                                                  timeout=max(0, owner.deadline - time.monotonic()))
                     started = time.perf_counter_ns()
                     result = owner.active.execute(raw)
                     elapsed = time.perf_counter_ns() - started
                     if time.monotonic() >= owner.deadline or await request.is_disconnected():
                         raise ValueError("GKM step disconnected")
-                    return Response(result, media_type="application/octet-stream",
-                                    headers={"x-pllm-server-ns": str(elapsed)})
+                    return _PayloadResponse(result, owner.reservation, limit=owner.frame_limit,
+                                     media_type="application/octet-stream",
+                                     headers={"x-pllm-server-ns": str(elapsed)})
                 raw = await asyncio.wait_for(_body(request, 0),
                                              timeout=max(0, owner.deadline - time.monotonic()))
                 if raw or action not in {"finish", "cancel"}:
                     raise ValueError("GKM invalid lifecycle action")
                 if action == "finish":
                     receipt = owner.active.finish()  # Completion only; client verifies later.
+                    response = _PayloadResponse(receipt, owner.reservation, limit=16 << 10,
+                                                media_type="application/json")
                     owner.retire()
-                    return Response(receipt, media_type="application/json")
+                    return response
+                response = _PayloadResponse(pack({"request": rid, "role": role, "action": action}),
+                                            owner.reservation, limit=1024,
+                                            media_type="application/msgpack")
                 owner.retire()
-                return Response(pack({"request": rid, "role": role, "action": action}),
-                                media_type="application/msgpack")
+                return response
             except BaseException as error:
+                # This active frame cannot be cleared by traceback.clear_frames.
+                # Drain its payloads, then inactive body/native/response callees,
+                # before retire releases the request's reservation.
+                raw = result = receipt = response = None
+                _clear_failure_frames(error)
                 owner.retire()
                 if not isinstance(error, Exception):
                     raise
                 return Response(status_code=400)
+            finally:
+                raw = result = receipt = response = None
 
     app = Starlette(routes=[Route("/healthz", health), Route("/v1/delegation/manifest", manifest),
         Route("/v1/delegation/metrics", metrics), Route("/v1/delegation/admit", admit, methods=["POST"]),

@@ -1,4 +1,7 @@
-//! Bounded, model-neutral Gupta--Katz--Miers protocol capsule (Figs. 1--5).
+//! Bounded, model-neutral Gupta--Katz--Miers protocol core (Figs. 1--5).
+//! Existing constructors use [`Capacity::Capsule`]. Explicit [`Capacity::Decoder`]
+//! constructors admit full decoder-sized matrices, tables and full-share windows
+//! under separate bounded resource policy; artifact/wire identities are unchanged.
 //!
 //! Numeric completion: exact binary scaling by 2048, nearest ties-to-even,
 //! finite inputs, signed i16 weights, unsigned wrapping ring64 share arithmetic,
@@ -16,7 +19,7 @@
 //! passes. Dropping any pending/partial/window owner cancels it. There is no
 //! streaming acceptance, embedding cache, or detached verification queue.
 //!
-//! This scalar CPU conformance capsule does not implement a decoder, model
+//! This scalar CPU conformance core does not implement a decoder, model
 //! import, SDK, prefill batching, SIMD/GPU acceleration,
 //! authenticated/confidential transport, persistent KV,
 //! sampler, or deployment security/peak-memory/performance qualification. Two
@@ -37,6 +40,7 @@
 //! or an RSS bound; standalone caller-owned primitives/copies and allocator
 //! overhead are outside publication-envelope accounting.
 
+mod capacity;
 mod lookup;
 mod numeric;
 mod payload;
@@ -44,6 +48,7 @@ mod publication;
 mod seeded;
 mod window;
 
+pub use capacity::Capacity;
 pub use lookup::FloatTable;
 pub use numeric::{encode_input, encode_weight, reconstruct_signed, rescale_signed, I16Matrix};
 pub use publication::{Publication, PublicationResources, Stage};
@@ -66,8 +71,8 @@ pub const MAX_VOCABULARY: usize = 4096;
 pub const MAX_STAGES: usize = 16;
 pub const MAX_WINDOW_STEPS: usize = 128;
 pub const MAX_PUBLICATION_BYTES: usize = 16 << 20;
-/// Sum of complete admitted publication envelopes, including their reserved
-/// live-window capacity. Additional publications share this existing-size cap.
+/// Capsule sub-pool of complete admitted publication envelopes, including their
+/// reserved live-window capacity. All capacities also share the Decoder ceiling.
 pub const MAX_PROCESS_PUBLICATION_BYTES: usize = MAX_PUBLICATION_BYTES;
 pub const MAX_CLIENTS_PER_PUBLICATION: u32 = 64;
 pub const MAX_WINDOW_BYTES: usize = 1 << 20;
@@ -153,3 +158,6 @@ fn signed_scalar(value: i64) -> Scalar {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod capacity_tests;

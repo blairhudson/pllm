@@ -9,12 +9,14 @@ use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
 use super::{
-    payload, reconstruct_signed, rescale_signed, sample_scalar, signed_scalar, Entropy, Error,
-    FloatTable, I16Matrix, OsEntropy, Publication, Purpose, SharingProfile,
-    MAX_CLIENTS_PER_PUBLICATION, MAX_DIMENSION, MAX_LIVE_WINDOWS, MAX_PROCESS_LIVE_WINDOWS,
+    payload, reconstruct_signed, rescale_signed, sample_scalar, signed_scalar, Capacity, Entropy,
+    Error, FloatTable, I16Matrix, OsEntropy, Publication, Purpose, SharingProfile,
+    MAX_CLIENTS_PER_PUBLICATION, MAX_LIVE_WINDOWS, MAX_PROCESS_LIVE_WINDOWS,
     MAX_PROCESS_RESERVED_STEPS, MAX_PROCESS_WINDOWS, MAX_RESERVED_STEPS, MAX_WINDOWS,
-    MAX_WINDOW_STEPS,
 };
+
+#[cfg(test)]
+use super::{MAX_DIMENSION, MAX_WINDOW_STEPS};
 
 use super::seeded::Streams;
 #[path = "seeded_window.rs"]
@@ -188,7 +190,7 @@ impl LinearResponse {
             if binding != share.binding {
                 return Err(Error::Binding);
             }
-            if values.len() > MAX_DIMENSION {
+            if values.len() > share.rows {
                 return Err(Error::Limit);
             }
             if values.len() != share.rows {
@@ -218,7 +220,7 @@ impl LookupResponse {
             if binding != share.binding {
                 return Err(Error::Binding);
             }
-            if bytes.len() > MAX_DIMENSION * 4 {
+            if bytes.len() > share.bytes {
                 return Err(Error::Limit);
             }
             if bytes.len() != share.bytes {
@@ -419,7 +421,11 @@ impl Client {
         // Attempts are charged before validating caller-controlled shape/order.
         let sequence = reserve(&self.budget.windows, 1, MAX_WINDOWS)?;
         reserve(&PROCESS_WINDOWS, 1, MAX_PROCESS_WINDOWS)?;
-        if plan.is_empty() || plan.len() > MAX_WINDOW_STEPS {
+        if plan.is_empty()
+            || plan.len() > self.publication.capacity.max_window_steps()
+            || (self.publication.capacity == Capacity::Decoder
+                && profile != SharingProfile::FullShares)
+        {
             return Err(Error::Limit);
         }
         reserve(&self.budget.steps, plan.len() as u64, MAX_RESERVED_STEPS)?;

@@ -30,7 +30,8 @@ from .client import (
     PrivacyAudit, ProtocolError, ResponseStream, _ScopedTokenizer,
     _normalized_inference_endpoint, _response_contract_fields,
 )
-from .delegated_decoder import GkmDecoderResult
+from .delegated_decoder import GkmDecoderResult, result_payload_limit
+from .delegated_protocol import clear_failure_frames
 from .http_gateway import GatewayError, validate_response_body
 from .prepared_queue import PreparedCancellation, prepared_cancellation
 from .responses import normalize_input, prompt_text
@@ -39,7 +40,6 @@ from .types import Response, response_events
 
 _BODY_BYTES = 64 << 10
 _OUTPUT_BYTES = 1 << 20
-_RESULT_BYTES = 16 << 20
 _RECORD_BYTES = 4 << 20
 _RECORD_COUNT = 64
 _TRANSPORT_FIELDS = frozenset({
@@ -281,7 +281,10 @@ class DelegatedClient:
         if profile.client_runtime != "compiled_gkm_v1":
             raise ValueError("GKM runtime requires the compiled_gkm_v1 profile")
         budget = experiment.budget
-        if not (1 <= budget.max_input_tokens <= 32 and 1 <= budget.max_new_tokens <= 9
+        self._capacity = experiment.pipeline.components["linear"].params.get("capacity", "capsule")
+        expanded = self._capacity == "decoder"
+        if not (1 <= budget.max_input_tokens <= (512 if expanded else 32)
+                and 1 <= budget.max_new_tokens <= (65 if expanded else 9)
                 and 1 <= budget.requests <= 64):
             raise ValueError("GKM Experiment exceeds its bounded workload")
         if (type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0):
@@ -374,12 +377,15 @@ class DelegatedClient:
             if not self._source_checked:
                 source = self._source if self._source is not None else _admit_source(self._declaration)
                 contract = source.contract
+                expanded = self._capacity == "decoder"
                 if (source.model != self._declaration.pipeline.model
+                        or getattr(source, "capacity", "capsule") != self._capacity
                         or contract["input_rows"] != self._experiment_budget.max_input_tokens
                         or contract["decode_steps"] != self._experiment_budget.max_new_tokens - 1
-                        or not 1 <= contract["vocabulary"] <= 256
-                        or not 0 < source.source_float32_bytes <= 8 << 20):
+                        or not 1 <= contract["vocabulary"] <= (262144 if expanded else 256)
+                        or not 0 < source.source_float32_bytes <= (4 << 30 if expanded else 8 << 20)):
                     raise ValueError("GKM source differs from the admitted Experiment")
+                result_payload_limit(contract, capacity=self._capacity)
                 self._source, self._source_checked = source, True
             return self._source
 
@@ -450,7 +456,7 @@ class DelegatedClient:
                     or any(type(data) is not bytes or len(data) != math.prod(shape) * 4 for data in row[1:])):
                 raise ProtocolError("GKM accepted full-KV shape differs from the request")
             size += len(row[1]) + len(row[2])
-        if size > _RESULT_BYTES:
+        if size > result_payload_limit(source.contract, capacity=self._capacity):
             raise ProtocolError("GKM accepted result exceeds its bounded owner")
 
     def _produce(self, attempt):
@@ -514,6 +520,9 @@ class DelegatedClient:
                             == sum(snapshot[name] for name in online_fields)):
                         self.audit.generation_attribution_supported_responses += 1
                 return events
+        except BaseException as error:
+            clear_failure_frames(error)
+            raise
         finally:
             # No accepted logits/KV in the iterator, client cache, or error frame.
             result = tokenizer = source = body = None

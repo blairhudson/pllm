@@ -1,7 +1,7 @@
 """Bounded reproducers for the SDK audit; fixtures identify controlled owners."""
 
 import asyncio
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import threading
@@ -221,6 +221,9 @@ def test_worker_stale_routing_and_busy_admission_preserve_current_owner(tmp_path
     native = Native()
     with TestClient(app, headers={"authorization": "Bearer " + "a" * 32}) as client:
         owner.active, owner.request = native, "a" * 64
+        # This controlled native owner bypasses /admit; supply its matching host
+        # root so successful responses follow the real lease lifecycle too.
+        owner.reservation = delegated_worker._Reservation(nullcontext())
         owner.seen.add(owner.request)
         owner.deadline = time.monotonic() + 10
         assert client.post("/v1/delegation/admit", content=b"unrelated").status_code == 409

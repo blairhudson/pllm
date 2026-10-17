@@ -59,6 +59,13 @@ checks. Bounded original-value frames replace eager Python source buffers;
 encoded weights move into their final worker owners. Full-width admission and
 whole-client memory measurements remain separate gates.
 
+The [explicit Decoder-capacity slice](../artifacts/gkm-sdk/decoder-capacity.md)
+then passes 640 installed Python and 134 native checks, including complete
+generated two-worker results beyond the Capsule vocabulary ceiling. Native source
+geometry and owner bounds admit pinned Qwen metadata. Its source-present
+whole-topology preflight remains host-admission blocked: 10.83 GiB required versus
+8.11 GiB safe headroom. No full-Qwen response or quality result is available.
+
 Full-checkpoint publication, activation bounds, original-model and common-Qwen
 quality and matched resource/performance evidence remain open. Seeded network
 frames, stochastic or early-EOS generation, continuation, remote source discovery

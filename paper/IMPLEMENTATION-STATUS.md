@@ -26,6 +26,13 @@ Completed foundations:
   package files match before and after testing. See
   [the SDK archive](artifacts/gkm-sdk/README.md). This generated-checkpoint slice
   does not admit the official Qwen checkpoint or qualify publication performance.
+- The subsequent [explicit GKM Decoder-capacity slice](artifacts/gkm-sdk/decoder-capacity.md)
+  passes 640 installed Python and 134 native checks plus Clippy, with all 362
+  installed files matching. Six generated two-worker cases preserve 20,376 complete
+  logit/KV values beyond the Capsule vocabulary ceiling. Pinned Qwen metadata
+  passes native geometry checks, but the full-checkpoint attempt rejects host
+  admission at 10.83 GiB required versus 8.11 GiB safe headroom. No checkpoint
+  response, activation-range or quality result follows.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure
@@ -36,8 +43,9 @@ Completed foundations:
 
 Remaining critical path:
 
-1. Extend GKM's bounded SDK path to admitted full-width publication and measured
-   activation bounds, then qualify original-model and common-Qwen execution.
+1. Run GKM's explicit Decoder policy under admitted host capacity, validate actual
+   full-width publication and activation bounds, then qualify original-model and
+   common-Qwen execution.
    Preserve source arithmetic, final-window acceptance and failure retirement.
    Seeded transport and broader generation policies retain separate contracts.
    The shared gate is [methods/sdk-integration.md](methods/sdk-integration.md).

@@ -30,6 +30,47 @@ WireBytes::as_bytes(&self) -> &[u8]
 WireResources::current() -> WireResources
 ```
 
+### Explicit Decoder capacity
+
+Existing constructors and `MAX_*` constants retain Capsule policy. Larger owners
+use an explicit local `Capacity::Decoder` argument (capacity is never inferred
+from wire data):
+
+```rust,ignore
+PublicationResources::for_shapes_with_capacity(shapes: &[(usize, usize)],
+    vocabulary: usize, width: usize, capacity: Capacity) -> Result<PublicationResources, Error>
+Publication::publish_with_capacity(context: [u8; 32], stages: &[Stage<'_>],
+    table: &FloatTable, capacity: Capacity) -> Result<Publication, Error>
+Publication::import_wire_with_capacity(bytes: &[u8], pin: [u8; 32],
+    capacity: Capacity) -> Result<Publication, Error>
+I16Matrix::from_encoded_owned_with_capacity(rows: usize, columns: usize,
+    weights: Vec<i16>, input_bounds: Vec<u64>, capacity: Capacity) -> Result<I16Matrix, Error>
+FloatTable::from_le_bytes_owned_with_capacity(vocabulary: usize, width: usize,
+    bytes: Vec<u8>, capacity: Capacity) -> Result<FloatTable, Error>
+WireResources::current_with_capacity(capacity: Capacity) -> WireResources
+```
+
+Borrowing/copying counterparts `I16Matrix::from_encoded_with_capacity` and
+`FloatTable::from_le_bytes_with_capacity` take slices. Owned source imports require
+exact vector capacity. `WorkerWire::from_owned` transfers those owners without
+another source copy; `WorkerWire::new` explicitly prices and copies them. Both
+inherit publication capacity, as do clients, native responses and wire windows.
+`Publication`, `I16Matrix`, `FloatTable` and `WireBytes` expose `capacity()`.
+`PublicationResources` also reports `capacity` and `window_accumulator_bytes`.
+
+Capacity exposes `max_rows`, `max_columns` (also table width), `max_vocabulary`,
+`max_stages`, `max_window_steps`, `max_matrix_elements`, `max_source_bytes`,
+`max_publication_bytes`, `max_window_bytes`, `max_process_publication_bytes`,
+`max_process_wire_bytes`, `max_publication_wire_bytes` and `max_wire_frame_bytes`.
+Decoder limits: 262144 rows/vocabulary, 16384 columns/table width, 256 stages,
+65536 window steps, 2^28 elements per matrix, 2 GiB aggregate owned source
+(including bounds), 128 MiB native window, 4 GiB publication/process-publication
+envelope, 4 GiB process wire pool, 32 MiB encoded publication and 4 MiB frames.
+Admission also checks a conservative encoded-publication upper bound. Numeric
+profiles, stage/matrix/table/publication digests and canonical wire bytes do not
+include capacity. An identical small artifact has identical identities under
+both policies. Native seeded Decoder requests return `Error::Limit`.
+
 Send array index 0 only to Worker Zero, index 1 only to Worker One. Each worker
 is bound to one authenticated client session and monotonically increasing window
 sequences. Complete/finish the worker request before beginning its next window.
@@ -55,19 +96,24 @@ calls when cancellation closes the native client transaction.
 
 ## Explicit resource boundaries
 
-- Original complete-publication pool remains **16 MiB**, unchanged. Imports
-  reserve their own complete native envelope, before native payload allocations.
-- Additional wire pool is **8 MiB process-global**, independent of publication
-  pool. It charges worker source copies/control, public plans, stack/dynamic
+- Original Capsule complete-publication sub-pool remains **16 MiB**. All profiles
+  additionally share a **4 GiB** process ceiling. Imports reserve their own
+  complete native envelope before native payload allocations.
+- Capsule wire sub-pool remains **8 MiB process-global**, under a shared **4 GiB**
+  wire ceiling, independent of publication pool. It charges source copies/control, public plans, dynamic
   request scratch, client wire controls, and every retained output byte owner.
+- `WireResources::current()` reports Capsule usage/limit;
+  `current_with_capacity(Decoder)` reports all profiles' total process usage.
 - Each worker copies source weights/bounds/table plus matrix metadata, native
-  owner sizes and 1024 bytes control allowance before allocation. Each worker
-  request charges `128 * size_of::<Step>() + 3 * 256 * 8 +
-  size_of::<WorkerWireWindow>() + 1024` bytes. Client wire owner charges its size,
-  two maximum word decode arrays, one maximum schedule array and 1024 bytes.
+  owner sizes and 1024 bytes control allowance before allocation. Worker request
+  scratch charges its actual schedule and the largest `8 * columns + 16 * rows`
+  across admitted matrices (or table row bytes, whichever is larger). Client wire
+  scratch charges its size, two owner-sized maximum word arrays, actual encoded
+  schedule length and 1024 bytes. These reservations remain live with their owners.
 - Each exported frame charges exact capacity plus `size_of::<WireBytes>() + 64`;
   no unbounded queue or implicit cloning exists. Protocol frame maximum is
-  **8192 bytes**; public artifact maximum is **512 KiB**.
+  **8192 bytes** for Capsule and **4 MiB** for Decoder; public artifact maximum is
+  **512 KiB** for Capsule and **32 MiB** for Decoder.
 - Worker requests reuse native admission counters: eight live windows shared by
   a publication, 64 admission handles, existing per-owner and process cumulative
   attempt/step limits and process live-window cap. Co-located client plus two
@@ -79,7 +125,7 @@ calls when cancellation closes the native client transaction.
 
 Malformed publication import checks trusted digest, canonical compressed SEC1
 points (including legal identity), geometry, duplicate IDs, range bounds and exact
-length without allocating. It then reserves unchanged publication envelope and
+length without allocating (at most 2 KiB of fixed offset metadata). It then reserves its publication envelope and
 copies exact row hashes. Wire encoding preserves existing publication/request/plan
 identities. It exports no secret setup scalars.
 
@@ -100,6 +146,15 @@ charged wire allowance exceeds the measured requested-allocation peak. Two
 maximum 4 MiB table copies plus their controls deliberately cannot coexist inside
 one process's 8 MiB wire allowance; separate worker processes admit one each.
 
+Decoder fixtures additionally exercise 1031-by-3 and 2-by-1033 matrices, 2053-wide
+table rows, 4097 vocabulary, 256 stages and a 257-step wire schedule. Geometry-only
+Qwen2.5-0.5B admission covers 97 matrices: 151936 R points, 182144 S points,
+1532461056 source weight/table bytes and 20422656 accumulator bytes. Tests do not
+import or execute the model. Null-allocation checks cover newly dynamic wide
+input/output/reply buffers, peak overlap, and complete 4 GiB publication-envelope
+exhaustion using tiny payloads. Retained packets/responses preserve leases after
+cancellation; out-of-owner-shape frames reject even when inside Decoder maxima.
+
 The process fixture launches two native child processes. Each imports the trusted
 public artifact, constructs only its own role, receives only its own schedule and
 share bytes, and completes dependent lookup/linear execution before the parent's
@@ -112,11 +167,12 @@ Replay commands (sequential, focused native checks only):
 CARGO_BUILD_JOBS=2 cargo test --offline --locked -p pllm-core --lib gkm:: -- --test-threads=1
 CARGO_BUILD_JOBS=2 cargo test --offline --locked -p pllm-core --test gkm_wire --test gkm_wire_allocation --test gkm_wire_process -- --test-threads=1
 CARGO_BUILD_JOBS=2 cargo test --offline --locked -p pllm-core --test gkm_allocation --test gkm_seeded_restart -- --test-threads=1
+CARGO_BUILD_JOBS=2 cargo test --offline --locked -p pllm-core --test gkm_capacity -- --test-threads=1
 CARGO_BUILD_JOBS=2 cargo test --offline --locked -p pllm-core --doc gkm -- --test-threads=1
 ```
 
 Compiler/PyO3/SDK/gateway wrapping, outer copy and transport admission, complete
 request cancellation/draining, authenticated confidential channels, independent
 operator deployment and durable replay accounting remain integration gates.
-Seeded network transport, enlarged geometries, batching, cryptographic review,
+Seeded network transport, batching, cryptographic review,
 original-model quality and performance qualification remain separate gates.

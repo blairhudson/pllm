@@ -1,10 +1,11 @@
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
-use super::{payload, Error, MAX_DIMENSION, MAX_VOCABULARY, NUMERIC_PROFILE};
+use super::{payload, Capacity, Error, NUMERIC_PROFILE};
 
 /// Immutable original little-endian float32 bytes, never quantized/reserialized.
 pub struct FloatTable {
+    pub(super) capacity: Capacity,
     pub(super) vocabulary: usize,
     pub(super) width: usize,
     pub(super) bytes: Vec<u8>,
@@ -13,15 +14,26 @@ pub struct FloatTable {
 
 impl FloatTable {
     pub fn from_le_bytes(vocabulary: usize, width: usize, bytes: &[u8]) -> Result<Self, Error> {
-        Self::validate(vocabulary, width, bytes)?;
-        Self::from_le_bytes_owned(vocabulary, width, payload::copy(bytes)?)
+        Self::from_le_bytes_with_capacity(vocabulary, width, bytes, Capacity::Capsule)
     }
 
-    fn validate(vocabulary: usize, width: usize, bytes: &[u8]) -> Result<(), Error> {
-        if vocabulary == 0 || vocabulary > MAX_VOCABULARY || width == 0 || width > MAX_DIMENSION {
-            return Err(Error::Limit);
-        }
-        if vocabulary.checked_mul(width).and_then(|n| n.checked_mul(4)) != Some(bytes.len()) {
+    pub fn from_le_bytes_with_capacity(
+        vocabulary: usize,
+        width: usize,
+        bytes: &[u8],
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        Self::validate(vocabulary, width, bytes, capacity)?;
+        Self::from_le_bytes_owned_with_capacity(vocabulary, width, payload::copy(bytes)?, capacity)
+    }
+
+    fn validate(
+        vocabulary: usize,
+        width: usize,
+        bytes: &[u8],
+        capacity: Capacity,
+    ) -> Result<(), Error> {
+        if capacity.table_bytes(vocabulary, width)? != bytes.len() {
             return Err(Error::Shape);
         }
         // Explicit finite-only profile; inspect bits, but preserve original bytes.
@@ -41,7 +53,16 @@ impl FloatTable {
         width: usize,
         bytes: Vec<u8>,
     ) -> Result<Self, Error> {
-        Self::validate(vocabulary, width, &bytes)?;
+        Self::from_le_bytes_owned_with_capacity(vocabulary, width, bytes, Capacity::Capsule)
+    }
+
+    pub fn from_le_bytes_owned_with_capacity(
+        vocabulary: usize,
+        width: usize,
+        bytes: Vec<u8>,
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        Self::validate(vocabulary, width, &bytes, capacity)?;
         if bytes.capacity() != bytes.len() {
             return Err(Error::Limit);
         }
@@ -52,6 +73,7 @@ impl FloatTable {
         hash.update((width as u64).to_le_bytes());
         hash.update(&bytes);
         Ok(Self {
+            capacity,
             vocabulary,
             width,
             bytes,
@@ -61,6 +83,10 @@ impl FloatTable {
 
     pub fn shape(&self) -> (usize, usize) {
         (self.vocabulary, self.width)
+    }
+
+    pub fn capacity(&self) -> Capacity {
+        self.capacity
     }
 
     pub fn digest(&self) -> [u8; 32] {

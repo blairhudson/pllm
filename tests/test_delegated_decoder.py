@@ -48,8 +48,9 @@ def config(family="qwen2", tied=True):
     return result
 
 
-def fixture(cfg, rows=3, decode=2):
-    contract = json.loads(decoder.decoder_contract(cfg, input_rows=rows, decode_steps=decode))
+def fixture(cfg, rows=3, decode=2, *, capacity="capsule"):
+    contract = json.loads(decoder.decoder_contract(cfg, input_rows=rows, decode_steps=decode,
+                                                   capacity=capacity))
     rng = np.random.default_rng(5431)
     arrays = {}
     for name, shape in contract["source_shapes"].items():

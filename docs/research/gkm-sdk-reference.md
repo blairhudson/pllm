@@ -3,7 +3,15 @@
 This slice composes the existing GKM numerical and verification contracts with
 ordinary PLLM components, two worker processes and request-end acceptance. It is
 a generated-checkpoint conformance path. The official Qwen checkpoint and the
-original paper's models remain outside its admitted geometry.
+original paper's models remain outside this default Capsule geometry.
+
+The subsequent explicit `OpenWeightVerifiableOutsourcing(capacity="decoder")`
+uses larger, compiler-derived owner bounds. Its installed-wheel evidence passes
+640 Python and 134 native checks, including generated complete results beyond the
+Capsule vocabulary ceiling. Pinned Qwen metadata fits those native bounds, but
+its full-checkpoint attempt is host-memory blocked before execution. See the
+[Decoder contract](gkm-decoder-capacity.md) and
+[separate archive](../../paper/artifacts/gkm-sdk/decoder-capacity.md).
 
 ## Configuration and execution
 

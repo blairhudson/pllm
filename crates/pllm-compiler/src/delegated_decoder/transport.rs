@@ -95,7 +95,13 @@ impl GkmTransportClient {
         // Preserve the legacy actual-source digest and publication source context.
         // Runtime/Experiment identity additionally binds the request context below.
         let publication = Arc::new(
-            Publication::publish(source, &stages, &table).map_err(|error| error.to_string())?,
+            Publication::publish_with_capacity(
+                source,
+                &stages,
+                &table,
+                contract.decoder().capacity(),
+            )
+            .map_err(|error| error.to_string())?,
         );
         drop(stages);
         drop(matrices);
@@ -321,7 +327,8 @@ impl GkmTransportWorker {
         start: &[u8],
     ) -> Result<Self, String> {
         // Check the pin and publication envelope before importing caller values.
-        Publication::import_wire(publication, pin).map_err(|error| error.to_string())?;
+        Publication::import_wire_with_capacity(publication, pin, contract.decoder().capacity())
+            .map_err(|error| error.to_string())?;
         let source = bind_source(contract.decoder(), tensors)?;
         Self::from_source(contract, source, publication, pin, role, start)
     }
@@ -335,7 +342,8 @@ impl GkmTransportWorker {
         start: &[u8],
     ) -> Result<Self, String> {
         let publication = Arc::new(
-            Publication::import_wire(publication, pin).map_err(|error| error.to_string())?,
+            Publication::import_wire_with_capacity(publication, pin, contract.decoder().capacity())
+                .map_err(|error| error.to_string())?,
         );
         let calls = plan(&contract)?;
         let BoundSource {

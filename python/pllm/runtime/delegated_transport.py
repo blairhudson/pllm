@@ -26,8 +26,8 @@ from pllm import _native
 from pllm.deployment.resources import reserve_incremental_memory
 
 from .client import ProtocolError
-from .delegated_decoder import _execute_verified_window
-from .delegated_protocol import FRAME_BYTES, digest, pack, read_json, unpack
+from .delegated_decoder import _execute_verified_window, result_payload_limit
+from .delegated_protocol import clear_failure_frames, digest, limits, pack, read_json, unpack
 
 
 _ROLES = ("worker_a", "worker_b")
@@ -36,7 +36,7 @@ _IO_DRAIN_TIMEOUT = 1.0
 _TRANSPORT_ALLOWANCE_BYTES = 64 << 20
 
 
-def request_memory_bytes(source):
+def request_memory_bytes(source, *, worker=False):
     """Native envelope plus outer copies, results, two pools and one I/O owner.
 
     The existing 64 MiB transport allowance includes the single thread's stack
@@ -44,8 +44,15 @@ def request_memory_bytes(source):
     admitted; the thread retires before this request's reservation is released.
     """
     size = source.execution_payload_estimate_bytes
-    if type(size) is not int or not 0 < size <= 64 << 20:
+    expanded = getattr(source, "capacity", "capsule") == "decoder"
+    if type(size) is not int or not 0 < size <= (4 << 30 if expanded else 64 << 20):
         raise ValueError("GKM execution payload has no admitted bound")
+    if expanded:
+        resources = source.contract["decoder_resources"]
+        if size != resources["client_payload_bytes"]:
+            raise ValueError("GKM native resource contract differs")
+        if worker:
+            size = resources["worker_payload_bytes"]
     return size + _TRANSPORT_ALLOWANCE_BYTES
 
 
@@ -163,9 +170,10 @@ class _IOOwner:
 
 
 class _Peers:
-    def __init__(self, connections, timeout, cancelled):
+    def __init__(self, connections, timeout, cancelled, *, capacity="capsule"):
         # Admit both origins before constructing clients or any I/O owner.
         connections = _connections(connections)
+        self.frame_limit, self.admission_limit = limits(capacity)
         self.io = _IOOwner()
         self.closed = False
         self.clients = []
@@ -296,7 +304,7 @@ class _Peers:
             expected = {"schema": "pllm.gkm.worker.v1", "role": role,
                         "configuration": experiment.configuration_digest(),
                         "source_lock": source.source_lock_digest, "tokenizer": source.tokenizer_digest,
-                        "frame_limit": FRAME_BYTES}
+                         "frame_limit": self.frame_limit}
             if (set(manifest) != set(expected) | {"epoch"}
                     or any(manifest[key] != value for key, value in expected.items())):
                 raise ProtocolError("GKM worker manifest differs from the admitted source")
@@ -311,7 +319,7 @@ class _Peers:
             # Burn this ID even if acknowledgement is lost or malformed.
             self.live[index] = True
             acknowledgement = unpack(self.post(
-                index, "admit", pack(metadata),
+                index, "admit", pack(metadata, limit=self.admission_limit),
                 phase="setup", limit=16 << 10,
             ))
             expected_ack = {"schema": "pllm.gkm.ready.v1", "request": self.request_id, "role": role,
@@ -322,9 +330,9 @@ class _Peers:
     def exchange(self, frames):
         self.check()
         if type(frames) is not tuple or len(frames) != 2 or any(
-                type(frame) is not bytes or not 0 < len(frame) <= FRAME_BYTES for frame in frames):
+                type(frame) is not bytes or not 0 < len(frame) <= self.frame_limit for frame in frames):
             raise ProtocolError("GKM native role frames exceed the transport contract")
-        result = tuple(self.post(index, "step", frame, phase="online", limit=FRAME_BYTES)
+        result = tuple(self.post(index, "step", frame, phase="online", limit=self.frame_limit)
                        for index, frame in enumerate(frames))
         self.check()
         return result
@@ -431,40 +439,51 @@ class _NativeExchange:
 
 def execute_request(experiment, source, token_ids, output_tokens, connections, timeout, cancelled):
     """Return complete accepted state; all error paths retire local and remote owners."""
+    capacity = getattr(source, "capacity", "capsule")
+    expanded = capacity == "decoder"
     if (type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 3600
-            or type(token_ids) not in (list, tuple) or not 1 <= len(token_ids) <= 32
+            or type(token_ids) not in (list, tuple) or not 1 <= len(token_ids) <= (512 if expanded else 32)
             or any(type(token) is not int or not 0 <= token < source.contract["vocabulary"] for token in token_ids)
-            or type(output_tokens) is not int or not 1 <= output_tokens <= 9 or not callable(cancelled)):
+            or type(output_tokens) is not int or not 1 <= output_tokens <= (65 if expanded else 9) or not callable(cancelled)):
         raise ValueError("GKM request exceeds the bounded transport contract")
     connections = dict(zip(_ROLES, _connections(connections), strict=True))
     # Full-budget source admission is already sealed. Actual native binding must
     # also precede value loading, even for a smaller request.
     contract_bytes = source.runtime_contract(experiment, len(token_ids), output_tokens)
-    native = peers = None
+    result_payload_limit(source.contract, capacity=capacity)
+    native = peers = decoder = record = None
     with reserve_incremental_memory(request_memory_bytes(source)):
         try:
-            if cancelled():
-                raise ProtocolError("GKM request cancelled", 499)
-            native = source.load_transport(experiment, len(token_ids), output_tokens, cancelled=cancelled)
-            if native.contract() != contract_bytes:
-                raise ProtocolError("GKM client native admission differs from the source contract")
-            decoder = json.loads(native.decoder())
-            peers = _Peers(connections, timeout, cancelled)
-            peers.admit(contract_bytes, native.publication(), native.publication_digest(),
-                        native.starts(), experiment, source, native.request_id(), len(token_ids), output_tokens)
-            return _execute_verified_window(
-                _NativeExchange(native, peers, len(decoder["matrices"]) - 1),
-                decoder, tuple(token_ids), cancelled=cancelled,
-            )
-        finally:
             try:
-                if native is not None:
-                    native.abort()
+                if cancelled():
+                    raise ProtocolError("GKM request cancelled", 499)
+                native = source.load_transport(experiment, len(token_ids), output_tokens, cancelled=cancelled)
+                if native.contract() != contract_bytes:
+                    raise ProtocolError("GKM client native admission differs from the source contract")
+                decoder = json.loads(native.decoder())
+                peers = _Peers(connections, timeout, cancelled, capacity=capacity)
+                peers.admit(contract_bytes, native.publication(), native.publication_digest(),
+                            native.starts(), experiment, source, native.request_id(), len(token_ids), output_tokens)
+                return _execute_verified_window(
+                    _NativeExchange(native, peers, len(decoder["matrices"]) - 1),
+                    decoder, tuple(token_ids), cancelled=cancelled,
+                )
             finally:
-                if peers is not None:
-                    try:
-                        peers.close()
-                    finally:
-                        record = getattr(cancelled, "record_audit", None)
-                        if record is not None:
-                            record(peers.audit())
+                try:
+                    if native is not None:
+                        native.abort()
+                finally:
+                    if peers is not None:
+                        try:
+                            peers.close()
+                        finally:
+                            record = getattr(cancelled, "record_audit", None)
+                            if record is not None:
+                                record(peers.audit())
+        except BaseException as error:
+            # Joined I/O and unwound decoder/import frames may otherwise keep
+            # tentative payloads in a propagated exception after budget refund.
+            clear_failure_frames(error)
+            raise
+        finally:
+            native = peers = decoder = record = None
