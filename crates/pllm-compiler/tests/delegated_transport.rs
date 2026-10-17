@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use pllm_compiler::{
-    GkmDecoderSession, GkmRuntimeContract, GkmTransportClient, GkmTransportWorker,
+    GkmDecoderSession, GkmRuntimeContract, GkmTransportClient, GkmTransportImport,
+    GkmTransportWorker,
 };
 use pllm_core::gkm::{self, Publication, Step, WireBytes, Worker};
 use pllm_types::{canonical_bytes, Digest};
@@ -86,6 +87,20 @@ fn borrowed(source: &BTreeMap<String, Vec<u8>>) -> BTreeMap<String, &[u8]> {
         .iter()
         .map(|(name, bytes)| (name.clone(), bytes.as_slice()))
         .collect()
+}
+
+fn streamed(
+    contract: GkmRuntimeContract,
+    values: &BTreeMap<String, Vec<u8>>,
+) -> GkmTransportImport {
+    let mut source = GkmTransportImport::new(contract).unwrap();
+    for (name, bytes) in values {
+        // Split within source rows and grouped member boundaries.
+        for (index, chunk) in bytes.chunks(28).enumerate() {
+            source.push(name, index * 28, chunk).unwrap();
+        }
+    }
+    source
 }
 
 fn workers(
@@ -216,6 +231,15 @@ fn exchange(workers: &mut [GkmTransportWorker; 2], request: &[WireBytes; 2]) -> 
 
 #[test]
 fn generated_complete_schedules_match_integer_original_rows_and_seeded_reference() {
+    complete_source_schedules(false);
+}
+
+#[test]
+fn streamed_sources_preserve_original_digest_coefficients_lookup_and_integer_products() {
+    complete_source_schedules(true);
+}
+
+fn complete_source_schedules(streaming: bool) {
     let mut saw_bias = false;
     for family in ["qwen2", "qwen3", "llama"] {
         for tied in [true, false] {
@@ -234,7 +258,11 @@ fn generated_complete_schedules_match_integer_original_rows_and_seeded_reference
             .unwrap();
             let mut reference =
                 GkmDecoderSession::new(reference_contract, &borrowed, true).unwrap();
-            let mut client = GkmTransportClient::new(contract, &borrowed).unwrap();
+            let mut client = if streaming {
+                streamed(contract, &source).client().unwrap()
+            } else {
+                GkmTransportClient::new(contract, &borrowed).unwrap()
+            };
             assert_eq!(client.contract_bytes(), expected_contract);
             assert_eq!(
                 serde_json::from_slice::<Value>(&client.decoder_bytes()).unwrap(),
@@ -251,7 +279,22 @@ fn generated_complete_schedules_match_integer_original_rows_and_seeded_reference
                     }
                 }
             }
-            let mut workers = workers(&mut client, &borrowed, || runtime(family, tied, 2, 2));
+            let mut workers = if streaming {
+                let public = client.publication_bytes().unwrap();
+                let starts = client.starts().unwrap();
+                [Worker::Zero, Worker::One].map(|role| {
+                    streamed(runtime(family, tied, 2, 2), &source)
+                        .worker(
+                            public.as_bytes(),
+                            client.publication_digest(),
+                            role,
+                            starts[usize::from(role == Worker::One)].as_bytes(),
+                        )
+                        .unwrap()
+                })
+            } else {
+                workers(&mut client, &borrowed, || runtime(family, tied, 2, 2))
+            };
             for call in calls(&doc) {
                 match call {
                     Call::Lookup(token) => {
@@ -328,6 +371,44 @@ fn generated_complete_schedules_match_integer_original_rows_and_seeded_reference
         }
     }
     assert!(saw_bias);
+}
+
+#[test]
+fn source_import_order_offsets_numerics_and_finish_are_one_use() {
+    let values = tensors(&runtime("qwen2", true, 2, 2));
+    let (name, bytes) = values.first_key_value().unwrap();
+    for (wrong_name, offset, data) in [
+        ("wrong", 0, bytes.as_slice()),
+        (name.as_str(), 4, bytes.as_slice()),
+        (name.as_str(), 0, &[]),
+        (name.as_str(), 0, &[0; 3]),
+        (name.as_str(), 0, &f32::NAN.to_le_bytes()),
+        (name.as_str(), 0, &f32::INFINITY.to_le_bytes()),
+        (name.as_str(), 0, &f32::MAX.to_le_bytes()),
+    ] {
+        let mut importer = GkmTransportImport::new(runtime("qwen2", true, 2, 2)).unwrap();
+        assert!(importer.push(wrong_name, offset, data).is_err());
+        assert!(importer.push(name, 0, bytes).is_err());
+    }
+    let mut importer = GkmTransportImport::new(runtime("qwen2", true, 2, 2)).unwrap();
+    importer.push(name, 0, &bytes[..4]).unwrap();
+    assert!(importer.push(name, 0, &bytes[..4]).is_err());
+    assert!(importer.push(name, 4, &bytes[4..]).is_err());
+    let mut importer = GkmTransportImport::new(runtime("qwen2", true, 2, 2)).unwrap();
+    assert!(importer
+        .push(name, 0, &vec![0; pllm_compiler::GKM_SOURCE_CHUNK_BYTES + 4])
+        .is_err());
+    assert!(importer.client().is_err());
+    assert!(GkmTransportImport::new(runtime("qwen2", true, 2, 2))
+        .unwrap()
+        .client()
+        .is_err());
+    let mut complete = streamed(runtime("qwen2", true, 2, 2), &values);
+    assert!(complete.push(name, 0, bytes).is_err());
+    assert!(complete.client().is_err());
+    let mut aborted = streamed(runtime("qwen2", true, 2, 2), &values);
+    aborted.abort();
+    assert!(aborted.client().is_err());
 }
 
 #[test]

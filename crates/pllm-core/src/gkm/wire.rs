@@ -550,6 +550,55 @@ impl WorkerWire {
         stages: &[Stage<'_>],
         table: &FloatTable,
     ) -> Result<Self, Error> {
+        let permit =
+            Self::validate_sources(&publication, authenticated_owner_digest, stages, table)?;
+        let mut matrices = payload::capacity(stages.len())?;
+        for stage in stages {
+            matrices.push(I16Matrix::from_encoded(
+                stage.matrix.rows,
+                stage.matrix.columns,
+                &stage.matrix.weights,
+                &stage.matrix.input_bounds,
+            )?);
+        }
+        let table = FloatTable::from_le_bytes(table.vocabulary, table.width, &table.bytes)?;
+        Self::with_sources(publication, worker, matrices, table, permit)
+    }
+
+    /// Moves immutable source owners into one party without duplicating their
+    /// payloads. IDs, source bytes, public bounds and the trusted pin receive the
+    /// same checks and global wire allowance as the copying constructor.
+    pub fn from_owned(
+        publication: Arc<Publication>,
+        authenticated_owner_digest: [u8; 32],
+        worker: Worker,
+        ids: &[[u8; 32]],
+        matrices: Vec<I16Matrix>,
+        table: FloatTable,
+    ) -> Result<Self, Error> {
+        if ids.len() != matrices.len()
+            || matrices.len() != publication.matrices.len()
+            || matrices.capacity() != matrices.len()
+        {
+            return Err(Error::Shape);
+        }
+        let stages = payload::collect(
+            ids.iter()
+                .zip(&matrices)
+                .map(|(&id, matrix)| Stage { id, matrix }),
+        )?;
+        let permit =
+            Self::validate_sources(&publication, authenticated_owner_digest, &stages, &table)?;
+        drop(stages);
+        Self::with_sources(publication, worker, matrices, table, permit)
+    }
+
+    fn validate_sources(
+        publication: &Publication,
+        authenticated_owner_digest: [u8; 32],
+        stages: &[Stage<'_>],
+        table: &FloatTable,
+    ) -> Result<WirePermit, Error> {
         if publication.digest != authenticated_owner_digest
             || publication.compute_digest() != authenticated_owner_digest
             || stages.len() != publication.matrices.len()
@@ -578,7 +627,7 @@ impl WorkerWire {
             }
         }
         let resources = publication.resources;
-        let permit = WirePermit::acquire(
+        WirePermit::acquire(
             resources.source_weight_bytes
                 + resources.source_bound_bytes
                 + resources.source_table_bytes
@@ -586,18 +635,17 @@ impl WorkerWire {
                 + size_of::<WorkerSource>()
                 + size_of::<Self>()
                 + 1024,
-        )?;
+        )
+    }
+
+    fn with_sources(
+        publication: Arc<Publication>,
+        worker: Worker,
+        matrices: Vec<I16Matrix>,
+        table: FloatTable,
+        permit: WirePermit,
+    ) -> Result<Self, Error> {
         let budget = Budget::new(&publication)?;
-        let mut matrices = payload::capacity(stages.len())?;
-        for stage in stages {
-            matrices.push(I16Matrix::from_encoded(
-                stage.matrix.rows,
-                stage.matrix.columns,
-                &stage.matrix.weights,
-                &stage.matrix.input_bounds,
-            )?);
-        }
-        let table = FloatTable::from_le_bytes(table.vocabulary, table.width, &table.bytes)?;
         Ok(Self {
             source: Some(Arc::new(WorkerSource {
                 matrices,

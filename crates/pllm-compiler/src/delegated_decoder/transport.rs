@@ -67,13 +67,21 @@ impl GkmTransportClient {
         contract: GkmRuntimeContract,
         tensors: &BTreeMap<String, &[u8]>,
     ) -> Result<Self, String> {
+        let source = bind_source(contract.decoder(), tensors)?;
+        Self::from_source(contract, source)
+    }
+
+    pub(super) fn from_source(
+        contract: GkmRuntimeContract,
+        bound: BoundSource,
+    ) -> Result<Self, String> {
         let calls = plan(&contract)?;
         let BoundSource {
             matrices,
             table,
             local,
             digest: source,
-        } = bind_source(contract.decoder(), tensors)?;
+        } = bound;
         let stages: Vec<_> = contract
             .decoder()
             .matrices
@@ -312,6 +320,20 @@ impl GkmTransportWorker {
         role: Worker,
         start: &[u8],
     ) -> Result<Self, String> {
+        // Check the pin and publication envelope before importing caller values.
+        Publication::import_wire(publication, pin).map_err(|error| error.to_string())?;
+        let source = bind_source(contract.decoder(), tensors)?;
+        Self::from_source(contract, source, publication, pin, role, start)
+    }
+
+    pub(super) fn from_source(
+        contract: GkmRuntimeContract,
+        bound: BoundSource,
+        publication: &[u8],
+        pin: [u8; 32],
+        role: Worker,
+        start: &[u8],
+    ) -> Result<Self, String> {
         let publication = Arc::new(
             Publication::import_wire(publication, pin).map_err(|error| error.to_string())?,
         );
@@ -321,26 +343,14 @@ impl GkmTransportWorker {
             table,
             local,
             digest: source,
-        } = bind_source(contract.decoder(), tensors)?;
+        } = bound;
         if publication.context() != source {
             return Err(reject("transport publication source mismatch"));
         }
         let context = request_context(&contract, source);
-        let stages: Vec<_> = contract
-            .decoder()
-            .matrices
-            .iter()
-            .zip(&matrices)
-            .map(|(spec, matrix)| Stage {
-                id: stage_id(spec),
-                matrix,
-            })
-            .collect();
-        let mut owner = gkm::WorkerWire::new(publication, pin, role, &stages, &table)
+        let ids: Vec<_> = contract.decoder().matrices.iter().map(stage_id).collect();
+        let mut owner = gkm::WorkerWire::from_owned(publication, pin, role, &ids, matrices, table)
             .map_err(|error| error.to_string())?;
-        drop(stages);
-        drop(matrices);
-        drop(table);
         drop(local);
         let window = owner
             .begin_bound(start, context, &calls)

@@ -1621,6 +1621,16 @@ requires ordinary component serialization, Pipeline/Experiment resolution, nativ
 admission, SDK/gateway, CLI and benchmark execution. Internal references and
 operator availability retain their distinct scope. Shared integration requirements
 and current GKM gaps are in `paper/methods/sdk-integration.md`.
+The GKM SDK additionally streams original source values through 64 KiB native
+import frames. Ordered tensor/offset admission and an aggregate process payload
+allowance precede ingestion; encoded matrices, original lookup bytes and local
+coefficients move into their final native owners without another worker snapshot.
+Source locks and failure retirement remain in the same SDK path. Full-checkpoint
+capacity and measured whole-client memory remain separate admission gates.
+A separate cached wheel passes 571 installed Python and 120 native checks,
+including generated two-process decoder parity and gateway/benchmark execution.
+All 362 installed package files match; the build observes zero swap growth.
+Evidence and replay: `paper/artifacts/gkm-sdk/source-stream.md`.
 `pllm.profiles` provides typed
 slot contracts for the two-service-role public baseline and shipped one-provider
 proprietary engines while generic serialized pipelines remain available. An

@@ -1,0 +1,1395 @@
+"""Non-interactive loopback benchmark orchestration for the CLI."""
+
+from __future__ import annotations
+
+import gc
+import hashlib
+import json
+import math
+import secrets
+import signal
+import socket
+import statistics
+import threading
+import time
+import webbrowser
+from collections.abc import Callable, Mapping
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+import httpx
+import uvicorn
+
+if TYPE_CHECKING:
+    from pllm.configuration import Experiment
+
+
+REPORT_SCHEMA = "pllm.loopback_benchmark.v1"
+
+
+def accounted_benchmark_body_totals(accounting: Mapping[str, Any]) -> dict[str, int | None]:
+    """Charge covered startup once plus ordered windows; missing phases stay unknown."""
+    startup = accounting.get("startup")
+    windows = [*accounting.get("warmups", []), *accounting.get("runs", [])]
+    rows = [startup, *windows]
+    from .topology_accounting import accounting_coverage_identity
+    complete = accounting_coverage_identity(accounting) is not None and bool(windows) and all(
+        type(row) is dict
+        and row.get("tracked_body_counter_set_present") is True
+        and type(row.get("all_link_serialized_body_bytes")) is int
+        and row["all_link_serialized_body_bytes"] >= 0
+        for row in rows
+    )
+    return {
+        "total_accounted_benchmark_body_bytes": sum(
+            row["all_link_serialized_body_bytes"] for row in rows
+        )
+        if complete
+        else None,
+        "accounted_setup_through_first_response_body_bytes": sum(
+            row["all_link_serialized_body_bytes"] for row in rows[:2]
+        )
+        if complete
+        else None,
+    }
+
+
+COMPARISON_REPORT_SCHEMA = "pllm.loopback_benchmark_comparison.v1"
+ProgressCallback = Callable[[str], None]
+
+
+class LoopbackBenchmarkError(RuntimeError):
+    """Raised when the local benchmark roles cannot produce a complete run."""
+
+
+def _generation_metadata(value: dict[str, Any], *, capture_output_digest: bool) -> dict[str, Any]:
+    """Terminal status by default; fingerprints only for opted-in public diagnostics."""
+    result = {"response_status": value.get("response_status")}
+    if capture_output_digest and "output_text_digest" in value:
+        result["output_text_digest"] = value["output_text_digest"]
+    return result
+
+
+def _report_record(record: dict[str, Any], *, capture_output_digest: bool) -> dict[str, Any]:
+    result = dict(record)
+    if isinstance(result.get("generation"), dict):
+        result["generation"] = _generation_metadata(
+            result["generation"], capture_output_digest=capture_output_digest
+        )
+    return result
+
+
+def _run_state(snapshot: dict[str, Any]) -> dict[str, Any]:
+    run = snapshot.get("run")
+    if not isinstance(run, dict):
+        raise LoopbackBenchmarkError("benchmark dashboard returned an invalid snapshot")
+    return run
+
+
+def _free_port() -> int:
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        return int(listener.getsockname()[1])
+
+
+_DASHBOARD_PORT: int | None = None
+_DASHBOARD_TOKEN: str | None = None
+_DASHBOARD_LOCK = threading.Lock()
+
+
+class _DashboardHandle:
+    def __init__(self, app: Any, port: int) -> None:
+        self.error: BaseException | None = None
+        self.server = uvicorn.Server(
+            uvicorn.Config(
+                app,
+                host="127.0.0.1",
+                port=port,
+                log_level="warning",
+                access_log=False,
+            )
+        )
+        self.thread = threading.Thread(
+            target=self._run,
+            name="pllm-benchmark-dashboard",
+            daemon=True,
+        )
+
+    def _run(self) -> None:
+        try:
+            self.server.run()
+        except BaseException as exc:
+            self.error = exc
+
+    def start(self) -> None:
+        self.thread.start()
+
+    def poll(self) -> int | None:
+        if self.thread.is_alive():
+            return None
+        return 1 if self.error is not None else 0
+
+    def close(self) -> None:
+        self.server.should_exit = True
+        if self.thread.ident is None:
+            return
+        self.thread.join(timeout=20)
+        if self.thread.is_alive():
+            self.server.force_exit = True
+            self.thread.join(timeout=5)
+        if self.thread.is_alive():
+            raise LoopbackBenchmarkError("benchmark dashboard did not stop")
+
+    def diagnostic(self) -> str:
+        return "" if self.error is None else f"{type(self.error).__name__}: {self.error}"
+
+
+def _wait_for_dashboard_listener(handle: _DashboardHandle, origin: str, timeout: float) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if handle.poll() is not None:
+            raise LoopbackBenchmarkError("benchmark dashboard exited during startup")
+        try:
+            if httpx.get(f"{origin}/api/snapshot", timeout=0.5).status_code == 200:
+                return
+        except httpx.HTTPError:
+            pass
+        time.sleep(0.05)
+    raise LoopbackBenchmarkError("benchmark dashboard did not start before timeout")
+
+
+def _median(records: list[dict[str, Any]], section: str, key: str) -> float | None:
+    values = [record.get(section, {}).get(key) for record in records]
+    # An unobserved phase (including empty accepted text) cannot disappear from
+    # the cohort denominator and leave a seemingly complete median.
+    if not values or any(value is None for value in values):
+        return None
+    return statistics.median(float(value) for value in values)
+
+
+def build_loopback_report(
+    *,
+    model_id: str,
+    tiny: bool,
+    max_output_tokens: int,
+    warmup_runs: list[dict[str, Any]],
+    runs: list[dict[str, Any]],
+    roles: tuple[str, ...] = ("client", "preparation", "inference"),
+    initial_preparation_audit: dict[str, int] | None = None,
+    inventory_policy: str = "prewarm",
+    bundle_compression: str = "none",
+    prefill_cache_mib: int = 0,
+    prefill_cache_mode: str = "exact",
+    prefill_cache_bound_tokens: int | None = None,
+    warmup_prompt_digest: str | None = None,
+    prompt_digest: str | None = None,
+    prompt_sequence_digest: str | None = None,
+    source_lock_digest: str | None = None,
+    client_model_ownership: dict[str, int | None] | None = None,
+    cold_process_cpu: dict[str, dict[str, float | None] | None] | None = None,
+    stage_snapshots: dict[str, Any] | None = None,
+    temperature: float | None = None,
+    capture_output_digest: bool = False,
+    wan=None,
+    runtime_contract: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build a text-free report from dashboard benchmark records."""
+    from .topology_accounting import (
+        client_owned_body_accounting,
+        cold_process_cpu_accounting,
+        prepared_body_accounting,
+        private_boundary_body_accounting,
+        prepared_stage_body_attribution,
+        two_worker_body_accounting,
+    )
+
+    from .dashboard import _sampling_choice, _validate_output_digest_capture
+
+    capture_output_digest = _validate_output_digest_capture(capture_output_digest)
+    sampling = _sampling_choice(temperature)
+    warmup_runs = [
+        _report_record(run, capture_output_digest=capture_output_digest) for run in warmup_runs
+    ]
+    runs = [_report_record(run, capture_output_digest=capture_output_digest) for run in runs]
+    all_runs = [*warmup_runs, *runs]
+    checks = {
+        "all_runs_completed": all(record.get("status") == "completed" for record in all_runs),
+        "sampling_matches_request": all(
+            record.get("sampling", sampling) == sampling for record in all_runs
+        ),
+        "authoritative_token_usage": all(
+            record.get("tokens", {}).get("authoritative") is True for record in all_runs
+        ),
+        "model_fingerprint_present": all(
+            bool(record.get("model_fingerprint")) for record in all_runs
+        ),
+        "no_plaintext_prompt_bytes_sent": all(
+            record.get("privacy", {}).get("plaintext_prompt_bytes_sent") == 0 for record in all_runs
+        ),
+        "no_plaintext_token_ids_sent": all(
+            record.get("privacy", {}).get("plaintext_token_ids_sent") == 0 for record in all_runs
+        ),
+        "no_online_preparation_requests": all(
+            record.get("privacy", {}).get("preparation_requests_during_online") == 0
+            for record in all_runs
+        ),
+    }
+    if runtime_contract is not None and runtime_contract.get("runtime_kind") == "gkm":
+        checks["fixed_count_verified_delivery"] = all(
+            record.get("measurement", {}).get("output_delivery") == "buffered_until_verified"
+            and record.get("tokens", {}).get("output_tokens") == max_output_tokens
+            and record.get("durations", {}).get("tokens_per_second") is None
+            and record.get("durations", {}).get("generation_seconds") is None
+            for record in all_runs)
+    if roles == ("client",):
+        checks["no_provider_stage_traffic"] = all(
+            client_owned_body_accounting(record)["tracked_body_counter_set_present"]
+            for record in all_runs
+        )
+    if set(roles) == {"client", "worker_a", "worker_b"}:
+        checks["two_worker_bodies_tracked"] = all(
+            two_worker_body_accounting(record)["tracked_body_counter_set_present"]
+            for record in all_runs
+        )
+    if set(roles) == {"client", "preparation", "inference", "boundary_a", "boundary_b"}:
+        checks["prepared_and_boundary_bodies_tracked"] = all(
+            private_boundary_body_accounting(record)["tracked_body_counter_set_present"]
+            for record in all_runs
+        )
+    output_tokens = [
+        int(record["tokens"]["output_tokens"])
+        for record in runs
+        if record.get("tokens", {}).get("output_tokens") is not None
+    ]
+    account = (
+        client_owned_body_accounting
+        if roles == ("client",)
+        else two_worker_body_accounting
+        if set(roles) == {"client", "worker_a", "worker_b"}
+        else prepared_body_accounting
+        if set(roles) == {"client", "preparation", "inference"}
+        else private_boundary_body_accounting
+        if set(roles) == {"client", "preparation", "inference", "boundary_a", "boundary_b"}
+        else None
+    )
+    body_records = [account(record) for record in runs] if account is not None else []
+    online_bodies = [row["online_all_link_serialized_body_bytes"] for row in body_records]
+    covered_bodies = [row["all_link_serialized_body_bytes"] for row in body_records]
+    from .topology_accounting import body_coverage_identity
+    body_coverages = [body_coverage_identity(row) for row in body_records]
+    median_online_bodies = (
+        statistics.median(online_bodies)
+        if online_bodies and all(type(value) is int and value >= 0 for value in online_bodies)
+        else None
+    )
+    median_covered_bodies = (
+        statistics.median(covered_bodies)
+        if covered_bodies
+        and None not in body_coverages and len(set(body_coverages)) == 1
+        and all(
+            row.get("tracked_body_counter_set_present") is True
+            and type(value) is int
+            and value >= 0
+            for row, value in zip(body_records, covered_bodies, strict=True)
+        )
+        else None
+    )
+    stage_attribution = None
+    if "preparation" in roles and stage_snapshots is not None:
+        before_ready = stage_snapshots.get("before_ready", {})
+        after_ready = stage_snapshots.get("after_ready", {})
+        warm_pairs = stage_snapshots.get("warmups", [])
+        run_pairs = stage_snapshots.get("runs", [])
+        if len(warm_pairs) != len(warmup_runs) or len(run_pairs) != len(runs):
+            raise ValueError("stage attribution does not cover the benchmark windows")
+        stage_attribution = {
+            "startup": (
+                prepared_stage_body_attribution(
+                    before_ready, after_ready, initial_preparation_audit
+                )
+                if initial_preparation_audit is not None
+                else None
+            ),
+            "warmups": [
+                prepared_stage_body_attribution(before, after, run["privacy"])
+                for (before, after), run in zip(warm_pairs, warmup_runs, strict=True)
+            ],
+            "runs": [
+                prepared_stage_body_attribution(before, after, run["privacy"])
+                for (before, after), run in zip(run_pairs, runs, strict=True)
+            ],
+        }
+    report = {
+        "schema_version": REPORT_SCHEMA,
+        "scope": "single-host-loopback-diagnostic",
+        "configuration": {
+            "model_id": model_id,
+            "tiny": tiny,
+            "max_output_tokens": max_output_tokens,
+            "warmups": len(warmup_runs),
+            "repetitions": len(runs),
+            "roles": list(roles),
+            "inventory_policy": inventory_policy,
+            "bundle_compression": bundle_compression,
+            "prefill_cache_mib": prefill_cache_mib,
+            "prefill_cache_mode": prefill_cache_mode,
+            "prefill_cache_bound_tokens": prefill_cache_bound_tokens,
+            "warmup_prompt_digest": warmup_prompt_digest,
+            "prompt_digest": prompt_digest,
+            "prompt_sequence_digest": prompt_sequence_digest,
+            "source_lock_digest": source_lock_digest,
+            "sampling": sampling,
+            "capture_output_digest": capture_output_digest,
+        },
+        "checks": {"passed": all(checks.values()), **checks},
+        "privacy_admission": (
+            {
+                "independent_operators_verified": False,
+                "reason": ("loopback boundary workers share one operator and host"
+                           if {"boundary_a", "boundary_b"} <= set(roles)
+                           else "loopback offset workers share one operator and host"),
+            }
+            if (set(roles) == {"client", "worker_a", "worker_b"}
+                or {"boundary_a", "boundary_b"} <= set(roles))
+            else None
+        ),
+        "summary": {
+            "completed_runs": sum(record.get("status") == "completed" for record in runs),
+            "median_full_seconds": _median(runs, "durations", "full_seconds"),
+            "median_online_seconds": _median(runs, "durations", "online_seconds"),
+            "median_ttft_seconds": _median(runs, "durations", "ttft_seconds"),
+            "median_tokens_per_second": _median(runs, "durations", "tokens_per_second"),
+            "median_online_all_link_serialized_body_bytes": median_online_bodies,
+            "median_covered_all_link_serialized_body_bytes": median_covered_bodies,
+            "total_run_online_all_link_serialized_body_bytes": (
+                sum(online_bodies) if median_online_bodies is not None else None
+            ),
+            "total_run_covered_all_link_serialized_body_bytes": (
+                sum(covered_bodies) if median_covered_bodies is not None else None
+            ),
+            "total_run_full_seconds": (
+                sum(record["durations"]["full_seconds"] for record in runs)
+                if all(
+                    record.get("durations", {}).get("full_seconds") is not None for record in runs
+                )
+                else None
+            ),
+            "total_output_tokens": sum(output_tokens),
+        },
+        "warmup_runs": warmup_runs,
+        "runs": runs,
+        "process_cpu_accounting": cold_process_cpu_accounting(
+            cold_process_cpu,
+            roles=roles,
+            first_measurement_is_cold=(
+                not warmup_runs and bool(runs) and runs[0].get("cold") is True
+            ),
+        ),
+        "topology_accounting": (
+            {
+                "startup": (
+                    {"schema": "pllm.topology_model_ownership.v1", **client_model_ownership}
+                    if client_model_ownership is not None
+                    else None
+                ),
+                "warmups": [client_owned_body_accounting(run) for run in warmup_runs],
+                "runs": [client_owned_body_accounting(run) for run in runs],
+            }
+            if roles == ("client",)
+            else {
+                "startup": (
+                    account(
+                        {"privacy": initial_preparation_audit},
+                        initial_preparation=True,
+                    )
+                    if initial_preparation_audit is not None
+                    else None
+                ),
+                "warmups": [account(run) for run in warmup_runs],
+                "runs": [account(run) for run in runs],
+                "stages": stage_attribution,
+            }
+            if "preparation" in roles
+            else {
+                "startup": (two_worker_body_accounting({"privacy": initial_preparation_audit})
+                            if initial_preparation_audit is not None else None),
+                "warmups": [two_worker_body_accounting(run) for run in warmup_runs],
+                "runs": [two_worker_body_accounting(run) for run in runs],
+            }
+            if set(roles) == {"client", "worker_a", "worker_b"}
+            else None
+        ),
+        "limitations": [
+            "single host and loopback network",
+            "diagnostic record, not a canonical EvidenceReport",
+            "does not establish model quality, energy, price, adversarial security, or non-collusion",
+        ],
+    }
+    if report["topology_accounting"] is not None:
+        report["summary"].update(accounted_benchmark_body_totals(report["topology_accounting"]))
+        from .topology_accounting import accounting_coverage_identity
+        report["summary"]["body_counter_coverage"] = accounting_coverage_identity(report["topology_accounting"])
+    if runtime_contract is not None:
+        report["runtime_contract"] = dict(runtime_contract)
+        report["configuration"]["runtime_kind"] = runtime_contract["runtime_kind"]
+        report["configuration"]["output_delivery"] = runtime_contract["output_delivery"]
+        report["privacy_admission"]["reason"] = "loopback delegation workers share one operator and host"
+        report["limitations"].append(
+            "Request-end verification buffers all output; TTFT measures first accepted text and emission/decode TPS is unsupported.")
+    from pllm.metrics import communication_per_token, wan_readiness
+
+    report["communication_per_token"] = communication_per_token(report)
+    report["traffic_decomposition"] = report["communication_per_token"]["traffic_decomposition"]
+    report["summary"].update(report["communication_per_token"]["summary"])
+    report["wan_readiness"] = wan_readiness(report, wan)
+    return report
+
+
+def _comparison_key(report: dict[str, Any]) -> tuple[object, ...] | None:
+    from .topology_accounting import accounting_coverage_identity
+    coverage = accounting_coverage_identity(report.get("topology_accounting"))
+    if coverage is None:
+        return None
+    runs = report.get("runs")
+    if not isinstance(runs, list) or not runs:
+        return None
+    sampling = report.get("configuration", {}).get("sampling")
+    if not isinstance(sampling, dict):
+        return None  # Historical unreported sampling cannot be silently ranked.
+    effective: Any = sampling.get("effective_temperature")
+    if (
+        type(effective) not in (int, float)
+        or not 0 <= effective <= 2
+        or not math.isfinite(effective)
+        or sampling.get("mode") != ("greedy" if effective == 0 else "temperature")
+        or sampling.get("top_p") is not None
+        or any(run.get("sampling", sampling) != sampling for run in runs)
+    ):
+        return None
+    sampling_key = (float(effective), sampling["mode"], None)
+    configuration = report.get("configuration", {})
+    transport_key = (configuration.get("provider_backend", "host"), configuration.get("link_conditions_digest"),
+                     configuration.get("wan_emulation", False), configuration.get("wan_emulation_digest"))
+    if report.get("configuration", {}).get("prompt_sequence_digest") is not None:
+        if len({run.get("model_fingerprint") for run in runs}) != 1:
+            return None
+        return (
+            runs[0].get("model_fingerprint"),
+            tuple(run.get("tokens", {}).get("input_tokens") for run in runs),
+            tuple(run.get("tokens", {}).get("output_tokens") for run in runs),
+            tuple(run.get("max_output_tokens") for run in runs),
+            tuple(run.get("warm") for run in runs),
+            report["configuration"].get("warmup_prompt_digest"),
+            report["configuration"]["prompt_sequence_digest"],
+            sampling_key,
+            transport_key,
+            coverage,
+        )
+    keys = {
+        (
+            run.get("model_fingerprint"),
+            run.get("tokens", {}).get("input_tokens"),
+            run.get("tokens", {}).get("output_tokens"),
+            run.get("max_output_tokens"),
+            run.get("warm"),
+            report.get("configuration", {}).get("warmup_prompt_digest"),
+            report.get("configuration", {}).get("prompt_digest"),
+            sampling_key,
+            transport_key,
+            coverage,
+        )
+        for run in runs
+    }
+    return next(iter(keys)) if len(keys) == 1 else None
+
+
+def _comparison_nonlinear_component(components: dict[str, Any]) -> Any:
+    nonlinear = components.get("nonlinear")
+    if nonlinear and nonlinear["component"] == "pllm/masked-wire-gated-multiply-q12/v1":
+        # Layout, dispatch and material encoding preserve the numeric profile. Preserve
+        # other parameters so future numeric choices remain independent.
+        return {**nonlinear, "params": {
+            key: value for key, value in nonlinear.get("params", {}).items()
+            if not (key == "layout" and value in ("unfused", "fused")
+                    or key == "dispatch" and value in ("serial", "overlap")
+                    or key == "material_encoding" and value in ("full", "seeded"))
+        }}
+    return nonlinear
+
+
+def _matched_kernel_composition(candidates: list[tuple[Experiment, dict[str, Any]]]) -> bool:
+    """Require recorded source, numeric and output identity for cross-kernel ranking."""
+    from pllm.schedulers import _numeric_component
+    identities = []
+    source_by_roles: dict[tuple[str, ...], str] = {}
+    for experiment, report in candidates:
+        config = report.get("configuration", {})
+        source = config.get("source_lock_digest")
+        roles = tuple(sorted(config.get("roles", [])))
+        prompt = config.get("prompt_sequence_digest") or config.get("prompt_digest")
+        if not roles or not source or not prompt:
+            return False
+        if source_by_roles.setdefault(roles, source) != source:
+            return False
+        recorded = report.get("experiment", {})
+        if (recorded.get("configuration_digest") != experiment.configuration_digest()
+                or recorded.get("pipeline_digest") != experiment.pipeline.digest()):
+            return False
+        outputs = []
+        for run in report.get("runs", []):
+            digest = run.get("generation", {}).get("output_text_digest")
+            if (not digest or not run.get("model_id") or run.get("status") != "completed"
+                    or run.get("tokens", {}).get("authoritative") is not True):
+                return False
+            outputs.append((run["model_id"], digest))
+        if not outputs:
+            return False
+        pipeline = experiment.pipeline.to_spec()
+        identities.append(json.dumps({
+            "model": pipeline["model"],
+            "numeric": {
+                "quantization": pipeline["components"].get("quantization"),
+                "nonlinear": _comparison_nonlinear_component(pipeline["components"]),
+                "scheduler": _numeric_component(pipeline["components"].get("scheduler")),
+                "state": pipeline["components"].get("state"),
+            },
+            "outputs": outputs,
+        }, sort_keys=True, allow_nan=False))
+    return len(set(identities)) == 1
+
+
+def build_comparison_report(
+    candidates: list[tuple[Experiment, dict[str, Any]]], *, compare_kernels: bool = False,
+) -> dict[str, Any]:
+    """Build one matched report over independently executed Experiment pipelines."""
+    from pllm.schedulers import _numeric_component
+    if len(candidates) < 2:
+        raise ValueError("comparison requires at least two Experiment pipelines")
+    records = [
+        {
+            "name": experiment.name,
+            "configuration_digest": experiment.configuration_digest(),
+            "pipeline": experiment.pipeline.to_spec(),
+            "report": report,
+        }
+        for experiment, report in candidates
+    ]
+    digests = [record["configuration_digest"] for record in records]
+    names = [record["name"] for record in records]
+    if len(set(digests)) != len(digests):
+        raise ValueError("comparison Experiment pipelines must have unique configurations")
+    if len(set(names)) != len(names):
+        raise ValueError("comparison Experiment names must be unique")
+
+    keys = [_comparison_key(report) for _, report in candidates]
+    comparable = all(key is not None for key in keys) and len({key[:-1] for key in keys if key is not None}) == 1
+    matched_coverage = all(key is not None for key in keys) and len({key[-1] for key in keys if key is not None}) == 1
+    kernel_backends = {
+        experiment.pipeline.components["kernels"].component for experiment, _ in candidates
+    }
+    matched_backend = len(kernel_backends) == 1
+    kernel_admitted = _matched_kernel_composition(candidates) if compare_kernels else matched_backend
+    matched_verification = len({
+        json.dumps(experiment.pipeline.to_spec()["components"].get("verification"), sort_keys=True)
+        for experiment, _ in candidates
+    }) == 1
+    numeric_contracts = []
+    for experiment, candidate_report in candidates:
+        components = experiment.pipeline.to_spec()["components"]
+        numeric_contracts.append(json.dumps({
+            "nonlinear": _comparison_nonlinear_component(components),
+            "scheduler": _numeric_component(components.get("scheduler")),
+            "state": components.get("state"),
+            "causal_reduction": components.get("quantization", {}).get("params", {}).get("causal_reduction"),
+            **({"gkm": candidate_report["runtime_contract"]["numeric"]}
+               if candidate_report.get("runtime_contract", {}).get("runtime_kind") == "gkm" else {}),
+        }, sort_keys=True))
+    matched_numeric = len(set(numeric_contracts)) == 1
+    comparison_key = cast(tuple[object, ...], keys[0]) if comparable else None
+    metrics = {
+        "full_seconds": ("median_full_seconds", False),
+        "online_seconds": ("median_online_seconds", False),
+        "ttft_seconds": ("median_ttft_seconds", False),
+        "tokens_per_second": ("median_tokens_per_second", True),
+        "online_all_link_serialized_body_bytes": (
+            "median_online_all_link_serialized_body_bytes",
+            False,
+        ),
+        "covered_all_link_serialized_body_bytes": (
+            "median_covered_all_link_serialized_body_bytes",
+            False,
+        ),
+        "accounted_setup_through_first_response_body_bytes": (
+            "accounted_setup_through_first_response_body_bytes",
+            False,
+        ),
+        "total_accounted_benchmark_body_bytes": ("total_accounted_benchmark_body_bytes", False),
+    }
+    if candidates[0][1].get("configuration", {}).get("prompt_sequence_digest") is not None:
+        metrics.update(
+            {
+                "sequence_full_seconds": ("total_run_full_seconds", False),
+                "sequence_online_all_link_serialized_body_bytes": (
+                    "total_run_online_all_link_serialized_body_bytes",
+                    False,
+                ),
+                "sequence_covered_all_link_serialized_body_bytes": (
+                    "total_run_covered_all_link_serialized_body_bytes",
+                    False,
+                ),
+            }
+        )
+    rankings: dict[str, list[dict[str, Any]]] = {metric: [] for metric in metrics}
+    winners: dict[str, str | None] = {metric: None for metric in metrics}
+    if (
+        comparable
+        and kernel_admitted
+        and matched_verification
+        and matched_numeric
+        and all(report.get("checks", {}).get("passed") is True for _, report in candidates)
+    ):
+        for metric, (summary_key, reverse) in metrics.items():
+            # Coverage constrains traffic rankings, not matched CPU/latency
+            # windows across topologies with different instrumented edges.
+            if "body_bytes" in metric and not matched_coverage:
+                continue
+            values = [
+                (
+                    float(record["report"]["summary"][summary_key]),
+                    str(record["configuration_digest"]),
+                    str(record["name"]),
+                )
+                for record in records
+                if record["report"]["summary"].get(summary_key) is not None
+            ]
+            values.sort(key=lambda item: ((-item[0]) if reverse else item[0], item[1]))
+            rankings[metric] = [
+                {
+                    "rank": rank,
+                    "name": name,
+                    "configuration_digest": digest,
+                    "value": value,
+                }
+                for rank, (value, digest, name) in enumerate(values, start=1)
+            ]
+            if values:
+                winners[metric] = values[0][1]
+
+    checks = {
+        "all_candidates_passed": all(
+            report.get("checks", {}).get("passed") is True for _, report in candidates
+        ),
+        "unique_configurations": len(set(digests)) == len(digests),
+        "matched_workload": comparable,
+        "matched_body_coverage": matched_coverage,
+        "matched_verification": matched_verification,
+        "matched_numeric_contract": matched_numeric,
+        ("matched_kernel_composition" if compare_kernels else "matched_kernel_backend"): kernel_admitted,
+    }
+    comparison = None
+    if comparison_key is not None:
+        effective_sampling = cast(tuple[float, str, None], comparison_key[7])
+        comparison = {
+            "model_fingerprint": comparison_key[0],
+            "input_tokens": comparison_key[1],
+            "output_tokens": comparison_key[2],
+            "max_output_tokens": comparison_key[3],
+            "warm": comparison_key[4],
+            "warmup_prompt_digest": comparison_key[5],
+            "prompt_digest": comparison_key[6],
+            "effective_sampling": {
+                "temperature": effective_sampling[0],
+                "mode": effective_sampling[1],
+                "top_p": effective_sampling[2],
+            },
+        }
+    offset_references = [
+        record
+        for (experiment, _), record in zip(candidates, records, strict=True)
+        if (
+            experiment.pipeline.components.get("topology") is not None
+            and experiment.pipeline.components["topology"].component
+            == "pllm/two-online-offset-workers/v1"
+        )
+    ]
+    cpu_comparison: dict[str, Any] | None = None
+    if (
+        comparable
+        and matched_backend
+        and matched_numeric
+        and checks["all_candidates_passed"]
+        and len(offset_references) == 1
+    ):
+        baseline = offset_references[0]
+        reference_cpu = (
+            baseline["report"]
+            .get("process_cpu_accounting", {})
+            .get("aggregate_cold_first_response_cpu_seconds")
+        )
+        if (
+            type(reference_cpu) in (int, float)
+            and math.isfinite(reference_cpu)
+            and reference_cpu > 0
+        ):
+            observations: list[dict[str, Any]] = []
+            for record in records:
+                value = (
+                    record["report"]
+                    .get("process_cpu_accounting", {})
+                    .get("aggregate_cold_first_response_cpu_seconds")
+                )
+                if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                    observations = []
+                    break
+                observations.append(
+                    {
+                        "configuration_digest": record["configuration_digest"],
+                        "cpu_seconds": value,
+                        "ratio_to_offset": value / reference_cpu,
+                        "measured_cpu_not_above_offset": value <= reference_cpu,
+                    }
+                )
+            if observations:
+                cpu_comparison = {
+                    "schema": "pllm.offset_cold_cpu_diagnostic.v1",
+                    "reference_configuration_digest": baseline["configuration_digest"],
+                    "reference_cpu_seconds": reference_cpu,
+                    "observations": observations,
+                    "full_response_compute_cap_admitted": False,
+                    "scope": "single-host cold process CPU; one measured response per composition",
+                    "limitation": (
+                        "Diagnostic CPU ratios do not establish independent-operator privacy, "
+                        "accelerator compute, full wire cost, or a representative cohort"
+                    ),
+                }
+    return {
+        "schema_version": COMPARISON_REPORT_SCHEMA,
+        "scope": "single-host-loopback-diagnostic-comparison",
+        "checks": {"passed": all(checks.values()), **checks},
+        "comparison_key": comparison,
+        "kernel_comparison": {
+            "mode": "explicit-composition" if compare_kernels else "matched-backend",
+            "backends": sorted(kernel_backends),
+            "matched_backend": matched_backend,
+        },
+        "compute_cap_diagnostic": cpu_comparison,
+        "candidates": records,
+        "rankings": rankings,
+        "winners": winners,
+        "limitations": [
+            "single host and loopback network",
+            "diagnostic comparison, not a canonical EvidenceReport",
+            "rankings require exact matched measured workloads and the declared kernel comparison policy",
+            "rankings require matching verifier contracts; mixed-assurance observations remain available without a winner",
+            "application-body rankings additionally require identical counter coverage; CPU and latency retain their own matched workload windows",
+            "cross-kernel composition rankings require source, numeric and captured output identity; they are not CPU-only speedups",
+            "does not establish model quality, energy, price, adversarial security, or non-collusion",
+        ],
+    }
+
+
+def _wait_for_ready(
+    client: httpx.Client,
+    process: Any,
+    deadline: float,
+    progress: ProgressCallback | None,
+) -> None:
+    started = time.monotonic()
+    last_status: tuple[str, str] | None = None
+    next_update = started
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise LoopbackBenchmarkError("benchmark dashboard exited during startup")
+        try:
+            snapshot = client.get("/api/snapshot").raise_for_status().json()
+        except (httpx.HTTPError, ValueError):
+            time.sleep(0.2)
+            continue
+        run = _run_state(snapshot)
+        phase = str(run.get("phase", "starting"))
+        startup_step = str(run.get("startup_step", "dashboard"))
+        if phase == "ready":
+            return
+        status = (phase, startup_step)
+        now = time.monotonic()
+        if progress is not None and (status != last_status or now >= next_update):
+            labels = {
+                "dashboard": "Starting benchmark dashboard",
+                "inference": "Loading inference role",
+                "preparation": "Loading preparation role",
+                "inventory": "Preparing offline inventory",
+            }
+            label = labels.get(startup_step, f"Starting benchmark ({startup_step})")
+            progress(f"{label} ({int(now - started)}s)")
+            last_status = status
+            next_update = now + 10
+        if phase == "error":
+            raise LoopbackBenchmarkError(str(run.get("error") or "benchmark startup failed"))
+        time.sleep(0.2)
+    step = last_status[1] if last_status is not None else "dashboard"
+    raise LoopbackBenchmarkError(f"benchmark startup timed out during {step}")
+
+
+def _run_once(
+    client: httpx.Client,
+    process: Any,
+    *,
+    prompt: str | list[dict[str, str]],
+    max_output_tokens: int,
+    timeout_seconds: float,
+    progress: ProgressCallback | None = None,
+    progress_label: str = "Benchmark run",
+    temperature: float | None = None,
+    capture_output_digest: bool = False,
+) -> dict[str, Any]:
+    from .dashboard import _validate_output_digest_capture, _validate_request_temperature
+
+    capture_output_digest = _validate_output_digest_capture(capture_output_digest)
+    temperature = _validate_request_temperature(temperature)
+    run_id = f"bench-{secrets.token_hex(16)}"
+    payload: dict[str, Any] = {
+        "prompt": prompt,
+        "max_output_tokens": max_output_tokens,
+        "request_id": run_id,
+    }
+    if temperature is not None:
+        payload["temperature"] = temperature
+    response = client.post(
+        "/api/run",
+        json=payload,
+    )
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        raise LoopbackBenchmarkError("benchmark run was rejected") from exc
+
+    deadline = time.monotonic() + timeout_seconds
+    started = time.monotonic()
+    next_update = started + 10
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise LoopbackBenchmarkError("benchmark dashboard exited during a run")
+        try:
+            snapshot = client.get("/api/snapshot").raise_for_status().json()
+        except (httpx.HTTPError, ValueError):
+            time.sleep(0.2)
+            continue
+        run = _run_state(snapshot)
+        now = time.monotonic()
+        if progress is not None and now >= next_update:
+            progress(f"{progress_label} ({int(now - started)}s)")
+            next_update = now + 10
+        if run.get("run_id") != run_id or run.get("active_run") is not None:
+            time.sleep(0.2)
+            continue
+        if run.get("phase") not in {"ready", "error"}:
+            time.sleep(0.2)
+            continue
+        try:
+            record = client.get(f"/api/runs/{run_id}").raise_for_status().json()
+        except (httpx.HTTPError, ValueError) as exc:
+            if run.get("phase") == "error" or run.get("error"):
+                raise LoopbackBenchmarkError(
+                    str(run.get("error") or "benchmark execution failed")
+                ) from exc
+            raise LoopbackBenchmarkError("benchmark record could not be read") from exc
+        if record.get("status") != "completed":
+            failure = record.get("failure", {}).get("type") or "unknown failure"
+            raise LoopbackBenchmarkError(f"benchmark run failed: {failure}")
+        # Ephemeral metadata stays outside the immutable history schema. Text-free.
+        if isinstance(run.get("sampling"), dict):
+            record["sampling"] = run["sampling"]
+        if isinstance(run.get("generation"), dict):
+            record["generation"] = run["generation"]
+        return _report_record(record, capture_output_digest=capture_output_digest)
+    raise LoopbackBenchmarkError("benchmark run did not complete before timeout")
+
+
+def _run_loopback_benchmark(
+    *,
+    model: str,
+    model_id: str | None,
+    tiny: bool,
+    prompt: str | list[dict[str, str]],
+    max_output_tokens: int,
+    warmups: int,
+    repetitions: int,
+    timeout_seconds: float,
+    show_dashboard: bool = False,
+    progress: ProgressCallback | None = None,
+    experiment: Experiment | None = None,
+    inventory_policy: str | None = None,
+    bundle_compression: str | None = None,
+    prefill_cache_mib: int = 0,
+    prefill_cache_mode: str = "exact",
+    prefill_cache_bound_tokens: int | None = None,
+    warmup_prompt: str | list[dict[str, str]] | None = None,
+    prompt_sequence: tuple[Any, ...] | list[Any] | None = None,
+    _cohort_salt: bytes | None = None,
+    temperature: float | None = None,
+    capture_output_digest: bool = False,
+    docker: bool = False,
+    docker_image: str | None = None,
+    docker_network=None,
+    wan=None,
+    emulate_wan: bool = False,
+    backend: str | None = None,
+    memory_budget_bytes: int | None = None,
+) -> dict[str, Any]:
+    from pllm.deployment import WanConditions
+    from .benchmark_delegated import admit_options, is_delegated
+
+    delegated = is_delegated(experiment)
+    if delegated:
+        admit_options(experiment, backend=backend, docker=docker, docker_image=docker_image,
+            docker_network=docker_network, cache_bytes=prefill_cache_mib << 20,
+            cache_mode=prefill_cache_mode, cache_bound=prefill_cache_bound_tokens,
+            inventory_policy=inventory_policy, bundle_compression=bundle_compression,
+            temperature=temperature, output_tokens=max_output_tokens,
+            requests=warmups + repetitions * (len(prompt_sequence) if prompt_sequence is not None else 1))
+        backend, temperature, inventory_policy = "native", 0.0, "none"
+    from .benchmark_memory import process_memory
+    memory_before = process_memory()
+    if wan is not None and type(wan) is not WanConditions:
+        raise TypeError("wan must be WanConditions")
+    if type(emulate_wan) is not bool:
+        raise TypeError("emulate_wan must be boolean")
+    if emulate_wan:
+        wan = wan or WanConditions()
+        docker = backend != "native"
+        if docker_network is not None and docker_network.bytes_per_second is not None:
+            raise ValueError("WAN emulation owns rates; Docker link rate cannot also be set")
+    from .dashboard import _validate_output_digest_capture, _validate_request_temperature
+
+    capture_output_digest = _validate_output_digest_capture(capture_output_digest)
+    temperature = _validate_request_temperature(temperature)
+    from .benchmark_context import context_bytes, validate_context
+    if prompt_sequence is not None:
+        if (
+            not isinstance(prompt_sequence, (list, tuple))
+            or not 1 <= len(prompt_sequence) <= 32
+        ):
+            raise ValueError(
+                "prompt sequence requires 1-32 nonempty contexts of at most 16384 bytes"
+            )
+        if (
+            experiment is not None
+            and warmups + repetitions * len(prompt_sequence) > experiment.budget.requests
+        ):
+            raise ValueError("prompt sequence exceeds the Experiment request budget")
+        prompt_sequence = tuple(validate_context(value) for value in prompt_sequence)
+        prompt = prompt_sequence[0]
+    selected_inventory_rows = None
+    if experiment is not None:
+        resolved = experiment.resolve()
+        if "inventory" in experiment.pipeline.components:
+            if inventory_policy is not None and inventory_policy != resolved.inventory_policy:
+                raise ValueError("benchmark inventory flag conflicts with immutable Experiment")
+            inventory_policy = resolved.inventory_policy
+            selected_inventory_rows = resolved.prepared_inventory_rows
+        if "delivery" in experiment.pipeline.components:
+            if bundle_compression is not None and bundle_compression != resolved.bundle_compression:
+                raise ValueError("benchmark bundle encoding conflicts with immutable Experiment")
+            bundle_compression = resolved.bundle_compression
+    inventory_policy = inventory_policy or "prewarm"
+    bundle_compression = bundle_compression or "none"
+    if inventory_policy not in ({"none"} if delegated else {"prewarm", "request-sized"}):
+        raise ValueError("inventory policy must be prewarm or request-sized")
+    if bundle_compression not in {"none", "zlib", "artifacts", "artifacts-zlib"}:
+        raise ValueError("bundle compression must be none, zlib, artifacts, or artifacts-zlib")
+    if type(prefill_cache_mib) is not int or not 0 <= prefill_cache_mib <= 256:
+        raise ValueError("prefill cache must be in [0, 256] MiB")
+    if experiment is not None:
+        resolved = experiment.resolve()
+        if resolved.prefix_cache_bytes:
+            if prefill_cache_mib not in {0, resolved.prefix_cache_bytes >> 20} or (
+                prefill_cache_bound_tokens is not None
+                and prefill_cache_bound_tokens != resolved.prefix_cache_bound_tokens
+            ):
+                raise ValueError("benchmark cache flags conflict with immutable Experiment")
+            prefill_cache_mib = max(1, resolved.prefix_cache_bytes >> 20)
+            prefill_cache_mode = "prefix"
+            prefill_cache_bound_tokens = resolved.prefix_cache_bound_tokens
+    if prefill_cache_mode == "prefix":
+        if (
+            prefill_cache_mib < 1
+            or type(prefill_cache_bound_tokens) is not int
+            or not 2 <= prefill_cache_bound_tokens <= 4096
+        ):
+            raise ValueError("prefix cache requires memory and a fixed 2-4096 token input bound")
+    elif prefill_cache_mode != "exact" or prefill_cache_bound_tokens is not None:
+        raise ValueError("prefix cache bound requires prefix mode")
+    if warmup_prompt is not None:
+        if not warmups:
+            raise ValueError("distinct warmup prompt requires at least one warmup")
+        try:
+            warmup_prompt = validate_context(warmup_prompt)
+        except ValueError as exc:
+            raise ValueError("warmup context is invalid") from exc
+    if _cohort_salt is None:
+        _cohort_salt = secrets.token_bytes(32)
+    global _DASHBOARD_PORT, _DASHBOARD_TOKEN
+    if _DASHBOARD_PORT is None:
+        _DASHBOARD_PORT = _free_port()
+    if _DASHBOARD_TOKEN is None:
+        _DASHBOARD_TOKEN = secrets.token_urlsafe(32)
+    port = _DASHBOARD_PORT
+    roles = ("client", "preparation", "inference")
+    effective_tiny = tiny
+    if experiment is not None:
+        if tiny:
+            raise ValueError("Experiment pipelines cannot use the generated tiny model")
+        experiment.resolve()
+        from pllm.profiles import resolve_runtime_composition
+        from pllm.roles.topology import graph_for_runtime
+
+        runtime_options = resolve_runtime_composition(experiment.pipeline)
+        if runtime_options is None:
+            raise ValueError("Experiment profile is not supported by local benchmarking")
+        roles = tuple(role.id for role in graph_for_runtime(runtime_options).roles)
+        effective_tiny = experiment.pipeline.model.kind == "tiny"
+        model = experiment.pipeline.model.source
+        from pllm.model_loader import expected_model_id
+
+        resolved_model_id = expected_model_id(experiment.pipeline.model)
+    else:
+        resolved_model_id = model_id or ("pllm-benchmark-tiny" if tiny else model)
+    startup_inventory_rows = (
+        min(64, len(context_bytes(prompt)) + max_output_tokens + 20) if effective_tiny else 64
+    )
+    if selected_inventory_rows is not None:
+        startup_inventory_rows = selected_inventory_rows
+    if delegated:
+        startup_inventory_rows = 0
+    from pllm.runtime.dashboard import DashboardConfig, create_dashboard_app
+    from pllm.runtime.telemetry import local_stage_body_snapshot
+
+    candidate = Path(model).expanduser()
+    model_path = None if effective_tiny else candidate.resolve() if candidate.exists() else model
+    config = DashboardConfig(
+        host="127.0.0.1",
+        port=port,
+        model_path=model_path,
+        model_id=resolved_model_id,
+        default_max_output_tokens=max_output_tokens,
+        history_path=":memory:",
+        startup_inventory_rows=startup_inventory_rows,
+        defer_inventory_until_request=inventory_policy == "request-sized",
+        bundle_compression=bundle_compression,
+        prefill_cache_mib=prefill_cache_mib,
+        prefill_cache_mode=prefill_cache_mode,
+        prefill_cache_bound_tokens=prefill_cache_bound_tokens,
+        experiment=experiment,
+        temperature=temperature,
+        capture_output_digest=capture_output_digest,
+        otel_token=_DASHBOARD_TOKEN,
+        docker=docker,
+        docker_image=docker_image,
+        docker_network=docker_network,
+        wan=wan if emulate_wan else None,
+        backend=backend,
+        memory_budget_bytes=memory_budget_bytes,
+        memory_input_tokens=(None if experiment is not None else max(
+            256, max(len(context_bytes(value)) for value in (
+                *(prompt_sequence or (prompt,)), *((warmup_prompt,) if warmup_prompt is not None else ())
+            )) + 256)),
+    )
+    origin = f"http://127.0.0.1:{port}"
+    dashboard_app = create_dashboard_app(config)
+    from .benchmark_resources import ProcessMemorySampler
+    from .shutdown import defer_termination_signals
+    memory_sampler = ProcessMemorySampler(dashboard_app.state.dashboard_runtime) if not docker else None
+    if memory_sampler is not None:
+        memory_sampler.start()
+
+    def stage_snapshot() -> dict[tuple[str, str, str], int]:
+        return dashboard_app.state.dashboard_runtime.store.stage_body_snapshot(
+            client_local=local_stage_body_snapshot()
+        )
+
+    handle = _DashboardHandle(dashboard_app, port)
+    previous_sigterm: Any = None
+
+    def terminate(_signum: int, _frame: Any) -> None:
+        raise KeyboardInterrupt
+
+    if threading.current_thread() is threading.main_thread():
+        previous_sigterm = signal.getsignal(signal.SIGTERM)
+        signal.signal(signal.SIGTERM, terminate)
+    try:
+        handle.start()
+        _wait_for_dashboard_listener(handle, origin, timeout_seconds)
+        if show_dashboard:
+            webbrowser.open(origin)
+        with httpx.Client(base_url=origin, timeout=5.0) as client:
+            stage_snapshots: dict[str, Any] | None = (
+                {"before_ready": stage_snapshot(), "warmups": [], "runs": []}
+                if "preparation" in roles
+                else None
+            )
+            _wait_for_ready(
+                client,
+                handle,
+                time.monotonic() + timeout_seconds,
+                progress,
+            )
+            runtime = dashboard_app.state.dashboard_runtime
+            if runtime.memory_preflight is not None:
+                docker = runtime.memory_preflight["selected_backend"] == "docker"
+            inventory_audit = (runtime._client.privacy_audit if runtime._client is not None else None)
+            def resources():
+                topology = runtime._topology
+                sampler = getattr(topology, "resource_samples", None)
+                return sampler() if sampler is not None else None
+            docker_samples = {"startup": resources(), "warmups": [], "runs": []} if docker or emulate_wan else None
+            if stage_snapshots is not None:
+                stage_snapshots["after_ready"] = stage_snapshot()
+            initial_preparation_audit = (
+                dashboard_app.state.dashboard_runtime.initial_preparation_audit()
+                if "preparation" in roles or set(roles) == {"client", "worker_a", "worker_b"}
+                else None
+            )
+            client_model_ownership = (
+                dashboard_app.state.dashboard_runtime.client_model_ownership()
+                if roles == ("client",)
+                else None
+            )
+            warmup_runs = []
+            for index in range(warmups):
+                if progress is not None:
+                    progress(f"Running warmup {index + 1}/{warmups}")
+                before = stage_snapshot() if stage_snapshots is not None else None
+                docker_before = resources() if docker or emulate_wan else None
+                run = _run_once(
+                    client,
+                    handle,
+                    prompt=warmup_prompt if warmup_prompt is not None else prompt,
+                    max_output_tokens=max_output_tokens,
+                    timeout_seconds=timeout_seconds,
+                    progress=progress,
+                    progress_label=f"Warmup {index + 1}/{warmups} running",
+                    temperature=temperature,
+                    capture_output_digest=capture_output_digest,
+                )
+                warmup_runs.append(run)
+                if docker_samples is not None:
+                    docker_samples["warmups"].append({"before": docker_before, "after": resources()})
+                if stage_snapshots is not None and before is not None:
+                    after = stage_snapshot()
+                    stage_snapshots["warmups"].append((before, after))
+            runs = []
+            measured_prompts = (prompt,) if prompt_sequence is None else prompt_sequence
+            for index in range(repetitions * len(measured_prompts)):
+                current_prompt = measured_prompts[index % len(measured_prompts)]
+                if progress is not None:
+                    progress(
+                        f"Running measurement {index + 1}/{repetitions * len(measured_prompts)}"
+                    )
+                before = stage_snapshot() if stage_snapshots is not None else None
+                docker_before = resources() if docker or emulate_wan else None
+                run = _run_once(
+                    client,
+                    handle,
+                    prompt=current_prompt,
+                    max_output_tokens=max_output_tokens,
+                    timeout_seconds=timeout_seconds,
+                    progress=progress,
+                    progress_label=f"Measurement {index + 1}/{repetitions * len(measured_prompts)} running",
+                    temperature=temperature,
+                    capture_output_digest=capture_output_digest,
+                )
+                if prompt_sequence is not None:
+                    run["context_index"] = index % len(measured_prompts)
+                    run["sequence_repetition"] = index // len(measured_prompts)
+                runs.append(run)
+                if docker_samples is not None:
+                    docker_samples["runs"].append({"before": docker_before, "after": resources()})
+                if stage_snapshots is not None and before is not None:
+                    after = stage_snapshot()
+                    stage_snapshots["runs"].append((before, after))
+            cold_process_cpu = dashboard_app.state.dashboard_runtime.cold_process_cpu()
+            client_body_placement = dashboard_app.state.dashboard_runtime.client_body_placement()
+    except KeyboardInterrupt as exc:
+        raise LoopbackBenchmarkError("benchmark interrupted") from exc
+    except LoopbackBenchmarkError as exc:
+        diagnostic = handle.diagnostic()
+        suffix = f"\n{diagnostic}" if diagnostic else ""
+        raise LoopbackBenchmarkError(f"{exc}{suffix}") from exc
+    finally:
+        try:
+            with defer_termination_signals():
+                try:
+                    native_memory = memory_sampler.stop() if memory_sampler is not None else None
+                    if progress is not None:
+                        progress("Stopping benchmark roles")
+                finally:
+                    try:
+                        handle.close()
+                    finally:
+                        _DASHBOARD_PORT = None
+        finally:
+            if previous_sigterm is not None:
+                signal.signal(signal.SIGTERM, previous_sigterm)
+
+    report = build_loopback_report(
+        model_id=resolved_model_id,
+        tiny=effective_tiny,
+        max_output_tokens=max_output_tokens,
+        warmup_runs=warmup_runs,
+        runs=runs,
+        roles=roles,
+        initial_preparation_audit=initial_preparation_audit,
+        inventory_policy=inventory_policy,
+        bundle_compression=bundle_compression,
+        prefill_cache_mib=prefill_cache_mib,
+        prefill_cache_mode=prefill_cache_mode,
+        prefill_cache_bound_tokens=prefill_cache_bound_tokens,
+        warmup_prompt_digest=hashlib.sha256(
+            b"pllm.benchmark.prompt.v1\0" + _cohort_salt + context_bytes(warmup_prompt or prompt)
+        ).hexdigest(),
+        prompt_digest=hashlib.sha256(
+            b"pllm.benchmark.prompt.v1\0" + _cohort_salt + context_bytes(prompt)
+        ).hexdigest(),
+        prompt_sequence_digest=(
+            hashlib.sha256(
+                b"pllm.benchmark.context-sequence.v1\0"
+                + _cohort_salt
+                + json.dumps(prompt_sequence, ensure_ascii=False, separators=(",", ":")).encode()
+            ).hexdigest()
+            if prompt_sequence is not None
+            else None
+        ),
+        source_lock_digest=dashboard_app.state.dashboard_runtime.source_lock_digest,
+        client_model_ownership=client_model_ownership,
+        cold_process_cpu=cold_process_cpu,
+        stage_snapshots=stage_snapshots,
+        wan=wan,
+        temperature=temperature,
+        capture_output_digest=capture_output_digest,
+        runtime_contract=dashboard_app.state.dashboard_runtime._runtime_contract if delegated else None,
+    )
+    if prompt_sequence is not None:
+        report["configuration"].update(
+            sequence_length=len(prompt_sequence), sequence_repetitions=repetitions
+        )
+    report["client_body_placement"] = client_body_placement
+    report["native_process_memory"] = native_memory
+    report["client_process_memory"] = {
+        "scope": "client and in-process dashboard; excludes provider processes and OS file cache",
+        "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+        "before": memory_before,
+        "after": process_memory(),
+    }
+    report["memory_preflight"] = dashboard_app.state.dashboard_runtime.memory_preflight
+    guard = dashboard_app.state.dashboard_runtime._memory_guard
+    if guard is not None:
+        report["checks"]["memory_guard_passed"] = guard.error is None
+        report["checks"]["passed"] = report["checks"]["passed"] and guard.error is None
+        report["memory_guard"] = {
+            "minimum_host_available_bytes": guard.minimum_available_bytes,
+            "maximum_host_swap_growth_bytes": guard.maximum_swap_growth_bytes,
+            "tripped": guard.error is not None,
+            "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+        }
+    report["configuration"]["provider_backend"] = "docker" if docker else "native"
+    if "preparation" in roles and inventory_audit is not None:
+        from .prepared_accounting import material_accounting
+        report["prepared_material_accounting"] = material_accounting(inventory_audit.to_dict())
+    if docker:
+        report["configuration"]["provider_backend"] = "docker"
+        report["configuration"]["link_conditions_digest"] = docker_network.digest if docker_network is not None else None
+        report["docker_accounting"] = {
+            "schema": "pllm.docker_benchmark_accounting.v1",
+            "scope": "co-located Linux provider containers; host client",
+            "cpu_scope": "cgroup lifetime CPU includes resource sampler",
+            "network_scope": "directed non-overlapping service IPv4/TCP counters plus separately scoped interface totals",
+            "full_wire_bytes": None,
+            "samples": docker_samples,
+        }
+    if emulate_wan:
+        from pllm.metrics import wan_readiness
+        report["configuration"]["wan_emulation"] = True
+        report["configuration"]["wan_emulation_digest"] = wan.digest
+        if not docker:
+            report["native_network_accounting"] = {
+                "schema": "pllm.native_network_accounting.v1", "samples": docker_samples,
+                "scope": "native shared TCP-stream caps; kernel headers/retransmissions and telemetry excluded",
+            }
+        report["wan_readiness"] = wan_readiness(report, wan)
+    if experiment is not None:
+        report["experiment"] = {
+            "name": experiment.name,
+            "configuration_digest": experiment.configuration_digest(),
+            "pipeline_digest": experiment.pipeline.digest(),
+        }
+    if not report["checks"]["passed"]:
+        raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")
+    return report
+
+
+def run_loopback_benchmark(
+    *,
+    model: str,
+    model_id: str | None,
+    tiny: bool,
+    prompt: str | list[dict[str, str]],
+    max_output_tokens: int,
+    warmups: int,
+    repetitions: int,
+    timeout_seconds: float,
+    show_dashboard: bool = False,
+    progress: ProgressCallback | None = None,
+    experiment: Experiment | None = None,
+    inventory_policy: str | None = None,
+    bundle_compression: str | None = None,
+    prefill_cache_mib: int = 0,
+    prefill_cache_mode: str = "exact",
+    prefill_cache_bound_tokens: int | None = None,
+    warmup_prompt: str | list[dict[str, str]] | None = None,
+    prompt_sequence: tuple[Any, ...] | list[Any] | None = None,
+    _cohort_salt: bytes | None = None,
+    temperature: float | None = None,
+    capture_output_digest: bool = False,
+    docker: bool = False,
+    docker_image: str | None = None,
+    docker_network=None,
+    wan=None,
+    emulate_wan: bool = False,
+    backend: str | None = None,
+    memory_budget_bytes: int | None = None,
+) -> dict[str, Any]:
+    """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
+    with _DASHBOARD_LOCK:
+        # Retired dashboards can retain native arrays through Python cycles.
+        # Release them before pricing another candidate's live host headroom.
+        gc.collect()
+        return _run_loopback_benchmark(
+            model=model,
+            model_id=model_id,
+            tiny=tiny,
+            prompt=prompt,
+            max_output_tokens=max_output_tokens,
+            warmups=warmups,
+            repetitions=repetitions,
+            timeout_seconds=timeout_seconds,
+            show_dashboard=show_dashboard,
+            progress=progress,
+            experiment=experiment,
+            docker=docker,
+            docker_image=docker_image,
+            docker_network=docker_network,
+            wan=wan,
+            emulate_wan=emulate_wan,
+            backend=backend,
+            memory_budget_bytes=memory_budget_bytes,
+            inventory_policy=inventory_policy,
+            bundle_compression=bundle_compression,
+            prefill_cache_mib=prefill_cache_mib,
+            prefill_cache_mode=prefill_cache_mode,
+            prefill_cache_bound_tokens=prefill_cache_bound_tokens,
+            warmup_prompt=warmup_prompt,
+            prompt_sequence=prompt_sequence,
+            _cohort_salt=_cohort_salt,
+            temperature=temperature,
+            capture_output_digest=capture_output_digest,
+        )

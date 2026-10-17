@@ -1,0 +1,51 @@
+   Compiling pllm-core v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running tests/gkm_allocation.rs (target/debug/deps/gkm_allocation-c60896f64f7e8713)
+
+running 4 tests
+test actual_null_payload_allocations_return_errors_and_import_peak_matches_receipt ... ok
+test maximum_column_linear_peak_includes_complete_publication_and_eight_live_owners ... ok
+test maximum_selector_and_row_width_lookup_peak_includes_all_live_owners ... ok
+test seeded_null_payload_failures_and_full_window_peak_keep_all_owner_reservations ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.59s
+
+     Running tests/gkm_seeded_restart.rs (target/debug/deps/gkm_seeded_restart-e1fc09dfd07bbf6a)
+
+running 2 tests
+test fresh_process_fixture ... ok
+test fresh_processes_draw_new_keys_and_request_identities ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/gkm_wire.rs (target/debug/deps/gkm_wire-f4f976d4d68bd4d2)
+
+running 10 tests
+test all_header_substitutions_and_truncations_retire_client_and_worker ... ok
+test canonical_identity_duplicate_stage_and_exact_table_hash_import_checks ... ok
+test exact_oracle_publication_roundtrip_and_dependent_full_share_requests ... ok
+test ignored_duplicate_partial_reply_padding_and_incomplete_calls_burn_handles ... ok
+test lookup_hash_and_final_linear_verification_stay_authoritative ... ok
+test publication_pin_truncation_points_geometry_and_ranges_reject ... ok
+test seeded_network_rejected_and_native_seeded_path_remains_available ... ok
+test valid_previous_window_packets_cannot_substitute_for_next_sequence ... ok
+test wire_global_cap_retained_packets_and_publication_leases ... ok
+test worker_replay_wrong_source_schedule_and_cancellation_are_sticky ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.35s
+
+     Running tests/gkm_wire_allocation.rs (target/debug/deps/gkm_wire_allocation-319ac69867215ccd)
+
+running 1 test
+test preallocation_rejection_real_null_failures_and_maximum_source_copy_accounting ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+
+     Running tests/gkm_wire_process.rs (target/debug/deps/gkm_wire_process-a722a575a2530f09)
+
+running 2 tests
+test independent_party_processes_import_publication_and_only_their_own_share ... ok
+test worker_process_fixture ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

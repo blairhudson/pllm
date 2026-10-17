@@ -28,6 +28,18 @@ Source F32/F16/BF16 values become original finite little-endian float32 values;
 lookup preserves their bits, including signed zero. The loader bounds metadata,
 tokenizer padding and encoded input before tensor execution.
 
+The ordinary SDK source loader streams at most 64 KiB of original float32 values
+per native call. A one-use compiler owner checks ordered names and offsets, retains
+the original source digest and converts weights directly into their final i16
+buffers. Lookup and local coefficients keep their original float32 bytes. Workers
+take ownership of these buffers instead of copying another complete source image.
+Source locks and complete headers revalidate before value reads and publication;
+malformed frames, source mutation and cancellation retire the partial import.
+A separate 16 MiB process-wide import payload allowance covers simultaneous
+encoded weights, table, coefficients and numeric bounds through transfer. Existing
+conservative SDK memory admission remains. This removes eager Python float-source
+ownership; it does not establish process-RSS savings or enlarge checkpoint limits.
+
 The numerical path retains i16/Q11 source coefficients, checked ring64 products,
 the original float32-before-division reconstruction, post-reconstruction bias,
 complete head and full client-local KV. The common semantic local executor runs
@@ -83,6 +95,10 @@ pending selection; real process controls test final corruption, replay, partial
 admission and cancellation. SDK, gateway and both ordinary benchmark entry points
 share the same admitted Experiment. Validation receipts and replay are retained
 in [the SDK archive](../../paper/artifacts/gkm-sdk/README.md).
+The separate [streaming-import archive](../../paper/artifacts/gkm-sdk/source-stream.md)
+passes 571 installed-wheel tests and 120 native checks, including complete SDK
+execution after ownership transfer. All 362 installed package files match that
+wheel. These checks establish correctness and bounded ownership, not RSS savings.
 
 Seeded network frames, stochastic or early-EOS generation, conversation
 continuation, remote source discovery and automatic network planning remain

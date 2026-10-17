@@ -445,11 +445,7 @@ def execute_request(experiment, source, token_ids, output_tokens, connections, t
         try:
             if cancelled():
                 raise ProtocolError("GKM request cancelled", 499)
-            with source.load_values() as loaded:
-                native = _native._GkmTransportClient(
-                    experiment.canonical_bytes(), source.config_bytes, len(token_ids), output_tokens,
-                    source.source_lock_digest, source.tokenizer_digest, dict(loaded.tensors),
-                )
+            native = source.load_transport(experiment, len(token_ids), output_tokens, cancelled=cancelled)
             if native.contract() != contract_bytes:
                 raise ProtocolError("GKM client native admission differs from the source contract")
             decoder = json.loads(native.decoder())

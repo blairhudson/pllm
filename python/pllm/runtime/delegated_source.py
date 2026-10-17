@@ -614,6 +614,75 @@ class AdmittedSource:
         finally:
             store.clear_cache()
 
+    def load_transport(self, experiment: Experiment, rows: int, outputs: int, *,
+                       worker=None, cancelled=None):
+        """Stream public values into one native SDK owner under caller admission.
+
+        The native importer bounds each original float32 frame to 64 KiB. No
+        complete Python float tensor dictionary escapes. Source identities and
+        all headers still revalidate before values and again before publication.
+        """
+        self.runtime_contract(experiment, rows, outputs)
+        contract = self.contract
+        expected_lock = (self.checkpoint_digest, self.source_lock_digest, self.source_lock)
+        if _locked(self.path, self.model, self.source_float32_bytes, self._identities) != expected_lock:
+            raise DelegatedSourceError("GKM source lock changed after admission")
+        store, specs = _store(self.path, self._identities, contract)
+        importer = native = None
+        try:
+            if specs != self._tensor_specs:
+                raise DelegatedSourceError("GKM source tensor metadata changed after admission")
+            importer = _native._GkmTransportImport(
+                experiment.canonical_bytes(), self.config_bytes, rows, outputs,
+                self.source_lock_digest, self.tokenizer_digest,
+            )
+            identities = dict(self._identities)
+            total = 0
+            specs_by_name = dict(specs)
+            for name in sorted(contract["source_shapes"]):
+                filename, shape, dtype, offset, size = specs_by_name[store.resolve(name)]
+                itemsize = _DTYPES[dtype].itemsize
+                elements = math.prod(shape)
+                if size != elements * itemsize:
+                    raise DelegatedSourceError("GKM source byte accounting differs")
+                for begin in range(0, elements, (64 << 10) // 4):
+                    if cancelled is not None and cancelled():
+                        raise DelegatedSourceError("GKM source import cancelled")
+                    count = min((64 << 10) // 4, elements - begin)
+                    # Scope conversions to this frame: no previous tensor/frame
+                    # alias survives while reading the next frame.
+                    frame = _source_float_frame(self.path / filename, identities[filename],
+                                                offset + begin * itemsize, count, dtype)
+                    importer.push(name, begin * 4, frame)
+                    total += len(frame)
+                    del frame
+            if total != self.source_float32_bytes:
+                raise DelegatedSourceError("GKM source byte accounting differs")
+            if _locked(self.path, self.model, self.source_float32_bytes, self._identities) != expected_lock:
+                raise DelegatedSourceError("GKM source lock changed while loading values")
+            if cancelled is not None and cancelled():
+                raise DelegatedSourceError("GKM source import cancelled")
+            native = importer.client() if worker is None else importer.worker(*worker)
+            return native
+        except BaseException:
+            if native is not None:
+                native.abort()
+            raise
+        finally:
+            if importer is not None:
+                importer.abort()
+            store.clear_cache()
+
+
+def _source_float_frame(path, identity, offset, count, dtype):
+    raw = _read_range(path, identity, offset, count * _DTYPES[dtype].itemsize)
+    value = np.frombuffer(raw, dtype=_DTYPES[dtype])
+    # Reuse the source reader's exact F16/BF16 conversion, including signed zero.
+    value = SafeTensorStore._convert(value, np.dtype("<f4"))
+    if not np.all(np.isfinite(value)):
+        raise DelegatedSourceError("GKM source tensor has invalid values")
+    return value.tobytes(order="C")
+
 
 @dataclass(frozen=True, slots=True, init=False)
 class LoadedSource:

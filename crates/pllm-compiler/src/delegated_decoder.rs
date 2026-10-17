@@ -16,6 +16,8 @@ pub(crate) mod sdk;
 pub use sdk::GkmRuntimeContract;
 mod transport;
 pub use transport::{GkmTransportClient, GkmTransportWorker};
+mod source_import;
+pub use source_import::{GkmTransportImport, GKM_SOURCE_CHUNK_BYTES};
 
 use crate::decoder_runtime_schedule::{
     lower_phase, DecoderRuntimeExecutor, DecoderRuntimePhaseSchedule,
@@ -434,6 +436,9 @@ fn bind_source(
     }
     let digest = hash.finalize().into();
     let mut matrices = Vec::new();
+    matrices
+        .try_reserve_exact(contract.matrices.len())
+        .map_err(|_| reject("allocation"))?;
     for matrix in &contract.matrices {
         let mut encoded = Vec::new();
         encoded
@@ -448,11 +453,11 @@ fn bind_source(
             }
         }
         matrices.push(
-            I16Matrix::from_encoded(
+            I16Matrix::from_encoded_owned(
                 matrix.rows,
                 matrix.columns,
-                &encoded,
-                &vec![INPUT_BOUND; matrix.columns],
+                encoded,
+                vec![INPUT_BOUND; matrix.columns],
             )
             .map_err(|e| e.to_string())?,
         );

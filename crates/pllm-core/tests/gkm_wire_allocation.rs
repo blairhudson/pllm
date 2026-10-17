@@ -108,6 +108,45 @@ fn failed<T>(result: (Result<T, Error>, Trace)) {
 
 #[test]
 fn preallocation_rejection_real_null_failures_and_maximum_source_copy_accounting() {
+    // Exact-size source buffers transfer into immutable numeric and worker
+    // owners. Fail allocations of their payload sizes to detect any hidden copy.
+    let owned_weights = vec![3i16; 11 * 13];
+    let bounds = vec![100u64; 13];
+    let (owned_matrix, measured) = trace(owned_weights.len() * 2, || {
+        I16Matrix::from_encoded_owned(11, 13, owned_weights, bounds)
+    });
+    let owned_matrix = owned_matrix.unwrap();
+    assert_eq!(measured.failures, 0);
+    let raw = vec![0u8; 17 * 13 * 4];
+    let (owned_table, measured) = trace(raw.len(), || FloatTable::from_le_bytes_owned(17, 13, raw));
+    let owned_table = owned_table.unwrap();
+    assert_eq!(measured.failures, 0);
+    let public = Arc::new(
+        Publication::publish(
+            [2; 32],
+            &[Stage {
+                id: [1; 32],
+                matrix: &owned_matrix,
+            }],
+            &owned_table,
+        )
+        .unwrap(),
+    );
+    let (worker, measured) = trace(17 * 13 * 4, || {
+        WorkerWire::from_owned(
+            Arc::clone(&public),
+            public.digest(),
+            Worker::Zero,
+            &[[1; 32]],
+            vec![owned_matrix],
+            owned_table,
+        )
+    });
+    assert_eq!(measured.failures, 0);
+    drop(worker.unwrap());
+    drop(public);
+    assert_eq!(WireResources::current().process_live_bytes, 0);
+
     let matrix = I16Matrix::from_encoded(1, 1, &[3], &[100]).unwrap();
     let table = FloatTable::from_le_bytes(1, 1, &[0; 4]).unwrap();
     let stages = [Stage {

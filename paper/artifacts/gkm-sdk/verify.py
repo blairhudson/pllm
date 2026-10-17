@@ -1,5 +1,6 @@
 """Read-only consistency checks for bounded SDK conformance evidence."""
 
+import argparse
 import hashlib
 import importlib.util
 import json
@@ -13,6 +14,13 @@ EXPECTED_NATIVE = {
     "compiler-tests": [14, 22, 5, 3, 4], "core-tests": [42],
     "wire-tests": [4, 2, 10, 1, 2], "ownership-tests": [8],
 }
+STREAM_NATIVE = {
+    **EXPECTED_NATIVE, "compiler-tests": [14, 22, 5, 3, 6], "source-import-tests": [1],
+}
+CASES = {
+    "pllm.gkm_sdk_archive.v1": (547, EXPECTED_NATIVE),
+    "pllm.gkm_sdk_archive.v2": (571, STREAM_NATIVE),
+}
 spec = importlib.util.spec_from_file_location(
     "gkm_decoder_archive", ARCHIVE.parent.parent / "gkm-decoder/verify.py"
 )
@@ -22,8 +30,9 @@ spec.loader.exec_module(common)
 
 def verify(archive=ARCHIVE):
     index = json.loads(common.read_regular(archive / "index.json"))
-    if index["schema"] != "pllm.gkm_sdk_archive.v1":
+    if index["schema"] not in CASES:
         raise ValueError("unknown SDK archive")
+    expected_python, expected_native = CASES[index["schema"]]
     rows = index["files"]
     if not 1 <= len(rows) <= 256 or sum(row["bytes"] for row in rows) > 32 << 20:
         raise ValueError("archive exceeds its bound")
@@ -66,7 +75,7 @@ def verify(archive=ARCHIVE):
         raise ValueError("installed test inputs changed or failed")
     result = common.cases(payloads["tests/results.xml"])
     passed, failed, skipped = common.counts(result)
-    if failed or skipped or passed != 547 or index["installed_tests_passed"] != 547:
+    if failed or skipped or passed != expected_python or index["installed_tests_passed"] != expected_python:
         raise ValueError("installed conformance checks incomplete")
     required = {
         "tests.test_delegated_source", "tests.test_gkm_sdk_declarations",
@@ -76,13 +85,13 @@ def verify(archive=ARCHIVE):
         "tests.test_delegated_sdk", "tests.test_delegated_interfaces",
         "tests.test_sidecar_context_lifetime", "tests.test_delegated_transport_ownership",
     }
+    if index["schema"] == "pllm.gkm_sdk_archive.v2":
+        required.add("tests.test_delegated_source_streaming")
     if not required <= {name.split(".Test")[0] for name, _ in result}:
         raise ValueError("required conformance suite absent")
 
     native = record("native/receipt.json")
-    jobs = {name: 0 for name in (
-        "compiler-tests", "core-tests", "wire-tests", "ownership-tests", "clippy"
-    )}
+    jobs = dict.fromkeys((*expected_native, "clippy"), 0)
     if native != {"exit_codes": jobs, "source_changed": False}:
         raise ValueError("native checks incomplete")
     native_sources = record("native/sources-before.json")
@@ -95,7 +104,7 @@ def verify(archive=ARCHIVE):
                                         payloads[f"native/{name}.log"])]
         for name in jobs if name != "clippy"
     }
-    if native_counts != EXPECTED_NATIVE or index["native_test_groups"] != EXPECTED_NATIVE:
+    if native_counts != expected_native or index["native_test_groups"] != expected_native:
         raise ValueError("native test groups changed")
     for name, data in payloads.items():
         if name.startswith("sources/"):
@@ -142,4 +151,7 @@ def verify(archive=ARCHIVE):
 
 
 if __name__ == "__main__":
-    print(json.dumps(verify(), indent=2, sort_keys=True))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--archive", choices=("local-v1", "source-stream-v1"), default="local-v1")
+    args = parser.parse_args()
+    print(json.dumps(verify(ARCHIVE.parent / args.archive), indent=2, sort_keys=True))

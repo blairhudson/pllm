@@ -13,6 +13,7 @@ from pllm import AsyncOpenAI, Model, OpenAI, _native
 from pllm.configuration import Deployment, ExecutionBudget, Experiment
 from pllm.profiles import OpenWeightVerifiableCpu
 from pllm.runtime import delegated_transport as transport
+from pllm.runtime.delegated_source import AdmittedSource
 from pllm.runtime.client import ProtocolError
 from pllm.runtime.responses import normalize_input, prompt_text
 
@@ -84,12 +85,12 @@ def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, 
 def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch):
     experiment, _, _ = experiment_fixture(tmp_path)
     with OpenAI(experiment=experiment) as client:
-        native_factory = transport._native._GkmTransportClient
+        load_transport = AdmittedSource.load_transport
         checks = []
 
         class FinalBarrier:
-            def __init__(self, *args):
-                self.native = native_factory(*args)
+            def __init__(self, native):
+                self.native = native
 
             def __getattr__(self, name):
                 return getattr(self.native, name)
@@ -99,7 +100,11 @@ def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch)
                 checks.append("finished")
                 raise ValueError("injected final barrier failure")
 
-        monkeypatch.setattr(transport._native, "_GkmTransportClient", FinalBarrier)
+        def failed_barrier(source, *args, **kwargs):
+            native = load_transport(source, *args, **kwargs)
+            return FinalBarrier(native) if kwargs.get("worker") is None else native
+
+        monkeypatch.setattr(AdmittedSource, "load_transport", failed_barrier)
         observed = []
         with pytest.raises(ValueError, match="final barrier"):
             with client.responses.create(input="hello world", max_output_tokens=2, stream=True) as stream:
@@ -108,7 +113,7 @@ def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch)
         assert checks == ["finished"] and not observed
         assert not client._core.records and client._core._active is None
         assert active_sessions(client._core) == [0, 0]
-        monkeypatch.setattr(transport._native, "_GkmTransportClient", native_factory)
+        monkeypatch.setattr(AdmittedSource, "load_transport", load_transport)
         with client.responses.create(input="hello world", max_output_tokens=2, stream=True) as stream:
             events = list(stream)
         assert events and events[-1].type == "response.incomplete"

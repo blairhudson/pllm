@@ -13,6 +13,11 @@ pub struct FloatTable {
 
 impl FloatTable {
     pub fn from_le_bytes(vocabulary: usize, width: usize, bytes: &[u8]) -> Result<Self, Error> {
+        Self::validate(vocabulary, width, bytes)?;
+        Self::from_le_bytes_owned(vocabulary, width, payload::copy(bytes)?)
+    }
+
+    fn validate(vocabulary: usize, width: usize, bytes: &[u8]) -> Result<(), Error> {
         if vocabulary == 0 || vocabulary > MAX_VOCABULARY || width == 0 || width > MAX_DIMENSION {
             return Err(Error::Limit);
         }
@@ -26,16 +31,30 @@ impl FloatTable {
         {
             return Err(Error::Numeric);
         }
+        Ok(())
+    }
+
+    /// Retains the original finite float32 bytes and allocation without copying.
+    /// An import may not hide additional retained capacity behind its row count.
+    pub fn from_le_bytes_owned(
+        vocabulary: usize,
+        width: usize,
+        bytes: Vec<u8>,
+    ) -> Result<Self, Error> {
+        Self::validate(vocabulary, width, &bytes)?;
+        if bytes.capacity() != bytes.len() {
+            return Err(Error::Limit);
+        }
         let mut hash = Sha256::new();
         hash.update(b"pllm.gkm.float-table.v1");
         hash.update(NUMERIC_PROFILE);
         hash.update((vocabulary as u64).to_le_bytes());
         hash.update((width as u64).to_le_bytes());
-        hash.update(bytes);
+        hash.update(&bytes);
         Ok(Self {
             vocabulary,
             width,
-            bytes: payload::copy(bytes)?,
+            bytes,
             digest: hash.finalize().into(),
         })
     }

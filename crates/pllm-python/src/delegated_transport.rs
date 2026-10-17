@@ -2,7 +2,9 @@
 
 use std::collections::BTreeMap;
 
-use pllm_compiler::{GkmRuntimeContract, GkmTransportClient, GkmTransportWorker};
+use pllm_compiler::{
+    GkmRuntimeContract, GkmTransportClient, GkmTransportImport, GkmTransportWorker,
+};
 use pllm_core::gkm::{WireBytes, Worker};
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
@@ -15,7 +17,7 @@ fn retired() -> PyErr {
     invalid("GKM transport owner is retired")
 }
 
-/// Parse the fixed zero-, one- or two-argument signatures only after taking the
+/// Parse the fixed bounded signatures only after taking the
 /// owner. Raw *args/**kwargs prevent PyO3 from rejecting arity/keyword errors
 /// before retirement. Python errors before method dispatch cannot reach us.
 /// Counts are bounded before inspecting values; no caller-sized collection or
@@ -113,6 +115,133 @@ fn pair(py: Python<'_>, bytes: [WireBytes; 2]) -> (Bound<'_, PyBytes>, Bound<'_,
         PyBytes::new(py, bytes[0].as_bytes()),
         PyBytes::new(py, bytes[1].as_bytes()),
     )
+}
+
+#[pyclass(name = "_GkmTransportImport")]
+struct PyImport {
+    inner: Option<GkmTransportImport>,
+}
+
+#[pymethods]
+impl PyImport {
+    #[new]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        py: Python<'_>,
+        experiment: &Bound<'_, PyBytes>,
+        config: &Bound<'_, PyBytes>,
+        input_rows: usize,
+        output_tokens: usize,
+        source_lock: &str,
+        tokenizer: &str,
+    ) -> PyResult<Self> {
+        let contract = contract(
+            py,
+            experiment.as_bytes(),
+            config.as_bytes(),
+            input_rows,
+            output_tokens,
+            source_lock,
+            tokenizer,
+        )?;
+        let inner = py
+            .detach(|| GkmTransportImport::new(contract))
+            .map_err(crate::invalid)?;
+        Ok(Self { inner: Some(inner) })
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn push<'py>(
+        &mut self,
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<()> {
+        let mut inner = self.inner.take().ok_or_else(retired)?;
+        let [name, offset, data] = arguments(args, kwargs, ["name", "offset", "data"])?;
+        let name = name
+            .cast::<PyString>()
+            .map_err(|_| invalid("GKM source name must be a string"))?
+            .to_str()?;
+        if offset.is_instance_of::<PyBool>() {
+            return Err(invalid("GKM source offset must be an integer"));
+        }
+        let offset = offset.extract::<usize>()?;
+        let bytes = data
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("GKM source frame must be bytes"))?
+            .as_bytes();
+        py.detach(|| inner.push(name, offset, bytes))
+            .map_err(crate::invalid)?;
+        self.inner = Some(inner);
+        Ok(())
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn client<'py>(
+        &mut self,
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<PyClient> {
+        let inner = self.inner.take().ok_or_else(retired)?;
+        arguments(args, kwargs, [])?;
+        let client = py.detach(|| inner.client()).map_err(crate::invalid)?;
+        Ok(PyClient {
+            inner: Some(client),
+        })
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn worker<'py>(
+        &mut self,
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<PyWorker> {
+        let inner = self.inner.take().ok_or_else(retired)?;
+        let [publication, pin, role, start] =
+            arguments(args, kwargs, ["publication", "pin", "role", "start"])?;
+        let publication = publication
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("GKM publication must be bytes"))?
+            .as_bytes();
+        let pin: [u8; 32] = pin
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("GKM pin must be bytes"))?
+            .as_bytes()
+            .try_into()
+            .map_err(|_| invalid("invalid GKM publication pin"))?;
+        if role.is_instance_of::<PyBool>() {
+            return Err(invalid("GKM worker role must be an integer"));
+        }
+        let role = match role.extract::<usize>()? {
+            0 => Worker::Zero,
+            1 => Worker::One,
+            _ => return Err(invalid("invalid GKM worker role")),
+        };
+        let start = start
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("GKM start must be bytes"))?
+            .as_bytes();
+        let worker = py
+            .detach(|| inner.worker(publication, pin, role, start))
+            .map_err(crate::invalid)?;
+        Ok(PyWorker {
+            inner: Some(worker),
+        })
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn abort<'py>(
+        &mut self,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<()> {
+        self.inner = None;
+        arguments(args, kwargs, [])?;
+        Ok(())
+    }
 }
 
 #[pyclass(name = "_GkmTransportClient")]
@@ -429,6 +558,7 @@ impl PyWorker {
 }
 
 pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<PyImport>()?;
     module.add_class::<PyClient>()?;
     module.add_class::<PyWorker>()
 }

@@ -163,12 +163,9 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 reservation = reserve_incremental_memory(request_memory_bytes(owner.source))
                 reservation.__enter__()
                 owner.reservation = reservation
-                with owner.source.load_values() as loaded:
-                    native = _native._GkmTransportWorker(
-                        experiment.canonical_bytes(), owner.source.config_bytes, rows, outputs,
-                        owner.source.source_lock_digest, owner.source.tokenizer_digest,
-                        dict(loaded.tensors), value["publication"], value["pin"], ROLES.index(role), value["start"],
-                    )
+                native = owner.source.load_transport(experiment, rows, outputs, worker=(
+                    value["publication"], value["pin"], ROLES.index(role), value["start"],
+                ))
                 owner.active, owner.request = native, rid
                 if native.request_id().hex() != rid:
                     raise ValueError("GKM request differs from its native start frame")

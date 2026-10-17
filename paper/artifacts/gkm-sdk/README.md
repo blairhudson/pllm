@@ -5,6 +5,11 @@ installed tests. The archive retains 106 hash-bound files: build and observer
 receipts, native and Python checks, original test inputs, selected implementation
 sources and the rejected v3 test attempt. Total payload is 2,861,674 bytes.
 
+The separate [source-streaming successor](source-stream.md) retains 571 installed
+Python checks and 120 native checks. Its ordered, bounded native importer is used
+by the same SDK, gateway and benchmark path. The original counts below retain
+their `local-v1` scope.
+
 ## Accepted checks
 
 - **547 Python tests pass**, with no skips, in a fresh Python 3.13 environment.

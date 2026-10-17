@@ -32,7 +32,7 @@ pub use decoder_matrix_inventory::{
 };
 pub use delegated_decoder::{
     GkmDecoderContract, GkmDecoderSession, GkmRuntimeContract, GkmTransportClient,
-    GkmTransportWorker,
+    GkmTransportImport, GkmTransportWorker, GKM_SOURCE_CHUNK_BYTES,
 };
 mod execution_capsule;
 pub use execution_capsule::ExecutionCapsule;

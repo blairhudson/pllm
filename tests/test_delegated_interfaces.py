@@ -144,12 +144,14 @@ def test_ordinary_response_target_owns_workers_and_keeps_decode_rate_unknown(tmp
 
 @pytest.mark.parametrize("stream", [False, True])
 def test_gateway_verification_failure_exposes_only_error(tmp_path, monkeypatch, stream):
+    from pllm.runtime.delegated_source import AdmittedSource
+
     experiment, _ = saved_experiment(tmp_path)
-    original = delegated_transport._native._GkmTransportClient
+    original = AdmittedSource.load_transport
 
     class Rejected:
-        def __init__(self, *args):
-            self.native = original(*args)
+        def __init__(self, native):
+            self.native = native
 
         def __getattr__(self, name):
             return getattr(self.native, name)
@@ -159,7 +161,11 @@ def test_gateway_verification_failure_exposes_only_error(tmp_path, monkeypatch, 
             raise ValueError("injected request verification rejection")
 
     with OpenAI(experiment=experiment) as sdk:
-        monkeypatch.setattr(delegated_transport._native, "_GkmTransportClient", Rejected)
+        def rejected(source, *args, **kwargs):
+            native = original(source, *args, **kwargs)
+            return Rejected(native) if kwargs.get("worker") is None else native
+
+        monkeypatch.setattr(AdmittedSource, "load_transport", rejected)
         app = create_sidecar_app(client=sdk, local_api_key="gateway-test")
         with TestClient(app, raise_server_exceptions=False) as client:
             result = client.post("/v1/responses", headers={"Authorization": "Bearer gateway-test"},

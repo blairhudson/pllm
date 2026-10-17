@@ -53,6 +53,11 @@ functionality, not independent operators. Exact contracts and the 547 Python /
 117 native conformance checks are in the
 [SDK reference](../../docs/research/gkm-sdk-reference.md) and
 [archive](../artifacts/gkm-sdk/README.md).
+The subsequent [streaming-import slice](../artifacts/gkm-sdk/source-stream.md)
+retains the same ordinary path and passes 571 installed-wheel and 120 native
+checks. Bounded original-value frames replace eager Python source buffers;
+encoded weights move into their final worker owners. Full-width admission and
+whole-client memory measurements remain separate gates.
 
 Full-checkpoint publication, activation bounds, original-model and common-Qwen
 quality and matched resource/performance evidence remain open. Seeded network

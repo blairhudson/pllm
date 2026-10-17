@@ -72,6 +72,21 @@ impl I16Matrix {
         weights: &[i16],
         input_bounds: &[u64],
     ) -> Result<Self, Error> {
+        Self::validate_encoded(rows, columns, weights, input_bounds)?;
+        Self::from_validated_owned(
+            rows,
+            columns,
+            payload::copy(weights)?,
+            payload::copy(input_bounds)?,
+        )
+    }
+
+    fn validate_encoded(
+        rows: usize,
+        columns: usize,
+        weights: &[i16],
+        input_bounds: &[u64],
+    ) -> Result<(), Error> {
         Self::validate_shape(rows, columns, weights.len())?;
         if input_bounds.len() != columns {
             return Err(Error::Shape);
@@ -85,27 +100,52 @@ impl I16Matrix {
                 return Err(Error::Bound);
             }
         }
+        Ok(())
+    }
+
+    /// Takes an exactly sized, already allocated import buffer. This retains the
+    /// same numeric validation and digest as `from_encoded`, without another
+    /// complete weight copy. Spare vector capacity is not an unpriced owner.
+    pub fn from_encoded_owned(
+        rows: usize,
+        columns: usize,
+        weights: Vec<i16>,
+        input_bounds: Vec<u64>,
+    ) -> Result<Self, Error> {
+        Self::validate_encoded(rows, columns, &weights, &input_bounds)?;
+        Self::from_validated_owned(rows, columns, weights, input_bounds)
+    }
+
+    fn from_validated_owned(
+        rows: usize,
+        columns: usize,
+        weights: Vec<i16>,
+        input_bounds: Vec<u64>,
+    ) -> Result<Self, Error> {
+        if weights.capacity() != weights.len() || input_bounds.capacity() != input_bounds.len() {
+            return Err(Error::Limit);
+        }
         let output_bounds = payload::collect(
             weights
                 .chunks_exact(columns)
-                .map(|row| row_bound(row, input_bounds) as u64),
+                .map(|row| row_bound(row, &input_bounds) as u64),
         )?;
         let mut hash = Sha256::new();
         hash.update(b"pllm.gkm.matrix.v1");
         hash.update(NUMERIC_PROFILE);
         hash.update((rows as u64).to_le_bytes());
         hash.update((columns as u64).to_le_bytes());
-        for &bound in input_bounds {
+        for &bound in &input_bounds {
             hash.update(bound.to_le_bytes());
         }
-        for &weight in weights {
+        for &weight in &weights {
             hash.update(weight.to_le_bytes());
         }
         Ok(Self {
             rows,
             columns,
-            weights: payload::copy(weights)?,
-            input_bounds: payload::copy(input_bounds)?,
+            weights,
+            input_bounds,
             output_bounds,
             digest: hash.finalize().into(),
         })
