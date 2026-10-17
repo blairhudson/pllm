@@ -130,7 +130,7 @@ universal OOM recovery guarantee. These counters do not persist across restart.
 2. Establish public input bounds for each source numerical operation.
 3. Separate client verification material from worker weight and table ownership.
 4. Admit real model geometry with every live copy, scratch allocation and response.
-5. Add the source's AES share compression and declared prefill batching.
+5. Integrate the bounded native seeded-share profile with seed delivery and declared prefill batching.
 6. Bind complete logits, KV, pending tokens and sampler state to atomic acceptance.
 7. Add authenticated confidential transport, independent worker processes and
    failure retirement through the ordinary SDK and gateway.
@@ -140,3 +140,10 @@ Qwen import, original-model validation, SIMD/GPU acceleration, wire codecs,
 restart-persistent budgets, whole-request quality and resource measurements are
 not implemented by this capsule. No installed Pipeline or benchmark ranking is
 enabled.
+
+The separate [seeded-share profile](gkm-seeded-shares.md) now supplies continuous
+AES-128 expansion to one designated worker per complete window. Independent
+linear and lookup keys retain the source counter layout and the same arithmetic
+and final acceptance barrier. Native ownership review and maximum-shape allocation
+checks pass. Seed transport, compiler/decoder integration, and measured costs
+remain separate gates.

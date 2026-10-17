@@ -10,10 +10,16 @@ use zeroize::Zeroizing;
 
 use super::{
     payload, reconstruct_signed, rescale_signed, sample_scalar, signed_scalar, Entropy, Error,
-    FloatTable, I16Matrix, OsEntropy, Publication, Purpose, MAX_CLIENTS_PER_PUBLICATION,
-    MAX_DIMENSION, MAX_LIVE_WINDOWS, MAX_PROCESS_LIVE_WINDOWS, MAX_PROCESS_RESERVED_STEPS,
-    MAX_PROCESS_WINDOWS, MAX_RESERVED_STEPS, MAX_WINDOWS, MAX_WINDOW_STEPS,
+    FloatTable, I16Matrix, OsEntropy, Publication, Purpose, SharingProfile,
+    MAX_CLIENTS_PER_PUBLICATION, MAX_DIMENSION, MAX_LIVE_WINDOWS, MAX_PROCESS_LIVE_WINDOWS,
+    MAX_PROCESS_RESERVED_STEPS, MAX_PROCESS_WINDOWS, MAX_RESERVED_STEPS, MAX_WINDOWS,
+    MAX_WINDOW_STEPS,
 };
+
+use super::seeded::Streams;
+#[path = "seeded_window.rs"]
+mod seeded_window;
+pub use seeded_window::SeededWorker;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Worker {
@@ -43,9 +49,13 @@ pub struct Binding {
     step: Step,
     artifact: [u8; 32],
     worker: Worker,
+    profile: SharingProfile,
 }
 
 impl Binding {
+    pub fn sharing_profile(&self) -> SharingProfile {
+        self.profile
+    }
     pub fn worker(&self) -> Worker {
         self.worker
     }
@@ -68,7 +78,7 @@ impl Binding {
 
 pub struct LinearShare<'a> {
     binding: Binding,
-    values: &'a [u64],
+    values: Option<&'a [u64]>,
     rows: usize,
     slot: &'a ResponseSlot,
     lease: &'a Arc<Lease>,
@@ -77,14 +87,26 @@ impl LinearShare<'_> {
     pub fn binding(&self) -> Binding {
         self.binding
     }
-    pub fn values(&self) -> &[u64] {
+    /// None for the seed-only designated worker: no expanded input is delivered.
+    /// Even an optional explicit payload cannot outlive its pending owner.
+    ///
+    /// ```compile_fail,E0505
+    /// use pllm_core::gkm::{PendingLinear, Worker};
+    /// fn after_owner_drop(pending: PendingLinear) {
+    ///     let share = pending.share(Worker::Zero);
+    ///     let payload: Option<&[u64]> = share.values();
+    ///     drop(pending);
+    ///     assert!(!payload.unwrap().is_empty());
+    /// }
+    /// ```
+    pub fn values(&self) -> Option<&[u64]> {
         self.values
     }
 }
 
 pub struct LookupShare<'a> {
     binding: Binding,
-    selector: &'a [u8],
+    selector: Option<&'a [u8]>,
     bytes: usize,
     slot: &'a ResponseSlot,
     lease: &'a Arc<Lease>,
@@ -93,7 +115,19 @@ impl LookupShare<'_> {
     pub fn binding(&self) -> Binding {
         self.binding
     }
-    pub fn selector(&self) -> &[u8] {
+    /// None for the seed-only designated worker.
+    /// Even an optional explicit payload cannot outlive its pending owner.
+    ///
+    /// ```compile_fail,E0505
+    /// use pllm_core::gkm::{PendingLookup, Worker};
+    /// fn after_owner_drop(pending: PendingLookup) {
+    ///     let share = pending.share(Worker::Zero);
+    ///     let payload: Option<&[u8]> = share.selector();
+    ///     drop(pending);
+    ///     assert!(!payload.unwrap().is_empty());
+    /// }
+    /// ```
+    pub fn selector(&self) -> Option<&[u8]> {
         self.selector
     }
 }
@@ -201,7 +235,7 @@ impl I16Matrix {
             }
             Ok(LinearResponse {
                 binding: share.binding,
-                values: self.multiply_share(share.values)?,
+                values: self.multiply_share(share.values.ok_or(Error::Binding)?)?,
                 _lease: Arc::clone(share.lease),
             })
         })
@@ -216,7 +250,7 @@ impl FloatTable {
             }
             Ok(LookupResponse {
                 binding: share.binding,
-                bytes: self.xor_rows(share.selector)?,
+                bytes: self.xor_rows(share.selector.ok_or(Error::Binding)?)?,
                 _lease: Arc::clone(share.lease),
             })
         })
@@ -250,6 +284,7 @@ fn reserve(counter: &AtomicU64, amount: u64, cap: u64) -> Result<u64, Error> {
 struct Lease {
     budget: Arc<Budget>,
     poisoned: AtomicBool,
+    seeded_completed: AtomicU32,
 }
 impl Lease {
     fn ensure_open(&self) -> Result<(), Error> {
@@ -292,6 +327,7 @@ impl Lease {
         Ok(Arc::new(Self {
             budget: Arc::clone(budget),
             poisoned: AtomicBool::new(false),
+            seeded_completed: AtomicU32::new(0),
         }))
     }
 }
@@ -308,7 +344,7 @@ impl Drop for Lease {
 /// Process counters prevent resetting these caps by constructing another client
 /// in this process. Restart-safe deployment security budgets are out of scope.
 /// Live admission additionally belongs to the shared Publication, not the client.
-/// Stable Rust's fixed-size Budget/Lease Arc handles can abort on allocation
+/// Stable Rust's fixed-size Budget/Lease/plan Arc handles can abort on allocation
 /// failure; all variable-size payload reservations return Error::Allocation.
 pub struct Client {
     publication: Arc<Publication>,
@@ -359,6 +395,15 @@ impl Client {
     }
 
     pub fn begin(&self, context: [u8; 32], plan: &[Step]) -> Result<Window, Error> {
+        self.begin_profile(context, plan, SharingProfile::FullShares)
+    }
+
+    fn begin_profile(
+        &self,
+        context: [u8; 32],
+        plan: &[Step],
+        profile: SharingProfile,
+    ) -> Result<Window, Error> {
         // Attempts are charged before validating caller-controlled shape/order.
         let sequence = reserve(&self.budget.windows, 1, MAX_WINDOWS)?;
         reserve(&PROCESS_WINDOWS, 1, MAX_PROCESS_WINDOWS)?;
@@ -372,7 +417,10 @@ impl Client {
             MAX_PROCESS_RESERVED_STEPS,
         )?;
         let mut hash = Sha256::new();
-        hash.update(b"pllm.gkm.window-plan.v1");
+        match profile {
+            SharingProfile::FullShares => hash.update(b"pllm.gkm.window-plan.v1"),
+            SharingProfile::Aes128WindowV1 => hash.update(super::SEEDED_SHARING_PROFILE.as_bytes()),
+        }
         hash.update(self.publication.digest);
         hash.update(context);
         hash.update((plan.len() as u64).to_le_bytes());
@@ -402,7 +450,9 @@ impl Client {
             session: self.session,
             sequence,
             context,
-            plan: payload::copy(plan)?,
+            plan: Arc::new(payload::copy(plan)?),
+            profile,
+            streams: None,
             plan_digest: hash.finalize().into(),
             completed: 0,
             accumulators,
@@ -435,7 +485,9 @@ pub struct Window {
     session: [u8; 32],
     sequence: u64,
     context: [u8; 32],
-    plan: Vec<Step>,
+    plan: Arc<Vec<Step>>,
+    profile: SharingProfile,
+    streams: Option<Streams>,
     plan_digest: [u8; 32],
     completed: usize,
     accumulators: Vec<Accumulator>,
@@ -444,7 +496,18 @@ pub struct Window {
     _lease: Arc<Lease>,
 }
 
+impl Drop for Window {
+    fn drop(&mut self) {
+        // Cancel/close the shared transaction before retained workers/responses
+        // can be used again. Payload fields still drop before the last lease.
+        self._lease.poisoned.store(true, Ordering::Release);
+    }
+}
+
 impl Window {
+    pub fn sharing_profile(&self) -> SharingProfile {
+        self.profile
+    }
     /// Unique in this client session even when the caller reuses its context.
     /// Retained by the final acceptance receipt; no private input is hashed here.
     pub fn request_id(&self) -> [u8; 32] {
@@ -486,6 +549,7 @@ impl Window {
             step,
             artifact,
             worker,
+            profile: self.profile,
         })
     }
 
@@ -495,7 +559,11 @@ impl Window {
         self.linear_with(input, &mut OsEntropy)
     }
 
-    fn linear_with(self, input: &[i64], rng: &mut impl Entropy) -> Result<PendingLinear, Error> {
+    fn linear_with(
+        mut self,
+        input: &[i64],
+        rng: &mut impl Entropy,
+    ) -> Result<PendingLinear, Error> {
         self._lease.ensure_open()?;
         let Some(Step::Linear(id)) = self.plan.get(self.completed) else {
             return Err(Error::Schedule);
@@ -513,18 +581,28 @@ impl Window {
             return Err(Error::Bound);
         }
         let mut bytes = Zeroizing::new(payload::filled(matrix.columns * 8, 0)?);
-        rng.fill(Purpose::LinearMask, &mut bytes)?;
-        let left = Zeroizing::new(payload::collect(
-            bytes
-                .chunks_exact(8)
-                .map(|b| u64::from_le_bytes(b.try_into().unwrap())),
-        )?);
-        let right = Zeroizing::new(payload::collect(
-            input
-                .iter()
-                .zip(left.iter())
-                .map(|(&x, &a)| (x as u64).wrapping_sub(a)),
-        )?);
+        let (left, right) = if let Some(streams) = &mut self.streams {
+            streams.linear.fill(&mut bytes)?;
+            let complement =
+                payload::collect(input.iter().zip(bytes.chunks_exact(8)).map(|(&x, b)| {
+                    (x as u64).wrapping_sub(u64::from_le_bytes(b.try_into().unwrap()))
+                }))?;
+            (Zeroizing::new(complement), Zeroizing::new(Vec::new()))
+        } else {
+            rng.fill(Purpose::LinearMask, &mut bytes)?;
+            let left = Zeroizing::new(payload::collect(
+                bytes
+                    .chunks_exact(8)
+                    .map(|b| u64::from_le_bytes(b.try_into().unwrap())),
+            )?);
+            let right = Zeroizing::new(payload::collect(
+                input
+                    .iter()
+                    .zip(left.iter())
+                    .map(|(&x, &a)| (x as u64).wrapping_sub(a)),
+            )?);
+            (left, right)
+        };
         let input = Zeroizing::new(payload::copy(input)?);
         Ok(PendingLinear {
             stage,
@@ -539,7 +617,7 @@ impl Window {
         self.lookup_with(token, &mut OsEntropy)
     }
 
-    fn lookup_with(self, token: usize, rng: &mut impl Entropy) -> Result<PendingLookup, Error> {
+    fn lookup_with(mut self, token: usize, rng: &mut impl Entropy) -> Result<PendingLookup, Error> {
         self._lease.ensure_open()?;
         if self.plan.get(self.completed) != Some(&Step::Lookup) {
             return Err(Error::Schedule);
@@ -549,13 +627,23 @@ impl Window {
             return Err(Error::Bound);
         }
         let mut left = Zeroizing::new(payload::filled(vocabulary.div_ceil(8), 0)?);
-        rng.fill(Purpose::LookupMask, &mut left)?;
+        if let Some(streams) = &mut self.streams {
+            streams.lookup.fill(&mut left)?;
+        } else {
+            rng.fill(Purpose::LookupMask, &mut left)?;
+        }
         if vocabulary % 8 != 0 {
             let last = left.len() - 1;
             left[last] &= (1u8 << (vocabulary % 8)) - 1;
         }
-        let mut right = Zeroizing::new(payload::copy(&left)?);
-        right[token / 8] ^= 1 << (token % 8);
+        let right = if self.profile == SharingProfile::Aes128WindowV1 {
+            left[token / 8] ^= 1 << (token % 8);
+            Zeroizing::new(Vec::new())
+        } else {
+            let mut right = Zeroizing::new(payload::copy(&left)?);
+            right[token / 8] ^= 1 << (token % 8);
+            right
+        };
         Ok(PendingLookup {
             window: self,
             token: Zeroizing::new(token),
@@ -573,6 +661,12 @@ impl Window {
     fn finish_with(mut self, rng: &mut impl Entropy) -> Result<AcceptedWindow, Error> {
         self._lease.ensure_open()?;
         if self.completed != self.plan.len() {
+            return Err(Error::Incomplete);
+        }
+        if self.profile == SharingProfile::Aes128WindowV1
+            && (self._lease.seeded_completed.load(Ordering::Acquire) as usize != self.plan.len()
+                || !self.streams.as_ref().is_some_and(Streams::complete))
+        {
             return Err(Error::Incomplete);
         }
         // Verify exact per-stage counts before drawing any final challenge.
@@ -617,6 +711,7 @@ impl Window {
             publication: self.publication.digest,
             plan: self.plan_digest,
             steps: self.completed,
+            profile: self.profile,
             values: Zeroizing::new(std::mem::take(&mut *self.tentative)),
             signed: Zeroizing::new(std::mem::take(&mut *self.signed)),
             _lease: Arc::clone(&self._lease),
@@ -658,7 +753,9 @@ impl PendingLinear {
                 .window
                 .binding(worker)
                 .expect("admitted pending linear"),
-            values: &self.shares[if worker == Worker::Zero { 0 } else { 1 }],
+            values: (!(self.window.profile == SharingProfile::Aes128WindowV1
+                && worker == Worker::One))
+                .then_some(self.shares[if worker == Worker::Zero { 0 } else { 1 }].as_slice()),
             rows: self.window.publication.matrices[self.stage].rows,
             slot: &self.slots[if worker == Worker::Zero { 0 } else { 1 }],
             lease: &self.window._lease,
@@ -762,7 +859,9 @@ impl PendingLookup {
                 .window
                 .binding(worker)
                 .expect("admitted pending lookup"),
-            selector: &self.selectors[if worker == Worker::Zero { 0 } else { 1 }],
+            selector: (!(self.window.profile == SharingProfile::Aes128WindowV1
+                && worker == Worker::One))
+                .then_some(self.selectors[if worker == Worker::Zero { 0 } else { 1 }].as_slice()),
             bytes: self.window.publication.width * 4,
             slot: &self.slots[if worker == Worker::Zero { 0 } else { 1 }],
             lease: &self.window._lease,
@@ -845,11 +944,15 @@ pub struct AcceptedWindow {
     publication: [u8; 32],
     plan: [u8; 32],
     steps: usize,
+    profile: SharingProfile,
     values: Zeroizing<Vec<f32>>,
     signed: Zeroizing<Vec<i64>>,
     _lease: Arc<Lease>,
 }
 impl AcceptedWindow {
+    pub fn sharing_profile(&self) -> SharingProfile {
+        self.profile
+    }
     pub fn request_id(&self) -> [u8; 32] {
         self.request
     }

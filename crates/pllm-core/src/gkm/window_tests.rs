@@ -747,9 +747,9 @@ fn fresh_private_views_and_live_cumulative_caps_survive_drop_and_bad_attempts() 
     for pending in [&one, &two] {
         let a = pending.share(Worker::Zero);
         let b = pending.share(Worker::One);
-        assert_eq!(a.selector()[0] ^ b.selector()[0], 1);
-        assert_eq!(a.selector()[1] ^ b.selector()[1], 0);
-        assert_eq!(a.selector()[1] & 0xf8, 0);
+        assert_eq!(a.selector().unwrap()[0] ^ b.selector().unwrap()[0], 1);
+        assert_eq!(a.selector().unwrap()[1] ^ b.selector().unwrap()[1], 0);
+        assert_eq!(a.selector().unwrap()[1] & 0xf8, 0);
     }
     drop(one);
     drop(two);

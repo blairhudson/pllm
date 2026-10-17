@@ -25,6 +25,9 @@ pub struct PublicationResources {
     pub max_import_workspace_bytes: usize,
     pub native_publication_payload_bytes: usize,
     pub owner_scalar_workspace_bytes: usize,
+    /// Additional client/worker AES state and expanded scratch, reserved even
+    /// for full-share windows so either profile shares the same hard live cap.
+    pub seeded_window_extra_bytes: usize,
     pub max_window_payload_bytes: usize,
     pub max_live_window_payload_bytes: usize,
     /// Full reservation charged once per publication, shared by every client.
@@ -79,13 +82,15 @@ impl PublicationResources {
             + shapes.len() * 256
             + 4096;
         let owner_scalar_workspace_bytes = (max_rows + MAX_DIMENSION) * size_of::<Scalar>();
+        let seeded_window_extra_bytes = super::seeded::WINDOW_EXTRA_BYTES;
         let max_window_payload_bytes = dimensions * size_of::<Scalar>()
             + max_rows * size_of::<Scalar>()
             + 16 * MAX_DIMENSION * 8
             + 4 * width * 4
             + 2 * vocabulary.div_ceil(8)
             + MAX_WINDOW_STEPS * 64
-            + 16_384;
+            + 16_384
+            + seeded_window_extra_bytes;
         let max_live_window_payload_bytes = max_window_payload_bytes * MAX_LIVE_WINDOWS as usize;
         let total = source_weight_bytes
             + source_bound_bytes
@@ -104,6 +109,7 @@ impl PublicationResources {
             max_import_workspace_bytes,
             native_publication_payload_bytes,
             owner_scalar_workspace_bytes,
+            seeded_window_extra_bytes,
             max_window_payload_bytes,
             max_live_window_payload_bytes,
             admitted_payload_bytes: total,

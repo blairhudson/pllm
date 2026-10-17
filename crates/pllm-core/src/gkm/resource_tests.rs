@@ -93,9 +93,19 @@ fn all_clients_share_publication_window_admission_including_concurrent_attempts(
 
 #[test]
 fn publication_envelopes_share_aggregate_admission_and_release_after_last_response() {
-    static POOL: AdmissionPool = AdmissionPool::new(1 << 20);
-    assert_eq!(POOL.bytes.load(Ordering::Acquire), 0);
+    static POOL: std::sync::OnceLock<AdmissionPool> = std::sync::OnceLock::new();
     let (a, b, table) = artifacts();
+    // Exactly two complete envelopes, including target-specific AES key state.
+    // Production's shared 16 MiB cap is unchanged; this seam tests contention.
+    let cap = 2 * crate::gkm::PublicationResources::for_shapes(
+        &[a.shape(), b.shape()],
+        table.shape().0,
+        table.shape().1,
+    )
+    .unwrap()
+    .admitted_payload_bytes;
+    let pool = POOL.get_or_init(|| AdmissionPool::new(cap));
+    assert_eq!(pool.bytes.load(Ordering::Acquire), 0);
     let stages = [
         Stage { id: A, matrix: &a },
         Stage {
@@ -109,12 +119,12 @@ fn publication_envelopes_share_aggregate_admission_and_release_after_last_respon
             &stages,
             &table,
             &mut ScriptEntropy::new(&[2, 3, 5]),
-            &POOL,
+            pool,
         )
     };
     let first = Arc::new(make().unwrap());
     let bytes = first.resources().admitted_payload_bytes;
-    assert!(2 * bytes <= 1 << 20 && 3 * bytes > 1 << 20);
+    assert!(2 * bytes == cap && 3 * bytes > cap);
     let gate = Barrier::new(3);
     let results = std::thread::scope(|scope| {
         let one = scope.spawn(|| {
@@ -138,10 +148,10 @@ fn publication_envelopes_share_aggregate_admission_and_release_after_last_respon
         }
     }
     assert_eq!(rejected, 1);
-    assert_eq!(POOL.bytes.load(Ordering::Acquire), 2 * bytes);
+    assert_eq!(pool.bytes.load(Ordering::Acquire), 2 * bytes);
     let mut rng = ScriptEntropy::new(&[]);
     assert!(matches!(
-        Publication::publish_in_pool([42; 32], &stages, &table, &mut rng, &POOL),
+        Publication::publish_in_pool([42; 32], &stages, &table, &mut rng, pool),
         Err(Error::Limit)
     ));
     assert!(rng.calls.is_empty()); // rejected before entropy or payload allocation
@@ -156,9 +166,9 @@ fn publication_envelopes_share_aggregate_admission_and_release_after_last_respon
     drop(pending);
     drop(owner);
     drop(first);
-    assert_eq!(POOL.bytes.load(Ordering::Acquire), bytes);
+    assert_eq!(pool.bytes.load(Ordering::Acquire), bytes);
     drop(response);
-    assert_eq!(POOL.bytes.load(Ordering::Acquire), 0);
+    assert_eq!(pool.bytes.load(Ordering::Acquire), 0);
 }
 
 #[test]

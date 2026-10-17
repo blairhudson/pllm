@@ -17,12 +17,15 @@
 //! streaming acceptance, embedding cache, or detached verification queue.
 //!
 //! This scalar CPU conformance capsule does not implement a decoder, model
-//! import, SDK, seeded/AES compression, prefill batching, SIMD/GPU acceleration,
+//! import, SDK, prefill batching, SIMD/GPU acceleration,
 //! serialized publication, authenticated/confidential transport, persistent KV,
 //! sampler, or deployment security/peak-memory/performance qualification. Two
 //! worker views are in-process. The caller is the trusted client; it must not
 //! release borrowed tentative values as accepted outputs. Public artifact pins
 //! must arrive through an independently authenticated owner channel.
+//! Optional AES seeded windows are separately identified, source-derived and
+//! computationally private. They reuse the same transaction/verification owners;
+//! verifier challenges never come from a shared seed. See `Client::begin_seeded`.
 //!
 //! Variable-size payload allocation is fallible and returns `Error::Allocation`.
 //! Shared publication admission covers all clients, retained responses and
@@ -36,14 +39,16 @@ mod lookup;
 mod numeric;
 mod payload;
 mod publication;
+mod seeded;
 mod window;
 
 pub use lookup::FloatTable;
 pub use numeric::{encode_input, encode_weight, reconstruct_signed, rescale_signed, I16Matrix};
 pub use publication::{Publication, PublicationResources, Stage};
+pub use seeded::{SharingProfile, SEEDED_SHARING_PROFILE};
 pub use window::{
     AcceptedWindow, Binding, Client, HalfLinear, HalfLookup, LinearResponse, LinearShare,
-    LookupResponse, LookupShare, PendingLinear, PendingLookup, Step, Window, Worker,
+    LookupResponse, LookupShare, PendingLinear, PendingLookup, SeededWorker, Step, Window, Worker,
 };
 
 use k256::{elliptic_curve::PrimeField, Scalar};
@@ -93,8 +98,8 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-// Production has no injectable/seeded/public RNG interface. Independent OS
-// draws are used for each purpose; no PRG key/counter is shared between purposes.
+// Production has no injectable/public RNG or seed-import interface. Independent
+// OS draws are used for each purpose; verifier randomness never uses a shared PRG.
 // The private trait permits deterministic failure/rejection tests only.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Purpose {
@@ -102,6 +107,8 @@ enum Purpose {
     Session,
     LinearMask,
     LookupMask,
+    LinearSeed,
+    LookupSeed,
     ClaimChallenge,
     MatrixChallenge,
 }
