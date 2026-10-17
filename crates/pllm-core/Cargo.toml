@@ -12,6 +12,7 @@ publish = false
 aes.workspace = true
 rayon.workspace = true
 getrandom.workspace = true
+k256 = { version = "0.13.4", default-features = false, features = ["arithmetic", "std"] }
 libm.workspace = true
 serde.workspace = true
 sha2.workspace = true
@@ -22,4 +23,5 @@ tempfile.workspace = true
 flate2.workspace = true
 
 [dev-dependencies]
+num-bigint = "0.4.6"
 serde_json.workspace = true

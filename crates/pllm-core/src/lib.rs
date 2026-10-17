@@ -18,6 +18,7 @@ pub mod compact_product;
 pub mod digit_gemm;
 pub mod fixed_point;
 mod freivalds;
+pub mod gkm;
 pub mod head_index;
 pub mod joint_gated_reference;
 pub mod kernels;
