@@ -12,8 +12,11 @@ their `local-v1` scope.
 
 The separate [explicit Decoder-capacity slice](decoder-capacity.md) passes 640
 installed Python and 134 native checks. It preserves complete generated results
-through the ordinary SDK. Its full-Qwen attempt is host-admission blocked before
-tensor-value decoding or worker launch.
+through the ordinary SDK. Its original full-Qwen attempt is host-admission blocked
+before tensor-value decoding or worker launch. A subsequent
+[source-present Qwen response](qwen-response.md) completes four input tokens and
+two verified outputs through both workers, with zero observed swap growth. This
+single functionality sample leaves independent quality and matched costs open.
 
 ## Accepted checks
 

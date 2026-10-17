@@ -9,7 +9,11 @@ The subsequent explicit `OpenWeightVerifiableOutsourcing(capacity="decoder")`
 uses larger, compiler-derived owner bounds. Its installed-wheel evidence passes
 640 Python and 134 native checks, including generated complete results beyond the
 Capsule vocabulary ceiling. Pinned Qwen metadata fits those native bounds, but
-its full-checkpoint attempt is host-memory blocked before execution. See the
+its original full-checkpoint attempt is host-memory blocked before execution. A
+later [source-present response](../../paper/artifacts/gkm-sdk/qwen-response.md)
+passes fresh admission and completes four input tokens plus two verified outputs
+through both workers, with zero observed swap growth. Independent full-checkpoint
+quality and matched comparison remain open. See the
 [Decoder contract](gkm-decoder-capacity.md) and
 [separate archive](../../paper/artifacts/gkm-sdk/decoder-capacity.md).
 

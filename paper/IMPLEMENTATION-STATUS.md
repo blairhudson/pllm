@@ -29,10 +29,14 @@ Completed foundations:
 - The subsequent [explicit GKM Decoder-capacity slice](artifacts/gkm-sdk/decoder-capacity.md)
   passes 640 installed Python and 134 native checks plus Clippy, with all 362
   installed files matching. Six generated two-worker cases preserve 20,376 complete
-  logit/KV values beyond the Capsule vocabulary ceiling. Pinned Qwen metadata
-  passes native geometry checks, but the full-checkpoint attempt rejects host
-  admission at 10.83 GiB required versus 8.11 GiB safe headroom. No checkpoint
-  response, activation-range or quality result follows.
+  logit/KV values beyond the Capsule vocabulary ceiling. The original full-checkpoint
+  preflight rejects host admission at 10.83 GiB required versus 8.11 GiB safe
+  headroom. A later [pinned Qwen response](artifacts/gkm-sdk/qwen-response.md) passes
+  fresh admission and executes four input tokens plus two verified outputs through
+  both workers. Client peak RSS is 1.78 GiB, sampled simultaneous client/worker RSS
+  is 3.79 GiB, and observed swap growth is zero. This single functionality sample
+  does not supply independent full-logit/KV, source-model quality or matched-cost
+  evidence.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure
@@ -43,9 +47,9 @@ Completed foundations:
 
 Remaining critical path:
 
-1. Run GKM's explicit Decoder policy under admitted host capacity, validate actual
-   full-width publication and activation bounds, then qualify original-model and
-   common-Qwen execution.
+1. Extend GKM's first admitted full-checkpoint response with independent complete
+   numeric/state oracles, broader activation coverage and source-model quality.
+   Qualify original-model and common-Qwen workloads under their frozen contracts.
    Preserve source arithmetic, final-window acceptance and failure retirement.
    Seeded transport and broader generation policies retain separate contracts.
    The shared gate is [methods/sdk-integration.md](methods/sdk-integration.md).

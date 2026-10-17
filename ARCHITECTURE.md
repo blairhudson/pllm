@@ -1640,11 +1640,22 @@ A separate cached wheel passes 640 installed Python and 134 native checks plus
 Clippy, with all 362 package files matching. Six generated Qwen2/Qwen3/Llama
 two-worker cases preserve 20,376 complete logit/KV values at 1,100 vocabulary rows.
 Pinned Qwen metadata admits 97 matrices and 1,537,852,928 imported source bytes,
-but its 64-input/two-output whole-topology preflight requires 10.83 GiB against
-8.11 GiB of safe host headroom. It rejects before tensor-value decoding or worker
-launch; full-checkpoint activation, quality and performance remain open.
+but its original 64-input/two-output whole-topology preflight requires 10.83 GiB
+against 8.11 GiB of safe host headroom. It rejects before tensor-value decoding or worker
+launch; that attempt establishes no checkpoint execution or measured resources.
 Contract and original evidence: `docs/research/gkm-decoder-capacity.md` and
 `paper/artifacts/gkm-sdk/decoder-capacity.md`.
+A separate source-present retry passes fresh host admission and executes the
+pinned Qwen checkpoint through two local worker processes. Four input tokens and
+two fixed-count outputs pass final native verification, with zero observed swap
+growth. The single request takes 143.87 seconds and 87.23 MB of covered all-link
+application bodies. Client peak RSS is 1.78 GiB and sampled simultaneous
+client/worker RSS is 3.79 GiB. All 362 installed files and seven checkpoint files
+match before/after checks. This establishes bounded full-checkpoint functionality;
+independent complete-logit/KV comparison, source-model quality and matched
+performance remain open. Buffered acceptance supplies no decode-throughput
+measurement. Original receipts and read-only replay:
+`paper/artifacts/gkm-sdk/qwen-response.md`.
 `pllm.profiles` provides typed
 slot contracts for the two-service-role public baseline and shipped one-provider
 proprietary engines while generic serialized pipelines remain available. An

@@ -29,7 +29,7 @@ This is a guarded **cached local build**, not an empty-target build or external
 attestation. It observes zero new swap growth. Its process measurements concern
 the build, not serving. Recorded native and Python inputs match this wheel.
 
-## Full-Qwen gate
+## Original full-Qwen preflight
 
 The probe checks actual source-file identities for Qwen2.5-0.5B-Instruct revision
 `7ae557604adf67be50417f59c2c2f167def9a775`. Native metadata admits a 64-input,
@@ -50,6 +50,11 @@ worker launch:
 Thus the attempt needs **10.83 GiB** against **8.11 GiB** of safe headroom. Existing
 swap is not additional capacity. No full-Qwen response, activation-bound result,
 quality score, measured client RSS or performance result was produced.
+
+A later, separately retained [Qwen response](qwen-response.md) passes fresh host
+admission and completes four input tokens plus two verified outputs through both
+workers. Its measured resources and functionality scope do not change this
+original rejection or supply independent numeric/quality comparison evidence.
 
 `qwen-smoke-v1/` retains an earlier incomplete metadata capture and its original
 runner. `rejected-wheel-v1/` and `rejected-wheel-v2/` preserve their failed installed

@@ -10,10 +10,12 @@ and historical scope. GKM subsequently gained a bounded native full/seeded decod
 checkpoint bounds, installed-wheel conformance and a bounded ordinary two-worker
 SDK/gateway/CLI/benchmark composition; see
 [the SDK reference](../docs/research/gkm-sdk-reference.md) and
-[current implementation status](IMPLEMENTATION-STATUS.md). This closes several
-primitive, generated-decoder and serving-integration gaps, but not full-checkpoint
-admission or a matched complete-system measurement. The qualified
-ten-method count remains zero. The documentary status below must not be used to
+[current implementation status](IMPLEMENTATION-STATUS.md). A subsequent
+[source-present full-checkpoint response](artifacts/gkm-sdk/qwen-response.md)
+passes fresh admission and completes four input tokens plus two verified outputs.
+This closes several primitive, decoder and serving-integration gaps, but leaves
+independent checkpoint quality and matched complete-system comparison open. The
+qualified ten-method count remains zero. The documentary status below must not
 erase this later progress or promote it to a serving rank.
 
 **The requested ten-system ranking is not currently supported.**

@@ -63,10 +63,14 @@ The [explicit Decoder-capacity slice](../artifacts/gkm-sdk/decoder-capacity.md)
 then passes 640 installed Python and 134 native checks, including complete
 generated two-worker results beyond the Capsule vocabulary ceiling. Native source
 geometry and owner bounds admit pinned Qwen metadata. Its source-present
-whole-topology preflight remains host-admission blocked: 10.83 GiB required versus
-8.11 GiB safe headroom. No full-Qwen response or quality result is available.
+original preflight is host-admission blocked: 10.83 GiB required versus 8.11 GiB
+safe headroom. A later [source-present Qwen response](../artifacts/gkm-sdk/qwen-response.md)
+passes fresh admission and accepts four input tokens plus two outputs through both
+workers. Full-width source import, publication and checked runtime arithmetic
+complete for that workload. Independent full-logit/KV and quality evidence remain
+open.
 
-Full-checkpoint publication, activation bounds, original-model and common-Qwen
+Broader activation coverage, original-model and common-Qwen
 quality and matched resource/performance evidence remain open. Seeded network
 frames, stochastic or early-EOS generation, continuation, remote source discovery
 and automatic network planning remain unsupported.

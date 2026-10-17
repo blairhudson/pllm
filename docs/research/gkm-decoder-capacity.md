@@ -111,11 +111,21 @@ pass on that installed wheel. The build observes zero new swap growth.
 
 A separate source-present Qwen metadata preflight at a 64-input/two-output bound
 requires 10.83 GiB of host allocation against 8.11 GiB of safe headroom. It rejects
-before tensor-value decoding or worker launch. Full-checkpoint activation admission,
-complete numerical validation and measured resource costs remain open. No full-Qwen
-execution, quality, memory-tier or performance result follows from source sizing.
+before tensor-value decoding or worker launch. This historical attempt establishes
+no execution or resource measurement.
 Original receipts, negative controls and read-only replay:
 [Decoder-capacity archive](../../paper/artifacts/gkm-sdk/decoder-capacity.md).
+
+A subsequent source-present retry passes fresh admission and completes four input
+tokens plus two verified outputs through separate local workers. The original
+full-width source, publication and runtime numeric checks accept this workload.
+One request takes 143.87 seconds and 87.23 MB of covered all-link bodies. Client
+peak RSS is 1.78 GiB; sampled simultaneous client/worker RSS is 3.79 GiB, with zero
+observed swap growth. All 362 installed files and seven checkpoint files match
+their before/after receipts. Independent complete-logit/KV comparison, source-model
+quality, broader workloads and matched performance remain open. Buffered final
+acceptance supplies no decode-throughput measurement. Exact costs, scope and replay:
+[First Qwen response](../../paper/artifacts/gkm-sdk/qwen-response.md).
 
 Native APIs and focused replay commands:
 [`wire-api.md`](../../crates/pllm-core/src/gkm/wire-api.md).
