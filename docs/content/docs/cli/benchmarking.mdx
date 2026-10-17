@@ -222,6 +222,13 @@ token cohorts must agree even when numeric profiles differ. Whole-topology memor
 admission applies to GKM; `QUALITY_MEMORY` means no accepted quality report was
 produced. Check available capacity with `benchmark run --preflight-only` first.
 
+Both commands accept `--memory-safety-margin-percent` (1–100, default 25).
+On macOS, admission uses Mach free/cache/purgeable counters and native memory-pressure
+notifications, with a workload-sized margin rather than an extra total-RAM reserve.
+Warning/critical pressure blocks launch and stops active work. See
+[memory admission](/sdk/evaluate/benchmark/#memory-admission-and-native-metal)
+for counter definitions and runtime limits.
+
 The same source-locked two-prompt comparison was also run for
 [Qwen2.5-0.5B-Instruct](https://github.com/blairhudson/pllm/blob/main/docs/evidence/qwen2.5-0.5b-reference-quality-2026-09-24.json):
 

@@ -131,7 +131,7 @@
     "pllm.metrics.artifact_planes.ArtifactEntropyProbe": "6ea7f29de74cea3c3e7801626ae8566e0426013e0e30460d1fa28a10f530702d",
     "pllm.metrics.artifact_planes.ArtifactPlaneProbe": "3291358b1f214f40bf0cc1b1864a3e02fb4e1bfb75f63e6dffeee61708601a5d",
     "pllm.metrics.batched_lookup.BatchedPrivateLookupProbe": "4ca9bbd086fa7bb4584669e9136a29eec959dd45c3f53ac06b6f25a2b35564d5",
-    "pllm.metrics.benchmark_memory": "c10a10b06fe3b85966b53c2041aa231cf0bebbe0b3849ed235bd1b317379ec7c",
+    "pllm.metrics.benchmark_memory": "59712891fb70b2f0d0740de269d73d9c84d894353c47841497635f7de18025ff",
     "pllm.metrics.benchmark_runner.BenchmarkRun": "be24a78e36715e6d7ccb71ceb8a0e6c91f08ffd2df9a3c381c6e394e57ee8dc1",
     "pllm.metrics.benchmark_runner.benchmark_suite": "efac85473ebe175467e7b6aa499872755eef9c6b99a824b859dadb5d673c0baf",
     "pllm.metrics.benchmark_runner.benchmark_target": "b17458d4777b700ee852dc1bddfaf899c6f1a4aad220d357f448494635ddef87",

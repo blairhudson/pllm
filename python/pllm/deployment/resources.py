@@ -130,22 +130,24 @@ class _ClientCapacity:
     def observe(self):
         import psutil
 
-        # Keep the benchmark's existing host/application reserve. Available RAM
-        # excludes swap. Count active reservations conservatively even after part
-        # of their allocation becomes resident; no unproved reuse credit.
-        from pllm.runtime.benchmark_memory import host_reserve_bytes
+        # Share benchmark reclaimable-memory and pressure observations. Active
+        # reservations remain charged even after some allocation is resident.
+        from pllm.runtime.benchmark_memory import BenchmarkMemoryError, host_memory
 
         with self.lock:
             try:
-                memory = psutil.virtual_memory()
+                memory = host_memory()
                 rss = int(psutil.Process().memory_info().rss)
                 if not 0 <= memory.available <= memory.total or memory.total <= 0 or rss <= 0:
                     raise ValueError("invalid client memory telemetry")
-                return ClientResources(time.time_ns() // 1_000_000, int(memory.available),
-                    rss, host_reserve_bytes(int(memory.total)), sum(self._owners.values()),
+                resources = ClientResources(time.time_ns() // 1_000_000, int(memory.available),
+                    rss, memory.reserve, sum(self._owners.values()),
                     _linux_memory_headroom() if platform.system() == "Linux" else None)
-            except (OSError, ValueError, IndexError, psutil.Error) as exc:
+            except (OSError, ValueError, IndexError, BenchmarkMemoryError, psutil.Error) as exc:
                 raise NetworkError("CLIENT_MEMORY_OBSERVATION_UNAVAILABLE") from exc
+            if memory.pressure in {"warning", "critical"}:
+                raise NetworkError("CLIENT_MEMORY_PRESSURE")
+            return resources
 
     @contextmanager
     def hold_bytes(self, incremental_bytes):

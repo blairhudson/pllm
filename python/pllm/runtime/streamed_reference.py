@@ -30,7 +30,10 @@ class StreamedFloat32Reference:
 
     def __init__(self, path: str | Path, *, max_input_tokens: int = 128,
                  max_decode_steps: int = 0,
-                 max_weight_bytes: int = MAX_WEIGHT_BYTES):
+                 max_weight_bytes: int = MAX_WEIGHT_BYTES, memory_safety_margin_percent: int = 25):
+        from pllm.runtime.benchmark_memory import _memory_margin
+
+        _memory_margin(memory_safety_margin_percent)
         import torch
         from transformers import AutoConfig, AutoModelForCausalLM
 
@@ -126,15 +129,18 @@ class StreamedFloat32Reference:
             work += 3 * self.kv_bound_bytes
             # Safetensors maps source rows during conversion. Conservatively
             # price another full FP32 active-weight owner for touched source pages.
-            self.allocation_estimate_bytes = (
-                (2 * self.weight_bound + 3 * CHUNK_BYTES + work + (256 << 20)) * 5 + 3) // 4
-            from pllm.runtime.benchmark_memory import MemoryWatchdog, host_memory
+            from pllm.runtime.benchmark_memory import MemoryWatchdog, host_memory, _slack
+
+            expected_peak = 2 * self.weight_bound + 3 * CHUNK_BYTES + work + (256 << 20)
+            self.allocation_estimate_bytes = _slack(expected_peak, memory_safety_margin_percent)
 
             host = host_memory()
             if self.allocation_estimate_bytes > host.available - host.reserve:
                 raise StreamedReferenceError("streamed reference exceeds post-reserve host headroom")
             self._guard = MemoryWatchdog(
-                {"host": asdict(host) | {"reserve_bytes": host.reserve}}, lambda _: None)
+                {"host": asdict(host) | {"reserve_bytes": host.reserve},
+                 **({"runtime_floor_bytes": self.allocation_estimate_bytes - expected_peak}
+                    if host.availability_source == "macos_mach_dispatch_v1" else {})}, lambda _: None)
             self._guard.start()
             for module, entries, size in self._owners:
                 self._hooks.append(module.register_forward_pre_hook(self._loader(entries, size)))

@@ -215,12 +215,12 @@ def test_process_capacity_is_atomic_across_threads_and_released_after_failure(mo
 
 
 def test_unavailable_os_observation_rejects(monkeypatch):
-    import psutil
+    from pllm.runtime import benchmark_memory
 
     def unavailable():
         raise OSError("unavailable")
 
-    monkeypatch.setattr(psutil, "virtual_memory", unavailable)
+    monkeypatch.setattr(benchmark_memory, "host_memory", unavailable)
     with pytest.raises(NetworkError, match="OBSERVATION_UNAVAILABLE"):
         _ClientCapacity().observe()
 

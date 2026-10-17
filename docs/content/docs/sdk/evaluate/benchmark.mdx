@@ -32,8 +32,15 @@ Local role benchmarks check host headroom **before loading tensor values or
 starting providers**. The allocation estimate includes both roles, client bundle
 serialization/import, NumPy and Rust weight copies, quantization and validation
 temporaries, inventory/corrections, decoder state, caches, and Metal snapshots.
-It uses a 25% allocation margin and leaves at least 25% of host RAM (minimum
-2 GiB) for the operating system and other applications. Swap adds no capacity.
+It adds a workload-sized allocation safety margin (25% by default). On macOS,
+Mach counters estimate reclaimable physical memory as free pages excluding
+speculative pages, plus file-backed cached pages and purgeable pages. Speculative
+pages already occur in the file-backed count. Inactive anonymous pages, compressed
+memory and swap add no capacity. A process-lifetime
+`DISPATCH_SOURCE_TYPE_MEMORYPRESSURE` observer and a current kernel-pressure query
+block new work at warning or critical pressure. macOS no longer subtracts an
+additional fixed percentage of total RAM. Other platforms retain psutil's
+available-memory estimate and a 12.5% host reserve, with a 1 GiB minimum.
 These estimates are conservative admission checks, not measured peak memory or
 an OOM guarantee. Crypto/runtime paths without an allocation model reject.
 
@@ -67,8 +74,15 @@ Its full Desktop VM budget is charged against host headroom, and each provider
 gets a cgroup hard limit with additional swap disabled.
 
 `--memory-budget-mib` can tighten admission but cannot override host limits.
+`--memory-safety-margin-percent` sets a 1–100% allocation margin for `benchmark run`
+and `benchmark quality`; the SDK spelling is `memory_safety_margin_percent`.
+The default remains 25%. Reports retain the margin, pressure, reclaimable-memory
+components and required bytes. A smaller margin never overrides pressure,
+physical headroom, explicit memory budgets or native payload limits.
 During execution a 250 ms host-pressure monitor stops owned provider work if
-available RAM falls below the runtime reserve or swap grows more than 256 MiB.
+macOS pressure becomes warning/critical, available RAM falls below the workload's
+safety margin (the existing runtime reserve elsewhere), or swap grows more than
+256 MiB.
 Request input/output bounds remain enforced. Reports retain admission reasons,
 the selected backend and pressure samples separately from process measurements.
 

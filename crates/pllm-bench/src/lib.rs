@@ -1,5 +1,7 @@
 //! Strict native benchmarks for PLLM's compiled wrap32 region executor.
 
+pub mod host_memory;
+
 use pllm_compiler::CompiledPlan;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

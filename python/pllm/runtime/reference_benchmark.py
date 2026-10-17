@@ -74,7 +74,7 @@ def _prompts(value: Sequence[str]) -> tuple[str, ...]:
     return tuple(value)
 
 
-def _delegated_candidate(experiment, prompts, source, decode_steps, continuations):
+def _delegated_candidate(experiment, prompts, source, decode_steps, continuations, memory_safety_margin_percent=25):
     """Run the installed two-worker path; return only finally accepted logits."""
     from threading import Event
 
@@ -89,7 +89,8 @@ def _delegated_candidate(experiment, prompts, source, decode_steps, continuation
     del tokenizer
     if any(not 1 <= len(row) <= experiment.budget.max_input_tokens for row in ids):
         raise ReferenceBenchmarkError("tokenized prompt exceeds the Experiment input budget")
-    report = benchmark_memory(experiment, backend="native")
+    report = benchmark_memory(experiment, backend="native",
+                              memory_safety_margin_percent=memory_safety_margin_percent)
     require_admission(report)
     cancelled = Event()
     guard = MemoryWatchdog(report, lambda _: cancelled.set())
@@ -124,6 +125,7 @@ def _delegated_candidate(experiment, prompts, source, decode_steps, continuation
         "local_numeric_profile": contract["local_numeric_profile"],
         "kernel_threads": kernel.params.get("threads"), "kernel_backend": kernel.component,
         "execution": "two-worker-request-end-verified",
+        "memory_admission": report,
     }
     return metadata, actual, decoded, ids, selected
 
@@ -135,6 +137,7 @@ def run_reference_benchmark(
     top_k: int = 5,
     reference_storage: str = "resident",
     decode_steps: int = 0,
+    memory_safety_margin_percent: int = 25,
 ) -> dict[str, Any]:
     """Measure prefill and optional same-token decode without recording private payloads.
 
@@ -144,6 +147,9 @@ def run_reference_benchmark(
     Optional decode uses the first candidate's greedy tokens for every candidate
     and the reference; it reports those comparisons separately from prefill.
     """
+    from .benchmark_memory import _memory_margin
+
+    _memory_margin(memory_safety_margin_percent)
     prompt_set = _prompts(prompts)
     if reference_storage not in {"resident", "streamed"}:
         raise ReferenceBenchmarkError("reference_storage must be resident or streamed")
@@ -243,6 +249,7 @@ def run_reference_benchmark(
             metadata, actual_rows, decode_rows, current_cohort, selected = _delegated_candidate(
                 experiment, prompt_set, admitted, decode_steps,
                 None if token_cohort is None else decode_cohort,
+                memory_safety_margin_percent,
             )
             if token_cohort is not None and token_cohort != current_cohort:
                 raise ReferenceBenchmarkError("quality candidates tokenized the cohort differently")
@@ -361,6 +368,7 @@ def run_reference_benchmark(
             resolved_source.path,
             max_input_tokens=max(item.budget.max_input_tokens for item, _, _, _ in configurations),
             max_decode_steps=decode_steps,
+            memory_safety_margin_percent=memory_safety_margin_percent,
         ) as reference:
             trajectories = [reference.trajectory(ids, continuation)
                             for ids, continuation in zip(token_cohort, decode_cohort, strict=True)]

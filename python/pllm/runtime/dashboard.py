@@ -411,6 +411,7 @@ class DashboardConfig:
     wan: Any = None
     backend: str | None = None
     memory_budget_bytes: int | None = None
+    memory_safety_margin_percent: int = 25
     memory_input_tokens: int | None = None
 
     def __post_init__(self) -> None:
@@ -801,6 +802,7 @@ class DashboardRuntime:
                 backend=self.config.backend or ("docker" if self.config.docker else "native"),
                 enforced_wan=self.config.wan is not None or self.config.docker_network is not None,
                 memory_budget_bytes=self.config.memory_budget_bytes,
+                memory_safety_margin_percent=self.config.memory_safety_margin_percent,
             )
             require_admission(self.memory_preflight)
             if self._delegated:

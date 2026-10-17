@@ -935,6 +935,7 @@ def _run_loopback_benchmark(
     emulate_wan: bool = False,
     backend: str | None = None,
     memory_budget_bytes: int | None = None,
+    memory_safety_margin_percent: int = 25,
 ) -> dict[str, Any]:
     from pllm.deployment import WanConditions
     from .benchmark_delegated import admit_options, is_delegated
@@ -1089,6 +1090,7 @@ def _run_loopback_benchmark(
         wan=wan if emulate_wan else None,
         backend=backend,
         memory_budget_bytes=memory_budget_bytes,
+        memory_safety_margin_percent=memory_safety_margin_percent,
         memory_input_tokens=(None if experiment is not None else max(
             256, max(len(context_bytes(value)) for value in (
                 *(prompt_sequence or (prompt,)), *((warmup_prompt,) if warmup_prompt is not None else ())
@@ -1357,6 +1359,7 @@ def run_loopback_benchmark(
     emulate_wan: bool = False,
     backend: str | None = None,
     memory_budget_bytes: int | None = None,
+    memory_safety_margin_percent: int = 25,
 ) -> dict[str, Any]:
     """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
     with _DASHBOARD_LOCK:
@@ -1382,6 +1385,7 @@ def run_loopback_benchmark(
             emulate_wan=emulate_wan,
             backend=backend,
             memory_budget_bytes=memory_budget_bytes,
+            memory_safety_margin_percent=memory_safety_margin_percent,
             inventory_policy=inventory_policy,
             bundle_compression=bundle_compression,
             prefill_cache_mib=prefill_cache_mib,

@@ -40,14 +40,32 @@ class HostMemory:
     available: int
     swap_used: int
     disk_free: int
+    availability_source: str = "psutil_available"
+    pressure: str | None = None
+    free: int | None = None
+    cached: int | None = None
+    purgeable: int | None = None
 
     def __post_init__(self):
-        if (any(type(value) is not int or value < 0 for value in asdict(self).values())
-                or not 0 < self.available <= self.total):
+        if (any(type(value) is not int or value < 0 for value in
+                (self.total, self.available, self.swap_used, self.disk_free))
+                or not 0 <= self.available <= self.total or self.total == 0):
             raise BenchmarkMemoryError("host memory telemetry is unavailable or invalid")
+        if self.availability_source == "macos_mach_dispatch_v1":
+            if (self.pressure not in {"normal", "warning", "critical"}
+                    or any(type(n) is not int or n < 0 for n in (self.free, self.cached, self.purgeable))
+                    or self.free + self.cached + self.purgeable != self.available):
+                raise BenchmarkMemoryError("macOS memory telemetry is unavailable or invalid")
+        elif self.availability_source != "psutil_available" or self.pressure is not None:
+            raise BenchmarkMemoryError("unsupported host memory telemetry")
 
     @property
     def reserve(self) -> int:
+        # Reclaimable physical pages and live kernel pressure replace the fixed
+        # fraction-of-machine reserve. Allocation estimates already add a
+        # workload-sized safety margin; do not subtract another total-RAM tax.
+        if self.availability_source == "macos_mach_dispatch_v1":
+            return 0
         return host_reserve_bytes(self.total)
 
 
@@ -55,10 +73,17 @@ def host_memory() -> HostMemory:
     import psutil
 
     try:
+        if platform.system() == "Darwin":
+            from pllm import _native
+
+            sample = json.loads(_native.macos_host_memory())
+            return HostMemory(**sample, availability_source="macos_mach_dispatch_v1",
+                              swap_used=int(psutil.swap_memory().used),
+                              disk_free=int(shutil.disk_usage(Path.home()).free))
         memory = psutil.virtual_memory()
         return HostMemory(int(memory.total), int(memory.available),
                           int(psutil.swap_memory().used), int(shutil.disk_usage(Path.home()).free))
-    except (OSError, ValueError, psutil.Error) as exc:
+    except (OSError, ValueError, AttributeError, ImportError, TypeError, psutil.Error) as exc:
         raise BenchmarkMemoryError("cannot sample host memory for benchmark admission") from exc
 
 
@@ -110,8 +135,14 @@ def _docker_usage_bytes(text: str) -> int:
     return math.ceil((float(number) + 10 ** -places) * units[unit])
 
 
-def _slack(value: int) -> int:
-    return (value * 5 + 3) // 4
+def _memory_margin(percent: int) -> int:
+    if type(percent) is not int or not 1 <= percent <= 100:
+        raise ValueError("memory safety margin must be an integer from 1 to 100 percent")
+    return percent
+
+
+def _slack(value: int, percent: int = 25) -> int:
+    return (value * (100 + _memory_margin(percent)) + 99) // 100
 
 
 def _freivalds_memory(native, stages, *, rows, failure_bits, stage_window):
@@ -275,17 +306,19 @@ def private_boundary_memory(vocabulary, hidden, *, lookup_rows, head_calls,
 
 
 def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
-                     inventory_rows=64, cache_bytes=0, cache_bound_tokens=None, checkpoint_bytes=0, store=None):
+                     inventory_rows=64, cache_bytes=0, cache_bound_tokens=None, checkpoint_bytes=0, store=None,
+                     memory_safety_margin_percent=25):
     """Model-neutral graph geometry; no arrays or checkpoint tensor reads."""
     from pllm.modeling import lower_model
     from pllm.profiles import resolve_runtime_composition
 
+    _memory_margin(memory_safety_margin_percent)
     options = resolve_runtime_composition(pipeline)
     if options is None:
         raise BenchmarkMemoryError("memory estimation requires an implemented composition")
     if options.client_runtime == "compiled_gkm_v1":
         return _delegated_memory(config, pipeline, max_input_tokens, max_output_tokens,
-                                 cache_bytes, cache_bound_tokens, checkpoint_bytes)
+                                 cache_bytes, cache_bound_tokens, checkpoint_bytes, memory_safety_margin_percent)
     _validate_workload(max_input_tokens, max_output_tokens, inventory_rows, cache_bytes, cache_bound_tokens)
     compiled_input_bound = max(max_input_tokens, cache_bound_tokens or 0,
                                options.prefix_cache_bound_tokens or 0)
@@ -293,10 +326,12 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
                        max_new_tokens=max_output_tokens)
     return estimate_plan_memory(plan, pipeline, max_input_tokens=max_input_tokens,
         max_output_tokens=max_output_tokens, inventory_rows=inventory_rows, cache_bytes=cache_bytes,
-        cache_bound_tokens=cache_bound_tokens, checkpoint_bytes=checkpoint_bytes, store=store)
+        cache_bound_tokens=cache_bound_tokens, checkpoint_bytes=checkpoint_bytes, store=store,
+        memory_safety_margin_percent=memory_safety_margin_percent)
 
 
-def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes):
+def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
+                      memory_safety_margin_percent=25):
     """Price the bounded source/verified-window owners, never an int8 schedule."""
     from .delegated_decoder import decoder_contract
 
@@ -324,8 +359,9 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
     if expanded:
         native = contract["decoder_resources"]["client_payload_bytes"]
         source_owners = 0  # Streamed native ownership is already included above.
-    role = _slack(_PROCESS_BYTES + native + transport + source_owners)
-    worker = (_slack(_PROCESS_BYTES + contract["decoder_resources"]["worker_payload_bytes"] + transport)
+    role = _slack(_PROCESS_BYTES + native + transport + source_owners, memory_safety_margin_percent)
+    worker = (_slack(_PROCESS_BYTES + contract["decoder_resources"]["worker_payload_bytes"] + transport,
+                     memory_safety_margin_percent)
               if expanded else role)
     providers = {name: worker for name in ("worker_a", "worker_b")}
     return {
@@ -334,7 +370,7 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         "pipeline_digest": pipeline.digest(), "max_input_tokens": rows,
         "max_output_tokens": outputs, "compiled_input_bound": rows,
         "inventory_rows": 0, "kernel": "cpu", "runtime_kind": "gkm",
-        "concurrent_response_bound": 1, "allocation_slack_percent": 25,
+        "concurrent_response_bound": 1, "allocation_slack_percent": memory_safety_margin_percent,
         "client_peak_bytes": role, "provider_peak_bytes": providers,
         "docker_provider_peak_bytes": {}, "native_total_peak_bytes": role + 2 * worker,
         "preparation_storage": "none", "preparation_kernel": "none",
@@ -364,13 +400,14 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
 
 def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
                          inventory_rows=64, cache_bytes=0, cache_bound_tokens=None,
-                         checkpoint_bytes=0, store=None):
+                         checkpoint_bytes=0, store=None, memory_safety_margin_percent=25):
     """Shared native allocation-owner estimate from an admitted semantic plan."""
     from pllm.profiles import resolve_runtime_composition
     from pllm.roles.topology import graph_for_runtime
     from .semantic_stages import client_owns_linear, provider_owns_linear, scheduled_stage_specs
     from ._native_support import extension
 
+    _memory_margin(memory_safety_margin_percent)
     # Reference executors and stale wheels have different allocations. Check a
     # one-byte snapshot capability before inspecting model geometry or values.
     native = extension()
@@ -574,9 +611,10 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         if role in {"boundary_a", "boundary_b"} and boundary_allocation is not None:
             role_weights[role] = boundary_allocation["worker_native_table_bytes"]
             role_loading[role] = boundary_allocation["worker_import_work_bytes"]
-            role_peaks[role] = _slack(boundary_allocation["worker_peak_bytes"])
+            role_peaks[role] = _slack(boundary_allocation["worker_peak_bytes"], memory_safety_margin_percent)
             # Unknown/stale image imports may retain full original source engine.
-            docker_role_peaks[role] = _slack(boundary_allocation["worker_peak_bytes"] + engine + legacy_loading)
+            docker_role_peaks[role] = _slack(boundary_allocation["worker_peak_bytes"] + engine + legacy_loading,
+                                           memory_safety_margin_percent)
             continue
         # Preparation never exports a client bundle; inference and either offset
         # worker may. Include retained corrections while preparing new material.
@@ -612,9 +650,11 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         if role == "preparation":
             role_engine += digit_workspace
         role_peaks[role] = _slack(role_engine + gpu_provider + max(
-            role_loading[role], delivery + corrections, work + corrections + role_verification))
+            role_loading[role], delivery + corrections, work + corrections + role_verification),
+            memory_safety_margin_percent)
         docker_role_peaks[role] = _slack(engine + weights + gpu_provider + nonlinear_worker + cache_work + max(
-            legacy_loading, legacy_delivery + corrections, work + corrections + legacy_verification))
+            legacy_loading, legacy_delivery + corrections, work + corrections + legacy_verification),
+            memory_safety_margin_percent)
     tokenizer = pipeline.components.get("tokenizer")
     capsule = pipeline.components.get("public_prefix")
     # Public artifacts are pre-positioned. Price bounded index query caches,
@@ -627,7 +667,7 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
         client += boundary_allocation["client_work_bytes"]
     if not roles:
         client += engine + loading
-    client_peak = _slack(client)
+    client_peak = _slack(client, memory_safety_margin_percent)
     return {
         "scope": "conservative allocation estimate; not measured peak RSS",
         "model_plan_digest": plan.digest, "pipeline_digest": pipeline.digest(),
@@ -639,7 +679,7 @@ def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
            if options.preparation_decode_epoch_schedule is not None else {}),
         **({"decode": True, "decode_max_bytes": options.decode_max_bytes} if options.decode else {}),
         "concurrent_response_bound": concurrent_requests,
-        "allocation_slack_percent": 25, "client_peak_bytes": client_peak,
+        "allocation_slack_percent": memory_safety_margin_percent, "client_peak_bytes": client_peak,
         "provider_peak_bytes": role_peaks,
         "docker_provider_peak_bytes": docker_role_peaks,
         "weight_storage": "native_snapshot_v1; Docker retains legacy allocation upper bounds",
@@ -698,15 +738,27 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
     budget = max(0, host.available - host.reserve)
     if memory_budget_bytes is not None:
         budget = min(budget, memory_budget_bytes)  # explicit budget can only tighten admission
+    margin_percent = _memory_margin(estimate["allocation_slack_percent"])
+
+    def before_margin(peak):
+        # Each role was rounded separately. Invert that rounding per owner;
+        # never treat a whole Docker VM's fixed capacity as a margined estimate.
+        return peak * 100 // (100 + margin_percent)
+
     candidates = {}
     for kind in ("native", "docker"):
         reasons = list(estimate["limitations"])
+        if host.pressure in {"warning", "critical"}:
+            reasons.append(f"macOS memory pressure is {host.pressure}")
         required = estimate["native_total_peak_bytes"]
+        expected = (before_margin(estimate["client_peak_bytes"])
+                    + sum(before_margin(n) for n in estimate["provider_peak_bytes"].values()))
         domain = None
         if kind == "native":
             if enforced_wan:
                 if backend == "native":
-                    required += 32 * MiB  # bounded TCP relay buffers and control thread
+                    required += _slack(32 * MiB, margin_percent)  # relay buffers/control thread
+                    expected += 32 * MiB
                 else:
                     reasons.append("enforced WAN auto fallback requires explicit native TCP pacing selection")
         else:
@@ -722,14 +774,19 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
                 total, used = docker_capacity
                 reserve = max(GiB, total // 8)
                 domain = {"total_bytes": total, "other_container_bytes": used, "reserve_bytes": reserve,
-                           "required_bytes": sum(estimate["docker_provider_peak_bytes"].values()) + _HELPER_BYTES}
+                          "required_bytes": sum(estimate["docker_provider_peak_bytes"].values())
+                                            + _slack(_HELPER_BYTES, margin_percent)}
                 if domain["required_bytes"] > total - used - reserve:
                     reasons.append("provider peaks and helpers exceed existing Docker memory headroom")
                 # On Desktop the *whole* existing VM can compete with the host
                 # client. Never infer safety from a VM's currently idle RSS.
-                required = (total + estimate["client_peak_bytes"] if platform.system() != "Linux"
-                            else estimate["client_peak_bytes"]
-                                 + sum(estimate["docker_provider_peak_bytes"].values()) + _HELPER_BYTES)
+                if platform.system() != "Linux":
+                    required = total + estimate["client_peak_bytes"]
+                    expected = total + before_margin(estimate["client_peak_bytes"])
+                else:
+                    required = estimate["client_peak_bytes"] + domain["required_bytes"]
+                    expected = (before_margin(estimate["client_peak_bytes"]) + _HELPER_BYTES
+                                + sum(before_margin(n) for n in estimate["docker_provider_peak_bytes"].values()))
         if required > budget:
             reasons.append(f"estimated host peak {required / GiB:.2f} GiB exceeds safe headroom {budget / GiB:.2f} GiB")
         # Budget cold compiled-cache files and raw/reconstructed client bundles;
@@ -745,24 +802,32 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
             reasons.append("insufficient disk headroom for compiled caches, bundles and 2 GiB reserve")
         candidates[kind] = {"admitted": not reasons, "reasons": reasons,
                             "required_host_bytes": required, "docker": domain,
+                            "expected_peak_bytes": expected, "safety_margin_bytes": required - expected,
                             "required_disk_bytes": disk_required}
     preference = ("native",) if backend == "native" else ("docker",) if backend == "docker" else (
         ("native", "docker") if estimate["kernel"] == "metal" else ("docker", "native"))
     selected = next((name for name in preference if candidates[name]["admitted"]), None)
+    runtime_floor = (candidates[selected or preference[0]]["safety_margin_bytes"]
+                     if host.availability_source == "macos_mach_dispatch_v1"
+                     else max(GiB, host.reserve // 2))
     return {"schema": "pllm.benchmark_memory.v1", "admitted": selected is not None,
             "requested_backend": backend, "selected_backend": selected,
+            "runtime_floor_bytes": runtime_floor,
             "host": asdict(host) | {"reserve_bytes": host.reserve, "admission_budget_bytes": budget},
             "estimate": estimate, "candidates": candidates, "enforced_wan": enforced_wan}
 
 
 def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
                      cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
-                     memory_budget_bytes=None):
+                     memory_budget_bytes=None, memory_safety_margin_percent=25):
     """Inspect an Experiment/Model without loading tensor values or starting roles."""
     from pllm.configuration import Experiment, Model, Pipeline
     from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
 
+    _memory_margin(memory_safety_margin_percent)
     initial = host_memory()
+    if initial.pressure in {"warning", "critical"}:
+        raise BenchmarkMemoryError(f"macOS memory pressure is {initial.pressure} before model inspection")
     if initial.available <= initial.reserve:
         raise BenchmarkMemoryError("host has no safe memory headroom before model inspection")
     if isinstance(model, Experiment):
@@ -826,7 +891,8 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
     estimate = estimate_memory(config, pipeline, max_input_tokens=max_input_tokens,
                                 max_output_tokens=max_output_tokens, inventory_rows=inventory_rows,
                                 cache_bytes=cache_bytes, cache_bound_tokens=cache_bound_tokens,
-                                checkpoint_bytes=checkpoint_bytes, store=store)
+                                checkpoint_bytes=checkpoint_bytes, store=store,
+                                memory_safety_margin_percent=memory_safety_margin_percent)
     if options.client_runtime == "compiled_gkm_v1":
         # Keep the saved full-envelope admission explicit even when a benchmark
         # requests fewer rows/outputs. These pins come from bounded source reads.
@@ -877,9 +943,11 @@ class MemoryWatchdog:
         self.minimum_available_bytes = min(self.minimum_available_bytes, current.available)
         self._minimum_swap = min(self._minimum_swap, current.swap_used)
         self.maximum_swap_growth_bytes = max(self.maximum_swap_growth_bytes, current.swap_used - self._minimum_swap)
-        # Keep half the preflight OS/user reserve untouched at runtime. Abort on
-        # fresh swap growth too; pre-existing swapped-out pages are not capacity.
-        floor = max(GiB, initial["reserve_bytes"] // 2)
+        if current.pressure in {"warning", "critical"}:
+            raise BenchmarkMemoryError(f"benchmark stopped: macOS memory pressure is {current.pressure}")
+        # macOS keeps the workload-sized margin; other platforms retain the
+        # existing runtime reserve. Swap never supplies capacity.
+        floor = self.report.get("runtime_floor_bytes", max(GiB, initial["reserve_bytes"] // 2))
         if current.available < floor:
             raise BenchmarkMemoryError("benchmark stopped: host memory fell below runtime reserve")
         if current.swap_used > self._minimum_swap + 256 * MiB:

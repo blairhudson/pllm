@@ -1383,6 +1383,15 @@ fn apply_model_component<'py>(
 }
 
 #[pyfunction]
+fn macos_host_memory<'py>(py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+    let sample = py
+        .detach(pllm_bench::host_memory::sample)
+        .map_err(|message| invalid(message.to_owned()))?;
+    let bytes = serde_json::to_vec(&sample).map_err(|error| invalid(error.to_string()))?;
+    Ok(PyBytes::new(py, &bytes))
+}
+
+#[pyfunction]
 fn deployment_benchmark_report<'py>(
     py: Python<'py>,
     document: &Bound<'_, PyBytes>,
@@ -1824,6 +1833,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(lower_gated_multiply_q7, module)?)?;
     module.add_function(wrap_pyfunction!(apply_model_component, module)?)?;
     module.add_function(wrap_pyfunction!(deployment_benchmark_report, module)?)?;
+    module.add_function(wrap_pyfunction!(macos_host_memory, module)?)?;
     module.add_function(wrap_pyfunction!(capabilities, module)?)?;
     module.add_function(wrap_pyfunction!(pack_unsigned, module)?)?;
     module.add_function(wrap_pyfunction!(unpack_unsigned, module)?)?;

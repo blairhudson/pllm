@@ -483,13 +483,14 @@ def __dir__():
 
 def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
                      cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
-                     memory_budget_bytes=None):
+                     memory_budget_bytes=None, memory_safety_margin_percent=25):
     """Inspect whole-topology allocation estimates and current host admission."""
     from pllm.runtime.benchmark_memory import benchmark_memory as inspect
     return inspect(model, max_input_tokens=max_input_tokens, max_output_tokens=max_output_tokens,
                    inventory_rows=inventory_rows, cache_bytes=cache_bytes,
                    cache_bound_tokens=cache_bound_tokens, backend=backend,
-                   enforced_wan=enforced_wan, memory_budget_bytes=memory_budget_bytes)
+                   enforced_wan=enforced_wan, memory_budget_bytes=memory_budget_bytes,
+                   memory_safety_margin_percent=memory_safety_margin_percent)
 
 
 __all__ = [

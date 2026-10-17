@@ -1,5 +1,7 @@
 from typing import Any, Never, final
 
+def macos_host_memory() -> bytes: ...
+
 @final
 class NetworkPlacementAdmission:
     def __init__(self, model_plan: bytes, composition: bytes) -> None: ...
