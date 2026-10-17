@@ -104,6 +104,17 @@ Documentation development and publication commands live in
 [`docs/README.md`](docs/README.md). Release changes use
 [`scripts/release.py`](scripts/release.py).
 
+Keep local build storage bounded with `.venv/bin/python -B scripts/maintain_target.py`
+(preview) or add `--apply` to reclaim stale caches. `--install-daily` installs a
+daily macOS job for this checkout. Reports, traces, checkpoint data and wheels
+are retained. Cleanup keeps recent work and the newest cache versions, skips
+active owners, and removes old environments only when their complete PLLM package
+matches a retained wheel. Place `.pllm-keep` in a directory to pin its subtree.
+The default 20 GiB soft budget and 30 GiB disk-free floor shorten cache retention
+from 7/14 days to 3/7 days (incremental Rust files / environments), without
+overriding these protections. Recovery inventories and deletion receipts live in
+`target/.maintenance/`.
+
 ## Citation and license
 
 Citation metadata is in [`CITATION.cff`](CITATION.cff). PLLM is licensed under
