@@ -1,0 +1,3535 @@
+{
+  "status": "completed",
+  "profile": {
+    "name": "resource_unnormalized_per_party_100_down_40_up",
+    "network": "local TCP payload pacing, distinct parties, no installed RTT/loss emulator",
+    "provider_cpu_quota": null,
+    "provider_rss_quota": null,
+    "aggregate_provider_access_equal": false,
+    "serving_rank": "unqualified_pilot"
+  },
+  "prompt_manifest": {
+    "kind": "public_performance_fixture",
+    "path": "/Users/blairhudson/workspace/pllm/target/research/publication-lifecycle-archive-2026-10-17-v3/cohort.prompt.txt",
+    "sha256": "40b69e9b934e185d901f7ea23c5cb71cd90c9e3a68773c1a92a5b14a595f2665",
+    "bytes": 84,
+    "input_tokens": 103,
+    "source_lock_digest": "ef8a8250c5c884ee20891ec8d6fff560b98f3f314ab1004f41e95fc35f2313bd",
+    "output_cap": 2,
+    "stopping": "natural_EOS_or_cap; no forced length"
+  },
+  "results": [
+    {
+      "case": "maintained",
+      "replicate": 0,
+      "summary": {
+        "all_link_stream_bytes": 536249,
+        "client_high_water": {
+          "additional_post_serialization_observation_bytes": 115015680,
+          "entire_process_lifetime_tier_qualified": null,
+          "extended_observed_window_peak_bytes": 115015680,
+          "later_interpreter_teardown_peak": null,
+          "ordinary_process_peak_rss_bytes": 114982912,
+          "ordinary_tier_window": "process_birth_through_target",
+          "post_serialization_atexit_self_peak_bytes": 115015680,
+          "post_serialization_scope": "RUSAGE_SELF birth through post-serialization atexit observation; excludes later receipt serialization/interpreter teardown",
+          "tier_observation_bytes": 114982912,
+          "tier_rule": "unchanged ordinary process.peak_rss maximum across accepted fresh workers"
+        },
+        "elapsed_seconds": 5.310292,
+        "emission": {
+          "decode_intervals": 1,
+          "decode_seconds": 0.051340417,
+          "decode_tokens_per_second": 19.47783166622897,
+          "input_tokens": 103,
+          "output_tokens": 2,
+          "request_seconds": 1.39840425,
+          "request_to_first_output_seconds": 1.344543083,
+          "scope": "ordinary_dashboard_monotonic_emission_events_not_semantic_phase_time"
+        },
+        "maximum_observed_host_swap_growth_bytes": 0,
+        "ordinary_network_reconciliation": {
+          "comparison": "monotone counters bracketed by measured read intervals",
+          "maximum_clock_tolerance_ns": 86
+        },
+        "ordinary_scenario_stream_bytes": 535243,
+        "phases": {
+          "cleanup": {
+            "all_link_stream_bytes": 1971,
+            "client_download_bytes": 887,
+            "client_upload_bytes": 1072,
+            "directed_stream_bytes": {
+              "client->inference": 778,
+              "client->preparation": 294,
+              "inference->client": 697,
+              "inference->preparation": 4,
+              "preparation->client": 190,
+              "preparation->inference": 8
+            },
+            "elapsed_seconds": 1.229258334,
+            "intervals": [
+              [
+                70,
+                90
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 114966528
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 114966528,
+                "peak_sample": 89,
+                "simultaneous_peak_bytes": 114966528,
+                "vector_at_peak": {
+                  "client": 114966528
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 114966528,
+                    "inference": 118472704,
+                    "preparation": 114671616
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118472704,
+                  "peak_sample": 70,
+                  "simultaneous_peak_bytes": 347865088,
+                  "vector_at_peak": {
+                    "client": 114753536,
+                    "inference": 118439936,
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118472704,
+                  "preparation": 114671616
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118472704,
+                "peak_sample": 71,
+                "simultaneous_peak_bytes": 233144320,
+                "vector_at_peak": {
+                  "inference": 118472704,
+                  "preparation": 114671616
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 114966528
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114966528,
+                  "peak_sample": 89,
+                  "simultaneous_peak_bytes": 114966528,
+                  "vector_at_peak": {
+                    "client": 114966528
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118472704
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118472704,
+                  "peak_sample": 71,
+                  "simultaneous_peak_bytes": 118472704,
+                  "vector_at_peak": {
+                    "inference": 118472704
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114671616
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114671616,
+                  "peak_sample": 70,
+                  "simultaneous_peak_bytes": 114671616,
+                  "vector_at_peak": {
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 114966528,
+                  "inference": 118472704,
+                  "preparation": 114671616
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118472704,
+                "peak_sample": 70,
+                "simultaneous_peak_bytes": 347865088,
+                "vector_at_peak": {
+                  "client": 114753536,
+                  "inference": 118439936,
+                  "preparation": 114671616
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "decode": {
+            "all_link_stream_bytes": 8486,
+            "client_download_bytes": 4572,
+            "client_upload_bytes": 3914,
+            "directed_stream_bytes": {
+              "client->inference": 3914,
+              "client->preparation": 0,
+              "inference->client": 4572,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.032881291,
+            "intervals": [
+              [
+                67,
+                69
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 114753536
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 114753536,
+                "peak_sample": 69,
+                "simultaneous_peak_bytes": 114753536,
+                "vector_at_peak": {
+                  "client": 114753536
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 114753536,
+                    "inference": 118439936,
+                    "preparation": 114671616
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118439936,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 347865088,
+                  "vector_at_peak": {
+                    "client": 114753536,
+                    "inference": 118439936,
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118439936,
+                  "preparation": 114671616
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118439936,
+                "peak_sample": 68,
+                "simultaneous_peak_bytes": 233111552,
+                "vector_at_peak": {
+                  "inference": 118439936,
+                  "preparation": 114671616
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 114753536
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114753536,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 114753536,
+                  "vector_at_peak": {
+                    "client": 114753536
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118439936
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118439936,
+                  "peak_sample": 68,
+                  "simultaneous_peak_bytes": 118439936,
+                  "vector_at_peak": {
+                    "inference": 118439936
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114671616
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114671616,
+                  "peak_sample": 67,
+                  "simultaneous_peak_bytes": 114671616,
+                  "vector_at_peak": {
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 114753536,
+                  "inference": 118439936,
+                  "preparation": 114671616
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118439936,
+                "peak_sample": 69,
+                "simultaneous_peak_bytes": 347865088,
+                "vector_at_peak": {
+                  "client": 114753536,
+                  "inference": 118439936,
+                  "preparation": 114671616
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "prefill": {
+            "all_link_stream_bytes": 264475,
+            "client_download_bytes": 149410,
+            "client_upload_bytes": 115065,
+            "directed_stream_bytes": {
+              "client->inference": 115065,
+              "client->preparation": 0,
+              "inference->client": 149410,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.085316875,
+            "intervals": [
+              [
+                64,
+                66
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 114606080
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 114606080,
+                "peak_sample": 66,
+                "simultaneous_peak_bytes": 114606080,
+                "vector_at_peak": {
+                  "client": 114606080
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 114606080,
+                    "inference": 118308864,
+                    "preparation": 114671616
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118308864,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 347586560,
+                  "vector_at_peak": {
+                    "client": 114606080,
+                    "inference": 118308864,
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118308864,
+                  "preparation": 114671616
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118308864,
+                "peak_sample": 66,
+                "simultaneous_peak_bytes": 232980480,
+                "vector_at_peak": {
+                  "inference": 118308864,
+                  "preparation": 114671616
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 114606080
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114606080,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 114606080,
+                  "vector_at_peak": {
+                    "client": 114606080
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118308864
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118308864,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 118308864,
+                  "vector_at_peak": {
+                    "inference": 118308864
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114671616
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114671616,
+                  "peak_sample": 64,
+                  "simultaneous_peak_bytes": 114671616,
+                  "vector_at_peak": {
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 114606080,
+                  "inference": 118308864,
+                  "preparation": 114671616
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118308864,
+                "peak_sample": 66,
+                "simultaneous_peak_bytes": 347586560,
+                "vector_at_peak": {
+                  "client": 114606080,
+                  "inference": 118308864,
+                  "preparation": 114671616
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "private_preparation": {
+            "all_link_stream_bytes": 142398,
+            "client_download_bytes": 3360,
+            "client_upload_bytes": 5930,
+            "directed_stream_bytes": {
+              "client->inference": 887,
+              "client->preparation": 5043,
+              "inference->client": 1149,
+              "inference->preparation": 1062,
+              "preparation->client": 2211,
+              "preparation->inference": 132046
+            },
+            "elapsed_seconds": 0.073852875,
+            "intervals": [
+              [
+                49,
+                51
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 110870528
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 110870528,
+                "peak_sample": 50,
+                "simultaneous_peak_bytes": 110870528,
+                "vector_at_peak": {
+                  "client": 110870528
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 110870528,
+                    "inference": 117161984,
+                    "preparation": 114573312
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 117161984,
+                  "peak_sample": 51,
+                  "simultaneous_peak_bytes": 342507520,
+                  "vector_at_peak": {
+                    "client": 110772224,
+                    "inference": 117161984,
+                    "preparation": 114573312
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 117161984,
+                  "preparation": 114573312
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 117161984,
+                "peak_sample": 51,
+                "simultaneous_peak_bytes": 231735296,
+                "vector_at_peak": {
+                  "inference": 117161984,
+                  "preparation": 114573312
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 110870528
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 110870528,
+                  "peak_sample": 50,
+                  "simultaneous_peak_bytes": 110870528,
+                  "vector_at_peak": {
+                    "client": 110870528
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 117161984
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 117161984,
+                  "peak_sample": 51,
+                  "simultaneous_peak_bytes": 117161984,
+                  "vector_at_peak": {
+                    "inference": 117161984
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114573312
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114573312,
+                  "peak_sample": 51,
+                  "simultaneous_peak_bytes": 114573312,
+                  "vector_at_peak": {
+                    "preparation": 114573312
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 110870528,
+                  "inference": 117161984,
+                  "preparation": 114573312
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 117161984,
+                "peak_sample": 51,
+                "simultaneous_peak_bytes": 342507520,
+                "vector_at_peak": {
+                  "client": 110772224,
+                  "inference": 117161984,
+                  "preparation": 114573312
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "public_setup": {
+            "all_link_stream_bytes": 3318,
+            "client_download_bytes": 2505,
+            "client_upload_bytes": 813,
+            "directed_stream_bytes": {
+              "client->inference": 513,
+              "client->preparation": 300,
+              "inference->client": 2145,
+              "preparation->client": 360
+            },
+            "elapsed_seconds": 2.684875875,
+            "intervals": [
+              [
+                0,
+                44
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 106479616
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 106479616,
+                "peak_sample": 40,
+                "simultaneous_peak_bytes": 106479616,
+                "vector_at_peak": {
+                  "client": 106479616
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 106479616,
+                    "inference": 113377280,
+                    "preparation": 112771072
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 113377280,
+                  "peak_sample": 40,
+                  "simultaneous_peak_bytes": 332627968,
+                  "vector_at_peak": {
+                    "client": 106479616,
+                    "inference": 113377280,
+                    "preparation": 112771072
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 113377280,
+                  "preparation": 112771072
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 113377280,
+                "peak_sample": 39,
+                "simultaneous_peak_bytes": 226148352,
+                "vector_at_peak": {
+                  "inference": 113377280,
+                  "preparation": 112771072
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 106479616
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 106479616,
+                  "peak_sample": 40,
+                  "simultaneous_peak_bytes": 106479616,
+                  "vector_at_peak": {
+                    "client": 106479616
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 113377280
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 113377280,
+                  "peak_sample": 39,
+                  "simultaneous_peak_bytes": 113377280,
+                  "vector_at_peak": {
+                    "inference": 113377280
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 112771072
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 112771072,
+                  "peak_sample": 36,
+                  "simultaneous_peak_bytes": 112771072,
+                  "vector_at_peak": {
+                    "preparation": 112771072
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 106479616,
+                  "inference": 113377280,
+                  "preparation": 112771072
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 113377280,
+                "peak_sample": 40,
+                "simultaneous_peak_bytes": 332627968,
+                "vector_at_peak": {
+                  "client": 106479616,
+                  "inference": 113377280,
+                  "preparation": 112771072
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "request_setup": {
+            "all_link_stream_bytes": 115601,
+            "client_download_bytes": 107725,
+            "client_upload_bytes": 7876,
+            "directed_stream_bytes": {
+              "client->inference": 7663,
+              "client->preparation": 213,
+              "inference->client": 107135,
+              "inference->preparation": 0,
+              "preparation->client": 590,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 1.185361666,
+            "intervals": [
+              [
+                44,
+                49
+              ],
+              [
+                51,
+                64
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 113541120
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 113541120,
+                "peak_sample": 64,
+                "simultaneous_peak_bytes": 113541120,
+                "vector_at_peak": {
+                  "client": 113541120
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 113541120,
+                    "inference": 118013952,
+                    "preparation": 114671616
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118013952,
+                  "peak_sample": 64,
+                  "simultaneous_peak_bytes": 346226688,
+                  "vector_at_peak": {
+                    "client": 113541120,
+                    "inference": 118013952,
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118013952,
+                  "preparation": 114671616
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118013952,
+                "peak_sample": 63,
+                "simultaneous_peak_bytes": 232685568,
+                "vector_at_peak": {
+                  "inference": 118013952,
+                  "preparation": 114671616
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 113541120
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 113541120,
+                  "peak_sample": 64,
+                  "simultaneous_peak_bytes": 113541120,
+                  "vector_at_peak": {
+                    "client": 113541120
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118013952
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118013952,
+                  "peak_sample": 63,
+                  "simultaneous_peak_bytes": 118013952,
+                  "vector_at_peak": {
+                    "inference": 118013952
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114671616
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114671616,
+                  "peak_sample": 54,
+                  "simultaneous_peak_bytes": 114671616,
+                  "vector_at_peak": {
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 113541120,
+                  "inference": 118013952,
+                  "preparation": 114671616
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118013952,
+                "peak_sample": 64,
+                "simultaneous_peak_bytes": 346226688,
+                "vector_at_peak": {
+                  "client": 113541120,
+                  "inference": 118013952,
+                  "preparation": 114671616
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "unclassified": {
+            "all_link_stream_bytes": 0,
+            "client_download_bytes": 0,
+            "client_upload_bytes": 0,
+            "directed_stream_bytes": {
+              "client->inference": 0,
+              "client->preparation": 0,
+              "inference->client": 0,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.018745084,
+            "intervals": [
+              [
+                66,
+                67
+              ],
+              [
+                69,
+                70
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 114753536
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 114753536,
+                "peak_sample": 69,
+                "simultaneous_peak_bytes": 114753536,
+                "vector_at_peak": {
+                  "client": 114753536
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 114753536,
+                    "inference": 118439936,
+                    "preparation": 114671616
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118439936,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 347865088,
+                  "vector_at_peak": {
+                    "client": 114753536,
+                    "inference": 118439936,
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118439936,
+                  "preparation": 114671616
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118439936,
+                "peak_sample": 69,
+                "simultaneous_peak_bytes": 233111552,
+                "vector_at_peak": {
+                  "inference": 118439936,
+                  "preparation": 114671616
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 114753536
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114753536,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 114753536,
+                  "vector_at_peak": {
+                    "client": 114753536
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118439936
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118439936,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 118439936,
+                  "vector_at_peak": {
+                    "inference": 118439936
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114671616
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114671616,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 114671616,
+                  "vector_at_peak": {
+                    "preparation": 114671616
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 114753536,
+                  "inference": 118439936,
+                  "preparation": 114671616
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118439936,
+                "peak_sample": 69,
+                "simultaneous_peak_bytes": 347865088,
+                "vector_at_peak": {
+                  "client": 114753536,
+                  "inference": 118439936,
+                  "preparation": 114671616
+                }
+              }
+            },
+            "status": "observed"
+          }
+        },
+        "post_scenario_directed_stream_bytes": {
+          "client->inference": 290,
+          "client->preparation": 294,
+          "inference->client": 220,
+          "inference->preparation": 4,
+          "preparation->client": 190,
+          "preparation->inference": 8
+        },
+        "post_scenario_stream_bytes": 1006,
+        "sampled_window_memory": {
+          "client": {
+            "individual_peak_bytes": {
+              "client": 114966528
+            },
+            "instances": 1,
+            "largest_individual_peak_bytes": 114966528,
+            "peak_sample": 89,
+            "simultaneous_peak_bytes": 114966528,
+            "vector_at_peak": {
+              "client": 114966528
+            }
+          },
+          "hosts": {
+            "local_host": {
+              "individual_peak_bytes": {
+                "client": 114966528,
+                "inference": 118472704,
+                "preparation": 114671616
+              },
+              "instances": 3,
+              "largest_individual_peak_bytes": 118472704,
+              "peak_sample": 69,
+              "simultaneous_peak_bytes": 347865088,
+              "vector_at_peak": {
+                "client": 114753536,
+                "inference": 118439936,
+                "preparation": 114671616
+              }
+            }
+          },
+          "non_client": {
+            "individual_peak_bytes": {
+              "inference": 118472704,
+              "preparation": 114671616
+            },
+            "instances": 2,
+            "largest_individual_peak_bytes": 118472704,
+            "peak_sample": 71,
+            "simultaneous_peak_bytes": 233144320,
+            "vector_at_peak": {
+              "inference": 118472704,
+              "preparation": 114671616
+            }
+          },
+          "roles": {
+            "client": {
+              "individual_peak_bytes": {
+                "client": 114966528
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 114966528,
+              "peak_sample": 89,
+              "simultaneous_peak_bytes": 114966528,
+              "vector_at_peak": {
+                "client": 114966528
+              }
+            },
+            "inference": {
+              "individual_peak_bytes": {
+                "inference": 118472704
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 118472704,
+              "peak_sample": 71,
+              "simultaneous_peak_bytes": 118472704,
+              "vector_at_peak": {
+                "inference": 118472704
+              }
+            },
+            "preparation": {
+              "individual_peak_bytes": {
+                "preparation": 114671616
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 114671616,
+              "peak_sample": 54,
+              "simultaneous_peak_bytes": 114671616,
+              "vector_at_peak": {
+                "preparation": 114671616
+              }
+            }
+          },
+          "whole_deployment": {
+            "individual_peak_bytes": {
+              "client": 114966528,
+              "inference": 118472704,
+              "preparation": 114671616
+            },
+            "instances": 3,
+            "largest_individual_peak_bytes": 118472704,
+            "peak_sample": 69,
+            "simultaneous_peak_bytes": 347865088,
+            "vector_at_peak": {
+              "client": 114753536,
+              "inference": 118439936,
+              "preparation": 114671616
+            }
+          }
+        },
+        "sampling": {
+          "capacity": {
+            "boundary_sample_allowance": 288,
+            "client_allocation_admission_bytes": 67108864,
+            "interval_ns": 50000000,
+            "maximum_sample_bytes": 8192,
+            "maximum_samples": 24888,
+            "maximum_trace_disk_bytes": 203882496,
+            "replay_owner": "controller_after_worker_exit",
+            "shutdown_grace_seconds": 30,
+            "storage": "private_streamed_jsonl",
+            "timeout_seconds": 1200
+          },
+          "maximum_between_sample_gap_ns": 88695875,
+          "maximum_within_sample_skew_ns": 17863667,
+          "nominal_interval_ns": 50000000,
+          "samples": 91
+        },
+        "schema": "pllm.publication_lifecycle_summary.v2",
+        "scope": {
+          "archive_qualification": "per-trial reference, manifest, receipts and ordinary-envelope reconciliation; not cohort qualification",
+          "boundary_memory_samples_shared": true,
+          "child_census": "spawn-bound known providers plus sampled undeclared-descendant checks during serving; not an OS fork audit",
+          "device_memory": null,
+          "excludes": "process startup before observer; final receipt serialization and later interpreter teardown",
+          "memory": "sampled_process_rss_vectors_with_reported_read_skew",
+          "network_excluded": [
+            "telemetry",
+            "checkpoint distribution",
+            "IP/TCP headers, ACKs, retransmissions"
+          ],
+          "phase_boundaries": "synchronous counter/RSS snapshot completion; observer overhead included",
+          "provenance": "local consistency receipts, not remote worker authentication; dependencies use ordinary parent build inspection",
+          "provider_lifetime_high_water": null,
+          "provider_profile": "resource_unnormalized_per_party_100_down_40_up_local_emulation",
+          "provisioned_capacity": null,
+          "qualification": "observation structure only; archive receipts and ordinary envelope require load_trace",
+          "rss_may_count_shared_pages_multiple_times": true,
+          "sampling_can_miss_peaks": true,
+          "supported_graph": "one native client with two prepared providers and optionally two boundary providers; one cold response",
+          "traffic": "rate_admitted_tcp_payload",
+          "whole_process_high_water_is_separate": true,
+          "window": "observer_start_through_post_serialization_atexit_sample"
+        },
+        "semantic_work": {
+          "decode_forwards": 1,
+          "prefill_forwards": 1,
+          "preparation_calls": 1,
+          "selections": 2,
+          "terminal_eos": false,
+          "text_events": 2
+        }
+      },
+      "trace_ref": {
+        "binding": {
+          "nonce": "639f5c41ef27a3c5a2c49cfae1cc523cc585948c21b392dadc09b4b0c4c53d07",
+          "prompt_manifest_digest": "aad084599db2902946e96d11345ae5072e4bee742cc2ce59d7eac761f6b09d36",
+          "source_identity": "56eb06ad72ed89b12118133ccb4fbd164164103b2c577aaea5ba25a30c52fac8",
+          "target_digest": "0b747af28cefb68416adb8ddaba3896a6f1e883789a36a976a6ecd1106d3d5c0"
+        },
+        "bytes": 1417,
+        "path": "/Users/blairhudson/workspace/pllm/target/research/publication-lifecycle-archive-2026-10-17-v3/cohort.traces/639f5c41ef27a3c5a2c49cfae1cc523cc585948c21b392dadc09b4b0c4c53d07/manifest.json",
+        "schema": "pllm.publication_trace_reference.v1",
+        "sha256": "18ba097e180f434baaa7f4b76f11a5506c9595f653929ce17bd78182fb228362"
+      }
+    },
+    {
+      "case": "tiling",
+      "replicate": 0,
+      "summary": {
+        "all_link_stream_bytes": 536330,
+        "client_high_water": {
+          "additional_post_serialization_observation_bytes": 112885760,
+          "entire_process_lifetime_tier_qualified": null,
+          "extended_observed_window_peak_bytes": 112885760,
+          "later_interpreter_teardown_peak": null,
+          "ordinary_process_peak_rss_bytes": 112869376,
+          "ordinary_tier_window": "process_birth_through_target",
+          "post_serialization_atexit_self_peak_bytes": 112885760,
+          "post_serialization_scope": "RUSAGE_SELF birth through post-serialization atexit observation; excludes later receipt serialization/interpreter teardown",
+          "tier_observation_bytes": 112869376,
+          "tier_rule": "unchanged ordinary process.peak_rss maximum across accepted fresh workers"
+        },
+        "elapsed_seconds": 5.134059333,
+        "emission": {
+          "decode_intervals": 1,
+          "decode_seconds": 0.049575167,
+          "decode_tokens_per_second": 20.17138943778041,
+          "input_tokens": 103,
+          "output_tokens": 2,
+          "request_seconds": 1.4092295,
+          "request_to_first_output_seconds": 1.356979375,
+          "scope": "ordinary_dashboard_monotonic_emission_events_not_semantic_phase_time"
+        },
+        "maximum_observed_host_swap_growth_bytes": 0,
+        "ordinary_network_reconciliation": {
+          "comparison": "monotone counters bracketed by measured read intervals",
+          "maximum_clock_tolerance_ns": 86
+        },
+        "ordinary_scenario_stream_bytes": 535324,
+        "phases": {
+          "cleanup": {
+            "all_link_stream_bytes": 1971,
+            "client_download_bytes": 887,
+            "client_upload_bytes": 1072,
+            "directed_stream_bytes": {
+              "client->inference": 778,
+              "client->preparation": 294,
+              "inference->client": 697,
+              "inference->preparation": 4,
+              "preparation->client": 190,
+              "preparation->inference": 8
+            },
+            "elapsed_seconds": 1.230829417,
+            "intervals": [
+              [
+                67,
+                87
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 112869376
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 112869376,
+                "peak_sample": 86,
+                "simultaneous_peak_bytes": 112869376,
+                "vector_at_peak": {
+                  "client": 112869376
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 112869376,
+                    "inference": 118521856,
+                    "preparation": 114491392
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118521856,
+                  "peak_sample": 82,
+                  "simultaneous_peak_bytes": 345653248,
+                  "vector_at_peak": {
+                    "client": 112640000,
+                    "inference": 118521856,
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118521856,
+                  "preparation": 114491392
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118521856,
+                "peak_sample": 74,
+                "simultaneous_peak_bytes": 233013248,
+                "vector_at_peak": {
+                  "inference": 118521856,
+                  "preparation": 114491392
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 112869376
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 112869376,
+                  "peak_sample": 86,
+                  "simultaneous_peak_bytes": 112869376,
+                  "vector_at_peak": {
+                    "client": 112869376
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118521856
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118521856,
+                  "peak_sample": 74,
+                  "simultaneous_peak_bytes": 118521856,
+                  "vector_at_peak": {
+                    "inference": 118521856
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114491392
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114491392,
+                  "peak_sample": 67,
+                  "simultaneous_peak_bytes": 114491392,
+                  "vector_at_peak": {
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 112869376,
+                  "inference": 118521856,
+                  "preparation": 114491392
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118521856,
+                "peak_sample": 82,
+                "simultaneous_peak_bytes": 345653248,
+                "vector_at_peak": {
+                  "client": 112640000,
+                  "inference": 118521856,
+                  "preparation": 114491392
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "decode": {
+            "all_link_stream_bytes": 8486,
+            "client_download_bytes": 4572,
+            "client_upload_bytes": 3914,
+            "directed_stream_bytes": {
+              "client->inference": 3914,
+              "client->preparation": 0,
+              "inference->client": 4572,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.030497,
+            "intervals": [
+              [
+                64,
+                66
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 112590848
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 112590848,
+                "peak_sample": 65,
+                "simultaneous_peak_bytes": 112590848,
+                "vector_at_peak": {
+                  "client": 112590848
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 112590848,
+                    "inference": 118276096,
+                    "preparation": 114491392
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118276096,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 345358336,
+                  "vector_at_peak": {
+                    "client": 112590848,
+                    "inference": 118276096,
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118276096,
+                  "preparation": 114491392
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118276096,
+                "peak_sample": 66,
+                "simultaneous_peak_bytes": 232767488,
+                "vector_at_peak": {
+                  "inference": 118276096,
+                  "preparation": 114491392
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 112590848
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 112590848,
+                  "peak_sample": 65,
+                  "simultaneous_peak_bytes": 112590848,
+                  "vector_at_peak": {
+                    "client": 112590848
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118276096
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118276096,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 118276096,
+                  "vector_at_peak": {
+                    "inference": 118276096
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114491392
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114491392,
+                  "peak_sample": 64,
+                  "simultaneous_peak_bytes": 114491392,
+                  "vector_at_peak": {
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 112590848,
+                  "inference": 118276096,
+                  "preparation": 114491392
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118276096,
+                "peak_sample": 66,
+                "simultaneous_peak_bytes": 345358336,
+                "vector_at_peak": {
+                  "client": 112590848,
+                  "inference": 118276096,
+                  "preparation": 114491392
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "prefill": {
+            "all_link_stream_bytes": 264475,
+            "client_download_bytes": 149410,
+            "client_upload_bytes": 115065,
+            "directed_stream_bytes": {
+              "client->inference": 115065,
+              "client->preparation": 0,
+              "inference->client": 149410,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.089390166,
+            "intervals": [
+              [
+                61,
+                63
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 112558080
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 112558080,
+                "peak_sample": 63,
+                "simultaneous_peak_bytes": 112558080,
+                "vector_at_peak": {
+                  "client": 112558080
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 112558080,
+                    "inference": 118259712,
+                    "preparation": 114491392
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118259712,
+                  "peak_sample": 63,
+                  "simultaneous_peak_bytes": 345309184,
+                  "vector_at_peak": {
+                    "client": 112558080,
+                    "inference": 118259712,
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118259712,
+                  "preparation": 114491392
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118259712,
+                "peak_sample": 63,
+                "simultaneous_peak_bytes": 232751104,
+                "vector_at_peak": {
+                  "inference": 118259712,
+                  "preparation": 114491392
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 112558080
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 112558080,
+                  "peak_sample": 63,
+                  "simultaneous_peak_bytes": 112558080,
+                  "vector_at_peak": {
+                    "client": 112558080
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118259712
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118259712,
+                  "peak_sample": 63,
+                  "simultaneous_peak_bytes": 118259712,
+                  "vector_at_peak": {
+                    "inference": 118259712
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114491392
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114491392,
+                  "peak_sample": 61,
+                  "simultaneous_peak_bytes": 114491392,
+                  "vector_at_peak": {
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 112558080,
+                  "inference": 118259712,
+                  "preparation": 114491392
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118259712,
+                "peak_sample": 63,
+                "simultaneous_peak_bytes": 345309184,
+                "vector_at_peak": {
+                  "client": 112558080,
+                  "inference": 118259712,
+                  "preparation": 114491392
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "private_preparation": {
+            "all_link_stream_bytes": 142398,
+            "client_download_bytes": 3360,
+            "client_upload_bytes": 5930,
+            "directed_stream_bytes": {
+              "client->inference": 887,
+              "client->preparation": 5043,
+              "inference->client": 1149,
+              "inference->preparation": 1062,
+              "preparation->client": 2211,
+              "preparation->inference": 132046
+            },
+            "elapsed_seconds": 0.069047667,
+            "intervals": [
+              [
+                47,
+                49
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 108888064
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 108888064,
+                "peak_sample": 49,
+                "simultaneous_peak_bytes": 108888064,
+                "vector_at_peak": {
+                  "client": 108888064
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 108888064,
+                    "inference": 117161984,
+                    "preparation": 114327552
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 117161984,
+                  "peak_sample": 49,
+                  "simultaneous_peak_bytes": 340377600,
+                  "vector_at_peak": {
+                    "client": 108888064,
+                    "inference": 117161984,
+                    "preparation": 114327552
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 117161984,
+                  "preparation": 114327552
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 117161984,
+                "peak_sample": 49,
+                "simultaneous_peak_bytes": 231489536,
+                "vector_at_peak": {
+                  "inference": 117161984,
+                  "preparation": 114327552
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 108888064
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 108888064,
+                  "peak_sample": 49,
+                  "simultaneous_peak_bytes": 108888064,
+                  "vector_at_peak": {
+                    "client": 108888064
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 117161984
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 117161984,
+                  "peak_sample": 49,
+                  "simultaneous_peak_bytes": 117161984,
+                  "vector_at_peak": {
+                    "inference": 117161984
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114327552
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114327552,
+                  "peak_sample": 49,
+                  "simultaneous_peak_bytes": 114327552,
+                  "vector_at_peak": {
+                    "preparation": 114327552
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 108888064,
+                  "inference": 117161984,
+                  "preparation": 114327552
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 117161984,
+                "peak_sample": 49,
+                "simultaneous_peak_bytes": 340377600,
+                "vector_at_peak": {
+                  "client": 108888064,
+                  "inference": 117161984,
+                  "preparation": 114327552
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "public_setup": {
+            "all_link_stream_bytes": 3318,
+            "client_download_bytes": 2505,
+            "client_upload_bytes": 813,
+            "directed_stream_bytes": {
+              "client->inference": 513,
+              "client->preparation": 300,
+              "inference->client": 2145,
+              "preparation->client": 360
+            },
+            "elapsed_seconds": 2.496377708,
+            "intervals": [
+              [
+                0,
+                42
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 104857600
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 104857600,
+                "peak_sample": 42,
+                "simultaneous_peak_bytes": 104857600,
+                "vector_at_peak": {
+                  "client": 104857600
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 104857600,
+                    "inference": 113410048,
+                    "preparation": 112508928
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 113410048,
+                  "peak_sample": 42,
+                  "simultaneous_peak_bytes": 330776576,
+                  "vector_at_peak": {
+                    "client": 104857600,
+                    "inference": 113410048,
+                    "preparation": 112508928
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 113410048,
+                  "preparation": 112508928
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 113410048,
+                "peak_sample": 38,
+                "simultaneous_peak_bytes": 225918976,
+                "vector_at_peak": {
+                  "inference": 113410048,
+                  "preparation": 112508928
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 104857600
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 104857600,
+                  "peak_sample": 42,
+                  "simultaneous_peak_bytes": 104857600,
+                  "vector_at_peak": {
+                    "client": 104857600
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 113410048
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 113410048,
+                  "peak_sample": 38,
+                  "simultaneous_peak_bytes": 113410048,
+                  "vector_at_peak": {
+                    "inference": 113410048
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 112508928
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 112508928,
+                  "peak_sample": 36,
+                  "simultaneous_peak_bytes": 112508928,
+                  "vector_at_peak": {
+                    "preparation": 112508928
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 104857600,
+                  "inference": 113410048,
+                  "preparation": 112508928
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 113410048,
+                "peak_sample": 42,
+                "simultaneous_peak_bytes": 330776576,
+                "vector_at_peak": {
+                  "client": 104857600,
+                  "inference": 113410048,
+                  "preparation": 112508928
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "request_setup": {
+            "all_link_stream_bytes": 115682,
+            "client_download_bytes": 107725,
+            "client_upload_bytes": 7957,
+            "directed_stream_bytes": {
+              "client->inference": 7744,
+              "client->preparation": 213,
+              "inference->client": 107135,
+              "inference->preparation": 0,
+              "preparation->client": 590,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 1.198087125,
+            "intervals": [
+              [
+                42,
+                47
+              ],
+              [
+                49,
+                61
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 111542272
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 111542272,
+                "peak_sample": 61,
+                "simultaneous_peak_bytes": 111542272,
+                "vector_at_peak": {
+                  "client": 111542272
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 111542272,
+                    "inference": 117997568,
+                    "preparation": 114491392
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 117997568,
+                  "peak_sample": 61,
+                  "simultaneous_peak_bytes": 344031232,
+                  "vector_at_peak": {
+                    "client": 111542272,
+                    "inference": 117997568,
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 117997568,
+                  "preparation": 114491392
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 117997568,
+                "peak_sample": 60,
+                "simultaneous_peak_bytes": 232488960,
+                "vector_at_peak": {
+                  "inference": 117997568,
+                  "preparation": 114491392
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 111542272
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 111542272,
+                  "peak_sample": 61,
+                  "simultaneous_peak_bytes": 111542272,
+                  "vector_at_peak": {
+                    "client": 111542272
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 117997568
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 117997568,
+                  "peak_sample": 60,
+                  "simultaneous_peak_bytes": 117997568,
+                  "vector_at_peak": {
+                    "inference": 117997568
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114491392
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114491392,
+                  "peak_sample": 60,
+                  "simultaneous_peak_bytes": 114491392,
+                  "vector_at_peak": {
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 111542272,
+                  "inference": 117997568,
+                  "preparation": 114491392
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 117997568,
+                "peak_sample": 61,
+                "simultaneous_peak_bytes": 344031232,
+                "vector_at_peak": {
+                  "client": 111542272,
+                  "inference": 117997568,
+                  "preparation": 114491392
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "unclassified": {
+            "all_link_stream_bytes": 0,
+            "client_download_bytes": 0,
+            "client_upload_bytes": 0,
+            "directed_stream_bytes": {
+              "client->inference": 0,
+              "client->preparation": 0,
+              "inference->client": 0,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.01983025,
+            "intervals": [
+              [
+                63,
+                64
+              ],
+              [
+                66,
+                67
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 112590848
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 112590848,
+                "peak_sample": 66,
+                "simultaneous_peak_bytes": 112590848,
+                "vector_at_peak": {
+                  "client": 112590848
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "client": 112590848,
+                    "inference": 118276096,
+                    "preparation": 114491392
+                  },
+                  "instances": 3,
+                  "largest_individual_peak_bytes": 118276096,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 345358336,
+                  "vector_at_peak": {
+                    "client": 112590848,
+                    "inference": 118276096,
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "inference": 118276096,
+                  "preparation": 114491392
+                },
+                "instances": 2,
+                "largest_individual_peak_bytes": 118276096,
+                "peak_sample": 66,
+                "simultaneous_peak_bytes": 232767488,
+                "vector_at_peak": {
+                  "inference": 118276096,
+                  "preparation": 114491392
+                }
+              },
+              "roles": {
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 112590848
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 112590848,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 112590848,
+                  "vector_at_peak": {
+                    "client": 112590848
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118276096
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118276096,
+                  "peak_sample": 66,
+                  "simultaneous_peak_bytes": 118276096,
+                  "vector_at_peak": {
+                    "inference": 118276096
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114491392
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114491392,
+                  "peak_sample": 63,
+                  "simultaneous_peak_bytes": 114491392,
+                  "vector_at_peak": {
+                    "preparation": 114491392
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "client": 112590848,
+                  "inference": 118276096,
+                  "preparation": 114491392
+                },
+                "instances": 3,
+                "largest_individual_peak_bytes": 118276096,
+                "peak_sample": 66,
+                "simultaneous_peak_bytes": 345358336,
+                "vector_at_peak": {
+                  "client": 112590848,
+                  "inference": 118276096,
+                  "preparation": 114491392
+                }
+              }
+            },
+            "status": "observed"
+          }
+        },
+        "post_scenario_directed_stream_bytes": {
+          "client->inference": 290,
+          "client->preparation": 294,
+          "inference->client": 220,
+          "inference->preparation": 4,
+          "preparation->client": 190,
+          "preparation->inference": 8
+        },
+        "post_scenario_stream_bytes": 1006,
+        "sampled_window_memory": {
+          "client": {
+            "individual_peak_bytes": {
+              "client": 112869376
+            },
+            "instances": 1,
+            "largest_individual_peak_bytes": 112869376,
+            "peak_sample": 86,
+            "simultaneous_peak_bytes": 112869376,
+            "vector_at_peak": {
+              "client": 112869376
+            }
+          },
+          "hosts": {
+            "local_host": {
+              "individual_peak_bytes": {
+                "client": 112869376,
+                "inference": 118521856,
+                "preparation": 114491392
+              },
+              "instances": 3,
+              "largest_individual_peak_bytes": 118521856,
+              "peak_sample": 82,
+              "simultaneous_peak_bytes": 345653248,
+              "vector_at_peak": {
+                "client": 112640000,
+                "inference": 118521856,
+                "preparation": 114491392
+              }
+            }
+          },
+          "non_client": {
+            "individual_peak_bytes": {
+              "inference": 118521856,
+              "preparation": 114491392
+            },
+            "instances": 2,
+            "largest_individual_peak_bytes": 118521856,
+            "peak_sample": 74,
+            "simultaneous_peak_bytes": 233013248,
+            "vector_at_peak": {
+              "inference": 118521856,
+              "preparation": 114491392
+            }
+          },
+          "roles": {
+            "client": {
+              "individual_peak_bytes": {
+                "client": 112869376
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 112869376,
+              "peak_sample": 86,
+              "simultaneous_peak_bytes": 112869376,
+              "vector_at_peak": {
+                "client": 112869376
+              }
+            },
+            "inference": {
+              "individual_peak_bytes": {
+                "inference": 118521856
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 118521856,
+              "peak_sample": 74,
+              "simultaneous_peak_bytes": 118521856,
+              "vector_at_peak": {
+                "inference": 118521856
+              }
+            },
+            "preparation": {
+              "individual_peak_bytes": {
+                "preparation": 114491392
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 114491392,
+              "peak_sample": 60,
+              "simultaneous_peak_bytes": 114491392,
+              "vector_at_peak": {
+                "preparation": 114491392
+              }
+            }
+          },
+          "whole_deployment": {
+            "individual_peak_bytes": {
+              "client": 112869376,
+              "inference": 118521856,
+              "preparation": 114491392
+            },
+            "instances": 3,
+            "largest_individual_peak_bytes": 118521856,
+            "peak_sample": 82,
+            "simultaneous_peak_bytes": 345653248,
+            "vector_at_peak": {
+              "client": 112640000,
+              "inference": 118521856,
+              "preparation": 114491392
+            }
+          }
+        },
+        "sampling": {
+          "capacity": {
+            "boundary_sample_allowance": 288,
+            "client_allocation_admission_bytes": 67108864,
+            "interval_ns": 50000000,
+            "maximum_sample_bytes": 8192,
+            "maximum_samples": 24888,
+            "maximum_trace_disk_bytes": 203882496,
+            "replay_owner": "controller_after_worker_exit",
+            "shutdown_grace_seconds": 30,
+            "storage": "private_streamed_jsonl",
+            "timeout_seconds": 1200
+          },
+          "maximum_between_sample_gap_ns": 89382167,
+          "maximum_within_sample_skew_ns": 18697167,
+          "nominal_interval_ns": 50000000,
+          "samples": 88
+        },
+        "schema": "pllm.publication_lifecycle_summary.v2",
+        "scope": {
+          "archive_qualification": "per-trial reference, manifest, receipts and ordinary-envelope reconciliation; not cohort qualification",
+          "boundary_memory_samples_shared": true,
+          "child_census": "spawn-bound known providers plus sampled undeclared-descendant checks during serving; not an OS fork audit",
+          "device_memory": null,
+          "excludes": "process startup before observer; final receipt serialization and later interpreter teardown",
+          "memory": "sampled_process_rss_vectors_with_reported_read_skew",
+          "network_excluded": [
+            "telemetry",
+            "checkpoint distribution",
+            "IP/TCP headers, ACKs, retransmissions"
+          ],
+          "phase_boundaries": "synchronous counter/RSS snapshot completion; observer overhead included",
+          "provenance": "local consistency receipts, not remote worker authentication; dependencies use ordinary parent build inspection",
+          "provider_lifetime_high_water": null,
+          "provider_profile": "resource_unnormalized_per_party_100_down_40_up_local_emulation",
+          "provisioned_capacity": null,
+          "qualification": "observation structure only; archive receipts and ordinary envelope require load_trace",
+          "rss_may_count_shared_pages_multiple_times": true,
+          "sampling_can_miss_peaks": true,
+          "supported_graph": "one native client with two prepared providers and optionally two boundary providers; one cold response",
+          "traffic": "rate_admitted_tcp_payload",
+          "whole_process_high_water_is_separate": true,
+          "window": "observer_start_through_post_serialization_atexit_sample"
+        },
+        "semantic_work": {
+          "decode_forwards": 1,
+          "prefill_forwards": 1,
+          "preparation_calls": 1,
+          "selections": 2,
+          "terminal_eos": false,
+          "text_events": 2
+        }
+      },
+      "trace_ref": {
+        "binding": {
+          "nonce": "afcb932652cf480966edc39eb8720b40189f1dee3cfc82808775dea6e0177f43",
+          "prompt_manifest_digest": "aad084599db2902946e96d11345ae5072e4bee742cc2ce59d7eac761f6b09d36",
+          "source_identity": "56eb06ad72ed89b12118133ccb4fbd164164103b2c577aaea5ba25a30c52fac8",
+          "target_digest": "c42c225c7e0903d6cd128dc0e0264f6c97f3828a427e5e87d011e2444ce9d2f0"
+        },
+        "bytes": 1417,
+        "path": "/Users/blairhudson/workspace/pllm/target/research/publication-lifecycle-archive-2026-10-17-v3/cohort.traces/afcb932652cf480966edc39eb8720b40189f1dee3cfc82808775dea6e0177f43/manifest.json",
+        "schema": "pllm.publication_trace_reference.v1",
+        "sha256": "054c11332fce275d6a29de3835a692c6bbffbd917009cde459443f46dc29f1aa"
+      }
+    },
+    {
+      "case": "coupled-boundary",
+      "replicate": 0,
+      "summary": {
+        "all_link_stream_bytes": 590901,
+        "client_high_water": {
+          "additional_post_serialization_observation_bytes": 116785152,
+          "entire_process_lifetime_tier_qualified": null,
+          "extended_observed_window_peak_bytes": 116785152,
+          "later_interpreter_teardown_peak": null,
+          "ordinary_process_peak_rss_bytes": 116785152,
+          "ordinary_tier_window": "process_birth_through_target",
+          "post_serialization_atexit_self_peak_bytes": 116785152,
+          "post_serialization_scope": "RUSAGE_SELF birth through post-serialization atexit observation; excludes later receipt serialization/interpreter teardown",
+          "tier_observation_bytes": 116785152,
+          "tier_rule": "unchanged ordinary process.peak_rss maximum across accepted fresh workers"
+        },
+        "elapsed_seconds": 6.33242725,
+        "emission": {
+          "decode_intervals": 1,
+          "decode_seconds": 0.059611791,
+          "decode_tokens_per_second": 16.77520475772989,
+          "input_tokens": 103,
+          "output_tokens": 2,
+          "request_seconds": 1.562872792,
+          "request_to_first_output_seconds": 1.497584667,
+          "scope": "ordinary_dashboard_monotonic_emission_events_not_semantic_phase_time"
+        },
+        "maximum_observed_host_swap_growth_bytes": 0,
+        "ordinary_network_reconciliation": {
+          "comparison": "monotone counters bracketed by measured read intervals",
+          "maximum_clock_tolerance_ns": 86
+        },
+        "ordinary_scenario_stream_bytes": 589895,
+        "phases": {
+          "cleanup": {
+            "all_link_stream_bytes": 3409,
+            "client_download_bytes": 1421,
+            "client_upload_bytes": 1976,
+            "directed_stream_bytes": {
+              "boundary_a->client": 267,
+              "boundary_b->client": 267,
+              "client->boundary_a": 452,
+              "client->boundary_b": 452,
+              "client->inference": 778,
+              "client->preparation": 294,
+              "inference->client": 697,
+              "inference->preparation": 4,
+              "preparation->client": 190,
+              "preparation->inference": 8
+            },
+            "elapsed_seconds": 1.083300583,
+            "intervals": [
+              [
+                91,
+                109
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 116785152
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 116785152,
+                "peak_sample": 107,
+                "simultaneous_peak_bytes": 116785152,
+                "vector_at_peak": {
+                  "client": 116785152
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90750976,
+                    "boundary_b": 90996736,
+                    "client": 116785152,
+                    "inference": 118063104,
+                    "preparation": 114507776
+                  },
+                  "instances": 5,
+                  "largest_individual_peak_bytes": 118063104,
+                  "peak_sample": 91,
+                  "simultaneous_peak_bytes": 530972672,
+                  "vector_at_peak": {
+                    "boundary_a": 90750976,
+                    "boundary_b": 90996736,
+                    "client": 116686848,
+                    "inference": 118030336,
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "inference": 118063104,
+                  "preparation": 114507776
+                },
+                "instances": 4,
+                "largest_individual_peak_bytes": 118063104,
+                "peak_sample": 92,
+                "simultaneous_peak_bytes": 414318592,
+                "vector_at_peak": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "inference": 118063104,
+                  "preparation": 114507776
+                }
+              },
+              "roles": {
+                "boundary_a": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90750976
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90750976,
+                  "peak_sample": 91,
+                  "simultaneous_peak_bytes": 90750976,
+                  "vector_at_peak": {
+                    "boundary_a": 90750976
+                  }
+                },
+                "boundary_b": {
+                  "individual_peak_bytes": {
+                    "boundary_b": 90996736
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90996736,
+                  "peak_sample": 91,
+                  "simultaneous_peak_bytes": 90996736,
+                  "vector_at_peak": {
+                    "boundary_b": 90996736
+                  }
+                },
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 116785152
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 116785152,
+                  "peak_sample": 107,
+                  "simultaneous_peak_bytes": 116785152,
+                  "vector_at_peak": {
+                    "client": 116785152
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118063104
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118063104,
+                  "peak_sample": 92,
+                  "simultaneous_peak_bytes": 118063104,
+                  "vector_at_peak": {
+                    "inference": 118063104
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114507776
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114507776,
+                  "peak_sample": 91,
+                  "simultaneous_peak_bytes": 114507776,
+                  "vector_at_peak": {
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "client": 116785152,
+                  "inference": 118063104,
+                  "preparation": 114507776
+                },
+                "instances": 5,
+                "largest_individual_peak_bytes": 118063104,
+                "peak_sample": 91,
+                "simultaneous_peak_bytes": 530972672,
+                "vector_at_peak": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "client": 116686848,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "decode": {
+            "all_link_stream_bytes": 13622,
+            "client_download_bytes": 7310,
+            "client_upload_bytes": 6312,
+            "directed_stream_bytes": {
+              "boundary_a->client": 1369,
+              "boundary_b->client": 1369,
+              "client->boundary_a": 1199,
+              "client->boundary_b": 1199,
+              "client->inference": 3914,
+              "client->preparation": 0,
+              "inference->client": 4572,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.03615725,
+            "intervals": [
+              [
+                88,
+                90
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 116686848
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 116686848,
+                "peak_sample": 90,
+                "simultaneous_peak_bytes": 116686848,
+                "vector_at_peak": {
+                  "client": 116686848
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90750976,
+                    "boundary_b": 90996736,
+                    "client": 116686848,
+                    "inference": 118030336,
+                    "preparation": 114507776
+                  },
+                  "instances": 5,
+                  "largest_individual_peak_bytes": 118030336,
+                  "peak_sample": 90,
+                  "simultaneous_peak_bytes": 530972672,
+                  "vector_at_peak": {
+                    "boundary_a": 90750976,
+                    "boundary_b": 90996736,
+                    "client": 116686848,
+                    "inference": 118030336,
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                },
+                "instances": 4,
+                "largest_individual_peak_bytes": 118030336,
+                "peak_sample": 89,
+                "simultaneous_peak_bytes": 414285824,
+                "vector_at_peak": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                }
+              },
+              "roles": {
+                "boundary_a": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90750976
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90750976,
+                  "peak_sample": 89,
+                  "simultaneous_peak_bytes": 90750976,
+                  "vector_at_peak": {
+                    "boundary_a": 90750976
+                  }
+                },
+                "boundary_b": {
+                  "individual_peak_bytes": {
+                    "boundary_b": 90996736
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90996736,
+                  "peak_sample": 88,
+                  "simultaneous_peak_bytes": 90996736,
+                  "vector_at_peak": {
+                    "boundary_b": 90996736
+                  }
+                },
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 116686848
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 116686848,
+                  "peak_sample": 90,
+                  "simultaneous_peak_bytes": 116686848,
+                  "vector_at_peak": {
+                    "client": 116686848
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118030336
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118030336,
+                  "peak_sample": 88,
+                  "simultaneous_peak_bytes": 118030336,
+                  "vector_at_peak": {
+                    "inference": 118030336
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114507776
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114507776,
+                  "peak_sample": 88,
+                  "simultaneous_peak_bytes": 114507776,
+                  "vector_at_peak": {
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "client": 116686848,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                },
+                "instances": 5,
+                "largest_individual_peak_bytes": 118030336,
+                "peak_sample": 90,
+                "simultaneous_peak_bytes": 530972672,
+                "vector_at_peak": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "client": 116686848,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "prefill": {
+            "all_link_stream_bytes": 319263,
+            "client_download_bytes": 173718,
+            "client_upload_bytes": 145545,
+            "directed_stream_bytes": {
+              "boundary_a->client": 12154,
+              "boundary_b->client": 12154,
+              "client->boundary_a": 15240,
+              "client->boundary_b": 15240,
+              "client->inference": 115065,
+              "client->preparation": 0,
+              "inference->client": 149410,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.110642333,
+            "intervals": [
+              [
+                84,
+                87
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 116670464
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 116670464,
+                "peak_sample": 87,
+                "simultaneous_peak_bytes": 116670464,
+                "vector_at_peak": {
+                  "client": 116670464
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90701824,
+                    "boundary_b": 90996736,
+                    "client": 116670464,
+                    "inference": 118030336,
+                    "preparation": 114507776
+                  },
+                  "instances": 5,
+                  "largest_individual_peak_bytes": 118030336,
+                  "peak_sample": 87,
+                  "simultaneous_peak_bytes": 530907136,
+                  "vector_at_peak": {
+                    "boundary_a": 90701824,
+                    "boundary_b": 90996736,
+                    "client": 116670464,
+                    "inference": 118030336,
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90701824,
+                  "boundary_b": 90996736,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                },
+                "instances": 4,
+                "largest_individual_peak_bytes": 118030336,
+                "peak_sample": 87,
+                "simultaneous_peak_bytes": 414236672,
+                "vector_at_peak": {
+                  "boundary_a": 90701824,
+                  "boundary_b": 90996736,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                }
+              },
+              "roles": {
+                "boundary_a": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90701824
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90701824,
+                  "peak_sample": 87,
+                  "simultaneous_peak_bytes": 90701824,
+                  "vector_at_peak": {
+                    "boundary_a": 90701824
+                  }
+                },
+                "boundary_b": {
+                  "individual_peak_bytes": {
+                    "boundary_b": 90996736
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90996736,
+                  "peak_sample": 87,
+                  "simultaneous_peak_bytes": 90996736,
+                  "vector_at_peak": {
+                    "boundary_b": 90996736
+                  }
+                },
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 116670464
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 116670464,
+                  "peak_sample": 87,
+                  "simultaneous_peak_bytes": 116670464,
+                  "vector_at_peak": {
+                    "client": 116670464
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118030336
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118030336,
+                  "peak_sample": 87,
+                  "simultaneous_peak_bytes": 118030336,
+                  "vector_at_peak": {
+                    "inference": 118030336
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114507776
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114507776,
+                  "peak_sample": 84,
+                  "simultaneous_peak_bytes": 114507776,
+                  "vector_at_peak": {
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90701824,
+                  "boundary_b": 90996736,
+                  "client": 116670464,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                },
+                "instances": 5,
+                "largest_individual_peak_bytes": 118030336,
+                "peak_sample": 87,
+                "simultaneous_peak_bytes": 530907136,
+                "vector_at_peak": {
+                  "boundary_a": 90701824,
+                  "boundary_b": 90996736,
+                  "client": 116670464,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "private_preparation": {
+            "all_link_stream_bytes": 142398,
+            "client_download_bytes": 3360,
+            "client_upload_bytes": 5930,
+            "directed_stream_bytes": {
+              "boundary_a->client": 0,
+              "boundary_b->client": 0,
+              "client->boundary_a": 0,
+              "client->boundary_b": 0,
+              "client->inference": 887,
+              "client->preparation": 5043,
+              "inference->client": 1149,
+              "inference->preparation": 1062,
+              "preparation->client": 2211,
+              "preparation->inference": 132046
+            },
+            "elapsed_seconds": 0.076418209,
+            "intervals": [
+              [
+                67,
+                69
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 111935488
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 111935488,
+                "peak_sample": 69,
+                "simultaneous_peak_bytes": 111935488,
+                "vector_at_peak": {
+                  "client": 111935488
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90308608,
+                    "boundary_b": 90619904,
+                    "client": 111935488,
+                    "inference": 117374976,
+                    "preparation": 114360320
+                  },
+                  "instances": 5,
+                  "largest_individual_peak_bytes": 117374976,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 524599296,
+                  "vector_at_peak": {
+                    "boundary_a": 90308608,
+                    "boundary_b": 90619904,
+                    "client": 111935488,
+                    "inference": 117374976,
+                    "preparation": 114360320
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90308608,
+                  "boundary_b": 90619904,
+                  "inference": 117374976,
+                  "preparation": 114360320
+                },
+                "instances": 4,
+                "largest_individual_peak_bytes": 117374976,
+                "peak_sample": 69,
+                "simultaneous_peak_bytes": 412663808,
+                "vector_at_peak": {
+                  "boundary_a": 90308608,
+                  "boundary_b": 90619904,
+                  "inference": 117374976,
+                  "preparation": 114360320
+                }
+              },
+              "roles": {
+                "boundary_a": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90308608
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90308608,
+                  "peak_sample": 67,
+                  "simultaneous_peak_bytes": 90308608,
+                  "vector_at_peak": {
+                    "boundary_a": 90308608
+                  }
+                },
+                "boundary_b": {
+                  "individual_peak_bytes": {
+                    "boundary_b": 90619904
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90619904,
+                  "peak_sample": 67,
+                  "simultaneous_peak_bytes": 90619904,
+                  "vector_at_peak": {
+                    "boundary_b": 90619904
+                  }
+                },
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 111935488
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 111935488,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 111935488,
+                  "vector_at_peak": {
+                    "client": 111935488
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 117374976
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 117374976,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 117374976,
+                  "vector_at_peak": {
+                    "inference": 117374976
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114360320
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114360320,
+                  "peak_sample": 69,
+                  "simultaneous_peak_bytes": 114360320,
+                  "vector_at_peak": {
+                    "preparation": 114360320
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90308608,
+                  "boundary_b": 90619904,
+                  "client": 111935488,
+                  "inference": 117374976,
+                  "preparation": 114360320
+                },
+                "instances": 5,
+                "largest_individual_peak_bytes": 117374976,
+                "peak_sample": 69,
+                "simultaneous_peak_bytes": 524599296,
+                "vector_at_peak": {
+                  "boundary_a": 90308608,
+                  "boundary_b": 90619904,
+                  "client": 111935488,
+                  "inference": 117374976,
+                  "preparation": 114360320
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "public_setup": {
+            "all_link_stream_bytes": 4554,
+            "client_download_bytes": 3145,
+            "client_upload_bytes": 1409,
+            "directed_stream_bytes": {
+              "boundary_a->client": 320,
+              "boundary_b->client": 320,
+              "client->boundary_a": 298,
+              "client->boundary_b": 298,
+              "client->inference": 513,
+              "client->preparation": 300,
+              "inference->client": 2145,
+              "preparation->client": 360
+            },
+            "elapsed_seconds": 3.691749084,
+            "intervals": [
+              [
+                0,
+                63
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 108740608
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 108740608,
+                "peak_sample": 63,
+                "simultaneous_peak_bytes": 108740608,
+                "vector_at_peak": {
+                  "client": 108740608
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90308608,
+                    "boundary_b": 90619904,
+                    "client": 108740608,
+                    "inference": 113737728,
+                    "preparation": 112820224
+                  },
+                  "instances": 5,
+                  "largest_individual_peak_bytes": 113737728,
+                  "peak_sample": 63,
+                  "simultaneous_peak_bytes": 516227072,
+                  "vector_at_peak": {
+                    "boundary_a": 90308608,
+                    "boundary_b": 90619904,
+                    "client": 108740608,
+                    "inference": 113737728,
+                    "preparation": 112820224
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90308608,
+                  "boundary_b": 90619904,
+                  "inference": 113737728,
+                  "preparation": 112820224
+                },
+                "instances": 4,
+                "largest_individual_peak_bytes": 113737728,
+                "peak_sample": 57,
+                "simultaneous_peak_bytes": 407486464,
+                "vector_at_peak": {
+                  "boundary_a": 90308608,
+                  "boundary_b": 90619904,
+                  "inference": 113737728,
+                  "preparation": 112820224
+                }
+              },
+              "roles": {
+                "boundary_a": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90308608
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90308608,
+                  "peak_sample": 41,
+                  "simultaneous_peak_bytes": 90308608,
+                  "vector_at_peak": {
+                    "boundary_a": 90308608
+                  }
+                },
+                "boundary_b": {
+                  "individual_peak_bytes": {
+                    "boundary_b": 90619904
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90619904,
+                  "peak_sample": 53,
+                  "simultaneous_peak_bytes": 90619904,
+                  "vector_at_peak": {
+                    "boundary_b": 90619904
+                  }
+                },
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 108740608
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 108740608,
+                  "peak_sample": 63,
+                  "simultaneous_peak_bytes": 108740608,
+                  "vector_at_peak": {
+                    "client": 108740608
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 113737728
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 113737728,
+                  "peak_sample": 57,
+                  "simultaneous_peak_bytes": 113737728,
+                  "vector_at_peak": {
+                    "inference": 113737728
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 112820224
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 112820224,
+                  "peak_sample": 56,
+                  "simultaneous_peak_bytes": 112820224,
+                  "vector_at_peak": {
+                    "preparation": 112820224
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90308608,
+                  "boundary_b": 90619904,
+                  "client": 108740608,
+                  "inference": 113737728,
+                  "preparation": 112820224
+                },
+                "instances": 5,
+                "largest_individual_peak_bytes": 113737728,
+                "peak_sample": 63,
+                "simultaneous_peak_bytes": 516227072,
+                "vector_at_peak": {
+                  "boundary_a": 90308608,
+                  "boundary_b": 90619904,
+                  "client": 108740608,
+                  "inference": 113737728,
+                  "preparation": 112820224
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "request_setup": {
+            "all_link_stream_bytes": 107655,
+            "client_download_bytes": 100067,
+            "client_upload_bytes": 7588,
+            "directed_stream_bytes": {
+              "boundary_a->client": 726,
+              "boundary_b->client": 726,
+              "client->boundary_a": 804,
+              "client->boundary_b": 804,
+              "client->inference": 5767,
+              "client->preparation": 213,
+              "inference->client": 98025,
+              "inference->preparation": 0,
+              "preparation->client": 590,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 1.309911541,
+            "intervals": [
+              [
+                63,
+                67
+              ],
+              [
+                69,
+                84
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 115228672
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 115228672,
+                "peak_sample": 84,
+                "simultaneous_peak_bytes": 115228672,
+                "vector_at_peak": {
+                  "client": 115228672
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90439680,
+                    "boundary_b": 90734592,
+                    "client": 115228672,
+                    "inference": 117637120,
+                    "preparation": 114524160
+                  },
+                  "instances": 5,
+                  "largest_individual_peak_bytes": 117637120,
+                  "peak_sample": 84,
+                  "simultaneous_peak_bytes": 528547840,
+                  "vector_at_peak": {
+                    "boundary_a": 90439680,
+                    "boundary_b": 90734592,
+                    "client": 115228672,
+                    "inference": 117637120,
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90439680,
+                  "boundary_b": 90734592,
+                  "inference": 117637120,
+                  "preparation": 114524160
+                },
+                "instances": 4,
+                "largest_individual_peak_bytes": 117637120,
+                "peak_sample": 82,
+                "simultaneous_peak_bytes": 413319168,
+                "vector_at_peak": {
+                  "boundary_a": 90439680,
+                  "boundary_b": 90734592,
+                  "inference": 117637120,
+                  "preparation": 114507776
+                }
+              },
+              "roles": {
+                "boundary_a": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90439680
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90439680,
+                  "peak_sample": 82,
+                  "simultaneous_peak_bytes": 90439680,
+                  "vector_at_peak": {
+                    "boundary_a": 90439680
+                  }
+                },
+                "boundary_b": {
+                  "individual_peak_bytes": {
+                    "boundary_b": 90734592
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90734592,
+                  "peak_sample": 82,
+                  "simultaneous_peak_bytes": 90734592,
+                  "vector_at_peak": {
+                    "boundary_b": 90734592
+                  }
+                },
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 115228672
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 115228672,
+                  "peak_sample": 84,
+                  "simultaneous_peak_bytes": 115228672,
+                  "vector_at_peak": {
+                    "client": 115228672
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 117637120
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 117637120,
+                  "peak_sample": 80,
+                  "simultaneous_peak_bytes": 117637120,
+                  "vector_at_peak": {
+                    "inference": 117637120
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114524160
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114524160,
+                  "peak_sample": 79,
+                  "simultaneous_peak_bytes": 114524160,
+                  "vector_at_peak": {
+                    "preparation": 114524160
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90439680,
+                  "boundary_b": 90734592,
+                  "client": 115228672,
+                  "inference": 117637120,
+                  "preparation": 114524160
+                },
+                "instances": 5,
+                "largest_individual_peak_bytes": 117637120,
+                "peak_sample": 84,
+                "simultaneous_peak_bytes": 528547840,
+                "vector_at_peak": {
+                  "boundary_a": 90439680,
+                  "boundary_b": 90734592,
+                  "client": 115228672,
+                  "inference": 117637120,
+                  "preparation": 114507776
+                }
+              }
+            },
+            "status": "observed"
+          },
+          "unclassified": {
+            "all_link_stream_bytes": 0,
+            "client_download_bytes": 0,
+            "client_upload_bytes": 0,
+            "directed_stream_bytes": {
+              "boundary_a->client": 0,
+              "boundary_b->client": 0,
+              "client->boundary_a": 0,
+              "client->boundary_b": 0,
+              "client->inference": 0,
+              "client->preparation": 0,
+              "inference->client": 0,
+              "inference->preparation": 0,
+              "preparation->client": 0,
+              "preparation->inference": 0
+            },
+            "elapsed_seconds": 0.02424825,
+            "intervals": [
+              [
+                87,
+                88
+              ],
+              [
+                90,
+                91
+              ]
+            ],
+            "memory": {
+              "client": {
+                "individual_peak_bytes": {
+                  "client": 116686848
+                },
+                "instances": 1,
+                "largest_individual_peak_bytes": 116686848,
+                "peak_sample": 90,
+                "simultaneous_peak_bytes": 116686848,
+                "vector_at_peak": {
+                  "client": 116686848
+                }
+              },
+              "hosts": {
+                "local_host": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90750976,
+                    "boundary_b": 90996736,
+                    "client": 116686848,
+                    "inference": 118030336,
+                    "preparation": 114507776
+                  },
+                  "instances": 5,
+                  "largest_individual_peak_bytes": 118030336,
+                  "peak_sample": 90,
+                  "simultaneous_peak_bytes": 530972672,
+                  "vector_at_peak": {
+                    "boundary_a": 90750976,
+                    "boundary_b": 90996736,
+                    "client": 116686848,
+                    "inference": 118030336,
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "non_client": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                },
+                "instances": 4,
+                "largest_individual_peak_bytes": 118030336,
+                "peak_sample": 90,
+                "simultaneous_peak_bytes": 414285824,
+                "vector_at_peak": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                }
+              },
+              "roles": {
+                "boundary_a": {
+                  "individual_peak_bytes": {
+                    "boundary_a": 90750976
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90750976,
+                  "peak_sample": 90,
+                  "simultaneous_peak_bytes": 90750976,
+                  "vector_at_peak": {
+                    "boundary_a": 90750976
+                  }
+                },
+                "boundary_b": {
+                  "individual_peak_bytes": {
+                    "boundary_b": 90996736
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 90996736,
+                  "peak_sample": 87,
+                  "simultaneous_peak_bytes": 90996736,
+                  "vector_at_peak": {
+                    "boundary_b": 90996736
+                  }
+                },
+                "client": {
+                  "individual_peak_bytes": {
+                    "client": 116686848
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 116686848,
+                  "peak_sample": 90,
+                  "simultaneous_peak_bytes": 116686848,
+                  "vector_at_peak": {
+                    "client": 116686848
+                  }
+                },
+                "inference": {
+                  "individual_peak_bytes": {
+                    "inference": 118030336
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 118030336,
+                  "peak_sample": 87,
+                  "simultaneous_peak_bytes": 118030336,
+                  "vector_at_peak": {
+                    "inference": 118030336
+                  }
+                },
+                "preparation": {
+                  "individual_peak_bytes": {
+                    "preparation": 114507776
+                  },
+                  "instances": 1,
+                  "largest_individual_peak_bytes": 114507776,
+                  "peak_sample": 87,
+                  "simultaneous_peak_bytes": 114507776,
+                  "vector_at_peak": {
+                    "preparation": 114507776
+                  }
+                }
+              },
+              "whole_deployment": {
+                "individual_peak_bytes": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "client": 116686848,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                },
+                "instances": 5,
+                "largest_individual_peak_bytes": 118030336,
+                "peak_sample": 90,
+                "simultaneous_peak_bytes": 530972672,
+                "vector_at_peak": {
+                  "boundary_a": 90750976,
+                  "boundary_b": 90996736,
+                  "client": 116686848,
+                  "inference": 118030336,
+                  "preparation": 114507776
+                }
+              }
+            },
+            "status": "observed"
+          }
+        },
+        "post_scenario_directed_stream_bytes": {
+          "boundary_a->client": 0,
+          "boundary_b->client": 0,
+          "client->boundary_a": 0,
+          "client->boundary_b": 0,
+          "client->inference": 290,
+          "client->preparation": 294,
+          "inference->client": 220,
+          "inference->preparation": 4,
+          "preparation->client": 190,
+          "preparation->inference": 8
+        },
+        "post_scenario_stream_bytes": 1006,
+        "sampled_window_memory": {
+          "client": {
+            "individual_peak_bytes": {
+              "client": 116785152
+            },
+            "instances": 1,
+            "largest_individual_peak_bytes": 116785152,
+            "peak_sample": 107,
+            "simultaneous_peak_bytes": 116785152,
+            "vector_at_peak": {
+              "client": 116785152
+            }
+          },
+          "hosts": {
+            "local_host": {
+              "individual_peak_bytes": {
+                "boundary_a": 90750976,
+                "boundary_b": 90996736,
+                "client": 116785152,
+                "inference": 118063104,
+                "preparation": 114524160
+              },
+              "instances": 5,
+              "largest_individual_peak_bytes": 118063104,
+              "peak_sample": 90,
+              "simultaneous_peak_bytes": 530972672,
+              "vector_at_peak": {
+                "boundary_a": 90750976,
+                "boundary_b": 90996736,
+                "client": 116686848,
+                "inference": 118030336,
+                "preparation": 114507776
+              }
+            }
+          },
+          "non_client": {
+            "individual_peak_bytes": {
+              "boundary_a": 90750976,
+              "boundary_b": 90996736,
+              "inference": 118063104,
+              "preparation": 114524160
+            },
+            "instances": 4,
+            "largest_individual_peak_bytes": 118063104,
+            "peak_sample": 92,
+            "simultaneous_peak_bytes": 414318592,
+            "vector_at_peak": {
+              "boundary_a": 90750976,
+              "boundary_b": 90996736,
+              "inference": 118063104,
+              "preparation": 114507776
+            }
+          },
+          "roles": {
+            "boundary_a": {
+              "individual_peak_bytes": {
+                "boundary_a": 90750976
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 90750976,
+              "peak_sample": 89,
+              "simultaneous_peak_bytes": 90750976,
+              "vector_at_peak": {
+                "boundary_a": 90750976
+              }
+            },
+            "boundary_b": {
+              "individual_peak_bytes": {
+                "boundary_b": 90996736
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 90996736,
+              "peak_sample": 87,
+              "simultaneous_peak_bytes": 90996736,
+              "vector_at_peak": {
+                "boundary_b": 90996736
+              }
+            },
+            "client": {
+              "individual_peak_bytes": {
+                "client": 116785152
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 116785152,
+              "peak_sample": 107,
+              "simultaneous_peak_bytes": 116785152,
+              "vector_at_peak": {
+                "client": 116785152
+              }
+            },
+            "inference": {
+              "individual_peak_bytes": {
+                "inference": 118063104
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 118063104,
+              "peak_sample": 92,
+              "simultaneous_peak_bytes": 118063104,
+              "vector_at_peak": {
+                "inference": 118063104
+              }
+            },
+            "preparation": {
+              "individual_peak_bytes": {
+                "preparation": 114524160
+              },
+              "instances": 1,
+              "largest_individual_peak_bytes": 114524160,
+              "peak_sample": 79,
+              "simultaneous_peak_bytes": 114524160,
+              "vector_at_peak": {
+                "preparation": 114524160
+              }
+            }
+          },
+          "whole_deployment": {
+            "individual_peak_bytes": {
+              "boundary_a": 90750976,
+              "boundary_b": 90996736,
+              "client": 116785152,
+              "inference": 118063104,
+              "preparation": 114524160
+            },
+            "instances": 5,
+            "largest_individual_peak_bytes": 118063104,
+            "peak_sample": 90,
+            "simultaneous_peak_bytes": 530972672,
+            "vector_at_peak": {
+              "boundary_a": 90750976,
+              "boundary_b": 90996736,
+              "client": 116686848,
+              "inference": 118030336,
+              "preparation": 114507776
+            }
+          }
+        },
+        "sampling": {
+          "capacity": {
+            "boundary_sample_allowance": 288,
+            "client_allocation_admission_bytes": 67108864,
+            "interval_ns": 50000000,
+            "maximum_sample_bytes": 8192,
+            "maximum_samples": 24888,
+            "maximum_trace_disk_bytes": 203882496,
+            "replay_owner": "controller_after_worker_exit",
+            "shutdown_grace_seconds": 30,
+            "storage": "private_streamed_jsonl",
+            "timeout_seconds": 1200
+          },
+          "maximum_between_sample_gap_ns": 78406208,
+          "maximum_within_sample_skew_ns": 53016833,
+          "nominal_interval_ns": 50000000,
+          "samples": 110
+        },
+        "schema": "pllm.publication_lifecycle_summary.v2",
+        "scope": {
+          "archive_qualification": "per-trial reference, manifest, receipts and ordinary-envelope reconciliation; not cohort qualification",
+          "boundary_memory_samples_shared": true,
+          "child_census": "spawn-bound known providers plus sampled undeclared-descendant checks during serving; not an OS fork audit",
+          "device_memory": null,
+          "excludes": "process startup before observer; final receipt serialization and later interpreter teardown",
+          "memory": "sampled_process_rss_vectors_with_reported_read_skew",
+          "network_excluded": [
+            "telemetry",
+            "checkpoint distribution",
+            "IP/TCP headers, ACKs, retransmissions"
+          ],
+          "phase_boundaries": "synchronous counter/RSS snapshot completion; observer overhead included",
+          "provenance": "local consistency receipts, not remote worker authentication; dependencies use ordinary parent build inspection",
+          "provider_lifetime_high_water": null,
+          "provider_profile": "resource_unnormalized_per_party_100_down_40_up_local_emulation",
+          "provisioned_capacity": null,
+          "qualification": "observation structure only; archive receipts and ordinary envelope require load_trace",
+          "rss_may_count_shared_pages_multiple_times": true,
+          "sampling_can_miss_peaks": true,
+          "supported_graph": "one native client with two prepared providers and optionally two boundary providers; one cold response",
+          "traffic": "rate_admitted_tcp_payload",
+          "whole_process_high_water_is_separate": true,
+          "window": "observer_start_through_post_serialization_atexit_sample"
+        },
+        "semantic_work": {
+          "decode_forwards": 1,
+          "prefill_forwards": 1,
+          "preparation_calls": 1,
+          "selections": 2,
+          "terminal_eos": false,
+          "text_events": 2
+        }
+      },
+      "trace_ref": {
+        "binding": {
+          "nonce": "0e47bb3e28a5b954b354b5a896622bc390ad0c971afd53c8b1c32c53f4ca23cf",
+          "prompt_manifest_digest": "aad084599db2902946e96d11345ae5072e4bee742cc2ce59d7eac761f6b09d36",
+          "source_identity": "56eb06ad72ed89b12118133ccb4fbd164164103b2c577aaea5ba25a30c52fac8",
+          "target_digest": "7746d7b58bf3eb4578997fdf120bb1a3d732d82e0c859ca5f61b6c777c48a1f7"
+        },
+        "bytes": 1675,
+        "path": "/Users/blairhudson/workspace/pllm/target/research/publication-lifecycle-archive-2026-10-17-v3/cohort.traces/0e47bb3e28a5b954b354b5a896622bc390ad0c971afd53c8b1c32c53f4ca23cf/manifest.json",
+        "schema": "pllm.publication_trace_reference.v1",
+        "sha256": "f27acbfea144a3f370c4349ff0f5f473b2d0f60aa39561466269228b141c30f7"
+      }
+    }
+  ]
+}

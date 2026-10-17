@@ -191,6 +191,12 @@ Keep admission estimates and enforced limits separate from measured peaks.
 For each repetition, calculate the aggregates before selecting the largest observed peak across repetitions.
 Missing simultaneous or phase measurements remain unknown.
 
+The [bounded lifecycle observer](../docs/research/publication-lifecycle-reference.md)
+now supplies phase/role/host sampled RSS and conserved stream observations for
+the local cold prepared graphs. Three generated-checkpoint trials pass independent
+archive replay. Complete-process high-water, device memory, matched provider
+budgets, and the real ten-method campaign remain separate gates.
+
 ## 5. Measurement objectives
 
 Use shared limits of 100 Mbps download and 40 Mbps upload for each party.

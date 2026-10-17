@@ -10,3 +10,5 @@ paper/artifacts/**/*.bin binary
 # Frozen command output retains its original bytes, including whitespace.
 paper/artifacts/conformance/**/*.log -text whitespace=-blank-at-eol,-blank-at-eof
 paper/artifacts/conformance/**/*.xml -text whitespace=-blank-at-eol,-blank-at-eof
+# The public lifecycle fixture intentionally ends with a space before its newline.
+paper/artifacts/publication-lifecycle/**/cohort.prompt.txt -text whitespace=-blank-at-eol

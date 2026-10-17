@@ -1,0 +1,16 @@
+{
+  "status": "rejected",
+  "profile": {
+    "name": "resource_unnormalized_per_party_100_down_40_up",
+    "network": "local TCP payload pacing, distinct parties, no installed RTT/loss emulator",
+    "provider_cpu_quota": null,
+    "provider_rss_quota": null,
+    "aggregate_provider_access_equal": false,
+    "serving_rank": "unqualified_pilot"
+  },
+  "failure": {
+    "where": "campaign",
+    "exception": "InvalidObservation",
+    "code": "response_failed"
+  }
+}
