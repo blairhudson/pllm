@@ -611,6 +611,20 @@ copies and scratch under 256 MiB and bounds product work. Code-distance and
 dual-LPN certification, batch delegation and decoder transport remain absent.
 Query payload, public tables and estimated field-boundary bytes remain separate;
 there is no full-wire or process peak-memory result.
+The separate Rust-only GKM delegation capsule independently implements bounded
+signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
+source's float32-before-division boundary. Dense XOR lookup preserves original
+float32 row bytes and checks publisher-pinned SHA-256 rows. Secp256k1 commitments,
+post-response challenges and complete scheduled-claim counts bind atomic window
+acceptance. Non-cloneable pending-role slots and shared publication/window leases
+bound owned payloads; malformed or duplicate responses poison the transaction.
+Fallible dynamic allocation and a process-local logical payload allowance do not
+price caller buffers, allocator overhead or fixed-handle allocation failure.
+This capsule has no compiled decoder, SDK, role transport, seeded-share codec or
+checkpoint-quality result. A separate pinned Qwen source scanner has stopped on
+host swapout before decoding any tensor; its header geometry does not establish
+numeric admission. Contracts: `docs/research/gkm-delegation-capsule.md` and
+`docs/research/gkm-checkpoint-bounds.md`.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The separate direct `pllm.native.PagedGEMM` API owns an authenticated private
@@ -2866,6 +2880,14 @@ remain absent. A separate fresh twelve-prompt pinned W8A8 Qwen audit rejects all
 decoder executes without an encrypted candidate, clipping or private range fitting.
 This narrow-domain operator establishes no checkpoint quality or paper-system
 reproduction. Details: `docs/research/encrypted-softmax-reference.md`.
+
+The separate Poulpy v0.9.0 qualification targets at most two native-Rust CKKS
+refreshes on one Apple-M CPU thread under an 8 GiB admission ceiling. Its torus
+representation requires a separate source mapping before use in any paper method.
+Source-derived pricing rejects the eager `NTT4x30Portable` preset: 33 prepared
+automorphism keys alone need 29.78 GiB, before other keys and scratch. No encrypted
+refresh has run. The standalone probe and immutable blocked receipts live in
+`benchmarks/native/poulpy_refresh/`; they add no runtime backend dependency.
 
 A separate finite encrypted-residency probe carries state through two synthetic
 residual transitions and an output head under one client/key context. Six fresh
