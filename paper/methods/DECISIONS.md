@@ -142,6 +142,36 @@ buffers, typed cross-role storage, and coefficient-solver setup remain unresolve
 These source calculations authorize no encrypted execution. Parameter security
 and second-refresh numerical admission remain separate gates.
 
+## D5. Ordinary SDK integration is required
+
+**Author direction:** every method must fit the existing SDK capability contracts
+so users can compose it through `Pipeline`, `Experiment`, the CLI and benchmarks.
+Native or internal research execution is an implementation milestone, not a
+completed method.
+
+Define immutable component configuration and its numerical, role, verification,
+state and lifecycle contracts before expanding a method-specific implementation.
+Reuse component discovery, serialization, source resolution, native compilation,
+role supervision, client/gateway execution and benchmark evidence. Extend a
+shared contract when necessary; do not create an independent public runner,
+configuration schema or method-named CLI branch.
+
+**Required validation:** component discovery and exact round trips; Pipeline and
+Experiment resolution; early rejection of unsupported compositions; generated
+complete requests through the ordinary SDK and local gateway; the exact published
+CLI invocation; and ordinary benchmark/replay with complete ownership accounting.
+Request cancellation, partial output, malformed replies and final acceptance must
+preserve each method's source contract across those entry points.
+
+Operator-only availability and complete-response availability remain separate
+capabilities. An installed operator does not qualify an unsupported decoder.
+Internal references must retain their scope until their public execution path
+passes these gates. In particular, the bounded GKM reference still needs genuine
+party-local workers and verified request integration; its two in-process logical
+workers cannot substitute for that topology.
+The [SDK integration contract](sdk-integration.md) records the shared extension
+points and concrete end-to-end completion checks.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -150,6 +180,7 @@ and second-refresh numerical admission remain separate gates.
 | D2 | Prefer an existing Rust backend | Poulpy is the selected qualification candidate under D4; source-method adoption remains open. |
 | D3 | Approved: Qwen2.5-0.5B-Instruct | Common-model work preserves each method's numerics; substantial protocol/state resolutions still need approval. |
 | D4 | Approved: bounded Poulpy torus qualification | At most two refreshes, one CPU execution thread, independent numerical checks, and an 8 GiB admission ceiling; no implied source-method mapping. |
+| D5 | Required: ordinary SDK integration | Component, Pipeline, Experiment, compiler, SDK/gateway, CLI and benchmark checks gate complete-method status. |
 
 Numerical conflicts in PUMA, BumbleBee, FuseFSS and NEXUS need complete concrete
 profiles or better source evidence. Those decisions will be raised individually

@@ -1,0 +1,56 @@
+{
+  "commands": {
+    "model-admission-tests": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "pllm-models",
+      "--lib",
+      "source_mappings::tests",
+      "--",
+      "--test-threads=1"
+    ],
+    "native-tests": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "pllm-compiler",
+      "--test",
+      "decoder_matrix_inventory",
+      "--test",
+      "decoder_runtime_schedule",
+      "--test",
+      "delegated_decoder",
+      "--",
+      "--test-threads=1"
+    ],
+    "clippy": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--offline",
+      "-p",
+      "pllm-models",
+      "-p",
+      "pllm-compiler",
+      "-p",
+      "pllm-python",
+      "--lib",
+      "--",
+      "-D",
+      "warnings",
+      "-A",
+      "clippy::needless_range_loop",
+      "-A",
+      "clippy::nonminimal_bool"
+    ]
+  },
+  "env": {
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TERM_COLOR": "never"
+  }
+}

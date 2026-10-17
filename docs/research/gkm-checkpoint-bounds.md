@@ -178,7 +178,10 @@ when the installed native extension provides it, otherwise it rejects.
 Installed extraction and the source scan identify 96 body groups plus the head
 and lookup. Grouped geometry gives 97 matrices, 11,024,640 compressed-point payload
 bytes and 20,422,656 client accumulator bytes. No publication was constructed.
-**The final GKM publication layout remains unadmitted.** The old
+**The final GKM publication layout remains unadmitted.** The separate
+[bounded decoder reference](gkm-decoder-reference.md) checks generated
+Qwen2/Qwen3/Llama logits and final KV, but rejects the real source geometry.
+It supplies no missing full-width, quality or transport evidence. The old
 receipts keep their original per-operation geometry and failure status.
 
 For the explicitly **conditional unfused** layout of one matrix per semantic

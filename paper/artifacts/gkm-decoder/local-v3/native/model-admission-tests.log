@@ -1,0 +1,11 @@
+   Compiling pllm-models v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-models)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.21s
+     Running unittests src/lib.rs (target/debug/deps/pllm_models-a08105d577889c9b)
+
+running 3 tests
+test source_mappings::tests::executable_decoder_modules_are_named_and_bound_by_architecture ... ok
+test source_mappings::tests::expansion_admission_precedes_the_graph_lowering_callback ... ok
+test source_mappings::tests::expansion_prices_resolved_heads_and_complete_projection_shapes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 52 filtered out; finished in 0.00s
+

@@ -285,14 +285,19 @@ No unexpected production bug was found; no cap adjustment or commit was made.
 
 ## 6. Remaining gates
 
+The separate [bounded decoder reference](gkm-decoder-reference.md) now composes
+this profile with generated semantic prefill/decode and final-window acceptance.
+Its installed binding and small conformance envelope do not admit real-checkpoint
+geometry or close the native slice's deployment and performance gates below.
+
 - Bounded native source/ownership audits passed. Independent cryptographic review
   and complete composed-protocol security remain open.
 - No seed wire codec, confidential/authenticated delivery, separate-worker process
   admission, transport retry/reconnect, or durable crash-resumption/replay budget.
   Fresh-process tests establish fresh initialization, not restart persistence.
-- No batched prefill, model import/execution, decoder/KV/sampler integration,
-  model range/state/quality admission, or enlarged resource envelope.
-- No SIMD/GPU/performance qualification, measured communication saving, benchmark,
-  wheel, installed SDK, or complete source-performance comparator claim.
+- No batched prefill, real-checkpoint range/state/quality admission, stochastic
+  sampler integration, or enlarged resource envelope.
+- No SIMD/GPU/performance qualification, measured communication saving, serving
+  benchmark, distributed SDK, or complete source-performance comparator claim.
 - Any different seed scope, counter packing, purpose schedule, numeric graph or
   acceptance window remains a separate versioned review/approval decision.

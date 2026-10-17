@@ -625,8 +625,19 @@ The optional native seeded profile uses AES-128 over duplicated little-endian
 window. Only designated worker One expands its seed-only views. Shared leases,
 exact stream consumption and sticky failure state retain final-window acceptance;
 bounded maximum-shape allocation and ownership checks pass. Seed transport and
-persistent restart accounting remain absent. This capsule has no compiled decoder,
-SDK, role transport or checkpoint-quality result. A separate pinned Qwen source
+persistent restart accounting remain absent. A separate bounded compiler-bound
+reference now composes original float32 lookup, fixed-point body/full-head products,
+shared client-local float32 operators and full KV under one final verified window.
+Twelve generated Qwen2/Qwen3/Llama full/seeded executions preserve 2,112 complete
+logit/final-active-KV values against independent integer/float32 equations, including
+history and pending selections. Malformed calls, incomplete windows and cancellation
+retire owned material. Public geometry/source/graph admission precedes execution;
+source-mapped expansion limits precede graph construction and source mappings are
+bounded before value reads. The repaired wheel passes 206 Python and 44 native
+checks, with two optional checkpoint skips. Small capsule limits reject the real
+Qwen checkpoint. This internal reference has
+no Pipeline, SDK role transport or checkpoint-quality result. Contract and replay:
+`docs/research/gkm-decoder-reference.md`. A separate pinned Qwen source
 scanner now passes source-only numeric admission over 494,032,768 values: all
 169 linear/head tensors fit signed i16 and 5,858 scalar-oracle checks agree.
 Actual activation bounds, the local numeric graph and full-width publication
@@ -1589,7 +1600,12 @@ a path-independent checkpoint lock. Generic immutable configuration stays in
 `pllm.configuration`; concrete implementation classes live in capability families
 (`protocols`, `preparation`, `correlation`, `quantization`, `kernels`, `roles`, `nonlinear`,
 `schedulers`, `state`, `passes`, and `verification`), and `pllm.components`
-derives descriptor discovery from those classes. `pllm.profiles` provides typed
+derives descriptor discovery from those classes. Method completion additionally
+requires ordinary component serialization, Pipeline/Experiment resolution, native
+admission, SDK/gateway, CLI and benchmark execution. Internal references and
+operator availability retain their distinct scope. Shared integration requirements
+and current GKM gaps are in `paper/methods/sdk-integration.md`.
+`pllm.profiles` provides typed
 slot contracts for the two-service-role public baseline and shipped one-provider
 proprietary engines while generic serialized pipelines remain available. An
 optional `pllm.roles.PreparedProviderRoles` topology component explicitly binds

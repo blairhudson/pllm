@@ -49,8 +49,8 @@ from .transformer_client import (
 )
 
 
-class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
-    """Execute validated semantic steps with client-owned attention and cache state."""
+class _SemanticDecoderState(MaskedTransformerClientRuntime):
+    """Bundle-backed state and admission for the ordinary semantic executor."""
 
     _causal_reduction: str | None = None
     _retained = None
@@ -560,6 +560,13 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         if key is None:
             raise TransformerClientError("semantic operation lacks a bound local tensor")
         return np.asarray(self.bundle.arrays[key], dtype=np.float32)
+
+
+class SemanticLocalOperators:
+    """Shared local operators; callers supply bound tensors and admitted state.
+
+    This mixin does not admit a protocol, bundle, source, or execution schedule.
+    """
 
     @staticmethod
     def _declared_state_kinds(graph: dict[str, Any]) -> dict[str, str]:
@@ -1111,6 +1118,10 @@ class SemanticDecoderRuntime(MaskedTransformerClientRuntime):
         raise TransformerClientError(
             f"semantic operator {kind!r} ({operation.get('id')!r}, layout={attrs.get('layout')!r}) is not executable"
         )
+
+
+class SemanticDecoderRuntime(SemanticLocalOperators, _SemanticDecoderState):
+    """Execute validated semantic steps with client-owned attention and cache state."""
 
     def _linear_step(self, phase, step, operations, ids, values, *, continuation):
         """Keep temporary tensor aliases inside one step's lifetime."""

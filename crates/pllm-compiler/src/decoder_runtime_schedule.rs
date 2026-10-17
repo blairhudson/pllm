@@ -1426,7 +1426,7 @@ fn linear_role(graph: &DecoderGraph, group: &RemoteGroup<'_>) -> Option<&'static
     None
 }
 
-fn lower_phase(
+pub(crate) fn lower_phase(
     graph: &DecoderGraph,
     linear_executor: DecoderRuntimeExecutor,
     client_prefix_layers: u64,

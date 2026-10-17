@@ -61,7 +61,8 @@ cannot produce an accepted result.
 The trusted client may inspect tentative values for dependent local computation.
 That access does not authorize accepted text, reusable decoder state or committed
 sampling state before the final check. Model state and output buffering are
-future integration responsibilities. Smaller verification windows would change
+composition responsibilities. The separate [bounded decoder reference](gkm-decoder-reference.md)
+now enforces that barrier for generated fixed-length requests. Smaller windows would change
 the source batching contract and require a separate decision.
 
 The primitive tests check arithmetic, byte recovery, group relations and consuming
@@ -145,5 +146,6 @@ The separate [seeded-share profile](gkm-seeded-shares.md) now supplies continuou
 AES-128 expansion to one designated worker per complete window. Independent
 linear and lookup keys retain the source counter layout and the same arithmetic
 and final acceptance barrier. Native ownership review and maximum-shape allocation
-checks pass. Seed transport, compiler/decoder integration, and measured costs
-remain separate gates.
+checks pass. The bounded compiler/decoder reference now composes both profiles
+without changing the primitive limits. Seed transport, real-checkpoint decoder
+admission and measured costs remain separate gates.

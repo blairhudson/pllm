@@ -32,6 +32,12 @@ Implement the published algorithms in reusable native, compiler, and runtime
 components. Use upstream code only as specification and oracle material.
 Substantial changes to arithmetic, protocol, trust, model functionality, or
 execution require approval before implementation.
+The [ordinary SDK gate](DECISIONS.md#d5-ordinary-sdk-integration-is-required)
+requires shared component discovery/serialization, `Pipeline`, `Experiment`,
+native admission, SDK/gateway, CLI and benchmark integration. Internal probes
+are milestones; they do not complete a method or authorize a separate public API.
+The [integration contract](sdk-integration.md) identifies the shared extension
+points, current GKM gaps and required end-to-end checks.
 
 The first selected implementation path is a complete Gupta–Katz–Miers request.
 Its source-resolution decisions precede a verified linear capsule, private
@@ -46,6 +52,15 @@ compiler groups without selecting W8A8. Native metadata and rebuilt Python
 binding tests pass. The pinned Qwen source scan also passes its source-only
 numeric gate after correcting macOS swap telemetry. Complete numeric-graph,
 publication, actual-input-bound, state and transport admission remain open.
+The separate [bounded GKM decoder](../../docs/research/gkm-decoder-reference.md)
+now composes the compiler schedule, original lookup bytes, source fixed-point
+linears and request-end acceptance. Generated Qwen2/Qwen3/Llama full/seeded
+prefill/decode matches independent logits and final-KV oracles. The small
+conformance envelope rejects real-checkpoint geometry; original-model, full-width,
+distributed and performance qualification remains open.
+The admission-repaired wheel passes 206 Python and 44 native checks. Pre-lowering
+geometry budgets and bounded source-map reads close the integration findings;
+earlier functional evidence retains its separate identity.
 
 ## Current validation host
 

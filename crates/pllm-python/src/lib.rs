@@ -8,6 +8,7 @@ mod ckks;
 mod coded_delegation;
 mod compact_product;
 mod continuation;
+mod delegated_decoder;
 mod execution_capsule;
 mod head_index;
 mod logrow;
@@ -1817,6 +1818,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(decoder_coverage, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_runtime_schedule, module)?)?;
     module.add_function(wrap_pyfunction!(decoder_matrix_inventory, module)?)?;
+    delegated_decoder::register(module)?;
     module.add_function(wrap_pyfunction!(lower_gated_multiply_q7, module)?)?;
     module.add_function(wrap_pyfunction!(apply_model_component, module)?)?;
     module.add_function(wrap_pyfunction!(deployment_benchmark_report, module)?)?;

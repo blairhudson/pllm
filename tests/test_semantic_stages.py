@@ -158,6 +158,7 @@ def test_fused_token_lookup_assigns_each_declared_numeric_output(selected: str) 
     # Isolated token-boundary fixture still needs the phase lifecycle fields;
     # this does not advertise whole-decoder admission for the synthetic graph.
     decoder._continuation_failed = False
+    decoder._boundary = None
     decoder.nonlinear_evaluator = None
     decoder._generated_prefix_contract = None
     decoder._snapshot_basis = None

@@ -1,0 +1,49 @@
+{
+  "status": "incomplete",
+  "reason": "shell_timeout_120_seconds",
+  "completed_test_xml": false,
+  "owned_children_retired": [
+    {
+      "cmdline": [
+        "/Users/blairhudson/workspace/pllm/target/research/gkm-decoder-wheel-v2/venv/bin/python",
+        "-m",
+        "pllm",
+        "serve",
+        "inference",
+        "--privacy-mode",
+        "public",
+        "--protocol",
+        "guarded",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "50583",
+        "--rendezvous-capacity",
+        "262144",
+        "--rendezvous-max-bytes",
+        "2147483648",
+        "--verification-component",
+        "pllm/freivalds-verify/v1",
+        "--verification-target-failure-bits",
+        "40",
+        "--model",
+        "/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3805/test_verified_compiled_decoder0/model",
+        "--model-id",
+        "verified-compiled",
+        "--model-kind",
+        "huggingface",
+        "--weight-bits",
+        "8",
+        "--activation-bits",
+        "8",
+        "--local-files-only",
+        "--engine-threads",
+        "1"
+      ],
+      "create_time": 1792215945.999557,
+      "ppid": 1,
+      "pid": 81813,
+      "exit_code": null
+    }
+  ]
+}

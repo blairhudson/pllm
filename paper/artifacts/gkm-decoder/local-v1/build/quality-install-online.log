@@ -1,0 +1,10 @@
+Using Python 3.13.15 environment at: target/research/gkm-decoder-wheel-v1/venv
+Resolved 27 packages in 730ms
+Downloading transformers (11.5MiB)
+ Downloaded transformers
+Prepared 4 packages in 1.88s
+Installed 4 packages in 40ms
+ + regex==2026.9.29
+ + shellingham==1.5.4
+ + transformers==5.16.1
+ + typer==0.27.3

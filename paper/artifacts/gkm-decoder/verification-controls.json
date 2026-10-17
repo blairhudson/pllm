@@ -1,0 +1,38 @@
+{
+  "archive_index_sha256": "ba3f3128dbb23e03c4b509b682512ce7074352930a13a1c0d786f4fc4aadabb6",
+  "checks": [
+    {
+      "control": "payload_corruption",
+      "reason": "archive size mismatch",
+      "status": "rejected"
+    },
+    {
+      "control": "extra_file",
+      "reason": "archive manifest incomplete",
+      "status": "rejected"
+    },
+    {
+      "control": "rehashed_source_substitution",
+      "reason": "frozen source differs from built source",
+      "status": "rejected"
+    },
+    {
+      "control": "rehashed_test_failure",
+      "reason": "final installed-wheel checks incomplete",
+      "status": "rejected"
+    },
+    {
+      "control": "rehashed_native_source_substitution",
+      "reason": "native checks differ from built source",
+      "status": "rejected"
+    },
+    {
+      "control": "rehashed_test_snapshot_substitution",
+      "reason": "test snapshot differs from executed input",
+      "status": "rejected"
+    }
+  ],
+  "controls_runner_sha256": "ffca747022f3c2d3a6acb874f5ecb635ef24a667fc4f886b650dda57bab39b60",
+  "scope": "read-only archive gate corruption controls; no model execution",
+  "verifier_sha256": "afb864a82025910570b1a6da65bcdbc98a2190bb0edb513da9432b6f1e89baf3"
+}

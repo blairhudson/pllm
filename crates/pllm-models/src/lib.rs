@@ -14,7 +14,10 @@ mod fused_dense_decoder;
 mod hybrid_text_decoder;
 mod rotary_scale;
 mod shared_kv_decoder;
+mod source_budget;
 mod source_mappings;
+
+pub use source_budget::DecoderExpansionBudget;
 
 pub const DECODER_PLAN_SCHEMA_VERSION: &str = "pllm.decoder_plan.v1";
 
@@ -398,7 +401,17 @@ pub fn lower_model_json(
     bytes: &[u8],
     workload: DecoderWorkload,
 ) -> Result<DecoderPlan, ModelError> {
-    source_mappings::lower_json(bytes, workload)
+    source_mappings::lower_json(bytes, workload, None)
+}
+
+/// Apply a source-mapped expansion budget before constructing either graph.
+/// Configuration byte admission remains the caller's responsibility.
+pub fn lower_model_json_with_budget(
+    bytes: &[u8],
+    workload: DecoderWorkload,
+    budget: DecoderExpansionBudget,
+) -> Result<DecoderPlan, ModelError> {
+    source_mappings::lower_json(bytes, workload, Some(budget))
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

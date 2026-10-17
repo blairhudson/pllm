@@ -1,0 +1,986 @@
+use pllm_compiler::{
+    lower_decoder_runtime_schedule, DecoderRuntimeExecutor, DecoderRuntimeSchedule,
+    DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION,
+};
+use pllm_models::{lower_model_json, DecoderPlan, DecoderWorkload, ModelOperator};
+use pllm_types::{canonical_bytes, pipeline_digest_bytes};
+use serde_json::json;
+use std::collections::BTreeSet;
+
+const QWEN2: &[u8] = br#"{
+    "model_type":"qwen2","hidden_size":8,"intermediate_size":16,
+    "num_hidden_layers":2,"num_attention_heads":2,"num_key_value_heads":1,
+    "vocab_size":32,"max_position_embeddings":32,"hidden_act":"silu",
+    "rms_norm_eps":1e-6,"rope_theta":10000.0,"tie_word_embeddings":true
+}"#;
+
+const QWEN3: &[u8] = br#"{
+    "model_type":"qwen3","hidden_size":8,"intermediate_size":16,
+    "num_hidden_layers":2,"num_attention_heads":2,"num_key_value_heads":1,
+    "vocab_size":32,"max_position_embeddings":32,"head_dim":4,
+    "hidden_act":"silu","rms_norm_eps":1e-6,"rope_theta":10000.0,
+    "tie_word_embeddings":true,"attention_bias":false,"attention_dropout":0.0,
+    "rope_scaling":null,"sliding_window":null,"use_sliding_window":false,
+    "use_cache":true,"max_window_layers":2,
+    "layer_types":["full_attention","full_attention"]
+}"#;
+
+const GEMMA4_E2B: &[u8] =
+    include_bytes!("../../pllm-models/tests/fixtures/gemma-4-E2B-it-3e22461f-config.json");
+const PHI4_MINI: &[u8] =
+    include_bytes!("../../pllm-models/tests/fixtures/Phi-4-mini-instruct-cfbefac-config.json");
+
+fn plan(config: &[u8]) -> DecoderPlan {
+    lower_model_json(
+        config,
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 3,
+            max_new_tokens: 2,
+        },
+    )
+    .unwrap()
+}
+
+fn composition(verified: bool) -> Vec<u8> {
+    let mut pipeline = json!({
+        "components": {
+            "inference": {"component": "pllm/inference", "params": {}},
+            "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+            "linear": {"component": "pllm/masked-linear", "params": {}},
+            "preparation": {"component": "pllm/model-aware-corrections", "params": {}}
+        },
+        "model": {"source": "model.fixture"}
+    });
+    if verified {
+        pipeline["components"]["verification"] = json!({
+            "component": "pllm/freivalds-verify/v1",
+            "params": {"target_failure_bits": 40}
+        });
+    }
+    canonical_bytes(&pipeline)
+}
+
+fn lower_schedule(plan: &DecoderPlan) -> Result<DecoderRuntimeSchedule, String> {
+    lower_decoder_runtime_schedule(plan, &composition(false))
+}
+
+fn all_link_composition(epoch: Option<u64>, inflight: bool) -> serde_json::Value {
+    let mut value: serde_json::Value = serde_json::from_slice(&composition(false)).unwrap();
+    value["components"]["quantization"] = json!({
+        "component": "pllm/symmetric-per-row-quantization/v1",
+        "params": {"weight_bits": 8, "activation_bits": 8, "causal_reduction": "prefix_f32"}
+    });
+    value["components"]["cache"] = json!({
+        "component": "pllm/client-prefix-reuse/v1",
+        "params": {"max_bytes": 1048576, "fixed_input_tokens": 3}
+    });
+    value["components"]["inventory"] = json!({
+        "component": "pllm/prepared-inventory-policy/v1",
+        "params": {"policy": "request-sized", "rows": 1, "allocation": "demand", "refill": "on-demand"}
+    });
+    if let Some(tokens) = epoch {
+        value["components"]["inventory"]["params"]["decode_epoch_tokens"] = json!(tokens);
+    }
+    if inflight {
+        value["components"]["cache"]["params"]["inflight"] = json!(true);
+        value["components"]["cache"]["params"]["inflight_max_requests"] = json!(8);
+        value["components"]["cache"]["params"]["inflight_max_bytes"] = json!(67108864);
+    }
+    value
+}
+
+#[test]
+fn all_link_contracts_bind_identity_without_reducing_semantic_bounds() {
+    for config in [QWEN2, QWEN3] {
+        let model = plan(config);
+        let old = lower_decoder_runtime_schedule(
+            &model,
+            &canonical_bytes(&all_link_composition(None, false)),
+        )
+        .unwrap();
+        let old_bytes = canonical_bytes(&old);
+        let old_json: serde_json::Value = serde_json::from_slice(&old_bytes).unwrap();
+        assert!(old_json.get("decode_epochs").is_none());
+        assert!(old_json.get("inflight_prefix").is_none());
+        let replay: DecoderRuntimeSchedule = serde_json::from_slice(&old_bytes).unwrap();
+        assert_eq!(canonical_bytes(&replay), old_bytes);
+        for tokens in [1, 4, 32, 64] {
+            for inflight in [false, true] {
+                let composition = all_link_composition(Some(tokens), inflight);
+                let experiment = json!({
+                    "schema": "pllm.experiment.v2", "name": "all-link",
+                    "pipeline": composition,
+                    "deployment": {"kind": "local", "root": "local://all-link"},
+                    "budget": {"requests": 8, "max_input_tokens": 3, "max_new_tokens": 2}
+                });
+                let resolved =
+                    pllm_compiler::resolve_experiment(&canonical_bytes(&experiment)).unwrap();
+                assert_eq!(
+                    resolved.canonical_composition(),
+                    canonical_bytes(&composition)
+                );
+                let schedule =
+                    lower_decoder_runtime_schedule(&model, &canonical_bytes(&composition)).unwrap();
+                assert_eq!(schedule.prefill, old.prefill);
+                assert_eq!(schedule.decode, old.decode);
+                assert_ne!(schedule.digest(), old.digest());
+                let epochs = schedule.decode_epochs.as_ref().unwrap();
+                assert_eq!(epochs["decode_epoch_tokens"], json!(tokens));
+                assert_eq!(epochs["model_plan_digest"], json!(model.digest()));
+                assert_eq!(
+                    epochs["maximum_key_sequence"],
+                    json!(model.decode.maximum_key_sequence)
+                );
+                assert_eq!(schedule.inflight_prefix.is_some(), inflight);
+                let restored: DecoderRuntimeSchedule =
+                    serde_json::from_slice(&canonical_bytes(&schedule)).unwrap();
+                assert_eq!(restored, schedule);
+            }
+        }
+    }
+}
+
+#[test]
+fn all_link_contracts_reject_unimplemented_compositions_and_malformed_limits() {
+    let model = plan(QWEN2);
+    for (slot, key, invalid) in [
+        ("inventory", "decode_epoch_tokens", json!(0)),
+        ("inventory", "decode_epoch_tokens", json!(65)),
+        ("inventory", "decode_epoch_tokens", json!(true)),
+        ("inventory", "decode_epoch_tokens", json!(4.0)),
+        ("inventory", "rows", json!(2)),
+        ("inventory", "refill", json!("idle")),
+        ("cache", "inflight", json!(false)),
+        ("cache", "inflight_max_requests", json!(1)),
+        ("cache", "inflight_max_requests", json!(33)),
+        ("cache", "inflight_max_bytes", json!(1048577)),
+        ("cache", "inflight_max_bytes", json!(0)),
+        ("quantization", "causal_reduction", json!("other")),
+    ] {
+        let mut value = all_link_composition(Some(4), true);
+        value["components"][slot]["params"][key] = invalid;
+        assert!(
+            lower_decoder_runtime_schedule(&model, &canonical_bytes(&value)).is_err(),
+            "{slot}/{key}"
+        );
+    }
+    for slot in [
+        "verification",
+        "state",
+        "scheduler",
+        "nonlinear",
+        "public_prefix",
+    ] {
+        let mut value = all_link_composition(Some(4), true);
+        value["components"][slot] = json!({"component": "unsupported", "params": {}});
+        assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&value)).is_err());
+    }
+    for slot in ["cache", "quantization"] {
+        let mut value = all_link_composition(Some(4), true);
+        value["components"].as_object_mut().unwrap().remove(slot);
+        assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&value)).is_err());
+    }
+    for config in [
+        GEMMA4_E2B,
+        include_bytes!("../../pllm-models/tests/fixtures/Qwen3.5-4B-851bf6e-config.json")
+            .as_slice(),
+    ] {
+        assert!(lower_decoder_runtime_schedule(
+            &plan(config),
+            &canonical_bytes(&all_link_composition(Some(4), true))
+        )
+        .is_err());
+    }
+}
+
+#[test]
+fn growing_epochs_bind_public_schedule_and_keep_full_cap() {
+    let model = plan(QWEN2);
+    let baseline = lower_decoder_runtime_schedule(
+        &model,
+        &canonical_bytes(&all_link_composition(None, false)),
+    )
+    .unwrap();
+    for inflight in [false, true] {
+        let mut composition = all_link_composition(None, inflight);
+        composition["components"]["inventory"]["params"]["decode_epoch_schedule"] = json!([4, 60]);
+        let schedule =
+            lower_decoder_runtime_schedule(&model, &canonical_bytes(&composition)).unwrap();
+        assert_eq!(schedule.prefill, baseline.prefill);
+        assert_eq!(schedule.decode, baseline.decode);
+        let epochs = schedule.decode_epochs.unwrap();
+        assert_eq!(epochs["decode_epoch_schedule"], json!([4, 60]));
+        assert!(epochs.get("decode_epoch_tokens").is_none());
+        assert_eq!(
+            epochs["maximum_key_sequence"],
+            json!(model.decode.maximum_key_sequence)
+        );
+        let experiment = json!({"schema": "pllm.experiment.v2", "name": "growing",
+            "pipeline": composition, "deployment": {"kind": "local", "root": "local://growing"},
+            "budget": {"requests": 8, "max_input_tokens": 3, "max_new_tokens": 2}});
+        assert!(pllm_compiler::resolve_experiment(&canonical_bytes(&experiment)).is_ok());
+    }
+    for invalid in [
+        json!([]),
+        json!([0]),
+        json!([65]),
+        json!([true]),
+        json!([4.0]),
+        json!([4, 3]),
+        json!(vec![1; 65]),
+        json!("4"),
+    ] {
+        let mut composition = all_link_composition(None, false);
+        composition["components"]["inventory"]["params"]["decode_epoch_schedule"] = invalid;
+        assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&composition)).is_err());
+    }
+    let mut composition = all_link_composition(Some(4), false);
+    composition["components"]["inventory"]["params"]["decode_epoch_schedule"] = json!([4, 60]);
+    assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&composition)).is_err());
+}
+
+#[test]
+fn packed_ingress_requires_the_exact_output_quotient_contract() {
+    for verified in [false, true] {
+        let plan = plan(QWEN2);
+        let mut pipeline: serde_json::Value =
+            serde_json::from_slice(&composition(verified)).unwrap();
+        pipeline["components"]["linear"]["params"] = json!({"request_encoding": "stage_packed"});
+        assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).is_err());
+        pipeline["components"]["linear"]["params"]["output_encoding"] = json!("row_residues");
+        let packed = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).unwrap();
+        pipeline["components"]["linear"]["params"]["request_encoding"] = json!("compact");
+        let control = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).unwrap();
+        assert_ne!(control.digest(), packed.digest());
+        assert_eq!(control.prefill, packed.prefill);
+        assert_eq!(control.decode, packed.decode);
+    }
+}
+
+#[test]
+fn terminal_pruning_preserves_state_roots_and_grouped_stage_ownership() {
+    for config in [QWEN2, QWEN3] {
+        for verified in [false, true] {
+            let plan = plan(config);
+            let mut pipeline: serde_json::Value =
+                serde_json::from_slice(&composition(verified)).unwrap();
+            let baseline =
+                lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).unwrap();
+            assert!(!String::from_utf8(canonical_bytes(&baseline))
+                .unwrap()
+                .contains("terminal_row_only"));
+            pipeline["components"]["linear"]["params"] = json!({
+                "prefill_pruning": "terminal", "request_encoding": "compact"
+            });
+            let schedule =
+                lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).unwrap();
+            assert_ne!(schedule.digest(), baseline.digest());
+            assert_eq!(schedule.decode, baseline.decode);
+            let selected: Vec<_> = schedule
+                .prefill
+                .steps
+                .iter()
+                .filter(|step| step.terminal_row_only)
+                .collect();
+            assert_eq!(selected.len(), 3);
+            assert!(selected.iter().all(|step| step.layer == Some(1)
+                && step.operators.iter().all(|op| *op == ModelOperator::Linear)));
+            assert!(selected.iter().any(|step| step.operation_ids.len() == 2));
+            assert_eq!(
+                schedule.prefill.state_outputs,
+                baseline.prefill.state_outputs
+            );
+            assert!(schedule
+                .prefill
+                .steps
+                .iter()
+                .filter(|step| step.operation_ids.len() == 3)
+                .all(|step| !step.terminal_row_only));
+            let mut blocked = plan.clone();
+            let last = blocked
+                .prefill
+                .operations
+                .iter()
+                .find(|op| op.operator == ModelOperator::LastToken)
+                .unwrap()
+                .inputs[0]
+                .clone();
+            let boundary = blocked
+                .prefill
+                .operations
+                .iter_mut()
+                .find(|op| op.id == last)
+                .unwrap();
+            boundary.operator = ModelOperator::Reshape;
+            boundary.attributes = json!({"shape": boundary.output_shape});
+            // Replacing a semantic norm with an unproven layout transform cannot
+            // preserve the original source contract or authorize pruning.
+            assert!(lower_decoder_runtime_schedule(&blocked, &canonical_bytes(&pipeline)).is_err());
+            for key in ["prefill_pruning", "request_encoding"] {
+                for invalid in [json!(true), json!(1), json!("unknown")] {
+                    let mut invalid_pipeline = pipeline.clone();
+                    invalid_pipeline["components"]["linear"]["params"][key] = invalid;
+                    assert!(lower_decoder_runtime_schedule(
+                        &plan,
+                        &canonical_bytes(&invalid_pipeline)
+                    )
+                    .is_err());
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn public_stage_metal_backend_preserves_remote_schedule_and_rejects_forged_policy() {
+    let plan = plan(QWEN2);
+    let cpu: serde_json::Value = serde_json::from_slice(&composition(false)).unwrap();
+    let expected = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&cpu)).unwrap();
+    for verified in [false, true] {
+        let mut selected: serde_json::Value =
+            serde_json::from_slice(&composition(verified)).unwrap();
+        selected["components"]["kernels"] = json!({
+            "component": "pllm/apple-metal-int8/v1", "params": {"min_rows": 8}
+        });
+        let schedule = lower_decoder_runtime_schedule(&plan, &canonical_bytes(&selected)).unwrap();
+        assert_eq!(schedule.prefill.steps.len(), expected.prefill.steps.len());
+        assert_eq!(schedule.decode.steps.len(), expected.decode.steps.len());
+        selected["components"]["kernels"]["params"]["min_rows"] = json!(1);
+        assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&selected)).is_err());
+        selected["components"]["kernels"]["params"] = json!({"min_rows": 8, "extra": 1});
+        assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&selected)).is_err());
+    }
+}
+
+#[test]
+fn client_placement_metal_keeps_cpu_ownership_and_checks_kernel_parameters() {
+    for config in [QWEN2, QWEN3] {
+        let model = plan(config);
+        for placement in [
+            json!({"component": "pllm/client-owned-prefix-layers/v1", "params": {"layers": 1}}),
+            json!({"component": "pllm/client-owned-linear-roles/v1", "params": {
+                "roles": ["attention_output", "qkv_projection"]}}),
+            json!({"component": "pllm/client-owned-linear-roles/v1", "params": {
+                "roles": ["attention_output", "qkv_projection"], "prefix_layers": 1}}),
+        ] {
+            let mut cpu: serde_json::Value = serde_json::from_slice(&composition(false)).unwrap();
+            cpu["components"]["placement"] = placement;
+            let expected = lower_decoder_runtime_schedule(&model, &canonical_bytes(&cpu)).unwrap();
+            let mut metal = cpu.clone();
+            metal["components"]["kernels"] = json!({
+                "component": "pllm/apple-metal-int8/v1", "params": {"min_rows": 2}
+            });
+            let actual = lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).unwrap();
+            assert_ne!(actual.composition_digest, expected.composition_digest);
+            for (left, right) in [
+                (&actual.prefill, &expected.prefill),
+                (&actual.decode, &expected.decode),
+            ] {
+                assert_eq!(left.steps, right.steps);
+                assert!(left
+                    .steps
+                    .iter()
+                    .any(|step| step.executor == DecoderRuntimeExecutor::RemoteStage));
+            }
+            metal["components"]["kernels"]["params"]["min_rows"] = json!(1);
+            assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).is_err());
+            metal["components"]["kernels"]["params"] = json!({"min_rows": 2, "extra": true});
+            assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).is_err());
+            metal["components"]["kernels"]["params"] = json!({"min_rows": 2});
+            metal["components"]["verification"] = json!({
+                "component": "pllm/freivalds-verify/v1", "params": {"target_failure_bits": 40}
+            });
+            let checked = lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).unwrap();
+            for (before, after) in expected.prefill.steps.iter().zip(&checked.prefill.steps) {
+                assert_eq!(before.operation_ids, after.operation_ids);
+                let wanted = if before.executor == DecoderRuntimeExecutor::RemoteStage {
+                    DecoderRuntimeExecutor::VerifiedRemoteStage
+                } else {
+                    before.executor
+                };
+                assert_eq!(after.executor, wanted);
+            }
+            metal["components"]["cache"] = json!({
+                "component": "pllm/client-prefix-reuse/v1",
+                "params": {"fixed_input_tokens": 2, "max_bytes": 1048576}
+            });
+            metal["components"]["delivery"] = json!({
+                "component": "pllm/client-bundle-transport/v1",
+                "params": {"encoding": "artifacts", "compression": "zlib"}
+            });
+            assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).is_ok());
+            metal["components"]["verification"]["params"]["target_failure_bits"] = json!(69);
+            assert!(lower_decoder_runtime_schedule(&model, &canonical_bytes(&metal)).is_err());
+        }
+    }
+}
+
+#[test]
+fn wavelength_rotary_stays_local_in_both_compiled_decoder_phases() {
+    let scaled = json!({
+        "model_type": "llama", "hidden_size": 16, "intermediate_size": 32,
+        "num_hidden_layers": 1, "num_attention_heads": 2, "num_key_value_heads": 1,
+        "vocab_size": 32, "max_position_embeddings": 256, "hidden_act": "silu",
+        "rms_norm_eps": 1e-6, "rope_theta": 10000.0,
+        "rope_scaling": {"rope_type": "llama3", "factor": 8.0,
+            "original_max_position_embeddings": 32,
+            "low_freq_factor": 1.0, "high_freq_factor": 4.0}
+    });
+    let plan = plan(&serde_json::to_vec(&scaled).unwrap());
+    let schedule = lower_schedule(&plan).unwrap();
+    for phase in [&schedule.prefill, &schedule.decode] {
+        for rotary in phase
+            .steps
+            .iter()
+            .filter(|step| step.operators.contains(&ModelOperator::RotaryEmbedding))
+        {
+            assert_eq!(rotary.executor, DecoderRuntimeExecutor::ClientLocal);
+        }
+        assert_eq!(
+            phase
+                .steps
+                .iter()
+                .filter(|step| step.operators.contains(&ModelOperator::RotaryEmbedding))
+                .count(),
+            2
+        );
+        assert!(phase
+            .steps
+            .iter()
+            .any(|step| step.executor == DecoderRuntimeExecutor::RemoteStage));
+    }
+    let mut tampered = plan;
+    let rotary = tampered
+        .decode
+        .operations
+        .iter_mut()
+        .find(|op| op.operator == ModelOperator::RotaryEmbedding)
+        .unwrap();
+    rotary.attributes["frequency_scaling"]["kind"] = json!("unreviewed");
+    assert!(lower_schedule(&tampered).is_err());
+}
+
+#[test]
+fn bounded_per_frequency_rotary_and_fused_slices_compile_without_extended_context() {
+    let source = plan(PHI4_MINI);
+    let schedule = lower_schedule(&source).unwrap();
+    for phase in [&schedule.prefill, &schedule.decode] {
+        let slices = phase
+            .steps
+            .iter()
+            .filter(|step| step.operators == [ModelOperator::Slice])
+            .count();
+        let rotary = phase
+            .steps
+            .iter()
+            .filter(|step| step.operators == [ModelOperator::RotaryEmbedding])
+            .count();
+        assert_eq!(slices, 5 * 32);
+        assert_eq!(rotary, 2 * 32);
+        assert!(phase.steps.iter().any(|step| {
+            step.executor == DecoderRuntimeExecutor::RemoteStage
+                && step
+                    .operation_ids
+                    .iter()
+                    .any(|id| id.ends_with("qkv_linear"))
+        }));
+    }
+    let mut forged = source.clone();
+    let query = forged
+        .prefill
+        .operations
+        .iter_mut()
+        .find(|op| op.id == "layer.0.q_slice")
+        .unwrap();
+    query.attributes["end"] = json!(5000);
+    assert!(lower_schedule(&forged).is_err());
+
+    let extended = lower_model_json(
+        PHI4_MINI,
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 4096,
+            max_new_tokens: 2,
+        },
+    )
+    .unwrap();
+    assert!(lower_schedule(&extended)
+        .unwrap_err()
+        .contains("requires cache re-rotation"));
+}
+
+#[test]
+fn two_online_offset_topology_binds_remote_stages_for_shared_decoder_operators() {
+    let composition = canonical_bytes(&json!({
+        "components": {
+            "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+            "linear": {"component": "pllm/two-online-offset-linear/v1", "params": {}},
+            "topology": {"component": "pllm/two-online-offset-workers/v1", "params": {}},
+            "quantization": {"component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {"weight_bits": 8, "activation_bits": 8}}
+        },
+        "model": {"source": "model.fixture"}
+    }));
+    for config in [QWEN2, QWEN3, GEMMA4_E2B] {
+        let schedule = lower_decoder_runtime_schedule(&plan(config), &composition).unwrap();
+        assert_eq!(
+            schedule.composition_digest,
+            pipeline_digest_bytes(&composition)
+        );
+        for phase in [&schedule.prefill, &schedule.decode] {
+            assert!(phase
+                .steps
+                .iter()
+                .any(|step| step.executor == DecoderRuntimeExecutor::RemoteStage));
+            assert!(phase
+                .steps
+                .iter()
+                .all(|step| step.executor != DecoderRuntimeExecutor::ClientLinear));
+        }
+    }
+    let mut invalid: serde_json::Value = serde_json::from_slice(&composition).unwrap();
+    invalid["components"]["linear"]["params"] = json!({"dispatch": "seed_first"});
+    assert!(lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&invalid)).is_err());
+    invalid["components"]["linear"]["params"]["input_encoding"] = json!("seeded");
+    assert!(lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&invalid)).is_ok());
+    invalid["components"]["topology"]["component"] = json!("pllm/client-only/v1");
+    assert!(lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&invalid)).is_err());
+}
+
+#[test]
+fn prepared_chunk_bounds_are_digest_bound_and_strictly_admitted() {
+    for verified in [false, true] {
+        let mut pipeline: serde_json::Value =
+            serde_json::from_slice(&composition(verified)).unwrap();
+        let before =
+            lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&pipeline)).unwrap();
+        pipeline["components"]["linear"]["params"] =
+            json!({"prefill_chunk_rows": 4, "output_encoding": "row_residues"});
+        let chunked =
+            lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&pipeline)).unwrap();
+        assert_ne!(before.composition_digest, chunked.composition_digest);
+        assert_eq!(before.prefill.steps, chunked.prefill.steps);
+        for invalid in [json!(true), json!(3), json!(129), json!(4.0), json!("4")] {
+            pipeline["components"]["linear"]["params"]["prefill_chunk_rows"] = invalid;
+            assert!(
+                lower_decoder_runtime_schedule(&plan(QWEN2), &canonical_bytes(&pipeline)).is_err()
+            );
+        }
+    }
+}
+
+#[test]
+fn client_only_topology_places_all_linear_stages_with_the_client() {
+    let composition = canonical_bytes(&json!({
+        "components": {
+            "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+            "linear": {"component": "pllm/cleartext-linear", "params": {}},
+            "topology": {"component": "pllm/client-only/v1", "params": {}},
+            "quantization": {"component": "pllm/symmetric-per-row-quantization/v1",
+                "params": {"weight_bits": 8, "activation_bits": 8}}
+        },
+        "model": {"source": "model.fixture"}
+    }));
+    for config in [QWEN2, QWEN3, GEMMA4_E2B] {
+        let plan = plan(config);
+        let schedule = lower_decoder_runtime_schedule(&plan, &composition).unwrap();
+        assert_eq!(
+            schedule.composition_digest,
+            pipeline_digest_bytes(&composition)
+        );
+        for phase in [&schedule.prefill, &schedule.decode] {
+            assert!(phase
+                .steps
+                .iter()
+                .any(|step| step.executor == DecoderRuntimeExecutor::ClientLinear));
+            assert!(phase
+                .steps
+                .iter()
+                .all(|step| step.executor != DecoderRuntimeExecutor::RemoteStage));
+            assert!(phase
+                .steps
+                .iter()
+                .filter(|step| step.executor == DecoderRuntimeExecutor::ClientLinear)
+                .all(|step| !step.weight_ids.is_empty()));
+        }
+    }
+    let plan = plan(QWEN2);
+    let mut invalid: serde_json::Value = serde_json::from_slice(&composition).unwrap();
+    invalid["components"]["preparation"] = json!({
+        "component": "pllm/model-aware-corrections", "params": {}
+    });
+    assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&invalid)).is_err());
+    invalid["components"]
+        .as_object_mut()
+        .unwrap()
+        .remove("preparation");
+    invalid["components"]["linear"]["component"] = json!("pllm/masked-linear");
+    assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&invalid)).is_err());
+}
+
+#[test]
+fn explicit_prepared_topology_keeps_coverage_but_changes_plan_identity() {
+    let plan = plan(QWEN2);
+    let original = composition(false);
+    let mut pipeline: serde_json::Value = serde_json::from_slice(&original).unwrap();
+    pipeline["components"]["topology"] = json!({
+        "component": "pllm/one-online-provider-offline-preparation/v1", "params": {}
+    });
+    let selected = canonical_bytes(&pipeline);
+    let baseline = lower_decoder_runtime_schedule(&plan, &original).unwrap();
+    let bound = lower_decoder_runtime_schedule(&plan, &selected).unwrap();
+    assert!(bound.complete);
+    assert_ne!(bound.composition_digest, baseline.composition_digest);
+    assert_eq!(bound.composition_digest, pipeline_digest_bytes(&selected));
+    assert_eq!(bound.prefill.steps, baseline.prefill.steps);
+    assert_eq!(bound.decode.steps, baseline.decode.steps);
+
+    pipeline["components"]["topology"]["component"] = json!("pllm/two-online-workers/v1");
+    assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).is_err());
+    pipeline["components"]["topology"]["component"] =
+        json!("pllm/one-online-provider-offline-preparation/v1");
+    pipeline["components"]["topology"]["params"] = json!({"operator": "inference"});
+    assert!(lower_decoder_runtime_schedule(&plan, &canonical_bytes(&pipeline)).is_err());
+}
+
+#[test]
+fn lowers_complete_prefill_and_decode_schedules() {
+    let plan = plan(QWEN2);
+    let composition = composition(false);
+    let schedule = lower_decoder_runtime_schedule(&plan, &composition).unwrap();
+    assert_eq!(
+        schedule.schema_version,
+        DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION
+    );
+    assert_eq!(
+        schedule.composition_digest,
+        pipeline_digest_bytes(&composition)
+    );
+    assert_eq!(schedule.model_plan_digest, plan.digest());
+    assert_eq!(schedule.model_config_digest, plan.config_digest);
+    assert!(schedule.complete);
+    assert!(!schedule.protected_execution);
+    assert_eq!(schedule.prefill.mode, pllm_models::DecoderMode::Prefill);
+    assert_eq!(schedule.decode.mode, pllm_models::DecoderMode::Decode);
+    assert!(schedule.prefill.state_inputs.is_empty());
+    assert_eq!(schedule.prefill.state_outputs.len(), 4);
+    assert_eq!(schedule.decode.state_inputs.len(), 4);
+    assert_eq!(schedule.decode.state_outputs.len(), 4);
+
+    for (phase, graph) in [
+        (&schedule.prefill, &plan.prefill),
+        (&schedule.decode, &plan.decode),
+    ] {
+        let scheduled: Vec<_> = phase
+            .steps
+            .iter()
+            .flat_map(|step| step.operation_ids.iter().map(String::as_str))
+            .collect();
+        let expected: Vec<_> = graph
+            .operations
+            .iter()
+            .map(|operation| operation.id.as_str())
+            .collect();
+        assert_eq!(scheduled.len(), expected.len());
+        assert_eq!(
+            scheduled.iter().copied().collect::<BTreeSet<_>>(),
+            expected.iter().copied().collect::<BTreeSet<_>>()
+        );
+        assert!(phase
+            .steps
+            .iter()
+            .enumerate()
+            .all(|(index, step)| step.order == index as u64));
+        assert_eq!(phase.output, "token_feedback");
+        assert_eq!(
+            phase.steps.last().unwrap().operators,
+            vec![ModelOperator::TokenFeedback]
+        );
+        assert_eq!(
+            phase
+                .steps
+                .iter()
+                .filter(|step| step.executor == DecoderRuntimeExecutor::RemoteStage)
+                .count(),
+            10
+        );
+    }
+}
+
+#[test]
+fn schedules_multiple_dense_decoder_adapters_through_one_contract() {
+    let qwen2 = lower_schedule(&plan(QWEN2)).unwrap();
+    let qwen3 = lower_schedule(&plan(QWEN3)).unwrap();
+
+    assert_eq!(qwen2.schema_version, qwen3.schema_version);
+    assert_eq!(qwen2.composition_digest, qwen3.composition_digest);
+    for schedule in [&qwen2, &qwen3] {
+        assert!(schedule.complete);
+        assert_eq!(schedule.prefill.steps.len(), schedule.decode.steps.len());
+        assert!(schedule.prefill.steps.iter().all(|step| {
+            step.executor == DecoderRuntimeExecutor::ClientLocal || !step.weight_ids.is_empty()
+        }));
+    }
+}
+
+#[test]
+fn bounded_gemma_text_decoder_uses_the_same_schedule_contract() {
+    let plan = plan(GEMMA4_E2B);
+    let schedule = lower_schedule(&plan).unwrap();
+    assert!(schedule.complete);
+    let first = schedule
+        .prefill
+        .steps
+        .iter()
+        .find(|step| step.executor == DecoderRuntimeExecutor::RemoteStage)
+        .unwrap();
+    assert_eq!(
+        first.operation_ids,
+        ["main_embedding", "ple_token_embedding"]
+    );
+    assert_eq!(first.outputs[0].stage_offset, 0);
+    assert_eq!(first.outputs[1].stage_offset, first.outputs[0].stage_width);
+    assert_eq!(
+        schedule
+            .prefill
+            .steps
+            .iter()
+            .filter(|step| step.executor == DecoderRuntimeExecutor::RemoteStage)
+            .count(),
+        schedule
+            .decode
+            .steps
+            .iter()
+            .filter(|step| step.executor == DecoderRuntimeExecutor::RemoteStage)
+            .count()
+    );
+    assert!(schedule.prefill.state_inputs.is_empty());
+    assert!(!schedule.decode.state_inputs.is_empty());
+}
+
+#[test]
+fn verified_composition_declares_a_distinct_remote_executor() {
+    let plan = plan(QWEN2);
+    let verified = lower_decoder_runtime_schedule(&plan, &composition(true)).unwrap();
+    let baseline = lower_schedule(&plan).unwrap();
+    assert!(verified.complete);
+    assert!(!verified.protected_execution);
+    assert_ne!(verified.digest(), baseline.digest());
+    for phase in [&verified.prefill, &verified.decode] {
+        assert!(phase.steps.iter().any(|step| {
+            step.operators.contains(&ModelOperator::Linear)
+                && step.executor == DecoderRuntimeExecutor::VerifiedRemoteStage
+        }));
+        assert!(phase
+            .steps
+            .iter()
+            .all(|step| { step.executor != DecoderRuntimeExecutor::RemoteStage }));
+    }
+}
+
+#[test]
+fn rejects_unimplemented_local_operator_capabilities() {
+    let mut plan = plan(QWEN2);
+    plan.prefill.operations[1].operator = ModelOperator::Scale;
+    assert!(lower_schedule(&plan).is_err());
+}
+
+#[test]
+fn fuses_remote_stages_with_deterministic_slices() {
+    let schedule = lower_schedule(&plan(QWEN2)).unwrap();
+    for phase in [&schedule.prefill, &schedule.decode] {
+        let layer_zero: Vec<_> = phase
+            .steps
+            .iter()
+            .filter(|step| {
+                step.executor == DecoderRuntimeExecutor::RemoteStage && step.layer == Some(0)
+            })
+            .collect();
+        assert_eq!(layer_zero.len(), 4);
+        let qkv = layer_zero[0];
+        assert_eq!(
+            qkv.operators,
+            vec![
+                ModelOperator::Linear,
+                ModelOperator::Linear,
+                ModelOperator::Linear
+            ]
+        );
+        assert_eq!(qkv.input_ids.len(), 1);
+        assert_eq!(qkv.weight_ids.len(), 3);
+        assert_eq!(
+            qkv.outputs
+                .iter()
+                .map(|output| (output.stage_offset, output.stage_width))
+                .collect::<Vec<_>>(),
+            vec![(0, 8), (8, 4), (12, 4)]
+        );
+        let gate_up = layer_zero[2];
+        assert_eq!(
+            gate_up
+                .outputs
+                .iter()
+                .map(|output| (output.stage_offset, output.stage_width))
+                .collect::<Vec<_>>(),
+            vec![(0, 16), (16, 16)]
+        );
+    }
+    assert_eq!(
+        lower_schedule(&plan(QWEN2)).unwrap().digest(),
+        schedule.digest()
+    );
+}
+
+#[test]
+fn includes_final_norm_head_and_decoder_tail() {
+    let schedule = lower_schedule(&plan(QWEN2)).unwrap();
+    for phase in [&schedule.prefill, &schedule.decode] {
+        let final_norm = phase
+            .steps
+            .iter()
+            .find(|step| step.operation_ids == ["final_norm"])
+            .unwrap();
+        assert_eq!(final_norm.executor, DecoderRuntimeExecutor::ClientLocal);
+        assert_eq!(final_norm.operators, [ModelOperator::RmsNorm]);
+        let output_head = phase
+            .steps
+            .iter()
+            .find(|step| step.operators == [ModelOperator::OutputHead])
+            .unwrap();
+        assert_eq!(output_head.input_ids, ["last_hidden"]);
+        let tail: Vec<_> = phase.steps[phase.steps.len() - 4..]
+            .iter()
+            .flat_map(|step| step.operators.iter().copied())
+            .collect();
+        assert_eq!(
+            tail,
+            vec![
+                ModelOperator::LastToken,
+                ModelOperator::OutputHead,
+                ModelOperator::GreedyTokenSelection,
+                ModelOperator::TokenFeedback
+            ]
+        );
+    }
+}
+
+#[test]
+fn exact_composition_enables_complete_coverage_without_promoting_arbitrary_compositions() {
+    let qwen = plan(QWEN2);
+    let baseline_composition = composition(false);
+    let baseline = pllm_compiler::decoder_coverage(&qwen, Some(&baseline_composition)).unwrap();
+    assert!(baseline.complete);
+    assert_eq!(
+        baseline.composition_digest,
+        Some(pipeline_digest_bytes(&baseline_composition))
+    );
+    assert!(baseline.operators.iter().all(|row| {
+        row.level == pllm_compiler::CapabilityLevel::ExecutableRegion && row.component.is_some()
+    }));
+    assert!(baseline.operators.iter().any(|row| {
+        row.operator == ModelOperator::Softmax
+            && row
+                .blocker
+                .contains("client-local execution is outside provider protection")
+    }));
+
+    let arbitrary = canonical_bytes(&json!({
+        "components": {},
+        "model": {"source": "model.fixture"}
+    }));
+    let primitive = pllm_compiler::decoder_coverage(&qwen, Some(&arbitrary)).unwrap();
+    assert!(!primitive.complete);
+    assert!(primitive.operators.iter().all(|row| row
+        .blocker
+        .contains("whole-decoder scheduling is unavailable")));
+    assert!(lower_decoder_runtime_schedule(&qwen, &arbitrary)
+        .unwrap_err()
+        .contains("admitted linear component composition"));
+    assert!(pllm_compiler::decoder_coverage(&qwen, None)
+        .unwrap()
+        .operators
+        .iter()
+        .all(|row| row.level != pllm_compiler::CapabilityLevel::Missing));
+    assert!(
+        pllm_compiler::decoder_coverage(&plan(QWEN3), Some(&baseline_composition))
+            .unwrap()
+            .complete
+    );
+
+    let verified = pllm_compiler::decoder_coverage(&qwen, Some(&composition(true))).unwrap();
+    assert!(!verified.complete);
+    assert!(verified
+        .operators
+        .iter()
+        .all(|row| row.blocker.contains("verifier-bound execution evidence")));
+
+    let noncanonical = serde_json::to_vec_pretty(
+        &serde_json::from_slice::<serde_json::Value>(&baseline_composition).unwrap(),
+    )
+    .unwrap();
+    assert!(pllm_compiler::decoder_coverage(&qwen, Some(&noncanonical)).is_err());
+    assert!(lower_decoder_runtime_schedule(&qwen, &noncanonical).is_err());
+}
+
+#[test]
+fn accepts_supported_semantics_and_rejects_transformations_and_batches() {
+    assert!(lower_schedule(&plan(QWEN3)).is_ok());
+    let batched = lower_model_json(
+        QWEN2,
+        DecoderWorkload {
+            batch: 2,
+            max_input_tokens: 3,
+            max_new_tokens: 2,
+        },
+    )
+    .unwrap();
+    assert!(lower_schedule(&batched).is_err());
+    assert!(
+        !pllm_compiler::decoder_coverage(&batched, Some(&composition(false)))
+            .unwrap()
+            .complete
+    );
+
+    let mut transformed = plan(QWEN2);
+    transformed
+        .transformations
+        .push(pllm_models::AppliedMethod {
+            component: "pllm/test".into(),
+            implementation: "test".into(),
+            method_id: "test".into(),
+            input_digest: transformed.digest(),
+            configuration_digest: transformed.config_digest.clone(),
+        });
+    assert!(lower_schedule(&transformed).is_err());
+
+    let mut reordered = plan(QWEN2);
+    let query = reordered
+        .prefill
+        .operations
+        .iter()
+        .position(|operation| operation.id == "layer.0.q_linear")
+        .unwrap();
+    let key = reordered
+        .prefill
+        .operations
+        .iter()
+        .position(|operation| operation.id == "layer.0.k_linear")
+        .unwrap();
+    reordered.prefill.operations.swap(query, key);
+    let query = reordered
+        .decode
+        .operations
+        .iter()
+        .position(|operation| operation.id == "layer.0.q_linear")
+        .unwrap();
+    let key = reordered
+        .decode
+        .operations
+        .iter()
+        .position(|operation| operation.id == "layer.0.k_linear")
+        .unwrap();
+    reordered.decode.operations.swap(query, key);
+    assert!(reordered.validate().is_ok());
+    assert!(lower_schedule(&reordered).is_ok());
+}

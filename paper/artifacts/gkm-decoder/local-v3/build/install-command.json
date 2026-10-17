@@ -1,0 +1,12 @@
+[
+  "/opt/homebrew/bin/uv",
+  "pip",
+  "install",
+  "--offline",
+  "--python",
+  "/Users/blairhudson/workspace/pllm/target/research/gkm-decoder-wheel-v3/venv/bin/python",
+  "--link-mode",
+  "hardlink",
+  "-r",
+  "/Users/blairhudson/workspace/pllm/target/research/gkm-decoder-wheel-v3/requirements.txt"
+]

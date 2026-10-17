@@ -1,0 +1,2200 @@
+from __future__ import annotations
+
+import math
+import hashlib
+import hmac
+import json
+import secrets
+import threading
+from collections import OrderedDict, defaultdict, deque
+from dataclasses import dataclass, field, replace
+from typing import Any, Callable, Protocol, cast
+
+import msgpack
+import numpy as np
+
+from .native import CompiledMatrix, MaskedGEMM, mask_prepared_input, unmask_prepared_output
+from .paged import PagedGEMM
+from .preparation_protocol import (
+    PreparationAck,
+    PreparationRequest,
+    SeededRingProfile,
+    derive_online_attempt_id,
+    expand_output_mask,
+    expand_preparation_mask,
+    prepared_mask_rows,
+)
+from .quantization import dequantize_matmul, quantize_activation_per_row, signed_qmax
+from .public_equalization import PublicEqualizationError, equalize_activation, validate_input_scale
+from .protocol import ProtocolError
+from .stage_protocol import (
+    MaskedStageRequest,
+    MaskedStageResponse,
+    PreparedStageBatchRequest,
+    PreparedStageBatchResponse,
+    RingKind,
+    StageCorrelation,
+    unmask_stage_output,
+)
+from .telemetry import record_protocol_bytes, record_protocol_operation, start_protocol_span
+from .tokenizer import AlphabetTokenizer, Tokenizer
+
+
+class TransformerClientError(RuntimeError):
+    pass
+
+
+@dataclass(slots=True)
+class PreparedStageRows:
+    request: PreparationRequest = field(repr=False)
+    input_mask: np.ndarray | None = field(default=None, repr=False)
+    output_mask: np.ndarray | None = field(default=None, repr=False)
+    verification: Any | None = field(default=None, repr=False)
+    verification_binding: bytes = field(default=b"", repr=False)
+    _mask_rows: Any | None = field(default=None, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if (self.input_mask is None) != (self.output_mask is None):
+            raise TransformerClientError("prepared masks must use one storage mode")
+        if self.input_mask is None:
+            self._mask_rows = prepared_mask_rows(self.request)
+            if self._mask_rows is None:
+                self.input_mask = expand_preparation_mask(self.request)
+                self.output_mask = expand_output_mask(self.request)
+
+    def take_masks(self, begin: int, count: int) -> tuple[np.ndarray, np.ndarray]:
+        if self._mask_rows is not None:
+            r, s = self._mask_rows.take(begin, count)
+            return (np.frombuffer(r, dtype="<u4").reshape(count, self.request.in_features),
+                    np.frombuffer(s, dtype="<u4").reshape(count, self.request.out_features))
+        if self.input_mask is None or self.output_mask is None:
+            raise TransformerClientError("prepared mask stream is closed")
+        return self.input_mask[begin:begin + count], self.output_mask[begin:begin + count]
+
+    def burn(self, begin: int, count: int) -> None:
+        if self._mask_rows is not None:
+            self._mask_rows.burn(begin, count)
+
+    @property
+    def retained_mask_bytes(self) -> int:
+        if self._mask_rows is not None:
+            return self._mask_rows.retained_bytes
+        return sum(value.nbytes for value in (self.input_mask, self.output_mask) if value is not None)
+
+    def cancel(self) -> None:
+        if self._mask_rows is not None:
+            self._mask_rows.cancel()
+        if self.verification is not None:
+            self.verification.cancel()
+            self.verification = None
+
+
+@dataclass(slots=True)
+class PreparedInventoryLease:
+    inventory_id: str
+    stages: dict[str, PreparedStageRows]
+    start: int
+    rows: int
+    _owner: "PreparedInventory" = field(repr=False)
+    _offsets: dict[str, int] = field(default_factory=dict)
+    _verifiers: dict[str, Any] = field(default_factory=dict, repr=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _closed: bool = False
+
+    @property
+    def reservation_start(self) -> int:
+        return self.start
+
+    @property
+    def reservation_rows(self) -> int:
+        return self.rows
+
+    def close(self) -> None:
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            consumed = min(
+                (self._offsets.get(stage_id, 0) for stage_id in self.stages),
+                default=0,
+            )
+            stage_claims = sum(self._offsets.values())
+            verifiers = tuple(self._verifiers.values())
+            self._verifiers.clear()
+            for stage_id, stage in self.stages.items():
+                used = self._offsets.get(stage_id, 0)
+                limit = stage.request.rows if self._owner.demand else self.rows
+                if used < limit:
+                    stage.burn(self.start + used, limit - used)
+        self._owner._finish(self.rows, consumed, stage_claims)
+        for verifier in verifiers:
+            verifier.cancel()
+
+    def take(self, stage_id: str, count: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
+        try:
+            return self._take(stage_id, count)
+        except BaseException:
+            self.close()
+            raise
+
+    def _take(self, stage_id: str, count: int) -> tuple[np.ndarray, np.ndarray, list[str]]:
+        with self._lock:
+            stage, begin, attempts = self._claim_locked(stage_id, count)
+            if stage.verification is not None:
+                verifier = stage.verification.claim(
+                    stage.request.seed, stage.verification_binding, begin, count,
+                )
+                previous = self._verifiers.get(stage_id)
+                if previous is not None:
+                    previous.cancel()
+                self._verifiers[stage_id] = verifier
+            r, s = stage.take_masks(begin, count)
+        return r, s, attempts
+
+    def _claim_locked(self, stage_id: str, count: int):
+        stage = self.stages.get(stage_id)
+        if stage is None or type(count) is not int or count <= 0:
+            raise TransformerClientError("prepared inventory stage request is invalid")
+        if self._closed:
+            raise TransformerClientError("prepared inventory lease is closed")
+        offset = self._offsets.get(stage_id, 0)
+        if offset + count > (stage.request.rows if self._owner.demand else self.rows):
+            raise TransformerClientError(f"prepared inventory exhausted for {stage_id}")
+        begin = self.start + offset
+        self._owner._claim_stage(count)
+        self._offsets[stage_id] = offset + count
+        attempts = [derive_online_attempt_id(stage.request, row) for row in range(begin, begin + count)]
+        return stage, begin, attempts
+
+    def _prepare_native(self, stage_id, value, layout, chunk_rows, input_bits):
+        """Same claim ledger; private masks/scales stay inside the native owner."""
+        query = None
+        try:
+            rows, columns = value.shape
+            chunk_rows = min(rows, chunk_rows or rows)
+            batches = [secrets.token_hex(16) for _ in range(0, rows, chunk_rows)]
+            with self._lock:
+                stage, begin, attempts = self._claim_locked(stage_id, rows)
+                if stage.verification is not None or stage._mask_rows is None:
+                    raise TransformerClientError("native stage requires lazy unverified masks")
+                query, packed = layout.prepare(stage._mask_rows, begin, rows, chunk_rows,
+                                                batches, value.astype("<f4", copy=False).tobytes())
+            requests = []
+            for index, start in enumerate(range(0, rows, chunk_rows)):
+                end = min(rows, start + chunk_rows)
+                requests.append(PreparedStageBatchRequest.pack_encoded(batches[index],
+                    tuple(attempts[start:end]), packed[index], end - start, columns,
+                    stage.request.wire_bits, input_bits))
+                packed[index] = b""
+            return query, requests
+        except BaseException:
+            if query is not None:
+                query.cancel()
+            self.close()
+            raise
+
+    def take_verifier(self, stage_id: str) -> Any | None:
+        with self._lock:
+            if self._closed:
+                raise TransformerClientError("prepared inventory lease is closed")
+            return self._verifiers.pop(stage_id, None)
+
+
+@dataclass(slots=True)
+class PreparedInventory:
+    id: str
+    capacity: int
+    stages: dict[str, PreparedStageRows]
+    demand: bool = False
+    _reserved: int = 0
+    _active: int = 0
+    _burned: int = 0
+    _consumed: int = 0
+    _stage_claimed: int = 0
+    _stage_burned: int = 0
+    _discarded: int = 0
+    _cancelled: bool = False
+    _audit: Callable[[str, int], None] | None = field(default=None, repr=False, compare=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    # Client-minted incarnation: a provider reissuing the same textual ID must
+    # not merge two independently generated verifier inventories in cache proofs.
+    _verification_identity: bytes = field(default_factory=lambda: secrets.token_bytes(32), init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if self.demand and any(not 1 <= s.request.rows <= self.capacity for s in self.stages.values()):
+            raise TransformerClientError("invalid stage-specific inventory capacity")
+        self._record("issued", sum(s.request.rows for s in self.stages.values()) if self.demand else self.capacity * len(self.stages))
+
+    def _record(self, kind: str, count: int) -> None:
+        if self._audit is not None:
+            self._audit("prepared_stage_rows_" + kind, count)
+
+    def _claim_stage(self, count: int) -> None:
+        with self._lock:
+            if self._cancelled:
+                raise TransformerClientError("prepared inventory is cancelled")
+            self._stage_claimed += count
+            self._record("claimed", count)
+
+    @property
+    def available(self) -> int:
+        with self._lock:
+            return 0 if self._cancelled else self.capacity - self._reserved
+
+    @property
+    def claimed(self) -> int:
+        with self._lock:
+            return self._reserved
+
+    def reserve(self, rows: int) -> PreparedInventoryLease:
+        if type(rows) is not int or rows <= 0:
+            raise TransformerClientError("prepared inventory reservation must be positive")
+        with self._lock:
+            if self._cancelled:
+                raise TransformerClientError("prepared inventory is cancelled")
+            if self._reserved + rows > self.capacity:
+                raise TransformerClientError("prepared inventory does not have enough rows")
+            start = self._reserved
+            self._reserved = self.capacity if self.demand else self._reserved + rows
+            self._active += rows
+            self._record("reserved", sum(s.request.rows for s in self.stages.values()) if self.demand else rows * len(self.stages))
+        return PreparedInventoryLease(self.id, self.stages, start, rows, self)
+
+    def _finish(self, rows: int, consumed: int, stage_claims: int) -> None:
+        with self._lock:
+            self._active -= rows
+            self._consumed += consumed
+            self._burned += rows - consumed
+            burned = (sum(s.request.rows for s in self.stages.values()) if self.demand else rows * len(self.stages)) - stage_claims
+            self._stage_burned += burned
+            self._record("burned", burned)
+
+    def cancel(self) -> None:
+        with self._lock:
+            if self._cancelled:
+                return
+            self._cancelled = True
+            self._discarded = self.capacity - self._reserved
+            discarded = (sum(s.request.rows for s in self.stages.values()) if self._discarded else 0) if self.demand else self._discarded * len(self.stages)
+            self._record("discarded", discarded)
+        for stage in self.stages.values():
+            stage.cancel()
+
+    def status(self) -> dict[str, int | str]:
+        with self._lock:
+            return {
+                "id": self.id,
+                "status": "cancelled" if self._cancelled else "ready",
+                "capacity": self.capacity,
+                "available": 0 if self._cancelled else self.capacity - self._reserved,
+                "reserved": self._active,
+                "burned": self._burned,
+                "consumed": self._consumed,
+                "stage_rows_claimed": self._stage_claimed,
+                "stage_rows_burned": self._stage_burned,
+                "stage_rows_discarded": ((sum(s.request.rows for s in self.stages.values()) if self._discarded else 0)
+                                         if self.demand else self._discarded * len(self.stages)),
+            }
+
+
+@dataclass(frozen=True, slots=True)
+class StageMetadata:
+    id: str
+    op: str
+    in_features: int
+    out_features: int
+    weight_bits: int
+    activation_bits: int
+    ring: RingKind
+    modulus: int
+    wire_bits: int
+    weight_scales: np.ndarray
+    bias: np.ndarray | None = None
+    role: str | None = None
+    layer_index: int | None = None
+    client_weight: np.ndarray | PagedGEMM | None = None
+    weight_digest: str = ""
+    client_weight_scales: np.ndarray | None = None
+    client_weight_layout: str = "linear"
+    client_aux_weight: np.ndarray | PagedGEMM | None = None
+    client_aux_scales: np.ndarray | None = None
+    seeded_profile: SeededRingProfile | None = None
+    input_equalization: np.ndarray | None = None
+    equalization_profile_digest: str | None = None
+    output_residue_bits: bytes | None = None
+
+    @property
+    def scales(self) -> np.ndarray:
+        return self.weight_scales
+
+
+ClientStage = StageMetadata
+
+
+def _paged_clear_rows(matrix, values):
+    """Tile an admitted SDK tensor without enlarging the native page-call bound."""
+    width = max(1, (4 << 20) // max(matrix.shape))
+    if values.shape[0] <= width:
+        return matrix.clear(values)
+    output = np.empty((values.shape[0], matrix.shape[0]), dtype=np.int32)
+    for start in range(0, values.shape[0], width):
+        output[start:start + width] = matrix.clear(values[start:start + width])
+    return output
+
+
+def _paged_gather_rows(matrix, ids, *, columns=False):
+    features = matrix.shape[0 if columns else 1]
+    width = min(4096, max(1, (4 << 20) // features))
+    gather = matrix.gather_columns if columns else matrix.gather_rows
+    if 0 < ids.size <= width:
+        return gather(ids)
+    output = np.empty((ids.size, features), dtype=np.int8)
+    for start in range(0, ids.size, width):
+        output[start:start + width] = gather(ids[start:start + width])
+    return output
+
+
+def validate_private_boundary_bundle(value: Any, *, vocabulary: int, hidden: int) -> dict:
+    """Validate the static public descriptor without receiving any matrix."""
+    fields = {"schema", "lookup", "head_stage", "head_weight_digest", "head_scales_digest"}
+    if type(value) is not dict or set(value) != fields or value["schema"] != "pllm.private_boundary_bundle.v1":
+        raise TransformerClientError("invalid private boundary bundle descriptor")
+    lookup = value["lookup"]
+    if type(lookup) is not dict or set(lookup) != {"digest", "records", "record_bytes"}:
+        raise TransformerClientError("invalid private boundary lookup descriptor")
+    for digest in (lookup["digest"], value["head_weight_digest"], value["head_scales_digest"]):
+        if type(digest) is not str or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            raise TransformerClientError("invalid private boundary commitment")
+    if (type(lookup["records"]) is not int or lookup["records"] != vocabulary
+            or type(lookup["record_bytes"]) is not int or lookup["record_bytes"] != hidden + 4
+            or value["head_stage"] != "lm_head"):
+        raise TransformerClientError("private boundary geometry differs")
+    return value
+
+
+@dataclass(slots=True)
+class ClientBundle:
+    model_id: str
+    manifest: dict[str, Any]
+    cfg: dict[str, Any]
+    tokenizer_descriptor: dict[str, Any]
+    stages: dict[str, StageMetadata]
+    arrays: dict[str, np.ndarray]
+    privacy: dict[str, Any]
+    schema_version: int = 1
+    weight_storage: str = "memory"
+    _execution_threads: int = field(default=0, init=False, repr=False)
+    _local_kernel: MaskedGEMM | None = field(default=None, init=False, repr=False)
+    _local_matrices: dict[str, CompiledMatrix | PagedGEMM] = field(default_factory=dict, init=False, repr=False)
+    _local_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+    _body_kernel_policy: tuple | None = field(default=None, init=False, repr=False)
+    _body_metal_matrices: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
+    _body_metal_min_rows: int = field(default=0, init=False, repr=False)
+
+    @property
+    def config(self) -> dict[str, Any]:
+        return self.cfg
+
+    @property
+    def local_tensors(self) -> dict[str, np.ndarray]:
+        return self.arrays
+
+    @classmethod
+    def unpack(cls, payload: bytes | bytearray, *, threads: int = 0) -> "ClientBundle":
+        try:
+            value = msgpack.unpackb(payload, raw=False, strict_map_key=False)
+        except Exception as exc:
+            raise TransformerClientError("invalid transformer client bundle") from exc
+        return cls._from_document(value, threads=threads)
+
+    @classmethod
+    def _from_document(cls, value, *, storage="memory", threads=0) -> "ClientBundle":
+        """Same admission for raw parsing and authenticated artifact reconstruction."""
+        snapshots = []
+        try:
+            return cls._import_document(value, storage=storage, threads=threads, snapshots=snapshots)
+        except BaseException:
+            for matrix in snapshots:
+                matrix.close()
+            raise
+
+    @classmethod
+    def _import_document(cls, value, *, storage, threads, snapshots) -> "ClientBundle":
+        from .bundle_storage import FilePayload
+
+        if type(threads) is not int or not 0 <= threads <= 32:
+            raise TransformerClientError("client native threads must be in [0,32]")
+        if storage not in {"memory", "paged"}:
+            raise TransformerClientError("unsupported client weight storage")
+        if not isinstance(value, dict) or int(value.get("v", 0)) not in {1, 2}:
+            raise TransformerClientError("unsupported transformer client bundle")
+        version = int(value["v"])
+        if storage == "paged" and version != 2:
+            raise TransformerClientError("paged client weights require schema 2")
+        paged_executor = MaskedGEMM(threads=threads) if storage == "paged" else None
+        new_format = {"v", "manifest", "runtime", "tokenizer", "arrays", "stages", "privacy"}
+        legacy_format = {
+            "v",
+            "runtime",
+            "model",
+            "manifest",
+            "config",
+            "tokenizer",
+            "stages",
+            "local_tensors",
+            "privacy",
+        }
+        reference_format = legacy_format | {"client_weights"}
+        keys = set(value)
+        if version == 1 and keys == new_format:
+            runtime_config = dict(value["runtime"])
+            array_rows = value["arrays"]
+            weight_rows: dict[str, Any] = {}
+        elif (
+            version == 1
+            and keys == legacy_format
+            and value.get("runtime")
+            in {
+                "masked_transformer",
+                "client_local_transformer",
+                "two_online_offset_transformer",
+                "direct_fhe_transformer",
+                "blinded_ole_transformer",
+                "guarded_blinded_transformer",
+            }
+        ):
+            runtime_config = dict(value["config"])
+            array_rows = value["local_tensors"]
+            weight_rows = {}
+        elif (
+            version == 2
+            and keys == reference_format
+            and value.get("runtime")
+            in {
+                "masked_transformer",
+                "client_local_transformer",
+                "two_online_offset_transformer",
+                "direct_fhe_transformer",
+                "blinded_ole_transformer",
+                "guarded_blinded_transformer",
+            }
+        ):
+            runtime_config = dict(value["config"])
+            array_rows = value["local_tensors"]
+            weight_rows = value["client_weights"]
+        else:
+            raise TransformerClientError("unsupported transformer client bundle")
+        manifest = dict(value["manifest"])
+        if str(value.get("model", manifest.get("id", ""))) != str(manifest.get("id", "")):
+            raise TransformerClientError("client bundle model descriptor mismatch")
+        privacy = dict(value["privacy"])
+        private_boundary = "private_boundary" in privacy
+        if private_boundary:
+            validate_private_boundary_bundle(privacy["private_boundary"],
+                vocabulary=runtime_config.get("vocab_size"), hidden=runtime_config.get("hidden_size", 0))
+            public_stage_fields = {"id", "op", "in_features", "out_features", "weight_bits",
+                "activation_bits", "ring", "weight_digest", "modulus", "wire_bits", "weight_scales",
+                "bias", "source_keys", "role", "layer_index", "seeded_profile",
+                "input_equalization", "equalization_profile_digest", "output_residue_bits"}
+            if any(type(row) is not dict or set(row) - public_stage_fields
+                   for row in value["stages"].values()):
+                raise TransformerClientError("private boundary has unsolicited stage payloads")
+            if (version != 2 or manifest.get("tied_embeddings") is not True
+                    or value.get("runtime") != "masked_transformer" or weight_rows
+                    or any("client_weight" in row or "client_aux_weight" in row
+                           for row in value["stages"].values())):
+                raise TransformerClientError("private boundary bundle must not carry client matrices")
+        client_prefix_layers = privacy.get("client_prefix_layers", 0)
+        client_linear_roles = privacy.get("client_linear_roles", [])
+        client_linear_layer_roles = privacy.get("client_linear_layer_roles", [])
+        if client_linear_roles or client_linear_layer_roles:
+            from pllm.roles import ClientLinearRoles
+
+            try:
+                selection = ClientLinearRoles(client_linear_roles, layer_roles=client_linear_layer_roles)
+            except (ValueError, TypeError) as exc:
+                raise TransformerClientError("invalid client linear role placement") from exc
+            if (
+                list(selection.roles) != client_linear_roles
+                or [list(pair) for pair in selection.layer_roles] != client_linear_layer_roles
+                or privacy.get("mode") != "public"
+                or value.get("runtime") != "masked_transformer"
+            ):
+                raise TransformerClientError("invalid client linear role placement")
+        elif client_linear_roles != [] or client_linear_layer_roles != []:
+            raise TransformerClientError("invalid client linear role placement")
+        if (
+            type(client_prefix_layers) is not int
+            or not 0 <= client_prefix_layers <= 8
+            or client_prefix_layers
+            and (privacy.get("mode") != "public" or value.get("runtime") != "masked_transformer")
+        ):
+            raise TransformerClientError("invalid client-owned prefix bundle placement")
+        client_weights: dict[str, tuple[np.ndarray | PagedGEMM, np.ndarray]] = {}
+        extra_client_bytes = 0
+        for weight_id, weight_row in weight_rows.items():
+            if not isinstance(weight_row, dict) or set(weight_row) != {
+                "dtype",
+                "shape",
+                "data",
+                "scales",
+            }:
+                raise TransformerClientError(f"invalid client weight {weight_id}")
+            shape = tuple(int(item) for item in weight_row["shape"])
+            if weight_row["dtype"] != "i1" or len(shape) != 2:
+                raise TransformerClientError(f"invalid client weight shape for {weight_id}")
+            if weight_id not in {"token_lookup", "lm_head", "tied_embeddings", "token_lookup_aux"}:
+                extra_client_bytes += len(weight_row["data"]) + len(weight_row["scales"])
+                if extra_client_bytes > 512 << 20:
+                    raise TransformerClientError(
+                        "client-owned prefix exceeds its 512 MiB weight bound"
+                    )
+            # MessagePack binary values own immutable bytes. Keep that backing
+            # allocation instead of duplicating every matrix during import.
+            scales = np.frombuffer(weight_row["scales"], dtype="<f4").copy()
+            payload = weight_row["data"]
+            if len(payload) != int(np.prod(shape, dtype=np.int64)) or scales.shape != (shape[0],):
+                raise TransformerClientError(f"invalid client weight length for {weight_id}")
+            if storage == "paged":
+                if type(payload) is not FilePayload:
+                    raise TransformerClientError("paged weights require verified streamed objects")
+                assert paged_executor is not None
+                matrix = PagedGEMM._from_payload_executor(payload, shape, paged_executor._executor)
+                snapshots.append(matrix)
+            else:
+                if type(payload) is FilePayload:
+                    raise TransformerClientError("file weight requires selected paged storage")
+                matrix = np.frombuffer(payload, dtype=np.int8).reshape(shape)
+            client_weights[str(weight_id)] = (matrix, scales)
+        stage_specs = {
+            str(row["id"]): row for row in manifest.get("stages", []) if isinstance(row, dict)
+        }
+        stages: dict[str, StageMetadata] = {}
+        for stage_id, row in value["stages"].items():
+            scales = np.frombuffer(row["weight_scales"], dtype="<f4").copy()
+            out_features = int(row["out_features"])
+            if scales.shape != (out_features,):
+                raise TransformerClientError(f"invalid weight scale count for {stage_id}")
+            bias_payload = row.get("bias")
+            bias = None if bias_payload is None else np.frombuffer(bias_payload, dtype="<f4").copy()
+            if bias is not None and bias.shape != (out_features,):
+                raise TransformerClientError(f"invalid bias count for {stage_id}")
+            raw_equalization = row.get("input_equalization")
+            equalization = None
+            if raw_equalization is not None:
+                if (
+                    type(raw_equalization) is not bytes
+                    or len(raw_equalization) != int(row["in_features"]) * 4
+                ):
+                    raise TransformerClientError(f"invalid equalization bytes for {stage_id}")
+                equalization = np.frombuffer(raw_equalization, dtype="<f4").copy()
+                try:
+                    validate_input_scale(equalization, int(row["in_features"]))
+                except PublicEqualizationError as exc:
+                    raise TransformerClientError(
+                        f"invalid equalization scale for {stage_id}"
+                    ) from exc
+                digest = row.get("equalization_profile_digest")
+                if (
+                    type(digest) is not str
+                    or len(digest) != 64
+                    or any(c not in "0123456789abcdef" for c in digest)
+                ):
+                    raise TransformerClientError(f"invalid equalization profile for {stage_id}")
+            elif "equalization_profile_digest" in row:
+                raise TransformerClientError(f"equalization profile lacks scale for {stage_id}")
+            spec = stage_specs.get(stage_id, {})
+            seeded_profile = None
+            if "seeded_profile" in row:
+                try:
+                    seeded_profile = SeededRingProfile.from_dict(row["seeded_profile"])
+                except ProtocolError as exc:
+                    raise TransformerClientError(
+                        f"invalid seeded ring profile for {stage_id}"
+                    ) from exc
+            client_weight = None
+            output_residue_bits = row.get("output_residue_bits")
+            if type(output_residue_bits) is dict:
+                from .residue_codec import decode_layout
+                output_residue_bits = decode_layout(output_residue_bits, out_features)
+            if output_residue_bits is not None and (
+                (privacy.get("mode") != "offset_public" and not (
+                    privacy.get("mode") == "public" and privacy.get("preprocessed") is True
+                    and privacy.get("prepared_output_encoding") == "row_residues"))
+                or type(output_residue_bits) is not bytes or len(output_residue_bits) != out_features
+                or seeded_profile is None or "client_weight" in row
+                or any(not 1 <= width <= seeded_profile.wire_bits for width in output_residue_bits)
+            ):
+                raise TransformerClientError(f"invalid output residue layout for {stage_id}")
+            client_weight_scales = None
+            client_weight_layout = "linear"
+            weight_row = row.get("client_weight")
+            if weight_row is not None:
+                from .semantic_stages import client_owns_linear
+
+                local_prefix = client_owns_linear(
+                    spec,
+                    client_prefix_layers=client_prefix_layers,
+                    client_linear_roles=tuple(client_linear_roles),
+                    client_linear_layer_roles=tuple(tuple(pair) for pair in client_linear_layer_roles),
+                )
+                if (
+                    privacy.get("mode") not in {"public", "offset_public"}
+                    or stage_id not in {"token_lookup", "lm_head"}
+                    and not local_prefix
+                ):
+                    raise TransformerClientError(
+                        "client stage weights require public boundary or bound prefix stages"
+                    )
+                if not isinstance(weight_row, dict):
+                    raise TransformerClientError(f"invalid client weight for {stage_id}")
+                if version == 2:
+                    if set(weight_row) != {"ref", "layout"}:
+                        raise TransformerClientError(
+                            f"invalid client weight reference for {stage_id}"
+                        )
+                    if local_prefix and (
+                        weight_row["ref"] != stage_id or weight_row["layout"] != "linear"
+                    ):
+                        raise TransformerClientError(
+                            "client-owned prefix stage requires its own linear weight"
+                        )
+                    reference = client_weights.get(str(weight_row["ref"]))
+                    if reference is None:
+                        raise TransformerClientError(
+                            f"unknown client weight reference for {stage_id}"
+                        )
+                    client_weight, client_weight_scales = reference
+                    client_weight_layout = str(weight_row["layout"])
+                    expected_shape = (
+                        (int(row["in_features"]), min(out_features, client_weight.shape[1]))
+                        if client_weight_layout == "embedding"
+                        else (out_features, int(row["in_features"]))
+                    )
+                    if client_weight_layout not in {"linear", "embedding", "transposed_embedding"}:
+                        raise TransformerClientError(f"invalid client weight layout for {stage_id}")
+                    if (
+                        client_weight_layout != "embedding"
+                        and client_weight.shape != expected_shape
+                    ):
+                        raise TransformerClientError(f"invalid client weight shape for {stage_id}")
+                    if client_weight_layout == "embedding" and (
+                        client_weight.shape[0] != int(row["in_features"])
+                        or client_weight.shape[1] > out_features
+                    ):
+                        raise TransformerClientError(f"invalid client weight shape for {stage_id}")
+                else:
+                    if set(weight_row) != {"dtype", "shape", "data"}:
+                        raise TransformerClientError(f"invalid client weight for {stage_id}")
+                    shape = tuple(int(item) for item in weight_row["shape"])
+                    if weight_row["dtype"] != "i1" or shape != (
+                        out_features,
+                        int(row["in_features"]),
+                    ):
+                        raise TransformerClientError(f"invalid client weight shape for {stage_id}")
+                    client_weight = np.frombuffer(weight_row["data"], dtype=np.int8)
+                    if client_weight.size != int(np.prod(shape, dtype=np.int64)):
+                        raise TransformerClientError(f"invalid client weight length for {stage_id}")
+                    client_weight = client_weight.reshape(shape)
+                    client_weight_scales = scales
+                    if stage_id == "token_lookup":
+                        client_weight_layout = "transposed_embedding"
+            client_aux_weight = None
+            client_aux_scales = None
+            aux_row = row.get("client_aux_weight")
+            if aux_row is not None:
+                if version != 2 or stage_id != "token_lookup" or set(aux_row) != {"ref"}:
+                    raise TransformerClientError(f"invalid auxiliary client weight for {stage_id}")
+                reference = client_weights.get(str(aux_row["ref"]))
+                if reference is None:
+                    raise TransformerClientError(f"unknown auxiliary client weight for {stage_id}")
+                client_aux_weight, client_aux_scales = reference
+                if client_aux_weight.shape[1] != int(row["in_features"]):
+                    raise TransformerClientError(
+                        f"invalid auxiliary client weight shape for {stage_id}"
+                    )
+            local_width = 0
+            if client_weight is not None:
+                local_width = (
+                    client_weight.shape[1]
+                    if client_weight_layout == "embedding"
+                    else client_weight.shape[0]
+                )
+            if client_aux_weight is not None:
+                local_width += client_aux_weight.shape[0]
+            if client_weight is not None and local_width != out_features:
+                raise TransformerClientError(f"invalid local client weight width for {stage_id}")
+            stages[stage_id] = StageMetadata(
+                id=stage_id,
+                op=str(row["op"]),
+                in_features=int(row["in_features"]),
+                out_features=out_features,
+                weight_bits=int(row["weight_bits"]),
+                activation_bits=int(row["activation_bits"]),
+                ring=cast(RingKind, str(row.get("ring", "prime"))),
+                modulus=int(row["modulus"]),
+                wire_bits=int(row.get("wire_bits", 32)),
+                weight_scales=scales,
+                bias=bias,
+                role=spec.get("role"),
+                layer_index=spec.get("layer_index"),
+                client_weight=client_weight,
+                weight_digest=str(row.get("weight_digest", "")),
+                client_weight_scales=client_weight_scales,
+                client_weight_layout=client_weight_layout,
+                client_aux_weight=client_aux_weight,
+                client_aux_scales=client_aux_scales,
+                seeded_profile=seeded_profile,
+                input_equalization=equalization,
+                equalization_profile_digest=row.get("equalization_profile_digest"),
+                output_residue_bits=output_residue_bits,
+            )
+        # Keep the legacy embedding stage name as a read-only alias. Round 8
+        # fuses the token embedding and Gemma PLE table into ``token_lookup``,
+        # while older clients and manifests refer to ``embed_tokens``.
+        if "token_lookup" in stages and "embed_tokens" not in stages:
+            stages["embed_tokens"] = stages["token_lookup"]
+
+        arrays: dict[str, np.ndarray] = {}
+        if private_boundary:
+            from pllm.modeling import lower_model
+            from .semantic_source import semantic_source_config
+            from .semantic_tensors import required_client_tensors
+            try:
+                source_plan = lower_model(semantic_source_config(runtime_config), batch=1,
+                    max_input_tokens=1, max_new_tokens=1)
+                required = required_client_tensors(source_plan)
+                def tensor_key(key):
+                    return key[len("model."):] if key.startswith("model.") else key
+
+                expected = {tensor_key(key): shape for key, shape in required.items()}
+                if type(array_rows) is not dict or any(type(key) is not str for key in array_rows):
+                    raise TransformerClientError("private boundary client tensor names differ")
+                normalized = {tensor_key(key) for key in array_rows}
+                if (normalized != set(expected) or len(normalized) != len(array_rows)
+                        or len(expected) != len(required)):
+                    raise TransformerClientError("private boundary bundle has unsolicited client tensors")
+                for key, row in array_rows.items():
+                    shape = expected[tensor_key(key)]
+                    if (type(row) is not dict or row.get("shape") != list(shape)
+                            or type(row.get("data")) is not bytes
+                            or len(row["data"]) != math.prod(shape) * 4):
+                        raise TransformerClientError("private boundary client tensor shape differs")
+            except (ValueError, TypeError, KeyError) as exc:
+                raise TransformerClientError("private boundary client tensors differ from source") from exc
+        for key, row in array_rows.items():
+            if private_boundary and (type(row) is not dict or set(row) != {"dtype", "shape", "data"}):
+                raise TransformerClientError("private boundary has unsolicited tensor payloads")
+            if row.get("dtype") != "f4":
+                raise TransformerClientError(f"unsupported client tensor dtype for {key}")
+            shape = tuple(int(item) for item in row["shape"])
+            array = np.frombuffer(row["data"], dtype="<f4").copy()
+            if array.size != int(np.prod(shape, dtype=np.int64)):
+                raise TransformerClientError(f"client tensor byte length mismatch for {key}")
+            arrays[str(key)] = array.reshape(shape)
+        local_ids = {stage.id for stage in stages.values() if stage.client_weight is not None}
+        advertised_ids = set(privacy.get("local_quantized_stages", []))
+        if private_boundary:
+            head = stages.get("lm_head")
+            descriptor = privacy["private_boundary"]
+            if (head is None or head.weight_digest != descriptor["head_weight_digest"]
+                    or hashlib.sha256(head.weight_scales.astype("<f4", copy=False).tobytes()).hexdigest()
+                    != descriptor["head_scales_digest"] or advertised_ids):
+                raise TransformerClientError("private boundary head commitment differs")
+        if advertised_ids and advertised_ids != local_ids:
+            raise TransformerClientError("local stage weight advertisement mismatch")
+        tokenizer = dict(value["tokenizer"])
+        if type(tokenizer.get("model")) is FilePayload:
+            from .bundle_storage import MAX_TOKENIZER_BYTES
+            source = tokenizer["model"]
+            if storage != "paged" or len(source) > MAX_TOKENIZER_BYTES:
+                raise TransformerClientError("file tokenizer requires bounded paged storage")
+            # The caller may close or alter its temporary after import. Own an
+            # independently verified snapshot, just as the native matrices do.
+            tokenizer["model"] = FilePayload(source.chunks(), size=len(source), digest=source.digest)
+            snapshots.append(tokenizer["model"])
+        bundle = cls(
+            model_id=str(manifest["id"]),
+            manifest=manifest,
+            cfg=runtime_config,
+            tokenizer_descriptor=tokenizer,
+            stages=stages,
+            arrays=arrays,
+            privacy=privacy,
+            schema_version=version,
+            weight_storage=storage,
+        )
+        bundle._execution_threads = threads
+        bundle._local_kernel = paged_executor
+        return bundle
+
+    def close(self) -> None:
+        """Retire bundle-owned tokenizer source storage on client shutdown."""
+        from .bundle_storage import FilePayload
+        payload = self.tokenizer_descriptor.get("model")
+        if type(payload) is FilePayload:
+            payload.close()
+
+    def _bind_body_kernel(self, kernels, stage_ids: tuple[str, ...]) -> None:
+        """Bind only validated compiler-owned body stages, once per bundle.
+
+        Called after complete checkpoint binding and before material reservation.
+        All GPU weights are preflighted before allocating the first snapshot.
+        """
+        policy = (kernels.component, tuple(sorted(kernels.params.items())), stage_ids)
+        with self._local_lock:
+            if self._body_kernel_policy is not None:
+                if self._body_kernel_policy != policy:
+                    raise TransformerClientError("client body kernel differs from bound policy")
+                return
+            weights = {}
+            for stage_id in stage_ids:
+                stage = self.stages[stage_id]
+                if (stage.layer_index is None or stage.client_weight is None
+                        or stage.client_weight_layout != "linear"):
+                    raise TransformerClientError("client body kernel requires owned linear stages")
+                weights[stage_id] = stage.client_weight
+            if not weights:
+                raise TransformerClientError("client body kernel has no owned stages")
+            if kernels.component == "pllm/apple-metal-int8/v1":
+                if self.weight_storage == "paged":
+                    raise TransformerClientError("paged client body weights cannot allocate Metal snapshots")
+                from .metal import MetalGEMM
+
+                matrices = MetalGEMM().bind_stages(weights)
+                min_rows = kernels.params["min_rows"]
+                threads = self._execution_threads
+            elif kernels.component == "pllm/cpu":
+                matrices, min_rows = {}, 0
+                threads = min(kernels.params["threads"], self._execution_threads or kernels.params["threads"])
+            else:
+                raise TransformerClientError("unsupported client body kernel")
+            # Paged matrices retain their import executor. Reuse that same owner;
+            # a client-local limit was bound before any snapshot was allocated.
+            if self._local_kernel is None:
+                self._local_kernel = MaskedGEMM(threads=threads)
+            self._body_metal_matrices = matrices
+            self._body_metal_min_rows = min_rows
+            self._body_kernel_policy = policy
+
+    def local_linear(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
+        stage = self.stages[stage_id]
+        if (
+            stage.client_weight is None
+            or stage.client_weight_scales is None
+            or stage.client_weight_layout != "linear"
+        ):
+            raise TransformerClientError(f"stage {stage_id!r} has no local weight")
+        quantized = quantize_activation_per_row(activation, bits=stage.activation_bits)
+        with self._local_lock:
+            matrix = self._local_matrices.get(stage_id)
+            if matrix is None:
+                if isinstance(stage.client_weight, PagedGEMM):
+                    matrix = stage.client_weight
+                else:
+                    if self._local_kernel is None:
+                        self._local_kernel = MaskedGEMM(threads=self._execution_threads)
+                    matrix = self._local_kernel.compile(stage.client_weight)
+                    # Transfer bundle ownership to the immutable native snapshot.
+                    # Tied token/head aliases must move together; callers retaining
+                    # old metadata or source bytes still own those allocations.
+                    source = stage.client_weight
+                    view = matrix.weight_view()
+                    replaced = {}
+                    for key, owner in self.stages.items():
+                        if owner.client_weight is source or owner.client_aux_weight is source:
+                            if id(owner) not in replaced:
+                                replaced[id(owner)] = replace(
+                                    owner,
+                                    client_weight=(view if owner.client_weight is source
+                                                   else owner.client_weight),
+                                    client_aux_weight=(view if owner.client_aux_weight is source
+                                                       else owner.client_aux_weight),
+                                )
+                            self.stages[key] = replaced[id(owner)]
+                self._local_matrices[stage_id] = matrix
+        metal = self._body_metal_matrices.get(stage_id)
+        if metal is not None and quantized.rows >= self._body_metal_min_rows:
+            integer = metal.clear(quantized.values)
+        elif isinstance(matrix, PagedGEMM):
+            integer = _paged_clear_rows(matrix, quantized.values)
+        else:
+            integer = matrix.clear(quantized.values)
+        result = dequantize_matmul(
+            integer,
+            quantized.scales,
+            stage.client_weight_scales,
+            output_shape=quantized.original_shape[:-1] + (stage.out_features,),
+        )
+        if stage.bias is not None:
+            result = result + stage.bias
+        return np.ascontiguousarray(result, dtype=np.float32)
+
+    def local_token_lookup(self, token_ids: np.ndarray) -> np.ndarray:
+        stage = self.stages["token_lookup"]
+        if stage.client_weight is None or stage.client_weight_scales is None:
+            raise TransformerClientError("token lookup has no local weight")
+        ids = np.asarray(token_ids, dtype=np.int64).reshape(-1)
+        if ids.size and (int(ids.min()) < 0 or int(ids.max()) >= stage.in_features):
+            raise TransformerClientError("token id outside model vocabulary")
+        if stage.client_weight_layout == "embedding":
+            values = (_paged_gather_rows(stage.client_weight, ids) if isinstance(stage.client_weight, PagedGEMM)
+                      else stage.client_weight[ids])
+            result = (
+                values.astype(np.float32) * stage.client_weight_scales[ids, None]
+            )
+        elif stage.client_weight_layout == "transposed_embedding":
+            values = (_paged_gather_rows(stage.client_weight, ids, columns=True) if isinstance(stage.client_weight, PagedGEMM)
+                      else stage.client_weight[:, ids].T)
+            qmax = signed_qmax(stage.activation_bits)
+            integer = values.astype(np.int32) * qmax
+            scales = np.full(ids.size, np.float32(1.0 / qmax), dtype=np.float32)
+            result = dequantize_matmul(integer, scales, stage.client_weight_scales)
+        else:
+            raise TransformerClientError("token lookup has invalid local weight layout")
+        if stage.client_aux_weight is not None:
+            assert stage.client_aux_scales is not None
+            qmax = signed_qmax(stage.activation_bits)
+            values = (_paged_gather_rows(stage.client_aux_weight, ids, columns=True) if isinstance(stage.client_aux_weight, PagedGEMM)
+                      else stage.client_aux_weight[:, ids].T)
+            integer = values.astype(np.int32) * qmax
+            scales = np.full(ids.size, np.float32(1.0 / qmax), dtype=np.float32)
+            auxiliary = dequantize_matmul(integer, scales, stage.client_aux_scales)
+            result = np.concatenate((result, auxiliary), axis=-1)
+        if stage.bias is not None:
+            result = result + stage.bias
+        return np.ascontiguousarray(result, dtype=np.float32)
+
+    def tensor(self, suffix: str, *, default: np.ndarray | None = None) -> np.ndarray:
+        if suffix in self.arrays:
+            return self.arrays[suffix]
+        marker = suffix if suffix.startswith(".") else "." + suffix
+        matches = [value for key, value in self.arrays.items() if key.endswith(marker)]
+        if len(matches) == 1:
+            return matches[0]
+        if not matches and default is not None:
+            return default
+        if not matches:
+            raise TransformerClientError(f"missing client tensor {suffix!r}")
+        raise TransformerClientError(f"ambiguous client tensor suffix {suffix!r}")
+
+    def render_prompt(
+        self,
+        messages: list[Any],
+        *,
+        add_generation_prompt: bool = True,
+        tools: list[dict[str, Any]] | None = None,
+    ) -> str:
+        rows: list[dict[str, Any]] = []
+        for item in messages:
+            if hasattr(item, "to_prompt_dict"):
+                row = dict(item.to_prompt_dict())
+            elif isinstance(item, dict):
+                row = dict(item)
+            else:
+                row = {"role": "user", "content": str(item)}
+            row["role"] = "system" if row.get("role") == "developer" else str(row.get("role"))
+            row["content"] = str(row.get("content", ""))
+            rows.append(row)
+        template = self.tokenizer_descriptor.get("chat_template") or self.manifest.get(
+            "chat_template"
+        )
+        if not template:
+            suffix = "\nassistant:" if add_generation_prompt else ""
+            return "\n".join(f"{row['role']}: {row['content']}" for row in rows) + suffix
+        try:
+            from jinja2 import StrictUndefined
+            from jinja2.sandbox import SandboxedEnvironment
+
+            environment = SandboxedEnvironment(
+                undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True
+            )
+
+            def raise_exception(message: str) -> None:
+                raise TransformerClientError(str(message))
+
+            environment.globals["raise_exception"] = raise_exception
+            return str(
+                environment.from_string(str(template)).render(
+                    messages=rows,
+                    add_generation_prompt=bool(add_generation_prompt),
+                    bos_token=self.tokenizer_descriptor.get("bos_token", ""),
+                    eos_token=self.tokenizer_descriptor.get("eos_token", ""),
+                    tools=tools,
+                )
+            )
+        except BaseException:
+            # Custom Transformers templates may require extensions such as the
+            # ``generation`` tag. Falling back remains deterministic and local.
+            suffix = "\nassistant:" if add_generation_prompt else ""
+            return "\n".join(f"{row['role']}: {row['content']}" for row in rows) + suffix
+
+    def tokenizer(self) -> Tokenizer:
+        kind = str(self.tokenizer_descriptor.get("kind", self.tokenizer_descriptor.get("type", "")))
+        if kind == "alphabet":
+            return AlphabetTokenizer(str(self.tokenizer_descriptor["alphabet"]))
+        if kind == "byte":
+            return ModelByteTokenizer(
+                vocab_size=int(self.tokenizer_descriptor.get("vocab_size", self.cfg["vocab_size"])),
+                bos_token_id=int(
+                    self.tokenizer_descriptor.get("bos_token_id", self.cfg["bos_token_id"])
+                ),
+                eos_token_id=int(
+                    self.tokenizer_descriptor.get("eos_token_id", self.cfg["eos_token_id"])
+                ),
+            )
+        if kind == "sentencepiece":
+            try:
+                import sentencepiece as spm
+            except ImportError as exc:  # pragma: no cover - optional dependency
+                raise TransformerClientError("sentencepiece is required for this model") from exc
+            processor = spm.SentencePieceProcessor()
+            if not processor.LoadFromSerializedProto(bytes(self.tokenizer_descriptor["model"])):
+                raise TransformerClientError("failed to load SentencePiece tokenizer")
+            return SentencePieceTokenizer(
+                processor,
+                int(self.cfg["bos_token_id"]),
+                int(self.cfg["eos_token_id"]),
+            )
+        if kind == "tokenizer_json":
+            try:
+                from tokenizers import Tokenizer as HFTokenizer
+            except ImportError as exc:  # pragma: no cover - optional dependency
+                raise TransformerClientError(
+                    "tokenizers is required for tokenizer.json models"
+                ) from exc
+            inner = HFTokenizer.from_buffer(bytes(self.tokenizer_descriptor["model"]))
+            return TokenizersJSONTokenizer(
+                inner,
+                int(self.cfg["bos_token_id"]),
+                int(self.cfg["eos_token_id"]),
+            )
+        raise TransformerClientError(f"unsupported tokenizer type {kind!r}")
+
+
+TransformerClientBundle = ClientBundle
+
+
+@dataclass(frozen=True, slots=True)
+class ModelByteTokenizer:
+    vocab_size: int
+    bos_token_id: int
+    eos_token_id: int
+    name: str = "pllm-model-byte-v1"
+
+    def __post_init__(self) -> None:
+        if self.vocab_size < 258:
+            raise ValueError("byte tokenizer requires at least 258 tokens")
+
+    def encode(self, text: str, *, add_bos: bool = False) -> list[int]:
+        # Gemma-style test checkpoints reserve 0/1 and store bytes at 2..257.
+        offset = 2 if {self.bos_token_id, self.eos_token_id} == {0, 1} else 0
+        values = [int(item) + offset for item in text.encode("utf-8")]
+        return ([self.bos_token_id] + values) if add_bos else values
+
+    def decode(self, tokens: list[int]) -> str:
+        offset = 2 if {self.bos_token_id, self.eos_token_id} == {0, 1} else 0
+        data = bytes(
+            max(0, min(255, int(token) - offset))
+            for token in tokens
+            if 0 <= int(token) - offset <= 255
+        )
+        return data.decode("utf-8", errors="replace")
+
+
+@dataclass(frozen=True, slots=True)
+class SentencePieceTokenizer:
+    inner: Any
+    bos_token_id: int
+    eos_token_id: int
+    name: str = "sentencepiece"
+
+    @property
+    def vocab_size(self) -> int:
+        return int(self.inner.GetPieceSize())
+
+    def encode(self, text: str, *, add_bos: bool = False) -> list[int]:
+        values = [int(item) for item in self.inner.EncodeAsIds(text)]
+        return ([self.bos_token_id] + values) if add_bos else values
+
+    def decode(self, tokens: list[int]) -> str:
+        return str(self.inner.DecodeIds([int(item) for item in tokens]))
+
+
+@dataclass(frozen=True, slots=True)
+class TokenizersJSONTokenizer:
+    inner: Any
+    bos_token_id: int
+    eos_token_id: int
+    name: str = "tokenizer-json"
+
+    @property
+    def vocab_size(self) -> int:
+        return int(self.inner.get_vocab_size())
+
+    def encode(self, text: str, *, add_bos: bool = False) -> list[int]:
+        values = [int(item) for item in self.inner.encode(text).ids]
+        return ([self.bos_token_id] + values) if add_bos else values
+
+    def decode(self, tokens: list[int]) -> str:
+        return str(self.inner.decode([int(item) for item in tokens], skip_special_tokens=True))
+
+
+class CorrelationProvider(Protocol):
+    def take_many(self, stage: StageMetadata, count: int) -> list[StageCorrelation]: ...
+
+
+class StageExchange(Protocol):
+    def __call__(self, stage_id: str, payloads: list[bytes]) -> list[bytes]: ...
+
+
+@dataclass(slots=True)
+class StageClientStats:
+    calls: int = 0
+    rows: int = 0
+    upload_bytes: int = 0
+    download_bytes: int = 0
+    correlations: int = 0
+    server_ns: int = 0
+    preparation_upload_bytes: int = 0
+    preparation_download_bytes: int = 0
+    inference_upload_bytes: int = 0
+    inference_download_bytes: int = 0
+    preparation_server_ns: int = 0
+    inference_server_ns: int = 0
+    correction_push_bytes: int = 0
+    correction_push_ns: int = 0
+    attempts: int = 0
+    failures: int = 0
+
+
+class CorrelationInventory:
+    """Reusable inventory adapter with hard one-time consumption semantics."""
+
+    def __init__(self, source: CorrelationProvider, *, prefetch: int = 4) -> None:
+        self.source = source
+        self.prefetch = max(1, int(prefetch))
+        self._queues: dict[str, deque[StageCorrelation]] = defaultdict(deque)
+        self._locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
+
+    def take_many(self, stage: StageMetadata, count: int) -> list[StageCorrelation]:
+        with self._locks[stage.id]:
+            queue = self._queues[stage.id]
+            if len(queue) < count:
+                queue.extend(self.source.take_many(stage, max(self.prefetch, count - len(queue))))
+            output = [queue.popleft() for _ in range(count)]
+            for item in output:
+                if item.consumed:
+                    raise TransformerClientError("correlation reuse detected")
+                item.consumed = True
+            return output
+
+
+class RemoteLinear:
+    def __init__(
+        self,
+        stages: dict[str, StageMetadata],
+        correlations: CorrelationProvider,
+        exchange: StageExchange,
+    ) -> None:
+        self.stages = stages
+        self.correlations = correlations
+        self.exchange = exchange
+        self.stats = StageClientStats()
+
+    def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
+        stage = self.stages.get(stage_id)
+        if stage is None:
+            raise TransformerClientError(f"unknown stage {stage_id!r}")
+        value = np.asarray(activation, dtype=np.float32)
+        if value.shape[-1] != stage.in_features:
+            raise TransformerClientError(
+                f"stage {stage_id} expects {stage.in_features} features, got {value.shape}"
+            )
+        if stage.input_equalization is not None:
+            value = equalize_activation(value, stage.input_equalization)
+        quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
+        rows = self.correlations.take_many(stage, quantized.rows)
+        if len(rows) != quantized.rows:
+            raise TransformerClientError("correlation provider returned the wrong row count")
+        ring = rows[0].ring or stage.ring
+        modulus = rows[0].modulus
+        if any(
+            item.stage_id != stage_id
+            or (item.ring or stage.ring) != ring
+            or item.modulus != modulus
+            for item in rows
+        ):
+            raise TransformerClientError("correlation arithmetic profile mismatch")
+        masks = np.stack([np.asarray(item.mask).reshape(stage.in_features) for item in rows])
+        transformed = np.stack(
+            [np.asarray(item.transformed_mask).reshape(stage.out_features) for item in rows]
+        )
+        aggregate = StageCorrelation(
+            id="batch-" + secrets.token_hex(12),
+            stage_id=stage_id,
+            mask=masks,
+            transformed_mask=transformed,
+            modulus=modulus,
+            ring=ring,
+        )
+        masked = (quantized.values.astype(np.int64) + masks.astype(np.int64)) % modulus
+        masked = masked.astype(np.uint32)
+        owner_state = getattr(self.correlations, "state", None)
+        owner_bundle = getattr(owner_state, "bundle", None)
+        model_id = getattr(owner_bundle, "model_id", None) or getattr(
+            self.correlations, "model_id", None
+        )
+        if model_id is None:
+            raise TransformerClientError("correlation provider does not expose a model id")
+        request = MaskedStageRequest(
+            model=str(model_id),
+            stage_id=stage_id,
+            correlation_id=aggregate.id,
+            masked_input=masked,
+            activation_scales=quantized.scales,
+            modulus=modulus,
+            wire_bits=stage.wire_bits,
+            ring=ring,
+        )
+        packed = request.pack()
+        response_payloads = self.exchange(stage_id, [packed])
+        if len(response_payloads) != 1:
+            raise TransformerClientError("stage exchange returned the wrong result count")
+        response = MaskedStageResponse.unpack(response_payloads[0])
+        accumulators = unmask_stage_output(response, aggregate)
+        output = dequantize_matmul(
+            accumulators,
+            quantized.scales,
+            stage.weight_scales,
+            output_shape=quantized.original_shape[:-1] + (stage.out_features,),
+        )
+        if stage.bias is not None:
+            output = output + stage.bias
+        self.stats.calls += 1
+        self.stats.rows += quantized.rows
+        self.stats.correlations += quantized.rows
+        self.stats.upload_bytes += len(packed)
+        self.stats.download_bytes += len(response_payloads[0])
+        self.stats.server_ns += response.server_ns
+        return output
+
+
+class PreparedRemoteLinear:
+    def __init__(
+        self,
+        model_id,
+        body_fingerprint,
+        stages,
+        inventory,
+        inference,
+        *,
+        verification_component: str = "none",
+        prefill_chunk_rows: int = 0,
+        request_encoding: str = "raw",
+    ) -> None:
+        self.model_id = model_id
+        self.body_fingerprint = body_fingerprint
+        self.stages = stages
+        self.inference = inference
+        self.inventory = inventory
+        self.verification_component = verification_component
+        if type(prefill_chunk_rows) is not int or prefill_chunk_rows not in {0, 4, 8, 16, 32}:
+            raise TransformerClientError("invalid prepared prefill chunk bound")
+        self.prefill_chunk_rows = prefill_chunk_rows
+        if type(request_encoding) is not str or request_encoding not in {"raw", "compact", "stage_packed"}:
+            raise TransformerClientError("invalid prepared request encoding")
+        self.request_encoding = request_encoding
+        self.stats = StageClientStats()
+        self.verified_calls = 0
+
+    @staticmethod
+    def _result(payloads: list[bytes], request_ids: list[str], stage: StageMetadata):
+        if len(payloads) != len(request_ids):
+            raise TransformerClientError("inference provider returned the wrong result count")
+        results = [MaskedStageResponse.unpack(payload) for payload in payloads]
+        if stage.seeded_profile is None or any(
+            result.correlation_id != request_id
+            or result.stage_id != stage.id
+            or result.ring != stage.seeded_profile.ring
+            or result.modulus != stage.seeded_profile.modulus
+            or result.wire_bits != stage.seeded_profile.wire_bits
+            for result, request_id in zip(results, request_ids, strict=True)
+        ):
+            raise TransformerClientError("service returned a mismatched seeded ring result")
+        return results
+
+    def _decode_reply(self, payload, stage, output_mask, batch_id, attempt_id, scales=None):
+        profile, rows = stage.seeded_profile, output_mask.shape[0]
+        if stage.output_residue_bits is not None:
+            from pllm import _native
+            from .residue_codec import unpack_row_response
+            packed, server_ns = unpack_row_response(
+                payload, ticket=batch_id or attempt_id, stage=stage.id,
+                widths=stage.output_residue_bits, rows=rows, bits=profile.wire_bits, namespace="prepared")
+            if scales is not None:
+                values = _native.prepared_dequantize_output(packed,
+                    output_mask.astype("<u4", copy=False).tobytes(), stage.output_residue_bits, rows,
+                    scales.astype("<f4", copy=False).tobytes(),
+                    stage.weight_scales.astype("<f4", copy=False).tobytes(),
+                    None if stage.bias is None else stage.bias.astype("<f4", copy=False).tobytes())
+                return np.frombuffer(values, "<f4").reshape(rows, stage.out_features), server_ns
+            values = np.frombuffer(_native.prepared_unpack_output(packed,
+                output_mask.astype("<u4", copy=False).tobytes(), stage.output_residue_bits, rows), "<i8")
+            return values.reshape(rows, stage.out_features), server_ns
+        if batch_id is not None:
+            result = PreparedStageBatchResponse.unpack(payload, max_rows=rows,
+                max_tensor_elements=rows * stage.out_features)
+            if (result.batch_id != batch_id or result.wire_bits != profile.wire_bits
+                    or result.masked_output.shape != (rows, stage.out_features)):
+                raise TransformerClientError("service returned a mismatched prepared batch result")
+        else:
+            result = self._result([payload], [attempt_id], stage)[0]
+        return unmask_prepared_output(result.masked_output, output_mask, profile.wire_bits), result.server_ns
+
+    def __call__(self, stage_id: str, activation: np.ndarray) -> np.ndarray:
+        stage = self.stages.get(stage_id)
+        if stage is None:
+            raise TransformerClientError(f"unknown stage {stage_id!r}")
+        value = np.asarray(activation, dtype=np.float32)
+        if value.shape[-1] != stage.in_features:
+            raise TransformerClientError(
+                f"stage {stage_id} expects {stage.in_features} features, got {value.shape}"
+            )
+        if stage.input_equalization is not None:
+            value = equalize_activation(value, stage.input_equalization)
+        profile = stage.seeded_profile
+        if profile is None or profile.wire_bits not in {16, 24, 32} or profile.modulus != 1 << profile.wire_bits:
+            raise TransformerClientError("stage lacks a seeded ring profile")
+        from .residue_codec import MAX_ROWS, MAX_VALUES
+        rows = value.size // stage.in_features
+        output_shape = value.shape[:-1] + (stage.out_features,)
+        fused_input = (self.verification_component == "none" and self.request_encoding != "raw"
+                       and 0 < rows <= MAX_ROWS and value.size <= MAX_VALUES)
+        if fused_input:
+            # Native quantization retains exactly the same float32 scale and
+            # ties-even arithmetic, emitting packed masks instead of intermediates.
+            value = value.reshape(rows, stage.in_features)
+            scales = np.empty(rows, dtype=np.float32)
+            clear_signed = None
+        else:
+            quantized = quantize_activation_per_row(value, bits=stage.activation_bits)
+            clear_signed, scales = quantized.values, quantized.scales
+        input_bits = None
+        if self.request_encoding == "stage_packed":
+            from .residue_codec import MAX_VALUES
+            widths = stage.output_residue_bits
+            if (not widths or min(widths) < 1 or max(widths) > profile.wire_bits
+                    or rows * stage.in_features > MAX_VALUES):
+                raise TransformerClientError("stage lacks an admitted packed-input layout")
+            # All omitted input contributions are multiples of every output ring.
+            # Masks and corrections retain their original domains and one-use rules.
+            input_bits = max(widths)
+        mask, output_mask, attempt_ids = self.inventory.take(stage_id, rows)
+        verifier = self.inventory.take_verifier(stage_id)
+        if self.verification_component not in {"none", "pllm/freivalds-verify/v1"} or (
+            verifier is None
+        ) != (self.verification_component == "none"):
+            if verifier is not None:
+                verifier.cancel()
+            raise TransformerClientError("prepared stage verification does not match its contract")
+        complement = None if fused_input else mask_prepared_input(clear_signed, mask, profile.wire_bits)
+        chunk_rows = self.prefill_chunk_rows or rows
+        chunks, inference_requests = [], []
+        for start in range(0, rows, chunk_rows):
+            end = min(rows, start + chunk_rows)
+            batch_id = secrets.token_hex(16) if end - start > 1 or self.request_encoding != "raw" else None
+            chunks.append((start, end, batch_id))
+            if fused_input:
+                from pllm import _native
+                packed, row_scales = _native.prepared_quantize_pack(
+                    value[start:end].astype("<f4", copy=False).tobytes(),
+                    mask[start:end].astype("<u4", copy=False).tobytes(), end - start,
+                    stage.in_features, stage.activation_bits, input_bits or profile.wire_bits)
+                scales[start:end] = np.frombuffer(row_scales, "<f4")
+                inference_requests.append(PreparedStageBatchRequest.pack_encoded(
+                    batch_id, tuple(attempt_ids[start:end]), packed, end - start,
+                    stage.in_features, profile.wire_bits, input_bits))
+                del packed, row_scales
+            elif batch_id is not None:
+                inference_requests.append(PreparedStageBatchRequest(
+                    batch_id=batch_id, correlation_ids=tuple(attempt_ids[start:end]),
+                    masked_input=complement[start:end], wire_bits=profile.wire_bits,
+                    input_bits=input_bits).pack())
+            else:
+                inference_requests.append(MaskedStageRequest(
+                    model=self.model_id,
+                    stage_id=stage_id,
+                    correlation_id=attempt_ids[start],
+                    masked_input=complement[start:end],
+                    activation_scales=np.ones(1, dtype=np.float32),
+                    modulus=profile.modulus,
+                    wire_bits=profile.wire_bits,
+                    ring=profile.ring,
+                    body_fingerprint=self.body_fingerprint,
+                    weight_digest=stage.weight_digest,
+                    weight_bits=stage.weight_bits,
+                    activation_bits=stage.activation_bits,
+                    session_id=self.inventory.inventory_id,
+                    out_features=stage.out_features,
+                    signed_output_bound=profile.signed_output_bound,
+                ).pack())
+        del mask, complement, value
+        fused_output = verifier is None and stage.output_residue_bits is not None
+        inference_upload_bytes = sum(map(len, inference_requests))
+        self.stats.inference_upload_bytes += inference_upload_bytes
+        self.stats.upload_bytes += inference_upload_bytes
+        record_protocol_operation(stage_id)
+        record_protocol_bytes("client", "inference", inference_upload_bytes, stage_id)
+        protocol_span = start_protocol_span(stage_id, 0, inference_upload_bytes)
+        try:
+            inference_payloads = self.inference(stage_id, inference_requests)
+            self.stats.inference_download_bytes += sum(map(len, inference_payloads))
+            self.stats.download_bytes += sum(map(len, inference_payloads))
+            record_protocol_bytes(
+                "inference", "client", sum(map(len, inference_payloads)), stage_id
+            )
+            if len(inference_payloads) != len(chunks):
+                raise TransformerClientError("inference provider returned the wrong chunk count")
+            parts, inference_server_ns = [], 0
+            for payload, (start, end, batch_id) in zip(inference_payloads, chunks, strict=True):
+                part, server_ns = self._decode_reply(payload, stage, output_mask[start:end],
+                                                     batch_id, attempt_ids[start],
+                                                     scales[start:end] if fused_output else None)
+                parts.append(part)
+                inference_server_ns += server_ns
+            accumulators = parts[0] if len(parts) == 1 else np.concatenate(parts)
+        except Exception as exc:
+            if verifier is not None:
+                verifier.cancel()
+            protocol_span.record_exception(exc)
+            protocol_span.end()
+            raise
+        protocol_span.set_attribute(
+            "pllm.inference_client.bytes", sum(map(len, inference_payloads))
+        )
+        protocol_span.end()
+        if verifier is not None:
+            verified = verifier.verify(
+                np.asarray(clear_signed, dtype="<i4").tobytes(),
+                np.asarray(accumulators, dtype="<i8").tobytes(),
+            )
+            accumulators = (
+                np.frombuffer(verified, dtype="<i8")
+                .copy()
+                .reshape(rows, stage.out_features)
+            )
+            self.verified_calls += 1
+        if fused_output:
+            output = accumulators.reshape(output_shape)
+        else:
+            output = dequantize_matmul(accumulators, scales, stage.weight_scales,
+                                      output_shape=output_shape)
+            if stage.bias is not None:
+                output = output + stage.bias
+        self.stats.calls += 1
+        self.stats.rows += rows
+        self.stats.inference_server_ns += inference_server_ns
+        self.stats.server_ns += inference_server_ns
+        return np.ascontiguousarray(output, dtype=np.float32)
+
+
+MaskedStageClient = RemoteLinear
+
+
+@dataclass(slots=True)
+class LayerCache:
+    key: np.ndarray | None = None
+    value: np.ndarray | None = None
+    length: int = 0
+
+    def append(
+        self, key: np.ndarray, value: np.ndarray, *, maximum_sequence: int | None = None,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        required = self.length + key.shape[0]
+        if maximum_sequence is not None and (
+            type(maximum_sequence) is not int or maximum_sequence < 1 or required > maximum_sequence
+        ):
+            raise TransformerClientError("KV cache append exceeds its sequence bound")
+        key_storage = self.key
+        value_storage = self.value
+        if (key_storage is None or value_storage is None or required > key_storage.shape[0]
+                or maximum_sequence is not None and key_storage.shape[0] > maximum_sequence):
+            capacity = max(64, 1 << (required - 1).bit_length())
+            if maximum_sequence is not None:
+                capacity = min(capacity, maximum_sequence)
+            next_key = np.empty((capacity, *key.shape[1:]), dtype=key.dtype)
+            next_value = np.empty((capacity, *value.shape[1:]), dtype=value.dtype)
+            if self.length:
+                if key_storage is None or value_storage is None:
+                    raise TransformerClientError("KV cache storage is unavailable")
+                next_key[: self.length] = key_storage[: self.length]
+                next_value[: self.length] = value_storage[: self.length]
+            self.key, self.value = next_key, next_value
+            key_storage, value_storage = next_key, next_value
+        key_storage[self.length : required] = key
+        value_storage[self.length : required] = value
+        self.length = required
+        return key_storage[:required], value_storage[:required]
+
+    def copy_active(self) -> "LayerCache":
+        return LayerCache(
+            None if self.key is None else self.key[: self.length].copy(),
+            None if self.value is None else self.value[: self.length].copy(),
+            self.length,
+        )
+
+
+_STATE_BASIS_KEY = secrets.token_bytes(32)
+
+
+@dataclass(frozen=True, slots=True)
+class SnapshotStateBasis:
+    """Process-local execution provenance, not a caller-selected cache label.
+
+    Seals authenticate qualifier/owner fields, not mutable KV payloads. Shape and
+    numeric validation remain mandatory. Unlowered state never qualifies as an
+    ordinary completed prefill or native continuation input.
+    """
+
+    phase: str
+    position: int
+    source_binding_digest: str
+    native_phase_digest: str
+    execution_digest: str
+    prefill_extent: int
+    owner_response_id: str | None
+    seal: str
+    verification_failure_bits: int = 0
+    verification_lineage: int = 0
+    verification_inventory_digest: str = ""
+
+    def _payload(self) -> bytes:
+        return json.dumps([
+            "pllm.decoder.snapshot-basis.v2", self.phase, self.position,
+            self.source_binding_digest, self.native_phase_digest,
+            self.execution_digest, self.prefill_extent, self.owner_response_id,
+            self.verification_failure_bits, self.verification_lineage, self.verification_inventory_digest,
+        ], separators=(",", ":")).encode()
+
+    def valid(self) -> bool:
+        from pllm.verification import FreivaldsVerify
+        digests = (self.source_binding_digest, self.native_phase_digest, self.execution_digest)
+        return (
+            self.phase in {"completed_prefill", "canonical_incremental", "incremental", "unqualified"}
+            and type(self.position) is int and self.position > 0
+            and type(self.prefill_extent) is int
+            and (self.prefill_extent == 0 if self.phase == "unqualified" else self.prefill_extent > 0)
+            and (self.phase not in {"completed_prefill", "canonical_incremental"} or self.position <= self.prefill_extent)
+            and all(type(value) is str and len(value) == 64
+                    and all(char in "0123456789abcdef" for char in value) for value in digests)
+            and (self.owner_response_id is None or type(self.owner_response_id) is str
+                  and bool(self.owner_response_id))
+            and type(self.verification_failure_bits) is int and type(self.verification_lineage) is int
+            and ((self.verification_failure_bits == self.verification_lineage == 0
+                  and self.verification_inventory_digest == "")
+                 or (1 <= self.verification_failure_bits <= 80
+                     and 1 <= self.verification_lineage <= FreivaldsVerify._MAX_CACHE_LINEAGE
+                     and type(self.verification_inventory_digest) is str
+                     and len(self.verification_inventory_digest) == 64
+                     and all(char in "0123456789abcdef" for char in self.verification_inventory_digest)))
+            and type(self.seal) is str
+            and hmac.compare_digest(self.seal, hmac.new(_STATE_BASIS_KEY, self._payload(), "sha256").hexdigest())
+        )
+
+    def completed_prefill(self) -> bool:
+        return self.valid() and self.phase == "completed_prefill" and self.owner_response_id is None
+
+    def cache_eligible(self, *, generated_prefixes: bool = False) -> bool:
+        return self.completed_prefill() or (generated_prefixes and self.valid()
+            and self.phase == "canonical_incremental" and self.owner_response_id is None)
+
+    def _with_owner(self, owner: str) -> SnapshotStateBasis:
+        if not self.valid() or not owner:
+            raise TransformerClientError("invalid snapshot execution basis/owner")
+        return _snapshot_state_basis(
+            self.phase, self.position, self.source_binding_digest,
+            self.native_phase_digest, self.execution_digest, owner, self.prefill_extent,
+            verification_failure_bits=self.verification_failure_bits,
+            verification_lineage=self.verification_lineage,
+            verification_inventory_digest=self.verification_inventory_digest,
+        )
+
+    def _prefix(self, position: int) -> SnapshotStateBasis:
+        if not self.cache_eligible(generated_prefixes=True) or not 0 < position <= self.position:
+            raise TransformerClientError("only completed prefill basis can produce a cache prefix")
+        return _snapshot_state_basis(
+            self.phase, position, self.source_binding_digest, self.native_phase_digest,
+            hashlib.sha256(self._payload() + position.to_bytes(8, "big")).hexdigest(), None, self.prefill_extent,
+            verification_failure_bits=self.verification_failure_bits,
+            verification_lineage=self.verification_lineage,
+            verification_inventory_digest=self.verification_inventory_digest,
+        )
+
+
+def _snapshot_state_basis(phase: str, position: int, source: str, native_phase: str,
+                          execution: str, owner: str | None = None,
+                          prefill_extent: int = 0, *, verification_failure_bits: int = 0,
+                          verification_lineage: int = 0,
+                          verification_inventory_digest: str = "") -> SnapshotStateBasis:
+    basis = SnapshotStateBasis(phase, position, source, native_phase, execution, prefill_extent, owner, "",
+                               verification_failure_bits, verification_lineage, verification_inventory_digest)
+    return SnapshotStateBasis(phase, position, source, native_phase, execution, prefill_extent, owner,
+                              hmac.new(_STATE_BASIS_KEY, basis._payload(), "sha256").hexdigest(),
+                              verification_failure_bits, verification_lineage, verification_inventory_digest)
+
+
+@dataclass(slots=True)
+class RuntimeSnapshot:
+    position: int
+    caches: list[LayerCache]
+    shared_kv: dict[str, tuple[np.ndarray, np.ndarray]]
+    semantic_binding_digest: str | None = None
+    state_basis: SnapshotStateBasis | None = None
+
+
+class MaskedTransformerClientRuntime:
+    """Client-owned nonlinear, attention, KV-cache and sampling runtime.
+
+    Every learned dense projection—including token lookup, Gemma PLE and LM
+    head—remains remote. Only public tokenizer assets and normalization vectors
+    are present in the client bundle.
+    """
+
+    def __init__(
+        self,
+        bundle: ClientBundle,
+        remote: Callable[[str, np.ndarray], np.ndarray],
+        *,
+        stage_routes: dict[str, str] | None = None,
+        token_cache: OrderedDict[int, np.ndarray] | None = None,
+        token_cache_size: int = 512,
+        token_cache_lock: threading.Lock | None = None,
+        nonlinear_evaluator: Callable[[int, np.ndarray], np.ndarray] | None = None,
+    ) -> None:
+        self.bundle = bundle
+        self.remote = remote
+        self.stage_routes = dict(stage_routes or {})
+        self.cfg = bundle.cfg
+        self.config = self.cfg
+        # SDK execution already owns its tokenizer and passes token IDs. Loading
+        # another vocabulary here can dominate the thin decoder's resident RAM.
+        self._tokenizer: Tokenizer | None = None
+        self.hidden = int(self.cfg["hidden_size"])
+        self.layers = int(self.cfg["num_hidden_layers"])
+        self.heads = int(self.cfg["num_attention_heads"])
+        self.default_kv_heads = int(self.cfg.get("num_key_value_heads", self.heads))
+        self.default_head_dim = int(self.cfg.get("head_dim", self.hidden // self.heads))
+        self.eps = float(self.cfg.get("rms_norm_eps", 1e-6))
+        self.norm_offset = float(self.cfg.get("norm_offset", 0.0))
+        self.layer_types = list(self.cfg.get("layer_types") or ["full_attention"] * self.layers)
+        self.sliding_window = self.cfg.get("sliding_window")
+        self.shared_count = int(self.cfg.get("num_kv_shared_layers", 0) or 0)
+        self.first_shared = self.layers - self.shared_count
+        self.attention_k_eq_v = bool(self.cfg.get("attention_k_eq_v", False))
+        self.ple_dim = int(self.cfg.get("hidden_size_per_layer_input", 0) or 0)
+        self.embedding_multiplier = float(
+            self.cfg.get("embedding_multiplier", math.sqrt(self.hidden))
+        )
+        self.block_style = str(self.cfg.get("block_style", "gemma4"))
+        self.qk_norm = bool(self.cfg.get("qk_norm", True))
+        self.v_norm = bool(self.cfg.get("v_norm", False))
+        self.caches = [LayerCache() for _ in range(self.layers)]
+        self.shared_kv: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        self._producer_by_type = self._shared_producers()
+        self.position = 0
+        self.rng = np.random.default_rng(42)
+        self.token_cache = token_cache if token_cache is not None else OrderedDict()
+        self.token_cache_size = max(0, int(token_cache_size))
+        self.token_cache_lock = token_cache_lock or threading.Lock()
+        self.token_cache_hits = 0
+        self.token_cache_misses = 0
+        self.token_lookup_batch = max(1, int(self.cfg.get("token_lookup_batch", 16)))
+        if nonlinear_evaluator is not None and not callable(nonlinear_evaluator):
+            raise TransformerClientError("nonlinear evaluator must be callable")
+        self.nonlinear_evaluator = nonlinear_evaluator
+
+    @property
+    def tokenizer(self) -> Tokenizer:
+        if self._tokenizer is None:
+            self._tokenizer = self.bundle.tokenizer()
+        return self._tokenizer
+
+    @tokenizer.setter
+    def tokenizer(self, value: Tokenizer) -> None:
+        self._tokenizer = value
+
+    def _stage_id(self, role: str, layer: int) -> str:
+        default_suffix = {
+            "qkv_projection": "self_attn.qkv_proj",
+            "attention_output": "self_attn.o_proj",
+            "mlp_gate_up": "mlp.gate_up_proj",
+            "mlp_down": "mlp.down_proj",
+        }[role]
+        return self.stage_routes.get(f"{role}:{layer}", f"layers.{layer}.{default_suffix}")
+
+    def reset(self) -> None:
+        self.caches = [LayerCache() for _ in range(self.layers)]
+        self.shared_kv.clear()
+        self.position = 0
+
+    def encode_prompt(self, prompt: str) -> list[int]:
+        add_bos = bool(self.bundle.tokenizer_descriptor.get("add_bos_token", True))
+        ids = self.tokenizer.encode(prompt, add_bos=add_bos)
+        return ids or [int(self.cfg["bos_token_id"])]
+
+    def prepare(self, prompt: str) -> tuple[list[int], np.ndarray, list[LayerCache]]:
+        return self.prepare_ids(self.encode_prompt(prompt))
+
+    def prepare_ids(self, ids: list[int]) -> tuple[list[int], np.ndarray, list[LayerCache]]:
+        if not ids:
+            ids = [int(self.cfg["bos_token_id"])]
+        self.reset()
+        values = np.asarray(ids, dtype=np.int64).reshape(-1)
+        logits = self._forward(values, final_logits_only=True)[-1]
+        return list(ids), logits, self.caches
+
+    def forward_ids(self, ids: list[int] | np.ndarray) -> np.ndarray:
+        values = np.asarray(ids, dtype=np.int64).reshape(-1)
+        if values.size == 0:
+            raise TransformerClientError("at least one token is required")
+        return self._forward(values)
+
+    def snapshot(self) -> RuntimeSnapshot:
+        return RuntimeSnapshot(
+            position=int(self.position),
+            caches=[row.copy_active() for row in self.caches],
+            shared_kv={
+                key: (value[0].copy(), value[1].copy()) for key, value in self.shared_kv.items()
+            },
+        )
+
+    def _unlowered_state_binding(self) -> str:
+        return hashlib.sha256(json.dumps({
+            "config": self.cfg, "privacy": self.bundle.privacy,
+        }, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    def snapshot_for_response(self, response_id: str) -> RuntimeSnapshot:
+        saved = self.snapshot()
+        basis = saved.state_basis
+        if basis is None:
+            source = self._unlowered_state_binding()
+            basis = _snapshot_state_basis(
+                "unqualified", saved.position, source,
+                hashlib.sha256(b"unlowered legacy execution").hexdigest(),
+                hashlib.sha256(source.encode() + saved.position.to_bytes(8, "big")).hexdigest(),
+            )
+        saved.state_basis = basis._with_owner(response_id)
+        if basis.phase == "canonical_incremental":
+            # A response-owned continuation resumes incremental execution without
+            # borrowing a future request's cache-workload qualification.
+            saved.state_basis = _snapshot_state_basis(
+                "incremental", basis.position, basis.source_binding_digest,
+                basis.native_phase_digest, basis.execution_digest, response_id, basis.prefill_extent,
+                verification_failure_bits=basis.verification_failure_bits,
+                verification_lineage=basis.verification_lineage,
+                verification_inventory_digest=basis.verification_inventory_digest,
+            )
+        return saved
+
+    def restore_for_response(self, snapshot: RuntimeSnapshot, response_id: str) -> None:
+        basis = snapshot.state_basis
+        if (basis is None or not basis.valid() or basis.owner_response_id != response_id
+                or basis.position != snapshot.position
+                or basis.source_binding_digest != self._unlowered_state_binding()):
+            raise TransformerClientError("prior response snapshot owner/source basis mismatch")
+        # Legacy unlowered execution is explicit conversation-only. Never route
+        # its unqualified basis through the ordinary prefill cache/native adapter.
+        MaskedTransformerClientRuntime.restore(self, snapshot)
+
+    def restore(self, snapshot: RuntimeSnapshot) -> None:
+        self.position = int(snapshot.position)
+        self.caches = [row.copy_active() for row in snapshot.caches]
+        self.shared_kv = {
+            key: (value[0].copy(), value[1].copy()) for key, value in snapshot.shared_kv.items()
+        }
+
+    def decode_step(
+        self,
+        token_id: int,
+        caches: list[LayerCache] | None,
+        position: int | None = None,
+    ) -> tuple[np.ndarray, list[LayerCache]]:
+        if caches is not None and caches is not self.caches:
+            self.caches = caches
+        logits = self._forward(np.asarray([token_id], dtype=np.int64))[-1]
+        return logits, self.caches
+
+    def sample(
+        self, logits: np.ndarray, *, temperature: float = 0.0, top_p: float | None = None
+    ) -> int:
+        if temperature <= 0:
+            return int(np.argmax(logits))
+        values = np.asarray(logits, dtype=np.float64) / float(temperature)
+        values -= values.max()
+        probabilities = np.exp(values)
+        probabilities /= probabilities.sum()
+        if top_p is not None and top_p < 1.0:
+            order = np.argsort(probabilities)[::-1]
+            cumulative = np.cumsum(probabilities[order])
+            keep = cumulative <= max(0.0, float(top_p))
+            keep[0] = True
+            mask = np.zeros_like(probabilities, dtype=bool)
+            mask[order[keep]] = True
+            probabilities = np.where(mask, probabilities, 0.0)
+            probabilities /= probabilities.sum()
+        return int(self.rng.choice(probabilities.size, p=probabilities))
+
+    def generate_steps(
+        self,
+        prompt: str,
+        *,
+        max_output_tokens: int,
+        temperature: float = 0.0,
+        top_p: float | None = None,
+    ):
+        ids, logits, caches = self.prepare(prompt)
+        for step in range(max_output_tokens):
+            token = self.sample(logits, temperature=temperature, top_p=top_p)
+            if token == int(self.cfg["eos_token_id"]):
+                break
+            yield token, self.tokenizer.decode([token])
+            if step + 1 == max_output_tokens:
+                break
+            logits, caches = self.decode_step(token, caches, len(ids) + step)
+
+    def _forward(self, ids: np.ndarray, *, final_logits_only: bool = False) -> np.ndarray:
+        hidden, ple_tokens = self._token_lookup(ids)
+        hidden = hidden * self.embedding_multiplier
+        positions = np.arange(self.position, self.position + ids.size, dtype=np.int64)
+        ple = self._per_layer_inputs(hidden, ple_tokens) if self.ple_dim else None
+        for index in range(self.layers):
+            hidden = self._layer(
+                index, hidden, positions, None if ple is None else ple[:, index, :]
+            )
+        hidden = self._norm(hidden, self._tensor("model.norm.weight", self.hidden))
+        head = self.bundle.stages["lm_head"]
+        head_input = hidden[-1:] if final_logits_only and head.client_weight is not None else hidden
+        logits = (
+            self.bundle.local_linear("lm_head", head_input)
+            if head.client_weight is not None
+            else self.remote("lm_head", head_input)
+        )
+        multiplier = self.cfg.get("output_multiplier")
+        if multiplier is not None:
+            logits = logits * float(multiplier)
+        cap = self.cfg.get("final_logit_softcapping")
+        if cap:
+            logits = float(cap) * np.tanh(logits / float(cap))
+        self.position += ids.size
+        return logits.astype(np.float32, copy=False)
+
+    def _token_lookup(self, ids: np.ndarray) -> tuple[np.ndarray, np.ndarray | None]:
+        if "token_lookup" in self.bundle.stages:
+            stage = self.bundle.stages["token_lookup"]
+            valid = np.clip(np.asarray(ids, dtype=np.int64).reshape(-1), 0, stage.in_features - 1)
+            if stage.client_weight is not None:
+                values = self.bundle.local_token_lookup(valid)
+                hidden = values[:, : self.hidden]
+                rest = values[:, self.hidden :]
+                return hidden, (rest if rest.size else None)
+            values = np.empty((valid.size, stage.out_features), dtype=np.float32)
+            missing: list[int] = []
+            missing_set: set[int] = set()
+            existing_hits = 0
+            if self.token_cache_size:
+                with self.token_cache_lock:
+                    for token in valid:
+                        key = int(token)
+                        cached = self.token_cache.get(key)
+                        if cached is not None:
+                            self.token_cache.move_to_end(key)
+                            existing_hits += 1
+                        elif key not in missing_set:
+                            missing.append(key)
+                            missing_set.add(key)
+                        # Duplicate misses in the same batch are deduplicated,
+                        # but are not counted as pre-existing LRU hits.
+            else:
+                missing = list(dict.fromkeys(int(token) for token in valid))
+            self.token_cache_hits += existing_hits
+
+            for start in range(0, len(missing), self.token_lookup_batch):
+                batch = missing[start : start + self.token_lookup_batch]
+                one_hot = np.zeros((len(batch), stage.in_features), dtype=np.float32)
+                if batch:
+                    one_hot[np.arange(len(batch)), np.asarray(batch, dtype=np.int64)] = 1.0
+                    looked_up = self.remote("token_lookup", one_hot)
+                    self.token_cache_misses += len(batch)
+                    with self.token_cache_lock:
+                        for token, row in zip(batch, looked_up, strict=True):
+                            self.token_cache[int(token)] = np.asarray(row, dtype=np.float32).copy()
+                            self.token_cache.move_to_end(int(token))
+                        while (
+                            self.token_cache_size and len(self.token_cache) > self.token_cache_size
+                        ):
+                            self.token_cache.popitem(last=False)
+
+            with self.token_cache_lock:
+                for row, token in enumerate(valid):
+                    key = int(token)
+                    cached = self.token_cache.get(key)
+                    if cached is None:
+                        raise TransformerClientError(
+                            f"token lookup cache failed to materialize token {key}"
+                        )
+                    self.token_cache.move_to_end(key)
+                    values[row] = cached
+            if not self.token_cache_size:
+                # The temporary materialisation above is needed to assemble the
+                # response rows, but cache_size=0 must not retain token-derived
+                # model material across calls.
+                with self.token_cache_lock:
+                    self.token_cache.clear()
+            hidden = values[:, : self.hidden]
+            rest = values[:, self.hidden :]
+            return hidden, (rest if rest.size else None)
+        hidden = self._embedding(ids, "embed_tokens")
+        token_ple = (
+            self._embedding(ids, "embed_tokens_per_layer")
+            if "embed_tokens_per_layer" in self.bundle.stages
+            else None
+        )
+        return hidden, token_ple
+
+    def _embedding(self, ids: np.ndarray, stage_id: str) -> np.ndarray:
+        stage = self.bundle.stages[stage_id]
+        one_hot = np.zeros((ids.size, stage.in_features), dtype=np.float32)
+        valid = np.clip(ids, 0, stage.in_features - 1)
+        one_hot[np.arange(ids.size), valid] = 1.0
+        return self.remote(stage_id, one_hot)
+
+    def _per_layer_inputs(
+        self, embedding: np.ndarray, token_ple: np.ndarray | None
+    ) -> np.ndarray | None:
+        if token_ple is None:
+            return None
+        token = token_ple.reshape(embedding.shape[0], self.layers, self.ple_dim)
+        token = token * math.sqrt(self.ple_dim)
+        if "model.per_layer_model_projection" in self.bundle.stages:
+            context = self.remote("model.per_layer_model_projection", embedding)
+            context = context * (self.hidden**-0.5)
+            context = context.reshape(embedding.shape[0], self.layers, self.ple_dim)
+            context = self._norm(
+                context,
+                self._tensor("per_layer_projection_norm.weight", self.ple_dim),
+            )
+            return (token + context) * (2**-0.5)
+        return token
+
+    def _layer(
+        self,
+        index: int,
+        hidden: np.ndarray,
+        positions: np.ndarray,
+        per_layer_input: np.ndarray | None,
+    ) -> np.ndarray:
+        residual = hidden
+        normed = self._norm(
+            hidden, self._tensor(f"layers.{index}.input_layernorm.weight", self.hidden)
+        )
+        attention = self._attention(index, normed, positions)
+        if self.block_style == "gemma4":
+            attention = self._norm(
+                attention,
+                self._tensor(f"layers.{index}.post_attention_layernorm.weight", self.hidden),
+            )
+        hidden = residual + attention
+
+        residual = hidden
+        if self.block_style == "gemma4":
+            normed = self._norm(
+                hidden,
+                self._tensor(f"layers.{index}.pre_feedforward_layernorm.weight", self.hidden),
+            )
+        else:
+            normed = self._norm(
+                hidden,
+                self._tensor(f"layers.{index}.post_attention_layernorm.weight", self.hidden),
+            )
+        gate_up = self.remote(self._stage_id("mlp_gate_up", index), normed)
+        gate, up = np.split(gate_up, 2, axis=-1)
+        activated = (
+            self._activation(gate)
+            if self.nonlinear_evaluator is None
+            else np.asarray(self.nonlinear_evaluator(index, gate))
+        )
+        if (
+            activated.dtype != np.float32
+            or activated.shape != gate.shape
+            or not np.all(np.isfinite(activated))
+        ):
+            raise TransformerClientError("nonlinear evaluator returned an invalid activation")
+        mlp = activated * up
+        mlp = self.remote(self._stage_id("mlp_down", index), mlp)
+        if self.block_style == "gemma4":
+            mlp = self._norm(
+                mlp,
+                self._tensor(f"layers.{index}.post_feedforward_layernorm.weight", self.hidden),
+            )
+        hidden = residual + mlp
+
+        if per_layer_input is not None:
+            gate_stage = f"layers.{index}.per_layer_input_gate"
+            projection_stage = f"layers.{index}.per_layer_projection"
+            if gate_stage not in self.bundle.stages or projection_stage not in self.bundle.stages:
+                raise TransformerClientError(
+                    f"Gemma PLE stages are missing for layer {index}; dense PLE weights are never shipped to the client"
+                )
+            residual = hidden
+            ple_gate = self.remote(gate_stage, hidden)
+            ple_gate = self._activation(ple_gate) * per_layer_input
+            ple = self.remote(projection_stage, ple_gate)
+            ple = self._norm(
+                ple,
+                self._tensor(f"layers.{index}.post_per_layer_input_norm.weight", self.hidden),
+            )
+            hidden = residual + ple
+        return hidden
+
+    def _attention(self, index: int, hidden: np.ndarray, positions: np.ndarray) -> np.ndarray:
+        layer_type = self.layer_types[index]
+        head_dim = self._layer_value(index, "head_dim", self.default_head_dim)
+        kv_heads = self._layer_value(index, "num_key_value_heads", self.default_kv_heads)
+        q_width = self.heads * head_dim
+        kv_width = kv_heads * head_dim
+        shared = self.shared_count > 0 and index >= self.first_shared
+        if shared:
+            q_raw = self.remote(f"layers.{index}.self_attn.q_proj", hidden)
+            query = q_raw.reshape(hidden.shape[0], self.heads, head_dim)
+            if layer_type not in self.shared_kv:
+                raise TransformerClientError(f"shared KV for {layer_type!r} is unavailable")
+            key_cache, value_cache = self.shared_kv[layer_type]
+        else:
+            qkv = self.remote(self._stage_id("qkv_projection", index), hidden)
+            query = qkv[:, :q_width].reshape(hidden.shape[0], self.heads, head_dim)
+            key = qkv[:, q_width : q_width + kv_width].reshape(hidden.shape[0], kv_heads, head_dim)
+            if qkv.shape[-1] == q_width + kv_width:
+                value = key.copy()
+            else:
+                value = qkv[:, q_width + kv_width : q_width + 2 * kv_width].reshape(
+                    hidden.shape[0], kv_heads, head_dim
+                )
+            if self.qk_norm:
+                key = self._head_norm(key, f"layers.{index}.self_attn.k_norm.weight")
+            if self.v_norm:
+                value = self._norm_unscaled(value)
+            key = self._rope(key, positions, index)
+            cache = self.caches[index]
+            key_cache, value_cache = cache.append(key, value)
+            if self._producer_by_type.get(layer_type) == index:
+                self.shared_kv[layer_type] = (key_cache, value_cache)
+        if self.qk_norm:
+            query = self._head_norm(query, f"layers.{index}.self_attn.q_norm.weight")
+        query = self._rope(query, positions, index)
+
+        groups = self.heads // kv_heads
+        grouped_query = query.reshape(hidden.shape[0], kv_heads, groups, head_dim)
+        output = np.empty((hidden.shape[0], self.heads, head_dim), dtype=np.float32)
+        for row, position in enumerate(positions):
+            end = min(int(position) + 1, key_cache.shape[0])
+            start = 0
+            if layer_type == "sliding_attention" and self.sliding_window:
+                start = max(0, end - int(self.sliding_window))
+            keys = key_cache[start:end]
+            values = value_cache[start:end]
+            scores = np.einsum("kgd,tkd->kgt", grouped_query[row], keys)
+            configured_scaling = self.cfg.get("attention_scaling")
+            scores *= float(
+                1.0 / math.sqrt(head_dim) if configured_scaling is None else configured_scaling
+            )
+            scores -= scores.max(axis=-1, keepdims=True)
+            probabilities = np.exp(scores).astype(np.float32)
+            probabilities /= probabilities.sum(axis=-1, keepdims=True)
+            output[row] = np.einsum("kgt,tkd->kgd", probabilities, values).reshape(
+                self.heads, head_dim
+            )
+        return self.remote(
+            self._stage_id("attention_output", index),
+            output.reshape(hidden.shape[0], q_width),
+        )
+
+    def _shared_producers(self) -> dict[str, int]:
+        result: dict[str, int] = {}
+        if self.shared_count <= 0:
+            return result
+        for index in range(self.first_shared):
+            result[self.layer_types[index]] = index
+        return result
+
+    def _head_norm(self, value: np.ndarray, suffix: str) -> np.ndarray:
+        return self._norm(value, self._tensor(suffix, value.shape[-1]))
+
+    def _rope(self, value: np.ndarray, positions: np.ndarray, index: int) -> np.ndarray:
+        params: Any = self.cfg.get("rope_parameters") or {}
+        layer_type = self.layer_types[index]
+        if isinstance(params, dict) and isinstance(params.get(layer_type), dict):
+            params = params[layer_type]
+        if not isinstance(params, dict):
+            params = {}
+        theta = float(params.get("rope_theta", self.cfg.get("rope_theta", 10000.0)))
+        if theta == 0:
+            return value
+        partial = float(params.get("partial_rotary_factor", 1.0))
+        dim = value.shape[-1]
+        rotary_dim = min(dim, int(dim * partial))
+        rotary_dim -= rotary_dim % 2
+        if rotary_dim <= 0:
+            return value
+        frequency = 1.0 / (theta ** (np.arange(0, rotary_dim, 2, dtype=np.float32) / rotary_dim))
+        angles = positions.astype(np.float32)[:, None] * frequency[None, :]
+        cos = np.concatenate([np.cos(angles), np.cos(angles)], axis=-1)[:, None, :]
+        sin = np.concatenate([np.sin(angles), np.sin(angles)], axis=-1)[:, None, :]
+        current = value[..., :rotary_dim]
+        half = rotary_dim // 2
+        rotated_half = np.concatenate([-current[..., half:], current[..., :half]], axis=-1)
+        result = value.copy()
+        result[..., :rotary_dim] = current * cos + rotated_half * sin
+        return result
+
+    def _norm(self, value: np.ndarray, weight: np.ndarray) -> np.ndarray:
+        x = np.asarray(value, dtype=np.float32)
+        result = x / np.sqrt(np.mean(x * x, axis=-1, keepdims=True) + self.eps)
+        return result * (weight.astype(np.float32) + self.norm_offset)
+
+    def _norm_unscaled(self, value: np.ndarray) -> np.ndarray:
+        x = np.asarray(value, dtype=np.float32)
+        return x / np.sqrt(np.mean(x * x, axis=-1, keepdims=True) + self.eps)
+
+    def _tensor(self, suffix: str, width: int) -> np.ndarray:
+        default = (
+            np.zeros(width, dtype=np.float32)
+            if self.norm_offset
+            else np.ones(width, dtype=np.float32)
+        )
+        return self.bundle.tensor(suffix, default=default)
+
+    def _layer_value(self, index: int, key: str, default: int) -> int:
+        per_layer = self.cfg.get("per_layer_config") or {}
+        for candidate in (str(index), index, self.layer_types[index]):
+            row = per_layer.get(candidate) if isinstance(per_layer, dict) else None
+            if isinstance(row, dict) and row.get(key) is not None:
+                return int(row[key])
+        return default
+
+    def _activation(self, value: np.ndarray) -> np.ndarray:
+        name = str(self.cfg.get("hidden_activation", "silu"))
+        if name in {"silu", "swish"}:
+            return value / (1.0 + np.exp(-value))
+        if name in {"gelu", "gelu_pytorch_tanh", "gelu_new"}:
+            return (
+                0.5
+                * value
+                * (1.0 + np.tanh(math.sqrt(2.0 / math.pi) * (value + 0.044715 * value**3)))
+            )
+        if name == "relu":
+            return np.maximum(value, 0)
+        raise TransformerClientError(f"unsupported activation {name!r}")
+
+
+GemmaNumpyRuntime = MaskedTransformerClientRuntime

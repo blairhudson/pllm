@@ -1,10 +1,11 @@
 //! Source-format discovery. The registry selects a validated architectural
 //! capability set; lowering modules never dispatch on a model family name.
 
+use super::source_budget::{preflight_dense_source, HeadWidth};
 use super::{
     dense_gated_source, fused_dense_decoder, hybrid_text_decoder, lower_qwen3_decoder,
-    lower_qwen_decoder, shared_kv_decoder, DecoderPlan, DecoderWorkload, ModelError, Qwen3Config,
-    QwenConfig,
+    lower_qwen_decoder, shared_kv_decoder, DecoderExpansionBudget, DecoderPlan, DecoderWorkload,
+    ModelError, Qwen3Config, QwenConfig,
 };
 use serde_json::Value;
 
@@ -76,6 +77,8 @@ const HYBRID_ARTIFACTS: ArtifactLayout<'static> = ArtifactLayout {
 };
 
 type SourceLowering = fn(&[u8], Value, DecoderWorkload) -> Result<DecoderPlan, ModelError>;
+type SourcePreflight =
+    fn(&Value, DecoderWorkload, DecoderExpansionBudget) -> Result<(), ModelError>;
 
 pub(super) struct HybridSource<'a> {
     pub(super) outer_type: &'static str,
@@ -266,6 +269,7 @@ struct SourceMapping {
     model_type: &'static str,
     semantic_family: &'static str,
     lower: SourceLowering,
+    preflight: Option<SourcePreflight>,
 }
 
 const SOURCE_MAPPINGS: &[SourceMapping] = &[
@@ -273,37 +277,50 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
         model_type: "qwen2",
         semantic_family: "qwen2",
         lower: lower_dense_qwen2,
+        preflight: Some(|document, workload, budget| {
+            preflight_dense_source(document, workload, budget, HeadWidth::HiddenPerHead)
+        }),
     },
     SourceMapping {
         model_type: "qwen3",
         semantic_family: "qwen3",
         lower: lower_dense_qwen3,
+        preflight: Some(|document, workload, budget| {
+            preflight_dense_source(document, workload, budget, HeadWidth::SourceField)
+        }),
     },
     SourceMapping {
         model_type: "llama",
         semantic_family: "llama",
         lower: lower_dense_gated,
+        preflight: Some(|document, workload, budget| {
+            preflight_dense_source(document, workload, budget, HeadWidth::HiddenPerHead)
+        }),
     },
     SourceMapping {
         model_type: "gemma4",
         semantic_family: "gemma4_text",
         lower: lower_shared_kv,
+        preflight: None,
     },
     SourceMapping {
         model_type: "phi3",
         semantic_family: "phi4_mini",
         lower: lower_fused_dense,
+        preflight: None,
     },
     SourceMapping {
         model_type: "qwen3_5",
         semantic_family: "qwen3_5_text",
         lower: lower_hybrid,
+        preflight: None,
     },
 ];
 
 pub(super) fn lower_json(
     bytes: &[u8],
     workload: DecoderWorkload,
+    budget: Option<DecoderExpansionBudget>,
 ) -> Result<DecoderPlan, ModelError> {
     let document: Value = serde_json::from_slice(bytes)
         .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
@@ -317,6 +334,22 @@ pub(super) fn lower_json(
         .ok_or_else(|| {
             ModelError::Unsupported(format!("model_type {model_type} has no decoder adapter"))
         })?;
+    lower_mapped(mapping, bytes, document, workload, budget)
+}
+
+fn lower_mapped(
+    mapping: &SourceMapping,
+    bytes: &[u8],
+    document: Value,
+    workload: DecoderWorkload,
+    budget: Option<DecoderExpansionBudget>,
+) -> Result<DecoderPlan, ModelError> {
+    if let Some(budget) = budget {
+        let preflight = mapping.preflight.ok_or_else(|| {
+            ModelError::Unsupported("source has no bounded expansion contract".into())
+        })?;
+        preflight(&document, workload, budget)?;
+    }
     let plan = (mapping.lower)(bytes, document, workload)?;
     if plan.model_family != mapping.semantic_family {
         return Err(ModelError::Unsupported(
@@ -376,8 +409,158 @@ fn lower_hybrid(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use serde_json::json;
     use std::fs;
     use std::path::Path;
+
+    fn lowering_sentinel(
+        _: &[u8],
+        _: Value,
+        _: DecoderWorkload,
+    ) -> Result<DecoderPlan, ModelError> {
+        Err(ModelError::Unsupported("graph lowering reached".into()))
+    }
+
+    #[test]
+    fn expansion_admission_precedes_the_graph_lowering_callback() {
+        let mapping = SourceMapping {
+            model_type: "sentinel",
+            semantic_family: "sentinel",
+            lower: lowering_sentinel,
+            preflight: Some(|document, workload, budget| {
+                preflight_dense_source(document, workload, budget, HeadWidth::SourceField)
+            }),
+        };
+        let budget = DecoderExpansionBudget {
+            max_layers: 16,
+            max_feature_width: 256,
+            max_attention_heads: 256,
+            max_vocabulary: 256,
+            max_tensor_elements: 1 << 18,
+        };
+        let workload = DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 3,
+            max_new_tokens: 2,
+        };
+        let source = json!({
+            "num_hidden_layers": 2, "hidden_size": 8, "intermediate_size": 16,
+            "num_attention_heads": 2, "num_key_value_heads": 1, "vocab_size": 32,
+            "head_dim": 4
+        });
+        for (field, value) in [
+            ("num_hidden_layers", u32::MAX as u64),
+            ("hidden_size", u64::MAX),
+            ("intermediate_size", u64::MAX),
+            ("num_attention_heads", u32::MAX as u64),
+            ("num_key_value_heads", u32::MAX as u64),
+            ("head_dim", u64::MAX),
+            ("head_dim", 256), // Each dimension fits; the projection does not.
+            ("vocab_size", u64::MAX),
+            ("num_hidden_layers", 0),
+        ] {
+            let mut changed = source.clone();
+            changed[field] = json!(value);
+            let error = lower_mapped(&mapping, b"", changed, workload, Some(budget)).unwrap_err();
+            assert!(
+                error.to_string().contains("source expansion budget"),
+                "{field}: {error}"
+            );
+        }
+        for workload in [
+            DecoderWorkload {
+                max_input_tokens: u64::MAX,
+                ..workload
+            },
+            DecoderWorkload {
+                batch: 1 << 18,
+                ..workload
+            },
+            DecoderWorkload {
+                batch: 0,
+                ..workload
+            },
+        ] {
+            let error =
+                lower_mapped(&mapping, b"", source.clone(), workload, Some(budget)).unwrap_err();
+            assert!(error.to_string().contains("source expansion budget"));
+        }
+        let error =
+            lower_mapped(&mapping, b"", source.clone(), workload, Some(budget)).unwrap_err();
+        assert!(error.to_string().contains("graph lowering reached"));
+        let missing = SourceMapping {
+            preflight: None,
+            ..mapping
+        };
+        let error = lower_mapped(&missing, b"", source, workload, Some(budget)).unwrap_err();
+        assert!(error.to_string().contains("no bounded expansion contract"));
+    }
+
+    #[test]
+    fn expansion_prices_resolved_heads_and_complete_projection_shapes() {
+        for (family, head_dim, input, outputs) in [
+            ("qwen2", 1, 1, 128), // Ignored source field cannot underprice native-width KV.
+            ("qwen3", 128, 2, 1), // Query projection is wider than hidden/KV activations.
+        ] {
+            let source = json!({
+                "model_type": family, "num_hidden_layers": 1, "hidden_size": 8,
+                "intermediate_size": 16, "num_attention_heads": 2,
+                "num_key_value_heads": 1, "vocab_size": 32, "head_dim": head_dim,
+                "max_position_embeddings": 256, "hidden_act": "silu",
+                "rms_norm_eps": 0.000001, "rope_theta": 10000,
+                "tie_word_embeddings": true, "attention_bias": false,
+                "attention_dropout": 0.0, "rope_scaling": null, "sliding_window": null,
+                "use_sliding_window": false, "use_cache": true, "max_window_layers": 1
+            });
+            let workload = DecoderWorkload {
+                batch: 1,
+                max_input_tokens: input,
+                max_new_tokens: outputs,
+            };
+            let budget = DecoderExpansionBudget {
+                max_layers: 16,
+                max_feature_width: 256,
+                max_attention_heads: 256,
+                max_vocabulary: 256,
+                max_tensor_elements: 256,
+            };
+            let registered = SOURCE_MAPPINGS
+                .iter()
+                .find(|mapping| mapping.model_type == family)
+                .unwrap();
+            let sentinel = SourceMapping {
+                lower: lowering_sentinel,
+                ..*registered
+            };
+            let error =
+                lower_mapped(&sentinel, b"", source.clone(), workload, Some(budget)).unwrap_err();
+            assert!(error.to_string().contains("source expansion budget"));
+            let admitted = DecoderExpansionBudget {
+                max_tensor_elements: 512,
+                ..budget
+            };
+            let error =
+                lower_mapped(&sentinel, b"", source.clone(), workload, Some(admitted)).unwrap_err();
+            assert!(error.to_string().contains("graph lowering reached"));
+            let bytes = serde_json::to_vec(&source).unwrap();
+            let plan = lower_json(&bytes, workload, Some(admitted)).unwrap();
+            assert_eq!(plan, lower_json(&bytes, workload, None).unwrap());
+            let mut largest = 0;
+            for graph in [&plan.prefill, &plan.decode] {
+                for shape in graph
+                    .operations
+                    .iter()
+                    .map(|op| &op.output_shape)
+                    .chain(graph.state_inputs.iter().map(|state| &state.shape))
+                    .chain(graph.state_outputs.iter().map(|state| &state.shape))
+                {
+                    largest = largest.max(shape.iter().product::<u64>());
+                }
+            }
+            assert_eq!(largest, 512, "{family}");
+        }
+    }
 
     #[test]
     fn executable_decoder_modules_are_named_and_bound_by_architecture() {

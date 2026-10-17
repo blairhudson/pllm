@@ -46,17 +46,29 @@ Complete working slices in this order. Reuse validated components across methods
 1. Freeze the source contract and obtain decisions for substantial adaptations.
 2. Implement a bounded native primitive with an independent mathematical oracle.
 3. Compose a complete operator, including conversion, setup, and output recovery.
-4. Bind the operator to model-neutral semantic, numeric, and state contracts.
-5. Run a complete generated-model request through separate role processes.
+4. Bind the operator to model-neutral semantic, numeric, and state contracts and
+   the ordinary immutable SDK component configuration.
+5. Run a complete generated-model request through separate role processes using
+   `Pipeline`, `Experiment`, the SDK, gateway and the existing CLI.
 6. Compare a pinned original model against its specified clear numeric reference.
 7. Validate continuation, cancellation, malformed input, replay, and retirement.
-8. Measure the complete implementation through the common benchmark harness.
+8. Measure the complete implementation through ordinary `BenchmarkTarget` and
+   `benchmark_suite` execution, coverage and replay.
 9. Freeze finalists and claims, then run independent confirmation cohorts.
 
 A primitive or operator result cannot satisfy a later gate. Required one-use
 material remains fresh, party-local, and charged throughout this sequence.
 Source fidelity does not require reproducing a bug that violates the paper's
 contract. Such corrections need an explicit discrepancy record and tests.
+
+The [SDK integration decision](../methods/DECISIONS.md#d5-ordinary-sdk-integration-is-required)
+is a completion gate for every method. Component discovery, serialization and
+configuration resolution must use the existing shared machinery. Model execution
+must use the admitted compiled plan across SDK, gateway, CLI and benchmarks.
+All supported choices need round-trip and execution checks; unsupported choices
+must reject before source-value loading or secret issuance. Public operator
+availability does not establish complete-response availability. Internal-only
+references remain incomplete until their corresponding ordinary SDK path passes.
 
 ## Shared model and execution requirements
 

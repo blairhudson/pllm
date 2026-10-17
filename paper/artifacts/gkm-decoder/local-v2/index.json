@@ -1,0 +1,410 @@
+{
+  "base_commit": "2299b8327b08b66b076047550793c09601305a5e",
+  "files": [
+    {
+      "bytes": 1142,
+      "original": "target/research/gkm-decoder-wheel-v2/build.log",
+      "path": "build/build.log",
+      "sha256": "32e8ea7b843d293fc8d32ce89360d90d4469fe3fa995b54a45303e525dbf5d55"
+    },
+    {
+      "bytes": 25592,
+      "original": "target/research/gkm-decoder-wheel-v2/build_paper_release.py",
+      "path": "build/build_paper_release.py",
+      "sha256": "5ef79392a8bb250c5674d8e939fe2f54a9e91009a4d6736914e2933f676ae9cc"
+    },
+    {
+      "bytes": 8066,
+      "original": "target/research/gkm-decoder-wheel-v2/check_cached_wheel.py",
+      "path": "build/check_cached_wheel.py",
+      "sha256": "f634598e145b7a5b6c2564cda382cd4e2d9ee7abd49e05fe7a4e0581605877a9"
+    },
+    {
+      "bytes": 359,
+      "original": "target/research/gkm-decoder-wheel-v2/clippy.log",
+      "path": "build/clippy.log",
+      "sha256": "61235094bf4d3aed821dca3bb1d06709092b6f12e5a3f0f66f318799e9621c07"
+    },
+    {
+      "bytes": 623,
+      "original": "target/research/gkm-decoder-wheel-v2/command.json",
+      "path": "build/command.json",
+      "sha256": "31e8e96bcacb87d8640c4374e75466bbd166a0329012bfe5f290eec2b2f3fffc"
+    },
+    {
+      "bytes": 2339,
+      "original": "target/research/gkm-decoder-wheel-v2/dependencies.txt",
+      "path": "build/dependencies.txt",
+      "sha256": "80f3aece89fbee4aaa6fa82d068d7ee34e003d07dac3ee9f935490ace2d0b1fb"
+    },
+    {
+      "bytes": 415,
+      "original": "target/research/gkm-decoder-wheel-v2/host-before.json",
+      "path": "build/host-before.json",
+      "sha256": "f57c40ddbea8ffc07aafddc218b834da3bf302899916e4b23776a5865eea3f95"
+    },
+    {
+      "bytes": 4989,
+      "original": "target/research/gkm-decoder-wheel-v2/host_swap.py",
+      "path": "build/host_swap.py",
+      "sha256": "377f6636e67bbc610d8205f4f9af78b0acfdec36ca9677f7e8821994aefe3aa6"
+    },
+    {
+      "bytes": 304,
+      "original": "target/research/gkm-decoder-wheel-v2/install-command.json",
+      "path": "build/install-command.json",
+      "sha256": "e78edc615f8d6e8c4b9852de34ab4b4fbdec92380de0135d0b6f49dbb11dd794"
+    },
+    {
+      "bytes": 289,
+      "original": "target/research/gkm-decoder-wheel-v2/install-online-command.json",
+      "path": "build/install-online-command.json",
+      "sha256": "f2d8e465d6c33adab343e76f98f0df7f758888ea323e02f2045dec38a02bc221"
+    },
+    {
+      "bytes": 3574,
+      "original": "target/research/gkm-decoder-wheel-v2/install-online.log",
+      "path": "build/install-online.log",
+      "sha256": "43cd98e308e89c4d3180594211d03dce8517b69a3a68cfce1f3fbceac47dc1bc"
+    },
+    {
+      "bytes": 453,
+      "original": "target/research/gkm-decoder-wheel-v2/install.log",
+      "path": "build/install.log",
+      "sha256": "c9542dbef3f906b43ec0d66a83785c444a3922c0bbfd52c88f9b017c43bc2a5c"
+    },
+    {
+      "bytes": 54138,
+      "original": "target/research/gkm-decoder-wheel-v2/installed-postcheck.json",
+      "path": "build/installed-postcheck.json",
+      "sha256": "cd8cb80a124cc9581632c38c8ca4d495c27848b8f10f68bafcc56a5146704b7b"
+    },
+    {
+      "bytes": 24894,
+      "original": "target/research/gkm-decoder-wheel-v2/installed-tests-retry.log",
+      "path": "build/installed-tests-retry.log",
+      "sha256": "03609ca81f489c6efe6cd7bbf9eb136e1e8af731c229bfe9f40a559f448af506"
+    },
+    {
+      "bytes": 26939,
+      "original": "target/research/gkm-decoder-wheel-v2/installed-tests-retry.xml",
+      "path": "build/installed-tests-retry.xml",
+      "sha256": "62aec94c9d9eaaeb80fe6068a2a2b8fb74a49bacd1158366a66ac8eb9901be39"
+    },
+    {
+      "bytes": 185,
+      "original": "target/research/gkm-decoder-wheel-v2/installed-tests.log",
+      "path": "build/installed-tests.log",
+      "sha256": "4324e100bf78e9de89b7420f24ac458f7e8c9eb74c8389b12596d6b5b71f65dd"
+    },
+    {
+      "bytes": 1248,
+      "original": "target/research/gkm-decoder-wheel-v2/interrupted-tests.json",
+      "path": "build/interrupted-tests.json",
+      "sha256": "fb77ff1561bceff49ce2de63cacda7476b468d923c5ff82197d0e36058d4ebc0"
+    },
+    {
+      "bytes": 172937,
+      "original": "target/research/gkm-decoder-wheel-v2/monitor.json",
+      "path": "build/monitor.json",
+      "sha256": "50e809d8ae2277ce9a8808016b73217f790d8d7de29f1b895a0e19ac4b6730f5"
+    },
+    {
+      "bytes": 3779,
+      "original": "target/research/gkm-decoder-wheel-v2/native-tests.log",
+      "path": "build/native-tests.log",
+      "sha256": "09f5d4fe2425132580eb0a52cf82b7232bc7b7c06d876a4b9d82a7cf136a4b70"
+    },
+    {
+      "bytes": 280,
+      "original": "target/research/gkm-decoder-wheel-v2/observer-hashes.json",
+      "path": "build/observer-hashes.json",
+      "sha256": "6da333949bab6e8dbc7debad33c6c120fd8d5309863fc1f45f2c0fab5690bd7b"
+    },
+    {
+      "bytes": 645,
+      "original": "target/research/gkm-decoder-wheel-v2/receipt.json",
+      "path": "build/receipt.json",
+      "sha256": "27ed492d9d0d60ee1c0fd945f9b2b76f93a7cd4bdbaebae835a91c1a57320e50"
+    },
+    {
+      "bytes": 2339,
+      "original": "target/research/gkm-decoder-wheel-v2/requirements.txt",
+      "path": "build/requirements.txt",
+      "sha256": "80f3aece89fbee4aaa6fa82d068d7ee34e003d07dac3ee9f935490ace2d0b1fb"
+    },
+    {
+      "bytes": 119267,
+      "original": "target/research/gkm-decoder-wheel-v2/sources-after.json",
+      "path": "build/sources-after.json",
+      "sha256": "9171a4f5c1850796c9de0c42562563dc3dcd52a789927417e98c400d743858f1"
+    },
+    {
+      "bytes": 119267,
+      "original": "target/research/gkm-decoder-wheel-v2/sources-before.json",
+      "path": "build/sources-before.json",
+      "sha256": "9171a4f5c1850796c9de0c42562563dc3dcd52a789927417e98c400d743858f1"
+    },
+    {
+      "bytes": 99,
+      "original": "target/research/gkm-decoder-wheel-v2/stop.json",
+      "path": "build/stop.json",
+      "sha256": "932a7dce422c6556a4a9eb760d2f547df1eeac39c51804d61415630609261234"
+    },
+    {
+      "bytes": 831,
+      "original": "target/research/gkm-decoder-wheel-v2/test-command.json",
+      "path": "build/test-command.json",
+      "sha256": "ac3c087e140a8aa3a48ca8e19488bd941f16cacf19cfaba5e71785181630a161"
+    },
+    {
+      "bytes": 886,
+      "original": "target/research/gkm-decoder-wheel-v2/test-retry-command.json",
+      "path": "build/test-retry-command.json",
+      "sha256": "8fad8739084b88b6f185b0f1a95b1cb7b594e9cb7f8a166df2a00911b48b2365"
+    },
+    {
+      "bytes": 24640,
+      "original": "Cargo.lock",
+      "path": "sources/Cargo.lock",
+      "sha256": "88ee6fd53597c5a89d4be5243407a39a8e225759ce4d833f36cd6f1c97276458"
+    },
+    {
+      "bytes": 1485,
+      "original": "Cargo.toml",
+      "path": "sources/Cargo.toml",
+      "sha256": "98ccfa49ed86e7f000cf3ca6b4e16ff858716fe1d94dc2196019abc4804a40ff"
+    },
+    {
+      "bytes": 33356,
+      "original": "crates/pllm-compiler/src/decoder_matrix_inventory.rs",
+      "path": "sources/crates/pllm-compiler/src/decoder_matrix_inventory.rs",
+      "sha256": "7298f50b9610df1a0e11cea0efb06041e00533e975bb505c85e9471b89661886"
+    },
+    {
+      "bytes": 90892,
+      "original": "crates/pllm-compiler/src/decoder_runtime_schedule.rs",
+      "path": "sources/crates/pllm-compiler/src/decoder_runtime_schedule.rs",
+      "sha256": "466ee26a45d386db5cc3a74ac422918db62f0a93be98d0c1ae62d02733d04c8f"
+    },
+    {
+      "bytes": 24181,
+      "original": "crates/pllm-compiler/src/delegated_decoder.rs",
+      "path": "sources/crates/pllm-compiler/src/delegated_decoder.rs",
+      "sha256": "1a8cf6b67520eb84bc7390dcfa2b24ab5936a8925852b90e62b9e6652ec0abc2"
+    },
+    {
+      "bytes": 306515,
+      "original": "crates/pllm-compiler/src/lib.rs",
+      "path": "sources/crates/pllm-compiler/src/lib.rs",
+      "sha256": "a9b157d0f33cf1f93598a4e23a97c818ec49905a7d321fa3f6889c021377378f"
+    },
+    {
+      "bytes": 2522,
+      "original": "crates/pllm-core/src/gkm/lookup.rs",
+      "path": "sources/crates/pllm-core/src/gkm/lookup.rs",
+      "sha256": "6383c912d80e5dbb0483233d3990d7dea8c41a89223aea192caa27e1554512da"
+    },
+    {
+      "bytes": 6041,
+      "original": "crates/pllm-core/src/gkm/mod.rs",
+      "path": "sources/crates/pllm-core/src/gkm/mod.rs",
+      "sha256": "36f7c1b70aafa79d02ac6f71a4a1f5e1c6331bce119cfbc1f0860bb7bb1435e9"
+    },
+    {
+      "bytes": 5853,
+      "original": "crates/pllm-core/src/gkm/numeric.rs",
+      "path": "sources/crates/pllm-core/src/gkm/numeric.rs",
+      "sha256": "8d791e69e436fce7680ea07df3ffed14a16c348fbc5a0b240c0dda2c741ecc04"
+    },
+    {
+      "bytes": 2611,
+      "original": "crates/pllm-core/src/gkm/payload.rs",
+      "path": "sources/crates/pllm-core/src/gkm/payload.rs",
+      "sha256": "f92f6f3db0caa52dc9b9150a4411ce7ece567a87fc901149fafa80690f442f02"
+    },
+    {
+      "bytes": 13294,
+      "original": "crates/pllm-core/src/gkm/publication.rs",
+      "path": "sources/crates/pllm-core/src/gkm/publication.rs",
+      "sha256": "d7f6167251c6a12bb19a5f86fff8cfe6c08e6f55cbaafa815d91236db8efa39d"
+    },
+    {
+      "bytes": 15547,
+      "original": "crates/pllm-core/src/gkm/resource_tests.rs",
+      "path": "sources/crates/pllm-core/src/gkm/resource_tests.rs",
+      "sha256": "e8f4c10a9fa8ad2a0d171f5a71145ef6c59464976a0d33629a9e2289c317d1cd"
+    },
+    {
+      "bytes": 4174,
+      "original": "crates/pllm-core/src/gkm/seeded.rs",
+      "path": "sources/crates/pllm-core/src/gkm/seeded.rs",
+      "sha256": "12f597e4636fb55da60a082edb936c6a3c26a28f5d5fac292301a35b64febaab"
+    },
+    {
+      "bytes": 3909,
+      "original": "crates/pllm-core/src/gkm/seeded_tests.rs",
+      "path": "sources/crates/pllm-core/src/gkm/seeded_tests.rs",
+      "sha256": "37578f3199cafad5a23867a9d53835e272ba3485993f225af6b7cb98a2454d18"
+    },
+    {
+      "bytes": 6957,
+      "original": "crates/pllm-core/src/gkm/seeded_window.rs",
+      "path": "sources/crates/pllm-core/src/gkm/seeded_window.rs",
+      "sha256": "d2ed65123620c5b32ebd7c6ab35ec85d96743461dbc9ccb10fada4ddb38fa40a"
+    },
+    {
+      "bytes": 31733,
+      "original": "crates/pllm-core/src/gkm/seeded_window_tests.rs",
+      "path": "sources/crates/pllm-core/src/gkm/seeded_window_tests.rs",
+      "sha256": "d908d58b0077a4e311f9610a3f4e5cee4e3340e5ac8f47fea415be629a0d79eb"
+    },
+    {
+      "bytes": 16246,
+      "original": "crates/pllm-core/src/gkm/tests.rs",
+      "path": "sources/crates/pllm-core/src/gkm/tests.rs",
+      "sha256": "4c669fba1d6ad50d1a3cecb567bbd839173c8e6773d2832bbe21931478b63b75"
+    },
+    {
+      "bytes": 33124,
+      "original": "crates/pllm-core/src/gkm/window.rs",
+      "path": "sources/crates/pllm-core/src/gkm/window.rs",
+      "sha256": "7da99cde0eaaf357cdc453ca39d4fc7218fc0354650f7136eb8de897beaf3aa0"
+    },
+    {
+      "bytes": 28636,
+      "original": "crates/pllm-core/src/gkm/window_tests.rs",
+      "path": "sources/crates/pllm-core/src/gkm/window_tests.rs",
+      "sha256": "7cee4de20e52709b0624d2655200f1f360b0c29e2333777f7ae9f3b2e81ad7f4"
+    },
+    {
+      "bytes": 5163,
+      "original": "crates/pllm-python/src/delegated_decoder.rs",
+      "path": "sources/crates/pllm-python/src/delegated_decoder.rs",
+      "sha256": "6f8db51d8927d9c8bffb9b7e1d7435eb5049b6277a9897f67d57142e7d6ae3a1"
+    },
+    {
+      "bytes": 61847,
+      "original": "crates/pllm-python/src/lib.rs",
+      "path": "sources/crates/pllm-python/src/lib.rs",
+      "sha256": "f3262bc99072d63c35e819e93eff8aeb8e3c6b42f29ba0dd72329088453bdd17"
+    },
+    {
+      "bytes": 4879,
+      "original": "pyproject.toml",
+      "path": "sources/pyproject.toml",
+      "sha256": "aa01253b500cf366a6e3c4f723e3166936a7f46c4fda66f2b27556655a940f44"
+    },
+    {
+      "bytes": 8905,
+      "original": "python/pllm/runtime/delegated_decoder.py",
+      "path": "sources/python/pllm/runtime/delegated_decoder.py",
+      "sha256": "54595db173ff5888637ab6b82561ba25572f1f5dc0d65843c3274fecdd5e17b0"
+    },
+    {
+      "bytes": 9360,
+      "original": "python/pllm/runtime/semantic_attention.py",
+      "path": "sources/python/pllm/runtime/semantic_attention.py",
+      "sha256": "25134d5e90b9e1fb2075329f0cc491505296675c697622ddb2cb2f959f068590"
+    },
+    {
+      "bytes": 80560,
+      "original": "python/pllm/runtime/semantic_executor.py",
+      "path": "sources/python/pllm/runtime/semantic_executor.py",
+      "sha256": "3cc8fc1a668f6ace4a5ea6164ad5363ef7767dfed8229b04e99863f53836cec3"
+    },
+    {
+      "bytes": 107020,
+      "original": "python/pllm/runtime/transformer_client.py",
+      "path": "sources/python/pllm/runtime/transformer_client.py",
+      "sha256": "6c4254bb10e8c73554c220b1d4fd99a8a3ded9787aba7b4aeedde0a1de1ac574"
+    },
+    {
+      "bytes": 86,
+      "original": "rust-toolchain.toml",
+      "path": "sources/rust-toolchain.toml",
+      "sha256": "b323b19900e4b811af0a8facce5ec11249ed135ae5a46ff5c0be90067521e11f"
+    },
+    {
+      "bytes": 27715,
+      "original": "crates/pllm-compiler/tests/decoder_matrix_inventory.rs",
+      "path": "tests/crates/pllm-compiler/tests/decoder_matrix_inventory.rs",
+      "sha256": "87db85b6240a89a25c841394aafff7a5a874d92cbb7163fff7357df49181dcc3"
+    },
+    {
+      "bytes": 40504,
+      "original": "crates/pllm-compiler/tests/decoder_runtime_schedule.rs",
+      "path": "tests/crates/pllm-compiler/tests/decoder_runtime_schedule.rs",
+      "sha256": "ec0298cd562e503f2f12f69196d63a21cb87e5af96681b572a66620ab561edbf"
+    },
+    {
+      "bytes": 8135,
+      "original": "crates/pllm-compiler/tests/delegated_decoder.rs",
+      "path": "tests/crates/pllm-compiler/tests/delegated_decoder.rs",
+      "sha256": "f1a39e7121653a91f41b78a83205bea3a1f859c2ba2427a12417457daf3270af"
+    },
+    {
+      "bytes": 3907,
+      "original": "tests/conftest.py",
+      "path": "tests/tests/conftest.py",
+      "sha256": "53ec4f17cddb87325b7f927f122ec7fb1e1589dc95b5ad8b2957f41280890edc"
+    },
+    {
+      "bytes": 2200,
+      "original": "tests/test_decoder_matrix_inventory_native.py",
+      "path": "tests/tests/test_decoder_matrix_inventory_native.py",
+      "sha256": "10f35aaa14fa0e4045d6744ffd63bdfd804a1015305617ed923d4aa1294641e3"
+    },
+    {
+      "bytes": 12443,
+      "original": "tests/test_delegated_decoder.py",
+      "path": "tests/tests/test_delegated_decoder.py",
+      "sha256": "97da831a7439c823b84c3e32f24a8417585df6c13e9abd3d63bffe0cad1562e6"
+    },
+    {
+      "bytes": 12729,
+      "original": "tests/test_live_compiled_execution.py",
+      "path": "tests/tests/test_live_compiled_execution.py",
+      "sha256": "efc4672e09c0222c2407dc555bea7366ecfd63f83791c34b15009c9f5ff56c0b"
+    },
+    {
+      "bytes": 9387,
+      "original": "tests/test_private_boundary_decoder.py",
+      "path": "tests/tests/test_private_boundary_decoder.py",
+      "sha256": "5ae714516e3d732b88f0f79d6cb66a252c8e908a81ed76803205d07151b1c8f2"
+    },
+    {
+      "bytes": 10470,
+      "original": "tests/test_retained_decoder.py",
+      "path": "tests/tests/test_retained_decoder.py",
+      "sha256": "ef4e4220a06cedb47e2af9aadcd2bd747281e08cde1739de139242966a371370"
+    },
+    {
+      "bytes": 52235,
+      "original": "tests/test_runtime_model_binding.py",
+      "path": "tests/tests/test_runtime_model_binding.py",
+      "sha256": "460b249340d8f21525ad722f7f7443c7c5a9abc563fc66c7533d819085947d1a"
+    },
+    {
+      "bytes": 11767,
+      "original": "tests/test_semantic_hybrid_checkpoint.py",
+      "path": "tests/tests/test_semantic_hybrid_checkpoint.py",
+      "sha256": "b82fd0e1850bcba50e905d3a46994161a61f79b6bb27cfa25788e4ee22ab6fa2"
+    },
+    {
+      "bytes": 11375,
+      "original": "tests/test_semantic_stages.py",
+      "path": "tests/tests/test_semantic_stages.py",
+      "sha256": "1c1d94b804aaf0b203667ba40b8433b9622687ffee4446c5516a6f8bcba439e9"
+    },
+    {
+      "bytes": 15715,
+      "original": "tests/test_semantic_state.py",
+      "path": "tests/tests/test_semantic_state.py",
+      "sha256": "18462a8e1bedc00daabc4f21fa01b129cedc058ecfe562ba7e1c77126ced06d4"
+    }
+  ],
+  "retained_wheel": "target/research/gkm-decoder-wheel-v2/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+  "schema": "pllm.gkm_decoder_archive.v2",
+  "scope": "Bounded generated-decoder conformance on final formatted-source cached wheel; not full checkpoint, serving, or resource evidence."
+}

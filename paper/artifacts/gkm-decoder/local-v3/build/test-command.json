@@ -1,0 +1,35 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/research/gkm-decoder-wheel-v3/venv/bin/python",
+    "-I",
+    "-B",
+    "-m",
+    "pytest",
+    "-vv",
+    "-o",
+    "pythonpath=",
+    "tests/test_delegated_decoder.py",
+    "tests/test_runtime_model_binding.py",
+    "tests/test_semantic_stages.py",
+    "tests/test_semantic_hybrid_checkpoint.py",
+    "tests/test_semantic_state.py",
+    "tests/test_retained_decoder.py",
+    "tests/test_private_boundary_decoder.py",
+    "tests/test_live_compiled_execution.py",
+    "tests/test_decoder_matrix_inventory_native.py",
+    "--junitxml=/Users/blairhudson/workspace/pllm/target/research/gkm-decoder-wheel-v3/installed-tests.xml",
+    "--durations=12"
+  ],
+  "env": {
+    "RAYON_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "VECLIB_MAXIMUM_THREADS": "1"
+  },
+  "removed_env": [
+    "PYTHONPATH",
+    "PYTHONHOME",
+    "PYTHONSTARTUP"
+  ],
+  "timeout_seconds": 540
+}
