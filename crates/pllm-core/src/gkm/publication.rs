@@ -3,6 +3,9 @@ use sha2::{Digest, Sha256};
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use zeroize::Zeroizing;
 
+#[path = "publication_wire.rs"]
+mod wire;
+
 use super::{
     payload, sample_scalar, signed_scalar, Entropy, Error, FloatTable, I16Matrix, OsEntropy,
     Purpose, MAX_DIMENSION, MAX_LIVE_WINDOWS, MAX_PROCESS_PUBLICATION_BYTES, MAX_PUBLICATION_BYTES,
@@ -171,8 +174,8 @@ pub(super) struct MatrixPublication {
 }
 
 /// Honest-owner publication. No setup scalars, matrix weights or embedding
-/// values are retained. Fields are immutable and there is no untrusted-point
-/// deserializer in this capsule. The owner digest binds graph/checkpoint context,
+/// values are retained. Fields are immutable; wire import requires an independently
+/// authenticated expected digest. The owner digest binds graph/checkpoint context,
 /// numeric profile, bounds, dimensions, matrix/table identities, all R/S and
 /// every row hash. A digest is an identity, not a signature/authentication channel.
 pub struct Publication {

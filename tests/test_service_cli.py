@@ -889,18 +889,19 @@ def test_local_cleanup_targets_child_process_group(monkeypatch: pytest.MonkeyPat
 
     class Process:
         pid = 4321
+        returncode = None
 
-        @staticmethod
-        def poll() -> None:
-            return None
+        def poll(self):
+            return self.returncode
 
-        @staticmethod
-        def wait(*, timeout: float) -> None:
-            assert timeout == 10
+        def wait(self, *, timeout: float):
+            assert 0 <= timeout <= 5
+            self.returncode = 0
+            return self.returncode
 
     monkeypatch.setattr(servers.os, "name", "posix")
     monkeypatch.setattr(servers.os, "killpg", lambda pid, sig: calls.append((pid, sig)))
 
-    servers.LocalTopology._stop(Process())
+    servers.LocalTopology._stop_all((Process(),))
 
     assert calls == [(4321, signal.SIGTERM)]

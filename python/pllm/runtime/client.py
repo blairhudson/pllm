@@ -285,6 +285,12 @@ class ResponseStream(Generic[T]):
             if callback is not None:
                 callback()
 
+    def _cancel(self) -> None:
+        """Signal an owned iterator before waiting for its executing thread."""
+        cancel = getattr(self.iterator, "cancel", None)
+        if cancel is not None:
+            cancel()
+
     def __enter__(self) -> "ResponseStream[T]":
         return self
 
@@ -5566,6 +5572,42 @@ class OpenAI:
             raise ValueError("resource planning requires a configured network")
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
+        if profile is not None and profile.client_runtime == "compiled_gkm_v1":
+            from .delegated_client import DelegatedClient
+
+            if not isinstance(experiment, Experiment):
+                raise ValueError("GKM requires the complete bounded Experiment source")
+            unsupported = (
+                api_key, base_url, session_transport, correlation_mode,
+                preparation_base_url, preparation_api_key, correlation_prefetch,
+                prepared_inventory_rows, preparation_decode_epoch_tokens, token_cache_size,
+                prefill_cache_bound_tokens, bundle_cache_mode, bundle_cache_dir,
+                bundle_compression, tenseal_path, http_client, preparation_http_client,
+                local_engine, decode_cache, boundary_urls, boundary_api_keys,
+            )
+            if (any(value is not None for value in unsupported) or prefill_cache_bytes
+                    or prefill_cache_mode != "exact" or background_inventory_refill is not None):
+                raise ValueError("GKM requires its exact source, full-KV and two-worker contracts")
+            if (default_model or model) is not None and (default_model or model) != profile.model:
+                raise ValueError("request model conflicts with Experiment model")
+            self._owned_topology = None
+            try:
+                if role_connections is None:
+                    from .servers import build_roles
+
+                    self._owned_topology = build_roles(experiment).start()
+                    role_connections = self._owned_topology.worker_connections()
+                self._core = DelegatedClient(
+                    experiment, role_connections, timeout=300.0 if timeout is None else timeout,
+                )
+            except BaseException:
+                if self._owned_topology is not None:
+                    self._owned_topology.close()
+                raise
+            self.responses = ResponsesResource(self._core)
+            self.models = ModelsResource(self._core)
+            self.runtime = RuntimeResource(self._core)
+            return
         if profile is not None and "inventory" in json.loads(profile.canonical_composition).get(
             "components", {}
         ):
@@ -5793,6 +5835,59 @@ class OpenAI:
         self.close()
 
 
+class _OwnedAsyncResponseStream:
+    """Serialize advancement and retirement, including concurrent async close."""
+
+    def __init__(self, iterator, close_owned, cancel):
+        self.iterator = iterator
+        self.close_owned = close_owned
+        self.cancel = cancel
+        self.closed = self.terminal_seen = False
+        self.lock = asyncio.Lock()
+        self.closing = None
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        async with self.lock:
+            if self.closed:
+                raise StopAsyncIteration
+            event = await self.iterator.__anext__()
+            if self.closed:
+                # Closing owns a concurrently produced but unexposed event.
+                raise StopAsyncIteration
+            if event.type in {"response.completed", "response.incomplete"}:
+                self.terminal_seen = True
+            return event
+
+    async def aclose(self):
+        from .planned_client import _drain
+
+        if self.closing is None:
+            self.closed = True
+            if not self.terminal_seen:
+                self.cancel()  # Signal before waiting for an active __anext__.
+            self.closing = asyncio.create_task(self._close())
+        try:
+            await asyncio.shield(self.closing)
+        except asyncio.CancelledError:
+            try:
+                await _drain(self.closing)
+            except BaseException:
+                pass
+            raise
+
+    async def _close(self):
+        async with self.lock:
+            try:
+                await self.iterator.aclose()
+            finally:
+                # Unstarted generators never enter their finally block. Explicit
+                # stream.close is idempotent and also covers a cancelled first next.
+                await self.close_owned()
+
+
 class AsyncResponsesResource:
     def __init__(self, resource: ResponsesResource) -> None:
         self.resource = resource
@@ -5816,9 +5911,25 @@ class AsyncResponsesResource:
                 return context.run(function, *args, **options)
 
         if kwargs.get("stream"):
-            stream = await _owned_thread(lambda: owned_call(self.resource.create, **kwargs),
-                                         cancel=cancellation.cancel)
+            created = []
+
+            def create_stream():
+                value = owned_call(self.resource.create, **kwargs)
+                created.append(value)
+                return value
+
+            try:
+                stream = await _owned_thread(create_stream, cancel=cancellation.cancel)
+            except BaseException:
+                # Creation may have reserved a seat immediately before the
+                # awaiting caller was cancelled, without exposing the stream.
+                for value in created:
+                    await _owned_thread(owned_call, value.close, cancel=cancellation.cancel)
+                raise
             assert isinstance(stream, ResponseStream)
+
+            async def close_owned():
+                await _owned_thread(owned_call, stream.close, cancel=cancellation.cancel)
 
             async def iterate() -> AsyncIterator[ResponseEvent]:
                 sentinel = object()
@@ -5853,7 +5964,7 @@ class AsyncResponsesResource:
                     if close_error is not None:
                         _raise_cleanup_errors([close_error], primary)
 
-            return iterate()
+            return _OwnedAsyncResponseStream(iterate(), close_owned, cancellation.cancel)
         completed = []
 
         def create():

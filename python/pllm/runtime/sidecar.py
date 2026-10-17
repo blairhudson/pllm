@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from contextlib import asynccontextmanager
 from collections.abc import Callable, Iterator
+from contextvars import copy_context
 from typing import Any, cast
 
 from fastapi import FastAPI, Header, Request, WebSocket, WebSocketDisconnect
@@ -123,8 +124,30 @@ def create_sidecar_app(
                 status_code=415,
                 code="unsupported_media_type",
             )
+        limit = getattr(runtime_client, "request_body_limit_bytes", None)
+        if limit is not None:
+            if type(limit) is not int or not 0 < limit <= 16 << 20:
+                raise GatewayError("Invalid runtime ingress bound", status_code=500)
+            lengths = request.headers.getlist("content-length")
+            if (len(lengths) > 1 or lengths and (
+                    len(lengths[0]) > 10 or not lengths[0].isascii()
+                    or not lengths[0].isdigit())):
+                raise GatewayError("Invalid Content-Length", status_code=400)
+            if lengths and int(lengths[0]) > limit:
+                raise GatewayError("Request body exceeds runtime limit", status_code=413)
+            if request.headers.get("content-encoding", "identity") != "identity":
+                raise GatewayError("Request body encoding is unsupported", status_code=415)
+            raw = bytearray()
+            async for block in request.stream():
+                if len(raw) + len(block) > limit:
+                    raise GatewayError("Request body exceeds runtime limit", status_code=413)
+                raw.extend(block)
+            if lengths and len(raw) != int(lengths[0]):
+                raise GatewayError("Request body length mismatch", status_code=400)
+        else:
+            raw = await request.body()
         try:
-            value = await request.json()
+            value = json.loads(raw)
         except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
             raise GatewayError("Malformed JSON body", code="invalid_json") from None
         if not isinstance(value, dict):
@@ -209,10 +232,11 @@ def create_sidecar_app(
                     created_id: str | None = None
                     completed = False
                     source = await run_in_threadpool(runtime_client.create, body)
+                    context = copy_context()
                     try:
                         iterator = iter(source)
                         while True:
-                            event = await run_in_threadpool(_next_event, iterator)
+                            event = await _next_stream_event(iterator, source, context)
                             if event is None:
                                 break
                             value = resource_dict(event)
@@ -228,7 +252,7 @@ def create_sidecar_app(
                         with anyio.CancelScope(shield=True):
                             close = getattr(source, "close", None)
                             if close is not None:
-                                await run_in_threadpool(close)
+                                await run_in_threadpool(context.run, close)
                     if completed and created_id and not bool(body.get("store", True)):
                         connection_responses.add(created_id)
                 except WebSocketDisconnect:
@@ -315,22 +339,49 @@ def create_sidecar_app(
     return app
 
 
+async def _next_stream_event(iterator, source, context):
+    """Signal disconnect before draining the owned synchronous execution."""
+    import asyncio
+    import anyio
+    from .planned_client import _drain
+
+    task = asyncio.create_task(asyncio.to_thread(context.run, _next_event, iterator))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        cancel = getattr(source, "_cancel", None)
+        if cancel is not None:
+            cancel()
+        # AnyIO cancellation can remain level-triggered while the thread exits.
+        with anyio.CancelScope(shield=True):
+            try:
+                await _drain(task)
+            except BaseException:
+                pass
+        raise
+
+
 async def _closing_stream(iterator, source):
     """ASGI disconnect closes synchronous iterator under cancellation shielding."""
     import anyio
 
+    # A legacy generator can keep ContextVar tokens across yields. Every resume
+    # and close must enter the same Context, even when pool threads change.
+    context = copy_context()
     try:
         while True:
-            chunk = await run_in_threadpool(_next_event, iterator)
+            chunk = await _next_stream_event(iterator, source, context)
             if chunk is None:
                 break
             yield chunk
     finally:
         with anyio.CancelScope(shield=True):
-            await run_in_threadpool(iterator.close)
-            close = getattr(source, "close", None)
-            if close is not None:
-                await run_in_threadpool(close)
+            try:
+                await run_in_threadpool(context.run, iterator.close)
+            finally:
+                close = getattr(source, "close", None)
+                if close is not None:
+                    await run_in_threadpool(context.run, close)
 
 
 def _validate_continuation(runtime_client: Any, body: dict[str, Any]) -> None:

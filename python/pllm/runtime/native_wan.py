@@ -204,7 +204,7 @@ class NativeWanTopology(LocalTopology):
 
     def __init__(self, *args, wan, **kwargs):
         super().__init__(*args, **kwargs)
-        if self._privacy_mode not in {"public", "offset_public", "client_only"}:
+        if self._privacy_mode not in {"public", "offset_public", "client_only", "gkm_public"}:
             raise TopologyError("native WAN requires an admitted public role topology")
         self._native_network = NativePartyNetwork(wan, ("client", *self._role_ids))
         self._peer_inference_url = None

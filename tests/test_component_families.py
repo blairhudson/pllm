@@ -59,6 +59,7 @@ from pllm.protocols import (
     ProtocolMethod,
     PrivateEmbeddingLookup,
     MaverickDelegatedLinear,
+    OpenWeightVerifiableOutsourcing,
     PackedEncryptedLinear,
     SecureLinear,
     TwoOnlineOffsetLinear,
@@ -74,6 +75,7 @@ from pllm.roles import (
     PreparedBoundaryRoles,
     PreparedProviderRoles,
     TwoOnlineOffsetRoles,
+    TwoOnlineDelegationRoles,
 )
 from pllm.schedulers import (
     BoundedIndependentElementsProtectedTensorSchedule,
@@ -86,7 +88,7 @@ from pllm.schedulers import (
 from pllm.sources import BundleModel, ModelSource, TinyModel
 from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, StateProtocol
 from pllm.tokenization import IndexedTokenizer
-from pllm.verification import FreivaldsVerify, LinearIntegrity, VerificationScheme
+from pllm.verification import FreivaldsVerify, LinearIntegrity, PublishedLinearVerify, VerificationScheme
 
 
 def _instances():
@@ -141,9 +143,11 @@ def _instances():
         Perplexity(dataset="fixture"),
         PrivateEmbeddingLookup(),
         MaverickDelegatedLinear(),
+        OpenWeightVerifiableOutsourcing(),
         PackedEncryptedLinear(),
         PackedEncryptedSoftmax(),
         PublicPerChannelEqualized(profile_digest="a" * 64),
+        PublishedLinearVerify(),
         PublicPrefixCapsule("public-prefix", digest="a" * 64, size_bytes=1024),
         R03CrtGatedMultiplyQ7(),
         ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64),
@@ -156,6 +160,7 @@ def _instances():
         Throughput(),
         TwoOnlineOffsetLinear(),
         TwoOnlineOffsetRoles(),
+        TwoOnlineDelegationRoles(),
     )
 
 

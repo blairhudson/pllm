@@ -183,8 +183,11 @@ class BenchmarkRun:
     privacy_delta: Mapping[str, int] = field(default_factory=dict)
     process_metrics: Mapping[str, Mapping[str, float | int | None]] = field(default_factory=dict)
     failure_type: str | None = None
+    output_delivery: str = "incremental"
 
     def __post_init__(self) -> None:
+        if self.output_delivery not in {"incremental", "buffered_until_verified"}:
+            raise ValueError("unsupported output delivery contract")
         if not _SAFE_ID.fullmatch(self.run_id):
             raise ValueError("run_id contains unsupported characters")
         if self.status not in {"completed", "failed"}:
@@ -262,6 +265,9 @@ class BenchmarkRun:
         generation_seconds = _duration(
             self.generation_seconds, self.first_token_at_ns, self.last_token_at_ns
         )
+        buffered = self.output_delivery == "buffered_until_verified"
+        if buffered:
+            generation_seconds = None
         generated_after_first = max(0, (self.output_tokens or 0) - 1)
         tokens_per_second = (
             generated_after_first / generation_seconds
@@ -275,7 +281,7 @@ class BenchmarkRun:
             if self.input_tokens is not None and self.output_tokens is not None
             else None
         )
-        return {
+        record = {
             "schema_version": SCHEMA_VERSION,
             "run_id": self.run_id,
             "status": self.status,
@@ -321,7 +327,8 @@ class BenchmarkRun:
             "network": {
                 "decode_online_body_bytes": self.decode_online_body_bytes,
                 "decode_output_tokens": self.decode_output_tokens,
-                "decode_scope": "after-first-output-through-completion",
+                "decode_scope": ("semantic_decode_before_request_end_verification" if buffered
+                                 else "after-first-output-through-completion"),
             },
             "inventory": {
                 "required": self.inventory_required,
@@ -340,6 +347,13 @@ class BenchmarkRun:
             },
             "failure": {"type": self.failure_type} if self.failure_type else None,
         }
+        if buffered:
+            from .benchmark_delegated import TPS_UNAVAILABLE
+
+            record["measurement"] = {"output_delivery": self.output_delivery,
+                "ttft_scope": "online_start_to_first_accepted_text",
+                "decode_tps_supported": False, "decode_tps_unavailable_reason": TPS_UNAVAILABLE}
+        return record
 
     def evidence_report(
         self,

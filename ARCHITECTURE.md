@@ -635,8 +635,8 @@ retire owned material. Public geometry/source/graph admission precedes execution
 source-mapped expansion limits precede graph construction and source mappings are
 bounded before value reads. The repaired wheel passes 206 Python and 44 native
 checks, with two optional checkpoint skips. Small capsule limits reject the real
-Qwen checkpoint. This internal reference has
-no Pipeline, SDK role transport or checkpoint-quality result. Contract and replay:
+Qwen checkpoint. This internal reference retains its in-process scope and has
+no checkpoint-quality result. Contract and replay:
 `docs/research/gkm-decoder-reference.md`. A separate pinned Qwen source
 scanner now passes source-only numeric admission over 494,032,768 values: all
 169 linear/head tensors fit signed i16 and 5,858 scalar-oracle checks agree.
@@ -650,6 +650,22 @@ under matching typed/JSON metadata limits. Its native tests preserve legacy sche
 digests; rebuilt Python binding checks now pass within a 67-test installed suite. This metadata does
 not admit a source numerical graph or authenticate checkpoint contents. Contracts:
 `docs/research/gkm-seeded-shares.md` and `docs/research/decoder-matrix-inventory.md`.
+The subsequent bounded `OpenWeightVerifiableCpu` profile composes typed linear,
+verification and two-worker topology components through ordinary Pipeline,
+Experiment, SDK, gateway, CLI and response benchmarks. Independent worker owners
+receive only party-local full-share frames; final native request verification
+precedes model-derived text or reusable state. Original float32 lookup, i16/Q11
+weights, checked ring64 products, complete head and full KV retain their contracts.
+Generated Qwen2/Qwen3/Llama fixtures pass real two-process parity and failure
+controls. The final cached wheel passes 547 Python and 117 native checks plus
+Clippy; all 362 installed files match before and after testing. Allocation bounds,
+signature retirement, stale-session isolation, concurrent cancellation and bounded
+HTTP/HTTPS retirement have separate regression and review evidence. Buffered text
+release cannot supply decode-throughput measurements. Local sources, vocabulary
+at most 256, fixed-count greedy generation and explicit full shares bound this
+slice. Full-size checkpoint admission, source-model quality, seeded transport,
+matched performance and independent operators remain open. Contract and replay:
+`docs/research/gkm-sdk-reference.md`.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The separate direct `pllm.native.PagedGEMM` API owns an authenticated private

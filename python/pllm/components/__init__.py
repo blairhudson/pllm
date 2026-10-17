@@ -72,6 +72,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         LogRowGarbledLookup,
         PrivateEmbeddingLookup,
         MaverickDelegatedLinear,
+        OpenWeightVerifiableOutsourcing,
         PackedEncryptedLinear,
         MaskedLinear,
         SecureLinear,
@@ -87,6 +88,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         PreparedBoundaryRoles,
         PreparedProviderRoles,
         TwoOnlineOffsetRoles,
+        TwoOnlineDelegationRoles,
     )
     from pllm.schedulers import (
         MlpPrefillTiling,
@@ -97,7 +99,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
     )
     from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
     from pllm.tokenization import IndexedTokenizer
-    from pllm.verification import FreivaldsVerify, LinearIntegrity
+    from pllm.verification import FreivaldsVerify, LinearIntegrity, PublishedLinearVerify
 
     classes = (
         Accuracy,
@@ -137,6 +139,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         LogRowGarbledLookup,
         PrivateEmbeddingLookup,
         MaverickDelegatedLinear,
+        OpenWeightVerifiableOutsourcing,
         PackedEncryptedLinear,
         MaskedLinear,
         Memory,
@@ -153,6 +156,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         ClientBundleTransport,
         Perplexity,
         PreparedProviderRoles,
+        PublishedLinearVerify,
         PublicPerChannelEqualized,
         R03CrtGatedMultiplyQ7,
         ReferenceAgreement,
@@ -165,6 +169,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         Throughput,
         TwoOnlineOffsetLinear,
         TwoOnlineOffsetRoles,
+        TwoOnlineDelegationRoles,
     )
     if len({component.describe().component for component in classes}) != len(classes):
         raise RuntimeError("built-in component identities must be unique")

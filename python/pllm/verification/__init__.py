@@ -2,9 +2,9 @@
 
 from abc import ABC, abstractmethod
 from importlib import import_module
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
-from pllm.configuration import ComponentDescriptor, ComponentRef
+from pllm.configuration import ComponentDescriptor, ComponentRef, ConfigurationError
 from pllm.components._planned import PendingComponent as PendingMethod, install_planned_components, planned as pending
 
 if TYPE_CHECKING:
@@ -100,6 +100,45 @@ class FreivaldsVerify(VerificationScheme):
         return cls.descriptor
 
 
+class PublishedLinearVerify(VerificationScheme):
+    """GKM publication-bound secp256k1 checks at the final request window.
+
+    The trusted client owns offline publication and pins its verification
+    material. Tentative values must remain private until the final check accepts.
+    Buffered HTTP events may be released afterward, without smaller check windows.
+    This bounded experimental contract is not a security certification.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/published-linear-verify/v1",
+        provider="pllm", distribution="pllm.run", version="1",
+        category="pllm/verification-scheme", category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={
+            "type": "object", "additionalProperties": False,
+            "properties": {"acceptance": {"type": "string", "const": "request"}},
+            "required": ["acceptance"],
+        },
+        capabilities=("publication-bound-secp256k1-check", "final-window-acceptance",
+                      "client-owned-offline-publication", "bounded-experimental-gkm"),
+        required_host_features=("native-gkm-decoder",),
+        role_eligibility=("client",),
+    )
+
+    def __init__(self, *, acceptance: Literal["request"] = "request") -> None:
+        if type(acceptance) is not str or acceptance != "request":
+            raise ConfigurationError("GKM acceptance must be request; smaller verification windows are not admitted")
+        super().__init__(self.descriptor.component, {"acceptance": acceptance})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return dict(self.params)
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 _RUNTIME_EXPORTS = {
     "LinearCheckKey",
     "LinearCheckResult",
@@ -111,6 +150,7 @@ _RUNTIME_EXPORTS = {
 
 __all__ = [
     "FreivaldsVerify",
+    "PublishedLinearVerify",
     "LinearCheckKey",
     "LinearCheckResult",
     "LinearIntegrity",

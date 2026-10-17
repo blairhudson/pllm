@@ -13,6 +13,9 @@ the full Qwen2.5 checkpoint. Both logical workers share one process.
 Ordinary SDK integration is required for method completion under
 [D5](../../paper/methods/DECISIONS.md#d5-ordinary-sdk-integration-is-required).
 The native and generated-decoder milestones cannot satisfy that gate alone.
+The subsequent [bounded SDK slice](gkm-sdk-reference.md) supplies party-local
+worker processes and the ordinary SDK/gateway/CLI/benchmark path. This earlier
+in-process reference retains its original evidence and limits.
 
 ## Compiler and source binding
 

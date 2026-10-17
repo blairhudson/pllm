@@ -213,9 +213,59 @@ class EncryptedSparseVectorCompression(PendingMethod):
     pass
 
 
-@pending("open-weight-verifiable")
-class OpenWeightVerifiableOutsourcing(PendingMethod):
-    pass
+class OpenWeightVerifiableOutsourcing(ProtocolMethod):
+    """Bounded experimental GKM delegation with source arithmetic and full shares.
+
+    Linear weights use nearest-even i16/Q11 encoding and ring64 products;
+    encoded inputs have absolute bound 2**31. Private lookup returns the
+    original float32 token row. Greedy execution
+    has a fixed request length, including EOS, with full client-owned KV.
+    Native source/workload admission and request-end verification are required.
+    This declaration does not certify full-size execution or cryptographic security.
+    """
+
+    __slots__ = ()
+    NUMERIC_PROFILE = (
+        "gkm.nearest-even.2048.i16.ring64.signed.f32-before-div22."
+        "le-finite-f32.sha256.secp256k1.v1"
+    )
+    LOCAL_NUMERIC_PROFILE = "semantic.float32.dense-full-kv.client-bias-after-div22.v1"
+    descriptor = ComponentDescriptor(
+        component="pllm/open-weight-verifiable-outsourcing/v1",
+        provider="pllm", distribution="pllm.run", version="1",
+        category="pllm/protocol-method", category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={
+            "type": "object", "additionalProperties": False,
+            "properties": {
+                "sharing": {"type": "string", "const": "full"},
+                "generation": {"type": "string", "const": "fixed_length_greedy"},
+            },
+            "required": ["sharing", "generation"],
+        },
+        capabilities=(
+            "bounded-experimental-gkm", "source-i16-q11-ring64",
+            "private-original-float32-lookup", "full-client-kv",
+            "fixed-length-greedy", "full-input-shares",
+        ),
+        required_host_features=("native-gkm-decoder", "authenticated-confidential-channels"),
+        role_eligibility=("client", "worker_a", "worker_b"),
+    )
+
+    def __init__(self, *, sharing: Literal["full"] = "full",
+                 generation: Literal["fixed_length_greedy"] = "fixed_length_greedy") -> None:
+        if type(sharing) is not str or sharing != "full":
+            raise ConfigurationError("GKM remote sharing must be full; seeded transport is not admitted")
+        if type(generation) is not str or generation != "fixed_length_greedy":
+            raise ConfigurationError("GKM generation must be fixed_length_greedy")
+        super().__init__(self.descriptor.component, {"sharing": sharing, "generation": generation})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return dict(self.params)
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
 
 
 @pending("sort-sweep-mirror")

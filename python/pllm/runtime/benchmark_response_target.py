@@ -42,6 +42,8 @@ def audit_metrics(windows, m, *, window="request_windows"):
     """Only disjoint runtime audit deltas; never substitute lifetime counters."""
     names = set(AUDIT_COUNTERS)
     names.update(key for row in windows for key in row if key.startswith("inflight_"))
+    names.update(key for row in windows for key in row if key.startswith((
+        "role_link.", "generation_prefill_", "generation_decode_", "inference_")))
     totals = {}
     for name in sorted(names):
         values = [row.get(name) for row in windows]
@@ -67,17 +69,27 @@ def response_metrics(report, m):
     if coverage not in {ACCOUNTING_SCHEMA, "historical_coverage_not_recorded"}:
         body_scope += f":{coverage or 'mixed_or_unknown'}"
     runs = report["runs"]
+    delegated = report.get("runtime_contract", {}).get("runtime_kind") == "gkm"
+    from .benchmark_delegated import TPS_UNAVAILABLE
+
+    first_window = "online_to_first_accepted_text" if delegated else "online_to_first_token"
     audit_metrics([run.get("privacy", {}) for run in runs], m)
     cpu = report.get("process_cpu_accounting", {}).get("cold_first_response_cpu_seconds_by_role", {}) or {}
     m.metric("client.peak_rss", report.get("client_process_memory", {}).get("after", {}).get("lifetime_peak_rss_bytes"),
              kind="memory", window="process_birth_through_scenario", scope="process_lifetime_high_water")
-    for role in ("client", "preparation"):
+    for role in (("client", "worker_a", "worker_b") if delegated else ("client", "preparation")):
         m.metric(f"{role}.cold_cpu", cpu.get(role), kind="cpu", role=role,
                  window="benchmark_start_through_first_response" if role == "client" else "role_birth_through_first_response",
                  scope="process_cpu")
     peaks = [run.get("processes", {}).get("preparation", {}).get("rss_peak_bytes") for run in runs]
     m.metric("preparation.peak_rss", max(peaks) if peaks and all(v is not None for v in peaks) else None,
              kind="memory", role="preparation", window="request_windows", scope="sampled_process_rss")
+    if delegated:
+        for role in ("worker_a", "worker_b"):
+            peaks = [run.get("processes", {}).get(role, {}).get("rss_peak_bytes") for run in runs]
+            m.metric(f"{role}.peak_rss", max(peaks) if peaks and all(v is not None for v in peaks) else None,
+                kind="memory", role=role, window="role_birth_through_scenario",
+                scope="process_lifetime_high_water")
     for index, run in enumerate(runs):
         duration, tokens = run["durations"], run["tokens"]
         m.metric(f"request.{index}.full", duration.get("full_seconds"),
@@ -88,16 +100,19 @@ def response_metrics(report, m):
         m.metric(f"request.{index}.epoch_pause", pause / 1e9 if type(pause) is int and pause >= 0 else None,
                  window="request_epoch_pauses", scope="runtime_idle_epoch_pause", statistic="sum")
         denominator = max(0, tokens["output_tokens"] - 1)
-        m.metric(f"request.{index}.ttft", duration.get("ttft_seconds"), window="online_to_first_token", phase="online")
-        m.metric(f"request.{index}.decode_tps", duration.get("tokens_per_second") if denominator else None,
+        m.metric(f"request.{index}.ttft", duration.get("ttft_seconds"), window=first_window, phase="online")
+        m.metric(f"request.{index}.decode_tps", duration.get("tokens_per_second") if denominator and not delegated else None,
                  kind="throughput", window="after_first_output", phase="online",
-                 denominator={"value": denominator, "unit": "generated_tokens"})
-    m.metric("response.ttft", statistics.median(r["durations"]["ttft_seconds"] for r in runs),
-             window="online_to_first_token", phase="online", count=len(runs))
+                 denominator={"value": denominator, "unit": "generated_tokens"},
+                 **({"reason": TPS_UNAVAILABLE} if delegated else {}))
+    ttfts = [r["durations"].get("ttft_seconds") for r in runs]
+    m.metric("response.ttft", statistics.median(ttfts) if ttfts and all(v is not None for v in ttfts) else None,
+             window=first_window, phase="online", count=len(runs))
     decode = [r["durations"].get("tokens_per_second") if r["tokens"]["output_tokens"] > 1 else None for r in runs]
-    m.metric("response.decode_tps", statistics.median(decode) if all(v is not None for v in decode) else None,
-             kind="throughput", window="after_first_output", phase="online", count=len(runs),
-             denominator={"value": sum(max(0, r["tokens"]["output_tokens"] - 1) for r in runs), "unit": "generated_tokens"})
+    m.metric("response.decode_tps", statistics.median(decode) if not delegated and decode and all(v is not None for v in decode) else None,
+              kind="throughput", window="after_first_output", phase="online", count=len(runs),
+              denominator={"value": sum(max(0, r["tokens"]["output_tokens"] - 1) for r in runs), "unit": "generated_tokens"},
+              **({"reason": TPS_UNAVAILABLE} if delegated else {}))
     snapshots = report.get("native_network_accounting", {}).get("samples", {}).get("runs", [])
     emulation = report.get("wan_readiness", {}).get("emulation", {})
     total = (snapshots[-1].get("after", {}).get("wan_emulation", {}).get("total_stream_bytes")
@@ -168,11 +183,23 @@ def execute_response(p, m):
             prompt = validate_context(prompt)
     except ValueError:
         raise TargetUnavailable("response_input_contract") from None
+    declared = p["model"]
+    experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
+    from .benchmark_delegated import admit_options, is_delegated
+
+    delegated = is_delegated(experiment)
+    if delegated:
+        if (p.get("concurrent_requests", 1) != 1 or any(p.get(key) for key in (
+                "client_stage", "client_mlp", "client_metadata", "client_attention", "state_audit"))):
+            raise TargetUnavailable("gkm_response_options_unsupported")
+        try:
+            admit_options(experiment, backend=p["backend"], output_tokens=scenario.max_output_tokens,
+                          requests=scenario.count)
+        except ValueError:
+            raise TargetUnavailable("gkm_response_contract", status="blocked") from None
     if p.get("concurrent_requests", 1) > 1:
         from .benchmark_response_group import execute_group
         return execute_group(p, m, prompt)
-    declared = p["model"]
-    experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
     if experiment.budget.requests < scenario.count or experiment.budget.max_new_tokens < scenario.max_output_tokens:
         raise TargetUnavailable("scenario_exceeds_experiment_budget", status="blocked")
     # Only owned caches are reset; the shared checkpoint/compiled cache is explicit.
@@ -250,6 +277,9 @@ def execute_response(p, m):
     response_metrics(report, m)
     from pllm._search_benchmark import _boundary
     boundary = _boundary(experiment)
+    if delegated:
+        boundary["numeric"] = report["runtime_contract"]["numeric"]
+        m.details["runtime_contract"] = report["runtime_contract"]
     config, runs = report["configuration"], report["runs"]
     m.comparison.update(source_digest=config["source_lock_digest"],
         numeric_digest=digest({"bodies": [r["model_fingerprint"] for r in runs], "contract": boundary["numeric"]}),
@@ -258,6 +288,11 @@ def execute_response(p, m):
             "backend": config["provider_backend"], "wan": config.get("wan_emulation_digest"), "sampling": config["sampling"]}),
         output_digest=digest([r["generation"]["output_text_digest"] for r in runs]),
         measurement_digest=digest({"schema": report["schema_version"], "scenario": scenario.to_spec(), "cached_checkpoint": True}))
+    if delegated:
+        m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
+            "output_delivery": report["runtime_contract"]["output_delivery"],
+            "generation_policy": "fixed_length_greedy", "kv_reuse": False})
+        m.limitations.append("Request-end verified buffered output: TTFT is first accepted text; emission TPS is unsupported.")
     from .topology_accounting import ACCOUNTING_SCHEMA, accounting_coverage_identity
     coverage = accounting_coverage_identity(report.get("topology_accounting"))
     if coverage not in {ACCOUNTING_SCHEMA, "historical_coverage_not_recorded"}:
@@ -314,8 +349,9 @@ def execute_response(p, m):
         m.limitations += ["Internal initial-prefill attention region, not a selectable Pipeline component.",
             "Both arms pay for bounded full-logit/active-KV hashing; equality requires a matched control.",
             "Full-stage topology admission remains conservative; decode and cache continuation use their original schedules."]
-    m.details.update(model={"id": expected_model_id(experiment.pipeline.model), "checkpoint_digest": None,
-                           "source_lock_digest": config["source_lock_digest"]},
+    m.details.update(model={"id": expected_model_id(experiment.pipeline.model),
+                           "checkpoint_digest": report["runtime_contract"]["checkpoint_digest"] if delegated else None,
+                            "source_lock_digest": config["source_lock_digest"]},
         component_ids=sorted(c.component for c in experiment.pipeline.components.values()), report=report)
     m.limitations += ["Runtime checks and matched output commitments are not full-logit/KV or generation-quality oracles.",
         "Cached checkpoint; source resolution, public artifact publication and physical wire retain the ordinary report's exclusions."]

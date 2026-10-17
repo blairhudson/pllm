@@ -166,9 +166,10 @@ preserve each method's source contract across those entry points.
 Operator-only availability and complete-response availability remain separate
 capabilities. An installed operator does not qualify an unsupported decoder.
 Internal references must retain their scope until their public execution path
-passes these gates. In particular, the bounded GKM reference still needs genuine
-party-local workers and verified request integration; its two in-process logical
-workers cannot substitute for that topology.
+passes these gates. The subsequent bounded GKM SDK slice now has genuine
+party-local workers and verified request integration. Its generated-checkpoint
+conformance does not qualify full-checkpoint execution or performance; the earlier
+in-process reference retains its separate scope.
 The [SDK integration contract](sdk-integration.md) records the shared extension
 points and concrete end-to-end completion checks.
 

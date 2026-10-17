@@ -18,9 +18,11 @@
 //!
 //! This scalar CPU conformance capsule does not implement a decoder, model
 //! import, SDK, prefill batching, SIMD/GPU acceleration,
-//! serialized publication, authenticated/confidential transport, persistent KV,
+//! authenticated/confidential transport, persistent KV,
 //! sampler, or deployment security/peak-memory/performance qualification. Two
-//! worker views are in-process. The caller is the trusted client; it must not
+//! native worker views are in-process; optional bounded full-share wire owners
+//! separate party-local evaluation without implementing a network server.
+//! The caller is the trusted client; it must not
 //! release borrowed tentative values as accepted outputs. Public artifact pins
 //! must arrive through an independently authenticated owner channel.
 //! Optional AES seeded windows are separately identified, source-derived and
@@ -47,8 +49,10 @@ pub use numeric::{encode_input, encode_weight, reconstruct_signed, rescale_signe
 pub use publication::{Publication, PublicationResources, Stage};
 pub use seeded::{SharingProfile, SEEDED_SHARING_PROFILE};
 pub use window::{
-    AcceptedWindow, Binding, Client, HalfLinear, HalfLookup, LinearResponse, LinearShare,
-    LookupResponse, LookupShare, PendingLinear, PendingLookup, SeededWorker, Step, Window, Worker,
+    AcceptedWindow, Binding, Client, ClientWireWindow, HalfLinear, HalfLookup, LinearResponse,
+    LinearShare, LookupResponse, LookupShare, PendingLinear, PendingLookup, SeededWorker, Step,
+    Window, WireBytes, WireResources, WireTentative, Worker, WorkerWire, WorkerWireReceipt,
+    WorkerWireWindow, MAX_PROCESS_WIRE_BYTES, MAX_PUBLICATION_WIRE_BYTES, MAX_WIRE_FRAME_BYTES,
 };
 
 use k256::{elliptic_curve::PrimeField, Scalar};

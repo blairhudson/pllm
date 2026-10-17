@@ -46,6 +46,8 @@ async def load_role_adapter(
 
     profile = experiment.resolve()
     options = resolve_runtime_composition(experiment.pipeline)
+    if profile.client_runtime == "compiled_gkm_v1":
+        raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: GKM requires its bounded local worker launcher")
     roles = {role.id for role in profile.role_graph.roles} - {"client"}
     if options is None or role_id not in roles or roles not in (
         {"worker_a", "worker_b"}, {"inference", "preparation"},
@@ -370,9 +372,10 @@ class LocalTopology:
         """Read authenticated in-process clocks; missing samples are never zero-filled."""
         connections = self.worker_connections()
         result: dict[str, dict[str, int | None]] = {}
+        delegation = self._privacy_mode == "gkm_public"
         for role, (url, key) in connections.items():
             response = httpx.get(
-                f"{url}/v1/offset-reference/metrics",
+                f"{url}/v1/{'delegation' if delegation else 'offset-reference'}/metrics",
                 headers={"authorization": f"Bearer {key}"},
                 timeout=2.0,
             )
@@ -380,7 +383,9 @@ class LocalTopology:
             value = response.json()
             if (
                 type(value) is not dict
-                or value.get("schema") != "pllm.offset_worker_process_metrics.v1"
+                or value.get("schema") != (
+                    "pllm.delegation_worker_process_metrics.v1" if delegation
+                    else "pllm.offset_worker_process_metrics.v1")
                 or type(value.get("cpu_ns")) is not int
                 or value["cpu_ns"] < 0
                 or (
@@ -522,6 +527,10 @@ class LocalTopology:
         return options
 
     def _commands(self, ports: dict[str, int]) -> dict[str, list[str]]:
+        if self._privacy_mode == "gkm_public":
+            return {role: [sys.executable, "-I", "-m", "pllm.runtime.delegated_worker",
+                           "--role", role, "--port", str(ports[role])]
+                    for role in self._role_ids}
         if set(self._role_ids) == {"worker_a", "worker_b"}:
             if self._model.kind != "huggingface" or not Path(self._model.source).is_dir():
                 raise TopologyError("offset workers require a locally resolved checkpoint")
@@ -630,9 +639,17 @@ class LocalTopology:
                     "DYLD_LIBRARY_PATH",
                 }
             }
-            environment["PLLM_OFFSET_WORKER_API_KEY"] = self._role_credentials[role]
             assert self._experiment is not None
-            environment["PLLM_OFFSET_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
+            if self._privacy_mode == "gkm_public":
+                environment.pop("PYTHONPATH", None)
+                environment.pop("DYLD_LIBRARY_PATH", None)
+                environment["PLLM_GKM_API_KEY"] = self._role_credentials[role]
+                environment["PLLM_ROLE_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
+                if self._hf_cache_dir is not None:
+                    environment["HF_HUB_CACHE"] = self._hf_cache_dir
+            else:
+                environment["PLLM_OFFSET_WORKER_API_KEY"] = self._role_credentials[role]
+                environment["PLLM_OFFSET_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
             return environment
         # Never inherit another role's credentials, including operator overrides.
         environment = {
@@ -762,6 +779,21 @@ class LocalTopology:
                 raise TopologyError("local topology cannot be started again")
             self._starting = True
         try:
+            if self._privacy_mode == "gkm_public":
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+                    raise TopologyError("GKM complete topology exceeds safe memory admission")
+                del source
             if self._model.kind == "tiny":
                 from pllm.model_loader import resolve_model
 
@@ -808,7 +840,7 @@ class LocalTopology:
                     self._started = True
                     self._starting = False
                 return self
-            if set(self._role_ids) == {"worker_a", "worker_b"} and (
+            if self._privacy_mode != "gkm_public" and set(self._role_ids) == {"worker_a", "worker_b"} and (
                 self._model.kind != "huggingface" or not Path(self._model.source).is_dir()
             ):
                 from pllm.model_loader import resolve_model
@@ -841,7 +873,8 @@ class LocalTopology:
                 expected = (
                     "trusted-preparation"
                     if role == "preparation"
-                    else (role if role in {"boundary_a", "boundary_b"}
+                    else ("delegation-worker" if self._privacy_mode == "gkm_public"
+                          else role if role in {"boundary_a", "boundary_b"}
                           else "offset-worker" if role in {"worker_a", "worker_b"} else "inference")
                 )
                 self._wait(role, expected, self._role_urls[role])
@@ -879,6 +912,8 @@ class LocalTopology:
             "boundary_a": "boundary_a",
             "boundary_b": "boundary_b",
         }
+        if self._privacy_mode == "gkm_public":
+            expected_roles.update(worker_a="delegation-worker", worker_b="delegation-worker")
         for status in self.statuses:
             if not status.running:
                 return False
@@ -1177,7 +1212,11 @@ def build_roles(
         weight_bits = runtime_options.weight_bits
     if activation_bits is None:
         activation_bits = runtime_options.activation_bits
-    if weight_bits not in {4, 8} or activation_bits not in {4, 8}:
+    if runtime_options.client_runtime == "compiled_gkm_v1":
+        if (experiment is None or docker or tenseal_path is not None
+                or weight_bits != 16 or activation_bits != 64 or engine_threads != 1):
+            raise TopologyError("GKM requires its bounded Experiment and native CPU role owners")
+    elif weight_bits not in {4, 8} or activation_bits not in {4, 8}:
         raise ValueError("weight_bits and activation_bits must be 4 or 8")
     if correlation_mode not in {"bfv", "local-test"}:
         raise ValueError("correlation_mode must be bfv or local-test")

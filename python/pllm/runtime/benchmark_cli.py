@@ -160,8 +160,11 @@ def _wait_for_dashboard_listener(handle: _DashboardHandle, origin: str, timeout:
 
 def _median(records: list[dict[str, Any]], section: str, key: str) -> float | None:
     values = [record.get(section, {}).get(key) for record in records]
-    numbers = [float(value) for value in values if value is not None]
-    return statistics.median(numbers) if numbers else None
+    # An unobserved phase (including empty accepted text) cannot disappear from
+    # the cohort denominator and leave a seemingly complete median.
+    if not values or any(value is None for value in values):
+        return None
+    return statistics.median(float(value) for value in values)
 
 
 def build_loopback_report(
@@ -188,6 +191,7 @@ def build_loopback_report(
     temperature: float | None = None,
     capture_output_digest: bool = False,
     wan=None,
+    runtime_contract: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a text-free report from dashboard benchmark records."""
     from .topology_accounting import (
@@ -230,6 +234,13 @@ def build_loopback_report(
             for record in all_runs
         ),
     }
+    if runtime_contract is not None and runtime_contract.get("runtime_kind") == "gkm":
+        checks["fixed_count_verified_delivery"] = all(
+            record.get("measurement", {}).get("output_delivery") == "buffered_until_verified"
+            and record.get("tokens", {}).get("output_tokens") == max_output_tokens
+            and record.get("durations", {}).get("tokens_per_second") is None
+            and record.get("durations", {}).get("generation_seconds") is None
+            for record in all_runs)
     if roles == ("client",):
         checks["no_provider_stage_traffic"] = all(
             client_owned_body_accounting(record)["tracked_body_counter_set_present"]
@@ -418,6 +429,13 @@ def build_loopback_report(
         report["summary"].update(accounted_benchmark_body_totals(report["topology_accounting"]))
         from .topology_accounting import accounting_coverage_identity
         report["summary"]["body_counter_coverage"] = accounting_coverage_identity(report["topology_accounting"])
+    if runtime_contract is not None:
+        report["runtime_contract"] = dict(runtime_contract)
+        report["configuration"]["runtime_kind"] = runtime_contract["runtime_kind"]
+        report["configuration"]["output_delivery"] = runtime_contract["output_delivery"]
+        report["privacy_admission"]["reason"] = "loopback delegation workers share one operator and host"
+        report["limitations"].append(
+            "Request-end verification buffers all output; TTFT measures first accepted text and emission/decode TPS is unsupported.")
     from pllm.metrics import communication_per_token, wan_readiness
 
     report["communication_per_token"] = communication_per_token(report)
@@ -576,13 +594,15 @@ def build_comparison_report(
         for experiment, _ in candidates
     }) == 1
     numeric_contracts = []
-    for experiment, _ in candidates:
+    for experiment, candidate_report in candidates:
         components = experiment.pipeline.to_spec()["components"]
         numeric_contracts.append(json.dumps({
             "nonlinear": _comparison_nonlinear_component(components),
             "scheduler": _numeric_component(components.get("scheduler")),
             "state": components.get("state"),
             "causal_reduction": components.get("quantization", {}).get("params", {}).get("causal_reduction"),
+            **({"gkm": candidate_report["runtime_contract"]["numeric"]}
+               if candidate_report.get("runtime_contract", {}).get("runtime_kind") == "gkm" else {}),
         }, sort_keys=True))
     matched_numeric = len(set(numeric_contracts)) == 1
     comparison_key = cast(tuple[object, ...], keys[0]) if comparable else None
@@ -917,6 +937,17 @@ def _run_loopback_benchmark(
     memory_budget_bytes: int | None = None,
 ) -> dict[str, Any]:
     from pllm.deployment import WanConditions
+    from .benchmark_delegated import admit_options, is_delegated
+
+    delegated = is_delegated(experiment)
+    if delegated:
+        admit_options(experiment, backend=backend, docker=docker, docker_image=docker_image,
+            docker_network=docker_network, cache_bytes=prefill_cache_mib << 20,
+            cache_mode=prefill_cache_mode, cache_bound=prefill_cache_bound_tokens,
+            inventory_policy=inventory_policy, bundle_compression=bundle_compression,
+            temperature=temperature, output_tokens=max_output_tokens,
+            requests=warmups + repetitions * (len(prompt_sequence) if prompt_sequence is not None else 1))
+        backend, temperature, inventory_policy = "native", 0.0, "none"
     from .benchmark_memory import process_memory
     memory_before = process_memory()
     if wan is not None and type(wan) is not WanConditions:
@@ -962,7 +993,7 @@ def _run_loopback_benchmark(
             bundle_compression = resolved.bundle_compression
     inventory_policy = inventory_policy or "prewarm"
     bundle_compression = bundle_compression or "none"
-    if inventory_policy not in {"prewarm", "request-sized"}:
+    if inventory_policy not in ({"none"} if delegated else {"prewarm", "request-sized"}):
         raise ValueError("inventory policy must be prewarm or request-sized")
     if bundle_compression not in {"none", "zlib", "artifacts", "artifacts-zlib"}:
         raise ValueError("bundle compression must be none, zlib, artifacts, or artifacts-zlib")
@@ -1028,6 +1059,8 @@ def _run_loopback_benchmark(
     )
     if selected_inventory_rows is not None:
         startup_inventory_rows = selected_inventory_rows
+    if delegated:
+        startup_inventory_rows = 0
     from pllm.runtime.dashboard import DashboardConfig, create_dashboard_app
     from pllm.runtime.telemetry import local_stage_body_snapshot
 
@@ -1233,6 +1266,7 @@ def _run_loopback_benchmark(
         wan=wan,
         temperature=temperature,
         capture_output_digest=capture_output_digest,
+        runtime_contract=dashboard_app.state.dashboard_runtime._runtime_contract if delegated else None,
     )
     if prompt_sequence is not None:
         report["configuration"].update(

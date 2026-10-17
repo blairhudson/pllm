@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use pllm_compiler::{GkmDecoderContract, GkmDecoderSession};
+use pllm_compiler::{GkmDecoderContract, GkmDecoderSession, GkmRuntimeContract};
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBool, PyBytes, PyDict};
 
@@ -17,6 +17,37 @@ fn gkm_decoder_contract<'py>(
     let config = config.as_bytes();
     let contract = py
         .detach(|| GkmDecoderContract::compile(config, input_rows, decode_steps))
+        .map_err(crate::invalid)?;
+    Ok(PyBytes::new(py, &contract.canonical_bytes()))
+}
+
+#[pyfunction]
+fn gkm_runtime_contract<'py>(
+    py: Python<'py>,
+    experiment: &Bound<'_, PyBytes>,
+    config: &Bound<'_, PyBytes>,
+    input_rows: usize,
+    output_tokens: usize,
+    source_lock: &str,
+    tokenizer: &str,
+) -> PyResult<Bound<'py, PyBytes>> {
+    let source_lock = serde_json::from_value(serde_json::Value::String(source_lock.into()))
+        .map_err(|_| crate::invalid("invalid source digest".into()))?;
+    let tokenizer = serde_json::from_value(serde_json::Value::String(tokenizer.into()))
+        .map_err(|_| crate::invalid("invalid tokenizer digest".into()))?;
+    let experiment = experiment.as_bytes();
+    let config = config.as_bytes();
+    let contract = py
+        .detach(|| {
+            GkmRuntimeContract::compile(
+                experiment,
+                config,
+                input_rows,
+                output_tokens,
+                source_lock,
+                tokenizer,
+            )
+        })
         .map_err(crate::invalid)?;
     Ok(PyBytes::new(py, &contract.canonical_bytes()))
 }
@@ -140,5 +171,6 @@ fn retired() -> PyErr {
 
 pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PySession>()?;
-    module.add_function(wrap_pyfunction!(gkm_decoder_contract, module)?)
+    module.add_function(wrap_pyfunction!(gkm_decoder_contract, module)?)?;
+    module.add_function(wrap_pyfunction!(gkm_runtime_contract, module)?)
 }

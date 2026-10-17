@@ -358,7 +358,7 @@ def build_parser() -> _Parser:
     benchmark_selection.add_argument("--request", type=Path, help="bounded network planning request")
     benchmark_run.add_argument("--network", type=Path)
     benchmark_run.add_argument("--compare-feasible", action="store_true", help="bounded matched feasible controls")
-    benchmark_run.add_argument("--temperature", type=float, help="sampling temperature; omitted preserves SDK default 0.8")
+    benchmark_run.add_argument("--temperature", type=float, help="sampling temperature; omitted uses the composition default (GKM greedy; ordinary 0.8)")
     benchmark_run.add_argument("--capture-output-digest", action="store_true", help="opt-in public-task output fingerprint")
     benchmark_run.add_argument("--compare-kernels", action="store_true",
                                help="compare CPU/Metal compositions with matched numeric/output identity; requires --capture-output-digest")
@@ -872,6 +872,11 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         raise ResolutionError("BENCHMARK_KERNEL_COMPARISON",
                               "--compare-kernels requires multiple --experiment targets and --capture-output-digest")
 
+    from pllm.runtime.benchmark_delegated import admit_options, is_delegated
+
+    delegated_experiments = [experiment for experiment in experiments if is_delegated(experiment)]
+    all_delegated = bool(experiments) and len(delegated_experiments) == len(experiments)
+    effective_temperature = 0.0 if all_delegated and args.temperature is None else args.temperature
     configuration = {
         "model": (
             experiments[0].pipeline.model.source
@@ -886,7 +891,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         "sequence_length": len(prompt_sequence) if prompt_sequence is not None else None,
         "timeout_seconds": args.timeout,
         "show_dashboard": args.show_dashboard,
-        "inventory_policy": args.inventory_policy or "prewarm",
+        "inventory_policy": args.inventory_policy or ("none" if all_delegated else "prewarm"),
         "bundle_compression": args.bundle_compression or "none",
         "prefill_cache_mib": args.prefill_cache_mib,
         "prefill_cache_mode": args.prefill_cache_mode,
@@ -901,7 +906,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
             for experiment in experiments
         ],
         "save_best": str(args.save_best) if args.save_best is not None else None,
-        "sampling": _sampling_choice(args.temperature),
+        "sampling": _sampling_choice(effective_temperature),
     }
     from pllm.deployment import PartyAccess, WanConditions
     try:
@@ -931,6 +936,21 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
     memory_budget_bytes = None if args.memory_budget_mib is None else args.memory_budget_mib << 20
     configuration["provider_backend"] = backend
     configuration["memory_budget_bytes"] = memory_budget_bytes
+    for experiment, entry in zip(experiments, configuration["experiments"]):
+        if experiment not in delegated_experiments:
+            continue
+        try:
+            admit_options(experiment, backend=backend, docker=args.docker,
+                docker_image=args.docker_image, docker_network=args.docker_network_profile,
+                cache_bytes=args.prefill_cache_mib << 20, cache_mode=args.prefill_cache_mode,
+                cache_bound=args.prefill_cache_bound_tokens, inventory_policy=args.inventory_policy,
+                bundle_compression=args.bundle_compression, temperature=args.temperature,
+                output_tokens=args.max_output_tokens,
+                requests=args.warmups + args.repetitions * (len(prompt_sequence) if prompt_sequence is not None else 1))
+        except ValueError as exc:
+            raise ResolutionError("BENCHMARK_GKM_CONTRACT", str(exc)) from exc
+        entry.update(runtime_kind="gkm", output_delivery="buffered_until_verified",
+                     generation_policy="fixed_length_greedy", sampling=_sampling_choice(0.0))
     if emulate_wan and selection is not None:
         raise ResolutionError("BENCHMARK_WAN_PROFILE", "WAN emulation requires local roles; live network plans support --wan-estimate")
     if selection is not None:

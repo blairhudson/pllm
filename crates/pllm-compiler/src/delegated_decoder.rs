@@ -12,6 +12,11 @@ use serde::Serialize;
 use sha2::{Digest as _, Sha256};
 use zeroize::Zeroizing;
 
+pub(crate) mod sdk;
+pub use sdk::GkmRuntimeContract;
+mod transport;
+pub use transport::{GkmTransportClient, GkmTransportWorker};
+
 use crate::decoder_runtime_schedule::{
     lower_phase, DecoderRuntimeExecutor, DecoderRuntimePhaseSchedule,
 };
@@ -394,6 +399,87 @@ fn stage_id(matrix: &Matrix) -> [u8; 32] {
     Sha256::digest(matrix.id.as_str().as_bytes()).into()
 }
 
+struct BoundSource {
+    matrices: Vec<I16Matrix>,
+    table: FloatTable,
+    local: BTreeMap<String, Vec<u8>>,
+    digest: [u8; 32],
+}
+
+fn bind_source(
+    contract: &GkmDecoderContract,
+    tensors: &BTreeMap<String, &[u8]>,
+) -> Result<BoundSource, String> {
+    if tensors.len() != contract.source_shapes.len() {
+        return Err(reject("source tensor set mismatch"));
+    }
+    let mut hash = Sha256::new();
+    hash.update(b"pllm.gkm.decoder-source.v1");
+    hash.update(contract.digest().as_str().as_bytes());
+    for (name, shape) in &contract.source_shapes {
+        let bytes = tensors
+            .get(name)
+            .ok_or_else(|| reject("missing source tensor"))?;
+        if bytes.len() != shape.iter().product::<usize>() * 4
+            || bytes
+                .chunks_exact(4)
+                .any(|b| !f32::from_le_bytes(b.try_into().unwrap()).is_finite())
+        {
+            return Err(reject("source float32 shape or finite-value mismatch"));
+        }
+        hash.update((name.len() as u64).to_le_bytes());
+        hash.update(name);
+        hash.update((bytes.len() as u64).to_le_bytes());
+        hash.update(bytes);
+    }
+    let digest = hash.finalize().into();
+    let mut matrices = Vec::new();
+    for matrix in &contract.matrices {
+        let mut encoded = Vec::new();
+        encoded
+            .try_reserve_exact(matrix.rows * matrix.columns)
+            .map_err(|_| reject("allocation"))?;
+        for member in &matrix.members {
+            for b in tensors[&member.weight].chunks_exact(4) {
+                encoded.push(
+                    gkm::encode_weight(f64::from(f32::from_le_bytes(b.try_into().unwrap())))
+                        .map_err(|e| e.to_string())?,
+                );
+            }
+        }
+        matrices.push(
+            I16Matrix::from_encoded(
+                matrix.rows,
+                matrix.columns,
+                &encoded,
+                &vec![INPUT_BOUND; matrix.columns],
+            )
+            .map_err(|e| e.to_string())?,
+        );
+    }
+    let table = FloatTable::from_le_bytes(
+        contract.vocabulary,
+        contract.width,
+        tensors[&contract.table],
+    )
+    .map_err(|e| e.to_string())?;
+    let mut local = BTreeMap::new();
+    for name in &contract.local_tensors {
+        let mut bytes = Vec::new();
+        bytes
+            .try_reserve_exact(tensors[name].len())
+            .map_err(|_| reject("allocation"))?;
+        bytes.extend_from_slice(tensors[name]);
+        local.insert(name.clone(), bytes);
+    }
+    Ok(BoundSource {
+        matrices,
+        table,
+        local,
+        digest,
+    })
+}
+
 /// Single research request owner. Each logical worker evaluates only its own
 /// view. They share this process and immutable public weights; no non-collusion
 /// or remote transport claim follows. Only finish() returns an acceptance receipt.
@@ -415,59 +501,12 @@ impl GkmDecoderSession {
         tensors: &BTreeMap<String, &[u8]>,
         seeded: bool,
     ) -> Result<Self, String> {
-        if tensors.len() != contract.source_shapes.len() {
-            return Err(reject("source tensor set mismatch"));
-        }
-        let mut hash = Sha256::new();
-        hash.update(b"pllm.gkm.decoder-source.v1");
-        hash.update(contract.digest().as_str().as_bytes());
-        for (name, shape) in &contract.source_shapes {
-            let bytes = tensors
-                .get(name)
-                .ok_or_else(|| reject("missing source tensor"))?;
-            if bytes.len() != shape.iter().product::<usize>() * 4
-                || bytes
-                    .chunks_exact(4)
-                    .any(|b| !f32::from_le_bytes(b.try_into().unwrap()).is_finite())
-            {
-                return Err(reject("source float32 shape or finite-value mismatch"));
-            }
-            hash.update((name.len() as u64).to_le_bytes());
-            hash.update(name);
-            hash.update((bytes.len() as u64).to_le_bytes());
-            hash.update(bytes);
-        }
-        let source = hash.finalize().into();
-        let mut matrices = Vec::new();
-        for matrix in &contract.matrices {
-            let mut encoded = Vec::new();
-            encoded
-                .try_reserve_exact(matrix.rows * matrix.columns)
-                .map_err(|_| reject("allocation"))?;
-            for member in &matrix.members {
-                for b in tensors[&member.weight].chunks_exact(4) {
-                    encoded.push(
-                        gkm::encode_weight(f64::from(f32::from_le_bytes(b.try_into().unwrap())))
-                            .map_err(|e| e.to_string())?,
-                    );
-                }
-            }
-            matrices.push(
-                I16Matrix::from_encoded(
-                    matrix.rows,
-                    matrix.columns,
-                    &encoded,
-                    &vec![INPUT_BOUND; matrix.columns],
-                )
-                .map_err(|e| e.to_string())?,
-            );
-        }
-        let table = FloatTable::from_le_bytes(
-            contract.vocabulary,
-            contract.width,
-            tensors[&contract.table],
-        )
-        .map_err(|e| e.to_string())?;
+        let BoundSource {
+            matrices,
+            table,
+            local,
+            digest: source,
+        } = bind_source(&contract, tensors)?;
         let stages: Vec<_> = contract
             .matrices
             .iter()
@@ -498,15 +537,6 @@ impl GkmDecoderSession {
                 None,
             )
         };
-        let mut local = BTreeMap::new();
-        for name in &contract.local_tensors {
-            let mut bytes = Vec::new();
-            bytes
-                .try_reserve_exact(tensors[name].len())
-                .map_err(|_| reject("allocation"))?;
-            bytes.extend_from_slice(tensors[name]);
-            local.insert(name.clone(), bytes);
-        }
         Ok(Self {
             contract,
             matrices,

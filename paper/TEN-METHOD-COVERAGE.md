@@ -5,6 +5,17 @@ The selection is the ten methods in [FRAMEWORK-REWRITE-PLAN.md](FRAMEWORK-REWRIT
 This audit uses primary papers, installed source bytes, registry declarations, and existing evidence.
 It adds no execution measurements.
 
+**Later implementation follow-up.** The table below retains its inspected build
+and historical scope. GKM subsequently gained a bounded native full/seeded decoder,
+checkpoint bounds, installed-wheel conformance and a bounded ordinary two-worker
+SDK/gateway/CLI/benchmark composition; see
+[the SDK reference](../docs/research/gkm-sdk-reference.md) and
+[current implementation status](IMPLEMENTATION-STATUS.md). This closes several
+primitive, generated-decoder and serving-integration gaps, but not full-checkpoint
+admission or a matched complete-system measurement. The qualified
+ten-method count remains zero. The documentary status below must not be used to
+erase this later progress or promote it to a serving rank.
+
 **The requested ten-system ranking is not currently supported.**
 Six selected methods have executable component adaptations.
 None has a qualified, complete PLLM reimplementation under the proposed common comparison contract.
@@ -49,9 +60,10 @@ The [packaged method registry](../python/pllm/components/planned_methods.json) s
 
 Registry names alone do not establish executability.
 [`PendingComponent`](../python/pllm/components/_planned.py#L192-L208) rejects construction with `NotYetImplementedError`.
-The registry's Gupta–Katz–Miers abstract-only description is stale.
+The inspected registry's Gupta–Katz–Miers abstract-only description was stale.
 The later [source qualification](COMPETITOR-QUALIFICATION.md) supplies the reviewed full paper and selected author code.
-That documentary correction does not change the pending implementation status.
+The current bounded SDK component supersedes its pending declaration; the
+historical table above retains the original audit scope.
 
 The source hashes below identify exact PDF bytes.
 An unversioned URL does not identify a particular revision without those bytes.

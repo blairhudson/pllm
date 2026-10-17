@@ -25,6 +25,8 @@ def model_context(parameters, m):
     options = resolve_runtime_composition(experiment.pipeline)
     if options is None:
         raise TargetUnavailable("unimplemented_composition")
+    if options.client_runtime == "compiled_gkm_v1":
+        raise TargetUnavailable("gkm_requires_native_geometry_or_response_target")
     config, resolved = declared["config"], None
     if config is None:
         if experiment.pipeline.model.kind == "tiny" and parameters.get("weights") != "checkpoint":
@@ -315,6 +317,34 @@ def execute_target(target, m):
     if target.kind == "operator":
         from .benchmark_response_target import execute_operator
         return execute_operator(p, m)
+    from pllm.configuration import Experiment
+    from .benchmark_delegated import admit_options, inspect_runtime, is_delegated
+
+    declared = p["model"]
+    experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
+    if is_delegated(experiment):
+        if declared["config"] is not None:
+            raise TargetUnavailable("gkm_geometry_requires_source_configuration")
+        admit_options(experiment, output_tokens=experiment.budget.max_new_tokens)
+        m.admit(128 << 20)
+        metadata, contract = m.run(lambda _: inspect_runtime(experiment))[-1]
+        identity = metadata["native_runtime_contract_digest"]
+        # Native identity belongs to the admitted SDK contract. Re-encoding its
+        # nested plan in Python can change canonical floating-point spelling.
+        m.details.update(runtime_contract=metadata, plan_digest=None,
+            stages=contract["decoder"]["matrices"],
+            component_ids=sorted({c.component for c in experiment.pipeline.components.values()}),
+            model={"id": str(experiment.pipeline.model.model_id or experiment.pipeline.model.source),
+                   "checkpoint_digest": metadata["checkpoint_digest"],
+                   "source_lock_digest": metadata["source_lock_digest"]})
+        m.fixture = {"kind": "projection", "digest": identity, "metadata": {"values_loaded": False}}
+        m.oracle = {"kind": "native_gkm_semantic_contract", "outcome": "passed",
+                    "checked_values": metadata["matrix_count"]}
+        m.comparison.update(source_digest=metadata["source_lock_digest"],
+            numeric_digest=digest(metadata["numeric"]), privacy_digest=digest({"scope": "geometry_only"}),
+            state_digest=digest({"state": "none"}), workload_digest=digest(experiment.budget.to_spec()),
+            output_digest=identity, measurement_digest=digest({"scope": "native_gkm_geometry_only"}))
+        return
     context = m.run(lambda _: model_context(p, m))[-1]
     m.details["stages"] = [s.to_dict() for s in context[3]]
     m.fixture = {"kind": "projection", "digest": context[2].digest, "metadata": {"values_loaded": False}}

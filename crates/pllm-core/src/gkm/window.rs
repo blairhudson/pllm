@@ -20,6 +20,12 @@ use super::seeded::Streams;
 #[path = "seeded_window.rs"]
 mod seeded_window;
 pub use seeded_window::SeededWorker;
+#[path = "wire.rs"]
+pub(super) mod wire;
+pub use wire::{
+    ClientWireWindow, WireBytes, WireResources, WireTentative, WorkerWire, WorkerWireReceipt,
+    WorkerWireWindow, MAX_PROCESS_WIRE_BYTES, MAX_PUBLICATION_WIRE_BYTES, MAX_WIRE_FRAME_BYTES,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Worker {
@@ -273,6 +279,23 @@ impl Drop for Budget {
     }
 }
 
+impl Budget {
+    fn new(publication: &Arc<Publication>) -> Result<Arc<Self>, Error> {
+        publication
+            .clients
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
+                (n < MAX_CLIENTS_PER_PUBLICATION).then_some(n + 1)
+            })
+            .map_err(|_| Error::Limit)?;
+        Ok(Arc::new(Self {
+            windows: AtomicU64::new(0),
+            steps: AtomicU64::new(0),
+            live: AtomicU32::new(0),
+            publication: Arc::clone(publication),
+        }))
+    }
+}
+
 fn reserve(counter: &AtomicU64, amount: u64, cap: u64) -> Result<u64, Error> {
     counter
         .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
@@ -373,20 +396,9 @@ impl Client {
         }
         let mut session = [0; 32];
         rng.fill(Purpose::Session, &mut session)?;
-        publication
-            .clients
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
-                (n < MAX_CLIENTS_PER_PUBLICATION).then_some(n + 1)
-            })
-            .map_err(|_| Error::Limit)?;
         // Fixed-size, admitted Arc handle; payload allocation recovery does not
         // claim to make Arc::new fallible on stable Rust.
-        let budget = Arc::new(Budget {
-            windows: AtomicU64::new(0),
-            steps: AtomicU64::new(0),
-            live: AtomicU32::new(0),
-            publication: Arc::clone(&publication),
-        });
+        let budget = Budget::new(&publication)?;
         Ok(Self {
             publication,
             session,

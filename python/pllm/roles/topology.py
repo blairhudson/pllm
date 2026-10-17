@@ -178,6 +178,8 @@ class RoleGraph:
 
 def graph_for_runtime(composition: RuntimeComposition) -> RoleGraph:
     """Describe installed executor traffic; never enable execution from a graph."""
+    if composition.runtime_kind == "gkm" and not composition.requires_preparation:
+        return two_online_delegation_graph()
     if composition.privacy_mode == "client_only" and not composition.requires_preparation:
         return client_only_reference_graph()
     if composition.privacy_mode == "offset_public" and not composition.requires_preparation:
@@ -257,7 +259,36 @@ def two_online_reference_graph() -> RoleGraph:
     )
 
 
+def two_online_delegation_graph() -> RoleGraph:
+    """GKM traffic with distinct authenticated channels and client-owned setup.
+
+    Payload labels declare authenticated confidential transport requirements;
+    the graph itself cannot establish transport security or worker independence.
+    The client is also the trusted offline publisher, not an extra remote role.
+    """
+    channels = []
+    for worker in ("worker_a", "worker_b"):
+        channels.extend((
+            Channel("client", worker, "offline", "authenticated_publication"),
+            Channel(worker, "client", "offline", "authenticated_publication_ack"),
+            Channel("client", worker, "online", "authenticated_request_window"),
+            Channel("client", worker, "online", "authenticated_lookup_share"),
+            Channel(worker, "client", "online", "authenticated_lookup_reply"),
+            Channel("client", worker, "online", "authenticated_linear_share"),
+            Channel(worker, "client", "online", "authenticated_linear_reply"),
+            Channel("client", worker, "online", "authenticated_window_retirement"),
+            Channel(worker, "client", "online", "authenticated_retirement_ack"),
+        ))
+    return RoleGraph(
+        roles=(Role("client", "trusted_client_publisher"),
+               Role("worker_a", "gkm_delegation_provider"),
+               Role("worker_b", "gkm_delegation_provider")),
+        channels=tuple(channels),
+        separate_operators=(("worker_a", "worker_b"),),
+    )
+
+
 __all__ = [
     "Channel", "Role", "RoleGraph", "client_only_reference_graph",
-    "graph_for_runtime", "two_online_reference_graph",
+    "graph_for_runtime", "two_online_reference_graph", "two_online_delegation_graph",
 ]

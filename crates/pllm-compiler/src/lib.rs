@@ -30,7 +30,10 @@ pub use decoder_matrix_inventory::{
     decoder_matrix_inventory_bytes, lower_decoder_matrix_inventory, DecoderMatrixInventory,
     DECODER_MATRIX_INVENTORY_MAX_PLAN_BYTES, DECODER_MATRIX_INVENTORY_SCHEMA_VERSION,
 };
-pub use delegated_decoder::{GkmDecoderContract, GkmDecoderSession};
+pub use delegated_decoder::{
+    GkmDecoderContract, GkmDecoderSession, GkmRuntimeContract, GkmTransportClient,
+    GkmTransportWorker,
+};
 mod execution_capsule;
 pub use execution_capsule::ExecutionCapsule;
 mod stage_kernel_plan;
@@ -2666,7 +2669,11 @@ pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentComposition,
     }
     validate_experiment(&document)?;
     validate_experiment_model(&document.pipeline.model)?;
-    validate_decoder_linear_composition(&document.pipeline)?;
+    if delegated_decoder::sdk::selected(&document.pipeline) {
+        delegated_decoder::sdk::validate_experiment(&document)?;
+    } else {
+        validate_decoder_linear_composition(&document.pipeline)?;
+    }
     let canonical_composition = canonical_bytes(&document.pipeline);
 
     Ok(ResolvedExperimentComposition {

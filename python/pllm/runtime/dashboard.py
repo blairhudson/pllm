@@ -478,6 +478,20 @@ class DashboardRuntime:
         self._bundle_compression = getattr(config, "bundle_compression", None)
         experiment = getattr(config, "experiment", None)
         profile = experiment.resolve() if experiment is not None else None
+        self._delegated = getattr(profile, "client_runtime", None) == "compiled_gkm_v1"
+        self._runtime_contract = None
+        if self._delegated:
+            from .benchmark_delegated import admit_options
+
+            if config.startup_inventory_rows not in (None, 0):
+                raise ValueError("GKM benchmarking has no preparation inventory")
+            admit_options(experiment, backend=config.backend, docker=config.docker,
+                docker_image=config.docker_image, docker_network=config.docker_network,
+                cache_bytes=config.prefill_cache_mib << 20, cache_mode=config.prefill_cache_mode,
+                cache_bound=config.prefill_cache_bound_tokens,
+                inventory_policy="request-sized" if config.defer_inventory_until_request else None,
+                bundle_compression=config.bundle_compression, temperature=config.temperature,
+                output_tokens=config.default_max_output_tokens)
         if profile is not None and "delivery" in experiment.pipeline.components:
             if (
                 self._bundle_compression is not None
@@ -522,6 +536,11 @@ class DashboardRuntime:
             "configured_max_output_tokens": config.default_max_output_tokens,
             "protocol_start_cursor": 0,
         }
+        if self._delegated:
+            from .benchmark_delegated import DELIVERY, TPS_UNAVAILABLE
+
+            self._state.update(output_delivery=DELIVERY, decode_tps_supported=False,
+                               decode_tps_unavailable_reason=TPS_UNAVAILABLE)
         configured_inventory_rows = getattr(config, "startup_inventory_rows", None)
         self._defer_inventory = getattr(config, "defer_inventory_until_request", False)
         self._background_inventory_refill = profile.background_inventory_refill if profile is not None and profile.inventory_refill is not None else False
@@ -538,13 +557,15 @@ class DashboardRuntime:
             if configured_inventory_rows is not None
             else (256 if config.model_path is None and experiment is None else 64)
         )
-        if type(self._inventory_rows) is not int or self._inventory_rows < 1:
+        if self._delegated:
+            self._inventory_rows = 0
+        if type(self._inventory_rows) is not int or self._inventory_rows < (0 if self._delegated else 1):
             raise ValueError("startup inventory rows must be positive")
         if type(getattr(config, "defer_inventory_until_request", False)) is not bool:
             raise ValueError("deferred inventory selection must be Boolean")
         self._online_traffic_baseline: dict[str, float] = {}
         self._preparation_cpu_baseline: float | None = None
-        self._online_traffic_final: dict[str, float] | None = None
+        self._online_traffic_final: dict[str, float | None] | None = None
         self._preparation_online_cpu_final: float | None = None
         self._preparation_attempts_baseline = 0
         self._preparation_online_operations = 0
@@ -584,6 +605,8 @@ class DashboardRuntime:
 
     def client_body_placement(self) -> dict[str, Any] | None:
         """Sample public body storage and declared per-row matrix work, not peak RAM."""
+        if self._delegated:
+            return None  # Native request owners have no persistent W8A8 bundle.
         return client_body_placement_snapshot(self._client, self.config.model_id)
 
     def cold_process_cpu(self) -> dict[str, dict[str, float | None] | None]:
@@ -716,6 +739,12 @@ class DashboardRuntime:
                 continue
             raw_runtime = model.get("runtime")
             runtime: dict[str, Any] = raw_runtime if isinstance(raw_runtime, dict) else {}
+            if self._delegated:
+                contract = self._runtime_contract
+                if contract is not None and all(runtime.get(key) == contract[key] for key in (
+                        "checkpoint_digest", "source_lock_digest", "tokenizer_digest")):
+                    return contract["model_fingerprint"], contract["source_lock_digest"]
+                return None, None
             lock = runtime.get("source_lock_digest")
             source_lock = (
                 lock
@@ -774,6 +803,10 @@ class DashboardRuntime:
                 memory_budget_bytes=self.config.memory_budget_bytes,
             )
             require_admission(self.memory_preflight)
+            if self._delegated:
+                from .benchmark_delegated import inspect_runtime
+
+                self._runtime_contract, _ = await asyncio.to_thread(inspect_runtime, experiment)
             if self._stopping.is_set():
                 return
             use_docker = self.memory_preflight["selected_backend"] == "docker"
@@ -816,12 +849,13 @@ class DashboardRuntime:
                     except (psutil.Error, OSError):
                         pass
             client_options: dict[str, Any] = {"timeout": 300}
-            client_options["bundle_compression"] = self._bundle_compression
-            client_options["prefill_cache_bytes"] = self._prefill_cache_mib << 20
-            client_options["prefill_cache_mode"] = self._prefill_cache_mode
-            client_options["prefill_cache_bound_tokens"] = self._prefill_cache_bound_tokens
-            if self._topology.statuses:
-                client_options["bundle_cache_dir"] = root / "bundle-cache"
+            if not self._delegated:
+                client_options["bundle_compression"] = self._bundle_compression
+                client_options["prefill_cache_bytes"] = self._prefill_cache_mib << 20
+                client_options["prefill_cache_mode"] = self._prefill_cache_mode
+                client_options["prefill_cache_bound_tokens"] = self._prefill_cache_bound_tokens
+                if self._topology.statuses:
+                    client_options["bundle_cache_dir"] = root / "bundle-cache"
             if self._topology.requires_preparation:
                 client_options.update(
                     prepared_inventory_rows=(
@@ -874,6 +908,14 @@ class DashboardRuntime:
                         key: count - before_offset_startup.get(key, 0)
                         for key, count in after_offset_startup.items()
                     }
+                    if self._delegated:
+                        # Metadata listing performs no worker I/O. These zeros
+                        # are known before any request/publication exists.
+                        self._initial_preparation_audit.update({
+                            f"role_link.{role}.{phase}_{direction}_bytes": 0
+                            for role in ("worker_a", "worker_b")
+                            for phase in ("setup", "online", "teardown")
+                            for direction in ("upload", "download")})
             await asyncio.sleep(0.6)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
@@ -906,6 +948,10 @@ class DashboardRuntime:
         temperature = _validate_request_temperature(temperature)
         if temperature is None:
             temperature = _validate_request_temperature(getattr(self.config, "temperature", None))
+        if getattr(self, "_delegated", False):
+            if temperature not in (None, 0):
+                raise ValueError("GKM benchmarking requires fixed-length greedy generation")
+            temperature = 0.0
         started_at_ns = time.time_ns()
         started_monotonic_ns = time.monotonic_ns()
         run_id = request_id or "run_" + secrets.token_hex(16)
@@ -981,8 +1027,13 @@ class DashboardRuntime:
     def _execute_run(self, run_id: str, prompt: str | list[dict[str, str]], max_output_tokens: int) -> None:
         assert self._client is not None
         # One worker owns setup through stream closure, including failed admission.
-        with self._client.tokenizer_scope():
-            self._execute_scoped_run(run_id, prompt, max_output_tokens)
+        try:
+            with self._client.tokenizer_scope():
+                self._execute_scoped_run(run_id, prompt, max_output_tokens)
+        except Exception as exc:
+            capture = self._active_run
+            if capture is not None and capture.run_id == run_id:
+                self._finish_run(capture, "failed", exc)
 
     def _execute_scoped_run(self, run_id: str, prompt: str | list[dict[str, str]], max_output_tokens: int) -> None:
         assert self._client is not None
@@ -1109,6 +1160,8 @@ class DashboardRuntime:
             if capture is not None
             else getattr(self.config, "temperature", None)
         )
+        if getattr(self, "_delegated", False):
+            temperature = 0.0 if temperature is None else temperature
         capture_output_digest = _validate_output_digest_capture(
             getattr(self.config, "capture_output_digest", False)
         )
@@ -1261,6 +1314,12 @@ class DashboardRuntime:
                     )
                 ),
             }
+            if getattr(self, "_delegated", False):
+                self._online_traffic_final = {
+                    edge: (float(audit[key] - audit_before.get(key, 0)) if key in audit else None)
+                    for role in ("worker_a", "worker_b")
+                    for edge, key in ((f"client->{role}", f"role_link.{role}.online_upload_bytes"),
+                                      (f"{role}->client", f"role_link.{role}.online_download_bytes"))}
             preparation_cpu_value = telemetry["services"]["pllm-preparation"].get("cpu_seconds")
             preparation_cpu = (
                 None if preparation_cpu_value is None else float(preparation_cpu_value)
@@ -1451,6 +1510,7 @@ class DashboardRuntime:
                 privacy_delta=privacy_delta,
                 process_metrics=capture.process_metrics,
                 failure_type=type(error).__name__ if error is not None else None,
+                output_delivery="buffered_until_verified" if getattr(self, "_delegated", False) else "incremental",
             )
             if self.history is not None:
                 self.history.add(run)
@@ -1481,7 +1541,7 @@ class DashboardRuntime:
         generated_after_first = max(0, int(state.get("tokens", 0)) - 1)
         state["tps"] = (
             generated_after_first / max(0.001, now - first)
-            if first and generated_after_first
+            if first and generated_after_first and not getattr(self, "_delegated", False)
             else None
         )
         topology = getattr(self, "_topology", None)
@@ -1516,6 +1576,12 @@ class DashboardRuntime:
             "client->inference": float(state["privacy"].get("masked_online_upload_bytes", 0)),
             "inference->client": float(state["privacy"].get("masked_online_download_bytes", 0)),
         }
+        if getattr(self, "_delegated", False) and self._online_traffic_final is None:
+            state["online_traffic"] = {
+                edge: state["privacy"].get(key)
+                for role in ("worker_a", "worker_b")
+                for edge, key in ((f"client->{role}", f"role_link.{role}.online_upload_bytes"),
+                                  (f"{role}->client", f"role_link.{role}.online_download_bytes"))}
         preparation_cpu_value = telemetry["services"]["pllm-preparation"].get("cpu_seconds")
         preparation_cpu = None if preparation_cpu_value is None else float(preparation_cpu_value)
         state["preparation_online_cpu_seconds"] = (

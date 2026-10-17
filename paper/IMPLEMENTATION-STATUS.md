@@ -1,5 +1,64 @@
 # Implementation and evidence status
 
+## Current framework-paper checkpoint — ten-method study
+
+The approved scope is the six-page framework rewrite in
+[FRAMEWORK-REWRITE-PLAN.md](FRAMEWORK-REWRITE-PLAN.md), with genuine PLLM
+implementations of the ten selected methods. **Zero of ten methods currently
+qualifies for the complete-system comparison.** The earlier completed conformance
+milestones below cover specified framework and component slices, not this larger
+study. The manuscript remains a draft, not a submission-ready paper.
+
+Completed foundations:
+
+- Source-locked method specifications and CPU-first decisions are recorded in
+  [methods/README.md](methods/README.md) and
+  [methods/DECISIONS.md](methods/DECISIONS.md).
+- The bounded GKM decoder checks full logits, active KV, history and pending
+  selections against independent oracles. Its repaired installed-wheel evidence
+  passes 206 Python and 44 native checks, with two optional checkpoint skips;
+  [the archive](artifacts/gkm-decoder/README.md) retains exact execution identities.
+  Its original in-process evidence retains that scope.
+- The subsequent bounded GKM composition runs through ordinary Pipeline/Experiment,
+  two party-local worker processes, SDK, gateway, CLI and response benchmarks.
+  Request-end verification precedes every model-derived output. The final cached
+  wheel passes 547 Python and 117 native checks plus Clippy; all 362 installed
+  package files match before and after testing. See
+  [the SDK archive](artifacts/gkm-sdk/README.md). This generated-checkpoint slice
+  does not admit the official Qwen checkpoint or qualify publication performance.
+- The local cold lifecycle observer has independently checked, portable tiny
+  evidence: three clients, 289 samples and eleven process instances, with exact
+  state agreement and zero observed swap growth. This is measurement-infrastructure
+  qualification, not the publication performance campaign. See
+  [the lifecycle record](../docs/research/publication-lifecycle-reference.md).
+- Framework SDK/gateway conformance, historical evidence audits and standalone
+  PDF/arXiv builds retain their separately recorded identities below.
+
+Remaining critical path:
+
+1. Extend GKM's bounded SDK path to admitted full-width publication and measured
+   activation bounds, then qualify original-model and common-Qwen execution.
+   Preserve source arithmetic, final-window acceptance and failure retirement.
+   Seeded transport and broader generation policies retain separate contracts.
+   The shared gate is [methods/sdk-integration.md](methods/sdk-integration.md).
+2. Complete the other nine source-faithful methods. Resolve source ambiguities,
+   protected-state and token-feedback contracts, and HE refresh/backend admission.
+   Existing adaptations do not substitute for complete implementations.
+3. Freeze the publication workloads, quality criteria, cache lifecycles, provider
+   resource conditions and network profile. Measure client and all-link traffic
+   by phase, role instance counts/peaks, simultaneous provider/host memory, prefill,
+   accepted first output, decode and complete lifecycle costs under the declared
+   100/40 Mbps conditions. Keep unsupported and resource-blocked cells explicit.
+4. Execute matched fresh-process campaigns and independent confirmation. Audit
+   numeric/state fidelity, ownership, resource limits, exclusions and replay.
+5. Replace the main manuscript with the focused rewrite and accepted results;
+   complete scientific/author review, current-source review, release/CI evidence,
+   PDF inspection and standalone arXiv replay.
+
+The separate Low-tier method paper additionally retains its composed-security,
+closest-competitor and new-confirmation gates. Writing and build work cannot
+close missing method or measurement evidence.
+
 ## Initial two-paper scaffold — 16 October 2026
 
 The complete strategy is saved in `PUBLICATION-PLAN.md`; per-claim evidence and

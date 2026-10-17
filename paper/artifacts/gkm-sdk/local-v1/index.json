@@ -1,0 +1,559 @@
+{
+  "files": [
+    {
+      "bytes": 1138,
+      "path": "build/build.log",
+      "sha256": "89c880f6481861dff68accdba7c3174a03399750e8a532927795900690135d5c"
+    },
+    {
+      "bytes": 25592,
+      "path": "build/build_paper_release.py",
+      "sha256": "5ef79392a8bb250c5674d8e939fe2f54a9e91009a4d6736914e2933f676ae9cc"
+    },
+    {
+      "bytes": 8066,
+      "path": "build/check_cached_wheel.py",
+      "sha256": "f634598e145b7a5b6c2564cda382cd4e2d9ee7abd49e05fe7a4e0581605877a9"
+    },
+    {
+      "bytes": 619,
+      "path": "build/command.json",
+      "sha256": "b24c0caf0d22de7d4e37bc1d5ec4154d2da4b04d5704168e7f58047b3c6f2150"
+    },
+    {
+      "bytes": 415,
+      "path": "build/host-before.json",
+      "sha256": "eeab05244acee8589e7ea927b44a40e51e650bdf83e3ddb9fe42eaffaaff35f8"
+    },
+    {
+      "bytes": 4989,
+      "path": "build/host_swap.py",
+      "sha256": "377f6636e67bbc610d8205f4f9af78b0acfdec36ca9677f7e8821994aefe3aa6"
+    },
+    {
+      "bytes": 2035,
+      "path": "build/install.log",
+      "sha256": "a6bca31bcbc40f37fa76dbd2906e8e2405869a7f2b4b3c68f8e740c8085f3d4f"
+    },
+    {
+      "bytes": 55075,
+      "path": "build/installed-postcheck.json",
+      "sha256": "ba8f8449b901a6db73ceef357835b5441868bf0f4998a4e7691a5ac006eb4c8e"
+    },
+    {
+      "bytes": 55075,
+      "path": "build/installed-precheck.json",
+      "sha256": "ba8f8449b901a6db73ceef357835b5441868bf0f4998a4e7691a5ac006eb4c8e"
+    },
+    {
+      "bytes": 164190,
+      "path": "build/monitor.json",
+      "sha256": "7f74a91fac1666ad23fa26ff47e98bac04f6516566cf38a69d900000069b2c72"
+    },
+    {
+      "bytes": 280,
+      "path": "build/observer-hashes.json",
+      "sha256": "6da333949bab6e8dbc7debad33c6c120fd8d5309863fc1f45f2c0fab5690bd7b"
+    },
+    {
+      "bytes": 645,
+      "path": "build/receipt.json",
+      "sha256": "315f6079352f68b03a020c25b2a6b69635d45608e2661d87496ce78c2a87c54f"
+    },
+    {
+      "bytes": 121796,
+      "path": "build/sources-after.json",
+      "sha256": "b1dc460231b35f569f5993e4f5c2d650d9518e7602fc93aedf483a5bdb2a91ab"
+    },
+    {
+      "bytes": 121796,
+      "path": "build/sources-before.json",
+      "sha256": "b1dc460231b35f569f5993e4f5c2d650d9518e7602fc93aedf483a5bdb2a91ab"
+    },
+    {
+      "bytes": 98,
+      "path": "build/stop.json",
+      "sha256": "71583e01f05329a4a64329dd135b353da913341da82c8443e591c417743dc4c1"
+    },
+    {
+      "bytes": 359,
+      "path": "native/clippy.log",
+      "sha256": "b90fb63165694cb2d2cedb9cf75d6b00834ea3bcc5842063f4b48770e74b5871"
+    },
+    {
+      "bytes": 1320,
+      "path": "native/commands.json",
+      "sha256": "021be99f3b99240cccb95bb82208fa621c1be57f2a32c85cce6d1fa90f172c8b"
+    },
+    {
+      "bytes": 4798,
+      "path": "native/compiler-tests.log",
+      "sha256": "0f5e084498f9a75778c5e0298cc96ea036e762c4416b10c34f8de3f1c4d62f71"
+    },
+    {
+      "bytes": 4886,
+      "path": "native/core-tests.log",
+      "sha256": "57a8f2c154dc0119efd675a2083bc39161446d7758eec68e8f70a79e6a77f99d"
+    },
+    {
+      "bytes": 1054,
+      "path": "native/ownership-tests.log",
+      "sha256": "0c8db4a5aa6c96157bc9c986ead27ab1b7e1516a00054a1ed3cd64b896968fa9"
+    },
+    {
+      "bytes": 162,
+      "path": "native/receipt.json",
+      "sha256": "19fbadbd4602c9203c6e4aba4d3ecd65e1a0b5e19200def66ea39323f2cca432"
+    },
+    {
+      "bytes": 30303,
+      "path": "native/sources-after.json",
+      "sha256": "8e4bfff34f994c7a6ef5dafa47d302bfab769599eea564ecd7eac12c288bdab0"
+    },
+    {
+      "bytes": 30303,
+      "path": "native/sources-before.json",
+      "sha256": "8e4bfff34f994c7a6ef5dafa47d302bfab769599eea564ecd7eac12c288bdab0"
+    },
+    {
+      "bytes": 2525,
+      "path": "native/wire-tests.log",
+      "sha256": "726d667a8b2e3d62ac9362722e3b9bf82b937a2b9d4da0ea6e24cfc32befff5b"
+    },
+    {
+      "bytes": 4628,
+      "path": "rejected-v3/installed-tests.log",
+      "sha256": "77c5bfd3b2c72e5362141825b0a139efbad664abb0e5cab457a24e4d3c5020bc"
+    },
+    {
+      "bytes": 103543,
+      "path": "rejected-v3/installed-tests.xml",
+      "sha256": "ceb1294a67c656249a7705658177271e7b697155dfde683220d6c1335259bb80"
+    },
+    {
+      "bytes": 644,
+      "path": "rejected-v3/receipt.json",
+      "sha256": "59409914532f5d2f13a2ba4da2d1c7860a0744b64da50e965a20a96dcb5c19fe"
+    },
+    {
+      "bytes": 911,
+      "path": "rejected-v3/test-command.json",
+      "sha256": "1dfcb1f7af766abde3d689b6ecf0e1141ca4c40327762be2b167b729e993d579"
+    },
+    {
+      "bytes": 54,
+      "path": "rejected-v3/test-receipt.json",
+      "sha256": "b9d6cb6f6a0baadad634ea960fedd2ec302c8c12cdb4fef8ef2964137b4d3f0a"
+    },
+    {
+      "bytes": 1896,
+      "path": "rejected-v3/test-sources-after.json",
+      "sha256": "6e51253789c765fa58de57ff0470d95c0ffa9dfaf3a8bb0a5a14369957e590ee"
+    },
+    {
+      "bytes": 1896,
+      "path": "rejected-v3/test-sources-before.json",
+      "sha256": "6e51253789c765fa58de57ff0470d95c0ffa9dfaf3a8bb0a5a14369957e590ee"
+    },
+    {
+      "bytes": 5628,
+      "path": "sources/crates/pllm-compiler/src/delegated_decoder/sdk.rs",
+      "sha256": "d926ea358f383a5a048cc0dee80de8cb37edde964e9a8f073399dcb7f3ab4b3c"
+    },
+    {
+      "bytes": 15066,
+      "path": "sources/crates/pllm-compiler/src/delegated_decoder/transport.rs",
+      "sha256": "e55f7e244e02c48f5d548b996ad737de1bf5f9b850b3907384ab7290427ee0c3"
+    },
+    {
+      "bytes": 25026,
+      "path": "sources/crates/pllm-compiler/src/delegated_decoder.rs",
+      "sha256": "8db868f3ec52466fe11f1b33ea1599492d2ca9e6122d37fa469e9bba7f619127"
+    },
+    {
+      "bytes": 306736,
+      "path": "sources/crates/pllm-compiler/src/lib.rs",
+      "sha256": "fbf1db90d2d1ffd829b4aad4be3e453eadb07ade5c1f2c2c3fb94f6888ec6b7e"
+    },
+    {
+      "bytes": 4314,
+      "path": "sources/crates/pllm-compiler/tests/delegated_sdk.rs",
+      "sha256": "a8387ae562b38aaa1e9b3518f97013d92fd47fc9f6e533dd9fbd91d591b135fd"
+    },
+    {
+      "bytes": 22275,
+      "path": "sources/crates/pllm-compiler/tests/delegated_transport.rs",
+      "sha256": "3be9f25e0a90c07a88a890a60154f5ccfa1589f35ac4380163cb21faeb1b9377"
+    },
+    {
+      "bytes": 6333,
+      "path": "sources/crates/pllm-core/src/gkm/mod.rs",
+      "sha256": "b75e2bbcbb2383276d5b0486837f566a5e1190b23ab628fea323a79a00be0034"
+    },
+    {
+      "bytes": 13345,
+      "path": "sources/crates/pllm-core/src/gkm/publication.rs",
+      "sha256": "f2eb3cc14548d325290a802e99016722219a4543735b15f17aeb08713faa774d"
+    },
+    {
+      "bytes": 8058,
+      "path": "sources/crates/pllm-core/src/gkm/publication_wire.rs",
+      "sha256": "7d735ee5c304b0a09f9ec1b5f242ce7fc4cd2979c57426a0d8dcb6f134e7d733"
+    },
+    {
+      "bytes": 33506,
+      "path": "sources/crates/pllm-core/src/gkm/window.rs",
+      "sha256": "f16d5214f7c114816b54bbf3266a82fa092accc60f1360cf5c41e94dbca6c991"
+    },
+    {
+      "bytes": 7525,
+      "path": "sources/crates/pllm-core/src/gkm/wire-api.md",
+      "sha256": "2a58e4d45fea6a56fd68f2a5b27f9d5c395849d71ce05bf310f6fcf3fd3029d1"
+    },
+    {
+      "bytes": 29889,
+      "path": "sources/crates/pllm-core/src/gkm/wire.rs",
+      "sha256": "4c1d9cad2459573baace6946c798c4b088c4522a930364f2295cf16ad7a6bcff"
+    },
+    {
+      "bytes": 8134,
+      "path": "sources/crates/pllm-core/src/gkm/wire_tests.rs",
+      "sha256": "b646d054b29db4a4b1a4567b08556255abf5b378f2e93c13ba774d449fe9efac"
+    },
+    {
+      "bytes": 23824,
+      "path": "sources/crates/pllm-core/tests/gkm_wire.rs",
+      "sha256": "9b83a22a9409e1998bde98f467c4c102a1fd52c85cf9d8f31853cde9496bb84d"
+    },
+    {
+      "bytes": 10906,
+      "path": "sources/crates/pllm-core/tests/gkm_wire_allocation.rs",
+      "sha256": "d5039f36b931cb05ad36441484cf2f0f7fa01df00507d7a5e0805da8a71ed42d"
+    },
+    {
+      "bytes": 6296,
+      "path": "sources/crates/pllm-core/tests/gkm_wire_process.rs",
+      "sha256": "eee8b94fbb3c662f2e00d8d7ef5d33016c77642836115d0ec05d7b281f3e610b"
+    },
+    {
+      "bytes": 6296,
+      "path": "sources/crates/pllm-python/src/delegated_decoder.rs",
+      "sha256": "751224dfc85c3dd31b08c39db363ee6a9c88b792182ed076d3db068d2f80aaab"
+    },
+    {
+      "bytes": 14395,
+      "path": "sources/crates/pllm-python/src/delegated_transport.rs",
+      "sha256": "80f9eae80df01d282839bed2a3dfb4e9ecc99b0706ea92b069ace2f8385f0b99"
+    },
+    {
+      "bytes": 61916,
+      "path": "sources/crates/pllm-python/src/lib.rs",
+      "sha256": "2163e032846ca264a140fb8080b49c703657e0fdcce3c9051377cd51ec8a2acd"
+    },
+    {
+      "bytes": 3002,
+      "path": "sources/examples/delegated_sdk.py",
+      "sha256": "f940a1c28aa71bb9e9d23ac7cdb7f2eab1cb737ec3e9a35d6af7484ac63b131e"
+    },
+    {
+      "bytes": 89292,
+      "path": "sources/python/pllm/_cli/app.py",
+      "sha256": "0e1acdef8028ae3a4fd3f6c49db38780a0af9ee30d7604a3a4e3228cc5679849"
+    },
+    {
+      "bytes": 8384,
+      "path": "sources/python/pllm/components/__init__.py",
+      "sha256": "6f04a981a84380f604c01d481fdf43a6df356c8e201a2570cc42cb08e825aeac"
+    },
+    {
+      "bytes": 54182,
+      "path": "sources/python/pllm/components/planned_methods.json",
+      "sha256": "40d36747e15615809b518f3d2ece04dc79cff5d545b26c6c837ff8d347fbe9d3"
+    },
+    {
+      "bytes": 54632,
+      "path": "sources/python/pllm/profiles/__init__.py",
+      "sha256": "98f5bcda8aa993f1b22d95c68365873b94d2ba563aecaf62160e419a02ce6bb3"
+    },
+    {
+      "bytes": 11359,
+      "path": "sources/python/pllm/profiles/__init__.pyi",
+      "sha256": "15eedc3088c71f3f8caf7b2d38adc741569b11a8d949c4e7d5ed0ada442ea20f"
+    },
+    {
+      "bytes": 17817,
+      "path": "sources/python/pllm/protocols/__init__.py",
+      "sha256": "a48af4186287421a1b6c0bf18422f239240fe27e3d953d1e9451419d28b5ba3b"
+    },
+    {
+      "bytes": 6531,
+      "path": "sources/python/pllm/protocols/__init__.pyi",
+      "sha256": "14ec64dcde5e8d1a6a6691e6f9e1310c555f4a35c4d84a5fc786c29bf8fb71d4"
+    },
+    {
+      "bytes": 16629,
+      "path": "sources/python/pllm/roles/__init__.py",
+      "sha256": "a2142f95fef4783a57db88facf79aed2980e81d6d50414c4866a282d12aec4af"
+    },
+    {
+      "bytes": 3186,
+      "path": "sources/python/pllm/roles/__init__.pyi",
+      "sha256": "4d37e8a119be38f707d68a880eb3a45428eb956f4f26bfebaccafa99828a6af0"
+    },
+    {
+      "bytes": 13415,
+      "path": "sources/python/pllm/roles/topology.py",
+      "sha256": "74545e84877e2a5316c74530854112faac4e07cc7481e298fa9eb9b62e9489ef"
+    },
+    {
+      "bytes": 62605,
+      "path": "sources/python/pllm/runtime/benchmark_cli.py",
+      "sha256": "68526d5a09079d68fb9316baf57668d6f01e02719345b38c680c0904ef73458e"
+    },
+    {
+      "bytes": 4294,
+      "path": "sources/python/pllm/runtime/benchmark_delegated.py",
+      "sha256": "2c5d9b022a731bd9bcabf0659b752cbfb53d93e2e8f7a2435a53c768b4d4a542"
+    },
+    {
+      "bytes": 27781,
+      "path": "sources/python/pllm/runtime/benchmark_history.py",
+      "sha256": "67fb1a4992a0236ea777b1441880b78ba43d083aa5c3058dcafdb257502beca0"
+    },
+    {
+      "bytes": 54324,
+      "path": "sources/python/pllm/runtime/benchmark_memory.py",
+      "sha256": "2d87ca5a0353f45a2e695da9a848fd11210d512034eee0e63fa3c3b368f95aa9"
+    },
+    {
+      "bytes": 27565,
+      "path": "sources/python/pllm/runtime/benchmark_response_target.py",
+      "sha256": "4bb3e858616ed0871a0e2f19dee745f3d2250e82862c22428d18b13854d62354"
+    },
+    {
+      "bytes": 20940,
+      "path": "sources/python/pllm/runtime/benchmark_targets.py",
+      "sha256": "0f5efd0cef37ef51c9a5bacaff54bf6fcb82cd61f22525667a93518c2736a552"
+    },
+    {
+      "bytes": 25430,
+      "path": "sources/python/pllm/runtime/cli.py",
+      "sha256": "2a6e6606e53708a47a5404763bc5289cc792b6a427fb77f427139c3c79c4cad5"
+    },
+    {
+      "bytes": 292090,
+      "path": "sources/python/pllm/runtime/client.py",
+      "sha256": "1eb96d8ec7c37aef035625b3339796058262b2bff75ca227ee87459c37f6ceac"
+    },
+    {
+      "bytes": 90425,
+      "path": "sources/python/pllm/runtime/dashboard.py",
+      "sha256": "ed2e18805e58d8c7146cdb302db2cc10899786bc32c6cc0ccc58aed7a08d6d89"
+    },
+    {
+      "bytes": 29318,
+      "path": "sources/python/pllm/runtime/delegated_client.py",
+      "sha256": "9e019602abb12c8cd469cb246b39cc01d82825ffdadc29ad7ced21f9f0690457"
+    },
+    {
+      "bytes": 15092,
+      "path": "sources/python/pllm/runtime/delegated_decoder.py",
+      "sha256": "0b6a15a6a6aa4ac76a552e10e107c150eb6c46eeebfd33f3d5b5305d46be1b3c"
+    },
+    {
+      "bytes": 2033,
+      "path": "sources/python/pllm/runtime/delegated_protocol.py",
+      "sha256": "1f7c5fde7ff6542ca062b3aea7c3f2b5cf4af5f3515f2bb930932563e198406b"
+    },
+    {
+      "bytes": 38688,
+      "path": "sources/python/pllm/runtime/delegated_source.py",
+      "sha256": "e3fa26c703de94d503e9e82a884bdc8b71f802d037baf7c71b1c22a8897b5153"
+    },
+    {
+      "bytes": 21677,
+      "path": "sources/python/pllm/runtime/delegated_transport.py",
+      "sha256": "1d5aea55e02acda3520e131b0b967c30f2965d8a66c24b6676cf27869bd3f38f"
+    },
+    {
+      "bytes": 11847,
+      "path": "sources/python/pllm/runtime/delegated_worker.py",
+      "sha256": "709f20b5e86ce3bcb72488c98e30e6c7a1d21cd62051f724de9758e02524b70f"
+    },
+    {
+      "bytes": 10263,
+      "path": "sources/python/pllm/runtime/native_wan.py",
+      "sha256": "86d8c5af9b4a48b4ec5274f8fcce49ef245fd492618acbbde358daf369527520"
+    },
+    {
+      "bytes": 58925,
+      "path": "sources/python/pllm/runtime/servers.py",
+      "sha256": "df5a8873ccae4e7d5d0202c4a270553b62ba92edebfa1e2643e097e07055f0c5"
+    },
+    {
+      "bytes": 19852,
+      "path": "sources/python/pllm/runtime/sidecar.py",
+      "sha256": "9425c9d0447b33547cceafceeb63207d276a3ad72f434fbb8d761c5edb0aca1b"
+    },
+    {
+      "bytes": 6489,
+      "path": "sources/python/pllm/verification/__init__.py",
+      "sha256": "cf12cecd5b9dbe140ee3ce8b8d374d33af5d5dc27835e7fccee3fb7e95a44a6d"
+    },
+    {
+      "bytes": 1793,
+      "path": "sources/python/pllm/verification/__init__.pyi",
+      "sha256": "3120322fb98a71fe5b97a15e04b36367aece1576c8b4581c6d0bc540ec125eb6"
+    },
+    {
+      "bytes": 3907,
+      "path": "sources/tests/conftest.py",
+      "sha256": "53ec4f17cddb87325b7f927f122ec7fb1e1589dc95b5ad8b2957f41280890edc"
+    },
+    {
+      "bytes": 11000,
+      "path": "sources/tests/test_component_families.py",
+      "sha256": "5b08eec1c59d39368dd8b9db6ea7df517c3e78ec5f4bd3166b9bc7a4fe199011"
+    },
+    {
+      "bytes": 22561,
+      "path": "sources/tests/test_delegated_benchmark.py",
+      "sha256": "fc260c3b7f730c7bf9acbf745047d886983db40f17794df9548f2e036a90bcd4"
+    },
+    {
+      "bytes": 30646,
+      "path": "sources/tests/test_delegated_client.py",
+      "sha256": "aa67b84dd5ef59a15aaf40141b5be5897615a262014dabd9619381f137c82f3d"
+    },
+    {
+      "bytes": 21396,
+      "path": "sources/tests/test_delegated_decoder.py",
+      "sha256": "ab3036e14df63b66786709caa1ce8929afe29fa8df10ab6e81832a6ec0964b5a"
+    },
+    {
+      "bytes": 9013,
+      "path": "sources/tests/test_delegated_interfaces.py",
+      "sha256": "f0c0b97a71e5336bcf8eb4126e4db7fbb3392dfe313b5722e698b4ba39624022"
+    },
+    {
+      "bytes": 12851,
+      "path": "sources/tests/test_delegated_lifecycle_regressions.py",
+      "sha256": "0f9fedbf5e7823f9bf26e2220347824c68a8f5229167477e652b122319753838"
+    },
+    {
+      "bytes": 10285,
+      "path": "sources/tests/test_delegated_sdk.py",
+      "sha256": "0d3eff7ee6e9c6c0cc3fbe0fb63e65658b117095c13ccdb682af71db7fbe03af"
+    },
+    {
+      "bytes": 33646,
+      "path": "sources/tests/test_delegated_source.py",
+      "sha256": "aa3f6ecfd8d3b580f42c44b35c0d03bd572e2a7e183fa51898e5ed47a135d7de"
+    },
+    {
+      "bytes": 9106,
+      "path": "sources/tests/test_delegated_transport_binding.py",
+      "sha256": "e55819e2ff64d614573e7344ed650114dcad893eb6ac51869379bd276bfc0fca"
+    },
+    {
+      "bytes": 9500,
+      "path": "sources/tests/test_delegated_transport_ownership.py",
+      "sha256": "b6e8e9d96fcde28fc8eebf6d1e000cc0a2f6db531669d5ac522c5f8449ae8fc1"
+    },
+    {
+      "bytes": 16989,
+      "path": "sources/tests/test_gkm_benchmark_admission.py",
+      "sha256": "0f867ff16ab61bfad3b08255fa1db60de6f3be52e6c7de3bb290d58801d43006"
+    },
+    {
+      "bytes": 14987,
+      "path": "sources/tests/test_gkm_sdk_declarations.py",
+      "sha256": "03bcd65b0d24b5fd44063827a8edb603709de5716757a8cdeee0fbca251aa4a3"
+    },
+    {
+      "bytes": 11133,
+      "path": "sources/tests/test_role_topology.py",
+      "sha256": "f406a2b56e2adc41dea4d65270f47eafbdc74c3db7222f6b8f096b023477b1db"
+    },
+    {
+      "bytes": 27494,
+      "path": "sources/tests/test_service_cli.py",
+      "sha256": "e622cfbd9ef37bd1ef2e6cce71f25a5a5bdbe778a458bf3e4a1018b20deefd91"
+    },
+    {
+      "bytes": 4692,
+      "path": "sources/tests/test_sidecar_context_lifetime.py",
+      "sha256": "007b5eb6b4dd05a55bdabe0d41586bad15faa2f5260fff30c7a55e20ac54f0ce"
+    },
+    {
+      "bytes": 21658,
+      "path": "sources/tests/test_sidecar_gateway.py",
+      "sha256": "dcc7c5917191bd9fb7ce7cf0282ca33102afa9f640b7d26319c6fb73bab576e2"
+    },
+    {
+      "bytes": 10888,
+      "path": "sources/tests/test_topology_accounting.py",
+      "sha256": "347922e208b9103d59579a07082ccbc2debc9382a7ecd226ed2cae4cd68148da"
+    },
+    {
+      "bytes": 4883,
+      "path": "sources/tests/test_transport_sidecar.py",
+      "sha256": "5e8b6ca33aff4feceb9acd8642417ef6c35fdd23ff5ed3d1030aae59a7a9a5fb"
+    },
+    {
+      "bytes": 1034,
+      "path": "tests/command.json",
+      "sha256": "a925b18a1d7959c40882b0f5c5350a8fdd6b64270b08e3f1e243ebf39afab186"
+    },
+    {
+      "bytes": 54,
+      "path": "tests/receipt.json",
+      "sha256": "73f31a0787c59ede963a73aad079a8834877882e2129048cba3fc8a841203f25"
+    },
+    {
+      "bytes": 1668,
+      "path": "tests/results.log",
+      "sha256": "4c3a3af031e3da10a1cfe8da6085013c4b1d15b0eb2d0d7c10389da82c1a394c"
+    },
+    {
+      "bytes": 107614,
+      "path": "tests/results.xml",
+      "sha256": "6360d87fbab317be48df962ad5824e9a998c969d0be162870203cc936f930b98"
+    },
+    {
+      "bytes": 2125,
+      "path": "tests/sources-after.json",
+      "sha256": "c8e6e3adc7bf5e953fd6185ce8fd0735a93db01c3db2a6fed656e156634985f3"
+    },
+    {
+      "bytes": 2125,
+      "path": "tests/sources-before.json",
+      "sha256": "c8e6e3adc7bf5e953fd6185ce8fd0735a93db01c3db2a6fed656e156634985f3"
+    }
+  ],
+  "installed_tests_passed": 547,
+  "native_test_groups": {
+    "compiler-tests": [
+      14,
+      22,
+      5,
+      3,
+      4
+    ],
+    "core-tests": [
+      42
+    ],
+    "ownership-tests": [
+      8
+    ],
+    "wire-tests": [
+      4,
+      2,
+      10,
+      1,
+      2
+    ]
+  },
+  "retained_wheel": "target/research/gkm-sdk-wheel-v4/wheels/pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl",
+  "schema": "pllm.gkm_sdk_archive.v1"
+}

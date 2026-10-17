@@ -479,6 +479,15 @@ def run_local_gateway(args: argparse.Namespace) -> None:
         return default if value is None else value
 
     experiment = getattr(args, "resolved_experiment", None)
+    from .benchmark_delegated import is_delegated
+
+    delegated = is_delegated(experiment)
+    if delegated:
+        unsupported = ("transport", "correlation_mode", "correlation_prefetch",
+                       "prepared_inventory_rows", "token_cache_size", "bundle_cache_mode",
+                       "bundle_cache_dir", "tenseal_path", "weight_bits", "activation_bits")
+        if any(getattr(args, name, None) is not None for name in unsupported):
+            raise RuntimeCLIError("GKM local gateway requires its exact Experiment without inventory, transport or precision overrides")
     if experiment is not None:
         model = experiment
         model_id = None
@@ -509,17 +518,19 @@ def run_local_gateway(args: argparse.Namespace) -> None:
         hf_cache_dir=getattr(args, "hf_cache_dir", None),
         reserved_ports=(args.port,),
     ) as topology:
+        options = {"timeout": argument_or_default("timeout", 300.0)}
+        if not delegated:
+            options.update(
+                tenseal_path=getattr(args, "tenseal_path", None) or _env("PLLM_PYDEPS"),
+                session_transport=argument_or_default("transport", "websocket"),
+                correlation_prefetch=argument_or_default("correlation_prefetch", 4),
+                prepared_inventory_rows=getattr(args, "prepared_inventory_rows", None),
+                token_cache_size=argument_or_default("token_cache_size", 512),
+                bundle_cache_mode=argument_or_default("bundle_cache_mode", "read-write"),
+                bundle_cache_dir=getattr(args, "bundle_cache_dir", None))
         app = topology.gateway_app(
             local_api_key=getattr(args, "api_key", None) or _env("PLLM_GATEWAY_API_KEY", "local"),
-            tenseal_path=getattr(args, "tenseal_path", None) or _env("PLLM_PYDEPS"),
-            session_transport=argument_or_default("transport", "websocket"),
-            correlation_prefetch=argument_or_default("correlation_prefetch", 4),
-            prepared_inventory_rows=getattr(args, "prepared_inventory_rows", None),
-            token_cache_size=argument_or_default("token_cache_size", 512),
-            bundle_cache_mode=argument_or_default("bundle_cache_mode", "read-write"),
-            bundle_cache_dir=getattr(args, "bundle_cache_dir", None),
-            timeout=argument_or_default("timeout", 300.0),
-        )
+            **options)
         uvicorn.run(
             app,
             host=getattr(args, "host", "127.0.0.1"),

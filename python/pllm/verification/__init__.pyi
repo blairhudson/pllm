@@ -1,4 +1,4 @@
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from pllm.configuration import ComponentDescriptor, ComponentRef
 from pllm.components._planned import PendingComponent as PendingMethod
@@ -22,6 +22,13 @@ class FreivaldsVerify(VerificationScheme):
 class LinearIntegrity(VerificationScheme):
     descriptor: ComponentDescriptor
     def __init__(self) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+class PublishedLinearVerify(VerificationScheme):
+    descriptor: ComponentDescriptor
+    def __init__(self, *, acceptance: Literal["request"] = "request") -> None: ...
+    def get_params(self, deep: bool = True) -> dict[str, object]: ...
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
 

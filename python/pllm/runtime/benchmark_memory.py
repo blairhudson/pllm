@@ -275,15 +275,18 @@ def private_boundary_memory(vocabulary, hidden, *, lookup_rows, head_calls,
 
 
 def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
-                    inventory_rows=64, cache_bytes=0, cache_bound_tokens=None, checkpoint_bytes=0, store=None):
+                     inventory_rows=64, cache_bytes=0, cache_bound_tokens=None, checkpoint_bytes=0, store=None):
     """Model-neutral graph geometry; no arrays or checkpoint tensor reads."""
     from pllm.modeling import lower_model
     from pllm.profiles import resolve_runtime_composition
 
-    _validate_workload(max_input_tokens, max_output_tokens, inventory_rows, cache_bytes, cache_bound_tokens)
     options = resolve_runtime_composition(pipeline)
     if options is None:
         raise BenchmarkMemoryError("memory estimation requires an implemented composition")
+    if options.client_runtime == "compiled_gkm_v1":
+        return _delegated_memory(config, pipeline, max_input_tokens, max_output_tokens,
+                                 cache_bytes, cache_bound_tokens, checkpoint_bytes)
+    _validate_workload(max_input_tokens, max_output_tokens, inventory_rows, cache_bytes, cache_bound_tokens)
     compiled_input_bound = max(max_input_tokens, cache_bound_tokens or 0,
                                options.prefix_cache_bound_tokens or 0)
     plan = lower_model(config, batch=1, max_input_tokens=compiled_input_bound,
@@ -291,6 +294,57 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     return estimate_plan_memory(plan, pipeline, max_input_tokens=max_input_tokens,
         max_output_tokens=max_output_tokens, inventory_rows=inventory_rows, cache_bytes=cache_bytes,
         cache_bound_tokens=cache_bound_tokens, checkpoint_bytes=checkpoint_bytes, store=store)
+
+
+def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes):
+    """Price the bounded source/verified-window owners, never an int8 schedule."""
+    from .delegated_decoder import decoder_contract
+
+    if (type(outputs) is not int or not 1 <= outputs <= 9
+            or cache_bytes or cache_bound is not None):
+        raise BenchmarkMemoryError("GKM requires a bounded full-KV response without cache reuse")
+    try:
+        raw_contract = decoder_contract(config, input_rows=rows, decode_steps=outputs - 1)
+        contract = json.loads(raw_contract)
+    except (ValueError, TypeError, OverflowError) as exc:
+        raise BenchmarkMemoryError("GKM source or workload exceeds native numerical admission") from exc
+    source = contract["source_float32_bytes"]
+    # The complete decoder contract preflights source, publication, windows and
+    # tensor workspace together under its 64 MiB bound. Charge that entire bound
+    # in EACH role, plus retained source/copies and a separate 64 MiB allowance
+    # for bounded transport frames, publication import/export and tokenizer work.
+    # These are conservative owner allowances, not measured RSS or tier results.
+    native = 64 * MiB
+    transport = 64 * MiB
+    source_owners = 3 * source
+    role = _slack(_PROCESS_BYTES + native + transport + source_owners)
+    providers = {name: role for name in ("worker_a", "worker_b")}
+    return {
+        "scope": "conservative allocation estimate; not measured peak RSS",
+        "model_plan_digest": None, "model_config_digest": contract["plan"]["config_digest"],
+        "pipeline_digest": pipeline.digest(), "max_input_tokens": rows,
+        "max_output_tokens": outputs, "compiled_input_bound": rows,
+        "inventory_rows": 0, "kernel": "cpu", "runtime_kind": "gkm",
+        "concurrent_response_bound": 1, "allocation_slack_percent": 25,
+        "client_peak_bytes": role, "provider_peak_bytes": providers,
+        "docker_provider_peak_bytes": {}, "native_total_peak_bytes": 3 * role,
+        "preparation_storage": "none", "preparation_kernel": "none",
+        "weight_storage": "source float32 plus exact i16 native snapshots",
+        "bundle_storage": "trusted client-owned publication; bounded source loading",
+        "mask_storage": "one pending explicit-share pair per verified window",
+        "tensor_storage": "complete client-local float32 logits and full KV",
+        "verification_allocation": {
+            "native_allowance_per_role_bytes": native,
+            "contract_execution_payload_estimate_bytes": contract["execution_payload_estimate_bytes"],
+            "publication_window_payload_allowance_bytes": contract["capsule_payload_allowance_bytes"],
+            "transport_and_tokenizer_allowance_per_role_bytes": transport,
+        },
+        "components": {"source_float32_bytes": source,
+                       "source_import_and_retention_bytes_per_role": source_owners,
+                       "checkpoint_bytes": checkpoint_bytes,
+                       "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0},
+        "limitations": [],
+    }
 
 
 def estimate_plan_memory(plan, pipeline, *, max_input_tokens, max_output_tokens,
@@ -641,6 +695,8 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
                 else:
                     reasons.append("enforced WAN auto fallback requires explicit native TCP pacing selection")
         else:
+            if estimate.get("runtime_kind") == "gkm":
+                reasons.append("GKM requires native role owners; Docker is not admitted")
             if estimate.get("preparation_kernel") == "digit8":
                 reasons.append("digit8 requires native Apple Silicon CPU execution")
             if estimate["kernel"] == "metal":
@@ -715,7 +771,26 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
     source = pipeline.model
     checkpoint_bytes = 0
     store = None
-    if source.kind == "tiny":
+    if options.client_runtime == "compiled_gkm_v1":
+        from .delegated_source import admit_source
+
+        if isinstance(model, Experiment):
+            admitted = admit_source(model)
+            if (max_input_tokens > model.budget.max_input_tokens
+                    or max_output_tokens > model.budget.max_new_tokens):
+                raise BenchmarkMemoryError("GKM measurement exceeds its saved workload envelope")
+        else:
+            admitted = admit_source(source, input_rows=max_input_tokens,
+                                    decode_steps=max_output_tokens - 1)
+        config = admitted.config
+        checkpoint_bytes = sum(row["size"] for row in admitted.source_lock["files"]
+                               if row["path"].endswith(".safetensors"))
+        # Runtime owners are bound to the saved full envelope, even for a
+        # smaller measurement. Price the contract those owners will allocate.
+        contract = admitted.contract
+        max_input_tokens = contract["input_rows"]
+        max_output_tokens = contract["decode_steps"] + 1
+    elif source.kind == "tiny":
         from pllm.sources import _tiny_model_config
         config = _tiny_model_config()
     else:
@@ -737,6 +812,22 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
                                 max_output_tokens=max_output_tokens, inventory_rows=inventory_rows,
                                 cache_bytes=cache_bytes, cache_bound_tokens=cache_bound_tokens,
                                 checkpoint_bytes=checkpoint_bytes, store=store)
+    if options.client_runtime == "compiled_gkm_v1":
+        # Keep the saved full-envelope admission explicit even when a benchmark
+        # requests fewer rows/outputs. These pins come from bounded source reads.
+        estimate["gkm_admission"] = {
+            "checkpoint_digest": admitted.checkpoint_digest,
+            "source_lock_digest": admitted.source_lock_digest,
+            "tokenizer_digest": admitted.tokenizer_digest,
+            "decoder_contract_digest": admitted.contract_digest,
+            "runtime_contract_digest": (admitted.runtime_contract_digest
+                                        if admitted.runtime_contract_bytes is not None else None),
+            "numeric_profile": contract["numeric_profile"],
+            "local_numeric_profile": contract["local_numeric_profile"],
+            "max_input_tokens": contract["input_rows"],
+            "max_output_tokens": contract["decode_steps"] + 1,
+            "execution_payload_estimate_bytes": admitted.execution_payload_estimate_bytes,
+        }
     docker = None
     if backend in {"docker", "auto"}:
         try:

@@ -1,0 +1,49 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (target/debug/deps/pllm_core-b6ca37a70c04a366)
+
+running 42 tests
+test gkm::seeded::tests::aes_nist_kat_source_counter_openssl_kat_and_zeroizing_cipher ... ok
+test gkm::seeded::tests::byte_budget_and_last_counter_fail_closed_without_wrapping_or_partial_writes ... ok
+test gkm::seeded::tests::every_split_tail_and_source_prefetch_boundary_preserve_byte_continuity ... ok
+test gkm::tests::dense_lookup_uses_original_float_bytes_and_canonical_partial_byte ... ok
+test gkm::tests::immutable_i16_ring64_matches_big_integer_oracle_including_wrapped_shares ... ok
+test gkm::tests::numeric_completion_ties_ranges_signed_endpoints_and_conversion_order ... ok
+test gkm::tests::owner_commitments_match_independent_affine_group_and_exact_signed_relation ... ok
+test gkm::tests::public_bounds_and_preallocation_shape_caps_are_conservative ... ok
+test gkm::tests::scalar_sampler_rejects_at_order_without_modulo_bias_and_keeps_zero ... ok
+test gkm::window::resource_tests::all_clients_share_publication_window_admission_including_concurrent_attempts ... ok
+test gkm::window::resource_tests::every_import_publication_and_kernel_payload_allocation_is_fallible ... ok
+test gkm::window::resource_tests::every_window_payload_failure_retires_and_retained_response_capacity_is_not_refunded ... ok
+test gkm::window::resource_tests::ignored_constructor_or_evaluator_errors_cannot_resurrect_transactions ... ok
+test gkm::window::resource_tests::pending_role_slots_bound_response_handles_and_cancellation_keeps_their_leases ... ok
+test gkm::window::resource_tests::publication_envelopes_share_aggregate_admission_and_release_after_last_response ... ok
+test gkm::window::resource_tests::simultaneous_evaluations_of_one_role_get_one_buffer_and_poison_acceptance ... ok
+test gkm::window::seeded_window::tests::authentic_unexpanded_lookup_response_still_cannot_mint_an_accepted_window ... ok
+test gkm::window::seeded_window::tests::every_binding_field_role_artifact_and_profile_is_enforced_before_expansion ... ok
+test gkm::window::seeded_window::tests::lookup_binding_roles_same_shape_table_substitution_and_none_evaluator_retire ... ok
+test gkm::window::seeded_window::tests::lookup_replay_cross_window_worker_and_response_substitution_keep_sticky_leases ... ok
+test gkm::window::seeded_window::tests::matched_full_and_seeded_transcripts_match_independent_aes_integer_and_byte_oracles ... ok
+test gkm::window::seeded_window::tests::replay_cross_window_substitution_cancellation_and_ignored_errors_retire_all_owners ... ok
+test gkm::window::seeded_window::tests::seed_entropy_and_every_seeded_payload_failure_roll_back_without_resampling ... ok
+test gkm::window::seeded_window::tests::seeded_corruption_preserves_row_authentication_and_final_window_checks ... ok
+test gkm::window::seeded_window::tests::seeded_verifier_entropy_stays_post_freeze_and_never_falls_back_to_shared_streams ... ok
+test gkm::window::seeded_window::tests::seeded_workers_share_admission_with_all_clients_and_keep_full_plan_reservations ... ok
+test gkm::window::seeded_window::tests::unexpanded_or_incomplete_seeded_schedule_cannot_mint_accepted_output ... ok
+test gkm::window::tests::accumulation_is_mod_scalar_order_and_matches_independent_big_integer_oracle ... ok
+test gkm::window::tests::cross_session_and_same_shape_wrong_matrix_artifacts_fail_closed ... ok
+test gkm::window::tests::every_output_coordinate_and_either_or_both_workers_reject_corruption ... ok
+test gkm::window::tests::final_fresh_coefficients_catch_errors_cancelling_across_different_matrices ... ok
+test gkm::window::tests::freeze_barrier_precedes_entropy_and_all_entropy_failure_phases_retire ... ok
+test gkm::window::tests::fresh_per_claim_coefficients_catch_coefficient_one_cancellation ... ok
+test gkm::window::tests::fresh_private_views_and_live_cumulative_caps_survive_drop_and_bad_attempts ... ok
+test gkm::window::tests::individual_wrapped_worker_relations_fail_but_reconstructed_signed_check_passes ... ok
+test gkm::window::tests::lookup_checks_all_row_bytes_before_use_and_retires_partial_or_bad_responses ... ok
+test gkm::window::tests::lookup_repeated_matrix_and_different_width_stage_accept_only_complete_window ... ok
+test gkm::window::tests::malformed_role_shape_context_stage_count_and_replay_retire_the_owner ... ok
+test gkm::window::tests::publication_pins_cover_points_row_hashes_context_numeric_matrix_and_bounds ... ok
+test gkm::window::tests::schedules_omitted_claims_input_bounds_and_cancellation_fail_without_receipt ... ok
+test gkm::window::wire::tests::every_new_payload_allocation_failure_is_fallible_and_retires_its_owner ... ok
+test gkm::window::wire::tests::worker_uses_native_cumulative_window_step_and_shared_live_admission ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 191 filtered out; finished in 1.06s
+

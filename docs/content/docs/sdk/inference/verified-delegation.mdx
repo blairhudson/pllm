@@ -1,0 +1,59 @@
+---
+title: "Verified delegation (bounded)"
+description: "Run a bounded GKM composition through two workers with request-end verification."
+---
+
+`OpenWeightVerifiableCpu` uses two worker processes and a trusted client. The
+client releases output only after the complete request passes native verification.
+This is a generated-checkpoint conformance path; official Qwen checkpoints exceed
+its current admission limits.
+
+## Configure one Experiment
+
+Provide a complete local Safetensors checkpoint and genuine `tokenizer.json`,
+with at most 256 vocabulary entries and shapes within native limits. The default
+`Model.tiny()` has 258 entries and cannot serve as this fixture.
+
+```python
+from pllm import Deployment, ExecutionBudget, Experiment, Model, OpenAI
+from pllm.profiles import OpenWeightVerifiableCpu
+
+experiment = Experiment(
+    name="bounded-delegated",
+    pipeline=OpenWeightVerifiableCpu(Model.path("/path/to/bounded-checkpoint")),
+    deployment=Deployment.local(root=".pllm/delegated"),
+    budget=ExecutionBudget(requests=4, max_input_tokens=8, max_new_tokens=3),
+)
+
+with OpenAI(experiment=experiment) as client:
+    response = client.responses.create(
+        input="hello world", max_output_tokens=3, temperature=0,
+    )
+    print(response.output_text)
+```
+
+The profile composes `OpenWeightVerifiableOutsourcing`, `PublishedLinearVerify`,
+`TwoOnlineDelegationRoles`, one-thread CPU kernels and client-local full KV.
+It preserves the source's fixed-point arithmetic and original float32 lookup
+bytes. Ordinary W8A8 quantization is not part of this composition.
+
+The [public example](https://github.com/blairhudson/pllm/blob/main/examples/delegated_sdk.py)
+also saves canonical Experiment JSON and invokes `BenchmarkTarget.response`.
+The same saved Experiment works with `pllm gateway --local --experiment` and
+`pllm benchmark run --experiment`.
+
+## Response contract
+
+- Generation is greedy and fixed-count. EOS does not shorten the request.
+- Output remains buffered until final acceptance, including streaming requests.
+- The capped response is `incomplete` with reason `max_output_tokens`.
+- Cancellation drains owned work and retires one-use material.
+- Continuations, tools, stochastic sampling and seeded transport reject.
+
+First-text timing includes verification. Reports leave text-event decode
+throughput unknown because buffer release does not measure model execution.
+Local worker processes do not establish non-collusion or production privacy.
+
+See the [complete contract and validation record](https://github.com/blairhudson/pllm/blob/main/docs/research/gkm-sdk-reference.md)
+for source limits, transport admission, exact-state checks and remaining
+checkpoint and performance gates.

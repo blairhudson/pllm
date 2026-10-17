@@ -291,20 +291,41 @@ def execute_gkm_reference(
         _source_snapshot(tensors, contract["source_shapes"]),
         seeded=seeded,
     )
+    return _execute_verified_window(native, contract, token_ids)
+
+
+def _execute_verified_window(native, contract, token_ids, *, cancelled=None) -> GkmDecoderResult:
+    """Shared local semantics; native finish gates all returned state and tokens.
+
+    The local reference and the role-separated runtime supply distinct native
+    owners. Neither receives a callback that can publish tentative results.
+    """
     request = None
     try:
         if json.loads(native.contract()) != contract:
             raise ValueError("GKM compiled contract mismatch")
+        if (
+            type(token_ids) is not tuple
+            or len(token_ids) != contract["input_rows"]
+            or any(type(token) is not int or not 0 <= token < contract["vocabulary"]
+                   for token in token_ids)
+        ):
+            raise ValueError("GKM input differs from admitted request")
         request = _Request(native, contract)
         logits, selected, executed = [], [], list(token_ids)
         current = token_ids
+        decode_steps = contract["decode_steps"]
         for step in range(decode_steps + 1):
+            if cancelled is not None and cancelled():
+                raise RuntimeError("GKM request cancelled")
             vector, token = request.phase(current)
             logits.append(vector)
             selected.append(token)
             if step < decode_steps:
                 current = (token,)
                 executed.append(token)
+        if cancelled is not None and cancelled():
+            raise RuntimeError("GKM request cancelled")
         acceptance = native.finish()
         kv = tuple(
             (

@@ -1,8 +1,8 @@
 # Ordinary SDK integration contract
 
 Status: required by [D5](DECISIONS.md#d5-ordinary-sdk-integration-is-required).
-This document records integration requirements, not implemented capabilities.
-It applies to every selected method and its separately labelled adaptations.
+This document records integration requirements and the bounded GKM milestone.
+The requirements apply to every selected method and its separately labelled adaptations.
 
 ## One public execution path
 
@@ -33,34 +33,43 @@ configuration round trips and operator execution do not establish complete SDK
 response support. A native or internal reference remains a reference until its
 ordinary public execution path passes the required tests.
 
-## Current GKM gap
+## Bounded GKM milestone and remaining gates
 
 The [bounded decoder](../../docs/research/gkm-decoder-reference.md) reuses source
 lowering, compiler matrix grouping and `SemanticLocalOperators`. Its repaired
 native and installed-wheel checks validate that in-process composition.
-`GkmDecoderSession` still evaluates both logical workers inside one owner, and
-`OpenWeightVerifiableOutsourcing` remains pending in the public registry.
-This is not a completed SDK method.
+`GkmDecoderSession` continues to supply that in-process control. The subsequent
+`OpenWeightVerifiableCpu` profile composes `OpenWeightVerifiableOutsourcing`,
+`PublishedLinearVerify`, `TwoOnlineDelegationRoles`, one-thread CPU kernels and
+`ClientLocalKv` through the ordinary public execution path.
 
-The next executable slice is one bounded, fixed-length greedy request through
-one serialized Experiment and two actual worker adapters. It must retain a
-complete tokenizer/vocabulary, original float32 lookup, source i16/Q11 encoding,
-ring64 products, complete head, full client KV and request-end verification.
-Use a genuine complete fixture within the existing vocabulary ceiling of 256;
-default `Model.tiny()` has 258 entries and must reject rather than be truncated.
-Co-located worker processes establish functionality, not independent operators.
+The bounded slice executes a fixed-length greedy request through one serialized
+Experiment and two actual worker adapters. It retains a complete tokenizer and
+vocabulary, original float32 lookup, source i16/Q11 encoding, ring64 products,
+complete head, full client KV and request-end verification. Generated Qwen2,
+Qwen3 and Llama fixtures fit the vocabulary ceiling of 256; default
+`Model.tiny()` retains 258 entries and rejects. Co-located workers establish
+functionality, not independent operators. Exact contracts and the 547 Python /
+117 native conformance checks are in the
+[SDK reference](../../docs/research/gkm-sdk-reference.md) and
+[archive](../artifacts/gkm-sdk/README.md).
+
+Full-checkpoint publication, activation bounds, original-model and common-Qwen
+quality and matched resource/performance evidence remain open. Seeded network
+frames, stochastic or early-EOS generation, continuation, remote source discovery
+and automatic network planning remain unsupported.
 
 ### Integration seams
 
-| Shared contract | Required GKM work |
+| Shared contract | Implemented bounded GKM binding |
 | --- | --- |
 | `protocols`, `verification`, `roles`, component discovery and exports | Typed declarations with exact parameters and immutable round trips. Keep private material out of configuration. |
 | `profiles.resolve_runtime_composition`; native composition classification and resolution | Select explicit source arithmetic and acceptance. Existing W8A8 defaults cannot supply GKM numerics. |
 | `GkmDecoderContract`, `modeling.lower_model`, benchmark memory admission | Run source-mapped budget checks before any graph construction, including estimation and CLI inspection paths. Bind source, tokenizer, workload and canonical composition identities. |
 | Native GKM window and publication owners | Separate client issuance/verification from worker evaluation. Each worker receives only its role's shares and permitted seed material. Bound wire frames by publication, request, stage, ordinal, worker, shape and profile. |
-| `roles.topology`, `runtime.servers`, `runtime.party`, deployment and native placement | Dispatch from the admitted method capability. Existing `worker_a`/`worker_b` names currently select the offset worker and are not sufficient to select GKM. |
+| `roles.topology`, `runtime.servers`, `runtime.party`, deployment and native placement | Dispatch from the admitted method capability. Shared `worker_a`/`worker_b` names alone cannot select GKM; the explicit delegated topology selects its worker adapter. Automatic network placement remains unsupported. |
 | `runtime.model_binding`, `RuntimeClient`, transport and sidecar | Reuse semantic execution and source/tokenizer validation; add the admitted numerical boundary and verified-response lifecycle. |
-| CLI, `BenchmarkTarget`, `benchmark_suite`, search and coverage | Consume the same Experiment; price actual owners and preserve numerical, acceptance, phase and traffic identities through replay. |
+| CLI, `BenchmarkTarget`, `benchmark_suite` and coverage | Consume the same Experiment; price actual owners and preserve numerical, acceptance, phase and traffic identities through replay. Automatic search remains unsupported. |
 
 ### Acceptance and request semantics
 

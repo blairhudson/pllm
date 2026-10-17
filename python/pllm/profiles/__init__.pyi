@@ -10,15 +10,16 @@ from pllm.protocols import (
     ClientBundleTransport,
     DirectFHE,
     GuardedLinear,
+    OpenWeightVerifiableOutsourcing,
     ProtocolMethod,
     TwoOnlineOffsetLinear,
 )
-from pllm.roles import BoundaryPlacement, ClientPlacement, ClientOnlyRoles, InferenceRole, OutputHeadAtInference, RoleTopology, PreparedProviderRoles, TwoOnlineOffsetRoles
+from pllm.roles import BoundaryPlacement, ClientPlacement, ClientOnlyRoles, InferenceRole, OutputHeadAtInference, RoleTopology, PreparedProviderRoles, TwoOnlineOffsetRoles, TwoOnlineDelegationRoles
 from pllm.sources import ModelSource
 from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
 from pllm.schedulers import MlpPrefillTiling
 from pllm.tokenization import IndexedTokenizer
-from pllm.verification import FreivaldsVerify, VerificationScheme
+from pllm.verification import FreivaldsVerify, PublishedLinearVerify, VerificationScheme
 
 class RuntimeComposition:
     privacy_mode: str
@@ -60,6 +61,13 @@ class RuntimeComposition:
     inflight_max_bytes: int
     bundle_compression: str
     provider_artifact_cache_bytes: int
+    runtime_kind: str | None
+    numeric_profile: str | None
+    local_numeric_profile: str | None
+    sharing: str | None
+    generation_policy: str | None
+    verification_window: str | None
+    setup_owner: str | None
     def __init__(
         self,
         privacy_mode: str,
@@ -79,6 +87,13 @@ class RuntimeComposition:
         causal_reduction: str | None = ...,
         prepared_output_encoding: str = ...,
         private_boundary: bool = ...,
+        runtime_kind: str | None = ...,
+        numeric_profile: str | None = ...,
+        local_numeric_profile: str | None = ...,
+        sharing: str | None = ...,
+        generation_policy: str | None = ...,
+        verification_window: str | None = ...,
+        setup_owner: str | None = ...,
     ) -> None: ...
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None: ...
@@ -178,6 +193,24 @@ class TwoOnlineOffsetCpu(Pipeline):
     @property
     def delivery(self) -> ClientBundleTransport | None: ...
     def with_params(self, **changes: object) -> TwoOnlineOffsetCpu: ...
+
+class OpenWeightVerifiableCpu(Pipeline):
+    PROFILE: str
+    def __init__(self, model: ModelSource, *,
+                 linear: ProtocolMethod = ..., kernels: KernelBackend = ...,
+                 verification: VerificationScheme = ..., topology: RoleTopology = ...,
+                 state: ClientLocalKv = ...) -> None: ...
+    @property
+    def linear(self) -> OpenWeightVerifiableOutsourcing: ...
+    @property
+    def kernels(self) -> KernelBackend: ...
+    @property
+    def verification(self) -> PublishedLinearVerify: ...
+    @property
+    def topology(self) -> TwoOnlineDelegationRoles: ...
+    @property
+    def state(self) -> ClientLocalKv: ...
+    def with_params(self, **changes: object) -> OpenWeightVerifiableCpu: ...
 
 class VerifiedMaskedLinearCpu(Pipeline):
     PROFILE: str

@@ -17,6 +17,7 @@ from pllm.protocols import (
     DirectFHE as DirectFHEMethod,
     GuardedLinear,
     MaskedLinear,
+    OpenWeightVerifiableOutsourcing,
     ProtocolMethod,
     TwoOnlineOffsetLinear,
 )
@@ -34,12 +35,13 @@ from pllm.roles import (
     PreparedProviderRoles,
     RoleTopology,
     TwoOnlineOffsetRoles,
+    TwoOnlineDelegationRoles,
 )
 from pllm.sources import ModelSource
 from pllm.schedulers import MlpPrefillTiling
 from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
 from pllm.tokenization import IndexedTokenizer
-from pllm.verification import FreivaldsVerify, VerificationScheme
+from pllm.verification import FreivaldsVerify, PublishedLinearVerify, VerificationScheme
 
 _DEFAULT_MASKED = MaskedLinear()
 _DEFAULT_CLEARTEXT = CleartextLinear()
@@ -53,6 +55,10 @@ _DEFAULT_OFFSET_LINEAR = TwoOnlineOffsetLinear()
 _DEFAULT_OFFSET_ROLES = TwoOnlineOffsetRoles()
 _DEFAULT_KERNELS = Cpu()
 _DEFAULT_FREIVALDS = FreivaldsVerify()
+_DEFAULT_GKM_LINEAR = OpenWeightVerifiableOutsourcing()
+_DEFAULT_GKM_VERIFICATION = PublishedLinearVerify()
+_DEFAULT_GKM_ROLES = TwoOnlineDelegationRoles()
+_DEFAULT_FULL_KV = ClientLocalKv()
 
 
 def _model(value: ModelSource) -> Model:
@@ -430,6 +436,64 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
         return self.components.get("nonlinear")
 
 
+class OpenWeightVerifiableCpu(_TypedPipeline):
+    """Bounded experimental GKM composition; native admission gates execution.
+
+    Source arithmetic, full client KV, fixed-length greedy selection and final
+    request acceptance are mandatory. Publication is trusted client-owned setup.
+    """
+
+    PROFILE = "research.open_weight_verifiable_cpu"
+    SLOT_NAMES = ("linear", "kernels", "verification", "topology", "state")
+    __slots__ = ()
+
+    def __init__(
+        self,
+        model: ModelSource,
+        *,
+        linear: ProtocolMethod = _DEFAULT_GKM_LINEAR,
+        kernels: KernelBackend = _DEFAULT_KERNELS,
+        verification: VerificationScheme = _DEFAULT_GKM_VERIFICATION,
+        topology: RoleTopology = _DEFAULT_GKM_ROLES,
+        state: ClientLocalKv = _DEFAULT_FULL_KV,
+    ) -> None:
+        components = {
+            "linear": _slot("linear", linear, ProtocolMethod,
+                            OpenWeightVerifiableOutsourcing.descriptor.component),
+            "kernels": _slot("kernels", kernels, KernelBackend, Cpu.descriptor.component),
+            "verification": _slot("verification", verification, VerificationScheme,
+                                  PublishedLinearVerify.descriptor.component),
+            "topology": _slot("topology", topology, RoleTopology,
+                              TwoOnlineDelegationRoles.descriptor.component),
+            "state": _slot("state", state, ClientLocalKv, ClientLocalKv.descriptor.component),
+        }
+        if kernels.params != {"threads": 1}:
+            raise ConfigurationError("GKM kernels require Cpu(threads=1)")
+        if state.params:
+            raise ConfigurationError("GKM state requires full client KV without retention or reuse")
+        super().__init__(profile=self.PROFILE, model=_model(model), components=components)
+
+    @property
+    def linear(self) -> OpenWeightVerifiableOutsourcing:
+        return self.components["linear"]
+
+    @property
+    def kernels(self) -> Cpu:
+        return self.components["kernels"]
+
+    @property
+    def verification(self) -> PublishedLinearVerify:
+        return self.components["verification"]
+
+    @property
+    def topology(self) -> TwoOnlineDelegationRoles:
+        return self.components["topology"]
+
+    @property
+    def state(self) -> ClientLocalKv:
+        return self.components["state"]
+
+
 class VerifiedMaskedLinearCpu(_TypedPipeline):
     PROFILE = "research.verified_masked_linear_cpu"
     SLOT_NAMES = (
@@ -685,10 +749,58 @@ class RuntimeComposition:
     preparation_min_rows: int = 64
     nonlinear_layout: str | None = None
     nonlinear_dispatch: str = "serial"
+    runtime_kind: str | None = None
+    numeric_profile: str | None = None
+    local_numeric_profile: str | None = None
+    sharing: str | None = None
+    generation_policy: str | None = None
+    verification_window: str | None = None
+    setup_owner: str | None = None
+
+
+def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
+    """Describe the exact bounded contract; native capability still gates execution."""
+    expected = {
+        "linear": _DEFAULT_GKM_LINEAR,
+        "kernels": _DEFAULT_KERNELS,
+        "verification": _DEFAULT_GKM_VERIFICATION,
+        "topology": _DEFAULT_GKM_ROLES,
+        "state": _DEFAULT_FULL_KV,
+    }
+    if pipeline.components != expected:
+        return None
+    return RuntimeComposition(
+        privacy_mode="gkm_public",
+        proprietary_protocol="none",
+        requires_preparation=False,
+        correlation_mode="none",
+        client_runtime="compiled_gkm_v1",
+        privacy_protocol="gkm_i16_q11_ring64",
+        verification_component=PublishedLinearVerify.descriptor.component,
+        weight_bits=16,
+        # Ring storage width; the source Q11 input bound remains 2**31.
+        activation_bits=64,
+        inventory_policy="none",
+        prepared_inventory_rows=0,
+        background_inventory_refill=False,
+        runtime_kind="gkm",
+        numeric_profile=OpenWeightVerifiableOutsourcing.NUMERIC_PROFILE,
+        local_numeric_profile=OpenWeightVerifiableOutsourcing.LOCAL_NUMERIC_PROFILE,
+        sharing="full",
+        generation_policy="fixed_length_greedy",
+        verification_window="request_end",
+        setup_owner="client",
+    )
 
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    if set(identities.values()) & {
+        OpenWeightVerifiableOutsourcing.descriptor.component,
+        PublishedLinearVerify.descriptor.component,
+        TwoOnlineDelegationRoles.descriptor.component,
+    }:
+        return _resolve_gkm_composition(pipeline)
     private_boundary = identities.get("boundary") == PrivateLookupAndFullHead.descriptor.component
     if private_boundary:
         try:
@@ -1216,6 +1328,7 @@ __all__ = [
     "ClientOnlyCpu",
     "ClientOnlyMetal",
     "TwoOnlineOffsetCpu",
+    "OpenWeightVerifiableCpu",
     "DirectFHEProfile",
     "MaskedLinearCpu",
     "VerifiedMaskedLinearCpu",

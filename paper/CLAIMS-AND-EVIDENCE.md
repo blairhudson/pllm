@@ -7,6 +7,13 @@ No historical record supplies missing replicates in a new campaign.
 
 ## Paper 1 gates
 
+The approved [framework rewrite](FRAMEWORK-REWRITE-PLAN.md) expands the empirical
+scope to ten genuine method implementations. The completed P1-B/P1-C slices below
+remain framework/component conformance results; they do not close ten-method
+coverage. [IMPLEMENTATION-STATUS.md](IMPLEMENTATION-STATUS.md) records the current
+critical path, including bounded GKM progress, lifecycle-observer qualification
+and the still-open complete-system campaign.
+
 | Gate | Claim or deliverable | Existing starting points | Work required to close |
 | --- | --- | --- | --- |
 | P1-A | Fair comparison contract and nested Low/Medium/High budgets | **Normative definitions complete:** `COMPARISON-CONTRACT.md`, `comparison-contract.v1.json`; archived Low sensitivity uses observed maxima | Fresh campaign and sensitivity near Medium/High ceilings remain empirical work; hard aggregate-provider CPU/RSS enforcement is unavailable in the current native driver |

@@ -4,6 +4,7 @@ from pllm.roles.topology import (
     Role as Role,
     RoleGraph as RoleGraph,
     client_only_reference_graph as client_only_reference_graph,
+    two_online_delegation_graph as two_online_delegation_graph,
     two_online_reference_graph as two_online_reference_graph,
 )
 
@@ -32,6 +33,13 @@ class ClientOnlyRoles(RoleTopology):
 class TwoOnlineOffsetRoles(RoleTopology):
     descriptor: ComponentDescriptor
     def __init__(self) -> None: ...
+    @classmethod
+    def describe(cls) -> ComponentDescriptor: ...
+
+class TwoOnlineDelegationRoles(RoleTopology):
+    descriptor: ComponentDescriptor
+    def __init__(self) -> None: ...
+    def get_params(self, deep: bool = True) -> dict[str, object]: ...
     @classmethod
     def describe(cls) -> ComponentDescriptor: ...
 

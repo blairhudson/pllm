@@ -1,0 +1,80 @@
+   Compiling pllm-compiler v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.81s
+     Running tests/decoder_matrix_inventory.rs (target/debug/deps/decoder_matrix_inventory-2dfebf3de54f4562)
+
+running 14 tests
+test arbitrary_operation_and_artifact_names_preserve_geometry_and_order ... ok
+test bounded_admission_rejects_transforms_overflows_and_resource_excess ... ok
+test default_runtime_schedule_digest_regression ... ok
+test full_pinned_config_has_96_body_groups_head_and_lookup_without_weights ... ok
+test matching_dimensions_do_not_merge_distinct_inputs_or_layers ... ok
+test rejects_duplicate_unbound_ids_and_incompatible_phases ... ok
+test rejects_malformed_weight_bias_and_declared_shape_metadata ... ok
+test rejects_source_shape_conflicts_within_phase_and_bad_prefixes ... ok
+test resource_preflight_precedes_grouping_and_plan_allocation ... ok
+test tables_share_public_input_group_but_keep_separate_artifacts_and_tied_head_owner ... ok
+test tiny_families_have_independently_expected_geometry_and_runtime_members ... ok
+test typed_and_bytes_apply_whole_document_depth_limits ... ok
+test typed_and_bytes_count_all_document_nodes_at_boundary ... ok
+test typed_and_bytes_count_keys_and_value_strings_at_boundary ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.09s
+
+     Running tests/decoder_runtime_schedule.rs (target/debug/deps/decoder_runtime_schedule-26a784dff831eab0)
+
+running 22 tests
+test accepts_supported_semantics_and_rejects_transformations_and_batches ... ok
+test all_link_contracts_bind_identity_without_reducing_semantic_bounds ... ok
+test all_link_contracts_reject_unimplemented_compositions_and_malformed_limits ... ok
+test bounded_gemma_text_decoder_uses_the_same_schedule_contract ... ok
+test bounded_per_frequency_rotary_and_fused_slices_compile_without_extended_context ... ok
+test client_only_topology_places_all_linear_stages_with_the_client ... ok
+test client_placement_metal_keeps_cpu_ownership_and_checks_kernel_parameters ... ok
+test exact_composition_enables_complete_coverage_without_promoting_arbitrary_compositions ... ok
+test explicit_prepared_topology_keeps_coverage_but_changes_plan_identity ... ok
+test fuses_remote_stages_with_deterministic_slices ... ok
+test growing_epochs_bind_public_schedule_and_keep_full_cap ... ok
+test includes_final_norm_head_and_decoder_tail ... ok
+test lowers_complete_prefill_and_decode_schedules ... ok
+test packed_ingress_requires_the_exact_output_quotient_contract ... ok
+test prepared_chunk_bounds_are_digest_bound_and_strictly_admitted ... ok
+test public_stage_metal_backend_preserves_remote_schedule_and_rejects_forged_policy ... ok
+test rejects_unimplemented_local_operator_capabilities ... ok
+test schedules_multiple_dense_decoder_adapters_through_one_contract ... ok
+test terminal_pruning_preserves_state_roots_and_grouped_stage_ownership ... ok
+test two_online_offset_topology_binds_remote_stages_for_shared_decoder_operators ... ok
+test verified_composition_declares_a_distinct_remote_executor ... ok
+test wavelength_rotary_stays_local_in_both_compiled_decoder_phases ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.40s
+
+     Running tests/delegated_decoder.rs (target/debug/deps/delegated_decoder-c50f779c2e29d9f4)
+
+running 5 tests
+test all_scheduled_calls_pass_integer_and_original_byte_oracles ... ok
+test compiler_requires_source_expansion_admission ... ok
+test generic_dense_contracts_bind_original_boundaries_and_complete_window ... ok
+test source_and_geometry_reject_before_execution ... ok
+test wrong_stage_range_shape_and_incomplete_calls_burn_request ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
+
+     Running tests/delegated_sdk.rs (target/debug/deps/delegated_sdk-339a92e51aa0eebf)
+
+running 3 tests
+test canonical_experiment_and_source_bound_actual_request ... ok
+test declared_envelope_and_source_preflight_precede_actual_small_query ... ok
+test incompatible_and_incomplete_compositions_never_select_int8_runtime ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/delegated_transport.rs (target/debug/deps/delegated_transport-c0336699e4e4387a)
+
+running 4 tests
+test final_corruption_never_becomes_a_client_acceptance_receipt ... ok
+test generated_complete_schedules_match_integer_original_rows_and_seeded_reference ... ok
+test invalid_repeated_malformed_partial_and_cancelled_calls_retire_both_adapters ... ok
+test worker_rejects_actual_source_sdk_context_and_forged_short_schedule ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.96s
+

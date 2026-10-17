@@ -104,7 +104,7 @@ def test_local_sidecar_is_openai_http_compatible(gateway):
             json={"model": "pllm-bigram-demo", "input": "local secret", "max_output_tokens": 32, "stream": True},
         )
         events = _sse_events(streamed.text)
-        assert events[-1]["type"] == "response.completed"
+        assert events[-1]["type"] == "response.completed", events[-1]
 
 
 def test_sidecar_auth(gateway):

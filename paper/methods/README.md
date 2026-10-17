@@ -37,7 +37,7 @@ requires shared component discovery/serialization, `Pipeline`, `Experiment`,
 native admission, SDK/gateway, CLI and benchmark integration. Internal probes
 are milestones; they do not complete a method or authorize a separate public API.
 The [integration contract](sdk-integration.md) identifies the shared extension
-points, current GKM gaps and required end-to-end checks.
+points, the bounded GKM milestone and required end-to-end checks.
 
 The first selected implementation path is a complete Gupta–Katz–Miers request.
 Its source-resolution decisions precede a verified linear capsule, private
@@ -61,6 +61,11 @@ distributed and performance qualification remains open.
 The admission-repaired wheel passes 206 Python and 44 native checks. Pre-lowering
 geometry budgets and bounded source-map reads close the integration findings;
 earlier functional evidence retains its separate identity.
+The subsequent [bounded SDK composition](../../docs/research/gkm-sdk-reference.md)
+adds actual party-local worker processes and the ordinary component, Experiment,
+SDK, gateway, CLI and benchmark paths. Its final cached wheel passes 547 Python
+and 117 native checks plus Clippy. Full-checkpoint admission, original-model and
+common-Qwen quality, independent operators and publication measurements remain open.
 
 ## Current validation host
 
