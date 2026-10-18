@@ -134,7 +134,8 @@ Admission remains 1024 lanes/4096 operations. Additional cumulative work ceiling
 pairwise AES blocks; H uses `4*ceil(n/2)+n`, plus each role's one public block.
 Fixed-size setup allocates no payload buffers. The direct `SourceParty` API admits
 sequential TruncAPr-only schedules. Its compound owner below additionally composes
-elementwise/matrix multiplication and typed Boolean AND on that same stream.
+elementwise/matrix multiplication, typed Boolean AND and arithmetic-to-Boolean
+carry circuits on that same stream.
 Other kernels still need their source-ordered consumption contracts.
 
 ### Native Q18 multiply → truncate
@@ -192,9 +193,9 @@ chained shapes. Fresh OS-key exported-API tests cover up to 1024 lanes, the sign
 rounding law and frame/work reconciliation. Allocation-index sweeps inspect
 erasure and still-held reservations inside deallocation; compile-fail checks
 reject cloning setup, runtime and Boolean-share owners. The current suite passes
-**63 native checks** (30 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
-17 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
-one independent typed Boolean transcript check also pass.
+**69 native checks** (35 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
+18 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
+two independent Boolean/carry transcript checks also pass.
 Focused formatting passes; Clippy passes with the existing unrelated
 `needless_range_loop` warnings allowed. Replay uses the commands below.
 
@@ -227,8 +228,36 @@ width 0–64 and up to 1024 lanes. Fresh OS-key exported-API execution interleav
 Boolean and Q18 matrix/elementwise operations on one source owner. Allocation
 failure, substitution, replay, wrong output extraction and cancellation retire the
 coupled keys; original frames remain charged until erasure and deallocation.
-The existing 256 KiB ceiling is unchanged. Carry circuits, conversions and complete
-comparison/nonlinear operators remain subsequent integration work.
+The existing 256 KiB ceiling is unchanged.
+
+### Arithmetic-to-Boolean carry circuits
+
+`PartyRuntime.plan_conversion`, `begin_conversion` and `advance_conversion`
+implement the pinned source's full ring64 `A2B` and `MsbA2B`. A masked split
+rotation precedes the source's Kogge–Stone addition or halving carry circuit.
+Seven AND rotations use the existing Boolean primitive; their public vmap lane
+order, backing widths and partial AES fills preserve the shared cursor schedule.
+All intermediates remain party-local adjacent shares. The final Boolean owner
+comes from `take_boolean_output` without reconstruction. These are arithmetic
+conversion and sign primitives, not arbitrary signed comparisons or nonlinear
+operators.
+
+Admission checks the complete eight-round work envelope before randomness,
+limits inputs to 512 lanes and prices `4096 + 256n` bytes plus previous live
+payloads. This includes all original outgoing frames retained through completion.
+Compound gate metadata stays inline within the fixed reserve. Round-specific
+bindings reject replay/substitution; malformed frames, allocation failure and
+cancellation retire the common PRSS owner. The per-runtime 256 KiB limit remains.
+
+Independent OpenSSL/scalar fixtures check complete rotation transcripts, including
+random padding bits in narrow carry stages. For three lanes, full A2B consumes
+22 pair blocks and MSB consumes 11; neither consumes public/private PRSS. Native
+checks cover signed endpoints, wraparound, odd lanes and maximum tiles. Exported
+OS-seeded tests interleave both circuits with Boolean AND and Q18 matrix products;
+allocation-index sweeps check every role and every circuit phase. Native frames
+still store/charge u64 words (42n words across all parties), independently of the
+source's narrower Boolean storage types. Transport/wire metrics and whole-model
+range/fidelity claims require the subsequent SDK composition.
 
 ### Independent primitive and transcript vectors
 

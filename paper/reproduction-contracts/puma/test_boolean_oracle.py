@@ -45,6 +45,84 @@ def vectors():
     return cases
 
 
+def conversion_vectors():
+    """Scalar three-party source equations, with full backing-word transcripts."""
+    mask = (1 << 64) - 1
+    values = [1 << 63, mask, (1 << 63) - 1]
+    n = len(values)
+    a = [(0xfedcba9876543210 + 17*i) & mask for i in range(n)]
+    b = [(0x123456789abcdef0 - 5*i) & mask for i in range(n)]
+    inputs = [a, b, [(x-y-z) & mask for x, y, z in zip(values, a, b)]]
+    cursor = 0
+    cases = []
+
+    def zero(lanes, width):
+        nonlocal cursor
+        e = [typed_fill(k.to_bytes(16, "little"), cursor, lanes, width) for k in (11, 22, 33)]
+        cursor += (lanes*width+15)//16
+        return [[x ^ y for x, y in zip(e[r], e[(r+1)%3])] for r in range(3)]
+
+    for msb in (False, True):
+        transcript = hashlib.sha256()
+
+        def record(words):
+            for row in words:
+                for word in row:
+                    transcript.update(word.to_bytes(8, "little"))
+
+        def and_gate(x, y, bits):
+            z = zero(len(x[0]), backing(bits))
+            for r in range(3):
+                for i in range(len(x[0])):
+                    z[r][i] ^= ((x[r][i] & y[r][i]) ^ (x[r][i] & y[(r+1)%3][i]) ^
+                                (x[(r+1)%3][i] & y[r][i]))
+            record(z)
+            return z
+
+        def xor(x, y):
+            return [[a ^ b for a, b in zip(u, v)] for u, v in zip(x, y)]
+
+        m = zero(n, 8)
+        m[0] = [x ^ ((a+b) & mask) for x, a, b in zip(m[0], inputs[0], inputs[1])]
+        record(m)
+        other = [[0]*n, [0]*n, inputs[2]]
+        initial = xor(m, other)
+        p = [row[:] for row in initial]
+        g = and_gate(m, other, 64)
+        width = 64
+        for level in range(6):
+            if not msb:
+                rhs = [[(x << (1 << level)) & mask for x in pr+gr] for pr, gr in zip(p, g)]
+                out = and_gate([row+row for row in p], rhs, 64)
+                p = [row[:n] for row in out]
+                g = xor(g, [row[n:] for row in out])
+            else:
+                if level == 0:
+                    p = [[(v << 1) & mask for v in row] for row in p]
+                    g = [[(v << 1) & mask for v in row] for row in g]
+
+                def halves(v):
+                    # Independent bit-string permutation of each backing block.
+                    binary = f"{v:0{8*backing(width)}b}"[::-1]
+                    blocks = [binary[i:i+width] for i in range(0, len(binary), width)]
+                    shuffled = ''.join(block[::2]+block[1::2] for block in blocks)
+                    word = int(shuffled[::-1], 2)
+                    return word & ((1 << (width//2))-1), word >> (width//2)
+
+                ps = [[halves(v) for v in row] for row in p]
+                gs = [[halves(v) for v in row] for row in g]
+                lhs = [[x[0] for x in pr+gr] for pr, gr in zip(ps, gs)]
+                rhs = [[x[1] for x in pr]*2 for pr in ps]
+                width //= 2
+                out = and_gate(lhs, rhs, width)
+                p = [row[:n] for row in out]
+                g = xor([[x[1] for x in gr] for gr in gs], [row[n:] for row in out])
+        result = xor([[x >> 63 for x in row] for row in initial], g) if msb else xor(initial, [[(x << 1) & mask for x in row] for row in g])
+        assert [x ^ y ^ z for x, y, z in zip(*result)] == ([v >> 63 for v in values] if msb else values)
+        cases.append((cursor, transcript.hexdigest()))
+    return cases
+
+
 class BooleanVectors(unittest.TestCase):
     def test_typed_aes_transcripts(self):
         cases = vectors()
@@ -54,4 +132,10 @@ class BooleanVectors(unittest.TestCase):
             "89c04bcf6a19de44bbf89222e119d4a939cc541f73d4cc28e2bc2d6be6c7d647",
             "81d204c6a02f85e84aaa3a590e656eedf82a20c5ceb4554947a35aaac593ec22",
             "3833690eb4f33adc9543b95e33d79f231cf19e9c5da90156a93c7fbe2e5ceb13",
+        ])
+
+    def test_conversion_carry_and_typed_padding(self):
+        self.assertEqual(conversion_vectors(), [
+            (22, "31af625820c93e1a53a26ae326a80094496df7e8267315978ee8b76471308d53"),
+            (33, "8c54ac188fbaaf4b096ee2bb945fd1c8ca35cc01a6f4fc3086a843531614eeab"),
         ])

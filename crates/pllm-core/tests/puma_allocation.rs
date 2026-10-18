@@ -857,3 +857,83 @@ fn boolean_allocation_failures_and_original_frames_keep_the_common_reservation()
         }
     }
 }
+
+#[test]
+fn conversion_allocation_failure_sweep_covers_every_role_and_circuit_phase() {
+    use multiply::conversion::Kind;
+    for kind in [Kind::Bits, Kind::MostSignificantBit] {
+        for role in 0..3 {
+            for phase in 0..=8 {
+                let allocations = match phase {
+                    0 => 3,
+                    8 => 0,
+                    _ => 7,
+                };
+                for fail_at in 0..=allocations {
+                    let mut owners = compound_owners(PrssLimits::default());
+                    let plans = owners
+                        .each_mut()
+                        .map(|p| p.plan_conversion(3, kind).unwrap());
+                    let mut inputs = owners.each_ref().map(|p| {
+                        Some(
+                            plans[0]
+                                .share_input(
+                                    p.party(),
+                                    &[123, 456, 789],
+                                    &[123, 456, 789],
+                                    Limits::default(),
+                                )
+                                .unwrap(),
+                        )
+                    });
+                    let mut messages: [Option<Message>; 3] = [None, None, None];
+                    if phase > 0 {
+                        for i in 0..3 {
+                            messages[i] = Some(
+                                owners[i]
+                                    .begin_conversion(inputs[i].take().unwrap())
+                                    .unwrap(),
+                            );
+                        }
+                        for _ in 1..phase {
+                            let mut next: [Option<Message>; 3] = [None, None, None];
+                            for i in 0..3 {
+                                next[i] = owners[i]
+                                    .advance_conversion(messages[(i + 1) % 3].take().unwrap())
+                                    .unwrap();
+                            }
+                            messages = next;
+                        }
+                    }
+                    let owner = &mut owners[role];
+                    let usage = owner.payload_usage();
+                    let watch = Watch::start(&usage, true, false);
+                    FAIL_AT.set(Some(fail_at));
+                    let result = if phase == 0 {
+                        owner
+                            .begin_conversion(inputs[role].take().unwrap())
+                            .map(Some)
+                    } else {
+                        owner.advance_conversion(messages[(role + 1) % 3].take().unwrap())
+                    };
+                    FAIL_AT.set(None);
+                    if fail_at < allocations {
+                        assert!(matches!(result, Err(Error::Allocation)));
+                        assert_eq!(owner.status(), multiply::Status::Retired);
+                    } else {
+                        assert!(result.is_ok());
+                    }
+                    owner.cancel();
+                    drop(result);
+                    assert_audit(watch.finish());
+                    for p in &mut owners {
+                        p.cancel();
+                    }
+                    drop(messages);
+                    drop(inputs);
+                    assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
+                }
+            }
+        }
+    }
+}

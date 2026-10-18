@@ -21,6 +21,9 @@ use sha2::{Digest, Sha256};
 #[path = "boolean.rs"]
 pub mod boolean;
 
+#[path = "conversion.rs"]
+pub mod conversion;
+
 pub const PROFILE: &str = "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
 pub const MATMUL_PROFILE: &str =
     "puma.spu-a42c261.matmul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
@@ -312,12 +315,15 @@ pub enum Status {
     Retired,
 }
 
+// Fixed metadata fits the 4096-byte reserve; avoid infallible heap boxing.
+#[allow(clippy::large_enum_variant)]
 enum Phase {
     Ready,
     Planned(Plan),
     Rotating { plan: Plan, product: Words },
     Truncating(Operation),
     Boolean(boolean::State),
+    Conversion(conversion::State),
     Retired,
 }
 
@@ -364,6 +370,7 @@ impl PartyRuntime {
                 _ => Status::Retired,
             },
             Phase::Boolean(state) => state.status(),
+            Phase::Conversion(state) => state.status(),
             Phase::Retired => Status::Retired,
         }
     }

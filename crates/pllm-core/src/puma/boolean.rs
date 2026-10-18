@@ -5,6 +5,7 @@
 //! module neither reconstructs inputs nor provides a dealer or transport.
 
 use super::{Operand, PartyRuntime, Phase, Status};
+use crate::puma::prss::SourceParty;
 use crate::puma::prss::{fill_typed, typed_blocks, PRSS_PROFILE};
 use crate::puma::*;
 use sha2::{Digest, Sha256};
@@ -35,8 +36,8 @@ fn word_mask(bytes: usize) -> u64 {
 /// fn duplicate(value: Share) { let _ = value.clone(); }
 /// ```
 pub struct Share {
-    value: ReplicatedShare,
-    bits: u8,
+    pub(super) value: ReplicatedShare,
+    pub(super) bits: u8,
 }
 
 impl Share {
@@ -88,7 +89,7 @@ impl Plan {
         self.admitted_bytes
     }
 
-    fn operand(self, operand: Operand) -> (Operation, u8) {
+    pub(super) fn operand(self, operand: Operand) -> (Operation, u8) {
         let (index, bits) = match operand {
             Operand::Left => (0_u8, self.left_bits),
             Operand::Right => (1_u8, self.right_bits),
@@ -100,6 +101,39 @@ impl Plan {
         hash.update([index, bits]);
         op.consumer = Some(hash.finalize().into());
         (op, bits)
+    }
+
+    // A circuit's substep keeps its parent's one-use ordinal but has a distinct
+    // source/step/cursor binding. Only the compound runtime can issue this plan.
+    pub(super) fn nested(
+        parent: Operation,
+        setup: [u8; 32],
+        step: u8,
+        lanes: usize,
+        bits: u8,
+        pair_start: u64,
+        limits: Limits,
+    ) -> Result<Self, Error> {
+        let bytes = word_bytes(bits)?;
+        let mut operation =
+            Operation::new(parent.context, parent.sequence, Party::P0, lanes, 1, limits)?;
+        let mut hash = Sha256::new();
+        hash.update(PROFILE.as_bytes());
+        hash.update(PRSS_PROFILE.as_bytes());
+        hash.update(setup);
+        hash.update(b"bound-circuit-gate");
+        hash.update(parent.digest());
+        hash.update([step, bits, bytes as u8]);
+        hash.update(pair_start.to_le_bytes());
+        operation.consumer = Some(hash.finalize().into());
+        Ok(Self {
+            operation,
+            left_bits: bits,
+            right_bits: bits,
+            bytes,
+            pair_start,
+            admitted_bytes: limits.admit(lanes)?,
+        })
     }
 
     /// Bounded outer import; runtime admission charges the original buffers.
@@ -150,15 +184,20 @@ impl Plan {
 
 pub(super) enum State {
     Planned(Plan),
-    Rotating { plan: Plan, product: Words },
+    Rotating(Gate),
     Complete(Share),
+}
+
+pub(super) struct Gate {
+    plan: Plan,
+    product: Words,
 }
 
 impl State {
     pub(super) fn status(&self) -> Status {
         match self {
             Self::Planned(_) => Status::Planned,
-            Self::Rotating { .. } => Status::AwaitingRotate,
+            Self::Rotating(_) => Status::AwaitingRotate,
             Self::Complete(_) => Status::Complete,
         }
     }
@@ -229,82 +268,22 @@ impl PartyRuntime {
         let Phase::Boolean(State::Planned(plan)) = self.phase else {
             return Err(Error::Phase);
         };
-        for (value, operand) in [(&left, Operand::Left), (&right, Operand::Right)] {
-            let (op, bits) = plan.operand(operand);
-            if value.value.operation != op || value.bits != bits {
-                return Err(Error::Binding);
-            }
-            if value.party() != self.party() {
-                return Err(Error::Role);
-            }
-        }
-        if self.source.cursors.pair_blocks != plan.pair_start {
-            return Err(Error::Binding);
-        }
-        let n = plan.lanes();
-        let q = typed_blocks(n, plan.bytes)?;
-        let end = plan.pair_start.checked_add(q).ok_or(Error::Bounds)?;
-        let work = self.source.work(2 * q)?;
+        validate_operands(&self.source, plan, &left, &right)?;
         self.source.runtime.consume_ordinal(plan.operation)?;
-        self.source.cursors.pair_blocks = end;
-        self.source.cursors.aes_work = work; // burn before expansion/allocation
-        let usage = self.payload_usage();
-        left.value.charge_to(&usage)?;
-        right.value.charge_to(&usage)?;
-        let seeds = self.source.seeds.as_ref().ok_or(Error::Retired)?;
-        let next = seeds.next.as_ref().ok_or(Error::Phase)?;
-        let mut product = usage.zeros(n)?;
-        let mut adjacent = usage.zeros(n)?;
-        fill_typed(&seeds.own, plan.pair_start, &mut product, plan.bytes)?;
-        fill_typed(next, plan.pair_start, &mut adjacent, plan.bytes)?;
-        for i in 0..n {
-            product[i] ^= adjacent[i]
-                ^ (left.first()[i] & right.first()[i])
-                ^ (left.first()[i] & right.second()[i])
-                ^ (left.second()[i] & right.first()[i]);
-        }
-        drop(adjacent);
-        let message = Message {
-            header: Header {
-                binding: plan.digest(),
-                from: self.party(),
-                to: self.party().next().next(),
-                phase: MessagePhase::BooleanAnd,
-            },
-            words: usage.copy(&product, n)?,
-        };
-        self.phase = Phase::Boolean(State::Rotating { plan, product });
+        let (gate, message) = issue(&mut self.source, plan, &mut left, &mut right)?;
+        self.phase = Phase::Boolean(State::Rotating(gate));
         Ok(message)
     }
 
-    pub fn receive_and(&mut self, mut message: Message) -> Result<(), Error> {
+    pub fn receive_and(&mut self, message: Message) -> Result<(), Error> {
         let result = (|| {
             self.source.live()?;
-            let Phase::Boolean(State::Rotating { plan, product }) =
+            let Phase::Boolean(State::Rotating(gate)) =
                 std::mem::replace(&mut self.phase, Phase::Retired)
             else {
                 return Err(Error::Phase);
             };
-            message.validate(
-                plan.operation,
-                self.party().next(),
-                self.party(),
-                MessagePhase::BooleanAnd,
-            )?;
-            let mask = word_mask(plan.bytes);
-            if message.words().iter().any(|&v| v & !mask != 0) {
-                return Err(Error::Bounds);
-            }
-            message.words.charge_to(&self.payload_usage())?;
-            self.phase = Phase::Boolean(State::Complete(Share {
-                value: ReplicatedShare {
-                    operation: plan.operation,
-                    party: self.party(),
-                    first: product,
-                    second: message.words,
-                },
-                bits: plan.output_bits(),
-            }));
+            self.phase = Phase::Boolean(State::Complete(gate.receive(&self.source, message)?));
             Ok(())
         })();
         self.checked(result)
@@ -313,15 +292,107 @@ impl PartyRuntime {
     pub fn take_boolean_output(&mut self) -> Result<Share, Error> {
         let result = (|| {
             self.source.live()?;
-            let Phase::Boolean(State::Complete(output)) =
-                std::mem::replace(&mut self.phase, Phase::Retired)
-            else {
-                return Err(Error::Phase);
+            let output = match std::mem::replace(&mut self.phase, Phase::Retired) {
+                Phase::Boolean(State::Complete(output)) => output,
+                Phase::Conversion(super::conversion::State::Complete(output)) => output,
+                _ => return Err(Error::Phase),
             };
             self.phase = Phase::Ready;
             Ok(output)
         })();
         self.checked(result)
+    }
+}
+
+fn validate_operands(
+    source: &SourceParty,
+    plan: Plan,
+    left: &Share,
+    right: &Share,
+) -> Result<(), Error> {
+    for (value, operand) in [(&left, Operand::Left), (&right, Operand::Right)] {
+        let (op, bits) = plan.operand(operand);
+        if value.value.operation != op || value.bits != bits {
+            return Err(Error::Binding);
+        }
+        if value.party() != source.party() {
+            return Err(Error::Role);
+        }
+    }
+    if source.cursors.pair_blocks != plan.pair_start {
+        return Err(Error::Binding);
+    }
+    Ok(())
+}
+
+pub(super) fn issue(
+    source: &mut SourceParty,
+    plan: Plan,
+    left: &mut Share,
+    right: &mut Share,
+) -> Result<(Gate, Message), Error> {
+    validate_operands(source, plan, left, right)?;
+    let n = plan.lanes();
+    let q = typed_blocks(n, plan.bytes)?;
+    let end = plan.pair_start.checked_add(q).ok_or(Error::Bounds)?;
+    let work = source.work(2 * q)?;
+    source.cursors.pair_blocks = end;
+    source.cursors.aes_work = work; // burn before expansion/allocation
+    let usage = source.payload_usage();
+    left.value.charge_to(&usage)?;
+    right.value.charge_to(&usage)?;
+    let seeds = source.seeds.as_ref().ok_or(Error::Retired)?;
+    let next = seeds.next.as_ref().ok_or(Error::Phase)?;
+    let mut product = usage.zeros(n)?;
+    let mut adjacent = usage.zeros(n)?;
+    fill_typed(&seeds.own, plan.pair_start, &mut product, plan.bytes)?;
+    fill_typed(next, plan.pair_start, &mut adjacent, plan.bytes)?;
+    for i in 0..n {
+        product[i] ^= adjacent[i]
+            ^ (left.first()[i] & right.first()[i])
+            ^ (left.first()[i] & right.second()[i])
+            ^ (left.second()[i] & right.first()[i]);
+    }
+    drop(adjacent);
+    let message = Message {
+        header: Header {
+            binding: plan.digest(),
+            from: source.party(),
+            to: source.party().next().next(),
+            phase: MessagePhase::BooleanAnd,
+        },
+        words: usage.copy(&product, n)?,
+    };
+    Ok((Gate { plan, product }, message))
+}
+
+impl Gate {
+    pub(super) fn receive(
+        self,
+        source: &SourceParty,
+        mut message: Message,
+    ) -> Result<Share, Error> {
+        let Self { plan, product } = self;
+        message.validate(
+            plan.operation,
+            source.party().next(),
+            source.party(),
+            MessagePhase::BooleanAnd,
+        )?;
+        let mask = word_mask(plan.bytes);
+        if message.words().iter().any(|&v| v & !mask != 0) {
+            return Err(Error::Bounds);
+        }
+        message.words.charge_to(&source.payload_usage())?;
+        Ok(Share {
+            value: ReplicatedShare {
+                operation: plan.operation,
+                party: source.party(),
+                first: product,
+                second: message.words,
+            },
+            bits: plan.output_bits(),
+        })
     }
 }
 

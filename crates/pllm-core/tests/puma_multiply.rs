@@ -85,7 +85,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         });
         assert_eq!(ops, [ops[0]; 3]);
         let op = ops[0];
-        assert_eq!(op.sequence(), 2 * ordinal as u64);
+        assert_eq!(op.sequence(), 4 * ordinal as u64);
         admitted = admitted.max(op.admitted_bytes());
         let mut messages: Vec<_> = owners
             .iter_mut()
@@ -171,7 +171,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         let plans = owners.each_mut().map(|p| p.plan_and(n, 14, 5).unwrap());
         let plan = plans[0];
         assert_eq!(plans, [plan; 3]);
-        assert_eq!(plan.sequence(), 2 * ordinal as u64 + 1);
+        assert_eq!(plan.sequence(), 4 * ordinal as u64 + 1);
         let inputs = [Operand::Left, Operand::Right].map(|operand| {
             let value = if operand == Operand::Left {
                 0x1234
@@ -223,6 +223,87 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         }
         drop(outputs);
         assert!(usages.iter().all(|u| u.live_bytes() == 0));
+
+        for kind in [conversion::Kind::Bits, conversion::Kind::MostSignificantBit] {
+            let lanes = n.min(MAX_LANES / 2);
+            let plans = owners
+                .each_mut()
+                .map(|p| p.plan_conversion(lanes, kind).unwrap());
+            let plan = plans[0];
+            assert_eq!(plans, [plan; 3]);
+            admitted = admitted.max(plan.admitted_bytes());
+            let values: Vec<_> = (0..lanes)
+                .map(|i| (i as u64).wrapping_mul(0xfedc_ba98_7654_3211))
+                .collect();
+            let components = [
+                vec![u64::MAX; lanes],
+                vec![91; lanes],
+                values.iter().map(|v| v.wrapping_sub(90)).collect(),
+            ];
+            let input = [Party::P0, Party::P1, Party::P2].map(|p| {
+                plan.share_input(
+                    p,
+                    &components[p as usize],
+                    &components[p.next() as usize],
+                    Limits::default(),
+                )
+                .unwrap()
+            });
+            let mut messages: Vec<_> = owners
+                .iter_mut()
+                .zip(input)
+                .map(|(p, x)| p.begin_conversion(x).unwrap())
+                .collect();
+            let mut body_words = 0;
+            for round in 0..plan.rotations() {
+                body_words += messages.iter().map(|m| m.words().len()).sum::<usize>();
+                let mut next = Vec::new();
+                for p in &mut owners {
+                    let phase = if round == 0 {
+                        MessagePhase::ArithmeticToBoolean
+                    } else {
+                        MessagePhase::BooleanAnd
+                    };
+                    let original = take(&mut messages, p.party(), phase);
+                    let received = plan
+                        .message_from_received(
+                            round as u8,
+                            original.header(),
+                            original.words(),
+                            Limits::default(),
+                        )
+                        .unwrap();
+                    drop(original);
+                    if let Some(message) = p.advance_conversion(received).unwrap() {
+                        next.push(message);
+                    }
+                }
+                messages = next;
+            }
+            assert!(messages.is_empty());
+            assert_eq!(body_words, 42 * lanes);
+            let output = owners.each_mut().map(|p| p.take_boolean_output().unwrap());
+            for (lane, &value) in values.iter().enumerate() {
+                assert_eq!(
+                    output.iter().fold(0, |v, p| v ^ p.first()[lane]),
+                    if kind == conversion::Kind::Bits {
+                        value
+                    } else {
+                        value >> 63
+                    }
+                );
+            }
+            pair_blocks += plan.pair_blocks();
+            for (i, p) in owners.iter().enumerate() {
+                work[i] += 2 * plan.pair_blocks();
+                assert_eq!(p.cursors().pair_blocks, pair_blocks);
+                assert_eq!(p.cursors().aes_work, work[i]);
+                assert_eq!(p.cursors().public_blocks, ordinal as u64 + 1);
+                assert_eq!(p.cursors().private_blocks, private[i]);
+            }
+            drop(output);
+            assert!(usages.iter().all(|u| u.live_bytes() == 0));
+        }
     }
 }
 

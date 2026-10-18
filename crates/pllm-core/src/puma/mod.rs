@@ -428,6 +428,7 @@ impl LocalMaterial {
 pub enum MessagePhase {
     Multiply,
     BooleanAnd,
+    ArithmeticToBoolean,
     MaskedInput,
     Correlation,
     Reshare,
