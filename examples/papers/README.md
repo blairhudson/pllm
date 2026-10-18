@@ -39,6 +39,27 @@ two-worker protocol and releases logits only after final verification; prepared
 candidates use their existing clear-kernel numeric diagnostic. Quality reports
 contain aggregate agreement and error, not serving costs or private payloads.
 
+### Completed quality smoke
+
+The [ordinary CLI report](../../paper/artifacts/gkm-sdk/quality-smoke.json) records
+the three shared prompts, with 5/4/11 input tokens and three same-token decode
+steps each. GKM matches all 3 prefill and 9 decode reference selections; prepared
+W8A8 matches 2/3 and 9/9. Worst absolute prefill/decode logit errors are
+1.187/1.865 for GKM and 3.467/6.121 for W8A8. This small diagnostic does not
+qualify task accuracy, complete state equality or serving performance.
+
+The completed invocation used the shared factories and requested zero additional
+memory margin:
+
+```sh
+python -m pllm benchmark quality \
+  --experiment examples.papers.gkm:experiment \
+  --experiment examples.papers.prepared:experiment \
+  --factory --trust-python --prompts-file examples/papers/prompts.json \
+  --reference-storage streamed --decode-steps 3 \
+  --memory-safety-margin-percent 0 --output quality.json --format json
+```
+
 ## Implementation sequence
 
 GKM has the first executable paper factory. Maverick, SIGMA, FuseFSS, BumbleBee,

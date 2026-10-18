@@ -37,6 +37,15 @@ Completed foundations:
   is 3.79 GiB, and observed swap growth is zero. This single functionality sample
   does not supply independent full-logit/KV, source-model quality or matched-cost
   evidence.
+- The subsequent [ordinary CLI quality smoke](artifacts/gkm-sdk/quality-smoke.json)
+  uses the reusable `examples/papers` factories and three shared Qwen prompts.
+  GKM matches 3/3 prefill and 9/9 same-token decode reference selections; prepared
+  W8A8 matches 2/3 and 9/9. Worst absolute decode logit errors are 1.865 and 6.121.
+  GKM executes both workers with final verification; the control uses its local
+  clear-kernel quality path. This small diagnostic supplies bounded source-model
+  agreement, with complete-state equality, broader quality and matched serving
+  costs still open. Replay uses the standard command in
+  [the factory README](../examples/papers/README.md#completed-quality-smoke).
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

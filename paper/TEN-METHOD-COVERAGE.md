@@ -13,10 +13,13 @@ SDK/gateway/CLI/benchmark composition; see
 [current implementation status](IMPLEMENTATION-STATUS.md). A subsequent
 [source-present full-checkpoint response](artifacts/gkm-sdk/qwen-response.md)
 passes fresh admission and completes four input tokens plus two verified outputs.
-This closes several primitive, decoder and serving-integration gaps, but leaves
-independent checkpoint quality and matched complete-system comparison open. The
-qualified ten-method count remains zero. The documentary status below must not
-erase this later progress or promote it to a serving rank.
+A later [ordinary CLI quality smoke](artifacts/gkm-sdk/quality-smoke.json) matches
+3/3 Qwen prefill and 9/9 same-token decode reference selections through both GKM
+workers. These close several primitive, decoder, serving-integration and bounded
+numerical-check gaps. Broader quality, independent complete-state equality and
+matched complete-system comparison remain open. The qualified ten-method count
+remains zero. The documentary status below must not erase this later progress
+or promote it to a serving rank.
 
 **The requested ten-system ranking is not currently supported.**
 Six selected methods have executable component adaptations.

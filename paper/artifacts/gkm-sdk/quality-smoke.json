@@ -1,0 +1,209 @@
+{
+  "candidates": [
+    {
+      "activation_bits": null,
+      "configuration_digest": "aa831fd8c943917f7e6feab8573daca1246afc44361e4a32fe64b6382615a69b",
+      "execution": "two-worker-request-end-verified",
+      "kernel_backend": "pllm/cpu",
+      "kernel_threads": 1,
+      "local_numeric_profile": "semantic.float32.dense-full-kv.client-bias-after-div22.v1",
+      "max_abs_logit_error": 1.1866247653961182,
+      "memory_admission": {
+        "admitted": true,
+        "candidates": {
+          "docker": {
+            "admitted": false,
+            "docker": null,
+            "expected_peak_bytes": 9309008944,
+            "reasons": [
+              "GKM requires native role owners; Docker is not admitted",
+              "Docker memory capacity is unavailable"
+            ],
+            "required_disk_bytes": 2147483648,
+            "required_host_bytes": 9309008944,
+            "safety_margin_bytes": 0
+          },
+          "native": {
+            "admitted": true,
+            "docker": null,
+            "expected_peak_bytes": 9309008944,
+            "reasons": [],
+            "required_disk_bytes": 2147483648,
+            "required_host_bytes": 9309008944,
+            "safety_margin_bytes": 0
+          }
+        },
+        "enforced_wan": false,
+        "estimate": {
+          "allocation_slack_percent": 0,
+          "bundle_storage": "trusted client-owned publication; bounded source loading",
+          "client_peak_bytes": 3173907504,
+          "compiled_input_bound": 64,
+          "components": {
+            "checkpoint_bytes": 988097824,
+            "per_engine_compiled_disk_bytes": 0,
+            "raw_client_bundle_bytes": 0,
+            "source_float32_bytes": 1976131072,
+            "source_import_and_retention_bytes_per_role": 0
+          },
+          "concurrent_response_bound": 1,
+          "docker_provider_peak_bytes": {},
+          "gkm_admission": {
+            "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+            "decoder_contract_digest": "3014d3fcb0f4bf96b3f1e1f6f50e183356bf8b091132aa503f67db42e67bd86f",
+            "execution_payload_estimate_bytes": 2838363184,
+            "local_numeric_profile": "semantic.float32.dense-full-kv.client-bias-after-div22.v1",
+            "max_input_tokens": 64,
+            "max_output_tokens": 8,
+            "numeric_profile": "gkm.nearest-even.2048.i16.ring64.signed.f32-before-div22.le-finite-f32.sha256.secp256k1.v1",
+            "runtime_contract_digest": "b71468a370b27ccc44be7ffe1e8f828495374926449c71a15c47e6caa79a8f2e",
+            "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+            "tokenizer_digest": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539"
+          },
+          "inventory_rows": 0,
+          "kernel": "cpu",
+          "limitations": [],
+          "mask_storage": "one pending explicit-share pair per verified window",
+          "max_input_tokens": 64,
+          "max_output_tokens": 8,
+          "model_config_digest": "c3f15d3ec0180623ac2f54236c022490dd79bc6a00b5fbc4a1ffd038a43f7668",
+          "model_plan_digest": null,
+          "native_total_peak_bytes": 9309008944,
+          "pipeline_digest": "864edfe83172d2b39d4c0c801e0dae6b3edc24f3714ad0d28d36a4272707be90",
+          "preparation_kernel": "none",
+          "preparation_storage": "none",
+          "provider_peak_bytes": {
+            "worker_a": 3067550720,
+            "worker_b": 3067550720
+          },
+          "runtime_kind": "gkm",
+          "scope": "conservative allocation estimate; not measured peak RSS",
+          "tensor_storage": "complete client-local float32 logits and full KV",
+          "verification_allocation": {
+            "contract_execution_payload_estimate_bytes": 2838363184,
+            "native_allowance_by_role_bytes": {
+              "client": 2838363184,
+              "worker_a": 2732006400,
+              "worker_b": 2732006400
+            },
+            "native_allowance_per_role_bytes": 2838363184,
+            "publication_window_payload_allowance_bytes": 2161008640,
+            "transport_and_tokenizer_allowance_per_role_bytes": 67108864
+          },
+          "weight_storage": "streamed native i16 weights and original float32 lookup"
+        },
+        "host": {
+          "admission_budget_bytes": 17435230208,
+          "availability_source": "macos_mach_dispatch_v2",
+          "available": 17435230208,
+          "cached": 7912783872,
+          "disk_free": 37972393984,
+          "free": 214433792,
+          "pressure": "normal",
+          "purgeable": 170557440,
+          "reserve_bytes": 0,
+          "reusable": 9308012544,
+          "swap_used": 895877120,
+          "total": 34359738368
+        },
+        "requested_backend": "native",
+        "runtime_floor_bytes": 0,
+        "schema": "pllm.benchmark_memory.v1",
+        "selected_backend": "native"
+      },
+      "name": "gkm",
+      "numeric_profile": "gkm.nearest-even.2048.i16.ring64.signed.f32-before-div22.le-finite-f32.sha256.secp256k1.v1",
+      "pipeline_digest": "864edfe83172d2b39d4c0c801e0dae6b3edc24f3714ad0d28d36a4272707be90",
+      "same_token_decode": {
+        "max_abs_logit_error": 1.8654248714447021,
+        "sample_count": 9,
+        "top1_agreement": 1.0,
+        "top_k_recall": 0.9555555555555555
+      },
+      "sample_count": 3,
+      "top1_agreement": 1.0,
+      "top_k_recall": 0.8666666666666667,
+      "weight_bits": 16
+    },
+    {
+      "activation_bits": 8,
+      "configuration_digest": "ec858b9a5c67b54506c4faa77a29268bfa668fb8013b7aa75c6ffe8246ea205e",
+      "kernel_backend": "pllm/cpu",
+      "kernel_threads": 1,
+      "max_abs_logit_error": 3.466532826423645,
+      "name": "prepared-w8a8",
+      "pipeline_digest": "106a4f312baae216814b1434e5124179a6c97829c48e6fa9d619cec4b14d47cf",
+      "same_token_decode": {
+        "max_abs_logit_error": 6.120865106582642,
+        "sample_count": 9,
+        "top1_agreement": 1.0,
+        "top_k_recall": 0.911111111111111
+      },
+      "sample_count": 3,
+      "top1_agreement": 0.6666666666666666,
+      "top_k_recall": 0.7999999999999999,
+      "weight_bits": 8
+    }
+  ],
+  "cohort": {
+    "dataset_digest": "2ff331df0c1d7b16d5887c18e98660e0e7ede29c5c0cb2b35c93b10a81866bf9",
+    "input_token_counts": [
+      5,
+      4,
+      11
+    ],
+    "metric": {
+      "component": "pllm/reference-agreement/v1",
+      "params": {
+        "dataset_digest": "2ff331df0c1d7b16d5887c18e98660e0e7ede29c5c0cb2b35c93b10a81866bf9",
+        "reference_checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+        "top_k": 5
+      }
+    },
+    "phase": "prefill",
+    "prompt_count": 3,
+    "same_token_decode": {
+      "steps_per_prompt": 3,
+      "teacher_configuration_digest": "aa831fd8c943917f7e6feab8573daca1246afc44361e4a32fe64b6382615a69b",
+      "teacher_forcing": "first-candidate-greedy",
+      "token_cohort_digest": "3446b2a584aa0188e015afab4d621af5d55dacffdad3caf433559876991d167a"
+    },
+    "token_cohort_digest": "634df71cdea06094b0c804fe6ffdba4915a98f65787e2dc412c41abbdea846cf"
+  },
+  "environment": {
+    "machine": "arm64",
+    "numpy": "2.5.3",
+    "python_reference": "transformers/5.16.1",
+    "reference_attention": "eager",
+    "reference_dtype": "float32",
+    "reference_threads": 4,
+    "reference_weight_storage": "module-streamed",
+    "system": "Darwin",
+    "torch": "2.14.0"
+  },
+  "environment_digest": "e756b60447ba828559cbc09c6dd7011b982bf3c9344b0e2603dae6ed1766494f",
+  "limitations": [
+    "local worker execution; serving costs require benchmark run; no independent-operator privacy measurement",
+    "prefill and optional same-token decode agreement, not full-generation or task accuracy",
+    "float32 reference loading and evaluation excluded from provider latency and cost"
+  ],
+  "model": {
+    "checkpoint_digest": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "id": "Qwen/Qwen2.5-0.5B-Instruct",
+    "source_lock_digest": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+  },
+  "reference_loading": {
+    "active_weight_bound_bytes": 544538624,
+    "allocation_estimate_bytes": 1447354368,
+    "buffer_bytes": 256,
+    "kv_payload_bound_bytes": 1646592,
+    "load_seconds": 23.034600504674017,
+    "loaded_float32_bytes": 30248036352,
+    "maximum_swap_growth_bytes": 0,
+    "parameter_loads": 3492,
+    "peak_active_weight_bytes": 544538624,
+    "storage": "module-streamed"
+  },
+  "schema_version": "pllm.reference_quality_benchmark.v1",
+  "scope": "local-compiled-decoder-prefill-and-same-token-decode-reference"
+}
