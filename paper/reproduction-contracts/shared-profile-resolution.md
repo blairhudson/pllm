@@ -4,7 +4,7 @@ Review: 17 October 2026. Governing contract:
 [shared-computation-contracts.md](../methods/shared-computation-contracts.md).
 Decision update: **17 October 2026**, explicit user approvals via the question tool.
 This companion supplies concrete mathematical specifications and records their
-approval status under [D6–D9](../methods/DECISIONS.md#d6-approved-puma-source-derived-q18-profile).
+approval status under [D6–D10](../methods/DECISIONS.md#d6-approved-puma-source-derived-q18-profile).
 Approval does not qualify a complete implementation.
 The earlier [independent audit](shared-computation.md), including its negative
 evidence and historical snapshot hash, is unchanged.
@@ -75,8 +75,9 @@ file was executed, imported, built, linked or copied into PLLM implementation.
 At the scalar-review stage only the new standard-library oracle/tests were
 executed; that review performed no native build, model, HE or performance run.
 The later bounded [PUMA native truncation/PRSS reference](../../docs/research/puma-truncation-reference.md)
-has its own recorded native evidence. This approval update runs only the existing
-scalar checks and changes no production code or historical measurements.
+has its own recorded native evidence. The original approval update ran only the
+existing scalar checks. D10 and its native RMSNorm implementation retain separate
+evidence and change no historical measurements.
 
 ## 2. SIGMA: paper-defined CPU numeric profile is implementable
 
@@ -298,6 +299,28 @@ with `config.cc` it defaults to eight, not the paper's five. Only the inspected
 Llama example explicitly selects five and shifted clipping. Requirements give
 `jax[cpu]>=0.3.15`, not an evaluated dependency lock. The generic GPT-2 example
 cannot certify PUMA's evaluated nonlinear graph or tie handling.
+
+### 3.4 Approved positive-epsilon RMSNorm adaptation
+
+D10 selects `puma.rmsnorm-epsilon1-q18.v1` for common-Qwen integration. Qwen's
+`1e-6` epsilon becomes zero under D6's encoder. The approved replacement is
+exactly `2^-18`, encoded as integer one. The bounded row graph is:
+
+```text
+S_i = mul(X_i, X_i)
+V = mul(E(1/k), sum(S_i)) + 1
+R = rsqrt(V)                  # section 3.2, once per row
+Y_i = mul(mul(X_i, R), gamma_i)
+```
+
+There is no centering or bias. Public gamma uses D6's binary32/toward-zero
+encoding. Every `mul` retains its own fresh source-order truncation; the sum is
+exact and unwrapped. All possible stochastic results need public range bounds
+before execution. An all-zero row has `V=1` and returns zero without a clear
+test or data-dependent fallback. Native programs bind this name separately from
+`puma.source-derived-q18.v1`; LayerNorm's epsilon two and softmax's encoded-zero
+epsilon are unchanged. RoPE, whole-checkpoint range admission, transport and
+ordinary SDK quality/cost evidence remain separate gates.
 
 ## 4. BumbleBee: conversion choices are concrete; final-paper identity is not
 

@@ -47,6 +47,23 @@ class PumaTruncation(unittest.TestCase):
             with self.assertRaises(ValueError):
                 fn(0, repeat(0))
 
+    def test_approved_rmsnorm_epsilon_zero_rows_and_no_centering(self):
+        one = 1 << 18
+        self.assertEqual(o.encode_f32("1e-6", 18), 0)
+        self.assertEqual(o.encode_f32(Fraction(1, one), 18), 1)
+        for width in (1, 3, 128):
+            for mask in (0, one - 1):
+                self.assertEqual(o.puma_rmsnorm([0] * width, [one] * width, repeat(mask)), [0] * width)
+        # Centered LayerNorm would produce zero. Unit gamma preserves the
+        # separately normalized result; negative gamma negates it exactly.
+        positive = o.puma_rmsnorm([2 * one] * 4, [one] * 4, repeat(0))
+        self.assertTrue(all(one * 99 // 100 < v < one * 101 // 100 for v in positive))
+        self.assertEqual(o.puma_rmsnorm([2 * one] * 4, [-one] * 4, repeat(0)), [-v for v in positive])
+        with self.assertRaises(ValueError):
+            o.puma_rmsnorm([], [], repeat(0))
+        with self.assertRaises(ValueError):
+            o.puma_rmsnorm([one], [], repeat(0))
+
 
 class BumbleBeeShares(unittest.TestCase):
     def test_truncation_conditioned_distribution(self):

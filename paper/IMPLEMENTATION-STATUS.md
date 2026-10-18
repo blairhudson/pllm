@@ -63,8 +63,11 @@ Completed foundations:
   additionally executes protected reciprocal/rsqrt, shifted softmax and centered
   LayerNorm with public affine parameters. Secret exponents remain shared; public
   conditional range proofs cover every rounding. Independent stochastic oracles,
-  128-lane tiles and failure/erasure checks pass. Wider decoder rows, Qwen's
-  RMSNorm/RoPE graph, whole-model ranges and SDK/Experiment execution remain open.
+  128-lane tiles and failure/erasure checks pass. D10 additionally approves the
+  separate `puma.rmsnorm-epsilon1-q18.v1` profile, implemented as uncentered RMSNorm
+  with integer-one epsilon and distinct rescales. Zero-row and source-profile
+  identity controls pass. Wider decoder rows, RoPE, whole-model ranges and
+  SDK/Experiment execution remain open.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

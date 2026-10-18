@@ -252,6 +252,24 @@ feedback selections, admission, D5 integration and quality/cost evidence remain
 required. Persistent KV, streaming disclosure, stochastic sampling, full logits,
 EOS-short-circuit and cross-request continuation are not approved by D9.
 
+## D10. Approved positive-Q18 RMSNorm epsilon
+
+**Approved via the user question tool:** use the smallest positive Q18 epsilon,
+`2^-18 = 0.000003814697265625`, for common-Qwen PUMA integration. The source
+epsilon `1e-6` encodes to zero under D6's binary32/toward-zero rule. This explicit
+adaptation has its own identity, `puma.rmsnorm-epsilon1-q18.v1`.
+
+RMSNorm uses uncentered, averaged squares, the approved source rsqrt and a public
+per-column Q18 gamma, with each rescale retained in order. The epsilon is one
+integer unit after the mean-square rescale. It is neither private-input clipping
+nor permission to change LayerNorm, softmax or other coefficients. Zero rows
+retain a positive denominator without opening the row.
+
+**Effect:** the epsilon choice is settled. Native row execution, complete graph
+range proofs, RoPE/source mapping, D5 integration and shared SDK quality
+benchmarks retain their separate implementation and evidence gates. Historical
+source-derived profiles and benchmark results retain their original identities.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -265,6 +283,7 @@ EOS-short-circuit and cross-request continuation are not approved by D9.
 | D7 | Approved: BumbleBee final-paper target | Artifact Q16 is not adopted; B-N1 evaluated-final-paper mapping remains open. |
 | D8 | Approved: `fusefss.source-derived-ring50-q12.v1` | F-N1 adoption closed; nearest-even external encoding and SIGMA floor internals are explicit; full descriptors/backend/graph qualification remains open. |
 | D9 | Approved: fixed-count private full-prefix feedback | T-N1 choice closed; lowest-index argmax, final client-only IDs, and charged SIGMA/FuseFSS boundary completion still need implementation and qualification. |
+| D10 | Approved: `puma.rmsnorm-epsilon1-q18.v1` | Positive epsilon `2^-18`; separate numeric identity and shared SDK quality measurement required. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

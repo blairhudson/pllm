@@ -266,6 +266,124 @@ fn row_programs_bind_geometry_coefficients_and_eager_range_gates() {
     assert!(Program::layer_norm(1, 2, input, &[i64::MAX; 2], &[0; 2]).is_err());
 }
 
+fn rms_norm_oracle(x: &[i64], width: usize, gamma: &[i64], tapes: &[Vec<u64>]) -> Vec<i64> {
+    assert_eq!(tapes.len(), 10);
+    let mut output = Vec::new();
+    for (row, values) in x.chunks_exact(width).enumerate() {
+        let base = row * width;
+        let squares: i128 = values
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| i128::from(rounded(i128::from(v).pow(2), tapes[0][base + i], 18)))
+            .sum();
+        let coefficient = ((1_f32 / width as f32) * ONE as f32) as i64;
+        let denominator = rounded(squares * i128::from(coefficient), tapes[1][row], 18) + 1;
+        let inverse = normalization_oracle(true, denominator, tapes[2..8].iter().map(|t| t[row]));
+        for (i, &v) in values.iter().enumerate() {
+            let normalized = rounded(i128::from(v) * i128::from(inverse), tapes[8][base + i], 18);
+            output.push(rounded(
+                i128::from(normalized) * i128::from(gamma[i]),
+                tapes[9][base + i],
+                18,
+            ));
+        }
+    }
+    output
+}
+
+#[test]
+fn positive_epsilon_rms_norm_preserves_zero_constant_and_signed_rows() {
+    let bounds = Interval::new(-4 * ONE, 4 * ONE).unwrap();
+    for (rows, width) in [(1, 1), (3, 3), (2, 7), (1, 128)] {
+        let gamma: Vec<_> = (0..width).map(|i| [ONE, -3 * ONE / 2, 0][i % 3]).collect();
+        let program = Program::rms_norm(rows, width, bounds, &gamma).unwrap();
+        assert_eq!(program.numeric_profile(), RMS_NORM_PROFILE);
+        assert_eq!(program.output_lanes(), rows * width);
+        for values in [
+            vec![0; rows * width],
+            vec![2 * ONE; rows * width],
+            (0..rows * width)
+                .map(|i| [1, -1, -4 * ONE, 4 * ONE, ONE + 3, 0, -ONE / 2][i % 7])
+                .collect(),
+        ] {
+            let mut owners = owners(&program, &values);
+            let usage = owners.each_ref().map(Executor::payload_usage);
+            let mut tapes = vec![];
+            for _ in 0..program.instructions() {
+                if let Some(tape) = step(&mut owners).0 {
+                    tapes.push(tape);
+                }
+            }
+            let output = owners.map(|o| o.finish().unwrap().1);
+            let actual = clear(&output);
+            assert_eq!(actual, rms_norm_oracle(&values, width, &gamma, &tapes));
+            if values.iter().all(|&x| x == 0) {
+                assert!(actual.iter().all(|&x| x == 0));
+            } else if values[0] == 2 * ONE {
+                // Centered LayerNorm would turn this row into zero.
+                assert!(actual[0] > ONE / 2);
+            }
+            assert!(usage
+                .iter()
+                .all(|u| u.peak_bytes() + FIXED_RESERVE_BYTES <= program.admitted_bytes()));
+            drop(output);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+    }
+}
+
+#[test]
+fn rms_norm_identity_and_range_gates_preserve_legacy_program_digests() {
+    let bounds = Interval::new(-ONE, ONE).unwrap();
+    let make = |numeric_profile| {
+        let mut b = Builder::new(3, bounds).unwrap();
+        b.0.numeric_profile = numeric_profile;
+        let output = b
+            .affine(
+                b.input(),
+                None,
+                Affine {
+                    left: 1,
+                    right: 0,
+                    constant: 1,
+                },
+            )
+            .unwrap();
+        b.finish(output).unwrap()
+    };
+    let legacy = make(crate::puma::multiply::NUMERIC_PROFILE);
+    // Independently serialized with Python hashlib from the pre-D10 contract.
+    assert_eq!(
+        legacy.digest(),
+        [
+            111, 223, 122, 206, 149, 235, 99, 196, 200, 197, 164, 182, 191, 69, 211, 186, 155, 212,
+            186, 3, 143, 200, 52, 254, 110, 78, 34, 248, 161, 155, 26, 27,
+        ]
+    );
+    assert_ne!(legacy.digest(), make(RMS_NORM_PROFILE).digest());
+    let a = Program::rms_norm(2, 2, bounds, &[ONE; 2]).unwrap();
+    assert_ne!(
+        a.digest(),
+        Program::rms_norm(1, 4, bounds, &[ONE; 4]).unwrap().digest()
+    );
+    assert_ne!(
+        a.digest(),
+        Program::rms_norm(2, 2, bounds, &[ONE, ONE + 1])
+            .unwrap()
+            .digest()
+    );
+    assert!(Program::rms_norm(0, 2, bounds, &[ONE; 2]).is_err());
+    assert!(Program::rms_norm(1, 0, bounds, &[]).is_err());
+    assert!(Program::rms_norm(1, 2, bounds, &[ONE]).is_err());
+    assert!(Program::rms_norm(1, 129, bounds, &[ONE; 129]).is_err());
+    assert!(Program::rms_norm(usize::MAX, 2, bounds, &[ONE; 2]).is_err());
+    assert!(Program::rms_norm(1, 2, bounds, &[i64::MAX; 2]).is_err());
+    assert!(
+        Program::rms_norm(1, 2, Interval::new(-i64::MAX, i64::MAX).unwrap(), &[ONE; 2]).is_err()
+    );
+    assert!(Program::rms_norm(1, 2, Interval::new(0, 512 * ONE).unwrap(), &[ONE; 2]).is_err());
+}
+
 // All-party reconstruction is confined to this test oracle.
 fn inputs(owners: &[PartyRuntime; 3], x: &[i64]) -> [ReplicatedShare; 3] {
     let op = Operation::new(
@@ -581,6 +699,7 @@ fn row_normalization_and_boolean_prefix_rounds_retire_on_cancellation() {
     for program in [
         Program::softmax(1, 3, range).unwrap(),
         Program::layer_norm(1, 3, range, &[ONE; 3], &[0; 3]).unwrap(),
+        Program::rms_norm(1, 3, range, &[ONE; 3]).unwrap(),
     ] {
         cancel_at_every_event(&program, &input);
     }

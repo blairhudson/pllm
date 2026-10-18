@@ -16,6 +16,11 @@ use crate::puma::*;
 use sha2::{Digest, Sha256};
 
 pub const PROFILE: &str = "pllm.puma.public-tensor-program.q18.v1";
+/// Approved normalization adaptation: one positive Q18 unit instead of a
+/// source epsilon that encodes to zero. Other source-derived programs retain
+/// their original numerical identity.
+pub const RMS_NORM_PROFILE: &str = "puma.rmsnorm-epsilon1-q18.v1";
+pub const RMS_NORM_EPSILON_Q18: i64 = 1;
 pub const MAX_NODES: usize = 192;
 pub const MAX_TILE_LANES: usize = 128;
 
@@ -91,6 +96,7 @@ pub struct Program {
     len: usize,
     lanes: usize,
     digest: [u8; 32],
+    numeric_profile: &'static str,
     last_use: [u8; MAX_NODES],
     bit_widths: [u8; MAX_NODES],
     public_affines: [[Affine; MAX_TILE_LANES]; 2],
@@ -109,6 +115,7 @@ impl Builder {
             len: 1,
             lanes,
             digest: [0; 32],
+            numeric_profile: super::NUMERIC_PROFILE,
             last_use: [0; MAX_NODES],
             bit_widths: [0; MAX_NODES],
             public_affines: [[Affine {
@@ -386,7 +393,7 @@ impl Builder {
         }
         let mut h = Sha256::new();
         h.update(PROFILE.as_bytes());
-        h.update(super::NUMERIC_PROFILE.as_bytes());
+        h.update(self.0.numeric_profile.as_bytes());
         h.update((self.0.lanes as u64).to_le_bytes());
         h.update((self.0.len as u64).to_le_bytes());
         for (index, node) in self.0.nodes[..self.0.len].iter().flatten().enumerate() {
@@ -535,6 +542,9 @@ impl Program {
 
     pub fn digest(&self) -> [u8; 32] {
         self.digest
+    }
+    pub fn numeric_profile(&self) -> &'static str {
+        self.numeric_profile
     }
     pub fn lanes(&self) -> usize {
         self.lanes

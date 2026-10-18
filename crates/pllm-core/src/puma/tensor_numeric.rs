@@ -219,6 +219,40 @@ impl Program {
         b.finish(output)
     }
 
+    /// Uncentered RMSNorm under the separately named epsilon-one adaptation.
+    /// Square rescaling, reciprocal-width rescaling, rsqrt, normalization and
+    /// public gamma rescaling remain distinct stochastic operations. Zero rows
+    /// have a positive denominator without opening or selecting on their value.
+    pub fn rms_norm(
+        rows: usize,
+        width: usize,
+        input: Interval,
+        gamma: &[i64],
+    ) -> Result<Self, Error> {
+        let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
+        if width == 0 || rows == 0 || gamma.len() != width {
+            return Err(Error::Shape);
+        }
+        let mut b = Builder::new(lanes, input)?;
+        b.0.numeric_profile = RMS_NORM_PROFILE;
+        let x = b.input();
+        let square = b.square(x)?;
+        let sum = b.row_map(square, width, RowMap::Sum)?;
+        let inverse_width = ((1.0_f32 / width as f32) * ONE as f32) as i64;
+        let raw_mean = b.affine(sum, None, affine(inverse_width, 0, 0))?;
+        let mean = b.rescale(raw_mean, 18)?;
+        let denominator = b.affine(mean, None, affine(1, 0, RMS_NORM_EPSILON_Q18))?;
+        let bounds = b.node(denominator, false)?.bounds;
+        let inverse = rsqrt(&mut b, denominator, bounds)?;
+        let inverse = b.row_map(inverse, width, RowMap::Broadcast)?;
+        let normalized = b.product(x, inverse, true)?;
+        let scales: [Affine; MAX_TILE_LANES] =
+            std::array::from_fn(|i| affine(gamma[i % width], 0, 0));
+        let scaled = b.affine_lanes(normalized, &scales[..lanes])?;
+        let output = b.rescale(scaled, 18)?;
+        b.finish(output)
+    }
+
     /// Positive source Q18 reciprocal. Exponent selection remains shared; the
     /// native range proof covers every public input bucket and every rounding.
     pub fn reciprocal(lanes: usize, input: Interval) -> Result<Self, Error> {

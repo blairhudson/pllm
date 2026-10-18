@@ -416,7 +416,7 @@ Independent integer recipes check every supported normalization exponent,
 clipping neighbors, non-power-of-two rows, constant rows and 128-lane geometry.
 Cancellation checks cover every row-program instruction/protocol round; separate
 allocation-index sweeps cover row owners and both Boolean conversion paths.
-The complete focused suite now passes **105 native checks** (65 unit, 8
+The normalization slice passed **105 native checks** (65 unit, 8
 truncation, 3 PRSS, 3 exported multiplication/tensor and 26 allocation), five
 compile-fail doctests and 33 independent Python profile/transcript checks.
 Focused formatting and Clippy pass with the existing `needless_range_loop`
@@ -426,8 +426,39 @@ allowance. Unrestricted strict Clippy reports three pre-existing warnings in
 This is bounded native tensor execution. Wider decoder rows, compiler-derived
 whole-model ranges, authenticated three-role transport and an ordinary SDK
 Experiment remain open. Qwen's pinned RMSNorm epsilon is `1e-6`, which the
-approved Q18 encoder maps to zero; its RMSNorm/RoPE graph and any changed epsilon
-policy require their own explicit contract before common-model execution.
+approved Q18 encoder maps to zero. D10 subsequently approves the explicit
+positive-epsilon adaptation below; RoPE and complete-model integration remain open.
+
+### Explicit positive-epsilon RMSNorm
+
+`Program::rms_norm` implements the separately approved
+`puma.rmsnorm-epsilon1-q18.v1` profile. Its exact epsilon is `2^-18`, integer one
+after mean-square rescaling. The graph squares each uncentered input, sums each
+row, rescales its encoded reciprocal width, adds one, applies the existing shared
+rsqrt once per row, then separately rescales normalization and public per-column
+gamma. It has no centering, bias, clear zero test or private range selection.
+Zero rows have a positive denominator and return exact zero shares. The public
+input interval still must prove every intermediate's unwrapped range.
+
+The profile name enters the native program digest and is available through
+`numeric_profile()`. Source-derived activation, LayerNorm and softmax identities
+retain their original values; an independently serialized pre-D10 digest checks
+this compatibility. Geometry, gamma and the epsilon instruction are bound as
+before. The same 128-total-lane/256 KiB ownership limits apply.
+
+Independent stochastic-integer tests cover zero, constant, signed and small-code
+rows, non-power-of-two widths and maximum tiles. The existing cancellation,
+allocation-index and erasure-before-refund controls also exercise RMSNorm.
+The scalar source oracle separately verifies the approved epsilon and zero-row
+behavior. These bounded controls do not qualify wider checkpoint rows, private
+gamma binding, whole-model range proofs or shared SDK quality measurements.
+
+The D10 slice passes **107 native checks** (67 unit, 8 truncation, 3 PRSS, 3
+multiply and 26 allocation), **5 compile-fail doctests** and **34 scalar-oracle
+checks**. The focused Clippy command above and Rust formatting checks pass.
+The combined integration command reached its 120-second outer timeout after the
+allocation, multiply and PRSS suites passed; the eight truncation tests then
+passed in a separate invocation. No performance measurements were taken.
 
 ### Independent primitive and transcript vectors
 

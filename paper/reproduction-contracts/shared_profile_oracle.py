@@ -93,6 +93,18 @@ def puma_rsqrt(x, masks):
     return _puma_mul(r, comp, masks)
 
 
+def puma_rmsnorm(x, gamma, masks):
+    """D10 epsilon-one, uncentered Q18 row; clear independent test oracle only."""
+    if not 1 <= len(x) <= 128 or len(gamma) != len(x):
+        raise ValueError("bounded RMSNorm row and matching gamma required")
+    tape = iter(masks)
+    squares = [_puma_mul(v, v, tape) for v in x]
+    variance = _puma_mul(sum(squares), encode_f32(Fraction(1, len(x)), 18), tape) + 1
+    inverse = puma_rsqrt(variance, tape)
+    normalized = [_puma_mul(v, inverse, tape) for v in x]
+    return [_puma_mul(v, g, tape) for v, g in zip(normalized, gamma)]
+
+
 def bumblebee_trunc(x, share0, wrap_share0, bits, drop):
     """Pinned general signed path including party-0 parity correction."""
     if not 1 <= drop <= bits - 2:
