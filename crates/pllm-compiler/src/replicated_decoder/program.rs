@@ -32,7 +32,7 @@ pub struct Program {
 
 #[derive(Clone)]
 struct View {
-    words: Vec<(usize, usize)>,
+    words: Words,
     shape: Vec<usize>,
 }
 
@@ -112,13 +112,10 @@ impl<'a> MatrixView<'a> {
         }
         match self {
             Self::Values(view) => {
-                let mut items = Vec::new();
-                items
-                    .try_reserve_exact(terms * columns)
-                    .map_err(|_| Error::Allocation)?;
+                let mut items = Words::new();
                 for k in start..start + terms {
                     for j in column..column + columns {
-                        items.push(view.words[j * inner + k]);
+                        items.push(view.words.at(j * inner + k));
                     }
                 }
                 builder.gather(&items)
@@ -154,6 +151,48 @@ struct Builder {
     public_weights: bool,
 }
 
+fn construction_views(graph: &DecoderGraph, sources: usize) -> Result<(), String> {
+    let failure = || "replicated compiler view payload limit".to_string();
+    let mut last = BTreeMap::new();
+    for (step, op) in graph.operations.iter().enumerate() {
+        for input in &op.inputs {
+            last.insert(input.as_str(), step);
+        }
+    }
+    let mut live = BTreeMap::new();
+    let mut retained = 0usize;
+    for (step, op) in graph.operations.iter().enumerate() {
+        let n = op
+            .output_shape
+            .iter()
+            .try_fold(1usize, |n, width| {
+                n.checked_mul(usize::try_from(*width).ok()?)
+            })
+            .ok_or_else(failure)?;
+        if n > MAX_VALUES {
+            return Err(failure());
+        }
+        // A maximally fragmented descriptor vector can have twice as much
+        // capacity as length. Include construction copies and retained state.
+        let frontier = live
+            .values()
+            .try_fold(retained, |a: usize, b: &usize| a.checked_add(*b))
+            .and_then(|v| v.checked_add(n.checked_mul(2)?))
+            .and_then(|v| v.checked_mul(64))
+            .and_then(|v| v.checked_add(sources * (std::mem::size_of::<SourceView>() + 16)))
+            .ok_or_else(failure)?;
+        if frontier > MAX_PROGRAM_BYTES {
+            return Err(failure());
+        }
+        if matches!(op.operator, Op::KvCacheAppend | Op::CacheSuffix) {
+            retained = retained.checked_add(n).ok_or_else(failure)?;
+        }
+        live.insert(op.id.as_str(), n);
+        live.retain(|id, _| last.get(id).is_some_and(|end| *end > step));
+    }
+    Ok(())
+}
+
 impl Builder {
     fn push(&mut self, code: Code, lanes: usize, bounds: Interval) -> Result<usize, Error> {
         let public_source = matches!(code, Code::PublicInput { .. });
@@ -169,12 +208,20 @@ impl Builder {
             return Err(Error::Bounds);
         }
         let metadata = match &code {
-            Code::Gather(v) => v.capacity() * std::mem::size_of::<(usize, usize)>(),
+            Code::Gather(v) => v.metadata_bytes(),
             Code::Tensor { program, .. } if !self.tensors.contains_key(&program.digest()) => {
                 // One conservative complete primitive allowance per immutable
                 // program, plus the interning entry. Execution still uses fresh
                 // party-local state for every invocation.
                 program.admitted_bytes() + 1024
+            }
+            Code::TensorLoop { program, tail, .. } => {
+                std::iter::once(program)
+                    .chain(tail)
+                    .filter(|p| !self.tensors.contains_key(&p.digest()))
+                    .map(|p| p.admitted_bytes() + 1024)
+                    .sum::<usize>()
+                    + 4096
             }
             Code::Input(v) => v.capacity(),
             Code::PublicInput { key, .. } => key.capacity(),
@@ -197,6 +244,13 @@ impl Builder {
                 .entry(program.digest())
                 .or_insert_with(|| program.clone());
         }
+        if let Code::TensorLoop { program, tail, .. } = &code {
+            for program in std::iter::once(program).chain(tail) {
+                self.tensors
+                    .entry(program.digest())
+                    .or_insert_with(|| program.clone());
+            }
+        }
         self.nodes.push(Node {
             code,
             lanes,
@@ -204,10 +258,10 @@ impl Builder {
         });
         Ok(id)
     }
-    fn bounds(&self, words: &[(usize, usize)]) -> Result<Interval, Error> {
+    fn bounds(&self, words: &Words) -> Result<Interval, Error> {
         let mut lo = i64::MAX;
         let mut hi = i64::MIN;
-        for &(id, index) in words {
+        for (id, index) in words.iter() {
             let node = self.nodes.get(id).ok_or(Error::Binding)?;
             if index >= node.lanes {
                 return Err(Error::Shape);
@@ -217,9 +271,9 @@ impl Builder {
         }
         Interval::new(lo, hi)
     }
-    fn gather(&mut self, words: &[(usize, usize)]) -> Result<usize, Error> {
+    fn gather(&mut self, words: &Words) -> Result<usize, Error> {
         let bound = self.bounds(words)?;
-        self.push(Code::Gather(words.to_vec()), words.len(), bound)
+        self.push(Code::Gather(words.clone()), words.len(), bound)
     }
     fn source_gather(&mut self, view: SourceGather) -> Result<usize, Error> {
         let owner = self.nodes.get(view.owner).ok_or(Error::Binding)?;
@@ -307,6 +361,60 @@ impl Builder {
             shape,
         }
     }
+
+    fn tensor_loop(
+        &mut self,
+        input: LoopInput,
+        lanes: usize,
+        make: impl Fn(usize) -> Result<tensor::Program, Error>,
+    ) -> Result<usize, Error> {
+        let owner = self.nodes.get(input.owner()).ok_or(Error::Binding)?;
+        if lanes == 0 || lanes > MAX_VALUES {
+            return Err(Error::Bounds);
+        }
+        match input {
+            LoopInput::Slice(_) if owner.lanes != lanes => return Err(Error::Shape),
+            LoopInput::TokenOffsets { index, .. } if index >= owner.lanes => {
+                return Err(Error::Shape)
+            }
+            _ => (),
+        }
+        let intern = |p: tensor::Program| {
+            self.tensors
+                .get(&p.digest())
+                .cloned()
+                .unwrap_or_else(|| Arc::new(p))
+        };
+        let width = lanes.min(128);
+        let program = intern(make(width)?);
+        let tail = if lanes % width == 0 {
+            None
+        } else {
+            Some(intern(make(lanes % width)?))
+        };
+        if program.lanes() != width || tail.as_ref().is_some_and(|p| p.lanes() != lanes % width) {
+            return Err(Error::Shape);
+        }
+        let mut bounds = program.output_bounds();
+        for p in std::iter::once(&program).chain(&tail) {
+            if p.output_lanes() != p.lanes() {
+                return Err(Error::Shape);
+            }
+            bounds = Interval::new(
+                bounds.lower().min(p.output_bounds().lower()),
+                bounds.upper().max(p.output_bounds().upper()),
+            )?;
+        }
+        self.push(
+            Code::TensorLoop {
+                input,
+                program,
+                tail,
+            },
+            lanes,
+            bounds,
+        )
+    }
     fn constant(&mut self, anchor: usize, value: i64) -> Result<usize, Error> {
         self.affine(anchor, None, affine(0, 0, value))
     }
@@ -340,33 +448,30 @@ impl Builder {
             Interval::new(0, n as i64 - 1)?,
         )?;
         let mut values = logits.words.clone();
-        let mut ids: Vec<_> = (0..n).map(|i| (indices, i)).collect();
+        let mut ids: Words = (0..n).map(|i| (indices, i)).collect();
         while values.len() > 1 {
-            let mut next_values = Vec::new();
-            let mut next_ids = Vec::new();
+            let mut next_values = Words::new();
+            let mut next_ids = Words::new();
             for (v, ids) in values.chunks(256).zip(ids.chunks(256)) {
                 let pairs = v.len() / 2;
                 if pairs > 0 {
-                    let left = self.gather(&(0..pairs).map(|i| v[2 * i]).collect::<Vec<_>>())?;
-                    let right =
-                        self.gather(&(0..pairs).map(|i| v[2 * i + 1]).collect::<Vec<_>>())?;
+                    let left = self.gather(&(0..pairs).map(|i| v.at(2 * i)).collect())?;
+                    let right = self.gather(&(0..pairs).map(|i| v.at(2 * i + 1)).collect())?;
                     let difference = self.affine(left, Some(right), affine(1, -1, 0))?;
                     let less = self.tensor(
                         difference,
                         tensor::Program::negative(pairs, self.nodes[difference].bounds)?,
                     )?;
                     let best = self.select(less, right, left)?;
-                    let left_id =
-                        self.gather(&(0..pairs).map(|i| ids[2 * i]).collect::<Vec<_>>())?;
-                    let right_id =
-                        self.gather(&(0..pairs).map(|i| ids[2 * i + 1]).collect::<Vec<_>>())?;
+                    let left_id = self.gather(&(0..pairs).map(|i| ids.at(2 * i)).collect())?;
+                    let right_id = self.gather(&(0..pairs).map(|i| ids.at(2 * i + 1)).collect())?;
                     let index = self.select(less, right_id, left_id)?;
                     next_values.extend((0..pairs).map(|i| (best, i)));
                     next_ids.extend((0..pairs).map(|i| (index, i)));
                 }
                 if v.len() % 2 != 0 {
-                    next_values.push(*v.last().unwrap());
-                    next_ids.push(*ids.last().unwrap());
+                    next_values.push(v.at(v.len() - 1));
+                    next_ids.push(ids.at(ids.len() - 1));
                 }
             }
             values = next_values;
@@ -420,9 +525,9 @@ impl Builder {
         }
         let rows = input.words.len() / inner;
         let tile = (puma::MAX_LANES / inner).min(128);
-        let mut words = Vec::new();
+        let mut words = Words::new();
         for row in input.words.chunks_exact(inner) {
-            let left = self.gather(row)?;
+            let left = self.gather(&row)?;
             for start in (0..columns).step_by(tile) {
                 let n = tile.min(columns - start);
                 let right = weight.gather(self, start, n, 0, inner)?;
@@ -482,16 +587,12 @@ impl Builder {
         if !rescale {
             return Ok(self.view(raw, shape));
         }
-        let mut words = Vec::new();
-        for start in (0..rows * columns).step_by(128) {
-            let n = 128.min(rows * columns - start);
-            let input = self.gather(&(start..start + n).map(|i| (raw, i)).collect::<Vec<_>>())?;
+        let id = self.tensor_loop(LoopInput::Slice(raw), rows * columns, |n| {
             let mut b = tensor::Builder::new(n, bounds)?;
             let scaled = b.rescale(b.input(), 18)?;
-            let id = self.tensor(input, b.finish(scaled)?)?;
-            words.extend((0..n).map(|i| (id, i)));
-        }
-        Ok(View { words, shape })
+            b.finish(scaled)
+        })?;
+        Ok(self.view(id, shape))
     }
 
     /// Keep every partial dot product in ring64. Only the complete accumulated
@@ -507,13 +608,13 @@ impl Builder {
         let inner = *input.shape.last().ok_or(Error::Shape)?;
         let (columns, _) = weight.dimensions()?;
         let rows = input.words.len() / inner;
-        let mut words = Vec::new();
+        let mut words = Words::new();
         for row in input.words.chunks_exact(inner) {
             for column in 0..columns {
                 let mut accumulator = None;
                 for start in (0..inner).step_by(puma::MAX_LANES) {
                     let count = puma::MAX_LANES.min(inner - start);
-                    let left = self.gather(&row[start..start + count])?;
+                    let left = self.gather(&row.slice(start..start + count))?;
                     let right = weight.gather(self, column, 1, start, count)?;
                     let partial =
                         self.product(left, right, Some(MatrixShape::new(1, count, 1)?), false)?;
@@ -568,7 +669,7 @@ impl Builder {
             );
         }
         values.insert("input.tokens".into(), tokens.clone());
-        let anchor = self.gather(&tokens.words[..1])?;
+        let anchor = self.gather(&tokens.words.slice(..1))?;
         let zero = self.constant(anchor, 0)?;
         for op in &graph.operations {
             let mut shape: Vec<usize> = op.output_shape.iter().map(|v| *v as usize).collect();
@@ -600,23 +701,44 @@ impl Builder {
                         return Err(Error::Shape);
                     }
                     let table_bound = self.nodes[table.owner].bounds;
-                    let mut words = vec![];
-                    for &token in &tokens.words {
-                        let mut one_hot = Vec::new();
-                        for start in (0..vocabulary).step_by(128) {
-                            let n = 128.min(vocabulary - start);
-                            let x = self.gather(&vec![token; n])?;
-                            let mut builder = tensor::Builder::new(n, self.nodes[x].bounds)?;
-                            let coefficients: Vec<_> = (start..start + n)
-                                .map(|i| affine(1, 0, -(i as i64)))
-                                .collect();
-                            let shifted = builder.affine_lanes(builder.input(), &coefficients)?;
-                            let program = builder.finish(shifted)?;
-                            let difference = self.tensor(x, program)?;
-                            let program =
-                                tensor::Program::equal_zero(n, self.nodes[difference].bounds)?;
-                            let equal = self.tensor(difference, program)?;
-                            one_hot.extend((0..n).map(|i| (equal, i)));
+                    let mut words = Words::new();
+                    for token in tokens.words.iter() {
+                        let mut one_hot = Words::new();
+                        if self.public_weights {
+                            let original = self.nodes[token.0].bounds;
+                            let bounds = Interval::new(
+                                original
+                                    .lower()
+                                    .checked_sub((vocabulary - 1) as i64)
+                                    .ok_or(Error::Bounds)?,
+                                original.upper(),
+                            )?;
+                            let equal = self.tensor_loop(
+                                LoopInput::TokenOffsets {
+                                    owner: token.0,
+                                    index: token.1,
+                                },
+                                vocabulary,
+                                |n| tensor::Program::equal_zero(n, bounds),
+                            )?;
+                            one_hot = self.view(equal, vec![1, vocabulary]).words;
+                        } else {
+                            for start in (0..vocabulary).step_by(128) {
+                                let n = 128.min(vocabulary - start);
+                                let x = self.gather(&std::iter::repeat_n(token, n).collect())?;
+                                let mut builder = tensor::Builder::new(n, self.nodes[x].bounds)?;
+                                let coefficients: Vec<_> = (start..start + n)
+                                    .map(|i| affine(1, 0, -(i as i64)))
+                                    .collect();
+                                let shifted =
+                                    builder.affine_lanes(builder.input(), &coefficients)?;
+                                let program = builder.finish(shifted)?;
+                                let difference = self.tensor(x, program)?;
+                                let program =
+                                    tensor::Program::equal_zero(n, self.nodes[difference].bounds)?;
+                                let equal = self.tensor(difference, program)?;
+                                one_hot.extend((0..n).map(|i| (equal, i)));
+                            }
                         }
                         let selectors = View {
                             words: one_hot,
@@ -626,7 +748,7 @@ impl Builder {
                             self.matrix(&selectors, MatrixView::source(table, true)?, false)?;
                         // Source input IDs and protected argmax establish exactly
                         // one selector. The output is an original table element.
-                        for &(id, _) in &row.words {
+                        for (id, _) in row.words.iter() {
                             self.nodes[id].bounds = table_bound;
                         }
                         words.extend(row.words);
@@ -647,7 +769,7 @@ impl Builder {
                         if bias.shape != [*shape.last().ok_or(Error::Shape)?] {
                             return Err(Error::Shape);
                         }
-                        let repeated: Vec<_> = (0..output.words.len())
+                        let repeated: Words = (0..output.words.len())
                             .map(|i| (bias.owner, i % bias.shape[0]))
                             .collect();
                         output.words = self.binary(&output.words, &repeated, false)?;
@@ -671,9 +793,9 @@ impl Builder {
                     if gamma.shape != [width] {
                         return Err(Error::Shape);
                     }
-                    let mut words = vec![];
+                    let mut words = Words::new();
                     for row in a.ok_or(Error::Binding)?.words.chunks_exact(width) {
-                        let input = self.gather(row)?;
+                        let input = self.gather(&row)?;
                         let program = tensor::Program::rms_norm(
                             1,
                             width,
@@ -688,15 +810,19 @@ impl Builder {
                         shape: shape.clone(),
                     }
                 }
+                Op::Silu if self.public_weights => {
+                    let input = self.gather(&a.ok_or(Error::Binding)?.words)?;
+                    let lanes = self.nodes[input].lanes;
+                    let bounds = self.nodes[input].bounds;
+                    let output = self.tensor_loop(LoopInput::Slice(input), lanes, |n| {
+                        tensor::Program::activation(tensor::Activation::Silu, n, bounds)
+                    })?;
+                    self.view(output, shape.clone())
+                }
                 Op::Silu => {
-                    let mut words = vec![];
-                    for chunk in &a
-                        .ok_or(Error::Binding)?
-                        .words
-                        .chunks(128)
-                        .collect::<Vec<_>>()
-                    {
-                        let input = self.gather(chunk)?;
+                    let mut words = Words::new();
+                    for chunk in a.ok_or(Error::Binding)?.words.chunks(128) {
+                        let input = self.gather(&chunk)?;
                         let program = tensor::Program::activation(
                             tensor::Activation::Silu,
                             chunk.len(),
@@ -727,7 +853,7 @@ impl Builder {
                                 .flat_map(|h| {
                                     (0..rows).flat_map(move |r| {
                                         (0..width)
-                                            .map(move |d| a.words[(r * heads + h) * width + d])
+                                            .map(move |d| a.words.at((r * heads + h) * width + d))
                                     })
                                 })
                                 .collect()
@@ -737,7 +863,8 @@ impl Builder {
                             (0..rows)
                                 .flat_map(|r| {
                                     (0..heads).flat_map(move |h| {
-                                        (0..width).map(move |d| a.words[(h * rows + r) * width + d])
+                                        (0..width)
+                                            .map(move |d| a.words.at((h * rows + r) * width + d))
                                     })
                                 })
                                 .collect()
@@ -764,7 +891,7 @@ impl Builder {
                         .and_then(|v| v.as_u64())
                         .ok_or(Error::Binding)? as f32;
                     let width = shape[3];
-                    let mut words = vec![];
+                    let mut words = Words::new();
                     for (index, row) in a
                         .ok_or(Error::Binding)?
                         .words
@@ -776,7 +903,7 @@ impl Builder {
                             (position + index % sequence) as u32,
                             width,
                         )?;
-                        let input = self.gather(row)?;
+                        let input = self.gather(&row)?;
                         let program = tensor::Program::rotary_half(
                             1,
                             width,
@@ -815,20 +942,23 @@ impl Builder {
                     }
                     .ok_or(Error::Binding)?;
                     let (heads, width) = (input.shape[1], input.shape[3]);
-                    let mut words = vec![];
+                    let mut words = Words::new();
                     for head in 0..heads {
                         if position > 0 {
                             let previous = state.get(&key).ok_or(Error::Binding)?;
                             if previous.shape != [1, heads, position, width] {
                                 return Err(Error::Shape);
                             }
-                            words.extend_from_slice(
-                                &previous.words
-                                    [head * position * width..(head + 1) * position * width],
+                            words.extend(
+                                previous
+                                    .words
+                                    .slice(head * position * width..(head + 1) * position * width),
                             );
                         }
-                        words.extend_from_slice(
-                            &input.words[head * sequence * width..(head + 1) * sequence * width],
+                        words.extend(
+                            input
+                                .words
+                                .slice(head * sequence * width..(head + 1) * sequence * width),
                         );
                     }
                     let out = View {
@@ -858,19 +988,20 @@ impl Builder {
                     if group == 0 || heads / group != k.shape[1] {
                         return Err(Error::Shape);
                     }
-                    let mut words = vec![];
+                    let mut words = Words::new();
                     for h in 0..heads {
                         for r in 0..sequence {
                             let query = View {
-                                words: q.words
-                                    [(h * sequence + r) * width..(h * sequence + r + 1) * width]
-                                    .to_vec(),
+                                words: q.words.slice(
+                                    (h * sequence + r) * width..(h * sequence + r + 1) * width,
+                                ),
                                 shape: vec![1, width],
                             };
                             let key_rows = View {
-                                words: k.words[(h / group) * keys * width
-                                    ..((h / group) * keys + position + r + 1) * width]
-                                    .to_vec(),
+                                words: k.words.slice(
+                                    (h / group) * keys * width
+                                        ..((h / group) * keys + position + r + 1) * width,
+                                ),
                                 shape: vec![position + r + 1, width],
                             };
                             words.extend(self.linear(&query, &key_rows, true)?.words);
@@ -889,9 +1020,9 @@ impl Builder {
                         .and_then(|v| v.as_u64())
                         .ok_or(Error::Binding)?;
                     let coefficient = ((1.0_f32 / (width as f32).sqrt()) * ONE as f32) as i64;
-                    let mut words = vec![];
+                    let mut words = Words::new();
                     for chunk in a.ok_or(Error::Binding)?.words.chunks(128) {
-                        let input = self.gather(chunk)?;
+                        let input = self.gather(&chunk)?;
                         let mut b = tensor::Builder::new(chunk.len(), self.nodes[input].bounds)?;
                         let raw = b.affine(b.input(), None, affine(coefficient, 0, 0))?;
                         let output = b.rescale(raw, 18)?;
@@ -905,7 +1036,7 @@ impl Builder {
                 }
                 Op::CausalMask => a.ok_or(Error::Binding)?.clone(),
                 Op::Softmax => {
-                    let mut words = vec![];
+                    let mut words = Words::new();
                     for (i, row) in a
                         .ok_or(Error::Binding)?
                         .words
@@ -913,7 +1044,7 @@ impl Builder {
                         .enumerate()
                     {
                         let width = position + i % sequence + 1;
-                        let input = self.gather(&row[..width])?;
+                        let input = self.gather(&row.slice(..width))?;
                         let program = tensor::Program::softmax(1, width, self.nodes[input].bounds)?;
                         let id = self.tensor(input, program)?;
                         words.extend((0..width).map(|i| (id, i)));
@@ -936,21 +1067,22 @@ impl Builder {
                     if group == 0 || heads / group != values.shape[1] {
                         return Err(Error::Shape);
                     }
-                    let mut words = vec![];
+                    let mut words = Words::new();
                     for h in 0..heads {
                         for r in 0..sequence {
                             let valid = position + r + 1;
                             let p = View {
-                                words: probabilities.words
-                                    [(h * sequence + r) * keys..(h * sequence + r) * keys + valid]
-                                    .to_vec(),
+                                words: probabilities.words.slice(
+                                    (h * sequence + r) * keys..(h * sequence + r) * keys + valid,
+                                ),
                                 shape: vec![1, valid],
                             };
-                            let mut selected = vec![];
+                            let mut selected = Words::new();
                             for d in 0..width {
                                 for k in 0..valid {
-                                    selected
-                                        .push(values.words[((h / group) * keys + k) * width + d]);
+                                    selected.push(
+                                        values.words.at(((h / group) * keys + k) * width + d),
+                                    );
                                 }
                             }
                             words.extend(
@@ -975,7 +1107,7 @@ impl Builder {
                     let a = a.ok_or(Error::Binding)?;
                     let width = *shape.last().unwrap();
                     View {
-                        words: a.words[a.words.len() - width..].to_vec(),
+                        words: a.words.slice(a.words.len() - width..),
                         shape: shape.clone(),
                     }
                 }
@@ -986,10 +1118,10 @@ impl Builder {
                 }
                 Op::GreedyTokenSelection => {
                     let logits = a.ok_or(Error::Binding)?;
-                    let mut best = self.gather(&logits.words[..1])?;
+                    let mut best = self.gather(&logits.words.slice(..1))?;
                     let mut index = self.constant(anchor, 0)?;
                     for (i, candidate) in logits.words.iter().enumerate().skip(1) {
-                        let other = self.gather(&[*candidate])?;
+                        let other = self.gather(&std::iter::once(candidate).collect())?;
                         let difference = self.affine(best, Some(other), affine(1, -1, 0))?;
                         let less = self.tensor(
                             difference,
@@ -1025,19 +1157,14 @@ impl Builder {
         values.remove(&graph.output).ok_or(Error::Binding)
     }
 
-    fn binary(
-        &mut self,
-        a: &[(usize, usize)],
-        b: &[(usize, usize)],
-        product: bool,
-    ) -> Result<Vec<(usize, usize)>, Error> {
+    fn binary(&mut self, a: &Words, b: &Words, product: bool) -> Result<Words, Error> {
         if a.len() != b.len() {
             return Err(Error::Shape);
         }
-        let mut words = vec![];
+        let mut words = Words::new();
         for (a, b) in a.chunks(128).zip(b.chunks(128)) {
-            let left = self.gather(a)?;
-            let right = self.gather(b)?;
+            let left = self.gather(&a)?;
+            let right = self.gather(&b)?;
             let id = if product {
                 self.product(left, right, None, true)?
             } else {
@@ -1119,10 +1246,11 @@ impl Program {
         }) {
             return Err("replicated source payload limit".into());
         }
-        // Public semantic views coexist with the emitted native program while
-        // compiling. Price two reference lists per output (construction/copy),
-        // plus compact source descriptors. Check the final full-prefix geometry during
-        // source admission, before importing values or building reference lists.
+        // Construction views retire at last semantic use. Bound even the worst
+        // uncompressible strided descriptors, vector growth and construction
+        // copies at the largest live frontier. Persistent views remain charged
+        // until this full-prefix graph retires. The emitted program has its own
+        // independently checked MAX_PROGRAM_BYTES allowance.
         let final_plan;
         let prefill = if outputs > 1 {
             final_plan = lower_with_weights(config, rows + outputs - 1, 1, weights)?;
@@ -1130,17 +1258,16 @@ impl Program {
         } else {
             &plan.prefill
         };
-        let view_bytes = prefill.operations.iter().try_fold(
-            shapes.len() * (std::mem::size_of::<SourceView>() + 16),
-            |total, op| {
-                let elements = op.output_shape.iter().try_fold(1usize, |n, width| {
-                    n.checked_mul(usize::try_from(*width).ok()?)
-                })?;
-                total.checked_add(elements.checked_mul(32)?)
-            },
-        );
-        if view_bytes.is_none_or(|n| n > MAX_PROGRAM_BYTES) {
-            return Err("replicated compiler view payload limit".into());
+        construction_views(prefill, shapes.len())?;
+        if weights == WeightMode::Public {
+            let lookup_work = public_lookup_work_floor(rows, outputs, vocabulary)
+                .map_err(|e| format!("replicated public lookup admission: {e}"))?;
+            if lookup_work > puma::MAX_PROGRAM_OPERATIONS {
+                return Err(format!(
+                    "replicated public lookup work charge {lookup_work} exceeds limit {}",
+                    puma::MAX_PROGRAM_OPERATIONS
+                ));
+            }
         }
         Ok(shapes)
     }
@@ -1272,8 +1399,8 @@ impl Program {
                 if result.words.len() != 1 {
                     return Err(Error::Shape);
                 }
-                selected.extend_from_slice(&result.words);
-                tokens.words.extend_from_slice(&result.words);
+                selected.extend(result.words.iter());
+                tokens.words.extend(result.words.iter());
                 tokens.shape = vec![1, tokens.words.len()];
             }
             let mut last: Vec<_> = (0..builder.nodes.len()).collect();
@@ -1327,7 +1454,7 @@ impl Program {
                     }
                     Code::Gather(items) => {
                         h.update([1]);
-                        for &(a, b) in items {
+                        for (a, b) in items.iter() {
                             h.update((a as u64).to_le_bytes());
                             h.update((b as u64).to_le_bytes());
                         }
@@ -1366,15 +1493,37 @@ impl Program {
                         for n in shape.map_or([0, 0, 0], MatrixShape::dimensions) {
                             h.update((n as u64).to_le_bytes());
                         }
-                        work += 1;
                     }
                     Code::Tensor { input, program } => {
                         h.update([4]);
                         h.update((*input as u64).to_le_bytes());
                         h.update(program.digest());
-                        work += program.instructions() as u64 * 128;
+                    }
+                    Code::TensorLoop {
+                        input,
+                        program,
+                        tail,
+                    } => {
+                        h.update([8]);
+                        match input {
+                            LoopInput::Slice(id) => {
+                                h.update([0]);
+                                h.update((*id as u64).to_le_bytes());
+                            }
+                            LoopInput::TokenOffsets { owner, index } => {
+                                h.update([1]);
+                                h.update((*owner as u64).to_le_bytes());
+                                h.update((*index as u64).to_le_bytes());
+                            }
+                        }
+                        h.update(program.digest());
+                        h.update([tail.is_some() as u8]);
+                        if let Some(tail) = tail {
+                            h.update(tail.digest());
+                        }
                     }
                 }
+                work = work.checked_add(node.work_units()).ok_or(Error::Bounds)?;
             }
             if work == 0 || work > puma::MAX_PROGRAM_OPERATIONS {
                 return Err(Error::Bounds);
@@ -1440,6 +1589,27 @@ impl Program {
         )?;
         multiply::SetupParty::new(puma::Context::new(session, self.digest, 0)?, party, limits)
     }
+}
+
+/// Minimum *declared charge* under the existing primitive work allowance, not a
+/// timing or cryptographic-operation count. D9 pays for every complete prefix.
+/// Reject known impossible work before importing any checkpoint values.
+fn public_lookup_work_floor(rows: usize, outputs: usize, vocabulary: usize) -> Result<u64, Error> {
+    if rows == 0 || outputs == 0 || vocabulary == 0 {
+        return Err(Error::Shape);
+    }
+    let bounds = Interval::new(-(vocabulary as i64 - 1), vocabulary as i64 - 1)?;
+    let width = vocabulary.min(128);
+    let program = tensor::Program::equal_zero(width, bounds)?;
+    let mut charge = (vocabulary / width) as u64 * program.instructions() as u64 * 128;
+    if vocabulary % width != 0 {
+        charge +=
+            tensor::Program::equal_zero(vocabulary % width, bounds)?.instructions() as u64 * 128;
+    }
+    let prefixes = (0..outputs)
+        .try_fold(0usize, |n, i| n.checked_add(rows.checked_add(i)?))
+        .ok_or(Error::Bounds)?;
+    charge.checked_mul(prefixes as u64).ok_or(Error::Bounds)
 }
 
 pub(super) fn lower_with_weights(

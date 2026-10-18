@@ -133,3 +133,23 @@ def test_public_import_cancellation_closes_partial_files(tmp_path):
     finally:
         worker.close()
         publisher.close()
+
+
+def test_public_wide_mlp_runs_compact_loops_through_installed_binding(tmp_path):
+    experiment = experiment_fixture(tmp_path, weights="public", intermediate_size=4864)
+    source = admit_source(experiment)
+    # Zero body projections preserve signed token embeddings. All 4,864 lanes
+    # and complete-sum truncations still execute.
+    assert native_execution(source, experiment, (3,), 2) == (2, 1)
+
+
+def test_pinned_public_qwen_rejects_known_work_before_checkpoint_import():
+    from pathlib import Path
+
+    replay = json.loads((Path(__file__).resolve().parents[1] /
+        "paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json").read_text())
+    case = replay["modes"]["public"]
+    with pytest.raises(ValueError, match="public lookup work charge"):
+        _native.replicated_source_contract(case["experiment"].encode(),
+            replay["normalized_config"].encode(), replay["rows"], replay["outputs"],
+            replay["source_lock"], replay["checkpoint"])

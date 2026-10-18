@@ -691,9 +691,13 @@ Q18 weights into immutable worker files and applies complete ring64 products to
 both replicated activation components through a 64 KiB read buffer. It retains
 one final truncation, private full-table lookup and batched protected argmax/feedback
 under a distinct numeric identity. Default private-weight execution stays distinct.
-Source-present generated controls exercise bounded execution; full Qwen advances
-to the compiler-view memory gate before tensor loading. Compact activation views,
-loop-based execution, whole-model ranges and measured costs remain open. Contract:
+Source-present generated controls exercise bounded execution. Compact activation
+spans preserve logical gather order and private-weight execution identities;
+public lookup, rescaling and SiLU use bounded tensor loops with fresh per-iteration
+MPC state. Live-frontier pricing now clears Qwen's compiler-view gate, but private
+lookup alone exceeds the existing declared-work allowance and rejects before
+tensor loading. Whole-request work qualification, whole-model ranges, quality
+and measured response costs remain open. Contract:
 `docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the

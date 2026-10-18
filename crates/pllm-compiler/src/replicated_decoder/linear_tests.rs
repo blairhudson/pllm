@@ -1,6 +1,113 @@
 use super::*;
 use crate::replicated_decoder::tests::{execute, workers, workers_with_programs};
 
+fn selector_program(vocabulary: usize) -> Arc<Program> {
+    let mut b = Builder::default();
+    let token = b
+        .push(
+            Code::Input("token".into()),
+            1,
+            Interval::new(0, vocabulary as i64 - 1).unwrap(),
+        )
+        .unwrap();
+    let bound = Interval::new(-(vocabulary as i64 - 1), vocabulary as i64 - 1).unwrap();
+    let output = b
+        .tensor_loop(
+            LoopInput::TokenOffsets {
+                owner: token,
+                index: 0,
+            },
+            vocabulary,
+            |n| tensor::Program::equal_zero(n, bound),
+        )
+        .unwrap();
+    let work = b.nodes.iter().map(Node::work_units).sum();
+    let mut retire = vec![vec![]; b.nodes.len()];
+    retire[output].push(token);
+    Arc::new(Program {
+        retire,
+        nodes: b.nodes,
+        inputs: 1,
+        outputs: (0..vocabulary).map(|i| (output, i)).collect(),
+        digest: [97; 32],
+        payload_bytes: b.allocated,
+        operation_limit: work,
+    })
+}
+
+#[test]
+fn compact_private_selectors_cover_every_lane_and_tail_under_one_live_loop() {
+    for vocabulary in [1, 128, 129, 257, 513] {
+        let program = selector_program(vocabulary);
+        assert_eq!(program.nodes.len(), 2);
+        for token in [0, vocabulary / 2, vocabulary - 1] {
+            let actual = execute(workers(
+                program.clone(),
+                &BTreeMap::from([("token".into(), vec![token as i64])]),
+            ));
+            assert_eq!(
+                actual,
+                (0..vocabulary)
+                    .map(|i| u64::from(i == token))
+                    .collect::<Vec<_>>()
+            );
+        }
+    }
+    let full = selector_program(151936);
+    assert!(full.payload_bytes() < 4 << 20);
+    // Compact storage does not make a large protected schedule cheap: retain
+    // the whole declared work, rather than charging just one template.
+    assert!(full.operation_limit() > puma::MAX_PROGRAM_OPERATIONS);
+    assert!(full.setup([43; 32], puma::Party::P0).is_err());
+}
+
+#[test]
+fn replay_between_loop_iterations_burns_partial_outputs_and_runtime() {
+    let program = selector_program(257);
+    let mut owners = workers(program, &BTreeMap::from([("token".into(), vec![128])]));
+    let mut queue = Vec::new();
+    let mut first = None;
+    for _ in 0..10000 {
+        if queue.is_empty() {
+            for owner in &mut owners {
+                let from = owner.party();
+                queue.extend(
+                    owner
+                        .advance()
+                        .unwrap()
+                        .into_iter()
+                        .map(|(to, frame)| (from, to, frame)),
+                );
+            }
+        } else {
+            for (from, to, frame) in std::mem::take(&mut queue) {
+                first.get_or_insert_with(|| (from, to, frame.as_bytes().to_vec()));
+                queue.extend(
+                    owners[to as usize]
+                        .receive(frame.as_bytes(), from)
+                        .unwrap()
+                        .into_iter()
+                        .map(|(next, frame)| (to, next, frame)),
+                );
+            }
+        }
+        if owners.iter().all(|w| w.loop_test_state().0 == 128) {
+            break;
+        }
+    }
+    assert!(owners.iter().all(|w| w.loop_test_state().0 == 128));
+    assert!(owners.iter().all(|w| w.loop_test_state().1 == 2));
+    let (from, to, frame) = first.unwrap();
+    assert!(owners[to as usize].receive(&frame, from).is_err());
+    assert!(owners[to as usize].retired());
+    assert_eq!(owners[to as usize].loop_test_state(), (0, 0));
+    assert!(owners[to as usize].advance().is_err());
+    for owner in &mut owners {
+        owner.cancel();
+        assert_eq!(owner.loop_test_state(), (0, 0));
+    }
+}
+
 #[test]
 fn batched_private_argmax_preserves_lowest_index_ties_and_odd_tails() {
     for (n, maxima) in [(1, vec![0]), (257, vec![256]), (513, vec![127, 128, 512])] {
@@ -13,20 +120,12 @@ fn batched_private_argmax_preserves_lowest_index_ties_and_odd_tails() {
             .push(Code::Input("logits".into()), n, interval(&logits))
             .unwrap();
         let output = builder.argmax_tree(&builder.view(input, vec![n])).unwrap();
-        let work: u64 = builder
-            .nodes
-            .iter()
-            .map(|node| match &node.code {
-                Code::Product { .. } => 1,
-                Code::Tensor { program, .. } => 128 * program.instructions() as u64,
-                _ => 0,
-            })
-            .sum();
+        let work: u64 = builder.nodes.iter().map(Node::work_units).sum();
         let program = Arc::new(Program {
             retire: vec![vec![]; builder.nodes.len()],
             nodes: builder.nodes,
             inputs: 1,
-            outputs: output.words,
+            outputs: output.words.iter().collect(),
             digest: [95; 32],
             payload_bytes: builder.allocated,
             operation_limit: work.max(1),
@@ -43,7 +142,7 @@ fn batched_private_argmax_preserves_lowest_index_ties_and_odd_tails() {
 
 #[test]
 fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
-    for (inner, columns) in [(1025, 17), (4864, 3)] {
+    for (inner, columns) in [(1025, 17), (4864, 3), (65, 129)] {
         for transposed in [false, true] {
             let rows = 2;
             let x: Vec<i64> = (0..rows * inner)
@@ -89,19 +188,12 @@ fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
                     .nodes
                     .iter()
                     .any(|n| matches!(n.code, Code::Product { .. })));
-                let work: u64 = b
-                    .nodes
-                    .iter()
-                    .map(|n| match &n.code {
-                        Code::Tensor { program, .. } => program.instructions() as u64 * 128,
-                        _ => 0,
-                    })
-                    .sum();
+                let work: u64 = b.nodes.iter().map(Node::work_units).sum();
                 let program = Arc::new(Program {
                     retire: vec![vec![]; b.nodes.len()],
                     nodes: b.nodes,
                     inputs: 2,
-                    outputs: out.words,
+                    outputs: out.words.iter().collect(),
                     digest: [93; 32],
                     payload_bytes: b.allocated,
                     operation_limit: work.max(1),
@@ -157,20 +249,12 @@ fn compile(
         &b.view(w, vec![columns, inner]),
         rescale,
     )?;
-    let work = b
-        .nodes
-        .iter()
-        .map(|n| match &n.code {
-            Code::Product { .. } => 1,
-            Code::Tensor { program, .. } => program.instructions() as u64 * 128,
-            _ => 0,
-        })
-        .sum();
+    let work = b.nodes.iter().map(Node::work_units).sum();
     Ok(Arc::new(Program {
         retire: vec![vec![]; b.nodes.len()],
         nodes: b.nodes,
         inputs: 2,
-        outputs: out.words,
+        outputs: out.words.iter().collect(),
         digest: [71; 32],
         payload_bytes: b.allocated,
         operation_limit: work,
@@ -317,7 +401,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 .any(|n| matches!(n.code, Code::SourceGather(_))));
             assert!(
                 !b.nodes.iter().any(|n| matches!(&n.code, Code::Gather(items)
-                if items.iter().any(|&(id, _)| id == source.owner)))
+                if items.iter().any(|(id, _)| id == source.owner)))
             );
             let work = b
                 .nodes
@@ -328,7 +412,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 retire: vec![vec![]; b.nodes.len()],
                 nodes: b.nodes,
                 inputs: 2,
-                outputs: output.words,
+                outputs: output.words.iter().collect(),
                 digest: [73; 32],
                 payload_bytes: b.allocated,
                 operation_limit: work,
@@ -346,9 +430,8 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
             };
             for node in &mut expanded.nodes {
                 if let Code::SourceGather(view) = node.code {
-                    let items: Vec<_> = view.indices().map(|i| (view.owner, i)).collect();
-                    expanded.payload_bytes +=
-                        items.capacity() * std::mem::size_of::<(usize, usize)>();
+                    let items: Words = view.indices().map(|i| (view.owner, i)).collect();
+                    expanded.payload_bytes += items.metadata_bytes();
                     node.code = Code::Gather(items);
                 }
             }

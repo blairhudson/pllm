@@ -25,9 +25,16 @@ Resident checkpoint ownership and full-Qwen capacity remain separate gates.
 
 The [public-weight adaptation](local-v4/README.md) adds explicit public-checkpoint
 execution with immutable file-backed Q18 coefficients and batched protected token
-boundaries. Private-weight defaults keep their identity. The common Qwen metadata
-gate now reaches the compiler-view bound; full-checkpoint execution, range
+boundaries. Private-weight defaults keep their identity. That common Qwen metadata
+check reached the compiler-view bound; full-checkpoint execution, range
 admission, quality and practical resource measurements remain open.
+
+The [activation-view and tensor-loop slice](local-v5/README.md) prices the live
+compiler frontier and executes public lookup, rescaling and SiLU in bounded
+loops with fresh per-iteration MPC state. Qwen's view-memory gate now clears;
+its private lookup exceeds the existing declared-work allowance before source
+values or worker launch. The separate installed-wheel suite passes 245 Python
+and 20 native checks, with seven optional skips.
 
 ## Retained evidence
 

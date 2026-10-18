@@ -119,13 +119,43 @@ No resident client weight matrix or weight-share delivery is introduced in this
 mode. Public file reads, nonlinear exchanges, full-prefix recomputation and all
 three worker costs remain charged.
 
-The pinned Qwen2.5 4-input/two-output metadata check now rejects the compiler-view
-payload bound rather than the private-mode source-expansion bound. It reads no
-tensor values and launches no workers. Compact activation views and loop-based
-execution, complete-model range admission, quality and measured response costs
-remain necessary for practical full-checkpoint use. Generated SDK controls and
+The original pinned Qwen2.5 4-input/two-output metadata check rejected the
+compiler-view payload bound rather than the private-mode source-expansion bound.
+It read no tensor values and launched no workers. Generated SDK controls and
 complete integer matrix oracles establish this bounded adaptation only. Evidence:
 [public-weight slice](../../paper/artifacts/puma-sdk/local-v4/README.md).
+
+### Compact activation views and tensor loops
+
+Activation references now use bounded owner/offset/stride spans. Slices,
+broadcasts, attention permutations and partial tiles preserve their logical word
+order. Gather commitments still hash that order, so the six frozen private-weight
+execution identities remain exact. Construction admission prices the largest
+live semantic frontier, retained state views, descriptor growth and temporary
+copies; emitted programs keep their separate 64 MiB allowance.
+
+The public-weight executor additionally uses bounded 128-lane loops for private
+lookup predicates, complete-product truncation and SiLU. A loop retains one
+main program, an optional tail program and its complete output owner. Every
+iteration creates a fresh consuming executor on the advancing PRSS runtime.
+Source owners remain live through the final iteration; replay, cancellation or
+failure burns partial outputs and the runtime. All iterations count toward the
+existing whole-program work limit. Public execution commitments bind the loop
+shape, operands, programs and tail. This changes the public execution schedule,
+while retaining the approved numeric operations and final-only disclosure.
+
+The common Qwen metadata now clears the view-memory gate, but private lookup
+alone exceeds the existing declared-work allowance. Native source admission
+checks that necessary lower bound before checkpoint value reads or worker launch.
+At four inputs and two outputs, lookup alone charges 21,878,784 units against
+1,048,576 allowed. This is a lower bound on the compiler's conservative work
+charge, not a timing or cryptographic-operation measurement. Whole-request work
+qualification, complete-model range admission, quality and matched resource costs
+remain gates. These storage/scheduling changes establish no whole-client memory
+or full-checkpoint serving result. Installed-wheel validation passes 245 Python
+and 20 native checks, with seven optional skips and all 367 package files matching
+before and after. Replay and original receipts:
+[loop/view slice](../../paper/artifacts/puma-sdk/local-v5/README.md).
 
 ### Shared SDK interfaces
 

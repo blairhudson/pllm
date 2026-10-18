@@ -35,6 +35,7 @@ pub struct Worker {
     active: Active,
     inbox: [Option<Message>; 2],
     step: usize,
+    loop_offset: usize,
     started: bool,
     imported: usize,
     imported_words: usize,
@@ -90,6 +91,7 @@ impl Worker {
             active: Active::Idle(runtime),
             inbox: [None, None],
             step: 0,
+            loop_offset: 0,
             started: false,
             imported: public_count,
             imported_words: 0,
@@ -108,11 +110,19 @@ impl Worker {
     pub fn retired(&self) -> bool {
         matches!(self.active, Active::Retired)
     }
+    #[cfg(test)]
+    pub(super) fn loop_test_state(&self) -> (usize, usize) {
+        (
+            self.loop_offset,
+            self.values.iter().filter(|v| v.is_some()).count(),
+        )
+    }
     pub fn cancel(&mut self) {
         self.active = Active::Retired;
         self.inbox = [None, None];
         self.values.clear();
         self.public = None;
+        self.loop_offset = 0;
     }
     fn checked<T>(&mut self, value: Result<T, Error>) -> Result<T, Error> {
         if value.is_err() {
@@ -196,6 +206,25 @@ impl Worker {
     }
 
     fn save(&mut self, value: ReplicatedShare) -> Result<(), Error> {
+        if matches!(self.program.nodes[self.step].code, Code::TensorLoop { .. }) {
+            let output = self.values[self.step].as_mut().ok_or(Error::Phase)?;
+            let end = self
+                .loop_offset
+                .checked_add(value.first().len())
+                .ok_or(Error::Bounds)?;
+            output
+                .first
+                .get_mut(self.loop_offset..end)
+                .ok_or(Error::Shape)?
+                .copy_from_slice(value.first());
+            output
+                .second
+                .get_mut(self.loop_offset..end)
+                .ok_or(Error::Shape)?
+                .copy_from_slice(value.second());
+            self.loop_offset = end;
+            return Ok(());
+        }
         let mut secret = Secret::new(value.first().len())?;
         secret.first.copy_from_slice(value.first());
         secret.second.copy_from_slice(value.second());
@@ -204,10 +233,65 @@ impl Worker {
     }
 
     fn retire_inputs(&mut self) {
+        if matches!(self.program.nodes[self.step].code, Code::TensorLoop { .. })
+            && self.loop_offset < self.program.nodes[self.step].lanes
+        {
+            return;
+        }
         for &id in &self.program.retire[self.step] {
             self.values[id] = None;
         }
         self.step += 1;
+        self.loop_offset = 0;
+    }
+
+    fn loop_share(
+        &self,
+        input: LoopInput,
+        n: usize,
+        context: Context,
+    ) -> Result<ReplicatedShare, Error> {
+        let op = Operation::new(context, 0, Party::P0, n, 1, puma::Limits::default())?;
+        match input {
+            LoopInput::Slice(owner) => {
+                let source = self.values[owner].as_ref().ok_or(Error::Binding)?;
+                let end = self.loop_offset.checked_add(n).ok_or(Error::Bounds)?;
+                ReplicatedShare::from_local(
+                    op,
+                    self.party,
+                    source
+                        .first
+                        .get(self.loop_offset..end)
+                        .ok_or(Error::Shape)?,
+                    source
+                        .second
+                        .get(self.loop_offset..end)
+                        .ok_or(Error::Shape)?,
+                    puma::Limits::default(),
+                )
+            }
+            LoopInput::TokenOffsets { owner, index } => {
+                let (a, b) = self.word(owner, index)?;
+                let mut input = Secret::new(n)?;
+                for i in 0..n {
+                    let offset = (self.loop_offset + i) as u64;
+                    input.first[i] =
+                        a.wrapping_sub(if self.party == Party::P0 { offset } else { 0 });
+                    input.second[i] = b.wrapping_sub(if self.party.next() == Party::P0 {
+                        offset
+                    } else {
+                        0
+                    });
+                }
+                ReplicatedShare::from_local(
+                    op,
+                    self.party,
+                    &input.first,
+                    &input.second,
+                    puma::Limits::default(),
+                )
+            }
+        }
     }
 
     fn word(&self, owner: usize, index: usize) -> Result<(u64, u64), Error> {
@@ -301,7 +385,7 @@ impl Worker {
                 }
                 Code::Gather(items) => {
                     let mut output = Secret::new(items.len())?;
-                    for (i, &(owner, index)) in items.iter().enumerate() {
+                    for (i, (owner, index)) in items.iter().enumerate() {
                         (output.first[i], output.second[i]) = self.word(owner, index)?;
                     }
                     self.values[self.step] = Some(output);
@@ -383,6 +467,40 @@ impl Worker {
                     };
                     let input = self.share(*input, runtime.context())?;
                     let mut executor = tensor::Executor::new(runtime, (**program).clone(), input)?;
+                    let out = executor.start_step()?;
+                    self.active = Active::Tensor(executor);
+                    return tensor_frames(out);
+                }
+                Code::TensorLoop {
+                    input,
+                    program,
+                    tail,
+                } => {
+                    let Active::Idle(runtime) =
+                        std::mem::replace(&mut self.active, Active::Retired)
+                    else {
+                        return Err(Error::Phase);
+                    };
+                    let remaining = node
+                        .lanes
+                        .checked_sub(self.loop_offset)
+                        .ok_or(Error::Bounds)?;
+                    if remaining == 0 {
+                        return Err(Error::Phase);
+                    }
+                    let selected = if remaining < program.lanes() {
+                        tail.as_ref().ok_or(Error::Shape)?
+                    } else {
+                        program
+                    };
+                    if self.loop_offset == 0 {
+                        self.values[self.step] = Some(Secret::new(node.lanes)?);
+                    }
+                    let input = self.loop_share(*input, selected.lanes(), runtime.context())?;
+                    // Each iteration constructs a fresh consuming executor. Its
+                    // invocation is bound to the runtime's monotonic PRSS cursor,
+                    // so frames and randomness cannot be reused across tiles.
+                    let mut executor = tensor::Executor::new(runtime, (**selected).clone(), input)?;
                     let out = executor.start_step()?;
                     self.active = Active::Tensor(executor);
                     return tensor_frames(out);

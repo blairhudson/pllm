@@ -3,7 +3,7 @@ use puma::{prss::PublicContribution, Party};
 use std::collections::BTreeMap;
 
 #[test]
-fn largest_prefix_view_budget_rejects_before_source_values() {
+fn largest_live_prefix_views_reject_before_source_values() {
     let config = br#"{"model_type":"qwen2","hidden_size":2,"intermediate_size":8192,
         "num_hidden_layers":4,"num_attention_heads":1,"num_key_value_heads":1,
         "vocab_size":5,"max_position_embeddings":64,"rope_theta":10000,
@@ -12,12 +12,30 @@ fn largest_prefix_view_budget_rejects_before_source_values() {
         "use_sliding_window":false,"use_cache":true,"max_window_layers":4}"#;
     Program::source_shapes(config, 1, 1).unwrap();
     Program::source_shapes(config, 9, 1).unwrap();
-    assert!(Program::source_shapes(config, 9, 8)
-        .unwrap_err()
-        .contains("compiler view payload limit"));
+    Program::source_shapes(config, 9, 8).unwrap();
     assert!(Program::source_shapes(config, 32, 1)
         .unwrap_err()
         .contains("compiler view payload limit"));
+}
+
+#[test]
+fn pinned_qwen_public_metadata_prices_live_frontier_without_source_values() {
+    let replay: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json"
+    ))
+    .unwrap();
+    let config = replay["normalized_config"].as_str().unwrap().as_bytes();
+    let reason = Program::source_shapes_with_weights(config, 4, 2, WeightMode::Public).unwrap_err();
+    assert!(reason.contains("public lookup work charge"), "{reason}");
+    assert!(!reason.contains("compiler view"));
+    assert!(Program::source_shapes_with_weights(config, 4, 2, WeightMode::Private).is_err());
+    assert!(
+        Publisher::new_with_weights(config, 4, 2, [1; 32], [2; 32], WeightMode::Public)
+            .err()
+            .unwrap()
+            .contains("public lookup work charge")
+    );
+    // Live views now fit, but the whole-work gate rejects before source import.
 }
 
 fn fixture(family: &str) -> (Arc<Program>, BTreeMap<String, Vec<i64>>) {

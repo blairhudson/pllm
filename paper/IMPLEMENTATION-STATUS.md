@@ -93,8 +93,10 @@ Completed foundations:
   source-certified Q18 files and computes complete public-weight products on
   replicated activations. Batched lookup predicates and stable argmax preserve
   private feedback; default private-weight identities remain. The common Qwen
-  metadata reaches the compiler-view memory gate, with no tensor execution or
-  full-checkpoint quality result. See the
+  metadata now clears the compiler-view gate through compact activation spans and
+  bounded tensor loops. Private lookup alone exceeds the existing declared-work
+  allowance; a new early gate rejects before tensor values or worker launch.
+  Full-checkpoint ranges, quality and response costs remain open. See the
   [public-weight contract](../docs/research/puma-truncation-reference.md#explicit-public-weight-adaptation).
 - The [FuseFSS scalar specification](reproduction-contracts/fusefss/README.md)
   freezes typed descriptors, a Protocol-3 compiler and independently checked GELU

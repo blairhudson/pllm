@@ -9,6 +9,7 @@ pub mod sdk;
 mod source;
 #[cfg(test)]
 mod tests;
+mod views;
 pub use program::{Program, SourceTensor};
 pub use public_source::{PublicSource, PublicSourceImport};
 pub use runtime::{PeerBytes, Worker};
@@ -18,6 +19,7 @@ use multiply::{arithmetic::Affine, tensor, InputBounds, Interval, MatrixShape};
 use pllm_core::puma::{self, multiply, Error};
 use sha2::{Digest as _, Sha256};
 use std::sync::Arc;
+use views::Words;
 use zeroize::Zeroizing;
 
 const ONE: i64 = 1 << 18;
@@ -49,7 +51,7 @@ enum Code {
         digest: [u8; 32],
     },
     PublicValues(Vec<i64>),
-    Gather(Vec<(usize, usize)>),
+    Gather(Words),
     SourceGather(SourceGather),
     Affine {
         left: usize,
@@ -74,6 +76,26 @@ enum Code {
         input: usize,
         program: Arc<tensor::Program>,
     },
+    TensorLoop {
+        input: LoopInput,
+        program: Arc<tensor::Program>,
+        tail: Option<Arc<tensor::Program>>,
+    },
+}
+
+/// Public-geometry-only loops. TokenOffsets forms the complete private one-hot
+/// input; Slice maps an elementwise primitive in original element order.
+#[derive(Clone, Copy)]
+enum LoopInput {
+    Slice(usize),
+    TokenOffsets { owner: usize, index: usize },
+}
+impl LoopInput {
+    fn owner(self) -> usize {
+        match self {
+            Self::Slice(id) | Self::TokenOffsets { owner: id, .. } => id,
+        }
+    }
 }
 
 /// Public row-major view of one immutable source owner. Only the bounded
@@ -134,11 +156,23 @@ struct Node {
 }
 
 impl Node {
+    fn work_units(&self) -> u64 {
+        match &self.code {
+            Code::Product { .. } => 1,
+            Code::Tensor { program, .. } => program.instructions() as u64 * 128,
+            Code::TensorLoop { program, tail, .. } => {
+                (self.lanes / program.lanes()) as u64 * program.instructions() as u64 * 128
+                    + tail.as_ref().map_or(0, |p| p.instructions() as u64 * 128)
+            }
+            _ => 0,
+        }
+    }
+
     fn inputs(&self) -> Vec<usize> {
         match &self.code {
             Code::Input(_) | Code::PublicInput { .. } | Code::PublicValues(_) => vec![],
             Code::Gather(items) => {
-                let mut result: Vec<_> = items.iter().map(|v| v.0).collect();
+                let mut result: Vec<_> = items.owners().collect();
                 result.sort_unstable();
                 result.dedup();
                 result
@@ -148,6 +182,7 @@ impl Node {
             Code::Product { left, right, .. } => vec![*left, *right],
             Code::PublicProduct { input, weight, .. } => vec![*input, *weight],
             Code::Tensor { input, .. } => vec![*input],
+            Code::TensorLoop { input, .. } => vec![input.owner()],
         }
     }
 }
