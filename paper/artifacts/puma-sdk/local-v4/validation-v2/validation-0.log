@@ -1,0 +1,12 @@
+........................................................................ [ 28%]
+........................................................................ [ 57%]
+..................s...sssss............................................. [ 86%]
+............s.....................                                       [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_reference_benchmark.py:294: Apple Silicon and pllm.run[metal] are required
+SKIPPED [1] tests/test_reference_benchmark.py:452: pinned checkpoint path is not configured: PLLM_REAL_QWEN_PATH
+SKIPPED [1] tests/test_reference_benchmark.py:452: pinned checkpoint path is not configured: PLLM_REAL_QWEN3_PATH
+SKIPPED [1] tests/test_reference_benchmark.py:452: pinned checkpoint path is not configured: PLLM_REAL_PHI_PATH
+SKIPPED [2] tests/test_reference_benchmark.py:506: pinned Phi checkpoint path is not configured
+SKIPPED [1] tests/test_benchmark_memory.py:429: could not import 'mlx.core': No module named 'mlx'
+243 passed, 7 skipped in 846.24s (0:14:06)

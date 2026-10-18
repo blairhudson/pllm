@@ -1,0 +1,216 @@
+{
+  "commands": {
+    "compile": [
+      [
+        "rustup",
+        "run",
+        "1.85.1",
+        "rustc",
+        "--edition=2021",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "debuginfo=0",
+        "--crate-name",
+        "allocator_unit",
+        "--test",
+        "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/src/bounded_allocator.rs",
+        "-o",
+        "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/target/20261017T211359-allocator-5eff1c13/allocator-unit"
+      ],
+      [
+        "rustup",
+        "run",
+        "1.85.1",
+        "rustc",
+        "--edition=2021",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "debuginfo=0",
+        "--crate-name",
+        "allocator_global_smoke",
+        "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/tests/allocator_global_smoke.rs",
+        "-o",
+        "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/target/20261017T211359-allocator-5eff1c13/allocator-global-smoke"
+      ]
+    ],
+    "run": [
+      [
+        "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/target/20261017T211359-allocator-5eff1c13/allocator-unit",
+        "--test-threads=1"
+      ],
+      [
+        "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/target/20261017T211359-allocator-5eff1c13/allocator-global-smoke"
+      ]
+    ]
+  },
+  "contract": {
+    "additional_swap_bytes": 0,
+    "additional_swapout_pages": 0,
+    "admitted": false,
+    "allocator": {
+      "allowance_classification": "enforced/reserved operational budgets; XNU kernel and non-Rust runtime sufficiency is not yet source-proved",
+      "charged_ceiling_bytes": 8438939648,
+      "full_process_upper_bound_bytes": null,
+      "header_bytes": 64,
+      "installation": "future staged executable uses #[global_allocator] BoundedAllocator::qualification(); original eager probe is unchanged",
+      "map_failure": "roll back reservation; return null without allocating diagnostics",
+      "maximum_live_or_pending_mappings": 4096,
+      "non_rust_runtime_allowance_bytes": 67108864,
+      "page_bytes": 16384,
+      "page_table_allowance_bytes": 16777216,
+      "per_mapping_bookkeeping_ticket_bytes": 32768,
+      "realloc": "same-size is identity; otherwise allocate-copy-unmap, charge both full mappings concurrently, preserve old allocation on allocation failure",
+      "release": "only successful munmap removes charged extent; no malloc cache, free list or uncharged registry",
+      "snapshot": "atomic counters are not a concurrent coherent RSS observation",
+      "source": "src/bounded_allocator.rs",
+      "target": "aarch64-apple-darwin",
+      "unmap_failure": "retain charge and map count, poison allocator, reject run; further allocations fail",
+      "zero_size": "alloc/alloc_zeroed defensively return null; GlobalAlloc dealloc still requires a valid original nonzero allocation; realloc-to-zero returns null and retains old allocation"
+    },
+    "backend": "poulpy_cpu_portable::NTT4x30Portable<Standard>",
+    "cpu_execution_threads": 1,
+    "execution_deadline_seconds": 600,
+    "guard_reserve_bytes": 67108864,
+    "hard_cap_enforcement_proves_completion": false,
+    "host_reserve_bytes": 4294967296,
+    "isolated_tests": {
+      "compile_owner_ceiling_bytes": 536870912,
+      "compile_seconds": 120,
+      "dependencies": [],
+      "disk_allocation_bytes": 134217728,
+      "disk_reserve_bytes": 8589934592,
+      "download_permitted": false,
+      "driver": "allocator_probe.py",
+      "edition": "2021",
+      "host_reserve_bytes": 4294967296,
+      "installed_toolchain": "1.85.1-aarch64-apple-darwin",
+      "qualification_toolchain": "nightly-2026-05-14",
+      "qualification_toolchain_revalidation_required": true,
+      "run_owner_ceiling_bytes": 134217728,
+      "run_seconds": 30,
+      "rustc_commit": "4eb161250e340c8f48f66e2b929ef4a5bed7c181",
+      "test_threads": 1
+    },
+    "lifetime_schedule": [
+      "Compile public context and serially generate/export one raw key at a time; no prepared 33-key bundle. Sparse and dense key identities remain unchanged.",
+      "Affine and ModUp: specialized public key owners only for current operation. End all views, drop owners and require unpoisoned allocator before subsequent stage.",
+      "C2S: keep at most seven same-role automorphism owners; prepare three baby keys, end map borrows, refill giant keys. Drop raw import and preparation scratch before reserving matrix-aware evaluation scratch.",
+      "Before next factor, finish all baby-cache borrows and drop its old cache. Allocate the new correct-width/cache-index owner; no metadata forgery or cross-role cast.",
+      "After C2S/split, drop all automorphism owners and DFT scratch. Load one specialized tensor owner; process real and imaginary EvalMod serially. Drop private temporaries and tensor owner before S2C keys.",
+      "S2C: same public split phases and seven-key maximum. Before second refresh all old phase owners have been dropped/unmapped; load the same immutable key material.",
+      "Keep five 28-limb outer ciphertext owners and one entry-width copy charged. Input is immutable through each refresh; checkpoint/digest validation precedes reuse. Copy/scale/slot metadata must follow original wrappers. Exact adapter type/liveness validation remains pending.",
+      "Reject any allocator poison/denial, unqualified key/entry/layout, nonfinite/error-threshold failure, third refresh, swap growth, resource or deadline breach. No fallback primitive or client refresh."
+    ],
+    "local_abi_evidence": {
+      "constants": {
+        "MAP_ANON": 4096,
+        "MAP_FAILED": -1,
+        "MAP_PRIVATE": 2,
+        "PROT_READ": 1,
+        "PROT_WRITE": 2
+      },
+      "meaning": "header/API identity, not a proof of XNU metadata allocation sizes",
+      "sdk_root": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+      "sys_mman_h_sha256": "07adbf7f11a601e6461ca508a2deca037103008600608f8dbe93a4b0887d46e9",
+      "unistd_h_sha256": "8d535079658f063bcef358ef4c1c1b52b8e88dacfc22cbf4db0f6bf8abe40637"
+    },
+    "maximum_refreshes": 2,
+    "owner_ceiling_bytes": 8589934592,
+    "phase_plan": {
+      "context_and_coefficient_setup": {
+        "gate": "public compile_eval_mod with exact plan; bound private cosine solver through actual dependency code; no replacement coefficients",
+        "operational_owner_target_bytes": 1073741824,
+        "source_completion_bound_bytes": null
+      },
+      "dft_loading_and_evaluation": {
+        "calculator": "allocator_plan.py",
+        "remaining_heap_charge_budget_bytes": 100663296,
+        "source_completion_bound_bytes": null,
+        "stream_buffer_charge_budget_bytes": 1048576
+      },
+      "evalmod": {
+        "gate": "tensor only; close all public query maxima and private owner/map counts before execution",
+        "known_coefficient_buffer_payload_upper_bytes": 528482304,
+        "source_completion_bound_bytes": null
+      },
+      "other_stages_and_io": {
+        "gate": "close affine/ModUp/split/re-entry/client codec, bounded parser/digest/checkpoint and file-cache ownership",
+        "source_completion_bound_bytes": null
+      },
+      "serial_key_generation": {
+        "known_payload_and_scratch_combination_bytes": 419430400,
+        "operational_owner_target_bytes": 1073741824,
+        "source_completion_bound_bytes": null
+      }
+    },
+    "poulpy_commit": "ca3532570ff62b96599a74f7adb85de7726b0446",
+    "preset": "n16_d35_k600_p19_c2s",
+    "schema": "pllm.poulpy-bounded-allocator-contract.v1",
+    "scope": "qualification harness allocation only; no upstream source, arithmetic, backend or protocol change",
+    "setup_deadline_seconds": 600,
+    "solver_dependency_plan": {
+      "consumer_lock_exists": false,
+      "download_or_resolution_performed": false,
+      "operations_to_bound": [
+        "DBig pi parse and base conversion",
+        "256-bit Context add/sub/mul/div and normalization",
+        "IBig/UBig capacity/reallocation/temporary buffers",
+        "clones and rounded Vec capacities",
+        "to_f64 and ordinary subtraction in fbig_to_scalar",
+        "panic/error-path and allocation-failure behavior"
+      ],
+      "policy": "freeze effective standalone dependency graph before build; require these exact solver identities/checksums, inspect feature-selected sources and bigint allocation paths; upstream lock is a reference, not a consumer lock",
+      "public_setup_entry": "Module::compile_eval_mod via public EvalModPlan; cosine module itself is crate-private",
+      "upstream_lock_sha256": "4f841f88c4b03c5ecea115f3277c52757bb874ab2536c5d85ca046445c902a39",
+      "upstream_solver_closure": [
+        {
+          "checksum": "4be5a53987dee3a7e9e874aad24cd42cf074f0aa1e6b4d1230189837ea672a49",
+          "name": "dashu-float",
+          "version": "0.6.2"
+        },
+        {
+          "checksum": "64a0490b40a6a3f6427970035f17f76fd59c01d3cd9f9140809672863a0d64c8",
+          "name": "dashu-int",
+          "version": "0.6.2"
+        },
+        {
+          "checksum": "861a614e79388a4c72aa66b0bdabc91e3a4f30d53e0c8d962953e207d75884d0",
+          "name": "dashu-base",
+          "version": "0.6.1"
+        },
+        {
+          "checksum": "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801",
+          "name": "cfg-if",
+          "version": "1.0.4"
+        },
+        {
+          "checksum": "bd8e500409e6cd603b03e477c26a6caecdc27ac58979a53e881c75eafc079f44",
+          "name": "num-modular",
+          "version": "0.6.5"
+        },
+        {
+          "checksum": "537b596b97c40fcf8056d153049eb22f481c17ebce72a513ec9286e4986d1bb6",
+          "name": "num-order",
+          "version": "1.2.0"
+        },
+        {
+          "checksum": "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f",
+          "name": "static_assertions",
+          "version": "1.1.0"
+        }
+      ]
+    },
+    "status": "adapter_implemented_native_validation_pending_completion_admission_blocked"
+  },
+  "input_sha256": {
+    "benchmarks/native/poulpy_refresh/allocator_plan.py": "4c8dab21f74d7591119033a36bcc17aadf27548e005fad5bdb2dc4a12e0af6cb",
+    "benchmarks/native/poulpy_refresh/allocator_probe.py": "fa5bdf09276c2141f038b4495fc7d9f533883ceca5fb7634180e9724aa90c3b4",
+    "benchmarks/native/poulpy_refresh/bounded-allocator-contract.json": "024d79ae904615a8462b3e4dd40747640f96b99415ed5db3bef4578ea414580c",
+    "benchmarks/native/poulpy_refresh/src/bounded_allocator.rs": "c9d1bb7998c6c5b4b1d9401cec656895f668dd66a5e36ccce411ad32d858f5a6",
+    "benchmarks/native/poulpy_refresh/tests/allocator_global_smoke.rs": "74899cd64e7a8559e18acf41e5d277fd9833e10480bc94561169d089cb7906a9",
+    "benchmarks/native/poulpy_refresh/tests/bounded_allocator_unit.rs": "4c16c13912e331c51e985fda04aad1444f54fd5b2c67d7e65af6714236ea941c",
+    "scripts/qualify_rust_ckks_refresh.py": "613a46099cfb0aede7d7f7793e68737308354ce33bde3bce2daf46d9814824b8"
+  }
+}

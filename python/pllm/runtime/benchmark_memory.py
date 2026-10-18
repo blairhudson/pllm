@@ -356,6 +356,7 @@ def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound
     except (ValueError, TypeError, OverflowError) as error:
         raise BenchmarkMemoryError("replicated source exceeds native admission") from error
     role = _slack(_PROCESS_BYTES + contract["execution_payload_estimate_bytes"], memory_safety_margin_percent)
+    public_weights = contract.get("weights") == "public"
     return {
         "scope": "conservative allocation estimate; not measured peak RSS",
         "model_plan_digest": None, "model_config_digest": contract["plan"]["config_digest"],
@@ -364,11 +365,15 @@ def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound
         "concurrent_response_bound": 1, "allocation_slack_percent": memory_safety_margin_percent,
         "client_peak_bytes": role, "provider_peak_bytes": {name: role for name in ("worker_a", "worker_b", "worker_c")},
         "docker_provider_peak_bytes": {}, "native_total_peak_bytes": 4 * role,
-        "preparation_storage": "none", "preparation_kernel": "none", "weight_storage": "party-local Q18 shares",
+        "preparation_storage": "none", "preparation_kernel": "none",
+        "weight_storage": "verified file-backed public Q18 weights" if public_weights else "party-local Q18 shares",
         "bundle_storage": "trusted client source publication", "mask_storage": "party-local pairwise PRSS",
-        "tensor_storage": "party-local full KV and Q18 activations",
+        "tensor_storage": "party-local recomputed prefix, KV and Q18 activations",
         "components": {"source_float32_bytes": contract["source_float32_bytes"],
-            "checkpoint_bytes": checkpoint_bytes, "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0},
+            "checkpoint_bytes": checkpoint_bytes,
+            "per_engine_compiled_disk_bytes": contract.get("public_weight_snapshot_bytes_per_worker", 0),
+            "public_weight_read_buffer_bytes": contract.get("public_weight_read_buffer_bytes", 0),
+            "raw_client_bundle_bytes": 0},
         "limitations": [],
     }
 

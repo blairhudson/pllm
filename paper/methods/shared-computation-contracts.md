@@ -3,18 +3,36 @@
 Review: 17 October 2026. Scope: SIGMA, FuseFSS, BumbleBee, and PUMA.
 
 **None currently has a qualified, complete independent PLLM implementation.**
-This document specifies the work and decisions required. It authorizes no substantial
-protocol, numerical, state, security, or execution adaptation. Named missing details
-are qualification blockers, not permission to choose convenient replacements.
+This document specifies remaining work and the scoped author approvals in
+[D6–D9](DECISIONS.md#d6-approved-puma-source-derived-q18-profile), dated
+17 October 2026. Approval of named profiles does not authorize other protocol,
+numeric, state, security or execution substitutions. Missing evaluated source
+details remain unknown; no method is promoted to complete status.
 
 Evidence: primary PDFs, [coverage audit](../TEN-METHOD-COVERAGE.md), component cards,
-and static inspection of the local paths below. No implementation, build, benchmark,
-model execution, or upstream software execution/linking was performed.
+and static inspection of the local paths below. The initial contract review was
+document-only. The later companion's scalar review added bounded independent
+tests without a native/model/benchmark run or upstream execution/linking.
+The subsequent [bounded PUMA truncation/PRSS reference](../../docs/research/puma-truncation-reference.md)
+records its separate native evidence. The present decision update changes
+documentation only and preserves all historical measurements.
 
 The independent [source-fidelity audit](../reproduction-contracts/shared-computation.md)
 adds immutable author-source inspections and concrete paper/code discrepancies.
 It preserves its original canonical snapshot by hash. The refinements below
 incorporate those findings; recommendations remain distinct from approval.
+
+The subsequent [scalar source-profile resolution](../reproduction-contracts/shared-profile-resolution.md)
+supplies explicit equations, source pins, table hashes, exact candidate HE primes,
+and independently written bounded arithmetic tests. Those scalar tests were
+executed; that review did not execute a native model or protected protocol.
+It closes several source-detail questions without qualifying an evaluated build.
+Its decision items now have explicit outcomes: D6 closes P-N1 adoption for
+`puma.source-derived-q18.v1`; D8 closes F-N1 adoption for
+`fusefss.source-derived-ring50-q12.v1`; D9 closes T-N1's feedback/tie/boundary
+choice. D7 retains BumbleBee's final-paper target, leaving B-N1 evaluated-manifest
+mapping and HE security open. Implementation, range, transport, SDK and quality
+gates remain. D1/D3 already approve Apple-M CPU-first and the separate common-Qwen track.
 
 ## 1. Source identity and reading convention
 
@@ -61,7 +79,8 @@ the papers. The [comparison contract](../COMPARISON-CONTRACT.md) remains separat
    default oracle for these papers. Never transfer author-reported scores or costs.
 4. **Make state explicit.** A complete original fixed-length model evaluation is
    the first vertical slice, not a complete serving comparator. Before serving,
-   bind protected state ownership, cache/recomputation policy, token feedback,
+   implement D9's approved fixed-count full-prefix feedback for these four
+   methods, and bind protected state ownership, token feedback,
    positions, lengths, pending token, EOS, sampler randomness, continuation,
    cancellation, and retirement. Test at least prefill plus two selections with
    actual feedback, including equal-score tie behavior and capacity boundaries.
@@ -120,12 +139,25 @@ the papers. The [comparison contract](../COMPARISON-CONTRACT.md) remains separat
 | Norm | Reciprocal-square-root LUT has 13 index bits: seven mantissa and six exponent bits, produced through interval lookup, multiplication, and TR. Preserve Fig.12's mean, untruncated sum of squares, `s+1` zero guard, adjusted input precision `2f+log2(k)`, learned affine terms, and justified GapARS operations. RMSNorm removes centering as specified; do not substitute host floats (S §5.3, p.10; App.H/Figs.11–12, pp.17–18). |
 | RoPE | Source Llama2 convention, public coefficients, reduced coefficient precision `f−3`, and the resulting proved-gap shift. Freeze position and coefficient rounding, including endpoints (S App.C, p.16). Modern RoPE variants are not implied. |
 
-**Qualification gaps:** S §3.1.1/Fig.1, p.4 describes embedding and the final
+**Closed scalar specifications:** the companion §2 gives full Q12 CPU
+GELU/SiLU/nExp table equations and hashes, inverse indexing, and integer-only
+generation of all 8,192 norm entries for arbitrary public width. Fig.12's
+`2f+log2(k)` becomes an exact rational factor k in that table; it requires no
+rounded logarithm. Preserve its approximate mean coefficient `floor(4096/k)`:
+at width 768 it is 5. A constant real-one row then normalizes to real ones,
+whereas width four normalizes to zero. This source-defined counterexample is
+tested; substituting exact division is a numeric change. The pinned CPU source
+confirms that mean coefficient but omits the paper's displayed `s+1` guard in
+the inspected norm path. The paper-defined profile retains the guard. These
+details permit native scalar/gate-schedule work before token-boundary completion.
+
+**Source gap and approved completion:** S §3.1.1/Fig.1, p.4 describes embedding and the final
 linear/softmax path but does not give a token-ID lookup protocol or a complete
-token-output/sampling API. Identify those boundary semantics before claiming a
-complete token-to-token implementation. The paper does not specify persistent
-KV append/read, cache ownership across calls, or cancellation/restart behavior.
-Do not infer a cache from the word “GPT.”
+token-output/sampling API. D9 approves explicit protected equality→one-hot
+embedding, final normalization and complete head, charged in full, with fixed-count
+full-prefix feedback, lowest-index protected argmax and final client-only IDs.
+Their implementation/qualification is still required. Persistent KV and
+cross-request continuation remain unspecified and unapproved by this completion.
 
 ### Required PLLM work and honest reuse
 
@@ -156,7 +188,8 @@ Do not infer a cache from the word “GPT.”
 **Minimum complete-model slice:** full original GPT-2, 12 blocks/768 hidden,
 128-token input, Q12/ring50, source CPU schedule or source GPU schedule explicitly
 selected. Include embedding, positions, all layers, full head, and source-qualified
-result disclosure. Boundary qualification above remains a prerequisite. The
+result disclosure under D9. Complete boundary implementation/qualification remains
+a prerequisite. The
 published CPU implementation is a faithful device choice; a CPU execution of
 today's Qwen gate is not its reproduction.
 
@@ -195,8 +228,17 @@ eliminate that material. No existing local component limit admits the full model
   is not supplied; signed ARS is two's-complement floor shift (F §§3.2–3.5, p.3).
   F App.B.3, p.14 says activation benchmarks compile SIGMA's same fixed-point
   operator specifications. It does not publish a complete per-model width/scale,
-  rounding, LUT/coefficient, or rescaling manifest. Qualify that manifest; do not
-  silently equate nearest encoding with SIGMA's floor encoding.
+   rounding, LUT/coefficient, or rescaling manifest. D8 selects nearest-even
+   external encoding for the named source-derived ring50/Q12 profile, while
+   preserving SIGMA's floor-defined internal tables/rescales. This closes no
+   evaluated-manifest gap and does not equate the two encoding rules.
+- **Compiler algebra is independently implementable now:** the companion §5
+  freezes Protocol 3's first-eligible-interval padding, full-domain/sentinel
+  handling, mask rewrites, and original-x Horner evaluation. Its all-partition,
+   all-mask small-ring oracle needs no guessed float tie policy. D8 closes F-N1's
+   choice for `fusefss.source-derived-ring50-q12.v1`; exact per-gate descriptors,
+   secure backends/Phi and full graph still require implementation and validation.
+   The named interpretation does not establish evaluated-source identity.
 - A public typed descriptor gives a full canonical interval partition,
   degree-bounded arithmetic pieces, Boolean predicates, and fixed-point metadata.
   A fixed share-based post-processing circuit `Φ` supplies truncation, corrections,
@@ -221,6 +263,10 @@ eliminate that material. No existing local component limit admits the full model
   does not automatically certify a new PLLM backend or output/state extension
   (F pp.6–7,24–25).
 
+The bounded [D8 GELU descriptor/compiler reference](../reproduction-contracts/fusefss/README.md)
+freezes typed scalar semantics, source hashes and independent conformance vectors.
+It is a non-production reference; protected backends and complete-method gates remain open.
+
 ### Required PLLM work and honest reuse
 
 - **Native/compiler:** general typed descriptor IR, Protocol 3 compiler,
@@ -243,12 +289,14 @@ eliminate that material. No existing local component limit admits the full model
   dealer, client float bridge, wider fixed keys, and CPU scheduling cannot supply
   the source's whole-model contract. `FuseFssPredicateFusion` remains pending.
 
-**Minimum complete-model slice:** original GPT-2 at 128 tokens, using a qualified
-full numerical manifest and the source two-server/dealer topology. Compile all
+**Minimum complete-model slice:** original GPT-2 at 128 tokens, using D8's approved
+named numerical profile and the source two-server/dealer topology. Freeze and validate
+its full descriptor manifest. Compile all
 applicable activation, nExp, reciprocal/rsqrt, and rescaling gates through the
 general compiler; execute embedding, complete body/head, and vector reductions.
 Pair it with an independent unfused interpreter/protocol using exactly the same
-descriptor semantics. Boundary/output and recurrent-state qualification remain
+descriptor semantics. Implement and charge D9's embedding/final norm/head and
+fixed-count private feedback; boundary/output and lifecycle qualification remain
 required; one fused activation is not this slice.
 
 **Oracles/admission:** exhaustive small-domain descriptor interpretation versus
@@ -292,9 +340,10 @@ not new PLLM network measurements.
 | Activations | Wide GeLU has tails `−ε`, `x−ε`, cubic/sixth-degree middle pieces at −5, −1.97, 3. Mixed GeLU may use the degree-four `0.5x+Σc_i|x|^i` profile on `[-2.7,2.7]`. SiLU uses tails and quadratic/sixth-degree pieces at −8, −4, 4. Bind the actual decimal constants in App.D, p.17, not a new fit. Retain square/cubic reuse and batched approximate branch selection; source uses Ferret OT, 16-way messages, and a 50-bit MSB input for the stated wide branch selection (B pp.8–11,17–18). |
 | Softmax/norm | Protected maximum, shifted negative exp, sum, one reciprocal then broadcast/products. Evaluated exp uses `Texp=−14`, six squarings of `1+x/64`; the illustrative §V.B example uses −13. Approximate branch selection, truncations, reciprocal and rsqrt are part of the contract. Freeze mixed-profile thresholds/precision separately (B pp.9–11; App.A, p.15). |
 
-**Qualification gaps:** exact tie rules for Lift/Down; concrete truncation,
-reciprocal/rsqrt schedules; approximate-comparison treatment at interval endpoints;
-positive-extension bound; and normalization divisor/epsilon. Eq.(2), p.8 and
+**Final-paper association gaps:** the pinned candidate now specifies Lift ties,
+truncation, reciprocal/rsqrt, approximate endpoints and the extension offset/range
+below. Their association with the evaluated final-paper profile remains missing,
+as does its normalization divisor/epsilon. Eq.(2), p.8 and
 Alg.3, p.9 also need reconciliation: Alg.3 adds `ε` to polynomial pieces but
 does not show the final subtraction needed for Eq.(2)'s tails. Its inequality
 tests and interval annotations disagree at endpoints. B p.4 writes the
@@ -302,6 +351,24 @@ normalization denominator using a sum of squared deviations, not an explicitly
 averaged variance. Checkpoint-equivalent treatment must be resolved, not silently
 corrected. Source's approximate HE conversion also precludes promising exact
 ring equality for every complete execution without specifying its error model.
+
+**New static resolutions and conflicts:** companion §4 derives the actual pinned
+extension offset `M=2^(width−2)` and sufficient signed range `[-M,M)`, plus the
+share-dependent dropped-bit comparison and truncation laws. At a comparison
+pivot, uniform share splits can yield less-than with probability `1−2^-d` when
+d low bits are locally dropped; deterministic endpoint tests are not faithful.
+Pinned modulus-up is nearest/ties-up on unsigned representatives; modulus-down
+by an odd modulus cannot encounter exact half ties. The candidate encoder casts
+toward zero, conflicting with the paper's floor encoding. Candidate SiLU is also
+a degree-four sigmoid-based construction, not the final-paper polynomial.
+Ordered candidate HE primes are now derived independently from the source
+factory: OLT uses nominal 218-bit key/163-bit data contexts, and enabled-error
+bOLE uses a 159-bit ciphertext modulus and three 47-bit plaintext primes.
+These do not resolve the final-paper 147/148-bit profiles by equivalence. D7
+retains the final-paper target and does not adopt the Q16 artifact. B-N1's
+enumerated evaluated-final-paper numeric/HE mapping and HE security remain open.
+Pure packing/conversion
+algebra can proceed; protected whole-model numeric identity remains unqualified.
 
 ### Required PLLM work and honest reuse
 
@@ -329,8 +396,9 @@ ring equality for every complete execution without specifying its error model.
 **Minimum complete-model slice:** original GPT2-base, 128 input tokens, one top-1
 output, source ring64/Q18 with its declared mixed nonlinear profile. Include
 secure ID→one-hot, private embedding, all 12 blocks, full head, and protected
-argmax. The source's measured top-1 output does not authorize releasing complete
-logits for arbitrary client sampling. Resolve numerical gaps before acceptance.
+argmax. D9 selects lowest-index ties, fixed-count full-prefix feedback and final
+client-only token IDs; full logits are not approved. Resolve B-N1's numeric/HE
+mapping and implement/validate the complete transaction before acceptance.
 
 **Oracles/admission:** compare packing/matmul/ParseMat to independent modular
 matrix products at full and partial block boundaries; test both OLT directions,
@@ -371,14 +439,30 @@ complete-lifecycle contract without rebranding source timings.
   Implement the referenced setup for correlated randomness; do not introduce a
   dealer who knows all live private state (P §3.3, p.3).
 
-### Numerical contract and unresolved paper details
+### Numerical contract, approved profile and unresolved source identity
+
+**D6 selects `puma.source-derived-q18.v1`**, exactly the companion's §3.3
+interpretation. P-N1's approval gate is closed for that profile, including its
+fixed constants/order and corrected formulas. This is not a bit-identical claim
+about the unavailable evaluated graph. Operator/graph implementation, range
+proofs, transport, SDK and quality remain open.
 
 - **Base arithmetic:** ring64/Q18 (P §5, p.6). Protected `Trunc_f` follows
   fixed-point multiplication/square and is implicit in their notation (P p.4).
   The PDF does not fix input rounding, the exact truncation distribution/failure
   bound, or reciprocal/rsqrt algorithms: these are black-box dependencies citing
   ABY3, Lu et al., and MP-SPDZ (P pp.3–4). Resolve the underlying constructions
-  and bounds before claiming exact numerical identity.
+   and bounds before claiming original evaluated numerical identity; D6's named
+   profile uses the resolved pinned construction below.
+- **Candidate truncation law resolved:** companion §3 derives pinned `TruncAPr`
+  exactly as `floor(X/2^b)+[(X mod 2^b)+(R mod 2^b)>=2^b]` for a fresh uniform
+  mask R and `X in [-2^(ell−2),2^(ell−2))`. Its probability of rounding up is
+  `(X mod 2^b)/2^b`; exact multiples are exact. It is not deterministic floor.
+  Exhaustive small-ring tests establish the arithmetic identity. The companion
+  also specifies two-iteration reciprocal, rsqrt power/compensation order,
+  binary32-derived Q18 constants and reproducible test tapes. Evaluated-build
+   association remains unestablished. D6 fixes the stated scalar placement/order;
+   complete graph lowering and per-product range proofs remain gates.
 - **GeLU:** P Eq.(2)–(3)/Alg.1, p.5 specifies `0` below −4, a cubic on
   `[-4,−1.95)`, a sixth-degree polynomial on `[-1.95,3]`, and identity above 3.
   Freeze the printed coefficients verbatim, coefficient encoding, powers
@@ -390,10 +474,12 @@ complete-lifecycle contract without rebranding source timings.
   pp.5–6). **Alg.2 conflicts with that description:** its comparison is on the
   original `x` before max subtraction, and its mask is applied after normalization.
   The printed algorithm therefore does not simply implement clipped exp on the
-  shifted input. This requires source clarification or an approved correction.
+   shifted input. D6 approves §3.3's shifted clipping before summation and five
+   protected squares for the named profile; the printed conflict remains evidence.
 - **Epsilon/range:** suggested `10^-6` is below one Q18 unit (`2^-18`), so it
   need not survive encoding. Do not claim strictly negative exponent inputs until
-  the encoded epsilon is fixed. Preserve secure max, clipping, and normalization;
+   the encoded epsilon is fixed. D6 explicitly selects encoded-zero exponential
+   epsilon. Preserve secure max, clipping, and normalization;
   do not substitute a public shift or narrow checkpoint-dependent score range.
 - **Embedding:** compute Boolean one-hot shares via `Eq(i,id)` for every vocabulary
   entry, then Boolean–arithmetic multiplication with shared embeddings. No
@@ -402,12 +488,14 @@ complete-lifecycle contract without rebranding source timings.
 - **Normalization:** Alg.3, p.7 uses shared mean, sum of squared deviations,
   one rsqrt, broadcast multiplication, and learned affine terms. Printed
   `σ=Σ(x−μ)²` lacks the usual variance division by width and explicit epsilon.
-  Resolve the evaluated semantics instead of silently inserting either.
+   D6 explicitly selects §3.3's centered mean-square variance and encoded epsilon
+   two. This approved interpretation does not resolve the evaluated semantics.
 - **LLaMA:** App.B, p.12 directs readers outside the PDF for the SiLU polynomial
   coefficients. The independent audit locates them in the cited example at a
   contemporaneous pinned SPU revision. Its zero/identity tails and multiplication
   order are explicit. Association with the evaluated build, encoding, compiler
-  lowering, RoPE/RMSNorm and sampling still require qualification. Borrowing
+   lowering and RoPE/RMSNorm still require qualification; D9 now fixes selection
+   and feedback for the named transaction. Borrowing
   BumbleBee's different tails or SIGMA LUTs would create an adaptation. GPT2
   remains the better first slice.
 
@@ -420,19 +508,32 @@ The independent audit records exact commits, paths and hashes for these findings
   norm/head. It cannot supply a complete token-boundary specification by itself.
 - **FuseFSS:** nearest encoding remains distinct from SIGMA floor encoding.
   The evaluated tie rule, per-edge widths/scales and descriptor bytes still need
-  discovery. A named development descriptor does not establish evaluated identity.
+  discovery for original-artifact fidelity. D8's named nearest-even external /
+  floor-internal profile is approved; its descriptors still need implementation.
 - **BumbleBee:** the final paper's ring64/Q18, six-squaring profile differs from
   the pinned example's Q16/four-squaring configuration. The mixed GELU interval
-  is ±2.7 in the paper and ±3 in the inspected code. Recover evaluated settings
-  or obtain approval for a complete paper-derived profile before those kernels.
+  is ±2.7 in the paper and ±3 in the inspected code. D7 retains the final-paper
+  target; evaluated settings, source mapping and HE security remain blockers.
 - **PUMA:** the inspected source supplies candidate cast, `TruncAPr`, Goldschmidt
   and inverse-square-root rules. It clips shifted exponentials before summation,
   unlike literal Algorithm 2. The normalization variance/epsilon discrepancy
-  remains substantive. These source-derived candidates need explicit resolution;
-  coefficient discovery alone does not qualify the full numerical graph.
+  remains substantive evidence. D6 now resolves the named interpretation;
+  coefficient discovery/approval alone does not qualify the full numerical graph. More
+  precisely, shifted clipping/five squares is evidenced by the Llama example;
+  the pinned generic GPT-2 example has no replacement hooks and defaults to
+  eight exp iterations. It cannot certify PUMA's evaluated GPT-2 graph. P-N1 in
+  the companion now gives the approved named Q18 scalar graph, corrected
+  centered mean-square norm with encoded epsilon two, and exact consequences
+  versus literal Algorithms 2–3. The correction is approved for D6's profile,
+  not certified as the unavailable evaluated graph.
 - **Feedback:** the inspected PUMA/BumbleBee generation examples recompute the
   growing prefix. Persistent protected KV is a separate proposed extension,
-  not a feature established by those loops.
+  not a feature established by those loops. They execute a public fixed number
+  of private greedy selections, append IDs privately, and reveal the final ID
+  array only after the loop, without EOS-dependent termination. D9 closes T-N1
+  with lowest-index protected argmax, final client-only IDs, and explicitly
+  added/charged SIGMA/FuseFSS embedding, final normalization and complete head.
+  Protected execution and lifecycle/quality/cost qualification remain open.
 
 ### Required PLLM work and honest reuse
 
@@ -458,9 +559,10 @@ The independent audit records exact commits, paths and hashes for these findings
   sharing. Existing W8A8/ring32 linears and clear KV are not substitutes.
 
 **Minimum complete-model slice:** original GPT2-base, all 12 blocks, 32-token
-input, complete shared embedding/body/head, client-authorized output. Then a
-two-output feedback case, consistent with P's generation coverage. Gate this on
-the truncation, softmax, normalization, and output-selection resolutions above.
+input, complete shared embedding/body/head under D6 and D9. Then a two-output
+fixed-count full-prefix feedback case with final client-only IDs. Choice gates
+are resolved; require implementation of the approved scalar graph, per-product
+range proofs, complete boundary/lifecycle admission and independent quality checks.
 Require protected intermediate tensors and all three actual online roles.
 
 **Oracles/admission:** validate reconstruction and replicated-pair consistency,
@@ -473,26 +575,35 @@ Uncompressed ring64 model storage alone is `2·8·P` bytes **per computing party
 for `P` parameters, before copies, state, scratch, or serialization. This is an
 admission formula, not measured RSS or proof that all such storage must be resident.
 
-## 7. Approval questions and faithful defaults
+[D11](DECISIONS.md#d11-explicit-public-weight-puma-adaptation) additionally approves
+an explicit public-weight adaptation. Its file-backed public coefficients and
+batched protected token boundaries retain a separate composition/numeric identity;
+the private-weight source method above remains distinct. The
+[installed bounded contract](../../docs/research/puma-truncation-reference.md#explicit-public-weight-adaptation)
+records current source, compiler, range and full-checkpoint gates.
 
-Request approval **before** implementing any departure below. A source ambiguity
+## 7. Resolved decisions and remaining adaptation questions
+
+D6–D9 close only the choices explicitly marked resolved below. Request approval
+**before** implementing any additional departure. A source ambiguity
 can instead be resolved by additional pinned documentary/static source evidence;
 never execute or link upstream implementations as the resolution method.
 
 | ID / scope | Concrete question for the user | Recommended faithful default |
 | --- | --- | --- |
-| A1 — common model | May we add a separately labeled Qwen/Llama adaptation, replacing original checkpoints/tokenizers, dimensions, embedding vocabulary, positional encoding, biases, norm/MLP definitions, attention grouping, and possibly Q/K normalization? Which exact checkpoint/revision? | First complete each original GPT2 workload. For later Llama work, retain each source generation: SIGMA Llama2; FuseFSS includes Llama-3.1; BumbleBee/PUMA original LLaMA. Do not assume one family name means one graph. |
-| A2 — precision | May we replace source fixed-point arithmetic with PLLM W8A8/ring32, change fractional bits, rounding, overflow, LUT/polynomial, or truncation order? If needed for modern-model ranges, may we widen rings and rederive all gap proofs? | Preserve each paper's separate numeric identity. No silent Q24 client bridge, ties-even substitution, calibration from private prompts, or rescaled approximation tails. Widening is an approved new profile. |
-| A3 — unresolved numerics | For PUMA, will you authorize a documented correction/choice for Alg.2 versus Eq.(5), encoded epsilon, normalization, and underlying truncation/reciprocal? For BumbleBee, which activation endpoint/offset semantics, mixed profile, ring-extension bound, H2A error policy, and normalization? For FuseFSS, which tie rule and complete per-model descriptor manifest? | Resolve against pinned source evidence first. Otherwise keep the complete method unqualified; any authorized correction gets a new explicit identity. Candidate SiLU coefficients are pinned; evaluated-build association, encoding, lowering, and LLaMA graph remain unqualified. |
-| A4 — SIGMA/FuseFSS boundaries | May we complete under-specified token input/output boundaries with protected full-vocabulary lookup/head composition using their existing arithmetic protocols? What result may the client receive: task result, token, probabilities, or full logits? | Qualify original boundary semantics first. Charge every added operation and preserve private-model SIGMA versus public-model FuseFSS assumptions. |
+| A1 — common model | D3 already approves the pinned separate Qwen2.5-0.5B-Instruct track. Its numerical/state mappings still need qualification. | Preserve original-model validation and each source generation: SIGMA Llama2; FuseFSS includes Llama-3.1; BumbleBee/PUMA original LLaMA. Do not assume one family name means one graph. |
+| A2 — precision | May we replace source fixed-point arithmetic with PLLM W8A8/ring32, change fractional bits, rounding, overflow, LUT/polynomial, or truncation order? If needed for modern-model ranges, may we widen rings and rederive all gap proofs? | Preserve each paper's separate numeric identity and D6/D8's explicit choices. No silent Q24 client bridge, ties-even substitution, calibration from private prompts, or rescaled approximation tails. Any widening requires a separately approved profile. |
+| A3 — numeric profiles | D6/D8 close P-N1/F-N1 adoption for their named profiles. D7 retains BumbleBee final-paper target; B-N1 evaluated numeric/HE mapping remains open. | Preserve exact approved rounding/constants/order; source unknowns remain unknown. Named interpretations do not establish evaluated-artifact fidelity or complete-method quality. |
+| A4 — SIGMA/FuseFSS boundaries | D9 approves protected equality→one-hot embedding, final normalization and full vocabulary head, with final client-only token IDs. | Implement and charge every added operation; preserve private-model SIGMA versus public-model FuseFSS roles and weight privacy. Boundary approval is not execution evidence. |
 | A5 — decode/state | May we extend the fixed-length workloads with persistent protected KV, incremental attention, protected append/read and position handling, and cancellation/restart semantics? May the client receive state? | Keep state in each method's protected representation. Start with source workload; declare a complete-request extension before claiming serving coverage. Never reuse consumed masks/triples after restart. |
-| A6 — sampling | May we replace BumbleBee's top-1 output with full-logit disclosure or stochastic sampling? For other methods, which fully specified selection/tie/RNG/EOS policy resolves missing details? | BumbleBee protected top-1. Freeze an authorized policy for the others; a client sampler must not receive additional outputs merely because PLLM expects them. |
-| A7 — device | For FuseFSS, may we build a CPU backend preserving compiler, precision, protocols, and material accounting instead of the evaluated Blackwell GPU path? For SIGMA, which published CPU/GPU schedule should govern? | SIGMA's published CPU branch is faithful; BumbleBee and PUMA already evaluate on CPUs. FuseFSS defaults to source GPU execution. CPU availability does not justify replacing protected computation with clear kernels or claiming GPU-equivalent performance. |
-| A8 — roles/setup | May we change private models to public weights, move client computation to two servers, colocate the trusted dealer with an online party, replace distributed OT with local issuance, or reduce PUMA to two online roles? | No topology/security substitutions. Keep SIGMA dealer + two owners, FuseFSS client + two servers + dealer, BumbleBee client/server 2PC, and PUMA three online share holders. |
+| A6 — sampling/feedback | D9 closes T-N1: fixed public count, full-prefix recomputation, lowest-index protected argmax, private IDs throughout, final client-only ID reveal. | No streaming/logits/stochastic-sampling/EOS-short-circuit approval. Preserve method roles and fresh per-step material; implement and test actual feedback/cancellation. |
+| A7 — device | D1 already approves Apple-M CPU-first execution, including explicitly labeled CPU ports. | Keep SIGMA's source CPU schedule; preserve FuseFSS compiler, precision, protocols and material accounting in its CPU port. GPU source timings remain separate. BumbleBee and PUMA already evaluate on CPUs. |
+| A8 — roles/setup | D11 approves a separate public-weight PUMA mode alongside the private-weight method. Moving client computation to two servers, dealer colocation, local OT issuance or fewer PUMA parties still requires approval. | Keep the two PUMA weight contracts distinct and retain three online share holders. SIGMA dealer + two owners, FuseFSS client + two servers + dealer and BumbleBee client/server 2PC retain their source contracts. |
 | A9 — cryptographic backend | May we retain PLLM's different DPF seed format, bounded HE parameters, or replacement OT/conversion backend rather than reproduce the source construction/parameters? | Source construction first, independently implemented. Existing bounded algebra can seed development, but backend substitutions need explicit security, numerical, and cost qualification. |
 | A10 — admission | If the original model/device/material budget does not fit, may we use different public tile sizes or a separate reduced-workload/profile for development? | Reject before allocation and report unresolved admission. A smaller model, one layer, lower precision, omitted setup, or client-local fallback cannot fill a complete source-system result. |
 
-**Recommended order:** qualify missing numeric/boundary details; implement the
-complete original GPT2 slices; validate source-specific semantics and privacy
-boundaries; then seek approval for common-model and complete-serving extensions.
-All adaptation and performance claims remain absent until their own evidence exists.
+**Recommended order:** implement the approved named numeric graphs and D9
+boundaries with range/admission proofs; resolve BumbleBee's final-paper mapping;
+qualify complete original GPT2 slices through D5, then the already approved D3
+common-model track. Further state/protocol changes still need their own approval.
+Correctness, quality and performance claims require their own evidence.

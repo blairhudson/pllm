@@ -1,0 +1,44 @@
+{
+  "schema": "pllm.poulpy-staged-lifetime-sources.v1",
+  "review_date": "2026-10-17",
+  "repository": "https://github.com/poulpy-fhe/poulpy",
+  "commit": "ca3532570ff62b96599a74f7adb85de7726b0446",
+  "version": "0.9.0",
+  "admitted": false,
+  "execution_performed": false,
+  "verification": {
+    "inherited_sha256_verified_count": 81,
+    "supplementary_sha256_and_pinned_git_blob_verified_count": 13,
+    "tree_url": "https://api.github.com/repos/poulpy-fhe/poulpy/git/trees/ca3532570ff62b96599a74f7adb85de7726b0446?recursive=1",
+    "tree_truncated": false,
+    "method": "Hash existing source text; compare A01-A12 Git blob SHA-1 to immutable tree metadata and A13 to pinned contents metadata. No backend execution or dependency downloads."
+  },
+  "inherited_manifests": [
+    {"path": "paper/methods/poulpy-key-residency.sources.json", "sha256": "f9e62181eb148e474d17262dd41c981416ba29307e401125cb67734b366ad43c"},
+    {"path": "paper/methods/poulpy-staged-owner-bound.sources.json", "sha256": "4fbf13cdbf84f5cdb6fd12b77c854fa05881408b051e9b4a3707a69f1721727b"}
+  ],
+  "claim_locators": {
+    "complete_matrix_scratch": ["S07:313-377", "S22:75-117", "S22:257-291", "S52:38-52", "S52:646-648", "S52:737-739", "S54:361-397", "A13:155-157"],
+    "other_scratch_branch_bounds": ["S19:79-115", "S21:27-74", "S26:1521-1541", "S51:39-61", "S51:437-494", "S71:268-303", "S71:2472-2478", "S71:2588-2598", "S73:183-216", "S73:551-555", "A03:29-84", "A05:11-19", "A06:11-19", "A07:11-19", "A08:19-24", "A08:62-67", "A09:97-104", "A10:33-35", "A11:8-10", "A12:8-10"],
+    "baby_cache_lifetime": ["S18:125-183", "S19:53-65", "S19:222-272"],
+    "typed_tensor_boundary": ["S16:48-50", "S39:15-15", "S39:75-92", "S39:154-164"],
+    "generic_switching_exception": ["S03:61-79", "S05:820-830", "S25:207-229", "S70:213-219", "S70:236-245", "A04:153-171"],
+    "allocator_and_private_vmp": ["S49:98-127", "S58:46-83", "S58:118-140"],
+    "solver_dependency_boundary": ["S81:12-30", "S81:51-64", "S81:110-158", "S81:256-393", "S81:403-409", "S81:449-464", "A01:241-274", "A02:30-31"]
+  },
+  "supplementary_sources": [
+    {"id": "A01", "path": "Cargo.lock", "sha256": "4f841f88c4b03c5ecea115f3277c52757bb874ab2536c5d85ca046445c902a39", "git_blob_sha1": "95e915471c0a840b4bc5b628bc8cc571eb7b7bd8"},
+    {"id": "A02", "path": "Cargo.toml", "sha256": "afdaf899eb725c3413ffb79f91d2c5ffffba241caf3663dffc0455b7be2b5399", "git_blob_sha1": "0e91c0dbeba13df7def47d7ab85491b681e61f07"},
+    {"id": "A03", "path": "poulpy-core/src/reference/automorphism/glwe.rs", "sha256": "293db19fbb5c3add80cd147de63fa5a5a45505ca2329e72250189923b44e7c02", "git_blob_sha1": "436e883662d4518b245edae6e739bb7c7865f22e"},
+    {"id": "A04", "path": "poulpy-core/src/layouts/prepared/glwe_switching_key.rs", "sha256": "c7e1886f9951b4e2bce589dbdba11531b855061f4374e3f89c3c492c0bfe1b4c", "git_blob_sha1": "af00859831a910692b2d77d664af8f89f278240a"},
+    {"id": "A05", "path": "poulpy-ckks/src/reference/copy.rs", "sha256": "21e1f7bede09092c9c387f2608bfd9a03695be3841c3a272f4f80d20809e44e8", "git_blob_sha1": "42ac63b3c446ac78bbb47a08c1c71134666ed11b"},
+    {"id": "A06", "path": "poulpy-ckks/src/reference/rotate.rs", "sha256": "85fd411674a483b176a370e3270b4b45c3fcd75642db52543232c46ae587ee3c", "git_blob_sha1": "5524fb24e7905cfab3b31c83d2c856463948ec3a"},
+    {"id": "A07", "path": "poulpy-ckks/src/reference/conjugate.rs", "sha256": "9b17b63522b803ccaefc53dfeb3ab1481ceee0b5322ac4690fbebbdf520eb112", "git_blob_sha1": "4eb738484cb542cdea2a7ca2357182bd4295c5dd"},
+    {"id": "A08", "path": "poulpy-ckks/src/reference/imag.rs", "sha256": "24898c82cedb1f6223bbfb11612f5bdbad02d47729a7a9691f3484e91ac0c29e", "git_blob_sha1": "f516cd98804ee83c6643a74a231a216ee6c0f1b5"},
+    {"id": "A09", "path": "poulpy-ckks/src/reference/carry_verb.rs", "sha256": "36918619ffd3bed2613111853be6ce61fb59e978da08d31a79623f2b4a5383bd", "git_blob_sha1": "aea7946f5e69bc1ea63ebff12cc164228ba045c4"},
+    {"id": "A10", "path": "poulpy-cpu-portable/src/kernels/vec_znx/normalize.rs", "sha256": "de36513069a88fca26ba25fe3c5a9563d8b107dd1b7162a87d21d028be719183", "git_blob_sha1": "c53dfce7173a0fc1145a8caa8981d5acea396a1d"},
+    {"id": "A11", "path": "poulpy-cpu-portable/src/kernels/vec_znx/automorphism.rs", "sha256": "1d2c794ba888915777475ee6bc443b0099e4381e2f08fd9ab38757b6acb4b317", "git_blob_sha1": "1bf8dfc27b19d52e3fac488ccddc61a564b69792"},
+    {"id": "A12", "path": "poulpy-cpu-portable/src/kernels/vec_znx/rotate.rs", "sha256": "8ffb26751cbd0f9bac7de6860bc7c0c9b38d2d79f9d04f81141a689c39c6d6ce", "git_blob_sha1": "5cdc6f3c9d1751b6c3c361f01571802642c980d6"},
+    {"id": "A13", "path": "poulpy-cpu-portable/src/hal_impl/vec_znx_dft.rs", "sha256": "96376c66a37677c7e09d660f8130fc9da257bdb7f1ad5ad66a2106fbfe387aa7", "git_blob_sha1": "b06c89f0a3a0030f408b56048895d3dca4eed094"}
+  ]
+}

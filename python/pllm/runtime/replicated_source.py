@@ -26,22 +26,16 @@ class ReplicatedSource(source_io.AdmittedSource):
     def runtime_contract_digest(self):
         return hashlib.sha256(b"pllm.replicated.sdk-contract.v1\0" + self.runtime_contract_bytes).hexdigest()
 
-    def publisher(self, experiment, ids, outputs, cancelled):
-        self.runtime_contract(experiment, len(ids), outputs)
+    def _append_source(self, shapes, append, cancelled):
         expected = (self.checkpoint_digest, self.source_lock_digest, self.source_lock)
-        if source_io._locked(self.path, self.model, self.source_float32_bytes, self._identities) != expected:
+        if source_io._locked(self.path, self.model, self.source_float32_bytes, self._identities, self.capacity) != expected:
             raise ValueError("replicated source changed after admission")
         store, specs = source_io._store(self.path, self._identities, self.contract)
-        owner = None
         try:
             if specs != self._tensor_specs:
                 raise ValueError("replicated source metadata changed")
-            owner = _native.ReplicatedPublisher(
-                self.config_bytes, len(ids), outputs, bytes.fromhex(self.source_lock_digest),
-                bytes.fromhex(experiment.pipeline.digest()),
-            )
             identities, specs = dict(self._identities), dict(specs)
-            for key, shape in owner.shapes:
+            for key, shape in shapes:
                 filename, actual_shape, dtype, offset, size = specs[store.resolve(key)]
                 if tuple(shape) != actual_shape:
                     raise ValueError("replicated source shape changed")
@@ -52,18 +46,39 @@ class ReplicatedSource(source_io.AdmittedSource):
                     count = min(4096, math.prod(shape) - begin)
                     frame = source_io._source_float_frame(self.path / filename, identities[filename],
                                                          offset + begin * itemsize, count, dtype)
-                    owner.append(key, begin, frame)
+                    append(key, begin, frame)
                     del frame
-            if source_io._locked(self.path, self.model, self.source_float32_bytes, self._identities) != expected:
+            if source_io._locked(self.path, self.model, self.source_float32_bytes, self._identities, self.capacity) != expected:
                 raise ValueError("replicated source changed during import")
+        finally:
+            store.clear_cache()
+
+    def populate_public_worker(self, owner, cancelled):
+        try:
+            if self.contract.get("weights") != "public":
+                raise ValueError("public worker requires public weights")
+            self._append_source(sorted(self.contract["source_shapes"].items()), owner.append_public_source, cancelled)
+            if cancelled():
+                raise ValueError("replicated source import cancelled")
+            owner.seal_public_source()
+        except BaseException:
+            owner.close()
+            raise
+
+    def publisher(self, experiment, ids, outputs, cancelled):
+        self.runtime_contract(experiment, len(ids), outputs)
+        owner = _native.ReplicatedPublisher(
+            self.config_bytes, len(ids), outputs, bytes.fromhex(self.source_lock_digest),
+            bytes.fromhex(experiment.pipeline.digest()), self.contract.get("weights", "private"),
+        )
+        try:
+            self._append_source(owner.shapes, owner.append, cancelled)
             manifest = owner.seal(b"".join(token.to_bytes(4, "little") for token in ids))
             return owner, manifest
         except BaseException:
             if owner is not None:
                 owner.close()
             raise
-        finally:
-            store.clear_cache()
 
 
 def admit_source(experiment: Experiment) -> ReplicatedSource:
@@ -89,22 +104,23 @@ def admit_source(experiment: Experiment) -> ReplicatedSource:
     rows, outputs = experiment.budget.max_input_tokens, experiment.budget.max_new_tokens
     contract = _native.replicated_source_contract(encoded, config, rows, outputs, "0" * 64, "0" * 64)
     metadata = json.loads(contract)
+    capacity = source_io._capacity(metadata)
     size = metadata["source_float32_bytes"]
-    identities = source_io._files(root, size)
+    identities = source_io._files(root, size, capacity)
     if dict(identities)["config.json"] != original_identity:
         raise ValueError("replicated configuration changed during admission")
     store, specs = source_io._store(root, identities, metadata)
     store.clear_cache()
-    checkpoint, lock_digest, lock = source_io._locked(root, model, size, identities)
+    checkpoint, lock_digest, lock = source_io._locked(root, model, size, identities, capacity)
     hashes = {row["path"]: row["sha256"] for row in lock["files"]}
-    tokenizer = source_io._read_bounded(root / "tokenizer.json", 256 << 10)
+    tokenizer = source_io._read_bounded(root / "tokenizer.json", (16 << 20) if capacity == "decoder" else (256 << 10))
     tokenizer_digest = hashlib.sha256(tokenizer).hexdigest()
     if hashes["config.json"] != hashlib.sha256(original).hexdigest() or hashes["tokenizer.json"] != tokenizer_digest:
         raise ValueError("replicated source bytes differ from lock")
     contract = _native.replicated_source_contract(encoded, config, rows, outputs, lock_digest, tokenizer_digest)
     manifest = source_io._manifest(root, model, raw, identities)
     descriptor = source_io._tokenizer(root, manifest, manifest.metadata["text_config"], metadata)
-    if descriptor.pop("model") != tokenizer or source_io._locked(root, model, size, identities) != (checkpoint, lock_digest, lock):
+    if descriptor.pop("model") != tokenizer or source_io._locked(root, model, size, identities, capacity) != (checkpoint, lock_digest, lock):
         raise ValueError("replicated source changed during admission")
     manifest.metadata.update(model_spec=model.to_spec(), checkpoint_digest=checkpoint,
                              source_lock_digest=lock_digest, source_lock=lock, config_only=False)

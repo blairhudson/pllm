@@ -1,0 +1,66 @@
+{
+  "format": "pllm.maverick.source-derived-capsule.v1",
+  "status": "independent scalar and bounded native conformance; production core export present; model/security/SDK qualification pending",
+  "primary_source": "arXiv:2609.10264v1",
+  "runtime_dependencies": ["independent implementation only"],
+  "default_field": {"id": "maverick-v1-babybear-source-algebra", "q": 2013265921, "status": "source evaluation field; distance/security admission open"},
+  "field_proposal": {"id": "maverick-q31plus-proposed-algebra", "q": 2147483659, "status": "proposal only; native/model field change requires approval", "reason": "smallest prime greater than printed q>2^31 hypothesis; not a finite distance certificate"},
+  "historical_reference": {"q": 2013265921, "ty": 41, "ell": 2, "code_distribution": "public SHA-256 seed expansion", "weights_and_inputs": "i8", "action": "preserve identity and existing evidence unchanged"},
+  "arithmetic": {
+    "elements": "canonical residues in [0,q); reject noncanonical external values",
+    "wire": "u32 little-endian, row-major matrices; length and shape bound before allocation",
+    "multiply_add": "u64(acc)+u64(a)*u64(b), reduce modulo q after every term",
+    "signed_lift": "i64(value) mod q via Euclidean remainder",
+    "centered_decode": "v if v<=floor(q/2), otherwise i64(v)-q",
+    "model_quantizer": null
+  },
+  "raa": {
+    "formula": "G = R Pi1 V1 A Pi2 V2 A",
+    "repeat_factor": 8,
+    "target_relative_distance": "1/2",
+    "indexing": "zero-based; R[i,j]=[floor(j/8)=i]; Pi[i,j]=[pi[j]=i]; A[i,j]=[i<=j]",
+    "permutations": "two independent uniform permutations; explicit arrays; not fixed-size public seed expansion",
+    "scales": "two independent arrays uniform in F_q minus {0}",
+    "code_roles": "Gx independent from primary Gy; secondary Gprime independent from both",
+    "sampling": "unbiased bounded rejection from fresh random words; Fisher-Yates permutations",
+    "certificate": null
+  },
+  "protocol3_capsule": {
+    "m": 64, "n": 64, "Nx": 512, "Ny": 512,
+    "lambda_heuristic": 128, "kappa_conditional_target": 40,
+    "tx": 165, "ty": 31, "ell": 2,
+    "noise": "exact uniform support without replacement; independent uniform nonzero coefficients",
+    "private_material": "fresh ex or retained correction, one-use client query owner",
+    "publication": "full P=M Gx and Q=Gy^T M validation against bound matrix and explicit codes"
+  },
+  "protocol2_capsule": {
+    "B": 2, "m": 64, "n": 64, "N": 512,
+    "secondary_message_length": 128, "Nprime": 1024,
+    "secondary_code": "independent RAA, repeat factor 8",
+    "t": 31, "ell": 2, "tprime": 31, "ellprime": 2,
+    "secondary_parameter_provenance": "concrete source-compatible Protocol 2 instantiation for capsule; not recovered evaluated implementation parameters",
+    "Qaux_shape": [512, 1024],
+    "Qaux_bytes": 2097152,
+    "fixation_order": ["all original responses", "sample and disclose primary challenges", "all auxiliary responses", "sample secret secondary challenges", "all secondary and original checks", "accept or retire"]
+  },
+  "native_slice_bounds": {
+    "threads": 1,
+    "max_m": 64, "max_n": 64, "max_B": 2,
+    "max_live_batches": 1,
+    "max_test_attempts": 16,
+    "complete_accounted_allocation_ceiling_bytes": 16777216,
+    "scope": "bounded conformance admission, not model limits or cryptographic lifetime"
+  },
+  "security_admission": {
+    "code_distance": "unresolved for 64-dimensional and model codes",
+    "dual_lpn": "assumption plus source linear-test heuristic; no concrete 128-bit whole-execution proof",
+    "lifetime_budget": null,
+    "certified_private_verifiable_method": false
+  },
+  "state": {
+    "source_acceptance_window": "one full original eight-token Qwen3-4B prompt to verified next-token logits",
+    "tentative_owner": "client: dependent nonlinear computation, logits, private masks, transcripts and working state",
+    "persistent_decode": "unapproved extension; requires exact numeric and token/state contract",
+    "failure": "retire batch and request-private material; no accepted logits, token, sampler or reusable KV from failed window"
+  }
+}

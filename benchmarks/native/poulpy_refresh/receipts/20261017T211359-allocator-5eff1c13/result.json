@@ -1,0 +1,49 @@
+{
+  "admitted_for_he": false,
+  "compile": {
+    "baseline_host": {
+      "free_speculative_bytes": 104300544,
+      "page_bytes": 16384,
+      "physical_bytes": 34359738368,
+      "swap_used_bytes": 8284075458,
+      "swapout_pages": 79402813
+    },
+    "child_launched": false,
+    "cleanup": {
+      "complete": true,
+      "remaining_pids": []
+    },
+    "command": [
+      "/Users/blairhudson/.local/bin/python3",
+      "-I",
+      "-B",
+      "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/allocator_probe.py",
+      "--child",
+      "compile",
+      "--binary-dir",
+      "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/target/20261017T211359-allocator-5eff1c13"
+    ],
+    "elapsed_seconds": 0.010164041072130203,
+    "exit_code": null,
+    "host_reserve_bytes": 4294967296,
+    "owner_ceiling_bytes": 536870912,
+    "peak_observed_owner_rss_bytes": null,
+    "reason": "insufficient_conservative_physical_headroom",
+    "seconds_ceiling": 120,
+    "status": "blocked_prelaunch",
+    "trace_complete": false,
+    "trace_kind": "sampled_build_guard_not_complete_HE_owner_proof"
+  },
+  "input_sha256_after": {
+    "benchmarks/native/poulpy_refresh/allocator_plan.py": "4c8dab21f74d7591119033a36bcc17aadf27548e005fad5bdb2dc4a12e0af6cb",
+    "benchmarks/native/poulpy_refresh/allocator_probe.py": "fa5bdf09276c2141f038b4495fc7d9f533883ceca5fb7634180e9724aa90c3b4",
+    "benchmarks/native/poulpy_refresh/bounded-allocator-contract.json": "024d79ae904615a8462b3e4dd40747640f96b99415ed5db3bef4578ea414580c",
+    "benchmarks/native/poulpy_refresh/src/bounded_allocator.rs": "c9d1bb7998c6c5b4b1d9401cec656895f668dd66a5e36ccce411ad32d858f5a6",
+    "benchmarks/native/poulpy_refresh/tests/allocator_global_smoke.rs": "74899cd64e7a8559e18acf41e5d277fd9833e10480bc94561169d089cb7906a9",
+    "benchmarks/native/poulpy_refresh/tests/bounded_allocator_unit.rs": "4c16c13912e331c51e985fda04aad1444f54fd5b2c67d7e65af6714236ea941c",
+    "scripts/qualify_rust_ckks_refresh.py": "613a46099cfb0aede7d7f7793e68737308354ce33bde3bce2daf46d9814824b8"
+  },
+  "performance_claim": false,
+  "receipt_directory": "benchmarks/native/poulpy_refresh/receipts/20261017T211359-allocator-5eff1c13",
+  "status": "blocked_prelaunch"
+}

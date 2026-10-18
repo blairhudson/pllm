@@ -18,7 +18,18 @@ validation, and benchmark requirements. Independent contract reviews are retaine
 there separately.
 
 The [author decision record](DECISIONS.md) selects Apple-M CPU-first execution
-and Qwen2.5-0.5B-Instruct as the common model. The
+and Qwen2.5-0.5B-Instruct as the common model. D6–D9 additionally approve named
+PUMA Q18 and FuseFSS ring50/Q12 source-derived profiles and fixed-count private
+full-prefix feedback, while retaining BumbleBee's final-paper target and open
+evaluated-manifest mapping. The [profile companion](../reproduction-contracts/shared-profile-resolution.md)
+records exact choices and remaining gates; the bounded
+[PUMA truncation/PRSS reference](../../docs/research/puma-truncation-reference.md)
+is a primitive milestone, not a complete method. The
+[Maverick batch capsule](../../docs/research/maverick-batch-reference.md) likewise
+checks complete bounded delegation algebra without supplying code-distance,
+dual-LPN or decoder qualification. The
+[FuseFSS descriptor oracle](../reproduction-contracts/fusefss/README.md) supplies
+a separate scalar specification, with protected execution still open. The
 [Rust HE review](rust-he-backend-qualification.md) identifies Poulpy as the
 approved bounded qualification candidate. Its torus representation still needs
 an explicit mapping to each source method; no Go backend has been approved.

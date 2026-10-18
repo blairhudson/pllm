@@ -1,0 +1,34 @@
+{
+  "baseline_host": {
+    "free_speculative_bytes": 104300544,
+    "page_bytes": 16384,
+    "physical_bytes": 34359738368,
+    "swap_used_bytes": 8284075458,
+    "swapout_pages": 79402813
+  },
+  "child_launched": false,
+  "cleanup": {
+    "complete": true,
+    "remaining_pids": []
+  },
+  "command": [
+    "/Users/blairhudson/.local/bin/python3",
+    "-I",
+    "-B",
+    "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/allocator_probe.py",
+    "--child",
+    "compile",
+    "--binary-dir",
+    "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/target/20261017T211359-allocator-5eff1c13"
+  ],
+  "elapsed_seconds": 0.010164041072130203,
+  "exit_code": null,
+  "host_reserve_bytes": 4294967296,
+  "owner_ceiling_bytes": 536870912,
+  "peak_observed_owner_rss_bytes": null,
+  "reason": "insufficient_conservative_physical_headroom",
+  "seconds_ceiling": 120,
+  "status": "blocked_prelaunch",
+  "trace_complete": false,
+  "trace_kind": "sampled_build_guard_not_complete_HE_owner_proof"
+}

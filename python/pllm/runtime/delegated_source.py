@@ -782,6 +782,10 @@ def _capacity(contract):
     resources = contract.get("decoder_resources")
     if resources is None:
         return "capsule"
+    if (contract.get("schema_version") == "pllm.replicated.sdk-contract.v1"
+            and contract.get("weights") == "public"
+            and resources == {"profile": "pllm.puma.public-source-capacity.v1"}):
+        return "decoder"
     if type(resources) is not dict or resources.get("profile") != "pllm.gkm.decoder-capacity.v1":
         raise DelegatedSourceError("GKM invalid native capacity contract")
     return "decoder"

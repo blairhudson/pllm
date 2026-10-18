@@ -23,6 +23,12 @@ and retires construction views at last use. Frozen execution identities and
 mixed-representation matrix controls retain the original arithmetic schedule.
 Resident checkpoint ownership and full-Qwen capacity remain separate gates.
 
+The [public-weight adaptation](local-v4/README.md) adds explicit public-checkpoint
+execution with immutable file-backed Q18 coefficients and batched protected token
+boundaries. Private-weight defaults keep their identity. The common Qwen metadata
+gate now reaches the compiler-view bound; full-checkpoint execution, range
+admission, quality and practical resource measurements remain open.
+
 ## Retained evidence
 
 [`local-v1/summary.json`](local-v1/summary.json) records:

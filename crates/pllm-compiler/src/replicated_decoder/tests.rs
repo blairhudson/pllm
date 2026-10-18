@@ -25,6 +25,14 @@ fn fixture(family: &str) -> (Arc<Program>, BTreeMap<String, Vec<i64>>) {
 }
 
 fn fixture_with_body(family: &str, active: bool) -> (Arc<Program>, BTreeMap<String, Vec<i64>>) {
+    fixture_with_weights(family, active, WeightMode::Private)
+}
+
+fn fixture_with_weights(
+    family: &str,
+    active: bool,
+    mode: WeightMode,
+) -> (Arc<Program>, BTreeMap<String, Vec<i64>>) {
     let config = serde_json::to_vec(&serde_json::json!({
         "model_type": family, "hidden_size": 2, "intermediate_size": 2,
         "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
@@ -76,7 +84,7 @@ fn fixture_with_body(family: &str, active: bool) -> (Arc<Program>, BTreeMap<Stri
         clear.insert(key, values);
     }
     clear.insert("input.tokens".into(), vec![1, 2]);
-    let program = Program::compile(&config, 2, 2, &source).unwrap();
+    let program = Program::compile_with_weights(&config, 2, 2, &source, mode).unwrap();
     (Arc::new(program), clear)
 }
 
@@ -128,6 +136,33 @@ fn compact_storage_preserves_frozen_full_prefix_execution_identities() {
             .map(|v| format!("{v:02x}"))
             .collect();
         assert_eq!(actual, expected, "{family} {active}");
+    }
+}
+
+#[test]
+fn public_weights_keep_prefix_and_feedback_private_with_original_final_id_contract() {
+    for family in ["qwen2", "qwen3", "llama"] {
+        for active in [false, true] {
+            let (program, mut clear) = fixture_with_weights(family, active, WeightMode::Public);
+            let (private, _) = fixture_with_body(family, active);
+            assert_ne!(program.digest(), private.digest());
+            assert_eq!(program.inputs().collect::<Vec<_>>(), [("input.tokens", 2)]);
+            assert!(program
+                .nodes
+                .iter()
+                .any(|n| matches!(n.code, Code::PublicProduct { .. })));
+            for tokens in [vec![1, 2], vec![0, 2]] {
+                clear.insert("input.tokens".into(), tokens);
+                // Fixtures have clear sign margins. Fresh source stochastic
+                // rounding may differ internally; only final IDs are exported.
+                let expected = execute(workers(private.clone(), &clear));
+                assert_eq!(
+                    execute(workers(program.clone(), &clear)),
+                    expected,
+                    "{family} {active}"
+                );
+            }
+        }
     }
 }
 
@@ -200,7 +235,14 @@ pub(super) fn workers_with_programs(
         .unwrap();
     }
     let mut workers: [_; 3] = std::array::from_fn(|i| {
-        Worker::new(programs[i].clone(), setups[i].finish().unwrap(), [42; 32]).unwrap()
+        let public = PublicSource::test_values(&programs[i], clear);
+        Worker::new_with_source(
+            programs[i].clone(),
+            setups[i].finish().unwrap(),
+            [42; 32],
+            public,
+        )
+        .unwrap()
     });
     for (key, n) in programs[0].inputs() {
         let x = &clear[key];

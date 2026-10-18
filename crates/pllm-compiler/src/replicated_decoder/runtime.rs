@@ -40,6 +40,7 @@ pub struct Worker {
     imported_words: usize,
     session: [u8; 32],
     pid: u32,
+    public: Option<PublicSource>,
 }
 
 impl Worker {
@@ -48,8 +49,31 @@ impl Worker {
         runtime: PartyRuntime,
         session: [u8; 32],
     ) -> Result<Self, Error> {
+        Self::new_with_source(program, runtime, session, None)
+    }
+
+    pub fn new_with_source(
+        program: Arc<Program>,
+        runtime: PartyRuntime,
+        session: [u8; 32],
+        public: Option<PublicSource>,
+    ) -> Result<Self, Error> {
         if runtime.status() != Status::Ready
             || !runtime.matches_context(Context::new(session, program.digest(), 0)?)
+        {
+            return Err(Error::Binding);
+        }
+        let public_count = program.nodes[..program.inputs]
+            .iter()
+            .filter(|n| matches!(n.code, Code::PublicInput { .. }))
+            .count();
+        if let Some(source) = &public {
+            source.check(&program)?;
+        }
+        if public.is_some() != (public_count > 0)
+            || program.nodes[..public_count]
+                .iter()
+                .any(|n| !matches!(n.code, Code::PublicInput { .. }))
         {
             return Err(Error::Binding);
         }
@@ -67,10 +91,11 @@ impl Worker {
             inbox: [None, None],
             step: 0,
             started: false,
-            imported: 0,
+            imported: public_count,
             imported_words: 0,
             session,
             pid: std::process::id(),
+            public,
         })
     }
 
@@ -87,6 +112,7 @@ impl Worker {
         self.active = Active::Retired;
         self.inbox = [None, None];
         self.values.clear();
+        self.public = None;
     }
     fn checked<T>(&mut self, value: Result<T, Error>) -> Result<T, Error> {
         if value.is_err() {
@@ -184,6 +210,37 @@ impl Worker {
         self.step += 1;
     }
 
+    fn word(&self, owner: usize, index: usize) -> Result<(u64, u64), Error> {
+        if let Code::PublicInput { key, .. } = &self.program.nodes[owner].code {
+            let mut raw = [0u8; 8];
+            self.public
+                .as_ref()
+                .ok_or(Error::Binding)?
+                .file(key)?
+                .read(index as u64 * 8, &mut raw)
+                .map_err(|_| Error::Binding)?;
+            let value = u64::from_le_bytes(raw);
+            Ok((
+                if self.party == Party::P0 { value } else { 0 },
+                if self.party.next() == Party::P0 {
+                    value
+                } else {
+                    0
+                },
+            ))
+        } else {
+            let input = self
+                .values
+                .get(owner)
+                .and_then(Option::as_ref)
+                .ok_or(Error::Binding)?;
+            Ok((
+                *input.first.get(index).ok_or(Error::Shape)?,
+                *input.second.get(index).ok_or(Error::Shape)?,
+            ))
+        }
+    }
+
     /// Public quiescence barrier: finish the previous primitive/tensor step and
     /// start the next. The authenticated router drains every emitted peer batch
     /// on all three roles before invoking this barrier again.
@@ -226,27 +283,59 @@ impl Worker {
         while self.step < self.program.nodes.len() {
             let node = &self.program.nodes[self.step];
             match &node.code {
-                Code::Input(_) => {
+                Code::Input(_) | Code::PublicInput { .. } => {
+                    self.retire_inputs();
+                }
+                Code::PublicValues(values) => {
+                    let mut out = Secret::new(values.len())?;
+                    for (i, value) in values.iter().enumerate() {
+                        if self.party == Party::P0 {
+                            out.first[i] = *value as u64;
+                        }
+                        if self.party.next() == Party::P0 {
+                            out.second[i] = *value as u64;
+                        }
+                    }
+                    self.values[self.step] = Some(out);
                     self.retire_inputs();
                 }
                 Code::Gather(items) => {
                     let mut output = Secret::new(items.len())?;
                     for (i, &(owner, index)) in items.iter().enumerate() {
-                        let input = self.values[owner].as_ref().ok_or(Error::Binding)?;
-                        output.first[i] = input.first[index];
-                        output.second[i] = input.second[index];
+                        (output.first[i], output.second[i]) = self.word(owner, index)?;
                     }
                     self.values[self.step] = Some(output);
                     self.retire_inputs();
                 }
                 Code::SourceGather(view) => {
-                    let input = self.values[view.owner].as_ref().ok_or(Error::Binding)?;
                     let mut output = Secret::new(node.lanes)?;
                     for (i, index) in view.indices().enumerate() {
-                        output.first[i] = input.first[index];
-                        output.second[i] = input.second[index];
+                        (output.first[i], output.second[i]) = self.word(view.owner, index)?;
                     }
                     self.values[self.step] = Some(output);
+                    self.retire_inputs();
+                }
+                Code::PublicProduct {
+                    input,
+                    weight,
+                    rows,
+                    inner,
+                    columns,
+                    transposed,
+                } => {
+                    let Code::PublicInput { key, .. } = &self.program.nodes[*weight].code else {
+                        return Err(Error::Binding);
+                    };
+                    let file = self.public.as_ref().ok_or(Error::Binding)?.file(key)?;
+                    let input = self.values[*input].as_ref().ok_or(Error::Binding)?;
+                    self.values[self.step] = Some(super::public_source::multiply(
+                        file,
+                        input,
+                        *rows,
+                        *inner,
+                        *columns,
+                        *transposed,
+                    )?);
                     self.retire_inputs();
                 }
                 Code::Affine {

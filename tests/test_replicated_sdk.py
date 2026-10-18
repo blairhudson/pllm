@@ -21,7 +21,7 @@ from pllm.runtime.replicated_protocol import ROLES, input_frame
 from pllm.runtime.replicated_source import admit_source
 
 
-def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2):
+def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
     root = path / "source"
     root.mkdir(parents=True)
     config = {
@@ -68,7 +68,8 @@ def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=Fa
         arrays[key] = np.array(values, dtype=np.float32)
     publisher.close()
     save_file(arrays, root / "model.safetensors", metadata={"format": "pt"})
-    experiment = Experiment("puma-sdk", PumaThreePartyCpu(Model.path(str(root))),
+    from pllm.protocols import PumaThreePartyDecoder
+    experiment = Experiment("puma-sdk", PumaThreePartyCpu(Model.path(str(root)), linear=PumaThreePartyDecoder(weights=weights)),
         Deployment.local(root=str(path / "roles")),
         ExecutionBudget(requests=requests, max_input_tokens=8, max_new_tokens=outputs))
     return Experiment.from_spec(json.loads(experiment.canonical_bytes()))
@@ -88,6 +89,9 @@ def native_execution(source, experiment, ids, count):
     publisher, manifest = source.publisher(experiment, ids, count, lambda: False)
     workers = [_native.ReplicatedWorker(manifest, index) for index in range(3)]
     try:
+        if source.contract.get("weights") == "public":
+            for worker in workers:
+                source.populate_public_worker(worker, lambda: False)
         offers = [worker.call("offer", b"", index) for index, worker in enumerate(workers)]
         for index, (complete, frames) in enumerate(offers):
             assert not complete and len(frames) == 1 and frames[0][0] == index
@@ -196,10 +200,11 @@ def test_sdk_three_processes_final_only_ids_and_retirement(tmp_path, record_prop
 
 
 @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
-def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure):
+@pytest.mark.parametrize("weights", ["private", "public"])
+def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
     from pllm.runtime.client import ProtocolError
 
-    experiment = experiment_fixture(tmp_path)
+    experiment = experiment_fixture(tmp_path, weights=weights)
     original = transport._Peers.post
     injected = []
 
@@ -230,7 +235,8 @@ def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_async_cancellation_drains_active_peer_execution(tmp_path, monkeypatch):
+@pytest.mark.parametrize("weights", ["private", "public"])
+async def test_async_cancellation_drains_active_peer_execution(tmp_path, monkeypatch, weights):
     import threading
 
     entered = threading.Event()
@@ -242,7 +248,7 @@ async def test_async_cancellation_drains_active_peer_execution(tmp_path, monkeyp
         return original(self, role, action, *args, **kwargs)
 
     monkeypatch.setattr(transport._Peers, "post", observe)
-    async with AsyncOpenAI(experiment=experiment_fixture(tmp_path)) as client:
+    async with AsyncOpenAI(experiment=experiment_fixture(tmp_path, weights=weights)) as client:
         core = client.sync._core
         task = asyncio.create_task(client.responses.create(input="hello", max_output_tokens=2))
         try:

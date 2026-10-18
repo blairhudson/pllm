@@ -1,0 +1,53 @@
+   Compiling pllm-core v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-core)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 19s
+     Running tests/maverick_batch_allocation.rs (target/debug/deps/maverick_batch_allocation-aef6d7ed8de07b09)
+
+running 1 test
+test admission_precedes_allocation_and_complete_capsule_lifetime_stays_bounded ... planned=6479872 tracked=5984208 allocator-plus-reserves=5974040 cap=16777216
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/maverick_batch_export.rs (target/debug/deps/maverick_batch_export-89d38a91cd72bc9e)
+
+running 1 test
+test production_export_imports_and_roundtrips_both_complete_protocols ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/maverick_batch_failures.rs (target/debug/deps/maverick_batch_failures-aba2c863b4e3ee3d)
+
+running 1 test
+test every_dynamic_allocation_index_fails_closed_with_exact_refunds_and_erasure ... import: 23 actual dynamic allocation failures checked
+full P/Q/Qaux validation: 1539 actual dynamic allocation failures checked
+party split: 4 actual dynamic allocation failures checked
+query issuance: 8 actual dynamic allocation failures checked
+batch issuance: 16 actual dynamic allocation failures checked
+server evaluation: 1 actual dynamic allocation failures checked
+Protocol 3 verification: 10 actual dynamic allocation failures checked
+original fixation / primary reveal: 12 actual dynamic allocation failures checked
+server auxiliary response: 3 actual dynamic allocation failures checked
+auxiliary fixation / Protocol 2 verification: 13 actual dynamic allocation failures checked
+1629 injected failures; 1341622 buffers checked erased-before-free and refund-after-free
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 69.89s
+
+     Running tests/maverick_batch_reference.rs (target/debug/deps/maverick_batch_reference-c656b8fab68f2fac)
+
+running 12 tests
+test auxiliary_lie_orthogonal_to_original_input_requires_secondary_check ... ok
+test cancellation_pressure_and_attempt_budget_do_not_recycle_private_material ... ok
+test complete_publication_validation_rejects_last_entry_tampering_and_wrong_identity ... ok
+test entropy_failure_at_all_secret_sampling_phases_retires_the_owner ... ok
+test exact_noise_support_sampler_and_rejection_domain_are_checked ... ok
+test fixation_owns_original_bytes_and_server_rejects_replays_and_early_projection ... ok
+test forged_original_outputs_fail_in_protocol3_and_protocol2 ... ok
+test frozen_protocol3_and_complete_protocol2_vectors_match ... ok
+test identical_algebra_does_not_allow_cross_session_query_or_response_transfer ... ok
+test literal_raa_matrix_oracle_checks_every_basis_in_both_directions ... ok
+test malformed_wrong_binding_and_omitted_replies_consume_private_owners ... ok
+test secure_sampling_roundtrips_full_field_inputs_and_does_not_reuse_masks ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+

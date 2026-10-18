@@ -151,11 +151,21 @@ struct Builder {
     nodes: Vec<Node>,
     allocated: usize,
     tensors: BTreeMap<[u8; 32], Arc<tensor::Program>>,
+    public_weights: bool,
 }
 
 impl Builder {
     fn push(&mut self, code: Code, lanes: usize, bounds: Interval) -> Result<usize, Error> {
-        if lanes == 0 || lanes > MAX_VALUES || self.nodes.len() >= MAX_NODES {
+        let public_source = matches!(code, Code::PublicInput { .. });
+        if lanes == 0
+            || lanes
+                > if public_source {
+                    MAX_PUBLIC_SOURCE_VALUES
+                } else {
+                    MAX_VALUES
+                }
+            || self.nodes.len() >= MAX_NODES
+        {
             return Err(Error::Bounds);
         }
         let metadata = match &code {
@@ -167,11 +177,15 @@ impl Builder {
                 program.admitted_bytes() + 1024
             }
             Code::Input(v) => v.capacity(),
+            Code::PublicInput { key, .. } => key.capacity(),
+            Code::PublicValues(values) => values.capacity() * 8,
             _ => 0,
         };
         self.allocated = self
             .allocated
-            .checked_add(metadata + std::mem::size_of::<Node>() + 16 * lanes)
+            .checked_add(
+                metadata + std::mem::size_of::<Node>() + if public_source { 0 } else { 16 * lanes },
+            )
             .ok_or(Error::Bounds)?;
         if self.allocated > MAX_PROGRAM_BYTES {
             return Err(Error::Bounds);
@@ -209,7 +223,7 @@ impl Builder {
     }
     fn source_gather(&mut self, view: SourceGather) -> Result<usize, Error> {
         let owner = self.nodes.get(view.owner).ok_or(Error::Binding)?;
-        if !matches!(owner.code, Code::Input(_)) {
+        if !matches!(owner.code, Code::Input(_) | Code::PublicInput { .. }) {
             return Err(Error::Binding);
         }
         let lanes = view.validate(owner.lanes)?;
@@ -315,6 +329,55 @@ impl Builder {
         Ok(out)
     }
 
+    fn argmax_tree(&mut self, logits: &View) -> Result<View, Error> {
+        let n = logits.words.len();
+        if n == 0 {
+            return Err(Error::Shape);
+        }
+        let indices = self.push(
+            Code::PublicValues((0..n as i64).collect()),
+            n,
+            Interval::new(0, n as i64 - 1)?,
+        )?;
+        let mut values = logits.words.clone();
+        let mut ids: Vec<_> = (0..n).map(|i| (indices, i)).collect();
+        while values.len() > 1 {
+            let mut next_values = Vec::new();
+            let mut next_ids = Vec::new();
+            for (v, ids) in values.chunks(256).zip(ids.chunks(256)) {
+                let pairs = v.len() / 2;
+                if pairs > 0 {
+                    let left = self.gather(&(0..pairs).map(|i| v[2 * i]).collect::<Vec<_>>())?;
+                    let right =
+                        self.gather(&(0..pairs).map(|i| v[2 * i + 1]).collect::<Vec<_>>())?;
+                    let difference = self.affine(left, Some(right), affine(1, -1, 0))?;
+                    let less = self.tensor(
+                        difference,
+                        tensor::Program::negative(pairs, self.nodes[difference].bounds)?,
+                    )?;
+                    let best = self.select(less, right, left)?;
+                    let left_id =
+                        self.gather(&(0..pairs).map(|i| ids[2 * i]).collect::<Vec<_>>())?;
+                    let right_id =
+                        self.gather(&(0..pairs).map(|i| ids[2 * i + 1]).collect::<Vec<_>>())?;
+                    let index = self.select(less, right_id, left_id)?;
+                    next_values.extend((0..pairs).map(|i| (best, i)));
+                    next_ids.extend((0..pairs).map(|i| (index, i)));
+                }
+                if v.len() % 2 != 0 {
+                    next_values.push(*v.last().unwrap());
+                    next_ids.push(*ids.last().unwrap());
+                }
+            }
+            values = next_values;
+            ids = next_ids;
+        }
+        Ok(View {
+            words: ids,
+            shape: vec![1],
+        })
+    }
+
     fn linear(&mut self, input: &View, weight: &View, rescale: bool) -> Result<View, Error> {
         self.matrix(input, MatrixView::Values(weight), rescale)
     }
@@ -334,6 +397,23 @@ impl Builder {
             || input.words.len() % inner != 0
         {
             return Err(Error::Shape);
+        }
+        if let MatrixView::Source {
+            owner,
+            column_stride,
+            inner_stride,
+            ..
+        } = &weight
+        {
+            if matches!(self.nodes[*owner].code, Code::PublicInput { .. }) {
+                return self.public_matrix(
+                    input,
+                    *owner,
+                    columns,
+                    *column_stride == 1 && *inner_stride == columns,
+                    rescale,
+                );
+            }
         }
         if inner > puma::MAX_LANES {
             return self.linear_chunks(input, &weight, rescale);
@@ -355,6 +435,63 @@ impl Builder {
             words,
             shape: vec![1, rows, columns],
         })
+    }
+
+    fn public_matrix(
+        &mut self,
+        input: &View,
+        weight: usize,
+        columns: usize,
+        transposed: bool,
+        rescale: bool,
+    ) -> Result<View, Error> {
+        let inner = *input.shape.last().ok_or(Error::Shape)?;
+        let rows = input.words.len() / inner;
+        if (rows as u64)
+            .checked_mul(inner as u64)
+            .and_then(|n| n.checked_mul(columns as u64))
+            .is_none_or(|n| n > 1 << 32)
+        {
+            return Err(Error::Bounds);
+        }
+        let product = InputBounds {
+            left: self.bounds(&input.words)?,
+            right: self.nodes[weight].bounds,
+        }
+        .product()?;
+        let bounds = affine(i64::try_from(inner).map_err(|_| Error::Bounds)?, 0, 0).output_bounds(
+            InputBounds {
+                left: product,
+                right: Interval::new(0, 0)?,
+            },
+        )?;
+        let input = self.gather(&input.words)?;
+        let raw = self.push(
+            Code::PublicProduct {
+                input,
+                weight,
+                rows,
+                inner,
+                columns,
+                transposed,
+            },
+            rows.checked_mul(columns).ok_or(Error::Bounds)?,
+            bounds,
+        )?;
+        let shape = vec![1, rows, columns];
+        if !rescale {
+            return Ok(self.view(raw, shape));
+        }
+        let mut words = Vec::new();
+        for start in (0..rows * columns).step_by(128) {
+            let n = 128.min(rows * columns - start);
+            let input = self.gather(&(start..start + n).map(|i| (raw, i)).collect::<Vec<_>>())?;
+            let mut b = tensor::Builder::new(n, bounds)?;
+            let scaled = b.rescale(b.input(), 18)?;
+            let id = self.tensor(input, b.finish(scaled)?)?;
+            words.extend((0..n).map(|i| (id, i)));
+        }
+        Ok(View { words, shape })
     }
 
     /// Keep every partial dot product in ring64. Only the complete accumulated
@@ -842,6 +979,11 @@ impl Builder {
                         shape: shape.clone(),
                     }
                 }
+                Op::GreedyTokenSelection if self.public_weights => {
+                    let mut output = self.argmax_tree(a.ok_or(Error::Binding)?)?;
+                    output.shape = shape.clone();
+                    output
+                }
                 Op::GreedyTokenSelection => {
                     let logits = a.ok_or(Error::Binding)?;
                     let mut best = self.gather(&logits.words[..1])?;
@@ -922,7 +1064,16 @@ impl Program {
         rows: usize,
         outputs: usize,
     ) -> Result<BTreeMap<String, Vec<usize>>, String> {
-        let plan = lower(config, rows, outputs)?;
+        Self::source_shapes_with_weights(config, rows, outputs, WeightMode::Private)
+    }
+
+    pub fn source_shapes_with_weights(
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        weights: WeightMode,
+    ) -> Result<BTreeMap<String, Vec<usize>>, String> {
+        let plan = lower_with_weights(config, rows, outputs, weights)?;
         let vocabulary = plan
             .prefill
             .operations
@@ -959,7 +1110,13 @@ impl Program {
                 .try_fold(1usize, |n, width| n.checked_mul(*width))?;
             total.checked_add(n)
         });
-        if source_values.is_none_or(|n| n > MAX_VALUES) {
+        if source_values.is_none_or(|n| {
+            n > if weights == WeightMode::Public {
+                MAX_PUBLIC_SOURCE_VALUES
+            } else {
+                MAX_VALUES
+            }
+        }) {
             return Err("replicated source payload limit".into());
         }
         // Public semantic views coexist with the emitted native program while
@@ -968,7 +1125,7 @@ impl Program {
         // source admission, before importing values or building reference lists.
         let final_plan;
         let prefill = if outputs > 1 {
-            final_plan = lower(config, rows + outputs - 1, 1)?;
+            final_plan = lower_with_weights(config, rows + outputs - 1, 1, weights)?;
             &final_plan.prefill
         } else {
             &plan.prefill
@@ -994,8 +1151,18 @@ impl Program {
         outputs: usize,
         sources: &BTreeMap<String, SourceTensor>,
     ) -> Result<Self, String> {
-        let shapes = Self::source_shapes(config, rows, outputs)?;
-        let first = lower(config, rows, outputs)?;
+        Self::compile_with_weights(config, rows, outputs, sources, WeightMode::Private)
+    }
+
+    pub fn compile_with_weights(
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        sources: &BTreeMap<String, SourceTensor>,
+        weights: WeightMode,
+    ) -> Result<Self, String> {
+        let shapes = Self::source_shapes_with_weights(config, rows, outputs, weights)?;
+        let first = lower_with_weights(config, rows, outputs, weights)?;
         let public: std::collections::BTreeSet<_> = first
             .prefill
             .operations
@@ -1035,7 +1202,10 @@ impl Program {
             }
         }
         let result = (|| -> Result<Self, Error> {
-            let mut builder = Builder::default();
+            let mut builder = Builder {
+                public_weights: weights == WeightMode::Public,
+                ..Builder::default()
+            };
             let mut inputs = BTreeMap::new();
             for (key, source) in sources {
                 let bounds = Interval::new(source.lower, source.upper)?;
@@ -1046,7 +1216,14 @@ impl Program {
                     continue;
                 }
                 let id = builder.push(
-                    Code::Input(key.clone()),
+                    if weights == WeightMode::Public {
+                        Code::PublicInput {
+                            key: key.clone(),
+                            digest: source.digest,
+                        }
+                    } else {
+                        Code::Input(key.clone())
+                    },
                     source.shape.iter().product(),
                     bounds,
                 )?;
@@ -1058,7 +1235,8 @@ impl Program {
                     },
                 );
             }
-            let first = lower(config, rows, outputs).map_err(|_| Error::Binding)?;
+            let first =
+                lower_with_weights(config, rows, outputs, weights).map_err(|_| Error::Binding)?;
             let vocabulary = first
                 .prefill
                 .operations
@@ -1079,8 +1257,8 @@ impl Program {
                 // A fresh semantic prefill and fresh arithmetic are required:
                 // retained KV would change both the stochastic numeric schedule
                 // and the source method's charged work.
-                let plan =
-                    lower(config, rows + output, outputs - output).map_err(|_| Error::Binding)?;
+                let plan = lower_with_weights(config, rows + output, outputs - output, weights)
+                    .map_err(|_| Error::Binding)?;
                 let mut state = BTreeMap::new();
                 let result = builder.graph(
                     &plan.prefill,
@@ -1102,6 +1280,9 @@ impl Program {
             let mut work = 0u64;
             let mut h = Sha256::new();
             h.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
+            if weights == WeightMode::Public {
+                h.update(b"public-source-paged-ring64.v1");
+            }
             h.update(config);
             h.update((rows as u64).to_le_bytes());
             h.update((outputs as u64).to_le_bytes());
@@ -1118,6 +1299,31 @@ impl Program {
                         h.update([0]);
                         h.update((key.len() as u64).to_le_bytes());
                         h.update(key);
+                    }
+                    Code::PublicInput { key, digest } => {
+                        h.update([5]);
+                        h.update((key.len() as u64).to_le_bytes());
+                        h.update(key);
+                        h.update(digest);
+                    }
+                    Code::PublicValues(values) => {
+                        h.update([7]);
+                        for n in values {
+                            h.update(n.to_le_bytes());
+                        }
+                    }
+                    Code::PublicProduct {
+                        input,
+                        weight,
+                        rows,
+                        inner,
+                        columns,
+                        transposed,
+                    } => {
+                        h.update([6, u8::from(*transposed)]);
+                        for n in [input, weight, rows, inner, columns] {
+                            h.update((*n as u64).to_le_bytes());
+                        }
                     }
                     Code::Gather(items) => {
                         h.update([1]);
@@ -1215,12 +1421,13 @@ impl Program {
         self.operation_limit
     }
     pub fn inputs(&self) -> impl Iterator<Item = (&str, usize)> {
-        self.nodes[..self.inputs].iter().map(|n| {
-            let Code::Input(key) = &n.code else {
-                unreachable!()
-            };
-            (key.as_str(), n.lanes)
-        })
+        self.nodes[..self.inputs]
+            .iter()
+            .filter_map(|n| match &n.code {
+                Code::Input(key) => Some((key.as_str(), n.lanes)),
+                Code::PublicInput { .. } => None,
+                _ => unreachable!(),
+            })
     }
     pub fn setup(
         &self,
@@ -1235,10 +1442,11 @@ impl Program {
     }
 }
 
-pub(super) fn lower(
+pub(super) fn lower_with_weights(
     config: &[u8],
     rows: usize,
     outputs: usize,
+    weights: WeightMode,
 ) -> Result<pllm_models::DecoderPlan, String> {
     if config.is_empty()
         || config.len() > 16384
@@ -1257,11 +1465,19 @@ pub(super) fn lower(
             max_new_tokens: outputs as u64,
         },
         DecoderExpansionBudget {
-            max_layers: 4,
+            max_layers: if weights == WeightMode::Public { 64 } else { 4 },
             max_feature_width: 8192,
             max_attention_heads: 16,
-            max_vocabulary: 4096,
-            max_tensor_elements: MAX_VALUES as u64,
+            max_vocabulary: if weights == WeightMode::Public {
+                262144
+            } else {
+                4096
+            },
+            max_tensor_elements: if weights == WeightMode::Public {
+                MAX_PUBLIC_SOURCE_VALUES
+            } else {
+                MAX_VALUES
+            } as u64,
         },
     )
     .map_err(|e| e.to_string())

@@ -238,6 +238,13 @@ be approved and then tested against the same clear numerical oracle.
 
 ## 3. Maverick contract
 
+The [Maverick executable companion](../reproduction-contracts/maverick/README.md)
+now freezes explicit code/field/capsule parameters and independent scalar vectors
+for Protocols 2/3, with 19 runnable checks. Its
+[source lock](../reproduction-contracts/maverick/source-lock.json) rechecks the
+paper and existing Rust snapshots. This advances bounded arithmetic conformance;
+model numerics, model-scale code certificates and persistent decode remain gated.
+
 ### 3.1 Roles, adversary, preprocessing, and leakage
 
 **M §4, pp.5–6; §6, pp.10–11; §7.2/Fig.1, pp.12–13.** One client delegates
@@ -318,9 +325,16 @@ These are **source applicability gaps**, not measured attacks on Maverick.
    distance-testing refinement. Evaluated BabyBear is **less** than `2^31`.
    That cited bound therefore does not directly certify the evaluated field.
    A valid actual-field/actual-dimension distance bound or independently reviewed
-   certificate is needed. Changing to a larger field is a substantial adaptation;
-   it is not an automatic repair, and current native modular kernels also cap
-   their modulus below `2^31`.
+   certificate is needed. The companion specifies **`q=2^31+11=2,147,483,659`**,
+   the smallest qualifying prime, as a concrete **unapproved separate profile**.
+   Its primality and u64 reduced multiply-add bounds are independently tested.
+   It closes the printed field hypothesis only: asymptotic failure bounds still
+   lack finite constants/dimension thresholds. BabyBear stays the source default;
+   existing native modular kernels also cap their modulus below `2^31`.
+   The current ePrint 2026/1075 record states a broader `r>=4`,
+   `q-1>=gamma*N` scaled-RAA result that could preserve BabyBear. Its full PDF
+   remains unverified. The newly retrieved author mirror is an **older** version
+   requiring `r>=9` and `q-1>=(eN)^2`; it does not certify Maverick's r=8.
 2. **31 versus 41.** M §7.1, p.11 chooses `t_y=31`, `ell=2` and attributes
    this to Theorem 6.1. Substituting `kappa=40`, `delta_y=1/2` and BabyBear
    into the theorem's printed sufficient formula (M pp.10–11; also Theorem 5.2,
@@ -337,23 +351,38 @@ These are **source applicability gaps**, not measured attacks on Maverick.
    `{160,159,157,156,154}` (M p.11). Appendix A, pp.22–23 describes the
    linear-test framework and its limitations. This is not a universal concrete
    128-bit security proof. Non-square decoder dimensions and the total query
-   horizon need a reviewed actual-code/noise parameter record.
+   horizon need a reviewed actual-code/noise parameter record. The concrete
+   source-derived 64-by-64 capsule uses `t_x=165`, Nx=512; infeasible small
+   dimensions must reject rather than clip the calculated weight. Exact-weight
+   sampling and Eq.(1) are independently checked in the companion, without
+   equating the heuristic to a general `2^-128` per-sample advantage.
 4. **Ensemble matters.** The source construction samples full uniform
    permutations and field scales. PLLM derives its code from public SHA-256
    seeds; no reviewed reduction transfers the quoted ensemble bounds to this
    seeded distribution. Default to the explicitly specified source ensemble.
    Freezing a sampled code makes it reproducible but does not prove its distance.
    Do not promote sparse-vector or corruption tests to a distance certificate.
+   Untrusted publication of algebraically correct P/Q does not establish honest
+   code selection. Bind independently controlled sampling or an instance proof.
+   The companion's two `[16,2]` examples have **exact distance 15**, proved over
+   all nonzero messages by projective-column counting; these tiny instance
+   certificates do not transfer to any 64-dimensional or model code or dual-LPN.
 5. **Whole-execution budget.** M Remarks 5.3/6.2, pp.8/11 add code-distance
    failure probability to conditional soundness. For each code instance, record
    its admitted failure bound and reuse horizon. Bound the union across distinct
    code instances and verification windows, plus multi-query privacy loss;
    count malformed/aborted attempts as applicable. A per-object counter reset
-   cannot reset a deployment security budget.
+   cannot reset a deployment security budget. For W same-parameter Protocol-2
+   batches, the conditional contribution is `W*2*((1/2)^31+1/(q-1))^2`.
+   At W=65,536 and BabyBear it is about `2^-42.9054`, before any code-failure
+   term; at W=`2^19` it already exceeds `2^-40`. W counts every shape batch,
+   not merely complete model requests. This is illustrative accounting, not
+   admission of the historical per-object attempt cap as a deployment lifetime.
 
-The source-faithful implementation can initially be an explicitly **uncertified
-algebra-conformance artifact**. User approval can authorize that limited scope;
-it cannot turn missing proof evidence into a certified private/verifiable result.
+Source-faithful implementation can proceed as an explicitly **uncertified
+algebra-conformance artifact**. The companion supplies that independent scalar
+artifact and exact sample-error arithmetic now. Its tests do not turn missing
+proof evidence into a certified private/verifiable result.
 
 ### 3.4 Batch verification, modes, and acceptance
 
@@ -380,8 +409,13 @@ layer (M §§5.4/7.2, pp.8–9/12–13):
 - The conditional batch error bound is `epsilon^ell + epsilon_prime^ell_prime`,
   plus the applicable code-failure probabilities. Freeze secondary code family,
   rate, sparsity and repetition parameters: the reviewed evaluation does not
-  supply a complete operational manifest for them. A systematic-code storage
-  optimization is described on M p.9 but is not permission to silently change
+  supply a complete operational manifest for them. The companion freezes a
+  concrete B=2, m=n=64 capsule: secondary dimension 128, independent RAA8,
+  N_prime=1024, target distance 1/2, t'=31 and ell'=2. This is a
+  source-compatible Protocol-2 instantiation for conformance, not recovered
+  evaluated secondary settings; model batching/evidence still need closure.
+  A systematic-code storage optimization is described on M p.9 but is not
+  permission to silently change
   the evaluated construction or its resource attribution.
 - Batch verification adds a challenge/response round, server projection work,
   B*ell*n reply field elements, and Q_aux storage. Calling it “zero server
@@ -401,6 +435,10 @@ logits only if every check accepts**; otherwise discard the execution. Proposed
 PLLM ownership must preserve tentative local state until that boundary. An
 autoregressive extension must define when verification, state commit and token
 feedback occur; it cannot silently treat tentative logits as accepted output.
+The companion's state oracle enforces both immutable response barriers and
+terminal acceptance/retirement. It includes an auxiliary forgery that passes
+the original scalar checks but fails the mandatory secondary check. Python
+conformance does not establish native secret erasure or a persistent decoder.
 
 ### 3.5 Original numerics, evaluated model, and missing state contract
 
@@ -467,6 +505,12 @@ logits**, with checkpoint pins and numerical gaps resolved. Full ten-system
 serving comparison additionally needs a user-approved autoregressive extension
 and a new state/quality contract. Defaulting to existing Qwen2.5-0.5B W8A8
 generation would change both the model and the method's numerical experiment.
+The [concrete extension proposal](../reproduction-contracts/maverick/README.md#7-exact-residual-decisions-including-persistent-decode)
+uses one verified next-logit window before client sampling/feedback, client-owned
+tentative causal state, atomic selected-token/sampler commitment, and no KV append
+for a selected-but-unexecuted token. Exact KV precision/layout/capacity and
+full-prefix-versus-cache semantics remain unresolved numerical/state fields;
+this proposal is not an approval or evidence of source decode support.
 
 ## 4. Reuse, implementation slices, and qualification
 
@@ -520,6 +564,11 @@ fewer unresolved source parameters than Maverick's complete model path.
 
 **Maverick first slice: a source-parameter Protocol-3 capsule, then Protocol 2.**
 
+The independent [scalar companion](../reproduction-contracts/maverick/README.md)
+and [machine-readable profile](../reproduction-contracts/maverick/profile.json)
+now supply the arithmetic expectations for this native slice. No native/model
+execution follows from the scalar checks.
+
 1. Separate field-generic algebra from the current i8 wrapper. Accept explicit
    independent RAA code descriptions and a manifest of q/Nx/Ny/t_x/t_y/ell,
    source matrix and preprocessing validation. Use evaluated BabyBear, rate 1/8
@@ -528,10 +577,18 @@ fewer unresolved source parameters than Maverick's complete model path.
 2. Use a bounded synthetic 64-by-64 field matrix, including coefficients outside
    i8, and exact-weight private noise. Independently verify dense G versus fast
    encode/transpose, P/Q identities, fresh masks, fixed-response checking and
-   demasking. No FP8/model import is needed to establish this algebra slice.
+   demasking. Freeze Nx=Ny=512, t_x=165, t_y=31, ell=2. The companion includes
+   this source-parameter vector plus tiny literal dense G/P/Q oracle vectors.
+   No FP8/model import is needed to establish this algebra slice.
 3. Add a **two-claim same-shape Protocol-2** fixture, with explicit secondary
    parameters and separate original-response and auxiliary-response freeze
-   barriers. Verify corrupted original and auxiliary outputs independently.
+   barriers. Use the companion's RAA8 secondary dimension 128/N_prime=1024,
+   t'=31/ell'=2 capsule instantiation; Q_aux payload is 2,097,152 bytes.
+   One thread, one live batch and at most 16 conformance attempts fit only after
+   a complete checked allocation receipt under the 16 MiB capsule ceiling.
+   Verify corrupted original and auxiliary outputs independently, including
+   auxiliary errors orthogonal to original inputs. These are conformance limits,
+   not a security lifetime or model geometry approval.
 4. After code/security and numeric approvals, implement the original Qwen3-4B
    eight-token-to-logits graph with optimistic batch acceptance and measured
    preprocessing ownership. Only then add the separately approved persistent
@@ -627,8 +684,8 @@ changes for the author to approve. Missing source facts must first be researched
 | G3 | Verified two-server construction versus verification-off restriction or prepared-body/four-role architecture. | Preserve two servers plus honest publisher and complete Fig.2/Fig.4 checks. No inherited four-provider comparator or weakened integrity claim. |
 | G4 | Approval required for a changed acceptance window, observable cache-hit omissions, or deployment/trust contract. | Paper-style final acceptance, immediate row checks, no lookup-cache omission; source AES compression with securely initialized, separated streams. Secure entropy, correct challenges and fail-closed acceptance are mandatory. Smaller verified streaming windows require separate approval. |
 | G5 | Exact original model/checkpoint/tokenizer and missing model/sampler/state details; change to common Qwen workload. | Llama-3.2-1B source-family anchor first, pinned before import. A common-model port remains explicit and needs quality/state approval. |
-| M1 | Source requirement plus evidence gate; approval required for a changed field, code, or ensemble. | Retain source BabyBear and the full source ensemble. Establish actual-field distance/failure and dual-LPN evidence before security qualification. Source-parameter algebra tests do not supply that evidence. |
-| M2 | Source requirement plus missing batch/security evidence. | Retain evaluated `t_y=31` and two checks: the conditional Lemma 5.1 bound is sufficient. The formula's 41 is not necessary. Freeze secondary code/parameters and lifetime accounting; approval cannot supply missing distance evidence. |
+| M1 | Source requirement plus evidence gate; approval required for a changed field, code, or ensemble. | Retain BabyBear/full source ensemble. Concrete separate proposal: `q=2^31+11`, independently checked prime/u64 arithmetic; it meets only the quoted field threshold and still needs finite code/security evidence. Preserve historical BabyBear/seeded/i8/41 identity. Tiny exact certificates do not certify model codes. |
+| M2 | Source requirement plus missing evaluated batch/security evidence. | Retain evaluated `t_y=31` and two checks. Companion fixes B=2 RAA8 secondary dimension 128/N_prime=1024, t'=31/ell'=2 for bounded conformance; evaluated secondary settings and complete-model batch manifests remain unverified. Charge code-selection events once and every shape-batch attempt across the whole lifetime. |
 | M3 | Source-resolution gate; approval required if a complete proposed fallback changes unresolved numerics. | Preserve FP8 weights, scale 256 and post-linear BF16. Recover the exact activation/weight format, scales and operation order. Do not ask for approval of an unspecified FP8/BF16 profile or silently substitute i8 W8A8. |
 | M4 | Original eight-token-to-logits workload versus persistent autoregressive generation; embedding/head placement, KV, sampling, EOS and continuation semantics. | Reproduce original Qwen3-4B prefill first. Obtain explicit approval for the required full-study token-loop/state extension; no invented source decode support. |
 | M5 | Source requirement; approval only for a changed protocol or acceptance mode. | Standard private/verifiable mode includes Protocol 2 and public-preprocessing validation. Boost is a separately metered source variant; verification-only cannot fill privacy cells. |

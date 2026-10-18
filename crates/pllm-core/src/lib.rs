@@ -26,6 +26,7 @@ pub mod kv_cache;
 pub mod logrow_numeric;
 pub mod mask_stream;
 pub mod masked_aggregate;
+pub mod maverick_batch;
 pub mod offset_transport;
 pub mod packed_embedding;
 pub mod paged;

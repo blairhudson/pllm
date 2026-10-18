@@ -5,10 +5,21 @@ use zeroize::Zeroize;
 
 const CHUNK: usize = 4096;
 
+pub(super) fn encode_q18(raw: &[u8]) -> Result<i64, String> {
+    let value = f32::from_le_bytes(raw.try_into().map_err(|_| "invalid float32 source word")?);
+    let scaled = value * ONE as f32;
+    if !scaled.is_finite() || scaled.abs() > (1u64 << 40) as f32 {
+        return Err("replicated Q18 source range".into());
+    }
+    Ok(scaled as i64)
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
     pub schema: String,
+    #[serde(default, skip_serializing_if = "WeightMode::is_private")]
+    pub weights: WeightMode,
     pub config: Vec<u8>,
     pub rows: usize,
     pub outputs: usize,
@@ -28,7 +39,13 @@ impl Manifest {
         {
             return Err("invalid replicated manifest identity".into());
         }
-        let mut program = Program::compile(&self.config, self.rows, self.outputs, &self.tensors)?;
+        let mut program = Program::compile_with_weights(
+            &self.config,
+            self.rows,
+            self.outputs,
+            &self.tensors,
+            self.weights,
+        )?;
         program.bind(self.source, self.composition);
         if program.digest() != self.program {
             return Err("replicated manifest program differs".into());
@@ -55,6 +72,10 @@ pub struct Publisher {
     issued: usize,
     issue_offset: usize,
     retired: bool,
+    public_coefficients: std::collections::BTreeSet<String>,
+    source_hash: Sha256,
+    source_lower: i64,
+    source_upper: i64,
 }
 
 impl Publisher {
@@ -65,8 +86,34 @@ impl Publisher {
         source: [u8; 32],
         composition: [u8; 32],
     ) -> Result<Self, String> {
-        let shapes: Vec<_> = Program::source_shapes(config, rows, outputs)?
+        Self::new_with_weights(
+            config,
+            rows,
+            outputs,
+            source,
+            composition,
+            WeightMode::Private,
+        )
+    }
+
+    pub fn new_with_weights(
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        source: [u8; 32],
+        composition: [u8; 32],
+        weights: WeightMode,
+    ) -> Result<Self, String> {
+        let shapes: Vec<_> = Program::source_shapes_with_weights(config, rows, outputs, weights)?
             .into_iter()
+            .collect();
+        let plan = program::lower_with_weights(config, rows, outputs, weights)?;
+        let public_coefficients: std::collections::BTreeSet<String> = plan
+            .prefill
+            .operations
+            .iter()
+            .filter(|op| op.operator == pllm_models::ModelOperator::RmsNorm)
+            .map(|op| op.attributes["weight"].as_str().unwrap().to_owned())
             .collect();
         if source == [0; 32] || composition == [0; 32] {
             return Err("empty source/composition pin".into());
@@ -75,15 +122,23 @@ impl Publisher {
         getrandom::fill(&mut session).map_err(|_| "replicated OS randomness failed")?;
         let values = shapes
             .iter()
-            .map(|(_, shape)| {
+            .map(|(key, shape)| {
                 Ok(Zeroizing::new(
-                    vec_zero(shape.iter().product()).map_err(|e| e.to_string())?,
+                    vec_zero(
+                        if weights == WeightMode::Private || public_coefficients.contains(key) {
+                            shape.iter().product()
+                        } else {
+                            0
+                        },
+                    )
+                    .map_err(|e| e.to_string())?,
                 ))
             })
             .collect::<Result<_, String>>()?;
         Ok(Self {
             manifest: Manifest {
                 schema: "pllm.replicated-decoder.manifest.v1".into(),
+                weights,
                 config: config.to_vec(),
                 rows,
                 outputs,
@@ -101,6 +156,10 @@ impl Publisher {
             issued: 0,
             issue_offset: 0,
             retired: false,
+            public_coefficients,
+            source_hash: Sha256::new(),
+            source_lower: i64::MAX,
+            source_upper: i64::MIN,
         })
     }
     pub fn shapes(&self) -> &[(String, Vec<usize>)] {
@@ -127,23 +186,39 @@ impl Publisher {
                 || data.is_empty()
                 || data.len() > CHUNK * 4
                 || data.len() % 4 != 0
-                || offset + data.len() / 4 > self.values[self.cursor].len()
+                || offset
+                    .checked_add(data.len() / 4)
+                    .is_none_or(|n| n > self.shapes[self.cursor].1.iter().product())
             {
                 return Err("invalid ordered replicated source frame".into());
             }
-            for (out, raw) in self.values[self.cursor][offset..offset + data.len() / 4]
-                .iter_mut()
-                .zip(data.chunks_exact(4))
-            {
-                let value = f32::from_le_bytes(raw.try_into().unwrap());
-                let scaled = value * ONE as f32;
-                if !scaled.is_finite() || scaled.abs() > (1u64 << 40) as f32 {
-                    return Err("replicated Q18 source range".into());
+            for (i, raw) in data.chunks_exact(4).enumerate() {
+                let value = encode_q18(raw)?;
+                if !self.values[self.cursor].is_empty() {
+                    self.values[self.cursor][offset + i] = value;
                 }
-                *out = scaled as i64;
+                self.source_hash.update(value.to_le_bytes());
+                self.source_lower = self.source_lower.min(value);
+                self.source_upper = self.source_upper.max(value);
             }
             self.offset += data.len() / 4;
-            if self.offset == self.values[self.cursor].len() {
+            if self.offset == self.shapes[self.cursor].1.iter().product::<usize>() {
+                let (key, shape) = &self.shapes[self.cursor];
+                self.manifest.tensors.insert(
+                    key.clone(),
+                    SourceTensor {
+                        shape: shape.clone(),
+                        lower: self.source_lower,
+                        upper: self.source_upper,
+                        digest: std::mem::take(&mut self.source_hash).finalize().into(),
+                        public_q18: self
+                            .public_coefficients
+                            .contains(key)
+                            .then(|| self.values[self.cursor].to_vec()),
+                    },
+                );
+                self.source_lower = i64::MAX;
+                self.source_upper = i64::MIN;
                 self.cursor += 1;
                 self.offset = 0;
             }
@@ -160,10 +235,11 @@ impl Publisher {
             {
                 return Err("incomplete replicated source import".into());
             }
-            let plan = program::lower(
+            let plan = program::lower_with_weights(
                 &self.manifest.config,
                 self.manifest.rows,
                 self.manifest.outputs,
+                self.manifest.weights,
             )?;
             let public: std::collections::BTreeSet<_> = plan
                 .prefill
@@ -182,33 +258,18 @@ impl Publisher {
             if ids.iter().any(|v| u64::from(*v) >= vocabulary) {
                 return Err("replicated input ID outside vocabulary".into());
             }
-            for ((key, shape), values) in self.shapes.iter().zip(&self.values) {
-                let mut hash = Sha256::new();
-                for value in values.iter() {
-                    hash.update(value.to_le_bytes());
-                }
-                self.manifest.tensors.insert(
-                    key.clone(),
-                    SourceTensor {
-                        shape: shape.clone(),
-                        lower: *values.iter().min().unwrap(),
-                        upper: *values.iter().max().unwrap(),
-                        digest: hash.finalize().into(),
-                        public_q18: public.contains(key.as_str()).then(|| values.to_vec()),
-                    },
-                );
-            }
-            let mut program = Program::compile(
+            let mut program = Program::compile_with_weights(
                 &self.manifest.config,
                 self.manifest.rows,
                 self.manifest.outputs,
                 &self.manifest.tensors,
+                self.manifest.weights,
             )?;
             program.bind(self.manifest.source, self.manifest.composition);
             self.manifest.program = program.digest();
             let mut values = vec![];
             for ((key, _), value) in self.shapes.iter().zip(std::mem::take(&mut self.values)) {
-                if !public.contains(key.as_str()) {
+                if self.manifest.weights == WeightMode::Private && !public.contains(key.as_str()) {
                     values.push(value);
                 }
             }

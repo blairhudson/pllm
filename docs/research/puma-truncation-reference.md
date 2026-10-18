@@ -53,7 +53,7 @@ HTTPS. The source threat model still permits at most one static semi-honest
 corruption; these controls provide no malicious-result verification or evidence
 of independently operated workers.
 
-The installed source path admits complete tokenizer vocabularies at most 256,
+The default private-weight source path admits complete tokenizer vocabularies at most 256,
 at most 32 input tokens and eight outputs, four layers, feature dimensions at
 most 8,192 and 1,048,576 source values. The primitive-specific row/rotary limits,
 compiler-view budget and eager-range gates can further reject a
@@ -88,6 +88,46 @@ Resident source shares, expanded operation schedules and primitive work retain
 their existing admission bounds. This construction change supplies no measured
 whole-client memory or full-checkpoint capacity result. Build and installed SDK
 checks: [compact-compiler evidence](../../paper/artifacts/puma-sdk/local-v3/README.md).
+
+### Explicit public-weight adaptation
+
+[D11](../../paper/methods/DECISIONS.md#d11-explicit-public-weight-puma-adaptation)
+adds `PumaThreePartyDecoder(weights="public")` as the `linear` slot of
+`PumaThreePartyCpu`. Omission retains the private-weight composition and its frozen
+execution identities. The public mode has a separate numeric profile:
+`puma.public-q18.rmsnorm-epsilon1.full-prefix.batched-final-greedy-ids.v1`.
+It retains private prompts, activations, argmax and feedback under the same
+three-party corruption assumption; it makes no model-weight confidentiality claim.
+
+The client streams original checkpoint values through bounded native publication
+frames, retaining tensor commitments and public coefficient ranges instead of
+resident weight shares. Each worker independently imports the locked local source
+into immutable Q18 files, checking every encoded value, tensor hash and public
+affine coefficient against the publication. A 64 KiB read buffer feeds complete
+ring64 products into both replicated activation components. Both traverse every
+weight in public order. One Q18 truncation follows the complete sum, never a file
+chunk. Lookup uses private one-hot selection; no private token selects a disk
+address. Bounded equality batches and a stable argmax tournament keep selections
+shared, including odd widths and equal-logit lowest-index ties.
+
+Public-source geometry can admit up to 64 layers, 262,144 vocabulary rows and
+536,870,912 source values. The existing compiler-view, live-value, primitive and
+work limits still apply. Snapshot disk admission is separate from RAM; incomplete
+imports, malformed frames and cancellation retire their owners. Source-present
+workers read their own checkpoint; missing-worker distribution is unmeasured.
+No resident client weight matrix or weight-share delivery is introduced in this
+mode. Public file reads, nonlinear exchanges, full-prefix recomputation and all
+three worker costs remain charged.
+
+The pinned Qwen2.5 4-input/two-output metadata check now rejects the compiler-view
+payload bound rather than the private-mode source-expansion bound. It reads no
+tensor values and launches no workers. Compact activation views and loop-based
+execution, complete-model range admission, quality and measured response costs
+remain necessary for practical full-checkpoint use. Generated SDK controls and
+complete integer matrix oracles establish this bounded adaptation only. Evidence:
+[public-weight slice](../../paper/artifacts/puma-sdk/local-v4/README.md).
+
+### Shared SDK interfaces
 
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,
 `pllm benchmark run` and `BenchmarkTarget.response` use this composition.

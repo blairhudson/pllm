@@ -21,8 +21,8 @@ from pllm.runtime.topology_accounting import REPLICATED_COVERAGE
 from test_replicated_sdk import experiment_fixture, ROLES
 
 
-def saved_experiment(tmp_path):
-    experiment = experiment_fixture(tmp_path)
+def saved_experiment(tmp_path, weights="private"):
+    experiment = experiment_fixture(tmp_path, weights=weights)
     path = tmp_path / "experiment.json"
     path.write_bytes(experiment.canonical_bytes())
     return experiment, path
@@ -70,8 +70,9 @@ def gateway(path, tmp_path):
             assert not alive, "gateway failed to retire its workers"
 
 
-def test_cli_gateway_responses_stream_and_chat(tmp_path):
-    _, path = saved_experiment(tmp_path)
+@pytest.mark.parametrize("weights", ["private", "public"])
+def test_cli_gateway_responses_stream_and_chat(tmp_path, weights):
+    _, path = saved_experiment(tmp_path, weights)
     with gateway(path, tmp_path) as client:
         models = client.get("/v1/models")
         assert models.status_code == 200
@@ -98,8 +99,9 @@ def test_cli_gateway_responses_stream_and_chat(tmp_path):
         assert chat.json()["choices"][0]["finish_reason"] == "length"
 
 
-def test_cli_benchmark_accounts_client_and_peer_links_under_shared_caps(tmp_path):
-    _, path = saved_experiment(tmp_path)
+@pytest.mark.parametrize("weights", ["private", "public"])
+def test_cli_benchmark_accounts_client_and_peer_links_under_shared_caps(tmp_path, weights):
+    _, path = saved_experiment(tmp_path, weights)
     result = subprocess.run([sys.executable, "-I", "-B", "-m", "pllm", "benchmark", "run",
         "--experiment", str(path), "--prompt", "hello", "--max-output-tokens", "2",
         "--warmups", "0", "--repetitions", "1", "--backend", "native", "--wan", "--format", "json"],
@@ -122,8 +124,9 @@ def test_cli_benchmark_accounts_client_and_peer_links_under_shared_caps(tmp_path
     assert set(report["process_cpu_accounting"]["cold_first_response_cpu_seconds_by_role"]) == {"client", *ROLES}
 
 
-def test_ordinary_response_target_preserves_peer_costs_and_unknown_decode_rate(tmp_path):
-    experiment, _ = saved_experiment(tmp_path)
+@pytest.mark.parametrize("weights", ["private", "public"])
+def test_ordinary_response_target_preserves_peer_costs_and_unknown_decode_rate(tmp_path, weights):
+    experiment, _ = saved_experiment(tmp_path, weights)
     target = BenchmarkTarget.response(experiment, scenario=Scenario.cold(max_output_tokens=2), backend="native")
     suite = BenchmarkSuite([BenchmarkCase("replicated-response", target)],
                           Sampling(processes=1, timeout_seconds=120, memory_bytes=3 << 30))

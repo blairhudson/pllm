@@ -1,5 +1,7 @@
 //! Bounded party-local bindings; parse failures retire the complete owner.
-use pllm_compiler::replicated_decoder::{Manifest, Program, Publisher, Worker};
+use pllm_compiler::replicated_decoder::{
+    Manifest, Program, PublicSource, PublicSourceImport, Publisher, WeightMode, Worker,
+};
 use pllm_core::puma::{multiply, prss, Party};
 use pyo3::{
     prelude::*,
@@ -70,6 +72,7 @@ impl NativePublisher {
 #[pymethods]
 impl NativePublisher {
     #[new]
+    #[pyo3(signature=(config, rows, outputs, source, composition, weights="private"))]
     fn new(
         py: Python<'_>,
         config: &Bound<'_, PyBytes>,
@@ -77,12 +80,20 @@ impl NativePublisher {
         outputs: usize,
         source: &Bound<'_, PyBytes>,
         composition: &Bound<'_, PyBytes>,
+        weights: &str,
     ) -> PyResult<Self> {
         let config = config.as_bytes();
         let source = pin(source.as_bytes())?;
         let composition = pin(composition.as_bytes())?;
+        let weights = match weights {
+            "private" => WeightMode::Private,
+            "public" => WeightMode::Public,
+            _ => return Err(error("invalid weight visibility")),
+        };
         let owner = py
-            .detach(|| Publisher::new(config, rows, outputs, source, composition))
+            .detach(|| {
+                Publisher::new_with_weights(config, rows, outputs, source, composition, weights)
+            })
             .map_err(error)?;
         Ok(Self {
             owner: Some(owner),
@@ -196,6 +207,7 @@ impl NativePublisher {
 // infallible allocation when setup transfers into the decoder.
 #[allow(clippy::large_enum_variant)]
 enum State {
+    PublicSource(PublicSourceImport),
     Setup(multiply::SetupParty),
     Run(Worker),
 }
@@ -204,6 +216,7 @@ struct Owner {
     program: Arc<Program>,
     session: [u8; 32],
     party: Party,
+    public: Option<PublicSource>,
 }
 #[pyclass(module = "pllm._native", name = "ReplicatedWorker")]
 pub struct NativeWorker {
@@ -237,12 +250,17 @@ impl NativeWorker {
                     serde_json::from_slice(raw).map_err(|_| "invalid replicated manifest")?;
                 let program = manifest.compile()?;
                 let session = manifest.session;
-                let setup = program.setup(session, party).map_err(|e| e.to_string())?;
+                let state = if manifest.weights == WeightMode::Public {
+                    State::PublicSource(PublicSourceImport::new(&manifest)?)
+                } else {
+                    State::Setup(program.setup(session, party).map_err(|e| e.to_string())?)
+                };
                 Ok(Owner {
-                    state: State::Setup(setup),
+                    state,
                     program,
                     session,
                     party,
+                    public: None,
                 })
             })
             .map_err(error)?;
@@ -250,6 +268,64 @@ impl NativeWorker {
             owner: Some(owner),
             pid: std::process::id(),
         })
+    }
+    #[pyo3(signature=(*args,**kwargs))]
+    fn append_public_source(
+        &mut self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        let mut owner = self.take()?;
+        let [key, offset, data] = arguments(args, kwargs, ["key", "offset", "data"])?;
+        let key: &str = key.extract()?;
+        if key.len() > 512 {
+            return Err(error("replicated key too long"));
+        }
+        let offset = integer(&offset)?;
+        let data = bytes(&data, 16384)?;
+        let State::PublicSource(importer) = &mut owner.state else {
+            return Err(error("public source import outside admitted phase"));
+        };
+        py.detach(|| importer.append(key, offset, data))
+            .map_err(error)?;
+        self.owner = Some(owner);
+        Ok(())
+    }
+    #[pyo3(signature=(*args,**kwargs))]
+    fn seal_public_source(
+        &mut self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<()> {
+        let owner = self.take()?;
+        arguments(args, kwargs, [])?;
+        let Owner {
+            state,
+            program,
+            session,
+            party,
+            ..
+        } = owner;
+        let State::PublicSource(importer) = state else {
+            return Err(error("public source import outside admitted phase"));
+        };
+        let (public, setup) = py
+            .detach(|| -> Result<_, String> {
+                let public = importer.finish()?;
+                let setup = program.setup(session, party).map_err(|e| e.to_string())?;
+                Ok((public, setup))
+            })
+            .map_err(error)?;
+        self.owner = Some(Owner {
+            state: State::Setup(setup),
+            program,
+            session,
+            party,
+            public: Some(public),
+        });
+        Ok(())
     }
     #[pyo3(signature=(*args,**kwargs))]
     fn call(
@@ -358,18 +434,22 @@ impl NativeWorker {
             program,
             session,
             party,
+            public,
         } = owner;
         let State::Setup(mut setup) = state else {
             return Err(error("replicated setup already consumed"));
         };
         let worker = py
-            .detach(|| Worker::new(Arc::clone(&program), setup.finish()?, session))
+            .detach(|| {
+                Worker::new_with_source(Arc::clone(&program), setup.finish()?, session, public)
+            })
             .map_err(error)?;
         self.owner = Some(Owner {
             state: State::Run(worker),
             program,
             session,
             party,
+            public: None,
         });
         Ok(())
     }

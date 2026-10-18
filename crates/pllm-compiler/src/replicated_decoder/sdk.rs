@@ -1,5 +1,5 @@
 //! Native capability and bounded source admission for replicated execution.
-use super::{program, Program};
+use super::{program, Program, WeightMode};
 use crate::{ExperimentDeployment, ExperimentDocument, ExperimentPipeline};
 use pllm_types::canonical_bytes;
 
@@ -7,6 +7,22 @@ pub const PROTOCOL: &str = "pllm/puma-three-party-decoder/v1";
 pub const TOPOLOGY: &str = "pllm/three-party-replicated/v1";
 pub const STATE: &str = "pllm/replicated-private-prefix/v1";
 pub const NUMERIC: &str = "puma.source-q18.rmsnorm-epsilon1.full-prefix.final-greedy-ids.v1";
+pub const PUBLIC_NUMERIC: &str =
+    "puma.public-q18.rmsnorm-epsilon1.full-prefix.batched-final-greedy-ids.v1";
+
+fn weights(document: &ExperimentDocument) -> Result<WeightMode, String> {
+    let params = &document
+        .pipeline
+        .components
+        .get("linear")
+        .ok_or("missing replicated linear component")?
+        .params;
+    match serde_json::to_value(params).unwrap() {
+        value if value == serde_json::json!({}) => Ok(WeightMode::Private),
+        value if value == serde_json::json!({"weights":"public"}) => Ok(WeightMode::Public),
+        _ => Err("invalid replicated weight visibility".into()),
+    }
+}
 
 pub(crate) fn selected(pipeline: &ExperimentPipeline) -> bool {
     pipeline
@@ -15,8 +31,17 @@ pub(crate) fn selected(pipeline: &ExperimentPipeline) -> bool {
         .any(|v| matches!(v.component.as_str(), PROTOCOL | TOPOLOGY | STATE))
 }
 pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
+    let weights = weights(document)?;
     let expected = [
-        ("linear", PROTOCOL, serde_json::json!({})),
+        (
+            "linear",
+            PROTOCOL,
+            if weights == WeightMode::Public {
+                serde_json::json!({"weights":"public"})
+            } else {
+                serde_json::json!({})
+            },
+        ),
         ("topology", TOPOLOGY, serde_json::json!({})),
         ("state", STATE, serde_json::json!({})),
         ("kernels", "pllm/cpu", serde_json::json!({"threads":1})),
@@ -77,13 +102,15 @@ pub fn source_contract(
     {
         return Err("replicated request exceeds Experiment".into());
     }
-    Program::source_shapes(
+    let weights = weights(&document)?;
+    Program::source_shapes_with_weights(
         config,
         document.budget.max_input_tokens as usize,
         document.budget.max_new_tokens as usize,
+        weights,
     )?;
-    let shapes = Program::source_shapes(config, rows, outputs)?;
-    let plan = program::lower(config, rows, outputs)?;
+    let shapes = Program::source_shapes_with_weights(config, rows, outputs, weights)?;
+    let plan = program::lower_with_weights(config, rows, outputs, weights)?;
     let head = plan
         .prefill
         .operations
@@ -97,12 +124,19 @@ pub fn source_contract(
         .values()
         .map(|v| v.iter().product::<usize>() * 4)
         .sum::<usize>();
-    Ok(canonical_bytes(
-        &serde_json::json!({"schema_version":"pllm.replicated.sdk-contract.v1",
+    let mut contract = serde_json::json!({"schema_version":"pllm.replicated.sdk-contract.v1",
         "configuration":crate::configuration_digest_bytes(experiment),"composition":crate::pipeline_digest(&document.pipeline),
         "source_lock":source,"tokenizer":tokenizer,"numeric_profile":NUMERIC,"plan":plan,
         "source_shapes":shapes,"source_float32_bytes":size,"input_rows":rows,"decode_steps":outputs-1,
         "selection_prefix_rows":(rows..rows+outputs).collect::<Vec<_>>(),
-        "vocabulary":head.output_shape[1],"width":width,"execution_payload_estimate_bytes":192usize<<20}),
-    ))
+        "vocabulary":head.output_shape[1],"width":width,"execution_payload_estimate_bytes":192usize<<20});
+    if weights == WeightMode::Public {
+        contract["weights"] = serde_json::json!("public");
+        contract["numeric_profile"] = serde_json::json!(PUBLIC_NUMERIC);
+        contract["decoder_resources"] =
+            serde_json::json!({"profile":"pllm.puma.public-source-capacity.v1"});
+        contract["public_weight_snapshot_bytes_per_worker"] = serde_json::json!(size * 2);
+        contract["public_weight_read_buffer_bytes"] = serde_json::json!(65536);
+    }
+    Ok(canonical_bytes(&contract))
 }

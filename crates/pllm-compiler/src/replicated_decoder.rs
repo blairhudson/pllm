@@ -3,12 +3,14 @@
 //! token IDs may be reconstructed after the fixed full-prefix feedback loop.
 
 mod program;
+mod public_source;
 mod runtime;
 pub mod sdk;
 mod source;
 #[cfg(test)]
 mod tests;
 pub use program::{Program, SourceTensor};
+pub use public_source::{PublicSource, PublicSourceImport};
 pub use runtime::{PeerBytes, Worker};
 pub use source::{Manifest, Publisher, SourceChunk};
 
@@ -22,10 +24,31 @@ const ONE: i64 = 1 << 18;
 const MAX_VALUES: usize = 1 << 20;
 const MAX_NODES: usize = 1 << 16;
 const MAX_PROGRAM_BYTES: usize = 64 << 20;
+const MAX_PUBLIC_SOURCE_VALUES: usize = 1 << 29;
+
+/// Public weights are an explicit open-checkpoint adaptation. The omitted
+/// selector retains the original private-weight manifest and execution identity.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WeightMode {
+    #[default]
+    Private,
+    Public,
+}
+impl WeightMode {
+    fn is_private(&self) -> bool {
+        *self == Self::Private
+    }
+}
 
 #[derive(Clone)]
 enum Code {
     Input(String),
+    PublicInput {
+        key: String,
+        digest: [u8; 32],
+    },
+    PublicValues(Vec<i64>),
     Gather(Vec<(usize, usize)>),
     SourceGather(SourceGather),
     Affine {
@@ -38,6 +61,14 @@ enum Code {
         right: usize,
         shape: Option<MatrixShape>,
         rescale: bool,
+    },
+    PublicProduct {
+        input: usize,
+        weight: usize,
+        rows: usize,
+        inner: usize,
+        columns: usize,
+        transposed: bool,
     },
     Tensor {
         input: usize,
@@ -105,7 +136,7 @@ struct Node {
 impl Node {
     fn inputs(&self) -> Vec<usize> {
         match &self.code {
-            Code::Input(_) => vec![],
+            Code::Input(_) | Code::PublicInput { .. } | Code::PublicValues(_) => vec![],
             Code::Gather(items) => {
                 let mut result: Vec<_> = items.iter().map(|v| v.0).collect();
                 result.sort_unstable();
@@ -115,6 +146,7 @@ impl Node {
             Code::SourceGather(view) => vec![view.owner],
             Code::Affine { left, right, .. } => std::iter::once(*left).chain(*right).collect(),
             Code::Product { left, right, .. } => vec![*left, *right],
+            Code::PublicProduct { input, weight, .. } => vec![*input, *weight],
             Code::Tensor { input, .. } => vec![*input],
         }
     }

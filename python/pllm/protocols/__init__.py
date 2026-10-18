@@ -434,20 +434,24 @@ class PumaThreePartyDecoder(ProtocolMethod):
 
     __slots__ = ()
     NUMERIC_PROFILE = "puma.source-q18.rmsnorm-epsilon1.full-prefix.final-greedy-ids.v1"
+    PUBLIC_NUMERIC_PROFILE = "puma.public-q18.rmsnorm-epsilon1.full-prefix.batched-final-greedy-ids.v1"
     descriptor = ComponentDescriptor(
         component="pllm/puma-three-party-decoder/v1", provider="pllm", distribution="pllm.run",
         version="1", category="pllm/protocol-method", category_version="1",
-        lifecycle_phase="offline+online", parameter_schema={"type": "object", "additionalProperties": False},
+        lifecycle_phase="offline+online", parameter_schema={"type": "object", "additionalProperties": False,
+            "properties": {"weights": {"type": "string", "const": "public"}}},
         capabilities=("bounded-replicated-q18", "protected-full-prefix-recomputation", "private-greedy-feedback"),
         required_host_features=("native-replicated-decoder", "authenticated-confidential-channels"),
         role_eligibility=("client", "worker_a", "worker_b", "worker_c"),
     )
 
-    def __init__(self):
-        super().__init__(self.descriptor.component)
+    def __init__(self, *, weights: Literal["private", "public"] = "private"):
+        if type(weights) is not str or weights not in {"private", "public"}:
+            raise ConfigurationError("PUMA weights must be private or public")
+        super().__init__(self.descriptor.component, {"weights": weights} if weights == "public" else {})
 
     def get_params(self, deep=True):
-        return {}
+        return {"weights": self.params.get("weights", "private")}
 
     @classmethod
     def describe(cls):

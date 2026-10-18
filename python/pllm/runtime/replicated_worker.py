@@ -13,6 +13,9 @@ import hmac
 import json
 import os
 import secrets
+import shutil
+import tempfile
+import threading
 import time
 
 import httpx
@@ -28,12 +31,14 @@ from .delegated_worker import _Reservation, _PayloadResponse, _body
 from .replicated_protocol import ROLES, FRAME_LIMIT, ADMISSION_LIMIT, REQUEST_MEMORY, input_frame
 from .replicated_source import admit_source
 
-async def native_call(function, *args):
+async def native_call(function, *args, _cancel=None):
     """Drain a cancelled native call before its caller can release admission."""
     task = asyncio.create_task(asyncio.to_thread(function, *args))
     try:
         return await asyncio.shield(task)
     except asyncio.CancelledError:
+        if _cancel is not None:
+            _cancel()
         while not task.done():
             try:
                 await asyncio.shield(task)
@@ -286,13 +291,24 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
                 if (bytes(public["session"]).hex() != request_id
                         or bytes(public["source"]).hex() != source.source_lock_digest
                         or bytes(public["composition"]).hex() != experiment.pipeline.digest()
-                        or bytes(public["config"]) != source.config_bytes):
+                        or bytes(public["config"]) != source.config_bytes
+                        or public.get("weights", "private") != source.contract.get("weights", "private")):
                     raise ValueError("replicated publication differs from source")
                 source.runtime_contract(experiment, public["rows"], public["outputs"])
+                if source.contract.get("weights") == "public":
+                    required = source.contract["public_weight_snapshot_bytes_per_worker"]
+                    if required + (64 << 20) > shutil.disk_usage(tempfile.gettempdir()).free:
+                        raise ValueError("replicated public snapshot disk headroom exhausted")
                 native = await native_call(_native.ReplicatedWorker, value["manifest"], ROLES.index(role))
                 attempt = _Attempt(native, reservation, request_id)
                 reservation = None
                 active = attempt
+                if source.contract.get("weights") == "public":
+                    stop = threading.Event()
+                    async with attempt.lock:
+                        await native_call(source.populate_public_worker, native,
+                            lambda: stop.is_set() or attempt.closed or time.monotonic() >= attempt.expires,
+                            _cancel=stop.set)
                 if await request.is_disconnected():
                     raise ValueError("replicated admission disconnected")
                 return _PayloadResponse(pack({"accepted": True}), attempt.reservation,

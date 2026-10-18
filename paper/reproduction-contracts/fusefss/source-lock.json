@@ -1,0 +1,50 @@
+{
+  "schema": "pllm.fusefss.reference-source-lock.v1",
+  "scope": "Inert specification evidence for a non-production scalar reference; no upstream code is imported, executed, or vendored.",
+  "sources": [
+    {
+      "id": "F",
+      "version": "arXiv:2606.09551v1",
+      "url": "https://arxiv.org/pdf/2606.09551v1",
+      "path": "papers/r14-fusefss.pdf",
+      "bytes": 579897,
+      "sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0",
+      "locators": "Definition 4.1, Lemma 4.3; PDF pp.16-19: Lemmas D.1/D.2/E.1, Protocol 3, typed expressions and Phi"
+    },
+    {
+      "id": "S",
+      "version": "PoPETs 2024(4), 61-79",
+      "url": "https://petsymposium.org/popets/2024/popets-2024-0107.pdf",
+      "path": "papers/r13-sigma.pdf",
+      "bytes": 3564461,
+      "sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf",
+      "locators": "PDF p.8, Fig.6 and CPU optimizations: early signed TR, sign, absolute value, clipped 256-entry floor table"
+    },
+    {
+      "id": "S-CPU",
+      "repository": "mpc-msri/EzPC",
+      "commit": "aa0f2f860266fb79901405ef5e9965b8c9fe2e88",
+      "repository_path": "GPU-MPC/ext/sytorch/ext/llama/api.cpp",
+      "url": "https://raw.githubusercontent.com/mpc-msri/EzPC/aa0f2f860266fb79901405ef5e9965b8c9fe2e88/GPU-MPC/ext/sytorch/ext/llama/api.cpp",
+      "bytes": 177161,
+      "sha256": "a8233617b21952396e3bb4bd0c27d024b982eb8a9c5d27910cc6ba3a063c1650",
+      "locators": "2707-2751, SlothGelu; corroboration only, not the implementation or table generator"
+    }
+  ],
+  "decision_snapshots": [
+    {
+      "path": "paper/methods/DECISIONS.md",
+      "heading": "D8",
+      "sha256_section_utf8": "56fa133ca86ab0994c16a7f587c6603466eff9c0ee3937e6a4139d4c13ac7e2e",
+      "decision": "fusefss.source-derived-ring50-q12.v1; nearest-even external input/weight encoding, SIGMA floor internals"
+    },
+    {
+      "path": "paper/methods/DECISIONS.md",
+      "heading": "D9",
+      "sha256_section_utf8": "0206ff1a6b0034ed09c360664fcc5ad8feece1b5b7a99982456167a5fa40d242",
+      "decision": "Private fixed-count full-prefix feedback, lowest-index argmax, final client-only IDs; not implemented by this scalar reference"
+    }
+  ],
+  "local_contract": "paper/reproduction-contracts/shared-profile-resolution.md sections 2.1, 5, 5.1 and 7.1",
+  "gelu_table_sha256_u64le": "b6a45a82dc8f660724943c1eb76654704c2e49563ffc0b1a0bc5388b3425a01b"
+}

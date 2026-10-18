@@ -1,0 +1,52 @@
+{
+  "admitted_for_he": false,
+  "compile": {
+    "baseline_host": {
+      "free_speculative_bytes": 114262016,
+      "page_bytes": 16384,
+      "physical_bytes": 34359738368,
+      "swap_used_bytes": 6407785021,
+      "swapout_pages": 79435353
+    },
+    "child_launched": false,
+    "cleanup": {
+      "complete": true,
+      "remaining_pids": []
+    },
+    "command": [
+      "/Users/blairhudson/.local/bin/python3",
+      "-I",
+      "-B",
+      "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/allocator_probe.py",
+      "--child",
+      "compile",
+      "--binary-dir",
+      "/Users/blairhudson/workspace/pllm/benchmarks/native/poulpy_refresh/target/20261017T212955-allocator-f7348f37"
+    ],
+    "elapsed_seconds": 0.010296165943145752,
+    "exit_code": null,
+    "host_reserve_bytes": 4294967296,
+    "owner_ceiling_bytes": 536870912,
+    "peak_observed_owner_rss_bytes": null,
+    "reason": "insufficient_conservative_physical_headroom",
+    "seconds_ceiling": 120,
+    "status": "blocked_prelaunch",
+    "trace_complete": false,
+    "trace_kind": "sampled_build_guard_not_complete_HE_owner_proof"
+  },
+  "input_sha256_after": {
+    "benchmarks/native/poulpy_refresh/allocator_plan.py": "7b7195de6b8808833c6816a3f67cb8fc37061bc7a476580a6c86bdc85ad77af6",
+    "benchmarks/native/poulpy_refresh/allocator_probe.py": "635d04fb304ff1285de01fb0810c238e9b23a2d9943ec80448fdd3660ff6073d",
+    "benchmarks/native/poulpy_refresh/bounded-allocator-contract.json": "97833c779f69343ddfc8e81661ce784520a7e339745f2bc165d85d5546d98ab1",
+    "benchmarks/native/poulpy_refresh/src/bounded_allocator.rs": "41124d0a84c81623917b19951a3c3c0844be4c02243d9eec1afadf75af668196",
+    "benchmarks/native/poulpy_refresh/staged_admission.py": "a3350c13e1df61a3220cac03162acaa86d4820c85a586db549f35463a4a52ed1",
+    "benchmarks/native/poulpy_refresh/staged_admission.sources.json": "147561fe276ac4fab807cba873df2448b3d4047e8b7b32baefdae10d4034d5ae",
+    "benchmarks/native/poulpy_refresh/tests/allocator/smoke.rs": "4295fb4c59cc79ac04f6891e6404ebc86243f4f9cd274f5f31eabab014e1e6a3",
+    "benchmarks/native/poulpy_refresh/tests/allocator/unit.rs": "4cc5d9fa451c65e315b6b644c012b7b1e652fc35f9d9fec57c66db70ac066a81",
+    "benchmarks/native/poulpy_refresh/tests/test_allocator_plan.py": "2cc92c1d215988010a272d23866a445253eca449aa96f06bbe3b702ab335c280",
+    "scripts/qualify_rust_ckks_refresh.py": "613a46099cfb0aede7d7f7793e68737308354ce33bde3bce2daf46d9814824b8"
+  },
+  "performance_claim": false,
+  "receipt_directory": "benchmarks/native/poulpy_refresh/receipts/20261017T212955-allocator-f7348f37",
+  "status": "blocked_prelaunch"
+}

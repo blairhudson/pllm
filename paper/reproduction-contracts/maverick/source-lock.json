@@ -1,0 +1,91 @@
+{
+  "format": "pllm.maverick.source-map.v1",
+  "review_date": "2026-10-17",
+  "runtime_dependency_on_primary_sources": false,
+  "local_snapshots": [
+    {
+      "id": "M",
+      "path": "papers/r24-maverick.pdf",
+      "url": "https://arxiv.org/abs/2609.10264v1",
+      "bytes": 590747,
+      "sha256": "c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0",
+      "verify_current_bytes": true,
+      "locators": {
+        "noise_and_lemma": "PDF p.7, Lemma 5.1: uniform size-t support, independent nonzero field values; conditional error (1-delta)^t+1/(q-1)",
+        "batch": "PDF pp.8-9, Protocol 2, Theorem 5.4: two fixation barriers; epsilon^ell+epsilon_prime^ell_prime",
+        "privacy": "PDF pp.10-11, Protocol 3, Eq.(1), Theorem 6.1, Remark 6.2",
+        "evaluation_parameters": "PDF p.11, section 7.1: BabyBear, rate 1/8, target distance 1/2, lambda=128, kappa=40, ty=31, ell=2",
+        "optimistic_state": "PDF pp.12-14, section 7.2.1 and Figure 1; output next-token logits only after all checks",
+        "numerics": "PDF pp.13-14: FP8 weights, round(256 W), centered field result /65536, BF16",
+        "noise_security_scope": "PDF pp.22-23, Appendix A: dual-LPN, exact-weight noise, linear-test heuristic limitations",
+        "raa": "PDF p.23, Appendix B: R Pi1 V1 A Pi2 V2 A; explicit matrix entries",
+        "distance_claim": "PDF p.24, Appendix B: q>2^31, delta=0.5, soft-O(N^(2-r)); distance-testing refinement soft-O(N^((w+1)(2-r)))",
+        "multi_query": "PDF p.6, Remark 4.3: at most number-of-queries times single-query privacy advantage"
+      }
+    },
+    {
+      "id": "PLLM-RAA",
+      "path": "crates/pllm-core/src/coded_linear.rs",
+      "sha256": "9a774a772029e84a55a89f56bdf2d92b02cdef71da16d9f3b0b985d752142df9",
+      "verify_current_bytes": true,
+      "locators": {
+        "identity": "lines 11-17: BabyBear, 41, 2, 65536, max dimension 16384, 256 MiB",
+        "sampling": "lines 160-173: unbiased 32-bit rejection sampling",
+        "seeded_code": "lines 188-217 and 326-354: public SHA-256 seed expansion; not full uniform ensemble evidence",
+        "encode_transpose": "lines 223-295: gather-prefix encoder and suffix-scatter syndrome",
+        "wrapper_limit": "lines 297-323: i8 preprocessing"
+      }
+    },
+    {
+      "id": "PLLM-P3",
+      "path": "crates/pllm-core/src/coded_delegation_reference.rs",
+      "sha256": "1537445a3ba0a8c19842852f91d5b97bd6ae08ddf187eefab77138fcad41d9cd",
+      "verify_current_bytes": true,
+      "locators": {
+        "noise": "lines 72-105: partial Fisher-Yates, nonzero field coefficients, erasure",
+        "ownership": "lines 107-152 and 218-307: one-use non-cloneable query; finish consumes it",
+        "parameters": "lines 34-69: dimensions 64..16384; Eq.(1) heuristic; payload admission",
+        "preprocessing": "lines 155-208: i8 weights, separate seeded Gx/Gy, P and Q"
+      }
+    },
+    {
+      "id": "DECISIONS-read-snapshot",
+      "path": "paper/methods/DECISIONS.md",
+      "sha256": "e616b23b31118530ba3413c67e23ad483107bdf0849c269a9ebb6dd828ea6b65",
+      "verify_current_bytes": false,
+      "reason": "Shared author decision register can advance independently; no decision is changed here. D1 CPU-first, D3 original model then common Qwen, D5 ordinary SDK integration."
+    }
+  ],
+  "additional_primary_records": [
+    {
+      "id": "AZ-record",
+      "url": "https://eprint.iacr.org/2026/524",
+      "record_revision_date": "2026-07-29",
+      "result": "Abstract read; direct PDF and version-list fetches returned HTTP 403. No finite constants or distance tester verified."
+    },
+    {
+      "id": "K-current-record",
+      "url": "https://eprint.iacr.org/2026/1075",
+      "record_revision_date": "2026-08-20",
+      "result": "Record states scaled RAA r>=4, 0<delta<=1/2, q-1>=gamma*N, Theta_(r,delta,gamma)(N^(1-r)). Direct PDF fetch returned HTTP 403. Abstract is not a finite-parameter certificate."
+    },
+    {
+      "id": "K-older-author-mirror",
+      "url": "https://sites.ualberta.ca/~mkhabbaz/assets/pdf/RAA.pdf",
+      "bytes": 539111,
+      "sha256": "ccb327d58c6b6f1f5491a45a9f8c9278ce62b5adfb3902c4c4bf8d79a2ba19f2",
+      "title": "Asymptotically Optimal Distance-Tail Bounds for Large-Field RAA Codes",
+      "locators": "PDF pp.1,3: r>=9, q-1>=(eN)^2; p.5: full scaled ensemble",
+      "result": "Retrieved and inspected pp.1-7. Older title/hypotheses than current ePrint record. Does not certify r=8 or establish current-revision constants. Mirror not imported as code or required by oracle tests."
+    }
+  ],
+  "author_code": {
+    "commit": null,
+    "result": "No immutable Maverick author-code snapshot established. Checked v1 PDF/abstract/HTML, targeted search; HTML GitHub links were arXiv infrastructure. This is not a claim that author code does not exist."
+  },
+  "independent_derivations": {
+    "exact_sparse_pass": "Refines M Lemma 5.1 by hypergeometric overlap and nonzero-coefficient cancellation recurrence; checked by exhaustive small-field enumeration.",
+    "dimension_two_certificate": "Exact all-message projective-direction count for one explicit dimension-two code. Neither random-ensemble bound nor model-dimension certificate.",
+    "q31_plus": "Smallest prime strictly above 2^31, proven by trial division through isqrt(q); an unapproved field proposal, not a claimed paper evaluation choice."
+  }
+}

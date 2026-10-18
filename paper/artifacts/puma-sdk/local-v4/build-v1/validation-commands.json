@@ -1,0 +1,36 @@
+{
+  "commands": [
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+        "-I",
+        "-m",
+        "pytest",
+        "-q",
+        "-o",
+        "pythonpath=.",
+        "-o",
+        "junit_family=xunit1",
+        "tests/test_replicated_interfaces.py",
+        "tests/test_replicated_public_weights.py",
+        "tests/test_replicated_quality.py",
+        "tests/test_replicated_sdk.py",
+        "tests/test_replicated_worker.py",
+        "tests/test_delegated_source.py",
+        "tests/test_reference_agreement.py",
+        "tests/test_reference_benchmark.py",
+        "tests/test_profiles.py",
+        "tests/test_component_families.py",
+        "tests/test_benchmark_memory.py",
+        "tests/test_benchmark_coverage.py",
+        "--junitxml=/Users/blairhudson/workspace/pllm/target/puma-public-weights-build-v1/installed-tests.xml"
+      ],
+      "log": "validation-0.log",
+      "returncode": 1
+    }
+  ],
+  "inputs_match_before_and_after": true,
+  "installed_file_count": 367,
+  "status": "failed",
+  "wheel_sha256": "6eeb721ea9b0dcbaa75bc77d7cb12620c96951680f6f9be94e3263a067aba15d"
+}

@@ -1,0 +1,1516 @@
+....................FF..FF...FFF....FFFFFFFFFFF......................... [ 28%]
+........................................................................ [ 57%]
+....FFFFFF........s...sssss............................................. [ 86%]
+............s.....................                                       [100%]
+=================================== FAILURES ===================================
+__ test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics[True] ___
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_quality_uses_common_prefi0')
+replicated_first = True
+
+    @pytest.mark.parametrize("replicated_first", [True, False])
+    def test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics(tmp_path, replicated_first):
+        pytest.importorskip("transformers")
+        from examples.papers.prepared import experiment as prepared_experiment
+    
+        replicated = experiment_fixture(tmp_path, active=True)
+        prepared = prepared_experiment(replicated.pipeline.model, replicated.budget)
+        experiments = [replicated, prepared] if replicated_first else [prepared, replicated]
+>       report = run_reference_benchmark(experiments, ["hello world"], decode_steps=1,
+                                         reference_storage="streamed")
+
+tests/test_replicated_quality.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:342: in run_reference_benchmark
+    metadata, actual_rows, decode_rows, current_cohort, selected = runner(
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:176: in _replicated_candidate
+    result = execute_request(experiment, source, tuple(prefix), 1,
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_transport.py:51: in execute_request
+    if unpack(peers.post(0, "execute", phase="online", limit=4096)) != {"complete": True}:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:248: in post
+    return self.io.run(owned(), timeout=deadline - time.monotonic())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:129: in run
+    return future.result(timeout=max(0.0, timeout) + _IO_DRAIN_TIMEOUT)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/concurrent/futures/_base.py:460: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/concurrent/futures/_base.py:402: in __get_result
+    raise self._exception
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:234: in owned
+    await watcher
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:220: in cancellation
+    self.check()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def check(self):
+        if self.cancelled() or time.monotonic() >= self.deadline:
+>           raise ProtocolError("GKM request cancelled or timed out", 499)
+E           pllm.runtime.client.ProtocolError: GKM request cancelled or timed out
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:208: ProtocolError
+----------------------------- Captured stderr call -----------------------------
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/http/h11_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 280, in handle
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 144, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 706, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 352, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 407, in operation
+    await attempt.task
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 197, in run
+    states = await all_roles("advance")
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 190, in all_roles
+    return await asyncio.gather(*tasks)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 141, in rpc
+    async with clients[peer].stream("POST", f"/v1/replicated/{attempt.request_id}/peer/{action}",
+               ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                    content=encoded) as response:
+                                    ^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1583, in stream
+    response = await self.send(
+               ^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/connection.py", line 103, in handle_async_request
+    return await self._connection.handle_async_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/http11.py", line 136, in handle_async_request
+    raise exc
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/http11.py", line 86, in handle_async_request
+    await self._send_request_headers(**kwargs)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/http11.py", line 150, in _send_request_headers
+    await self._send_event(event, timeout=timeout)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/http11.py", line 166, in _send_event
+    await self._network_stream.write(bytes_to_send, timeout=timeout)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_backends/anyio.py", line 50, in write
+    await self._stream.send(item=buffer)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 1436, in send
+    await AsyncIOBackend.checkpoint()
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2564, in checkpoint
+    await sleep(0)
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/tasks.py", line 708, in sleep
+    await __sleep0()
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/tasks.py", line 702, in __sleep0
+    yield
+asyncio.exceptions.CancelledError
+__ test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics[False] __
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_quality_uses_common_prefi1')
+replicated_first = False
+
+    @pytest.mark.parametrize("replicated_first", [True, False])
+    def test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics(tmp_path, replicated_first):
+        pytest.importorskip("transformers")
+        from examples.papers.prepared import experiment as prepared_experiment
+    
+        replicated = experiment_fixture(tmp_path, active=True)
+        prepared = prepared_experiment(replicated.pipeline.model, replicated.budget)
+        experiments = [replicated, prepared] if replicated_first else [prepared, replicated]
+>       report = run_reference_benchmark(experiments, ["hello world"], decode_steps=1,
+                                         reference_storage="streamed")
+
+tests/test_replicated_quality.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:342: in run_reference_benchmark
+    metadata, actual_rows, decode_rows, current_cohort, selected = runner(
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:162: in _replicated_candidate
+    report = benchmark_memory(experiment, backend="native",
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = Experiment(name='puma-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg0...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=8, max_input_tokens=8, max_new_tokens=2))
+max_input_tokens = None, max_output_tokens = None, inventory_rows = None
+cache_bytes = 0, cache_bound_tokens = None, backend = 'native'
+enforced_wan = False, memory_budget_bytes = None
+memory_safety_margin_percent = 25
+
+    def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
+                         cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
+                         memory_budget_bytes=None, memory_safety_margin_percent=25):
+        """Inspect an Experiment/Model without loading tensor values or starting roles."""
+        from pllm.configuration import Experiment, Model, Pipeline
+        from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
+    
+        _memory_margin(memory_safety_margin_percent)
+        initial = host_memory()
+        if initial.pressure in {"warning", "critical"}:
+>           raise BenchmarkMemoryError(f"macOS memory pressure is {initial.pressure} before model inspection")
+E           pllm.runtime.benchmark_memory.BenchmarkMemoryError: macOS memory pressure is warning before model inspection
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py:878: BenchmarkMemoryError
+________________ test_quality_failure_retires_all_three_workers ________________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_quality_failure_retires_a0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1152097f0>
+
+    def test_quality_failure_retires_all_three_workers(tmp_path, monkeypatch):
+        from pllm.runtime import replicated_source, servers
+    
+        experiment = experiment_fixture(tmp_path)
+        source = admit_source(experiment)
+        original_build, original_publisher = servers.build_roles, replicated_source.ReplicatedSource.publisher
+        topologies = []
+    
+        class RejectFinish:
+            def __init__(self, owner):
+                self.owner = owner
+    
+            def __getattr__(self, name):
+                return getattr(self.owner, name)
+    
+            def finish(self, *frames):
+                self.owner.finish(*frames)
+                raise ValueError("controlled final disclosure rejection")
+    
+        def publish(self, *args):
+            owner, manifest = original_publisher(self, *args)
+            return RejectFinish(owner), manifest
+    
+        def build(*args, **kwargs):
+            topology = original_build(*args, **kwargs)
+            topologies.append(topology)
+            return topology
+    
+        monkeypatch.setattr(replicated_source.ReplicatedSource, "publisher", publish)
+        monkeypatch.setattr(servers, "build_roles", build)
+        with pytest.raises(ValueError, match="final disclosure rejection"):
+>           _replicated_candidate(experiment, ("hello",), source, 1, None)
+
+tests/test_replicated_quality.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:162: in _replicated_candidate
+    report = benchmark_memory(experiment, backend="native",
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = Experiment(name='puma-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg0...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=8, max_input_tokens=8, max_new_tokens=2))
+max_input_tokens = None, max_output_tokens = None, inventory_rows = None
+cache_bytes = 0, cache_bound_tokens = None, backend = 'native'
+enforced_wan = False, memory_budget_bytes = None
+memory_safety_margin_percent = 25
+
+    def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
+                         cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
+                         memory_budget_bytes=None, memory_safety_margin_percent=25):
+        """Inspect an Experiment/Model without loading tensor values or starting roles."""
+        from pllm.configuration import Experiment, Model, Pipeline
+        from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
+    
+        _memory_margin(memory_safety_margin_percent)
+        initial = host_memory()
+        if initial.pressure in {"warning", "critical"}:
+>           raise BenchmarkMemoryError(f"macOS memory pressure is {initial.pressure} before model inspection")
+E           pllm.runtime.benchmark_memory.BenchmarkMemoryError: macOS memory pressure is warning before model inspection
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py:878: BenchmarkMemoryError
+________________ test_quality_cli_keeps_missing_metrics_unknown ________________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_quality_cli_keeps_missing0')
+
+    def test_quality_cli_keeps_missing_metrics_unknown(tmp_path):
+        pytest.importorskip("transformers")
+        experiment = experiment_fixture(tmp_path)
+        config, prompts, output = (tmp_path / name for name in ("experiment.json", "prompts.json", "report.json"))
+        config.write_bytes(experiment.canonical_bytes())
+        prompts.write_text(json.dumps(["hello world"]))
+        result = subprocess.run([sys.executable, "-m", "pllm", "benchmark", "quality",
+            "--experiment", str(config), "--prompts-file", str(prompts), "--decode-steps", "1",
+            "--reference-storage", "streamed", "--output", str(output)],
+            capture_output=True, text=True, timeout=180)
+>       assert result.returncode == 0, result.stderr
+E       AssertionError: error[QUALITY_MEMORY]: macOS memory pressure is warning before model inspection
+E         
+E       assert 6 == 0
+E        +  where 6 = CompletedProcess(args=['/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python', '-m', 'pllm'...], returncode=6, stdout='', stderr='error[QUALITY_MEMORY]: macOS memory pressure is warning before model inspection\n').returncode
+
+tests/test_replicated_quality.py:152: AssertionError
+___ test_nonzero_body_private_prefix_feedback_through_three_processes[qwen2] ___
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_nonzero_body_private_pref0')
+family = 'qwen2'
+
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_nonzero_body_private_prefix_feedback_through_three_processes(tmp_path, family):
+        experiment = experiment_fixture(tmp_path, family=family, active=True)
+        captured = []
+>       with OpenAI(experiment=experiment, timeout=300) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x1114bb140>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+___ test_nonzero_body_private_prefix_feedback_through_three_processes[qwen3] ___
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_nonzero_body_private_pref1')
+family = 'qwen3'
+
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_nonzero_body_private_prefix_feedback_through_three_processes(tmp_path, family):
+        experiment = experiment_fixture(tmp_path, family=family, active=True)
+        captured = []
+>       with OpenAI(experiment=experiment, timeout=300) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d380>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+___ test_nonzero_body_private_prefix_feedback_through_three_processes[llama] ___
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_nonzero_body_private_pref2')
+family = 'llama'
+
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_nonzero_body_private_prefix_feedback_through_three_processes(tmp_path, family):
+        experiment = experiment_fixture(tmp_path, family=family, active=True)
+        captured = []
+>       with OpenAI(experiment=experiment, timeout=300) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x1114bb140>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+____________ test_sdk_three_processes_final_only_ids_and_retirement ____________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_sdk_three_processes_final0')
+record_property = <function record_property.<locals>.append_property at 0x115462480>
+
+    def test_sdk_three_processes_final_only_ids_and_retirement(tmp_path, record_property):
+        experiment = experiment_fixture(tmp_path)
+        captured = []
+>       with OpenAI(experiment=experiment, timeout=300) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:181: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d1c0>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+___ test_failure_retires_all_three_roles_before_next_request[private-cancel] ___
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_failure_retires_all_three0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x115343cb0>
+failure = 'cancel', weights = 'private'
+
+    @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
+        from pllm.runtime.client import ProtocolError
+    
+        experiment = experiment_fixture(tmp_path, weights=weights)
+        original = transport._Peers.post
+        injected = []
+    
+        def fail(self, role, action, *args, **kwargs):
+            if not injected and ((failure == "partial_admission" and role == 1 and action == "admit")
+                                 or (failure != "partial_admission" and role == 0 and action == "input")):
+                injected.append(True)
+                if failure == "partial_admission":
+                    raise ProtocolError("injected partial admission")
+                original(self, role, action, *args, **kwargs)
+                if failure == "cancel":
+                    raise asyncio.CancelledError()
+                if failure == "malformed":
+                    return b"invalid acknowledgement"
+                return original(self, role, action, *args, **kwargs)
+            return original(self, role, action, *args, **kwargs)
+    
+>       with OpenAI(experiment=experiment) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d700>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+_ test_failure_retires_all_three_roles_before_next_request[private-malformed] __
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_failure_retires_all_three1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x115dfa430>
+failure = 'malformed', weights = 'private'
+
+    @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
+        from pllm.runtime.client import ProtocolError
+    
+        experiment = experiment_fixture(tmp_path, weights=weights)
+        original = transport._Peers.post
+        injected = []
+    
+        def fail(self, role, action, *args, **kwargs):
+            if not injected and ((failure == "partial_admission" and role == 1 and action == "admit")
+                                 or (failure != "partial_admission" and role == 0 and action == "input")):
+                injected.append(True)
+                if failure == "partial_admission":
+                    raise ProtocolError("injected partial admission")
+                original(self, role, action, *args, **kwargs)
+                if failure == "cancel":
+                    raise asyncio.CancelledError()
+                if failure == "malformed":
+                    return b"invalid acknowledgement"
+                return original(self, role, action, *args, **kwargs)
+            return original(self, role, action, *args, **kwargs)
+    
+>       with OpenAI(experiment=experiment) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d8c0>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+___ test_failure_retires_all_three_roles_before_next_request[private-replay] ___
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_failure_retires_all_three2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1152dd8d0>
+failure = 'replay', weights = 'private'
+
+    @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
+        from pllm.runtime.client import ProtocolError
+    
+        experiment = experiment_fixture(tmp_path, weights=weights)
+        original = transport._Peers.post
+        injected = []
+    
+        def fail(self, role, action, *args, **kwargs):
+            if not injected and ((failure == "partial_admission" and role == 1 and action == "admit")
+                                 or (failure != "partial_admission" and role == 0 and action == "input")):
+                injected.append(True)
+                if failure == "partial_admission":
+                    raise ProtocolError("injected partial admission")
+                original(self, role, action, *args, **kwargs)
+                if failure == "cancel":
+                    raise asyncio.CancelledError()
+                if failure == "malformed":
+                    return b"invalid acknowledgement"
+                return original(self, role, action, *args, **kwargs)
+            return original(self, role, action, *args, **kwargs)
+    
+>       with OpenAI(experiment=experiment) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x1114bb140>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+_ test_failure_retires_all_three_roles_before_next_request[private-partial_admission] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_failure_retires_all_three3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1154c5cc0>
+failure = 'partial_admission', weights = 'private'
+
+    @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
+        from pllm.runtime.client import ProtocolError
+    
+        experiment = experiment_fixture(tmp_path, weights=weights)
+        original = transport._Peers.post
+        injected = []
+    
+        def fail(self, role, action, *args, **kwargs):
+            if not injected and ((failure == "partial_admission" and role == 1 and action == "admit")
+                                 or (failure != "partial_admission" and role == 0 and action == "input")):
+                injected.append(True)
+                if failure == "partial_admission":
+                    raise ProtocolError("injected partial admission")
+                original(self, role, action, *args, **kwargs)
+                if failure == "cancel":
+                    raise asyncio.CancelledError()
+                if failure == "malformed":
+                    return b"invalid acknowledgement"
+                return original(self, role, action, *args, **kwargs)
+            return original(self, role, action, *args, **kwargs)
+    
+>       with OpenAI(experiment=experiment) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d700>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+___ test_failure_retires_all_three_roles_before_next_request[public-cancel] ____
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_failure_retires_all_three4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x11520a6d0>
+failure = 'cancel', weights = 'public'
+
+    @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
+        from pllm.runtime.client import ProtocolError
+    
+        experiment = experiment_fixture(tmp_path, weights=weights)
+        original = transport._Peers.post
+        injected = []
+    
+        def fail(self, role, action, *args, **kwargs):
+            if not injected and ((failure == "partial_admission" and role == 1 and action == "admit")
+                                 or (failure != "partial_admission" and role == 0 and action == "input")):
+                injected.append(True)
+                if failure == "partial_admission":
+                    raise ProtocolError("injected partial admission")
+                original(self, role, action, *args, **kwargs)
+                if failure == "cancel":
+                    raise asyncio.CancelledError()
+                if failure == "malformed":
+                    return b"invalid acknowledgement"
+                return original(self, role, action, *args, **kwargs)
+            return original(self, role, action, *args, **kwargs)
+    
+>       with OpenAI(experiment=experiment) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d1c0>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+__ test_failure_retires_all_three_roles_before_next_request[public-malformed] __
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_failure_retires_all_three5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x115df9780>
+failure = 'malformed', weights = 'public'
+
+    @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
+        from pllm.runtime.client import ProtocolError
+    
+        experiment = experiment_fixture(tmp_path, weights=weights)
+        original = transport._Peers.post
+        injected = []
+    
+        def fail(self, role, action, *args, **kwargs):
+            if not injected and ((failure == "partial_admission" and role == 1 and action == "admit")
+                                 or (failure != "partial_admission" and role == 0 and action == "input")):
+                injected.append(True)
+                if failure == "partial_admission":
+                    raise ProtocolError("injected partial admission")
+                original(self, role, action, *args, **kwargs)
+                if failure == "cancel":
+                    raise asyncio.CancelledError()
+                if failure == "malformed":
+                    return b"invalid acknowledgement"
+                return original(self, role, action, *args, **kwargs)
+            return original(self, role, action, *args, **kwargs)
+    
+>       with OpenAI(experiment=experiment) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d540>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+___ test_failure_retires_all_three_roles_before_next_request[public-replay] ____
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_failure_retires_all_three6')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1153437e0>
+failure = 'replay', weights = 'public'
+
+    @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
+        from pllm.runtime.client import ProtocolError
+    
+        experiment = experiment_fixture(tmp_path, weights=weights)
+        original = transport._Peers.post
+        injected = []
+    
+        def fail(self, role, action, *args, **kwargs):
+            if not injected and ((failure == "partial_admission" and role == 1 and action == "admit")
+                                 or (failure != "partial_admission" and role == 0 and action == "input")):
+                injected.append(True)
+                if failure == "partial_admission":
+                    raise ProtocolError("injected partial admission")
+                original(self, role, action, *args, **kwargs)
+                if failure == "cancel":
+                    raise asyncio.CancelledError()
+                if failure == "malformed":
+                    return b"invalid acknowledgement"
+                return original(self, role, action, *args, **kwargs)
+            return original(self, role, action, *args, **kwargs)
+    
+>       with OpenAI(experiment=experiment) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x1114bb140>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+_ test_failure_retires_all_three_roles_before_next_request[public-partial_admission] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_failure_retires_all_three7')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x115343150>
+failure = 'partial_admission', weights = 'public'
+
+    @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_failure_retires_all_three_roles_before_next_request(tmp_path, monkeypatch, failure, weights):
+        from pllm.runtime.client import ProtocolError
+    
+        experiment = experiment_fixture(tmp_path, weights=weights)
+        original = transport._Peers.post
+        injected = []
+    
+        def fail(self, role, action, *args, **kwargs):
+            if not injected and ((failure == "partial_admission" and role == 1 and action == "admit")
+                                 or (failure != "partial_admission" and role == 0 and action == "input")):
+                injected.append(True)
+                if failure == "partial_admission":
+                    raise ProtocolError("injected partial admission")
+                original(self, role, action, *args, **kwargs)
+                if failure == "cancel":
+                    raise asyncio.CancelledError()
+                if failure == "malformed":
+                    return b"invalid acknowledgement"
+                return original(self, role, action, *args, **kwargs)
+            return original(self, role, action, *args, **kwargs)
+    
+>       with OpenAI(experiment=experiment) as client:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:225: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d1c0>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+________ test_async_cancellation_drains_active_peer_execution[private] _________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_async_cancellation_drains0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x115446040>
+weights = 'private'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    async def test_async_cancellation_drains_active_peer_execution(tmp_path, monkeypatch, weights):
+        import threading
+    
+        entered = threading.Event()
+        original = transport._Peers.post
+    
+        def observe(self, role, action, *args, **kwargs):
+            if role == 0 and action == "execute":
+                entered.set()
+            return original(self, role, action, *args, **kwargs)
+    
+        monkeypatch.setattr(transport._Peers, "post", observe)
+>       async with AsyncOpenAI(experiment=experiment_fixture(tmp_path, weights=weights)) as client:
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:251: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:6081: in __init__
+    self.sync = OpenAI(**kwargs)
+                ^^^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517d700>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+_________ test_async_cancellation_drains_active_peer_execution[public] _________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_async_cancellation_drains1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x115445240>
+weights = 'public'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    async def test_async_cancellation_drains_active_peer_execution(tmp_path, monkeypatch, weights):
+        import threading
+    
+        entered = threading.Event()
+        original = transport._Peers.post
+    
+        def observe(self, role, action, *args, **kwargs):
+            if role == 0 and action == "execute":
+                entered.set()
+            return original(self, role, action, *args, **kwargs)
+    
+        monkeypatch.setattr(transport._Peers, "post", observe)
+>       async with AsyncOpenAI(experiment=experiment_fixture(tmp_path, weights=weights)) as client:
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_sdk.py:251: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:6081: in __init__
+    self.sync = OpenAI(**kwargs)
+                ^^^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/client.py:5601: in __init__
+    self._owned_topology = build_roles(experiment).start()
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.runtime.servers.LocalTopology object at 0x11517da80>
+
+    def start(self) -> LocalTopology:
+        with self._process_lock:
+            if self._started or self._starting or self._closed:
+                raise TopologyError("local topology cannot be started again")
+            self._starting = True
+        try:
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+                # Source/numerical admission must precede ordinary model lowering,
+                # tensor import and process creation, including bare SDK launch.
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
+                from .benchmark_memory import estimate_memory, admit_memory, host_memory
+    
+                source = admit_source(self._experiment)
+                budget = self._experiment.budget
+                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                    max_input_tokens=budget.max_input_tokens,
+                    max_output_tokens=budget.max_new_tokens)
+                admission = admit_memory(estimate, host_memory(), backend="native")
+                if not admission["admitted"]:
+>                   raise TopologyError("complete topology exceeds safe memory admission")
+E                   pllm.runtime.servers.TopologyError: complete topology exceeds safe memory admission
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/servers.py:820: TopologyError
+_ test_delegated_quality_uses_verified_worker_outputs_and_forced_decode[qwen2] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_delegated_quality_uses_ve0')
+family = 'qwen2'
+
+    @pytest.mark.rust
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_delegated_quality_uses_verified_worker_outputs_and_forced_decode(tmp_path, family):
+        import numpy as np
+    
+        from pllm.runtime.delegated_source import admit_source
+        from pllm.runtime.reference_benchmark import _delegated_candidate
+        from test_delegated_decoder import clear_oracle
+        from test_delegated_sdk import experiment_fixture
+    
+        experiment, config, arrays = experiment_fixture(tmp_path, family=family)
+        admitted = admit_source(experiment)
+        continuation = (7, 9)
+>       metadata, prefill, decode, ids, selected = _delegated_candidate(
+            experiment, ("hello world",), admitted, 2, [continuation],
+        )
+
+tests/test_reference_benchmark.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:92: in _delegated_candidate
+    report = benchmark_memory(experiment, backend="native",
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = Experiment(name='gkm-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg04...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=4, max_input_tokens=8, max_new_tokens=3))
+max_input_tokens = None, max_output_tokens = None, inventory_rows = None
+cache_bytes = 0, cache_bound_tokens = None, backend = 'native'
+enforced_wan = False, memory_budget_bytes = None
+memory_safety_margin_percent = 25
+
+    def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
+                         cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
+                         memory_budget_bytes=None, memory_safety_margin_percent=25):
+        """Inspect an Experiment/Model without loading tensor values or starting roles."""
+        from pllm.configuration import Experiment, Model, Pipeline
+        from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
+    
+        _memory_margin(memory_safety_margin_percent)
+        initial = host_memory()
+        if initial.pressure in {"warning", "critical"}:
+>           raise BenchmarkMemoryError(f"macOS memory pressure is {initial.pressure} before model inspection")
+E           pllm.runtime.benchmark_memory.BenchmarkMemoryError: macOS memory pressure is warning before model inspection
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py:878: BenchmarkMemoryError
+_ test_delegated_quality_uses_verified_worker_outputs_and_forced_decode[qwen3] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_delegated_quality_uses_ve1')
+family = 'qwen3'
+
+    @pytest.mark.rust
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_delegated_quality_uses_verified_worker_outputs_and_forced_decode(tmp_path, family):
+        import numpy as np
+    
+        from pllm.runtime.delegated_source import admit_source
+        from pllm.runtime.reference_benchmark import _delegated_candidate
+        from test_delegated_decoder import clear_oracle
+        from test_delegated_sdk import experiment_fixture
+    
+        experiment, config, arrays = experiment_fixture(tmp_path, family=family)
+        admitted = admit_source(experiment)
+        continuation = (7, 9)
+>       metadata, prefill, decode, ids, selected = _delegated_candidate(
+            experiment, ("hello world",), admitted, 2, [continuation],
+        )
+
+tests/test_reference_benchmark.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:92: in _delegated_candidate
+    report = benchmark_memory(experiment, backend="native",
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = Experiment(name='gkm-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg04...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=4, max_input_tokens=8, max_new_tokens=3))
+max_input_tokens = None, max_output_tokens = None, inventory_rows = None
+cache_bytes = 0, cache_bound_tokens = None, backend = 'native'
+enforced_wan = False, memory_budget_bytes = None
+memory_safety_margin_percent = 25
+
+    def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
+                         cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
+                         memory_budget_bytes=None, memory_safety_margin_percent=25):
+        """Inspect an Experiment/Model without loading tensor values or starting roles."""
+        from pllm.configuration import Experiment, Model, Pipeline
+        from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
+    
+        _memory_margin(memory_safety_margin_percent)
+        initial = host_memory()
+        if initial.pressure in {"warning", "critical"}:
+>           raise BenchmarkMemoryError(f"macOS memory pressure is {initial.pressure} before model inspection")
+E           pllm.runtime.benchmark_memory.BenchmarkMemoryError: macOS memory pressure is warning before model inspection
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py:878: BenchmarkMemoryError
+_ test_delegated_quality_uses_verified_worker_outputs_and_forced_decode[llama] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_delegated_quality_uses_ve2')
+family = 'llama'
+
+    @pytest.mark.rust
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_delegated_quality_uses_verified_worker_outputs_and_forced_decode(tmp_path, family):
+        import numpy as np
+    
+        from pllm.runtime.delegated_source import admit_source
+        from pllm.runtime.reference_benchmark import _delegated_candidate
+        from test_delegated_decoder import clear_oracle
+        from test_delegated_sdk import experiment_fixture
+    
+        experiment, config, arrays = experiment_fixture(tmp_path, family=family)
+        admitted = admit_source(experiment)
+        continuation = (7, 9)
+>       metadata, prefill, decode, ids, selected = _delegated_candidate(
+            experiment, ("hello world",), admitted, 2, [continuation],
+        )
+
+tests/test_reference_benchmark.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:92: in _delegated_candidate
+    report = benchmark_memory(experiment, backend="native",
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = Experiment(name='gkm-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg04...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=4, max_input_tokens=8, max_new_tokens=3))
+max_input_tokens = None, max_output_tokens = None, inventory_rows = None
+cache_bytes = 0, cache_bound_tokens = None, backend = 'native'
+enforced_wan = False, memory_budget_bytes = None
+memory_safety_margin_percent = 25
+
+    def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
+                         cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
+                         memory_budget_bytes=None, memory_safety_margin_percent=25):
+        """Inspect an Experiment/Model without loading tensor values or starting roles."""
+        from pllm.configuration import Experiment, Model, Pipeline
+        from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
+    
+        _memory_margin(memory_safety_margin_percent)
+        initial = host_memory()
+        if initial.pressure in {"warning", "critical"}:
+>           raise BenchmarkMemoryError(f"macOS memory pressure is {initial.pressure} before model inspection")
+E           pllm.runtime.benchmark_memory.BenchmarkMemoryError: macOS memory pressure is warning before model inspection
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py:878: BenchmarkMemoryError
+__ test_quality_compares_delegated_and_prepared_on_one_token_trajectory[True] __
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_quality_compares_delegate0')
+delegated_first = True
+
+    @pytest.mark.rust
+    @pytest.mark.parametrize("delegated_first", [True, False])
+    def test_quality_compares_delegated_and_prepared_on_one_token_trajectory(tmp_path, delegated_first):
+        pytest.importorskip("transformers")
+        from examples.papers.gkm import experiment as delegated_experiment
+        from examples.papers.prepared import experiment as prepared_experiment
+        from test_delegated_sdk import experiment_fixture
+    
+        fixture, _, _ = experiment_fixture(tmp_path)
+        delegated = delegated_experiment(fixture.pipeline.model, fixture.budget)
+        prepared = prepared_experiment(fixture.pipeline.model, fixture.budget)
+        experiments = [delegated, prepared] if delegated_first else [prepared, delegated]
+>       report = run_reference_benchmark(experiments, ["hello world"], decode_steps=2,
+                                         reference_storage="streamed")
+
+tests/test_reference_benchmark.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:281: in run_reference_benchmark
+    admitted = admit_source(experiment)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_source.py:960: in admit_source
+    with reserve_incremental_memory(384 << 20):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/deployment/resources.py:162: in hold_bytes
+    resources = self.observe()
+                ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.deployment.resources._ClientCapacity object at 0x10a60e900>
+
+    def observe(self):
+        import psutil
+    
+        # Share benchmark reclaimable-memory and pressure observations. Active
+        # reservations remain charged even after some allocation is resident.
+        from pllm.runtime.benchmark_memory import BenchmarkMemoryError, host_memory
+    
+        with self.lock:
+            try:
+                memory = host_memory()
+                rss = int(psutil.Process().memory_info().rss)
+                if not 0 <= memory.available <= memory.total or memory.total <= 0 or rss <= 0:
+                    raise ValueError("invalid client memory telemetry")
+                resources = ClientResources(time.time_ns() // 1_000_000, int(memory.available),
+                    rss, memory.reserve, sum(self._owners.values()),
+                    _linux_memory_headroom() if platform.system() == "Linux" else None)
+            except (OSError, ValueError, IndexError, BenchmarkMemoryError, psutil.Error) as exc:
+                raise NetworkError("CLIENT_MEMORY_OBSERVATION_UNAVAILABLE") from exc
+            if memory.pressure in {"warning", "critical"}:
+>               raise NetworkError("CLIENT_MEMORY_PRESSURE")
+E               pllm.deployment.network.NetworkError: CLIENT_MEMORY_PRESSURE
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/deployment/resources.py:149: NetworkError
+_ test_quality_compares_delegated_and_prepared_on_one_token_trajectory[False] __
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_quality_compares_delegate1')
+delegated_first = False
+
+    @pytest.mark.rust
+    @pytest.mark.parametrize("delegated_first", [True, False])
+    def test_quality_compares_delegated_and_prepared_on_one_token_trajectory(tmp_path, delegated_first):
+        pytest.importorskip("transformers")
+        from examples.papers.gkm import experiment as delegated_experiment
+        from examples.papers.prepared import experiment as prepared_experiment
+        from test_delegated_sdk import experiment_fixture
+    
+        fixture, _, _ = experiment_fixture(tmp_path)
+        delegated = delegated_experiment(fixture.pipeline.model, fixture.budget)
+        prepared = prepared_experiment(fixture.pipeline.model, fixture.budget)
+        experiments = [delegated, prepared] if delegated_first else [prepared, delegated]
+>       report = run_reference_benchmark(experiments, ["hello world"], decode_steps=2,
+                                         reference_storage="streamed")
+
+tests/test_reference_benchmark.py:84: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:281: in run_reference_benchmark
+    admitted = admit_source(experiment)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_source.py:960: in admit_source
+    with reserve_incremental_memory(384 << 20):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/contextlib.py:141: in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/deployment/resources.py:162: in hold_bytes
+    resources = self.observe()
+                ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <pllm.deployment.resources._ClientCapacity object at 0x10a60e900>
+
+    def observe(self):
+        import psutil
+    
+        # Share benchmark reclaimable-memory and pressure observations. Active
+        # reservations remain charged even after some allocation is resident.
+        from pllm.runtime.benchmark_memory import BenchmarkMemoryError, host_memory
+    
+        with self.lock:
+            try:
+                memory = host_memory()
+                rss = int(psutil.Process().memory_info().rss)
+                if not 0 <= memory.available <= memory.total or memory.total <= 0 or rss <= 0:
+                    raise ValueError("invalid client memory telemetry")
+                resources = ClientResources(time.time_ns() // 1_000_000, int(memory.available),
+                    rss, memory.reserve, sum(self._owners.values()),
+                    _linux_memory_headroom() if platform.system() == "Linux" else None)
+            except (OSError, ValueError, IndexError, BenchmarkMemoryError, psutil.Error) as exc:
+                raise NetworkError("CLIENT_MEMORY_OBSERVATION_UNAVAILABLE") from exc
+            if memory.pressure in {"warning", "critical"}:
+>               raise NetworkError("CLIENT_MEMORY_PRESSURE")
+E               pllm.deployment.network.NetworkError: CLIENT_MEMORY_PRESSURE
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/deployment/resources.py:149: NetworkError
+________ test_delegated_quality_failure_retires_workers_without_report _________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3921/test_delegated_quality_failure0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1155565f0>
+
+    @pytest.mark.rust
+    def test_delegated_quality_failure_retires_workers_without_report(tmp_path, monkeypatch):
+        from pllm.runtime import delegated_source, servers
+        from pllm.runtime.reference_benchmark import _delegated_candidate
+        from test_delegated_sdk import experiment_fixture
+    
+        experiment, _, _ = experiment_fixture(tmp_path)
+        admitted = delegated_source.admit_source(experiment)
+        original_load = delegated_source.AdmittedSource.load_transport
+        original_build = servers.build_roles
+        topologies = []
+    
+        class RejectFinish:
+            def __init__(self, owner):
+                self.owner = owner
+    
+            def __getattr__(self, name):
+                return getattr(self.owner, name)
+    
+            def finish(self):
+                self.owner.finish()
+                raise ValueError("controlled final verification rejection")
+    
+        def load(self, *args, **kwargs):
+            owner = original_load(self, *args, **kwargs)
+            return RejectFinish(owner) if kwargs.get("worker") is None else owner
+    
+        def build(*args, **kwargs):
+            topology = original_build(*args, **kwargs)
+            topologies.append(topology)
+            return topology
+    
+        monkeypatch.setattr(delegated_source.AdmittedSource, "load_transport", load)
+        monkeypatch.setattr(servers, "build_roles", build)
+        with pytest.raises(ValueError, match="final verification"):
+>           _delegated_candidate(experiment, ("hello world",), admitted, 1, None)
+
+tests/test_reference_benchmark.py:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:92: in _delegated_candidate
+    report = benchmark_memory(experiment, backend="native",
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+model = Experiment(name='gkm-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg04...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=4, max_input_tokens=8, max_new_tokens=3))
+max_input_tokens = None, max_output_tokens = None, inventory_rows = None
+cache_bytes = 0, cache_bound_tokens = None, backend = 'native'
+enforced_wan = False, memory_budget_bytes = None
+memory_safety_margin_percent = 25
+
+    def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
+                         cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
+                         memory_budget_bytes=None, memory_safety_margin_percent=25):
+        """Inspect an Experiment/Model without loading tensor values or starting roles."""
+        from pllm.configuration import Experiment, Model, Pipeline
+        from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
+    
+        _memory_margin(memory_safety_margin_percent)
+        initial = host_memory()
+        if initial.pressure in {"warning", "critical"}:
+>           raise BenchmarkMemoryError(f"macOS memory pressure is {initial.pressure} before model inspection")
+E           pllm.runtime.benchmark_memory.BenchmarkMemoryError: macOS memory pressure is warning before model inspection
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/benchmark_memory.py:878: BenchmarkMemoryError
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_reference_benchmark.py:294: Apple Silicon and pllm.run[metal] are required
+SKIPPED [1] tests/test_reference_benchmark.py:452: pinned checkpoint path is not configured: PLLM_REAL_QWEN_PATH
+SKIPPED [1] tests/test_reference_benchmark.py:452: pinned checkpoint path is not configured: PLLM_REAL_QWEN3_PATH
+SKIPPED [1] tests/test_reference_benchmark.py:452: pinned checkpoint path is not configured: PLLM_REAL_PHI_PATH
+SKIPPED [2] tests/test_reference_benchmark.py:506: pinned Phi checkpoint path is not configured
+SKIPPED [1] tests/test_benchmark_memory.py:429: could not import 'mlx.core': No module named 'mlx'
+FAILED tests/test_replicated_quality.py::test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics[True]
+FAILED tests/test_replicated_quality.py::test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics[False]
+FAILED tests/test_replicated_quality.py::test_quality_failure_retires_all_three_workers
+FAILED tests/test_replicated_quality.py::test_quality_cli_keeps_missing_metrics_unknown
+FAILED tests/test_replicated_sdk.py::test_nonzero_body_private_prefix_feedback_through_three_processes[qwen2]
+FAILED tests/test_replicated_sdk.py::test_nonzero_body_private_prefix_feedback_through_three_processes[qwen3]
+FAILED tests/test_replicated_sdk.py::test_nonzero_body_private_prefix_feedback_through_three_processes[llama]
+FAILED tests/test_replicated_sdk.py::test_sdk_three_processes_final_only_ids_and_retirement
+FAILED tests/test_replicated_sdk.py::test_failure_retires_all_three_roles_before_next_request[private-cancel]
+FAILED tests/test_replicated_sdk.py::test_failure_retires_all_three_roles_before_next_request[private-malformed]
+FAILED tests/test_replicated_sdk.py::test_failure_retires_all_three_roles_before_next_request[private-replay]
+FAILED tests/test_replicated_sdk.py::test_failure_retires_all_three_roles_before_next_request[private-partial_admission]
+FAILED tests/test_replicated_sdk.py::test_failure_retires_all_three_roles_before_next_request[public-cancel]
+FAILED tests/test_replicated_sdk.py::test_failure_retires_all_three_roles_before_next_request[public-malformed]
+FAILED tests/test_replicated_sdk.py::test_failure_retires_all_three_roles_before_next_request[public-replay]
+FAILED tests/test_replicated_sdk.py::test_failure_retires_all_three_roles_before_next_request[public-partial_admission]
+FAILED tests/test_replicated_sdk.py::test_async_cancellation_drains_active_peer_execution[private]
+FAILED tests/test_replicated_sdk.py::test_async_cancellation_drains_active_peer_execution[public]
+FAILED tests/test_reference_benchmark.py::test_delegated_quality_uses_verified_worker_outputs_and_forced_decode[qwen2]
+FAILED tests/test_reference_benchmark.py::test_delegated_quality_uses_verified_worker_outputs_and_forced_decode[qwen3]
+FAILED tests/test_reference_benchmark.py::test_delegated_quality_uses_verified_worker_outputs_and_forced_decode[llama]
+FAILED tests/test_reference_benchmark.py::test_quality_compares_delegated_and_prepared_on_one_token_trajectory[True]
+FAILED tests/test_reference_benchmark.py::test_quality_compares_delegated_and_prepared_on_one_token_trajectory[False]
+FAILED tests/test_reference_benchmark.py::test_delegated_quality_failure_retires_workers_without_report
+24 failed, 219 passed, 7 skipped in 739.95s (0:12:19)

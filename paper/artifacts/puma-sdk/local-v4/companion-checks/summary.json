@@ -1,0 +1,92 @@
+{
+  "commands": [
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "paper/reproduction-contracts/maverick",
+        "-v"
+      ],
+      "log": "maverick.log",
+      "name": "maverick",
+      "returncode": 0,
+      "tests": 19
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "paper/reproduction-contracts/fusefss",
+        "-p",
+        "test_*.py",
+        "-v"
+      ],
+      "log": "fusefss.log",
+      "name": "fusefss",
+      "returncode": 0,
+      "tests": 20
+    },
+    {
+      "argv": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "benchmarks/native/poulpy_refresh/tests",
+        "-v"
+      ],
+      "log": "poulpy.log",
+      "name": "poulpy",
+      "returncode": 0,
+      "tests": 21
+    }
+  ],
+  "inputs": {
+    "benchmarks/native/poulpy_refresh/.cargo/config.toml": "83e52e168505696d716e211e09afb56eb3c1ddaa82d949cbc3c386e0b1f9abdc",
+    "benchmarks/native/poulpy_refresh/Cargo.toml": "6ddc7c4d7fe1d5019bbba0458cd3b8e734b498c88c7f1a7068a80e590a6c4a96",
+    "benchmarks/native/poulpy_refresh/README.md": "c2f64ea5fa3e315d747dafc092daaf3b0c49cda2b8c990b3c8d66f3aeebe618b",
+    "benchmarks/native/poulpy_refresh/allocator_plan.py": "7b7195de6b8808833c6816a3f67cb8fc37061bc7a476580a6c86bdc85ad77af6",
+    "benchmarks/native/poulpy_refresh/allocator_probe.py": "635d04fb304ff1285de01fb0810c238e9b23a2d9943ec80448fdd3660ff6073d",
+    "benchmarks/native/poulpy_refresh/bounded-allocator-contract.json": "97833c779f69343ddfc8e81661ce784520a7e339745f2bc165d85d5546d98ab1",
+    "benchmarks/native/poulpy_refresh/build_only.py": "83f8dd9fde053bc5d99453a6de3b50b6ceddd0bc27bfa6cfbb6ad8ff7e86b852",
+    "benchmarks/native/poulpy_refresh/contract.json": "bf04b0a127d8fb1d17135853e99619a45f30cdea11acea1e7faf43c923fb6099",
+    "benchmarks/native/poulpy_refresh/rust-toolchain.toml": "f6be8beaee366fa65ccc7f3eefa0d8484fb837f8b3057630c0b66e74376cd0a9",
+    "benchmarks/native/poulpy_refresh/src/bounded_allocator.rs": "41124d0a84c81623917b19951a3c3c0844be4c02243d9eec1afadf75af668196",
+    "benchmarks/native/poulpy_refresh/src/main.rs": "fbf8e7e9b43a7ed4d0cb4ad7fc37683b51a6a4a67c31b10f2b2d068b4326c6ae",
+    "benchmarks/native/poulpy_refresh/staged_admission.py": "a3350c13e1df61a3220cac03162acaa86d4820c85a586db549f35463a4a52ed1",
+    "benchmarks/native/poulpy_refresh/staged_admission.sources.json": "147561fe276ac4fab807cba873df2448b3d4047e8b7b32baefdae10d4034d5ae",
+    "benchmarks/native/poulpy_refresh/tests/allocator/smoke.rs": "4295fb4c59cc79ac04f6891e6404ebc86243f4f9cd274f5f31eabab014e1e6a3",
+    "benchmarks/native/poulpy_refresh/tests/allocator/unit.rs": "4cc5d9fa451c65e315b6b644c012b7b1e652fc35f9d9fec57c66db70ac066a81",
+    "benchmarks/native/poulpy_refresh/tests/test_allocator_plan.py": "2cc92c1d215988010a272d23866a445253eca449aa96f06bbe3b702ab335c280",
+    "benchmarks/native/poulpy_refresh/tests/test_guard.py": "fd6610450a88e4b8e13f778bb5de443c4a82119f297cca8f4d240959a990a07b",
+    "benchmarks/native/poulpy_refresh/tests/test_staged_admission.py": "f7c4c86ed77b8446e33716304540500d2533604bfabead594dab82ed29695d63",
+    "paper/reproduction-contracts/fusefss/README.md": "edceb84efbad4be3ec72d069d7df7d719164d8f6cce55ee4543b9b3f8f736bd9",
+    "paper/reproduction-contracts/fusefss/freeze.py": "e6de4c162a7099079f494fb4fd4b5cd3b0dbab873135edc168de083dbb187a65",
+    "paper/reproduction-contracts/fusefss/gelu-table.json": "4d91281c274275d8b17f6711eb3f454ad25865a197570115fdede8b2db7db69b",
+    "paper/reproduction-contracts/fusefss/math_oracle.py": "3f33b3330d74abb462e9c48122f9d022a48b842db9d0b7ea26ae96bb898a8d33",
+    "paper/reproduction-contracts/fusefss/reference.py": "66b9e8c8a6b686119e91d5de4663a6c04c639b8fa237ae9100430b8be04a8bb8",
+    "paper/reproduction-contracts/fusefss/source-lock.json": "8c42ba8f3ff7156fe87882dca089b8fb6c71b2739f8d761583e2ccc94c794609",
+    "paper/reproduction-contracts/fusefss/test_reference.py": "33ff6cae816c0d6f27d0ec753cceba3061d9142ef373e556b0b38e5c6c4c529b",
+    "paper/reproduction-contracts/fusefss/vectors.json": "ab0e0fc4079929d854723139739cb2094436011b1145cccf1995a59cf1e25383",
+    "paper/reproduction-contracts/maverick/README.md": "20abcf026169dddde970dc44eb438c0decd47145b79dd73abe7c8d67c45ee6a0",
+    "paper/reproduction-contracts/maverick/fixtures.py": "0800ee1f19f2c2dce58054eb55babe9073b5078e9604cbbdd94cef6f6b8402b1",
+    "paper/reproduction-contracts/maverick/oracle.py": "9854d7b2a691568010a51680c20701ffd33f3303ad44fc1b943e8686ca91d35a",
+    "paper/reproduction-contracts/maverick/profile.json": "7cebadcfcf410b76b65326c870de7664596aa90dd46f143b8a6afa0f314205ae",
+    "paper/reproduction-contracts/maverick/source-lock.json": "3d190ad94efe41b8cc84f0ec8df4e0f84187186ebcc31a48c24cf0f7e841dd71",
+    "paper/reproduction-contracts/maverick/test_oracle.py": "fd6911a862fb1d67b78b29300f7943e9a22f2812c5cc70ee344fe0924ce7de10",
+    "paper/reproduction-contracts/maverick/vectors.json": "d18f9be0e12a7a77276c14cd66f32f2beffa153ad488b8b537c07e71733863c7"
+  },
+  "inputs_match_before_and_after": true,
+  "scope": "independent bounded conformance and guard tests; no full-model execution",
+  "status": "passed"
+}

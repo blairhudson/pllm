@@ -1,0 +1,24 @@
+test_code_description_and_dense_resource_guards (test_oracle.CodeAndProbabilityTests.test_code_description_and_dense_resource_guards) ... ok
+test_exact_dimension_two_certificate_matches_all_messages (test_oracle.CodeAndProbabilityTests.test_exact_dimension_two_certificate_matches_all_messages) ... ok
+test_literal_matrix_product_matches_both_linear_time_directions (test_oracle.CodeAndProbabilityTests.test_literal_matrix_product_matches_both_linear_time_directions) ... ok
+test_soundness_probability_against_exhaustive_nonzero_coefficients (test_oracle.CodeAndProbabilityTests.test_soundness_probability_against_exhaustive_nonzero_coefficients) ... ok
+test_source_parameters_and_whole_window_bound (test_oracle.CodeAndProbabilityTests.test_source_parameters_and_whole_window_bound) ... ok
+test_exact_weight_distribution_by_exhaustive_draw_paths (test_oracle.FieldAndSamplingTests.test_exact_weight_distribution_by_exhaustive_draw_paths) ... ok
+test_field_threshold_primality_and_machine_bounds (test_oracle.FieldAndSamplingTests.test_field_threshold_primality_and_machine_bounds) ... ok
+test_modular_correctness_is_not_integer_no_wrap (test_oracle.FieldAndSamplingTests.test_modular_correctness_is_not_integer_no_wrap) ... ok
+test_rejection_sampler_is_unbiased_and_burns_exhausted_stream (test_oracle.FieldAndSamplingTests.test_rejection_sampler_is_unbiased_and_burns_exhausted_stream) ... ok
+test_sparse_distribution_rejects_invalid_encodings (test_oracle.FieldAndSamplingTests.test_sparse_distribution_rejects_invalid_encodings) ... ok
+test_frozen_vectors (test_oracle.FrozenEvidenceTests.test_frozen_vectors) ... ok
+test_pinned_local_specification_sources (test_oracle.FrozenEvidenceTests.test_pinned_local_specification_sources) ... ok
+test_auxiliary_forgery_can_pass_original_checks_but_secondary_rejects (test_oracle.ProtocolTests.test_auxiliary_forgery_can_pass_original_checks_but_secondary_rejects) ... ok
+test_batch_accepts_only_after_two_fixation_barriers (test_oracle.ProtocolTests.test_batch_accepts_only_after_two_fixation_barriers) ... ok
+test_every_single_original_coordinate_corruption_rejects (test_oracle.ProtocolTests.test_every_single_original_coordinate_corruption_rejects) ... ok
+test_fixation_copies_and_forbids_adaptive_replacement (test_oracle.ProtocolTests.test_fixation_copies_and_forbids_adaptive_replacement) ... ok
+test_omissions_noncanonical_responses_wrong_order_and_cancel_retire (test_oracle.ProtocolTests.test_omissions_noncanonical_responses_wrong_order_and_cancel_retire) ... ok
+test_protocol3_corrects_mask_and_validates_p_q (test_oracle.ProtocolTests.test_protocol3_corrects_mask_and_validates_p_q) ... ok
+test_wrong_auxiliary_publication_is_detected (test_oracle.ProtocolTests.test_wrong_auxiliary_publication_is_detected) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 1.605s
+
+OK

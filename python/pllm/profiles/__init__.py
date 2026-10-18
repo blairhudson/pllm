@@ -839,14 +839,19 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
     identities = {name: component.component for name, component in pipeline.components.items()}
     if set(identities.values()) & {PumaThreePartyDecoder.descriptor.component,
                                    ThreePartyReplicatedRoles.descriptor.component, ReplicatedPrivatePrefix.descriptor.component}:
-        if pipeline.components != PumaThreePartyCpu(pipeline.model).components:
+        try:
+            linear = PumaThreePartyDecoder.from_params(pipeline.components["linear"].params)
+        except (KeyError, ValueError):
+            return None
+        if pipeline.components != PumaThreePartyCpu(pipeline.model, linear=linear).components:
             return None
         return RuntimeComposition(
             privacy_mode="replicated_public", proprietary_protocol="none", requires_preparation=False,
             correlation_mode="none", client_runtime="compiled_replicated_v1", privacy_protocol="replicated_q18",
             weight_bits=64, activation_bits=64, inventory_policy="none", prepared_inventory_rows=0,
             background_inventory_refill=False, runtime_kind="replicated",
-            numeric_profile=PumaThreePartyDecoder.NUMERIC_PROFILE, sharing="replicated",
+            numeric_profile=(PumaThreePartyDecoder.PUBLIC_NUMERIC_PROFILE
+                if linear.params.get("weights") == "public" else PumaThreePartyDecoder.NUMERIC_PROFILE), sharing="replicated",
             generation_policy="fixed_length_greedy", setup_owner="client",
         )
     if set(identities.values()) & {

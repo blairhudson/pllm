@@ -270,6 +270,22 @@ range proofs, RoPE/source mapping, D5 integration and shared SDK quality
 benchmarks retain their separate implementation and evidence gates. Historical
 source-derived profiles and benchmark results retain their original identities.
 
+## D11. Explicit public-weight PUMA adaptation
+
+**Approved via the user question tool:** retain the private-weight method and
+add a distinct public-weight mode for open checkpoints. Both retain private
+prompts, activations and fixed-count token feedback. Prioritize common-compute
+execution through reusable bounded storage and batched tensor operations.
+
+The public mode may multiply public coefficients directly into each replicated
+activation component. Source-certified file snapshots bound resident weight
+storage; complete ring products still precede the original Q18 truncation.
+Protected nonlinear operations and token selection retain fresh party-local
+material. The public mode has distinct composition, execution and numeric
+identities; it does not inherit private-weight confidentiality or historical
+performance evidence. Whole-model ranges, quality and measured costs remain
+required before practical full-checkpoint qualification.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -284,6 +300,7 @@ source-derived profiles and benchmark results retain their original identities.
 | D8 | Approved: `fusefss.source-derived-ring50-q12.v1` | F-N1 adoption closed; nearest-even external encoding and SIGMA floor internals are explicit; full descriptors/backend/graph qualification remains open. |
 | D9 | Approved: fixed-count private full-prefix feedback | T-N1 choice closed; lowest-index argmax, final client-only IDs, and charged SIGMA/FuseFSS boundary completion still need implementation and qualification. |
 | D10 | Approved: `puma.rmsnorm-epsilon1-q18.v1` | Positive epsilon `2^-18`; separate numeric identity and shared SDK quality measurement required. |
+| D11 | Approved: both private- and public-weight PUMA modes | Public-weight storage and batched execution have distinct contracts; full-checkpoint ranges, quality and resource measurements remain required. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

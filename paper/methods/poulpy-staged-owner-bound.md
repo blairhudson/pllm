@@ -1,10 +1,27 @@
-# Poulpy staged owner-bound gate: negative certificate and residual API blocker
+# Poulpy staged owner-bound gate: negative certificates and lifetime blocker
+
+**Follow-up:** the [lifetime admission appendix](poulpy-lifetime-admission.md)
+now implements the authorized qualification-only mmap/munmap allocator candidate.
+Its conservative uniform-DFT plan has **37,666,816 bytes conditional headroom**
+after per-allocation page rounding and explicit operational overhead budgets.
+Those budgets remain unproved; isolated Rust compilation was blocked by host
+headroom. **No full owner bound or encrypted execution is admitted.**
+
+The preceding default-allocator review in that appendix
+now closes the matrix-aware scratch query at **764,966,464 bytes**. Its charged
+subset is **8,324,411,712 bytes**, leaving at most **265,522,880 bytes**, or
+**23,301,824 bytes with the raw high-key owner retained**. Keeping the preceding
+baby cache exceeds the cap by **204,239,168 bytes**; keeping a separate tensor
+key exceeds it by **703,361,344 bytes**. These reject concrete retention policies,
+not every possible same-profile schedule. The appendix narrows cross-role API
+restrictions and identifies the exact solver-dependency boundary. A complete
+allocator-inclusive bound remains unavailable; no encrypted execution is admitted.
 
 **Not admitted.** For the previously proposed five-wide-ciphertext pool and seven-key phase maps, allocating the public CKKS phase scratch query gives a **live allocation subset plus the mandatory guard charge of at least 8,613,846,336 bytes**. This exceeds 8 GiB by **23,911,744 bytes**, before encoding tables, client secrets, heap temporaries, allocator overhead or disk cache.
 
 This rejects that concrete allocation policy, **not every seven-key schedule**. The existing matrix-aware public DFT query avoids its oversized plaintext proxy. That route still has a specific unclosed owner-envelope gate: allocation/reclamation of private VMP preparation buffers and retired key buffers under the frozen default allocator. A Rust `drop` is not a source-level physical-page reclamation guarantee. No invented overhead allowance closes that gap.
 
-Source-only review, 2026-10-17. Only this file and [its manifest](poulpy-staged-owner-bound.sources.json) are new. The earlier [residency design](poulpy-key-residency.md), its manifest, eager contract, code, receipts and parent-owned guard are unchanged. No dependency resolution, compilation, upstream execution, cryptographic allocation, HE/estimator/model execution or commit. These are integer source deductions, **not measured RSS or performance results**.
+Source review, 2026-10-17. The original review added this file and [its manifest](poulpy-staged-owner-bound.sources.json). The appendix adds separate integer/lifetime helpers, an uncompiled qualification allocator and dedicated tests under `benchmarks/native/poulpy_refresh/`; the original manifests, [residency design](poulpy-key-residency.md), eager contract/executable, receipts and parent-owned guard remain unchanged. No dependency resolution, compilation, upstream execution, cryptographic allocation, HE/estimator/model execution or commit. Resource totals are source deductions and explicitly labelled candidate budgets, **not measured RSS or performance results**. The appendix separately records a tiny macOS mapping API observation.
 
 ## 1. Fixed scope and meaning of the result
 
@@ -89,6 +106,11 @@ maximum_headroom_after_raw   = 29,593,280
 
 These are **lower bounds and upper limits on remaining headroom**, not full query values or memory upper bounds. The public DFT helper additionally covers streamed-right preparation and other operations. Encoding caches, client state, private heaps and runtime consume more. The raw slot must be charged if allocated through evaluation; dropping it is not evidence that its pages have been returned.
 
+The follow-up independently bounds every competing scratch branch and finds the
+streamed-right allowance is **6,291,456 additional bytes**. Thus the full query
+is the branch above plus that allowance; the historical lower bounds remain
+valid. See the appendix's executable dominance certificate and updated headroom.
+
 One previously retired high-key allocation is **968,884,224 bytes**, greater than the entire 271,814,336-byte residual before those extra owners. Thus an unproved assumption that even **one** such allocation was reclaimed/reused can change admission by at least **697,069,888 bytes**. This is a concrete unresolved lifetime term, not a proposed overhead margin or an assertion that macOS actually retains that allocation.
 
 ### Private VMP allocation prevents a caller scratch pool from proving the total
@@ -109,6 +131,13 @@ Across the existing two-pass schedule (138 high loads and two low loads), those 
 Same-role prepared automorphism owners can be refilled after every old map/view borrow ends: `glwe_automorphism_key_prepare` accepts a mutable prepared owner and updates its Galois element (`S70:147–164`). Immutable phase maps can then borrow those owners safely. No fabricated `Borrow` or cache lifetime is required.
 
 That does **not** prove one shared allocation for automorphism, tensor, switching and scratch roles. The specialized prepared types contain crate-private GGLWE fields (`S70:12–15`; `S39:15`); the public accessors return role-specific borrows, not general owned-buffer extraction/reconstruction. `take_gglwe_prepared_scratch` constructs a generic GGLWE view, not those role-specific key-provider return types (`S69:203–230`). No safe cross-role pooling proof is established here.
+
+The follow-up narrows this restriction: the ModUp switching associated type
+accepts **generic GGLWE views**, so same-shaped sparse→dense material can use an
+automorphism owner's storage after all rotation borrows end, via public
+`gglwe_prepare`. Tensor lookup still requires the specialized tensor view. This
+generic switching exception neither supplies a tensor constructor nor bounds
+allocator retention; see the appendix for the required role/identity checks.
 
 There is also a concrete raw-arena shortcut mismatch: `take_gglwe_scratch` allocates `ceil(infos.dnum()/infos.dsize())` rows (`S69:178–196`). Supplying this preset's `(7,4)` allocates **two rows, 69,206,016 bytes**, whereas its actual high raw key has **seven rows, 242,221,056 bytes**. The VMP preparation kernel checks row equality (`S49:83–87`). That direct helper invocation cannot justify sharing the full raw-key owner with scratch. This source observation is not a runtime test, and does not establish that every other public storage construction is impossible. Forged layout information is not an acceptable workaround.
 
@@ -152,8 +181,8 @@ Filesystem page cache is not an explicit Rust owner and is not proved absent by 
 
 ## 5. Result and concrete route to reopening the bound
 
-**Direct phase-query policy: rejected by the byte certificate. Matrix-aware policy: blocked by missing bounded reuse/reclamation, with at most 271,814,336 bytes of residual before other owners.** Complete owner/setup/process/disk-allocation upper bounds remain null; the raw-key **wire** bound above is finite and distinct.
+**Direct phase-query policy: rejected by the byte certificate. Matrix-aware policy: blocked by missing bounded reuse/reclamation.** The original branch-only residual was at most 271,814,336 bytes; the completed query tightens it to **265,522,880 bytes**, before other owners. Complete owner/setup/process/disk-allocation upper bounds remain null; the raw-key **wire** bound above is finite and distinct.
 
-What would concretely remove the decisive online blockers is evidence of a same-profile ownership implementation that both uses the existing matrix-aware physical-width query and bounds the identified default-allocator retention: phase key buffers, the private per-column VMP vector, and phase scratch. A claimed common arena additionally needs genuine public typed constructors/borrows for its key roles and a correct seven-row raw view. The cited public calls do not themselves establish that proof. Source-visible caller-owned VMP staging/typed-key storage or a pinned platform allocator reclamation bound would address those exact mechanisms. Setup separately needs an allocation bound for the identified 256-bit coefficient solver's bigint operations. These proofs are absent; no API patch, allocator change or execution is authorized here.
+The authorized qualification allocator now supplies a source-level mapping/release mechanism for phase keys, private per-column VMP vectors, baby caches and phase scratch. Separate correctly typed public owners can be dropped and recreated without a cross-role constructor or upstream patch. The [appendix](poulpy-lifetime-admission.md) freezes this design and its remaining gates: native allocator validation, exact solver dependency allocation bounds, full staged phase liveness, and sufficiency of runtime/kernel/I/O budgets. Correct seven-row raw owners remain required. Default-allocator negative certificates above remain valid; neither a full source upper bound nor successful HE completion has been established. Arithmetic/backend/protocol changes and encrypted execution remain blocked.
 
 Estimator association and numeric re-entry conversion remain **independent open gates**. The source's modulus-cap checks and `p19` reference-vector precision claim do not supply a preset-specific lattice-estimator receipt, a failure bound or the second-refresh 600→40 entry-conversion qualification (`S01:139–145,545–569`; `S44`). This remains torus-only bounded-qualification research, not paper representation mapping, production-security qualification, Qwen inference or a serving benchmark.

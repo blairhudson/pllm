@@ -46,6 +46,10 @@ Completed foundations:
   agreement, with complete-state equality, broader quality and matched serving
   costs still open. Replay uses the standard command in
   [the factory README](../examples/papers/README.md#completed-quality-smoke).
+- The separate [Maverick batch capsule](../docs/research/maverick-batch-reference.md)
+  implements bounded two-claim algebra with complete P/Q/Qaux validation,
+  response-fixation barriers and allocation/retirement checks. Code-distance,
+  dual-LPN, model numerics and complete SDK qualification remain open.
 - The [PUMA truncation/PRSS reference](../docs/research/puma-truncation-reference.md)
   checks the source AES schedule and replicated arithmetic. Its live payload
   ledger now retains exported-buffer charges through erasure and deallocation.
@@ -85,6 +89,17 @@ Completed foundations:
   unknown. Complete generated decoders exercise 4,864-wide MLP contractions
   with one final truncation. The pinned common-Qwen metadata still rejects
   admission, so no full-checkpoint quality result follows.
+- The explicit `PumaThreePartyDecoder(weights="public")` adaptation streams
+  source-certified Q18 files and computes complete public-weight products on
+  replicated activations. Batched lookup predicates and stable argmax preserve
+  private feedback; default private-weight identities remain. The common Qwen
+  metadata reaches the compiler-view memory gate, with no tensor execution or
+  full-checkpoint quality result. See the
+  [public-weight contract](../docs/research/puma-truncation-reference.md#explicit-public-weight-adaptation).
+- The [FuseFSS scalar specification](reproduction-contracts/fusefss/README.md)
+  freezes typed descriptors, a Protocol-3 compiler and independently checked GELU
+  tables. It has no protected backend or complete model execution; D8's named
+  ring50/Q12 profile retains that distinction.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

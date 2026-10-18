@@ -1,0 +1,118 @@
+{
+  "archived_input_files": 785,
+  "build_resources": {
+    "max_swap_used_growth_bytes": 0,
+    "max_swapout_growth_bytes": 0,
+    "receipt": "build-v1/receipt.json",
+    "scope": "sampled build process tree; observer/final receipt tail excluded; cached local build only"
+  },
+  "cached_local_build": true,
+  "clippy": {
+    "allowed_lints": [
+      "clippy::needless_range_loop",
+      "clippy::nonminimal_bool"
+    ],
+    "log": "validation-v2/validation-2.log",
+    "status": "passed"
+  },
+  "companion_conformance": {
+    "maverick_doctests": {
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "pllm-core",
+        "--doc",
+        "maverick_batch",
+        "--",
+        "--test-threads=1"
+      ],
+      "environment": {
+        "CARGO_BUILD_JOBS": "1"
+      },
+      "log": "build-v1/maverick-doctests.log",
+      "passed": 6
+    },
+    "maverick_native": {
+      "allocation_failure_sites": 1629,
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "pllm-core",
+        "--test",
+        "maverick_batch_reference",
+        "--test",
+        "maverick_batch_allocation",
+        "--test",
+        "maverick_batch_export",
+        "--test",
+        "maverick_batch_failures",
+        "--",
+        "--test-threads=1",
+        "--nocapture"
+      ],
+      "environment": {
+        "CARGO_BUILD_JOBS": "1",
+        "CARGO_PROFILE_TEST_OPT_LEVEL": "2"
+      },
+      "erased_buffers_checked": 1341622,
+      "log": "build-v1/maverick-validation.log",
+      "passed": 15
+    },
+    "python": {
+      "passed": 60,
+      "receipt": "companion-checks/summary.json"
+    }
+  },
+  "coverage": {
+    "log": "validation-v2/validation-3.log",
+    "scope": "reviewed public surface; not full measured capability coverage",
+    "status": "passed"
+  },
+  "historical_failed_suite": {
+    "accepted": false,
+    "receipt": "build-v1/validation-commands.json",
+    "scope": "23 memory-admission failures and one watchdog-cancelled request; retained independently from v2 retry",
+    "status": "failed"
+  },
+  "installed_files": {
+    "all_match_wheel_before_and_after": true,
+    "count": 367
+  },
+  "installed_tests": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 243,
+    "receipt": "validation-v2/installed-tests.xml",
+    "skipped": 7
+  },
+  "limitations": [
+    "No full-checkpoint quality or complete hidden-tensor oracle",
+    "No matched serving speed or whole-client RSS qualification",
+    "Co-located workers do not establish independent operators",
+    "Conformance and independent arithmetic checks do not supply cryptographic review",
+    "Cached local builds do not replace exact-revision release CI"
+  ],
+  "native_compiler_tests": {
+    "log": "validation-v2/validation-1.log",
+    "passed": 15
+  },
+  "qwen_metadata": {
+    "checkpoint_authenticated": false,
+    "private": "source expansion budget exceeded",
+    "public": "replicated compiler view payload limit",
+    "receipt": "qwen-metadata-replay.json",
+    "tensor_values_loaded": false,
+    "workers_launched": false
+  },
+  "schema": "pllm.puma_sdk_conformance.v4",
+  "scope": "bounded public/private generated-decoder conformance; full-checkpoint execution remains blocked",
+  "source_inputs_unchanged": true,
+  "status": "passed",
+  "wheel_sha256": "6eeb721ea9b0dcbaa75bc77d7cb12620c96951680f6f9be94e3263a067aba15d"
+}

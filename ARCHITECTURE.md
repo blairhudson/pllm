@@ -611,6 +611,15 @@ copies and scratch under 256 MiB and bounds product work. Code-distance and
 dual-LPN certification, batch delegation and decoder transport remain absent.
 Query payload, public tables and estimated field-boundary bytes remain separate;
 there is no full-wire or process peak-memory result.
+The separate Rust-only `maverick_batch` capsule implements complete bounded
+Protocols 3 and 2 over BabyBear with explicit RAA descriptors and two 64-by-64
+claims. Complete P/Q/Qaux validation, fresh exact-weight noise, two response-fixation
+barriers and consuming owners precede accepted outputs. Its 6,479,872-byte planned
+allocation fits a 16 MiB per-capsule ceiling; live payload reservations survive
+export until erasure and deallocation. Independent vectors, production-export
+round trips and allocation-failure sweeps check the bounded algebra and ownership.
+This separate capsule does not certify code distance, dual-LPN security, model
+numerics or a decoder/SDK method. Contract: `docs/research/maverick-batch-reference.md`.
 The separate Rust-only `puma` module implements three-party replicated TruncAPr
 with source-pinned party-local PRSS. Each AES fill starts from its little-endian
 cursor, increments the counter big-endian within that fill, and discards unused
@@ -677,6 +686,15 @@ construction views retire at last use. Six frozen generated execution identities
 and mixed compact/expanded-gather integer controls preserve the original schedule.
 Resident source shares, expanded operations and full-Qwen admission retain their
 separate bounds; this change provides no measured whole-client memory result.
+The explicit `PumaThreePartyDecoder(weights="public")` adaptation streams locked
+Q18 weights into immutable worker files and applies complete ring64 products to
+both replicated activation components through a 64 KiB read buffer. It retains
+one final truncation, private full-table lookup and batched protected argmax/feedback
+under a distinct numeric identity. Default private-weight execution stays distinct.
+Source-present generated controls exercise bounded execution; full Qwen advances
+to the compiler-view memory gate before tensor loading. Compact activation views,
+loop-based execution, whole-model ranges and measured costs remain open. Contract:
+`docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
 source's float32-before-division boundary. Dense XOR lookup preserves original

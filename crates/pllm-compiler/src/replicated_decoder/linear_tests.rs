@@ -1,6 +1,147 @@
 use super::*;
 use crate::replicated_decoder::tests::{execute, workers, workers_with_programs};
 
+#[test]
+fn batched_private_argmax_preserves_lowest_index_ties_and_odd_tails() {
+    for (n, maxima) in [(1, vec![0]), (257, vec![256]), (513, vec![127, 128, 512])] {
+        let mut logits: Vec<i64> = (0..n).map(|i| -(i as i64) - 100).collect();
+        for &index in &maxima {
+            logits[index] = 50;
+        }
+        let mut builder = Builder::default();
+        let input = builder
+            .push(Code::Input("logits".into()), n, interval(&logits))
+            .unwrap();
+        let output = builder.argmax_tree(&builder.view(input, vec![n])).unwrap();
+        let work: u64 = builder
+            .nodes
+            .iter()
+            .map(|node| match &node.code {
+                Code::Product { .. } => 1,
+                Code::Tensor { program, .. } => 128 * program.instructions() as u64,
+                _ => 0,
+            })
+            .sum();
+        let program = Arc::new(Program {
+            retire: vec![vec![]; builder.nodes.len()],
+            nodes: builder.nodes,
+            inputs: 1,
+            outputs: output.words,
+            digest: [95; 32],
+            payload_bytes: builder.allocated,
+            operation_limit: work.max(1),
+        });
+        assert_eq!(
+            execute(workers(
+                program,
+                &BTreeMap::from([("logits".into(), logits)])
+            )),
+            [*maxima.iter().min().unwrap() as u64]
+        );
+    }
+}
+
+#[test]
+fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
+    for (inner, columns) in [(1025, 17), (4864, 3)] {
+        for transposed in [false, true] {
+            let rows = 2;
+            let x: Vec<i64> = (0..rows * inner)
+                .map(|i| (i as i64 % 37 - 18) * 257)
+                .collect();
+            let w: Vec<i64> = (0..columns * inner)
+                .map(|i| (i as i64 % 29 - 14) * 19)
+                .collect();
+            for rescale in [false, true] {
+                let mut b = Builder::default();
+                let digest =
+                    Sha256::digest(w.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>())
+                        .into();
+                let source = b
+                    .push(
+                        Code::PublicInput {
+                            key: "w".into(),
+                            digest,
+                        },
+                        w.len(),
+                        interval(&w),
+                    )
+                    .unwrap();
+                let input = b
+                    .push(Code::Input("x".into()), x.len(), interval(&x))
+                    .unwrap();
+                let source = SourceView {
+                    owner: source,
+                    shape: if transposed {
+                        vec![inner, columns]
+                    } else {
+                        vec![columns, inner]
+                    },
+                };
+                let out = b
+                    .matrix(
+                        &b.view(input, vec![rows, inner]),
+                        MatrixView::source(&source, transposed).unwrap(),
+                        rescale,
+                    )
+                    .unwrap();
+                assert!(!b
+                    .nodes
+                    .iter()
+                    .any(|n| matches!(n.code, Code::Product { .. })));
+                let work: u64 = b
+                    .nodes
+                    .iter()
+                    .map(|n| match &n.code {
+                        Code::Tensor { program, .. } => program.instructions() as u64 * 128,
+                        _ => 0,
+                    })
+                    .sum();
+                let program = Arc::new(Program {
+                    retire: vec![vec![]; b.nodes.len()],
+                    nodes: b.nodes,
+                    inputs: 2,
+                    outputs: out.words,
+                    digest: [93; 32],
+                    payload_bytes: b.allocated,
+                    operation_limit: work.max(1),
+                });
+                let actual = execute(workers(
+                    program,
+                    &BTreeMap::from([("x".into(), x.clone()), ("w".into(), w.clone())]),
+                ));
+                for r in 0..rows {
+                    for c in 0..columns {
+                        let raw: i128 = (0..inner)
+                            .map(|k| {
+                                i128::from(x[r * inner + k])
+                                    * i128::from(
+                                        w[if transposed {
+                                            k * columns + c
+                                        } else {
+                                            c * inner + k
+                                        }],
+                                    )
+                            })
+                            .sum();
+                        let got = i128::from(actual[r * columns + c] as i64);
+                        if rescale {
+                            let floor = raw.div_euclid(i128::from(ONE));
+                            assert!(
+                                got == floor
+                                    || got
+                                        == floor + i128::from(raw.rem_euclid(i128::from(ONE)) != 0)
+                            );
+                        } else {
+                            assert_eq!(got, raw);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn compile(
     rows: usize,
     inner: usize,

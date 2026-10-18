@@ -1,0 +1,17 @@
+{
+  "scope": "native metadata/source geometry only; no tensor value reads or workers; all-zero pins are placeholders",
+  "source_config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+  "normalized_config_sha256": "ee6f9831a4c4729cf094af9a76a53dfe1dde8e34a8251889f527d2179c7d918d",
+  "rows": 4,
+  "outputs": 2,
+  "modes": {
+    "private": {
+      "status": "blocked",
+      "reason": "invalid model configuration: decoder source expansion budget exceeded or invalid"
+    },
+    "public": {
+      "status": "blocked",
+      "reason": "replicated compiler view payload limit"
+    }
+  }
+}
