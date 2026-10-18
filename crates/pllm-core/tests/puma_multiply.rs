@@ -23,7 +23,7 @@ fn owners(context: Context) -> [PartyRuntime; 3] {
     setup.each_mut().map(|p| p.finish().unwrap())
 }
 
-fn shares(op: Plan, x: &[i64]) -> [ReplicatedShare; 3] {
+fn shares(op: Plan, operand: Operand, x: &[i64]) -> [ReplicatedShare; 3] {
     let a = vec![u64::MAX - 31; x.len()];
     let b = vec![u64::MAX / 2 + 7; x.len()];
     let c: Vec<_> = x
@@ -32,7 +32,8 @@ fn shares(op: Plan, x: &[i64]) -> [ReplicatedShare; 3] {
         .collect();
     let parts = [&a[..], &b[..], &c[..]];
     [Party::P0, Party::P1, Party::P2].map(|p| {
-        op.share(
+        op.share_operand(
+            operand,
             p,
             parts[p as usize],
             parts[p.next() as usize],
@@ -58,7 +59,13 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
     let mut pair_blocks = 0;
     let mut private = [0; 3];
     let mut work = [0; 3];
-    for (ordinal, n) in [1, 3, 8, 17, MAX_LANES].into_iter().enumerate() {
+    let mut admitted = 0;
+    let cases = [1, 3, 8, 17, MAX_LANES].map(|n| (n, None));
+    let matrices = [[1, 3, 1], [2, 3, 4], [32, 32, 32]].map(|[m, k, n]| {
+        let shape = MatrixShape::new(m, k, n).unwrap();
+        (shape.output_elements(), Some(shape))
+    });
+    for (ordinal, (n, shape)) in cases.into_iter().chain(matrices).enumerate() {
         let bounds = vec![
             InputBounds {
                 left: Interval::new(-1 << 20, 1 << 20).unwrap(),
@@ -66,15 +73,23 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
             };
             n
         ];
-        let x: Vec<_> = (0..n).map(|i| (i as i64 - 515) * 113).collect();
-        let y: Vec<_> = (0..n).map(|i| (i as i64 - 127) * 79).collect();
-        let ops = owners.each_mut().map(|p| p.plan(&bounds).unwrap());
+        let x: Vec<_> = (0..shape.map_or(n, MatrixShape::left_elements))
+            .map(|i| (i as i64 - 515) * 113)
+            .collect();
+        let y: Vec<_> = (0..shape.map_or(n, MatrixShape::right_elements))
+            .map(|i| (i as i64 - 127) * 79)
+            .collect();
+        let ops = owners.each_mut().map(|p| match shape {
+            Some(shape) => p.plan_matmul(shape, bounds[0]).unwrap(),
+            None => p.plan(&bounds).unwrap(),
+        });
         assert_eq!(ops, [ops[0]; 3]);
         let op = ops[0];
+        admitted = admitted.max(op.admitted_bytes());
         let mut messages: Vec<_> = owners
             .iter_mut()
-            .zip(shares(op, &x))
-            .zip(shares(op, &y))
+            .zip(shares(op, Operand::Left, &x))
+            .zip(shares(op, Operand::Right, &y))
             .map(|((p, a), b)| p.begin(a, b).unwrap())
             .collect();
         let mut frame_count = messages.len();
@@ -115,7 +130,18 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
                 .iter()
                 .fold(0_u64, |s, p| s.wrapping_add(p.first()[lane]))
                 as i64;
-            let product = i128::from(x[lane]) * i128::from(y[lane]);
+            let product = match shape {
+                None => i128::from(x[lane]) * i128::from(y[lane]),
+                Some(shape) => {
+                    let [_, inner, columns] = shape.dimensions();
+                    (0..inner)
+                        .map(|k| {
+                            i128::from(x[lane / columns * inner + k])
+                                * i128::from(y[k * columns + lane % columns])
+                        })
+                        .sum()
+                }
+            };
             let floor = product.div_euclid(1 << 18) as i64;
             let ceil = -(-product).div_euclid(1 << 18) as i64;
             assert!(actual == floor || actual == ceil);
@@ -134,7 +160,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
             assert_eq!(p.cursors().private_blocks, private[i]);
             assert_eq!(p.cursors().aes_work, work[i]);
             assert_eq!(p.status(), Status::Ready);
-            assert!(usages[i].peak_bytes() <= Limits::default().admitted_bytes(n).unwrap());
+            assert!(usages[i].peak_bytes() <= admitted);
         }
         drop(outputs);
         assert!(usages.iter().all(|u| u.live_bytes() == 0));
@@ -153,8 +179,14 @@ fn fresh_setup_rejects_old_operands_and_cancellation_has_no_restart() {
     let mut fresh = owners(context);
     let new_op = fresh[0].plan(&bounds).unwrap();
     assert_ne!(old_op.digest(), new_op.digest());
-    let a = shares(old_op, &[1]).into_iter().next().unwrap();
-    let b = shares(old_op, &[1]).into_iter().next().unwrap();
+    let a = shares(old_op, Operand::Left, &[1])
+        .into_iter()
+        .next()
+        .unwrap();
+    let b = shares(old_op, Operand::Right, &[1])
+        .into_iter()
+        .next()
+        .unwrap();
     assert!(fresh[0].begin(a, b).is_err());
     assert_eq!(fresh[0].status(), Status::Retired);
     for p in &mut old {

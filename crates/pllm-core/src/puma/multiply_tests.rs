@@ -87,7 +87,8 @@ fn shares(op: Plan, x: &[i64], right: bool) -> [ReplicatedShare; 3] {
         .collect();
     let parts = [&a[..], &b[..], &c[..]];
     [Party::P0, Party::P1, Party::P2].map(|p| {
-        op.share(
+        op.share_operand(
+            if right { Operand::Right } else { Operand::Left },
             p,
             parts[p as usize],
             parts[p.next() as usize],
@@ -494,4 +495,165 @@ fn full_shape_budget_exhaustion_precedes_randomness_and_retains_old_outputs() {
         .all(|u| u.live_bytes() == 8 * 2 * MAX_LANES * 8));
     drop(retained);
     assert!(usages.iter().all(|u| u.live_bytes() == 0));
+}
+
+#[test]
+fn matrix_products_reconstruct_before_one_truncation_of_the_complete_sum() {
+    let mut owners = parties(PrssLimits::default());
+    let unit = 1_i64 << FRACTION_BITS;
+    for (ordinal, dimensions) in [[1, 3, 1], [2, 3, 4], [3, 7, 5], [1, 1024, 1], [32, 32, 32]]
+        .into_iter()
+        .enumerate()
+    {
+        let [rows, inner, columns] = dimensions;
+        let shape = MatrixShape::new(rows, inner, columns).unwrap();
+        let bounds = bound((-unit, unit), (-unit, unit));
+        let before = owners.each_ref().map(|p| p.cursors());
+        let plans = owners
+            .each_mut()
+            .map(|p| p.plan_matmul(shape, bounds).unwrap());
+        assert_eq!(plans, [plans[0]; 3]);
+        assert_eq!(owners.each_ref().map(|p| p.cursors()), before);
+        let plan = plans[0];
+        let x: Vec<_> = (0..shape.left_elements())
+            .map(|i| {
+                if ordinal == 0 {
+                    unit - 1
+                } else {
+                    ((i * 111337 + 31) % (2 * unit as usize)) as i64 - unit
+                }
+            })
+            .collect();
+        let y: Vec<_> = (0..shape.right_elements())
+            .map(|i| {
+                if ordinal == 0 {
+                    1
+                } else {
+                    ((i * 7717 + 7) % (2 * unit as usize)) as i64 - unit
+                }
+            })
+            .collect();
+        // Independent signed i128 dot products: neither ring-kernel reuse nor
+        // per-term quantization can supply this reference.
+        let expected: Vec<i128> = (0..rows)
+            .flat_map(|row| {
+                let x = &x;
+                let y = &y;
+                (0..columns).map(move |column| {
+                    (0..inner)
+                        .map(|k| {
+                            i128::from(x[row * inner + k]) * i128::from(y[k * columns + column])
+                        })
+                        .sum()
+                })
+            })
+            .collect();
+        let messages = begins(&mut owners, plan, &x, &y);
+        for (lane, value) in expected.iter().enumerate() {
+            let raw = messages
+                .iter()
+                .fold(0_u64, |sum, m| sum.wrapping_add(m.words()[lane]));
+            assert_eq!(i128::from(raw as i64), *value);
+        }
+        let output = finish(&mut owners, plan, messages);
+        for (lane, value) in expected.iter().enumerate() {
+            let actual = output
+                .iter()
+                .fold(0_u64, |sum, p| sum.wrapping_add(p.first()[lane]))
+                as i64;
+            let floor = value.div_euclid(i128::from(unit)) as i64;
+            let ceil = -(-value).div_euclid(i128::from(unit)) as i64;
+            assert!(actual == floor || actual == ceil);
+            if ordinal == 0 {
+                assert!((2..=3).contains(&actual));
+            }
+        }
+        let q = (shape.output_elements() as u64).div_ceil(2);
+        for (i, owner) in owners.iter().enumerate() {
+            assert_eq!(owner.cursors().pair_blocks, before[i].pair_blocks + 3 * q);
+            assert_eq!(owner.cursors().public_blocks, before[i].public_blocks + 1);
+            assert_eq!(output[i].second(), output[(i + 1) % 3].first());
+            assert!(owner.payload_usage().peak_bytes() <= plan.admitted_bytes());
+        }
+        drop(output);
+        assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
+    }
+}
+
+#[test]
+fn matrix_accumulator_ranges_shapes_and_live_inputs_are_admitted_before_prss() {
+    for dimensions in [
+        [0, 1, 1],
+        [1, 0, 1],
+        [1, 1, 0],
+        [usize::MAX, 2, 1],
+        [33, 33, 1],
+        [1, 33, 33],
+        [33, 1, 33],
+    ] {
+        assert_eq!(
+            MatrixShape::new(dimensions[0], dimensions[1], dimensions[2]),
+            Err(Error::Bounds)
+        );
+    }
+    let safe_scalar = bound((1 << 30, 1 << 30), (1 << 30, 1 << 30));
+    assert!(safe_scalar.product().is_ok());
+    assert_eq!(safe_scalar.dot_product(4), Err(Error::Bounds));
+    assert_eq!(safe_scalar.dot_product(0), Err(Error::Bounds));
+    assert_eq!(safe_scalar.dot_product(MAX_LANES + 1), Err(Error::Bounds));
+    assert_eq!(
+        bound((-(1 << 30), -(1 << 30)), (1 << 30, 1 << 30))
+            .dot_product(4)
+            .unwrap()
+            .lower(),
+        INPUT_MIN
+    );
+    assert_eq!(bound((-9, -9), (1, 1)).dot_output(3), Interval::new(-1, 0));
+    let mut owners = parties(PrssLimits::default());
+    assert_eq!(
+        owners[0].plan_matmul(MatrixShape::new(1, 4, 1).unwrap(), safe_scalar),
+        Err(Error::Bounds)
+    );
+    assert_eq!(owners[0].cursors(), Cursors::default());
+    assert_eq!(owners[0].status(), Status::Retired);
+
+    let shape = MatrixShape::new(1, 1024, 1).unwrap();
+    let mut owners = parties(PrssLimits::default());
+    let usage = owners[0].payload_usage();
+    // Retained payload leaves room for 16 output words but NOT both inputs.
+    let retained: Vec<_> = (0..15).map(|_| usage.zeros(2048).unwrap()).collect();
+    assert_eq!(
+        owners[0].plan_matmul(shape, bound((-1, 1), (-1, 1))),
+        Err(Error::Bounds)
+    );
+    assert_eq!(owners[0].cursors(), Cursors::default());
+    assert_eq!(usage.live_bytes(), 15 * 2048 * 8);
+    drop(retained);
+    assert_eq!(usage.live_bytes(), 0);
+}
+
+#[test]
+fn matrix_operand_order_and_geometry_cannot_be_substituted() {
+    let bounds = bound((-8, 8), (-8, 8));
+    let mut first = parties(PrssLimits::default());
+    let mut second = parties(PrssLimits::default());
+    let a = first[0]
+        .plan_matmul(MatrixShape::new(2, 3, 2).unwrap(), bounds)
+        .unwrap();
+    let b = second[0]
+        .plan_matmul(MatrixShape::new(1, 3, 4).unwrap(), bounds)
+        .unwrap();
+    assert_ne!(a.digest(), b.digest());
+    assert_ne!(
+        a.operand_binding(Operand::Left),
+        a.operand_binding(Operand::Right)
+    );
+    assert!(a
+        .share(Party::P0, &[0; 4], &[0; 4], Limits::default())
+        .is_err());
+    let left = shares(a, &[0; 6], false).into_iter().next().unwrap();
+    let right = shares(a, &[0; 6], true).into_iter().next().unwrap();
+    assert!(first[0].begin(right, left).is_err());
+    assert_eq!(first[0].cursors(), Cursors::default());
+    assert_eq!(first[0].status(), Status::Retired);
 }

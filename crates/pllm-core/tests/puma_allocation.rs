@@ -637,13 +637,23 @@ fn compound_bounds() -> [multiply::InputBounds; 3] {
 
 fn compound_inputs(op: multiply::Plan, party: Party) -> (ReplicatedShare, ReplicatedShare) {
     // Public fixture pairs for zero, with nonzero local shares.
-    let parts = [[17_u64; 3], [29_u64; 3], [0_u64.wrapping_sub(46); 3]];
-    let first = &parts[party as usize];
-    let second = &parts[party.next() as usize];
-    (
-        op.share(party, first, second, Limits::default()).unwrap(),
-        op.share(party, first, second, Limits::default()).unwrap(),
-    )
+    let [left, right] = [multiply::Operand::Left, multiply::Operand::Right].map(|operand| {
+        let n = op.operand_binding(operand).lanes();
+        let parts = [
+            vec![17_u64; n],
+            vec![29_u64; n],
+            vec![0_u64.wrapping_sub(46); n],
+        ];
+        op.share_operand(
+            operand,
+            party,
+            &parts[party as usize],
+            &parts[party.next() as usize],
+            Limits::default(),
+        )
+        .unwrap()
+    });
+    (left, right)
 }
 
 fn compound_messages(owners: &mut [multiply::PartyRuntime; 3], op: multiply::Plan) -> Vec<Message> {
@@ -676,35 +686,53 @@ fn compound_invalid_interval_and_work_reject_before_allocation_or_randomness() {
 
 #[test]
 fn compound_multiplication_allocation_sweep_erases_before_refund() {
-    for role in 0..3 {
-        for fail_at in 0..=3 {
-            let mut owners = compound_owners(PrssLimits::default());
-            let owner = &mut owners[role];
-            let op = owner.plan(&compound_bounds()).unwrap();
-            let (x, y) = compound_inputs(op, owner.party());
-            let usage = owner.payload_usage();
-            let watch = Watch::start(&usage, true, false);
-            FAIL_AT.set(Some(fail_at));
-            let result = owner.begin(x, y);
-            FAIL_AT.set(None);
-            if fail_at < 3 {
-                assert!(matches!(result, Err(Error::Allocation)));
-                assert_eq!(owner.status(), multiply::Status::Retired);
-            } else {
-                assert!(result.is_ok());
+    for matrix in [false, true] {
+        for role in 0..3 {
+            for fail_at in 0..=3 {
+                let mut owners = compound_owners(PrssLimits::default());
+                let owner = &mut owners[role];
+                let op = if matrix {
+                    owner
+                        .plan_matmul(
+                            multiply::MatrixShape::new(3, 2, 1).unwrap(),
+                            compound_bounds()[0],
+                        )
+                        .unwrap()
+                } else {
+                    owner.plan(&compound_bounds()).unwrap()
+                };
+                let (x, y) = compound_inputs(op, owner.party());
+                let usage = owner.payload_usage();
+                let watch = Watch::start(&usage, true, false);
+                FAIL_AT.set(Some(fail_at));
+                let result = owner.begin(x, y);
+                FAIL_AT.set(None);
+                if fail_at < 3 {
+                    assert!(matches!(result, Err(Error::Allocation)));
+                    assert_eq!(owner.status(), multiply::Status::Retired);
+                } else {
+                    assert!(result.is_ok());
+                }
+                owner.cancel();
+                assert_eq!(usage.live_bytes(), if fail_at == 3 { 3 * 8 } else { 0 });
+                drop(result);
+                let audit = watch.finish();
+                assert_eq!(audit.allocations, fail_at.min(3));
+                if fail_at > 0 {
+                    assert_eq!(
+                        audit.first_live,
+                        if matrix {
+                            (2 * 6 + 2 * 2 + 3) * 8
+                        } else {
+                            5 * 3 * 8
+                        }
+                    );
+                }
+                assert_audit(audit);
+                assert_eq!(usage.live_bytes(), 0);
+                assert_eq!(owner.cursors().pair_blocks, 2);
+                assert!(owner.plan(&compound_bounds()).is_err());
             }
-            owner.cancel();
-            assert_eq!(usage.live_bytes(), if fail_at == 3 { 3 * 8 } else { 0 });
-            drop(result);
-            let audit = watch.finish();
-            assert_eq!(audit.allocations, fail_at.min(3));
-            if fail_at > 0 {
-                assert_eq!(audit.first_live, 5 * 3 * 8);
-            }
-            assert_audit(audit);
-            assert_eq!(usage.live_bytes(), 0);
-            assert_eq!(owner.cursors().pair_blocks, 2);
-            assert!(owner.plan(&compound_bounds()).is_err());
         }
     }
 }

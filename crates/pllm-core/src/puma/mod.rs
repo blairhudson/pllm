@@ -107,7 +107,8 @@ impl Limits {
     /// Working-set estimate with this operation's original outgoing frames
     /// retained: H uses at most 10 words/lane; A/B at most 8. This does not replace
     /// lifetime accounting for buffers retained from earlier operations.
-    /// Compound consumers use the full 16-word/lane bound for their joint owners.
+    /// The truncation phase of compound consumers uses the full 16-word/lane
+    /// bound. Matrix consumers additionally price input tensors in their Plan.
     pub fn role_working_bytes(self, operation: Operation, party: Party) -> Result<usize, Error> {
         if operation.consumer.is_some() {
             return self.admit(operation.lanes);

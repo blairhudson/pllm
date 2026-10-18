@@ -175,13 +175,24 @@ role estimate is insufficient: a helper retaining its outgoing rotation reaches
 this overlap. Retaining eight complete output pairs blocks the next full-size
 operation before PRSS consumption. Every cancellation phase retires the chain.
 
+`PartyRuntime.plan_matmul` also binds row-major matrix products to this same
+owner and stream. Pinned `arithmetic.cc:628–660` and `fxp_base.cc:264–269`
+specify one output-shaped zero fill and rotation, followed by truncation of
+each **complete** dot product. Operand position, all three dimensions and the
+public unwrapped accumulator bound enter a distinct matrix execution identity.
+Each input/output has at most 1024 entries. Joint admission additionally prices
+both replicated input tensors; `Plan.admitted_bytes()` reports that bound.
+Matrix tests compare raw reconstructed dot products with independent signed-i128
+sums, then check the stochastic output law, mixed elementwise/matrix cursors,
+operand substitution and allocator-failure retirement through the exported API.
+
 Native tests read the existing frozen independent vectors directly, checking
 product components, complete output shares and all stream cursors across odd/even
 chained shapes. Fresh OS-key exported-API tests cover up to 1024 lanes, the signed
 rounding law and frame/work reconciliation. Allocation-index sweeps inspect
 erasure and still-held reservations inside deallocation; compile-fail checks
-reject cloning setup and runtime owners. The current suite passes **53 native
-checks** (22 unit, 8 truncation, 3 PRSS, 2 compound exported-API, 16 allocation,
+reject cloning setup and runtime owners. The current suite passes **56 native
+checks** (25 unit, 8 truncation, 3 PRSS, 2 compound exported-API, 16 allocation,
 2 compile-fail). The frozen multiplication oracle's 14 checks also pass.
 Focused formatting passes; Clippy passes with the existing unrelated
 `needless_range_loop` warnings allowed. Replay uses the commands below.

@@ -19,8 +19,66 @@ use crate::puma::{
 use sha2::{Digest, Sha256};
 
 pub const PROFILE: &str = "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
+pub const MATMUL_PROFILE: &str =
+    "puma.spu-a42c261.matmul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
 pub const NUMERIC_PROFILE: &str = "puma.source-derived-q18.v1";
 pub const FRACTION_BITS: u8 = 18;
+
+/// Row-major (rows × inner) · (inner × columns), with one truncation AFTER
+/// each complete dot product. Each operand and output has at most MAX_LANES
+/// elements; the caller's smaller Limits are checked again during planning.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MatrixShape {
+    rows: usize,
+    inner: usize,
+    columns: usize,
+}
+
+impl MatrixShape {
+    pub fn new(rows: usize, inner: usize, columns: usize) -> Result<Self, Error> {
+        let shape = Self {
+            rows,
+            inner,
+            columns,
+        };
+        for count in [
+            rows.checked_mul(inner),
+            inner.checked_mul(columns),
+            rows.checked_mul(columns),
+        ] {
+            if !matches!(count, Some(1..=crate::puma::MAX_LANES)) {
+                return Err(Error::Bounds);
+            }
+        }
+        Ok(shape)
+    }
+
+    pub fn dimensions(self) -> [usize; 3] {
+        [self.rows, self.inner, self.columns]
+    }
+
+    pub fn left_elements(self) -> usize {
+        self.rows * self.inner
+    }
+    pub fn right_elements(self) -> usize {
+        self.inner * self.columns
+    }
+    pub fn output_elements(self) -> usize {
+        self.rows * self.columns
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Operand {
+    Left,
+    Right,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Product {
+    Elementwise,
+    Matrix(MatrixShape),
+}
 
 /// Public admission ticket, before any PRSS draw. This has no chosen truncation
 /// roles. The input/rotation binding is distinct from the later TruncAPr binding.
@@ -28,6 +86,8 @@ pub const FRACTION_BITS: u8 = 18;
 pub struct Plan {
     input: Operation,
     zero_start: u64,
+    product: Product,
+    working_bytes: usize,
 }
 
 impl Plan {
@@ -41,9 +101,10 @@ impl Plan {
         self.input.lanes()
     }
 
-    /// Binding only for the two input pairs and multiplication rotation. Its
+    /// Binding for the multiplication rotation and elementwise input pairs. Its
     /// placeholder pivot is not an evaluator assignment; use the runtime's
     /// `truncation_operation` after rotation for actual source-derived roles.
+    /// Matrix operands use their separate position/shape-bound admission below.
     pub fn input_binding(self) -> Operation {
         self.input
     }
@@ -55,7 +116,47 @@ impl Plan {
         second: &[u64],
         limits: Limits,
     ) -> Result<ReplicatedShare, Error> {
+        if self.product != Product::Elementwise {
+            return Err(Error::Shape);
+        }
         ReplicatedShare::from_local(self.input, party, first, second, limits)
+    }
+
+    /// Complete joint working-set estimate, including the fixed owner reserve.
+    /// Previously retained outputs/frames remain additional live ledger charges.
+    pub fn admitted_bytes(self) -> usize {
+        self.working_bytes + FIXED_RESERVE_BYTES
+    }
+
+    pub fn operand_binding(self, operand: Operand) -> Operation {
+        let Product::Matrix(shape) = self.product else {
+            return self.input;
+        };
+        let mut binding = self.input;
+        let mut hash = Sha256::new();
+        hash.update(b"pllm.puma.matrix-operand.v1");
+        hash.update(self.digest());
+        hash.update([match operand {
+            Operand::Left => 0,
+            Operand::Right => 1,
+        }]);
+        binding.consumer = Some(hash.finalize().into());
+        binding.lanes = match operand {
+            Operand::Left => shape.left_elements(),
+            Operand::Right => shape.right_elements(),
+        };
+        binding
+    }
+
+    pub fn share_operand(
+        self,
+        operand: Operand,
+        party: Party,
+        first: &[u64],
+        second: &[u64],
+        limits: Limits,
+    ) -> Result<ReplicatedShare, Error> {
+        ReplicatedShare::from_local(self.operand_binding(operand), party, first, second, limits)
     }
 }
 
@@ -93,12 +194,22 @@ pub struct InputBounds {
 impl InputBounds {
     /// Check all four corners in i128 before any ring reduction.
     pub fn product(self) -> Result<Interval, Error> {
+        self.dot_product(1)
+    }
+
+    /// Uniform public operand bounds for a complete, unwrapped dot product.
+    /// This prices the reduction, not just individually safe scalar products.
+    pub fn dot_product(self, terms: usize) -> Result<Interval, Error> {
+        if terms == 0 || terms > crate::puma::MAX_LANES {
+            return Err(Error::Bounds);
+        }
         let mut lower = i128::MAX;
         let mut upper = i128::MIN;
         for x in [self.left.lower, self.left.upper] {
             for y in [self.right.lower, self.right.upper] {
                 let product = i128::from(x)
                     .checked_mul(i128::from(y))
+                    .and_then(|p| p.checked_mul(terms as i128))
                     .ok_or(Error::Bounds)?;
                 lower = lower.min(product);
                 upper = upper.max(product);
@@ -115,7 +226,11 @@ impl InputBounds {
 
     /// Conservative hull of stochastic Q18 outputs, inclusive of every mask.
     pub fn output(self) -> Result<Interval, Error> {
-        let product = self.product()?;
+        self.dot_output(1)
+    }
+
+    pub fn dot_output(self, terms: usize) -> Result<Interval, Error> {
+        let product = self.dot_product(terms)?;
         let scale = 1_i64 << FRACTION_BITS;
         Interval::new(
             product.lower.div_euclid(scale),
@@ -273,13 +388,36 @@ impl PartyRuntime {
     /// Worst-case remaining helper work is priced before the public pivot draw;
     /// actual AES accounting still charges only this role's source expansions.
     pub fn plan(&mut self, bounds: &[InputBounds]) -> Result<Plan, Error> {
+        self.plan_product(Product::Elementwise, bounds)
+    }
+
+    /// The pinned MatMulAA schedule shares the multiplication/truncation owner:
+    /// one output-shaped Both fill, one rotation, then one full-output TruncAPr.
+    /// Uniform public bounds apply to every operand entry. No private value is
+    /// inspected to select bounds, dimensions, truncation, or execution order.
+    pub fn plan_matmul(&mut self, shape: MatrixShape, bounds: InputBounds) -> Result<Plan, Error> {
+        self.plan_product(Product::Matrix(shape), &[bounds])
+    }
+
+    fn plan_product(&mut self, product: Product, bounds: &[InputBounds]) -> Result<Plan, Error> {
         let result = (|| {
             self.source.live()?;
             if !matches!(self.phase, Phase::Ready) {
                 return Err(Error::Phase);
             }
-            let n = bounds.len();
-            let working = self.source.limits.core.admit(n)? - FIXED_RESERVE_BYTES;
+            let n = match product {
+                Product::Elementwise => bounds.len(),
+                Product::Matrix(shape) => shape.output_elements(),
+            };
+            let mut working = self.source.limits.core.admit(n)? - FIXED_RESERVE_BYTES;
+            if let Product::Matrix(shape) = product {
+                self.source.limits.core.admit(shape.left_elements())?;
+                self.source.limits.core.admit(shape.right_elements())?;
+                // Both original replicated operands, zero-share expansion,
+                // product and exported rotation. Counts are shape-bounded above.
+                let multiply_words = 2 * shape.left_elements() + 2 * shape.right_elements() + 3 * n;
+                working = working.max(multiply_words * 8);
+            }
             let usage = self.payload_usage();
             if usage
                 .live_bytes()
@@ -290,10 +428,21 @@ impl PartyRuntime {
                 return Err(Error::Bounds);
             }
             let mut hash = Sha256::new();
-            hash.update(PROFILE.as_bytes());
+            hash.update(match product {
+                Product::Elementwise => PROFILE.as_bytes(),
+                Product::Matrix(_) => MATMUL_PROFILE.as_bytes(),
+            });
             hash.update(NUMERIC_PROFILE.as_bytes());
+            if let Product::Matrix(shape) = product {
+                for dimension in shape.dimensions() {
+                    hash.update((dimension as u64).to_le_bytes());
+                }
+            }
             for bound in bounds {
-                bound.product()?;
+                bound.dot_product(match product {
+                    Product::Elementwise => 1,
+                    Product::Matrix(shape) => shape.inner,
+                })?;
                 for interval in [bound.left, bound.right] {
                     hash.update(interval.lower.to_le_bytes());
                     hash.update(interval.upper.to_le_bytes());
@@ -334,7 +483,12 @@ impl PartyRuntime {
                 output_start: mask_start + q,
             });
             input.consumer = Some(hash.finalize().into());
-            let plan = Plan { input, zero_start };
+            let plan = Plan {
+                input,
+                zero_start,
+                product,
+                working_bytes: working,
+            };
             self.phase = Phase::Planned(plan);
             Ok(plan)
         })();
@@ -363,7 +517,9 @@ impl PartyRuntime {
         };
         let operation = plan.input;
         let zero_start = plan.zero_start;
-        if left.operation != operation || right.operation != operation {
+        if left.operation != plan.operand_binding(Operand::Left)
+            || right.operation != plan.operand_binding(Operand::Right)
+        {
             return Err(Error::Binding);
         }
         let party = self.party();
@@ -387,13 +543,25 @@ impl PartyRuntime {
             n,
             Some(&usage),
         )?;
-        for i in 0..n {
-            product[i] = left.first[i]
-                .wrapping_mul(right.first[i])
-                .wrapping_add(left.first[i].wrapping_mul(right.second[i]))
-                .wrapping_add(left.second[i].wrapping_mul(right.first[i]))
-                .wrapping_add(product[i])
-                .wrapping_sub(next[i]);
+        for (i, value) in product.iter_mut().enumerate() {
+            *value = value.wrapping_sub(next[i]);
+            let mut accumulate = |x: usize, y: usize| {
+                *value = value.wrapping_add(
+                    left.first[x]
+                        .wrapping_mul(right.first[y].wrapping_add(right.second[y]))
+                        .wrapping_add(left.second[x].wrapping_mul(right.first[y])),
+                );
+            };
+            match plan.product {
+                Product::Elementwise => accumulate(i, i),
+                Product::Matrix(shape) => {
+                    let row = i / shape.columns;
+                    let column = i % shape.columns;
+                    for k in 0..shape.inner {
+                        accumulate(row * shape.inner + k, k * shape.columns + column);
+                    }
+                }
+            }
         }
         drop(next);
         let words = usage.copy(&product, n)?;
