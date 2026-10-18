@@ -26,6 +26,14 @@ pub struct PrssLimits {
 }
 
 impl PrssLimits {
+    pub fn program(max_operations: u64, aes_blocks: u64) -> Result<Self, Error> {
+        let core = Limits::program(max_operations)?;
+        let maximum = (3 * MAX_LANES as u64 + 3) * max_operations;
+        if aes_blocks == 0 || aes_blocks > maximum {
+            return Err(Error::Bounds);
+        }
+        Ok(Self { core, aes_blocks })
+    }
     pub fn new(core: Limits, aes_blocks: u64) -> Result<Self, Error> {
         if aes_blocks == 0 || aes_blocks > MAX_AES_BLOCKS {
             return Err(Error::Bounds);
@@ -63,9 +71,9 @@ pub enum SetupStatus {
 /// This seed contribution is intentionally public (source AllGather).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PublicContribution {
-    context: Context,
-    from: Party,
-    value: u128,
+    pub(super) context: Context,
+    pub(super) from: Party,
+    pub(super) value: u128,
 }
 impl PublicContribution {
     pub fn sender(self) -> Party {
@@ -79,10 +87,10 @@ impl PublicContribution {
 /// One directed secret seed, sent to the previous party. Never Clone/Debug.
 /// The seed is inaccessible to a central router through this typed API.
 pub struct SeedMessage {
-    setup: [u8; 32],
-    from: Party,
-    to: Party,
-    seed: Zeroizing<[u8; 16]>,
+    pub(super) setup: [u8; 32],
+    pub(super) from: Party,
+    pub(super) to: Party,
+    pub(super) seed: Zeroizing<[u8; 16]>,
 }
 impl SeedMessage {
     pub fn sender(&self) -> Party {
@@ -276,6 +284,7 @@ impl SetupParty {
             };
             Ok(SourceParty {
                 runtime: PartyRuntime::new(context, self.party, self.limits.core),
+                setup_context: self.context,
                 context,
                 party: self.party,
                 limits: self.limits,
@@ -301,6 +310,7 @@ impl Drop for SetupParty {
 /// old seeds. New setup always draws new OS seeds, including after restart.
 pub struct SourceParty {
     runtime: PartyRuntime,
+    setup_context: Context,
     context: Context,
     party: Party,
     limits: PrssLimits,
@@ -313,6 +323,9 @@ pub struct SourceParty {
 }
 
 impl SourceParty {
+    pub(crate) fn setup_context(&self) -> Context {
+        self.setup_context
+    }
     pub fn context(&self) -> Context {
         self.context
     }

@@ -6,7 +6,6 @@ use pllm_compiler::{
     GkmRuntimeContract, GkmTransportClient, GkmTransportImport, GkmTransportWorker,
 };
 use pllm_core::gkm::{WireBytes, Worker};
-use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBool, PyBytes, PyDict, PyString, PyTuple};
 
@@ -27,45 +26,7 @@ fn arguments<'py, const N: usize>(
     kwargs: Option<&Bound<'py, PyDict>>,
     names: [&str; N],
 ) -> PyResult<[Bound<'py, PyAny>; N]> {
-    let positional = args.len();
-    let keywords = kwargs.map_or(0, |kwargs| kwargs.len());
-    if positional > N || keywords > N {
-        return Err(PyTypeError::new_err("GKM argument count exceeds signature"));
-    }
-    if let Some(kwargs) = kwargs {
-        for (name, _) in kwargs.iter() {
-            // Fixed-name lookups must not invoke caller-defined hash/equality.
-            if !name.is_exact_instance_of::<PyString>() {
-                return Err(PyTypeError::new_err(
-                    "GKM keyword names must be plain strings",
-                ));
-            }
-        }
-    }
-    let mut values: [Option<Bound<'py, PyAny>>; N] = std::array::from_fn(|_| None);
-    let mut matched = 0;
-    for (index, name) in names.iter().enumerate() {
-        let named = match kwargs {
-            Some(kwargs) => kwargs.get_item(*name)?,
-            None => None,
-        };
-        matched += usize::from(named.is_some());
-        values[index] = if index < positional {
-            if named.is_some() {
-                return Err(PyTypeError::new_err("GKM multiple values for argument"));
-            }
-            Some(args.get_item(index)?)
-        } else {
-            named
-        };
-    }
-    if matched != keywords {
-        return Err(PyTypeError::new_err("GKM unexpected keyword argument"));
-    }
-    if values.iter().any(Option::is_none) {
-        return Err(PyTypeError::new_err("GKM missing required argument"));
-    }
-    Ok(values.map(|value| value.expect("checked required arguments")))
+    crate::owned_arguments::arguments(args, kwargs, names, "GKM")
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -479,13 +479,15 @@ class DashboardRuntime:
         self._bundle_compression = getattr(config, "bundle_compression", None)
         experiment = getattr(config, "experiment", None)
         profile = experiment.resolve() if experiment is not None else None
-        self._delegated = getattr(profile, "client_runtime", None) == "compiled_gkm_v1"
+        self._delegated = getattr(profile, "client_runtime", None) in {"compiled_gkm_v1", "compiled_replicated_v1"}
+        self._replicated = getattr(profile, "client_runtime", None) == "compiled_replicated_v1"
+        self._worker_roles = ("worker_a", "worker_b", "worker_c") if self._replicated else ("worker_a", "worker_b")
         self._runtime_contract = None
         if self._delegated:
             from .benchmark_delegated import admit_options
 
             if config.startup_inventory_rows not in (None, 0):
-                raise ValueError("GKM benchmarking has no preparation inventory")
+                raise ValueError("buffered role benchmarking has no preparation inventory")
             admit_options(experiment, backend=config.backend, docker=config.docker,
                 docker_image=config.docker_image, docker_network=config.docker_network,
                 cache_bytes=config.prefill_cache_mib << 20, cache_mode=config.prefill_cache_mode,
@@ -538,10 +540,11 @@ class DashboardRuntime:
             "protocol_start_cursor": 0,
         }
         if self._delegated:
-            from .benchmark_delegated import DELIVERY, TPS_UNAVAILABLE
+            from .benchmark_delegated import output_contract
 
-            self._state.update(output_delivery=DELIVERY, decode_tps_supported=False,
-                               decode_tps_unavailable_reason=TPS_UNAVAILABLE)
+            delivery, reason = output_contract(experiment)
+            self._state.update(output_delivery=delivery, decode_tps_supported=False,
+                               decode_tps_unavailable_reason=reason)
         configured_inventory_rows = getattr(config, "startup_inventory_rows", None)
         self._defer_inventory = getattr(config, "defer_inventory_until_request", False)
         self._background_inventory_refill = profile.background_inventory_refill if profile is not None and profile.inventory_refill is not None else False
@@ -875,7 +878,7 @@ class DashboardRuntime:
                 raise RuntimeError("dashboard stopped during startup")
             endpoints = {status.role: status.url for status in self._topology.statuses}
             before_offset_startup = (
-                self._audit_snapshot() if set(endpoints) == {"worker_a", "worker_b"} else None
+                self._audit_snapshot() if set(endpoints) == set(self._worker_roles) else None
             )
             self._set(
                 phase="preparing",
@@ -915,9 +918,12 @@ class DashboardRuntime:
                         # are known before any request/publication exists.
                         self._initial_preparation_audit.update({
                             f"role_link.{role}.{phase}_{direction}_bytes": 0
-                            for role in ("worker_a", "worker_b")
+                            for role in self._worker_roles
                             for phase in ("setup", "online", "teardown")
                             for direction in ("upload", "download")})
+                        if self._replicated:
+                            from .replicated_protocol import PEER_COUNTERS
+                            self._initial_preparation_audit.update(dict.fromkeys(PEER_COUNTERS, 0))
             await asyncio.sleep(0.6)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
@@ -952,7 +958,7 @@ class DashboardRuntime:
             temperature = _validate_request_temperature(getattr(self.config, "temperature", None))
         if getattr(self, "_delegated", False):
             if temperature not in (None, 0):
-                raise ValueError("GKM benchmarking requires fixed-length greedy generation")
+                raise ValueError("buffered role benchmarking requires fixed-length greedy generation")
             temperature = 0.0
         started_at_ns = time.time_ns()
         started_monotonic_ns = time.monotonic_ns()
@@ -978,7 +984,7 @@ class DashboardRuntime:
             )
             if self._topology is not None and {
                 status.role for status in self._topology.statuses
-            } == {"worker_a", "worker_b"}:
+            } in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
                 try:
                     capture.worker_metrics_before = self._topology.worker_process_metrics()
                 except (httpx.HTTPError, ValueError, RuntimeError):
@@ -1319,7 +1325,7 @@ class DashboardRuntime:
             if getattr(self, "_delegated", False):
                 self._online_traffic_final = {
                     edge: (float(audit[key] - audit_before.get(key, 0)) if key in audit else None)
-                    for role in ("worker_a", "worker_b")
+                    for role in self._worker_roles
                     for edge, key in ((f"client->{role}", f"role_link.{role}.online_upload_bytes"),
                                       (f"{role}->client", f"role_link.{role}.online_download_bytes"))}
             preparation_cpu_value = telemetry["services"]["pllm-preparation"].get("cpu_seconds")
@@ -1381,12 +1387,12 @@ class DashboardRuntime:
                 capture.process_metrics.pop("preparation", None)
             if self._topology is not None and {
                 status.role for status in self._topology.statuses
-            } == {"worker_a", "worker_b"}:
+            } in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
                 try:
                     after = self._topology.worker_process_metrics()
                 except (httpx.HTTPError, ValueError, RuntimeError):
                     after = {}
-                for role in ("worker_a", "worker_b"):
+                for role in (status.role for status in self._topology.statuses):
                     before_value = (capture.worker_metrics_before or {}).get(role, {})
                     after_value = after.get(role, {})
                     before_cpu = before_value.get("cpu_ns")
@@ -1512,7 +1518,7 @@ class DashboardRuntime:
                 privacy_delta=privacy_delta,
                 process_metrics=capture.process_metrics,
                 failure_type=type(error).__name__ if error is not None else None,
-                output_delivery="buffered_until_verified" if getattr(self, "_delegated", False) else "incremental",
+                output_delivery=self._state.get("output_delivery", "incremental"),
             )
             if self.history is not None:
                 self.history.add(run)
@@ -1581,7 +1587,7 @@ class DashboardRuntime:
         if getattr(self, "_delegated", False) and self._online_traffic_final is None:
             state["online_traffic"] = {
                 edge: state["privacy"].get(key)
-                for role in ("worker_a", "worker_b")
+                for role in self._worker_roles
                 for edge, key in ((f"client->{role}", f"role_link.{role}.online_upload_bytes"),
                                   (f"{role}->client", f"role_link.{role}.online_download_bytes"))}
         preparation_cpu_value = telemetry["services"]["pllm-preparation"].get("cpu_seconds")

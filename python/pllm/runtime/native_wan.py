@@ -7,6 +7,7 @@ userspace bandwidth experiment, not kernel shaping or measured Internet latency.
 from __future__ import annotations
 
 import asyncio
+import json
 import threading
 import time
 
@@ -200,14 +201,15 @@ class NativePartyNetwork:
 
 
 class NativeWanTopology(LocalTopology):
-    __slots__ = ("_native_network", "_peer_inference_url")
+    __slots__ = ("_native_network", "_peer_inference_url", "_replicated_peer_urls")
 
     def __init__(self, *args, wan, **kwargs):
         super().__init__(*args, **kwargs)
-        if self._privacy_mode not in {"public", "offset_public", "client_only", "gkm_public"}:
+        if self._privacy_mode not in {"public", "offset_public", "client_only", "gkm_public", "replicated_public"}:
             raise TopologyError("native WAN requires an admitted public role topology")
         self._native_network = NativePartyNetwork(wan, ("client", *self._role_ids))
         self._peer_inference_url = None
+        self._replicated_peer_urls = {}
 
     def _commands(self, ports):
         excluded = set(ports.values()) | set(self._reserved_ports)
@@ -216,6 +218,15 @@ class NativeWanTopology(LocalTopology):
             backends[role] = self._free_port(excluded)
             excluded.add(backends[role])
         routes = [("client", role, ports[role], backends[role]) for role in ports]
+        if self._privacy_mode == "replicated_public":
+            for source in ports:
+                for destination in ports:
+                    if source == destination:
+                        continue
+                    peer = self._free_port(excluded)
+                    excluded.add(peer)
+                    routes.append((source, destination, peer, backends[destination]))
+                    self._replicated_peer_urls[source, destination] = f"http://127.0.0.1:{peer}"
         if "preparation" in ports:
             peer = self._free_port(excluded)
             routes.append(("preparation", "inference", peer, backends["inference"]))
@@ -226,6 +237,11 @@ class NativeWanTopology(LocalTopology):
 
     def _environment(self, role):
         environment = super()._environment(role)
+        if self._privacy_mode == "replicated_public":
+            peers = json.loads(environment["PLLM_REPLICATED_PEERS_JSON"])
+            for peer, values in peers.items():
+                values[0] = self._replicated_peer_urls[role, peer]
+            environment["PLLM_REPLICATED_PEERS_JSON"] = json.dumps(peers)
         if role == "preparation":
             environment["PLLM_INFERENCE_URL"] = self._peer_inference_url
         return environment

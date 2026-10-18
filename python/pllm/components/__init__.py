@@ -73,6 +73,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         PrivateEmbeddingLookup,
         MaverickDelegatedLinear,
         OpenWeightVerifiableOutsourcing,
+        PumaThreePartyDecoder,
         PackedEncryptedLinear,
         MaskedLinear,
         SecureLinear,
@@ -89,6 +90,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         PreparedProviderRoles,
         TwoOnlineOffsetRoles,
         TwoOnlineDelegationRoles,
+        ThreePartyReplicatedRoles,
     )
     from pllm.schedulers import (
         MlpPrefillTiling,
@@ -97,7 +99,7 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         IndependentLanesProtectedTensorSchedule,
         ScalarProtectedTensorSchedule,
     )
-    from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
+    from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, ReplicatedPrivatePrefix
     from pllm.tokenization import IndexedTokenizer
     from pllm.verification import FreivaldsVerify, LinearIntegrity, PublishedLinearVerify
 
@@ -140,6 +142,9 @@ def _builtin_classes() -> tuple[type[ComponentRef], ...]:
         PrivateEmbeddingLookup,
         MaverickDelegatedLinear,
         OpenWeightVerifiableOutsourcing,
+        PumaThreePartyDecoder,
+        ReplicatedPrivatePrefix,
+        ThreePartyReplicatedRoles,
         PackedEncryptedLinear,
         MaskedLinear,
         Memory,

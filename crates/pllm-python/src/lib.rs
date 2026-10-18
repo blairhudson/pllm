@@ -20,6 +20,7 @@ mod masked_wire;
 mod mixed_gated;
 mod network;
 mod offset_transport;
+mod owned_arguments;
 mod packed_embedding;
 mod paged;
 mod polynomial_shift;
@@ -28,6 +29,7 @@ mod private_pages;
 mod progressive_head;
 mod projected_polynomial;
 mod public_transforms;
+mod replicated_transport;
 mod retained_decoder;
 mod retained_kv;
 mod row_memo;
@@ -1383,7 +1385,7 @@ fn apply_model_component<'py>(
 }
 
 #[pyfunction]
-fn macos_host_memory<'py>(py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+fn macos_host_memory(py: Python<'_>) -> PyResult<Bound<'_, PyBytes>> {
     let sample = py
         .detach(pllm_bench::host_memory::sample)
         .map_err(|message| invalid(message.to_owned()))?;
@@ -1830,6 +1832,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(decoder_matrix_inventory, module)?)?;
     delegated_decoder::register(module)?;
     delegated_transport::register(module)?;
+    replicated_transport::register(module)?;
     module.add_function(wrap_pyfunction!(lower_gated_multiply_q7, module)?)?;
     module.add_function(wrap_pyfunction!(apply_model_component, module)?)?;
     module.add_function(wrap_pyfunction!(deployment_benchmark_report, module)?)?;

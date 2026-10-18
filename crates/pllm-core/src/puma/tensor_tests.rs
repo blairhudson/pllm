@@ -440,6 +440,9 @@ fn positive_epsilon_rms_norm_preserves_zero_constant_and_signed_rows() {
             let output = owners.map(|o| o.finish().unwrap().1);
             let actual = clear(&output);
             assert_eq!(actual, rms_norm_oracle(&values, width, &gamma, &tapes));
+            assert!(actual.iter().all(|&x| {
+                program.output_bounds().lower() <= x && x <= program.output_bounds().upper()
+            }));
             if values.iter().all(|&x| x == 0) {
                 assert!(actual.iter().all(|&x| x == 0));
             } else if values[0] == 2 * ONE {
@@ -452,6 +455,37 @@ fn positive_epsilon_rms_norm_preserves_zero_constant_and_signed_rows() {
             drop(output);
             assert!(usage.iter().all(|u| u.live_bytes() == 0));
         }
+    }
+}
+
+#[test]
+fn rms_norm_correlated_denominator_bounds_cover_wide_and_near_zero_rows() {
+    for width in [3, 7] {
+        let bounds = Interval::new(-256 * ONE, 256 * ONE).unwrap();
+        let gamma = vec![ONE; width];
+        let program = Program::rms_norm(3, width, bounds, &gamma).unwrap();
+        // The public proof uses x_i^2 <= sum(x^2), even with stochastic
+        // square/mean rounding. It must not multiply the largest input by the
+        // zero-row inverse bound; that hull would exceed 100,000 real units.
+        assert!(program.output_bounds().lower() > -128 * ONE);
+        assert!(program.output_bounds().upper() < 128 * ONE);
+        let mut values = vec![0; 3 * width];
+        values[0] = -256 * ONE;
+        values[width] = 1;
+        values[width + 1] = -1;
+        values[2 * width..].fill(256 * ONE);
+        let mut owners = owners(&program, &values);
+        let mut tapes = vec![];
+        for _ in 0..program.instructions() {
+            if let Some(tape) = step(&mut owners).0 {
+                tapes.push(tape);
+            }
+        }
+        let actual = clear(&owners.map(|o| o.finish().unwrap().1));
+        assert_eq!(actual, rms_norm_oracle(&values, width, &gamma, &tapes));
+        assert!(actual.iter().all(|&x| {
+            program.output_bounds().lower() <= x && x <= program.output_bounds().upper()
+        }));
     }
 }
 

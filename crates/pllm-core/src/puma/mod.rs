@@ -17,6 +17,7 @@ pub mod oracle;
 mod payload;
 mod protocol;
 pub mod prss;
+pub mod wire;
 
 pub use payload::PayloadUsage;
 use payload::Words;
@@ -29,6 +30,9 @@ use zeroize::Zeroizing;
 pub const PROFILE: &str = "puma.spu-a42c261.truncapr.ring64.quarter-gap.replicated3.v1";
 pub const MAX_LANES: usize = 1024;
 pub const MAX_OPERATIONS: u64 = 4096;
+/// Explicit complete-program work envelope; primitive defaults remain bounded
+/// by MAX_OPERATIONS. This changes no live-payload or numeric limit.
+pub const MAX_PROGRAM_OPERATIONS: u64 = 1 << 20;
 pub const MAX_ADMITTED_BYTES: usize = 256 << 10;
 pub const INPUT_MIN: i64 = -(1_i64 << 62);
 pub const INPUT_MAX_EXCLUSIVE: i64 = 1_i64 << 62;
@@ -85,6 +89,15 @@ pub struct Limits {
 }
 
 impl Limits {
+    pub fn program(max_operations: u64) -> Result<Self, Error> {
+        if max_operations == 0 || max_operations > MAX_PROGRAM_OPERATIONS {
+            return Err(Error::Bounds);
+        }
+        Ok(Self {
+            max_operations,
+            ..Self::default()
+        })
+    }
     pub fn new(max_lanes: usize, max_operations: u64, max_bytes: usize) -> Result<Self, Error> {
         if max_lanes == 0
             || max_lanes > MAX_LANES

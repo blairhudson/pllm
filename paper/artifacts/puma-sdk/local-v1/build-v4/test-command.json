@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+    "-I",
+    "-m",
+    "pytest",
+    "-q",
+    "-o",
+    "pythonpath=.",
+    "-o",
+    "junit_family=xunit1",
+    "tests/test_replicated_interfaces.py",
+    "tests/test_replicated_sdk.py",
+    "tests/test_replicated_worker.py",
+    "tests/test_delegated_transport_binding.py",
+    "tests/test_delegated_transport_ownership.py",
+    "tests/test_delegated_decoder.py",
+    "--junitxml=target/puma-sdk-final-build-v4/installed-tests.xml"
+  ],
+  "cwd": "/Users/blairhudson/workspace/pllm",
+  "scope": "installed final wheel; focused SDK, gateway, benchmark and native-boundary rerun after module-declaration formatting"
+}

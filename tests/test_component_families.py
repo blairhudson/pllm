@@ -61,6 +61,7 @@ from pllm.protocols import (
     MaverickDelegatedLinear,
     OpenWeightVerifiableOutsourcing,
     PackedEncryptedLinear,
+    PumaThreePartyDecoder,
     SecureLinear,
     TwoOnlineOffsetLinear,
 )
@@ -76,6 +77,7 @@ from pllm.roles import (
     PreparedProviderRoles,
     TwoOnlineOffsetRoles,
     TwoOnlineDelegationRoles,
+    ThreePartyReplicatedRoles,
 )
 from pllm.schedulers import (
     BoundedIndependentElementsProtectedTensorSchedule,
@@ -86,7 +88,7 @@ from pllm.schedulers import (
     ScalarProtectedTensorSchedule,
 )
 from pllm.sources import BundleModel, ModelSource, TinyModel
-from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, StateProtocol
+from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, ReplicatedPrivatePrefix, StateProtocol
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, LinearIntegrity, PublishedLinearVerify, VerificationScheme
 
@@ -149,8 +151,10 @@ def _instances():
         PublicPerChannelEqualized(profile_digest="a" * 64),
         PublishedLinearVerify(),
         PublicPrefixCapsule("public-prefix", digest="a" * 64, size_bytes=1024),
+        PumaThreePartyDecoder(),
         R03CrtGatedMultiplyQ7(),
         ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64),
+        ReplicatedPrivatePrefix(),
         ScalarProtectedTensorSchedule(),
         SeededExpansion(),
         SecretReplicationPcf(),
@@ -158,6 +162,7 @@ def _instances():
         SharedRescale(),
         SymmetricPerRow(),
         Throughput(),
+        ThreePartyReplicatedRoles(),
         TwoOnlineOffsetLinear(),
         TwoOnlineOffsetRoles(),
         TwoOnlineDelegationRoles(),

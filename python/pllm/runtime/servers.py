@@ -104,7 +104,7 @@ def role_client(experiment, connections):
     roles = set(connections)
     if {"boundary_a", "boundary_b"} & roles:
         raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: private boundary supports local children only")
-    if roles == {"worker_a", "worker_b"}:
+    if roles in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
         return OpenAI(default_model=experiment.resolve().model, experiment=experiment,
                        role_connections=connections, _automatic=False)
     if roles == {"inference", "preparation"}:
@@ -213,6 +213,7 @@ class LocalTopology:
         "_rendezvous_max_bytes",
         "_reserved_ports",
         "_role_credentials",
+        "_peer_credentials",
         "_role_ids",
         "_role_urls",
         "_started",
@@ -282,6 +283,7 @@ class LocalTopology:
         self._proprietary_protocol = proprietary_protocol
         self._role_ids = role_ids
         self._role_credentials: dict[str, str] = {}
+        self._peer_credentials: dict[tuple[str, str], str] = {}
         self._role_urls: dict[str, str] = {}
         self._local_engine: Any | None = None
         self._requires_preparation = requires_preparation
@@ -343,7 +345,8 @@ class LocalTopology:
         return self._preparation_url
 
     def worker_connections(self) -> dict[str, tuple[str, str]]:
-        if set(self._role_ids) != {"worker_a", "worker_b"} or not self.is_healthy():
+        if (set(self._role_ids) not in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"})
+                or not self.is_healthy()):
             raise TopologyError("two-worker topology is not running")
         return {
             role: (self._role_urls[role], self._role_credentials[role]) for role in self._role_ids
@@ -373,18 +376,22 @@ class LocalTopology:
         connections = self.worker_connections()
         result: dict[str, dict[str, int | None]] = {}
         delegation = self._privacy_mode == "gkm_public"
+        replicated = self._privacy_mode == "replicated_public"
+        namespace = "replicated" if replicated else "delegation" if delegation else "offset-reference"
         for role, (url, key) in connections.items():
             response = httpx.get(
-                f"{url}/v1/{'delegation' if delegation else 'offset-reference'}/metrics",
+                f"{url}/v1/{namespace}/metrics",
                 headers={"authorization": f"Bearer {key}"},
                 timeout=2.0,
+                trust_env=False,
             )
             response.raise_for_status()
             value = response.json()
             if (
                 type(value) is not dict
                 or value.get("schema") != (
-                    "pllm.delegation_worker_process_metrics.v1" if delegation
+                    "pllm.replicated_worker_process_metrics.v1" if replicated
+                    else "pllm.delegation_worker_process_metrics.v1" if delegation
                     else "pllm.offset_worker_process_metrics.v1")
                 or type(value.get("cpu_ns")) is not int
                 or value["cpu_ns"] < 0
@@ -527,6 +534,10 @@ class LocalTopology:
         return options
 
     def _commands(self, ports: dict[str, int]) -> dict[str, list[str]]:
+        if self._privacy_mode == "replicated_public":
+            return {role: [sys.executable, "-I", "-m", "pllm.runtime.replicated_worker",
+                           "--role", role, "--port", str(ports[role])]
+                    for role in self._role_ids}
         if self._privacy_mode == "gkm_public":
             return {role: [sys.executable, "-I", "-m", "pllm.runtime.delegated_worker",
                            "--role", role, "--port", str(ports[role])]
@@ -622,7 +633,7 @@ class LocalTopology:
         return commands
 
     def _environment(self, role: str) -> dict[str, str]:
-        if role in {"worker_a", "worker_b"}:
+        if role in {"worker_a", "worker_b", "worker_c"}:
             environment = {
                 name: value
                 for name, value in os.environ.items()
@@ -640,7 +651,18 @@ class LocalTopology:
                 }
             }
             assert self._experiment is not None
-            if self._privacy_mode == "gkm_public":
+            if self._privacy_mode == "replicated_public":
+                environment.pop("PYTHONPATH", None)
+                environment.pop("DYLD_LIBRARY_PATH", None)
+                environment["PLLM_REPLICATED_API_KEY"] = self._role_credentials[role]
+                environment["PLLM_ROLE_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
+                environment["PLLM_REPLICATED_PEERS_JSON"] = json.dumps({
+                    peer: [self._role_urls[peer], self._peer_credentials[(role, peer)],
+                           self._peer_credentials[(peer, role)]]
+                    for peer in self._role_ids if peer != role})
+                if self._hf_cache_dir is not None:
+                    environment["HF_HUB_CACHE"] = self._hf_cache_dir
+            elif self._privacy_mode == "gkm_public":
                 environment.pop("PYTHONPATH", None)
                 environment.pop("DYLD_LIBRARY_PATH", None)
                 environment["PLLM_GKM_API_KEY"] = self._role_credentials[role]
@@ -779,10 +801,13 @@ class LocalTopology:
                 raise TopologyError("local topology cannot be started again")
             self._starting = True
         try:
-            if self._privacy_mode == "gkm_public":
+            if self._privacy_mode in {"gkm_public", "replicated_public"}:
                 # Source/numerical admission must precede ordinary model lowering,
                 # tensor import and process creation, including bare SDK launch.
-                from .delegated_source import admit_source
+                if self._privacy_mode == "replicated_public":
+                    from .replicated_source import admit_source
+                else:
+                    from .delegated_source import admit_source
                 from .benchmark_memory import estimate_memory, admit_memory, host_memory
 
                 source = admit_source(self._experiment)
@@ -792,7 +817,7 @@ class LocalTopology:
                     max_output_tokens=budget.max_new_tokens)
                 admission = admit_memory(estimate, host_memory(), backend="native")
                 if not admission["admitted"]:
-                    raise TopologyError("GKM complete topology exceeds safe memory admission")
+                    raise TopologyError("complete topology exceeds safe memory admission")
                 del source
             if self._model.kind == "tiny":
                 from pllm.model_loader import resolve_model
@@ -862,6 +887,9 @@ class LocalTopology:
             self._preparation_url = self._role_urls.get("preparation", "")
             used: set[str] = set()
             self._role_credentials = {role: self._credential(used) for role in self._role_ids}
+            if self._privacy_mode == "replicated_public":
+                self._peer_credentials = {(sender, receiver): self._credential(used)
+                    for sender in self._role_ids for receiver in self._role_ids if sender != receiver}
             self._inference_key = self._role_credentials.get("inference", "")
             self._preparation_key = self._role_credentials.get("preparation", "")
             self._push_key = self._credential(used) if self._requires_preparation else ""
@@ -873,7 +901,8 @@ class LocalTopology:
                 expected = (
                     "trusted-preparation"
                     if role == "preparation"
-                    else ("delegation-worker" if self._privacy_mode == "gkm_public"
+                    else ("replicated-worker" if self._privacy_mode == "replicated_public"
+                          else "delegation-worker" if self._privacy_mode == "gkm_public"
                           else role if role in {"boundary_a", "boundary_b"}
                           else "offset-worker" if role in {"worker_a", "worker_b"} else "inference")
                 )
@@ -914,6 +943,8 @@ class LocalTopology:
         }
         if self._privacy_mode == "gkm_public":
             expected_roles.update(worker_a="delegation-worker", worker_b="delegation-worker")
+        if self._privacy_mode == "replicated_public":
+            expected_roles.update({role: "replicated-worker" for role in self._role_ids})
         for status in self.statuses:
             if not status.running:
                 return False
@@ -966,7 +997,7 @@ class LocalTopology:
                 _automatic=False,
                 **overrides,
             )
-        if set(self._role_ids) == {"worker_a", "worker_b"}:
+        if set(self._role_ids) in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
             if not overrides:
                 return role_client(self._experiment, self.worker_connections())
             return OpenAI(
@@ -1027,7 +1058,7 @@ class LocalTopology:
                 local_engine=self._local_engine,
                 **overrides,
             )
-        if set(self._role_ids) == {"worker_a", "worker_b"}:
+        if set(self._role_ids) in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
             return create_sidecar_app(
                 local_api_key=local_api_key,
                 default_model=self._model_id,
@@ -1176,6 +1207,7 @@ def build_roles(
         {"inference"},
         {"inference", "preparation"},
         {"worker_a", "worker_b"},
+        {"worker_a", "worker_b", "worker_c"},
         {"inference", "preparation", "boundary_a", "boundary_b"},
     ):
         raise ValueError("role graph requires an unavailable local role implementation")
@@ -1212,7 +1244,11 @@ def build_roles(
         weight_bits = runtime_options.weight_bits
     if activation_bits is None:
         activation_bits = runtime_options.activation_bits
-    if runtime_options.client_runtime == "compiled_gkm_v1":
+    if runtime_options.client_runtime == "compiled_replicated_v1":
+        if (experiment is None or docker or tenseal_path is not None
+                or weight_bits != 64 or activation_bits != 64 or engine_threads != 1):
+            raise TopologyError("replicated execution requires its bounded native CPU Experiment")
+    elif runtime_options.client_runtime == "compiled_gkm_v1":
         if (experiment is None or docker or tenseal_path is not None
                 or weight_bits != 16 or activation_bits != 64 or engine_threads != 1):
             raise TopologyError("GKM requires its bounded Experiment and native CPU role owners")

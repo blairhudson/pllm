@@ -1,0 +1,10 @@
+{
+  "pyproject.toml": "aa01253b500cf366a6e3c4f723e3166936a7f46c4fda66f2b27556655a940f44",
+  "tests/conftest.py": "53ec4f17cddb87325b7f927f122ec7fb1e1589dc95b5ad8b2957f41280890edc",
+  "tests/test_delegated_decoder.py": "47fb4b7f2557a13a7cc5beab05cc65231c63428234aac88ac0a75fcf2d58714e",
+  "tests/test_delegated_transport_binding.py": "e55819e2ff64d614573e7344ed650114dcad893eb6ac51869379bd276bfc0fca",
+  "tests/test_delegated_transport_ownership.py": "b6e8e9d96fcde28fc8eebf6d1e000cc0a2f6db531669d5ac522c5f8449ae8fc1",
+  "tests/test_replicated_interfaces.py": "1e571fc0da7c933c862e4a138b4c7907695c662a22fffc1fb09f97a182036cf1",
+  "tests/test_replicated_sdk.py": "9d2b7124d6febd334e8356c5a087548e251d6dc97368a3caa6a875fca8be1aac",
+  "tests/test_replicated_worker.py": "f4ebcc23b40fb7491592da8b91dc9b09b6f8faa51894b361dcb82a9059e000b1"
+}

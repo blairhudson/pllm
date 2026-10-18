@@ -21,6 +21,15 @@ matched complete-system comparison remain open. The qualified ten-method count
 remains zero. The documentary status below must not erase this later progress
 or promote it to a serving rank.
 
+PUMA subsequently gained the bounded ordinary `PumaThreePartyCpu` composition:
+native semantic compilation, three authenticated worker processes, private
+full-prefix feedback, SDK/gateway execution and standard response benchmarks.
+Generated decoder controls and bounded primitive oracles are covered in the
+[PUMA reference](../docs/research/puma-truncation-reference.md#bounded-sdk-composition).
+The shared full-Qwen workload remains outside its admitted envelope. Full-model
+numeric/quality qualification and matched performance remain open; the historical
+table below and zero-qualified-method count retain their original scope.
+
 **The requested ten-system ranking is not currently supported.**
 Six selected methods have executable component adaptations.
 None has a qualified, complete PLLM reimplementation under the proposed common comparison contract.

@@ -446,10 +446,13 @@ The independent audit records exact commits, paths and hashes for these findings
   structures beyond the serializers' 2-GB limit. No checkpoint/KV share may be
   reconstructed at an unauthorized worker to reuse a clear kernel.
 - **Reuse:** generic source identities, graph metadata, framing, lifecycle
-  accounting, and numerical-oracle infrastructure may be reused after supporting
-  three parties and ring64. There is no PUMA-specific executable core in the
-  inspected inventory. `PumaThreePartyDecoder` and `PumaSharedKvState` are
-  pending [registry declarations](../../python/pllm/components/planned_methods.json). The similarly named
+  accounting, and numerical-oracle infrastructure support the bounded
+  [PUMA SDK composition](../../docs/research/puma-truncation-reference.md#bounded-sdk-composition).
+  `PumaThreePartyDecoder`, `ThreePartyReplicatedRoles` and `ReplicatedPrivatePrefix`
+  select three authenticated workers and D9 full-prefix recomputation through
+  ordinary Experiments. Generated small decoders exercise private lookup, body,
+  head, argmax and feedback; the shared full-size checkpoint exceeds admission.
+  `PumaSharedKvState` remains a pending persistent-state declaration. The similarly named
   [secret_replication.rs](../../crates/pllm-garble/src/secret_replication.rs) is a
   bounded **two-party PCF/VOLE** reference over small fields, not PUMA's replicated
   sharing. Existing W8A8/ring32 linears and clear KV are not substitutes.

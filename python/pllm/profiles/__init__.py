@@ -18,6 +18,7 @@ from pllm.protocols import (
     GuardedLinear,
     MaskedLinear,
     OpenWeightVerifiableOutsourcing,
+    PumaThreePartyDecoder,
     ProtocolMethod,
     TwoOnlineOffsetLinear,
 )
@@ -36,10 +37,11 @@ from pllm.roles import (
     RoleTopology,
     TwoOnlineOffsetRoles,
     TwoOnlineDelegationRoles,
+    ThreePartyReplicatedRoles,
 )
 from pllm.sources import ModelSource
 from pllm.schedulers import MlpPrefillTiling
-from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
+from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, ReplicatedPrivatePrefix, StateProtocol
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, PublishedLinearVerify, VerificationScheme
 
@@ -436,6 +438,40 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
         return self.components.get("nonlinear")
 
 
+class PumaThreePartyCpu(_TypedPipeline):
+    """Bounded source-derived Q18 graph; final-only fixed-count greedy outputs."""
+    PROFILE = "research.puma_three_party_cpu"
+    SLOT_NAMES = ("linear", "topology", "state", "kernels")
+    __slots__ = ()
+
+    def __init__(self, model: ModelSource, *, linear: ProtocolMethod = PumaThreePartyDecoder(),
+                 topology: RoleTopology = ThreePartyReplicatedRoles(),
+                 state: ReplicatedPrivatePrefix = ReplicatedPrivatePrefix(),
+                 kernels: KernelBackend = _DEFAULT_KERNELS) -> None:
+        super().__init__(profile=self.PROFILE, model=_model(model), components={
+            "linear": _slot("linear", linear, ProtocolMethod, PumaThreePartyDecoder.descriptor.component),
+            "topology": _slot("topology", topology, RoleTopology, ThreePartyReplicatedRoles.descriptor.component),
+            "state": _slot("state", state, StateProtocol, ReplicatedPrivatePrefix.descriptor.component),
+            "kernels": _slot("kernels", kernels, KernelBackend, "pllm/cpu"),
+        })
+
+    @property
+    def linear(self) -> PumaThreePartyDecoder:
+        return self.components["linear"]
+
+    @property
+    def topology(self) -> ThreePartyReplicatedRoles:
+        return self.components["topology"]
+
+    @property
+    def state(self) -> ReplicatedPrivatePrefix:
+        return self.components["state"]
+
+    @property
+    def kernels(self) -> Cpu:
+        return self.components["kernels"]
+
+
 class OpenWeightVerifiableCpu(_TypedPipeline):
     """Bounded experimental GKM composition; native admission gates execution.
 
@@ -801,6 +837,18 @@ def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    if set(identities.values()) & {PumaThreePartyDecoder.descriptor.component,
+                                   ThreePartyReplicatedRoles.descriptor.component, ReplicatedPrivatePrefix.descriptor.component}:
+        if pipeline.components != PumaThreePartyCpu(pipeline.model).components:
+            return None
+        return RuntimeComposition(
+            privacy_mode="replicated_public", proprietary_protocol="none", requires_preparation=False,
+            correlation_mode="none", client_runtime="compiled_replicated_v1", privacy_protocol="replicated_q18",
+            weight_bits=64, activation_bits=64, inventory_policy="none", prepared_inventory_rows=0,
+            background_inventory_refill=False, runtime_kind="replicated",
+            numeric_profile=PumaThreePartyDecoder.NUMERIC_PROFILE, sharing="replicated",
+            generation_policy="fixed_length_greedy", setup_owner="client",
+        )
     if set(identities.values()) & {
         OpenWeightVerifiableOutsourcing.descriptor.component,
         PublishedLinearVerify.descriptor.component,
@@ -1335,6 +1383,7 @@ __all__ = [
     "ClientOnlyMetal",
     "TwoOnlineOffsetCpu",
     "OpenWeightVerifiableCpu",
+    "PumaThreePartyCpu",
     "DirectFHEProfile",
     "MaskedLinearCpu",
     "VerifiedMaskedLinearCpu",

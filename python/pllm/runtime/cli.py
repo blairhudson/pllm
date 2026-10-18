@@ -479,15 +479,15 @@ def run_local_gateway(args: argparse.Namespace) -> None:
         return default if value is None else value
 
     experiment = getattr(args, "resolved_experiment", None)
-    from .benchmark_delegated import is_delegated
+    from .benchmark_delegated import is_buffered
 
-    delegated = is_delegated(experiment)
+    delegated = is_buffered(experiment)
     if delegated:
         unsupported = ("transport", "correlation_mode", "correlation_prefetch",
                        "prepared_inventory_rows", "token_cache_size", "bundle_cache_mode",
                        "bundle_cache_dir", "tenseal_path", "weight_bits", "activation_bits")
         if any(getattr(args, name, None) is not None for name in unsupported):
-            raise RuntimeCLIError("GKM local gateway requires its exact Experiment without inventory, transport or precision overrides")
+            raise RuntimeCLIError("buffered local gateway requires its exact Experiment without inventory, transport or precision overrides")
     if experiment is not None:
         model = experiment
         model_id = None

@@ -18,6 +18,76 @@ approves fixed-count private full-prefix feedback, lowest-index protected argmax
 and final client-only IDs. Those approvals did not themselves change native inputs or
 previous test/measurement record.
 
+## Bounded SDK composition
+
+`pllm.profiles.PumaThreePartyCpu` composes `PumaThreePartyDecoder`,
+`ThreePartyReplicatedRoles`, `ReplicatedPrivatePrefix` and CPU execution through
+ordinary Pipeline/Experiment resolution. `examples/papers/puma.py` shares the
+paper study's model and budget. Native source and schedule admission precedes
+source-value loading and one-use request publication.
+
+The model-neutral compiler lowers the existing semantic decoder into public
+instructions for private complete-table lookup, matrix products, RMSNorm, rotary,
+causal attention, SiLU/gated products, full head and lowest-index argmax. D6's
+source-derived Q18 arithmetic and D10's integer-one RMSNorm epsilon remain distinct
+from W8A8. A public conditional range proof relates each RMSNorm input to its
+own row's squared sum before inverse multiplication. It covers floor/ceil
+stochastic rounding without inspecting an activation or selecting a private range.
+
+D9 selects full-prefix recomputation. Every output selection executes the complete
+original prefix plus all earlier shared selections, with fresh arithmetic work.
+The compiled program retires intermediate full-KV arrays between executions;
+it does not reuse a decode cache. Worker-local argmax outputs feed the next
+private lookup directly. Only the final fixed-count token-ID vector is returned
+to the trusted client. Natural-EOS stopping, cross-request continuation and
+client-visible logits are outside this contract.
+
+Each of three worker processes owns only its adjacent replicated components and
+two pairwise PRSS keys. Directed peer channels have distinct credentials; secret
+seed and arithmetic frames travel directly between their owners. Worker A
+coordinates public barriers without relaying the other pair's payloads.
+Authenticated phase/session/source checks, bounded queues, expiry, replay burns,
+drained cancellation and response-held admission reservations govern lifetime.
+The existing transport admits loopback HTTP and certificate-checked IP-literal
+HTTPS. The source threat model still permits at most one static semi-honest
+corruption; these controls provide no malicious-result verification or evidence
+of independently operated workers.
+
+The installed source path admits complete tokenizer vocabularies at most 256,
+at most 32 input tokens and eight outputs, four layers, 128-wide features and
+1,048,576 source values. Shape and eager-range gates can further reject a
+configuration. Primitive payload ceilings remain 256 KiB per party; compiled
+shares, public program metadata and transport copies have separately admitted
+owners. Source weights remain client-owned during publication. These bounds
+do not admit the study's full-size Qwen checkpoint or qualify a memory tier.
+
+Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,
+`pllm benchmark run` and `BenchmarkTarget.response` use this composition.
+The benchmark charges client publication, all directed peer requests and ACKs,
+all three provider CPU/peak-memory owners, and native shared access caps.
+Buffered final output cannot provide a streaming prefill or N−1 decode rate;
+those metrics and their body-window partitions remain unknown.
+
+Generated Qwen2/Qwen3/Llama controls include nonzero attention/MLP paths whose
+independent sign oracle distinguishes private prefixes, private feedback, protocol
+failure retirement, ordinary SDK/gateway execution and benchmark accounting.
+Complete hidden-tensor conditional-on-mask equality, full-checkpoint ranges,
+source-model quality and matched publication measurements remain separate gates.
+The [frozen SDK conformance package](../../paper/artifacts/puma-sdk/README.md)
+retains 692 broad installed-wheel checks (one optional Metal skip), 138 final-build
+checks, 165 native checks and five ownership doctests. All 367 installed package
+files match before and after each suite. The final rebuild only sorts native
+module declarations; overlapping suite counts remain separate. The ordinary
+common-Qwen factory preflight rejects during resolution, contributing no serving
+measurement.
+Replay uses the ordinary installed-wheel tests, not a paper-specific executor:
+
+```sh
+python -I -m pytest -q -o pythonpath= tests/test_replicated_sdk.py \
+  tests/test_replicated_worker.py tests/test_replicated_interfaces.py
+cargo test --locked --offline -p pllm-compiler --lib replicated_decoder
+```
+
 ## Numeric contract
 
 Unsigned wrapping ring64 represents signed two's-complement X. Require

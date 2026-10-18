@@ -174,6 +174,28 @@ class TwoOnlineDelegationRoles(RoleTopology):
         return cls.descriptor
 
 
+class ThreePartyReplicatedRoles(RoleTopology):
+    """Three party-local replicated owners with confidential authenticated peers."""
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/three-party-replicated/v1", provider="pllm", distribution="pllm.run",
+        version="1", category="pllm/role-topology", category_version="1", lifecycle_phase="offline+online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("three-party-replicated", "one-semi-honest-corruption"),
+        role_eligibility=("client", "worker_a", "worker_b", "worker_c"),
+    )
+
+    def __init__(self):
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep=True):
+        return {}
+
+    @classmethod
+    def describe(cls):
+        return cls.descriptor
+
+
 class BoundaryPlacement(ComponentRef, ABC):
     """Explicit ownership and protocol selection for decoder boundaries."""
 
@@ -430,6 +452,7 @@ __all__ = [
     "RoleTopology",
     "TwoOnlineOffsetRoles",
     "TwoOnlineDelegationRoles",
+    "ThreePartyReplicatedRoles",
     "OutputHeadAtInference",
     "BoundaryPlacement",
     "PrivateLookupAndFullHead",

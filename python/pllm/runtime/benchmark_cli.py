@@ -201,6 +201,7 @@ def build_loopback_report(
         private_boundary_body_accounting,
         prepared_stage_body_attribution,
         two_worker_body_accounting,
+        replicated_body_accounting,
     )
 
     from .dashboard import _sampling_choice, _validate_output_digest_capture
@@ -241,6 +242,16 @@ def build_loopback_report(
             and record.get("durations", {}).get("tokens_per_second") is None
             and record.get("durations", {}).get("generation_seconds") is None
             for record in all_runs)
+    if runtime_contract is not None and runtime_contract.get("runtime_kind") == "replicated":
+        checks["fixed_count_final_ids_delivery"] = all(
+            record.get("measurement", {}).get("output_delivery") == "buffered_final_ids"
+            and record.get("tokens", {}).get("output_tokens") == max_output_tokens
+            and record.get("durations", {}).get("tokens_per_second") is None
+            and record.get("durations", {}).get("generation_seconds") is None
+            for record in all_runs)
+        checks["three_worker_bodies_tracked"] = all(
+            replicated_body_accounting(record)["tracked_body_counter_set_present"]
+            for record in all_runs)
     if roles == ("client",):
         checks["no_provider_stage_traffic"] = all(
             client_owned_body_accounting(record)["tracked_body_counter_set_present"]
@@ -266,6 +277,8 @@ def build_loopback_report(
         if roles == ("client",)
         else two_worker_body_accounting
         if set(roles) == {"client", "worker_a", "worker_b"}
+        else replicated_body_accounting
+        if set(roles) == {"client", "worker_a", "worker_b", "worker_c"}
         else prepared_body_accounting
         if set(roles) == {"client", "preparation", "inference"}
         else private_boundary_body_accounting
@@ -349,7 +362,7 @@ def build_loopback_report(
                            if {"boundary_a", "boundary_b"} <= set(roles)
                            else "loopback offset workers share one operator and host"),
             }
-            if (set(roles) == {"client", "worker_a", "worker_b"}
+            if (set(roles) in ({"client", "worker_a", "worker_b"}, {"client", "worker_a", "worker_b", "worker_c"})
                 or {"boundary_a", "boundary_b"} <= set(roles))
             else None
         ),
@@ -411,12 +424,12 @@ def build_loopback_report(
             }
             if "preparation" in roles
             else {
-                "startup": (two_worker_body_accounting({"privacy": initial_preparation_audit})
+                "startup": (account({"privacy": initial_preparation_audit})
                             if initial_preparation_audit is not None else None),
-                "warmups": [two_worker_body_accounting(run) for run in warmup_runs],
-                "runs": [two_worker_body_accounting(run) for run in runs],
+                "warmups": [account(run) for run in warmup_runs],
+                "runs": [account(run) for run in runs],
             }
-            if set(roles) == {"client", "worker_a", "worker_b"}
+            if set(roles) in ({"client", "worker_a", "worker_b"}, {"client", "worker_a", "worker_b", "worker_c"})
             else None
         ),
         "limitations": [
@@ -433,8 +446,10 @@ def build_loopback_report(
         report["runtime_contract"] = dict(runtime_contract)
         report["configuration"]["runtime_kind"] = runtime_contract["runtime_kind"]
         report["configuration"]["output_delivery"] = runtime_contract["output_delivery"]
-        report["privacy_admission"]["reason"] = "loopback delegation workers share one operator and host"
+        report["privacy_admission"]["reason"] = "loopback workers share one operator and host"
         report["limitations"].append(
+            "Final-only token disclosure buffers all output; TTFT measures final disclosure and emission/decode TPS is unsupported."
+            if runtime_contract["runtime_kind"] == "replicated" else
             "Request-end verification buffers all output; TTFT measures first accepted text and emission/decode TPS is unsupported.")
     from pllm.metrics import communication_per_token, wan_readiness
 
@@ -938,9 +953,9 @@ def _run_loopback_benchmark(
     memory_safety_margin_percent: int = 25,
 ) -> dict[str, Any]:
     from pllm.deployment import WanConditions
-    from .benchmark_delegated import admit_options, is_delegated
+    from .benchmark_delegated import admit_options, is_buffered
 
-    delegated = is_delegated(experiment)
+    delegated = is_buffered(experiment)
     if delegated:
         admit_options(experiment, backend=backend, docker=docker, docker_image=docker_image,
             docker_network=docker_network, cache_bytes=prefill_cache_mib << 20,
@@ -1148,7 +1163,7 @@ def _run_loopback_benchmark(
                 stage_snapshots["after_ready"] = stage_snapshot()
             initial_preparation_audit = (
                 dashboard_app.state.dashboard_runtime.initial_preparation_audit()
-                if "preparation" in roles or set(roles) == {"client", "worker_a", "worker_b"}
+                if "preparation" in roles or {"worker_a", "worker_b"} <= set(roles)
                 else None
             )
             client_model_ownership = (

@@ -25,6 +25,7 @@ mod decoder_continuation;
 mod decoder_matrix_inventory;
 mod decoder_runtime_schedule;
 mod delegated_decoder;
+pub mod replicated_decoder;
 pub use decoder_boundary::{PrivateBoundaryContract, PrivateBoundaryPhase};
 pub use decoder_matrix_inventory::{
     decoder_matrix_inventory_bytes, lower_decoder_matrix_inventory, DecoderMatrixInventory,
@@ -2671,6 +2672,8 @@ pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentComposition,
     validate_experiment_model(&document.pipeline.model)?;
     if delegated_decoder::sdk::selected(&document.pipeline) {
         delegated_decoder::sdk::validate_experiment(&document)?;
+    } else if replicated_decoder::sdk::selected(&document.pipeline) {
+        replicated_decoder::sdk::validate(&document)?;
     } else {
         validate_decoder_linear_composition(&document.pipeline)?;
     }

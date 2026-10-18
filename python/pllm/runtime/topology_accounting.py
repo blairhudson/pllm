@@ -19,6 +19,7 @@ ACK_COVERAGE = "prepared_protocol_lifecycle_controls_and_correction_acks_v3"
 BOUNDARY_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v4"
 BOUNDARY_COVERAGE = "prepared_body_and_private_boundary_lifecycle_v4"
 BOUNDARY_ROLES = ("client", "inference", "preparation", "boundary_a", "boundary_b")
+REPLICATED_COVERAGE = "replicated_client_and_direct_peer_lifecycle_v1"
 
 # Count every serialized body once, from the sending side of one edge. Other
 # audit counters (masked_online_*, upload_bytes, and server metrics) overlap.
@@ -64,6 +65,8 @@ def body_coverage_identity(ledger: Mapping[str, Any]) -> str | None:
     if not isinstance(ledger, Mapping):
         return None
     coverage = ledger.get("body_counter_coverage")
+    if coverage == REPLICATED_COVERAGE:
+        return coverage if ledger.get("tracked_body_counter_set_present") is True else None
     if coverage == BOUNDARY_COVERAGE:
         return coverage if all(ledger.get(key) is True for key in (
             "tracked_body_counter_set_present", "boundary_body_counter_set_present",
@@ -335,16 +338,26 @@ def prepared_stage_body_attribution(
 
 def two_worker_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
     """Count observed worker setup, online, teardown and bundle bodies once."""
+    return _worker_body_accounting(record, ("worker_a", "worker_b"))
+
+
+def replicated_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Include direct peer requests and reverse acknowledgements exactly once."""
+    from .replicated_protocol import ROLES, PEER_COUNTERS
+
+    return _worker_body_accounting(record, ROLES, peer_fields=PEER_COUNTERS)
+
+
+def _worker_body_accounting(record, roles, *, peer_fields=frozenset()):
     privacy = record.get("privacy")
     counters: dict[str, Any] = privacy if type(privacy) is dict else {}
-    roles = ("worker_a", "worker_b")
     fields = (
         f"role_link.{role}.{phase}_{direction}_bytes"
         for role in roles
         for phase in ("setup", "online", "teardown")
         for direction in ("upload", "download")
     )
-    required = frozenset(fields) | {"bundle_network_bytes"}
+    required = frozenset(fields) | {"bundle_network_bytes"} | peer_fields
     complete = required <= counters.keys() and all(
         type(counters[key]) is int and counters[key] >= 0 for key in required
     )
@@ -368,6 +381,11 @@ def two_worker_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
             "source": "worker_a", "destination": "client", "phase": "bundle",
             "serialized_body_bytes": counters["bundle_network_bytes"],
         })
+        for key in sorted(peer_fields):
+            _, source, destination, phase = key.split(".")
+            edges.append({"source": source, "destination": destination,
+                          "phase": phase.removesuffix("_bytes"),
+                          "serialized_body_bytes": counters[key]})
     processes = record.get("processes")
     cpu: dict[str, float] | None = None
     if type(processes) is dict and all(
@@ -383,11 +401,14 @@ def two_worker_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
         }
     return {
         "schema": ACCOUNTING_SCHEMA,
-        "scope": "authenticated two-worker HTTP application bodies and run-window CPU",
+        **({"body_counter_coverage": REPLICATED_COVERAGE} if peer_fields else {}),
+        "scope": ("authenticated three-worker client and direct peer HTTP bodies and run-window CPU"
+                  if peer_fields else "authenticated two-worker HTTP application bodies and run-window CPU"),
         "tracked_body_counter_set_present": complete,
         "body_bytes_by_edge": edges,
         "client_serialized_body_bytes": (
-            sum(int(edge["serialized_body_bytes"]) for edge in edges) if edges is not None
+            sum(int(edge["serialized_body_bytes"]) for edge in edges
+                if "client" in (edge["source"], edge["destination"])) if edges is not None
             else None
         ),
         "all_link_serialized_body_bytes": (
@@ -396,7 +417,7 @@ def two_worker_body_accounting(record: Mapping[str, Any]) -> dict[str, Any]:
         ),
         "online_client_serialized_body_bytes": (
             sum(int(edge["serialized_body_bytes"]) for edge in edges
-                if edge["phase"] == "online") if edges is not None else None
+                if edge["phase"] == "online" and "client" in (edge["source"], edge["destination"])) if edges is not None else None
         ),
         "online_all_link_serialized_body_bytes": (
             sum(int(edge["serialized_body_bytes"]) for edge in edges

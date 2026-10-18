@@ -355,6 +355,9 @@ pub struct PartyRuntime {
 }
 
 impl PartyRuntime {
+    pub fn matches_context(&self, context: Context) -> bool {
+        self.source.setup_context() == bound_context(context)
+    }
     pub fn context(&self) -> Context {
         self.source.context()
     }
@@ -432,6 +435,16 @@ impl PartyRuntime {
         self.plan_product(Product::Matrix(shape), &[bounds], true, None)
     }
 
+    /// Exact secret selector/table reduction; no Q18 shift for integer one-hot
+    /// selectors. The complete unwrapped reduction must fit signed ring64.
+    pub fn plan_ring_matmul(
+        &mut self,
+        shape: MatrixShape,
+        bounds: InputBounds,
+    ) -> Result<Plan, Error> {
+        self.plan_product(Product::Matrix(shape), &[bounds], false, None)
+    }
+
     // Only the native tensor compiler can supply this correlated envelope. Its
     // public exponent partition proves the complete raw product range; ordinary
     // callers retain the independent operand-box admission above.
@@ -483,7 +496,8 @@ impl PartyRuntime {
             hash.update(match (product, rescale) {
                 (Product::Elementwise, false) => RAW_PRODUCT_PROFILE.as_bytes(),
                 (Product::Elementwise, true) => PROFILE.as_bytes(),
-                (Product::Matrix(_), _) => MATMUL_PROFILE.as_bytes(),
+                (Product::Matrix(_), true) => MATMUL_PROFILE.as_bytes(),
+                (Product::Matrix(_), false) => b"puma.matmul-aa.raw-ring64.replicated3.v1",
             });
             hash.update(NUMERIC_PROFILE.as_bytes());
             if let Some((raw, graph)) = certified {
@@ -512,7 +526,11 @@ impl PartyRuntime {
                 } else {
                     for x in [bound.left.lower, bound.left.upper] {
                         for y in [bound.right.lower, bound.right.upper] {
-                            i64::try_from(i128::from(x) * i128::from(y))
+                            let terms = match product {
+                                Product::Elementwise => 1,
+                                Product::Matrix(s) => s.inner,
+                            };
+                            i64::try_from(i128::from(x) * i128::from(y) * terms as i128)
                                 .map_err(|_| Error::Bounds)?;
                         }
                     }

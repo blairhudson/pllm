@@ -57,6 +57,13 @@ _ROLE_FIELDS = frozenset(
 _COUNTER_FIELDS = _TRANSPORT_FIELDS | _ROLE_FIELDS
 
 
+def _counter_fields(roles):
+    return _TRANSPORT_FIELDS | frozenset(
+        f"role_link.{role}.{phase}_{direction}_bytes" for role in roles
+        for phase in ("setup", "online", "teardown") for direction in ("upload", "download")
+    )
+
+
 def _admit_source(experiment):
     from .delegated_source import admit_source
 
@@ -150,10 +157,10 @@ def _text_input(value):
 class _DelegatedAudit(PrivacyAudit):
     """Ordinary audit attributes, omitting transport measurements when unknown."""
 
-    def __init__(self, lock):
+    def __init__(self, lock, fields=_COUNTER_FIELDS):
         super().__init__()
         self._lock = lock
-        self._totals = dict.fromkeys(_COUNTER_FIELDS, 0)
+        self._totals = dict.fromkeys(fields, 0)
 
     def begin_transport(self):
         for name in _TRANSPORT_FIELDS:
@@ -168,7 +175,7 @@ class _DelegatedAudit(PrivacyAudit):
             self._totals[name] = total
             if name in _TRANSPORT_FIELDS:
                 setattr(self, name, total)
-            elif total is not None:
+            elif total is not None and name.startswith("role_link."):
                 _, role, metric = name.split(".", 2)
                 self.role_link_bodies.setdefault(role, {})[metric] = total
 
@@ -179,6 +186,8 @@ class _DelegatedAudit(PrivacyAudit):
                       and (value := getattr(self, name)) is not None}
             for role, counters in self.role_link_bodies.items():
                 values.update({f"role_link.{role}.{name}": value for name, value in counters.items()})
+            values.update({name: value for name, value in self._totals.items()
+                           if name.startswith("peer_link.") and value is not None})
             return values
 
 
@@ -216,8 +225,8 @@ class _Attempt:
     def record_audit(self, counters):
         """One final transport snapshot, not cumulative counters from prior requests."""
         if (self.closed or self.transport_audit is not None or type(counters) is not dict
-                or len(counters) > len(_COUNTER_FIELDS)
-                or any(name not in _COUNTER_FIELDS or type(value) is not int
+                or len(counters) > len(self.owner.counter_fields)
+                or any(name not in self.owner.counter_fields or type(value) is not int
                        or not 0 <= value < 1 << 63 for name, value in counters.items())):
             raise ValueError("GKM transport audit must be one bounded nonnegative counter snapshot")
         self.transport_audit = dict(counters)
@@ -273,12 +282,15 @@ class DelegatedClient:
     """RuntimeClient-compatible, one active fixed-length greedy request at a time."""
 
     request_body_limit_bytes = _BODY_BYTES
+    runtime_id = "compiled_gkm_v1"
+    role_names = ("worker_a", "worker_b")
+    counter_fields = _COUNTER_FIELDS
 
     def __init__(self, experiment: Experiment, role_connections, timeout=60.0, source=None):
         if not isinstance(experiment, Experiment):
             raise TypeError("GKM runtime requires an Experiment")
         profile = experiment.resolve()  # Native capability admission is mandatory.
-        if profile.client_runtime != "compiled_gkm_v1":
+        if profile.client_runtime != self.runtime_id:
             raise ValueError("GKM runtime requires the compiled_gkm_v1 profile")
         budget = experiment.budget
         self._capacity = experiment.pipeline.components["linear"].params.get("capacity", "capsule")
@@ -289,7 +301,7 @@ class DelegatedClient:
             raise ValueError("GKM Experiment exceeds its bounded workload")
         if (type(timeout) not in (int, float) or not math.isfinite(timeout) or timeout <= 0):
             raise ValueError("GKM timeout must be positive and finite")
-        if role_connections is None or set(role_connections) != {"worker_a", "worker_b"}:
+        if role_connections is None or set(role_connections) != set(self.role_names):
             raise ValueError("GKM runtime requires both worker connections")
         connections = {}
         for role, value in role_connections.items():
@@ -297,7 +309,7 @@ class DelegatedClient:
                     or any(type(item) is not str or not item or len(item) > 4096 for item in value)):
                 raise ValueError("GKM worker connections require URL and API key strings")
             connections[role] = (_normalized_inference_endpoint(value[0]).rstrip("/"), value[1])
-        if connections["worker_a"][0] == connections["worker_b"][0]:
+        if len({value[0] for value in connections.values()}) != len(self.role_names):
             raise ValueError("GKM workers require distinct endpoints")
         self.experiment = profile
         self._declaration = experiment
@@ -459,6 +471,10 @@ class DelegatedClient:
         if size > result_payload_limit(source.contract, capacity=self._capacity):
             raise ProtocolError("GKM accepted result exceeds its bounded owner")
 
+    def _execute(self, source, ids, count, attempt):
+        return _execute_request(self._declaration, source, ids, count,
+                                self.role_connections, self.timeout, attempt)
+
     def _produce(self, attempt):
         result = tokenizer = source = None
         ids = ()
@@ -476,8 +492,7 @@ class DelegatedClient:
                     self.audit.generation_requested_decode_steps += count - 1
                     self.audit.begin_transport()
                 try:
-                    result = _execute_request(self._declaration, source, ids, count,
-                                              self.role_connections, self.timeout, attempt)
+                    result = self._execute(source, ids, count, attempt)
                 finally:
                     with self._lock:
                         self.audit.finish_transport(attempt.transport_audit)

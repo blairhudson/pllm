@@ -178,6 +178,21 @@ class RoleGraph:
 
 def graph_for_runtime(composition: RuntimeComposition) -> RoleGraph:
     """Describe installed executor traffic; never enable execution from a graph."""
+    if composition.runtime_kind == "replicated" and not composition.requires_preparation:
+        workers = ("worker_a", "worker_b", "worker_c")
+        channels = []
+        for worker in workers:
+            channels.extend((Channel("client", worker, "offline", "authenticated_source_shares"),
+                             Channel("client", worker, "online", "authenticated_input_shares"),
+                             Channel(worker, "client", "online", "final_token_shares")))
+            for peer in workers:
+                if peer != worker:
+                    channels.extend((Channel(worker, peer, "offline", "private_prss_setup"),
+                                     Channel(worker, peer, "online", "protected_tensor_frames")))
+        return RoleGraph(roles=(Role("client", "trusted_client_publisher"),
+                               *(Role(role, "replicated_provider") for role in workers)),
+                         channels=tuple(channels), separate_operators=tuple(
+                             (a, b) for i, a in enumerate(workers) for b in workers[i + 1:]))
     if composition.runtime_kind == "gkm" and not composition.requires_preparation:
         return two_online_delegation_graph()
     if composition.privacy_mode == "client_only" and not composition.requires_preparation:

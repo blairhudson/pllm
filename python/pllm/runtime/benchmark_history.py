@@ -15,7 +15,7 @@ SCHEMA_VERSION = 3
 DEFAULT_LIMIT = 200
 MAX_LIMIT = 2000
 
-_TOPOLOGY_ROLES = frozenset({"client", "preparation", "inference", "worker_a", "worker_b",
+_TOPOLOGY_ROLES = frozenset({"client", "preparation", "inference", "worker_a", "worker_b", "worker_c",
                            "boundary_a", "boundary_b"})
 _ROLE_BODY_FIELDS = frozenset(
     f"role_link.{role}.{phase}_{direction}_bytes"
@@ -105,6 +105,12 @@ _PRIVACY_FIELDS = frozenset(
     }
 )
 _PRIVACY_FIELDS |= _ROLE_BODY_FIELDS
+_PRIVACY_FIELDS |= frozenset(
+    f"peer_link.{source}.{destination}.{phase}_bytes"
+    for source in ("worker_a", "worker_b", "worker_c")
+    for destination in ("worker_a", "worker_b", "worker_c") if source != destination
+    for phase in ("setup", "online")
+)
 _PRIVACY_FIELDS |= frozenset({
     "generation_requested_prefill_tokens", "generation_requested_decode_steps",
     "generation_remote_prefill_tokens", "generation_remote_terminal_prefill_rows",
@@ -186,7 +192,7 @@ class BenchmarkRun:
     output_delivery: str = "incremental"
 
     def __post_init__(self) -> None:
-        if self.output_delivery not in {"incremental", "buffered_until_verified"}:
+        if self.output_delivery not in {"incremental", "buffered_until_verified", "buffered_final_ids"}:
             raise ValueError("unsupported output delivery contract")
         if not _SAFE_ID.fullmatch(self.run_id):
             raise ValueError("run_id contains unsupported characters")
@@ -265,7 +271,8 @@ class BenchmarkRun:
         generation_seconds = _duration(
             self.generation_seconds, self.first_token_at_ns, self.last_token_at_ns
         )
-        buffered = self.output_delivery == "buffered_until_verified"
+        buffered = self.output_delivery in {"buffered_until_verified", "buffered_final_ids"}
+        final_ids = self.output_delivery == "buffered_final_ids"
         if buffered:
             generation_seconds = None
         generated_after_first = max(0, (self.output_tokens or 0) - 1)
@@ -327,7 +334,7 @@ class BenchmarkRun:
             "network": {
                 "decode_online_body_bytes": self.decode_online_body_bytes,
                 "decode_output_tokens": self.decode_output_tokens,
-                "decode_scope": ("semantic_decode_before_request_end_verification" if buffered
+                "decode_scope": ("unmeasured" if final_ids else "semantic_decode_before_request_end_verification" if buffered
                                  else "after-first-output-through-completion"),
             },
             "inventory": {
@@ -348,11 +355,12 @@ class BenchmarkRun:
             "failure": {"type": self.failure_type} if self.failure_type else None,
         }
         if buffered:
-            from .benchmark_delegated import TPS_UNAVAILABLE
+            from .benchmark_delegated import TPS_UNAVAILABLE, REPLICATED_TPS_UNAVAILABLE
 
             record["measurement"] = {"output_delivery": self.output_delivery,
-                "ttft_scope": "online_start_to_first_accepted_text",
-                "decode_tps_supported": False, "decode_tps_unavailable_reason": TPS_UNAVAILABLE}
+                "ttft_scope": "online_start_to_final_token_disclosure" if final_ids else "online_start_to_first_accepted_text",
+                "decode_tps_supported": False,
+                "decode_tps_unavailable_reason": REPLICATED_TPS_UNAVAILABLE if final_ids else TPS_UNAVAILABLE}
         return record
 
     def evidence_report(

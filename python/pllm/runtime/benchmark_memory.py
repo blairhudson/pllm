@@ -324,6 +324,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     options = resolve_runtime_composition(pipeline)
     if options is None:
         raise BenchmarkMemoryError("memory estimation requires an implemented composition")
+    if options.client_runtime == "compiled_replicated_v1":
+        return _replicated_memory(config, pipeline, max_input_tokens, max_output_tokens,
+            cache_bytes, cache_bound_tokens, checkpoint_bytes, memory_safety_margin_percent)
     if options.client_runtime == "compiled_gkm_v1":
         return _delegated_memory(config, pipeline, max_input_tokens, max_output_tokens,
                                  cache_bytes, cache_bound_tokens, checkpoint_bytes, memory_safety_margin_percent)
@@ -336,6 +339,38 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         max_output_tokens=max_output_tokens, inventory_rows=inventory_rows, cache_bytes=cache_bytes,
         cache_bound_tokens=cache_bound_tokens, checkpoint_bytes=checkpoint_bytes, store=store,
         memory_safety_margin_percent=memory_safety_margin_percent)
+
+
+def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
+                       memory_safety_margin_percent=25):
+    from pllm import _native
+    from pllm.configuration import Deployment, ExecutionBudget, Experiment
+
+    if cache_bytes or cache_bound is not None:
+        raise BenchmarkMemoryError("replicated response does not admit client cache reuse")
+    try:
+        experiment = Experiment("replicated-admission", pipeline, Deployment.local(root="."),
+            budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
+        contract = json.loads(_native.replicated_source_contract(experiment.canonical_bytes(),
+            json.dumps(config).encode(), rows, outputs, "0" * 64, "0" * 64))
+    except (ValueError, TypeError, OverflowError) as error:
+        raise BenchmarkMemoryError("replicated source exceeds native admission") from error
+    role = _slack(_PROCESS_BYTES + contract["execution_payload_estimate_bytes"], memory_safety_margin_percent)
+    return {
+        "scope": "conservative allocation estimate; not measured peak RSS",
+        "model_plan_digest": None, "model_config_digest": contract["plan"]["config_digest"],
+        "pipeline_digest": pipeline.digest(), "max_input_tokens": rows, "max_output_tokens": outputs,
+        "compiled_input_bound": rows, "inventory_rows": 0, "kernel": "cpu", "runtime_kind": "replicated",
+        "concurrent_response_bound": 1, "allocation_slack_percent": memory_safety_margin_percent,
+        "client_peak_bytes": role, "provider_peak_bytes": {name: role for name in ("worker_a", "worker_b", "worker_c")},
+        "docker_provider_peak_bytes": {}, "native_total_peak_bytes": 4 * role,
+        "preparation_storage": "none", "preparation_kernel": "none", "weight_storage": "party-local Q18 shares",
+        "bundle_storage": "trusted client source publication", "mask_storage": "party-local pairwise PRSS",
+        "tensor_storage": "party-local full KV and Q18 activations",
+        "components": {"source_float32_bytes": contract["source_float32_bytes"],
+            "checkpoint_bytes": checkpoint_bytes, "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0},
+        "limitations": [],
+    }
 
 
 def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
@@ -770,8 +805,8 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
                 else:
                     reasons.append("enforced WAN auto fallback requires explicit native TCP pacing selection")
         else:
-            if estimate.get("runtime_kind") == "gkm":
-                reasons.append("GKM requires native role owners; Docker is not admitted")
+            if estimate.get("runtime_kind") in {"gkm", "replicated"}:
+                reasons.append("selected runtime requires native role owners; Docker is not admitted")
             if estimate.get("preparation_kernel") == "digit8":
                 reasons.append("digit8 requires native Apple Silicon CPU execution")
             if estimate["kernel"] == "metal":
@@ -859,8 +894,13 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
     source = pipeline.model
     checkpoint_bytes = 0
     store = None
-    if options.client_runtime == "compiled_gkm_v1":
-        from .delegated_source import admit_source
+    if options.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1"}:
+        if options.client_runtime == "compiled_replicated_v1":
+            from .replicated_source import admit_source
+            if not isinstance(model, Experiment):
+                raise BenchmarkMemoryError("replicated memory admission requires its complete Experiment")
+        else:
+            from .delegated_source import admit_source
 
         if isinstance(model, Experiment):
             admitted = admit_source(model)

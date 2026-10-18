@@ -1,0 +1,63 @@
+   Compiling pllm-garble v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-garble)
+   Compiling pllm-compiler v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.57s
+     Running unittests src/lib.rs (target/debug/deps/pllm_compiler-102706cdd876eb14)
+
+running 50 tests
+test decoder_boundary::tests::private_boundary_transport_choices_fail_closed ... ok
+test attention_tiling::tests::rejects_external_consumers_numeric_changes_and_state_roots ... ok
+test decoder_boundary::tests::private_boundary_ownership_floors_and_unpriced_placement_rejection ... ok
+test decoder_continuation::tests::continuation_rejects_nonexclusive_state_and_unbounded_width ... ok
+test decoder_boundary::tests::private_boundary_rejects_missing_roles_unsupported_options_and_untied_model ... ok
+test decoder_boundary::tests::private_boundary_preserves_demand_and_body_encoding_admission ... ok
+test decoder_continuation::tests::workspace_keeps_branches_and_fused_outputs_until_last_consumer ... ok
+test decoder_boundary::tests::private_boundary_rejects_auxiliary_feedback_and_unsupported_native_regions ... ok
+test decoder_boundary::tests::private_boundary_preserves_body_steps_and_binds_full_artifact ... ok
+test decoder_continuation::tests::continuation_is_independently_bound_and_keeps_linear_geometry ... ok
+test gated_tensor::tests::chunk_extent_rejects_overflow_and_out_of_bounds ... ok
+test decoder_runtime_schedule::numeric_contract_tests::checked_semantic_numeric_operations_require_bound_contracts ... ok
+test decoder_boundary::tests::private_boundary_transport_choices_preserve_numeric_contract_and_default_bytes ... ok
+test network_placement::tests::assignment_free_admission_rejects_the_same_bad_plans_and_compositions ... ok
+test attention_tiling::tests::binds_schedule_geometry_and_optional_mlp_regions ... ok
+test network_placement::tests::checks_colocated_aggregate_resources_and_sessions_with_overflow_detection ... ok
+test network_placement::tests::client_stage_ownership_adds_floor_without_removing_prepared_body ... ok
+test network_placement::tests::exact_floors_enforce_colocated_sum_in_both_capacity_axes ... ok
+test network_placement::tests::assignment_free_requirements_match_validation_and_native_topology ... ok
+test network_placement::tests::model_allowlist_uses_exact_native_config_identity ... ok
+test network_placement::tests::native_weight_products_and_owned_sums_cannot_overflow ... ok
+test network_placement::tests::pending_compositions_and_incomplete_semantics_fail_closed ... ok
+test dense_qwen_mlp_protected::registry_tests::aggregate_gated_registry_admission_failure_precedes_writer ... ok
+test network_placement::tests::rejects_duplicate_keys_oversized_documents_and_bounded_collections ... ok
+test network_placement::tests::unpriced_provider_cache_storage_rejects_before_reservation ... ok
+test decoder_boundary::tests::byte_dot_binds_model_neutral_schedule_without_changing_steps ... ok
+test decoder_runtime_schedule::numeric_contract_tests::bounded_text_only_hybrid_decoder_builds_a_semantic_schedule ... ok
+test network_placement::tests::untied_and_remote_heads_charge_actual_artifact_ownership ... ok
+test provenance_primitives::tests::partial_view_copy_error_drops_zeroizing_prefixes ... ok
+test provenance_primitives::tests::plaintext_view_zeroization_clears_values_and_sensitive_lengths ... ok
+test network_placement::tests::zero_or_overflowing_weight_shapes_and_conflicting_artifacts_fail_closed ... ok
+test replicated_decoder::tests::every_selection_reexecutes_original_private_tokens_and_consumes_fresh_work ... ok
+test replicated_decoder::tests::malformed_input_and_peer_frames_retire_complete_worker_owner ... ok
+test network_placement::tests::admits_exact_native_topologies_and_binds_all_commitments ... ok
+test network_placement::tests::rejects_underseparation_capability_substitution_and_role_injection ... ok
+test network_placement::tests::strict_schema_rejects_malformed_offers_and_duplicate_ids ... ok
+test decoder_boundary::tests::source_row_certificate_binds_all_native_schedules_without_changing_steps ... ok
+test network_placement::tests::exact_owned_floors_deduplicate_tied_weights_and_both_phases ... ok
+test network_placement::tests::validated_generic_model_shapes_have_owned_floors_without_family_branches ... ok
+test delegated_decoder::source_import::tests::actual_source_buffers_share_one_process_allowance_until_abort_or_failure ... ok
+test replicated_decoder::tests::complete_protected_prefill_feedback_and_final_ids_cross_encoded_party_boundaries ... ok
+test replicated_decoder::tests::nonzero_attention_and_mlp_preserve_private_prefix_dependence ... ok
+test dense_qwen_mlp_protected::registry_tests::aggregate_writer_failure_restores_exact_registry_baseline ... ok
+test rms_norm_stream_protected::tests::authentic_region_and_weight_mismatches_burn_issuance ... ok
+test rms_norm_stream_protected::tests::body_policy_preflight_precedes_writer_callbacks ... ok
+test rms_norm_stream_protected::tests::corruption_truncation_and_trailing_bytes_produce_no_outputs ... ok
+test rms_norm_stream_protected::tests::exact_width_eight_qwen_row_matches_core_and_binds_unique_sources has been running for over 60 seconds
+test rms_norm_stream_protected::tests::forged_ticket_does_not_burn_authentic_issuance_and_replay_fails has been running for over 60 seconds
+test rms_norm_stream_protected::tests::publication_failure_releases_reservation_and_issuance has been running for over 60 seconds
+test rms_norm_stream_protected::tests::reader_callback_runs_after_burn_and_interrupted_reads_retry has been running for over 60 seconds
+test rms_norm_stream_protected::tests::exact_width_eight_qwen_row_matches_core_and_binds_unique_sources ... ok
+test rms_norm_stream_protected::tests::forged_ticket_does_not_burn_authentic_issuance_and_replay_fails ... ok
+test rms_norm_stream_protected::tests::publication_failure_releases_reservation_and_issuance ... ok
+test rms_norm_stream_protected::tests::reader_callback_runs_after_burn_and_interrupted_reads_retry ... ok
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 83.58s
+

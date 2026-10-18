@@ -871,6 +871,8 @@ def _replace_paths(target: Any, changes: list[tuple[list[str], object]]) -> Any:
         if type(target) is ComponentRef:
             return ComponentRef(cast(str, params.pop("component", target.component)), params)
         return type(target).from_params(params)
+    if isinstance(target, Model):
+        return target.with_params(**changed)
     if isinstance(target, _Configuration):
         return replace(cast(Any, target), **changed)
     return {**current, **changed}

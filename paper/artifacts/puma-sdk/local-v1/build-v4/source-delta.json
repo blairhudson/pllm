@@ -1,0 +1,48 @@
+{
+  "change": "module declaration ordering only",
+  "changed_build_inputs": [
+    "crates/pllm-python/src/lib.rs"
+  ],
+  "checks": [
+    {
+      "argv": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "log": "final-check-0.log",
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "-p",
+        "pllm-core",
+        "-p",
+        "pllm-compiler",
+        "-p",
+        "pllm-python",
+        "--lib",
+        "--",
+        "-D",
+        "warnings",
+        "-A",
+        "clippy::needless_range_loop",
+        "-A",
+        "clippy::nonminimal_bool"
+      ],
+      "log": "final-check-1.log",
+      "returncode": 0
+    }
+  ],
+  "core_and_compiler_inputs_unchanged": true,
+  "same_module_set": true,
+  "same_nonmodule_source": true,
+  "v3_source_sha256": "04fe4da80a332f5d3ddde2af447b5d41f3c7d296b41efd5514b5b4570ba70af0",
+  "v4_source_sha256": "abdeb60f98a3e6fa0a4f242b0457622c1d3ea5821a3afc35adeaa375dde65546"
+}

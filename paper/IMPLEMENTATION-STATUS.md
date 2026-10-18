@@ -70,8 +70,16 @@ Completed foundations:
   truncated public coefficient products per output. Register-slot reuse and
   shape-aware allocation additionally admit checked 896/1,024-value RMSNorm,
   896-value LayerNorm and 512-value softmax rows under the same 256 KiB party cap.
-  Checkpoint/position table binding, whole-model ranges and SDK/Experiment execution
-  remain open.
+  The later bounded `PumaThreePartyCpu` composition binds checkpoint/position
+  metadata and complete semantic operations through three authenticated workers,
+  ordinary SDK/gateway and response benchmarks. D9's complete private prefix is
+  re-executed for every selection; only final fixed-count IDs are disclosed.
+  Generated Qwen2/Qwen3/Llama controls include nonzero attention/MLP prefix
+  dependence, private feedback and failure retirement. Client publication and
+  directed peer traffic remain charged. The shared full-Qwen source exceeds this
+  bounded envelope; full-checkpoint ranges, complete hidden-state oracles,
+  source-model quality and matched publication costs remain open. See the
+  [composition contract](../docs/research/puma-truncation-reference.md#bounded-sdk-composition).
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

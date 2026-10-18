@@ -11,12 +11,15 @@ from pllm.protocols import (
     DirectFHE,
     GuardedLinear,
     OpenWeightVerifiableOutsourcing,
+    PumaThreePartyDecoder,
     ProtocolMethod,
     TwoOnlineOffsetLinear,
 )
 from pllm.roles import BoundaryPlacement, ClientPlacement, ClientOnlyRoles, InferenceRole, OutputHeadAtInference, RoleTopology, PreparedProviderRoles, TwoOnlineOffsetRoles, TwoOnlineDelegationRoles
 from pllm.sources import ModelSource
 from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
+from pllm.state import ReplicatedPrivatePrefix
+from pllm.roles import ThreePartyReplicatedRoles
 from pllm.schedulers import MlpPrefillTiling
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, PublishedLinearVerify, VerificationScheme
@@ -193,6 +196,21 @@ class TwoOnlineOffsetCpu(Pipeline):
     @property
     def delivery(self) -> ClientBundleTransport | None: ...
     def with_params(self, **changes: object) -> TwoOnlineOffsetCpu: ...
+
+class PumaThreePartyCpu(Pipeline):
+    PROFILE: str
+    def __init__(self, model: ModelSource, *, linear: ProtocolMethod = ...,
+                 topology: RoleTopology = ..., state: ReplicatedPrivatePrefix = ...,
+                 kernels: KernelBackend = ...) -> None: ...
+    @property
+    def linear(self) -> PumaThreePartyDecoder: ...
+    @property
+    def topology(self) -> ThreePartyReplicatedRoles: ...
+    @property
+    def state(self) -> ReplicatedPrivatePrefix: ...
+    @property
+    def kernels(self) -> KernelBackend: ...
+    def with_params(self, **changes: object) -> PumaThreePartyCpu: ...
 
 class OpenWeightVerifiableCpu(Pipeline):
     PROFILE: str

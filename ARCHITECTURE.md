@@ -651,9 +651,18 @@ Row programs additionally reuse register slots and actual-length public tables
 under the same 256 KiB per-party ceiling. Independent integer and lifetime checks
 cover 896/1,024-value RMSNorm, 896-value LayerNorm and 512-value softmax rows;
 expanded Boolean shapes and retained peer frames can still reject admission.
-Checkpoint/position table binding, whole-model ranges and the complete
-compiler/SDK path remain unadmitted; bounded operator parity supplies no
-checkpoint-quality result.
+The later bounded `PumaThreePartyCpu` composition binds checkpoint/position tables
+and public complete-decoder ranges through the native semantic compiler. Three
+authenticated workers retain replicated activations and private token feedback;
+the D9 schedule re-executes the full prefix for every fixed-count selection and
+reveals only final token IDs. Public RMSNorm denominator partitions bound correlated
+products without inspecting private values. SDK/gateway and ordinary response
+benchmarks charge source publication and all directed peer bodies. Primitive,
+source/program and transport owners retain separate conservative bounds; buffered
+output supplies no streaming first-token or decode-throughput measurement.
+Generated Qwen2/Qwen3/Llama controls cover private prefix dependence, feedback,
+cancellation and failure retirement. Full-checkpoint capacity/ranges, complete
+hidden-tensor oracles, source-model quality and matched performance remain open.
 Contract: `docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the

@@ -1,0 +1,31 @@
+{
+  "argv": [
+    "target/puma-sdk-integration-env-v1/bin/python",
+    "-m",
+    "pllm",
+    "benchmark",
+    "run",
+    "--experiment",
+    "examples.papers.puma:experiment",
+    "--factory",
+    "--trust-python",
+    "--backend",
+    "native",
+    "--temperature",
+    "0",
+    "--prompt-sequence-file",
+    "examples/papers/prompts.json",
+    "--max-output-tokens",
+    "8",
+    "--warmups",
+    "0",
+    "--repetitions",
+    "3",
+    "--preflight-only",
+    "--format",
+    "json"
+  ],
+  "returncode": 3,
+  "stdout": "common-model-preflight.stdout",
+  "stderr": "common-model-preflight.stderr"
+}

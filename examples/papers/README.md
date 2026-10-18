@@ -62,8 +62,24 @@ python -m pllm benchmark quality \
 
 ## Implementation sequence
 
-GKM has the first executable paper factory. Maverick, SIGMA, FuseFSS, BumbleBee,
-PUMA, NEXUS, THOR, CacheMir and ROSETTA still need complete SDK compositions.
+GKM and PUMA have executable paper factories. `puma.py` uses the same `MODEL`
+and `BUDGET`; its current bounded admission rejects the common full-size Qwen
+checkpoint rather than substituting a generated model. To exercise an admitted
+source, call `puma.experiment(model=..., budget=...)`, save its ordinary Experiment,
+and use the same gateway and `benchmark run` entry points. Generated-model SDK,
+gateway and benchmark controls live in `tests/test_replicated_sdk.py` and
+`tests/test_replicated_interfaces.py`.
+
+PUMA keeps activations and token feedback shared across three workers. D9 requires
+full-prefix recomputation for each fixed-count selection; only final token IDs
+reach the client. Streaming first-token/decode rates and full-logit quality
+metrics therefore remain unavailable. Peer-to-peer bodies are included in its
+ordinary benchmark ledger. Its Q18 profile has its own numeric identity and
+does not inherit GKM or W8A8 quality evidence. See the
+[PUMA contract](../../docs/research/puma-truncation-reference.md#bounded-sdk-composition).
+
+Maverick, SIGMA, FuseFSS, BumbleBee, NEXUS, THOR, CacheMir and ROSETTA still need
+complete SDK compositions under their approved source contracts.
 Their existing primitive references do not substitute for those decoders.
 As each composition lands, add its factory here and use these same commands.
 Current gaps are tracked in [the ten-method coverage table](../../paper/TEN-METHOD-COVERAGE.md).

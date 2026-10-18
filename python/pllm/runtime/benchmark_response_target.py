@@ -43,7 +43,7 @@ def audit_metrics(windows, m, *, window="request_windows"):
     names = set(AUDIT_COUNTERS)
     names.update(key for row in windows for key in row if key.startswith("inflight_"))
     names.update(key for row in windows for key in row if key.startswith((
-        "role_link.", "generation_prefill_", "generation_decode_", "inference_")))
+        "role_link.", "peer_link.", "generation_prefill_", "generation_decode_", "inference_")))
     totals = {}
     for name in sorted(names):
         values = [row.get(name) for row in windows]
@@ -69,15 +69,20 @@ def response_metrics(report, m):
     if coverage not in {ACCOUNTING_SCHEMA, "historical_coverage_not_recorded"}:
         body_scope += f":{coverage or 'mixed_or_unknown'}"
     runs = report["runs"]
-    delegated = report.get("runtime_contract", {}).get("runtime_kind") == "gkm"
+    contract = report.get("runtime_contract", {})
+    delegated = contract.get("runtime_kind") in {"gkm", "replicated"}
     from .benchmark_delegated import TPS_UNAVAILABLE
+    reason = contract.get("decode_tps_unavailable_reason", TPS_UNAVAILABLE)
+    worker_roles = (tuple(role for role in report["configuration"]["roles"] if role != "client")
+                    if delegated else ())
 
-    first_window = "online_to_first_accepted_text" if delegated else "online_to_first_token"
+    first_window = ("online_to_final_token_disclosure" if contract.get("runtime_kind") == "replicated"
+                    else "online_to_first_accepted_text" if delegated else "online_to_first_token")
     audit_metrics([run.get("privacy", {}) for run in runs], m)
     cpu = report.get("process_cpu_accounting", {}).get("cold_first_response_cpu_seconds_by_role", {}) or {}
     m.metric("client.peak_rss", report.get("client_process_memory", {}).get("after", {}).get("lifetime_peak_rss_bytes"),
              kind="memory", window="process_birth_through_scenario", scope="process_lifetime_high_water")
-    for role in (("client", "worker_a", "worker_b") if delegated else ("client", "preparation")):
+    for role in (("client", *worker_roles) if delegated else ("client", "preparation")):
         m.metric(f"{role}.cold_cpu", cpu.get(role), kind="cpu", role=role,
                  window="benchmark_start_through_first_response" if role == "client" else "role_birth_through_first_response",
                  scope="process_cpu")
@@ -85,7 +90,7 @@ def response_metrics(report, m):
     m.metric("preparation.peak_rss", max(peaks) if peaks and all(v is not None for v in peaks) else None,
              kind="memory", role="preparation", window="request_windows", scope="sampled_process_rss")
     if delegated:
-        for role in ("worker_a", "worker_b"):
+        for role in worker_roles:
             peaks = [run.get("processes", {}).get(role, {}).get("rss_peak_bytes") for run in runs]
             m.metric(f"{role}.peak_rss", max(peaks) if peaks and all(v is not None for v in peaks) else None,
                 kind="memory", role=role, window="role_birth_through_scenario",
@@ -104,7 +109,7 @@ def response_metrics(report, m):
         m.metric(f"request.{index}.decode_tps", duration.get("tokens_per_second") if denominator and not delegated else None,
                  kind="throughput", window="after_first_output", phase="online",
                  denominator={"value": denominator, "unit": "generated_tokens"},
-                 **({"reason": TPS_UNAVAILABLE} if delegated else {}))
+                  **({"reason": reason} if delegated else {}))
     ttfts = [r["durations"].get("ttft_seconds") for r in runs]
     m.metric("response.ttft", statistics.median(ttfts) if ttfts and all(v is not None for v in ttfts) else None,
              window=first_window, phase="online", count=len(runs))
@@ -112,7 +117,7 @@ def response_metrics(report, m):
     m.metric("response.decode_tps", statistics.median(decode) if not delegated and decode and all(v is not None for v in decode) else None,
               kind="throughput", window="after_first_output", phase="online", count=len(runs),
               denominator={"value": sum(max(0, r["tokens"]["output_tokens"] - 1) for r in runs), "unit": "generated_tokens"},
-              **({"reason": TPS_UNAVAILABLE} if delegated else {}))
+               **({"reason": reason} if delegated else {}))
     snapshots = report.get("native_network_accounting", {}).get("samples", {}).get("runs", [])
     emulation = report.get("wan_readiness", {}).get("emulation", {})
     total = (snapshots[-1].get("after", {}).get("wan_emulation", {}).get("total_stream_bytes")
@@ -185,18 +190,19 @@ def execute_response(p, m):
         raise TargetUnavailable("response_input_contract") from None
     declared = p["model"]
     experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
-    from .benchmark_delegated import admit_options, is_delegated
+    from .benchmark_delegated import admit_options, is_buffered, is_replicated
 
-    delegated = is_delegated(experiment)
+    delegated = is_buffered(experiment)
+    runtime_kind = "replicated" if is_replicated(experiment) else "gkm"
     if delegated:
         if (p.get("concurrent_requests", 1) != 1 or any(p.get(key) for key in (
                 "client_stage", "client_mlp", "client_metadata", "client_attention", "state_audit"))):
-            raise TargetUnavailable("gkm_response_options_unsupported")
+            raise TargetUnavailable(f"{runtime_kind}_response_options_unsupported")
         try:
             admit_options(experiment, backend=p["backend"], output_tokens=scenario.max_output_tokens,
                           requests=scenario.count)
         except ValueError:
-            raise TargetUnavailable("gkm_response_contract", status="blocked") from None
+            raise TargetUnavailable(f"{runtime_kind}_response_contract", status="blocked") from None
     if p.get("concurrent_requests", 1) > 1:
         from .benchmark_response_group import execute_group
         return execute_group(p, m, prompt)
@@ -292,7 +298,9 @@ def execute_response(p, m):
         m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
             "output_delivery": report["runtime_contract"]["output_delivery"],
             "generation_policy": "fixed_length_greedy", "kv_reuse": False})
-        m.limitations.append("Request-end verified buffered output: TTFT is first accepted text; emission TPS is unsupported.")
+        m.limitations.append("Final-only buffered output: TTFT measures final token disclosure; emission TPS is unsupported."
+            if runtime_kind == "replicated" else
+            "Request-end verified buffered output: TTFT is first accepted text; emission TPS is unsupported.")
     from .topology_accounting import ACCOUNTING_SCHEMA, accounting_coverage_identity
     coverage = accounting_coverage_identity(report.get("topology_accounting"))
     if coverage not in {ACCOUNTING_SCHEMA, "historical_coverage_not_recorded"}:

@@ -706,6 +706,20 @@ pub struct Frame {
 }
 
 impl Frame {
+    pub fn encode(self) -> Result<crate::puma::wire::Encoded<Self>, Error> {
+        let inner = self.inner.encode_bytes()?;
+        let mut bytes = crate::puma::wire::allocate(48 + inner.len())?;
+        bytes[..4].copy_from_slice(b"PUT1");
+        bytes[4..36].copy_from_slice(&self.program);
+        bytes[36..44].copy_from_slice(&self.invocation.to_le_bytes());
+        bytes[44..48].copy_from_slice(&(self.step as u32).to_le_bytes());
+        bytes[48..].copy_from_slice(&inner);
+        Ok(crate::puma::wire::Encoded {
+            bytes,
+            _owner: self,
+        })
+    }
+
     pub fn sender(&self) -> Party {
         self.inner.header().from
     }
@@ -754,6 +768,43 @@ fn metadata_bytes(program: &Program) -> usize {
 }
 
 impl Executor {
+    /// The surrounding authenticated channel supplies the peer identity.
+    /// Invalid bytes retire the same owner as an invalid typed frame.
+    pub fn receive_encoded(
+        &mut self,
+        raw: &[u8],
+        sender: Party,
+    ) -> Result<[Option<Frame>; 3], Error> {
+        let result = (|| {
+            if self.retired {
+                return Err(Error::Retired);
+            }
+            if raw.len() < 48
+                || raw.len() > crate::puma::wire::MAX_FRAME_BYTES
+                || &raw[..4] != b"PUT1"
+            {
+                return Err(Error::Shape);
+            }
+            let program = raw[4..36].try_into().unwrap();
+            let invocation = u64::from_le_bytes(raw[36..44].try_into().unwrap());
+            let step = u32::from_le_bytes(raw[44..48].try_into().unwrap()) as usize;
+            if program != self.program.digest || invocation != self.invocation || step != self.step
+            {
+                return Err(Error::Binding);
+            }
+            let inner = Message::decode(&raw[48..], sender, self.party())?;
+            let frame = Frame {
+                program,
+                invocation,
+                step,
+                inner,
+                _metadata: self.payload_usage().reserve(std::mem::size_of::<Frame>())?,
+            };
+            self.receive_inner(frame)
+        })();
+        self.checked(result)
+    }
+
     pub fn new(
         mut runtime: PartyRuntime,
         program: Program,

@@ -429,9 +429,29 @@ class GrottoRingDpfProtocol(PendingMethod):
     pass
 
 
-@pending("puma")
-class PumaThreePartyDecoder(PendingMethod):
-    pass
+class PumaThreePartyDecoder(ProtocolMethod):
+    """Bounded source-derived Q18 replicated decoder with private token feedback."""
+
+    __slots__ = ()
+    NUMERIC_PROFILE = "puma.source-q18.rmsnorm-epsilon1.full-prefix.final-greedy-ids.v1"
+    descriptor = ComponentDescriptor(
+        component="pllm/puma-three-party-decoder/v1", provider="pllm", distribution="pllm.run",
+        version="1", category="pllm/protocol-method", category_version="1",
+        lifecycle_phase="offline+online", parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("bounded-replicated-q18", "protected-full-prefix-recomputation", "private-greedy-feedback"),
+        required_host_features=("native-replicated-decoder", "authenticated-confidential-channels"),
+        role_eligibility=("client", "worker_a", "worker_b", "worker_c"),
+    )
+
+    def __init__(self):
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep=True):
+        return {}
+
+    @classmethod
+    def describe(cls):
+        return cls.descriptor
 
 
 @pending("primer")

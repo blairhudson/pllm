@@ -56,6 +56,28 @@ class StateProtocol(ComponentRef, ABC):
     def describe(cls) -> ComponentDescriptor: ...
 
 
+class ReplicatedPrivatePrefix(StateProtocol):
+    """Private full-prefix recomputation and fixed-count final token-ID disclosure."""
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/replicated-private-prefix/v1", provider="pllm", distribution="pllm.run",
+        version="1", category="pllm/state-protocol", category_version="1", lifecycle_phase="online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("protected-full-prefix-recomputation", "private-token-feedback"),
+        role_eligibility=("worker_a", "worker_b", "worker_c"),
+    )
+
+    def __init__(self):
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep=True):
+        return {}
+
+    @classmethod
+    def describe(cls):
+        return cls.descriptor
+
+
 class ClientLocalKv(StateProtocol):
     """Client-owned KV, optionally retaining a static importance-selected prefix."""
     __slots__ = ()
@@ -226,6 +248,7 @@ class LongRopeCacheRerotation(PendingModelCapability):
 
 
 __all__ = [
+    "ReplicatedPrivatePrefix",
     "DecodeCache", "DecodeCacheHead",
     "ConversationCheckpoint",
     "CheckpointHead", "CheckpointSession",

@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+   Doc-tests pllm_core
+
+running 5 tests
+test crates/pllm-core/src/puma/boolean.rs - puma::prss::multiply::boolean::Share (line 34) - compile fail ... ok
+test crates/pllm-core/src/puma/tensor.rs - puma::prss::multiply::tensor::Executor (line 742) - compile fail ... ok
+test crates/pllm-core/src/puma/multiply.rs - puma::prss::multiply::SetupParty (line 261) - compile fail ... ok
+test crates/pllm-core/src/puma/tensor.rs - puma::prss::multiply::tensor::Frame (line 695) - compile fail ... ok
+test crates/pllm-core/src/puma/multiply.rs - puma::prss::multiply::PartyRuntime (line 348) - compile fail ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.96s
+

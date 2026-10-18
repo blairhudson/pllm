@@ -1,0 +1,24 @@
+{
+  "broad_installed_suite": {
+    "build": "build-v3",
+    "passed": 692,
+    "skipped_optional_metal": 1
+  },
+  "broad_to_final_change": "Rust module declaration ordering only; Python package sources unchanged",
+  "compile_fail_doctests": 5,
+  "final_focused_suite": {
+    "build": "build-v4",
+    "passed": 138,
+    "skipped": 0
+  },
+  "full_checkpoint_and_quality_qualified": false,
+  "installed_package_files_per_build": 367,
+  "native_core_compiler_checks": 165,
+  "schema": "pllm.puma_sdk_conformance.v1",
+  "scope": "bounded generated-model SDK functionality; cached local builds",
+  "whole_checkpoint_preflight": {
+    "code": "BENCHMARK_EXPERIMENT_INVALID",
+    "returncode": 3,
+    "stage": "resolution"
+  }
+}

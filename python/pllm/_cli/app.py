@@ -876,9 +876,9 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         raise ResolutionError("BENCHMARK_KERNEL_COMPARISON",
                               "--compare-kernels requires multiple --experiment targets and --capture-output-digest")
 
-    from pllm.runtime.benchmark_delegated import admit_options, is_delegated
+    from pllm.runtime.benchmark_delegated import admit_options, is_buffered, is_replicated, output_contract
 
-    delegated_experiments = [experiment for experiment in experiments if is_delegated(experiment)]
+    delegated_experiments = [experiment for experiment in experiments if is_buffered(experiment)]
     all_delegated = bool(experiments) and len(delegated_experiments) == len(experiments)
     effective_temperature = 0.0 if all_delegated and args.temperature is None else args.temperature
     configuration = {
@@ -955,8 +955,8 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 output_tokens=args.max_output_tokens,
                 requests=args.warmups + args.repetitions * (len(prompt_sequence) if prompt_sequence is not None else 1))
         except ValueError as exc:
-            raise ResolutionError("BENCHMARK_GKM_CONTRACT", str(exc)) from exc
-        entry.update(runtime_kind="gkm", output_delivery="buffered_until_verified",
+            raise ResolutionError("BENCHMARK_PUMA_CONTRACT" if is_replicated(experiment) else "BENCHMARK_GKM_CONTRACT", str(exc)) from exc
+        entry.update(runtime_kind="replicated" if is_replicated(experiment) else "gkm", output_delivery=output_contract(experiment)[0],
                      generation_policy="fixed_length_greedy", sampling=_sampling_choice(0.0))
     if emulate_wan and selection is not None:
         raise ResolutionError("BENCHMARK_WAN_PROFILE", "WAN emulation requires local roles; live network plans support --wan-estimate")

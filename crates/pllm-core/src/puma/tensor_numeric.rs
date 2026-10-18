@@ -132,6 +132,37 @@ fn affine(left: i64, right: i64, constant: i64) -> Affine {
 }
 
 impl Program {
+    /// Finite binary32 default split-half coefficients, then the Q18
+    /// toward-zero boundary. Fixed libm implementation; no private positions.
+    pub fn rotary_coefficients(
+        theta: f32,
+        position: u32,
+        width: usize,
+    ) -> Result<(Vec<i64>, Vec<i64>), Error> {
+        if !theta.is_finite()
+            || theta < 1.0
+            || width == 0
+            || width > MAX_TILE_LANES
+            || width % 2 != 0
+            || position > 512
+        {
+            return Err(Error::Bounds);
+        }
+        let mut cosine = Vec::new();
+        let mut sine = Vec::new();
+        cosine
+            .try_reserve_exact(width / 2)
+            .map_err(|_| Error::Allocation)?;
+        sine.try_reserve_exact(width / 2)
+            .map_err(|_| Error::Allocation)?;
+        for i in 0..width / 2 {
+            let frequency = 1.0_f32 / libm::powf(theta, (2 * i) as f32 / width as f32);
+            let angle = position as f32 * frequency;
+            cosine.push((libm::cosf(angle) * ONE as f32) as i64);
+            sine.push((libm::sinf(angle) * ONE as f32) as i64);
+        }
+        Ok((cosine, sine))
+    }
     /// Half-split rotary embedding with explicit public Q18 coefficient rows.
     /// Each row supplies width/2 cosines and sines, repeated across its halves.
     /// The two signed coefficient products rescale separately before addition.
@@ -276,24 +307,33 @@ impl Program {
         if width == 0 || rows == 0 || gamma.len() != width {
             return Err(Error::Shape);
         }
-        let mut b = Builder::row(lanes, input)?;
-        b.0.numeric_profile = RMS_NORM_PROFILE;
-        let x = b.input();
-        let square = b.square(x)?;
-        let sum = b.row_map(square, width, RowMap::Sum)?;
-        let inverse_width = ((1.0_f32 / width as f32) * ONE as f32) as i64;
-        let raw_mean = b.affine(sum, None, affine(inverse_width, 0, 0))?;
-        let mean = b.rescale(raw_mean, 18)?;
-        let denominator = b.affine(mean, None, affine(1, 0, RMS_NORM_EPSILON_Q18))?;
-        let bounds = b.node(denominator, false)?.bounds;
-        let inverse = rsqrt(&mut b, denominator, bounds)?;
-        let inverse = b.row_map(inverse, width, RowMap::Broadcast)?;
-        let normalized = b.product(x, inverse, true)?;
+        let (mut b, normalized) = rms_normalization(rows, width, input)?;
         let scales: [Affine; MAX_ROW_LANES] =
             std::array::from_fn(|i| affine(gamma[i % width], 0, 0));
         let scaled = b.affine_lanes(normalized, &scales[..lanes])?;
         let output = b.rescale(scaled, 18)?;
         b.finish(output)
+    }
+
+    pub fn negative(lanes: usize, input: Interval) -> Result<Self, Error> {
+        let mut b = Builder::new(lanes, input)?;
+        let bit = b.sign(b.input())?;
+        let out = b.from_bit(bit)?;
+        b.finish(out)
+    }
+
+    /// Arithmetic equality to zero, with every decision retained as a share.
+    pub fn equal_zero(lanes: usize, input: Interval) -> Result<Self, Error> {
+        let mut b = Builder::new(lanes, input)?;
+        let mut bits = b.bits(b.input())?;
+        for shift in [32, 16, 8, 4, 2, 1] {
+            let other = b.bit_map(bits, BitMap::ShiftRight(shift))?;
+            bits = b.bit_or(bits, other)?;
+        }
+        let bit = b.bit_map(bits, BitMap::LowBits(1))?;
+        let nonzero = b.from_bit(bit)?;
+        let out = b.affine(nonzero, None, affine(-1, 0, 1))?;
+        b.finish(out)
     }
 
     /// Positive source Q18 reciprocal. Exponent selection remains shared; the
@@ -311,6 +351,62 @@ impl Program {
         let output = rsqrt(&mut b, Value(0), input)?;
         b.finish(output)
     }
+}
+
+fn rms_normalization(
+    rows: usize,
+    width: usize,
+    input: Interval,
+) -> Result<(Builder, Value), Error> {
+    let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
+    if rows == 0 || width == 0 {
+        return Err(Error::Shape);
+    }
+    let mut b = Builder::row(lanes, input)?;
+    b.0.numeric_profile = RMS_NORM_PROFILE;
+    let x = b.input();
+    let square = b.square(x)?;
+    let sum = b.row_map(square, width, RowMap::Sum)?;
+    let inverse_width = ((1.0_f32 / width as f32) * ONE as f32) as i64;
+    if inverse_width <= 0 {
+        return Err(Error::Bounds);
+    }
+    let raw_mean = b.affine(sum, None, affine(inverse_width, 0, 0))?;
+    let mean = b.rescale(raw_mean, 18)?;
+    let denominator = b.affine(mean, None, affine(1, 0, RMS_NORM_EPSILON_Q18))?;
+    let bounds = b.node(denominator, false)?.bounds;
+    let mut inverse = rsqrt_ranged(&mut b, denominator, bounds)?;
+    inverse.value = b.row_map(inverse.value, width, RowMap::Broadcast)?;
+    // Correlate each row value with its own denominator before multiplying.
+    // For Q=2^18, c=E(1/width)>0, S=sum(TR(x_i^2)), d=TR(S*c)+epsilon:
+    // d<=hi => S*c < (hi-epsilon+1)*Q and x_i^2 < (S+1)*Q.
+    // Every stochastic truncation is floor or ceil, so these inequalities
+    // cover every mask. Buckets are public proof cases, never runtime branches.
+    let denominator_boxes = Ranged::input(denominator, bounds, 35)?.boxes;
+    let mut boxes = [None; DOMAINS];
+    for (j, bucket) in denominator_boxes.into_iter().enumerate() {
+        if let Some(bucket) = bucket {
+            let sum_max = ((i128::from(bucket.upper()) - i128::from(RMS_NORM_EPSILON_Q18) + 1)
+                * i128::from(ONE)
+                - 1)
+                / i128::from(inverse_width);
+            let square_max =
+                u128::try_from((sum_max + 1) * i128::from(ONE) - 1).map_err(|_| Error::Bounds)?;
+            let magnitude = i64::try_from(square_max.isqrt()).map_err(|_| Error::Bounds)?;
+            let lower = input.lower().max(-magnitude);
+            let upper = input.upper().min(magnitude);
+            if lower > upper {
+                // A loose denominator hull can contain an unreachable bucket.
+                inverse.boxes[j] = None;
+            } else {
+                boxes[j] = Some(Interval::new(lower, upper)?);
+            }
+        }
+    }
+    let normalized = Ranged { value: x, boxes }
+        .product(&mut b, &inverse, true)?
+        .value;
+    Ok((b, normalized))
 }
 
 pub(super) fn reciprocal(b: &mut Builder, input: Value, bounds: Interval) -> Result<Value, Error> {
@@ -332,6 +428,10 @@ pub(super) fn reciprocal(b: &mut Builder, input: Value, bounds: Interval) -> Res
 }
 
 pub(super) fn rsqrt(b: &mut Builder, input: Value, bounds: Interval) -> Result<Value, Error> {
+    Ok(rsqrt_ranged(b, input, bounds)?.value)
+}
+
+fn rsqrt_ranged(b: &mut Builder, input: Value, bounds: Interval) -> Result<Ranged, Error> {
     let x = Ranged::input(input, bounds, 35)?;
     let highest = b.highest_bit(input, 35)?;
     let z = b.bit_map(highest, BitMap::ShiftLeft(1))?;
@@ -359,5 +459,5 @@ pub(super) fn rsqrt(b: &mut Builder, input: Value, bounds: Interval) -> Result<V
     let scale = b.from_boolean(reversed)?;
     let scale = x.exact_map(b, scale, |j| 1 << (17 - (j + 1) / 2))?;
     let compensation = coefficient.product(b, &scale, false)?;
-    Ok(p.product(b, &compensation, true)?.value)
+    p.product(b, &compensation, true)
 }

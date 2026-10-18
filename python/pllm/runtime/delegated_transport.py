@@ -56,11 +56,11 @@ def request_memory_bytes(source, *, worker=False):
     return size + _TRANSPORT_ALLOWANCE_BYTES
 
 
-def _connections(connections):
-    if not isinstance(connections, Mapping) or len(connections) != 2 or set(connections) != set(_ROLES):
+def _connections(connections, roles=_ROLES):
+    if not isinstance(connections, Mapping) or len(connections) != len(roles) or set(connections) != set(roles):
         raise ValueError("GKM requires exactly two authenticated worker channels")
     result = []
-    for role in _ROLES:
+    for role in roles:
         item = connections[role]
         if (type(item) not in (tuple, list) or len(item) != 2
                 or any(type(value) is not str for value in item)):
@@ -89,7 +89,7 @@ def _connections(connections):
         if port is not None and port != (443 if url.scheme == "https" else 80):
             host = f"{host}:{port}"
         result.append((f"{url.scheme}://{host}", key))
-    if result[0][0] == result[1][0] or result[0][1] == result[1][1]:
+    if len({row[0] for row in result}) != len(roles) or len({row[1] for row in result}) != len(roles):
         raise ValueError("GKM requires distinct worker origins and credentials")
     return result
 
@@ -170,21 +170,22 @@ class _IOOwner:
 
 
 class _Peers:
-    def __init__(self, connections, timeout, cancelled, *, capacity="capsule"):
+    def __init__(self, connections, timeout, cancelled, *, capacity="capsule", roles=_ROLES, namespace="delegation"):
         # Admit both origins before constructing clients or any I/O owner.
-        connections = _connections(connections)
+        connections = _connections(connections, roles)
+        self.roles, self.namespace = roles, namespace
         self.frame_limit, self.admission_limit = limits(capacity)
         self.io = _IOOwner()
         self.closed = False
         self.clients = []
         self.keys = []
         self.request_id = None
-        self.live = [False, False]
+        self.live = [False] * len(roles)
         self.cancelled = cancelled
         self.deadline = time.monotonic() + timeout
         self.phase = "prefill"
         self.counts = {f"role_link.{role}.{phase}_{direction}_bytes": 0
-                       for role in _ROLES for phase in ("setup", "online", "teardown")
+                       for role in roles for phase in ("setup", "online", "teardown")
                        for direction in ("upload", "download")}
         self.phase_bytes = {"prefill": 0, "decode": 0}
         self.unknown = set()
@@ -253,12 +254,12 @@ class _Peers:
             raise
 
     async def _post(self, role, action, payload, *, phase, limit, timeout):
-        prefix = f"role_link.{_ROLES[role]}.{phase}_"
+        prefix = f"role_link.{self.roles[role]}.{phase}_"
         observed = 0
         response_seen = False
         try:
-            path = (f"/v1/delegation/{action}" if action in {"manifest", "admit"}
-                    else f"/v1/delegation/{self.request_id}/{action}")
+            path = (f"/v1/{self.namespace}/{action}" if action in {"manifest", "admit"}
+                    else f"/v1/{self.namespace}/{self.request_id}/{action}")
             async with self.clients[role].stream(
                 "GET" if action == "manifest" else "POST", path,
                 content=payload, headers={"content-type": "application/octet-stream"},
@@ -351,7 +352,7 @@ class _Peers:
         for direction in ("upload", "download"):
             for name, phases in ((f"inference_{direction}_bytes", ("online",)),
                                  (f"inference_control_{direction}_bytes", ("setup", "teardown"))):
-                keys = [f"role_link.{role}.{phase}_{direction}_bytes" for role in _ROLES for phase in phases]
+                keys = [f"role_link.{role}.{phase}_{direction}_bytes" for role in self.roles for phase in phases]
                 if all(key in snapshot for key in keys):
                     snapshot[name] = sum(snapshot[key] for key in keys)
         if not any(".online_" in key for key in self.unknown):

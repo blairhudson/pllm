@@ -5572,8 +5572,11 @@ class OpenAI:
             raise ValueError("resource planning requires a configured network")
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
-        if profile is not None and profile.client_runtime == "compiled_gkm_v1":
+        if profile is not None and profile.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1"}:
             from .delegated_client import DelegatedClient
+            from .replicated_client import ReplicatedClient
+
+            buffered_client = ReplicatedClient if profile.client_runtime == "compiled_replicated_v1" else DelegatedClient
 
             if not isinstance(experiment, Experiment):
                 raise ValueError("GKM requires the complete bounded Experiment source")
@@ -5597,7 +5600,7 @@ class OpenAI:
 
                     self._owned_topology = build_roles(experiment).start()
                     role_connections = self._owned_topology.worker_connections()
-                self._core = DelegatedClient(
+                self._core = buffered_client(
                     experiment, role_connections, timeout=300.0 if timeout is None else timeout,
                 )
             except BaseException:

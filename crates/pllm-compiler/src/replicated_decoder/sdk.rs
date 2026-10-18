@@ -1,0 +1,108 @@
+//! Native capability and bounded source admission for replicated execution.
+use super::{program, Program};
+use crate::{ExperimentDeployment, ExperimentDocument, ExperimentPipeline};
+use pllm_types::canonical_bytes;
+
+pub const PROTOCOL: &str = "pllm/puma-three-party-decoder/v1";
+pub const TOPOLOGY: &str = "pllm/three-party-replicated/v1";
+pub const STATE: &str = "pllm/replicated-private-prefix/v1";
+pub const NUMERIC: &str = "puma.source-q18.rmsnorm-epsilon1.full-prefix.final-greedy-ids.v1";
+
+pub(crate) fn selected(pipeline: &ExperimentPipeline) -> bool {
+    pipeline
+        .components
+        .values()
+        .any(|v| matches!(v.component.as_str(), PROTOCOL | TOPOLOGY | STATE))
+}
+pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
+    let expected = [
+        ("linear", PROTOCOL, serde_json::json!({})),
+        ("topology", TOPOLOGY, serde_json::json!({})),
+        ("state", STATE, serde_json::json!({})),
+        ("kernels", "pllm/cpu", serde_json::json!({"threads":1})),
+    ];
+    if document.pipeline.components.len() != expected.len()
+        || !matches!(
+            document.pipeline.model.kind.as_str(),
+            "huggingface" | "safetensors"
+        )
+        || !matches!(document.deployment, ExperimentDeployment::Local { .. })
+        || !(1..=32).contains(&document.budget.max_input_tokens)
+        || !(1..=8).contains(&document.budget.max_new_tokens)
+        || !(1..=64).contains(&document.budget.requests)
+    {
+        return Err("replicated source, deployment or workload is unsupported".into());
+    }
+    for (slot, id, params) in expected {
+        let item = document
+            .pipeline
+            .components
+            .get(slot)
+            .ok_or("incomplete replicated composition")?;
+        if item.component != id || serde_json::to_value(&item.params).unwrap() != params {
+            return Err("incompatible replicated component or numeric choice".into());
+        }
+    }
+    Ok(())
+}
+
+pub fn source_contract(
+    experiment: &[u8],
+    config: &[u8],
+    rows: usize,
+    outputs: usize,
+    source: &str,
+    tokenizer: &str,
+) -> Result<Vec<u8>, String> {
+    if experiment.is_empty() || experiment.len() > 32 << 10 {
+        return Err("replicated Experiment byte bound".into());
+    }
+    crate::resolve_experiment(experiment)?;
+    let document: ExperimentDocument =
+        serde_json::from_slice(experiment).map_err(|_| "invalid replicated Experiment")?;
+    validate(&document)?;
+    for pin in [source, tokenizer] {
+        if pin.len() != 64
+            || !pin
+                .bytes()
+                .all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
+        {
+            return Err("invalid replicated source pin".into());
+        }
+    }
+    if rows == 0
+        || rows as u64 > document.budget.max_input_tokens
+        || outputs == 0
+        || outputs as u64 > document.budget.max_new_tokens
+    {
+        return Err("replicated request exceeds Experiment".into());
+    }
+    Program::source_shapes(
+        config,
+        document.budget.max_input_tokens as usize,
+        document.budget.max_new_tokens as usize,
+    )?;
+    let shapes = Program::source_shapes(config, rows, outputs)?;
+    let plan = program::lower(config, rows, outputs)?;
+    let head = plan
+        .prefill
+        .operations
+        .iter()
+        .find(|v| v.operator == pllm_models::ModelOperator::OutputHead)
+        .ok_or("missing full head")?;
+    let width = shapes[head.attributes["weight"]
+        .as_str()
+        .ok_or("missing head weight")?][1];
+    let size = shapes
+        .values()
+        .map(|v| v.iter().product::<usize>() * 4)
+        .sum::<usize>();
+    Ok(canonical_bytes(
+        &serde_json::json!({"schema_version":"pllm.replicated.sdk-contract.v1",
+        "configuration":crate::configuration_digest_bytes(experiment),"composition":crate::pipeline_digest(&document.pipeline),
+        "source_lock":source,"tokenizer":tokenizer,"numeric_profile":NUMERIC,"plan":plan,
+        "source_shapes":shapes,"source_float32_bytes":size,"input_rows":rows,"decode_steps":outputs-1,
+        "selection_prefix_rows":(rows..rows+outputs).collect::<Vec<_>>(),
+        "vocabulary":head.output_shape[1],"width":width,"execution_payload_estimate_bytes":192usize<<20}),
+    ))
+}
