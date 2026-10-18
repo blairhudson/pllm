@@ -336,6 +336,9 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
     expanded = capacity == "decoder"
     header_limit = _DECODER_HEADER_BYTES if expanded else _MAX_HEADER_BYTES
     metadata_limit = _DECODER_METADATA_BYTES if expanded else _MAX_METADATA_BYTES
+    replicated = contract.get("schema_version") == "pllm.replicated.sdk-contract.v1"
+    dimension_limit = 8192 if replicated else (262144 if expanded else 4096)
+    element_limit = 1 << 20 if replicated else (1 << 28 if expanded else 262144)
     _unchanged(root, contract["source_float32_bytes"], identities, capacity)
     shapes = {key: tuple(shape) for key, shape in contract["source_shapes"].items()}
     locations = {}
@@ -367,9 +370,9 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
             if (type(item) is not dict or set(item) != {"dtype", "shape", "data_offsets"}
                     or type(item["dtype"]) is not str or item["dtype"] not in _DTYPES
                     or type(item["shape"]) is not list or not 1 <= len(item["shape"]) <= 2
-                    or any(type(d) is not int or not 1 <= d <= (262144 if expanded else 4096)
+                    or any(type(d) is not int or not 1 <= d <= dimension_limit
                            for d in item["shape"])
-                    or math.prod(item["shape"]) > (1 << 28 if expanded else 262144)):
+                    or math.prod(item["shape"]) > element_limit):
                 raise DelegatedSourceError("GKM source tensor has unsupported shape or dtype")
             shape, dtype = tuple(item["shape"]), item["dtype"]
             offsets = item["data_offsets"]

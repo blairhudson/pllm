@@ -664,6 +664,13 @@ Generated Qwen2/Qwen3/Llama controls cover private prefix dependence, feedback,
 cancellation and failure retirement. Full-checkpoint capacity/ranges, complete
 hidden-tensor oracles, source-model quality and matched performance remain open.
 Contract: `docs/research/puma-truncation-reference.md`.
+Long private dot products additionally use bounded ring64 chunks with one Q18
+truncation after complete accumulation. Generated Qwen2/Qwen3/Llama decoders
+exercise 4,864-wide MLPs; primitive payload ceilings and whole-program admission
+remain enforced. Ordinary quality benchmarks compare final token IDs against
+FP32 through fresh one-selection full-prefix requests, retaining unknown top-k
+and logit-error metrics. The pinned Qwen checkpoint still rejects metadata admission;
+these controls establish neither its quality nor full-model capacity.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
 source's float32-before-division boundary. Dense XOR lookup preserves original

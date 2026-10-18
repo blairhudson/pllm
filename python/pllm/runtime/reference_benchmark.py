@@ -130,6 +130,90 @@ def _delegated_candidate(experiment, prompts, source, decode_steps, continuation
     return metadata, actual, decoded, ids, selected
 
 
+def _replicated_candidate(experiment, prompts, source, decode_steps, continuations, memory_safety_margin_percent=25):
+    """Score final IDs through ordinary protected requests on caller-owned prefixes.
+
+    One fixed-count selection completes before each diagnostic prefix extension.
+    Each prefix has fresh source sharing, setup and material. This permits a common
+    teacher-forced cohort without opening hidden logits or modifying D9 feedback.
+    """
+    from threading import Event
+
+    from .benchmark_memory import MemoryWatchdog, benchmark_memory, require_admission
+    from .replicated_transport import execute_request
+    from .servers import build_roles
+
+    requests = len(prompts) * (decode_steps + 1)
+    if requests > experiment.budget.requests:
+        raise ReferenceBenchmarkError("final-token quality requests exceed the Experiment request budget")
+    tokenizer = source.tokenizer()
+    ids = tuple(tuple(tokenizer.encode(
+        prompt, add_bos=source.tokenizer_descriptor.get("add_bos_token", True),
+    )) for prompt in prompts)
+    del tokenizer
+    if any(not 1 <= len(row) or len(row) + decode_steps > experiment.budget.max_input_tokens for row in ids):
+        raise ReferenceBenchmarkError("quality full-prefix requests exceed the Experiment input budget")
+    if continuations is not None and (
+        len(continuations) != len(ids)
+        or any(len(row) != decode_steps or any(type(token) is not int or not 0 <= token < source.contract["vocabulary"]
+                                               for token in row) for row in continuations)
+    ):
+        raise ReferenceBenchmarkError("quality continuation does not match the bounded token cohort")
+    report = benchmark_memory(experiment, backend="native",
+                              memory_safety_margin_percent=memory_safety_margin_percent)
+    require_admission(report)
+    cancelled = Event()
+    guard = MemoryWatchdog(report, lambda _: cancelled.set())
+    actual, decoded, selected = [], [], []
+    result = None
+    try:
+        guard.start()
+        with build_roles(experiment) as topology:
+            for index, row in enumerate(ids):
+                prefix, continuation = list(row), []
+                for step in range(decode_steps + 1):
+                    guard.check()
+                    result = execute_request(experiment, source, tuple(prefix), 1,
+                        topology.worker_connections(), 3600.0, cancelled.is_set)
+                    guard.check()
+                    if len(result.selected) != 1:
+                        raise ReferenceBenchmarkError("final-token quality response has an invalid output count")
+                    token = result.selected[0]
+                    (actual if step == 0 else decoded).append(token)
+                    result = None
+                    if step < decode_steps:
+                        feedback = token if continuations is None else continuations[index][step]
+                        continuation.append(feedback)
+                        prefix.append(feedback)
+                selected.append(tuple(continuation))
+    finally:
+        guard.close()
+        result = None
+    kernel = experiment.pipeline.components["kernels"]
+    metadata = {
+        "name": experiment.name, "configuration_digest": experiment.configuration_digest(),
+        "pipeline_digest": experiment.pipeline.digest(), "weight_bits": None, "activation_bits": None,
+        "numeric_profile": source.contract["numeric_profile"], "fraction_bits": 18, "ring_bits": 64,
+        "kernel_threads": kernel.params.get("threads"), "kernel_backend": kernel.component,
+        "execution": "three-worker-final-token-full-prefix", "candidate_logits_available": False,
+        "diagnostic_requests": requests, "output_selections_per_request": 1,
+        "memory_admission": report,
+    }
+    return metadata, actual, decoded, ids, selected
+
+
+def _agreement_summary(actual, expected, *, top_k, final_tokens=False):
+    samples = [measure_reference_agreement(None if final_tokens else candidate, reference,
+                top_k=top_k, selected_token=candidate if final_tokens else None)
+               for candidate, reference in zip(actual, expected, strict=True)]
+    result = {"sample_count": len(samples)}
+    for key in ("top1_agreement", "top_k_recall", "max_abs_logit_error"):
+        values = [row[key] for row in samples]
+        result[key] = (None if any(value is None for value in values) else
+                       max(values) if key == "max_abs_logit_error" else sum(values) / len(values))
+    return result
+
+
 def run_reference_benchmark(
     experiments: Sequence[Experiment],
     prompts: Sequence[str],
@@ -144,8 +228,9 @@ def run_reference_benchmark(
     Masked-linear candidates use their compiled clear kernels. Delegated candidates
     use their installed worker topology and final verification barrier. Serving
     costs belong to benchmark run; this report measures numeric agreement only.
-    Optional decode uses the first candidate's greedy tokens for every candidate
-    and the reference; it reports those comparisons separately from prefill.
+    Final-token-only candidates use fresh protected one-selection requests on each
+    common prefix; top-k and logit errors remain unknown. Optional decode uses the
+    first candidate's greedy tokens for every candidate and the reference.
     """
     from .benchmark_memory import _memory_margin
 
@@ -168,7 +253,8 @@ def run_reference_benchmark(
         experiment.resolve()
         runtime_options = resolve_runtime_composition(experiment.pipeline)
         delegated = runtime_options is not None and runtime_options.client_runtime == "compiled_gkm_v1"
-        if not delegated and (
+        replicated = runtime_options is not None and runtime_options.client_runtime == "compiled_replicated_v1"
+        if not (delegated or replicated) and (
             runtime_options is None
             or runtime_options.client_runtime != "masked_transformer_v1"
             or runtime_options.privacy_mode != "public"
@@ -183,9 +269,14 @@ def run_reference_benchmark(
             raise ReferenceBenchmarkError("decode steps exceed the Experiment output budget")
         if len(prompt_set) > experiment.budget.requests:
             raise ReferenceBenchmarkError("prompt cohort exceeds the Experiment request budget")
+        if replicated and len(prompt_set) * (decode_steps + 1) > experiment.budget.requests:
+            raise ReferenceBenchmarkError("final-token quality requests exceed the Experiment request budget")
         admitted = None
-        if delegated:
-            from .delegated_source import admit_source
+        if delegated or replicated:
+            if replicated:
+                from .replicated_source import admit_source
+            else:
+                from .delegated_source import admit_source
 
             admitted = admit_source(experiment)
             resolved = admitted.source
@@ -241,12 +332,14 @@ def run_reference_benchmark(
     )
     token_cohort: tuple[tuple[int, ...], ...] | None = None
     decode_cohort: list[tuple[int, ...]] = []
-    pending_decode: list[list[np.ndarray]] = []
-    pending: list[tuple[dict[str, Any], list[np.ndarray]]] = []
+    pending_decode: list[list[np.ndarray | int]] = []
+    pending: list[tuple[dict[str, Any], list[np.ndarray | int]]] = []
     for experiment, options, resolved, admitted in configurations:
         assert resolved.path is not None
         if admitted is not None:
-            metadata, actual_rows, decode_rows, current_cohort, selected = _delegated_candidate(
+            runner = (_replicated_candidate if options.client_runtime == "compiled_replicated_v1"
+                      else _delegated_candidate)
+            metadata, actual_rows, decode_rows, current_cohort, selected = runner(
                 experiment, prompt_set, admitted, decode_steps,
                 None if token_cohort is None else decode_cohort,
                 memory_safety_margin_percent,
@@ -410,28 +503,12 @@ def run_reference_benchmark(
     expected_decode = [row for rows in trajectories for row in rows[1:]]
     candidates: list[dict[str, Any]] = []
     for (metadata, actual_rows), decode_rows in zip(pending, pending_decode, strict=True):
-        samples = [
-            measure_reference_agreement(actual, expected, top_k=top_k)
-            for actual, expected in zip(actual_rows, expected_rows, strict=True)
-        ]
-        candidates.append(
-            {
-                **metadata,
-                "sample_count": len(samples),
-                "top1_agreement": sum(row["top1_agreement"] for row in samples) / len(samples),
-                "top_k_recall": sum(row["top_k_recall"] for row in samples) / len(samples),
-                "max_abs_logit_error": max(row["max_abs_logit_error"] for row in samples),
-            }
-        )
+        final_tokens = metadata.get("candidate_logits_available") is False
+        candidates.append({**metadata, **_agreement_summary(actual_rows, expected_rows,
+                           top_k=top_k, final_tokens=final_tokens)})
         if decode_steps:
-            samples = [measure_reference_agreement(actual, expected, top_k=top_k)
-                       for actual, expected in zip(decode_rows, expected_decode, strict=True)]
-            candidates[-1]["same_token_decode"] = {
-                "sample_count": len(samples),
-                "top1_agreement": sum(row["top1_agreement"] for row in samples) / len(samples),
-                "top_k_recall": sum(row["top_k_recall"] for row in samples) / len(samples),
-                "max_abs_logit_error": max(row["max_abs_logit_error"] for row in samples),
-            }
+            candidates[-1]["same_token_decode"] = _agreement_summary(decode_rows, expected_decode,
+                top_k=top_k, final_tokens=final_tokens)
     environment = {
         "system": platform.system(),
         "machine": platform.machine(),
@@ -474,9 +551,12 @@ def run_reference_benchmark(
         **({"reference_loading": loading} if loading is not None else {}),
         "limitations": [
             ("local worker execution; serving costs require benchmark run; no independent-operator privacy measurement"
-             if delegated else "local clear integer kernels, not a provider transport or privacy measurement"),
+             if any(admitted is not None for _, _, _, admitted in configurations)
+             else "local clear integer kernels, not a provider transport or privacy measurement"),
             "prefill and optional same-token decode agreement, not full-generation or task accuracy",
             "float32 reference loading and evaluation excluded from provider latency and cost",
+            *(["final-token protocols expose top-1 only; fresh one-selection prefix requests are numeric diagnostics, not one serving response"]
+              if any(row.get("candidate_logits_available") is False for row in candidates) else []),
         ],
     }
 

@@ -243,11 +243,12 @@ class ReferenceAgreement(Metric):
     def describe(cls) -> ComponentDescriptor: ...
 
 def measure_reference_agreement(
-    candidate_logits: Sequence[float] | np.ndarray,
+    candidate_logits: Sequence[float] | np.ndarray | None,
     reference_logits: Sequence[float] | np.ndarray,
     *,
     top_k: int = 5,
-) -> dict[str, float]: ...
+    selected_token: int | None = None,
+) -> dict[str, float | None]: ...
 
 class Cost(Metric):
     descriptor: ComponentDescriptor

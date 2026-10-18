@@ -66,9 +66,10 @@ GKM and PUMA have executable paper factories. `puma.py` uses the same `MODEL`
 and `BUDGET`; its current bounded admission rejects the common full-size Qwen
 checkpoint rather than substituting a generated model. To exercise an admitted
 source, call `puma.experiment(model=..., budget=...)`, save its ordinary Experiment,
-and use the same gateway and `benchmark run` entry points. Generated-model SDK,
-gateway and benchmark controls live in `tests/test_replicated_sdk.py` and
-`tests/test_replicated_interfaces.py`.
+and use the same gateway, `benchmark run` and `benchmark quality` entry points.
+Generated-model SDK, gateway and benchmark controls live in
+`tests/test_replicated_sdk.py`, `tests/test_replicated_interfaces.py` and
+`tests/test_replicated_quality.py`.
 
 PUMA keeps activations and token feedback shared across three workers. D9 requires
 full-prefix recomputation for each fixed-count selection; only final token IDs
@@ -77,6 +78,10 @@ metrics therefore remain unavailable. Peer-to-peer bodies are included in its
 ordinary benchmark ledger. Its Q18 profile has its own numeric identity and
 does not inherit GKM or W8A8 quality evidence. See the
 [PUMA contract](../../docs/research/puma-truncation-reference.md#bounded-sdk-composition).
+Top-1 quality uses fresh one-selection requests on the shared full prefixes.
+Budget every measured position as a request and include decode tokens in the
+input bound. Top-k recall and logit error stay unknown; this diagnostic does not
+measure a single multi-output serving response.
 
 Maverick, SIGMA, FuseFSS, BumbleBee, NEXUS, THOR, CacheMir and ROSETTA still need
 complete SDK compositions under their approved source contracts.

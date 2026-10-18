@@ -21,11 +21,11 @@ from pllm.runtime.replicated_protocol import ROLES, input_frame
 from pllm.runtime.replicated_source import admit_source
 
 
-def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False):
+def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2):
     root = path / "source"
     root.mkdir(parents=True)
     config = {
-        "model_type": family, "hidden_size": 2, "intermediate_size": 2,
+        "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
         "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
         "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
         "hidden_act": "silu", "attention_bias": family == "qwen2",

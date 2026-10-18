@@ -2,6 +2,24 @@ use super::*;
 use puma::{prss::PublicContribution, Party};
 use std::collections::BTreeMap;
 
+#[test]
+fn largest_prefix_view_budget_rejects_before_source_values() {
+    let config = br#"{"model_type":"qwen2","hidden_size":2,"intermediate_size":8192,
+        "num_hidden_layers":4,"num_attention_heads":1,"num_key_value_heads":1,
+        "vocab_size":5,"max_position_embeddings":64,"rope_theta":10000,
+        "rms_norm_eps":0.000001,"tie_word_embeddings":true,"hidden_act":"silu",
+        "attention_bias":true,"head_dim":2,"attention_dropout":0.0,
+        "use_sliding_window":false,"use_cache":true,"max_window_layers":4}"#;
+    Program::source_shapes(config, 1, 1).unwrap();
+    Program::source_shapes(config, 9, 1).unwrap();
+    assert!(Program::source_shapes(config, 9, 8)
+        .unwrap_err()
+        .contains("compiler view payload limit"));
+    assert!(Program::source_shapes(config, 32, 1)
+        .unwrap_err()
+        .contains("compiler view payload limit"));
+}
+
 fn fixture(family: &str) -> (Arc<Program>, BTreeMap<String, Vec<i64>>) {
     fixture_with_body(family, false)
 }
@@ -62,7 +80,7 @@ fn fixture_with_body(family: &str, active: bool) -> (Arc<Program>, BTreeMap<Stri
     (Arc::new(program), clear)
 }
 
-fn workers(program: Arc<Program>, clear: &BTreeMap<String, Vec<i64>>) -> [Worker; 3] {
+pub(super) fn workers(program: Arc<Program>, clear: &BTreeMap<String, Vec<i64>>) -> [Worker; 3] {
     let mut setups = [Party::P0, Party::P1, Party::P2].map(|p| program.setup([42; 32], p).unwrap());
     let public = setups.each_mut().map(|p| p.contribution().unwrap());
     for (i, p) in setups.iter_mut().enumerate() {
@@ -117,7 +135,7 @@ fn workers(program: Arc<Program>, clear: &BTreeMap<String, Vec<i64>>) -> [Worker
     workers
 }
 
-fn execute(mut workers: [Worker; 3]) -> Vec<u64> {
+pub(super) fn execute(mut workers: [Worker; 3]) -> Vec<u64> {
     let mut queue = vec![];
     let mut rounds = 0;
     while !workers.iter().all(Worker::complete) {

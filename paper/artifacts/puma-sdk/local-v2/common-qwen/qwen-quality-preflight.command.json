@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+    "-m",
+    "pllm",
+    "benchmark",
+    "quality",
+    "--experiment",
+    "target/puma-quality-build-v3/qwen-experiment.json",
+    "--prompts-file",
+    "target/puma-quality-build-v3/qwen-prompts.json",
+    "--reference-storage",
+    "streamed",
+    "--decode-steps",
+    "1",
+    "--format",
+    "json"
+  ],
+  "returncode": 6
+}

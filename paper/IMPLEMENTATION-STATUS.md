@@ -80,6 +80,11 @@ Completed foundations:
   bounded envelope; full-checkpoint ranges, complete hidden-state oracles,
   source-model quality and matched publication costs remain open. See the
   [composition contract](../docs/research/puma-truncation-reference.md#bounded-sdk-composition).
+- PUMA's ordinary quality path now scores final-token agreement against FP32
+  through fresh full-prefix three-worker requests; hidden-logit metrics stay
+  unknown. Complete generated decoders exercise 4,864-wide MLP contractions
+  with one final truncation. The pinned common-Qwen metadata still rejects
+  admission, so no full-checkpoint quality result follows.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

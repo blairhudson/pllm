@@ -90,6 +90,8 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
                 audit.pop(key, None)
             for key in ("online_steps", "inference_stage_calls", "inference_server_ns"):
                 audit.pop(key, None)
-            attempt.record_audit(audit)
+            record = getattr(attempt, "record_audit", None)
+            if record is not None:
+                record(audit)
         publisher = manifest = result = peers = None
         reservation.__exit__(None, None, None)

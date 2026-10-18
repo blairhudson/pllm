@@ -390,36 +390,47 @@ class ReferenceAgreement(Metric):
 
 
 def measure_reference_agreement(
-    candidate_logits: Sequence[float] | np.ndarray,
+    candidate_logits: Sequence[float] | np.ndarray | None,
     reference_logits: Sequence[float] | np.ndarray,
     *,
     top_k: int = 5,
-) -> dict[str, float]:
-    """Compare complete same-token vocabulary logits; retain no logit payload."""
+    selected_token: int | None = None,
+) -> dict[str, float | None]:
+    """Compare same-token predictions without retaining private payloads.
+
+    Final-token-only protocols pass ``None`` and ``selected_token``. Only top-1
+    agreement is observable; top-k recall and logit error remain unknown.
+    """
     import numpy as np
 
     if type(top_k) is not int or not 1 <= top_k <= 100:
         raise ValueError("top_k must be an integer between 1 and 100")
+    if selected_token is not None and (candidate_logits is not None or type(selected_token) is not int):
+        raise ValueError("selected_token requires an integer ID and no candidate logits")
     for values in (candidate_logits, reference_logits):
         if isinstance(values, np.ndarray) and (values.ndim != 1 or values.size > 1_000_000):
             raise ValueError("reference logits exceed the bounded vocabulary domain")
         if isinstance(values, Sequence) and len(values) > 1_000_000:
             raise ValueError("reference logits exceed the bounded vocabulary domain")
     try:
-        candidate = np.asarray(candidate_logits, dtype=np.float64)
+        candidate = None if selected_token is not None else np.asarray(candidate_logits, dtype=np.float64)
         reference = np.asarray(reference_logits, dtype=np.float64)
     except (TypeError, ValueError) as exc:
         raise ValueError("reference logits must be numeric") from exc
     if (
-        candidate.ndim != 1
-        or reference.ndim != 1
-        or candidate.shape != reference.shape
-        or candidate.size < top_k
-        or candidate.size > 1_000_000
-        or not np.all(np.isfinite(candidate))
+        reference.ndim != 1
+        or not top_k <= reference.size <= 1_000_000
         or not np.all(np.isfinite(reference))
+        or candidate is not None and (candidate.ndim != 1 or candidate.shape != reference.shape
+                                      or not np.all(np.isfinite(candidate)))
     ):
         raise ValueError("reference logits must be matching finite bounded vocabulary vectors")
+    if selected_token is not None:
+        if not 0 <= selected_token < reference.size:
+            raise ValueError("selected_token is outside the reference vocabulary")
+        return {"top1_agreement": float(selected_token == int(np.argmax(reference))),
+                "top_k_recall": None, "max_abs_logit_error": None}
+    assert candidate is not None
     # Break ties by vocabulary ID, including highly quantized flat logits.
     ids = np.arange(candidate.size)
     candidate_rank = np.lexsort((ids, -candidate))[:top_k]

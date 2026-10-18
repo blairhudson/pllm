@@ -16,5 +16,7 @@ paper/artifacts/gkm-decoder/**/*.log -text whitespace=-blank-at-eol,-blank-at-eo
 paper/artifacts/gkm-decoder/**/*.xml -text whitespace=-blank-at-eol,-blank-at-eof
 paper/artifacts/gkm-sdk/**/*.log -text whitespace=-blank-at-eol,-blank-at-eof
 paper/artifacts/gkm-sdk/**/*.xml -text whitespace=-blank-at-eol,-blank-at-eof
+paper/artifacts/puma-sdk/**/*.log -text whitespace=-blank-at-eol,-blank-at-eof
+paper/artifacts/puma-sdk/**/*.xml -text whitespace=-blank-at-eol,-blank-at-eof
 # The public lifecycle fixture intentionally ends with a space before its newline.
 paper/artifacts/publication-lifecycle/**/cohort.prompt.txt -text whitespace=-blank-at-eol

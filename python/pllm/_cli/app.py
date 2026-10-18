@@ -1269,7 +1269,7 @@ def _benchmark_quality(
             "memory_safety_margin_percent": args.memory_safety_margin_percent,
         }
         if output_format == "human":
-            print("Would compare pinned local compiled decoder logits with the FP32 reference")
+            print("Would compare pinned local compiled decoder predictions with the FP32 reference")
         else:
             emit_machine("benchmark.quality", data, output_format)
         return
@@ -1300,18 +1300,21 @@ def _benchmark_quality(
         except OSError as exc:
             raise LocalIOError("OUTPUT_WRITE", "cannot write quality report") from exc
     if output_format == "human":
+        def quality_value(value):
+            return "unknown" if value is None else f"{value:.3f}"
+
         for candidate in report["candidates"]:
             print(
                 f"{candidate['name']}: top-1 {candidate['top1_agreement']:.3f}, "
-                f"top-{args.top_k} recall {candidate['top_k_recall']:.3f}, "
-                f"max logit error {candidate['max_abs_logit_error']:.3f}"
+                f"top-{args.top_k} recall {quality_value(candidate['top_k_recall'])}, "
+                f"max logit error {quality_value(candidate['max_abs_logit_error'])}"
             )
             if decode := candidate.get("same_token_decode"):
                 print(
                     f"  Same-token decode ({decode['sample_count']} positions): "
                     f"top-1 {decode['top1_agreement']:.3f}, "
-                    f"top-{args.top_k} recall {decode['top_k_recall']:.3f}, "
-                    f"max logit error {decode['max_abs_logit_error']:.3f}"
+                    f"top-{args.top_k} recall {quality_value(decode['top_k_recall'])}, "
+                    f"max logit error {quality_value(decode['max_abs_logit_error'])}"
                 )
         if output is not None:
             print(f"Wrote {output}")

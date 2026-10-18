@@ -53,3 +53,19 @@ def test_reference_agreement_rejects_unbound_or_unavailable_reference() -> None:
         ReferenceAgreement(dataset_digest="public", reference_checkpoint_digest="b" * 64)
     with pytest.raises(ValueError, match="top_k"):
         measure_reference_agreement([1.0], [1.0], top_k=True)
+
+
+def test_final_token_agreement_preserves_unknown_logits_and_lowest_index_ties():
+    reference = [4.0, 4.0, -2.0]
+    assert measure_reference_agreement(None, reference, top_k=2, selected_token=0) == {
+        "top1_agreement": 1.0, "top_k_recall": None, "max_abs_logit_error": None,
+    }
+    assert measure_reference_agreement(None, reference, top_k=2, selected_token=1)["top1_agreement"] == 0
+    for token in (-1, 3, True, 1.0, "1"):
+        with pytest.raises(ValueError, match="selected_token"):
+            measure_reference_agreement(None, reference, top_k=2, selected_token=token)
+    with pytest.raises(ValueError, match="selected_token"):
+        measure_reference_agreement(reference, reference, top_k=2, selected_token=0)
+    for values in ([float("nan")], [], [[1.0]], np.zeros(1_000_001)):
+        with pytest.raises(ValueError, match="reference logits"):
+            measure_reference_agreement(None, values, top_k=1, selected_token=0)

@@ -54,12 +54,26 @@ corruption; these controls provide no malicious-result verification or evidence
 of independently operated workers.
 
 The installed source path admits complete tokenizer vocabularies at most 256,
-at most 32 input tokens and eight outputs, four layers, 128-wide features and
-1,048,576 source values. Shape and eager-range gates can further reject a
+at most 32 input tokens and eight outputs, four layers, feature dimensions at
+most 8,192 and 1,048,576 source values. The primitive-specific row/rotary limits,
+compiler-view budget and eager-range gates can further reject a
 configuration. Primitive payload ceilings remain 256 KiB per party; compiled
 shares, public program metadata and transport copies have separately admitted
 owners. Source weights remain client-owned during publication. These bounds
 do not admit the study's full-size Qwen checkpoint or qualify a memory tier.
+The pinned Qwen2.5 source declares 24 layers and 151,936 vocabulary rows;
+its main token table alone contains 136,134,656 values. The ordinary quality
+command rejects even the 4-input/two-output declaration at native source
+admission. Enlarging a dot tile does not supply compact full-model ownership
+or complete-decoder public range proofs.
+
+Long private contractions split their inner dimension into at most 1,024-value
+chunks. Each chunk uses fresh exact ring64 multiplication, the client never
+reconstructs a partial result, and the worker adds the partial shares locally.
+Only the complete accumulated dot is truncated to Q18. The complete public
+accumulator range must pass admission, even when each chunk fits separately.
+This adds product rotations but does not change the numeric rounding boundary
+or the primitive payload ceiling. Small contractions retain the existing path.
 
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,
 `pllm benchmark run` and `BenchmarkTarget.response` use this composition.
@@ -67,6 +81,19 @@ The benchmark charges client publication, all directed peer requests and ACKs,
 all three provider CPU/peak-memory owners, and native shared access caps.
 Buffered final output cannot provide a streaming prefill or N−1 decode rate;
 those metrics and their body-window partitions remain unknown.
+
+`pllm benchmark quality` also accepts this composition. It scores final token
+IDs against the locked FP32 reference through ordinary three-worker requests.
+Each measured position completes one fixed-count, one-selection request on the
+common caller-owned prefix. Subsequent diagnostic prefixes use the first
+candidate's greedy trajectory. Every position repeats source publication,
+sharing and setup; no hidden logit or intermediate feedback export is added.
+The Experiment must budget every diagnostic request and the longest extended
+input. Top-1 agreement is observable; top-k recall and logit error are null.
+These repeated requests measure numeric agreement rather than a single serving
+response's costs. Full-checkpoint admission still precedes any quality execution.
+The separate [quality/wide-contraction evidence](../../paper/artifacts/puma-sdk/local-v2/README.md)
+retains generated controls, the installed build and the common-Qwen rejection.
 
 Generated Qwen2/Qwen3/Llama controls include nonzero attention/MLP paths whose
 independent sign oracle distinguishes private prefixes, private feedback, protocol

@@ -3,6 +3,10 @@ use pllm_models::{DecoderExpansionBudget, DecoderGraph, DecoderWorkload, ModelOp
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[cfg(test)]
+#[path = "linear_tests.rs"]
+mod linear_tests;
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceTensor {
@@ -186,8 +190,17 @@ impl Builder {
     fn linear(&mut self, input: &View, weight: &View, rescale: bool) -> Result<View, Error> {
         let inner = *input.shape.last().ok_or(Error::Shape)?;
         let columns = *weight.shape.first().ok_or(Error::Shape)?;
-        if weight.shape != [columns, inner] || inner > puma::MAX_LANES {
+        if inner == 0
+            || columns == 0
+            || weight.shape != [columns, inner]
+            || input.words.is_empty()
+            || input.words.len() % inner != 0
+            || columns.checked_mul(inner) != Some(weight.words.len())
+        {
             return Err(Error::Shape);
+        }
+        if inner > puma::MAX_LANES {
+            return self.linear_chunks(input, weight, rescale);
         }
         let rows = input.words.len() / inner;
         let tile = (puma::MAX_LANES / inner).min(128);
@@ -206,6 +219,46 @@ impl Builder {
                 let output =
                     self.product(left, right, Some(MatrixShape::new(1, inner, n)?), rescale)?;
                 words.extend((0..n).map(|i| (output, i)));
+            }
+        }
+        Ok(View {
+            words,
+            shape: vec![1, rows, columns],
+        })
+    }
+
+    /// Keep every partial dot product in ring64. Only the complete accumulated
+    /// dot is truncated; rounding individual chunks would change the profile.
+    /// Each private chunk issues fresh product material through the existing
+    /// bounded party-local owner. No expanded primitive allowance is required.
+    fn linear_chunks(&mut self, input: &View, weight: &View, rescale: bool) -> Result<View, Error> {
+        let inner = *input.shape.last().ok_or(Error::Shape)?;
+        let columns = weight.shape[0];
+        let rows = input.words.len() / inner;
+        let mut words = Vec::new();
+        for row in input.words.chunks_exact(inner) {
+            for column in 0..columns {
+                let mut accumulator = None;
+                for start in (0..inner).step_by(puma::MAX_LANES) {
+                    let count = puma::MAX_LANES.min(inner - start);
+                    let left = self.gather(&row[start..start + count])?;
+                    let right = self.gather(
+                        &weight.words[column * inner + start..column * inner + start + count],
+                    )?;
+                    let partial =
+                        self.product(left, right, Some(MatrixShape::new(1, count, 1)?), false)?;
+                    accumulator = Some(match accumulator {
+                        None => partial,
+                        Some(previous) => self.affine(previous, Some(partial), affine(1, 1, 0))?,
+                    });
+                }
+                let mut output = accumulator.ok_or(Error::Shape)?;
+                if rescale {
+                    let mut b = tensor::Builder::new(1, self.nodes[output].bounds)?;
+                    let scaled = b.rescale(b.input(), 18)?;
+                    output = self.tensor(output, b.finish(scaled)?)?;
+                }
+                words.push((output, 0));
             }
         }
         Ok(View {
@@ -753,13 +806,38 @@ impl Program {
             }
             known.insert(op.id.clone(), *op.output_shape.last().unwrap() as usize);
         }
-        if shapes
-            .values()
-            .map(|s| s.iter().product::<usize>())
-            .sum::<usize>()
-            > MAX_VALUES
-        {
+        let source_values = shapes.values().try_fold(0usize, |total, shape| {
+            let n = shape
+                .iter()
+                .try_fold(1usize, |n, width| n.checked_mul(*width))?;
+            total.checked_add(n)
+        });
+        if source_values.is_none_or(|n| n > MAX_VALUES) {
             return Err("replicated source payload limit".into());
+        }
+        // Public semantic views coexist with the emitted native program while
+        // compiling. Price two reference lists per output (construction/copy),
+        // plus the source views. Check the final full-prefix geometry during
+        // source admission, before importing values or building reference lists.
+        let final_plan;
+        let prefill = if outputs > 1 {
+            final_plan = lower(config, rows + outputs - 1, 1)?;
+            &final_plan.prefill
+        } else {
+            &plan.prefill
+        };
+        let view_bytes =
+            prefill
+                .operations
+                .iter()
+                .try_fold(source_values.unwrap() * 16, |total, op| {
+                    let elements = op.output_shape.iter().try_fold(1usize, |n, width| {
+                        n.checked_mul(usize::try_from(*width).ok()?)
+                    })?;
+                    total.checked_add(elements.checked_mul(32)?)
+                });
+        if view_bytes.is_none_or(|n| n > MAX_PROGRAM_BYTES) {
+            return Err("replicated compiler view payload limit".into());
         }
         Ok(shapes)
     }
@@ -1021,9 +1099,9 @@ pub(super) fn lower(
         },
         DecoderExpansionBudget {
             max_layers: 4,
-            max_feature_width: 128,
+            max_feature_width: 8192,
             max_attention_heads: 16,
-            max_vocabulary: 512,
+            max_vocabulary: 4096,
             max_tensor_elements: MAX_VALUES as u64,
         },
     )

@@ -12,6 +12,11 @@ nonzero attention/MLP prefix dependence, private feedback and failure retirement
 Complete hidden-tensor oracles, full-checkpoint admission, source-model quality
 and matched serving performance remain open.
 
+The subsequent [quality/wide-contraction slice](local-v2/README.md) adds ordinary
+final-token quality benchmarking and complete generated 4,864-wide MLP execution.
+It retains its own build and tests. The common Qwen checkpoint still rejects
+source admission; its quality and complete-model capacity remain open.
+
 ## Retained evidence
 
 [`local-v1/summary.json`](local-v1/summary.json) records:

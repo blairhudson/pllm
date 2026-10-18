@@ -208,7 +208,7 @@ load; host-reserve and swap-growth guards remain active. This reduces resident
 reference weights at the cost of repeated checkpoint reads. It does not change
 the candidate's storage or count reference work as provider performance.
 
-`--decode-steps 3` additionally measures three cached decode positions per prompt.
+`--decode-steps 3` additionally measures three decode positions per prompt.
 Every candidate and the reference consume the first candidate's greedy token
 trajectory. Reports retain only its digest and separate decode aggregates;
 the Experiment output budget must allow prefill plus those decode steps.
@@ -221,6 +221,16 @@ and final verification; prepared candidates use local clear kernels. Source and
 token cohorts must agree even when numeric profiles differ. Whole-topology memory
 admission applies to GKM; `QUALITY_MEMORY` means no accepted quality report was
 produced. Check available capacity with `benchmark run --preflight-only` first.
+
+PUMA's bounded `PumaThreePartyCpu` composition uses three protected workers and
+reveals final token IDs only. Quality reports score top-1 agreement; top-k recall
+and maximum logit error are `null` (shown as `unknown` in human output). Each
+position completes a fresh one-selection request on the common full prefix.
+Allow `prompt_count * (decode_steps + 1)` requests and enough input tokens for
+the longest prefix in the Experiment. Source sharing, setup and memory admission
+repeat under the normal protocol. This is a numeric diagnostic, not the cost of
+one multi-output serving response. The full common-Qwen PUMA checkpoint remains
+outside current source/graph admission.
 
 Both commands accept `--memory-safety-margin-percent` (0–100, default 25).
 Set it to `0` to remove the allocation margin.

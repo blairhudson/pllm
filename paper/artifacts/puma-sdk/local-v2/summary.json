@@ -1,0 +1,46 @@
+{
+  "build": "build-v3",
+  "build_swap_scope": "sampled cached build process tree, not tests or serving",
+  "build_swap_used_growth_bytes": 0,
+  "build_swapout_growth_bytes": 0,
+  "cached_local_build": true,
+  "clippy": {
+    "allowances": [
+      "clippy::needless_range_loop",
+      "clippy::nonminimal_bool"
+    ],
+    "status": "passed"
+  },
+  "comparison": "counts overlap local-v1 and earlier quality suites; no aggregate test total or matched serving result",
+  "coverage_fingerprint_check": "passed",
+  "diff_whitespace": "passed",
+  "full_qwen_quality": {
+    "cli_exit_code": 6,
+    "executed": false,
+    "reason": "native source expansion budget",
+    "status": "blocked"
+  },
+  "installed_files_matching_before_and_after": 367,
+  "installed_tests": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 177,
+    "skipped": 6,
+    "tests": 183
+  },
+  "native_tests": {
+    "failed": 0,
+    "passed": 8
+  },
+  "quality_contract": "final token top-1 only; fresh fixed-count one-selection requests on common full prefixes; no hidden logit metrics",
+  "ruff": "passed",
+  "schema_version": "pllm.puma-quality-conformance.v1",
+  "scope": "bounded quality/SDK/native conformance; full Qwen source admission rejected",
+  "supplemental_fixture_count": 10,
+  "supplemental_fixture_scope": "archive-time hashes match the retained local-v1 fixture pins",
+  "validation_input_count": 747,
+  "validation_inputs_unchanged_before_and_after": true,
+  "wheel_sha256": {
+    "pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl": "6f3dd906728ca71d78b22e1ab3dcfcdd26aa317f057652612f8f4ea7b8f0a938"
+  }
+}
