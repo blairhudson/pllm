@@ -193,8 +193,8 @@ chained shapes. Fresh OS-key exported-API tests cover up to 1024 lanes, the sign
 rounding law and frame/work reconciliation. Allocation-index sweeps inspect
 erasure and still-held reservations inside deallocation; compile-fail checks
 reject cloning setup, runtime and Boolean-share owners. The current suite passes
-**79 native checks** (43 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
-20 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
+**87 native checks** (50 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
+21 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
 four independent Boolean/carry/OT/PPA transcript checks also pass.
 Focused formatting passes; Clippy passes with the existing unrelated
 `needless_range_loop` warnings allowed. Replay uses the commands below.
@@ -303,6 +303,31 @@ full-width transcripts, maximum tiles, opaque A2B→B2A round trips and allocati
 sweeps cover split, every carry round, masked reveal and final rotation. This
 completes the source's bounded conversion selector, not the remaining nonlinear
 decoder, authenticated transport or ordinary SDK method.
+
+### Composable arithmetic owners
+
+The same runtime now executes bounded public affine combinations and standalone
+`TruncAPr`. `affine` binds input lineage, exact public coefficients and interval
+bounds, charges both retained inputs and a separate output pair, and proves the
+declared unwrapped result fits signed ring64. It consumes a schedule ordinal but
+no randomness. `begin_rescale` admits the full helper/work envelope and quarter-ring
+input interval before the pivot draw. Public coefficient products therefore use
+local `MulAP` followed by the original truncation rather than a private `MulAA`.
+
+`plan_ring_product` separately exposes the exact, unrescaled source `MulAA` for
+integer selection products. It uses one Both fill and rotation, with no public
+pivot, helper mask or private draw. Its distinct identity leaves existing Q18
+elementwise and matrix schedules unchanged. `bind_operand` and
+`bind_conversion_input` consume existing local share owners into admitted slots
+without exporting or copying their private components. The caller/compiler still
+supplies the public graph and range obligations.
+
+A composed exact ReLU control runs affine ownership, private sign extraction,
+Boolean-to-arithmetic conversion, exact integer multiplication and subtraction.
+It never reconstructs an intermediate in a role. Independent integer checks
+cover complete ring64 endpoint selections, maximum tiles and stochastic rescale
+hulls; allocation sweeps cover local outputs and every rescale role. This is an
+arithmetic-composition control, not the PUMA GELU/SiLU graph or a decoder result.
 
 ### Independent primitive and transcript vectors
 

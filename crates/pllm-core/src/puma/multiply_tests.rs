@@ -127,6 +127,14 @@ fn finish(
     let op = owners[0].truncation_operation().unwrap();
     assert_eq!(op.consumer, Some(plan.digest()));
     assert!(owners.iter().all(|p| p.truncation_operation() == Some(op)));
+    finish_truncation(owners, messages)
+}
+
+pub(super) fn finish_truncation(
+    owners: &mut [PartyRuntime; 3],
+    mut messages: Vec<Message>,
+) -> [ReplicatedShare; 3] {
+    let op = owners[0].truncation_operation().unwrap();
     for p in [op.evaluator_a(), op.evaluator_b()] {
         let peer = take(&mut messages, p, MessagePhase::MaskedInput);
         let correlation = take(&mut messages, p, MessagePhase::Correlation);

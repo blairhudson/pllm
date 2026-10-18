@@ -686,7 +686,8 @@ fn compound_invalid_interval_and_work_reject_before_allocation_or_randomness() {
 
 #[test]
 fn compound_multiplication_allocation_sweep_erases_before_refund() {
-    for matrix in [false, true] {
+    for kind in 0..3 {
+        let matrix = kind == 1;
         for role in 0..3 {
             for fail_at in 0..=3 {
                 let mut owners = compound_owners(PrssLimits::default());
@@ -698,6 +699,8 @@ fn compound_multiplication_allocation_sweep_erases_before_refund() {
                             compound_bounds()[0],
                         )
                         .unwrap()
+                } else if kind == 2 {
+                    owner.plan_ring_product(&compound_bounds()).unwrap()
                 } else {
                     owner.plan(&compound_bounds()).unwrap()
                 };
@@ -1169,6 +1172,95 @@ fn ppa_conversion_allocation_sweeps_cover_carry_reveal_and_output_rotation() {
                 drop(input);
                 assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
             }
+        }
+    }
+}
+
+#[test]
+fn local_affine_and_standalone_rescale_keep_payloads_until_erasure() {
+    use multiply::arithmetic::Affine;
+    let bounds = multiply::InputBounds {
+        left: multiply::Interval::new(0, 200).unwrap(),
+        right: multiply::Interval::new(0, 0).unwrap(),
+    };
+    for fail_at in 0..=2 {
+        let mut owners = compound_owners(PrssLimits::default());
+        let owner = &mut owners[0];
+        let op =
+            Operation::new(owner.context(), 0, owner.party(), 3, 1, Limits::default()).unwrap();
+        let mut input =
+            ReplicatedShare::from_local(op, owner.party(), &[17; 3], &[34; 3], Limits::default())
+                .unwrap();
+        let usage = owner.payload_usage();
+        let watch = Watch::start(&usage, true, false);
+        FAIL_AT.set(Some(fail_at));
+        let result = owner.affine(
+            &mut input,
+            None,
+            Affine {
+                left: -30952,
+                right: 0,
+                constant: 0,
+            },
+            bounds,
+        );
+        FAIL_AT.set(None);
+        if fail_at < 2 {
+            assert!(matches!(result, Err(Error::Allocation)));
+            assert_eq!(owner.status(), multiply::Status::Retired);
+        } else {
+            assert!(result.is_ok());
+        }
+        owner.cancel();
+        assert_eq!(
+            usage.live_bytes(),
+            if fail_at == 2 { 4 * 3 * 8 } else { 2 * 3 * 8 }
+        );
+        drop(result);
+        drop(input);
+        assert_audit(watch.finish());
+        assert_eq!(usage.live_bytes(), 0);
+        assert_eq!(owner.cursors(), Default::default());
+    }
+    for role in 0..3 {
+        let allocations = if role == 2 { 6 } else { 4 };
+        for fail_at in 0..=allocations {
+            let (mut owners, pivot) = compound_setup(PrssLimits::default());
+            let party = [pivot, pivot.next(), pivot.next().next()][role];
+            let owner = &mut owners[party as usize];
+            let op =
+                Operation::new(owner.context(), 0, owner.party(), 3, 1, Limits::default()).unwrap();
+            let first = (party as u64 + 1) * 17;
+            let second = (party.next() as u64 + 1) * 17;
+            let input = ReplicatedShare::from_local(
+                op,
+                party,
+                &[first; 3],
+                &[second; 3],
+                Limits::default(),
+            )
+            .unwrap();
+            let usage = owner.payload_usage();
+            let watch = Watch::start(&usage, true, false);
+            FAIL_AT.set(Some(fail_at));
+            let result = owner.begin_rescale(input, 18, bounds.left);
+            FAIL_AT.set(None);
+            if fail_at < allocations {
+                assert!(matches!(result, Err(Error::Allocation)));
+                assert_eq!(owner.status(), multiply::Status::Retired);
+            } else {
+                assert!(result.is_ok());
+            }
+            owner.cancel();
+            drop(result);
+            assert_audit(watch.finish());
+            assert_eq!(usage.live_bytes(), 0);
+            assert_eq!(owner.cursors().pair_blocks, 4);
+            assert_eq!(owner.cursors().public_blocks, 1);
+            assert_eq!(
+                owner.cursors().private_blocks,
+                if role == 2 { 3 } else { 0 }
+            );
         }
     }
 }

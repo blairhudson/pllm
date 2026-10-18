@@ -317,6 +317,33 @@ impl PartyRuntime {
         self.checked(result)
     }
 
+    /// Move an existing arithmetic owner into the planned conversion without
+    /// exporting/copying its private components. Caller/compiler binds the graph.
+    pub fn bind_conversion_input(
+        &mut self,
+        mut input: ReplicatedShare,
+    ) -> Result<ReplicatedShare, Error> {
+        let result = (|| {
+            self.source.live()?;
+            let Phase::Conversion(State::Planned(plan)) = self.phase else {
+                return Err(Error::Phase);
+            };
+            if input.party != self.party() {
+                return Err(Error::Role);
+            }
+            if input.operation.context != self.context() {
+                return Err(Error::Binding);
+            }
+            if input.first.len() != plan.lanes() || input.second.len() != plan.lanes() {
+                return Err(Error::Shape);
+            }
+            input.charge_to(&self.payload_usage())?;
+            input.operation = plan.input_binding();
+            Ok(input)
+        })();
+        self.checked(result)
+    }
+
     fn begin_conversion_inner(&mut self, mut input: ReplicatedShare) -> Result<Message, Error> {
         self.source.live()?;
         let Phase::Conversion(State::Planned(plan)) = self.phase else {

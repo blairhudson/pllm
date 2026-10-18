@@ -4,6 +4,9 @@
 //! preprocessing, never all three input shares. The helper knows the random
 //! mask, as in the source, but never receives the masked opening. [`prss`]
 //! supplies the pinned pairwise setup and call-reset AES stream without a dealer.
+//! [`multiply::PartyRuntime`] additionally composes bounded Q18/integer products,
+//! local affine operations, source rescaling, and arithmetic/Boolean conversions
+//! under the same party-local PRSS, operation and live-payload owner.
 //!
 //! This is the pinned SPU `TruncAPr` candidate, not a completed PUMA decoder or
 //! a complete implementation of the approved named source-derived Q18 profile.

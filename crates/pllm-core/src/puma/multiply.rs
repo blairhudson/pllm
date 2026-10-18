@@ -27,10 +27,14 @@ pub mod conversion;
 #[path = "boolean_to_arithmetic.rs"]
 pub mod boolean_to_arithmetic;
 
+#[path = "arithmetic.rs"]
+pub mod arithmetic;
+
 pub const PROFILE: &str = "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
 pub const MATMUL_PROFILE: &str =
     "puma.spu-a42c261.matmul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
 pub const NUMERIC_PROFILE: &str = "puma.source-derived-q18.v1";
+pub const RAW_PRODUCT_PROFILE: &str = "puma.spu-a42c261.mul-aa.ring64.replicated3.v1";
 pub const FRACTION_BITS: u8 = 18;
 
 /// Row-major (rows × inner) · (inner × columns), with one truncation AFTER
@@ -97,6 +101,7 @@ pub struct Plan {
     zero_start: u64,
     product: Product,
     working_bytes: usize,
+    rescale: bool,
 }
 
 impl Plan {
@@ -328,6 +333,7 @@ enum Phase {
     Boolean(boolean::State),
     Conversion(conversion::State),
     BooleanToArithmetic(boolean_to_arithmetic::State),
+    RawComplete(ReplicatedShare),
     Retired,
 }
 
@@ -376,6 +382,7 @@ impl PartyRuntime {
             Phase::Boolean(state) => state.status(),
             Phase::Conversion(state) => state.status(),
             Phase::BooleanToArithmetic(state) => state.status(),
+            Phase::RawComplete(_) => Status::Complete,
             Phase::Retired => Status::Retired,
         }
     }
@@ -405,7 +412,13 @@ impl PartyRuntime {
     /// Worst-case remaining helper work is priced before the public pivot draw;
     /// actual AES accounting still charges only this role's source expansions.
     pub fn plan(&mut self, bounds: &[InputBounds]) -> Result<Plan, Error> {
-        self.plan_product(Product::Elementwise, bounds)
+        self.plan_product(Product::Elementwise, bounds, true)
+    }
+
+    /// Source integer MulAA for exact selector/bit products. No fixed-point
+    /// rescale, pivot or helper draw occurs. Public boxes must fit signed ring64.
+    pub fn plan_ring_product(&mut self, bounds: &[InputBounds]) -> Result<Plan, Error> {
+        self.plan_product(Product::Elementwise, bounds, false)
     }
 
     /// The pinned MatMulAA schedule shares the multiplication/truncation owner:
@@ -413,10 +426,15 @@ impl PartyRuntime {
     /// Uniform public bounds apply to every operand entry. No private value is
     /// inspected to select bounds, dimensions, truncation, or execution order.
     pub fn plan_matmul(&mut self, shape: MatrixShape, bounds: InputBounds) -> Result<Plan, Error> {
-        self.plan_product(Product::Matrix(shape), &[bounds])
+        self.plan_product(Product::Matrix(shape), &[bounds], true)
     }
 
-    fn plan_product(&mut self, product: Product, bounds: &[InputBounds]) -> Result<Plan, Error> {
+    fn plan_product(
+        &mut self,
+        product: Product,
+        bounds: &[InputBounds],
+        rescale: bool,
+    ) -> Result<Plan, Error> {
         let result = (|| {
             self.source.live()?;
             if !matches!(self.phase, Phase::Ready) {
@@ -445,9 +463,10 @@ impl PartyRuntime {
                 return Err(Error::Bounds);
             }
             let mut hash = Sha256::new();
-            hash.update(match product {
-                Product::Elementwise => PROFILE.as_bytes(),
-                Product::Matrix(_) => MATMUL_PROFILE.as_bytes(),
+            hash.update(match (product, rescale) {
+                (Product::Elementwise, false) => RAW_PRODUCT_PROFILE.as_bytes(),
+                (Product::Elementwise, true) => PROFILE.as_bytes(),
+                (Product::Matrix(_), _) => MATMUL_PROFILE.as_bytes(),
             });
             hash.update(NUMERIC_PROFILE.as_bytes());
             if let Product::Matrix(shape) = product {
@@ -456,33 +475,47 @@ impl PartyRuntime {
                 }
             }
             for bound in bounds {
-                bound.dot_product(match product {
-                    Product::Elementwise => 1,
-                    Product::Matrix(shape) => shape.inner,
-                })?;
+                if rescale {
+                    bound.dot_product(match product {
+                        Product::Elementwise => 1,
+                        Product::Matrix(shape) => shape.inner,
+                    })?;
+                } else {
+                    for x in [bound.left.lower, bound.left.upper] {
+                        for y in [bound.right.lower, bound.right.upper] {
+                            i64::try_from(i128::from(x) * i128::from(y))
+                                .map_err(|_| Error::Bounds)?;
+                        }
+                    }
+                }
                 for interval in [bound.left, bound.right] {
                     hash.update(interval.lower.to_le_bytes());
                     hash.update(interval.upper.to_le_bytes());
                 }
             }
             let q = blocks(n)?;
-            self.source.work(6 * q + n as u64 + 1)?;
+            self.source
+                .work(if rescale { 6 * q + n as u64 + 1 } else { 2 * q })?;
             if self.source.runtime.next_sequence() >= self.source.limits.core.max_operations {
                 return Err(Error::Bounds);
             }
-            self.source
-                .cursors
-                .public_blocks
-                .checked_add(1)
-                .ok_or(Error::Bounds)?;
-            self.source
-                .cursors
-                .private_blocks
-                .checked_add(n as u64)
-                .ok_or(Error::Bounds)?;
+            if rescale {
+                self.source
+                    .cursors
+                    .public_blocks
+                    .checked_add(1)
+                    .ok_or(Error::Bounds)?;
+                self.source
+                    .cursors
+                    .private_blocks
+                    .checked_add(n as u64)
+                    .ok_or(Error::Bounds)?;
+            }
             let zero_start = self.source.cursors.pair_blocks;
             let mask_start = zero_start.checked_add(q).ok_or(Error::Bounds)?;
-            mask_start.checked_add(2 * q).ok_or(Error::Bounds)?;
+            if rescale {
+                mask_start.checked_add(2 * q).ok_or(Error::Bounds)?;
+            }
             hash.update(b"pairwise-product-zero");
             hash.update(zero_start.to_le_bytes());
             let mut input = Operation::new(
@@ -493,21 +526,55 @@ impl PartyRuntime {
                 FRACTION_BITS,
                 self.source.limits.core,
             )?;
-            input.source = Some(crate::puma::SourceBinding {
-                setup: self.source.setup,
-                public_start: self.source.cursors.public_blocks,
-                mask_start,
-                output_start: mask_start + q,
-            });
+            if rescale {
+                input.source = Some(crate::puma::SourceBinding {
+                    setup: self.source.setup,
+                    public_start: self.source.cursors.public_blocks,
+                    mask_start,
+                    output_start: mask_start + q,
+                });
+            } else {
+                hash.update(self.source.setup);
+            }
             input.consumer = Some(hash.finalize().into());
             let plan = Plan {
                 input,
                 zero_start,
                 product,
                 working_bytes: working,
+                rescale,
             };
             self.phase = Phase::Planned(plan);
             Ok(plan)
+        })();
+        self.checked(result)
+    }
+
+    /// Move a previously computed local pair into this admitted operand slot.
+    /// No private bytes cross the public accessors and no owner copy is created.
+    pub fn bind_operand(
+        &mut self,
+        operand: Operand,
+        mut value: ReplicatedShare,
+    ) -> Result<ReplicatedShare, Error> {
+        let result = (|| {
+            self.source.live()?;
+            let Phase::Planned(plan) = self.phase else {
+                return Err(Error::Phase);
+            };
+            let operation = plan.operand_binding(operand);
+            if value.party != self.party() {
+                return Err(Error::Role);
+            }
+            if value.operation.context != self.context() {
+                return Err(Error::Binding);
+            }
+            if value.first.len() != operation.lanes || value.second.len() != operation.lanes {
+                return Err(Error::Shape);
+            }
+            value.charge_to(&self.payload_usage())?;
+            value.operation = operation;
+            Ok(value)
         })();
         self.checked(result)
     }
@@ -550,6 +617,9 @@ impl PartyRuntime {
         // Source order: Both fill, rotation, THEN public pivot and truncation.
         // Consume before allocation; cancellation never rewinds either stream.
         let q = blocks(n)?;
+        if !plan.rescale {
+            self.source.runtime.consume_ordinal(operation)?;
+        }
         self.source.cursors.pair_blocks = zero_start.checked_add(q).ok_or(Error::Bounds)?;
         self.source.cursors.aes_work = self.source.work(2 * q)?;
         let seeds = self.source.seeds.as_ref().ok_or(Error::Retired)?;
@@ -611,6 +681,15 @@ impl PartyRuntime {
                 MessagePhase::Multiply,
             )?;
             next.words.charge_to(&self.payload_usage())?;
+            if !plan.rescale {
+                self.phase = Phase::RawComplete(ReplicatedShare {
+                    operation: plan.input,
+                    party: self.party(),
+                    first: product,
+                    second: next.words,
+                });
+                return Ok([None, None]);
+            }
             let mut operation = self.source.plan(plan.lanes(), FRACTION_BITS)?;
             operation.consumer = Some(plan.digest());
             self.source.pending = Some(operation);
@@ -650,6 +729,14 @@ impl PartyRuntime {
     pub fn take_output(&mut self) -> Result<ReplicatedShare, Error> {
         let result = (|| {
             self.source.live()?;
+            if matches!(self.phase, Phase::RawComplete(_)) {
+                let Phase::RawComplete(output) = std::mem::replace(&mut self.phase, Phase::Retired)
+                else {
+                    return Err(Error::Phase);
+                };
+                self.phase = Phase::Ready;
+                return Ok(output);
+            }
             if matches!(self.phase, Phase::BooleanToArithmetic(_)) {
                 let Phase::BooleanToArithmetic(boolean_to_arithmetic::State::Complete(output)) =
                     std::mem::replace(&mut self.phase, Phase::Retired)
