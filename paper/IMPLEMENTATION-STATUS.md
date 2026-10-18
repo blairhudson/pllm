@@ -57,8 +57,11 @@ Completed foundations:
   14 bounded oracle tests pass. The native core now composes that multiplication
   and truncation under one party-local owner and the existing payload ledger.
   Frozen transcript/cursor parity, full-shape exported APIs, allocation failures
-  and cancellation are checked. Graph ranges, remaining protected kernels and
-  SDK/Experiment execution remain open.
+  and cancellation are checked. The same owner now executes public tensor
+  programs for approved Q18 SiLU/GELU with shared branch selection, eager-polynomial
+  interval admission and last-use register retirement. Independent stochastic
+  oracles, 128-lane tiles and failure/erasure checks pass. Whole-decoder ranges,
+  remaining protected tensor operators and SDK/Experiment execution remain open.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

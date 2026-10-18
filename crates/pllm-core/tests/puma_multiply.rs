@@ -23,6 +23,97 @@ fn owners(context: Context) -> [PartyRuntime; 3] {
     setup.each_mut().map(|p| p.finish().unwrap())
 }
 
+#[test]
+fn exported_tensor_activations_use_fresh_party_local_keys_and_keep_tail_decisions_private() {
+    use pllm_core::puma::Operation;
+    use tensor::{Activation, Executor, Program, MAX_TILE_LANES};
+    for kind in [Activation::Gelu, Activation::Silu] {
+        let runtimes = owners(Context::new([81; 32], [92; 32], 7).unwrap());
+        let program = Program::activation(
+            kind,
+            MAX_TILE_LANES,
+            Interval::new(-9 << 18, 9 << 18).unwrap(),
+        )
+        .unwrap();
+        let op = Operation::new(
+            runtimes[0].context(),
+            0,
+            Party::P0,
+            MAX_TILE_LANES,
+            18,
+            Limits::default(),
+        )
+        .unwrap();
+        let x: Vec<_> = (0..MAX_TILE_LANES)
+            .map(|i| [-9_i64 << 18, 0, 9 << 18][i % 3])
+            .collect();
+        let a = vec![u64::MAX - 31; MAX_TILE_LANES];
+        let b = vec![u64::MAX / 2 + 7; MAX_TILE_LANES];
+        let c: Vec<_> = x
+            .iter()
+            .map(|&x| (x as u64).wrapping_sub(a[0]).wrapping_sub(b[0]))
+            .collect();
+        let parts = [&a[..], &b[..], &c[..]];
+        let mut owners = runtimes.map(|r| {
+            let p = r.party() as usize;
+            let input = ReplicatedShare::from_local(
+                op,
+                r.party(),
+                parts[p],
+                parts[(p + 1) % 3],
+                Limits::default(),
+            )
+            .unwrap();
+            Executor::new(r, program.clone(), input).unwrap()
+        });
+        let usages = owners.each_ref().map(|o| o.payload_usage());
+        for _ in 0..program.instructions() {
+            let mut frames: Vec<_> = owners
+                .iter_mut()
+                .flat_map(|o| o.start_step().unwrap().into_iter().flatten())
+                .collect();
+            while !frames.is_empty() {
+                let mut next = vec![];
+                for frame in frames {
+                    next.extend(
+                        owners[frame.recipient() as usize]
+                            .receive(frame)
+                            .unwrap()
+                            .into_iter()
+                            .flatten(),
+                    );
+                }
+                frames = next;
+            }
+            for o in &mut owners {
+                o.finish_step().unwrap();
+            }
+        }
+        let outputs = owners.map(|o| o.finish().unwrap().1);
+        for i in 0..3 {
+            assert_eq!(outputs[i].second(), outputs[(i + 1) % 3].first());
+        }
+        for (lane, &x) in x.iter().enumerate() {
+            let actual = outputs
+                .iter()
+                .fold(0_u64, |v, p| v.wrapping_add(p.first()[lane]))
+                as i64;
+            let expected = if x < 0 {
+                0
+            } else if x > 0 {
+                x
+            } else if kind == Activation::Gelu {
+                2235
+            } else {
+                2229
+            };
+            assert_eq!(actual, expected);
+        }
+        drop(outputs);
+        assert!(usages.iter().all(|u| u.live_bytes() == 0));
+    }
+}
+
 fn shares(op: Plan, operand: Operand, x: &[i64]) -> [ReplicatedShare; 3] {
     let a = vec![u64::MAX - 31; x.len()];
     let b = vec![u64::MAX / 2 + 7; x.len()];

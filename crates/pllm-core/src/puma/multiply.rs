@@ -30,6 +30,9 @@ pub mod boolean_to_arithmetic;
 #[path = "arithmetic.rs"]
 pub mod arithmetic;
 
+#[path = "tensor.rs"]
+pub mod tensor;
+
 pub const PROFILE: &str = "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
 pub const MATMUL_PROFILE: &str =
     "puma.spu-a42c261.matmul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";

@@ -472,3 +472,64 @@ fn opaque_affine_sign_conversion_and_integer_product_compose_exact_relu() {
         assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
     }
 }
+
+#[test]
+fn local_boolean_xor_preserves_source_public_injection_and_random_padding() {
+    for bits in [0, 1, 8, 9, 16, 17, 32, 33, 64] {
+        let mut owners = parties(PrssLimits::default());
+        let mask = if bits == 0 {
+            0
+        } else {
+            u64::MAX >> (64 - bits)
+        };
+        let operation =
+            Operation::new(owners[0].context(), 0, Party::P0, 3, 1, Limits::default()).unwrap();
+        let values = [0, mask, mask / 2];
+        let shared = |reverse: bool| {
+            let a = [0xa5_u64; 3];
+            let b = [0x39_u64; 3];
+            let c = values.map(|v| (if reverse { v ^ mask } else { v }) ^ 0xa5 ^ 0x39);
+            let rows = [&a[..], &b[..], &c[..]];
+            [Party::P0, Party::P1, Party::P2].map(|p| boolean::Share {
+                value: ReplicatedShare::from_local(
+                    operation,
+                    p,
+                    rows[p as usize],
+                    rows[p.next() as usize],
+                    Limits::default(),
+                )
+                .unwrap(),
+                bits,
+            })
+        };
+        let mut left = shared(false);
+        let mut right = shared(true);
+        let public = 1_u64 << bits.min(63);
+        let output = std::array::from_fn::<_, 3, _>(|i| {
+            owners[i]
+                .boolean_xor(&mut left[i], Some(&mut right[i]), public)
+                .unwrap()
+        });
+        for i in 0..3 {
+            assert_eq!(output[i].second(), output[(i + 1) % 3].first());
+            assert_eq!(output[i].bits(), (bits + 1).min(64));
+            for lane in 0..3 {
+                assert_eq!(
+                    output[i].first()[lane],
+                    left[i].first()[lane] ^ right[i].first()[lane] ^ public
+                );
+            }
+            assert_eq!(owners[i].cursors(), Default::default());
+        }
+        for lane in 0..3 {
+            assert_eq!(
+                output.iter().fold(0, |v, p| v ^ p.first()[lane]),
+                mask ^ public
+            );
+        }
+        drop(output);
+        drop(left);
+        drop(right);
+        assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
+    }
+}

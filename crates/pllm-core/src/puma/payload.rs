@@ -45,7 +45,7 @@ impl PayloadUsage {
         self.ledger.limit
     }
 
-    fn reserve(&self, bytes: usize) -> Result<Reservation, Error> {
+    pub(super) fn reserve(&self, bytes: usize) -> Result<Reservation, Error> {
         let before = self
             .ledger
             .live
@@ -73,7 +73,7 @@ impl PayloadUsage {
     }
 }
 
-struct Reservation {
+pub(super) struct Reservation {
     usage: PayloadUsage,
     bytes: usize,
 }

@@ -22,7 +22,7 @@ struct Audit {
     collect: bool,
     exact: bool,
     usage: *const PayloadUsage,
-    slots: [Slot; 32],
+    slots: [Slot; 256],
     allocations: usize,
     frees: usize,
     first_live: usize,
@@ -41,7 +41,7 @@ impl Audit {
             slots: [Slot {
                 address: 0,
                 bytes: 0,
-            }; 32],
+            }; 256],
             allocations: 0,
             frees: 0,
             first_live: 0,
@@ -937,6 +937,142 @@ fn conversion_allocation_failure_sweep_covers_every_role_and_circuit_phase() {
                     assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
                 }
             }
+        }
+    }
+}
+
+fn tensor_owners(
+    kind: multiply::tensor::Activation,
+    lanes: usize,
+) -> [multiply::tensor::Executor; 3] {
+    use multiply::{
+        tensor::{Executor, Program},
+        Interval,
+    };
+    let program =
+        Program::activation(kind, lanes, Interval::new(-9 << 18, 9 << 18).unwrap()).unwrap();
+    let runtimes = compound_owners(PrssLimits::default());
+    let operation = Operation::new(
+        runtimes[0].context(),
+        0,
+        Party::P0,
+        lanes,
+        18,
+        Limits::default(),
+    )
+    .unwrap();
+    let parts = [
+        vec![7; lanes],
+        vec![u64::MAX; lanes],
+        vec![0_u64.wrapping_sub(6); lanes],
+    ];
+    runtimes.map(|runtime| {
+        let p = runtime.party() as usize;
+        let input = ReplicatedShare::from_local(
+            operation,
+            runtime.party(),
+            &parts[p],
+            &parts[(p + 1) % 3],
+            Limits::default(),
+        )
+        .unwrap();
+        Executor::new(runtime, program.clone(), input).unwrap()
+    })
+}
+
+fn tensor_run(
+    owners: &mut [multiply::tensor::Executor; 3],
+    watched: Option<usize>,
+) -> Result<(), Error> {
+    use multiply::tensor::Frame;
+    let collect = |party| {
+        let mut a = AUDIT.get();
+        a.collect = watched == Some(party);
+        AUDIT.set(a);
+    };
+    while !owners[0].complete() {
+        let mut messages: [Option<Frame>; 9] = std::array::from_fn(|_| None);
+        let mut count = 0;
+        for (p, owner) in owners.iter_mut().enumerate() {
+            collect(p);
+            let result = owner.start_step();
+            collect(usize::MAX);
+            for frame in result?.into_iter().flatten() {
+                messages[count] = Some(frame);
+                count += 1;
+            }
+        }
+        while count > 0 {
+            let mut next: [Option<Frame>; 9] = std::array::from_fn(|_| None);
+            count = 0;
+            for frame in messages.into_iter().flatten() {
+                let to = frame.recipient() as usize;
+                collect(to);
+                let result = owners[to].receive(frame);
+                collect(usize::MAX);
+                for frame in result?.into_iter().flatten() {
+                    next[count] = Some(frame);
+                    count += 1;
+                }
+            }
+            messages = next;
+        }
+        for owner in owners.iter_mut() {
+            owner.finish_step()?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn tensor_allocation_failure_sweep_burns_complete_activation_owners() {
+    use multiply::tensor::Activation;
+    for kind in [Activation::Gelu, Activation::Silu] {
+        let mut completed = false;
+        for fail_at in 0..3000 {
+            let mut owners = tensor_owners(kind, 3);
+            let usages = owners.each_ref().map(|o| o.payload_usage());
+            FAIL_AT.set(Some(fail_at));
+            let result = tensor_run(&mut owners, None);
+            FAIL_AT.set(None);
+            if result.is_err() {
+                assert_eq!(result, Err(Error::Allocation));
+                assert!(owners.iter().any(|o| o.retired()));
+            } else {
+                completed = true;
+            }
+            for owner in &mut owners {
+                owner.cancel();
+            }
+            drop(owners);
+            assert!(usages.iter().all(|u| u.live_bytes() == 0));
+            if completed {
+                assert!(fail_at > 1000);
+                break;
+            }
+        }
+        assert!(
+            completed,
+            "allocation sweep did not reach complete execution"
+        );
+    }
+}
+
+#[test]
+fn tensor_registers_and_frames_are_zeroized_before_live_charge_refund() {
+    use multiply::tensor::{Activation, MAX_TILE_LANES};
+    for kind in [Activation::Gelu, Activation::Silu] {
+        for p in 0..3 {
+            let mut owners = tensor_owners(kind, MAX_TILE_LANES);
+            let usages = owners.each_ref().map(|o| o.payload_usage());
+            let watch = Watch::start(&usages[p], false, false);
+            tensor_run(&mut owners, Some(p)).unwrap();
+            let outputs = owners.map(|o| o.finish().unwrap().1);
+            drop(outputs);
+            let audit = watch.finish();
+            assert!(audit.allocations > 300);
+            assert_audit(audit);
+            assert!(usages.iter().all(|u| u.live_bytes() == 0));
         }
     }
 }

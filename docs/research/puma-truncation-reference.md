@@ -329,6 +329,47 @@ cover complete ring64 endpoint selections, maximum tiles and stochastic rescale
 hulls; allocation sweeps cover local outputs and every rescale role. This is an
 arithmetic-composition control, not the PUMA GELU/SiLU graph or a decoder result.
 
+### Shared tensor programs and approved activations
+
+`pllm_core::puma::multiply::tensor` now composes those owners into bounded public
+programs. `Builder` supports affine arithmetic, Q18 or exact integer products,
+standalone rescaling, shared sign extraction and Boolean-to-arithmetic conversion.
+`Program::activation` constructs the approved D6 SiLU/GELU graphs, with the frozen
+binary32/toward-zero constants, coefficient-by-coefficient rescaling, original
+power order and exact branch endpoints. GELU computes `x6=Square(x3)`; SiLU uses
+`x6=mul(x2,x4)`. Every lane executes both polynomials and all comparisons. Exact
+integer selection products keep predicates and selected outputs shared.
+
+Programs admit 1–128 lanes and at most 64 nodes. Public interval propagation
+checks **every eagerly evaluated intermediate**, including polynomial values on
+tail inputs; it rejects unsafe quarter-ring truncations before an executor draws
+randomness. These proofs assume the caller/compiler's public input interval.
+They neither inspect private inputs nor establish whole-checkpoint ranges.
+Program digests bind instructions, coefficients, shifts, geometry, numeric profile
+and all intervals. The runtime preflights the complete work/ordinal envelope and
+conservative register, frame and primitive overlap under its existing 256 KiB cap.
+
+`Executor` consumes one party's existing runtime and input pair. Its public
+`start_step`/`receive`/`finish_step` schedule carries opaque, non-cloneable frames;
+program, invocation, instruction and primitive bindings reject substitutions and
+replay. Successful completion returns that same runtime with advanced PRSS cursors
+and one output share. Last-use registers retire during execution. Cancellation,
+incomplete completion and any transition/allocation error burn the runtime;
+original exported frames retain payload and metadata charges until destruction.
+The caller must still propagate failure to peers. Authenticated transport and
+compiler/SDK decoder execution remain the next integration gates.
+
+Independent stochastic-integer recipes check all branch endpoints, odd lanes and
+128-lane tiles. Production OS-keyed controls check replicated-pair consistency,
+shared zero/identity tails and sequential runtime reuse. Every instruction and
+protocol round has cancellation coverage; allocation-index sweeps and allocator
+callbacks verify erasure before charge refund. The focused native suite passes
+97 checks (60 unit, 8 truncation, 3 PRSS, 3 exported multiplication/tensor and
+23 allocation), and 33 source-profile/oracle checks pass. Targeted Clippy passes
+with the existing `needless_range_loop` warning allowance; unrestricted core-crate
+Clippy still reports unrelated byte-dot/Maverick warnings. These checks establish
+the bounded activation executor, not model quality or serving performance.
+
 ### Independent primitive and transcript vectors
 
 For a zero AES key, eight bytes at cursor 0 are `66e94bd4ef8a2c3b`; a **new**

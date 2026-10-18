@@ -624,8 +624,14 @@ private values to prove that condition. Its Q18 multiplication owner now compose
 one pairwise zero-share fill, product rotation and source-ordered truncation.
 Public interval checks precede PRSS; coupled cancellation and lifetime accounting
 retain the same ceiling. Frozen transcripts and full-shape allocation controls pass.
-Graph range proofs, remaining mixed-kernel scheduling, authenticated transport
-and complete SDK/quality qualification remain open.
+The same party-local owner now executes bounded public tensor programs for the
+approved Q18 SiLU/GELU graphs. Secret comparisons and arithmetic selection retain
+all branch decisions as shares. Public interval checks cover every eagerly
+evaluated polynomial, including tails, before randomness; last-use registers,
+exported frames and pending conversions share the existing payload ceiling.
+Independent stochastic-integer oracles, boundary cases, 128-lane tiles and
+allocation-failure/cancellation checks pass. Whole-decoder range proofs, remaining
+tensor operators, authenticated transport and SDK/quality qualification remain open.
 Contract: `docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
