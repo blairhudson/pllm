@@ -108,6 +108,111 @@ fn rounded(raw: i128, mask: u64, shift: u8) -> i64 {
         as i64
 }
 
+#[test]
+fn half_rotary_preserves_signed_pairs_and_independent_product_roundings() {
+    for (rows, width) in [(1, 2), (3, 6), (2, 64), (1, 128)] {
+        let lanes = rows * width;
+        let values: Vec<_> = (0..lanes)
+            .map(|i| [ONE + 1, -2 * ONE - 3, 0, -1, 1, 3 * ONE][i % 6])
+            .collect();
+        for identity in [false, true] {
+            let cosine: Vec<_> = (0..lanes / 2)
+                .map(|i| {
+                    if identity {
+                        ONE
+                    } else {
+                        [ONE, 0, -ONE, ONE / 2, 185363][i % 5]
+                    }
+                })
+                .collect();
+            let sine: Vec<_> = (0..lanes / 2)
+                .map(|i| {
+                    if identity {
+                        0
+                    } else {
+                        [0, ONE, 0, -227023, 185363][i % 5]
+                    }
+                })
+                .collect();
+            let program = Program::rotary_half(
+                rows,
+                width,
+                Interval::new(-3 * ONE, 3 * ONE).unwrap(),
+                &cosine,
+                &sine,
+            )
+            .unwrap();
+            let mut owners = owners(&program, &values);
+            let usage = owners.each_ref().map(Executor::payload_usage);
+            let mut tapes = vec![];
+            for _ in 0..program.instructions() {
+                if let Some(tape) = step(&mut owners).0 {
+                    tapes.push(tape);
+                }
+            }
+            assert_eq!(tapes.len(), 2);
+            let mut expected = vec![0; lanes];
+            for row in 0..rows {
+                for column in 0..width / 2 {
+                    let left = row * width + column;
+                    let right = left + width / 2;
+                    let c = i128::from(cosine[row * (width / 2) + column]);
+                    let s = i128::from(sine[row * (width / 2) + column]);
+                    let x = i128::from(values[left]);
+                    let y = i128::from(values[right]);
+                    expected[left] =
+                        rounded(x * c, tapes[0][left], 18) + rounded(-y * s, tapes[1][left], 18);
+                    expected[right] =
+                        rounded(y * c, tapes[0][right], 18) + rounded(x * s, tapes[1][right], 18);
+                }
+            }
+            let output = owners.map(|o| o.finish().unwrap().1);
+            assert_eq!(clear(&output), expected);
+            if identity {
+                assert_eq!(expected, values);
+            }
+            assert!(usage
+                .iter()
+                .all(|u| u.peak_bytes() + FIXED_RESERVE_BYTES <= program.admitted_bytes()));
+            drop(output);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+    }
+    // Coalescing the two truncations changes this valid low-code result.
+    assert_eq!(rounded(1, 0, 18) + rounded(1, (1 << 18) - 1, 18), 1);
+    assert_eq!(rounded(2, 0, 18), 0);
+}
+
+#[test]
+fn half_rotary_binds_geometry_and_coefficients_before_execution() {
+    let bounds = Interval::new(-ONE, ONE).unwrap();
+    let make = |rows, width, c: &[i64], s: &[i64]| Program::rotary_half(rows, width, bounds, c, s);
+    let a = make(1, 4, &[ONE; 2], &[0; 2]).unwrap();
+    assert_ne!(a.digest(), make(2, 2, &[ONE; 2], &[0; 2]).unwrap().digest());
+    assert_ne!(
+        a.digest(),
+        make(1, 4, &[ONE - 1; 2], &[0; 2]).unwrap().digest()
+    );
+    assert_ne!(a.digest(), make(1, 4, &[ONE; 2], &[1; 2]).unwrap().digest());
+    for (rows, width) in [(0, 4), (1, 0), (1, 3), (1, 130), (usize::MAX, 4)] {
+        assert!(make(rows, width, &[ONE; 2], &[0; 2]).is_err());
+    }
+    assert!(make(1, 4, &[ONE], &[0; 2]).is_err());
+    assert!(make(1, 4, &[ONE; 2], &[0]).is_err());
+    assert!(make(1, 4, &[ONE + 1; 2], &[0; 2]).is_err());
+    assert!(make(1, 4, &[ONE; 2], &[i64::MIN; 2]).is_err());
+    assert!(make(1, 130, &[ONE; 65], &[0; 65]).is_err());
+    assert!(Program::rotary_half(
+        1,
+        2,
+        Interval::new(0, INPUT_MAX_EXCLUSIVE / ONE).unwrap(),
+        &[ONE],
+        &[0]
+    )
+    .is_err());
+    cancel_at_every_event(&a, &[ONE, -ONE, 1, -1]);
+}
+
 fn row_oracle(
     layer_norm: bool,
     x: &[i64],

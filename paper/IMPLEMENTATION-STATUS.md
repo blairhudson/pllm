@@ -66,8 +66,10 @@ Completed foundations:
   128-lane tiles and failure/erasure checks pass. D10 additionally approves the
   separate `puma.rmsnorm-epsilon1-q18.v1` profile, implemented as uncentered RMSNorm
   with integer-one epsilon and distinct rescales. Zero-row and source-profile
-  identity controls pass. Wider decoder rows, RoPE, whole-model ranges and
-  SDK/Experiment execution remain open.
+  identity controls pass. Half-split rotary additionally preserves two separately
+  truncated public coefficient products per output. Checkpoint/position table
+  binding, wider decoder rows, whole-model ranges and SDK/Experiment execution
+  remain open.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

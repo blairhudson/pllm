@@ -644,9 +644,12 @@ The separately approved `puma.rmsnorm-epsilon1-q18.v1` graph adds uncentered
 RMSNorm with integer-one epsilon, retaining distinct square, mean, rsqrt,
 normalization and public-gamma rescales. Its digest differs from the unchanged
 source-derived profile. Zero, constant and signed row controls preserve the
-stochastic-integer contract within the existing tile/ownership bounds. RoPE,
-wider decoder rows and the complete compiler/SDK path remain unadmitted;
-bounded operator parity supplies no checkpoint-quality result.
+stochastic-integer contract within the existing tile/ownership bounds. A bounded
+half-split rotary program separately preserves both signed coefficient-product
+truncations over supplied public Q18 tables, including exact identity positions.
+Checkpoint/position table binding, wider decoder rows and the complete
+compiler/SDK path remain unadmitted; bounded operator parity supplies no
+checkpoint-quality result.
 Contract: `docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the

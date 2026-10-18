@@ -460,6 +460,33 @@ The combined integration command reached its 120-second outer timeout after the
 allocation, multiply and PRSS suites passed; the eight truncation tests then
 passed in a separate invocation. No performance measurements were taken.
 
+### Public-coefficient half-split rotary program
+
+`Program::rotary_half` composes the existing public row permutation, lane-affine
+and standalone truncation instructions. Each public row supplies one cosine and
+sine per pair of half-split coordinates, already encoded in Q18. For a pair
+`(a,b)` and coefficients `(c,s)`, execution is:
+
+```text
+left  = TruncAPr(a*c, 18) + TruncAPr(-b*s, 18)
+right = TruncAPr(b*c, 18) + TruncAPr( a*s, 18)
+```
+
+Each product retains its own fresh stochastic truncation. Coalescing them changes
+low-code results and is not selected. The literal pair layout agrees with the
+existing semantic executor's half-split rotary operator; this native entry point
+does not generate or authenticate checkpoint/position coefficient tables. All
+parties retain only their local replicated pair, with unchanged PRSS ownership.
+Even widths, total lanes at most 128, coefficient magnitudes at most Q18 one,
+complete input/product/sum bounds and both coefficient arrays precede execution.
+The instruction digest binds row geometry, coefficients and the public range.
+
+The PUMA library suite passes **69 tests**. Independent pairwise integer oracles
+cover signed rotations, two 64-coordinate heads, maximum tiles and exact
+identity-position results. Cancellation at each instruction/round and a separate
+allocation-index/zeroization test pass; focused Clippy and formatting pass.
+No serving benchmark or complete checkpoint RoPE mapping is claimed.
+
 ### Independent primitive and transcript vectors
 
 For a zero AES key, eight bytes at cursor 0 are `66e94bd4ef8a2c3b`; a **new**

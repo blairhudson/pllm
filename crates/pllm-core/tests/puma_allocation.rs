@@ -1150,6 +1150,47 @@ fn tensor_row_zeroization_precedes_refund_at_maximum_geometry() {
 }
 
 #[test]
+fn tensor_rotary_allocation_failures_and_erasure_retain_all_charges() {
+    use multiply::{tensor::Program, Interval};
+    let bound = Interval::new(-1 << 18, 1 << 18).unwrap();
+    let small = Program::rotary_half(1, 4, bound, &[1 << 17; 2], &[-1 << 17; 2]).unwrap();
+    let mut completed = false;
+    for fail_at in 0..512 {
+        let mut owners = tensor_program_owners(&small, 1);
+        let usage = owners.each_ref().map(|o| o.payload_usage());
+        FAIL_AT.set(Some(fail_at));
+        let result = tensor_run(&mut owners, None);
+        FAIL_AT.set(None);
+        if result.is_err() {
+            assert_eq!(result, Err(Error::Allocation));
+            assert!(owners.iter().any(|o| o.retired()));
+        } else {
+            completed = true;
+        }
+        drop(owners);
+        assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        if completed {
+            assert!(fail_at > 50);
+            break;
+        }
+    }
+    assert!(completed);
+    let wide = Program::rotary_half(2, 64, bound, &[1 << 17; 64], &[-1 << 17; 64]).unwrap();
+    for party in 0..3 {
+        let mut owners = tensor_program_owners(&wide, 1);
+        let usage = owners.each_ref().map(|o| o.payload_usage());
+        let watch = Watch::start(&usage[party], false, false);
+        tensor_run(&mut owners, Some(party)).unwrap();
+        let output = owners.map(|o| o.finish().unwrap().1);
+        drop(output);
+        let audit = watch.finish();
+        assert!(audit.allocations > 20);
+        assert_audit(audit);
+        assert!(usage.iter().all(|u| u.live_bytes() == 0));
+    }
+}
+
+#[test]
 fn tensor_register_allocation_failure_refunds_only_after_input_retirement() {
     use multiply::{
         tensor::{Executor, Program},

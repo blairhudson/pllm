@@ -132,6 +132,49 @@ fn affine(left: i64, right: i64, constant: i64) -> Affine {
 }
 
 impl Program {
+    /// Half-split rotary embedding with explicit public Q18 coefficient rows.
+    /// Each row supplies width/2 cosines and sines, repeated across its halves.
+    /// The two signed coefficient products rescale separately before addition.
+    /// Source/position validation and coefficient encoding precede this API.
+    pub fn rotary_half(
+        rows: usize,
+        width: usize,
+        input: Interval,
+        cosine: &[i64],
+        sine: &[i64],
+    ) -> Result<Self, Error> {
+        let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
+        if rows == 0
+            || width == 0
+            || width % 2 != 0
+            || cosine.len() != lanes / 2
+            || sine.len() != lanes / 2
+        {
+            return Err(Error::Shape);
+        }
+        let mut b = Builder::new(lanes, input)?;
+        if cosine.iter().chain(sine).any(|c| !(-ONE..=ONE).contains(c)) {
+            return Err(Error::Bounds);
+        }
+        let x = b.input();
+        let half = width / 2;
+        let mut coefficients = [affine(0, 0, 0); MAX_TILE_LANES];
+        for (i, c) in coefficients[..lanes].iter_mut().enumerate() {
+            *c = affine(cosine[(i / width) * half + i % half], 0, 0);
+        }
+        let cosine_product = b.affine_lanes(x, &coefficients[..lanes])?;
+        let cosine_product = b.rescale(cosine_product, 18)?;
+        let swapped = b.row_map(x, width, RowMap::Rotate(half))?;
+        for (i, c) in coefficients[..lanes].iter_mut().enumerate() {
+            let s = sine[(i / width) * half + i % half];
+            *c = affine(if i % width < half { -s } else { s }, 0, 0);
+        }
+        let sine_product = b.affine_lanes(swapped, &coefficients[..lanes])?;
+        let sine_product = b.rescale(sine_product, 18)?;
+        let output = b.affine(cosine_product, Some(sine_product), affine(1, 1, 0))?;
+        b.finish(output)
+    }
+
     /// Shifted, strictly clipped P-N1 softmax. Every eagerly evaluated power is
     /// admitted, including the lanes subsequently masked below -14.
     pub fn softmax(rows: usize, width: usize, input: Interval) -> Result<Self, Error> {
