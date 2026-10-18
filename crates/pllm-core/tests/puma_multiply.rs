@@ -57,6 +57,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
     let mut owners = owners(context);
     let usages = owners.each_ref().map(|p| p.payload_usage());
     let mut pair_blocks = 0;
+    let mut public_blocks = 0;
     let mut private = [0; 3];
     let mut work = [0; 3];
     let mut admitted = 0;
@@ -85,7 +86,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         });
         assert_eq!(ops, [ops[0]; 3]);
         let op = ops[0];
-        assert_eq!(op.sequence(), 4 * ordinal as u64);
+        assert_eq!(op.sequence(), 5 * ordinal as u64);
         admitted = admitted.max(op.admitted_bytes());
         let mut messages: Vec<_> = owners
             .iter_mut()
@@ -149,6 +150,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         }
         let q = (n as u64).div_ceil(2);
         pair_blocks += 3 * q;
+        public_blocks += 1;
         private[op.helper() as usize] += n as u64;
         for (i, p) in owners.iter().enumerate() {
             work[i] += if i == op.helper() as usize {
@@ -156,7 +158,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
             } else {
                 4 * q + 1
             };
-            assert_eq!(p.cursors().public_blocks, ordinal as u64 + 1);
+            assert_eq!(p.cursors().public_blocks, public_blocks);
             assert_eq!(p.cursors().pair_blocks, pair_blocks);
             assert_eq!(p.cursors().private_blocks, private[i]);
             assert_eq!(p.cursors().aes_work, work[i]);
@@ -171,7 +173,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         let plans = owners.each_mut().map(|p| p.plan_and(n, 14, 5).unwrap());
         let plan = plans[0];
         assert_eq!(plans, [plan; 3]);
-        assert_eq!(plan.sequence(), 4 * ordinal as u64 + 1);
+        assert_eq!(plan.sequence(), 5 * ordinal as u64 + 1);
         let inputs = [Operand::Left, Operand::Right].map(|operand| {
             let value = if operand == Operand::Left {
                 0x1234
@@ -218,7 +220,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
             work[i] += 2 * q;
             assert_eq!(p.cursors().pair_blocks, pair_blocks);
             assert_eq!(p.cursors().aes_work, work[i]);
-            assert_eq!(p.cursors().public_blocks, ordinal as u64 + 1);
+            assert_eq!(p.cursors().public_blocks, public_blocks);
             assert_eq!(p.cursors().private_blocks, private[i]);
         }
         drop(outputs);
@@ -298,10 +300,84 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
                 work[i] += 2 * plan.pair_blocks();
                 assert_eq!(p.cursors().pair_blocks, pair_blocks);
                 assert_eq!(p.cursors().aes_work, work[i]);
-                assert_eq!(p.cursors().public_blocks, ordinal as u64 + 1);
+                assert_eq!(p.cursors().public_blocks, public_blocks);
                 assert_eq!(p.cursors().private_blocks, private[i]);
             }
-            drop(output);
+            if kind == conversion::Kind::MostSignificantBit {
+                // Direct opaque-owner conversion; no caller reconstructs or
+                // copies a predicate between the two protected operations.
+                let plans = std::array::from_fn::<_, 3, _>(|i| {
+                    owners[i].plan_boolean_to_arithmetic(&output[i]).unwrap()
+                });
+                let plan = plans[0];
+                assert_eq!(plans, [plan; 3]);
+                admitted = admitted.max(plan.admitted_bytes());
+                let mut messages: Vec<_> = owners
+                    .iter_mut()
+                    .zip(output)
+                    .flat_map(|(p, x)| {
+                        p.begin_boolean_to_arithmetic(x)
+                            .unwrap()
+                            .into_iter()
+                            .flatten()
+                    })
+                    .collect();
+                let incoming = [
+                    MessagePhase::BooleanOtMask,
+                    MessagePhase::BooleanOtZero,
+                    MessagePhase::BooleanOtOne,
+                ]
+                .map(|phase| {
+                    let original = take(&mut messages, plan.receiver(), phase);
+                    let received = plan
+                        .message_from_received(
+                            original.header(),
+                            original.words(),
+                            Limits::default(),
+                        )
+                        .unwrap();
+                    drop(original);
+                    Some(received)
+                });
+                let reply = owners[plan.receiver() as usize]
+                    .receive_boolean_to_arithmetic(incoming)
+                    .unwrap()
+                    .unwrap();
+                let received = plan
+                    .message_from_received(reply.header(), reply.words(), Limits::default())
+                    .unwrap();
+                drop(reply);
+                owners[plan.helper() as usize]
+                    .receive_boolean_to_arithmetic([Some(received), None, None])
+                    .unwrap();
+                assert!(messages.is_empty());
+                let output = owners.each_mut().map(|p| p.take_output().unwrap());
+                for (lane, &value) in values.iter().enumerate() {
+                    assert_eq!(
+                        output
+                            .iter()
+                            .fold(0_u64, |v, p| v.wrapping_add(p.first()[lane])),
+                        value >> 63
+                    );
+                }
+                let q = (lanes as u64).div_ceil(2);
+                pair_blocks += 3 * q;
+                public_blocks += 1;
+                for (i, p) in owners.iter().enumerate() {
+                    work[i] += 1 + if p.party() == plan.receiver() {
+                        2 * q
+                    } else {
+                        4 * q
+                    };
+                    assert_eq!(p.cursors().pair_blocks, pair_blocks);
+                    assert_eq!(p.cursors().public_blocks, public_blocks);
+                    assert_eq!(p.cursors().private_blocks, private[i]);
+                    assert_eq!(p.cursors().aes_work, work[i]);
+                }
+                drop(output);
+            } else {
+                drop(output);
+            }
             assert!(usages.iter().all(|u| u.live_bytes() == 0));
         }
     }

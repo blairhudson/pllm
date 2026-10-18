@@ -123,6 +123,55 @@ def conversion_vectors():
     return cases
 
 
+def ot_conversion_vectors():
+    """Three-party OT equations with independent AES and scalar bit composition."""
+    ring = (1 << 64)-1
+    cursor = public = 0
+    cases = []
+    n = 3
+    for bits in (0, 1, 4, 8):
+        maximum = (1 << bits)-1
+        values = [0, maximum, maximum//2]
+        x = [[0xa5]*n, [0x33]*n, [v ^ 0xa5 ^ 0x33 for v in values]]
+        transcript = hashlib.sha256()
+
+        def record(words):
+            for v in words:
+                transcript.update(v.to_bytes(8, "little"))
+
+        def compose(words):
+            return [sum(words[i*bits+b] << b for b in range(bits)) & ring for i in range(n)]
+
+        helper = 0
+        if bits == 0:
+            output = [[0]*n for _ in range(3)]
+        else:
+            helper = typed_fill((6).to_bytes(16, "little"), public, 1, 8)[0] % 3
+            public += 1
+            receiver, sender = (helper+1)%3, (helper+2)%3
+            length = n*bits
+            q = (length+1)//2
+            random = [typed_fill(k.to_bytes(16, "little"), cursor, length, 8) for k in (11, 22, 33)]
+            m0, m1 = [typed_fill(((helper+1)*11).to_bytes(16, "little"), cursor+j*q, length, 8) for j in (1, 2)]
+            choices = [(x[receiver][i] >> b) & 1 for i in range(n) for b in range(bits)]
+            masks = [m1[j] if c else m0[j] for j, c in enumerate(choices)]
+            combined = [(x[sender][i] ^ x[helper][i]) >> b & 1 for i in range(n) for b in range(bits)]
+            sums = [(a+b) & ring for a, b in zip(random[helper], random[sender])]
+            messages = [[((v ^ candidate)-sums[j]) & ring for j, v in enumerate(combined)] for candidate in (0, 1)]
+            messages = [[v ^ r for v, r in zip(message, mask)] for message, mask in zip(messages, (m0, m1))]
+            c2 = compose([messages[c][j] ^ masks[j] for j, c in enumerate(choices)])
+            for frame in (masks, messages[0], messages[1], c2):
+                record(frame)
+            output = [None]*3
+            output[helper], output[receiver], output[sender] = compose(random[helper]), c2, compose(random[sender])
+            cursor += 3*q
+        assert [sum(v) & ring for v in zip(*output)] == values
+        for row in output:
+            record(row)
+        cases.append((helper, cursor, transcript.hexdigest()))
+    return cases
+
+
 class BooleanVectors(unittest.TestCase):
     def test_typed_aes_transcripts(self):
         cases = vectors()
@@ -138,4 +187,12 @@ class BooleanVectors(unittest.TestCase):
         self.assertEqual(conversion_vectors(), [
             (22, "31af625820c93e1a53a26ae326a80094496df7e8267315978ee8b76471308d53"),
             (33, "8c54ac188fbaaf4b096ee2bb945fd1c8ca35cc01a6f4fc3086a843531614eeab"),
+        ])
+
+    def test_ot_bit_composition_and_none_cursor_advances(self):
+        self.assertEqual(ot_conversion_vectors(), [
+            (0, 0, "834a709ba2534ebe3ee1397fd4f7bd288b2acc1d20a08d6c862dcd99b6f04400"),
+            (2, 6, "c9aace3e1031119812976b935fa7c65afc4946a8c09f2b9c9e9fe7f37c3c98fb"),
+            (0, 24, "1b13d3dae62b3f0870479cc4e90c41b39f18befdf5bc1f3f171e486fcbeb3806"),
+            (0, 60, "84847a2cda0df6efffa74cdd9c8d47bb3a92179fa8b82fb59c8ae89efc9ac966"),
         ])

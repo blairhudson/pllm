@@ -24,6 +24,9 @@ pub mod boolean;
 #[path = "conversion.rs"]
 pub mod conversion;
 
+#[path = "boolean_to_arithmetic.rs"]
+pub mod boolean_to_arithmetic;
+
 pub const PROFILE: &str = "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
 pub const MATMUL_PROFILE: &str =
     "puma.spu-a42c261.matmul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
@@ -324,6 +327,7 @@ enum Phase {
     Truncating(Operation),
     Boolean(boolean::State),
     Conversion(conversion::State),
+    BooleanToArithmetic(boolean_to_arithmetic::State),
     Retired,
 }
 
@@ -371,6 +375,7 @@ impl PartyRuntime {
             },
             Phase::Boolean(state) => state.status(),
             Phase::Conversion(state) => state.status(),
+            Phase::BooleanToArithmetic(state) => state.status(),
             Phase::Retired => Status::Retired,
         }
     }
@@ -644,6 +649,16 @@ impl PartyRuntime {
 
     pub fn take_output(&mut self) -> Result<ReplicatedShare, Error> {
         let result = (|| {
+            self.source.live()?;
+            if matches!(self.phase, Phase::BooleanToArithmetic(_)) {
+                let Phase::BooleanToArithmetic(boolean_to_arithmetic::State::Complete(output)) =
+                    std::mem::replace(&mut self.phase, Phase::Retired)
+                else {
+                    return Err(Error::Phase);
+                };
+                self.phase = Phase::Ready;
+                return Ok(output);
+            }
             self.truncating()?;
             let output = self.source.take_output()?;
             self.phase = Phase::Ready;

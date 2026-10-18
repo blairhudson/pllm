@@ -193,9 +193,9 @@ chained shapes. Fresh OS-key exported-API tests cover up to 1024 lanes, the sign
 rounding law and frame/work reconciliation. Allocation-index sweeps inspect
 erasure and still-held reservations inside deallocation; compile-fail checks
 reject cloning setup, runtime and Boolean-share owners. The current suite passes
-**69 native checks** (35 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
-18 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
-two independent Boolean/carry transcript checks also pass.
+**75 native checks** (40 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
+19 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
+three independent Boolean/carry/OT transcript checks also pass.
 Focused formatting passes; Clippy passes with the existing unrelated
 `needless_range_loop` warnings allowed. Replay uses the commands below.
 
@@ -258,6 +258,34 @@ allocation-index sweeps check every role and every circuit phase. Native frames
 still store/charge u64 words (42n words across all parties), independently of the
 source's narrower Boolean storage types. Transport/wire metrics and whole-model
 range/fidelity claims require the subsequent SDK composition.
+
+### Boolean-to-arithmetic selection
+
+`plan_boolean_to_arithmetic`, `begin_boolean_to_arithmetic` and
+`receive_boolean_to_arithmetic` now implement the pinned `B2AByOT` selector for
+public widths 0–8. Planning binds an existing opaque Boolean owner; sign outputs
+therefore enter this conversion directly. Helper, receiver and sender retain
+separate views, with pairwise PRSS supplying the source three-party OT masks.
+The receiver returns one arithmetic component to the helper. No participant
+reconstructs the predicate; `take_output` returns an ordinary replicated ring64
+owner. Zero-width public values produce zero shares without PRSS or peer frames.
+Larger widths still require the source's distinct PPA implementation.
+
+For `L=n*bits` and `q=ceil(L/2)`, nonzero conversion draws one public pivot and
+advances pair cursors by `3q`. Helper/sender use `4q` pair AES blocks; the receiver
+uses `2q`, with two logical `None` fills advancing its cursor. Private PRSS stays
+unchanged. Four directed bodies contain `3L+n` ring64 words. These remain native
+payload counts before authenticated transport, framing and setup.
+
+Admission checks the full expanded geometry and worst-role work before the public
+pivot, with `L<=1024` and `4096+8*(16L+8n)` bytes plus existing payloads. Planning
+consumes the nonzero public draw; abandoning its plan retires the common owner.
+Source overflow aliases reject as for truncation. All private payload allocations
+are fallible, and original outgoing messages keep their reservations through
+erasure/deallocation. Independent AES/scalar vectors check masks, both OT messages,
+return components, full output pairs and cursors. Maximum-width/tile, opaque
+MSB-to-arithmetic, malformed phase, replay and allocation-failure controls pass.
+General nonlinear graphs and ordinary SDK/Experiment execution remain open.
 
 ### Independent primitive and transcript vectors
 

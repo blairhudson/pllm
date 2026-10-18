@@ -937,3 +937,129 @@ fn conversion_allocation_failure_sweep_covers_every_role_and_circuit_phase() {
         }
     }
 }
+
+fn boolean_inputs(
+    owners: &mut [multiply::PartyRuntime; 3],
+    bits: u8,
+) -> [multiply::boolean::Share; 3] {
+    let plans = owners
+        .each_mut()
+        .map(|p| p.plan_and(3, bits, bits).unwrap());
+    let mut frames: [Option<Message>; 3] = [None, None, None];
+    for i in 0..3 {
+        let [left, right] = [multiply::Operand::Left, multiply::Operand::Right].map(|side| {
+            plans[i]
+                .share_operand(side, owners[i].party(), &[0; 3], &[0; 3], Limits::default())
+                .unwrap()
+        });
+        frames[i] = Some(owners[i].begin_and(left, right).unwrap());
+    }
+    for i in 0..3 {
+        owners[i]
+            .receive_and(frames[(i + 1) % 3].take().unwrap())
+            .unwrap();
+    }
+    owners.each_mut().map(|p| p.take_boolean_output().unwrap())
+}
+
+#[test]
+fn ot_conversion_allocation_sweeps_keep_masks_and_accepted_outputs_charged() {
+    for bits in [0, 1, 8] {
+        for role in 0..3 {
+            // The source public pivot is role-random; determine this owner's
+            // role before arming the fail allocator, and test every index.
+            for fail_at in 0..=5 {
+                let mut owners = compound_owners(PrssLimits::default());
+                let mut input = boolean_inputs(&mut owners, bits).map(Some);
+                let plans = std::array::from_fn::<_, 3, _>(|i| {
+                    owners[i]
+                        .plan_boolean_to_arithmetic(input[i].as_ref().unwrap())
+                        .unwrap()
+                });
+                let owner = &mut owners[role];
+                let plan = plans[role];
+                let allocations = if bits == 0 {
+                    2
+                } else if owner.party() == plan.receiver() {
+                    3
+                } else {
+                    5
+                };
+                if fail_at > allocations {
+                    continue;
+                }
+                let usage = owner.payload_usage();
+                let watch = Watch::start(&usage, true, false);
+                FAIL_AT.set(Some(fail_at));
+                let result = owner.begin_boolean_to_arithmetic(input[role].take().unwrap());
+                FAIL_AT.set(None);
+                if fail_at < allocations {
+                    assert!(matches!(result, Err(Error::Allocation)));
+                    assert_eq!(owner.status(), multiply::Status::Retired);
+                } else {
+                    assert!(result.is_ok());
+                }
+                owner.cancel();
+                drop(result);
+                assert_audit(watch.finish());
+                for p in &mut owners {
+                    p.cancel();
+                }
+                drop(input);
+                assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
+            }
+        }
+        if bits == 0 {
+            continue;
+        }
+        for fail_at in 0..=2 {
+            let mut owners = compound_owners(PrssLimits::default());
+            let input = boolean_inputs(&mut owners, bits);
+            let plans = std::array::from_fn::<_, 3, _>(|i| {
+                owners[i].plan_boolean_to_arithmetic(&input[i]).unwrap()
+            });
+            let plan = plans[0];
+            let mut frames: Vec<_> = owners
+                .iter_mut()
+                .zip(input)
+                .flat_map(|(p, x)| {
+                    p.begin_boolean_to_arithmetic(x)
+                        .unwrap()
+                        .into_iter()
+                        .flatten()
+                })
+                .collect();
+            let messages = [
+                MessagePhase::BooleanOtMask,
+                MessagePhase::BooleanOtZero,
+                MessagePhase::BooleanOtOne,
+            ]
+            .map(|phase| {
+                let at = frames
+                    .iter()
+                    .position(|m| m.header().phase == phase)
+                    .unwrap();
+                Some(frames.remove(at))
+            });
+            let owner = &mut owners[plan.receiver() as usize];
+            let usage = owner.payload_usage();
+            let watch = Watch::start(&usage, true, false);
+            FAIL_AT.set(Some(fail_at));
+            let result = owner.receive_boolean_to_arithmetic(messages);
+            FAIL_AT.set(None);
+            if fail_at < 2 {
+                assert!(matches!(result, Err(Error::Allocation)));
+                assert_eq!(owner.status(), multiply::Status::Retired);
+            } else {
+                assert!(result.is_ok());
+            }
+            owner.cancel();
+            drop(result);
+            assert_audit(watch.finish());
+            for p in &mut owners {
+                p.cancel();
+            }
+            assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
+        }
+    }
+}
