@@ -1,0 +1,89 @@
+{
+  "schema": "puma-mul-trunc-public-vectors.v1",
+  "canonical_vectors_sha256": "1e60a53b6049faa7f3c5f2cce9908d7545edbbbb9b55324b40ec9a66bfe4b167",
+  "cases": [
+    {
+      "sequence": 0, "lanes": 3, "roles": {"a": 2, "b": 0, "h": 1},
+      "plan": {
+        "profile": "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1",
+        "numeric_profile": "puma.source-derived-q18.v1",
+        "prss_profile": "puma.spu-a42c261.yacl-5418371.prss.le64.aes128-ctr-call-reset.v1",
+        "sequence": 0, "lanes": 3, "shift": 18, "roles": {"a": 2, "b": 0, "h": 1},
+        "public_pivot_start": 0, "raw_pivot_hex": "4956809c4a5e4986",
+        "mul_zero": {"start": 0, "end": 2, "control": "Both", "words_per_stream": 3, "aes_per_role": 4},
+        "trunc_mask_start": 2, "trunc_output_start": 4,
+        "trunc_controls": ["Second", "Both", "First"],
+        "helper_private_start": 0, "helper_private_words": 6, "pair_end": 6,
+        "aes_work_delta": [9, 16, 9], "mul_routes": [[0, 2], [1, 0], [2, 1]],
+        "directed_frames": 9, "wire_payload_words": 33
+      },
+      "after": {"public": 1, "pair": 6, "private": [0, 3, 0], "work": [9, 16, 9], "sequence": 1},
+      "expected_signed": ["0", "-17592186044416", "262160"],
+      "mul_components_hex": [
+        ["8e98420084b8ce81", "fe3329b69eeb5d3d", "802ffffe9609b4ec"],
+        ["873f5a69ba8c28d0", "9bcd31aa69cd3c07", "77c331ffc33530fe"],
+        ["ea286395c0bb08a6", "25ffa49ef74766bc", "080cce11a7011a05"]
+      ],
+      "output_pairs_hex": [
+        [["0821f827092cde45", "70d32ed2779895e7", "61d0515c945468bf"], ["5731938dd7ad98f8", "d1fdd45a28f2fb1c", "1d881f85d4f92e31"]],
+        [["5731938dd7ad98f8", "d1fdd45a28f2fb1c", "1d881f85d4f92e31"], ["a0ac744b1f2588c3", "bd2eecd35f746efd", "80a78f1d96b66920"]],
+        [["a0ac744b1f2588c3", "bd2eecd35f746efd", "80a78f1d96b66920"], ["0821f827092cde45", "70d32ed2779895e7", "61d0515c945468bf"]]
+      ],
+      "canonical_case_sha256": "8a84f2d8c9d7d874986f0d5c6422c35bacfa1a43620021171275cacd3fe9d4df"
+    },
+    {
+      "sequence": 1, "lanes": 1, "roles": {"a": 0, "b": 1, "h": 2},
+      "plan": {
+        "profile": "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1",
+        "numeric_profile": "puma.source-derived-q18.v1",
+        "prss_profile": "puma.spu-a42c261.yacl-5418371.prss.le64.aes128-ctr-call-reset.v1",
+        "sequence": 1, "lanes": 1, "shift": 18, "roles": {"a": 0, "b": 1, "h": 2},
+        "public_pivot_start": 1, "raw_pivot_hex": "316318029dc409dc",
+        "mul_zero": {"start": 6, "end": 7, "control": "Both", "words_per_stream": 1, "aes_per_role": 2},
+        "trunc_mask_start": 7, "trunc_output_start": 8,
+        "trunc_controls": ["First", "Second", "Both"],
+        "helper_private_start": 0, "helper_private_words": 2, "pair_end": 9,
+        "aes_work_delta": [5, 5, 8], "mul_routes": [[0, 2], [1, 0], [2, 1]],
+        "directed_frames": 9, "wire_payload_words": 11
+      },
+      "after": {"public": 2, "pair": 9, "private": [0, 3, 1], "work": [14, 21, 17], "sequence": 2},
+      "expected_signed": ["17592186044416"],
+      "mul_components_hex": [["64c6f50177412a3f"], ["39773c93e8cb09bf"], ["a1c1ce6a9ff3cc01"]],
+      "output_pairs_hex": [
+        [["8b9bf50ac2ec9821"], ["ad0f4e4c9932a30d"]],
+        [["ad0f4e4c9932a30d"], ["c754cca8a3e0c4d2"]],
+        [["c754cca8a3e0c4d2"], ["8b9bf50ac2ec9821"]]
+      ],
+      "canonical_case_sha256": "2a57d4304d81a5ff9560f956ed1a2b9a45ffc45e6c2a0d9763b9dcc4e8603154"
+    },
+    {
+      "sequence": 2, "lanes": 4, "roles": {"a": 0, "b": 1, "h": 2},
+      "plan": {
+        "profile": "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1",
+        "numeric_profile": "puma.source-derived-q18.v1",
+        "prss_profile": "puma.spu-a42c261.yacl-5418371.prss.le64.aes128-ctr-call-reset.v1",
+        "sequence": 2, "lanes": 4, "shift": 18, "roles": {"a": 0, "b": 1, "h": 2},
+        "public_pivot_start": 2, "raw_pivot_hex": "03a70898232dea85",
+        "mul_zero": {"start": 9, "end": 11, "control": "Both", "words_per_stream": 4, "aes_per_role": 4},
+        "trunc_mask_start": 11, "trunc_output_start": 13,
+        "trunc_controls": ["First", "Second", "Both"],
+        "helper_private_start": 1, "helper_private_words": 8, "pair_end": 15,
+        "aes_work_delta": [9, 9, 17], "mul_routes": [[0, 2], [1, 0], [2, 1]],
+        "directed_frames": 9, "wire_payload_words": 44
+      },
+      "after": {"public": 3, "pair": 15, "private": [0, 3, 5], "work": [23, 30, 34], "sequence": 3},
+      "expected_signed": ["0", "262144", "-262146", "17592186028032"],
+      "mul_components_hex": [
+        ["dc46cd6dfa7402f0", "293b87702de6af70", "616afa51e910119f", "264a9d44f107d940"],
+        ["93280a8cd42e6178", "19673cb6d3b0bbe0", "f1887f448e799680", "912cc7d82f73f1e0"],
+        ["90912805315d9b98", "bd5d3be8fe6894af", "ad0c8659886e57e0", "88889ae1df8434e1"]
+      ],
+      "output_pairs_hex": [
+        [["8f2dd0ccdf4f4cdf", "d33dd07f2bb88f33", "0dd6297bbc34c869", "cf4e81ece909f239"], ["11f215cb082b3782", "9a47ffcc2ae671ac", "1129ff09ee4f4e22", "afbcc5ea1ff1272b"]],
+        [["11f215cb082b3782", "9a47ffcc2ae671ac", "1129ff09ee4f4e22", "afbcc5ea1ff1272b"], ["5ee0196818857b9f", "927a2fb4a964ff21", "e0ffd77a5577e973", "80f4c828f704a69c"]],
+        [["5ee0196818857b9f", "927a2fb4a964ff21", "e0ffd77a5577e973", "80f4c828f704a69c"], ["8f2dd0ccdf4f4cdf", "d33dd07f2bb88f33", "0dd6297bbc34c869", "cf4e81ece909f239"]]
+      ],
+      "canonical_case_sha256": "036182df14cc0be5a6ccb87a74d1b83bd8d712906c3e2c9b66a711f9925d05e8"
+    }
+  ]
+}

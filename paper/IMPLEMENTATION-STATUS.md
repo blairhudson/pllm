@@ -46,6 +46,19 @@ Completed foundations:
   agreement, with complete-state equality, broader quality and matched serving
   costs still open. Replay uses the standard command in
   [the factory README](../examples/papers/README.md#completed-quality-smoke).
+- The [PUMA truncation/PRSS reference](../docs/research/puma-truncation-reference.md)
+  checks the source AES schedule and replicated arithmetic. Its live payload
+  ledger now retains exported-buffer charges through erasure and deallocation.
+  Public unwrapped range proofs and complete protected graph/SDK execution remain
+  open. D6 approves the named source-derived Q18 interpretation, not an unavailable
+  evaluated-build identity.
+  The separate [multiply/truncate specification](reproduction-contracts/puma/README.md)
+  proves the four-corner product interval and a closed source-ordered PRSS schedule;
+  14 bounded oracle tests pass. The native core now composes that multiplication
+  and truncation under one party-local owner and the existing payload ledger.
+  Frozen transcript/cursor parity, full-shape exported APIs, allocation failures
+  and cancellation are checked. Graph ranges, remaining protected kernels and
+  SDK/Experiment execution remain open.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

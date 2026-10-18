@@ -36,6 +36,7 @@ pub mod progressive_head;
 pub mod public_entropy;
 pub mod public_file;
 pub mod public_transforms;
+pub mod puma;
 pub mod residual_silu_reference;
 pub mod retained_kv;
 pub mod rms_norm;

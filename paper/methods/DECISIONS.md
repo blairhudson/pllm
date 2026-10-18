@@ -2,7 +2,10 @@
 
 Status: author decisions recorded. CPU-first Apple-Silicon execution and the
 common Qwen2.5-0.5B model are approved. Bounded Poulpy qualification is approved;
-backend adoption for the source methods remains open.
+backend adoption for the source methods remains open. D6–D9 approve named PUMA
+and FuseFSS source-derived profiles, retain BumbleBee's final-paper target, and
+select a fixed-count private token-feedback contract for the four shared-computation
+methods. These decisions do not qualify complete implementations or measurements.
 
 The author has approved genuine independent reimplementations of all ten methods.
 Their original protocols, arithmetic, role ownership and security requirements are
@@ -90,8 +93,10 @@ output disclosure and permitted client operations. Compare exact correctness to
 each method's own clear oracle, then apply a frozen quality criterion before cost
 ranking. Do not force all methods into PLLM W8A8/ring32.
 
-**Additional decisions remain necessary:** concrete private token-feedback/output
-contracts, unresolved approximation profiles, and any new persistent KV policy.
+**Additional decisions remain necessary:** unresolved approximation profiles and
+any new persistent KV policy. D6–D9 now settle the specified PUMA/FuseFSS numeric
+choices and shared-computation token-feedback/output contract; other method
+contracts remain separate.
 Use full-prefix feedback where that is the evidenced original schedule; do not
 silently replace it with a faster cache. Existing encrypted-cache methods retain
 their own layouts and state rules. This model decision does not approve arbitrary
@@ -173,6 +178,80 @@ in-process reference retains its separate scope.
 The [SDK integration contract](sdk-integration.md) records the shared extension
 points and concrete end-to-end completion checks.
 
+## D6. Approved PUMA source-derived Q18 profile
+
+**Approved 17 October 2026 via the user question tool:** adopt the named profile
+`puma.source-derived-q18.v1`, exactly as specified in
+[source resolution §3.3](../reproduction-contracts/shared-profile-resolution.md#33-approved-p-n1-profile-source-derived-q18).
+This selects the documented source-derived interpretation, not bit identity with
+the missing evaluated graph.
+
+The approved rules include ring64/Q18, finite binary32/toward-zero encoding,
+pinned replicated arithmetic and stochastic `TruncAPr`; the stated GELU/SiLU
+constants and evaluation order; shifted clipping before summation with five
+softmax squares and encoded-zero exponential epsilon; and centered mean-square
+LayerNorm with encoded epsilon two and the documented reciprocal/rsqrt schedules.
+The explicit Llama RMSNorm/RoPE and checkpoint/frontend gaps in §3.3 remain gaps.
+
+**Effect:** P-N1's adoption approval gate is closed for this named profile.
+Complete operator/graph implementation, source-model/checkpoint locks, per-product
+range proofs, mixed-kernel PRSS scheduling, protected transport, D5 SDK integration
+and quality/cost qualification remain open. Original evaluated-table reproduction
+still requires its missing graph/configuration evidence.
+
+## D7. BumbleBee final-paper target
+
+**Approved 17 October 2026 via the user question tool:** retain the NDSS final
+paper as the governing target. Do **not** adopt the artifact's Q16/four-squaring profile or
+combine artifact settings with final-paper settings by convenience.
+
+**Effect:** target choice is settled; **B-N1 final-paper mapping remains open**.
+Obtain the evaluated numeric/configuration/HE manifest enumerated in
+[source resolution §4.4](../reproduction-contracts/shared-profile-resolution.md#44-b-n1-final-paper-mapping-remains-open):
+rounding, per-node rings/scales, activation constants/endpoints, normalization,
+truncation/error flags, ordered moduli/levels, noise/key switching and frontend
+identity. Candidate artifact constants/primes remain evidence, not adopted
+final-paper parameters. D9 selects the new transaction's output policy without
+establishing the original evaluated frontend identity.
+Independent HE/RLWE, noise, key-graph and circuit-privacy qualification also
+remain open; candidate prime lists do not establish their security.
+
+## D8. Approved FuseFSS source-derived descriptor profile
+
+**Approved 17 October 2026 via the user question tool:** adopt the named profile
+`fusefss.source-derived-ring50-q12.v1`: ring50/Q12 descriptors, nearest-even
+**external input and weight** encoding, and SIGMA's floor-defined CPU tables,
+ARS/rescales and internal evaluation order, as specified in
+[source resolution §5.1](../reproduction-contracts/shared-profile-resolution.md#51-approved-f-n1-descriptor-profile).
+External nearest-even encoding is not permission to change internal floor rules.
+
+**Effect:** F-N1's adoption approval gate is closed for this named profile.
+Freeze and implement every gate descriptor/LUT/coefficient/rescale/Phi byte,
+secure backend and complete graph; establish range proofs, D9 boundaries,
+transport, D5 SDK integration and quality/cost evidence. The missing evaluated
+descriptor artifact still blocks claims of original FuseFSS numerical identity.
+
+## D9. Fixed-count private token feedback
+
+**Approved 17 October 2026 via the user question tool:** PUMA, BumbleBee, SIGMA
+and FuseFSS use a public fixed generation count, protected full-prefix recomputation for every
+selection, lowest-index protected argmax, private token-ID feedback/append,
+and final **client-only token-ID reveal** after the complete loop. Equal encoded
+maximum scores select the lowest vocabulary index. There is no intermediate
+token/logit reveal or EOS-dependent early exit in this contract.
+
+For SIGMA/FuseFSS, explicitly add and charge the missing protected token embedding,
+final normalization and complete vocabulary head. The selected completion uses
+protected equality→one-hot embedding and preserves each method's model ownership,
+online roles and dealer assumptions. See the
+[complete transaction](../reproduction-contracts/shared-profile-resolution.md#6-token-feedback-and-state-precise-evidenced-boundary).
+
+**Effect:** T-N1's boundary/tie approval gate is closed. Full protected execution,
+fresh per-step material, cancellation/retirement, prefill plus multiple actual
+feedback selections, admission, D5 integration and quality/cost evidence remain
+required. Persistent KV, streaming disclosure, stochastic sampling, full logits,
+EOS-short-circuit and cross-request continuation are not approved by D9.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -182,7 +261,12 @@ points and concrete end-to-end completion checks.
 | D3 | Approved: Qwen2.5-0.5B-Instruct | Common-model work preserves each method's numerics; substantial protocol/state resolutions still need approval. |
 | D4 | Approved: bounded Poulpy torus qualification | At most two refreshes, one CPU execution thread, independent numerical checks, and an 8 GiB admission ceiling; no implied source-method mapping. |
 | D5 | Required: ordinary SDK integration | Component, Pipeline, Experiment, compiler, SDK/gateway, CLI and benchmark checks gate complete-method status. |
+| D6 | Approved: `puma.source-derived-q18.v1` | P-N1 adoption closed for §3.3's named interpretation; implementation/range/transport/SDK/quality and evaluated-build identity remain separate. |
+| D7 | Approved: BumbleBee final-paper target | Artifact Q16 is not adopted; B-N1 evaluated-final-paper mapping remains open. |
+| D8 | Approved: `fusefss.source-derived-ring50-q12.v1` | F-N1 adoption closed; nearest-even external encoding and SIGMA floor internals are explicit; full descriptors/backend/graph qualification remains open. |
+| D9 | Approved: fixed-count private full-prefix feedback | T-N1 choice closed; lowest-index argmax, final client-only IDs, and charged SIGMA/FuseFSS boundary completion still need implementation and qualification. |
 
-Numerical conflicts in PUMA, BumbleBee, FuseFSS and NEXUS need complete concrete
-profiles or better source evidence. Those decisions will be raised individually
-before the affected implementation. This register grants no blanket approval.
+D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
+final-paper mapping, NEXUS numerical conflicts and any further adaptation still
+need concrete source evidence or their own decision. This register grants no
+blanket approval and changes no measured history or complete-method status.

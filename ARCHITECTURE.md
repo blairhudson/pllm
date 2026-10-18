@@ -611,6 +611,22 @@ copies and scratch under 256 MiB and bounds product work. Code-distance and
 dual-LPN certification, batch delegation and decoder transport remain absent.
 Query payload, public tables and estimated field-boundary bytes remain separate;
 there is no full-wire or process peak-memory result.
+The separate Rust-only `puma` module implements three-party replicated TruncAPr
+with source-pinned party-local PRSS. Each AES fill starts from its little-endian
+cursor, increments the counter big-endian within that fill, and discards unused
+tail bytes. Fresh pairwise setup, purpose/cursor bindings and coupled failure
+retirement preserve the pinned schedule. Original exported frames and shares keep
+per-runtime payload reservations through erasure and deallocation under a 256 KiB
+ceiling, including a 4096-byte fixed reserve. Independent AES/transcript vectors,
+small-ring arithmetic and allocation-failure checks pass. The intended unwrapped
+input must lie in the public quarter-ring range; the runtime does not reconstruct
+private values to prove that condition. Its Q18 multiplication owner now composes
+one pairwise zero-share fill, product rotation and source-ordered truncation.
+Public interval checks precede PRSS; coupled cancellation and lifetime accounting
+retain the same ceiling. Frozen transcripts and full-shape allocation controls pass.
+Graph range proofs, remaining mixed-kernel scheduling, authenticated transport
+and complete SDK/quality qualification remain open.
+Contract: `docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
 source's float32-before-division boundary. Dense XOR lookup preserves original

@@ -1,0 +1,21 @@
+{
+  "schema": "puma-mul-trunc-spec-sources.v1",
+  "review_date": "2026-10-17",
+  "policy": "Immutable source bytes are specification only; never imported, executed, vendored or linked. Tests are offline and need none of these files.",
+  "repositories": {
+    "P": {"repository": "secretflow/spu", "commit": "a42c261e50fe0602ccdec4b188b8dc2cbcfbb7b4"},
+    "Y": {"repository": "secretflow/yacl", "commit": "5418371c4335f4a64fbd0bdabb0efd94da2af808"}
+  },
+  "url_template": "https://raw.githubusercontent.com/{repository}/{commit}/{path}",
+  "files": [
+    {"repository": "P", "path": "libspu/mpc/aby3/arithmetic.cc", "sha256": "e06d00adb3a292f4016cb8de590700a2baa5293e518fc1b90cd3eb72c945554e", "evidence": "181-224: P2A debug-only zero randomization; 425-459: MulAA Both/cross terms/rotate; 735-747: masked opening; 750-941: TruncAPr"},
+    {"repository": "P", "path": "libspu/kernel/hal/fxp_base.cc", "sha256": "2d6a32362c5996fb181128b3560315e8f38753287648bf30fa7ae11b49dbddb7", "evidence": "255-261: f_mul performs _mul then _trunc at configured fractional bits; D6 selects Q18 and TruncAPr"},
+    {"repository": "P", "path": "libspu/mpc/common/prg_state.h", "sha256": "a6950bfb392bd1644e9089806713446423244d18caa8156b0682c416eb03f9fd", "evidence": "62-114: adjacent-pair relation, Both/First/Second/None and shared cursor; public/private fills"},
+    {"repository": "P", "path": "libspu/mpc/common/prg_state.cc", "sha256": "2f419cd692f6924c2029ae4a17ad87f7a3249c72b73d0c15ca40dc77bb7a2364", "evidence": "32-61: role-local seeds and executable seed direction; 64-75: fork has its own draws and is outside this schedule"},
+    {"repository": "P", "path": "libspu/mpc/common/communicator.h", "sha256": "fa1bb1b38e4c87c5955ae5197baf8f5a229412b650c8b4d89123cb30d0cb1dce", "evidence": "134-146: rotate sends PrevRank and receives NextRank"},
+    {"repository": "P", "path": "bazel/repositories.bzl", "sha256": "b3e59f12e6267c49f96a4f11716672a2a77dee77a1baa8cd5fcf043139bf1970", "evidence": "21: exact YACL_COMMIT_ID"},
+    {"repository": "Y", "path": "yacl/crypto/tools/prg.h", "sha256": "c68bfffe2125c1b64c434223f401549ec3403100b92b0c8548a13c094eec2416", "evidence": "63-72: typed fill uses numel*sizeof(T) bytes"},
+    {"repository": "Y", "path": "yacl/crypto/tools/prg.cc", "sha256": "7897c26f22f49c7848d7f11400c9f6701013abbdf58d3c00db7d59bfd86a2395", "evidence": "19-35,67: new CTR instance with count as IV, encrypt zero bytes, return count+ceil(bytes/16)"},
+    {"repository": "Y", "path": "yacl/crypto/base/symmetric_crypto.cc", "sha256": "e0029610d837e59bb92e9773fb7fbddf74f46aa8b2ce7607bc87385695d02a8f", "evidence": "32-39,51-75: EVP AES-128-CTR with native key/IV bytes; selected ABI is LE64/LE128"}
+  ]
+}
