@@ -132,10 +132,10 @@ feature and cannot be made safe by these in-memory types.
 Admission remains 1024 lanes/4096 operations. Additional cumulative work ceiling:
 `(3*1024+3)*4096` AES blocks, locally reducible. Each evaluator uses `2*ceil(n/2)`
 pairwise AES blocks; H uses `4*ceil(n/2)+n`, plus each role's one public block.
-Fixed-size setup allocates no payload buffers. No generic `PrgState`/None/fork
-or mixed-kernel cursor scheduler is claimed; this owner admits sequential
-TruncAPr-only schedules. Full PUMA integration must reconcile every other
-kernel's PRSS consumption with the same source schedule.
+Fixed-size setup allocates no payload buffers. The direct `SourceParty` API admits
+sequential TruncAPr-only schedules. Its compound owner below additionally composes
+elementwise/matrix multiplication and typed Boolean AND on that same stream.
+Other kernels still need their source-ordered consumption contracts.
 
 ### Native Q18 multiply → truncate
 
@@ -191,15 +191,44 @@ product components, complete output shares and all stream cursors across odd/eve
 chained shapes. Fresh OS-key exported-API tests cover up to 1024 lanes, the signed
 rounding law and frame/work reconciliation. Allocation-index sweeps inspect
 erasure and still-held reservations inside deallocation; compile-fail checks
-reject cloning setup and runtime owners. The current suite passes **56 native
-checks** (25 unit, 8 truncation, 3 PRSS, 2 compound exported-API, 16 allocation,
-2 compile-fail). The frozen multiplication oracle's 14 checks also pass.
+reject cloning setup, runtime and Boolean-share owners. The current suite passes
+**63 native checks** (30 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
+17 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
+one independent typed Boolean transcript check also pass.
 Focused formatting passes; Clippy passes with the existing unrelated
 `needless_range_loop` warnings allowed. Replay uses the commands below.
 
 Graph-wide range derivation, other mixed kernels, confidential authenticated
 transport, protected feedback and ordinary SDK/Experiment execution remain open.
 This native integration supplies no checkpoint quality or serving measurement.
+
+### Typed Boolean products on the same stream
+
+`PartyRuntime.plan_and`, `begin_and`, `receive_and` and `take_boolean_output`
+implement the same source's
+[`AndBB`](https://github.com/secretflow/spu/blob/a42c261e50fe0602ccdec4b188b8dc2cbcfbb7b4/libspu/mpc/aby3/boolean.cc).
+Each party computes three local AND cross-products, XORs its adjacent fresh
+edge words, then rotates the masked component. No party reconstructs a value.
+Boolean shares have their own non-cloneable type and frame namespace; operand
+position, nominal widths, setup, phase, ordinal and pair cursor bind admission.
+
+The source chooses an 8/16/32/64-bit backing type from the larger public operand
+width. Individual shares fill that type even when the reconstructed value has
+fewer significant bits. One Both fill advances the shared pair cursor by
+`ceil(n*backing_bytes/16)` and uses twice that many AES blocks per party. Public
+and private cursors do not advance. Tail bytes retire after each fill, so replacing
+these typed draws with ring64 draws would change subsequent truncation material.
+Native payload storage remains fully charged u64 words, including narrow shares;
+typed AES consumption is not a wire-byte or allocation-saving claim.
+
+Independent scalar AES/XOR fixtures check complete rotation hashes across all four
+backing types and partial-block transitions. Native checks cover every nominal
+width 0–64 and up to 1024 lanes. Fresh OS-key exported-API execution interleaves
+Boolean and Q18 matrix/elementwise operations on one source owner. Allocation
+failure, substitution, replay, wrong output extraction and cancellation retire the
+coupled keys; original frames remain charged until erasure and deallocation.
+The existing 256 KiB ceiling is unchanged. Carry circuits, conversions and complete
+comparison/nonlinear operators remain subsequent integration work.
 
 ### Independent primitive and transcript vectors
 

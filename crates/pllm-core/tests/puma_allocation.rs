@@ -806,3 +806,54 @@ fn compound_original_rotation_payload_survives_owner_and_is_erased_before_refund
     assert_eq!(usage.live_bytes(), 0);
     assert_audit(watch.finish());
 }
+
+#[test]
+fn boolean_allocation_failures_and_original_frames_keep_the_common_reservation() {
+    for bits in [1, 9, 17, 64] {
+        for role in 0..3 {
+            for fail_at in 0..=3 {
+                let mut owners = compound_owners(PrssLimits::default());
+                let owner = &mut owners[role];
+                let plan = owner.plan_and(3, bits, bits).unwrap();
+                let [left, right] =
+                    [multiply::Operand::Left, multiply::Operand::Right].map(|operand| {
+                        plan.share_operand(
+                            operand,
+                            owner.party(),
+                            &[17; 3],
+                            &[29; 3],
+                            Limits::default(),
+                        )
+                        .unwrap()
+                    });
+                let usage = owner.payload_usage();
+                let watch = Watch::start(&usage, true, false);
+                FAIL_AT.set(Some(fail_at));
+                let result = owner.begin_and(left, right);
+                FAIL_AT.set(None);
+                if fail_at < 3 {
+                    assert!(matches!(result, Err(Error::Allocation)));
+                    assert_eq!(owner.status(), multiply::Status::Retired);
+                } else {
+                    assert!(result.is_ok());
+                }
+                owner.cancel();
+                let remaining = if fail_at == 3 { 3 * 8 } else { 0 };
+                assert_eq!(usage.live_bytes(), remaining);
+                drop(result);
+                let audit = watch.finish();
+                assert_eq!(audit.allocations, fail_at.min(3));
+                if fail_at > 0 {
+                    assert_eq!(audit.first_live, 5 * 3 * 8);
+                }
+                assert_audit(audit);
+                assert_eq!(usage.live_bytes(), 0);
+                let q = (3 * plan.backing_bytes() as u64).div_ceil(16);
+                assert_eq!(owner.cursors().pair_blocks, q);
+                assert_eq!(owner.cursors().aes_work, 2 * q);
+                assert_eq!(owner.cursors().public_blocks, 0);
+                assert_eq!(owner.cursors().private_blocks, 0);
+            }
+        }
+    }
+}

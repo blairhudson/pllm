@@ -427,6 +427,7 @@ impl LocalMaterial {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MessagePhase {
     Multiply,
+    BooleanAnd,
     MaskedInput,
     Correlation,
     Reshare,

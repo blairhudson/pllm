@@ -17,7 +17,7 @@ impl SeedEntropy for FixedSeeds {
     }
 }
 
-fn parties(limits: PrssLimits) -> [PartyRuntime; 3] {
+pub(super) fn parties(limits: PrssLimits) -> [PartyRuntime; 3] {
     let context = bound_context(Context::new([31; 32], [43; 32], 7).unwrap());
     let mut setups = [Party::P0, Party::P1, Party::P2].map(|party| {
         SetupParty(

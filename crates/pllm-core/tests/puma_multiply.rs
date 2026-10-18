@@ -85,6 +85,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         });
         assert_eq!(ops, [ops[0]; 3]);
         let op = ops[0];
+        assert_eq!(op.sequence(), 2 * ordinal as u64);
         admitted = admitted.max(op.admitted_bytes());
         let mut messages: Vec<_> = owners
             .iter_mut()
@@ -161,6 +162,64 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
             assert_eq!(p.cursors().aes_work, work[i]);
             assert_eq!(p.status(), Status::Ready);
             assert!(usages[i].peak_bytes() <= admitted);
+        }
+        drop(outputs);
+        assert!(usages.iter().all(|u| u.live_bytes() == 0));
+
+        // A Boolean kernel shares the SAME PRSS stream between arithmetic
+        // operations. It consumes narrow typed words and no public/private draw.
+        let plans = owners.each_mut().map(|p| p.plan_and(n, 14, 5).unwrap());
+        let plan = plans[0];
+        assert_eq!(plans, [plan; 3]);
+        assert_eq!(plan.sequence(), 2 * ordinal as u64 + 1);
+        let inputs = [Operand::Left, Operand::Right].map(|operand| {
+            let value = if operand == Operand::Left {
+                0x1234
+            } else {
+                0x17
+            };
+            let components = [vec![0x81; n], vec![0x23; n], vec![value ^ 0x81 ^ 0x23; n]];
+            [Party::P0, Party::P1, Party::P2].map(|p| {
+                plan.share_operand(
+                    operand,
+                    p,
+                    &components[p as usize],
+                    &components[p.next() as usize],
+                    Limits::default(),
+                )
+                .unwrap()
+            })
+        });
+        let [left, right] = inputs;
+        let mut messages: Vec<_> = owners
+            .iter_mut()
+            .zip(left)
+            .zip(right)
+            .map(|((p, x), y)| p.begin_and(x, y).unwrap())
+            .collect();
+        for p in &mut owners {
+            let original = take(&mut messages, p.party(), MessagePhase::BooleanAnd);
+            let received = plan
+                .message_from_received(original.header(), original.words(), Limits::default())
+                .unwrap();
+            drop(original);
+            p.receive_and(received).unwrap();
+        }
+        let outputs = owners.each_mut().map(|p| p.take_boolean_output().unwrap());
+        for i in 0..n {
+            assert_eq!(
+                outputs[0].first()[i] ^ outputs[1].first()[i] ^ outputs[2].first()[i],
+                0x1234 & 0x17
+            );
+        }
+        let q = (2 * n as u64).div_ceil(16);
+        pair_blocks += q;
+        for (i, p) in owners.iter().enumerate() {
+            work[i] += 2 * q;
+            assert_eq!(p.cursors().pair_blocks, pair_blocks);
+            assert_eq!(p.cursors().aes_work, work[i]);
+            assert_eq!(p.cursors().public_blocks, ordinal as u64 + 1);
+            assert_eq!(p.cursors().private_blocks, private[i]);
         }
         drop(outputs);
         assert!(usages.iter().all(|u| u.live_bytes() == 0));

@@ -486,27 +486,46 @@ impl Drop for SourceParty {
 }
 
 fn blocks(words: usize) -> Result<u64, Error> {
+    typed_blocks(words, 8)
+}
+
+fn typed_blocks(words: usize, word_bytes: usize) -> Result<u64, Error> {
     if words == 0 || words > 2 * MAX_LANES {
         return Err(Error::Bounds);
     }
-    Ok((words as u64).div_ceil(2))
+    if !matches!(word_bytes, 1 | 2 | 4 | 8) {
+        return Err(Error::Bounds);
+    }
+    Ok((words as u64 * word_bytes as u64).div_ceil(16))
 }
 
 fn fill(key: &[u8; 16], start: u64, out: &mut [u64]) -> Result<u64, Error> {
-    let q = blocks(out.len())?;
+    fill_typed(key, start, out, 8)
+}
+
+// SPU Boolean shares select the smallest 8/16/32/64-bit backing type.
+// PRSS fills that byte width, not one ring64 word per lane. Storage in this
+// bounded owner is still u64 and fully charged; only source AES consumption
+// follows the narrow type. Unused bytes at the end of each fill are discarded.
+fn fill_typed(
+    key: &[u8; 16],
+    start: u64,
+    out: &mut [u64],
+    word_bytes: usize,
+) -> Result<u64, Error> {
+    let q = typed_blocks(out.len(), word_bytes)?;
     let end = start.checked_add(q).ok_or(Error::Bounds)?;
     let cipher = Aes128::new(GenericArray::from_slice(key));
     let initial = u128::from_be_bytes(u128::from(start).to_le_bytes());
-    for (offset, words) in out.chunks_mut(2).enumerate() {
+    for (offset, words) in out.chunks_mut(16 / word_bytes).enumerate() {
         let value = initial.checked_add(offset as u128).ok_or(Error::Bounds)?;
         let mut block = Zeroizing::new(value.to_be_bytes());
         cipher.encrypt_block(GenericArray::from_mut_slice(&mut *block));
         for (i, word) in words.iter_mut().enumerate() {
-            *word = u64::from_le_bytes(
-                block[8 * i..8 * i + 8]
-                    .try_into()
-                    .map_err(|_| Error::Shape)?,
-            );
+            *word = 0;
+            for j in 0..word_bytes {
+                *word |= u64::from(block[word_bytes * i + j]) << (8 * j);
+            }
         }
     }
     Ok(end)

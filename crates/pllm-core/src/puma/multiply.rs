@@ -18,6 +18,9 @@ use crate::puma::{
 };
 use sha2::{Digest, Sha256};
 
+#[path = "boolean.rs"]
+pub mod boolean;
+
 pub const PROFILE: &str = "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
 pub const MATMUL_PROFILE: &str =
     "puma.spu-a42c261.matmul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
@@ -314,6 +317,7 @@ enum Phase {
     Planned(Plan),
     Rotating { plan: Plan, product: Words },
     Truncating(Operation),
+    Boolean(boolean::State),
     Retired,
 }
 
@@ -349,7 +353,7 @@ impl PartyRuntime {
     }
 
     pub fn status(&self) -> Status {
-        match self.phase {
+        match &self.phase {
             Phase::Ready => Status::Ready,
             Phase::Planned(_) => Status::Planned,
             Phase::Rotating { .. } => Status::AwaitingRotate,
@@ -359,6 +363,7 @@ impl PartyRuntime {
                 TruncationStatus::Complete => Status::Complete,
                 _ => Status::Retired,
             },
+            Phase::Boolean(state) => state.status(),
             Phase::Retired => Status::Retired,
         }
     }

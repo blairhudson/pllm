@@ -68,6 +68,24 @@ impl PartyRuntime {
         result
     }
 
+    // A compound source owner can consume a non-truncating primitive without
+    // resetting the shared ordinal. It owns that primitive's phase and payloads.
+    // Never exposed independently of its coupled PRSS/cancellation owner.
+    pub(super) fn consume_ordinal(&mut self, operation: Operation) -> Result<(), Error> {
+        if !matches!(self.state, State::Ready) {
+            return Err(Error::Phase);
+        }
+        if operation.context != self.context
+            || operation.sequence != self.next_sequence
+            || operation.sequence >= self.limits.max_operations
+        {
+            return Err(Error::Binding);
+        }
+        self.limits.admit(operation.lanes)?;
+        self.next_sequence += 1;
+        Ok(())
+    }
+
     /// Burns the ordinal before allocating or using correlated material.
     /// A/B send one MaskedInput frame to one another; H sends one Correlation
     /// frame to each evaluator. Only H draws fresh private splitting randomness.
