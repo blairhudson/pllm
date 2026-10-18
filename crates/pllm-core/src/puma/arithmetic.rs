@@ -9,6 +9,95 @@ use sha2::{Digest, Sha256};
 pub const AFFINE_PROFILE: &str = "puma.spu-a42c261.local-affine.ring64.replicated3.v1";
 pub const RESCALE_PROFILE: &str = "puma.spu-a42c261.bound-truncapr.ring64.replicated3.v1";
 pub const XOR_PROFILE: &str = "puma.spu-a42c261.local-xor.ring64.replicated3.v1";
+pub const BOOLEAN_MAP_PROFILE: &str = "puma.public-bit-linear-map.replicated3.v1";
+pub const ROW_MAP_PROFILE: &str = "puma.public-row-linear-map.replicated3.v1";
+pub const LANE_AFFINE_PROFILE: &str = "puma.public-lane-affine.replicated3.v1";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RowMap {
+    Sum,
+    Rotate(usize),
+    Broadcast,
+}
+
+impl RowMap {
+    pub fn output_bounds(self, width: usize, bounds: Interval) -> Result<Interval, Error> {
+        if !(1..=128).contains(&width) {
+            return Err(Error::Bounds);
+        }
+        match self {
+            Self::Sum => Affine {
+                left: width as i64,
+                right: 0,
+                constant: 0,
+            }
+            .output_bounds(InputBounds {
+                left: bounds,
+                right: Interval::new(0, 0)?,
+            }),
+            Self::Rotate(n) if n < width => Ok(bounds),
+            Self::Broadcast => Ok(bounds),
+            _ => Err(Error::Bounds),
+        }
+    }
+}
+
+/// Public XOR-linear maps. Each local component uses the same fixed map.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BitMap {
+    LowBits(u8),
+    ShiftRight(u8),
+    ShiftLeft(u8),
+    ReverseLowBits(u8),
+    FoldPairs,
+    Parity(u64),
+}
+
+impl BitMap {
+    pub(super) fn width(self, input: u8) -> Result<u8, Error> {
+        if input > 64 {
+            return Err(Error::Bounds);
+        }
+        Ok(match self {
+            Self::LowBits(n) | Self::ReverseLowBits(n) if (1..=64).contains(&n) => n,
+            Self::ShiftRight(n) if n < 64 => input.saturating_sub(n),
+            Self::ShiftLeft(n) if n < 64 => input.saturating_add(n).min(64),
+            Self::FoldPairs => input.div_ceil(2),
+            Self::Parity(_) => 1,
+            _ => return Err(Error::Bounds),
+        })
+    }
+
+    pub(super) fn apply(self, word: u64) -> u64 {
+        match self {
+            Self::LowBits(n) => word & (u64::MAX >> (64 - n)),
+            Self::ShiftRight(n) => word >> n,
+            Self::ShiftLeft(n) => word << n,
+            Self::ReverseLowBits(n) => word.reverse_bits() >> (64 - n),
+            Self::FoldPairs => {
+                let mut out = 0;
+                for i in 0..32 {
+                    out |= (((word >> (2 * i)) ^ (word >> (2 * i + 1))) & 1) << i;
+                }
+                out
+            }
+            Self::Parity(mask) => u64::from((word & mask).count_ones() & 1),
+        }
+    }
+
+    pub(super) fn hash(self, hash: &mut Sha256) {
+        let (tag, parameter) = match self {
+            Self::LowBits(n) => (0, u64::from(n)),
+            Self::ShiftRight(n) => (1, u64::from(n)),
+            Self::ShiftLeft(n) => (2, u64::from(n)),
+            Self::ReverseLowBits(n) => (3, u64::from(n)),
+            Self::FoldPairs => (4, 0),
+            Self::Parity(mask) => (5, mask),
+        };
+        hash.update([tag]);
+        hash.update(parameter.to_le_bytes());
+    }
+}
 
 /// Exact integer coefficients, with no implicit fixed-point rounding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,6 +171,210 @@ fn reserve(source: &PartyRuntime, additional: usize) -> Result<(), Error> {
 }
 
 impl PartyRuntime {
+    pub fn row_map(
+        &mut self,
+        input: &mut ReplicatedShare,
+        width: usize,
+        map: RowMap,
+        bounds: Interval,
+    ) -> Result<ReplicatedShare, Error> {
+        let result = (|| {
+            self.source.live()?;
+            if !matches!(self.phase, Phase::Ready) {
+                return Err(Error::Phase);
+            }
+            validate(self, input)?;
+            map.output_bounds(width, bounds)?;
+            let n = input.operation.lanes;
+            let output_lanes = match map {
+                RowMap::Broadcast => n.checked_mul(width).ok_or(Error::Bounds)?,
+                RowMap::Sum if n % width == 0 => n / width,
+                RowMap::Rotate(_) if n % width == 0 => n,
+                _ => return Err(Error::Shape),
+            };
+            self.source.limits.core.admit(output_lanes)?;
+            reserve(self, 2 * (n + output_lanes) * 8)?;
+            let mut operation = Operation::new(
+                self.context(),
+                self.source.runtime.next_sequence(),
+                Party::P0,
+                output_lanes,
+                1,
+                self.source.limits.core,
+            )?;
+            let mut hash = Sha256::new();
+            hash.update(ROW_MAP_PROFILE.as_bytes());
+            hash.update(self.source.setup);
+            hash.update(input.operation.digest());
+            hash.update((width as u64).to_le_bytes());
+            hash.update(
+                match map {
+                    RowMap::Sum => u64::MAX,
+                    RowMap::Broadcast => u64::MAX - 1,
+                    RowMap::Rotate(n) => n as u64,
+                }
+                .to_le_bytes(),
+            );
+            hash.update(bounds.lower.to_le_bytes());
+            hash.update(bounds.upper.to_le_bytes());
+            operation.consumer = Some(hash.finalize().into());
+            self.source.runtime.consume_ordinal(operation)?;
+            let usage = self.payload_usage();
+            input.charge_to(&usage)?;
+            let mut first = usage.zeros(output_lanes)?;
+            let mut second = usage.zeros(output_lanes)?;
+            for (source, target) in [(&input.first, &mut first), (&input.second, &mut second)] {
+                match map {
+                    RowMap::Sum => {
+                        for (row, out) in source.chunks_exact(width).zip(target.iter_mut()) {
+                            *out = row.iter().fold(0_u64, |s, &v| s.wrapping_add(v));
+                        }
+                    }
+                    RowMap::Broadcast => {
+                        for (&word, out) in source.iter().zip(target.chunks_exact_mut(width)) {
+                            out.fill(word);
+                        }
+                    }
+                    RowMap::Rotate(offset) => {
+                        for (row, out) in source
+                            .chunks_exact(width)
+                            .zip(target.chunks_exact_mut(width))
+                        {
+                            for (i, word) in out.iter_mut().enumerate() {
+                                *word = row[(i + offset) % width];
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(ReplicatedShare {
+                operation,
+                party: self.party(),
+                first,
+                second,
+            })
+        })();
+        self.checked(result)
+    }
+
+    pub fn affine_lanes(
+        &mut self,
+        input: &mut ReplicatedShare,
+        coefficients: &[Affine],
+        bounds: Interval,
+    ) -> Result<ReplicatedShare, Error> {
+        let result = (|| {
+            self.source.live()?;
+            if !matches!(self.phase, Phase::Ready) {
+                return Err(Error::Phase);
+            }
+            validate(self, input)?;
+            let n = input.operation.lanes;
+            if coefficients.len() != n {
+                return Err(Error::Shape);
+            }
+            reserve(self, 4 * n * 8)?;
+            let mut operation = Operation::new(
+                self.context(),
+                self.source.runtime.next_sequence(),
+                Party::P0,
+                n,
+                1,
+                self.source.limits.core,
+            )?;
+            let mut hash = Sha256::new();
+            hash.update(LANE_AFFINE_PROFILE.as_bytes());
+            hash.update(self.source.setup);
+            hash.update(input.operation.digest());
+            hash.update(bounds.lower.to_le_bytes());
+            hash.update(bounds.upper.to_le_bytes());
+            for c in coefficients {
+                if c.right != 0 {
+                    return Err(Error::Bounds);
+                }
+                c.output_bounds(InputBounds {
+                    left: bounds,
+                    right: Interval::new(0, 0)?,
+                })?;
+                hash.update(c.left.to_le_bytes());
+                hash.update(c.constant.to_le_bytes());
+            }
+            operation.consumer = Some(hash.finalize().into());
+            self.source.runtime.consume_ordinal(operation)?;
+            let usage = self.payload_usage();
+            input.charge_to(&usage)?;
+            let mut first = usage.zeros(n)?;
+            let mut second = usage.zeros(n)?;
+            for (i, c) in coefficients.iter().enumerate() {
+                first[i] = input.first[i].wrapping_mul(c.left as u64);
+                second[i] = input.second[i].wrapping_mul(c.left as u64);
+                if self.party() == Party::P0 {
+                    first[i] = first[i].wrapping_add(c.constant as u64);
+                }
+                if self.party() == Party::P2 {
+                    second[i] = second[i].wrapping_add(c.constant as u64);
+                }
+            }
+            Ok(ReplicatedShare {
+                operation,
+                party: self.party(),
+                first,
+                second,
+            })
+        })();
+        self.checked(result)
+    }
+
+    pub fn boolean_map(
+        &mut self,
+        mut input: boolean::Share,
+        map: BitMap,
+    ) -> Result<boolean::Share, Error> {
+        let result = (|| {
+            self.source.live()?;
+            if !matches!(self.phase, Phase::Ready) {
+                return Err(Error::Phase);
+            }
+            validate(self, &input.value)?;
+            let bits = map.width(input.bits)?;
+            let n = input.value.operation.lanes;
+            self.source.limits.core.admit(n)?;
+            input.value.charge_to(&self.payload_usage())?;
+            let mut operation = Operation::new(
+                self.context(),
+                self.source.runtime.next_sequence(),
+                Party::P0,
+                n,
+                1,
+                self.source.limits.core,
+            )?;
+            let mut hash = Sha256::new();
+            hash.update(BOOLEAN_MAP_PROFILE.as_bytes());
+            hash.update(self.source.setup);
+            hash.update(input.binding());
+            map.hash(&mut hash);
+            operation.consumer = Some(hash.finalize().into());
+            self.source.runtime.consume_ordinal(operation)?;
+            for word in input
+                .value
+                .first
+                .iter_mut()
+                .chain(input.value.second.iter_mut())
+            {
+                *word = map.apply(*word)
+                    & if bits == 0 {
+                        0
+                    } else {
+                        u64::MAX >> (64 - bits)
+                    };
+            }
+            input.value.operation = operation;
+            input.bits = bits;
+            Ok(input)
+        })();
+        self.checked(result)
+    }
+
     /// Source XorBB followed by XorBP. The public word is XORed into each
     /// component as in the three-party source; nominal-width padding survives.
     pub fn boolean_xor(

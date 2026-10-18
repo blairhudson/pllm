@@ -340,7 +340,7 @@ power order and exact branch endpoints. GELU computes `x6=Square(x3)`; SiLU uses
 `x6=mul(x2,x4)`. Every lane executes both polynomials and all comparisons. Exact
 integer selection products keep predicates and selected outputs shared.
 
-Programs admit 1–128 lanes and at most 64 nodes. Public interval propagation
+Programs admit 1–128 lanes and at most 192 nodes. Public interval propagation
 checks **every eagerly evaluated intermediate**, including polynomial values on
 tail inputs; it rejects unsafe quarter-ring truncations before an executor draws
 randomness. These proofs assume the caller/compiler's public input interval.
@@ -363,12 +363,71 @@ Independent stochastic-integer recipes check all branch endpoints, odd lanes and
 128-lane tiles. Production OS-keyed controls check replicated-pair consistency,
 shared zero/identity tails and sequential runtime reuse. Every instruction and
 protocol round has cancellation coverage; allocation-index sweeps and allocator
-callbacks verify erasure before charge refund. The focused native suite passes
+callbacks verify erasure before charge refund. The activation-slice native suite passed
 97 checks (60 unit, 8 truncation, 3 PRSS, 3 exported multiplication/tensor and
 23 allocation), and 33 source-profile/oracle checks pass. Targeted Clippy passes
 with the existing `needless_range_loop` warning allowance; unrestricted core-crate
 Clippy still reports unrelated byte-dot/Maverick warnings. These checks establish
 the bounded activation executor, not model quality or serving performance.
+
+### Protected normalization and row programs
+
+The same `Program` and party-local `Executor` now implement the approved positive
+Q18 reciprocal, reciprocal square root, shifted softmax and centered LayerNorm.
+Public row sums, rotations, broadcasts and per-lane affine coefficients share the
+existing owner. Row geometry and coefficients enter the program digest. LayerNorm
+currently accepts public gamma/beta; private parameter binding remains a separate
+decoder integration requirement.
+
+Reciprocal admits encoded inputs `1..2^36-1`; rsqrt admits `1..2^35-1`. A fixed
+Boolean prefix circuit extracts the highest set bit without opening it. Public
+XOR-linear maps derive normalization factors and rsqrt parity/compensation; the
+existing narrow-OT or full-width PPA conversion returns arithmetic shares.
+The original exponent, factors and every intermediate remain shared. Rsqrt keeps
+sequential `U2`, `U3`, `U4`, one rescale of its accumulated polynomial and the
+source's integer 724/512 compensation. Reciprocal keeps both source refinements.
+
+Independent operand intervals alone would reject these graphs because the
+normalization factor is inversely related to its input. Native construction
+therefore partitions the **public input domain** into at most 36 exponent ranges
+and propagates complete stochastic-rounding intervals within each range. Their
+union certifies each unwrapped product before execution. The partition is proof
+metadata, not a private runtime branch or disclosed exponent. Only these native
+constructors can supply a correlated product envelope; ordinary public product
+APIs retain Cartesian-box checks. Caller/compiler input-range obligations and
+the quarter-ring truncation gate remain unchanged.
+
+Softmax finds a shared row maximum, shifts before testing the strict `Z>-14`
+boundary, evaluates all five squarings, masks clipped terms before reduction,
+and broadcasts one reciprocal per row. Its maximum lane proves a positive
+denominator. LayerNorm uses the encoded public reciprocal width, centered
+mean-square variance, `E(1e-5)=2`, one rsqrt per row, and the approved two-step
+gamma product. Rows fit within the same 128-total-lane tile and 256 KiB per-runtime
+allowance. Unsafe eager powers or oversized row geometry reject before PRSS.
+
+The executor additionally accepts the independent PPA rotation arriving before
+its masked reveal, retaining its charged buffer until the receive barrier.
+The earlier executor retained registers until completion despite its last-use
+description. This slice implements instruction-level retirement, including newly
+produced unused registers, and prices the live-register peak plus primitive
+overlap. Output ownership, failed transitions and cancellation retain the same
+erasure-before-refund rule. These logical bounds are not process-RSS measurements.
+Independent integer recipes check every supported normalization exponent,
+clipping neighbors, non-power-of-two rows, constant rows and 128-lane geometry.
+Cancellation checks cover every row-program instruction/protocol round; separate
+allocation-index sweeps cover row owners and both Boolean conversion paths.
+The complete focused suite now passes **105 native checks** (65 unit, 8
+truncation, 3 PRSS, 3 exported multiplication/tensor and 26 allocation), five
+compile-fail doctests and 33 independent Python profile/transcript checks.
+Focused formatting and Clippy pass with the existing `needless_range_loop`
+allowance. Unrestricted strict Clippy reports three pre-existing warnings in
+`byte_dot.rs` and the separate Maverick batch implementation.
+
+This is bounded native tensor execution. Wider decoder rows, compiler-derived
+whole-model ranges, authenticated three-role transport and an ordinary SDK
+Experiment remain open. Qwen's pinned RMSNorm epsilon is `1e-6`, which the
+approved Q18 encoder maps to zero; its RMSNorm/RoPE graph and any changed epsilon
+policy require their own explicit contract before common-model execution.
 
 ### Independent primitive and transcript vectors
 
@@ -472,6 +531,8 @@ seed persistence; authentication and abort propagation belong to transport.
 cargo test --locked --offline -p pllm-core --lib puma::
 cargo test --locked --offline -p pllm-core --test puma_truncation --test puma_prss --test puma_multiply --test puma_allocation
 cargo test --locked --offline -p pllm-core --doc puma
+python3 -m unittest discover -s paper/reproduction-contracts -p 'test_shared_profile_oracle.py'
+python3 -m unittest discover -s paper/reproduction-contracts/puma -p 'test_*.py'
 ```
 
 Historical pre-repair result: **31 tests passed** (13 unit, 8 truncation,

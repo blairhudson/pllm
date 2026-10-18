@@ -258,6 +258,30 @@ impl PartyRuntime {
         self.checked(result)
     }
 
+    /// Move an existing Boolean result into one admitted input position.
+    pub fn bind_and_operand(&mut self, operand: Operand, mut value: Share) -> Result<Share, Error> {
+        let result = (|| {
+            self.source.live()?;
+            let Phase::Boolean(State::Planned(plan)) = self.phase else {
+                return Err(Error::Phase);
+            };
+            let (operation, bits) = plan.operand(operand);
+            if value.party() != self.party() {
+                return Err(Error::Role);
+            }
+            if value.value.operation.context != self.context() || value.bits != bits {
+                return Err(Error::Binding);
+            }
+            if value.first().len() != operation.lanes || value.second().len() != operation.lanes {
+                return Err(Error::Shape);
+            }
+            value.value.charge_to(&self.payload_usage())?;
+            value.value.operation = operation;
+            Ok(value)
+        })();
+        self.checked(result)
+    }
+
     pub fn begin_and(&mut self, left: Share, right: Share) -> Result<Message, Error> {
         let result = self.begin_and_inner(left, right);
         self.checked(result)

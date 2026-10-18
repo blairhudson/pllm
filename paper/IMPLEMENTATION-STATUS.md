@@ -59,9 +59,12 @@ Completed foundations:
   Frozen transcript/cursor parity, full-shape exported APIs, allocation failures
   and cancellation are checked. The same owner now executes public tensor
   programs for approved Q18 SiLU/GELU with shared branch selection, eager-polynomial
-  interval admission and last-use register retirement. Independent stochastic
-  oracles, 128-lane tiles and failure/erasure checks pass. Whole-decoder ranges,
-  remaining protected tensor operators and SDK/Experiment execution remain open.
+  interval admission and last-use register retirement. The same native owner
+  additionally executes protected reciprocal/rsqrt, shifted softmax and centered
+  LayerNorm with public affine parameters. Secret exponents remain shared; public
+  conditional range proofs cover every rounding. Independent stochastic oracles,
+  128-lane tiles and failure/erasure checks pass. Wider decoder rows, Qwen's
+  RMSNorm/RoPE graph, whole-model ranges and SDK/Experiment execution remain open.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

@@ -4,6 +4,268 @@ use crate::puma::prss::{fill, PrssLimits};
 
 const ONE: i64 = 1 << 18;
 
+fn normalization_oracle(rsqrt: bool, x: i64, masks: impl IntoIterator<Item = u64>) -> i64 {
+    let mut masks = masks.into_iter();
+    let mut trunc = |raw: i128| -> i64 {
+        let r = masks.next().unwrap() & ((1 << 18) - 1);
+        i64::try_from(
+            raw.div_euclid(1 << 18)
+                + i128::from(raw.rem_euclid(1 << 18) + i128::from(r) >= 1 << 18),
+        )
+        .unwrap()
+    };
+    let j = 63 - (x as u64).leading_zeros();
+    let result = if rsqrt {
+        let length = j + 1;
+        let u = trunc(i128::from(x) * (1_i128 << (35 - length)));
+        let u2 = trunc(i128::from(u) * i128::from(u));
+        let u3 = trunc(i128::from(u2) * i128::from(u));
+        let u4 = trunc(i128::from(u3) * i128::from(u));
+        let p = trunc(
+            -4057974 * i128::from(u) + 10085068 * i128::from(u2) - 13072088 * i128::from(u3)
+                + 6823457 * i128::from(u4),
+        ) + 1086023;
+        let comp = (if length % 2 == 0 { 724_i128 } else { 512 }) << (17 - length / 2);
+        trunc(i128::from(p) * comp)
+    } else {
+        let f = 1_i128 << (35 - j);
+        let c = trunc(i128::from(x) * f);
+        let w = trunc((763940 - 2 * i128::from(c)) * f);
+        let e = ONE - trunc(i128::from(x) * i128::from(w));
+        let r = trunc(i128::from(w) * i128::from(ONE + e));
+        let e2 = trunc(i128::from(e) * i128::from(e));
+        trunc(i128::from(r) * i128::from(ONE + e2))
+    };
+    assert!(masks.next().is_none());
+    result
+}
+
+#[test]
+fn protected_normalization_matches_independent_rounding_at_every_exponent() {
+    for rsqrt in [false, true] {
+        let width = if rsqrt { 35 } else { 36 };
+        let mut values = vec![];
+        for j in 0..width {
+            let power = 1_i64 << j;
+            values.extend([power, (power + 1).min((1 << width) - 1), 2 * power - 1]);
+        }
+        let bounds = Interval::new(1, (1 << width) - 1).unwrap();
+        let program = if rsqrt {
+            Program::rsqrt(values.len(), bounds)
+        } else {
+            Program::reciprocal(values.len(), bounds)
+        }
+        .unwrap();
+        let mut owners = owners(&program, &values);
+        let usage = owners.each_ref().map(Executor::payload_usage);
+        let mut tapes = vec![];
+        for _ in 0..program.instructions() {
+            if let Some(tape) = step(&mut owners).0 {
+                tapes.push(tape);
+            }
+        }
+        let output = owners.map(|o| o.finish().unwrap().1);
+        let expected: Vec<_> = values
+            .iter()
+            .enumerate()
+            .map(|(i, &x)| normalization_oracle(rsqrt, x, tapes.iter().map(|t| t[i])))
+            .collect();
+        assert_eq!(clear(&output), expected, "rsqrt={rsqrt}");
+        assert!(usage
+            .iter()
+            .all(|u| u.peak_bytes() + FIXED_RESERVE_BYTES <= program.admitted_bytes()));
+        drop(output);
+        assert!(usage.iter().all(|u| u.live_bytes() == 0));
+    }
+}
+
+#[test]
+fn normalization_rejects_unproved_domains_and_retains_source_zero_tape_answers() {
+    let input = [65536, 131072, 262144, 524288, 1048576];
+    assert_eq!(
+        input.map(|x| normalization_oracle(false, x, [0; 6])),
+        [1048570, 524285, 262142, 131070, 65535]
+    );
+    assert_eq!(
+        input.map(|x| normalization_oracle(true, x, [0; 6])),
+        [524249, 370660, 262124, 185330, 131062]
+    );
+    for bounds in [
+        Interval::new(0, 1).unwrap(),
+        Interval::new(-1, 1).unwrap(),
+        Interval::new(1, 1 << 36).unwrap(),
+    ] {
+        assert!(Program::reciprocal(1, bounds).is_err());
+        assert!(Program::rsqrt(1, bounds).is_err());
+    }
+    assert!(Program::rsqrt(1, Interval::new(1, 1 << 35).unwrap()).is_err());
+}
+
+fn rounded(raw: i128, mask: u64, shift: u8) -> i64 {
+    let unit = 1_i128 << shift;
+    (raw.div_euclid(unit)
+        + i128::from(raw.rem_euclid(unit) + i128::from(mask & ((1 << shift) - 1)) >= unit))
+        as i64
+}
+
+fn row_oracle(
+    layer_norm: bool,
+    x: &[i64],
+    width: usize,
+    gamma: &[i64],
+    beta: &[i64],
+    tapes: &[Vec<u64>],
+) -> Vec<i64> {
+    let mut out = Vec::new();
+    for (row, input) in x.chunks_exact(width).enumerate() {
+        let base = row * width;
+        if layer_norm {
+            assert_eq!(tapes.len(), 11);
+            let coefficient = ((1_f32 / width as f32) * ONE as f32) as i64;
+            let mean = rounded(
+                input.iter().map(|&v| i128::from(v)).sum::<i128>() * i128::from(coefficient),
+                tapes[0][row],
+                18,
+            );
+            let d: Vec<_> = input.iter().map(|&v| v - mean).collect();
+            let squares: i128 = d
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| {
+                    i128::from(rounded(
+                        i128::from(v) * i128::from(v),
+                        tapes[1][base + i],
+                        18,
+                    ))
+                })
+                .sum();
+            let variance = rounded(squares * i128::from(coefficient), tapes[2][row], 18) + 2;
+            let inverse = normalization_oracle(true, variance, tapes[3..9].iter().map(|t| t[row]));
+            for (i, &v) in d.iter().enumerate() {
+                let normalized =
+                    rounded(i128::from(v) * i128::from(inverse), tapes[9][base + i], 18);
+                out.push(
+                    rounded(
+                        i128::from(normalized) * i128::from(gamma[i]),
+                        tapes[10][base + i],
+                        18,
+                    ) + beta[i],
+                );
+            }
+        } else {
+            assert_eq!(tapes.len(), 13);
+            let maximum = *input.iter().max().unwrap();
+            let exp: Vec<_> = input
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| {
+                    let z = v - maximum;
+                    let mut p = ONE + rounded(i128::from(z), tapes[0][base + i], 5);
+                    for t in &tapes[1..6] {
+                        p = rounded(i128::from(p) * i128::from(p), t[base + i], 18);
+                    }
+                    if z > -14 * ONE {
+                        p
+                    } else {
+                        0
+                    }
+                })
+                .collect();
+            let inverse =
+                normalization_oracle(false, exp.iter().sum(), tapes[6..12].iter().map(|t| t[row]));
+            for (i, value) in exp.into_iter().enumerate() {
+                out.push(rounded(
+                    i128::from(value) * i128::from(inverse),
+                    tapes[12][base + i],
+                    18,
+                ));
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn protected_rows_match_one_reciprocal_or_rsqrt_per_row() {
+    for layer_norm in [false, true] {
+        for (rows, width) in [(2, 1), (3, 3), (2, 8), (1, 128)] {
+            let x: Vec<_> = (0..rows * width)
+                .map(|i| {
+                    if layer_norm {
+                        ((i % 7) as i64 - 3) * ONE + i as i64
+                    } else {
+                        [
+                            0,
+                            -14 * ONE - 1,
+                            -14 * ONE,
+                            -14 * ONE + 1,
+                            -ONE,
+                            -20 * ONE,
+                            -3 * ONE,
+                            0,
+                        ][i % 8]
+                    }
+                })
+                .collect();
+            let gamma: Vec<_> = (0..width)
+                .map(|i| if i % 2 == 0 { ONE } else { -ONE / 2 })
+                .collect();
+            let beta: Vec<_> = (0..width).map(|i| i as i64 - 2).collect();
+            let bounds = if layer_norm {
+                Interval::new(-4 * ONE, 4 * ONE)
+            } else {
+                Interval::new(-20 * ONE, 0)
+            }
+            .unwrap();
+            let program = if layer_norm {
+                Program::layer_norm(rows, width, bounds, &gamma, &beta)
+            } else {
+                Program::softmax(rows, width, bounds)
+            }
+            .unwrap();
+            let mut owners = owners(&program, &x);
+            let usage = owners.each_ref().map(Executor::payload_usage);
+            let mut tapes = vec![];
+            for _ in 0..program.instructions() {
+                if let Some(tape) = step(&mut owners).0 {
+                    tapes.push(tape);
+                }
+            }
+            let output = owners.map(|o| o.finish().unwrap().1);
+            assert_eq!(
+                clear(&output),
+                row_oracle(layer_norm, &x, width, &gamma, &beta, &tapes),
+                "layer_norm={layer_norm}, {rows}x{width}"
+            );
+            assert_eq!(program.output_lanes(), rows * width);
+            assert!(usage
+                .iter()
+                .all(|u| u.peak_bytes() + FIXED_RESERVE_BYTES <= program.admitted_bytes()));
+            drop(output);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+    }
+}
+
+#[test]
+fn row_programs_bind_geometry_coefficients_and_eager_range_gates() {
+    let input = Interval::new(-ONE, ONE).unwrap();
+    let a = Program::layer_norm(2, 2, input, &[ONE; 2], &[0; 2]).unwrap();
+    let b = Program::layer_norm(2, 2, input, &[ONE, ONE + 1], &[0; 2]).unwrap();
+    assert_ne!(a.digest(), b.digest());
+    assert_ne!(
+        Program::softmax(2, 2, input).unwrap().digest(),
+        Program::softmax(1, 4, input).unwrap().digest()
+    );
+    assert!(Program::softmax(0, 2, input).is_err());
+    assert!(Program::softmax(1, 0, input).is_err());
+    assert!(Program::softmax(1, 129, input).is_err());
+    // Clipped lanes still evaluate their powers; clipping cannot admit them.
+    assert!(Program::softmax(1, 4, Interval::new(-128 * ONE, 0).unwrap()).is_err());
+    assert!(Program::layer_norm(1, 2, input, &[ONE], &[0; 2]).is_err());
+    assert!(Program::layer_norm(1, 2, input, &[i64::MAX; 2], &[0; 2]).is_err());
+}
+
 // All-party reconstruction is confined to this test oracle.
 fn inputs(owners: &[PartyRuntime; 3], x: &[i64]) -> [ReplicatedShare; 3] {
     let op = Operation::new(
@@ -95,7 +357,15 @@ fn step(owners: &mut [Executor; 3]) -> (Option<Vec<u64>>, usize) {
         let mut next = Vec::new();
         for frame in frames {
             let p = frame.recipient() as usize;
-            next.extend(owners[p].receive(frame).unwrap().into_iter().flatten());
+            let phase = frame.inner.header().phase;
+            let instruction = owners[p].program.nodes[owners[p].step].unwrap().instruction;
+            next.extend(
+                owners[p]
+                    .receive(frame)
+                    .unwrap_or_else(|e| panic!("party={p}, {phase:?}, {instruction:?}: {e:?}"))
+                    .into_iter()
+                    .flatten(),
+            );
         }
         if tape.is_none() {
             tape = masks(owners);
@@ -301,9 +571,25 @@ fn every_public_instruction_and_protocol_round_can_be_cancelled_without_leaks() 
         Interval::new(-9 * ONE, 9 * ONE).unwrap(),
     )
     .unwrap();
+    cancel_at_every_event(&program, &[-9 * ONE, 0, 9 * ONE]);
+}
+
+#[test]
+fn row_normalization_and_boolean_prefix_rounds_retire_on_cancellation() {
+    let input = [-ONE, 0, ONE];
+    let range = Interval::new(-ONE, ONE).unwrap();
+    for program in [
+        Program::softmax(1, 3, range).unwrap(),
+        Program::layer_norm(1, 3, range, &[ONE; 3], &[0; 3]).unwrap(),
+    ] {
+        cancel_at_every_event(&program, &input);
+    }
+}
+
+fn cancel_at_every_event(program: &Program, input: &[i64]) {
     let mut saw_complete = false;
-    for stop in 0..250 {
-        let mut owners = owners(&program, &[-9 * ONE, 0, 9 * ONE]);
+    for stop in 0..1000 {
+        let mut owners = owners(program, input);
         let usage = owners.each_ref().map(Executor::payload_usage);
         let mut event = 0;
         'execution: while !owners[0].complete() {

@@ -945,12 +945,18 @@ fn tensor_owners(
     kind: multiply::tensor::Activation,
     lanes: usize,
 ) -> [multiply::tensor::Executor; 3] {
-    use multiply::{
-        tensor::{Executor, Program},
-        Interval,
-    };
+    use multiply::{tensor::Program, Interval};
     let program =
         Program::activation(kind, lanes, Interval::new(-9 << 18, 9 << 18).unwrap()).unwrap();
+    tensor_program_owners(&program, 0)
+}
+
+fn tensor_program_owners(
+    program: &multiply::tensor::Program,
+    value: u64,
+) -> [multiply::tensor::Executor; 3] {
+    use multiply::tensor::Executor;
+    let lanes = program.lanes();
     let runtimes = compound_owners(PrssLimits::default());
     let operation = Operation::new(
         runtimes[0].context(),
@@ -964,7 +970,7 @@ fn tensor_owners(
     let parts = [
         vec![7; lanes],
         vec![u64::MAX; lanes],
-        vec![0_u64.wrapping_sub(6); lanes],
+        vec![value.wrapping_sub(6); lanes],
     ];
     runtimes.map(|runtime| {
         let p = runtime.party() as usize;
@@ -1017,8 +1023,11 @@ fn tensor_run(
             }
             messages = next;
         }
-        for owner in owners.iter_mut() {
-            owner.finish_step()?;
+        for (p, owner) in owners.iter_mut().enumerate() {
+            collect(p);
+            let result = owner.finish_step();
+            collect(usize::MAX);
+            result?;
         }
     }
     Ok(())
@@ -1075,6 +1084,94 @@ fn tensor_registers_and_frames_are_zeroized_before_live_charge_refund() {
             assert!(usages.iter().all(|u| u.live_bytes() == 0));
         }
     }
+}
+
+#[test]
+fn tensor_row_allocation_failure_sweeps_retire_every_owned_buffer() {
+    use multiply::{tensor::Program, Interval};
+    let bound = Interval::new(-1 << 18, 1 << 18).unwrap();
+    for program in [
+        Program::softmax(1, 3, bound).unwrap(),
+        Program::layer_norm(1, 3, bound, &[1 << 18; 3], &[1; 3]).unwrap(),
+    ] {
+        let mut completed = false;
+        for fail_at in 0..8000 {
+            let mut owners = tensor_program_owners(&program, 0);
+            let usage = owners.each_ref().map(|o| o.payload_usage());
+            FAIL_AT.set(Some(fail_at));
+            let result = tensor_run(&mut owners, None);
+            FAIL_AT.set(None);
+            if result.is_err() {
+                assert_eq!(result, Err(Error::Allocation));
+                assert!(owners.iter().any(|o| o.retired()));
+            } else {
+                completed = true;
+            }
+            for owner in &mut owners {
+                owner.cancel();
+            }
+            drop(owners);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+            if completed {
+                assert!(fail_at > 1000);
+                break;
+            }
+        }
+        assert!(
+            completed,
+            "row allocation sweep did not reach complete execution"
+        );
+    }
+}
+
+#[test]
+fn tensor_row_zeroization_precedes_refund_at_maximum_geometry() {
+    use multiply::{tensor::Program, Interval};
+    let bound = Interval::new(-1 << 18, 1 << 18).unwrap();
+    for program in [
+        Program::softmax(1, 128, bound).unwrap(),
+        Program::layer_norm(1, 128, bound, &[1 << 18; 128], &[1; 128]).unwrap(),
+    ] {
+        for p in 0..3 {
+            let mut owners = tensor_program_owners(&program, 0);
+            let usage = owners.each_ref().map(|o| o.payload_usage());
+            let watch = Watch::start(&usage[p], false, false);
+            tensor_run(&mut owners, Some(p)).unwrap();
+            let output = owners.map(|o| o.finish().unwrap().1);
+            drop(output);
+            let audit = watch.finish();
+            assert!(audit.allocations > 300);
+            assert_audit(audit);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+    }
+}
+
+#[test]
+fn tensor_register_allocation_failure_refunds_only_after_input_retirement() {
+    use multiply::{
+        tensor::{Executor, Program},
+        Interval,
+    };
+    let program = Program::reciprocal(1, Interval::new(1, 1 << 18).unwrap()).unwrap();
+    let [runtime, _, _] = compound_owners(PrssLimits::default());
+    let usage = runtime.payload_usage();
+    let op = Operation::new(
+        runtime.context(),
+        0,
+        runtime.party(),
+        1,
+        18,
+        Limits::default(),
+    )
+    .unwrap();
+    let input =
+        ReplicatedShare::from_local(op, runtime.party(), &[1], &[0], Limits::default()).unwrap();
+    FAIL_NEXT.set(true);
+    let result = Executor::new(runtime, program, input);
+    assert!(matches!(result, Err(Error::Allocation)));
+    assert!(!FAIL_NEXT.get());
+    assert_eq!(usage.live_bytes(), 0);
 }
 
 fn boolean_inputs(

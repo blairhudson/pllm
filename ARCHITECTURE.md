@@ -632,6 +632,16 @@ exported frames and pending conversions share the existing payload ceiling.
 Independent stochastic-integer oracles, boundary cases, 128-lane tiles and
 allocation-failure/cancellation checks pass. Whole-decoder range proofs, remaining
 tensor operators, authenticated transport and SDK/quality qualification remain open.
+The same bounded tensor owner additionally executes positive reciprocal/rsqrt,
+shifted softmax and centered LayerNorm with public affine parameters. Fixed Boolean
+prefix circuits retain secret exponents and normalization factors; public exponent
+partitions prove correlated product bounds across every stochastic rounding.
+Ordered row reductions and broadcasts retain one reciprocal/rsqrt per row, the
+approved source arithmetic and the existing 128-lane/256 KiB limits. Independent
+integer recipes cover every admitted exponent and row/clipping boundaries;
+cancellation and allocation-failure controls retain erasure-before-refund.
+Qwen RMSNorm/RoPE, wider decoder rows and the complete compiler/SDK path remain
+unadmitted; bounded operator parity supplies no checkpoint-quality result.
 Contract: `docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the

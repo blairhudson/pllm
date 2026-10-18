@@ -415,13 +415,13 @@ impl PartyRuntime {
     /// Worst-case remaining helper work is priced before the public pivot draw;
     /// actual AES accounting still charges only this role's source expansions.
     pub fn plan(&mut self, bounds: &[InputBounds]) -> Result<Plan, Error> {
-        self.plan_product(Product::Elementwise, bounds, true)
+        self.plan_product(Product::Elementwise, bounds, true, None)
     }
 
     /// Source integer MulAA for exact selector/bit products. No fixed-point
     /// rescale, pivot or helper draw occurs. Public boxes must fit signed ring64.
     pub fn plan_ring_product(&mut self, bounds: &[InputBounds]) -> Result<Plan, Error> {
-        self.plan_product(Product::Elementwise, bounds, false)
+        self.plan_product(Product::Elementwise, bounds, false, None)
     }
 
     /// The pinned MatMulAA schedule shares the multiplication/truncation owner:
@@ -429,7 +429,20 @@ impl PartyRuntime {
     /// Uniform public bounds apply to every operand entry. No private value is
     /// inspected to select bounds, dimensions, truncation, or execution order.
     pub fn plan_matmul(&mut self, shape: MatrixShape, bounds: InputBounds) -> Result<Plan, Error> {
-        self.plan_product(Product::Matrix(shape), &[bounds], true)
+        self.plan_product(Product::Matrix(shape), &[bounds], true, None)
+    }
+
+    // Only the native tensor compiler can supply this correlated envelope. Its
+    // public exponent partition proves the complete raw product range; ordinary
+    // callers retain the independent operand-box admission above.
+    pub(super) fn plan_certified_product(
+        &mut self,
+        bounds: &[InputBounds],
+        rescale: bool,
+        raw: Interval,
+        graph: [u8; 32],
+    ) -> Result<Plan, Error> {
+        self.plan_product(Product::Elementwise, bounds, rescale, Some((raw, graph)))
     }
 
     fn plan_product(
@@ -437,6 +450,7 @@ impl PartyRuntime {
         product: Product,
         bounds: &[InputBounds],
         rescale: bool,
+        certified: Option<(Interval, [u8; 32])>,
     ) -> Result<Plan, Error> {
         let result = (|| {
             self.source.live()?;
@@ -472,13 +486,25 @@ impl PartyRuntime {
                 (Product::Matrix(_), _) => MATMUL_PROFILE.as_bytes(),
             });
             hash.update(NUMERIC_PROFILE.as_bytes());
+            if let Some((raw, graph)) = certified {
+                if rescale {
+                    arithmetic::rescaled_bounds(raw, FRACTION_BITS)?;
+                }
+                hash.update(b"native-tensor-correlated-product.v1");
+                hash.update(graph);
+                hash.update(raw.lower().to_le_bytes());
+                hash.update(raw.upper().to_le_bytes());
+            }
             if let Product::Matrix(shape) = product {
                 for dimension in shape.dimensions() {
                     hash.update((dimension as u64).to_le_bytes());
                 }
             }
             for bound in bounds {
-                if rescale {
+                if certified.is_some() {
+                    // Complete native graph range proof replaces only the
+                    // independent-box product, not shape/work/owner admission.
+                } else if rescale {
                     bound.dot_product(match product {
                         Product::Elementwise => 1,
                         Product::Matrix(shape) => shape.inner,
