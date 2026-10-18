@@ -1,8 +1,8 @@
-//! Pinned SPU B2AByOT for public 0..=8-bit Boolean values.
+//! Pinned SPU B2A selector: three-party OT at 0..=8 bits, PPA at 9..=64.
 //!
 //! The helper, sender and receiver have separate party-local views. Pairwise
 //! PRSS provides the source three-party OT masks; no dealer reconstructs bits.
-//! A complete higher-width B2A requires the separate source PPA construction.
+//! Higher widths reuse the shared carry circuit and the source masked reveal.
 
 use super::{boolean::Share, PartyRuntime, Phase, Status};
 use crate::puma::prss::{blocks, fill, SourceParty, PRSS_PROFILE};
@@ -10,6 +10,10 @@ use crate::puma::*;
 use sha2::{Digest, Sha256};
 
 pub const PROFILE: &str = "puma.spu-a42c261.b2a-by-ot.ring64.replicated3.v1";
+pub const PPA_PROFILE: &str = "puma.spu-a42c261.b2a-by-ppa.ring64.replicated3.v1";
+
+#[path = "boolean_to_arithmetic_ppa.rs"]
+mod ppa;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Plan {
@@ -19,6 +23,8 @@ pub struct Plan {
     pair_start: u64,
     pair_end: u64,
     admitted_bytes: usize,
+    setup: [u8; 32],
+    limits: Limits,
 }
 
 impl Plan {
@@ -91,6 +97,9 @@ impl Plan {
         words: &[u64],
         limits: Limits,
     ) -> Result<Message, Error> {
+        if self.bits > 8 {
+            return ppa::import(self, header, words, limits);
+        }
         let (from, to) = self.endpoints(header.phase)?;
         if header.from != from || header.to != to {
             return Err(Error::Role);
@@ -128,6 +137,8 @@ impl Plan {
     }
 }
 
+// Bounded inline metadata avoids an unchecked Box allocation in each circuit.
+#[allow(clippy::large_enum_variant)]
 pub(super) enum State {
     Planned(Plan),
     Helper {
@@ -140,6 +151,7 @@ pub(super) enum State {
         second: Words,
     },
     Complete(ReplicatedShare),
+    Ppa(ppa::State),
 }
 
 impl State {
@@ -149,6 +161,7 @@ impl State {
             Self::Helper { .. } => Status::AwaitingReshare,
             Self::Receiver { .. } => Status::AwaitingOpen,
             Self::Complete(_) => Status::Complete,
+            Self::Ppa(state) => state.status(),
         }
     }
 }
@@ -171,7 +184,7 @@ fn compose(words: &[u64], plan: Plan, usage: &PayloadUsage) -> Result<Words, Err
 impl PartyRuntime {
     /// Bind an existing party-local Boolean owner, its public width and source
     /// identity. Shape/work/payload admission precedes the source public pivot.
-    /// Zero-width values consume no random draws; all other widths use source OT.
+    /// Zero-width values consume no draws; 1..8 uses OT and 9..64 uses source PPA.
     pub fn plan_boolean_to_arithmetic(&mut self, input: &Share) -> Result<Plan, Error> {
         let result = (|| {
             self.source.live()?;
@@ -181,15 +194,24 @@ impl PartyRuntime {
             if input.party() != self.party() {
                 return Err(Error::Role);
             }
-            if input.value.operation.context != self.context() || input.bits() > 8 {
+            if input.value.operation.context != self.context() || input.bits() > 64 {
                 return Err(Error::Binding);
             }
             let lanes = input.value.operation.lanes;
             let expanded = lanes
                 .checked_mul(usize::from(input.bits()))
                 .ok_or(Error::Bounds)?;
-            self.source.limits.core.admit(lanes.max(expanded))?;
-            let admitted_bytes = FIXED_RESERVE_BYTES + (16 * expanded + 8 * lanes) * 8;
+            let ppa = input.bits() > 8;
+            self.source
+                .limits
+                .core
+                .admit(if ppa { 2 * lanes } else { lanes.max(expanded) })?;
+            let admitted_bytes = FIXED_RESERVE_BYTES
+                + if ppa {
+                    320 * lanes
+                } else {
+                    (16 * expanded + 8 * lanes) * 8
+                };
             let usage = self.payload_usage();
             if usage
                 .live_bytes()
@@ -200,11 +222,14 @@ impl PartyRuntime {
             }
             let q = if input.bits() == 0 {
                 0
+            } else if ppa {
+                blocks(lanes)?
             } else {
                 blocks(expanded)?
             };
             let pair_start = self.source.cursors.pair_blocks;
-            let pair_end = pair_start.checked_add(3 * q).ok_or(Error::Bounds)?;
+            let count = 3 * q + if ppa { 6 * blocks(2 * lanes)? } else { 0 };
+            let pair_end = pair_start.checked_add(count).ok_or(Error::Bounds)?;
             let public_start = self.source.cursors.public_blocks;
             let mut operation = Operation::new(
                 self.context(),
@@ -214,7 +239,9 @@ impl PartyRuntime {
                 1,
                 self.source.limits.core,
             )?;
-            if input.bits() != 0 {
+            if ppa {
+                self.source.work(2 * count)?;
+            } else if input.bits() != 0 {
                 self.source.work(4 * q + 1)?;
                 self.source.cursors.public_blocks =
                     public_start.checked_add(1).ok_or(Error::Bounds)?;
@@ -230,7 +257,7 @@ impl PartyRuntime {
                 operation.pivot = [Party::P0, Party::P1, Party::P2][(word[0] % 3) as usize];
             }
             let mut hash = Sha256::new();
-            hash.update(PROFILE.as_bytes());
+            hash.update(if ppa { PPA_PROFILE } else { PROFILE }.as_bytes());
             hash.update(PRSS_PROFILE.as_bytes());
             hash.update(self.source.setup);
             hash.update(input.binding());
@@ -246,6 +273,8 @@ impl PartyRuntime {
                 pair_start,
                 pair_end,
                 admitted_bytes,
+                setup: self.source.setup,
+                limits: self.source.limits.core,
             };
             self.phase = Phase::BooleanToArithmetic(State::Planned(plan));
             Ok(plan)
@@ -346,6 +375,26 @@ impl PartyRuntime {
         }));
         Ok(reply)
     }
+
+    /// Wider PPA conversion consumes one directed frame per step and can emit
+    /// both a masked reveal and a final rotation. The OT receive API stays distinct.
+    pub fn advance_boolean_to_arithmetic(
+        &mut self,
+        message: Message,
+    ) -> Result<[Option<Message>; 2], Error> {
+        let result = (|| {
+            self.source.live()?;
+            let Phase::BooleanToArithmetic(State::Ppa(state)) =
+                std::mem::replace(&mut self.phase, Phase::Retired)
+            else {
+                return Err(Error::Phase);
+            };
+            let (state, replies) = ppa::advance(&mut self.source, state, message)?;
+            self.phase = Phase::BooleanToArithmetic(state);
+            Ok(replies)
+        })();
+        self.checked(result)
+    }
 }
 
 fn issue(
@@ -353,6 +402,9 @@ fn issue(
     plan: Plan,
     input: Share,
 ) -> Result<(State, [Option<Message>; 2]), Error> {
+    if plan.bits > 8 {
+        return ppa::issue(source, plan, input);
+    }
     let usage = source.payload_usage();
     if plan.bits == 0 {
         drop(input);

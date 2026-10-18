@@ -193,9 +193,9 @@ chained shapes. Fresh OS-key exported-API tests cover up to 1024 lanes, the sign
 rounding law and frame/work reconciliation. Allocation-index sweeps inspect
 erasure and still-held reservations inside deallocation; compile-fail checks
 reject cloning setup, runtime and Boolean-share owners. The current suite passes
-**75 native checks** (40 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
-19 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
-three independent Boolean/carry/OT transcript checks also pass.
+**79 native checks** (43 unit, 8 truncation, 3 PRSS, 2 compound exported-API,
+20 allocation, 3 compile-fail). The frozen multiplication oracle's 14 checks and
+four independent Boolean/carry/OT/PPA transcript checks also pass.
 Focused formatting passes; Clippy passes with the existing unrelated
 `needless_range_loop` warnings allowed. Replay uses the commands below.
 
@@ -269,7 +269,7 @@ separate views, with pairwise PRSS supplying the source three-party OT masks.
 The receiver returns one arithmetic component to the helper. No participant
 reconstructs the predicate; `take_output` returns an ordinary replicated ring64
 owner. Zero-width public values produce zero shares without PRSS or peer frames.
-Larger widths still require the source's distinct PPA implementation.
+Widths 9–64 select the source's distinct PPA implementation described below.
 
 For `L=n*bits` and `q=ceil(L/2)`, nonzero conversion draws one public pivot and
 advances pair cursors by `3q`. Helper/sender use `4q` pair AES blocks; the receiver
@@ -286,6 +286,23 @@ erasure/deallocation. Independent AES/scalar vectors check masks, both OT messag
 return components, full output pairs and cursors. Maximum-width/tile, opaque
 MSB-to-arithmetic, malformed phase, replay and allocation-failure controls pass.
 General nonlinear graphs and ordinary SDK/Experiment execution remain open.
+
+The full-width `B2AByPPA` path reuses the existing carry owner. Two source Both
+fills form independent arithmetic masks and a Boolean sharing of their sum;
+the original input adds to that sharing through the same seven-gate carry
+schedule. Only role zero receives the masked `x+r`, while roles one and two
+retain negative mask components. A final rotation forms adjacent additive
+pairs. `advance_boolean_to_arithmetic` consumes one bounded frame and may emit
+the reveal and rotation together; all unmasked values remain shared.
+
+For `q=ceil(n/2)`, pair cursors advance by `3q+6n`; every role performs twice
+that many AES blocks, without public/private draws. The 28 directed native
+frames contain `46n` ring64 words. At most 512 lanes enter the unchanged
+256 KiB ledger under `4096+320n` byte admission plus earlier owners. Independent
+full-width transcripts, maximum tiles, opaque A2B→B2A round trips and allocation
+sweeps cover split, every carry round, masked reveal and final rotation. This
+completes the source's bounded conversion selector, not the remaining nonlinear
+decoder, authenticated transport or ordinary SDK method.
 
 ### Independent primitive and transcript vectors
 

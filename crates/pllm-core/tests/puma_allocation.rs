@@ -1063,3 +1063,112 @@ fn ot_conversion_allocation_sweeps_keep_masks_and_accepted_outputs_charged() {
         }
     }
 }
+
+#[test]
+fn ppa_conversion_allocation_sweeps_cover_carry_reveal_and_output_rotation() {
+    for role in 0..3 {
+        for phase in 0..=10 {
+            let allocations = match phase {
+                0 => 5,
+                1..=7 => 7,
+                8 if role != 0 => 1,
+                9 if role == 0 => 1,
+                _ => 0,
+            };
+            for fail_at in 0..=allocations {
+                let mut owners = compound_owners(PrssLimits::default());
+                let mut input = boolean_inputs(&mut owners, 64).map(Some);
+                for i in 0..3 {
+                    owners[i]
+                        .plan_boolean_to_arithmetic(input[i].as_ref().unwrap())
+                        .unwrap();
+                }
+                let mut messages = Vec::new();
+                if phase > 0 {
+                    for i in 0..3 {
+                        messages.extend(
+                            owners[i]
+                                .begin_boolean_to_arithmetic(input[i].take().unwrap())
+                                .unwrap()
+                                .into_iter()
+                                .flatten(),
+                        );
+                    }
+                    for _ in 1..phase.min(9) {
+                        let mut next = Vec::new();
+                        for message in messages.drain(..) {
+                            let to = message.header().to as usize;
+                            next.extend(
+                                owners[to]
+                                    .advance_boolean_to_arithmetic(message)
+                                    .unwrap()
+                                    .into_iter()
+                                    .flatten(),
+                            );
+                        }
+                        messages = next;
+                    }
+                    if phase >= 9 && (role != 0 || phase == 10) {
+                        let at = messages
+                            .iter()
+                            .position(|m| m.header().phase == MessagePhase::BooleanPpaReveal)
+                            .unwrap();
+                        let reveal = messages.remove(at);
+                        messages.extend(
+                            owners[0]
+                                .advance_boolean_to_arithmetic(reveal)
+                                .unwrap()
+                                .into_iter()
+                                .flatten(),
+                        );
+                    }
+                }
+                let received = if phase == 0 {
+                    None
+                } else {
+                    let expected = if phase == 1 {
+                        MessagePhase::BooleanPpaMask
+                    } else if phase <= 8 {
+                        MessagePhase::BooleanAnd
+                    } else if phase == 9 && role == 0 {
+                        MessagePhase::BooleanPpaReveal
+                    } else {
+                        MessagePhase::BooleanPpaRotate
+                    };
+                    let at = messages
+                        .iter()
+                        .position(|m| {
+                            m.header().to as usize == role && m.header().phase == expected
+                        })
+                        .unwrap();
+                    Some(messages.remove(at))
+                };
+                let owner = &mut owners[role];
+                let usage = owner.payload_usage();
+                let watch = Watch::start(&usage, true, false);
+                FAIL_AT.set(Some(fail_at));
+                let result = if phase == 0 {
+                    owner.begin_boolean_to_arithmetic(input[role].take().unwrap())
+                } else {
+                    owner.advance_boolean_to_arithmetic(received.unwrap())
+                };
+                FAIL_AT.set(None);
+                if fail_at < allocations {
+                    assert!(matches!(result, Err(Error::Allocation)));
+                    assert_eq!(owner.status(), multiply::Status::Retired);
+                } else {
+                    assert!(result.is_ok(), "role {role} phase {phase}");
+                }
+                owner.cancel();
+                drop(result);
+                assert_audit(watch.finish());
+                for p in &mut owners {
+                    p.cancel();
+                }
+                drop(messages);
+                drop(input);
+                assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
+            }
+        }
+    }
+}

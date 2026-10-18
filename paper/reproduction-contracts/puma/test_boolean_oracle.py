@@ -172,6 +172,65 @@ def ot_conversion_vectors():
     return cases
 
 
+def ppa_conversion_vectors():
+    ring = (1 << 64)-1
+    cursor = 0
+    cases = []
+    n = 3
+    for bits in (9, 17, 64):
+        maximum = (1 << bits)-1
+        values = [0, maximum, maximum//2]
+        x = [[0xa5]*n, [0x33]*n, [v ^ 0xa5 ^ 0x33 for v in values]]
+        transcript = hashlib.sha256()
+
+        def record(rows):
+            for row in rows:
+                for word in row:
+                    transcript.update(word.to_bytes(8, "little"))
+
+        def pair(lanes):
+            nonlocal cursor
+            out = [typed_fill(k.to_bytes(16, "little"), cursor, lanes, 8) for k in (11, 22, 33)]
+            cursor += (lanes+1)//2
+            return out
+
+        def xor(a, b):
+            return [[x ^ y for x, y in zip(u, v)] for u, v in zip(a, b)]
+
+        def and_gate(a, b):
+            edge = pair(len(a[0]))
+            out = []
+            for r in range(3):
+                s = (r+1)%3
+                out.append([(a[r][i] & b[r][i]) ^ (a[r][i] & b[s][i]) ^
+                            (a[s][i] & b[r][i]) ^ edge[r][i] ^ edge[s][i]
+                            for i in range(len(a[0]))])
+            record(out)
+            return out
+
+        random = pair(n)
+        edge = pair(n)
+        r = xor(edge, edge[1:]+edge[:1])
+        r[1] = [v ^ ((a+b) & ring) for v, a, b in zip(r[1], random[1], random[2])]
+        record(r)
+        initial = xor(x, r)
+        p = [row[:] for row in initial]
+        g = and_gate(x, r)
+        for level in range(6):
+            rhs = [[(v << (1 << level)) & ring for v in pr+gr] for pr, gr in zip(p, g)]
+            out = and_gate([row+row for row in p], rhs)
+            p, cross = [row[:n] for row in out], [row[n:] for row in out]
+            g = xor(g, cross)
+        added = xor(initial, [[(v << 1) & ring for v in row] for row in g])
+        record([added[2]])
+        output = [[a ^ b ^ c for a, b, c in zip(*added)]] + [[-v & ring for v in row] for row in random[1:]]
+        record(output)  # final rotation
+        assert [sum(v) & ring for v in zip(*output)] == values
+        record(output)  # extracted owner fixture
+        cases.append((cursor, transcript.hexdigest()))
+    return cases
+
+
 class BooleanVectors(unittest.TestCase):
     def test_typed_aes_transcripts(self):
         cases = vectors()
@@ -195,4 +254,11 @@ class BooleanVectors(unittest.TestCase):
             (2, 6, "c9aace3e1031119812976b935fa7c65afc4946a8c09f2b9c9e9fe7f37c3c98fb"),
             (0, 24, "1b13d3dae62b3f0870479cc4e90c41b39f18befdf5bc1f3f171e486fcbeb3806"),
             (0, 60, "84847a2cda0df6efffa74cdd9c8d47bb3a92179fa8b82fb59c8ae89efc9ac966"),
+        ])
+
+    def test_full_width_ppa_masked_reveal(self):
+        self.assertEqual(ppa_conversion_vectors(), [
+            (24, "b26b6079ce6ab42e04922f9b9143227932eeca07a117892fc05808e5b147b0e8"),
+            (48, "8befc346b398e639e9162155d5629f977889c10991065ca2731e073a1e977bc4"),
+            (72, "93dd2200dfd7f948ef4f9f093fb2b0df3e861988cfc0e96090aa309354826ae4"),
         ])

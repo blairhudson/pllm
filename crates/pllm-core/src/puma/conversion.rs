@@ -28,6 +28,7 @@ pub struct Plan {
     setup: [u8; 32],
     kind: Kind,
     pair_start: u64,
+    gate_start: u64,
     pair_end: u64,
     admitted_bytes: usize,
     limits: Limits,
@@ -75,11 +76,11 @@ impl Plan {
         ReplicatedShare::from_local(self.input_binding(), party, first, second, limits)
     }
 
-    fn gate(self, round: u8) -> Result<boolean::Plan, Error> {
+    pub(super) fn gate(self, round: u8) -> Result<boolean::Plan, Error> {
         if round > 6 {
             return Err(Error::Bounds);
         }
-        let mut start = self.pair_start + typed_blocks(self.lanes(), 8)?;
+        let mut start = self.gate_start;
         for r in 0..round {
             let (lanes, bits) = self.geometry(r);
             start += typed_blocks(lanes, backing(bits))?;
@@ -94,6 +95,29 @@ impl Plan {
             start,
             self.limits,
         )
+    }
+
+    pub(super) fn nested_adder(
+        operation: Operation,
+        setup: [u8; 32],
+        gate_start: u64,
+        limits: Limits,
+    ) -> Result<Self, Error> {
+        let n = operation.lanes;
+        limits.admit(2 * n)?;
+        let pair_end = gate_start
+            .checked_add(typed_blocks(n, 8)? + 6 * typed_blocks(2 * n, 8)?)
+            .ok_or(Error::Bounds)?;
+        Ok(Self {
+            operation,
+            setup,
+            kind: Kind::Bits,
+            pair_start: gate_start,
+            gate_start,
+            pair_end,
+            admitted_bytes: FIXED_RESERVE_BYTES + 256 * n,
+            limits,
+        })
     }
 
     fn geometry(self, round: u8) -> (usize, u8) {
@@ -277,6 +301,7 @@ impl PartyRuntime {
                 setup: self.source.setup,
                 kind,
                 pair_start,
+                gate_start: pair_start + typed_blocks(lanes, 8)?,
                 pair_end,
                 admitted_bytes,
                 limits,
@@ -373,52 +398,21 @@ impl PartyRuntime {
                 )?;
                 let usage = self.payload_usage();
                 message.words.charge_to(&usage)?;
-                let gate_plan = plan.gate(0)?;
-                let mut left = Share {
+                let left = Share {
                     value: ReplicatedShare {
-                        operation: gate_plan.operand(Operand::Left).0,
+                        operation: plan.operation,
                         party: self.party(),
                         first,
                         second: message.words,
                     },
                     bits: 64,
                 };
-                let mut right = Share {
+                let right = Share {
                     value: other,
                     bits: 64,
                 };
-                right.value.operation = gate_plan.operand(Operand::Right).0;
-                let mut propagate = pair(&usage, plan.operation, self.party(), 64)?;
-                let mut initial = pair(
-                    &usage,
-                    plan.operation,
-                    self.party(),
-                    if plan.kind == Kind::Bits { 64 } else { 1 },
-                )?;
-                for second in [false, true] {
-                    for i in 0..plan.lanes() {
-                        let xor = component(&left, second)[i] ^ component(&right, second)[i];
-                        component_mut(&mut propagate, second)[i] = xor;
-                        component_mut(&mut initial, second)[i] = if plan.kind == Kind::Bits {
-                            xor
-                        } else {
-                            xor >> 63
-                        };
-                    }
-                }
-                let (gate, outgoing) =
-                    boolean::issue(&mut self.source, gate_plan, &mut left, &mut right)?;
-                (
-                    State::Circuit(Work {
-                        plan,
-                        initial,
-                        propagate,
-                        generate: None,
-                        gate,
-                        round: 0,
-                    }),
-                    Some(outgoing),
-                )
+                let (work, outgoing) = start(&mut self.source, plan, left, right)?;
+                (State::Circuit(work), Some(outgoing))
             }
             Phase::Conversion(State::Circuit(work)) => advance(&mut self.source, work, message)?,
             _ => return Err(Error::Phase),
@@ -428,7 +422,60 @@ impl PartyRuntime {
     }
 }
 
-fn advance(
+pub(super) fn start(
+    source: &mut SourceParty,
+    plan: Plan,
+    mut left: Share,
+    mut right: Share,
+) -> Result<(Work, Message), Error> {
+    for value in [&left, &right] {
+        if value.bits != 64
+            || value.first().len() != plan.lanes()
+            || value.second().len() != plan.lanes()
+        {
+            return Err(Error::Shape);
+        }
+        if value.party() != source.party() || value.value.operation.context != source.context() {
+            return Err(Error::Binding);
+        }
+    }
+    let usage = source.payload_usage();
+    let gate_plan = plan.gate(0)?;
+    left.value.operation = gate_plan.operand(Operand::Left).0;
+    right.value.operation = gate_plan.operand(Operand::Right).0;
+    let mut propagate = pair(&usage, plan.operation, source.party(), 64)?;
+    let mut initial = pair(
+        &usage,
+        plan.operation,
+        source.party(),
+        if plan.kind == Kind::Bits { 64 } else { 1 },
+    )?;
+    for second in [false, true] {
+        for i in 0..plan.lanes() {
+            let xor = component(&left, second)[i] ^ component(&right, second)[i];
+            component_mut(&mut propagate, second)[i] = xor;
+            component_mut(&mut initial, second)[i] = if plan.kind == Kind::Bits {
+                xor
+            } else {
+                xor >> 63
+            };
+        }
+    }
+    let (gate, outgoing) = boolean::issue(source, gate_plan, &mut left, &mut right)?;
+    Ok((
+        Work {
+            plan,
+            initial,
+            propagate,
+            generate: None,
+            gate,
+            round: 0,
+        },
+        outgoing,
+    ))
+}
+
+pub(super) fn advance(
     source: &mut SourceParty,
     work: Work,
     message: Message,

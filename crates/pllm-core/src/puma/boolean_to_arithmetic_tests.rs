@@ -156,7 +156,7 @@ fn all_ot_widths_and_maximum_tiles_preserve_values_and_source_cursors() {
 
 #[test]
 fn conversion_rejects_unsupported_width_work_and_geometry_before_public_draw() {
-    for (bits, n, work) in [(9, 1, 1000), (8, MAX_LANES / 8 + 1, 10000), (1, 3, 2)] {
+    for (bits, n, work) in [(65, 1, 1000), (8, MAX_LANES / 8 + 1, 10000), (1, 3, 2)] {
         let mut owners = parties(PrssLimits::new(Limits::default(), work).unwrap());
         let x = inputs(&owners, &vec![0; n], bits);
         let before = owners[0].cursors();
@@ -249,6 +249,201 @@ fn independent_ot_transcripts_match_mask_delivery_and_full_arithmetic_pairs() {
         let actual: String = digest.iter().map(|v| format!("{v:02x}")).collect();
         assert_eq!(actual, expected);
         assert_eq!(plan.helper() as usize, helper);
+        assert!(owners.iter().all(|p| p.cursors().pair_blocks == end));
+        drop(output);
+    }
+}
+
+fn run_ppa(
+    owners: &mut [PartyRuntime; 3],
+    values: &[u64],
+    bits: u8,
+) -> ([ReplicatedShare; 3], [u8; 32], Plan) {
+    let input = inputs(owners, values, bits);
+    let (plan, mut messages) = begin(owners, input);
+    let mut digest = Sha256::new();
+    let mut retained = Vec::new();
+    let mut import = |original: Message| {
+        for word in original.words() {
+            digest.update(word.to_le_bytes());
+        }
+        let received = plan
+            .message_from_received(original.header(), original.words(), Limits::default())
+            .unwrap();
+        retained.push(original);
+        received
+    };
+    for round in 0..8 {
+        let phase = if round == 0 {
+            MessagePhase::BooleanPpaMask
+        } else {
+            MessagePhase::BooleanAnd
+        };
+        let mut next = Vec::new();
+        // Record sender order, then route to the previous role.
+        messages.sort_by_key(|m| m.header().from as u8);
+        for message in messages.drain(..) {
+            assert_eq!(message.header().phase, phase);
+            let to = message.header().to as usize;
+            next.extend(
+                owners[to]
+                    .advance_boolean_to_arithmetic(import(message))
+                    .unwrap()
+                    .into_iter()
+                    .flatten(),
+            );
+        }
+        messages = next;
+    }
+    let reveal = take(&mut messages, MessagePhase::BooleanPpaReveal);
+    messages.extend(
+        owners[0]
+            .advance_boolean_to_arithmetic(import(reveal))
+            .unwrap()
+            .into_iter()
+            .flatten(),
+    );
+    messages.sort_by_key(|m| m.header().from as u8);
+    for message in messages.drain(..) {
+        let to = message.header().to as usize;
+        assert!(owners[to]
+            .advance_boolean_to_arithmetic(import(message))
+            .unwrap()
+            .iter()
+            .all(Option::is_none));
+    }
+    let output = owners.each_mut().map(|p| p.take_output().unwrap());
+    for i in 0..3 {
+        assert_eq!(output[i].second(), output[(i + 1) % 3].first());
+        for v in output[i].first() {
+            digest.update(v.to_le_bytes());
+        }
+    }
+    for (i, &value) in values.iter().enumerate() {
+        assert_eq!(
+            output
+                .iter()
+                .fold(0_u64, |x, p| x.wrapping_add(p.first()[i])),
+            value
+        );
+    }
+    for p in owners.iter() {
+        assert!(p.payload_usage().peak_bytes() + FIXED_RESERVE_BYTES <= plan.admitted_bytes());
+    }
+    assert_eq!(retained.len(), 28);
+    assert_eq!(
+        retained.iter().map(|m| m.words().len()).sum::<usize>(),
+        46 * values.len()
+    );
+    drop(retained);
+    (output, digest.finalize().into(), plan)
+}
+
+#[test]
+fn full_width_ppa_preserves_all_bits_with_only_masked_reveal() {
+    for bits in [9, 16, 17, 32, 33, 64] {
+        for n in [1, 3, 17, MAX_LANES / 2] {
+            let mut owners = parties(PrssLimits::default());
+            let mask = u64::MAX >> (64 - bits);
+            let values: Vec<_> = (0..n)
+                .map(|i| match i % 4 {
+                    0 => mask,
+                    1 => 0,
+                    2 => mask / 2,
+                    _ => (i as u64).wrapping_mul(0xfeed_cafe_1234_9876) & mask,
+                })
+                .collect();
+            let (output, _, plan) = run_ppa(&mut owners, &values, bits);
+            let expected = 3 * (n as u64).div_ceil(2) + 6 * n as u64;
+            for p in &owners {
+                assert_eq!(p.cursors().pair_blocks, expected);
+                assert_eq!(p.cursors().aes_work, 2 * expected);
+                assert_eq!(p.cursors().public_blocks, 0);
+                assert_eq!(p.cursors().private_blocks, 0);
+            }
+            assert_eq!(plan.pair_blocks(), expected);
+            drop(output);
+            assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
+        }
+    }
+}
+
+#[test]
+fn ppa_phase_replay_and_incomplete_reveal_retire_at_each_rotation() {
+    for stop in 0..9 {
+        let mut owners = parties(PrssLimits::default());
+        let input = inputs(&owners, &[0, u64::MAX, i64::MIN as u64], 64);
+        let (plan, mut messages) = begin(&mut owners, input);
+        for _ in 0..stop.min(8) {
+            let mut next = Vec::new();
+            for message in messages.drain(..) {
+                let to = message.header().to as usize;
+                next.extend(
+                    owners[to]
+                        .advance_boolean_to_arithmetic(message)
+                        .unwrap()
+                        .into_iter()
+                        .flatten(),
+                );
+            }
+            messages = next;
+        }
+        let phase = match stop {
+            0 => MessagePhase::BooleanPpaMask,
+            1..=7 => MessagePhase::BooleanAnd,
+            _ => MessagePhase::BooleanPpaReveal,
+        };
+        let at = messages
+            .iter()
+            .position(|m| m.header().phase == phase)
+            .unwrap();
+        let mut bad = messages.remove(at);
+        let role = bad.header().to as usize;
+        let original = plan
+            .message_from_received(bad.header(), bad.words(), Limits::default())
+            .unwrap();
+        if stop == 8 {
+            let more = owners[role]
+                .advance_boolean_to_arithmetic(original)
+                .unwrap();
+            drop(more);
+        } else {
+            bad.header.binding[0] ^= 1;
+            drop(original);
+        }
+        assert!(owners[role].advance_boolean_to_arithmetic(bad).is_err());
+        for p in &mut owners {
+            p.cancel();
+        }
+        drop(messages);
+        assert!(owners.iter().all(|p| p.payload_usage().live_bytes() == 0));
+    }
+}
+
+#[test]
+fn independent_ppa_transcripts_match_mask_rotation_carry_reveal_and_output() {
+    let mut owners = parties(PrssLimits::default());
+    for (bits, end, expected) in [
+        (
+            9,
+            24,
+            "b26b6079ce6ab42e04922f9b9143227932eeca07a117892fc05808e5b147b0e8",
+        ),
+        (
+            17,
+            48,
+            "8befc346b398e639e9162155d5629f977889c10991065ca2731e073a1e977bc4",
+        ),
+        (
+            64,
+            72,
+            "93dd2200dfd7f948ef4f9f093fb2b0df3e861988cfc0e96090aa309354826ae4",
+        ),
+    ] {
+        let maximum = u64::MAX >> (64 - bits);
+        let (output, digest, _) = run_ppa(&mut owners, &[0, maximum, maximum / 2], bits);
+        let actual: String = digest.iter().map(|v| format!("{v:02x}")).collect();
+        assert_eq!(actual, expected);
         assert!(owners.iter().all(|p| p.cursors().pair_blocks == end));
         drop(output);
     }

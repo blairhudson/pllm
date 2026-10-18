@@ -86,7 +86,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         });
         assert_eq!(ops, [ops[0]; 3]);
         let op = ops[0];
-        assert_eq!(op.sequence(), 5 * ordinal as u64);
+        assert_eq!(op.sequence(), 6 * ordinal as u64);
         admitted = admitted.max(op.admitted_bytes());
         let mut messages: Vec<_> = owners
             .iter_mut()
@@ -173,7 +173,7 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
         let plans = owners.each_mut().map(|p| p.plan_and(n, 14, 5).unwrap());
         let plan = plans[0];
         assert_eq!(plans, [plan; 3]);
-        assert_eq!(plan.sequence(), 5 * ordinal as u64 + 1);
+        assert_eq!(plan.sequence(), 6 * ordinal as u64 + 1);
         let inputs = [Operand::Left, Operand::Right].map(|operand| {
             let value = if operand == Operand::Left {
                 0x1234
@@ -376,6 +376,89 @@ fn os_seeded_full_shape_products_obey_rounding_law_and_source_work_counts() {
                 }
                 drop(output);
             } else {
+                let plans = std::array::from_fn::<_, 3, _>(|i| {
+                    owners[i].plan_boolean_to_arithmetic(&output[i]).unwrap()
+                });
+                let plan = plans[0];
+                assert_eq!(plans, [plan; 3]);
+                admitted = admitted.max(plan.admitted_bytes());
+                let mut messages: Vec<_> = owners
+                    .iter_mut()
+                    .zip(output)
+                    .flat_map(|(p, x)| {
+                        p.begin_boolean_to_arithmetic(x)
+                            .unwrap()
+                            .into_iter()
+                            .flatten()
+                    })
+                    .collect();
+                for _ in 0..8 {
+                    let mut next = Vec::new();
+                    for original in messages.drain(..) {
+                        let to = original.header().to as usize;
+                        let received = plan
+                            .message_from_received(
+                                original.header(),
+                                original.words(),
+                                Limits::default(),
+                            )
+                            .unwrap();
+                        drop(original);
+                        next.extend(
+                            owners[to]
+                                .advance_boolean_to_arithmetic(received)
+                                .unwrap()
+                                .into_iter()
+                                .flatten(),
+                        );
+                    }
+                    messages = next;
+                }
+                let original = take(&mut messages, Party::P0, MessagePhase::BooleanPpaReveal);
+                let received = plan
+                    .message_from_received(original.header(), original.words(), Limits::default())
+                    .unwrap();
+                drop(original);
+                messages.extend(
+                    owners[0]
+                        .advance_boolean_to_arithmetic(received)
+                        .unwrap()
+                        .into_iter()
+                        .flatten(),
+                );
+                for original in messages.drain(..) {
+                    let to = original.header().to as usize;
+                    let received = plan
+                        .message_from_received(
+                            original.header(),
+                            original.words(),
+                            Limits::default(),
+                        )
+                        .unwrap();
+                    drop(original);
+                    assert!(owners[to]
+                        .advance_boolean_to_arithmetic(received)
+                        .unwrap()
+                        .iter()
+                        .all(Option::is_none));
+                }
+                let output = owners.each_mut().map(|p| p.take_output().unwrap());
+                for (lane, &value) in values.iter().enumerate() {
+                    assert_eq!(
+                        output
+                            .iter()
+                            .fold(0_u64, |v, p| v.wrapping_add(p.first()[lane])),
+                        value
+                    );
+                }
+                pair_blocks += plan.pair_blocks();
+                for (i, p) in owners.iter().enumerate() {
+                    work[i] += 2 * plan.pair_blocks();
+                    assert_eq!(p.cursors().pair_blocks, pair_blocks);
+                    assert_eq!(p.cursors().public_blocks, public_blocks);
+                    assert_eq!(p.cursors().private_blocks, private[i]);
+                    assert_eq!(p.cursors().aes_work, work[i]);
+                }
                 drop(output);
             }
             assert!(usages.iter().all(|u| u.live_bytes() == 0));
