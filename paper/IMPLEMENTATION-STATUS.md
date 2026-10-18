@@ -67,8 +67,10 @@ Completed foundations:
   separate `puma.rmsnorm-epsilon1-q18.v1` profile, implemented as uncentered RMSNorm
   with integer-one epsilon and distinct rescales. Zero-row and source-profile
   identity controls pass. Half-split rotary additionally preserves two separately
-  truncated public coefficient products per output. Checkpoint/position table
-  binding, wider decoder rows, whole-model ranges and SDK/Experiment execution
+  truncated public coefficient products per output. Register-slot reuse and
+  shape-aware allocation additionally admit checked 896/1,024-value RMSNorm,
+  896-value LayerNorm and 512-value softmax rows under the same 256 KiB party cap.
+  Checkpoint/position table binding, whole-model ranges and SDK/Experiment execution
   remain open.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact

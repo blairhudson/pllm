@@ -182,7 +182,7 @@ impl Program {
         if width == 0 || rows == 0 {
             return Err(Error::Bounds);
         }
-        let mut b = Builder::new(lanes, input)?;
+        let mut b = Builder::row(lanes, input)?;
         let x = b.input();
         let mut maximum = x;
         let mut offset = 1;
@@ -235,7 +235,7 @@ impl Program {
         if width == 0 || rows == 0 || gamma.len() != width || beta.len() != width {
             return Err(Error::Shape);
         }
-        let mut b = Builder::new(lanes, input)?;
+        let mut b = Builder::row(lanes, input)?;
         let x = b.input();
         let inverse_width = ((1.0_f32 / width as f32) * ONE as f32) as i64;
         let sum = b.row_map(x, width, RowMap::Sum)?;
@@ -252,11 +252,11 @@ impl Program {
         let inverse = rsqrt(&mut b, variance, bounds)?;
         let inverse = b.row_map(inverse, width, RowMap::Broadcast)?;
         let normalized = b.product(delta, inverse, true)?;
-        let scales: [Affine; MAX_TILE_LANES] =
+        let scales: [Affine; MAX_ROW_LANES] =
             std::array::from_fn(|i| affine(gamma[i % width], 0, 0));
         let scaled = b.affine_lanes(normalized, &scales[..lanes])?;
         let rounded = b.rescale(scaled, 18)?;
-        let offsets: [Affine; MAX_TILE_LANES] =
+        let offsets: [Affine; MAX_ROW_LANES] =
             std::array::from_fn(|i| affine(1, 0, beta[i % width]));
         let output = b.affine_lanes(rounded, &offsets[..lanes])?;
         b.finish(output)
@@ -276,7 +276,7 @@ impl Program {
         if width == 0 || rows == 0 || gamma.len() != width {
             return Err(Error::Shape);
         }
-        let mut b = Builder::new(lanes, input)?;
+        let mut b = Builder::row(lanes, input)?;
         b.0.numeric_profile = RMS_NORM_PROFILE;
         let x = b.input();
         let square = b.square(x)?;
@@ -289,7 +289,7 @@ impl Program {
         let inverse = rsqrt(&mut b, denominator, bounds)?;
         let inverse = b.row_map(inverse, width, RowMap::Broadcast)?;
         let normalized = b.product(x, inverse, true)?;
-        let scales: [Affine; MAX_TILE_LANES] =
+        let scales: [Affine; MAX_ROW_LANES] =
             std::array::from_fn(|i| affine(gamma[i % width], 0, 0));
         let scaled = b.affine_lanes(normalized, &scales[..lanes])?;
         let output = b.rescale(scaled, 18)?;

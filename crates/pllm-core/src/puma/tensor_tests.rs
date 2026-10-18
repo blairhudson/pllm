@@ -293,7 +293,19 @@ fn row_oracle(
 #[test]
 fn protected_rows_match_one_reciprocal_or_rsqrt_per_row() {
     for layer_norm in [false, true] {
-        for (rows, width) in [(2, 1), (3, 3), (2, 8), (1, 128)] {
+        for (rows, width) in [
+            (2, 1),
+            (3, 3),
+            (2, 8),
+            (1, 128),
+            (1, 150),
+            (1, 288),
+            (1, 512),
+            (1, 896),
+        ] {
+            if !layer_norm && width > MAX_LANES / 2 {
+                continue;
+            }
             let x: Vec<_> = (0..rows * width)
                 .map(|i| {
                     if layer_norm {
@@ -364,7 +376,7 @@ fn row_programs_bind_geometry_coefficients_and_eager_range_gates() {
     );
     assert!(Program::softmax(0, 2, input).is_err());
     assert!(Program::softmax(1, 0, input).is_err());
-    assert!(Program::softmax(1, 129, input).is_err());
+    assert!(Program::softmax(1, MAX_ROW_LANES + 1, input).is_err());
     // Clipped lanes still evaluate their powers; clipping cannot admit them.
     assert!(Program::softmax(1, 4, Interval::new(-128 * ONE, 0).unwrap()).is_err());
     assert!(Program::layer_norm(1, 2, input, &[ONE], &[0; 2]).is_err());
@@ -399,9 +411,15 @@ fn rms_norm_oracle(x: &[i64], width: usize, gamma: &[i64], tapes: &[Vec<u64>]) -
 #[test]
 fn positive_epsilon_rms_norm_preserves_zero_constant_and_signed_rows() {
     let bounds = Interval::new(-4 * ONE, 4 * ONE).unwrap();
-    for (rows, width) in [(1, 1), (3, 3), (2, 7), (1, 128)] {
+    for (rows, width) in [(1, 1), (3, 3), (2, 7), (1, 128), (1, 896), (1, 1024)] {
         let gamma: Vec<_> = (0..width).map(|i| [ONE, -3 * ONE / 2, 0][i % 3]).collect();
         let program = Program::rms_norm(rows, width, bounds, &gamma).unwrap();
+        assert!(
+            program.admitted_bytes() <= MAX_ADMITTED_BYTES,
+            "{} lanes require {} bytes",
+            program.lanes(),
+            program.admitted_bytes()
+        );
         assert_eq!(program.numeric_profile(), RMS_NORM_PROFILE);
         assert_eq!(program.output_lanes(), rows * width);
         for values in [
@@ -480,7 +498,7 @@ fn rms_norm_identity_and_range_gates_preserve_legacy_program_digests() {
     assert!(Program::rms_norm(0, 2, bounds, &[ONE; 2]).is_err());
     assert!(Program::rms_norm(1, 0, bounds, &[]).is_err());
     assert!(Program::rms_norm(1, 2, bounds, &[ONE]).is_err());
-    assert!(Program::rms_norm(1, 129, bounds, &[ONE; 129]).is_err());
+    assert!(Program::rms_norm(1, MAX_ROW_LANES + 1, bounds, &[ONE; MAX_ROW_LANES + 1]).is_err());
     assert!(Program::rms_norm(usize::MAX, 2, bounds, &[ONE; 2]).is_err());
     assert!(Program::rms_norm(1, 2, bounds, &[i64::MAX; 2]).is_err());
     assert!(
@@ -891,6 +909,125 @@ fn public_tensor_builder_reuses_shared_bits_and_rejects_invalid_programs() {
     }
     assert!(builder.sign(input).is_err());
     assert!(builder.finish(input).is_err());
+}
+
+#[test]
+fn reused_register_slots_preserve_live_inputs_across_unused_instructions() {
+    let mut b = Builder::new(3, Interval::new(-ONE, ONE).unwrap()).unwrap();
+    let input = b.input();
+    let saved = b
+        .affine(
+            input,
+            None,
+            Affine {
+                left: 1,
+                right: 0,
+                constant: 7,
+            },
+        )
+        .unwrap();
+    for _ in 0..40 {
+        let unused = b.product(input, input, false).unwrap();
+        b.sign(unused).unwrap();
+    }
+    let output = b
+        .affine(
+            saved,
+            Some(input),
+            Affine {
+                left: 1,
+                right: -1,
+                constant: 0,
+            },
+        )
+        .unwrap();
+    let program = b.finish(output).unwrap();
+    assert!(program.register_count < 6);
+    let mut owners = owners(&program, &[-ONE, 0, ONE]);
+    let usage = owners.each_ref().map(Executor::payload_usage);
+    for _ in 0..program.instructions() {
+        step(&mut owners);
+    }
+    let outputs = owners.map(|o| o.finish().unwrap().1);
+    assert_eq!(clear(&outputs), [7, 7, 7]);
+    drop(outputs);
+    assert!(usage.iter().all(|u| u.live_bytes() == 0));
+}
+
+#[test]
+fn exact_tensor_allowances_cover_wide_rows_ot_and_consumed_input_continuation() {
+    let bounds = Interval::new(-ONE, ONE).unwrap();
+    let mut b = Builder::new(128, bounds).unwrap();
+    let bits = b.bits(b.input()).unwrap();
+    let low = b.bit_map(bits, BitMap::LowBits(8)).unwrap();
+    let value = b.from_boolean(low).unwrap();
+    let ot = b.finish(value).unwrap();
+    for (program, peer_retained_outputs) in [
+        (
+            Program::rms_norm(1, 1024, bounds, &[ONE; 1024]).unwrap(),
+            false,
+        ),
+        (
+            Program::layer_norm(1, 896, bounds, &[ONE; 896], &[0; 896]).unwrap(),
+            false,
+        ),
+        (Program::softmax(1, 512, bounds).unwrap(), false),
+        (ot, true),
+    ] {
+        let bytes = program.admitted_bytes();
+        let limits = Limits::new(MAX_LANES, crate::puma::MAX_OPERATIONS, bytes).unwrap();
+        let runtimes =
+            parties(PrssLimits::new(limits, super::super::super::MAX_AES_BLOCKS).unwrap());
+        let mut input = inputs(&runtimes, &vec![0; program.lanes()]).map(Some);
+        let mut p = 0;
+        let mut owners = runtimes.map(|runtime| {
+            let out = Executor::new(runtime, program.clone(), input[p].take().unwrap()).unwrap();
+            p += 1;
+            out
+        });
+        let usage = owners.each_ref().map(Executor::payload_usage);
+        for run in 0..2 {
+            for _ in 0..program.instructions() {
+                step(&mut owners);
+            }
+            let completed = owners.map(|o| o.finish().unwrap());
+            if run == 1 {
+                drop(completed);
+                break;
+            }
+            if peer_retained_outputs {
+                // OT can return an original frame into another party's output.
+                // Its sender lease stays charged; only the consumed local input
+                // may receive graph credit. It cannot hide that retained frame.
+                let mut completed = completed.map(Some);
+                let party = completed
+                    .iter()
+                    .position(|pair| {
+                        let (runtime, output) = pair.as_ref().unwrap();
+                        let usage = runtime.payload_usage();
+                        usage.live_bytes()
+                            > output.first.charged_bytes(&usage)
+                                + output.second.charged_bytes(&usage)
+                    })
+                    .unwrap();
+                let (runtime, output) = completed[party].take().unwrap();
+                assert!(matches!(
+                    Executor::new(runtime, program.clone(), output),
+                    Err(Error::Bounds)
+                ));
+                assert!(usage[party].live_bytes() > 0);
+                drop(completed);
+                break;
+            }
+            // The original output already owns this runtime's charge. Admission
+            // must move it into the next graph, while preserving its PRSS cursor.
+            owners = completed
+                .map(|(runtime, output)| Executor::new(runtime, program.clone(), output).unwrap());
+        }
+        assert!(usage
+            .iter()
+            .all(|u| u.live_bytes() == 0 && u.peak_bytes() + FIXED_RESERVE_BYTES <= bytes));
+    }
 }
 
 #[test]

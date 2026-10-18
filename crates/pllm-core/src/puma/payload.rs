@@ -135,6 +135,19 @@ impl Words {
         *slot = Some(usage.reserve(self.data.capacity() * 8)?);
         Ok(())
     }
+
+    pub(super) fn charged_bytes(&self, usage: &PayloadUsage) -> usize {
+        if self
+            .leases
+            .iter()
+            .flatten()
+            .any(|r| Arc::ptr_eq(&r.usage.ledger, &usage.ledger))
+        {
+            self.data.capacity() * 8
+        } else {
+            0
+        }
+    }
 }
 
 impl Deref for Words {

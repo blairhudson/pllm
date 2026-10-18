@@ -340,7 +340,7 @@ power order and exact branch endpoints. GELU computes `x6=Square(x3)`; SiLU uses
 `x6=mul(x2,x4)`. Every lane executes both polynomials and all comparisons. Exact
 integer selection products keep predicates and selected outputs shared.
 
-Programs admit 1–128 lanes and at most 192 nodes. Public interval propagation
+Activation programs admit 1–128 lanes and at most 192 nodes. Public interval propagation
 checks **every eagerly evaluated intermediate**, including polynomial values on
 tail inputs; it rejects unsafe quarter-ring truncations before an executor draws
 randomness. These proofs assume the caller/compiler's public input interval.
@@ -402,8 +402,9 @@ boundary, evaluates all five squarings, masks clipped terms before reduction,
 and broadcasts one reciprocal per row. Its maximum lane proves a positive
 denominator. LayerNorm uses the encoded public reciprocal width, centered
 mean-square variance, `E(1e-5)=2`, one rsqrt per row, and the approved two-step
-gamma product. Rows fit within the same 128-total-lane tile and 256 KiB per-runtime
-allowance. Unsafe eager powers or oversized row geometry reject before PRSS.
+gamma product. The initial slice uses a 128-total-lane tile and 256 KiB per-runtime
+allowance; the wider-row extension below retains that byte ceiling. Unsafe eager
+powers or oversized row geometry reject before PRSS.
 
 The executor additionally accepts the independent PPA rotation arriving before
 its masked reveal, retaining its charged buffer until the receive barrier.
@@ -423,11 +424,11 @@ Focused formatting and Clippy pass with the existing `needless_range_loop`
 allowance. Unrestricted strict Clippy reports three pre-existing warnings in
 `byte_dot.rs` and the separate Maverick batch implementation.
 
-This is bounded native tensor execution. Wider decoder rows, compiler-derived
-whole-model ranges, authenticated three-role transport and an ordinary SDK
+This is bounded native tensor execution. Compiler-derived whole-model ranges,
+authenticated three-role transport and an ordinary SDK
 Experiment remain open. Qwen's pinned RMSNorm epsilon is `1e-6`, which the
 approved Q18 encoder maps to zero. D10 subsequently approves the explicit
-positive-epsilon adaptation below; RoPE and complete-model integration remain open.
+positive-epsilon adaptation below; complete-model integration remains open.
 
 ### Explicit positive-epsilon RMSNorm
 
@@ -444,13 +445,14 @@ The profile name enters the native program digest and is available through
 `numeric_profile()`. Source-derived activation, LayerNorm and softmax identities
 retain their original values; an independently serialized pre-D10 digest checks
 this compatibility. Geometry, gamma and the epsilon instruction are bound as
-before. The same 128-total-lane/256 KiB ownership limits apply.
+before. The initial slice uses the same 128-total-lane/256 KiB ownership limits;
+the wider-row extension below retains the byte ceiling and numeric identity.
 
 Independent stochastic-integer tests cover zero, constant, signed and small-code
 rows, non-power-of-two widths and maximum tiles. The existing cancellation,
 allocation-index and erasure-before-refund controls also exercise RMSNorm.
 The scalar source oracle separately verifies the approved epsilon and zero-row
-behavior. These bounded controls do not qualify wider checkpoint rows, private
+behavior. These bounded controls do not qualify checkpoint execution, private
 gamma binding, whole-model range proofs or shared SDK quality measurements.
 
 The D10 slice passes **107 native checks** (67 unit, 8 truncation, 3 PRSS, 3
@@ -486,6 +488,42 @@ cover signed rotations, two 64-coordinate heads, maximum tiles and exact
 identity-position results. Cancellation at each instruction/round and a separate
 allocation-index/zeroization test pass; focused Clippy and formatting pass.
 No serving benchmark or complete checkpoint RoPE mapping is claimed.
+
+### Full-width bounded row execution
+
+Row constructors now admit up to 1,024 total lanes before their per-primitive and
+live-payload checks. The unchanged **256 KiB per-party cap** admits tested
+896/1,024-value RMSNorm rows, 896-value centered LayerNorm rows and 150/288/512-value
+softmax rows. Geometry alone does not guarantee admission: a 1,024-value softmax
+rejects its expanded Boolean conversion before register allocation or randomness.
+Activation and rotary tiles retain their 128-lane bound.
+
+The public program maps non-overlapping lifetimes into reusable register slots.
+Public coefficient tables use fallible, actual-length allocations; failed table
+construction leaves the builder unchanged. Executor admission charges those
+tables and the register table, preserving the charge through deallocation on
+success, cancellation and constructor failure. Caller-owned program construction
+and copies remain separate from an admitted runtime's ownership.
+
+Scratch pricing distinguishes arithmetic, Boolean conversion and expanded OT
+shapes. Consuming an already charged input moves its charge into the graph's
+live-register envelope. Other retained owners, including an original OT frame
+held by another party's output, retain their complete charge and can reject the
+next program. No ledger reset or reservation refund substitutes for destruction.
+Instruction order, stochastic rescales, public coefficients and existing program
+digests remain unchanged.
+
+Independent stochastic-integer oracles cover the wider rows. Exact-allowance
+runtime tests cover consecutive normalization/softmax execution, maximum-width
+OT and retained peer-output rejection. Register-reuse controls retain needed
+inputs across unused instructions; allocator callbacks check wide-row erasure
+and public-table charging through normal and failed retirement. The combined
+verification passes **114 native checks** (71 unit, 29 allocation, 8 truncation,
+3 PRSS and 3 multiplication), **5 compile-fail doctests** and **34 Python oracle
+checks**. The three long allocation sweeps passed separately from the remaining
+integration checks; focused Clippy retains the documented warning allowance.
+These are bounded arithmetic and ownership checks, not process-RSS, checkpoint
+quality, compiler-bound decoder execution or an SDK Experiment result.
 
 ### Independent primitive and transcript vectors
 

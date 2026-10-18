@@ -647,7 +647,11 @@ source-derived profile. Zero, constant and signed row controls preserve the
 stochastic-integer contract within the existing tile/ownership bounds. A bounded
 half-split rotary program separately preserves both signed coefficient-product
 truncations over supplied public Q18 tables, including exact identity positions.
-Checkpoint/position table binding, wider decoder rows and the complete
+Row programs additionally reuse register slots and actual-length public tables
+under the same 256 KiB per-party ceiling. Independent integer and lifetime checks
+cover 896/1,024-value RMSNorm, 896-value LayerNorm and 512-value softmax rows;
+expanded Boolean shapes and retained peer frames can still reject admission.
+Checkpoint/position table binding, whole-model ranges and the complete
 compiler/SDK path remain unadmitted; bounded operator parity supplies no
 checkpoint-quality result.
 Contract: `docs/research/puma-truncation-reference.md`.

@@ -15,6 +15,7 @@ thread_local! {
 struct Slot {
     address: usize,
     bytes: usize,
+    secret: bool,
 }
 #[derive(Clone, Copy)]
 struct Audit {
@@ -30,6 +31,7 @@ struct Audit {
     bad_charge: bool,
     overflow: bool,
     reallocations: usize,
+    public_before_admission: bool,
 }
 impl Audit {
     const fn empty() -> Self {
@@ -41,6 +43,7 @@ impl Audit {
             slots: [Slot {
                 address: 0,
                 bytes: 0,
+                secret: true,
             }; 256],
             allocations: 0,
             frees: 0,
@@ -49,6 +52,7 @@ impl Audit {
             bad_charge: false,
             overflow: false,
             reallocations: 0,
+            public_before_admission: false,
         }
     }
     fn remaining(&self) -> usize {
@@ -56,7 +60,11 @@ impl Audit {
     }
     fn add(&mut self, address: usize, bytes: usize) {
         if let Some(slot) = self.slots.iter_mut().find(|s| s.address == 0) {
-            *slot = Slot { address, bytes };
+            *slot = Slot {
+                address,
+                bytes,
+                secret: !self.public_before_admission,
+            };
             self.allocations += 1;
         } else {
             self.overflow = true;
@@ -114,7 +122,9 @@ fn record_allocation(ptr: *mut u8, bytes: usize) {
                 a.first_live = live;
             }
             a.add(ptr as usize, bytes);
-            a.bad_charge |= live < a.remaining();
+            if !a.public_before_admission {
+                a.bad_charge |= live < a.remaining();
+            }
             cell.set(a);
         }
     });
@@ -154,10 +164,13 @@ unsafe impl GlobalAlloc for Counting {
                     if let Some(i) = a.slots.iter().position(|s| s.address == ptr as usize) {
                         let bytes = a.slots[i].bytes;
                         a.bad_erasure |= layout.size() != bytes;
-                        // Only fully initialized u64 payload allocations are watched.
-                        a.bad_erasure |= unsafe { std::slice::from_raw_parts(ptr, bytes) }
-                            .iter()
-                            .any(|&v| v != 0);
+                        // Secret payloads are initialized words; public coefficient
+                        // tables have charge checks but no secrecy/erasure contract.
+                        if a.slots[i].secret {
+                            a.bad_erasure |= unsafe { std::slice::from_raw_parts(ptr, bytes) }
+                                .iter()
+                                .any(|&v| v != 0);
+                        }
                         let live = unsafe { &*a.usage }.live_bytes();
                         a.bad_charge |= if a.exact {
                             live != a.remaining()
@@ -167,6 +180,7 @@ unsafe impl GlobalAlloc for Counting {
                         a.slots[i] = Slot {
                             address: 0,
                             bytes: 0,
+                            secret: true,
                         };
                         a.frees += 1;
                         cell.set(a);
@@ -1130,9 +1144,9 @@ fn tensor_row_zeroization_precedes_refund_at_maximum_geometry() {
     use multiply::{tensor::Program, Interval};
     let bound = Interval::new(-1 << 18, 1 << 18).unwrap();
     for program in [
-        Program::softmax(1, 128, bound).unwrap(),
-        Program::layer_norm(1, 128, bound, &[1 << 18; 128], &[1; 128]).unwrap(),
-        Program::rms_norm(1, 128, bound, &[1 << 18; 128]).unwrap(),
+        Program::softmax(1, 512, bound).unwrap(),
+        Program::layer_norm(1, 896, bound, &[1 << 18; 896], &[1; 896]).unwrap(),
+        Program::rms_norm(1, 1024, bound, &[1 << 18; 1024]).unwrap(),
     ] {
         for p in 0..3 {
             let mut owners = tensor_program_owners(&program, 0);
@@ -1214,6 +1228,127 @@ fn tensor_register_allocation_failure_refunds_only_after_input_retirement() {
     let result = Executor::new(runtime, program, input);
     assert!(matches!(result, Err(Error::Allocation)));
     assert!(!FAIL_NEXT.get());
+    assert_eq!(usage.live_bytes(), 0);
+}
+
+#[test]
+fn tensor_public_tables_keep_metadata_charge_through_failed_and_normal_retirement() {
+    use multiply::{
+        tensor::{Executor, Program},
+        Interval,
+    };
+    for fail_registers in [false, true] {
+        let [runtime, _, _] = compound_owners(PrssLimits::default());
+        let usage = runtime.payload_usage();
+        let op = Operation::new(
+            runtime.context(),
+            0,
+            runtime.party(),
+            896,
+            18,
+            Limits::default(),
+        )
+        .unwrap();
+        let input = ReplicatedShare::from_local(
+            op,
+            runtime.party(),
+            &[1; 896],
+            &[2; 896],
+            Limits::default(),
+        )
+        .unwrap();
+        let watch = Watch::start(&usage, true, false);
+        let mut audit = AUDIT.get();
+        audit.public_before_admission = true;
+        AUDIT.set(audit);
+        let program = Program::layer_norm(
+            1,
+            896,
+            Interval::new(-1 << 18, 1 << 18).unwrap(),
+            &[1 << 18; 896],
+            &[1; 896],
+        )
+        .unwrap();
+        let mut audit = AUDIT.get();
+        audit.public_before_admission = false;
+        audit.collect = false;
+        AUDIT.set(audit);
+        FAIL_NEXT.set(fail_registers);
+        let result = Executor::new(runtime, program, input);
+        assert!(!FAIL_NEXT.get());
+        if fail_registers {
+            assert!(matches!(result, Err(Error::Allocation)));
+        } else {
+            assert!(result.is_ok());
+        }
+        drop(result);
+        let audit = watch.finish();
+        assert_eq!(audit.allocations, 2);
+        assert_audit(audit);
+        assert_eq!(usage.live_bytes(), 0);
+    }
+}
+
+#[test]
+fn tensor_table_allocation_and_wide_conversion_rejection_precede_secret_execution() {
+    use multiply::{
+        arithmetic::Affine,
+        tensor::{Builder, Executor, Program},
+        Interval,
+    };
+    let bound = Interval::new(-1 << 18, 1 << 18).unwrap();
+    let coefficients = [Affine {
+        left: 1,
+        right: 0,
+        constant: 2,
+    }; 3];
+    let mut retry = Builder::new(3, bound).unwrap();
+    let mut control = Builder::new(3, bound).unwrap();
+    FAIL_NEXT.set(true);
+    assert_eq!(
+        retry.affine_lanes(retry.input(), &coefficients),
+        Err(Error::Allocation)
+    );
+    assert!(!FAIL_NEXT.get());
+    let retried = retry.affine_lanes(retry.input(), &coefficients).unwrap();
+    let expected = control
+        .affine_lanes(control.input(), &coefficients)
+        .unwrap();
+    assert_eq!(
+        retry.finish(retried).unwrap().digest(),
+        control.finish(expected).unwrap().digest()
+    );
+    FAIL_NEXT.set(true);
+    let program = Program::rms_norm(1, 896, bound, &[1 << 18; 896]);
+    assert!(!FAIL_NEXT.get());
+    assert!(matches!(program, Err(Error::Allocation)));
+    let program = Program::softmax(1, 1024, bound).unwrap();
+    let [runtime, _, _] = compound_owners(PrssLimits::default());
+    let usage = runtime.payload_usage();
+    let op = Operation::new(
+        runtime.context(),
+        0,
+        runtime.party(),
+        1024,
+        18,
+        Limits::default(),
+    )
+    .unwrap();
+    let input = ReplicatedShare::from_local(
+        op,
+        runtime.party(),
+        &[0; 1024],
+        &[0; 1024],
+        Limits::default(),
+    )
+    .unwrap();
+    FAIL_NEXT.set(true);
+    let result = Executor::new(runtime, program, input);
+    assert!(
+        FAIL_NEXT.replace(false),
+        "expanded shape must reject before register allocation"
+    );
+    assert!(matches!(result, Err(Error::Bounds)));
     assert_eq!(usage.live_bytes(), 0);
 }
 

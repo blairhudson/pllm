@@ -22,7 +22,7 @@ pub enum RowMap {
 
 impl RowMap {
     pub fn output_bounds(self, width: usize, bounds: Interval) -> Result<Interval, Error> {
-        if !(1..=128).contains(&width) {
+        if !(1..=MAX_LANES).contains(&width) {
             return Err(Error::Bounds);
         }
         match self {

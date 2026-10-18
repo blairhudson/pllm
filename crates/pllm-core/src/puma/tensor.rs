@@ -23,6 +23,9 @@ pub const RMS_NORM_PROFILE: &str = "puma.rmsnorm-epsilon1-q18.v1";
 pub const RMS_NORM_EPSILON_Q18: i64 = 1;
 pub const MAX_NODES: usize = 192;
 pub const MAX_TILE_LANES: usize = 128;
+/// Row reductions may carry one complete native-width row; Boolean conversion
+/// still admits its own expanded shape before any instruction consumes PRSS.
+pub const MAX_ROW_LANES: usize = MAX_LANES;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Activation {
@@ -98,8 +101,10 @@ pub struct Program {
     digest: [u8; 32],
     numeric_profile: &'static str,
     last_use: [u8; MAX_NODES],
+    slots: [u8; MAX_NODES],
+    register_count: usize,
     bit_widths: [u8; MAX_NODES],
-    public_affines: [[Affine; MAX_TILE_LANES]; 2],
+    public_affines: [Vec<Affine>; 2],
     public_affine_count: usize,
 }
 
@@ -110,6 +115,13 @@ impl Builder {
         if !(1..=MAX_TILE_LANES).contains(&lanes) {
             return Err(Error::Bounds);
         }
+        Self::row(lanes, input)
+    }
+
+    fn row(lanes: usize, input: Interval) -> Result<Self, Error> {
+        if !(1..=MAX_ROW_LANES).contains(&lanes) {
+            return Err(Error::Bounds);
+        }
         let mut program = Program {
             nodes: [None; MAX_NODES],
             len: 1,
@@ -117,12 +129,10 @@ impl Builder {
             digest: [0; 32],
             numeric_profile: super::NUMERIC_PROFILE,
             last_use: [0; MAX_NODES],
+            slots: [0; MAX_NODES],
+            register_count: 0,
             bit_widths: [0; MAX_NODES],
-            public_affines: [[Affine {
-                left: 0,
-                right: 0,
-                constant: 0,
-            }; MAX_TILE_LANES]; 2],
+            public_affines: [Vec::new(), Vec::new()],
             public_affine_count: 0,
         };
         program.nodes[0] = Some(Node {
@@ -296,7 +306,10 @@ impl Builder {
     }
 
     pub fn affine_lanes(&mut self, input: Value, coefficients: &[Affine]) -> Result<Value, Error> {
-        if coefficients.len() != self.node(input, false)?.lanes || self.0.public_affine_count == 2 {
+        if coefficients.len() != self.node(input, false)?.lanes
+            || self.0.public_affine_count == 2
+            || self.0.len == MAX_NODES
+        {
             return Err(Error::Bounds);
         }
         let bounds = self.node(input, false)?.bounds;
@@ -314,12 +327,18 @@ impl Builder {
             upper = upper.max(range.upper());
         }
         let slot = self.0.public_affine_count;
-        let output = self.push(
-            Instruction::LaneAffine(input, slot as u8),
-            Interval::new(lower, upper)?,
-            false,
-        )?;
-        self.0.public_affines[slot][..coefficients.len()].copy_from_slice(coefficients);
+        let bounds = Interval::new(lower, upper)?;
+        let mut table = Vec::new();
+        table
+            .try_reserve_exact(coefficients.len())
+            .map_err(|_| Error::Allocation)?;
+        if table.capacity() != coefficients.len() {
+            return Err(Error::Allocation);
+        }
+        table.extend_from_slice(coefficients);
+        // Failure cannot leave an instruction referring to an absent table.
+        let output = self.push(Instruction::LaneAffine(input, slot as u8), bounds, false)?;
+        self.0.public_affines[slot] = table;
         self.0.public_affine_count += 1;
         Ok(output)
     }
@@ -460,6 +479,13 @@ impl Builder {
         }
         self.0.digest = h.finalize().into();
         self.0.last_use[output.0 as usize] = self.0.len as u8;
+        let mut available_at = [0; MAX_NODES];
+        for i in 0..self.0.len {
+            let slot = available_at.iter().position(|&next| next <= i).unwrap();
+            self.0.slots[i] = slot as u8;
+            self.0.register_count = self.0.register_count.max(slot + 1);
+            available_at[slot] = usize::from(self.0.last_use[i]).max(i) + 1;
+        }
         Ok(self.0)
     }
 }
@@ -563,18 +589,42 @@ impl Program {
     /// Conservative retained-register plus primitive/copy/frame allowance.
     /// Original exported buffers retain their own ledger charges as usual.
     pub fn admitted_bytes(&self) -> usize {
-        let live = (0..self.len)
+        let working = (0..self.len)
             .map(|step| {
-                (0..=step)
-                    .filter(|&i| usize::from(self.last_use[i]) >= step)
-                    .count()
+                let live: usize = (0..=step)
+                    .filter(|&i| i == step || usize::from(self.last_use[i]) >= step)
+                    .map(|i| 2 * self.nodes[i].unwrap().lanes)
+                    .sum();
+                let node = self.nodes[step].unwrap();
+                // Primitive allowance plus this executor's operand copies.
+                // Small-width OT expands each bit separately and can exceed
+                // the old uniform 128-word allowance. Conversion prices its
+                // full source schedule, including original exported frames.
+                let temporary = match node.instruction {
+                    Instruction::Input => 0,
+                    Instruction::Product { .. } => 20 * node.lanes,
+                    Instruction::Rescale { .. } => 18 * node.lanes,
+                    Instruction::Affine { right, .. } => {
+                        (if right.is_some() { 10 } else { 6 }) * node.lanes
+                    }
+                    Instruction::LaneAffine(..) => 6 * node.lanes,
+                    Instruction::RowMap(input, ..) => {
+                        4 * self.nodes[input.0 as usize].unwrap().lanes + 2 * node.lanes
+                    }
+                    Instruction::FromBit(input) => {
+                        let bits = usize::from(self.bit_widths[input.0 as usize]);
+                        (if bits <= 8 { 16 * bits + 10 } else { 42 }) * node.lanes
+                    }
+                    Instruction::Sign(_) | Instruction::Bits(_) => 34 * node.lanes,
+                    Instruction::BitMap(..) => 6 * node.lanes,
+                    Instruction::BitOr(..) => 20 * node.lanes,
+                    Instruction::BitXor(..) => 10 * node.lanes,
+                };
+                (live + temporary) * 8
             })
             .max()
             .unwrap_or(0);
-        FIXED_RESERVE_BYTES
-            + metadata_bytes()
-            + 3 * std::mem::size_of::<Frame>()
-            + (2 * live + 128) * self.lanes * 8
+        FIXED_RESERVE_BYTES + metadata_bytes(self) + 3 * std::mem::size_of::<Frame>() + working
     }
 }
 
@@ -691,10 +741,16 @@ pub struct Executor {
     metadata: Option<Reservation>,
 }
 
-fn metadata_bytes() -> usize {
+fn metadata_bytes(program: &Program) -> usize {
     // The existing runtime retains its own 4096-byte fixed reserve. Charge this
     // executor's inline program/register/frame metadata as an additional owner.
-    std::mem::size_of::<Executor>() + MAX_NODES * std::mem::size_of::<Option<Register>>()
+    std::mem::size_of::<Executor>()
+        + program.register_count * std::mem::size_of::<Option<Register>>()
+        + program
+            .public_affines
+            .iter()
+            .map(|v| v.capacity() * std::mem::size_of::<Affine>())
+            .sum::<usize>()
 }
 
 impl Executor {
@@ -703,6 +759,7 @@ impl Executor {
         program: Program,
         mut input: ReplicatedShare,
     ) -> Result<Self, Error> {
+        let mut metadata = None;
         let result = (|| {
             if runtime.status() != Status::Ready {
                 return Err(Error::Phase);
@@ -716,10 +773,26 @@ impl Executor {
             if input.operation.lanes != program.lanes {
                 return Err(Error::Shape);
             }
-            runtime.source.limits.core.admit(2 * program.lanes)?;
+            for node in program.nodes[..program.len].iter().flatten() {
+                let expanded = match node.instruction {
+                    Instruction::Sign(_) | Instruction::Bits(_) => 2 * node.lanes,
+                    Instruction::FromBit(input) => {
+                        let bits = usize::from(program.bit_widths[input.0 as usize]);
+                        node.lanes * if bits > 8 { 2 } else { bits.max(1) }
+                    }
+                    _ => node.lanes,
+                };
+                runtime.source.limits.core.admit(expanded)?;
+            }
             let usage = runtime.payload_usage();
+            // Consuming the original input moves its existing charge into the
+            // graph's live-register envelope; other retained owners stay priced.
+            let input_credit =
+                input.first.charged_bytes(&usage) + input.second.charged_bytes(&usage);
             if usage
                 .live_bytes()
+                .checked_sub(input_credit)
+                .ok_or(Error::Bounds)?
                 .checked_add(program.admitted_bytes() - FIXED_RESERVE_BYTES)
                 .is_none_or(|v| v > usage.limit_bytes())
             {
@@ -743,22 +816,25 @@ impl Executor {
             ] {
                 cursor.checked_add(work).ok_or(Error::Bounds)?;
             }
-            let metadata = usage.reserve(metadata_bytes())?;
+            metadata = Some(usage.reserve(metadata_bytes(&program))?);
             let mut registers = Vec::new();
             registers
-                .try_reserve_exact(MAX_NODES)
+                .try_reserve_exact(program.register_count)
                 .map_err(|_| Error::Allocation)?;
-            if registers.capacity() != MAX_NODES {
+            if registers.capacity() != program.register_count {
                 return Err(Error::Allocation);
             }
-            registers.resize_with(MAX_NODES, || None);
+            registers.resize_with(program.register_count, || None);
             input.charge_to(&usage)?;
-            Ok((invocation, metadata, registers))
+            Ok((invocation, registers))
         })();
-        let (invocation, metadata, mut registers) = match result {
+        let (invocation, mut registers) = match result {
             Ok(v) => v,
             Err(e) => {
                 runtime.cancel();
+                drop(input);
+                drop(program);
+                drop(metadata);
                 return Err(e);
             }
         };
@@ -772,7 +848,7 @@ impl Executor {
             step: 1,
             active: false,
             retired: false,
-            metadata: Some(metadata),
+            metadata,
         })
     }
 
@@ -812,7 +888,9 @@ impl Executor {
     }
 
     fn copy(&self, value: Value) -> Result<ReplicatedShare, Error> {
-        let Some(Register::Arithmetic(value)) = &self.registers[value.0 as usize] else {
+        let Some(Register::Arithmetic(value)) =
+            &self.registers[self.program.slots[value.0 as usize] as usize]
+        else {
             return Err(Error::Binding);
         };
         let usage = self.payload_usage();
@@ -829,7 +907,9 @@ impl Executor {
     }
 
     fn copy_bit(&self, input: Value) -> Result<boolean::Share, Error> {
-        let Some(Register::Bit(value)) = &self.registers[input.0 as usize] else {
+        let Some(Register::Bit(value)) =
+            &self.registers[self.program.slots[input.0 as usize] as usize]
+        else {
             return Err(Error::Binding);
         };
         let usage = self.payload_usage();
@@ -878,6 +958,7 @@ impl Executor {
         }
         self.active = true;
         let lanes = self.program.nodes[self.step].unwrap().lanes;
+        let slot = self.program.slots[self.step] as usize;
         let mut messages = [None, None, None];
         match self.program.nodes[self.step].unwrap().instruction {
             Instruction::Input => return Err(Error::Phase),
@@ -898,7 +979,7 @@ impl Executor {
                     coefficients,
                     bounds,
                 )?;
-                self.registers[self.step] = Some(Register::Arithmetic(value));
+                self.registers[slot] = Some(Register::Arithmetic(value));
             }
             Instruction::Product {
                 left,
@@ -912,7 +993,7 @@ impl Executor {
                     left: self.bounds(left),
                     right: self.bounds(right),
                 };
-                let all = [bounds; MAX_TILE_LANES];
+                let all = [bounds; MAX_ROW_LANES];
                 let runtime = self.runtime.as_mut().unwrap();
                 if let Some(raw) = certified {
                     runtime.plan_certified_product(
@@ -964,14 +1045,14 @@ impl Executor {
             }
             Instruction::BitMap(input, map) => {
                 let value = self.copy_bit(input)?;
-                self.registers[self.step] = Some(Register::Bit(
+                self.registers[slot] = Some(Register::Bit(
                     self.runtime.as_mut().unwrap().boolean_map(value, map)?,
                 ));
             }
             Instruction::BitXor(left, right) => {
                 let mut a = self.copy_bit(left)?;
                 let mut b = self.copy_bit(right)?;
-                self.registers[self.step] = Some(Register::Bit(
+                self.registers[slot] = Some(Register::Bit(
                     self.runtime
                         .as_mut()
                         .unwrap()
@@ -995,18 +1076,18 @@ impl Executor {
                     .as_mut()
                     .unwrap()
                     .row_map(&mut value, width, map, bounds)?;
-                self.registers[self.step] = Some(Register::Arithmetic(output));
+                self.registers[slot] = Some(Register::Arithmetic(output));
             }
-            Instruction::LaneAffine(input, slot) => {
+            Instruction::LaneAffine(input, table) => {
                 let mut value = self.copy(input)?;
                 let bounds = self.bounds(input);
-                let coefficients = &self.program.public_affines[slot as usize][..lanes];
+                let coefficients = &self.program.public_affines[table as usize][..lanes];
                 let output = self.runtime.as_mut().unwrap().affine_lanes(
                     &mut value,
                     coefficients,
                     bounds,
                 )?;
-                self.registers[self.step] = Some(Register::Arithmetic(output));
+                self.registers[slot] = Some(Register::Arithmetic(output));
             }
         }
         self.wrap(messages)
@@ -1133,6 +1214,7 @@ impl Executor {
             if !self.active || self.inbox.iter().any(Option::is_some) {
                 return Err(Error::Phase);
             }
+            let slot = self.program.slots[self.step] as usize;
             if let Instruction::BitOr(left, right) =
                 self.program.nodes[self.step].unwrap().instruction
             {
@@ -1141,22 +1223,22 @@ impl Executor {
                 let runtime = self.runtime.as_mut().unwrap();
                 let mut product = runtime.take_boolean_output()?;
                 let mut sum = runtime.boolean_xor(&mut a, Some(&mut b), 0)?;
-                self.registers[self.step] = Some(Register::Bit(runtime.boolean_xor(
+                self.registers[slot] = Some(Register::Bit(runtime.boolean_xor(
                     &mut sum,
                     Some(&mut product),
                     0,
                 )?));
             }
             let runtime = self.runtime.as_mut().unwrap();
-            if self.registers[self.step].is_none() {
-                self.registers[self.step] = Some(if self.program.nodes[self.step].unwrap().bit {
+            if self.registers[slot].is_none() {
+                self.registers[slot] = Some(if self.program.nodes[self.step].unwrap().bit {
                     Register::Bit(runtime.take_boolean_output()?)
                 } else {
                     Register::Arithmetic(runtime.take_output()?)
                 });
             }
             // Bind terminal and intermediate owners to the complete public graph.
-            let operation = match self.registers[self.step].as_mut().unwrap() {
+            let operation = match self.registers[slot].as_mut().unwrap() {
                 Register::Arithmetic(v) => &mut v.operation,
                 Register::Bit(v) => &mut v.value.operation,
             };
@@ -1166,9 +1248,10 @@ impl Executor {
             h.update(self.invocation.to_le_bytes());
             h.update((self.step as u64).to_le_bytes());
             operation.consumer = Some(h.finalize().into());
-            for (i, register) in self.registers.iter_mut().enumerate().take(self.step + 1) {
-                if usize::from(self.program.last_use[i]) <= self.step {
-                    *register = None;
+            for i in 0..=self.step {
+                let last = usize::from(self.program.last_use[i]);
+                if last == self.step || (i == self.step && last < self.step) {
+                    self.registers[self.program.slots[i] as usize] = None;
                 }
             }
             self.step += 1;
@@ -1184,7 +1267,8 @@ impl Executor {
         if !self.complete() {
             return Err(Error::Phase);
         }
-        let Some(Register::Arithmetic(value)) = self.registers[self.program.len - 1].take() else {
+        let slot = self.program.slots[self.program.len - 1] as usize;
+        let Some(Register::Arithmetic(value)) = self.registers[slot].take() else {
             return Err(Error::Phase);
         };
         for register in &mut self.registers {
@@ -1198,6 +1282,7 @@ impl Drop for Executor {
     fn drop(&mut self) {
         self.cancel();
         drop(std::mem::take(&mut self.registers));
+        drop(std::mem::take(&mut self.program.public_affines));
         drop(self.metadata.take());
     }
 }
