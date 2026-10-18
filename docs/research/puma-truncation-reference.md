@@ -75,6 +75,20 @@ accumulator range must pass admission, even when each chunk fits separately.
 This adds product rotations but does not change the numeric rounding boundary
 or the primitive payload ceiling. Small contractions retain the existing path.
 
+The compiler now retains bounded strided source descriptors instead of one
+reference pair per weight and per source tile. Execution copies only the admitted
+primitive tile from its immutable party-local source owner. Source descriptors
+check endpoint arithmetic, owner identity and tile size before adding a node.
+Identical immutable tensor programs share one allocation; every invocation still
+creates fresh party-local protocol state and consumes its complete work allowance.
+Construction views retire at their last semantic consumer. Six frozen generated
+Qwen2/Qwen3/Llama execution identities match the preceding installed wheel, and
+mixed compact/expanded-gather workers preserve exact integer matrix outputs.
+Resident source shares, expanded operation schedules and primitive work retain
+their existing admission bounds. This construction change supplies no measured
+whole-client memory or full-checkpoint capacity result. Build and installed SDK
+checks: [compact-compiler evidence](../../paper/artifacts/puma-sdk/local-v3/README.md).
+
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,
 `pllm benchmark run` and `BenchmarkTarget.response` use this composition.
 The benchmark charges client publication, all directed peer requests and ACKs,

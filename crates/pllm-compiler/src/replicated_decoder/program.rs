@@ -36,9 +36,121 @@ struct View {
     shape: Vec<usize>,
 }
 
+struct SourceView {
+    owner: usize,
+    shape: Vec<usize>,
+}
+
+/// Matrix coordinates are [output column, contraction index]. Source matrices
+/// carry strides instead of one (node, index) pair per checkpoint value.
+enum MatrixView<'a> {
+    Values(&'a View),
+    Source {
+        owner: usize,
+        columns: usize,
+        inner: usize,
+        column_stride: usize,
+        inner_stride: usize,
+    },
+}
+
+impl<'a> MatrixView<'a> {
+    fn source(source: &'a SourceView, transposed: bool) -> Result<Self, Error> {
+        let [rows, columns] = source.shape.as_slice() else {
+            return Err(Error::Shape);
+        };
+        Ok(if transposed {
+            Self::Source {
+                owner: source.owner,
+                columns: *columns,
+                inner: *rows,
+                column_stride: 1,
+                inner_stride: *columns,
+            }
+        } else {
+            Self::Source {
+                owner: source.owner,
+                columns: *rows,
+                inner: *columns,
+                column_stride: *columns,
+                inner_stride: 1,
+            }
+        })
+    }
+
+    fn dimensions(&self) -> Result<(usize, usize), Error> {
+        match self {
+            Self::Source { columns, inner, .. } => Ok((*columns, *inner)),
+            Self::Values(view) => {
+                let [columns, inner] = view.shape.as_slice() else {
+                    return Err(Error::Shape);
+                };
+                if columns.checked_mul(*inner) != Some(view.words.len()) {
+                    return Err(Error::Shape);
+                }
+                Ok((*columns, *inner))
+            }
+        }
+    }
+
+    fn gather(
+        &self,
+        builder: &mut Builder,
+        column: usize,
+        columns: usize,
+        start: usize,
+        terms: usize,
+    ) -> Result<usize, Error> {
+        let (full_columns, inner) = self.dimensions()?;
+        if column.checked_add(columns).is_none_or(|n| n > full_columns)
+            || start.checked_add(terms).is_none_or(|n| n > inner)
+            || terms
+                .checked_mul(columns)
+                .is_none_or(|n| n == 0 || n > puma::MAX_LANES)
+        {
+            return Err(Error::Shape);
+        }
+        match self {
+            Self::Values(view) => {
+                let mut items = Vec::new();
+                items
+                    .try_reserve_exact(terms * columns)
+                    .map_err(|_| Error::Allocation)?;
+                for k in start..start + terms {
+                    for j in column..column + columns {
+                        items.push(view.words[j * inner + k]);
+                    }
+                }
+                builder.gather(&items)
+            }
+            Self::Source {
+                owner,
+                column_stride,
+                inner_stride,
+                ..
+            } => {
+                let offset = column
+                    .checked_mul(*column_stride)
+                    .and_then(|v| v.checked_add(start.checked_mul(*inner_stride)?))
+                    .ok_or(Error::Bounds)?;
+                builder.source_gather(SourceGather {
+                    owner: *owner,
+                    offset,
+                    rows: terms,
+                    columns,
+                    row_stride: *inner_stride,
+                    column_stride: *column_stride,
+                })
+            }
+        }
+    }
+}
+
+#[derive(Default)]
 struct Builder {
     nodes: Vec<Node>,
     allocated: usize,
+    tensors: BTreeMap<[u8; 32], Arc<tensor::Program>>,
 }
 
 impl Builder {
@@ -48,7 +160,12 @@ impl Builder {
         }
         let metadata = match &code {
             Code::Gather(v) => v.capacity() * std::mem::size_of::<(usize, usize)>(),
-            Code::Tensor { program, .. } => program.admitted_bytes(),
+            Code::Tensor { program, .. } if !self.tensors.contains_key(&program.digest()) => {
+                // One conservative complete primitive allowance per immutable
+                // program, plus the interning entry. Execution still uses fresh
+                // party-local state for every invocation.
+                program.admitted_bytes() + 1024
+            }
             Code::Input(v) => v.capacity(),
             _ => 0,
         };
@@ -61,6 +178,11 @@ impl Builder {
         }
         let id = self.nodes.len();
         self.nodes.try_reserve(1).map_err(|_| Error::Allocation)?;
+        if let Code::Tensor { program, .. } = &code {
+            self.tensors
+                .entry(program.digest())
+                .or_insert_with(|| program.clone());
+        }
         self.nodes.push(Node {
             code,
             lanes,
@@ -84,6 +206,14 @@ impl Builder {
     fn gather(&mut self, words: &[(usize, usize)]) -> Result<usize, Error> {
         let bound = self.bounds(words)?;
         self.push(Code::Gather(words.to_vec()), words.len(), bound)
+    }
+    fn source_gather(&mut self, view: SourceGather) -> Result<usize, Error> {
+        let owner = self.nodes.get(view.owner).ok_or(Error::Binding)?;
+        if !matches!(owner.code, Code::Input(_)) {
+            return Err(Error::Binding);
+        }
+        let lanes = view.validate(owner.lanes)?;
+        self.push(Code::SourceGather(view), lanes, owner.bounds)
     }
     fn affine(&mut self, left: usize, right: Option<usize>, c: Affine) -> Result<usize, Error> {
         let a = &self.nodes[left];
@@ -150,14 +280,12 @@ impl Builder {
         }
         let n = program.output_lanes();
         let range = program.output_bounds();
-        self.push(
-            Code::Tensor {
-                input,
-                program: Arc::new(program),
-            },
-            n,
-            range,
-        )
+        let program = self
+            .tensors
+            .get(&program.digest())
+            .cloned()
+            .unwrap_or_else(|| Arc::new(program));
+        self.push(Code::Tensor { input, program }, n, range)
     }
     fn view(&self, id: usize, shape: Vec<usize>) -> View {
         View {
@@ -188,19 +316,27 @@ impl Builder {
     }
 
     fn linear(&mut self, input: &View, weight: &View, rescale: bool) -> Result<View, Error> {
+        self.matrix(input, MatrixView::Values(weight), rescale)
+    }
+
+    fn matrix(
+        &mut self,
+        input: &View,
+        weight: MatrixView<'_>,
+        rescale: bool,
+    ) -> Result<View, Error> {
         let inner = *input.shape.last().ok_or(Error::Shape)?;
-        let columns = *weight.shape.first().ok_or(Error::Shape)?;
+        let (columns, contraction) = weight.dimensions()?;
         if inner == 0
             || columns == 0
-            || weight.shape != [columns, inner]
+            || contraction != inner
             || input.words.is_empty()
             || input.words.len() % inner != 0
-            || columns.checked_mul(inner) != Some(weight.words.len())
         {
             return Err(Error::Shape);
         }
         if inner > puma::MAX_LANES {
-            return self.linear_chunks(input, weight, rescale);
+            return self.linear_chunks(input, &weight, rescale);
         }
         let rows = input.words.len() / inner;
         let tile = (puma::MAX_LANES / inner).min(128);
@@ -209,13 +345,7 @@ impl Builder {
             let left = self.gather(row)?;
             for start in (0..columns).step_by(tile) {
                 let n = tile.min(columns - start);
-                let mut w = Vec::with_capacity(inner * n);
-                for k in 0..inner {
-                    for j in start..start + n {
-                        w.push(weight.words[j * inner + k]);
-                    }
-                }
-                let right = self.gather(&w)?;
+                let right = weight.gather(self, start, n, 0, inner)?;
                 let output =
                     self.product(left, right, Some(MatrixShape::new(1, inner, n)?), rescale)?;
                 words.extend((0..n).map(|i| (output, i)));
@@ -231,9 +361,14 @@ impl Builder {
     /// dot is truncated; rounding individual chunks would change the profile.
     /// Each private chunk issues fresh product material through the existing
     /// bounded party-local owner. No expanded primitive allowance is required.
-    fn linear_chunks(&mut self, input: &View, weight: &View, rescale: bool) -> Result<View, Error> {
+    fn linear_chunks(
+        &mut self,
+        input: &View,
+        weight: &MatrixView<'_>,
+        rescale: bool,
+    ) -> Result<View, Error> {
         let inner = *input.shape.last().ok_or(Error::Shape)?;
-        let columns = weight.shape[0];
+        let (columns, _) = weight.dimensions()?;
         let rows = input.words.len() / inner;
         let mut words = Vec::new();
         for row in input.words.chunks_exact(inner) {
@@ -242,9 +377,7 @@ impl Builder {
                 for start in (0..inner).step_by(puma::MAX_LANES) {
                     let count = puma::MAX_LANES.min(inner - start);
                     let left = self.gather(&row[start..start + count])?;
-                    let right = self.gather(
-                        &weight.words[column * inner + start..column * inner + start + count],
-                    )?;
+                    let right = weight.gather(self, column, 1, start, count)?;
                     let partial =
                         self.product(left, right, Some(MatrixShape::new(1, count, 1)?), false)?;
                     accumulator = Some(match accumulator {
@@ -272,7 +405,7 @@ impl Builder {
         &mut self,
         graph: &DecoderGraph,
         tokens: &View,
-        sources: &BTreeMap<String, View>,
+        sources: &BTreeMap<String, SourceView>,
         public: &BTreeMap<String, SourceTensor>,
         vocabulary: usize,
         position: usize,
@@ -284,6 +417,12 @@ impl Builder {
             return Err(Error::Shape);
         }
         let mut values = BTreeMap::<String, View>::new();
+        let mut uses: BTreeMap<&str, usize> = BTreeMap::new();
+        for op in &graph.operations {
+            for input in &op.inputs {
+                *uses.entry(input).or_default() += 1;
+            }
+        }
         for input in &graph.state_inputs {
             let key = (input.layer.ok_or(Error::Binding)?, input.kind);
             values.insert(
@@ -305,7 +444,7 @@ impl Builder {
             ) {
                 *shape.last_mut().ok_or(Error::Shape)? = keys;
             }
-            let source = |name: &str| -> Result<&View, Error> {
+            let source = |name: &str| -> Result<&SourceView, Error> {
                 sources
                     .get(
                         op.attributes
@@ -323,8 +462,7 @@ impl Builder {
                     if table.shape != [vocabulary, *shape.last().ok_or(Error::Shape)?] {
                         return Err(Error::Shape);
                     }
-                    let width = table.shape[1];
-                    let table_bound = self.bounds(&table.words)?;
+                    let table_bound = self.nodes[table.owner].bounds;
                     let mut words = vec![];
                     for &token in &tokens.words {
                         let mut one_hot = Vec::new();
@@ -347,15 +485,8 @@ impl Builder {
                             words: one_hot,
                             shape: vec![1, vocabulary],
                         };
-                        let transposed = View {
-                            words: (0..width)
-                                .flat_map(|j| {
-                                    (0..vocabulary).map(move |i| table.words[i * width + j])
-                                })
-                                .collect(),
-                            shape: vec![width, vocabulary],
-                        };
-                        let row = self.linear(&selectors, &transposed, false)?;
+                        let row =
+                            self.matrix(&selectors, MatrixView::source(table, true)?, false)?;
                         // Source input IDs and protected argmax establish exactly
                         // one selector. The output is an original table element.
                         for &(id, _) in &row.words {
@@ -369,15 +500,18 @@ impl Builder {
                     }
                 }
                 Op::Linear | Op::OutputHead => {
-                    let mut output =
-                        self.linear(a.ok_or(Error::Binding)?, source("weight")?, true)?;
+                    let mut output = self.matrix(
+                        a.ok_or(Error::Binding)?,
+                        MatrixView::source(source("weight")?, false)?,
+                        true,
+                    )?;
                     if op.attributes.get("bias").is_some_and(|v| !v.is_null()) {
                         let bias = source("bias")?;
                         if bias.shape != [*shape.last().ok_or(Error::Shape)?] {
                             return Err(Error::Shape);
                         }
                         let repeated: Vec<_> = (0..output.words.len())
-                            .map(|i| bias.words[i % bias.words.len()])
+                            .map(|i| (bias.owner, i % bias.shape[0]))
                             .collect();
                         output.words = self.binary(&output.words, &repeated, false)?;
                     }
@@ -732,6 +866,19 @@ impl Builder {
                 return Err(Error::Shape);
             }
             values.insert(op.id.clone(), output);
+            // Public construction references can retire once their final
+            // semantic consumer has copied indices into the emitted schedule.
+            // Persistent-state views have their own explicit map above.
+            for input in &op.inputs {
+                let count = uses.get_mut(input.as_str()).ok_or(Error::Binding)?;
+                *count -= 1;
+                if *count == 0 && input != &graph.output {
+                    values.remove(input);
+                }
+            }
+            if !uses.contains_key(op.id.as_str()) && op.id != graph.output {
+                values.remove(&op.id);
+            }
         }
         values.remove(&graph.output).ok_or(Error::Binding)
     }
@@ -817,7 +964,7 @@ impl Program {
         }
         // Public semantic views coexist with the emitted native program while
         // compiling. Price two reference lists per output (construction/copy),
-        // plus the source views. Check the final full-prefix geometry during
+        // plus compact source descriptors. Check the final full-prefix geometry during
         // source admission, before importing values or building reference lists.
         let final_plan;
         let prefill = if outputs > 1 {
@@ -826,16 +973,15 @@ impl Program {
         } else {
             &plan.prefill
         };
-        let view_bytes =
-            prefill
-                .operations
-                .iter()
-                .try_fold(source_values.unwrap() * 16, |total, op| {
-                    let elements = op.output_shape.iter().try_fold(1usize, |n, width| {
-                        n.checked_mul(usize::try_from(*width).ok()?)
-                    })?;
-                    total.checked_add(elements.checked_mul(32)?)
-                });
+        let view_bytes = prefill.operations.iter().try_fold(
+            shapes.len() * (std::mem::size_of::<SourceView>() + 16),
+            |total, op| {
+                let elements = op.output_shape.iter().try_fold(1usize, |n, width| {
+                    n.checked_mul(usize::try_from(*width).ok()?)
+                })?;
+                total.checked_add(elements.checked_mul(32)?)
+            },
+        );
         if view_bytes.is_none_or(|n| n > MAX_PROGRAM_BYTES) {
             return Err("replicated compiler view payload limit".into());
         }
@@ -889,10 +1035,7 @@ impl Program {
             }
         }
         let result = (|| -> Result<Self, Error> {
-            let mut builder = Builder {
-                nodes: vec![],
-                allocated: 0,
-            };
+            let mut builder = Builder::default();
             let mut inputs = BTreeMap::new();
             for (key, source) in sources {
                 let bounds = Interval::new(source.lower, source.upper)?;
@@ -907,7 +1050,13 @@ impl Program {
                     source.shape.iter().product(),
                     bounds,
                 )?;
-                inputs.insert(key.clone(), builder.view(id, source.shape.clone()));
+                inputs.insert(
+                    key.clone(),
+                    SourceView {
+                        owner: id,
+                        shape: source.shape.clone(),
+                    },
+                );
             }
             let first = lower(config, rows, outputs).map_err(|_| Error::Binding)?;
             let vocabulary = first
@@ -975,6 +1124,16 @@ impl Program {
                         for &(a, b) in items {
                             h.update((a as u64).to_le_bytes());
                             h.update((b as u64).to_le_bytes());
+                        }
+                    }
+                    Code::SourceGather(view) => {
+                        // Hash the same logical gather as the original expanded
+                        // list. Compact storage changes neither PRSS contexts nor
+                        // the ordered primitive schedule.
+                        h.update([1]);
+                        for index in view.indices() {
+                            h.update((view.owner as u64).to_le_bytes());
+                            h.update((index as u64).to_le_bytes());
                         }
                     }
                     Code::Affine {

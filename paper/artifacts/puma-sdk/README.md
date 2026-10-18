@@ -17,6 +17,12 @@ final-token quality benchmarking and complete generated 4,864-wide MLP execution
 It retains its own build and tests. The common Qwen checkpoint still rejects
 source admission; its quality and complete-model capacity remain open.
 
+The [compact-compiler slice](local-v3/README.md) replaces expanded source
+references with checked strided descriptors, shares immutable tensor programs
+and retires construction views at last use. Frozen execution identities and
+mixed-representation matrix controls retain the original arithmetic schedule.
+Resident checkpoint ownership and full-Qwen capacity remain separate gates.
+
 ## Retained evidence
 
 [`local-v1/summary.json`](local-v1/summary.json) records:

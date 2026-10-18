@@ -27,6 +27,7 @@ const MAX_PROGRAM_BYTES: usize = 64 << 20;
 enum Code {
     Input(String),
     Gather(Vec<(usize, usize)>),
+    SourceGather(SourceGather),
     Affine {
         left: usize,
         right: Option<usize>,
@@ -42,6 +43,56 @@ enum Code {
         input: usize,
         program: Arc<tensor::Program>,
     },
+}
+
+/// Public row-major view of one immutable source owner. Only the bounded
+/// primitive tile is copied at execution; the compiler retains no per-weight
+/// reference list. The logical gather order remains part of the program digest.
+#[derive(Clone, Copy)]
+struct SourceGather {
+    owner: usize,
+    offset: usize,
+    rows: usize,
+    columns: usize,
+    row_stride: usize,
+    column_stride: usize,
+}
+
+impl SourceGather {
+    fn elements(self) -> Result<usize, Error> {
+        if self.rows == 0 || self.columns == 0 {
+            return Err(Error::Shape);
+        }
+        self.rows.checked_mul(self.columns).ok_or(Error::Bounds)
+    }
+
+    fn validate(self, lanes: usize) -> Result<usize, Error> {
+        let n = self.elements()?;
+        if n > puma::MAX_LANES {
+            return Err(Error::Bounds);
+        }
+        let last = self
+            .offset
+            .checked_add(
+                (self.rows - 1)
+                    .checked_mul(self.row_stride)
+                    .ok_or(Error::Bounds)?,
+            )
+            .and_then(|v| v.checked_add((self.columns - 1).checked_mul(self.column_stride)?))
+            .ok_or(Error::Bounds)?;
+        if last >= lanes {
+            return Err(Error::Shape);
+        }
+        Ok(n)
+    }
+
+    /// Called only after validating all endpoints with checked arithmetic.
+    fn indices(self) -> impl Iterator<Item = usize> {
+        (0..self.rows).flat_map(move |r| {
+            (0..self.columns)
+                .map(move |c| self.offset + r * self.row_stride + c * self.column_stride)
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -61,6 +112,7 @@ impl Node {
                 result.dedup();
                 result
             }
+            Code::SourceGather(view) => vec![view.owner],
             Code::Affine { left, right, .. } => std::iter::once(*left).chain(*right).collect(),
             Code::Product { left, right, .. } => vec![*left, *right],
             Code::Tensor { input, .. } => vec![*input],

@@ -1,0 +1,43 @@
+{
+  "build_swap_scope": "sampled build process tree; observer/final receipt tail excluded; cached local build only",
+  "build_swap_used_growth_bytes": 0,
+  "build_swapout_growth_bytes": 0,
+  "cached_local_build": true,
+  "clippy": {
+    "allowances": [
+      "clippy::needless_range_loop",
+      "clippy::nonminimal_bool"
+    ],
+    "status": "passed"
+  },
+  "comparison": "counts overlap preceding conformance slices; no summed total or matched serving result",
+  "frozen_execution_identity_count": 6,
+  "full_qwen_quality": {
+    "cli_exit_code": 6,
+    "error_stream": "stderr",
+    "executed": false,
+    "reason": "invalid model configuration: decoder source expansion budget exceeded or invalid",
+    "status": "blocked"
+  },
+  "installed_files_matching_before_and_after": 367,
+  "installed_tests": {
+    "errors": 0,
+    "failures": 0,
+    "passed": 43,
+    "skipped": 0,
+    "tests": 43
+  },
+  "native_tests": {
+    "failed": 0,
+    "passed": 12
+  },
+  "schema_version": "pllm.puma-compact-compiler-conformance.v1",
+  "scope": "bounded compiler/SDK conformance; no measured whole-client resource or full-checkpoint quality result",
+  "supplemental_fixture_count": 10,
+  "supplemental_fixture_scope": "archive-time hashes match the local-v1 fixture pins; original fixtures included in inputs.tar.gz",
+  "validation_input_count": 747,
+  "validation_inputs_unchanged_before_and_after": true,
+  "wheel_sha256": {
+    "pllm_run-0.1.0a2-cp311-abi3-macosx_11_0_arm64.whl": "c3ed6944469519cf8acfb31e434ef53f8c42ded83e8bbfab242eb849cd2c9146"
+  }
+}

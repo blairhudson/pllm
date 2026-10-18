@@ -1,0 +1,65 @@
+{
+  "commands": [
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+        "-I",
+        "-m",
+        "pytest",
+        "-q",
+        "-o",
+        "pythonpath=.",
+        "-o",
+        "junit_family=xunit1",
+        "tests/test_replicated_interfaces.py",
+        "tests/test_replicated_quality.py",
+        "tests/test_replicated_sdk.py",
+        "tests/test_replicated_worker.py",
+        "tests/test_reference_agreement.py",
+        "--junitxml=/Users/blairhudson/workspace/pllm/target/puma-compact-compiler-build-v1/installed-tests.xml"
+      ],
+      "log": "validation-0.log",
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "pllm-compiler",
+        "--lib",
+        "replicated_decoder"
+      ],
+      "log": "validation-1.log",
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "-p",
+        "pllm-compiler",
+        "-p",
+        "pllm-python",
+        "--lib",
+        "--",
+        "-D",
+        "warnings",
+        "-A",
+        "clippy::needless_range_loop",
+        "-A",
+        "clippy::nonminimal_bool"
+      ],
+      "log": "validation-2.log",
+      "returncode": 0
+    }
+  ],
+  "inputs_match_before_and_after": true,
+  "installed_file_count": 367,
+  "status": "passed",
+  "wheel_sha256": "c3ed6944469519cf8acfb31e434ef53f8c42ded83e8bbfab242eb849cd2c9146"
+}

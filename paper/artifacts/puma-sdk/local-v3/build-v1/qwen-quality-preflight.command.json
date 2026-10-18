@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+    "-I",
+    "-m",
+    "pllm",
+    "benchmark",
+    "quality",
+    "--experiment",
+    "target/puma-compact-compiler-build-v1/qwen-experiment.json",
+    "--prompts-file",
+    "target/puma-compact-compiler-build-v1/qwen-prompts.json",
+    "--reference-storage",
+    "streamed",
+    "--decode-steps",
+    "1",
+    "--format",
+    "json"
+  ],
+  "inputs": {
+    "qwen-experiment.json": "b59769d697e87ea071e5439b36ede5c9b3c6c1c3756581744dbbf811a5596e34",
+    "qwen-prompts.json": "161dc44f77b7308ba7655ef99d624cfff20caa6b39e091be4b279ce08c6d3171"
+  },
+  "returncode": 6
+}

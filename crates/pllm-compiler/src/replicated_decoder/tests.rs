@@ -80,8 +80,97 @@ fn fixture_with_body(family: &str, active: bool) -> (Arc<Program>, BTreeMap<Stri
     (Arc::new(program), clear)
 }
 
+#[test]
+fn compact_storage_preserves_frozen_full_prefix_execution_identities() {
+    // Captured before this representation change from the installed local-v2
+    // quality wheel (native SHA256 29c8b78201352a51348431adb728db33f1
+    // 716c21dd8e8ac1332b3be4111e4deb), with these exact source/config values.
+    // The source adapter retains epsilon spelling; use serde's `1e-6` rather
+    // than Python JSON's `1e-06` when replaying this fixture through the binding.
+    for (family, active, expected) in [
+        (
+            "qwen2",
+            false,
+            "333aa62a92ec54bdfb694e6bc356d3b4d873629d0cbee5bbbbaa3fb447d28c6d",
+        ),
+        (
+            "qwen2",
+            true,
+            "4529a304429056c986676ea4b8da1adf4cf864e23e41f40a0778a32268b671a1",
+        ),
+        (
+            "qwen3",
+            false,
+            "83886ad38965f9244ba95b403855fb56c6298f44392c44e022b400b19118f7d2",
+        ),
+        (
+            "qwen3",
+            true,
+            "98044e61b32ee4cde96ee63a0c0accc70a776b51b689ef763930353aea60d45e",
+        ),
+        (
+            "llama",
+            false,
+            "f9b5f1dcc3c06ac87013adca91751f7acae25e5993fae0137b0b90ca98c08eca",
+        ),
+        (
+            "llama",
+            true,
+            "9e9593392a6058d6dac04ecb442ec83a31d6e017291e5007144ac91731e4ce8c",
+        ),
+    ] {
+        let (program, _) = fixture_with_body(family, active);
+        let mut program = Arc::try_unwrap(program).ok().unwrap();
+        program.bind([7; 32], [9; 32]);
+        let actual: String = program
+            .digest()
+            .iter()
+            .map(|v| format!("{v:02x}"))
+            .collect();
+        assert_eq!(actual, expected, "{family} {active}");
+    }
+}
+
+#[test]
+fn shared_public_tensor_programs_keep_distinct_invocations_and_complete_work() {
+    let (program, clear) = fixture("qwen2");
+    let mut unique: BTreeMap<[u8; 32], &Arc<tensor::Program>> = BTreeMap::new();
+    let mut invocations = 0;
+    for node in &program.nodes {
+        if let Code::Tensor { program, .. } = &node.code {
+            invocations += 1;
+            if let Some(previous) = unique.insert(program.digest(), program) {
+                assert!(Arc::ptr_eq(previous, program));
+            }
+        }
+    }
+    assert!(invocations > unique.len());
+    let expected_work: u64 = program
+        .nodes
+        .iter()
+        .map(|node| match &node.code {
+            Code::Product { .. } => 1,
+            Code::Tensor { program, .. } => program.instructions() as u64 * 128,
+            _ => 0,
+        })
+        .sum();
+    assert_eq!(program.operation_limit(), expected_work);
+    assert_eq!(execute(workers(program, &clear)), [1, 0]);
+}
+
 pub(super) fn workers(program: Arc<Program>, clear: &BTreeMap<String, Vec<i64>>) -> [Worker; 3] {
-    let mut setups = [Party::P0, Party::P1, Party::P2].map(|p| program.setup([42; 32], p).unwrap());
+    workers_with_programs([program.clone(), program.clone(), program], clear)
+}
+
+pub(super) fn workers_with_programs(
+    programs: [Arc<Program>; 3],
+    clear: &BTreeMap<String, Vec<i64>>,
+) -> [Worker; 3] {
+    let mut setups: [_; 3] = std::array::from_fn(|i| {
+        programs[i]
+            .setup([42; 32], [Party::P0, Party::P1, Party::P2][i])
+            .unwrap()
+    });
     let public = setups.each_mut().map(|p| p.contribution().unwrap());
     for (i, p) in setups.iter_mut().enumerate() {
         for (j, v) in public.iter().enumerate() {
@@ -110,10 +199,10 @@ pub(super) fn workers(program: Arc<Program>, clear: &BTreeMap<String, Vec<i64>>)
         )
         .unwrap();
     }
-    let mut workers = setups
-        .each_mut()
-        .map(|p| Worker::new(program.clone(), p.finish().unwrap(), [42; 32]).unwrap());
-    for (key, n) in program.inputs() {
+    let mut workers: [_; 3] = std::array::from_fn(|i| {
+        Worker::new(programs[i].clone(), setups[i].finish().unwrap(), [42; 32]).unwrap()
+    });
+    for (key, n) in programs[0].inputs() {
         let x = &clear[key];
         assert_eq!(x.len(), n);
         let first: Vec<_> = (0..n)

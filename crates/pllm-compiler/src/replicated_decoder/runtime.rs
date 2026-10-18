@@ -239,6 +239,16 @@ impl Worker {
                     self.values[self.step] = Some(output);
                     self.retire_inputs();
                 }
+                Code::SourceGather(view) => {
+                    let input = self.values[view.owner].as_ref().ok_or(Error::Binding)?;
+                    let mut output = Secret::new(node.lanes)?;
+                    for (i, index) in view.indices().enumerate() {
+                        output.first[i] = input.first[index];
+                        output.second[i] = input.second[index];
+                    }
+                    self.values[self.step] = Some(output);
+                    self.retire_inputs();
+                }
                 Code::Affine {
                     left,
                     right,

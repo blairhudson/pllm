@@ -671,6 +671,12 @@ remain enforced. Ordinary quality benchmarks compare final token IDs against
 FP32 through fresh one-selection full-prefix requests, retaining unknown top-k
 and logit-error metrics. The pinned Qwen checkpoint still rejects metadata admission;
 these controls establish neither its quality nor full-model capacity.
+Its compiler now retains checked strided source descriptors and shares immutable
+tensor programs while every invocation consumes fresh party-local work. Public
+construction views retire at last use. Six frozen generated execution identities
+and mixed compact/expanded-gather integer controls preserve the original schedule.
+Resident source shares, expanded operations and full-Qwen admission retain their
+separate bounds; this change provides no measured whole-client memory result.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
 source's float32-before-division boundary. Dense XOR lookup preserves original

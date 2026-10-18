@@ -1,0 +1,12 @@
+{
+  "paper/reproduction-contracts/maverick/vectors.json": "d18f9be0e12a7a77276c14cd66f32f2beffa153ad488b8b537c07e71733863c7",
+  "paper/reproduction-contracts/puma/FROZEN.sha256": "b9b2f9e90a8d32996a01055018bac609bffeddfd0071f3f2d64c573ca2e55f9d",
+  "paper/reproduction-contracts/puma/README.md": "60a56add7fcfd55c3cd557c343428985cf57cee70682777a894b1aaa63e112d5",
+  "paper/reproduction-contracts/puma/aes_reference.py": "0ab2be7ef856306db28cf7ccb6b1587bfae2b3c1125da77d51dceec5d6c2989f",
+  "paper/reproduction-contracts/puma/fixtures.py": "1193536ef30264f6586d83d2afc1edd1e6effd58205b61a08adcba5a716445a3",
+  "paper/reproduction-contracts/puma/oracle.py": "54c28ba42a7012ba288f6c9184b399b80656a02945796c3912bc299811d4f52b",
+  "paper/reproduction-contracts/puma/source-lock.json": "ea3b683329dbd1548af96241b846b9868fdf5033a9ae96a11ce84f655dd8b5ef",
+  "paper/reproduction-contracts/puma/test_boolean_oracle.py": "e39f02d813e6daefe22d9933d4cf9854ad8732e8aa5d17637c02b42226967b16",
+  "paper/reproduction-contracts/puma/test_oracle.py": "82f53a4885309d7c1a3e29b346111bcb8f8a63173abb6efc53e86bde40e0478d",
+  "paper/reproduction-contracts/puma/vectors.json": "e9b8986f4f8caf1d1985902a14a1595f5ce80fdfaee4fed8ccb0da8ebcc7d1ce"
+}
