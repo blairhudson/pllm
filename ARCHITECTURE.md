@@ -2094,12 +2094,14 @@ measured peaks or an OOM proof; unpriced runtime/crypto paths reject.
 can fall back from unsafe Docker CPU placement while preserving the Pipeline.
 Enforced WAN/link shaping cannot fall back to an unthrottled measurement.
 `--preflight-only` and `pllm.metrics.benchmark_memory` expose the same admission.
-macOS now shares native Mach free/file-cache/purgeable observations across SDK
-reservations and benchmark admission, with speculative pages counted once.
+macOS now shares native Mach/sysctl free/file-cache/purgeable/allocator-reusable
+observations across SDK reservations and benchmark admission. Speculative pages
+are counted once; only the larger purgeable/reusable count is credited because
+their overlap is unknown. Reports bind this calculation as `macos_mach_dispatch_v2`.
 A process-lifetime `DISPATCH_SOURCE_TYPE_MEMORYPRESSURE` source and current kernel
 pressure query block warning/critical launches and stop active benchmark work.
 The macOS budget uses reclaimable physical pages without another total-RAM reserve;
-inactive anonymous pages, compressor capacity and swap are excluded. The shared
+other inactive anonymous pages, compressor capacity and swap are excluded. The shared
 `memory_safety_margin_percent` option, exposed by both benchmark CLI commands as
 `--memory-safety-margin-percent`, adds 0–100% above expected allocation (default
 25%; zero removes the margin). Runtime monitoring retains that workload-sized

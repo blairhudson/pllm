@@ -140,7 +140,8 @@ class StreamedFloat32Reference:
             self._guard = MemoryWatchdog(
                 {"host": asdict(host) | {"reserve_bytes": host.reserve},
                  **({"runtime_floor_bytes": self.allocation_estimate_bytes - expected_peak}
-                    if host.availability_source == "macos_mach_dispatch_v1" else {})}, lambda _: None)
+                    if host.availability_source in ("macos_mach_dispatch_v1", "macos_mach_dispatch_v2")
+                    else {})}, lambda _: None)
             self._guard.start()
             for module, entries, size in self._owners:
                 self._hooks.append(module.register_forward_pre_hook(self._loader(entries, size)))

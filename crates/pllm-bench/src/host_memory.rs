@@ -1,8 +1,10 @@
 //! macOS reclaimable physical memory and process-lifetime pressure observation.
 //!
 //! Mach's free count includes speculative pages, which also occur in the
-//! file-backed count. Purgeable pages belong to internal (anonymous) objects.
-//! Do not count inactive anonymous memory, compressor capacity, or swap as cache.
+//! file-backed count. Purgeable and MADV_FREE_REUSABLE pages belong to internal
+//! (anonymous) objects. Their aggregate counters do not report overlap, so credit
+//! only the larger count. Other inactive anonymous memory, compressor capacity,
+//! and swap add no capacity.
 
 use serde::Serialize;
 
@@ -13,7 +15,18 @@ pub struct HostMemory {
     pub free: u64,
     pub cached: u64,
     pub purgeable: u64,
+    pub reusable: u64,
     pub pressure: &'static str,
+}
+
+#[cfg(any(target_os = "macos", test))]
+#[derive(Clone, Copy)]
+struct PageCounts {
+    free: u64,
+    speculative: u64,
+    cached: u64,
+    purgeable: u64,
+    reusable: u64,
 }
 
 #[cfg(any(target_os = "macos", test))]
@@ -47,20 +60,24 @@ fn pressure_event(flags: usize, current: Result<usize, &'static str>) -> usize {
 fn from_counts(
     total: u64,
     page_size: u64,
-    free: u64,
-    speculative: u64,
-    cached: u64,
-    purgeable: u64,
+    counts: PageCounts,
     pressure: usize,
 ) -> Result<HostMemory, &'static str> {
     let invalid = "invalid macOS physical memory counters";
     if total == 0 || !page_size.is_power_of_two() || !(4096..=65536).contains(&page_size) {
         return Err(invalid);
     }
+    let PageCounts {
+        free,
+        speculative,
+        cached,
+        purgeable,
+        reusable,
+    } = counts;
     let free = free.checked_sub(speculative).ok_or(invalid)?;
     let available = free
         .checked_add(cached)
-        .and_then(|n| n.checked_add(purgeable))
+        .and_then(|n| n.checked_add(purgeable.max(reusable)))
         .and_then(|n| n.checked_mul(page_size))
         .ok_or(invalid)?;
     if available > total {
@@ -72,6 +89,7 @@ fn from_counts(
         free: free * page_size,
         cached: cached * page_size,
         purgeable: purgeable * page_size,
+        reusable: reusable * page_size,
         pressure: pressure_name(pressure)?,
     })
 }
@@ -88,7 +106,7 @@ pub fn sample() -> Result<HostMemory, &'static str> {
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use super::{from_counts, HostMemory};
+    use super::{from_counts, HostMemory, PageCounts};
     use std::ffi::{c_char, c_int, c_void};
     use std::sync::{
         atomic::{AtomicUsize, Ordering},
@@ -229,13 +247,20 @@ mod macos {
         if page_result != 0 || result != 0 || count != 38 {
             return Err("cannot query macOS physical memory counters");
         }
+        // XNU exports this resident-page count separately from HOST_VM_INFO64.
+        // vm_object_deactivate_pages marks only internal pages reusable; it
+        // clears their dirty state so the kernel can discard them without swap.
+        let reusable = sysctl::<u32>(b"vm.page_reusable_count\0")?;
         from_counts(
             total,
             page_size as u64,
-            stats.free.into(),
-            stats.speculative.into(),
-            stats.external.into(),
-            stats.purgeable.into(),
+            PageCounts {
+                free: stats.free.into(),
+                speculative: stats.speculative.into(),
+                cached: stats.external.into(),
+                purgeable: stats.purgeable.into(),
+                reusable: reusable.into(),
+            },
             current | EVENTS.load(Ordering::Acquire),
         )
     }
@@ -247,19 +272,74 @@ mod tests {
 
     #[test]
     fn disjoint_reclaimable_pages_and_pressure() {
-        let sample = from_counts(4096 * 100, 4096, 10, 3, 20, 5, 1).unwrap();
+        let counts = PageCounts {
+            free: 10,
+            speculative: 3,
+            cached: 20,
+            purgeable: 5,
+            reusable: 0,
+        };
+        let sample = from_counts(4096 * 100, 4096, counts, 1).unwrap();
         assert_eq!(sample.available, 32 * 4096);
         assert_eq!(
             sample.available,
-            sample.free + sample.cached + sample.purgeable
+            sample.free + sample.cached + sample.purgeable.max(sample.reusable)
         );
         assert_eq!(sample.pressure, "normal");
         assert_eq!(pressure_name(1 | 2).unwrap(), "warning");
         assert_eq!(pressure_name(1 | 2 | 4).unwrap(), "critical");
         assert!(pressure_name(0).is_err());
-        assert!(from_counts(4096, 4096, 10, 3, 20, 5, 1).is_err());
-        assert!(from_counts(4096, 4096, 0, 1, 0, 0, 1).is_err());
-        assert!(from_counts(u64::MAX, 4096, u64::MAX, 0, 1, 0, 1).is_err());
+        assert!(from_counts(4096, 4096, counts, 1).is_err());
+        assert!(from_counts(4096, 4096, PageCounts { free: 0, ..counts }, 1).is_err());
+        assert!(from_counts(
+            u64::MAX,
+            4096,
+            PageCounts {
+                free: u64::MAX,
+                speculative: 0,
+                ..counts
+            },
+            1
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn reusable_allocator_pages_count_without_double_crediting_purgeable_pages() {
+        let counts = PageCounts {
+            free: 10,
+            speculative: 3,
+            cached: 20,
+            purgeable: 5,
+            reusable: 40,
+        };
+        let sample = from_counts(4096 * 100, 4096, counts, 1).unwrap();
+        assert_eq!(sample.available, 67 * 4096);
+        assert_eq!(sample.reusable, 40 * 4096);
+        // Either counter can include pages from the other. Credit their maximum,
+        // never their sum or a process's larger RSS-minus-footprint difference.
+        let sample = from_counts(
+            4096 * 100,
+            4096,
+            PageCounts {
+                purgeable: 45,
+                ..counts
+            },
+            1,
+        )
+        .unwrap();
+        assert_eq!(sample.available, 72 * 4096);
+        assert!(from_counts(4096 * 50, 4096, counts, 1).is_err());
+        assert!(from_counts(
+            u64::MAX,
+            4096,
+            PageCounts {
+                reusable: u64::MAX,
+                ..counts
+            },
+            1
+        )
+        .is_err());
     }
 
     #[test]
@@ -289,7 +369,7 @@ mod tests {
             assert!(sample.total > 0 && sample.available <= sample.total);
             assert_eq!(
                 sample.available,
-                sample.free + sample.cached + sample.purgeable
+                sample.free + sample.cached + sample.purgeable.max(sample.reusable)
             );
         }
     }

@@ -224,7 +224,8 @@ produced. Check available capacity with `benchmark run --preflight-only` first.
 
 Both commands accept `--memory-safety-margin-percent` (0–100, default 25).
 Set it to `0` to remove the allocation margin.
-On macOS, admission uses Mach free/cache/purgeable counters and native memory-pressure
+On macOS, admission uses Mach/sysctl free, cached, purgeable and allocator-reusable
+counters with overlap protection, plus native memory-pressure
 notifications, with a workload-sized margin rather than an extra total-RAM reserve.
 Warning/critical pressure blocks launch and stops active work. See
 [memory admission](/sdk/evaluate/benchmark/#memory-admission-and-native-metal)

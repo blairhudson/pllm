@@ -45,6 +45,7 @@ class HostMemory:
     free: int | None = None
     cached: int | None = None
     purgeable: int | None = None
+    reusable: int | None = None
 
     def __post_init__(self):
         if (any(type(value) is not int or value < 0 for value in
@@ -54,7 +55,14 @@ class HostMemory:
         if self.availability_source == "macos_mach_dispatch_v1":
             if (self.pressure not in {"normal", "warning", "critical"}
                     or any(type(n) is not int or n < 0 for n in (self.free, self.cached, self.purgeable))
-                    or self.free + self.cached + self.purgeable != self.available):
+                    or self.free + self.cached + self.purgeable != self.available
+                    or self.reusable is not None):
+                raise BenchmarkMemoryError("macOS memory telemetry is unavailable or invalid")
+        elif self.availability_source == "macos_mach_dispatch_v2":
+            if (self.pressure not in {"normal", "warning", "critical"}
+                    or any(type(n) is not int or n < 0 for n in
+                           (self.free, self.cached, self.purgeable, self.reusable))
+                    or self.free + self.cached + max(self.purgeable, self.reusable) != self.available):
                 raise BenchmarkMemoryError("macOS memory telemetry is unavailable or invalid")
         elif self.availability_source != "psutil_available" or self.pressure is not None:
             raise BenchmarkMemoryError("unsupported host memory telemetry")
@@ -64,7 +72,7 @@ class HostMemory:
         # Reclaimable physical pages and live kernel pressure replace the fixed
         # fraction-of-machine reserve. Allocation estimates already add a
         # workload-sized safety margin; do not subtract another total-RAM tax.
-        if self.availability_source == "macos_mach_dispatch_v1":
+        if self.availability_source in ("macos_mach_dispatch_v1", "macos_mach_dispatch_v2"):
             return 0
         return host_reserve_bytes(self.total)
 
@@ -77,7 +85,7 @@ def host_memory() -> HostMemory:
             from pllm import _native
 
             sample = json.loads(_native.macos_host_memory())
-            return HostMemory(**sample, availability_source="macos_mach_dispatch_v1",
+            return HostMemory(**sample, availability_source="macos_mach_dispatch_v2",
                               swap_used=int(psutil.swap_memory().used),
                               disk_free=int(shutil.disk_usage(Path.home()).free))
         memory = psutil.virtual_memory()
@@ -808,7 +816,7 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
         ("native", "docker") if estimate["kernel"] == "metal" else ("docker", "native"))
     selected = next((name for name in preference if candidates[name]["admitted"]), None)
     runtime_floor = (candidates[selected or preference[0]]["safety_margin_bytes"]
-                     if host.availability_source == "macos_mach_dispatch_v1"
+                     if host.availability_source in ("macos_mach_dispatch_v1", "macos_mach_dispatch_v2")
                      else max(GiB, host.reserve // 2))
     return {"schema": "pllm.benchmark_memory.v1", "admitted": selected is not None,
             "requested_backend": backend, "selected_backend": selected,

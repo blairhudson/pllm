@@ -14,8 +14,8 @@ from pllm.runtime import benchmark_memory as memory
 
 def _mac_host(*, pressure="normal", available=12 * memory.GiB):
     return memory.HostMemory(32 * memory.GiB, available, 0, 100 * memory.GiB,
-        availability_source="macos_mach_dispatch_v1", pressure=pressure,
-        free=available // 4, cached=available - available // 4, purgeable=0)
+        availability_source="macos_mach_dispatch_v2", pressure=pressure,
+        free=available // 4, cached=available - available // 4, purgeable=0, reusable=0)
 
 
 @pytest.mark.parametrize("pressure", ["warning", "critical"])
@@ -81,7 +81,8 @@ def test_macos_sampling_ignores_psutil_used_and_inactive(monkeypatch):
     monkeypatch.setattr(memory.platform, "system", lambda: "Darwin")
     monkeypatch.setattr(psutil, "virtual_memory", lambda: pytest.fail("used psutil Darwin availability"))
     sample = {"total": 32 * memory.GiB, "free": memory.GiB, "cached": 10 * memory.GiB,
-              "purgeable": memory.GiB, "available": 12 * memory.GiB, "pressure": "normal"}
+              "purgeable": memory.GiB, "reusable": 0,
+              "available": 12 * memory.GiB, "pressure": "normal"}
     monkeypatch.setattr(_native, "macos_host_memory", lambda: json.dumps(sample).encode())
     host = memory.host_memory()
     assert host.available == sum(sample[key] for key in ("free", "cached", "purgeable"))
@@ -96,10 +97,43 @@ def test_macos_sampling_ignores_psutil_used_and_inactive(monkeypatch):
 @pytest.mark.skipif(platform.system() != "Darwin", reason="Mach/libdispatch")
 def test_live_native_observation():
     host = memory.host_memory()
-    assert host.availability_source == "macos_mach_dispatch_v1"
+    assert host.availability_source == "macos_mach_dispatch_v2"
     assert host.pressure in {"normal", "warning", "critical"}
-    assert host.available == host.free + host.cached + host.purgeable
+    assert host.available == host.free + host.cached + max(host.purgeable, host.reusable)
     assert 0 <= host.available <= host.total
+
+
+def test_allocator_reusable_capacity_reaches_sdk_and_benchmark(monkeypatch):
+    from pllm import _native
+
+    monkeypatch.setattr(memory.platform, "system", lambda: "Darwin")
+    raw = {"total": 32 * memory.GiB, "free": memory.GiB, "cached": 6 * memory.GiB,
+           "purgeable": memory.GiB, "reusable": 5 * memory.GiB,
+           "available": 12 * memory.GiB, "pressure": "normal"}
+    monkeypatch.setattr(_native, "macos_host_memory", lambda: json.dumps(raw).encode())
+    host = memory.host_memory()
+    assert host.reusable == 5 * memory.GiB
+    assert host.reserve == 0
+    assert _ClientCapacity().observe().headroom_bytes == host.available == 12 * memory.GiB
+    report = memory.benchmark_memory(Model.tiny(), memory_safety_margin_percent=0)
+    assert report["admitted"]
+    assert report["host"]["reusable"] == 5 * memory.GiB
+    assert report["host"]["availability_source"] == "macos_mach_dispatch_v2"
+    # Summing these potentially overlapping anonymous counters would fabricate
+    # another GiB of capacity. Reject such observations, including on SDK entry.
+    raw["available"] = 13 * memory.GiB
+    with pytest.raises(memory.BenchmarkMemoryError, match="telemetry"):
+        memory.host_memory()
+    with pytest.raises(NetworkError, match="CLIENT_MEMORY_OBSERVATION_UNAVAILABLE"):
+        _ClientCapacity().observe()
+
+
+def test_historical_macos_observations_keep_their_original_semantics():
+    host = replace(_mac_host(), availability_source="macos_mach_dispatch_v1", reusable=None)
+    assert host.reserve == 0
+    assert host.available == host.free + host.cached + host.purgeable
+    with pytest.raises(memory.BenchmarkMemoryError, match="telemetry"):
+        replace(host, reusable=memory.GiB)
 
 
 @pytest.mark.parametrize("margin", [0, 40])

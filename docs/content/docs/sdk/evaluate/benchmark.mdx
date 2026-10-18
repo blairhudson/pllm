@@ -33,10 +33,13 @@ starting providers**. The allocation estimate includes both roles, client bundle
 serialization/import, NumPy and Rust weight copies, quantization and validation
 temporaries, inventory/corrections, decoder state, caches, and Metal snapshots.
 It adds a workload-sized allocation safety margin (25% by default). On macOS,
-Mach counters estimate reclaimable physical memory as free pages excluding
-speculative pages, plus file-backed cached pages and purgeable pages. Speculative
-pages already occur in the file-backed count. Inactive anonymous pages, compressed
-memory and swap add no capacity. A process-lifetime
+Mach and sysctl counters estimate reclaimable physical memory as free pages
+excluding speculative pages, plus file-backed cached pages and the larger of
+purgeable or allocator-reusable pages (`vm.page_reusable_count`). The latter two
+counters can overlap, so they are not added together. Speculative pages already
+occur in the file-backed count. Other inactive anonymous pages, compressed
+memory and swap add no capacity. Reports identify this calculation as
+`macos_mach_dispatch_v2` and retain each counter. A process-lifetime
 `DISPATCH_SOURCE_TYPE_MEMORYPRESSURE` observer and a current kernel-pressure query
 block new work at warning or critical pressure. macOS no longer subtracts an
 additional fixed percentage of total RAM. Other platforms retain psutil's
