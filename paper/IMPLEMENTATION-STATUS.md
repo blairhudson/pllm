@@ -100,7 +100,10 @@ Completed foundations:
   preflight. Streamed source row certificates and RMSNorm row proofs now admit
   the first attention product. Guarded shared softmax retains the source's strict
   cutoff and retained-domain rounding while charging its extra product. Source
-  publication now rejects layer-zero post-attention RMSNorm before worker launch.
+  publication then rejects layer-zero post-attention RMSNorm. The
+  [attention-range slice](artifacts/puma-sdk/local-v10/README.md) certifies complete
+  softmax mass and residual energy under the original arithmetic. Pinned publication
+  clears that RMSNorm and next rejects layer-zero SiLU before worker launch.
   Full-checkpoint ranges, complete
   work admission, quality and response costs remain open. See the
   [public-weight contract](../docs/research/puma-truncation-reference.md#explicit-public-weight-adaptation).

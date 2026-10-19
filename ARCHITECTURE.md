@@ -716,11 +716,16 @@ shared strict tail predicate before exponential evaluation. One charged exact
 product preserves retained-domain rounding and exact zero tails, while its changed
 instruction schedule binds fresh work and the existing party payload ceiling.
 Generated wide-score Qwen2/Qwen3/Llama controls preserve private feedback.
-Pinned Qwen source publication now passes its first attention product and softmax
-but rejects layer-zero post-attention RMSNorm, with zero observed swap growth and
-no worker launch. Whole-request work
-qualification, whole-model ranges, quality and measured response costs remain
-open. Contract:
+Public denominator partitions additionally certify each complete softmax row's
+nonnegative mass without changing its arithmetic or protected work. Streamed
+weight-row energy certificates and complete-row residual bounds preserve every
+stochastic rounding in post-attention RMSNorm; source owners and ordered tensor
+provenance bind these obligations under existing resource ceilings. Independent
+integer, generated decoder and lifetime checks pass. Pinned Qwen source publication
+now passes its first attention product, softmax and post-attention RMSNorm, but
+rejects layer-zero SiLU, with zero observed swap growth and no worker launch.
+Whole-request work qualification, whole-model ranges, quality and measured
+response costs remain open. Contract:
 `docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the

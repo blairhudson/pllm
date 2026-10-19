@@ -51,6 +51,7 @@ enum Code {
         digest: [u8; 32],
         row_l1: Option<u64>,
         row_squared_norm: Option<u128>,
+        row_l1_squared_sum: Option<u128>,
     },
     PublicValues(Vec<i64>),
     Gather(Words),

@@ -209,7 +209,7 @@ impl Program {
     /// Shifted, strictly clipped P-N1 softmax. Every eagerly evaluated power is
     /// admitted, including the lanes subsequently masked below -14.
     pub fn softmax(rows: usize, width: usize, input: Interval) -> Result<Self, Error> {
-        Self::softmax_schedule(rows, width, input, false)
+        Ok(Self::softmax_schedule(rows, width, input, false, false)?.0)
     }
 
     /// Range-safe shifted softmax. Secretly replace clipped inputs by zero
@@ -217,7 +217,19 @@ impl Program {
     /// Retained-domain stochastic equations and the strict cutoff are unchanged;
     /// the additional exact shared product has a distinct program identity.
     pub fn softmax_guarded(rows: usize, width: usize, input: Interval) -> Result<Self, Error> {
-        Self::softmax_schedule(rows, width, input, true)
+        Ok(Self::softmax_schedule(rows, width, input, true, false)?.0)
+    }
+
+    /// Original guarded schedule with a public proof of each complete row's
+    /// nonnegative encoded mass. Denominator partitions cover every rounding;
+    /// the certificate does not disclose a selected partition or score.
+    pub fn softmax_certified(
+        rows: usize,
+        width: usize,
+        input: Interval,
+    ) -> Result<(Self, u64), Error> {
+        let (program, mass) = Self::softmax_schedule(rows, width, input, true, true)?;
+        Ok((program, mass.ok_or(Error::Binding)?))
     }
 
     fn softmax_schedule(
@@ -225,7 +237,8 @@ impl Program {
         width: usize,
         input: Interval,
         guard_tail: bool,
-    ) -> Result<Self, Error> {
+        certify_mass: bool,
+    ) -> Result<(Self, Option<u64>), Error> {
         let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
         if width == 0 || rows == 0 {
             return Err(Error::Bounds);
@@ -281,9 +294,24 @@ impl Program {
         let total_range = Interval::new(ONE, upper)?;
         b.0.nodes[total.0 as usize].as_mut().unwrap().bounds = total_range;
         let inverse = reciprocal(&mut b, total, total_range)?;
+        let mass = if certify_mass {
+            let (range, product) = reciprocal_mass_bounds(total_range)?;
+            b.0.nodes[inverse.0 as usize].as_mut().unwrap().bounds = range;
+            // e_i>=0, d=sum(e_i), r>=0. Each p_i=TR(e_i*r) is at
+            // most (e_i*r+Q-1)/Q, so sum(p_i)<=floor((d*r+n*(Q-1))/Q).
+            Some(
+                u64::try_from(
+                    (i128::from(product.upper()) + width as i128 * i128::from(ONE - 1))
+                        / i128::from(ONE),
+                )
+                .map_err(|_| Error::Bounds)?,
+            )
+        } else {
+            None
+        };
         let inverse = b.row_map(inverse, width, RowMap::Broadcast)?;
         let output = b.product(exp, inverse, true)?;
-        b.finish(output)
+        Ok((b.finish(output)?, mass))
     }
 
     /// Centered, averaged LayerNorm with E(1e-5)=2. Gamma/beta are explicit
@@ -336,7 +364,7 @@ impl Program {
         input: Interval,
         gamma: &[i64],
     ) -> Result<Self, Error> {
-        Self::rms_norm_proof(rows, width, input, gamma, false).map(|(program, _)| program)
+        Self::rms_norm_proof(rows, width, input, gamma, false, None).map(|(program, _)| program)
     }
 
     /// The same RMSNorm arithmetic with a finer public proof of its rsqrt
@@ -348,7 +376,20 @@ impl Program {
         input: Interval,
         gamma: &[i64],
     ) -> Result<(Self, u128), Error> {
-        Self::rms_norm_proof(rows, width, input, gamma, true)
+        Self::rms_norm_proof(rows, width, input, gamma, true, None)
+    }
+
+    /// Same arithmetic under an additional caller-proved upper bound on each
+    /// complete input row's sum of squared encoded integers. Like `input`, this
+    /// is a public range obligation; execution never reconstructs it to check.
+    pub fn rms_norm_with_input_norm(
+        rows: usize,
+        width: usize,
+        input: Interval,
+        gamma: &[i64],
+        squared_norm: u128,
+    ) -> Result<(Self, u128), Error> {
+        Self::rms_norm_proof(rows, width, input, gamma, true, Some(squared_norm))
     }
 
     fn rms_norm_proof(
@@ -357,12 +398,14 @@ impl Program {
         input: Interval,
         gamma: &[i64],
         partitioned: bool,
+        input_norm: Option<u128>,
     ) -> Result<(Self, u128), Error> {
         let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
         if width == 0 || rows == 0 || gamma.len() != width {
             return Err(Error::Shape);
         }
-        let (mut b, normalized, radius) = rms_normalization(rows, width, input, partitioned)?;
+        let (mut b, normalized, radius) =
+            rms_normalization(rows, width, input, partitioned, input_norm)?;
         let scales: [Affine; MAX_ROW_LANES] =
             std::array::from_fn(|i| affine(gamma[i % width], 0, 0));
         let scaled = b.affine_lanes(normalized, &scales[..lanes])?;
@@ -437,6 +480,7 @@ fn rms_normalization(
     width: usize,
     input: Interval,
     partitioned: bool,
+    input_norm: Option<u128>,
 ) -> Result<(Builder, Value, u128), Error> {
     let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
     if rows == 0 || width == 0 {
@@ -447,6 +491,29 @@ fn rms_normalization(
     let x = b.input();
     let square = b.square(x)?;
     let sum = b.row_map(square, width, RowMap::Sum)?;
+    if let Some(squared_norm) = input_norm {
+        let minimum = if input.lower() <= 0 && input.upper() >= 0 {
+            0
+        } else {
+            input
+                .lower()
+                .unsigned_abs()
+                .min(input.upper().unsigned_abs())
+        };
+        if squared_norm < u128::from(minimum).pow(2) * width as u128 {
+            return Err(Error::Bounds);
+        }
+        // s_i=TR(x_i^2), so sum(s_i)<=floor((B+n*(Q-1))/Q).
+        // Keep the exact squares, ordered sum and original mean rescale.
+        let upper = squared_norm
+            .checked_add(width as u128 * (ONE - 1) as u128)
+            .ok_or(Error::Bounds)?
+            / ONE as u128;
+        let ordinary = b.node(sum, false)?.bounds;
+        let upper = upper.min(ordinary.upper() as u128) as i64;
+        b.0.nodes[sum.0 as usize].as_mut().unwrap().bounds =
+            Interval::new(ordinary.lower(), upper)?;
+    }
     let inverse_width = ((1.0_f32 / width as f32) * ONE as f32) as i64;
     if inverse_width <= 0 {
         return Err(Error::Bounds);
@@ -549,6 +616,63 @@ pub(super) fn reciprocal(b: &mut Builder, input: Value, bounds: Interval) -> Res
     Ok(r.product(b, &one_e2, true)?.value)
 }
 
+/// The six source reciprocal truncations over bounded public subintervals.
+/// These are proof cells only; the executable highest-bit circuit is unchanged.
+/// Splitting each exponent bucket into at most 256 cells retains the relation
+/// between d and r(d), instead of multiplying unrelated whole-domain extrema.
+fn reciprocal_mass_bounds(bounds: Interval) -> Result<(Interval, Interval), Error> {
+    if bounds.lower() < ONE || bounds.upper() >= 1_i64 << 36 {
+        return Err(Error::Bounds);
+    }
+    let mut inverse_lower = i64::MAX;
+    let mut inverse_upper = i64::MIN;
+    let mut product_lower = i64::MAX;
+    let mut product_upper = i64::MIN;
+    for j in 18..36 {
+        let lower = bounds.lower().max(1 << j);
+        let upper = bounds.upper().min((1 << (j + 1)) - 1);
+        if lower > upper {
+            continue;
+        }
+        let step = (upper - lower + 256) / 256;
+        for start in (lower..=upper).step_by(step as usize) {
+            let d = Interval::new(start, upper.min(start + step - 1))?;
+            let r = reciprocal_cell(d, j)?;
+            let product = InputBounds { left: d, right: r }.product()?;
+            inverse_lower = inverse_lower.min(r.lower());
+            inverse_upper = inverse_upper.max(r.upper());
+            product_lower = product_lower.min(product.lower());
+            product_upper = product_upper.max(product.upper());
+        }
+    }
+    if inverse_lower < 0 {
+        return Err(Error::Bounds);
+    }
+    Ok((
+        Interval::new(inverse_lower, inverse_upper)?,
+        Interval::new(product_lower, product_upper)?,
+    ))
+}
+
+fn reciprocal_cell(d: Interval, exponent: usize) -> Result<Interval, Error> {
+    let multiply = |left, right| InputBounds { left, right }.output();
+    let linear = |input, coefficient, constant| {
+        affine(coefficient, 0, constant).output_bounds(InputBounds {
+            left: input,
+            right: Interval::new(0, 0)?,
+        })
+    };
+    let factor = Interval::new(1 << (35 - exponent), 1 << (35 - exponent))?;
+    let c = multiply(d, factor)?;
+    let guess = linear(c, -2, 763940)?;
+    let w = multiply(guess, factor)?;
+    let xw = multiply(d, w)?;
+    let e = linear(xw, -1, ONE)?;
+    let r = multiply(w, linear(e, 1, ONE)?)?;
+    let e2 = multiply(e, e)?;
+    multiply(r, linear(e2, 1, ONE)?)
+}
+
 pub(super) fn rsqrt(b: &mut Builder, input: Value, bounds: Interval) -> Result<Value, Error> {
     Ok(rsqrt_ranged(b, input, bounds, false)?.value)
 }
@@ -633,6 +757,44 @@ fn rsqrt_polynomial_bounds(input: Interval) -> Result<Interval, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reciprocal_mass_proof_covers_denominators_and_all_rounding_choices() {
+        let choices = |v: i128| {
+            let q = i128::from(ONE);
+            [v.div_euclid(q) as i64, (-(-v).div_euclid(q)) as i64]
+        };
+        for j in 18..36 {
+            let lo = 1_i64 << j;
+            let hi = (1_i64 << (j + 1)) - 1;
+            let (inverse, product) =
+                reciprocal_mass_bounds(Interval::new(lo, hi).unwrap()).unwrap();
+            // Exhaust the first exponent bucket. Other exponents cover endpoints
+            // and non-aligned public cells; every case checks all 64 roundings.
+            let stride = if j == 18 { 1 } else { (hi - lo) / 257 };
+            for d in (lo..=hi).step_by(stride as usize).chain([hi - 1, hi]) {
+                let factor = 1_i128 << (35 - j);
+                for c in choices(i128::from(d) * factor) {
+                    for w in choices((763_940 - 2 * i128::from(c)) * factor) {
+                        for xw in choices(i128::from(d) * i128::from(w)) {
+                            let e = i128::from(ONE - xw);
+                            for r in choices(i128::from(w) * (i128::from(ONE) + e)) {
+                                for e2 in choices(e * e) {
+                                    for out in choices(i128::from(r) * i128::from(ONE + e2)) {
+                                        assert!((inverse.lower()..=inverse.upper()).contains(&out));
+                                        let raw = d * out;
+                                        assert!((product.lower()..=product.upper()).contains(&raw));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(reciprocal_mass_bounds(Interval::new(ONE - 1, ONE).unwrap()).is_err());
+        assert!(reciprocal_mass_bounds(Interval::new(ONE, 1 << 36).unwrap()).is_err());
+    }
 
     #[test]
     fn normalized_rsqrt_proof_covers_every_integer_and_rounding_choice() {

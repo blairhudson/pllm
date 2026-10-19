@@ -80,6 +80,7 @@ pub struct Publisher {
     row_l1: u64,
     row_square_sum: u128,
     row_squared_norm: u128,
+    row_l1_squared_sum: u128,
 }
 
 impl Publisher {
@@ -168,6 +169,7 @@ impl Publisher {
             row_l1: 0,
             row_square_sum: 0,
             row_squared_norm: 0,
+            row_l1_squared_sum: 0,
         })
     }
     pub fn shapes(&self) -> &[(String, Vec<usize>)] {
@@ -221,6 +223,10 @@ impl Publisher {
                         .ok_or("public row square bound overflow")?;
                     if (offset + i + 1) % self.shapes[self.cursor].1[1] == 0 {
                         self.row_l1 = self.row_l1.max(self.row_sum);
+                        self.row_l1_squared_sum = self
+                            .row_l1_squared_sum
+                            .checked_add(u128::from(self.row_sum).pow(2))
+                            .ok_or("public row energy overflow")?;
                         self.row_sum = 0;
                         self.row_squared_norm = self.row_squared_norm.max(self.row_square_sum);
                         self.row_square_sum = 0;
@@ -246,6 +252,9 @@ impl Publisher {
                         row_squared_norm: (self.manifest.weights == WeightMode::Public
                             && shape.len() == 2)
                             .then_some(self.row_squared_norm),
+                        row_l1_squared_sum: (self.manifest.weights == WeightMode::Public
+                            && shape.len() == 2)
+                            .then_some(self.row_l1_squared_sum),
                     },
                 );
                 self.source_lower = i64::MAX;
@@ -254,6 +263,7 @@ impl Publisher {
                 self.row_l1 = 0;
                 self.row_square_sum = 0;
                 self.row_squared_norm = 0;
+                self.row_l1_squared_sum = 0;
                 self.cursor += 1;
                 self.offset = 0;
             }

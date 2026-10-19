@@ -177,6 +177,7 @@ fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
                                     .unwrap(),
                             ),
                             row_squared_norm: None,
+                            row_l1_squared_sum: None,
                         },
                         w.len(),
                         interval(&w),
@@ -400,6 +401,7 @@ fn certified_public_row_sum_admits_sparse_products_without_relaxing_truncation()
                     digest,
                     row_l1,
                     row_squared_norm: None,
+                    row_l1_squared_sum: None,
                 },
                 inner,
                 Interval::new(0, 1 << 31).unwrap(),
@@ -448,6 +450,114 @@ fn certified_public_row_sum_admits_sparse_products_without_relaxing_truncation()
 }
 
 #[test]
+fn public_matrix_energy_follows_complete_residual_rows_into_rms_norm() {
+    let width = 129;
+    let x = vec![ONE; width];
+    let r = vec![ONE / 4; width];
+    let mut w = vec![0_i64; width * width];
+    w[0] = 512 * ONE;
+    let square = (512 * ONE) as u128 * (512 * ONE) as u128;
+    let digest = Sha256::digest(w.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>()).into();
+    let mut b = Builder {
+        public_weights: true,
+        ..Builder::default()
+    };
+    let weight = b
+        .push(
+            Code::PublicInput {
+                key: "w".into(),
+                digest,
+                row_l1: Some(512 * ONE as u64),
+                row_squared_norm: Some(square),
+                row_l1_squared_sum: Some(square),
+            },
+            w.len(),
+            Interval::new(0, 512 * ONE).unwrap(),
+        )
+        .unwrap();
+    let input = b
+        .push(Code::Input("x".into()), width, interval(&x))
+        .unwrap();
+    let residual = b
+        .push(Code::Input("r".into()), width, interval(&r))
+        .unwrap();
+    let matrix = SourceView {
+        owner: weight,
+        shape: vec![width, width],
+    };
+    let output = b
+        .matrix(
+            &b.view(input, vec![1, width]),
+            MatrixView::source(&matrix, false).unwrap(),
+            true,
+        )
+        .unwrap();
+    let combined = b
+        .residual(&output, &b.view(residual, vec![1, 1, width]))
+        .unwrap();
+    assert_ne!(combined.at(0).0, combined.at(width - 1).0);
+    let energy = b.row_norm(&combined, width).unwrap();
+    assert_eq!(b.row_norm(&combined.slice(0..width - 1), width - 1), None);
+    let reversed: Words = combined
+        .iter()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    assert_eq!(b.row_norm(&reversed, width), None);
+    let duplicates: Words = (0..width).map(|_| combined.at(0)).collect();
+    assert_eq!(b.row_norm(&duplicates, width), None);
+    let mut substituted = combined.slice(0..width - 1);
+    substituted.push((residual, width - 1));
+    assert_eq!(b.row_norm(&substituted, width), None);
+    let bounds = b.bounds(&combined).unwrap();
+    assert!(tensor::Program::rms_norm_certified(1, width, bounds, &vec![ONE; width]).is_err());
+    let (norm, normalized_energy) =
+        tensor::Program::rms_norm_with_input_norm(1, width, bounds, &vec![ONE; width], energy)
+            .unwrap();
+    let gathered = b.gather(&combined).unwrap();
+    let normalized = b.tensor(gathered, norm).unwrap();
+    let work = schedule_work(&b.nodes).unwrap();
+    let program = Arc::new(Program {
+        retire: vec![vec![]; b.nodes.len()],
+        nodes: b.nodes,
+        inputs: 3,
+        outputs: output
+            .words
+            .iter()
+            .chain(combined.iter())
+            .chain((0..width).map(|i| (normalized, i)))
+            .collect(),
+        digest: [98; 32],
+        source_binding: [0; 32],
+        payload_bytes: b.allocated,
+        work,
+    });
+    let actual = execute(workers(
+        program,
+        &BTreeMap::from([("x".into(), x), ("r".into(), r), ("w".into(), w)]),
+    ));
+    for i in 0..width {
+        assert_eq!(actual[i] as i64, if i == 0 { 512 * ONE } else { 0 });
+        assert_eq!(actual[width + i] as i64, actual[i] as i64 + ONE / 4);
+    }
+    assert!(
+        actual[width..2 * width]
+            .iter()
+            .map(|v| i128::from(*v as i64).unsigned_abs().pow(2))
+            .sum::<u128>()
+            <= energy
+    );
+    assert!(
+        actual[2 * width..]
+            .iter()
+            .map(|v| i128::from(*v as i64).unsigned_abs().pow(2))
+            .sum::<u128>()
+            <= normalized_energy
+    );
+}
+
+#[test]
 fn certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products() {
     let width = 128;
     let x: Vec<i64> = (0..width)
@@ -463,6 +573,7 @@ fn certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products(
                 digest,
                 row_l1: Some(width as u64 * ONE as u64),
                 row_squared_norm: Some(width as u128 * ONE as u128 * ONE as u128),
+                row_l1_squared_sum: None,
             },
             width,
             Interval::new(ONE, ONE).unwrap(),
@@ -524,6 +635,92 @@ fn certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products(
             .sum::<u128>()
             <= squared
     );
+}
+
+#[test]
+fn certified_softmax_mass_binds_complete_rows_and_preserves_private_products() {
+    let width = 7;
+    let mut b = Builder::default();
+    let scores = b
+        .push(
+            Code::Input("scores".into()),
+            width,
+            Interval::new(-100 * ONE, 100 * ONE).unwrap(),
+        )
+        .unwrap();
+    let values = b
+        .push(
+            Code::Input("values".into()),
+            width * 2,
+            Interval::new(-256 * ONE, 256 * ONE).unwrap(),
+        )
+        .unwrap();
+    let (softmax, mass) =
+        tensor::Program::softmax_certified(1, width, b.nodes[scores].bounds).unwrap();
+    let probabilities = b.tensor(scores, softmax).unwrap();
+    b.row_masses.push((probabilities, mass));
+    let row = b.view(probabilities, vec![1, width]);
+    assert_eq!(
+        b.row_certificate(&row.words, width, &b.row_masses),
+        Some(mass)
+    );
+    for wrong in [
+        row.words.slice(..width - 1),
+        (0..width).map(|_| (probabilities, 0)).collect(),
+        (0..width).map(|i| (probabilities, width - i - 1)).collect(),
+        (0..width)
+            .map(|i| (if i == 0 { scores } else { probabilities }, i))
+            .collect(),
+    ] {
+        assert!(b.row_certificate(&wrong, width, &b.row_masses).is_none());
+    }
+    assert!(b.row_certificate(&row.words, 1, &b.row_masses).is_none());
+    let values = b.view(values, vec![2, width]);
+    let output = b.matrix(&row, MatrixView::Values(&values), true).unwrap();
+    let range = b.bounds(&output.words).unwrap();
+    assert!(range.upper() < 264 * ONE && range.lower() > -264 * ONE);
+    let work = schedule_work(&b.nodes).unwrap();
+    let program = Arc::new(Program {
+        retire: vec![vec![]; b.nodes.len()],
+        nodes: b.nodes,
+        inputs: 2,
+        outputs: row.words.iter().chain(output.words.iter()).collect(),
+        digest: [98; 32],
+        source_binding: [0; 32],
+        payload_bytes: b.allocated,
+        work,
+    });
+    let values: Vec<i64> = (0..2)
+        .flat_map(|column| {
+            (0..width).map(move |i| {
+                if column == 0 {
+                    256 * ONE
+                } else {
+                    (i as i64 - 3) * ONE
+                }
+            })
+        })
+        .collect();
+    let actual = execute(workers(
+        program,
+        &BTreeMap::from([
+            (
+                "scores".into(),
+                vec![0, -ONE, -14 * ONE, -14 * ONE + 1, -1, -2, -100 * ONE],
+            ),
+            ("values".into(), values.clone()),
+        ]),
+    ));
+    for column in 0..2 {
+        let raw: i128 = (0..width)
+            .map(|i| i128::from(actual[i] as i64) * i128::from(values[column * width + i]))
+            .sum();
+        assert_eq!(
+            i128::from(actual[width + column] as i64),
+            raw / i128::from(ONE)
+        );
+        assert!((range.lower()..=range.upper()).contains(&(actual[width + column] as i64)));
+    }
 }
 
 #[test]

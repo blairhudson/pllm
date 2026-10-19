@@ -275,7 +275,7 @@ remain open. Original attempts, installed-wheel conformance and replay are in th
 
 ### Guarded shared softmax tails
 
-The public-weight compiler now selects `Program::softmax_guarded`. It computes
+The public-weight schedule uses `Program::softmax_guarded` arithmetic. It computes
 the original shared row maximum and shifted score `z`, then the same strict
 predicate `b = [z > -14*2^18]`. One exact, untruncated shared product sets
 `w = z*b` before the five exponential squarings. The native proof bounds `w`
@@ -302,13 +302,84 @@ Their V/O/MLP weights stay zero, so a separate signed-head oracle checks feedbac
 while the primitive oracles check complete softmax values. Each generated
 regression rejects softmax on the previous installed wheel.
 
-Pinned Qwen2.5 4+2 source publication now clears the first softmax. It rejects
-layer-zero post-attention `RmsNorm` at semantic step 22, with public encoded input
+The guarded-softmax slice's pinned Qwen2.5 4+2 publication clears the first
+softmax. It rejects layer-zero post-attention `RmsNorm` at semantic step 22,
+with public encoded input
 interval `[-1571860067, 1571850851]`, before role-worker launch. This guarded source
 publication observes zero swap growth. Whole-model ranges, complete-program work,
 hidden-state parity, quality and response costs remain open. Original receipts,
 installed-wheel checks and replay are in the
 [guarded-softmax slice](../../paper/artifacts/puma-sdk/local-v9/README.md).
+
+### Complete attention-row and residual-energy proofs
+
+Public-weight compilation now selects `Program::softmax_certified`, retaining
+the guarded instructions, truncations, PRSS work and party payload bound. The
+additional proof partitions each public denominator exponent into at most 256
+integer cells. It propagates every floor/ceil outcome through the original reciprocal
+recipe. For nonnegative exponentials `e_i`, denominator `d = sum(e_i)`, shared
+reciprocal `r`, and `Q = 2^18`, it certifies
+
+```text
+p_i = TR(e_i*r)
+sum(p_i) <= floor((upper(d*r) + n*(Q-1)) / Q) = M
+```
+
+Partitions do not inspect a score or select a runtime branch. The compiler binds
+`M` to the complete ordered softmax row. An attention product with value interval
+`[L,U]` then lies in `[M*min(L,0), M*max(U,0)]` before its one final rescale.
+Ordinary product and quarter-ring admission still run first. Partial, duplicated,
+reordered or mixed-owner views cannot inherit the row certificate.
+
+Public source descriptors also bind `row_l1_squared_sum`, the sum of squared
+absolute row sums over a complete weight matrix. The publisher and each worker
+derive it from the original streamed Q18 coefficients with checked integers.
+Worker import rejects both understatements and overstatements before accepting
+the tensor; source-owner commitments reject metadata substitution. Private-weight
+descriptors omit the statistic.
+
+For a non-transposed public product, let `A` bound the input's absolute encoded
+values and `E = sum_j[(sum_k(abs(W_jk)))^2]`. The complete output row after its
+original Q18 rescale has Euclidean radius at most
+
+```text
+R = ceil(A*ceil_sqrt(E) / Q) + ceil_sqrt(output_width)
+```
+
+The second term charges every stochastic truncation error. Residual addition
+combines complete-row certificates by the triangle inequality; uncertified rows
+use their scalar bounds. Certificates retain exact ordered word provenance across
+tensor chunks. Metadata owners count against the existing program-byte ceiling.
+
+`Program::rms_norm_with_input_norm` accepts that public squared-energy obligation
+`B` for an intact row. Its unchanged square/reduction schedule uses
+
+```text
+sum(TR(x_i^2)) <= floor((B + n*(Q-1)) / Q)
+```
+
+before the original reciprocal-width rescale and epsilon. This avoids assigning
+every coordinate the largest coordinate's magnitude. The native primitive, like
+its scalar interval, requires a caller-proved bound; it does not reconstruct
+private values to check the obligation. The compiler obtains it only from bound
+source statistics and admitted operations. No limits, polynomial constants,
+rounding rules or protected work budgets change.
+
+Independent stochastic-integer controls check complete softmax and RMSNorm values,
+row certificates, 896-value sparse normalization, cancellation and allocation
+failure. Generated Qwen2/Qwen3/Llama controls exercise nonzero V/O products,
+concentrated output energy and private feedback; Qwen2 also uses three SDK workers.
+Their zero Q/K and MLP provide an independent signed-head oracle rather than a
+checkpoint-quality result.
+
+Mass alone reduces the pinned Qwen post-attention scalar interval to
+`[-145907592, 145898376]`, but RMSNorm still rejects. The complete residual-energy
+proof admits it. Pinned 4+2 source publication next rejects layer-zero `Silu`,
+step 25 of selection zero, at encoded interval `[-28618714, 28618714]`. No role
+workers or online decoder run; retained source-publication attempts observe zero swap
+growth. Whole-model ranges, total work, hidden-state correctness, quality and
+serving measurements remain open. Original receipts and replay:
+[attention-range slice](../../paper/artifacts/puma-sdk/local-v10/README.md).
 
 ### Shared SDK interfaces
 

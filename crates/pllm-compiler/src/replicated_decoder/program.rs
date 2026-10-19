@@ -25,6 +25,9 @@ pub struct SourceTensor {
     /// Maximum sum of squared encoded coefficients in one physical matrix row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub row_squared_norm: Option<u128>,
+    /// Sum of squared absolute row sums over this complete public matrix.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_l1_squared_sum: Option<u128>,
 }
 
 /// Bind the validated source metadata without another serialized allocation.
@@ -52,6 +55,10 @@ pub(super) fn source_binding(sources: &BTreeMap<String, SourceTensor>) -> [u8; 3
             h.update(sum.to_le_bytes());
         }
         if let Some(sum) = source.row_squared_norm {
+            h.update(sum.to_le_bytes());
+        }
+        if let Some(sum) = source.row_l1_squared_sum {
+            h.update(b"public-row-l1-energy/v1");
             h.update(sum.to_le_bytes());
         }
     }
@@ -210,6 +217,8 @@ struct Builder {
     tensors: BTreeMap<[u8; 32], Arc<tensor::Program>>,
     public_weights: bool,
     row_norms: Vec<(usize, u128)>,
+    row_energies: Vec<(Words, u128)>,
+    row_masses: Vec<(usize, u64)>,
 }
 
 fn construction_views(graph: &DecoderGraph, sources: usize) -> Result<(), String> {
@@ -588,12 +597,37 @@ impl Builder {
         let tile = (puma::MAX_LANES / inner).min(128);
         let mut words = Words::new();
         for row in input.words.chunks_exact(inner) {
+            let mass = self.row_certificate(&row, inner, &self.row_masses);
             let left = self.gather(&row)?;
             for start in (0..columns).step_by(tile) {
                 let n = tile.min(columns - start);
                 let right = weight.gather(self, start, n, 0, inner)?;
                 let output =
                     self.product(left, right, Some(MatrixShape::new(1, inner, n)?), rescale)?;
+                if let Some(mass) = mass {
+                    // Only intact native softmax rows carry nonnegative mass.
+                    // Ordinary product/quarter-ring admission above still runs;
+                    // this proof tightens the result passed to later operators.
+                    let values = self.nodes[right].bounds;
+                    let bound = |v: i64| {
+                        i64::try_from(i128::from(v) * i128::from(mass)).map_err(|_| Error::Bounds)
+                    };
+                    let mut range = Interval::new(
+                        bound(values.lower().min(0))?,
+                        bound(values.upper().max(0))?,
+                    )?;
+                    if rescale {
+                        range = Interval::new(
+                            range.lower().div_euclid(ONE),
+                            -(-range.upper()).div_euclid(ONE),
+                        )?;
+                    }
+                    let ordinary = self.nodes[output].bounds;
+                    self.nodes[output].bounds = Interval::new(
+                        ordinary.lower().max(range.lower()),
+                        ordinary.upper().min(range.upper()),
+                    )?;
+                }
                 words.extend((0..n).map(|i| (output, i)));
             }
         }
@@ -623,6 +657,31 @@ impl Builder {
         let product = InputBounds {
             left: self.bounds(&input.words)?,
             right: self.nodes[weight].bounds,
+        };
+        let energy = match self.nodes[weight].code {
+            Code::PublicInput {
+                row_l1_squared_sum: Some(sum),
+                ..
+            } if !transposed && rescale => {
+                // |(Wx)_j| <= M*||W_j||_1. One final truncation per
+                // coordinate adds a vector of norm <sqrt(columns).
+                // This is a complete-row certificate, not a scalar bound.
+                let magnitude = u128::from(
+                    product
+                        .left
+                        .lower()
+                        .unsigned_abs()
+                        .max(product.left.upper().unsigned_abs()),
+                );
+                let radius = magnitude
+                    .checked_mul(ceil_sqrt(sum))
+                    .ok_or(Error::Bounds)?
+                    .div_ceil(ONE as u128)
+                    .checked_add(ceil_sqrt(columns as u128))
+                    .ok_or(Error::Bounds)?;
+                Some(radius.checked_mul(radius).ok_or(Error::Bounds)?)
+            }
+            _ => None,
         };
         let ordinary = product.product().and_then(|product| {
             affine(i64::try_from(inner).map_err(|_| Error::Bounds)?, 0, 0).output_bounds(
@@ -681,17 +740,110 @@ impl Builder {
             let scaled = b.rescale(b.input(), 18)?;
             b.finish(scaled)
         })?;
-        Ok(self.view(id, shape))
+        let output = self.view(id, shape);
+        if let Some(energy) = energy {
+            for row in output.words.chunks_exact(columns) {
+                self.record_row_energy(&row, energy)?;
+            }
+        }
+        Ok(output)
     }
 
     fn row_norm(&self, words: &Words, width: usize) -> Option<u128> {
         if width == 0 || words.is_empty() || words.len() % width != 0 {
             return None;
         }
-        let mut squared = 0;
+        let mut maximum = 0;
+        for row in words.chunks_exact(width) {
+            let bound = self
+                .row_certificate(&row, width, &self.row_norms)
+                .or_else(|| {
+                    self.row_energies
+                        .iter()
+                        .find(|(original, _)| {
+                            original.len() == width && original.iter().eq(row.iter())
+                        })
+                        .map(|(_, bound)| *bound)
+                })?;
+            maximum = maximum.max(bound);
+        }
+        Some(maximum)
+    }
+
+    fn record_row_energy(&mut self, row: &Words, squared: u128) -> Result<(), Error> {
+        let bytes = row
+            .metadata_bytes()
+            .checked_add(std::mem::size_of::<(Words, u128)>())
+            .ok_or(Error::Bounds)?;
+        let allocated = self
+            .allocated
+            .checked_add(bytes)
+            .filter(|n| *n <= MAX_PROGRAM_BYTES)
+            .ok_or(Error::Bounds)?;
+        self.row_energies
+            .try_reserve_exact(1)
+            .map_err(|_| Error::Allocation)?;
+        self.row_energies.push((row.clone(), squared));
+        self.allocated = allocated;
+        Ok(())
+    }
+
+    fn scalar_row_energy(&self, row: &Words) -> Result<u128, Error> {
+        row.iter().try_fold(0_u128, |sum, (owner, _)| {
+            let range = self.nodes.get(owner).ok_or(Error::Binding)?.bounds;
+            let radius = u128::from(
+                range
+                    .lower()
+                    .unsigned_abs()
+                    .max(range.upper().unsigned_abs()),
+            );
+            sum.checked_add(radius * radius).ok_or(Error::Bounds)
+        })
+    }
+
+    fn residual(&mut self, a: &View, b: &View) -> Result<Words, Error> {
+        let words = self.binary(&a.words, &b.words, false)?;
+        if self.public_weights {
+            let width = *a.shape.last().ok_or(Error::Shape)?;
+            if a.shape != b.shape || width == 0 || words.len() % width != 0 {
+                return Err(Error::Shape);
+            }
+            for ((left, right), output) in a
+                .words
+                .chunks_exact(width)
+                .zip(b.words.chunks_exact(width))
+                .zip(words.chunks_exact(width))
+            {
+                let left = self
+                    .row_norm(&left, width)
+                    .map_or_else(|| self.scalar_row_energy(&left), Ok)?;
+                let right = self
+                    .row_norm(&right, width)
+                    .map_or_else(|| self.scalar_row_energy(&right), Ok)?;
+                // Public triangle inequality; the residual addition remains
+                // the original exact ring64 operation and stays range-checked.
+                let radius = ceil_sqrt(left)
+                    .checked_add(ceil_sqrt(right))
+                    .ok_or(Error::Bounds)?;
+                self.record_row_energy(&output, radius.checked_mul(radius).ok_or(Error::Bounds)?)?;
+            }
+        }
+        Ok(words)
+    }
+
+    fn row_certificate<T: Copy + Ord>(
+        &self,
+        words: &Words,
+        width: usize,
+        certificates: &[(usize, T)],
+    ) -> Option<T> {
+        if width == 0 || words.is_empty() || words.len() % width != 0 {
+            return None;
+        }
+        let mut bound: Option<T> = None;
         for row in words.chunks_exact(width) {
             let (owner, _) = row.iter().next()?;
-            if self.nodes[owner].lanes != width
+            if self.nodes.get(owner)?.lanes != width
                 || !row
                     .iter()
                     .enumerate()
@@ -699,9 +851,10 @@ impl Builder {
             {
                 return None;
             }
-            squared = squared.max(self.row_norms.iter().find(|(id, _)| *id == owner)?.1);
+            let current = certificates.iter().find(|(id, _)| *id == owner)?.1;
+            bound = Some(bound.map_or(current, |previous| previous.max(current)));
         }
-        Some(squared)
+        bound
     }
 
     /// Keep every partial dot product in ring64. Only the complete accumulated
@@ -917,12 +1070,22 @@ impl Builder {
                     for row in a.ok_or(Error::Binding)?.words.chunks_exact(width) {
                         let input = self.gather(&row)?;
                         let (program, squared) = if self.public_weights {
-                            let (program, squared) = tensor::Program::rms_norm_certified(
-                                1,
-                                width,
-                                self.nodes[input].bounds,
-                                gamma.public_q18.as_ref().ok_or(Error::Binding)?,
-                            )?;
+                            let gamma = gamma.public_q18.as_ref().ok_or(Error::Binding)?;
+                            let (program, squared) = match self.row_norm(&row, width) {
+                                Some(norm) => tensor::Program::rms_norm_with_input_norm(
+                                    1,
+                                    width,
+                                    self.nodes[input].bounds,
+                                    gamma,
+                                    norm,
+                                )?,
+                                None => tensor::Program::rms_norm_certified(
+                                    1,
+                                    width,
+                                    self.nodes[input].bounds,
+                                    gamma,
+                                )?,
+                            };
                             (program, Some(squared))
                         } else {
                             (
@@ -980,11 +1143,15 @@ impl Builder {
                         shape: shape.clone(),
                     }
                 }
-                Op::ResidualAdd | Op::Multiply => View {
+                Op::ResidualAdd => View {
+                    words: self.residual(a.ok_or(Error::Binding)?, b.ok_or(Error::Binding)?)?,
+                    shape: shape.clone(),
+                },
+                Op::Multiply => View {
                     words: self.binary(
                         &a.ok_or(Error::Binding)?.words,
                         &b.ok_or(Error::Binding)?.words,
-                        op.operator == Op::Multiply,
+                        true,
                     )?,
                     shape: shape.clone(),
                 },
@@ -1189,12 +1356,31 @@ impl Builder {
                     {
                         let width = position + i % sequence + 1;
                         let input = self.gather(&row.slice(..width))?;
-                        let program = if self.public_weights {
-                            tensor::Program::softmax_guarded(1, width, self.nodes[input].bounds)?
+                        let (program, mass) = if self.public_weights {
+                            let (program, mass) = tensor::Program::softmax_certified(
+                                1,
+                                width,
+                                self.nodes[input].bounds,
+                            )?;
+                            (program, Some(mass))
                         } else {
-                            tensor::Program::softmax(1, width, self.nodes[input].bounds)?
+                            (
+                                tensor::Program::softmax(1, width, self.nodes[input].bounds)?,
+                                None,
+                            )
                         };
                         let id = self.tensor(input, program)?;
+                        if let Some(mass) = mass {
+                            self.allocated = self
+                                .allocated
+                                .checked_add(std::mem::size_of::<(usize, u64)>())
+                                .filter(|n| *n <= MAX_PROGRAM_BYTES)
+                                .ok_or(Error::Bounds)?;
+                            self.row_masses
+                                .try_reserve_exact(1)
+                                .map_err(|_| Error::Allocation)?;
+                            self.row_masses.push((id, mass));
+                        }
                         words.extend((0..width).map(|i| (id, i)));
                         words.extend(std::iter::repeat_n((zero, 0), keys - width));
                     }
@@ -1330,6 +1516,11 @@ fn affine(left: i64, right: i64, constant: i64) -> Affine {
         right,
         constant,
     }
+}
+
+fn ceil_sqrt(value: u128) -> u128 {
+    let root = value.isqrt();
+    root + u128::from(root * root != value)
 }
 
 impl Program {
@@ -1497,6 +1688,18 @@ impl Program {
                     return Err("invalid public source row square bound".into());
                 }
             }
+            if let Some(sum) = source.row_l1_squared_sum {
+                let maximum = source
+                    .row_l1
+                    .and_then(|row| u128::from(row).checked_mul(u128::from(row)))
+                    .and_then(|square| square.checked_mul(source.shape[0] as u128));
+                if weights != WeightMode::Public
+                    || source.shape.len() != 2
+                    || maximum.is_none_or(|maximum| sum > maximum)
+                {
+                    return Err("invalid public source row energy bound".into());
+                }
+            }
             if let Some(values) = &source.public_q18 {
                 let mut h = Sha256::new();
                 for value in values {
@@ -1529,6 +1732,7 @@ impl Program {
                             digest: source.digest,
                             row_l1: source.row_l1,
                             row_squared_norm: source.row_squared_norm,
+                            row_l1_squared_sum: source.row_l1_squared_sum,
                         }
                     } else {
                         Code::Input(key.clone())

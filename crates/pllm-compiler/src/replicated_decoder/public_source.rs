@@ -20,6 +20,7 @@ struct Pending {
     row_l1: u64,
     row_square_sum: u128,
     row_squared_norm: u128,
+    row_l1_squared_sum: u128,
     binding: [u8; 32],
 }
 
@@ -39,10 +40,12 @@ impl PublicSourceImport {
             manifest.weights,
         )?;
         if shapes.len() != manifest.tensors.len()
-            || manifest
-                .tensors
-                .values()
-                .any(|t| (t.row_l1.is_some() || t.row_squared_norm.is_some()) && t.shape.len() != 2)
+            || manifest.tensors.values().any(|t| {
+                (t.row_l1.is_some()
+                    || t.row_squared_norm.is_some()
+                    || t.row_l1_squared_sum.is_some())
+                    && t.shape.len() != 2
+            })
             || shapes
                 .iter()
                 .any(|(key, shape)| manifest.tensors.get(key).is_none_or(|t| &t.shape != shape))
@@ -64,6 +67,7 @@ impl PublicSourceImport {
             row_l1: 0,
             row_square_sum: 0,
             row_squared_norm: 0,
+            row_l1_squared_sum: 0,
             binding: program::source_binding(&manifest.tensors),
         })))
     }
@@ -106,7 +110,10 @@ impl PublicSourceImport {
                 return Err("public source coefficient/range differs".into());
             }
             out.copy_from_slice(&value.to_le_bytes());
-            if tensor.row_l1.is_some() || tensor.row_squared_norm.is_some() {
+            if tensor.row_l1.is_some()
+                || tensor.row_squared_norm.is_some()
+                || tensor.row_l1_squared_sum.is_some()
+            {
                 pending.row_sum = pending
                     .row_sum
                     .checked_add(value.unsigned_abs())
@@ -117,6 +124,10 @@ impl PublicSourceImport {
                     .ok_or("public row square bound overflow")?;
                 if (offset + i + 1) % tensor.shape[1] == 0 {
                     pending.row_l1 = pending.row_l1.max(pending.row_sum);
+                    pending.row_l1_squared_sum = pending
+                        .row_l1_squared_sum
+                        .checked_add(u128::from(pending.row_sum).pow(2))
+                        .ok_or("public row energy overflow")?;
                     pending.row_sum = 0;
                     pending.row_squared_norm = pending.row_squared_norm.max(pending.row_square_sum);
                     pending.row_square_sum = 0;
@@ -133,6 +144,9 @@ impl PublicSourceImport {
                 || tensor
                     .row_squared_norm
                     .is_some_and(|sum| sum != pending.row_squared_norm)
+                || tensor
+                    .row_l1_squared_sum
+                    .is_some_and(|sum| sum != pending.row_l1_squared_sum)
                 || pending.row_sum != 0
                 || pending.row_square_sum != 0
             {
@@ -148,6 +162,7 @@ impl PublicSourceImport {
             pending.offset = 0;
             pending.row_l1 = 0;
             pending.row_squared_norm = 0;
+            pending.row_l1_squared_sum = 0;
         }
         self.0 = Some(pending);
         Ok(())

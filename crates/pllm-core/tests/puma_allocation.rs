@@ -1112,8 +1112,12 @@ fn tensor_row_allocation_failure_sweeps_retire_every_owned_buffer() {
             Interval::new(-1_500_000_000_000, 1_500_000_000_000).unwrap(),
         )
         .unwrap(),
+        Program::softmax_certified(1, 3, bound).unwrap().0,
         Program::layer_norm(1, 3, bound, &[1 << 18; 3], &[1; 3]).unwrap(),
         Program::rms_norm(1, 3, bound, &[1 << 18; 3]).unwrap(),
+        Program::rms_norm_with_input_norm(1, 3, bound, &[1 << 18; 3], 1_u128 << 36)
+            .unwrap()
+            .0,
     ] {
         let mut completed = false;
         for fail_at in 0..8000 {
@@ -1157,8 +1161,12 @@ fn tensor_row_zeroization_precedes_refund_at_maximum_geometry() {
             Interval::new(-1_500_000_000_000, 1_500_000_000_000).unwrap(),
         )
         .unwrap(),
+        Program::softmax_certified(1, 512, bound).unwrap().0,
         Program::layer_norm(1, 896, bound, &[1 << 18; 896], &[1; 896]).unwrap(),
         Program::rms_norm(1, 1024, bound, &[1 << 18; 1024]).unwrap(),
+        Program::rms_norm_with_input_norm(1, 1024, bound, &[1 << 18; 1024], 1_u128 << 36)
+            .unwrap()
+            .0,
     ] {
         for p in 0..3 {
             let mut owners = tensor_program_owners(&program, 0);

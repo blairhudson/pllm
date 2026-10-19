@@ -644,6 +644,60 @@ fn guarded_softmax_binds_added_work_and_retains_range_and_lifetime_gates() {
     cancel_at_every_event(&broad, &[-1_500_000_000_000, -14 * ONE + 1, 0]);
 }
 
+#[test]
+fn certified_softmax_preserves_recipe_and_bounds_complete_row_mass() {
+    let bounds = Interval::new(-1_500_000_000_000, 1_500_000_000_000).unwrap();
+    for (rows, width) in [(1, 1), (3, 3), (2, 7), (1, 128), (1, 512)] {
+        let (program, mass) = Program::softmax_certified(rows, width, bounds).unwrap();
+        let old = Program::softmax_guarded(rows, width, bounds).unwrap();
+        assert_eq!(program.instructions(), old.instructions());
+        assert_eq!(program.work_budget(), old.work_budget());
+        assert_eq!(program.admitted_bytes(), old.admitted_bytes());
+        assert!(mass < (ONE * 103 / 100 + width as i64) as u64);
+        for values in [
+            vec![bounds.lower(); rows * width],
+            (0..rows * width)
+                .map(|i| {
+                    [
+                        0,
+                        -14 * ONE - 1,
+                        -14 * ONE,
+                        -14 * ONE + 1,
+                        -ONE - 3,
+                        -1,
+                        bounds.lower(),
+                    ][i % width % 7]
+                })
+                .collect(),
+        ] {
+            let mut owners = owners(&program, &values);
+            let usage = owners.each_ref().map(Executor::payload_usage);
+            let mut tapes = vec![];
+            for _ in 0..program.instructions() {
+                if let Some(tape) = step(&mut owners).0 {
+                    tapes.push(tape);
+                }
+            }
+            let output = owners.map(|o| o.finish().unwrap().1);
+            let actual = clear(&output);
+            assert_eq!(actual, softmax_oracle(&values, width, &tapes));
+            assert!(actual
+                .iter()
+                .all(|&v| (0..=program.output_bounds().upper()).contains(&v)));
+            for row in actual.chunks_exact(width) {
+                assert!(row.iter().map(|&v| v as u64).sum::<u64>() <= mass);
+            }
+            assert!(usage
+                .iter()
+                .all(|u| u.peak_bytes() + FIXED_RESERVE_BYTES <= program.admitted_bytes()));
+            drop(output);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+    }
+    let (program, _) = Program::softmax_certified(1, 3, bounds).unwrap();
+    cancel_at_every_event(&program, &[bounds.lower(), -14 * ONE + 1, 0]);
+}
+
 fn rms_norm_oracle(x: &[i64], width: usize, gamma: &[i64], tapes: &[Vec<u64>]) -> Vec<i64> {
     assert_eq!(tapes.len(), 10);
     let mut output = Vec::new();
@@ -748,6 +802,62 @@ fn rms_norm_correlated_denominator_bounds_cover_wide_and_near_zero_rows() {
             program.output_bounds().lower() <= x && x <= program.output_bounds().upper()
         }));
     }
+}
+
+#[test]
+fn certified_input_energy_preserves_sparse_rms_norm_rounding_and_ownership() {
+    let bound = Interval::new(-512 * ONE, 512 * ONE).unwrap();
+    let energy = (512 * ONE) as u128 * (512 * ONE) as u128;
+    for width in [3, 128, 896] {
+        let gamma: Vec<_> = (0..width).map(|i| [ONE, -ONE, 0][i % 3]).collect();
+        assert!(Program::rms_norm_certified(1, width, bound, &gamma).is_err());
+        let (program, squared) =
+            Program::rms_norm_with_input_norm(1, width, bound, &gamma, energy).unwrap();
+        let narrow =
+            Program::rms_norm_certified(1, width, Interval::new(-ONE, ONE).unwrap(), &gamma)
+                .unwrap()
+                .0;
+        assert_eq!(program.work_budget(), narrow.work_budget());
+        assert_eq!(program.instructions(), narrow.instructions());
+        assert_eq!(program.admitted_bytes(), narrow.admitted_bytes());
+        for sign in [-1, 0, 1] {
+            let mut values = vec![0; width];
+            values[width / 2] = sign * 512 * ONE;
+            let mut owners = owners(&program, &values);
+            let usage = owners.each_ref().map(Executor::payload_usage);
+            let mut tapes = vec![];
+            for _ in 0..program.instructions() {
+                if let Some(tape) = step(&mut owners).0 {
+                    tapes.push(tape);
+                }
+            }
+            let output = owners.map(|o| o.finish().unwrap().1);
+            let actual = clear(&output);
+            assert_eq!(actual, rms_norm_oracle(&values, width, &gamma, &tapes));
+            assert!(
+                actual
+                    .iter()
+                    .map(|v| i128::from(*v).unsigned_abs().pow(2))
+                    .sum::<u128>()
+                    <= squared
+            );
+            drop(output);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+    }
+    let program = Program::rms_norm_with_input_norm(1, 3, bound, &[ONE; 3], energy)
+        .unwrap()
+        .0;
+    cancel_at_every_event(&program, &[512 * ONE, 0, 0]);
+    assert!(Program::rms_norm_with_input_norm(1, 3, bound, &[ONE; 3], 3 * energy).is_err());
+    assert!(Program::rms_norm_with_input_norm(
+        1,
+        3,
+        Interval::new(ONE, ONE).unwrap(),
+        &[ONE; 3],
+        0
+    )
+    .is_err());
 }
 
 #[test]

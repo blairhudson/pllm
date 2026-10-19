@@ -91,7 +91,11 @@ fn public_row_certificates_are_recomputed_across_frames_and_bind_source_reuse() 
                         0.25
                     }
                 } else if key == "lm_head.weight" {
-                    1.0 / 64.0
+                    if i < 2 {
+                        1.0 / 64.0
+                    } else {
+                        1.0 / 128.0
+                    }
                 } else if key.contains("norm") {
                     1.0
                 } else {
@@ -110,9 +114,11 @@ fn public_row_certificates_are_recomputed_across_frames_and_bind_source_reuse() 
     let manifest: Manifest = serde_json::from_slice(&raw).unwrap();
     let mut wide = manifest.tensors["lm_head.weight"].clone();
     wide.row_squared_norm = Some(1_u128 << 100);
+    wide.row_l1_squared_sum = Some(1_u128 << 110);
     let roundtrip: SourceTensor =
         serde_json::from_slice(&serde_json::to_vec(&wide).unwrap()).unwrap();
     assert_eq!(roundtrip.row_squared_norm, wide.row_squared_norm);
+    assert_eq!(roundtrip.row_l1_squared_sum, wide.row_l1_squared_sum);
     assert_eq!(
         manifest.tensors["model.embed_tokens.weight"].row_l1,
         Some(ONE as u64 / 2)
@@ -129,6 +135,10 @@ fn public_row_certificates_are_recomputed_across_frames_and_bind_source_reuse() 
         manifest.tensors["lm_head.weight"].row_squared_norm,
         Some(ONE as u128 * ONE as u128 / 2048)
     );
+    assert_eq!(
+        manifest.tensors["lm_head.weight"].row_l1_squared_sum,
+        Some(3 * ONE as u128 * ONE as u128 / 2048)
+    );
     let mut importer = PublicSourceImport::new(&manifest).unwrap();
     for (key, offset, bytes) in &frames {
         importer.append(key, *offset, bytes).unwrap();
@@ -136,10 +146,13 @@ fn public_row_certificates_are_recomputed_across_frames_and_bind_source_reuse() 
     let source = importer.finish().unwrap();
     source.check(&manifest.compile().unwrap()).unwrap();
 
-    for (square, delta) in [(false, -1), (false, 1), (true, -1), (true, 1)] {
+    for (kind, delta) in [(0, -1), (0, 1), (1, -1), (1, 1), (2, -1), (2, 1)] {
         let mut bad: Manifest = serde_json::from_slice(&raw).unwrap();
         let row = bad.tensors.get_mut("lm_head.weight").unwrap();
-        if square {
+        if kind == 2 {
+            row.row_l1_squared_sum =
+                Some((row.row_l1_squared_sum.unwrap() as i128 + i128::from(delta)) as u128);
+        } else if kind == 1 {
             row.row_squared_norm =
                 Some((row.row_squared_norm.unwrap() as i128 + i128::from(delta)) as u128);
         } else {
@@ -233,6 +246,7 @@ fn fixture_with_weights(
                 digest,
                 row_l1: None,
                 row_squared_norm: None,
+                row_l1_squared_sum: None,
             },
         );
         clear.insert(key, values);

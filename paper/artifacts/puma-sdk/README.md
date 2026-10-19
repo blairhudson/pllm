@@ -68,6 +68,12 @@ product charged. Generated wide-score Qwen2/Qwen3/Llama controls execute private
 feedback. Pinned Qwen publication clears softmax and rejects the next RMSNorm;
 complete-checkpoint execution remains blocked.
 
+The [attention-range slice](local-v10/README.md) certifies complete softmax mass
+and residual energy under the original arithmetic and work budgets. Pinned Qwen
+publication clears post-attention RMSNorm and reaches layer-zero SiLU's range
+rejection. Generated nonzero-attention and concentrated-energy controls retain
+private feedback; full-model execution and quality remain unqualified.
+
 ## Retained evidence
 
 [`local-v1/summary.json`](local-v1/summary.json) records:

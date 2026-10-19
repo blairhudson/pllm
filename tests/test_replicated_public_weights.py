@@ -118,9 +118,11 @@ def test_public_matrix_bounds_match_independent_source_rows_and_bind_manifest(tm
                 rows = np.asarray(encoded[key], dtype=np.int64).reshape(shape)
                 assert descriptor["row_l1"] == max(sum(abs(int(v)) for v in row) for row in rows)
                 assert descriptor["row_squared_norm"] == max(sum(int(v) ** 2 for v in row) for row in rows)
+                assert descriptor["row_l1_squared_sum"] == sum(sum(abs(int(v)) for v in row) ** 2 for row in rows)
             else:
                 assert "row_l1" not in descriptor
                 assert "row_squared_norm" not in descriptor
+                assert "row_l1_squared_sum" not in descriptor
         # Native program commitments reject a changed certificate before a
         # worker can accept checkpoint frames or enter setup.
         value["tensors"]["model.embed_tokens.weight"]["row_l1"] -= 1
@@ -166,6 +168,41 @@ def test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback(t
             response = client.responses.create(input="hello", max_output_tokens=2)
             assert response.usage.output_tokens == 2
             assert captured[-1].selected == (2, 1)
+            assert active_sessions(client._core) == [0, 0, 0]
+            audit = client._core.audit.to_dict()
+            assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
+
+
+@pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+@pytest.mark.parametrize("concentrated", [False, True])
+def test_public_softmax_mass_admits_attention_residual_and_private_feedback(tmp_path, family, concentrated):
+    from safetensors.numpy import load_file, save_file
+
+    experiment = experiment_fixture(tmp_path, family=family, weights="public")
+    path = Path(experiment.pipeline.model.source) / "model.safetensors"
+    values = load_file(path)
+    for key, value in values.items():
+        if concentrated and key.endswith("o_proj.weight"):
+            value[:] = np.diag([28, 0]).astype(np.float32)
+        elif key.endswith(("v_proj.weight", "o_proj.weight")):
+            value[:] = 8 * np.eye(2, dtype=np.float32)
+    save_file(values, path, metadata={"format": "pt"})
+    source = admit_source(experiment)
+    # Q=K=0 gives uniform attention. V=O=8I amplifies the signed prefix
+    # mean; the independent head oracle has a wide margin under every rounding.
+    # Uncorrelated softmax boxes reject the following RMSNorm on the old wheel.
+    # Concentrated output additionally needs the certified complete-row energy:
+    # repeating its largest coordinate's bound across both features rejects.
+    assert native_execution(source, experiment, (3, 4), 2) == (2, 2)
+    assert native_execution(source, experiment, (2, 2), 2) == (1, 1)
+    if family == "qwen2":
+        captured = []
+        with OpenAI(experiment=experiment, timeout=300) as client:
+            client._core._result_hook = captured.append
+            # Rendered user: contributes two positive unknown embeddings.
+            response = client.responses.create(input="hello", max_output_tokens=2)
+            assert response.usage.output_tokens == 2
+            assert captured[-1].selected == (1, 2)
             assert active_sessions(client._core) == [0, 0, 0]
             audit = client._core.audit.to_dict()
             assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
