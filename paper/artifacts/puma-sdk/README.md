@@ -54,6 +54,13 @@ rejection. Ordinary pinned Qwen 4+2 memory preflight now admits a 2.19 GiB
 whole-topology estimate including 25% margin. Complete-model numeric/program
 admission, checkpoint execution and measured resources remain separate gates.
 
+The [public range-proof slice](local-v8/README.md) adds streamed matrix row
+certificates, independently recomputed worker commitments, tighter RMSNorm
+polynomial envelopes and complete-row norm bounds. Native semantic diagnostics
+locate the failing public interval. Pinned Qwen publication passes its first
+attention product but rejects the first softmax's eager exponential range;
+worker execution and full-model qualification remain blocked.
+
 ## Retained evidence
 
 [`local-v1/summary.json`](local-v1/summary.json) records:

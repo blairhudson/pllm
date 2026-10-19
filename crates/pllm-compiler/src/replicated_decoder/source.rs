@@ -76,6 +76,10 @@ pub struct Publisher {
     source_hash: Sha256,
     source_lower: i64,
     source_upper: i64,
+    row_sum: u64,
+    row_l1: u64,
+    row_square_sum: u128,
+    row_squared_norm: u128,
 }
 
 impl Publisher {
@@ -160,6 +164,10 @@ impl Publisher {
             source_hash: Sha256::new(),
             source_lower: i64::MAX,
             source_upper: i64::MIN,
+            row_sum: 0,
+            row_l1: 0,
+            row_square_sum: 0,
+            row_squared_norm: 0,
         })
     }
     pub fn shapes(&self) -> &[(String, Vec<usize>)] {
@@ -200,6 +208,24 @@ impl Publisher {
                 self.source_hash.update(value.to_le_bytes());
                 self.source_lower = self.source_lower.min(value);
                 self.source_upper = self.source_upper.max(value);
+                if self.manifest.weights == WeightMode::Public
+                    && self.shapes[self.cursor].1.len() == 2
+                {
+                    self.row_sum = self
+                        .row_sum
+                        .checked_add(value.unsigned_abs())
+                        .ok_or("public row bound overflow")?;
+                    self.row_square_sum = self
+                        .row_square_sum
+                        .checked_add(u128::from(value.unsigned_abs()).pow(2))
+                        .ok_or("public row square bound overflow")?;
+                    if (offset + i + 1) % self.shapes[self.cursor].1[1] == 0 {
+                        self.row_l1 = self.row_l1.max(self.row_sum);
+                        self.row_sum = 0;
+                        self.row_squared_norm = self.row_squared_norm.max(self.row_square_sum);
+                        self.row_square_sum = 0;
+                    }
+                }
             }
             self.offset += data.len() / 4;
             if self.offset == self.shapes[self.cursor].1.iter().product::<usize>() {
@@ -215,10 +241,19 @@ impl Publisher {
                             .public_coefficients
                             .contains(key)
                             .then(|| self.values[self.cursor].to_vec()),
+                        row_l1: (self.manifest.weights == WeightMode::Public && shape.len() == 2)
+                            .then_some(self.row_l1),
+                        row_squared_norm: (self.manifest.weights == WeightMode::Public
+                            && shape.len() == 2)
+                            .then_some(self.row_squared_norm),
                     },
                 );
                 self.source_lower = i64::MAX;
                 self.source_upper = i64::MIN;
+                self.row_sum = 0;
+                self.row_l1 = 0;
+                self.row_square_sum = 0;
+                self.row_squared_norm = 0;
                 self.cursor += 1;
                 self.offset = 0;
             }

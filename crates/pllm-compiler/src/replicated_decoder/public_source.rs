@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 
 pub struct PublicSource {
     files: BTreeMap<String, PublicFile>,
+    binding: [u8; 32],
 }
 
 struct Pending {
@@ -15,6 +16,11 @@ struct Pending {
     writer: Option<PublicFileWriter>,
     hash: Sha256,
     files: BTreeMap<String, PublicFile>,
+    row_sum: u64,
+    row_l1: u64,
+    row_square_sum: u128,
+    row_squared_norm: u128,
+    binding: [u8; 32],
 }
 
 /// Any invalid append consumes the incomplete source and closes its files.
@@ -33,6 +39,10 @@ impl PublicSourceImport {
             manifest.weights,
         )?;
         if shapes.len() != manifest.tensors.len()
+            || manifest
+                .tensors
+                .values()
+                .any(|t| (t.row_l1.is_some() || t.row_squared_norm.is_some()) && t.shape.len() != 2)
             || shapes
                 .iter()
                 .any(|(key, shape)| manifest.tensors.get(key).is_none_or(|t| &t.shape != shape))
@@ -50,6 +60,11 @@ impl PublicSourceImport {
             writer: None,
             hash: Sha256::new(),
             files: BTreeMap::new(),
+            row_sum: 0,
+            row_l1: 0,
+            row_square_sum: 0,
+            row_squared_norm: 0,
+            binding: program::source_binding(&manifest.tensors),
         })))
     }
 
@@ -91,6 +106,22 @@ impl PublicSourceImport {
                 return Err("public source coefficient/range differs".into());
             }
             out.copy_from_slice(&value.to_le_bytes());
+            if tensor.row_l1.is_some() || tensor.row_squared_norm.is_some() {
+                pending.row_sum = pending
+                    .row_sum
+                    .checked_add(value.unsigned_abs())
+                    .ok_or("public row bound overflow")?;
+                pending.row_square_sum = pending
+                    .row_square_sum
+                    .checked_add(u128::from(value.unsigned_abs()).pow(2))
+                    .ok_or("public row square bound overflow")?;
+                if (offset + i + 1) % tensor.shape[1] == 0 {
+                    pending.row_l1 = pending.row_l1.max(pending.row_sum);
+                    pending.row_sum = 0;
+                    pending.row_squared_norm = pending.row_squared_norm.max(pending.row_square_sum);
+                    pending.row_square_sum = 0;
+                }
+            }
         }
         pending.hash.update(&encoded);
         if let Some(writer) = &mut pending.writer {
@@ -98,6 +129,15 @@ impl PublicSourceImport {
         }
         pending.offset += bytes.len() / 4;
         if pending.offset == count {
+            if tensor.row_l1.is_some_and(|sum| sum != pending.row_l1)
+                || tensor
+                    .row_squared_norm
+                    .is_some_and(|sum| sum != pending.row_squared_norm)
+                || pending.row_sum != 0
+                || pending.row_square_sum != 0
+            {
+                return Err("public source row bound differs".into());
+            }
             if <[u8; 32]>::from(std::mem::take(&mut pending.hash).finalize()) != tensor.digest {
                 return Err("public source digest differs".into());
             }
@@ -106,6 +146,8 @@ impl PublicSourceImport {
             }
             pending.cursor += 1;
             pending.offset = 0;
+            pending.row_l1 = 0;
+            pending.row_squared_norm = 0;
         }
         self.0 = Some(pending);
         Ok(())
@@ -121,6 +163,7 @@ impl PublicSourceImport {
         }
         Ok(PublicSource {
             files: pending.files,
+            binding: pending.binding,
         })
     }
 }
@@ -133,7 +176,7 @@ impl PublicSource {
     ) -> Option<Self> {
         let mut files = BTreeMap::new();
         for node in &program.nodes[..program.inputs] {
-            if let Code::PublicInput { key, digest } = &node.code {
+            if let Code::PublicInput { key, digest, .. } = &node.code {
                 let bytes: Vec<u8> = values[key].iter().flat_map(|n| n.to_le_bytes()).collect();
                 let mut writer = PublicFileWriter::new(bytes.len() as u64, *digest).unwrap();
                 for chunk in bytes.chunks(65536) {
@@ -142,13 +185,19 @@ impl PublicSource {
                 files.insert(key.clone(), writer.finish().unwrap());
             }
         }
-        (!files.is_empty()).then_some(Self { files })
+        (!files.is_empty()).then_some(Self {
+            files,
+            binding: program.source_binding,
+        })
     }
 
     pub(super) fn check(&self, program: &Program) -> Result<(), Error> {
+        if self.binding != program.source_binding {
+            return Err(Error::Binding);
+        }
         let mut count = 0;
         for node in &program.nodes[..program.inputs] {
-            if let Code::PublicInput { key, digest } = &node.code {
+            if let Code::PublicInput { key, digest, .. } = &node.code {
                 let file = self.files.get(key).ok_or(Error::Binding)?;
                 if file.digest() != *digest || file.size() != node.lanes as u64 * 8 {
                     return Err(Error::Binding);

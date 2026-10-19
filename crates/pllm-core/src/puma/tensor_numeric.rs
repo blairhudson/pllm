@@ -303,16 +303,56 @@ impl Program {
         input: Interval,
         gamma: &[i64],
     ) -> Result<Self, Error> {
+        Self::rms_norm_proof(rows, width, input, gamma, false).map(|(program, _)| program)
+    }
+
+    /// The same RMSNorm arithmetic with a finer public proof of its rsqrt
+    /// polynomial. Partitions are compiler-only; runtime never opens a bucket.
+    /// Returns a certified squared Euclidean bound for each complete output row.
+    pub fn rms_norm_certified(
+        rows: usize,
+        width: usize,
+        input: Interval,
+        gamma: &[i64],
+    ) -> Result<(Self, u128), Error> {
+        Self::rms_norm_proof(rows, width, input, gamma, true)
+    }
+
+    fn rms_norm_proof(
+        rows: usize,
+        width: usize,
+        input: Interval,
+        gamma: &[i64],
+        partitioned: bool,
+    ) -> Result<(Self, u128), Error> {
         let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
         if width == 0 || rows == 0 || gamma.len() != width {
             return Err(Error::Shape);
         }
-        let (mut b, normalized) = rms_normalization(rows, width, input)?;
+        let (mut b, normalized, radius) = rms_normalization(rows, width, input, partitioned)?;
         let scales: [Affine; MAX_ROW_LANES] =
             std::array::from_fn(|i| affine(gamma[i % width], 0, 0));
         let scaled = b.affine_lanes(normalized, &scales[..lanes])?;
         let output = b.rescale(scaled, 18)?;
-        b.finish(output)
+        let squared = if partitioned {
+            let gamma = gamma
+                .iter()
+                .map(|v| v.unsigned_abs())
+                .max()
+                .ok_or(Error::Shape)?;
+            // Each public-gamma rescale contributes an error of magnitude < 1
+            // per lane. Minkowski and Cauchy-Schwarz retain the complete row.
+            let radius = radius
+                .checked_mul(u128::from(gamma))
+                .ok_or(Error::Bounds)?
+                .div_ceil(ONE as u128)
+                .checked_add(ceil_sqrt(width as u128))
+                .ok_or(Error::Bounds)?;
+            radius.checked_mul(radius).ok_or(Error::Bounds)?
+        } else {
+            0
+        };
+        Ok((b.finish(output)?, squared))
     }
 
     pub fn negative(lanes: usize, input: Interval) -> Result<Self, Error> {
@@ -357,7 +397,8 @@ fn rms_normalization(
     rows: usize,
     width: usize,
     input: Interval,
-) -> Result<(Builder, Value), Error> {
+    partitioned: bool,
+) -> Result<(Builder, Value, u128), Error> {
     let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
     if rows == 0 || width == 0 {
         return Err(Error::Shape);
@@ -375,7 +416,7 @@ fn rms_normalization(
     let mean = b.rescale(raw_mean, 18)?;
     let denominator = b.affine(mean, None, affine(1, 0, RMS_NORM_EPSILON_Q18))?;
     let bounds = b.node(denominator, false)?.bounds;
-    let mut inverse = rsqrt_ranged(&mut b, denominator, bounds)?;
+    let mut inverse = rsqrt_ranged(&mut b, denominator, bounds, partitioned)?;
     inverse.value = b.row_map(inverse.value, width, RowMap::Broadcast)?;
     // Correlate each row value with its own denominator before multiplying.
     // For Q=2^18, c=E(1/width)>0, S=sum(TR(x_i^2)), d=TR(S*c)+epsilon:
@@ -384,6 +425,7 @@ fn rms_normalization(
     // cover every mask. Buckets are public proof cases, never runtime branches.
     let denominator_boxes = Ranged::input(denominator, bounds, 35)?.boxes;
     let mut boxes = [None; DOMAINS];
+    let mut radius = 0;
     for (j, bucket) in denominator_boxes.into_iter().enumerate() {
         if let Some(bucket) = bucket {
             let sum_max = ((i128::from(bucket.upper()) - i128::from(RMS_NORM_EPSILON_Q18) + 1)
@@ -400,13 +442,54 @@ fn rms_normalization(
                 inverse.boxes[j] = None;
             } else {
                 boxes[j] = Some(Interval::new(lower, upper)?);
+                if partitioned {
+                    // Sum x_i^2 <= Q*S + width*(Q-1). This is a row proof,
+                    // not width copies of the maximum component proof above.
+                    let sum_squares = u128::try_from(
+                        sum_max * i128::from(ONE) + width as i128 * i128::from(ONE - 1),
+                    )
+                    .map_err(|_| Error::Bounds)?;
+                    let magnitude = u128::from(
+                        input
+                            .lower()
+                            .unsigned_abs()
+                            .max(input.upper().unsigned_abs()),
+                    );
+                    let sum_squares = sum_squares.min(
+                        magnitude
+                            .checked_mul(magnitude)
+                            .and_then(|v| v.checked_mul(width as u128))
+                            .ok_or(Error::Bounds)?,
+                    );
+                    let inverse = inverse.boxes[j].ok_or(Error::Bounds)?;
+                    let inverse = u128::from(
+                        inverse
+                            .lower()
+                            .unsigned_abs()
+                            .max(inverse.upper().unsigned_abs()),
+                    );
+                    let square = sum_squares
+                        .checked_mul(inverse)
+                        .and_then(|v| v.checked_mul(inverse))
+                        .ok_or(Error::Bounds)?;
+                    let bound = ceil_sqrt(square)
+                        .div_ceil(ONE as u128)
+                        .checked_add(ceil_sqrt(width as u128))
+                        .ok_or(Error::Bounds)?;
+                    radius = radius.max(bound);
+                }
             }
         }
     }
     let normalized = Ranged { value: x, boxes }
         .product(&mut b, &inverse, true)?
         .value;
-    Ok((b, normalized))
+    Ok((b, normalized, radius))
+}
+
+fn ceil_sqrt(value: u128) -> u128 {
+    let root = value.isqrt();
+    root + u128::from(root * root != value)
 }
 
 pub(super) fn reciprocal(b: &mut Builder, input: Value, bounds: Interval) -> Result<Value, Error> {
@@ -428,10 +511,15 @@ pub(super) fn reciprocal(b: &mut Builder, input: Value, bounds: Interval) -> Res
 }
 
 pub(super) fn rsqrt(b: &mut Builder, input: Value, bounds: Interval) -> Result<Value, Error> {
-    Ok(rsqrt_ranged(b, input, bounds)?.value)
+    Ok(rsqrt_ranged(b, input, bounds, false)?.value)
 }
 
-fn rsqrt_ranged(b: &mut Builder, input: Value, bounds: Interval) -> Result<Ranged, Error> {
+fn rsqrt_ranged(
+    b: &mut Builder,
+    input: Value,
+    bounds: Interval,
+    partitioned: bool,
+) -> Result<Ranged, Error> {
     let x = Ranged::input(input, bounds, 35)?;
     let highest = b.highest_bit(input, 35)?;
     let z = b.bit_map(highest, BitMap::ShiftLeft(1))?;
@@ -446,7 +534,13 @@ fn rsqrt_ranged(b: &mut Builder, input: Value, bounds: Interval) -> Result<Range
     for (power, coefficient) in [(&u2, 10085068), (&u3, -13072088), (&u4, 6823457)] {
         raw = raw.affine(b, Some(power), affine(1, coefficient, 0))?;
     }
-    let p = raw.rescale(b, 18)?.affine(b, None, affine(1, 0, 1086023))?;
+    let mut p = raw.rescale(b, 18)?.affine(b, None, affine(1, 0, 1086023))?;
+    if partitioned {
+        for (slot, domain) in p.boxes.iter_mut().zip(u.boxes) {
+            *slot = domain.map(rsqrt_polynomial_bounds).transpose()?;
+        }
+        b.0.nodes[p.value.0 as usize].as_mut().unwrap().bounds = hull(&p.boxes)?;
+    }
 
     // XOR-linear pair folding and parity work on shares; the one-hot invariant
     // follows from the fixed highest-bit circuit, never a caller assertion.
@@ -460,4 +554,80 @@ fn rsqrt_ranged(b: &mut Builder, input: Value, bounds: Interval) -> Result<Range
     let scale = x.exact_map(b, scale, |j| 1 << (17 - (j + 1) / 2))?;
     let compensation = coefficient.product(b, &scale, false)?;
     p.product(b, &compensation, true)
+}
+
+/// Cover every normalized integer U and every floor/ceil choice at all three
+/// powers and the final polynomial rescale. Within each 256-word public cell,
+/// ordinary interval arithmetic is sound; unioning cells retains their shared U.
+fn rsqrt_polynomial_bounds(input: Interval) -> Result<Interval, Error> {
+    if input.lower() < ONE / 4 || input.upper() > ONE / 2 {
+        return Err(Error::Bounds);
+    }
+    let mut lower = i64::MAX;
+    let mut upper = i64::MIN;
+    for start in (input.lower()..=input.upper()).step_by(256) {
+        let u = Interval::new(start, input.upper().min(start + 255))?;
+        let u2 = InputBounds { left: u, right: u }.output()?;
+        let u3 = InputBounds { left: u2, right: u }.output()?;
+        let u4 = InputBounds { left: u3, right: u }.output()?;
+        let zero = Interval::new(0, 0)?;
+        let mut raw = affine(-4057974, 0, 0).output_bounds(InputBounds {
+            left: u,
+            right: zero,
+        })?;
+        for (power, coefficient) in [(u2, 10085068), (u3, -13072088), (u4, 6823457)] {
+            raw = affine(1, coefficient, 0).output_bounds(InputBounds {
+                left: raw,
+                right: power,
+            })?;
+        }
+        let p = affine(1, 0, 1086023).output_bounds(InputBounds {
+            left: rescaled_bounds(raw, 18)?,
+            right: zero,
+        })?;
+        lower = lower.min(p.lower());
+        upper = upper.max(p.upper());
+    }
+    Interval::new(lower, upper)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalized_rsqrt_proof_covers_every_integer_and_rounding_choice() {
+        let whole = rsqrt_polynomial_bounds(Interval::new(ONE / 4, ONE / 2).unwrap()).unwrap();
+        assert!(whole.lower() > ONE && whole.upper() < 3 * ONE);
+        let choices = |v: i128| {
+            let q = i128::from(ONE);
+            [v.div_euclid(q) as i64, (-(-v).div_euclid(q)) as i64]
+        };
+        // Different cell boundaries from the implementation; every integer U
+        // and all 16 stochastic floor/ceil combinations are independently checked.
+        for start in (ONE / 4..=ONE / 2).step_by(251) {
+            let end = (start + 250).min(ONE / 2);
+            let bound = rsqrt_polynomial_bounds(Interval::new(start, end).unwrap()).unwrap();
+            for u in start..=end {
+                let u = i128::from(u);
+                for u2 in choices(u * u) {
+                    for u3 in choices(i128::from(u2) * u) {
+                        for u4 in choices(i128::from(u3) * u) {
+                            let numerator = -4_057_974 * u + 10_085_068 * i128::from(u2)
+                                - 13_072_088 * i128::from(u3)
+                                + 6_823_457 * i128::from(u4);
+                            for scaled in choices(numerator) {
+                                let value = scaled + 1_086_023;
+                                assert!((bound.lower()..=bound.upper()).contains(&value));
+                                assert!((whole.lower()..=whole.upper()).contains(&value));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for (lo, hi) in [(0, ONE / 2), (ONE / 4 - 1, ONE / 2), (ONE / 4, ONE / 2 + 1)] {
+            assert!(rsqrt_polynomial_bounds(Interval::new(lo, hi).unwrap()).is_err());
+        }
+    }
 }

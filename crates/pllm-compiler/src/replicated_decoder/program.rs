@@ -18,6 +18,44 @@ pub struct SourceTensor {
     pub public_q18: Option<Vec<i64>>,
     /// Commitment to the original encoded source bytes, checked by the issuer.
     pub digest: [u8; 32],
+    /// Maximum exact encoded absolute row sum for a public matrix. Recomputed
+    /// by every importing worker; absent from private-weight descriptors.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_l1: Option<u64>,
+    /// Maximum sum of squared encoded coefficients in one physical matrix row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub row_squared_norm: Option<u128>,
+}
+
+/// Bind the validated source metadata without another serialized allocation.
+/// Public coefficient bytes are already checked against their encoded digest.
+pub(super) fn source_binding(sources: &BTreeMap<String, SourceTensor>) -> [u8; 32] {
+    let mut h = Sha256::new();
+    h.update(b"pllm.replicated-decoder.source-descriptors.v1");
+    h.update((sources.len() as u64).to_le_bytes());
+    for (key, source) in sources {
+        h.update((key.len() as u64).to_le_bytes());
+        h.update(key);
+        h.update((source.shape.len() as u64).to_le_bytes());
+        for dimension in &source.shape {
+            h.update((*dimension as u64).to_le_bytes());
+        }
+        h.update(source.lower.to_le_bytes());
+        h.update(source.upper.to_le_bytes());
+        h.update(source.digest);
+        h.update([
+            source.public_q18.is_some() as u8,
+            source.row_l1.is_some() as u8,
+            source.row_squared_norm.is_some() as u8,
+        ]);
+        if let Some(sum) = source.row_l1 {
+            h.update(sum.to_le_bytes());
+        }
+        if let Some(sum) = source.row_squared_norm {
+            h.update(sum.to_le_bytes());
+        }
+    }
+    h.finalize().into()
 }
 
 pub struct Program {
@@ -28,6 +66,7 @@ pub struct Program {
     digest: [u8; 32],
     payload_bytes: usize,
     work: WorkBudget,
+    pub(super) source_binding: [u8; 32],
 }
 
 #[derive(Clone)]
@@ -39,6 +78,27 @@ struct View {
 struct SourceView {
     owner: usize,
     shape: Vec<usize>,
+}
+
+/// Compiler-only public context. No request values or party-local data enter
+/// admission diagnostics, and this record is not part of the execution schedule.
+#[derive(Default)]
+struct AdmissionSite {
+    selection: usize,
+    step: Option<usize>,
+    operator: Option<Op>,
+    layer: Option<u64>,
+    inputs: [Option<(i64, i64)>; 2],
+}
+
+impl std::fmt::Display for AdmissionSite {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "selection: {}, step: {:?}, operator: {:?}, layer: {:?}, inputs: {:?}",
+            self.selection, self.step, self.operator, self.layer, self.inputs
+        )
+    }
 }
 
 /// Matrix coordinates are [output column, contraction index]. Source matrices
@@ -149,6 +209,7 @@ struct Builder {
     allocated: usize,
     tensors: BTreeMap<[u8; 32], Arc<tensor::Program>>,
     public_weights: bool,
+    row_norms: Vec<(usize, u128)>,
 }
 
 fn construction_views(graph: &DecoderGraph, sources: usize) -> Result<(), String> {
@@ -562,14 +623,42 @@ impl Builder {
         let product = InputBounds {
             left: self.bounds(&input.words)?,
             right: self.nodes[weight].bounds,
-        }
-        .product()?;
-        let bounds = affine(i64::try_from(inner).map_err(|_| Error::Bounds)?, 0, 0).output_bounds(
-            InputBounds {
-                left: product,
-                right: Interval::new(0, 0)?,
-            },
-        )?;
+        };
+        let ordinary = product.product().and_then(|product| {
+            affine(i64::try_from(inner).map_err(|_| Error::Bounds)?, 0, 0).output_bounds(
+                InputBounds {
+                    left: product,
+                    right: Interval::new(0, 0)?,
+                },
+            )
+        });
+        let bounds = match self.nodes[weight].code {
+            Code::PublicInput {
+                row_l1: Some(sum),
+                row_squared_norm,
+                ..
+            } if !transposed => {
+                let magnitude = product
+                    .left
+                    .lower()
+                    .unsigned_abs()
+                    .max(product.left.upper().unsigned_abs());
+                let mut bound = u128::from(magnitude) * u128::from(sum);
+                if let Some(squared) = row_squared_norm
+                    .and_then(|w| self.row_norm(&input.words, inner)?.checked_mul(w))
+                {
+                    let root = squared.isqrt();
+                    bound = bound.min(root + u128::from(root * root != squared));
+                }
+                let bound = i64::try_from(bound).map_err(|_| Error::Bounds)?;
+                if let Ok(ordinary) = ordinary {
+                    Interval::new(ordinary.lower().max(-bound), ordinary.upper().min(bound))?
+                } else {
+                    Interval::new(-bound, bound)?
+                }
+            }
+            _ => ordinary?,
+        };
         let input = self.gather(&input.words)?;
         let raw = self.push(
             Code::PublicProduct {
@@ -593,6 +682,26 @@ impl Builder {
             b.finish(scaled)
         })?;
         Ok(self.view(id, shape))
+    }
+
+    fn row_norm(&self, words: &Words, width: usize) -> Option<u128> {
+        if width == 0 || words.is_empty() || words.len() % width != 0 {
+            return None;
+        }
+        let mut squared = 0;
+        for row in words.chunks_exact(width) {
+            let (owner, _) = row.iter().next()?;
+            if self.nodes[owner].lanes != width
+                || !row
+                    .iter()
+                    .enumerate()
+                    .all(|(index, word)| word == (owner, index))
+            {
+                return None;
+            }
+            squared = squared.max(self.row_norms.iter().find(|(id, _)| *id == owner)?.1);
+        }
+        Some(squared)
     }
 
     /// Keep every partial dot product in ring64. Only the complete accumulated
@@ -648,6 +757,7 @@ impl Builder {
         vocabulary: usize,
         position: usize,
         state: &mut BTreeMap<(u64, pllm_models::StateKind), View>,
+        site: &mut AdmissionSite,
     ) -> Result<View, Error> {
         let sequence = tokens.words.len();
         let keys = position.checked_add(sequence).ok_or(Error::Bounds)?;
@@ -671,8 +781,12 @@ impl Builder {
         values.insert("input.tokens".into(), tokens.clone());
         let anchor = self.gather(&tokens.words.slice(..1))?;
         let zero = self.constant(anchor, 0)?;
-        for op in &graph.operations {
+        for (step, op) in graph.operations.iter().enumerate() {
             let mut shape: Vec<usize> = op.output_shape.iter().map(|v| *v as usize).collect();
+            site.step = Some(step);
+            site.operator = Some(op.operator);
+            site.layer = op.layer;
+            site.inputs = [None; 2];
             if matches!(op.operator, Op::KvCacheAppend | Op::CacheSuffix) {
                 shape[2] = keys;
             }
@@ -694,6 +808,12 @@ impl Builder {
             };
             let a = op.inputs.first().and_then(|id| values.get(id));
             let b = op.inputs.get(1).and_then(|id| values.get(id));
+            for (target, view) in site.inputs.iter_mut().zip([a, b]) {
+                if let Some(view) = view {
+                    let bounds = self.bounds(&view.words)?;
+                    *target = Some((bounds.lower(), bounds.upper()));
+                }
+            }
             let output = match op.operator {
                 Op::TokenLookup => {
                     let table = source("weight")?;
@@ -796,13 +916,37 @@ impl Builder {
                     let mut words = Words::new();
                     for row in a.ok_or(Error::Binding)?.words.chunks_exact(width) {
                         let input = self.gather(&row)?;
-                        let program = tensor::Program::rms_norm(
-                            1,
-                            width,
-                            self.nodes[input].bounds,
-                            gamma.public_q18.as_ref().ok_or(Error::Binding)?,
-                        )?;
+                        let (program, squared) = if self.public_weights {
+                            let (program, squared) = tensor::Program::rms_norm_certified(
+                                1,
+                                width,
+                                self.nodes[input].bounds,
+                                gamma.public_q18.as_ref().ok_or(Error::Binding)?,
+                            )?;
+                            (program, Some(squared))
+                        } else {
+                            (
+                                tensor::Program::rms_norm(
+                                    1,
+                                    width,
+                                    self.nodes[input].bounds,
+                                    gamma.public_q18.as_ref().ok_or(Error::Binding)?,
+                                )?,
+                                None,
+                            )
+                        };
                         let output = self.tensor(input, program)?;
+                        if let Some(squared) = squared {
+                            self.allocated = self
+                                .allocated
+                                .checked_add(std::mem::size_of::<(usize, u128)>())
+                                .filter(|n| *n <= MAX_PROGRAM_BYTES)
+                                .ok_or(Error::Bounds)?;
+                            self.row_norms
+                                .try_reserve_exact(1)
+                                .map_err(|_| Error::Allocation)?;
+                            self.row_norms.push((output, squared));
+                        }
                         words.extend((0..width).map(|i| (output, i)));
                     }
                     View {
@@ -1326,6 +1470,29 @@ impl Program {
             return Err("replicated source commitment/public coefficient mismatch".into());
         }
         for source in sources.values() {
+            if let Some(sum) = source.row_l1 {
+                if weights != WeightMode::Public
+                    || source.shape.len() != 2
+                    || (source.shape[1] as u64)
+                        .checked_mul(source.lower.unsigned_abs().max(source.upper.unsigned_abs()))
+                        .is_none_or(|maximum| sum > maximum)
+                {
+                    return Err("invalid public source row bound".into());
+                }
+            }
+            if let Some(sum) = source.row_squared_norm {
+                let magnitude =
+                    u128::from(source.lower.unsigned_abs().max(source.upper.unsigned_abs()));
+                if weights != WeightMode::Public
+                    || source.shape.len() != 2
+                    || magnitude
+                        .checked_mul(magnitude)
+                        .and_then(|v| v.checked_mul(source.shape[1] as u128))
+                        .is_none_or(|maximum| sum > maximum)
+                {
+                    return Err("invalid public source row square bound".into());
+                }
+            }
             if let Some(values) = &source.public_q18 {
                 let mut h = Sha256::new();
                 for value in values {
@@ -1336,6 +1503,7 @@ impl Program {
                 }
             }
         }
+        let mut site = AdmissionSite::default();
         let result = (|| -> Result<Self, Error> {
             let mut builder = Builder {
                 public_weights: weights == WeightMode::Public,
@@ -1355,6 +1523,8 @@ impl Program {
                         Code::PublicInput {
                             key: key.clone(),
                             digest: source.digest,
+                            row_l1: source.row_l1,
+                            row_squared_norm: source.row_squared_norm,
                         }
                     } else {
                         Code::Input(key.clone())
@@ -1388,6 +1558,10 @@ impl Program {
             let mut tokens = builder.view(input, vec![1, rows]);
             let mut selected = vec![];
             for output in 0..outputs {
+                site = AdmissionSite {
+                    selection: output,
+                    ..AdmissionSite::default()
+                };
                 // D9 recomputes the complete private prefix for each selection.
                 // A fresh semantic prefill and fresh arithmetic are required:
                 // retained KV would change both the stochastic numeric schedule
@@ -1403,6 +1577,7 @@ impl Program {
                     vocabulary,
                     0,
                     &mut state,
+                    &mut site,
                 )?;
                 if result.words.len() != 1 {
                     return Err(Error::Shape);
@@ -1412,6 +1587,10 @@ impl Program {
                 tokens.shape = vec![1, tokens.words.len()];
             }
             let mut last: Vec<_> = (0..builder.nodes.len()).collect();
+            site.step = None;
+            site.operator = None;
+            site.layer = None;
+            site.inputs = [None; 2];
             let work = schedule_work(&builder.nodes)?;
             let mut h = Sha256::new();
             h.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
@@ -1435,7 +1614,7 @@ impl Program {
                         h.update((key.len() as u64).to_le_bytes());
                         h.update(key);
                     }
-                    Code::PublicInput { key, digest } => {
+                    Code::PublicInput { key, digest, .. } => {
                         h.update([5]);
                         h.update((key.len() as u64).to_le_bytes());
                         h.update(key);
@@ -1555,9 +1734,10 @@ impl Program {
                 digest: h.finalize().into(),
                 payload_bytes: builder.allocated,
                 work,
+                source_binding: source_binding(sources),
             })
         })();
-        result.map_err(|e| format!("replicated decoder admission: {e}"))
+        result.map_err(|e| format!("replicated decoder admission: {e}; public context {site}"))
     }
 
     pub fn digest(&self) -> [u8; 32] {

@@ -2,6 +2,12 @@ use super::*;
 use puma::{prss::PublicContribution, Party};
 use std::collections::BTreeMap;
 
+const PUBLIC_CONFIG: &[u8] = br#"{"model_type":"llama","hidden_size":2,"intermediate_size":2,
+    "num_hidden_layers":1,"num_attention_heads":1,"num_key_value_heads":1,
+    "vocab_size":3,"max_position_embeddings":64,"rope_theta":10000,
+    "rms_norm_eps":0.000001,"tie_word_embeddings":false,"hidden_act":"silu",
+    "attention_bias":false,"head_dim":2,"attention_dropout":0.0,"use_cache":true}"#;
+
 #[test]
 fn largest_live_prefix_views_reject_before_source_values() {
     let config = br#"{"model_type":"qwen2","hidden_size":2,"intermediate_size":8192,
@@ -38,6 +44,132 @@ fn pinned_qwen_public_metadata_prices_live_frontier_without_source_values() {
             .contains("public lookup operation count")
     );
     // The larger workload exceeds the original sequence ceiling before import.
+}
+
+#[test]
+fn public_numeric_admission_identifies_semantic_operator_and_retires_publisher() {
+    let mut publisher =
+        Publisher::new_with_weights(PUBLIC_CONFIG, 2, 2, [1; 32], [2; 32], WeightMode::Public)
+            .unwrap();
+    for (key, shape) in publisher.shapes().to_vec() {
+        // Each public source value passes encoding. Its square cannot satisfy
+        // the unchanged quarter-ring truncation bound at the first RMSNorm.
+        let value = if key == "model.embed_tokens.weight" {
+            4_194_304.0_f32
+        } else if key.contains("norm") {
+            1.0
+        } else {
+            0.0
+        };
+        let bytes: Vec<_> = (0..shape.iter().product::<usize>())
+            .flat_map(|_| value.to_le_bytes())
+            .collect();
+        publisher.append(&key, 0, &bytes).unwrap();
+    }
+    let reason = publisher.seal(&[0, 1]).unwrap_err();
+    assert!(reason.contains("operator: Some(RmsNorm)"), "{reason}");
+    assert!(reason.contains("layer: Some(0)"), "{reason}");
+    assert!(reason.contains("1099511627776"), "{reason}");
+    assert!(publisher.manifest().unwrap_err().contains("not sealed"));
+    assert!(publisher.next_chunk().err().unwrap().contains("retired"));
+}
+
+#[test]
+fn public_row_certificates_are_recomputed_across_frames_and_bind_source_reuse() {
+    let mut publisher =
+        Publisher::new_with_weights(PUBLIC_CONFIG, 2, 2, [1; 32], [2; 32], WeightMode::Public)
+            .unwrap();
+    let mut frames = Vec::new();
+    for (key, shape) in publisher.shapes().to_vec() {
+        let n = shape.iter().product::<usize>();
+        let values: Vec<f32> = (0..n)
+            .map(|i| {
+                if key == "model.embed_tokens.weight" {
+                    if i % 3 == 0 {
+                        -0.25
+                    } else {
+                        0.25
+                    }
+                } else if key == "lm_head.weight" {
+                    1.0 / 64.0
+                } else if key.contains("norm") {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        let bytes: Vec<_> = values.iter().flat_map(|v| v.to_le_bytes()).collect();
+        for (i, chunk) in bytes.chunks(12).enumerate() {
+            publisher.append(&key, i * 3, chunk).unwrap();
+            frames.push((key.clone(), i * 3, chunk.to_vec()));
+        }
+    }
+    publisher.seal(&[0, 1]).unwrap();
+    let raw = publisher.manifest().unwrap();
+    let manifest: Manifest = serde_json::from_slice(&raw).unwrap();
+    let mut wide = manifest.tensors["lm_head.weight"].clone();
+    wide.row_squared_norm = Some(1_u128 << 100);
+    let roundtrip: SourceTensor =
+        serde_json::from_slice(&serde_json::to_vec(&wide).unwrap()).unwrap();
+    assert_eq!(roundtrip.row_squared_norm, wide.row_squared_norm);
+    assert_eq!(
+        manifest.tensors["model.embed_tokens.weight"].row_l1,
+        Some(ONE as u64 / 2)
+    );
+    assert_eq!(
+        manifest.tensors["lm_head.weight"].row_l1,
+        Some(ONE as u64 / 32)
+    );
+    assert_eq!(
+        manifest.tensors["model.embed_tokens.weight"].row_squared_norm,
+        Some(ONE as u128 * ONE as u128 / 8)
+    );
+    assert_eq!(
+        manifest.tensors["lm_head.weight"].row_squared_norm,
+        Some(ONE as u128 * ONE as u128 / 2048)
+    );
+    let mut importer = PublicSourceImport::new(&manifest).unwrap();
+    for (key, offset, bytes) in &frames {
+        importer.append(key, *offset, bytes).unwrap();
+    }
+    let source = importer.finish().unwrap();
+    source.check(&manifest.compile().unwrap()).unwrap();
+
+    for (square, delta) in [(false, -1), (false, 1), (true, -1), (true, 1)] {
+        let mut bad: Manifest = serde_json::from_slice(&raw).unwrap();
+        let row = bad.tensors.get_mut("lm_head.weight").unwrap();
+        if square {
+            row.row_squared_norm =
+                Some((row.row_squared_norm.unwrap() as i128 + i128::from(delta)) as u128);
+        } else {
+            row.row_l1 = Some((row.row_l1.unwrap() as i64 + delta) as u64);
+        }
+        // A wider declared scalar interval still cannot authenticate a row sum.
+        row.lower = -ONE;
+        row.upper = ONE;
+        let program =
+            Program::compile_with_weights(PUBLIC_CONFIG, 2, 2, &bad.tensors, WeightMode::Public)
+                .unwrap();
+        assert!(matches!(source.check(&program), Err(Error::Binding)));
+        let mut importer = PublicSourceImport::new(&bad).unwrap();
+        let error = frames
+            .iter()
+            .find_map(|(key, offset, bytes)| importer.append(key, *offset, bytes).err())
+            .unwrap();
+        assert!(error.contains("public source row bound differs"), "{error}");
+        assert!(importer
+            .append("lm_head.weight", 0, &[0; 4])
+            .unwrap_err()
+            .contains("retired"));
+    }
+    let mut private: Manifest = serde_json::from_slice(&raw).unwrap();
+    private.weights = WeightMode::Private;
+    assert!(private
+        .compile()
+        .err()
+        .unwrap()
+        .contains("invalid public source row bound"));
 }
 
 fn fixture(family: &str) -> (Arc<Program>, BTreeMap<String, Vec<i64>>) {
@@ -99,6 +231,8 @@ fn fixture_with_weights(
                 upper: *values.iter().max().unwrap(),
                 public_q18: key.contains("norm").then(|| values.clone()),
                 digest,
+                row_l1: None,
+                row_squared_norm: None,
             },
         );
         clear.insert(key, values);

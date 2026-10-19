@@ -96,6 +96,40 @@ def test_public_file_import_rejects_value_substitution_and_burns_owner(tmp_path,
     assert psutil.Process().num_fds() == before
 
 
+def test_public_matrix_bounds_match_independent_source_rows_and_bind_manifest(tmp_path):
+    experiment = experiment_fixture(tmp_path, weights="public", active=True)
+    source = admit_source(experiment)
+    publisher, manifest = source.publisher(experiment, (3, 4), 2, lambda: False)
+    try:
+        value = json.loads(manifest)
+        encoded = {}
+
+        def collect(key, offset, frame):
+            # Independent source float32 multiplication and truncation to Q18.
+            words = (np.frombuffer(frame, dtype="<f4") * np.float32(1 << 18)).astype(np.int64)
+            target = encoded.setdefault(key, [])
+            assert len(target) == offset
+            target.extend(map(int, words))
+
+        source._append_source(sorted(source.source_shapes.items()), collect, lambda: False)
+        for key, descriptor in value["tensors"].items():
+            shape = descriptor["shape"]
+            if len(shape) == 2:
+                rows = np.asarray(encoded[key], dtype=np.int64).reshape(shape)
+                assert descriptor["row_l1"] == max(sum(abs(int(v)) for v in row) for row in rows)
+                assert descriptor["row_squared_norm"] == max(sum(int(v) ** 2 for v in row) for row in rows)
+            else:
+                assert "row_l1" not in descriptor
+                assert "row_squared_norm" not in descriptor
+        # Native program commitments reject a changed certificate before a
+        # worker can accept checkpoint frames or enter setup.
+        value["tensors"]["model.embed_tokens.weight"]["row_l1"] -= 1
+        with pytest.raises(ValueError, match="program differs|row bound"):
+            _native.ReplicatedWorker(source_io._canonical(value), 0)
+    finally:
+        publisher.close()
+
+
 def test_public_sdk_three_workers_complete_two_private_branches(tmp_path):
     experiment = experiment_fixture(tmp_path, weights="public", active=True)
     captured = []

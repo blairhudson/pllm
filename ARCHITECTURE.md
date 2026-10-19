@@ -705,7 +705,15 @@ F16 and BF16 import preserves original float32 conversions and rejects substitut
 shapes, dtypes and ranges before value reads. A pinned Qwen 4+2 ordinary SDK
 preflight admits a 2.19 GiB whole-topology allocation estimate, including the
 25% safety margin. This metadata/source-lock check does not decode checkpoint
-tensors or launch workers. Whole-request work
+tensors or launch workers. Public source descriptors additionally bind streamed
+absolute-row-sum and squared-row-norm certificates, recomputed by each worker.
+Partitioned RMSNorm polynomial proofs and complete-row Cauchy–Schwarz bounds
+retain the original Q18 operations, rounding and work budgets. Public-only
+certificates apply to intact normalization rows; source-owner commitments reject
+substituted ranges or certificates. Independent integer and lifetime controls
+preserve the bounded contracts. Pinned Qwen source publication now passes its
+first attention product but rejects layer-zero softmax's eager exponential
+range, with zero observed swap growth and no worker launch. Whole-request work
 qualification, whole-model ranges, quality and measured response costs remain
 open. Contract:
 `docs/research/puma-truncation-reference.md`.

@@ -1,0 +1,3638 @@
+[
+  {
+    "available_bytes": 11864686592,
+    "elapsed_seconds": 0.005580292083323002,
+    "owned_rss_bytes": 9437184,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265399296,
+      "psutil_sout_bytes_diagnostic": 194265399296,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11848613888,
+    "elapsed_seconds": 0.2681283336132765,
+    "owned_rss_bytes": 45711360,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265399296,
+      "psutil_sout_bytes_diagnostic": 194265399296,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11848613888,
+    "elapsed_seconds": 0.5351582914590836,
+    "owned_rss_bytes": 31522816,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265399296,
+      "psutil_sout_bytes_diagnostic": 194265399296,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11848613888,
+    "elapsed_seconds": 0.79401595890522,
+    "owned_rss_bytes": 153878528,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265399296,
+      "psutil_sout_bytes_diagnostic": 194265399296,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11787468800,
+    "elapsed_seconds": 1.05888304207474,
+    "owned_rss_bytes": 225673216,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265432064,
+      "psutil_sout_bytes_diagnostic": 194265432064,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11788943360,
+    "elapsed_seconds": 1.3141305837780237,
+    "owned_rss_bytes": 269844480,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265432064,
+      "psutil_sout_bytes_diagnostic": 194265432064,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11781734400,
+    "elapsed_seconds": 1.571825709193945,
+    "owned_rss_bytes": 307331072,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265432064,
+      "psutil_sout_bytes_diagnostic": 194265432064,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11781734400,
+    "elapsed_seconds": 1.8328655837103724,
+    "owned_rss_bytes": 347979776,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265432064,
+      "psutil_sout_bytes_diagnostic": 194265432064,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11762925568,
+    "elapsed_seconds": 2.0943890837952495,
+    "owned_rss_bytes": 378372096,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265432064,
+      "psutil_sout_bytes_diagnostic": 194265432064,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11761385472,
+    "elapsed_seconds": 2.3499738750979304,
+    "owned_rss_bytes": 416694272,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265432064,
+      "psutil_sout_bytes_diagnostic": 194265432064,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11759730688,
+    "elapsed_seconds": 2.6164178336039186,
+    "owned_rss_bytes": 646496256,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265432064,
+      "psutil_sout_bytes_diagnostic": 194265432064,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11759730688,
+    "elapsed_seconds": 2.8729848749935627,
+    "owned_rss_bytes": 716881920,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265432064,
+      "psutil_sout_bytes_diagnostic": 194265432064,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11753816064,
+    "elapsed_seconds": 3.139267833903432,
+    "owned_rss_bytes": 793280512,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265448448,
+      "psutil_sout_bytes_diagnostic": 194265448448,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11753816064,
+    "elapsed_seconds": 3.4042529994621873,
+    "owned_rss_bytes": 830767104,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265448448,
+      "psutil_sout_bytes_diagnostic": 194265448448,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11753816064,
+    "elapsed_seconds": 3.6660549584776163,
+    "owned_rss_bytes": 857128960,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265448448,
+      "psutil_sout_bytes_diagnostic": 194265448448,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11753816064,
+    "elapsed_seconds": 3.9298916663974524,
+    "owned_rss_bytes": 907362304,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194265448448,
+      "psutil_sout_bytes_diagnostic": 194265448448,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11794694144,
+    "elapsed_seconds": 4.185501417145133,
+    "owned_rss_bytes": 999784448,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266300416,
+      "psutil_sout_bytes_diagnostic": 194266300416,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11791204352,
+    "elapsed_seconds": 4.450883791781962,
+    "owned_rss_bytes": 1055129600,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266300416,
+      "psutil_sout_bytes_diagnostic": 194266300416,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11790286848,
+    "elapsed_seconds": 4.707248084247112,
+    "owned_rss_bytes": 1069072384,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11789631488,
+    "elapsed_seconds": 4.972361374646425,
+    "owned_rss_bytes": 1077968896,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11789008896,
+    "elapsed_seconds": 5.2358639584854245,
+    "owned_rss_bytes": 1078132736,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11799658496,
+    "elapsed_seconds": 5.499900042079389,
+    "owned_rss_bytes": 1078149120,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11799658496,
+    "elapsed_seconds": 5.765347833745182,
+    "owned_rss_bytes": 1078624256,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11799658496,
+    "elapsed_seconds": 6.030519708991051,
+    "owned_rss_bytes": 1079312384,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11801870336,
+    "elapsed_seconds": 6.291023916564882,
+    "owned_rss_bytes": 1085341696,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11803721728,
+    "elapsed_seconds": 6.554580584168434,
+    "owned_rss_bytes": 1087488000,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11810013184,
+    "elapsed_seconds": 6.820128874853253,
+    "owned_rss_bytes": 1095417856,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11953815552,
+    "elapsed_seconds": 7.083676625043154,
+    "owned_rss_bytes": 716816384,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11935793152,
+    "elapsed_seconds": 7.3486123746261,
+    "owned_rss_bytes": 805027840,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11919425536,
+    "elapsed_seconds": 7.612877916544676,
+    "owned_rss_bytes": 844840960,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11904794624,
+    "elapsed_seconds": 7.878727042116225,
+    "owned_rss_bytes": 868794368,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11904794624,
+    "elapsed_seconds": 8.142399874515831,
+    "owned_rss_bytes": 899219456,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11878203392,
+    "elapsed_seconds": 8.407612958922982,
+    "owned_rss_bytes": 931577856,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11847974912,
+    "elapsed_seconds": 8.672420041635633,
+    "owned_rss_bytes": 978206720,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11835703296,
+    "elapsed_seconds": 8.933815999887884,
+    "owned_rss_bytes": 1011073024,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11835703296,
+    "elapsed_seconds": 9.198942666873336,
+    "owned_rss_bytes": 1052819456,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11806818304,
+    "elapsed_seconds": 9.463920542038977,
+    "owned_rss_bytes": 1075380224,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11806818304,
+    "elapsed_seconds": 9.728996667079628,
+    "owned_rss_bytes": 1093713920,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11806818304,
+    "elapsed_seconds": 9.99415154196322,
+    "owned_rss_bytes": 1157791744,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11806818304,
+    "elapsed_seconds": 10.249549083411694,
+    "owned_rss_bytes": 1212956672,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11802050560,
+    "elapsed_seconds": 10.514145166613162,
+    "owned_rss_bytes": 1358610432,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11806162944,
+    "elapsed_seconds": 10.775075166486204,
+    "owned_rss_bytes": 1444282368,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11806162944,
+    "elapsed_seconds": 11.039702500216663,
+    "owned_rss_bytes": 1470152704,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11806162944,
+    "elapsed_seconds": 11.304335874505341,
+    "owned_rss_bytes": 1561853952,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11861934080,
+    "elapsed_seconds": 11.56900545861572,
+    "owned_rss_bytes": 1552252928,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11985633280,
+    "elapsed_seconds": 11.82421762496233,
+    "owned_rss_bytes": 1177239552,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11936825344,
+    "elapsed_seconds": 12.08862266689539,
+    "owned_rss_bytes": 1305493504,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11936825344,
+    "elapsed_seconds": 12.35306499991566,
+    "owned_rss_bytes": 1309327360,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11931926528,
+    "elapsed_seconds": 12.613744124770164,
+    "owned_rss_bytes": 1317060608,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11931926528,
+    "elapsed_seconds": 12.878569416701794,
+    "owned_rss_bytes": 1318977536,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11931926528,
+    "elapsed_seconds": 13.143020084127784,
+    "owned_rss_bytes": 990773248,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11931926528,
+    "elapsed_seconds": 13.40743491705507,
+    "owned_rss_bytes": 990806016,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12044730368,
+    "elapsed_seconds": 13.666888416744769,
+    "owned_rss_bytes": 990871552,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12047351808,
+    "elapsed_seconds": 13.931758167222142,
+    "owned_rss_bytes": 990969856,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12047351808,
+    "elapsed_seconds": 14.19623358361423,
+    "owned_rss_bytes": 991002624,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12047351808,
+    "elapsed_seconds": 14.460475583560765,
+    "owned_rss_bytes": 990986240,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11876433920,
+    "elapsed_seconds": 14.725095000118017,
+    "owned_rss_bytes": 991002624,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11880890368,
+    "elapsed_seconds": 14.986381334252656,
+    "owned_rss_bytes": 991051776,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11921178624,
+    "elapsed_seconds": 15.246120208874345,
+    "owned_rss_bytes": 991068160,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11921178624,
+    "elapsed_seconds": 15.510900584049523,
+    "owned_rss_bytes": 991068160,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11899076608,
+    "elapsed_seconds": 15.77629129216075,
+    "owned_rss_bytes": 991084544,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11899076608,
+    "elapsed_seconds": 16.031884166412055,
+    "owned_rss_bytes": 991100928,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11899076608,
+    "elapsed_seconds": 16.296671042218804,
+    "owned_rss_bytes": 991133696,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11899076608,
+    "elapsed_seconds": 16.561429916881025,
+    "owned_rss_bytes": 991150080,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266677248,
+      "psutil_sout_bytes_diagnostic": 194266677248,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11818500096,
+    "elapsed_seconds": 16.82630074955523,
+    "owned_rss_bytes": 991166464,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11848302592,
+    "elapsed_seconds": 17.093605041503906,
+    "owned_rss_bytes": 991182848,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11841273856,
+    "elapsed_seconds": 17.348808083683252,
+    "owned_rss_bytes": 993263616,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11841273856,
+    "elapsed_seconds": 17.612965959124267,
+    "owned_rss_bytes": 994361344,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11874058240,
+    "elapsed_seconds": 17.876444791443646,
+    "owned_rss_bytes": 994459648,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11864604672,
+    "elapsed_seconds": 18.139789416454732,
+    "owned_rss_bytes": 998735872,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11864604672,
+    "elapsed_seconds": 18.40383975021541,
+    "owned_rss_bytes": 998785024,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11864604672,
+    "elapsed_seconds": 18.66063362453133,
+    "owned_rss_bytes": 998899712,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11889377280,
+    "elapsed_seconds": 18.923067666590214,
+    "owned_rss_bytes": 998981632,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11889377280,
+    "elapsed_seconds": 19.179888083599508,
+    "owned_rss_bytes": 999047168,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11889377280,
+    "elapsed_seconds": 19.435183541849256,
+    "owned_rss_bytes": 999112704,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11889377280,
+    "elapsed_seconds": 19.69994258414954,
+    "owned_rss_bytes": 1003388928,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11899895808,
+    "elapsed_seconds": 19.96305820904672,
+    "owned_rss_bytes": 1003438080,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11880824832,
+    "elapsed_seconds": 20.22752945870161,
+    "owned_rss_bytes": 1003487232,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11880824832,
+    "elapsed_seconds": 20.4921322921291,
+    "owned_rss_bytes": 1003585536,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11880824832,
+    "elapsed_seconds": 20.756129999645054,
+    "owned_rss_bytes": 1003634688,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11892736000,
+    "elapsed_seconds": 21.013070999644697,
+    "owned_rss_bytes": 1003651072,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11892228096,
+    "elapsed_seconds": 21.268989874981344,
+    "owned_rss_bytes": 1003749376,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11892228096,
+    "elapsed_seconds": 21.533506084233522,
+    "owned_rss_bytes": 1003749376,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11892228096,
+    "elapsed_seconds": 21.78831920865923,
+    "owned_rss_bytes": 1008041984,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194266841088,
+      "psutil_sout_bytes_diagnostic": 194266841088,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11859394560,
+    "elapsed_seconds": 22.049469499848783,
+    "owned_rss_bytes": 1006616576,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11862278144,
+    "elapsed_seconds": 22.31393066700548,
+    "owned_rss_bytes": 1006616576,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11891687424,
+    "elapsed_seconds": 22.578433209098876,
+    "owned_rss_bytes": 1006632960,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11891687424,
+    "elapsed_seconds": 22.835243499837816,
+    "owned_rss_bytes": 1006632960,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11883724800,
+    "elapsed_seconds": 23.09193787444383,
+    "owned_rss_bytes": 1006682112,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11889803264,
+    "elapsed_seconds": 23.35658945888281,
+    "owned_rss_bytes": 1006780416,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11889803264,
+    "elapsed_seconds": 23.613257374614477,
+    "owned_rss_bytes": 1007370240,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11889803264,
+    "elapsed_seconds": 23.877242458984256,
+    "owned_rss_bytes": 1007370240,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11955781632,
+    "elapsed_seconds": 24.141317499801517,
+    "owned_rss_bytes": 1007386624,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11950751744,
+    "elapsed_seconds": 24.405794916674495,
+    "owned_rss_bytes": 1008386048,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11952668672,
+    "elapsed_seconds": 24.670190791599452,
+    "owned_rss_bytes": 1009139712,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11952668672,
+    "elapsed_seconds": 24.92647304199636,
+    "owned_rss_bytes": 1010663424,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11965890560,
+    "elapsed_seconds": 25.18528224993497,
+    "owned_rss_bytes": 1018429440,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11970134016,
+    "elapsed_seconds": 25.449696666561067,
+    "owned_rss_bytes": 1020477440,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11970134016,
+    "elapsed_seconds": 25.71367683354765,
+    "owned_rss_bytes": 1024688128,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11970134016,
+    "elapsed_seconds": 25.97772758360952,
+    "owned_rss_bytes": 1024720896,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11965317120,
+    "elapsed_seconds": 26.24174008425325,
+    "owned_rss_bytes": 1024802816,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11944689664,
+    "elapsed_seconds": 26.49850979167968,
+    "owned_rss_bytes": 1055997952,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11944689664,
+    "elapsed_seconds": 26.76289562508464,
+    "owned_rss_bytes": 122257408,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11944689664,
+    "elapsed_seconds": 27.029648499563336,
+    "owned_rss_bytes": 186515456,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12322127872,
+    "elapsed_seconds": 27.293745833449066,
+    "owned_rss_bytes": 272580608,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12297191424,
+    "elapsed_seconds": 27.557842374779284,
+    "owned_rss_bytes": 313573376,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12297191424,
+    "elapsed_seconds": 27.814378459006548,
+    "owned_rss_bytes": 351059968,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12297191424,
+    "elapsed_seconds": 28.069542500190437,
+    "owned_rss_bytes": 394362880,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12228050944,
+    "elapsed_seconds": 28.334201792255044,
+    "owned_rss_bytes": 443023360,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12228050944,
+    "elapsed_seconds": 28.59862770885229,
+    "owned_rss_bytes": 506675200,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12228050944,
+    "elapsed_seconds": 28.86305937450379,
+    "owned_rss_bytes": 509935616,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12228050944,
+    "elapsed_seconds": 29.123740083537996,
+    "owned_rss_bytes": 572801024,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12098486272,
+    "elapsed_seconds": 29.387790208682418,
+    "owned_rss_bytes": 596295680,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12081643520,
+    "elapsed_seconds": 29.644052708521485,
+    "owned_rss_bytes": 605765632,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12083019776,
+    "elapsed_seconds": 29.90812254231423,
+    "owned_rss_bytes": 605880320,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12083019776,
+    "elapsed_seconds": 30.16748737450689,
+    "owned_rss_bytes": 605896704,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12080070656,
+    "elapsed_seconds": 30.421911584213376,
+    "owned_rss_bytes": 605929472,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12073779200,
+    "elapsed_seconds": 30.685917750000954,
+    "owned_rss_bytes": 605913088,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12073779200,
+    "elapsed_seconds": 30.95025112479925,
+    "owned_rss_bytes": 605945856,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12073779200,
+    "elapsed_seconds": 31.205203667283058,
+    "owned_rss_bytes": 605962240,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12083822592,
+    "elapsed_seconds": 31.46918808389455,
+    "owned_rss_bytes": 607043584,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12083822592,
+    "elapsed_seconds": 31.72973420843482,
+    "owned_rss_bytes": 611254272,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12083822592,
+    "elapsed_seconds": 31.994122125208378,
+    "owned_rss_bytes": 611254272,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12083822592,
+    "elapsed_seconds": 32.25325558427721,
+    "owned_rss_bytes": 610598912,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12035047424,
+    "elapsed_seconds": 32.51128533389419,
+    "owned_rss_bytes": 610942976,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12035063808,
+    "elapsed_seconds": 32.76961641665548,
+    "owned_rss_bytes": 610975744,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12033736704,
+    "elapsed_seconds": 33.03430937509984,
+    "owned_rss_bytes": 611008512,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12033736704,
+    "elapsed_seconds": 33.29873387515545,
+    "owned_rss_bytes": 613089280,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12052168704,
+    "elapsed_seconds": 33.55827716644853,
+    "owned_rss_bytes": 613105664,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12058542080,
+    "elapsed_seconds": 33.82237058412284,
+    "owned_rss_bytes": 616284160,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12042715136,
+    "elapsed_seconds": 34.086897334083915,
+    "owned_rss_bytes": 621838336,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12042715136,
+    "elapsed_seconds": 34.344179917126894,
+    "owned_rss_bytes": 621854720,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12019859456,
+    "elapsed_seconds": 34.60847195889801,
+    "owned_rss_bytes": 621887488,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12009766912,
+    "elapsed_seconds": 34.86888866685331,
+    "owned_rss_bytes": 621903872,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12002017280,
+    "elapsed_seconds": 35.129048166796565,
+    "owned_rss_bytes": 624115712,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12002017280,
+    "elapsed_seconds": 35.39384649973363,
+    "owned_rss_bytes": 632356864,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267643904,
+      "psutil_sout_bytes_diagnostic": 194267643904,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12014649344,
+    "elapsed_seconds": 35.6586648337543,
+    "owned_rss_bytes": 567918592,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267791360,
+      "psutil_sout_bytes_diagnostic": 194267791360,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12014649344,
+    "elapsed_seconds": 35.923847208730876,
+    "owned_rss_bytes": 794492928,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267791360,
+      "psutil_sout_bytes_diagnostic": 194267791360,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12014649344,
+    "elapsed_seconds": 36.1886441251263,
+    "owned_rss_bytes": 818364416,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267791360,
+      "psutil_sout_bytes_diagnostic": 194267791360,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12014649344,
+    "elapsed_seconds": 36.45363183412701,
+    "owned_rss_bytes": 797425664,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267791360,
+      "psutil_sout_bytes_diagnostic": 194267791360,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11999903744,
+    "elapsed_seconds": 36.713457458652556,
+    "owned_rss_bytes": 797507584,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11973296128,
+    "elapsed_seconds": 36.97213950008154,
+    "owned_rss_bytes": 799670272,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2803171328,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11973296128,
+    "elapsed_seconds": 37.23709591664374,
+    "owned_rss_bytes": 799686656,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11973296128,
+    "elapsed_seconds": 37.492569874972105,
+    "owned_rss_bytes": 799719424,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11995152384,
+    "elapsed_seconds": 37.75327604170889,
+    "owned_rss_bytes": 803340288,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11985747968,
+    "elapsed_seconds": 38.018368874676526,
+    "owned_rss_bytes": 805814272,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11985747968,
+    "elapsed_seconds": 38.28329695854336,
+    "owned_rss_bytes": 809615360,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11985747968,
+    "elapsed_seconds": 38.54772583395243,
+    "owned_rss_bytes": 809746432,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12010864640,
+    "elapsed_seconds": 38.80541112460196,
+    "owned_rss_bytes": 810876928,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12005441536,
+    "elapsed_seconds": 39.06975383404642,
+    "owned_rss_bytes": 814710784,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12005441536,
+    "elapsed_seconds": 39.32955983374268,
+    "owned_rss_bytes": 836976640,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12005441536,
+    "elapsed_seconds": 39.58772000018507,
+    "owned_rss_bytes": 864763904,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267824128,
+      "psutil_sout_bytes_diagnostic": 194267824128,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11980783616,
+    "elapsed_seconds": 39.852527749724686,
+    "owned_rss_bytes": 885882880,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11983552512,
+    "elapsed_seconds": 40.11367850005627,
+    "owned_rss_bytes": 908427264,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11985682432,
+    "elapsed_seconds": 40.378398542292416,
+    "owned_rss_bytes": 931135488,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11976622080,
+    "elapsed_seconds": 40.64280674979091,
+    "owned_rss_bytes": 956153856,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11981291520,
+    "elapsed_seconds": 40.90719204209745,
+    "owned_rss_bytes": 978370560,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11989581824,
+    "elapsed_seconds": 41.17153658345342,
+    "owned_rss_bytes": 1002176512,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12060229632,
+    "elapsed_seconds": 41.43646408431232,
+    "owned_rss_bytes": 796835840,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12060229632,
+    "elapsed_seconds": 41.70145608391613,
+    "owned_rss_bytes": 789708800,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12042338304,
+    "elapsed_seconds": 41.96627924963832,
+    "owned_rss_bytes": 789725184,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12042338304,
+    "elapsed_seconds": 42.23067358415574,
+    "owned_rss_bytes": 789725184,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12042338304,
+    "elapsed_seconds": 42.49536987487227,
+    "owned_rss_bytes": 789790720,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12042338304,
+    "elapsed_seconds": 42.76018324960023,
+    "owned_rss_bytes": 808386560,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12009127936,
+    "elapsed_seconds": 43.01893391646445,
+    "owned_rss_bytes": 830193664,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12002820096,
+    "elapsed_seconds": 43.28062295913696,
+    "owned_rss_bytes": 840892416,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12002820096,
+    "elapsed_seconds": 43.54506758414209,
+    "owned_rss_bytes": 855048192,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12002820096,
+    "elapsed_seconds": 43.80994562525302,
+    "owned_rss_bytes": 883032064,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11992973312,
+    "elapsed_seconds": 44.0747656673193,
+    "owned_rss_bytes": 918913024,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11978276864,
+    "elapsed_seconds": 44.33017816673964,
+    "owned_rss_bytes": 952811520,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11978276864,
+    "elapsed_seconds": 44.594603958539665,
+    "owned_rss_bytes": 989806592,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11978276864,
+    "elapsed_seconds": 44.859539709053934,
+    "owned_rss_bytes": 1028096000,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267856896,
+      "psutil_sout_bytes_diagnostic": 194267856896,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11982192640,
+    "elapsed_seconds": 45.124393000267446,
+    "owned_rss_bytes": 1062174720,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11982405632,
+    "elapsed_seconds": 45.379910624586046,
+    "owned_rss_bytes": 1094156288,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12028559360,
+    "elapsed_seconds": 45.64425270911306,
+    "owned_rss_bytes": 984285184,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12028559360,
+    "elapsed_seconds": 45.90860725007951,
+    "owned_rss_bytes": 1001750528,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11999330304,
+    "elapsed_seconds": 46.17358845844865,
+    "owned_rss_bytes": 1033224192,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 11996446720,
+    "elapsed_seconds": 46.4335799170658,
+    "owned_rss_bytes": 1043841024,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12042076160,
+    "elapsed_seconds": 46.69864929188043,
+    "owned_rss_bytes": 954007552,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12042076160,
+    "elapsed_seconds": 46.96332708373666,
+    "owned_rss_bytes": 914800640,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12058722304,
+    "elapsed_seconds": 47.22674695868045,
+    "owned_rss_bytes": 914997248,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12058869760,
+    "elapsed_seconds": 47.48251362517476,
+    "owned_rss_bytes": 915832832,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12058869760,
+    "elapsed_seconds": 47.738792958669364,
+    "owned_rss_bytes": 916865024,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12058869760,
+    "elapsed_seconds": 48.003540959209204,
+    "owned_rss_bytes": 922943488,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12056805376,
+    "elapsed_seconds": 48.26848154142499,
+    "owned_rss_bytes": 923009024,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12052922368,
+    "elapsed_seconds": 48.52910537458956,
+    "owned_rss_bytes": 925138944,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12056936448,
+    "elapsed_seconds": 48.78758041653782,
+    "owned_rss_bytes": 925417472,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12056936448,
+    "elapsed_seconds": 49.0506701245904,
+    "owned_rss_bytes": 930447360,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12033753088,
+    "elapsed_seconds": 49.31567879207432,
+    "owned_rss_bytes": 957120512,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12033753088,
+    "elapsed_seconds": 49.58055487461388,
+    "owned_rss_bytes": 940916736,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12033753088,
+    "elapsed_seconds": 49.844963542185724,
+    "owned_rss_bytes": 968507392,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12033753088,
+    "elapsed_seconds": 50.10779658425599,
+    "owned_rss_bytes": 968196096,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12175540224,
+    "elapsed_seconds": 50.36322033405304,
+    "owned_rss_bytes": 707280896,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12193775616,
+    "elapsed_seconds": 50.62771366722882,
+    "owned_rss_bytes": 653164544,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12193775616,
+    "elapsed_seconds": 50.88653283379972,
+    "owned_rss_bytes": 547520512,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12193775616,
+    "elapsed_seconds": 51.14142458420247,
+    "owned_rss_bytes": 548601856,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12245729280,
+    "elapsed_seconds": 51.39693033415824,
+    "owned_rss_bytes": 550453248,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12266192896,
+    "elapsed_seconds": 51.66161574982107,
+    "owned_rss_bytes": 542425088,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12266192896,
+    "elapsed_seconds": 51.92583662457764,
+    "owned_rss_bytes": 538968064,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12266192896,
+    "elapsed_seconds": 52.18259095866233,
+    "owned_rss_bytes": 484261888,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12405211136,
+    "elapsed_seconds": 52.44736812449992,
+    "owned_rss_bytes": 26132480,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  },
+  {
+    "available_bytes": 12389761024,
+    "elapsed_seconds": 52.70596920885146,
+    "owned_rss_bytes": 0,
+    "swap": {
+      "counter_source": "darwin.HOST_VM_INFO64.rev1.swapouts",
+      "page_bytes": 16384,
+      "pageout_bytes_diagnostic": 194267938816,
+      "psutil_sout_bytes_diagnostic": 194267938816,
+      "psutil_version": "7.2.2",
+      "schema": "pllm.host_swap_observation.v1",
+      "swap_used_bytes": 2794782720,
+      "swapout_bytes": 1304763957248,
+      "swapout_pages": 79636472
+    },
+    "swap_used_growth_bytes": 0,
+    "swapout_growth_bytes": 0
+  }
+]

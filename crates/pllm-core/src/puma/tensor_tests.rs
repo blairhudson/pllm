@@ -646,6 +646,64 @@ fn rms_norm_identity_and_range_gates_preserve_legacy_program_digests() {
     assert!(Program::rms_norm(1, 2, Interval::new(0, 512 * ONE).unwrap(), &[ONE; 2]).is_err());
 }
 
+#[test]
+fn partitioned_rms_norm_preserves_stochastic_recipe_work_and_payload() {
+    for (rows, width) in [(1, 1), (1, 3), (1, 128), (1, 896), (3, 7)] {
+        let lanes = rows * width;
+        let bounds = Interval::new(-256 * ONE, 256 * ONE).unwrap();
+        let gamma: Vec<_> = (0..width).map(|i| [ONE, -2 * ONE, 0][i % 3]).collect();
+        let legacy = Program::rms_norm(rows, width, bounds, &gamma).unwrap();
+        let (program, squared_norm) =
+            Program::rms_norm_certified(rows, width, bounds, &gamma).unwrap();
+        assert_eq!(program.work_budget(), legacy.work_budget());
+        assert_eq!(program.admitted_bytes(), legacy.admitted_bytes());
+        assert_eq!(program.instructions(), legacy.instructions());
+        assert_eq!(program.numeric_profile(), legacy.numeric_profile());
+        assert_ne!(program.digest(), legacy.digest());
+        assert!(program.output_bounds().lower() > legacy.output_bounds().lower());
+        assert!(program.output_bounds().upper() < legacy.output_bounds().upper());
+        if width >= 128 {
+            let scalar = program
+                .output_bounds()
+                .lower()
+                .unsigned_abs()
+                .max(program.output_bounds().upper().unsigned_abs());
+            assert!(squared_norm < u128::from(scalar).pow(2) * width as u128 / 16);
+        }
+        for values in [
+            vec![0; lanes],
+            vec![256 * ONE; lanes],
+            vec![1; lanes],
+            (0..lanes)
+                .map(|i| if i == width / 2 { 256 * ONE } else { 0 })
+                .collect(),
+            (0..lanes).map(|i| [-256 * ONE, 1, -1, 0][i % 4]).collect(),
+        ] {
+            let mut owners = owners(&program, &values);
+            let usage = owners.each_ref().map(Executor::payload_usage);
+            let mut tapes = vec![];
+            for _ in 0..program.instructions() {
+                if let Some(tape) = step(&mut owners).0 {
+                    tapes.push(tape);
+                }
+            }
+            let output = owners.map(|o| o.finish().unwrap().1);
+            let actual = clear(&output);
+            assert_eq!(actual, rms_norm_oracle(&values, width, &gamma, &tapes));
+            assert!(actual.chunks_exact(width).all(|row| row
+                .iter()
+                .map(|v| i128::from(*v).unsigned_abs().pow(2))
+                .sum::<u128>()
+                <= squared_norm));
+            assert!(actual.iter().all(|v| (program.output_bounds().lower()
+                ..=program.output_bounds().upper())
+                .contains(v)));
+            drop(output);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+    }
+}
+
 // All-party reconstruction is confined to this test oracle.
 fn inputs(owners: &[PartyRuntime; 3], x: &[i64]) -> [ReplicatedShare; 3] {
     let op = Operation::new(

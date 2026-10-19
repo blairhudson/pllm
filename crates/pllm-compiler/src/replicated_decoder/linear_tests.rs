@@ -30,6 +30,7 @@ fn selector_program(vocabulary: usize) -> Arc<Program> {
         inputs: 1,
         outputs: (0..vocabulary).map(|i| (output, i)).collect(),
         digest: [97; 32],
+        source_binding: [0; 32],
         payload_bytes: b.allocated,
         work,
     })
@@ -134,6 +135,7 @@ fn batched_private_argmax_preserves_lowest_index_ties_and_odd_tails() {
             inputs: 1,
             outputs: output.words.iter().collect(),
             digest: [95; 32],
+            source_binding: [0; 32],
             payload_bytes: builder.allocated,
             work,
         });
@@ -168,6 +170,13 @@ fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
                         Code::PublicInput {
                             key: "w".into(),
                             digest,
+                            row_l1: Some(
+                                w.chunks(if transposed { columns } else { inner })
+                                    .map(|row| row.iter().map(|v| v.unsigned_abs()).sum::<u64>())
+                                    .max()
+                                    .unwrap(),
+                            ),
+                            row_squared_norm: None,
                         },
                         w.len(),
                         interval(&w),
@@ -202,6 +211,7 @@ fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
                     inputs: 2,
                     outputs: out.words.iter().collect(),
                     digest: [93; 32],
+                    source_binding: [0; 32],
                     payload_bytes: b.allocated,
                     work,
                 });
@@ -263,6 +273,7 @@ fn compile(
         inputs: 2,
         outputs: out.words.iter().collect(),
         digest: [71; 32],
+        source_binding: [0; 32],
         payload_bytes: b.allocated,
         work,
     }))
@@ -374,6 +385,148 @@ fn complete_accumulator_range_rejects_even_when_each_chunk_fits() {
 }
 
 #[test]
+fn certified_public_row_sum_admits_sparse_products_without_relaxing_truncation() {
+    let inner = 2049;
+    let x = vec![1 << 20; inner];
+    let mut w = vec![0_i64; inner];
+    w[inner - 1] = 1 << 31;
+    let digest = Sha256::digest(w.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>()).into();
+    for row_l1 in [None, Some(1_u64 << 31)] {
+        let mut b = Builder::default();
+        let source = b
+            .push(
+                Code::PublicInput {
+                    key: "w".into(),
+                    digest,
+                    row_l1,
+                    row_squared_norm: None,
+                },
+                inner,
+                Interval::new(0, 1 << 31).unwrap(),
+            )
+            .unwrap();
+        let input = b
+            .push(
+                Code::Input("x".into()),
+                inner,
+                Interval::new(-(1 << 20), 1 << 20).unwrap(),
+            )
+            .unwrap();
+        let source = SourceView {
+            owner: source,
+            shape: vec![1, inner],
+        };
+        let result = b.matrix(
+            &b.view(input, vec![1, inner]),
+            MatrixView::source(&source, false).unwrap(),
+            true,
+        );
+        if row_l1.is_none() {
+            assert!(matches!(result, Err(Error::Bounds)));
+            continue;
+        }
+        let output = result.unwrap();
+        let work = schedule_work(&b.nodes).unwrap();
+        let program = Arc::new(Program {
+            retire: vec![vec![]; b.nodes.len()],
+            nodes: b.nodes,
+            inputs: 2,
+            outputs: output.words.iter().collect(),
+            digest: [94; 32],
+            source_binding: [0; 32],
+            payload_bytes: b.allocated,
+            work,
+        });
+        assert_eq!(
+            execute(workers(
+                program,
+                &BTreeMap::from([("x".into(), x.clone()), ("w".into(), w.clone())])
+            )),
+            [1 << 33]
+        );
+    }
+}
+
+#[test]
+fn certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products() {
+    let width = 128;
+    let x: Vec<i64> = (0..width)
+        .map(|i| if i == 0 { 256 * ONE } else { 1 })
+        .collect();
+    let w = vec![ONE; width];
+    let digest = Sha256::digest(w.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>()).into();
+    let mut b = Builder::default();
+    let source = b
+        .push(
+            Code::PublicInput {
+                key: "w".into(),
+                digest,
+                row_l1: Some(width as u64 * ONE as u64),
+                row_squared_norm: Some(width as u128 * ONE as u128 * ONE as u128),
+            },
+            width,
+            Interval::new(ONE, ONE).unwrap(),
+        )
+        .unwrap();
+    let input = b
+        .push(
+            Code::Input("x".into()),
+            width,
+            Interval::new(-256 * ONE, 256 * ONE).unwrap(),
+        )
+        .unwrap();
+    let (norm, squared) =
+        tensor::Program::rms_norm_certified(1, width, b.nodes[input].bounds, &vec![ONE; width])
+            .unwrap();
+    let owner = b.tensor(input, norm).unwrap();
+    b.row_norms.push((owner, squared));
+    let row = b.view(owner, vec![1, width]);
+    assert_eq!(b.row_norm(&row.words, width), Some(squared));
+    let duplicates = (0..width).map(|_| (owner, 0)).collect();
+    assert_eq!(b.row_norm(&duplicates, width), None);
+    assert_eq!(b.row_norm(&row.words, width / 2), None);
+    let mut partial = row.words.clone();
+    partial.extend([(owner, 0)]);
+    assert_eq!(b.row_norm(&partial, width), None);
+    let source = SourceView {
+        owner: source,
+        shape: vec![1, width],
+    };
+    let output = b
+        .matrix(&row, MatrixView::source(&source, false).unwrap(), true)
+        .unwrap();
+    let work = schedule_work(&b.nodes).unwrap();
+    let program = Arc::new(Program {
+        retire: vec![vec![]; b.nodes.len()],
+        nodes: b.nodes,
+        inputs: 2,
+        outputs: row.words.iter().chain(output.words.iter()).collect(),
+        digest: [96; 32],
+        source_binding: [0; 32],
+        payload_bytes: b.allocated,
+        work,
+    });
+    let actual = execute(workers(
+        program,
+        &BTreeMap::from([("x".into(), x), ("w".into(), w)]),
+    ));
+    assert_eq!(
+        i128::from(actual[width] as i64),
+        actual[..width]
+            .iter()
+            .map(|v| i128::from(*v as i64))
+            .sum::<i128>()
+    );
+    assert!(
+        actual[..width]
+            .iter()
+            .map(|v| i128::from(*v as i64).unsigned_abs().pow(2))
+            .sum::<u128>()
+            <= squared
+    );
+}
+
+#[test]
 fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
     for (inner, columns) in [(17, 7), (1025, 3), (4864, 3)] {
         for transposed in [false, true] {
@@ -417,6 +570,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 inputs: 2,
                 outputs: output.words.iter().collect(),
                 digest: [73; 32],
+                source_binding: [0; 32],
                 payload_bytes: b.allocated,
                 work,
             });
@@ -428,6 +582,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 inputs: program.inputs,
                 outputs: program.outputs.clone(),
                 digest: program.digest,
+                source_binding: program.source_binding,
                 payload_bytes: program.payload_bytes,
                 work: program.work,
             };

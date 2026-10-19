@@ -214,6 +214,65 @@ these estimates are not measured RSS, quality or serving costs. Original reports
 installed-wheel checks and replay:
 [source-header slice](../../paper/artifacts/puma-sdk/local-v7/README.md).
 
+### Public range certificates and semantic admission diagnostics
+
+The source publisher now reports the selection, semantic step/operator/layer and
+public input intervals when native program construction rejects. These intervals
+come from the locked checkpoint and public geometry, not sampled activations or
+private token values. Publication failure retires its incomplete owner.
+
+Public matrix descriptors additionally retain the maximum encoded absolute row
+sum and maximum encoded squared row norm. Publisher and each importing worker
+compute both with checked integers across the original bounded source frames.
+The worker compares the complete statistics before accepting a tensor. An
+immutable source-descriptor commitment binds cached file owners to their ranges
+and certificates as well as the original coefficient digest; changing metadata
+cannot reuse an owner validated under another declaration. Private-weight
+descriptors omit these fields.
+
+The public-mode compiler uses a finer RMSNorm proof over the same Q18 operations.
+It partitions the normalized rsqrt polynomial's public integer domain into
+256-value cells and unions their floor/ceil envelopes. Every normalized integer
+and all sixteen power/final-rescale rounding choices are checked by an independent
+integer oracle with different cell boundaries. Partitions select no runtime
+branch and add no protocol messages or randomness.
+
+For each public denominator exponent interval, the proof also bounds the complete
+input row. With `Q = 2^18`, `S = sum(TR(x_i^2))`, width `n` and positive public
+`c = E(1/n)`, the original mean and epsilon give
+
+```text
+d = TR(S*c) + 1
+S <= floor((d_max*Q - 1) / c)
+sum(x_i^2) <= Q*S + n*(Q - 1)
+```
+
+The certified reciprocal-square-root interval bounds the row product. Each
+normalization and public-gamma truncation adds less than one integer unit per
+lane; upward-rounded Euclidean bounds charge those errors separately. This
+produces a squared-norm certificate for each complete RMSNorm output row.
+Zero, near-zero, constant, signed, sparse, wide and multiple-row integer controls
+check the certificate and the unchanged stochastic arithmetic, work and payload.
+
+Public matrix products intersect their ordinary interval with
+`max_abs(input) * max_row_l1(weight)`. For an intact certified RMSNorm row, they
+also intersect with the upward-rounded Cauchy–Schwarz bound from the two squared
+norms. Duplicated, incomplete, mixed-owner or differently sized views cannot
+inherit that certificate. Complete ring64 accumulation and its single Q18
+truncation retain their original limits and arithmetic. Private execution keeps
+its six frozen generated identities; public proof metadata changes its checked
+execution identity.
+
+The pinned Qwen2.5 4+2 source publication initially rejects layer-zero attention
+scores. Scalar/row-sum tightening alone still rejects there. Complete row norms
+admit that product and reach layer-zero `Softmax`, which rejects its eagerly
+evaluated exponential schedule under the public input interval. No role workers
+or online decoder are launched. All retained publication attempts observe zero
+swap growth; their process peaks and CPU are admission diagnostics, not serving
+metrics. Whole-model range/work admission, quality and matched response costs
+remain open. Original attempts, installed-wheel conformance and replay are in the
+[range-proof slice](../../paper/artifacts/puma-sdk/local-v8/README.md).
+
 ### Shared SDK interfaces
 
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,

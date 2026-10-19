@@ -49,6 +49,8 @@ enum Code {
     PublicInput {
         key: String,
         digest: [u8; 32],
+        row_l1: Option<u64>,
+        row_squared_norm: Option<u128>,
     },
     PublicValues(Vec<i64>),
     Gather(Words),

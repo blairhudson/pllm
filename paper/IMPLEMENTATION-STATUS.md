@@ -87,16 +87,20 @@ Completed foundations:
 - PUMA's ordinary quality path now scores final-token agreement against FP32
   through fresh full-prefix three-worker requests; hidden-logit metrics stay
   unknown. Complete generated decoders exercise 4,864-wide MLP contractions
-  with one final truncation. The pinned common-Qwen metadata still rejects
-  admission, so no full-checkpoint quality result follows.
+  with one final truncation. That slice's pinned common-Qwen metadata rejects
+  admission, so it supplies no full-checkpoint quality result.
 - The explicit `PumaThreePartyDecoder(weights="public")` adaptation streams
   source-certified Q18 files and computes complete public-weight products on
   replicated activations. Batched lookup predicates and stable argmax preserve
   private feedback; default private-weight identities remain. The common Qwen
   metadata now clears the compiler-view gate through compact activation spans and
-  bounded tensor loops. Private lookup alone exceeds the existing declared-work
-  allowance; a new early gate rejects before tensor values or worker launch.
-  Full-checkpoint ranges, quality and response costs remain open. See the
+  bounded tensor loops. Instruction-derived sequence/AES pricing admits public
+  4+2 metadata under the original ceilings; 16+2 rejects its lookup-only sequence
+  floor. Native-derived source-header limits also admit ordinary 4+2 SDK memory
+  preflight. Streamed source row certificates and RMSNorm row proofs now admit
+  the first attention product, but source publication rejects layer-zero softmax's
+  eager exponential range before worker launch. Full-checkpoint ranges, complete
+  work admission, quality and response costs remain open. See the
   [public-weight contract](../docs/research/puma-truncation-reference.md#explicit-public-weight-adaptation).
 - The [FuseFSS scalar specification](reproduction-contracts/fusefss/README.md)
   freezes typed descriptors, a Protocol-3 compiler and independently checked GELU

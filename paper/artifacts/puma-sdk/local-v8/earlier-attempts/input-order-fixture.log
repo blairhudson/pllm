@@ -1,0 +1,22 @@
+   Compiling pllm-compiler v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.41s
+     Running unittests src/lib.rs (target/debug/deps/pllm_compiler-102706cdd876eb14)
+
+running 1 test
+test replicated_decoder::program::linear_tests::certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products ... FAILED
+
+failures:
+
+---- replicated_decoder::program::linear_tests::certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products stdout ----
+
+thread 'replicated_decoder::program::linear_tests::certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products' panicked at crates/pllm-compiler/src/replicated_decoder/program.rs:1769:22:
+internal error: entered unreachable code
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    replicated_decoder::program::linear_tests::certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 69 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p pllm-compiler --lib`
