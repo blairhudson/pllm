@@ -1,0 +1,30 @@
+{
+  "command": [
+    "cargo",
+    "clippy",
+    "--locked",
+    "--offline",
+    "-p",
+    "pllm-garble",
+    "-p",
+    "pllm-python",
+    "--all-targets",
+    "--",
+    "-D",
+    "warnings",
+    "-A",
+    "clippy::needless_range_loop",
+    "-A",
+    "clippy::nonminimal_bool",
+    "-A",
+    "clippy::assertions_on_constants"
+  ],
+  "completion": "Finished `dev` profile [unoptimized + debuginfo] target(s) in 17.58s",
+  "environment_overrides": {
+    "CARGO_BUILD_JOBS": "1"
+  },
+  "evidence": "Successful OpenCode shell completion sh_155dc5c23001H772Pt1RTtSk7G; terminal observation, not a separate CI receipt",
+  "schema": "pllm.fusefss.scalar-clippy-observation.v1",
+  "scope": "Local all-target lint check; no wheel or release CI qualification",
+  "status": "pass"
+}

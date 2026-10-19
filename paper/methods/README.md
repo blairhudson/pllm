@@ -30,6 +30,10 @@ checks complete bounded delegation algebra without supplying code-distance,
 dual-LPN or decoder qualification. The
 [FuseFSS descriptor oracle](../reproduction-contracts/fusefss/README.md) supplies
 a separate scalar specification, with protected execution still open. The
+[FuseFSS implementation plan](fusefss-completion-plan.md) selects the next
+implementation tranche after parking PUMA's full-Qwen admission work. It begins
+with a reuse audit and native scalar qualification before decoder and ordinary
+SDK integration. The
 [Rust HE review](rust-he-backend-qualification.md) identifies Poulpy as the
 approved bounded qualification candidate. Its torus representation still needs
 an explicit mapping to each source method; no Go backend has been approved.

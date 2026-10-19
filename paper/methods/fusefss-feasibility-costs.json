@@ -1,0 +1,90 @@
+{
+  "excluded": [
+    "allocator/padding/owner overhead",
+    "dealer scratch and copies",
+    "codecs/authentication/relay legs",
+    "non-GELU gates",
+    "all model tensor/source owners",
+    "all other communication"
+  ],
+  "scalar_dcf_candidate_bytes": 1324,
+  "scenarios": {
+    "independent_scalar_dcf_per_threshold_coordinate": {
+      "party_dcf_path_levels_per_scalar": 51100,
+      "party_scalar_payload_bytes": 1353176
+    },
+    "product_group_vector_dcf_per_threshold": {
+      "party_dcf_path_levels_per_scalar": 25550,
+      "party_scalar_payload_bytes": 885100
+    },
+    "public_descriptor_universal_boundary_dcf": {
+      "party_dcf_path_levels_per_scalar": 25550,
+      "party_scalar_payload_bytes": 1372
+    }
+  },
+  "schema": "pllm.fusefss.feasibility-static-scenarios.v1",
+  "scope": "Calculated candidate layouts; not implemented-resource claims, cryptographic review, measurements or full-model totals.",
+  "vector_dcf_candidate_bytes": 1732,
+  "workloads": [
+    {
+      "activation_only_scenarios": {
+        "independent_scalar_dcf_per_threshold_coordinate": {
+          "both_directions_peer_frame_bytes_batched_256": 232243200,
+          "both_parties_cumulative_payload_bytes": 12770170896384,
+          "party_cumulative_dcf_path_levels": 241120051200
+        },
+        "product_group_vector_dcf_per_threshold": {
+          "both_directions_peer_frame_bytes_batched_256": 232243200,
+          "both_parties_cumulative_payload_bytes": 8352851558400,
+          "party_cumulative_dcf_path_levels": 120560025600
+        },
+        "public_descriptor_universal_boundary_dcf": {
+          "both_directions_peer_frame_bytes_batched_256": 232243200,
+          "both_parties_cumulative_payload_bytes": 12947816448,
+          "party_cumulative_dcf_path_levels": 120560025600
+        }
+      },
+      "argmax_pairwise_comparisons": 50256,
+      "attention_nexp_values_all_layers_heads": 1188864,
+      "checkpoint_admitted": false,
+      "embedding_public_weight_multiply_adds": 4940464128,
+      "embedding_token_equalities": 6432896,
+      "full_prefix_rows": 128,
+      "gelu_scalars": 4718592,
+      "geometry": "illustrative GPT-2-base: 12 layers, hidden768, FFN3072, heads12, vocab50257",
+      "last_row_full_head_public_weight_multiply_adds": 38597376,
+      "prefix": 128,
+      "selections": 1
+    },
+    {
+      "activation_only_scenarios": {
+        "independent_scalar_dcf_per_threshold_coordinate": {
+          "both_directions_peer_frame_bytes_batched_256": 1908748800,
+          "both_parties_cumulative_payload_bytes": 104954842054656,
+          "party_cumulative_dcf_path_levels": 1981705420800
+        },
+        "product_group_vector_dcf_per_threshold": {
+          "both_directions_peer_frame_bytes_batched_256": 1908748800,
+          "both_parties_cumulative_payload_bytes": 68649998745600,
+          "party_cumulative_dcf_path_levels": 990852710400
+        },
+        "public_descriptor_universal_boundary_dcf": {
+          "both_directions_peer_frame_bytes_batched_256": 1908748800,
+          "both_parties_cumulative_payload_bytes": 106414866432,
+          "party_cumulative_dcf_path_levels": 990852710400
+        }
+      },
+      "argmax_pairwise_comparisons": 402048,
+      "attention_nexp_values_all_layers_heads": 10039104,
+      "checkpoint_admitted": false,
+      "embedding_public_weight_multiply_adds": 40604439552,
+      "embedding_token_equalities": 52870364,
+      "full_prefix_rows": 1052,
+      "gelu_scalars": 38780928,
+      "geometry": "illustrative GPT-2-base: 12 layers, hidden768, FFN3072, heads12, vocab50257",
+      "last_row_full_head_public_weight_multiply_adds": 308779008,
+      "prefix": 128,
+      "selections": 8
+    }
+  ]
+}

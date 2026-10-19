@@ -133,10 +133,23 @@ Completed foundations:
   layer-six RMSNorm before worker launch, with zero observed swap growth.
   Compact nonlinear constructors and the bounded body-layer executor retain
   separate native tests and remain unselected by the outer decoder.
+  Further PUMA implementation is parked at that RMSNorm admission gate.
 - The [FuseFSS scalar specification](reproduction-contracts/fusefss/README.md)
   freezes typed descriptors, a Protocol-3 compiler and independently checked GELU
-  tables. It has no protected backend or complete model execution; D8's named
-  ring50/Q12 profile retains that distinction.
+  tables. The [native scalar follow-up](artifacts/fusefss-scalar/local-v1/README.md)
+  now composes the frozen ring50/Q12 GELU descriptor with shared vector DCF,
+  universal public-boundary lookup and fresh consuming Beaver products.
+  Independent replay checks 58,400 compiler gates and 43,544 protected outputs,
+  including all 38 exact-rational encoding cases. The public specialization uses
+  1,372 logical private bytes plus a 12,296-byte public table copy per party/lane;
+  fixed public copies and 512 DCF evaluations per party remain charged. Separate
+  engineering reviews cover provenance, allocation and failure retirement.
+  This bounded native slice has no authenticated role transport, complete gate
+  set, signed38 frontend proof, model execution or selectable SDK component.
+  The [next-method implementation plan](methods/fusefss-completion-plan.md)
+  retains complete-gate, semantic execution and SDK/model qualification gates.
+  Existing scalar, shared-rescale
+  and masked-wire references retain their own numerical and execution scopes.
 - The local cold lifecycle observer has independently checked, portable tiny
   evidence: three clients, 289 samples and eleven process instances, with exact
   state agreement and zero observed swap growth. This is measurement-infrastructure

@@ -1,0 +1,330 @@
+{
+  "base_commit": "7f04271e4a31e8db4f2deaf69376f3c52380e47c",
+  "files": {
+    "Cargo.lock": {
+      "bytes": 24640,
+      "sha256": "88ee6fd53597c5a89d4be5243407a39a8e225759ce4d833f36cd6f1c97276458"
+    },
+    "Cargo.toml": {
+      "bytes": 1485,
+      "sha256": "98ccfa49ed86e7f000cf3ca6b4e16ff858716fe1d94dc2196019abc4804a40ff"
+    },
+    "crates/pllm-garble/Cargo.toml": {
+      "bytes": 445,
+      "sha256": "8e619d0f6f77d957816077049b4efedcd827d4ada2424dd15dd9f3082fbe9452"
+    },
+    "crates/pllm-garble/src/boolean.rs": {
+      "bytes": 79896,
+      "sha256": "732de1943141fd7c5e4ec81c544eb8b76026d051cc55ebe56a9b1bf756aba698"
+    },
+    "crates/pllm-garble/src/boolean_stream.rs": {
+      "bytes": 44186,
+      "sha256": "53a7e58379d5bf021ed6cf8519be43bceaf98292cd98ea0a1480e28f649d94c0"
+    },
+    "crates/pllm-garble/src/boundary_scan_fusion_full_probe.rs": {
+      "bytes": 15155,
+      "sha256": "898d9ba390d9e2ea81ae48caf3ad893aa3240a761057fdb62584c33998f2f988"
+    },
+    "crates/pllm-garble/src/boundary_scan_fusion_probe.rs": {
+      "bytes": 18158,
+      "sha256": "2cf49a1880acd9573a33d14bc5fd89fb95ed6ead022c87f995afcadc9bbb1371"
+    },
+    "crates/pllm-garble/src/compact.rs": {
+      "bytes": 8282,
+      "sha256": "819327fe9353680b53caabfcbcf0bc8573857f3d20060d89dcf56ea007d402c7"
+    },
+    "crates/pllm-garble/src/compact_coordinate.rs": {
+      "bytes": 9996,
+      "sha256": "94cc8b867874a34f1201ead298cf2951254832141821e2f2d983f837792513c2"
+    },
+    "crates/pllm-garble/src/compact_dcf.rs": {
+      "bytes": 20870,
+      "sha256": "f4d2122be2e5d8be4a86cdb91f14defd1a297894b2b7c846bdc1d904731b8f99"
+    },
+    "crates/pllm-garble/src/compact_dcf/group_tests.rs": {
+      "bytes": 9427,
+      "sha256": "d6f5e7cd71832b98122ee5d65afe343bfe5604bd001f7cf8a41a2923dd2a92cd"
+    },
+    "crates/pllm-garble/src/compact_dcf/ring_tests.rs": {
+      "bytes": 5583,
+      "sha256": "c529466b587e3ad883af06c46fd1e0eec3a043226dc85283a85bd1272bfe63ec"
+    },
+    "crates/pllm-garble/src/compact_dpf.rs": {
+      "bytes": 15422,
+      "sha256": "f087623a9274ea1ddaf598bf4589478b4f4a6e7cc7adf0767651d5162e7110ba"
+    },
+    "crates/pllm-garble/src/compact_lookup.rs": {
+      "bytes": 8287,
+      "sha256": "2eb3afdaa08a72c82286c404962fdb688f3dd9cc369403637c9314b3c30de3a2"
+    },
+    "crates/pllm-garble/src/compact_polynomial.rs": {
+      "bytes": 12376,
+      "sha256": "0e1cbcee6d5a6e68e3050d55c212e2c821041457cb210e4d719e90f5a189faca"
+    },
+    "crates/pllm-garble/src/compact_product.rs": {
+      "bytes": 9827,
+      "sha256": "5310996eb45632f0e4f52c7aaba2579bb50d9bb447966edbdcc718d68789d10e"
+    },
+    "crates/pllm-garble/src/fusefss/accounting.rs": {
+      "bytes": 6457,
+      "sha256": "6529b05903cccba7e354315260d649ab10cd7c171a7d0dc6f1d67d5f17b0d673"
+    },
+    "crates/pllm-garble/src/fusefss/compile.rs": {
+      "bytes": 17733,
+      "sha256": "b498ed87ffc6ad4bfa1ea49b7905895c7cbb8fe3c608688c7dc4e0d8cee5631b"
+    },
+    "crates/pllm-garble/src/fusefss/conformance.rs": {
+      "bytes": 35175,
+      "sha256": "9b2f0c12bb0b68dd83fb570fec0dfa84ac7688e0af74c5085b6730c9aa2bde08"
+    },
+    "crates/pllm-garble/src/fusefss/fixture.rs": {
+      "bytes": 4745,
+      "sha256": "0c6708f7e85987bafa3d3079288da005b545ee16d971114afbbdca87a253cf57"
+    },
+    "crates/pllm-garble/src/fusefss/json.rs": {
+      "bytes": 9248,
+      "sha256": "2c92fb663aadaac4aacc2e9431b6c2dea0f5d578b96a5e4c3b3514a23e3d22a0"
+    },
+    "crates/pllm-garble/src/fusefss/mod.rs": {
+      "bytes": 14513,
+      "sha256": "ca71a12fd45170cc35f655594729a4f23bcef2fb61c1f4c58ba0b4dac373d65b"
+    },
+    "crates/pllm-garble/src/fusefss/tests.rs": {
+      "bytes": 18098,
+      "sha256": "592fcc381e5ee2b9e05a0d9a122026245cc1566d0f1dbab4b74b2bd0d5f9cb62"
+    },
+    "crates/pllm-garble/src/fusefss_backend/compiled.rs": {
+      "bytes": 11894,
+      "sha256": "6ac2791b9141889c2fe6411b2b84ded5d08dd36734fee4716282f9ad35343d4a"
+    },
+    "crates/pllm-garble/src/fusefss_backend/conformance.rs": {
+      "bytes": 8873,
+      "sha256": "b3a79dd9d04d86b98a549a5377d290b5e07fbfde81b526431298762879a0bb8a"
+    },
+    "crates/pllm-garble/src/fusefss_backend/dcf.rs": {
+      "bytes": 4430,
+      "sha256": "7c2621fab3cc7715fcd057399f248a9fc909db0d86e7f523bec0a6c2d0db159f"
+    },
+    "crates/pllm-garble/src/fusefss_backend/mod.rs": {
+      "bytes": 23460,
+      "sha256": "9f8b51c58a1fbf789d6bd3c24771974c4fd03949e41cc8bc673a98b5f9da32f4"
+    },
+    "crates/pllm-garble/src/fusefss_backend/tests.rs": {
+      "bytes": 17225,
+      "sha256": "0c564e62a6b56f3062258aba1cf69957594f775b43a33547d697cacb485a25c1"
+    },
+    "crates/pllm-garble/src/gated_multiply_q7.rs": {
+      "bytes": 509,
+      "sha256": "a91522a90e98931b37ea6ea7eed5c6fd77cecf70670c0a1b7ce3076ab53b3882"
+    },
+    "crates/pllm-garble/src/interval_fss.rs": {
+      "bytes": 9436,
+      "sha256": "a94762bfc2089c53c9e88faf8b509acbc2524b274861ef957619299539abd226"
+    },
+    "crates/pllm-garble/src/interval_fss/ring_tests.rs": {
+      "bytes": 3268,
+      "sha256": "7163756205b27742c5d31ba1fd7f216dd48120ffb0379cee3ec642e0558a7966"
+    },
+    "crates/pllm-garble/src/lib.rs": {
+      "bytes": 84563,
+      "sha256": "90318610d5213ac234e908d16107475db2de07d0dc03a033584b82570a577d85"
+    },
+    "crates/pllm-garble/src/logrow.rs": {
+      "bytes": 28493,
+      "sha256": "306ce98369d8f5b0234f604689f7bab85322ebda041c5d11846d9609ba67c450"
+    },
+    "crates/pllm-garble/src/logrow_product.rs": {
+      "bytes": 8158,
+      "sha256": "5945091284c6a5a6f20491b38ae3369de3f302ae06e5265b687796d6d893ea18"
+    },
+    "crates/pllm-garble/src/masked_wire_reference.rs": {
+      "bytes": 43411,
+      "sha256": "84c8a5b208ea6252e7dfeac800459468b020bf66d7a4426418948f5a99daf4cd"
+    },
+    "crates/pllm-garble/src/masked_wire_reference/coins.rs": {
+      "bytes": 2588,
+      "sha256": "f8971d86bbbd0be08b6d1016dd18b020e6b3cd7515d097db71a40c75fb0eda55"
+    },
+    "crates/pllm-garble/src/masked_wire_reference/issuance_profile.rs": {
+      "bytes": 11026,
+      "sha256": "21efb7c1bab1730f0d1f2e534bf992427d18b08cc71b85b26e9ec3b2c0ce5a05"
+    },
+    "crates/pllm-garble/src/masked_wire_reference/seeded_codec.rs": {
+      "bytes": 2246,
+      "sha256": "37406ea2bebf8a8c8bc5b2056256e1acca26ea2f543918432db11392ac8fc5c8"
+    },
+    "crates/pllm-garble/src/masked_wire_reference/transport.rs": {
+      "bytes": 21030,
+      "sha256": "1f12dcf9a04d61f2323d492aee09db8dc30b631efb4b33be437ae48594dfa1f0"
+    },
+    "crates/pllm-garble/src/mixed_gated.rs": {
+      "bytes": 23217,
+      "sha256": "d5ec3363055a784fea1b275945ee31e0715f55906a81f6f10845601599b859cd"
+    },
+    "crates/pllm-garble/src/packed_embedding.rs": {
+      "bytes": 9976,
+      "sha256": "3ff6c70194f2c65c89ddaef62b7d5b15aae827928d5f81aa071232d1fbf11414"
+    },
+    "crates/pllm-garble/src/point_fss.rs": {
+      "bytes": 8043,
+      "sha256": "9734d77a82cb15e707d83186502ef54787db7da326faad5ed2e3cab4e90bd35d"
+    },
+    "crates/pllm-garble/src/private_pages.rs": {
+      "bytes": 34419,
+      "sha256": "2ae6ca0691092d8837377bc74cc9c9bf95a0d374efbf7aeff2bfa42be3108925"
+    },
+    "crates/pllm-garble/src/projected_polynomial.rs": {
+      "bytes": 24795,
+      "sha256": "118e192ae18fa9cd00f8e2c994ab5bed597ba8bd4843c1732c4367f507688638"
+    },
+    "crates/pllm-garble/src/projected_reshare.rs": {
+      "bytes": 9117,
+      "sha256": "dda44b0d2ce24c44f1f26951d86a11105f34f810458f605c0a5be358e572fff0"
+    },
+    "crates/pllm-garble/src/retained_selection.rs": {
+      "bytes": 16341,
+      "sha256": "591a5a3bc44459fa56f4c54b00d6e0b08fb9514b53b85663b1df3a62dc79c25f"
+    },
+    "crates/pllm-garble/src/retained_selection/cost.rs": {
+      "bytes": 4679,
+      "sha256": "1b122973ccc09d60d12cdc5b85f671961997ad9d323d30d4e0996d620aba2103"
+    },
+    "crates/pllm-garble/src/retained_selection/indexed.rs": {
+      "bytes": 3355,
+      "sha256": "082a2d97d7b88a5101a4670d9ad94b96533356cca566c7bdcc3893531e593d5b"
+    },
+    "crates/pllm-garble/src/retained_selection/tests.rs": {
+      "bytes": 15442,
+      "sha256": "54bfa6b31909b94f5a9a7617b3fdbba1284edbc73d2cb486178742ac0dfbd389"
+    },
+    "crates/pllm-garble/src/secret_replication.rs": {
+      "bytes": 18823,
+      "sha256": "bc9d8ee698ccf23a55b60e5726a24243e516e04483d087e081ddb204bdb7ae80"
+    },
+    "crates/pllm-garble/src/secret_replication/tests.rs": {
+      "bytes": 8373,
+      "sha256": "61ad1ed5903a2dbdf654371fb29d296661462ad681898c391b47df15020969a6"
+    },
+    "crates/pllm-garble/src/shared_affine_lookup_reference.rs": {
+      "bytes": 11097,
+      "sha256": "b288c3952de33b721c9031516cf78b587682a8cf26af799eb40419f37b281e58"
+    },
+    "crates/pllm-garble/src/shared_affine_lookup_reference/ring.rs": {
+      "bytes": 12746,
+      "sha256": "60cc43e00d0c2f4d82ba7936967bd0f53ae7ac687e47ef5528b9d10d8c05d734"
+    },
+    "crates/pllm-garble/src/shared_affine_lookup_reference/ring/tests.rs": {
+      "bytes": 7719,
+      "sha256": "5517c9f96bf62af523c4a40c005ed65feea302164a5c195b8a6dd3361ff388b8"
+    },
+    "crates/pllm-garble/src/shared_arithmetic_reference.rs": {
+      "bytes": 7677,
+      "sha256": "91afafd731c9fff48512a8e7c91ace1bbd543cf07acd326b219ec151069a4b26"
+    },
+    "crates/pllm-garble/src/shared_circuit.rs": {
+      "bytes": 18912,
+      "sha256": "1864220dbddd34ebbb31accf028b0402ab3b40ae6c418fcd3efdb28df1daf0f3"
+    },
+    "crates/pllm-garble/src/shared_gated_block_reference.rs": {
+      "bytes": 11989,
+      "sha256": "030bbc49155fd7509dea7b1fe4689901bef859f9fec15f54027205e31a6ea9d9"
+    },
+    "crates/pllm-garble/src/shared_lut_reference.rs": {
+      "bytes": 7410,
+      "sha256": "17ede28e07b602b5e1931fd3b50dcd4829a713d2cc5d25232da3990f4b84a660"
+    },
+    "crates/pllm-garble/src/shared_piecewise_gated_reference.rs": {
+      "bytes": 13329,
+      "sha256": "feac0dcc4786e284d34da1b8bec0bc1dac9285d7eef921eef075db0e4f396ec1"
+    },
+    "crates/pllm-garble/src/shared_rescale_reference.rs": {
+      "bytes": 36190,
+      "sha256": "552e2c70cc43d4273dab91316cc1c565a16bc2da39022962f057f62df6b8a1a9"
+    },
+    "crates/pllm-garble/src/shared_selection.rs": {
+      "bytes": 50910,
+      "sha256": "fd904f54c94f6fc932d274f3cdea04ad8d5ebc0da677b89537ba04fa9ca54c90"
+    },
+    "crates/pllm-garble/src/shared_selection/batch.rs": {
+      "bytes": 3741,
+      "sha256": "4cc3857b5a5051fd109e7c578c7e4f04077be01a3f0df85079b94d8e6ca72843"
+    },
+    "crates/pllm-garble/src/shared_wide_product.rs": {
+      "bytes": 4495,
+      "sha256": "bdf4e6a23ae06d60333f4963c7fe2ad8cb649e7d3ffdb2ac20d23599f850b3e8"
+    },
+    "crates/pllm-garble/src/shared_wide_product/legacy_tests.rs": {
+      "bytes": 2619,
+      "sha256": "c524d423b5dfa6c48c07677027dfb743950c3d03c4ece5b2d008644fc7af9c90"
+    },
+    "crates/pllm-garble/src/shared_wide_product/ring.rs": {
+      "bytes": 3936,
+      "sha256": "83642c294839baea0fddda0b9213bfa8456945c8729295d03b74bd1321f21949"
+    },
+    "crates/pllm-garble/src/shared_wide_product/ring_tests.rs": {
+      "bytes": 6316,
+      "sha256": "463d9a95850b4cade6fdaa43e0a809d1922f18f4493dbca1d67012f4a05fc3d9"
+    },
+    "crates/pllm-garble/src/token_pruning.rs": {
+      "bytes": 18490,
+      "sha256": "0144d302ae73c0065a6b53818c5a59b443e6203e49467af238dbc2f15b186420"
+    },
+    "crates/pllm-garble/src/wavelet_gated_reference.rs": {
+      "bytes": 12053,
+      "sha256": "9085d6565048e357de8a31d7f5af0cbd42364e156e29ea90982d1e47e25835d8"
+    },
+    "crates/pllm-garble/src/wavelet_gated_reference/tests.rs": {
+      "bytes": 6938,
+      "sha256": "6550faa1ad66c16d256b5d0f32a1d3c0b850d1ac2f81f81d3c0f22bfd4d2acb3"
+    },
+    "paper/reproduction-contracts/fusefss/freeze.py": {
+      "bytes": 3627,
+      "sha256": "e6de4c162a7099079f494fb4fd4b5cd3b0dbab873135edc168de083dbb187a65"
+    },
+    "paper/reproduction-contracts/fusefss/gelu-table.json": {
+      "bytes": 991,
+      "sha256": "4d91281c274275d8b17f6711eb3f454ad25865a197570115fdede8b2db7db69b"
+    },
+    "paper/reproduction-contracts/fusefss/math_oracle.py": {
+      "bytes": 4389,
+      "sha256": "3f33b3330d74abb462e9c48122f9d022a48b842db9d0b7ea26ae96bb898a8d33"
+    },
+    "paper/reproduction-contracts/fusefss/native-conformance/check_native.py": {
+      "bytes": 8259,
+      "sha256": "07cb62e1db8ea4b5aad0c0cb56403782400125c80caaf6d984880d5bbf1bc53e"
+    },
+    "paper/reproduction-contracts/fusefss/native-conformance/fixtures.json": {
+      "bytes": 2542504,
+      "sha256": "64a2dfd493eab789a8aaca9fb12326affc7b12c09cc32ad3bcfbfeb8e3f7babd"
+    },
+    "paper/reproduction-contracts/fusefss/native-conformance/independent.py": {
+      "bytes": 13540,
+      "sha256": "3d05915a90dfda555db93f10a0e3aec1bb7e2ccef41ae1cc96e38bee76a561fa"
+    },
+    "paper/reproduction-contracts/fusefss/native-conformance/receipt.json": {
+      "bytes": 1408,
+      "sha256": "62c55c50a172c1baaf1159b19a84a25c63b8de46f83b1f44e0771d4fff13c936"
+    },
+    "paper/reproduction-contracts/fusefss/native-conformance/test_conformance.py": {
+      "bytes": 12862,
+      "sha256": "0d07c837addea6e854ead87bd5c28ff77448fb86a97be4fbe2c29d89b406d38a"
+    },
+    "paper/reproduction-contracts/fusefss/reference.py": {
+      "bytes": 21766,
+      "sha256": "66b9e8c8a6b686119e91d5de4663a6c04c639b8fa237ae9100430b8be04a8bb8"
+    },
+    "paper/reproduction-contracts/fusefss/source-lock.json": {
+      "bytes": 2429,
+      "sha256": "8c42ba8f3ff7156fe87882dca089b8fb6c71b2739f8d761583e2ccc94c794609"
+    },
+    "paper/reproduction-contracts/fusefss/test_reference.py": {
+      "bytes": 16365,
+      "sha256": "33ff6cae816c0d6f27d0ec753cceba3061d9142ef373e556b0b38e5c6c4c529b"
+    },
+    "paper/reproduction-contracts/fusefss/vectors.json": {
+      "bytes": 3986,
+      "sha256": "ab0e0fc4079929d854723139739cb2094436011b1145cccf1995a59cf1e25383"
+    }
+  },
+  "rustc": "rustc 1.85.1 (4eb161250 2025-03-15)\nbinary: rustc\ncommit-hash: 4eb161250e340c8f48f66e2b929ef4a5bed7c181\ncommit-date: 2025-03-15\nhost: aarch64-apple-darwin\nrelease: 1.85.1\nLLVM version: 19.1.7\n"
+}

@@ -1,0 +1,63 @@
+{
+  "descriptors": 184,
+  "execution": "compiler-clear",
+  "external_encoding_cases": 38,
+  "fixture_sha256": "64a2dfd493eab789a8aaca9fb12326affc7b12c09cc32ad3bcfbfeb8e3f7babd",
+  "gate_evaluations": 58400,
+  "independent_checker": "run check_native.py against output separately; this exporter does not certify itself",
+  "output": {
+    "bytes": 2494123,
+    "path": "target/fusefss-native-conformance-v1/compiler.jsonl",
+    "sha256": "c2abac1dd01ae8a573940009511c3e7cdcdb577a6bc9789f36be6f68855720b6"
+  },
+  "runs": 1552,
+  "schema": "pllm.fusefss.native-compiler-receipt.v1",
+  "source_identity": {
+    "architecture": "aarch64",
+    "execution": "compiler-clear",
+    "gelu_descriptor_sha256": "5f1e888e7bdabe3cbad4b6bbf1abd6749c8dff0918c6f243916db071398e79d3",
+    "os": "macos",
+    "package": "pllm-garble",
+    "scope": "offline test-only native adapter; no backend authentication, model, or security qualification",
+    "source_lock_sha256": "8c42ba8f3ff7156fe87882dca089b8fb6c71b2739f8d761583e2ccc94c794609",
+    "sources": [
+      {
+        "bytes": 14513,
+        "path": "crates/pllm-garble/src/fusefss/mod.rs",
+        "sha256": "ca71a12fd45170cc35f655594729a4f23bcef2fb61c1f4c58ba0b4dac373d65b"
+      },
+      {
+        "bytes": 9248,
+        "path": "crates/pllm-garble/src/fusefss/json.rs",
+        "sha256": "2c92fb663aadaac4aacc2e9431b6c2dea0f5d578b96a5e4c3b3514a23e3d22a0"
+      },
+      {
+        "bytes": 17733,
+        "path": "crates/pllm-garble/src/fusefss/compile.rs",
+        "sha256": "b498ed87ffc6ad4bfa1ea49b7905895c7cbb8fe3c608688c7dc4e0d8cee5631b"
+      },
+      {
+        "bytes": 4745,
+        "path": "crates/pllm-garble/src/fusefss/fixture.rs",
+        "sha256": "0c6708f7e85987bafa3d3079288da005b545ee16d971114afbbdca87a253cf57"
+      },
+      {
+        "bytes": 18219,
+        "path": "crates/pllm-garble/src/fusefss/tests.rs",
+        "sha256": "7a6db873340fc4d74b11a7bde610ac136abac7bbb0e145e0b176b680168aea99"
+      },
+      {
+        "bytes": 35542,
+        "path": "crates/pllm-garble/src/fusefss/conformance.rs",
+        "sha256": "d8dcef4618c20d0325deb32e659b4cd8a3c045f3598c22b8c2588faf164adbeb"
+      },
+      {
+        "bytes": 6457,
+        "path": "crates/pllm-garble/src/fusefss/accounting.rs",
+        "sha256": "6529b05903cccba7e354315260d649ab10cd7c171a7d0dc6f1d67d5f17b0d673"
+      }
+    ],
+    "version": "0.1.0-alpha.2"
+  },
+  "suite": "all"
+}

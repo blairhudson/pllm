@@ -957,6 +957,24 @@ in-process dealer, generic arithmetic-comparison contract and unknown wire/RSS
 remain explicit. This exposes negative cost results without activating the
 general FuseFSS compiler or a decoder.
 
+A separate native FuseFSS scalar slice now preserves the frozen Protocol-3
+ring50/Q12 GELU descriptor and composes existing scalar/vector DCF, universal
+public-boundary lookup and consuming ring products. Its private-vector control
+and public-original-table specialization retain separate execution bindings.
+The latter keeps sampled-mask-dependent order and corrections private while
+charging original public table copies separately from keys. Independent replay
+checks 58,400 clear compiler gates and 43,544 freshly issued protected GELU
+outputs, including all 38 exact-rational external-encoding cases. Each public
+specialization lane retains 1,372 logical private bytes and a 12,296-byte public
+table copy per party, with 512 DCF evaluations per party. Exported frames and
+outputs retain leases until retirement; the full replay returns its native budget
+to zero. Generic JSON parsing remains outside the frozen adapter's admitted path.
+Complete Boolean/Phi and model gates, signed38 source provenance, authenticated
+roles, SDK selection and independent security qualification remain open. This
+scalar reference does not reproduce the paper's optimized backend or establish
+whole-model costs. Evidence and replay:
+`paper/artifacts/fusefss-scalar/local-v1/README.md`.
+
 The complete bounded shared Q7 gated block composes four exact rescalings and
 two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases
 check 11,540 outputs, with all remaining block material burned on failure.

@@ -48,6 +48,120 @@ impl Comparison {
     }
 }
 
+/// Ring-aware universal PUBLIC-original-boundary algebra. Never pass private
+/// translated Protocol-3 boundaries to an evaluator. This is not a raw codec,
+/// affine descriptor adapter, or consuming online gate.
+pub(crate) struct RingComparison {
+    bits: u8,
+    output_bits: u8,
+    key: compact_dcf::RingComparison,
+}
+
+impl RingComparison {
+    pub(crate) fn resources(bits: u8, output_bits: u8) -> Result<compact_dcf::Resources, Error> {
+        let mut cost = compact_dcf::RingComparison::resources(bits, output_bits)?;
+        let extra = std::mem::size_of::<Self>() - cost.key_owner_bytes;
+        cost.key_owner_bytes += extra;
+        cost.issuance_scratch_bytes += 2 * extra;
+        cost.combined_allocation_bytes += 4 * extra;
+        Ok(cost)
+    }
+
+    pub(crate) fn issue(
+        bits: u8,
+        output_bits: u8,
+        input_mask: u64,
+        allocation_limit: usize,
+    ) -> Result<[Self; 2], Error> {
+        let cost = Self::resources(bits, output_bits)?;
+        if input_mask >= 1u64 << bits {
+            return Err(Error::Domain);
+        }
+        if cost.combined_allocation_bytes > allocation_limit {
+            return Err(Error::Resource);
+        }
+        let extra =
+            4 * (std::mem::size_of::<Self>() - std::mem::size_of::<compact_dcf::RingComparison>());
+        let keys = compact_dcf::RingComparison::issue(
+            bits,
+            output_bits,
+            input_mask.wrapping_sub(1) & ((1u64 << bits) - 1),
+            1,
+            allocation_limit - extra,
+        )?;
+        Ok(keys.map(|key| Self {
+            bits,
+            output_bits,
+            key,
+        }))
+    }
+
+    /// A share of [opened < (r+p) mod N] - c_p. The N sentinel is
+    /// canonicalized to 0 here; use lt_correction for the full [x<p] identity.
+    pub(crate) fn eval(&self, party: u8, opened: u64, boundary: u64) -> Result<u64, Error> {
+        let n = 1u64 << self.bits;
+        if party > 1 || opened >= n || boundary > n {
+            return Err(Error::Domain);
+        }
+        let p = boundary & (n - 1);
+        let shifted = opened.wrapping_sub(1).wrapping_sub(p) & (n - 1);
+        Ok(self
+            .key
+            .eval(party, shifted)?
+            .wrapping_sub(u64::from(party == 0 && opened > p))
+            & ((1u64 << self.output_bits) - 1))
+    }
+
+    /// Shares of the masked comparison difference; dealer keeps the remaining
+    /// correction secret-shared. No selected interval or correction is opened.
+    #[cfg(test)]
+    pub(crate) fn eval_lt_difference(
+        &self,
+        party: u8,
+        opened: u64,
+        boundary: u64,
+    ) -> Result<u64, Error> {
+        Ok(self
+            .eval(party, opened, boundary)?
+            .wrapping_sub(self.eval(party, opened, 0)?)
+            & ((1u64 << self.output_bits) - 1))
+    }
+
+    /// Dealer-only correction for eval_lt_difference. Supports both descriptor
+    /// sentinels exactly: boundary 0 returns 0, boundary N returns 1. This clear
+    /// value must be freshly shared or folded into secret coefficient constants.
+    pub(crate) fn lt_correction(
+        bits: u8,
+        output_bits: u8,
+        input_mask: u64,
+        boundary: u64,
+    ) -> Result<u64, Error> {
+        compact_dcf::RingComparison::resources(bits, output_bits)?;
+        let n = 1u64 << bits;
+        if input_mask >= n || boundary > n {
+            return Err(Error::Domain);
+        }
+        let p = boundary & (n - 1);
+        let correction = u64::from(((input_mask + p) & (n - 1)) > p);
+        Ok(correction
+            .wrapping_sub(u64::from(input_mask > 0))
+            .wrapping_add(u64::from(input_mask + boundary >= n))
+            & ((1u64 << output_bits) - 1))
+    }
+
+    pub(crate) fn allocation(&self) -> compact_dcf::Resources {
+        let mut cost = self.key.allocation();
+        let extra = std::mem::size_of::<Self>() - cost.key_owner_bytes;
+        cost.key_owner_bytes += extra;
+        cost.issuance_scratch_bytes += 2 * extra;
+        cost.combined_allocation_bytes += 4 * extra;
+        cost
+    }
+}
+
+#[cfg(test)]
+mod ring_tests;
+
 #[cfg(test)]
 mod tests {
     use super::*;

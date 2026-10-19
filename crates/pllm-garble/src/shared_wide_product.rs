@@ -1,17 +1,20 @@
 //! One-use 2^64 Beaver product for exact bounded fixed-point intermediates.
 //! The trusted local dealer supplies independent triples; each Party owns one
 //! triple share. Frames bind context and issuance, not transport authentication.
+#[cfg(test)]
 use crate::shared_circuit::random_word;
 use crate::shared_rescale_reference::{Context, Error};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
+pub(crate) mod ring;
+
 pub const HEADER: usize = 78;
 pub const FRAME_BYTES: usize = HEADER + 16;
-pub const KEY_BYTES: usize = 24;
+pub const KEY_BYTES: usize = ring::TRIPLE_BYTES;
 enum State {
-    Ready(Zeroizing<[u64; 3]>),
-    Waiting(Zeroizing<[u64; 3]>, Zeroizing<[u64; 2]>),
+    Ready(ring::TripleShare),
+    Waiting(ring::TripleShare, Zeroizing<[u64; 2]>),
 }
 pub struct Party {
     id: u8,
@@ -30,14 +33,8 @@ pub fn issue(context: Context) -> Result<[Party; 2], Error> {
     let binding = hash.finalize().into();
     let mut nonce = [0; 32];
     getrandom::fill(&mut nonce).map_err(|_| Error::Randomness)?;
-    let a = Zeroizing::new(random_word()?);
-    let b = Zeroizing::new(random_word()?);
-    let left = Zeroizing::new([random_word()?, random_word()?, random_word()?]);
-    let right = Zeroizing::new([
-        a.wrapping_sub(left[0]),
-        b.wrapping_sub(left[1]),
-        a.wrapping_mul(*b).wrapping_sub(left[2]),
-    ]);
+    // Preserve legacy nonce-first, then a/b/left-a/left-b/left-c draw order.
+    let [left, right] = ring::issue(64)?;
     Ok([(0, left), (1, right)].map(|(id, t)| Party {
         id,
         binding,
@@ -61,7 +58,7 @@ impl Party {
         let State::Ready(t) = self.state.take().ok_or(Error::Consumed)? else {
             return Err(Error::Context);
         };
-        let own = Zeroizing::new([x.wrapping_sub(t[0]), y.wrapping_sub(t[1])]);
+        let own = t.open(x, y)?;
         let mut frame = Vec::with_capacity(FRAME_BYTES);
         frame.extend(b"PLLMMU64");
         frame.extend(self.binding);
@@ -88,14 +85,17 @@ impl Party {
         {
             return Err(Error::Context);
         }
-        let d = u64::from_le_bytes(frame[78..86].try_into().unwrap()).wrapping_add(own[0]);
-        let e = u64::from_le_bytes(frame[86..94].try_into().unwrap()).wrapping_add(own[1]);
-        Ok(t[2]
-            .wrapping_add(d.wrapping_mul(t[1]))
-            .wrapping_add(e.wrapping_mul(t[0]))
-            .wrapping_add(if self.id == 0 { d.wrapping_mul(e) } else { 0 }))
+        let peer = Zeroizing::new([
+            u64::from_le_bytes(frame[78..86].try_into().unwrap()),
+            u64::from_le_bytes(frame[86..94].try_into().unwrap()),
+        ]);
+        t.finish(self.id, &own, &peer)
     }
 }
+
+#[cfg(test)]
+#[path = "shared_wide_product/legacy_tests.rs"]
+mod legacy_tests;
 
 #[cfg(test)]
 mod tests {

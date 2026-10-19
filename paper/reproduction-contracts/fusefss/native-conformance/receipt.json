@@ -1,0 +1,27 @@
+{
+  "schema": "pllm.fusefss.independent-native-conformance.receipt.v1",
+  "fixture": "fixtures.json",
+  "fixture_sha256": "64a2dfd493eab789a8aaca9fb12326affc7b12c09cc32ad3bcfbfeb8e3f7babd",
+  "fixture_bytes": 2542504,
+  "descriptors": 184,
+  "runs": 1552,
+  "independent_gate_evaluations": 58400,
+  "external_encoding_cases": 38,
+  "small_complete_partitions": 138,
+  "small_all_partition_mask_input_cases": 8328,
+  "small_predicate_mask_input_cases": 6528,
+  "gelu_boundary_words": 1539,
+  "gelu_evaluations": 43544,
+  "table_sha256_u64le": "b6a45a82dc8f660724943c1eb76654704c2e49563ffc0b1a0bc5388b3425a01b",
+  "source_lock_sha256": "8c42ba8f3ff7156fe87882dca089b8fb6c71b2739f8d761583e2ccc94c794609",
+  "canonical_gelu_descriptor_sha256": "5f1e888e7bdabe3cbad4b6bbf1abd6749c8dff0918c6f243916db071398e79d3",
+  "source_receipts": [
+    {"id": "F", "sha256": "6109399761ab0cc1ca6eb617fec1a811cbe59d474455ce3549467e5a5b77cbf0", "local_bytes_verified": true},
+    {"id": "S", "sha256": "f911b715b0e0523fa4d77f21c28c6a0440c5be781e67b5b30419f20e505a6ebf", "local_bytes_verified": true},
+    {"id": "S-CPU", "sha256": "a8233617b21952396e3bb4bd0c27d024b982eb8a9c5d27910cc6ba3a063c1650", "local_bytes_verified": false}
+  ],
+  "bounded_unittest_result": {"tests": 22, "failures": 0, "errors": 0, "skips": 0},
+  "native_runs_executed_by_this_track": 0,
+  "security_qualified": false,
+  "whole_model_qualified": false
+}

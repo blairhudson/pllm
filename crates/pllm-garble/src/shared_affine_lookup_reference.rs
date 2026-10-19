@@ -15,6 +15,9 @@ pub const HEADER_BYTES: usize = 78;
 pub const MAX_LANES: usize = 256;
 const MAGIC: &[u8; 8] = b"PLLMAF01";
 
+mod ring;
+pub(crate) use ring::{issue_ring, RingParty, RingResources, RingTable};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Layout {
     Separate,
