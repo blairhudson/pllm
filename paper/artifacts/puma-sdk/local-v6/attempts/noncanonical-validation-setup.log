@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "<stdin>", line 40, in <module>
+ValueError: Experiment must use canonical compact sorted JSON bytes
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<stdin>", line 42, in <module>
+AssertionError

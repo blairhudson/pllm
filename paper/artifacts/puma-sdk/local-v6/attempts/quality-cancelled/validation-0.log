@@ -1,0 +1,177 @@
+......................F
+=================================== FAILURES ===================================
+__ test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics[True] ___
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3925/test_quality_uses_common_prefi0')
+replicated_first = True
+
+    @pytest.mark.parametrize("replicated_first", [True, False])
+    def test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics(tmp_path, replicated_first):
+        pytest.importorskip("transformers")
+        from examples.papers.prepared import experiment as prepared_experiment
+    
+        replicated = experiment_fixture(tmp_path, active=True)
+        prepared = prepared_experiment(replicated.pipeline.model, replicated.budget)
+        experiments = [replicated, prepared] if replicated_first else [prepared, replicated]
+>       report = run_reference_benchmark(experiments, ["hello world"], decode_steps=1,
+                                         reference_storage="streamed")
+
+tests/test_replicated_quality.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:342: in run_reference_benchmark
+    metadata, actual_rows, decode_rows, current_cohort, selected = runner(
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/reference_benchmark.py:176: in _replicated_candidate
+    result = execute_request(experiment, source, tuple(prefix), 1,
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_transport.py:51: in execute_request
+    if unpack(peers.post(0, "execute", phase="online", limit=4096)) != {"complete": True}:
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:248: in post
+    return self.io.run(owned(), timeout=deadline - time.monotonic())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:129: in run
+    return future.result(timeout=max(0.0, timeout) + _IO_DRAIN_TIMEOUT)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/concurrent/futures/_base.py:460: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+../../.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/concurrent/futures/_base.py:402: in __get_result
+    raise self._exception
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:234: in owned
+    await watcher
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:220: in cancellation
+    self.check()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def check(self):
+        if self.cancelled() or time.monotonic() >= self.deadline:
+>           raise ProtocolError("GKM request cancelled or timed out", 499)
+E           pllm.runtime.client.ProtocolError: GKM request cancelled or timed out
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_transport.py:208: ProtocolError
+----------------------------- Captured stderr call -----------------------------
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/http/h11_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 280, in handle
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 144, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 706, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 352, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 407, in operation
+    await attempt.task
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 208, in run
+    sent = await all_roles("prepare_dispatch")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 190, in all_roles
+    return await asyncio.gather(*tasks)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 141, in rpc
+    async with clients[peer].stream("POST", f"/v1/replicated/{attempt.request_id}/peer/{action}",
+               ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                    content=encoded) as response:
+                                    ^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/contextlib.py", line 214, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1583, in stream
+    response = await self.send(
+               ^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/connection.py", line 103, in handle_async_request
+    return await self._connection.handle_async_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/http11.py", line 136, in handle_async_request
+    raise exc
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/http11.py", line 86, in handle_async_request
+    await self._send_request_headers(**kwargs)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/http11.py", line 150, in _send_request_headers
+    await self._send_event(event, timeout=timeout)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_async/http11.py", line 166, in _send_event
+    await self._network_stream.write(bytes_to_send, timeout=timeout)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/httpcore/_backends/anyio.py", line 50, in write
+    await self._stream.send(item=buffer)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 1436, in send
+    await AsyncIOBackend.checkpoint()
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/anyio/_backends/_asyncio.py", line 2564, in checkpoint
+    await sleep(0)
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/tasks.py", line 708, in sleep
+    await __sleep0()
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/tasks.py", line 702, in __sleep0
+    yield
+asyncio.exceptions.CancelledError
+=========================== short test summary info ============================
+FAILED tests/test_replicated_quality.py::test_quality_uses_common_prefixes_and_retains_unknown_logit_metrics[True]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 22 passed in 399.37s (0:06:39)

@@ -143,13 +143,28 @@ def test_public_wide_mlp_runs_compact_loops_through_installed_binding(tmp_path):
     assert native_execution(source, experiment, (3,), 2) == (2, 1)
 
 
-def test_pinned_public_qwen_rejects_known_work_before_checkpoint_import():
+def test_pinned_public_qwen_prices_shape_work_before_checkpoint_import():
     from pathlib import Path
 
     replay = json.loads((Path(__file__).resolve().parents[1] /
         "paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json").read_text())
     case = replay["modes"]["public"]
-    with pytest.raises(ValueError, match="public lookup work charge"):
-        _native.replicated_source_contract(case["experiment"].encode(),
+    contract = json.loads(_native.replicated_source_contract(case["experiment"].encode(),
+        replay["normalized_config"].encode(), replay["rows"], replay["outputs"],
+        replay["source_lock"], replay["checkpoint"]))
+    assert contract["weights"] == "public"
+    assert contract["vocabulary"] == 151936
+    assert contract["selection_prefix_rows"] == [4, 5]
+    assert contract["public_weight_snapshot_bytes_per_worker"] == 2 * contract["source_float32_bytes"]
+    larger = Experiment.from_spec(json.loads(case["experiment"])).with_params(
+        budget__max_input_tokens=16,
+    )
+    with pytest.raises(ValueError, match="public lookup operation count"):
+        _native.replicated_source_contract(larger.canonical_bytes(),
+            replay["normalized_config"].encode(), 16, replay["outputs"],
+            replay["source_lock"], replay["checkpoint"])
+    private = replay["modes"]["private"]
+    with pytest.raises(ValueError, match="source expansion budget"):
+        _native.replicated_source_contract(private["experiment"].encode(),
             replay["normalized_config"].encode(), replay["rows"], replay["outputs"],
             replay["source_lock"], replay["checkpoint"])

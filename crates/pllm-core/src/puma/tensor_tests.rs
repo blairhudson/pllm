@@ -4,6 +4,111 @@ use crate::puma::prss::{fill, PrssLimits};
 
 const ONE: i64 = 1 << 18;
 
+#[test]
+fn tight_work_budgets_cover_boolean_backing_widths_and_fill_tails() {
+    for lanes in [1, 2, 3, 15, 16, 17, 127, 128] {
+        let values: Vec<_> = (0..lanes).map(|i| i as i64 - 7).collect();
+        let range = Interval::new(-128, 128).unwrap();
+        for bits in [0, 1, 7, 8, 9, 16, 17, 32, 33, 62] {
+            let mut b = Builder::new(lanes, range).unwrap();
+            let input = if bits == 0 {
+                b.sign(b.input())
+            } else {
+                b.bits(b.input())
+            }
+            .unwrap();
+            let masked = b
+                .bit_map(
+                    input,
+                    if bits == 0 {
+                        BitMap::ShiftRight(1)
+                    } else {
+                        BitMap::LowBits(bits)
+                    },
+                )
+                .unwrap();
+            let output = b.from_boolean(masked).unwrap();
+            let program = b.finish(output).unwrap();
+            let mut parties = owners(&program, &values);
+            for _ in 0..program.instructions() {
+                step(&mut parties);
+            }
+            let output = parties.map(|p| p.finish().unwrap().1);
+            let mask = (1u64 << bits) - 1;
+            assert_eq!(
+                clear(&output),
+                values
+                    .iter()
+                    .map(|&v| (v as u64 & mask) as i64)
+                    .collect::<Vec<_>>()
+            );
+        }
+        let equality = Program::equal_zero(lanes, range).unwrap();
+        let mut parties = owners(&equality, &values);
+        for _ in 0..equality.instructions() {
+            step(&mut parties);
+        }
+        let result = parties.map(|p| p.finish().unwrap().1);
+        assert_eq!(
+            clear(&result),
+            values
+                .iter()
+                .map(|&v| i64::from(v == 0))
+                .collect::<Vec<_>>()
+        );
+        if lanes == 3 || lanes == 128 {
+            let bound = equality.work_budget();
+            assert_eq!(bound.operations(), 28);
+            assert_eq!(
+                bound.cursors(),
+                if lanes == 3 {
+                    crate::puma::prss::Cursors {
+                        public_blocks: 1,
+                        pair_blocks: 40,
+                        private_blocks: 0,
+                        aes_work: 77,
+                    }
+                } else {
+                    crate::puma::prss::Cursors {
+                        public_blocks: 1,
+                        pair_blocks: 1472,
+                        private_blocks: 0,
+                        aes_work: 2817,
+                    }
+                }
+            );
+        }
+    }
+}
+
+#[test]
+fn exhausted_exact_schedule_and_short_aes_allowances_retire_before_start() {
+    let program = Program::equal_zero(3, Interval::new(-1, 1).unwrap()).unwrap();
+    let bound = program.work_budget();
+    for limits in [
+        PrssLimits::program(bound.operations() - 1, bound.cursors().aes_work).unwrap(),
+        PrssLimits::program(bound.operations(), bound.cursors().aes_work - 1).unwrap(),
+    ] {
+        let runtimes = parties(limits);
+        let inputs = inputs(&runtimes, &[-1, 0, 1]);
+        for (runtime, input) in runtimes.into_iter().zip(inputs) {
+            let usage = runtime.payload_usage();
+            assert!(Executor::new(runtime, program.clone(), input).is_err());
+            assert_eq!(usage.live_bytes(), 0);
+        }
+    }
+    let mut parties = owners(&program, &[-1, 0, 1]);
+    for _ in 0..program.instructions() {
+        step(&mut parties);
+    }
+    for party in parties {
+        let (runtime, output) = party.finish().unwrap();
+        let usage = runtime.payload_usage();
+        assert!(Executor::new(runtime, program.clone(), output).is_err());
+        assert_eq!(usage.live_bytes(), 0);
+    }
+}
+
 fn normalization_oracle(rsqrt: bool, x: i64, masks: impl IntoIterator<Item = u64>) -> i64 {
     let mut masks = masks.into_iter();
     let mut trunc = |raw: i128| -> i64 {
@@ -577,7 +682,18 @@ fn inputs(owners: &[PartyRuntime; 3], x: &[i64]) -> [ReplicatedShare; 3] {
 }
 
 fn owners(program: &Program, values: &[i64]) -> [Executor; 3] {
-    let runtimes = parties(PrssLimits::default());
+    owners_for_repeats(program, values, 1)
+}
+
+fn owners_for_repeats(program: &Program, values: &[i64], repeats: u64) -> [Executor; 3] {
+    let runtimes = parties(
+        program
+            .work_budget()
+            .checked_mul(repeats)
+            .unwrap()
+            .limits()
+            .unwrap(),
+    );
     let mut values = inputs(&runtimes, values).map(Some);
     let mut i = 0;
     runtimes.map(|r| {
@@ -619,6 +735,16 @@ fn masks(owners: &[Executor; 3]) -> Option<Vec<u64>> {
 }
 
 fn step(owners: &mut [Executor; 3]) -> (Option<Vec<u64>>, usize) {
+    let before = owners.each_ref().map(|o| {
+        (
+            o.runtime.as_ref().unwrap().source.runtime.next_sequence(),
+            o.cursors(),
+        )
+    });
+    let budget = owners[0]
+        .program
+        .instruction_work(owners[0].program.nodes[owners[0].step].unwrap())
+        .unwrap();
     let mut frames: Vec<_> = owners
         .iter_mut()
         .flat_map(|o| o.start_step().unwrap().into_iter().flatten())
@@ -647,9 +773,34 @@ fn step(owners: &mut [Executor; 3]) -> (Option<Vec<u64>>, usize) {
         }
         frames = next;
     }
-    for o in owners {
+    let mut max_aes = 0;
+    let mut max_private = 0;
+    for (o, (sequence, start)) in owners.iter_mut().zip(before) {
         o.finish_step().unwrap();
+        let end = o.cursors();
+        assert_eq!(
+            o.runtime.as_ref().unwrap().source.runtime.next_sequence() - sequence,
+            budget.operations()
+        );
+        assert_eq!(
+            end.pair_blocks - start.pair_blocks,
+            budget.cursors().pair_blocks
+        );
+        assert_eq!(
+            end.public_blocks - start.public_blocks,
+            budget.cursors().public_blocks
+        );
+        max_aes = max_aes.max(end.aes_work - start.aes_work);
+        max_private = max_private.max(end.private_blocks - start.private_blocks);
+        if o.complete() {
+            assert_eq!(
+                o.runtime.as_ref().unwrap().source.runtime.next_sequence() - o.invocation,
+                o.program.work_budget().operations()
+            );
+        }
     }
+    assert_eq!(max_aes, budget.cursors().aes_work);
+    assert_eq!(max_private, budget.cursors().private_blocks);
     (tape, count)
 }
 
@@ -1072,7 +1223,7 @@ fn sequential_tensors_preserve_cursors_and_reject_prior_invocation_frames() {
         Interval::new(-9 * ONE, 9 * ONE).unwrap(),
     )
     .unwrap();
-    let mut owners = owners(&program, &[-9 * ONE, 0, 9 * ONE]);
+    let mut owners = owners_for_repeats(&program, &[-9 * ONE, 0, 9 * ONE], 2);
     let mut stale = None;
     for at in 0..program.instructions() {
         if at == 0 {

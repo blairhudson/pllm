@@ -1322,31 +1322,37 @@ fn tensor_table_allocation_and_wide_conversion_rejection_precede_secret_executio
     let program = Program::rms_norm(1, 896, bound, &[1 << 18; 896]);
     assert!(!FAIL_NEXT.get());
     assert!(matches!(program, Err(Error::Allocation)));
-    let program = Program::softmax(1, 1024, bound).unwrap();
-    let [runtime, _, _] = compound_owners(PrssLimits::default());
+    // Work pricing now rejects expanded Boolean shapes during construction,
+    // before secret inputs exist. Keep the independent live-payload guard too:
+    // this admitted schedule still cannot fit a narrower runtime reservation.
+    assert!(matches!(
+        Program::softmax(1, 1024, bound),
+        Err(Error::Bounds)
+    ));
+    let program = Program::softmax(1, 512, bound).unwrap();
+    let payload = Limits::default().admitted_bytes(MAX_LANES).unwrap();
+    assert!(program.admitted_bytes() > payload);
+    let limits = Limits::new(MAX_LANES, MAX_OPERATIONS, payload).unwrap();
+    let [runtime, _, _] =
+        compound_owners(PrssLimits::new(limits, pllm_core::puma::prss::MAX_AES_BLOCKS).unwrap());
     let usage = runtime.payload_usage();
     let op = Operation::new(
         runtime.context(),
         0,
         runtime.party(),
-        1024,
+        512,
         18,
         Limits::default(),
     )
     .unwrap();
-    let input = ReplicatedShare::from_local(
-        op,
-        runtime.party(),
-        &[0; 1024],
-        &[0; 1024],
-        Limits::default(),
-    )
-    .unwrap();
+    let input =
+        ReplicatedShare::from_local(op, runtime.party(), &[0; 512], &[0; 512], Limits::default())
+            .unwrap();
     FAIL_NEXT.set(true);
     let result = Executor::new(runtime, program, input);
     assert!(
         FAIL_NEXT.replace(false),
-        "expanded shape must reject before register allocation"
+        "live-payload admission must reject before register allocation"
     );
     assert!(matches!(result, Err(Error::Bounds)));
     assert_eq!(usage.live_bytes(), 0);

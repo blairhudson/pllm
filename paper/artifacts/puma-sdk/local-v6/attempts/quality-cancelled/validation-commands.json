@@ -1,0 +1,38 @@
+{
+  "build_receipt": "../puma-work-budget-build-v2/receipt.json",
+  "commands": [
+    {
+      "argv": [
+        "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+        "-I",
+        "-m",
+        "pytest",
+        "-x",
+        "-q",
+        "-o",
+        "pythonpath=.",
+        "-o",
+        "junit_family=xunit1",
+        "tests/test_replicated_interfaces.py",
+        "tests/test_replicated_public_weights.py",
+        "tests/test_replicated_quality.py",
+        "tests/test_replicated_sdk.py",
+        "tests/test_replicated_worker.py",
+        "tests/test_delegated_source.py",
+        "tests/test_reference_agreement.py",
+        "tests/test_reference_benchmark.py",
+        "tests/test_profiles.py",
+        "tests/test_component_families.py",
+        "tests/test_benchmark_memory.py",
+        "tests/test_benchmark_coverage.py",
+        "--junitxml=/Users/blairhudson/workspace/pllm/target/puma-work-budget-validation-v3/installed-tests.xml"
+      ],
+      "log": "validation-0.log",
+      "returncode": 1
+    }
+  ],
+  "inputs_match_before_and_after": true,
+  "installed_file_count": 367,
+  "status": "failed",
+  "wheel_sha256": "9e08b38c59adb7a6ee29458ebd639cd7e65665f753ccb2291500bbe68613fe0c"
+}

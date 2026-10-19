@@ -1,0 +1,50 @@
+   Compiling pllm-core v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.06s
+     Running tests/puma_allocation.rs (target/debug/deps/puma_allocation-8b403bfee3999d75)
+
+running 29 tests
+test allocator_failure_after_burn_is_fallible_and_terminal ... ok
+test boolean_allocation_failures_and_original_frames_keep_the_common_reservation ... ok
+test compound_invalid_interval_and_work_reject_before_allocation_or_randomness ... ok
+test compound_multiplication_allocation_sweep_erases_before_refund ... ok
+test compound_original_rotation_payload_survives_owner_and_is_erased_before_refund ... ok
+test compound_rotation_allocation_sweep_retires_product_and_truncation_together ... ok
+test conversion_allocation_failure_sweep_covers_every_role_and_circuit_phase ... ok
+test every_source_payload_allocation_index_rolls_back_after_earlier_expansions ... ok
+test helper_payload_allocations_fit_declared_conservative_reserve ... ok
+test local_affine_and_standalone_rescale_keep_payloads_until_erasure ... ok
+test narrower_runtime_admission_burns_without_allocating ... ok
+test open_allocation_sweep_prices_received_frames_and_preserves_issued_leases ... ok
+test ot_conversion_allocation_sweeps_keep_masks_and_accepted_outputs_charged ... ok
+test ppa_conversion_allocation_sweeps_cover_carry_reveal_and_output_rotation ... ok
+test releasing_retained_frames_refunds_capacity_for_later_ordinals ... ok
+test retained_original_frames_and_outputs_exhaust_without_resetting_on_extraction ... ok
+test shape_limit_and_bad_binding_reject_before_payload_allocation ... ok
+test source_allocation_failure_burns_reserved_ranges_and_retires_owner ... ok
+test source_exported_payloads_are_wiped_and_still_charged_at_deallocation ... ok
+test source_setup_uses_only_fixed_ledger_metadata_and_invalid_plan_allocates_nothing ... ok
+test source_work_exhaustion_precedes_any_material_allocation ... ok
+test tensor_allocation_failure_sweep_burns_complete_activation_owners ... ok
+test tensor_public_tables_keep_metadata_charge_through_failed_and_normal_retirement ... ok
+test tensor_register_allocation_failure_refunds_only_after_input_retirement ... ok
+test tensor_registers_and_frames_are_zeroized_before_live_charge_refund ... ok
+test tensor_rotary_allocation_failures_and_erasure_retain_all_charges ... ok
+test tensor_row_allocation_failure_sweeps_retire_every_owned_buffer ... ok
+test tensor_row_zeroization_precedes_refund_at_maximum_geometry ... ok
+test tensor_table_allocation_and_wide_conversion_rejection_precede_secret_execution ... FAILED
+
+failures:
+
+---- tensor_table_allocation_and_wide_conversion_rejection_precede_secret_execution stdout ----
+
+thread 'tensor_table_allocation_and_wide_conversion_rejection_precede_secret_execution' panicked at crates/pllm-core/tests/puma_allocation.rs:1325:52:
+called `Result::unwrap()` on an `Err` value: Bounds
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tensor_table_allocation_and_wide_conversion_rejection_precede_secret_execution
+
+test result: FAILED. 28 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 226.53s
+
+error: test failed, to rerun pass `-p pllm-core --test puma_allocation`

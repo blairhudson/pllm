@@ -694,10 +694,15 @@ under a distinct numeric identity. Default private-weight execution stays distin
 Source-present generated controls exercise bounded execution. Compact activation
 spans preserve logical gather order and private-weight execution identities;
 public lookup, rescaling and SiLU use bounded tensor loops with fresh per-iteration
-MPC state. Live-frontier pricing now clears Qwen's compiler-view gate, but private
-lookup alone exceeds the existing declared-work allowance and rejects before
-tensor loading. Whole-request work qualification, whole-model ranges, quality
-and measured response costs remain open. Contract:
+MPC state. Live-frontier pricing clears Qwen's compiler-view gate. Native
+instruction schedules now price consumed sequence ordinals and per-party PRSS/AES
+bounds separately, including every loop tail and complete-prefix selection.
+Original complete-program ceilings remain independently enforced. Public 4+2
+metadata admits; at 16+2, lookup alone exceeds the sequence ceiling and rejects
+before tensor loading. Ordinary checkpoint preflight still rejects public tensors
+at the shared reader's private-weight header limits. Whole-request work
+qualification, whole-model ranges, quality and measured response costs remain
+open. Contract:
 `docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the

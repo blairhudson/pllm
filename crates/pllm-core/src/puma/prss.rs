@@ -18,6 +18,9 @@ pub mod multiply;
 
 pub const PRSS_PROFILE: &str = "puma.spu-a42c261.yacl-5418371.prss.le64.aes128-ctr-call-reset.v1";
 pub const MAX_AES_BLOCKS: u64 = (3 * MAX_LANES as u64 + 3) * MAX_OPERATIONS;
+/// The original maximum complete-program AES allowance, independently priced
+/// from top-level ordinals: a conversion has many nested Boolean rounds.
+pub const MAX_PROGRAM_AES_BLOCKS: u64 = (3 * MAX_LANES as u64 + 3) * MAX_PROGRAM_OPERATIONS;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PrssLimits {
@@ -28,8 +31,7 @@ pub struct PrssLimits {
 impl PrssLimits {
     pub fn program(max_operations: u64, aes_blocks: u64) -> Result<Self, Error> {
         let core = Limits::program(max_operations)?;
-        let maximum = (3 * MAX_LANES as u64 + 3) * max_operations;
-        if aes_blocks == 0 || aes_blocks > maximum {
+        if aes_blocks > MAX_PROGRAM_AES_BLOCKS {
             return Err(Error::Bounds);
         }
         Ok(Self { core, aes_blocks })
@@ -368,6 +370,15 @@ impl SourceParty {
             .checked_add(additional)
             .filter(|&n| n <= self.limits.aes_blocks)
             .ok_or(Error::Bounds)
+    }
+
+    fn admit_work(&self, budget: WorkBudget) -> Result<(), Error> {
+        budget.admit(
+            self.runtime.next_sequence(),
+            self.cursors,
+            self.limits.core.max_operations,
+            self.limits.aes_blocks,
+        )
     }
 
     /// Reserve one public pivot draw after validating shape/shift/work. A second

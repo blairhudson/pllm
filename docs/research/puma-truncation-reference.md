@@ -144,10 +144,10 @@ existing whole-program work limit. Public execution commitments bind the loop
 shape, operands, programs and tail. This changes the public execution schedule,
 while retaining the approved numeric operations and final-only disclosure.
 
-The common Qwen metadata now clears the view-memory gate, but private lookup
-alone exceeds the existing declared-work allowance. Native source admission
-checks that necessary lower bound before checkpoint value reads or worker launch.
-At four inputs and two outputs, lookup alone charges 21,878,784 units against
+The original loop/view Qwen metadata check cleared the view-memory gate, but
+private lookup alone exceeded its declared-work allowance. Native source admission
+checked that necessary lower bound before checkpoint value reads or worker launch.
+At four inputs and two outputs, lookup alone charged 21,878,784 units against
 1,048,576 allowed. This is a lower bound on the compiler's conservative work
 charge, not a timing or cryptographic-operation measurement. Whole-request work
 qualification, complete-model range admission, quality and matched resource costs
@@ -156,6 +156,41 @@ or full-checkpoint serving result. Installed-wheel validation passes 245 Python
 and 20 native checks, with seven optional skips and all 367 package files matching
 before and after. Replay and original receipts:
 [loop/view slice](../../paper/artifacts/puma-sdk/local-v5/README.md).
+
+### Schedule-derived work admission
+
+The native tensor program now derives separate sequence and PRSS budgets from
+its immutable instruction schedule. Sequence counts measure consumed top-level
+ordinals, including local arithmetic. They do not count messages, Boolean rounds
+or CPU work. Public/pair cursors are exact; private draws and AES expansions use
+per-party upper bounds across every public pivot. Each AES fill rounds its own
+tail. Signed conversion backing widths, OT and full-width Boolean conversion
+retain their actual nested schedules.
+
+The compiler sums every node, full loop iteration and tail, including every D9
+prefix. Tensor admission checks the remaining sequence and AES allowance, plus
+cursor overflow, before allocation and randomness. The original 1,048,576-ordinal
+and 3,224,371,200-AES-block complete-program ceilings remain independently enforced;
+a wide conversion can use more AES blocks than the former per-ordinal heuristic.
+Primitive payload ceilings, source ranges, fresh state and execution digests stay
+bound to their existing contracts.
+
+One 128-lane public lookup predicate consumes 28 ordinals, with at most 2,817 AES
+blocks per party. At Qwen's 151,936 vocabulary rows and four inputs/two outputs,
+the lookup-only floor is 299,124 ordinals and 30,094,011 AES blocks per party.
+That metadata gate admits. At sixteen inputs/two outputs, its 1,096,788 lookup
+ordinals reject before tensor reads. The private-weight source-expansion gate
+remains separate. Metadata admission does not qualify complete-model ranges,
+whole-request work, checkpoint execution, quality or serving resources.
+An ordinary `benchmark_memory` retry against the pinned checkpoint reaches the
+shared Safetensors header reader, which still applies the private-weight
+8,192-dimension/1,048,576-value tensor limits to this public mode. It rejects
+before tensor-value decoding or worker launch. Aligning that reader with the
+native public-source envelope remains the next SDK import gate.
+The installed-wheel checks pass 245 unique Python cases and 144 native checks,
+including five ownership doctests, with seven optional skips. Original attempts,
+complete collection reconciliation and replay are retained in the
+[work-budget slice](../../paper/artifacts/puma-sdk/local-v6/README.md).
 
 ### Shared SDK interfaces
 

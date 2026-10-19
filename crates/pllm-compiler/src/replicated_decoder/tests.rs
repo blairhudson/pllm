@@ -25,17 +25,19 @@ fn pinned_qwen_public_metadata_prices_live_frontier_without_source_values() {
     ))
     .unwrap();
     let config = replay["normalized_config"].as_str().unwrap().as_bytes();
-    let reason = Program::source_shapes_with_weights(config, 4, 2, WeightMode::Public).unwrap_err();
-    assert!(reason.contains("public lookup work charge"), "{reason}");
+    Program::source_shapes_with_weights(config, 4, 2, WeightMode::Public).unwrap();
+    let reason =
+        Program::source_shapes_with_weights(config, 16, 2, WeightMode::Public).unwrap_err();
+    assert!(reason.contains("public lookup operation count"), "{reason}");
     assert!(!reason.contains("compiler view"));
     assert!(Program::source_shapes_with_weights(config, 4, 2, WeightMode::Private).is_err());
     assert!(
-        Publisher::new_with_weights(config, 4, 2, [1; 32], [2; 32], WeightMode::Public)
+        Publisher::new_with_weights(config, 16, 2, [1; 32], [2; 32], WeightMode::Public)
             .err()
             .unwrap()
-            .contains("public lookup work charge")
+            .contains("public lookup operation count")
     );
-    // Live views now fit, but the whole-work gate rejects before source import.
+    // The larger workload exceeds the original sequence ceiling before import.
 }
 
 fn fixture(family: &str) -> (Arc<Program>, BTreeMap<String, Vec<i64>>) {
@@ -198,16 +200,20 @@ fn shared_public_tensor_programs_keep_distinct_invocations_and_complete_work() {
         }
     }
     assert!(invocations > unique.len());
-    let expected_work: u64 = program
+    let expected_operations: u64 = program
         .nodes
         .iter()
         .map(|node| match &node.code {
             Code::Product { .. } => 1,
-            Code::Tensor { program, .. } => program.instructions() as u64 * 128,
+            Code::Tensor { program, .. } => program.work_budget().operations(),
             _ => 0,
         })
         .sum();
-    assert_eq!(program.operation_limit(), expected_work);
+    assert_eq!(program.operation_limit(), expected_operations);
+    assert_eq!(
+        program.work_budget(),
+        schedule_work(&program.nodes).unwrap()
+    );
     assert_eq!(execute(workers(program, &clear)), [1, 0]);
 }
 

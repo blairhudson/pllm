@@ -18,11 +18,13 @@ mod payload;
 mod protocol;
 pub mod prss;
 pub mod wire;
+mod work;
 
 pub use payload::PayloadUsage;
 use payload::Words;
 pub use protocol::PartyRuntime;
 pub use prss::multiply;
+pub use work::WorkBudget;
 
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;

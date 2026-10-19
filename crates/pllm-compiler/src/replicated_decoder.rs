@@ -16,7 +16,7 @@ pub use runtime::{PeerBytes, Worker};
 pub use source::{Manifest, Publisher, SourceChunk};
 
 use multiply::{arithmetic::Affine, tensor, InputBounds, Interval, MatrixShape};
-use pllm_core::puma::{self, multiply, Error};
+use pllm_core::puma::{self, multiply, Error, WorkBudget};
 use sha2::{Digest as _, Sha256};
 use std::sync::Arc;
 use views::Words;
@@ -156,15 +156,18 @@ struct Node {
 }
 
 impl Node {
-    fn work_units(&self) -> u64 {
+    fn work_budget(&self) -> Result<WorkBudget, Error> {
         match &self.code {
-            Code::Product { .. } => 1,
-            Code::Tensor { program, .. } => program.instructions() as u64 * 128,
-            Code::TensorLoop { program, tail, .. } => {
-                (self.lanes / program.lanes()) as u64 * program.instructions() as u64 * 128
-                    + tail.as_ref().map_or(0, |p| p.instructions() as u64 * 128)
-            }
-            _ => 0,
+            Code::Product { rescale, .. } => WorkBudget::product(self.lanes, *rescale),
+            Code::Tensor { program, .. } => Ok(program.work_budget()),
+            Code::TensorLoop { program, tail, .. } => program
+                .work_budget()
+                .checked_mul((self.lanes / program.lanes()) as u64)?
+                .checked_add(
+                    tail.as_ref()
+                        .map_or(WorkBudget::default(), |p| p.work_budget()),
+                ),
+            _ => Ok(WorkBudget::default()),
         }
     }
 
@@ -185,6 +188,12 @@ impl Node {
             Code::TensorLoop { input, .. } => vec![input.owner()],
         }
     }
+}
+
+fn schedule_work(nodes: &[Node]) -> Result<WorkBudget, Error> {
+    nodes.iter().try_fold(WorkBudget::default(), |total, node| {
+        total.checked_add(node.work_budget()?)
+    })
 }
 
 fn vec_zero<T: Default + Clone>(n: usize) -> Result<Vec<T>, Error> {

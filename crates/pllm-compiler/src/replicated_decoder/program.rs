@@ -27,7 +27,7 @@ pub struct Program {
     pub(super) retire: Vec<Vec<usize>>,
     digest: [u8; 32],
     payload_bytes: usize,
-    operation_limit: u64,
+    work: WorkBudget,
 }
 
 #[derive(Clone)]
@@ -1262,10 +1262,18 @@ impl Program {
         if weights == WeightMode::Public {
             let lookup_work = public_lookup_work_floor(rows, outputs, vocabulary)
                 .map_err(|e| format!("replicated public lookup admission: {e}"))?;
-            if lookup_work > puma::MAX_PROGRAM_OPERATIONS {
+            if lookup_work.operations() > puma::MAX_PROGRAM_OPERATIONS {
                 return Err(format!(
-                    "replicated public lookup work charge {lookup_work} exceeds limit {}",
+                    "replicated public lookup operation count {} exceeds limit {}",
+                    lookup_work.operations(),
                     puma::MAX_PROGRAM_OPERATIONS
+                ));
+            }
+            if lookup_work.cursors().aes_work > puma::prss::MAX_PROGRAM_AES_BLOCKS {
+                return Err(format!(
+                    "replicated public lookup AES bound {} exceeds limit {}",
+                    lookup_work.cursors().aes_work,
+                    puma::prss::MAX_PROGRAM_AES_BLOCKS,
                 ));
             }
         }
@@ -1404,7 +1412,7 @@ impl Program {
                 tokens.shape = vec![1, tokens.words.len()];
             }
             let mut last: Vec<_> = (0..builder.nodes.len()).collect();
-            let mut work = 0u64;
+            let work = schedule_work(&builder.nodes)?;
             let mut h = Sha256::new();
             h.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
             if weights == WeightMode::Public {
@@ -1523,11 +1531,11 @@ impl Program {
                         }
                     }
                 }
-                work = work.checked_add(node.work_units()).ok_or(Error::Bounds)?;
             }
-            if work == 0 || work > puma::MAX_PROGRAM_OPERATIONS {
+            if work.operations() == 0 {
                 return Err(Error::Bounds);
             }
+            work.limits()?;
             for &(id, index) in &selected {
                 last[id] = builder.nodes.len();
                 h.update((id as u64).to_le_bytes());
@@ -1546,7 +1554,7 @@ impl Program {
                 retire,
                 digest: h.finalize().into(),
                 payload_bytes: builder.allocated,
-                operation_limit: work,
+                work,
             })
         })();
         result.map_err(|e| format!("replicated decoder admission: {e}"))
@@ -1567,7 +1575,10 @@ impl Program {
         self.payload_bytes
     }
     pub fn operation_limit(&self) -> u64 {
-        self.operation_limit
+        self.work.operations()
+    }
+    pub fn work_budget(&self) -> WorkBudget {
+        self.work
     }
     pub fn inputs(&self) -> impl Iterator<Item = (&str, usize)> {
         self.nodes[..self.inputs]
@@ -1583,33 +1594,36 @@ impl Program {
         session: [u8; 32],
         party: puma::Party,
     ) -> Result<multiply::SetupParty, Error> {
-        let limits = puma::prss::PrssLimits::program(
-            self.operation_limit,
-            (3 * puma::MAX_LANES as u64 + 3) * self.operation_limit,
-        )?;
+        let limits = self.work.limits()?;
         multiply::SetupParty::new(puma::Context::new(session, self.digest, 0)?, party, limits)
     }
 }
 
-/// Minimum *declared charge* under the existing primitive work allowance, not a
-/// timing or cryptographic-operation count. D9 pays for every complete prefix.
+/// Source-schedule operations and per-party AES upper bounds for lookup alone,
+/// not timing or complete-decoder costs. D9 pays for every complete prefix.
 /// Reject known impossible work before importing any checkpoint values.
-fn public_lookup_work_floor(rows: usize, outputs: usize, vocabulary: usize) -> Result<u64, Error> {
+fn public_lookup_work_floor(
+    rows: usize,
+    outputs: usize,
+    vocabulary: usize,
+) -> Result<WorkBudget, Error> {
     if rows == 0 || outputs == 0 || vocabulary == 0 {
         return Err(Error::Shape);
     }
     let bounds = Interval::new(-(vocabulary as i64 - 1), vocabulary as i64 - 1)?;
     let width = vocabulary.min(128);
     let program = tensor::Program::equal_zero(width, bounds)?;
-    let mut charge = (vocabulary / width) as u64 * program.instructions() as u64 * 128;
+    let mut charge = program
+        .work_budget()
+        .checked_mul((vocabulary / width) as u64)?;
     if vocabulary % width != 0 {
-        charge +=
-            tensor::Program::equal_zero(vocabulary % width, bounds)?.instructions() as u64 * 128;
+        charge = charge
+            .checked_add(tensor::Program::equal_zero(vocabulary % width, bounds)?.work_budget())?;
     }
     let prefixes = (0..outputs)
         .try_fold(0usize, |n, i| n.checked_add(rows.checked_add(i)?))
         .ok_or(Error::Bounds)?;
-    charge.checked_mul(prefixes as u64).ok_or(Error::Bounds)
+    charge.checked_mul(prefixes as u64)
 }
 
 pub(super) fn lower_with_weights(

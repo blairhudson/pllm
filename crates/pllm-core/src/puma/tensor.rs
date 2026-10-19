@@ -106,6 +106,7 @@ pub struct Program {
     bit_widths: [u8; MAX_NODES],
     public_affines: [Vec<Affine>; 2],
     public_affine_count: usize,
+    work: WorkBudget,
 }
 
 pub struct Builder(Program);
@@ -134,6 +135,7 @@ impl Builder {
             bit_widths: [0; MAX_NODES],
             public_affines: [Vec::new(), Vec::new()],
             public_affine_count: 0,
+            work: WorkBudget::default(),
         };
         program.nodes[0] = Some(Node {
             instruction: Instruction::Input,
@@ -486,6 +488,12 @@ impl Builder {
             self.0.register_count = self.0.register_count.max(slot + 1);
             available_at[slot] = usize::from(self.0.last_use[i]).max(i) + 1;
         }
+        self.0.work = self.0.nodes[..self.0.len]
+            .iter()
+            .flatten()
+            .try_fold(WorkBudget::default(), |total, node| {
+                total.checked_add(self.0.instruction_work(*node)?)
+            })?;
         Ok(self.0)
     }
 }
@@ -577,6 +585,34 @@ impl Program {
     }
     pub fn instructions(&self) -> usize {
         self.len - 1
+    }
+
+    /// Exact top-level ordinals and shape-aware PRSS upper bounds for one
+    /// invocation. This is not a CPU, network-round or wall-time measurement.
+    pub fn work_budget(&self) -> WorkBudget {
+        self.work
+    }
+
+    fn instruction_work(&self, node: Node) -> Result<WorkBudget, Error> {
+        Ok(match node.instruction {
+            Instruction::Input => WorkBudget::default(),
+            Instruction::Product { rescale, .. } => WorkBudget::product(node.lanes, rescale)?,
+            Instruction::Rescale { .. } => WorkBudget::rescale(node.lanes)?,
+            Instruction::Sign(_) => WorkBudget::conversion(node.lanes, true)?,
+            Instruction::Bits(_) => WorkBudget::conversion(node.lanes, false)?,
+            Instruction::FromBit(input) => {
+                WorkBudget::from_boolean(node.lanes, self.bit_widths[input.0 as usize])?
+            }
+            Instruction::BitOr(a, b) => WorkBudget::bit_or(
+                node.lanes,
+                self.bit_widths[a.0 as usize].max(self.bit_widths[b.0 as usize]),
+            )?,
+            Instruction::Affine { .. }
+            | Instruction::LaneAffine(..)
+            | Instruction::RowMap(..)
+            | Instruction::BitMap(..)
+            | Instruction::BitXor(..) => WorkBudget::local(),
+        })
     }
     pub fn output_bounds(&self) -> Interval {
         self.nodes[self.len - 1].unwrap().bounds
@@ -850,23 +886,9 @@ impl Executor {
                 return Err(Error::Bounds);
             }
             let invocation = runtime.source.runtime.next_sequence();
-            if invocation
-                .checked_add(3 * program.instructions() as u64)
-                .is_none_or(|v| v > runtime.source.limits.core.max_operations)
-            {
-                return Err(Error::Bounds);
-            }
-            // Conservative aggregate work, including every carry circuit and
-            // helper split, before any instruction consumes randomness.
-            let work = program.instructions() as u64 * (64 * program.lanes as u64 + 4);
-            runtime.source.work(work)?;
-            for cursor in [
-                runtime.cursors().pair_blocks,
-                runtime.cursors().public_blocks,
-                runtime.cursors().private_blocks,
-            ] {
-                cursor.checked_add(work).ok_or(Error::Bounds)?;
-            }
+            // Every nested Boolean fill, public pivot and possible helper split
+            // is priced before the first instruction consumes randomness.
+            runtime.source.admit_work(program.work_budget())?;
             metadata = Some(usage.reserve(metadata_bytes(&program))?);
             let mut registers = Vec::new();
             registers

@@ -21,7 +21,7 @@ fn selector_program(vocabulary: usize) -> Arc<Program> {
             |n| tensor::Program::equal_zero(n, bound),
         )
         .unwrap();
-    let work = b.nodes.iter().map(Node::work_units).sum();
+    let work = schedule_work(&b.nodes).unwrap();
     let mut retire = vec![vec![]; b.nodes.len()];
     retire[output].push(token);
     Arc::new(Program {
@@ -31,7 +31,7 @@ fn selector_program(vocabulary: usize) -> Arc<Program> {
         outputs: (0..vocabulary).map(|i| (output, i)).collect(),
         digest: [97; 32],
         payload_bytes: b.allocated,
-        operation_limit: work,
+        work,
     })
 }
 
@@ -55,10 +55,17 @@ fn compact_private_selectors_cover_every_lane_and_tail_under_one_live_loop() {
     }
     let full = selector_program(151936);
     assert!(full.payload_bytes() < 4 << 20);
-    // Compact storage does not make a large protected schedule cheap: retain
-    // the whole declared work, rather than charging just one template.
-    assert!(full.operation_limit() > puma::MAX_PROGRAM_OPERATIONS);
-    assert!(full.setup([43; 32], puma::Party::P0).is_err());
+    // One full lookup has 1,187 complete 128-lane invocations, each with
+    // 28 top-level ordinals. Nested gate rounds retain their separate AES cost.
+    assert_eq!(full.operation_limit(), 1187 * 28);
+    assert_eq!(full.work_budget().cursors().aes_work, 1187 * 2817);
+    full.setup([43; 32], puma::Party::P0).unwrap().cancel();
+    assert!(full
+        .work_budget()
+        .checked_mul(32)
+        .unwrap()
+        .limits()
+        .is_err());
 }
 
 #[test]
@@ -120,7 +127,7 @@ fn batched_private_argmax_preserves_lowest_index_ties_and_odd_tails() {
             .push(Code::Input("logits".into()), n, interval(&logits))
             .unwrap();
         let output = builder.argmax_tree(&builder.view(input, vec![n])).unwrap();
-        let work: u64 = builder.nodes.iter().map(Node::work_units).sum();
+        let work = schedule_work(&builder.nodes).unwrap();
         let program = Arc::new(Program {
             retire: vec![vec![]; builder.nodes.len()],
             nodes: builder.nodes,
@@ -128,7 +135,7 @@ fn batched_private_argmax_preserves_lowest_index_ties_and_odd_tails() {
             outputs: output.words.iter().collect(),
             digest: [95; 32],
             payload_bytes: builder.allocated,
-            operation_limit: work.max(1),
+            work,
         });
         assert_eq!(
             execute(workers(
@@ -188,7 +195,7 @@ fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
                     .nodes
                     .iter()
                     .any(|n| matches!(n.code, Code::Product { .. })));
-                let work: u64 = b.nodes.iter().map(Node::work_units).sum();
+                let work = schedule_work(&b.nodes).unwrap();
                 let program = Arc::new(Program {
                     retire: vec![vec![]; b.nodes.len()],
                     nodes: b.nodes,
@@ -196,7 +203,7 @@ fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
                     outputs: out.words.iter().collect(),
                     digest: [93; 32],
                     payload_bytes: b.allocated,
-                    operation_limit: work.max(1),
+                    work,
                 });
                 let actual = execute(workers(
                     program,
@@ -249,7 +256,7 @@ fn compile(
         &b.view(w, vec![columns, inner]),
         rescale,
     )?;
-    let work = b.nodes.iter().map(Node::work_units).sum();
+    let work = schedule_work(&b.nodes)?;
     Ok(Arc::new(Program {
         retire: vec![vec![]; b.nodes.len()],
         nodes: b.nodes,
@@ -257,7 +264,7 @@ fn compile(
         outputs: out.words.iter().collect(),
         digest: [71; 32],
         payload_bytes: b.allocated,
-        operation_limit: work,
+        work,
     }))
 }
 
@@ -403,11 +410,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 !b.nodes.iter().any(|n| matches!(&n.code, Code::Gather(items)
                 if items.iter().any(|(id, _)| id == source.owner)))
             );
-            let work = b
-                .nodes
-                .iter()
-                .filter(|n| matches!(n.code, Code::Product { .. }))
-                .count() as u64;
+            let work = schedule_work(&b.nodes).unwrap();
             let program = Arc::new(Program {
                 retire: vec![vec![]; b.nodes.len()],
                 nodes: b.nodes,
@@ -415,7 +418,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 outputs: output.words.iter().collect(),
                 digest: [73; 32],
                 payload_bytes: b.allocated,
-                operation_limit: work,
+                work,
             });
             // Keep one party on the original explicit-gather representation.
             // Contexts, operand bindings and fresh PRSS remain interoperable.
@@ -426,7 +429,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 outputs: program.outputs.clone(),
                 digest: program.digest,
                 payload_bytes: program.payload_bytes,
-                operation_limit: program.operation_limit,
+                work: program.work,
             };
             for node in &mut expanded.nodes {
                 if let Code::SourceGather(view) = node.code {

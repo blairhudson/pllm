@@ -1,0 +1,65 @@
+{
+  "all_collected_cases_have_final_outcomes": true,
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+    "-I",
+    "-m",
+    "pytest",
+    "--collect-only",
+    "-q",
+    "-o",
+    "pythonpath=.",
+    "tests/test_replicated_interfaces.py",
+    "tests/test_replicated_public_weights.py",
+    "tests/test_replicated_quality.py",
+    "tests/test_replicated_sdk.py",
+    "tests/test_replicated_worker.py",
+    "tests/test_delegated_source.py",
+    "tests/test_reference_agreement.py",
+    "tests/test_reference_benchmark.py",
+    "tests/test_profiles.py",
+    "tests/test_component_families.py",
+    "tests/test_benchmark_memory.py",
+    "tests/test_benchmark_coverage.py"
+  ],
+  "collection_count": 252,
+  "passed": 245,
+  "prior_passed": 22,
+  "receipts": [
+    "../puma-work-budget-validation-v3/installed-tests.xml",
+    "installed-tests.xml"
+  ],
+  "retry_passed": 223,
+  "scope": "unique cases across unchanged-source attempts; cancelled invocation superseded by unmodified successful retry",
+  "skipped": [
+    {
+      "nodeid": "tests/test_reference_benchmark.py::test_quality_benchmark_uses_selected_metal_stage_kernel",
+      "reason": "Apple Silicon and pllm.run[metal] are required"
+    },
+    {
+      "nodeid": "tests/test_reference_benchmark.py::test_pinned_reference_cohort_matches_retained_report[PLLM_REAL_QWEN_PATH-Qwen/Qwen2.5-0.5B-Instruct@7ae557604adf67be50417f59c2c2f167def9a775-qwen2-qwen2.5-0.5b-reference-quality-2026-09-24.json-16-2-local://qwen2-reference-quality]",
+      "reason": "pinned checkpoint path is not configured: PLLM_REAL_QWEN_PATH"
+    },
+    {
+      "nodeid": "tests/test_reference_benchmark.py::test_pinned_reference_cohort_matches_retained_report[PLLM_REAL_QWEN3_PATH-Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca-qwen3-qwen3-0.6b-reference-quality-2026-09-24.json-16-2-local://qwen3-reference-quality]",
+      "reason": "pinned checkpoint path is not configured: PLLM_REAL_QWEN3_PATH"
+    },
+    {
+      "nodeid": "tests/test_reference_benchmark.py::test_pinned_reference_cohort_matches_retained_report[PLLM_REAL_PHI_PATH-microsoft/Phi-4-mini-instruct@cfbefacb99257ffa30c83adab238a50856ac3083-phi4-mini-phi4mini-reference-quality-2026-09-24.json-32-1-local://phi-real-quality]",
+      "reason": "pinned checkpoint path is not configured: PLLM_REAL_PHI_PATH"
+    },
+    {
+      "nodeid": "tests/test_reference_benchmark.py::test_pinned_phi_public_equalization_reproduces_both_reference_cohorts[reference_prompts.json-phi4mini-equalization-quality-2026-09-26.json-2]",
+      "reason": "pinned Phi checkpoint path is not configured"
+    },
+    {
+      "nodeid": "tests/test_reference_benchmark.py::test_pinned_phi_public_equalization_reproduces_both_reference_cohorts[phi4mini_holdout_prompts.json-phi4mini-equalization-holdout-2026-09-26.json-5]",
+      "reason": "pinned Phi checkpoint path is not configured"
+    },
+    {
+      "nodeid": "tests/test_benchmark_memory.py::test_native_cpu_metal_benchmark_fallback_preserves_output",
+      "reason": "could not import 'mlx.core': No module named 'mlx'"
+    }
+  ],
+  "status": "passed"
+}

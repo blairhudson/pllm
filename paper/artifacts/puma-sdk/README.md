@@ -31,10 +31,21 @@ admission, quality and practical resource measurements remain open.
 
 The [activation-view and tensor-loop slice](local-v5/README.md) prices the live
 compiler frontier and executes public lookup, rescaling and SiLU in bounded
-loops with fresh per-iteration MPC state. Qwen's view-memory gate now clears;
-its private lookup exceeds the existing declared-work allowance before source
+loops with fresh per-iteration MPC state. That Qwen view-memory gate cleared;
+its private lookup exceeded the declared-work allowance before source
 values or worker launch. The separate installed-wheel suite passes 245 Python
 and 20 native checks, with seven optional skips.
+
+The [native work-budget slice](local-v6/README.md) derives consumed sequence
+ordinals and PRSS cursor/AES bounds from each immutable instruction schedule.
+All loop iterations
+and full-prefix selections are charged under independently enforced original
+ceilings. Qwen's public 4+2 metadata gate admits; 16+2 still exceeds the sequence
+ceiling before source values. Complete-model work and ranges remain separate
+execution gates. The installed-wheel checks pass 245 unique Python cases, 139
+native core/compiler/integration checks and five ownership doctests, with seven
+optional skips. Ordinary Qwen source preflight separately rejects the shared
+reader's private-weight tensor limits; it supplies no execution result.
 
 ## Retained evidence
 
