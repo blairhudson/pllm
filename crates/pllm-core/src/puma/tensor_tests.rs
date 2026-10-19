@@ -488,6 +488,162 @@ fn row_programs_bind_geometry_coefficients_and_eager_range_gates() {
     assert!(Program::layer_norm(1, 2, input, &[i64::MAX; 2], &[0; 2]).is_err());
 }
 
+fn softmax_oracle(x: &[i64], width: usize, tapes: &[Vec<u64>]) -> Vec<i64> {
+    // Independent D6 equations. Clipped terms are identically zero, regardless
+    // of their discarded powers. Only retained terms need exponent arithmetic.
+    assert_eq!(tapes.len(), 13);
+    let mut output = Vec::new();
+    for (row, values) in x.chunks_exact(width).enumerate() {
+        let base = row * width;
+        let maximum = *values.iter().max().unwrap();
+        let exponentials: Vec<_> = values
+            .iter()
+            .enumerate()
+            .map(|(i, &x)| {
+                let z = x - maximum;
+                if z <= -14 * ONE {
+                    return 0;
+                }
+                let mut v = ONE + rounded(i128::from(z), tapes[0][base + i], 5);
+                for tape in &tapes[1..6] {
+                    v = rounded(i128::from(v).pow(2), tape[base + i], 18);
+                }
+                v
+            })
+            .collect();
+        let total = exponentials.iter().sum();
+        let inverse = normalization_oracle(false, total, tapes[6..12].iter().map(|t| t[row]));
+        output.extend(
+            exponentials.iter().enumerate().map(|(i, &v)| {
+                rounded(i128::from(v) * i128::from(inverse), tapes[12][base + i], 18)
+            }),
+        );
+    }
+    output
+}
+
+#[test]
+fn guarded_softmax_preserves_strict_cutoff_and_stochastic_source_equations() {
+    let bounds = Interval::new(-1_500_000_000_000, 1_500_000_000_000).unwrap();
+    assert!(Program::softmax(1, 3, bounds).is_err());
+    for (rows, width) in [(1, 1), (3, 3), (2, 7), (1, 128), (1, 512)] {
+        let program = Program::softmax_guarded(rows, width, bounds).unwrap();
+        let guard = program.nodes[..program.len]
+            .iter()
+            .find_map(|n| match n.unwrap().instruction {
+                Instruction::Rescale { input, shift: 5 } => Some(input),
+                _ => None,
+            })
+            .unwrap();
+        let Instruction::Product { right: keep, .. } =
+            program.nodes[guard.0 as usize].unwrap().instruction
+        else {
+            panic!("shift input must be guarded");
+        };
+        for values in [
+            vec![bounds.lower(); rows * width],
+            (0..rows * width)
+                .map(|i| {
+                    let maximum = [bounds.upper(), 0, bounds.lower() + 15 * ONE][i / width % 3];
+                    maximum
+                        + [
+                            0,
+                            -14 * ONE - 1,
+                            -14 * ONE,
+                            -14 * ONE + 1,
+                            -ONE - 3,
+                            -1,
+                            -15 * ONE,
+                        ][i % width % 7]
+                })
+                .collect(),
+            (0..rows * width)
+                .map(|i| {
+                    if i % width == width - 1 {
+                        bounds.upper()
+                    } else {
+                        bounds.lower()
+                    }
+                })
+                .collect(),
+        ] {
+            let mut owners = owners(&program, &values);
+            let usage = owners.each_ref().map(Executor::payload_usage);
+            let mut tapes = vec![];
+            for index in 1..=program.instructions() {
+                if index == guard.0 as usize {
+                    // Observe only in this all-party test, before the exact
+                    // guard product. Boundary outputs can round to zero even
+                    // on the retained side, so check the secret predicate too.
+                    let shares = owners.each_ref().map(|o| {
+                        let Some(Register::Arithmetic(value)) =
+                            &o.registers[program.slots[keep.0 as usize] as usize]
+                        else {
+                            panic!("keep must remain live");
+                        };
+                        value
+                    });
+                    let expected: Vec<_> = values
+                        .chunks_exact(width)
+                        .flat_map(|row| {
+                            let maximum = *row.iter().max().unwrap();
+                            row.iter().map(move |&x| i64::from(x - maximum > -14 * ONE))
+                        })
+                        .collect();
+                    assert_eq!(clear_refs(shares), expected);
+                }
+                if let Some(tape) = step(&mut owners).0 {
+                    tapes.push(tape);
+                }
+            }
+            let output = owners.map(|o| o.finish().unwrap().1);
+            assert_eq!(clear(&output), softmax_oracle(&values, width, &tapes));
+            assert!(usage
+                .iter()
+                .all(|u| u.peak_bytes() + FIXED_RESERVE_BYTES <= program.admitted_bytes()));
+            drop(output);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+    }
+}
+
+#[test]
+fn guarded_softmax_binds_added_work_and_retains_range_and_lifetime_gates() {
+    let range = Interval::new(-14 * ONE, 0).unwrap();
+    let eager = Program::softmax(1, 3, range).unwrap();
+    let guarded = Program::softmax_guarded(1, 3, range).unwrap();
+    assert_ne!(eager.digest(), guarded.digest());
+    assert_eq!(guarded.instructions(), eager.instructions() + 1);
+    assert_eq!(
+        guarded.work_budget().operations(),
+        eager.work_budget().operations() + 1
+    );
+    assert!(guarded.work_budget().cursors().aes_work > eager.work_budget().cursors().aes_work);
+    // Each schedule matches the same independent equations, with its own fresh
+    // random tape. Moving operations does not promise identical PRSS cursors.
+    let values = [-14 * ONE, -14 * ONE + 1, 0];
+    for program in [&eager, &guarded] {
+        let mut owners = owners(program, &values);
+        let mut tapes = vec![];
+        for _ in 0..program.instructions() {
+            if let Some(tape) = step(&mut owners).0 {
+                tapes.push(tape);
+            }
+        }
+        assert_eq!(
+            clear(&owners.map(|o| o.finish().unwrap().1)),
+            softmax_oracle(&values, 3, &tapes)
+        );
+    }
+    for (rows, width) in [(0, 1), (1, 0), (usize::MAX, 2), (1, MAX_ROW_LANES + 1)] {
+        assert!(Program::softmax_guarded(rows, width, range).is_err());
+    }
+    assert!(Program::softmax_guarded(1, 3, Interval::new(i64::MIN, i64::MAX).unwrap()).is_err());
+    let broad =
+        Program::softmax_guarded(1, 3, Interval::new(-1_500_000_000_000, 0).unwrap()).unwrap();
+    cancel_at_every_event(&broad, &[-1_500_000_000_000, -14 * ONE + 1, 0]);
+}
+
 fn rms_norm_oracle(x: &[i64], width: usize, gamma: &[i64], tapes: &[Vec<u64>]) -> Vec<i64> {
     assert_eq!(tapes.len(), 10);
     let mut output = Vec::new();
@@ -762,6 +918,10 @@ fn owners_for_repeats(program: &Program, values: &[i64], repeats: u64) -> [Execu
 }
 
 fn clear(values: &[ReplicatedShare; 3]) -> Vec<i64> {
+    clear_refs(values.each_ref())
+}
+
+fn clear_refs(values: [&ReplicatedShare; 3]) -> Vec<i64> {
     for i in 0..3 {
         assert_eq!(values[i].second(), values[(i + 1) % 3].first());
     }

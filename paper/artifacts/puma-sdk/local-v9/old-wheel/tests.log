@@ -1,0 +1,148 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_ test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback[qwen2] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3936/test_public_guarded_softmax_ac0')
+family = 'qwen2'
+
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback(tmp_path, family):
+        from safetensors.numpy import load_file, save_file
+    
+        experiment = experiment_fixture(tmp_path, family=family, weights="public")
+        path = Path(experiment.pipeline.model.source) / "model.safetensors"
+        values = load_file(path)
+        for key, value in values.items():
+            if key.endswith(("q_proj.weight", "k_proj.weight", "q_norm.weight", "k_norm.weight")):
+                value.fill(64)
+        save_file(values, path, metadata={"format": "pt"})
+        source = admit_source(experiment)
+        # Nonzero Q/K force wide score bounds and clipped exponentials. V/O/MLP
+        # remain zero, so the independent signed-head feedback oracle is unchanged.
+>       assert native_execution(source, experiment, (3, 4), 2) == (2, 1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_public_weights.py:161: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_replicated_sdk.py:89: in native_execution
+    publisher, manifest = source.publisher(experiment, ids, count, lambda: False)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = ReplicatedSource(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhud...    "unk_token": "<unk>"\n  }\n}', tokenizer_digest='28b2db68e9d8680144998240a5db1dfa200a5b53d9eb554eba4dcedc63aa928c')
+experiment = Experiment(name='puma-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg0...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=8, max_input_tokens=8, max_new_tokens=2))
+ids = (3, 4), outputs = 2
+cancelled = <function native_execution.<locals>.<lambda> at 0x10a296020>
+
+    def publisher(self, experiment, ids, outputs, cancelled):
+        self.runtime_contract(experiment, len(ids), outputs)
+        owner = _native.ReplicatedPublisher(
+            self.config_bytes, len(ids), outputs, bytes.fromhex(self.source_lock_digest),
+            bytes.fromhex(experiment.pipeline.digest()), self.contract.get("weights", "private"),
+        )
+        try:
+            self._append_source(owner.shapes, owner.append, cancelled)
+>           manifest = owner.seal(b"".join(token.to_bytes(4, "little") for token in ids))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           ValueError: replicated decoder admission: PUMA truncation rejected: Bounds; public context selection: 0, step: Some(17), operator: Some(Softmax), layer: Some(0), inputs: [Some((-23668049652, 23668049652)), None]
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_source.py:76: ValueError
+_ test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback[qwen3] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3936/test_public_guarded_softmax_ac1')
+family = 'qwen3'
+
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback(tmp_path, family):
+        from safetensors.numpy import load_file, save_file
+    
+        experiment = experiment_fixture(tmp_path, family=family, weights="public")
+        path = Path(experiment.pipeline.model.source) / "model.safetensors"
+        values = load_file(path)
+        for key, value in values.items():
+            if key.endswith(("q_proj.weight", "k_proj.weight", "q_norm.weight", "k_norm.weight")):
+                value.fill(64)
+        save_file(values, path, metadata={"format": "pt"})
+        source = admit_source(experiment)
+        # Nonzero Q/K force wide score bounds and clipped exponentials. V/O/MLP
+        # remain zero, so the independent signed-head feedback oracle is unchanged.
+>       assert native_execution(source, experiment, (3, 4), 2) == (2, 1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_public_weights.py:161: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_replicated_sdk.py:89: in native_execution
+    publisher, manifest = source.publisher(experiment, ids, count, lambda: False)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = ReplicatedSource(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhud...    "unk_token": "<unk>"\n  }\n}', tokenizer_digest='28b2db68e9d8680144998240a5db1dfa200a5b53d9eb554eba4dcedc63aa928c')
+experiment = Experiment(name='puma-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg0...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=8, max_input_tokens=8, max_new_tokens=2))
+ids = (3, 4), outputs = 2
+cancelled = <function native_execution.<locals>.<lambda> at 0x10a318b80>
+
+    def publisher(self, experiment, ids, outputs, cancelled):
+        self.runtime_contract(experiment, len(ids), outputs)
+        owner = _native.ReplicatedPublisher(
+            self.config_bytes, len(ids), outputs, bytes.fromhex(self.source_lock_digest),
+            bytes.fromhex(experiment.pipeline.digest()), self.contract.get("weights", "private"),
+        )
+        try:
+            self._append_source(owner.shapes, owner.append, cancelled)
+>           manifest = owner.seal(b"".join(token.to_bytes(4, "little") for token in ids))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           ValueError: replicated decoder admission: PUMA truncation rejected: Bounds; public context selection: 0, step: Some(19), operator: Some(Softmax), layer: Some(0), inputs: [Some((-11836036292, 11836036292)), None]
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_source.py:76: ValueError
+_ test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback[llama] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3936/test_public_guarded_softmax_ac2')
+family = 'llama'
+
+    @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+    def test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback(tmp_path, family):
+        from safetensors.numpy import load_file, save_file
+    
+        experiment = experiment_fixture(tmp_path, family=family, weights="public")
+        path = Path(experiment.pipeline.model.source) / "model.safetensors"
+        values = load_file(path)
+        for key, value in values.items():
+            if key.endswith(("q_proj.weight", "k_proj.weight", "q_norm.weight", "k_norm.weight")):
+                value.fill(64)
+        save_file(values, path, metadata={"format": "pt"})
+        source = admit_source(experiment)
+        # Nonzero Q/K force wide score bounds and clipped exponentials. V/O/MLP
+        # remain zero, so the independent signed-head feedback oracle is unchanged.
+>       assert native_execution(source, experiment, (3, 4), 2) == (2, 1)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_public_weights.py:161: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_replicated_sdk.py:89: in native_execution
+    publisher, manifest = source.publisher(experiment, ids, count, lambda: False)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = ReplicatedSource(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhud...    "unk_token": "<unk>"\n  }\n}', tokenizer_digest='28b2db68e9d8680144998240a5db1dfa200a5b53d9eb554eba4dcedc63aa928c')
+experiment = Experiment(name='puma-sdk', pipeline=Pipeline(model=BundleModel(source='/private/var/folders/3d/16hqtng12ng_bfz1n99jg0...work_spec_digest=None, snapshot_digest=None), budget=ExecutionBudget(requests=8, max_input_tokens=8, max_new_tokens=2))
+ids = (3, 4), outputs = 2
+cancelled = <function native_execution.<locals>.<lambda> at 0x10a318ae0>
+
+    def publisher(self, experiment, ids, outputs, cancelled):
+        self.runtime_contract(experiment, len(ids), outputs)
+        owner = _native.ReplicatedPublisher(
+            self.config_bytes, len(ids), outputs, bytes.fromhex(self.source_lock_digest),
+            bytes.fromhex(experiment.pipeline.digest()), self.contract.get("weights", "private"),
+        )
+        try:
+            self._append_source(owner.shapes, owner.append, cancelled)
+>           manifest = owner.seal(b"".join(token.to_bytes(4, "little") for token in ids))
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           ValueError: replicated decoder admission: PUMA truncation rejected: Bounds; public context selection: 0, step: Some(17), operator: Some(Softmax), layer: Some(0), inputs: [Some((-23668049652, 23668049652)), None]
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_source.py:76: ValueError
+=========================== short test summary info ============================
+FAILED tests/test_replicated_public_weights.py::test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback[qwen2]
+FAILED tests/test_replicated_public_weights.py::test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback[qwen3]
+FAILED tests/test_replicated_public_weights.py::test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback[llama]
+3 failed in 0.14s

@@ -209,6 +209,23 @@ impl Program {
     /// Shifted, strictly clipped P-N1 softmax. Every eagerly evaluated power is
     /// admitted, including the lanes subsequently masked below -14.
     pub fn softmax(rows: usize, width: usize, input: Interval) -> Result<Self, Error> {
+        Self::softmax_schedule(rows, width, input, false)
+    }
+
+    /// Range-safe shifted softmax. Secretly replace clipped inputs by zero
+    /// before exponentiation, then zero those exponentials before summation.
+    /// Retained-domain stochastic equations and the strict cutoff are unchanged;
+    /// the additional exact shared product has a distinct program identity.
+    pub fn softmax_guarded(rows: usize, width: usize, input: Interval) -> Result<Self, Error> {
+        Self::softmax_schedule(rows, width, input, true)
+    }
+
+    fn softmax_schedule(
+        rows: usize,
+        width: usize,
+        input: Interval,
+        guard_tail: bool,
+    ) -> Result<Self, Error> {
         let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
         if width == 0 || rows == 0 {
             return Err(Error::Bounds);
@@ -233,14 +250,30 @@ impl Program {
             .checked_sub(input.upper())
             .ok_or(Error::Bounds)?;
         b.0.nodes[z.0 as usize].as_mut().unwrap().bounds = Interval::new(lower, 0)?;
-        let reduced = b.rescale(z, 5)?;
+        let keep = if guard_tail {
+            Some(softmax_keep(&mut b, z)?)
+        } else {
+            None
+        };
+        let safe_z = if let Some(keep) = keep {
+            let safe = b.product(z, keep, false)?;
+            // keep=1 iff z>-14*ONE; otherwise safe=0. This proof uses
+            // the shared predicate, never a revealed value or private range.
+            b.0.nodes[safe.0 as usize].as_mut().unwrap().bounds =
+                Interval::new(lower.max(-14 * ONE + 1), 0)?;
+            safe
+        } else {
+            z
+        };
+        let reduced = b.rescale(safe_z, 5)?;
         let mut exp = b.affine(reduced, None, affine(1, 0, ONE))?;
         for _ in 0..5 {
             exp = b.square(exp)?;
         }
-        let threshold = b.affine(z, None, affine(-1, 0, -14 * ONE))?;
-        let keep = b.sign(threshold)?;
-        let keep = b.from_bit(keep)?;
+        let keep = match keep {
+            Some(keep) => keep,
+            None => softmax_keep(&mut b, z)?,
+        };
         let exp = b.product(exp, keep, false)?;
         let total = b.row_map(exp, width, RowMap::Sum)?;
         let upper = b.node(total, false)?.bounds.upper();
@@ -391,6 +424,12 @@ impl Program {
         let output = rsqrt(&mut b, Value(0), input)?;
         b.finish(output)
     }
+}
+
+fn softmax_keep(b: &mut Builder, z: Value) -> Result<Value, Error> {
+    let threshold = b.affine(z, None, affine(-1, 0, -14 * ONE))?;
+    let keep = b.sign(threshold)?;
+    b.from_bit(keep)
 }
 
 fn rms_normalization(

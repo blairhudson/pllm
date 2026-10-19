@@ -1,0 +1,31 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (target/debug/deps/pllm_compiler-102706cdd876eb14)
+
+running 24 tests
+test replicated_decoder::program::linear_tests::batched_private_argmax_preserves_lowest_index_ties_and_odd_tails ... ok
+test replicated_decoder::program::linear_tests::certified_public_row_sum_admits_sparse_products_without_relaxing_truncation ... ok
+test replicated_decoder::program::linear_tests::certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products ... ok
+test replicated_decoder::program::linear_tests::compact_private_selectors_cover_every_lane_and_tail_under_one_live_loop ... ok
+test replicated_decoder::program::linear_tests::compact_source_descriptors_reject_overflow_and_non_source_owners_before_nodes ... ok
+test replicated_decoder::program::linear_tests::compact_source_tiles_preserve_strided_transpose_and_partial_contractions ... ok
+test replicated_decoder::program::linear_tests::complete_accumulator_range_rejects_even_when_each_chunk_fits ... ok
+test replicated_decoder::program::linear_tests::half_units_across_chunk_boundary_sum_exactly_before_truncation ... ok
+test replicated_decoder::program::linear_tests::paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums ... ok
+test replicated_decoder::program::linear_tests::replay_between_loop_iterations_burns_partial_outputs_and_runtime ... ok
+test replicated_decoder::program::linear_tests::wide_private_dots_preserve_complete_integer_reductions_and_one_rounding ... ok
+test replicated_decoder::tests::compact_storage_preserves_frozen_full_prefix_execution_identities ... ok
+test replicated_decoder::tests::complete_protected_prefill_feedback_and_final_ids_cross_encoded_party_boundaries ... ok
+test replicated_decoder::tests::every_selection_reexecutes_original_private_tokens_and_consumes_fresh_work ... ok
+test replicated_decoder::tests::largest_live_prefix_views_reject_before_source_values ... ok
+test replicated_decoder::tests::malformed_input_and_peer_frames_retire_complete_worker_owner ... ok
+test replicated_decoder::tests::nonzero_attention_and_mlp_preserve_private_prefix_dependence ... ok
+test replicated_decoder::tests::pinned_qwen_public_metadata_prices_live_frontier_without_source_values ... ok
+test replicated_decoder::tests::public_numeric_admission_identifies_semantic_operator_and_retires_publisher ... ok
+test replicated_decoder::tests::public_row_certificates_are_recomputed_across_frames_and_bind_source_reuse ... ok
+test replicated_decoder::tests::public_weights_keep_prefix_and_feedback_private_with_original_final_id_contract ... ok
+test replicated_decoder::tests::shared_public_tensor_programs_keep_distinct_invocations_and_complete_work ... ok
+test replicated_decoder::views::tests::maximal_indices_and_owner_changes_do_not_create_overflowed_spans ... ok
+test replicated_decoder::views::tests::slices_broadcasts_permutations_and_partial_tiles_keep_exact_order ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 46 filtered out; finished in 23.07s
+

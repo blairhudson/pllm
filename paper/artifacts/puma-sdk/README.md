@@ -61,6 +61,13 @@ locate the failing public interval. Pinned Qwen publication passes its first
 attention product but rejects the first softmax's eager exponential range;
 worker execution and full-model qualification remain blocked.
 
+The [guarded-softmax slice](local-v9/README.md) moves the shared tail predicate
+before exponential evaluation in public-weight execution. Exact selection keeps
+retained-domain rounding and zero tails, with the changed schedule and additional
+product charged. Generated wide-score Qwen2/Qwen3/Llama controls execute private
+feedback. Pinned Qwen publication clears softmax and rejects the next RMSNorm;
+complete-checkpoint execution remains blocked.
+
 ## Retained evidence
 
 [`local-v1/summary.json`](local-v1/summary.json) records:

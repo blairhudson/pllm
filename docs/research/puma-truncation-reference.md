@@ -273,6 +273,43 @@ metrics. Whole-model range/work admission, quality and matched response costs
 remain open. Original attempts, installed-wheel conformance and replay are in the
 [range-proof slice](../../paper/artifacts/puma-sdk/local-v8/README.md).
 
+### Guarded shared softmax tails
+
+The public-weight compiler now selects `Program::softmax_guarded`. It computes
+the original shared row maximum and shifted score `z`, then the same strict
+predicate `b = [z > -14*2^18]`. One exact, untruncated shared product sets
+`w = z*b` before the five exponential squarings. The native proof bounds `w`
+between `max(public_lower(z), -14*2^18+1)` and zero. It derives this bound from
+the predicate equation; no private score, bit or exponent is opened.
+
+Retained lanes have `w=z` and keep the original five-bit rescale, constants and
+five sequential Q18 square/truncation operations. Clipped lanes instead evaluate
+the bounded zero input and retain the original exact zero output after the final
+`b` mask. Row reduction, reciprocal and final normalization remain unchanged.
+The shared predicate and unwrapped product still require public range admission.
+The original eager constructor and private-weight execution retain their identities.
+
+The changed public schedule and extra product bind the program digest and add to
+sequence/AES pricing. Every invocation consumes fresh party-local state. Tests
+replay each schedule's own truncation tape against independent source equations;
+the changed PRSS cursors retain distinct transcripts. Integer controls cover
+strict-cutoff neighbors, constant and
+wide-range rows, non-power-of-two geometry and 512-value rows. Cancellation and
+allocation-index controls include the guarded schedule under the original 256 KiB
+party ceiling. Generated Qwen2/Qwen3/Llama sources with nonzero wide Q/K execute
+private feedback; the Qwen2 control also traverses three authenticated SDK workers.
+Their V/O/MLP weights stay zero, so a separate signed-head oracle checks feedback
+while the primitive oracles check complete softmax values. Each generated
+regression rejects softmax on the previous installed wheel.
+
+Pinned Qwen2.5 4+2 source publication now clears the first softmax. It rejects
+layer-zero post-attention `RmsNorm` at semantic step 22, with public encoded input
+interval `[-1571860067, 1571850851]`, before role-worker launch. This guarded source
+publication observes zero swap growth. Whole-model ranges, complete-program work,
+hidden-state parity, quality and response costs remain open. Original receipts,
+installed-wheel checks and replay are in the
+[guarded-softmax slice](../../paper/artifacts/puma-sdk/local-v9/README.md).
+
 ### Shared SDK interfaces
 
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,

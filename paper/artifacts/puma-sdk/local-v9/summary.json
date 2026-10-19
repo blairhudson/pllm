@@ -1,0 +1,67 @@
+{
+  "build_receipt": "build/receipt.json",
+  "coverage_check": "passed",
+  "installed_files": {
+    "count": 367,
+    "match_wheel_before_and_after": true
+  },
+  "native": {
+    "clippy": "passed",
+    "clippy_allowances": [
+      "needless_range_loop",
+      "nonminimal_bool"
+    ],
+    "doctests": 5,
+    "integration": 43,
+    "puma_library": 80,
+    "replicated_compiler": 24,
+    "total": 152
+  },
+  "old_wheel": {
+    "expected_failures": 3,
+    "receipt": "old-wheel/receipt.json",
+    "rejecting_operator": "Softmax",
+    "supplies_passing_test_count": false
+  },
+  "package_delta": "package-delta.json",
+  "python": {
+    "optional_skipped": 7,
+    "passed": 321,
+    "total_cases": 328
+  },
+  "qwen": {
+    "checkpoint": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "complete_numeric_program_admission": "rejected",
+    "elapsed_seconds": 12.506195000372827,
+    "first_softmax_admitted": true,
+    "input_tokens": 4,
+    "max_swap_used_growth_bytes": 0,
+    "online_decoder_executed": false,
+    "ordinary_memory_preflight": "admitted",
+    "output_tokens": 2,
+    "process_cpu_seconds": 12.482661,
+    "process_peak_rss_bytes": 266911744,
+    "receipt": "validation/qwen-program-admission.json",
+    "rejecting_layer": 0,
+    "rejecting_operator": "RmsNorm",
+    "rejecting_step": 22,
+    "scope": "ordinary SDK source publisher; four fixed public zero IDs; no role workers or online execution; process peak includes validation launcher",
+    "selection": 0,
+    "source_lock": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "tensor_values_decoded": true,
+    "workers_launched": false
+  },
+  "schema": "pllm.puma_sdk.guarded_softmax_conformance.v1",
+  "scope": "bounded public-weight guarded softmax, generated installed SDK conformance and rejected pinned checkpoint source publication",
+  "serving_or_quality_claim": null,
+  "source_inputs": {
+    "archive": "inputs.tar.gz",
+    "archive_matches_manifest": true,
+    "count": 791,
+    "manifest": "validation-inputs.json",
+    "validation_unchanged_before_and_after": true
+  },
+  "status": "passed",
+  "validation_receipt": "validation/validation-commands.json",
+  "wheel_sha256": "d19c40d31a832f5fff156b74afcb4defa20e65915a7914684469f728214b1dec"
+}

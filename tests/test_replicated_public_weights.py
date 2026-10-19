@@ -144,6 +144,33 @@ def test_public_sdk_three_workers_complete_two_private_branches(tmp_path):
         assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
 
 
+@pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
+def test_public_guarded_softmax_accepts_wide_scores_and_keeps_private_feedback(tmp_path, family):
+    from safetensors.numpy import load_file, save_file
+
+    experiment = experiment_fixture(tmp_path, family=family, weights="public")
+    path = Path(experiment.pipeline.model.source) / "model.safetensors"
+    values = load_file(path)
+    for key, value in values.items():
+        if key.endswith(("q_proj.weight", "k_proj.weight", "q_norm.weight", "k_norm.weight")):
+            value.fill(64)
+    save_file(values, path, metadata={"format": "pt"})
+    source = admit_source(experiment)
+    # Nonzero Q/K force wide score bounds and clipped exponentials. V/O/MLP
+    # remain zero, so the independent signed-head feedback oracle is unchanged.
+    assert native_execution(source, experiment, (3, 4), 2) == (2, 1)
+    if family == "qwen2":
+        captured = []
+        with OpenAI(experiment=experiment, timeout=300) as client:
+            client._core._result_hook = captured.append
+            response = client.responses.create(input="hello", max_output_tokens=2)
+            assert response.usage.output_tokens == 2
+            assert captured[-1].selected == (2, 1)
+            assert active_sessions(client._core) == [0, 0, 0]
+            audit = client._core.audit.to_dict()
+            assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
+
+
 def test_public_import_cancellation_closes_partial_files(tmp_path):
     experiment = experiment_fixture(tmp_path, weights="public")
     source = admit_source(experiment)

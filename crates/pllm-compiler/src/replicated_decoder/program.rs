@@ -1189,7 +1189,11 @@ impl Builder {
                     {
                         let width = position + i % sequence + 1;
                         let input = self.gather(&row.slice(..width))?;
-                        let program = tensor::Program::softmax(1, width, self.nodes[input].bounds)?;
+                        let program = if self.public_weights {
+                            tensor::Program::softmax_guarded(1, width, self.nodes[input].bounds)?
+                        } else {
+                            tensor::Program::softmax(1, width, self.nodes[input].bounds)?
+                        };
                         let id = self.tensor(input, program)?;
                         words.extend((0..width).map(|i| (id, i)));
                         words.extend(std::iter::repeat_n((zero, 0), keys - width));

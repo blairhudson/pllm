@@ -711,9 +711,14 @@ Partitioned RMSNorm polynomial proofs and complete-row Cauchy–Schwarz bounds
 retain the original Q18 operations, rounding and work budgets. Public-only
 certificates apply to intact normalization rows; source-owner commitments reject
 substituted ranges or certificates. Independent integer and lifetime controls
-preserve the bounded contracts. Pinned Qwen source publication now passes its
-first attention product but rejects layer-zero softmax's eager exponential
-range, with zero observed swap growth and no worker launch. Whole-request work
+preserve the bounded contracts. Public-weight softmax additionally selects its
+shared strict tail predicate before exponential evaluation. One charged exact
+product preserves retained-domain rounding and exact zero tails, while its changed
+instruction schedule binds fresh work and the existing party payload ceiling.
+Generated wide-score Qwen2/Qwen3/Llama controls preserve private feedback.
+Pinned Qwen source publication now passes its first attention product and softmax
+but rejects layer-zero post-attention RMSNorm, with zero observed swap growth and
+no worker launch. Whole-request work
 qualification, whole-model ranges, quality and measured response costs remain
 open. Contract:
 `docs/research/puma-truncation-reference.md`.

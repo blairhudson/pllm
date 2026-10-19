@@ -98,8 +98,10 @@ Completed foundations:
   4+2 metadata under the original ceilings; 16+2 rejects its lookup-only sequence
   floor. Native-derived source-header limits also admit ordinary 4+2 SDK memory
   preflight. Streamed source row certificates and RMSNorm row proofs now admit
-  the first attention product, but source publication rejects layer-zero softmax's
-  eager exponential range before worker launch. Full-checkpoint ranges, complete
+  the first attention product. Guarded shared softmax retains the source's strict
+  cutoff and retained-domain rounding while charging its extra product. Source
+  publication now rejects layer-zero post-attention RMSNorm before worker launch.
+  Full-checkpoint ranges, complete
   work admission, quality and response costs remain open. See the
   [public-weight contract](../docs/research/puma-truncation-reference.md#explicit-public-weight-adaptation).
 - The [FuseFSS scalar specification](reproduction-contracts/fusefss/README.md)

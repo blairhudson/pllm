@@ -1106,6 +1106,12 @@ fn tensor_row_allocation_failure_sweeps_retire_every_owned_buffer() {
     let bound = Interval::new(-1 << 18, 1 << 18).unwrap();
     for program in [
         Program::softmax(1, 3, bound).unwrap(),
+        Program::softmax_guarded(
+            1,
+            3,
+            Interval::new(-1_500_000_000_000, 1_500_000_000_000).unwrap(),
+        )
+        .unwrap(),
         Program::layer_norm(1, 3, bound, &[1 << 18; 3], &[1; 3]).unwrap(),
         Program::rms_norm(1, 3, bound, &[1 << 18; 3]).unwrap(),
     ] {
@@ -1145,6 +1151,12 @@ fn tensor_row_zeroization_precedes_refund_at_maximum_geometry() {
     let bound = Interval::new(-1 << 18, 1 << 18).unwrap();
     for program in [
         Program::softmax(1, 512, bound).unwrap(),
+        Program::softmax_guarded(
+            1,
+            512,
+            Interval::new(-1_500_000_000_000, 1_500_000_000_000).unwrap(),
+        )
+        .unwrap(),
         Program::layer_norm(1, 896, bound, &[1 << 18; 896], &[1; 896]).unwrap(),
         Program::rms_norm(1, 1024, bound, &[1 << 18; 1024]).unwrap(),
     ] {

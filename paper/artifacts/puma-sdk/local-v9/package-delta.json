@@ -1,0 +1,12 @@
+{
+  "changed": [
+    {
+      "after": "4a3231e93c7d41bfd8fecdb8214b62976ff71927397df9fd5d40e382bf250614",
+      "before": "d91ea5450728ff28b127f5bd50aa6ce6da92ad69ff0ffbe77b7d680931b13d02",
+      "path": "pllm/_native.abi3.so"
+    }
+  ],
+  "previous_wheel_sha256": "4d9de36e454cc6aa66e9fb0eccacee5b72e3b2ff6d0009e14d500a8bc3e41dee",
+  "unchanged_file_count": 366,
+  "wheel_sha256": "d19c40d31a832f5fff156b74afcb4defa20e65915a7914684469f728214b1dec"
+}
