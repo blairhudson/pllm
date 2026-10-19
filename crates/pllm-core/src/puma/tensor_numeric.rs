@@ -754,6 +754,85 @@ fn rsqrt_polynomial_bounds(input: Interval) -> Result<Interval, Error> {
     Interval::new(lower, upper)
 }
 
+/// Public proof of the selected source activation branch. Each of at most
+/// 1,025 cells per polynomial covers every integer and every stochastic carry;
+/// cells affect admission only, never the shared instruction schedule.
+pub(super) fn activation_bounds(kind: Activation, input: Interval) -> Result<Interval, Error> {
+    let (pivots, low, high) = match kind {
+        Activation::Silu => (
+            [-2097152, -1048576, 1048576],
+            [-80413, -21489, -1453, 0],
+            [2229, 131072, 59806, -2913, 71],
+        ),
+        Activation::Gelu => (
+            [-1048576, -511180, 786432],
+            [-132488, -110694, -30952, -2892],
+            [2235, 131072, 94458, -9879, 473],
+        ),
+    };
+    let mut lower = i64::MAX;
+    let mut upper = i64::MIN;
+    if input.lower() < pivots[0] {
+        lower = 0;
+        upper = 0;
+    }
+    if input.upper() > pivots[2] {
+        lower = lower.min(input.lower().max(pivots[2] + 1));
+        upper = upper.max(input.upper());
+    }
+    let zero = Interval::new(0, 0)?;
+    let multiply = |a, b| InputBounds { left: a, right: b }.output();
+    for (lo, hi, bottom) in [
+        (pivots[0], pivots[1] - 1, true),
+        (pivots[1], pivots[2], false),
+    ] {
+        let lo = input.lower().max(lo);
+        let hi = input.upper().min(hi);
+        if lo > hi {
+            continue;
+        }
+        let stride = ((hi - lo) / 1024 + 1) as usize;
+        for start in (lo..=hi).step_by(stride) {
+            let x = Interval::new(start, hi.min(start + stride as i64 - 1))?;
+            let x2 = multiply(x, x)?;
+            let x3 = if kind == Activation::Gelu {
+                multiply(x2, x)?
+            } else {
+                zero
+            };
+            let x4 = multiply(x2, x2)?;
+            let x6 = if kind == Activation::Gelu {
+                multiply(x3, x3)?
+            } else {
+                multiply(x2, x4)?
+            };
+            let constant = if bottom { low[0] } else { high[0] };
+            let mut out = Interval::new(constant, constant)?;
+            let terms = if bottom {
+                [(x, low[1]), (x2, low[2]), (x3, low[3]), (zero, 0)]
+            } else {
+                [(x, high[1]), (x2, high[2]), (x4, high[3]), (x6, high[4])]
+            };
+            for (power, coefficient) in terms {
+                if coefficient != 0 {
+                    let raw = affine(coefficient, 0, 0).output_bounds(InputBounds {
+                        left: power,
+                        right: zero,
+                    })?;
+                    let term = rescaled_bounds(raw, 18)?;
+                    out = affine(1, 1, 0).output_bounds(InputBounds {
+                        left: out,
+                        right: term,
+                    })?;
+                }
+            }
+            lower = lower.min(out.lower());
+            upper = upper.max(out.upper());
+        }
+    }
+    Interval::new(lower, upper)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

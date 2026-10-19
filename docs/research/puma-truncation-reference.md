@@ -381,6 +381,53 @@ growth. Whole-model ranges, total work, hidden-state correctness, quality and
 serving measurements remain open. Original receipts and replay:
 [attention-range slice](../../paper/artifacts/puma-sdk/local-v10/README.md).
 
+### Guarded piecewise activations
+
+Native `Program::activation_guarded` implements SiLU/GeLU; public-weight decoder
+compilation selects its SiLU program.
+The existing strict lower/middle and inclusive upper comparisons remain shared.
+For their original encoded cuts `a0 < a1 < a2`, it computes
+
+```text
+c0 = [x < a0], c1 = [x < a1], c2 = [x < a2+1]
+b = c2-c0
+t = x*b
+```
+
+The fresh ring product `t` has no truncation: `b` is exactly zero or one.
+Both original polynomials evaluate on `t`; their coefficients, powers and Q18
+stochastic rescalings stay unchanged. The original final selections retain
+zero below `a0`, the appropriate polynomial within `[a0,a2]`, and the original
+`x` above `a2`. At retained points `t=x`. Tail polynomials instead receive zero,
+and their discarded values cannot affect the final zero/identity output.
+This is private branch evaluation, not clipping an accepted activation or checking
+a caller-supplied range at runtime.
+
+The public output proof partitions each polynomial's integer domain into at most
+1,025 cells and propagates all possible floor/ceil outcomes. These cells add no
+runtime selection, PRSS use or private-data inspection. Public schedules bind a
+changed instruction digest and charge one additional fresh product. Eager
+activation primitives and private-weight execution remain available with their
+original identities. The existing 128-lane primitive and 256 KiB party limits
+continue to apply.
+
+Independent stochastic-integer controls cover both activations, each endpoint
+and adjacent encoded values, wide signed tails, multiple PRSS tapes, exact output
+intervals, cancellation and work cursors. Allocation-index sweeps and zeroization
+audits include both guarded programs. Generated Qwen2/Qwen3/Llama controls exercise
+wide gate values and private feedback; the Qwen2 case also runs three authenticated
+SDK workers. Their signed-head oracle is independent of the polynomial evaluator.
+
+Pinned Qwen 4+2 source publication now clears layer-zero SiLU and MLP. It rejects
+selection-zero, step-29, layer-one `RmsNorm`, at encoded residual interval
+`[-343639410012,343639400796]`. The source-publication attempt observes zero swap
+growth and launches no role workers. Source-only whole-model range proofs,
+complete-program work, full-checkpoint hidden-state correctness, source-model
+quality and matched response costs remain open. Protected runtime range-check
+acceptance would require a separate contract; this slice does not select it.
+Original receipts and replay:
+[guarded-activation slice](../../paper/artifacts/puma-sdk/local-v11/README.md).
+
 ### Shared SDK interfaces
 
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,

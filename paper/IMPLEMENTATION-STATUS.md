@@ -104,7 +104,10 @@ Completed foundations:
   [attention-range slice](artifacts/puma-sdk/local-v10/README.md) certifies complete
   softmax mass and residual energy under the original arithmetic. Pinned publication
   clears that RMSNorm and next rejects layer-zero SiLU before worker launch.
-  Full-checkpoint ranges, complete
+  The [guarded-activation slice](artifacts/puma-sdk/local-v11/README.md) then
+  preserves the approved SiLU/GeLU interior arithmetic and zero/identity tails
+  through private preselection. Pinned publication clears the first MLP and rejects
+  layer-one RMSNorm at the propagated residual range. Full-checkpoint ranges, complete
   work admission, quality and response costs remain open. See the
   [public-weight contract](../docs/research/puma-truncation-reference.md#explicit-public-weight-adaptation).
 - The [FuseFSS scalar specification](reproduction-contracts/fusefss/README.md)

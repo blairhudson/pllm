@@ -1122,7 +1122,7 @@ impl Builder {
                     let lanes = self.nodes[input].lanes;
                     let bounds = self.nodes[input].bounds;
                     let output = self.tensor_loop(LoopInput::Slice(input), lanes, |n| {
-                        tensor::Program::activation(tensor::Activation::Silu, n, bounds)
+                        tensor::Program::activation_guarded(tensor::Activation::Silu, n, bounds)
                     })?;
                     self.view(output, shape.clone())
                 }

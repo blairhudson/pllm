@@ -498,13 +498,92 @@ impl Builder {
     }
 }
 
+fn activation_predicates(
+    b: &mut Builder,
+    input: Value,
+    pivots: [i64; 3],
+) -> Result<[Value; 3], Error> {
+    let mut predicates = [input; 3];
+    for (i, pivot) in pivots.into_iter().enumerate() {
+        // Last polynomial includes its upper endpoint; strict MSB tests
+        // x < upper+1. All decisions stay secret-shared through B2A.
+        let delta = b.affine(
+            input,
+            None,
+            Affine {
+                left: 1,
+                right: 0,
+                constant: -pivot - i64::from(i == 2),
+            },
+        )?;
+        let bit = b.sign(delta)?;
+        predicates[i] = b.from_bit(bit)?;
+    }
+    Ok(predicates)
+}
+
 impl Program {
     /// The approved source-derived profile, not the unavailable evaluated IR.
     /// Coefficients/pivots are the binary32/toward-zero Q18 constants frozen in
     /// paper/reproduction-contracts/shared-profile-resolution.md, section 3.3.
     pub fn activation(kind: Activation, lanes: usize, input: Interval) -> Result<Self, Error> {
+        Self::activation_impl(kind, lanes, input, false)
+    }
+
+    /// Preserve the source piecewise equations while excluding zero/identity
+    /// tails from polynomial powers. Decisions remain shared, with one fresh
+    /// exact guard product. The eager program retains its instruction identity.
+    pub fn activation_guarded(
+        kind: Activation,
+        lanes: usize,
+        input: Interval,
+    ) -> Result<Self, Error> {
+        Self::activation_impl(kind, lanes, input, true)
+    }
+
+    fn activation_impl(
+        kind: Activation,
+        lanes: usize,
+        input: Interval,
+        guarded: bool,
+    ) -> Result<Self, Error> {
         let mut b = Builder::new(lanes, input)?;
-        let x = b.input();
+        let original = b.input();
+        let pivots = match kind {
+            Activation::Gelu => [-1048576, -511180, 786432],
+            Activation::Silu => [-2097152, -1048576, 1048576],
+        };
+        let early = if guarded {
+            Some(activation_predicates(&mut b, original, pivots)?)
+        } else {
+            None
+        };
+        let x = if let Some(predicates) = early {
+            let inside = b.affine(
+                predicates[2],
+                Some(predicates[0]),
+                Affine {
+                    left: 1,
+                    right: -1,
+                    constant: 0,
+                },
+            )?;
+            // [x<=hi]-[x<lo] is exactly the indicator of lo<=x<=hi.
+            b.0.nodes[inside.0 as usize].as_mut().unwrap().bounds = Interval::new(0, 1)?;
+            let safe = b.product(original, inside, false)?;
+            // Both excluded tails map to zero only inside the polynomial; the
+            // final identity branch still uses the untouched original input.
+            let lo = input.lower().max(pivots[0]);
+            let hi = input.upper().min(pivots[2]);
+            b.0.nodes[safe.0 as usize].as_mut().unwrap().bounds = if lo <= hi {
+                Interval::new(lo.min(0), hi.max(0))?
+            } else {
+                Interval::new(0, 0)?
+            };
+            safe
+        } else {
+            original
+        };
         let x2 = b.product(x, x, true)?;
         let x3 = if kind == Activation::Gelu {
             Some(b.product(x2, x, true)?)
@@ -543,23 +622,11 @@ impl Program {
                 [-2097152, -1048576, 1048576],
             ),
         };
-        let mut predicates = [x; 3];
-        for (i, pivot) in pivots.into_iter().enumerate() {
-            // Last polynomial includes its upper endpoint; strict MSB tests
-            // x < upper+1. All decisions stay secret-shared through B2A.
-            let delta = b.affine(
-                x,
-                None,
-                Affine {
-                    left: 1,
-                    right: 0,
-                    constant: -pivot - i64::from(i == 2),
-                },
-            )?;
-            let bit = b.sign(delta)?;
-            predicates[i] = b.from_bit(bit)?;
-        }
-        let upper = select(&mut b, predicates[2], high, x)?;
+        let predicates = match early {
+            Some(predicates) => predicates,
+            None => activation_predicates(&mut b, original, pivots)?,
+        };
+        let upper = select(&mut b, predicates[2], high, original)?;
         let middle = select(&mut b, predicates[1], low, upper)?;
         let removed = b.product(predicates[0], middle, false)?;
         let output = b.affine(
@@ -571,6 +638,10 @@ impl Program {
                 constant: 0,
             },
         )?;
+        if guarded {
+            b.0.nodes[output.0 as usize].as_mut().unwrap().bounds =
+                numeric::activation_bounds(kind, input)?;
+        }
         b.finish(output)
     }
 

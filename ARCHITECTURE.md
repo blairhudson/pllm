@@ -721,9 +721,15 @@ nonnegative mass without changing its arithmetic or protected work. Streamed
 weight-row energy certificates and complete-row residual bounds preserve every
 stochastic rounding in post-attention RMSNorm; source owners and ordered tensor
 provenance bind these obligations under existing resource ceilings. Independent
-integer, generated decoder and lifetime checks pass. Pinned Qwen source publication
-now passes its first attention product, softmax and post-attention RMSNorm, but
-rejects layer-zero SiLU, with zero observed swap growth and no worker launch.
+integer, generated decoder and lifetime checks pass. Guarded native SiLU/GeLU programs
+privately select an exact zero stand-in for unused polynomial tails, retaining
+the original interior stochastic equations and final zero/identity tails. Public
+integer partitions bound polynomial outputs; the additional fresh product and
+changed instruction identity remain charged. Public-weight decoder compilation
+selects guarded SiLU; generated controls preserve private feedback. Pinned Qwen
+source publication now passes layer-zero attention,
+normalization and MLP, but rejects layer-one RMSNorm at the propagated residual
+range, with zero observed swap growth and no worker launch.
 Whole-request work qualification, whole-model ranges, quality and measured
 response costs remain open. Contract:
 `docs/research/puma-truncation-reference.md`.

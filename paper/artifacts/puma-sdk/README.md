@@ -74,6 +74,14 @@ publication clears post-attention RMSNorm and reaches layer-zero SiLU's range
 rejection. Generated nonzero-attention and concentrated-energy controls retain
 private feedback; full-model execution and quality remain unqualified.
 
+The [guarded-activation slice](local-v11/README.md) provides native SiLU/GeLU
+programs with safe stand-ins for unused polynomials, preserving interior arithmetic
+and zero/identity tails. Public-weight compilation selects guarded SiLU.
+Fresh selection work remains charged. Generated Qwen2/Qwen3/
+Llama feedback controls pass; pinned publication reaches layer-one RMSNorm and
+rejects its propagated residual range before worker launch. Full-checkpoint work,
+correctness, quality and resource qualification remain open.
+
 ## Retained evidence
 
 [`local-v1/summary.json`](local-v1/summary.json) records:

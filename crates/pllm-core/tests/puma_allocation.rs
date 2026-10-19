@@ -958,10 +958,15 @@ fn conversion_allocation_failure_sweep_covers_every_role_and_circuit_phase() {
 fn tensor_owners(
     kind: multiply::tensor::Activation,
     lanes: usize,
+    guarded: bool,
 ) -> [multiply::tensor::Executor; 3] {
     use multiply::{tensor::Program, Interval};
-    let program =
-        Program::activation(kind, lanes, Interval::new(-9 << 18, 9 << 18).unwrap()).unwrap();
+    let program = if guarded {
+        Program::activation_guarded(kind, lanes, Interval::new(-256 << 18, 256 << 18).unwrap())
+    } else {
+        Program::activation(kind, lanes, Interval::new(-9 << 18, 9 << 18).unwrap())
+    }
+    .unwrap();
     tensor_program_owners(&program, 0)
 }
 
@@ -1050,10 +1055,15 @@ fn tensor_run(
 #[test]
 fn tensor_allocation_failure_sweep_burns_complete_activation_owners() {
     use multiply::tensor::Activation;
-    for kind in [Activation::Gelu, Activation::Silu] {
+    for (kind, guarded) in [
+        (Activation::Gelu, false),
+        (Activation::Silu, false),
+        (Activation::Gelu, true),
+        (Activation::Silu, true),
+    ] {
         let mut completed = false;
         for fail_at in 0..3000 {
-            let mut owners = tensor_owners(kind, 3);
+            let mut owners = tensor_owners(kind, 3, guarded);
             let usages = owners.each_ref().map(|o| o.payload_usage());
             FAIL_AT.set(Some(fail_at));
             let result = tensor_run(&mut owners, None);
@@ -1084,9 +1094,14 @@ fn tensor_allocation_failure_sweep_burns_complete_activation_owners() {
 #[test]
 fn tensor_registers_and_frames_are_zeroized_before_live_charge_refund() {
     use multiply::tensor::{Activation, MAX_TILE_LANES};
-    for kind in [Activation::Gelu, Activation::Silu] {
+    for (kind, guarded) in [
+        (Activation::Gelu, false),
+        (Activation::Silu, false),
+        (Activation::Gelu, true),
+        (Activation::Silu, true),
+    ] {
         for p in 0..3 {
-            let mut owners = tensor_owners(kind, MAX_TILE_LANES);
+            let mut owners = tensor_owners(kind, MAX_TILE_LANES, guarded);
             let usages = owners.each_ref().map(|o| o.payload_usage());
             let watch = Watch::start(&usages[p], false, false);
             tensor_run(&mut owners, Some(p)).unwrap();

@@ -1238,6 +1238,116 @@ fn shared_activations_match_independent_stochastic_recipe_at_all_endpoints() {
 }
 
 #[test]
+fn guarded_activations_preserve_source_equations_cutoffs_and_work() {
+    for kind in [Activation::Gelu, Activation::Silu] {
+        let pivots = match kind {
+            Activation::Gelu => [-1048576, -511180, 786432],
+            Activation::Silu => [-2097152, -1048576, 1048576],
+        };
+        for n in [1, 17, MAX_TILE_LANES] {
+            let mut points = vec![-256 * ONE, -109 * ONE, -1, 0, 1, 109 * ONE, 256 * ONE];
+            for pivot in pivots {
+                points.extend([pivot - 1, pivot, pivot + 1]);
+            }
+            let x: Vec<_> = (0..n).map(|i| points[i % points.len()]).collect();
+            let program =
+                Program::activation_guarded(kind, n, Interval::new(-256 * ONE, 256 * ONE).unwrap())
+                    .unwrap();
+            let mut owners = owners(&program, &x);
+            let usage = owners.each_ref().map(Executor::payload_usage);
+            let mut tapes = vec![];
+            let mut count = 0;
+            for _ in 0..program.instructions() {
+                let (tape, frames) = step(&mut owners);
+                if let Some(tape) = tape {
+                    tapes.push(tape);
+                }
+                count += frames;
+            }
+            assert_eq!(count, if kind == Activation::Gelu { 174 } else { 159 });
+            let output = owners.map(|o| {
+                let (mut runtime, output) = o.finish().unwrap();
+                runtime.cancel();
+                output
+            });
+            let actual = clear(&output);
+            for (i, &x) in x.iter().enumerate() {
+                let expected = if x < pivots[0] {
+                    0
+                } else if x > pivots[2] {
+                    x
+                } else {
+                    oracle(kind, x, tapes.iter().map(|t| t[i]))
+                };
+                assert_eq!(actual[i], expected, "{kind:?}, {x}");
+                assert!(
+                    (program.output_bounds().lower()..=program.output_bounds().upper())
+                        .contains(&actual[i])
+                );
+            }
+            assert!(usage
+                .iter()
+                .all(|u| u.peak_bytes() + FIXED_RESERVE_BYTES <= program.admitted_bytes()));
+            drop(output);
+            assert!(usage.iter().all(|u| u.live_bytes() == 0));
+        }
+        let range = Interval::new(-9 * ONE, 9 * ONE).unwrap();
+        let eager = Program::activation(kind, 3, range).unwrap();
+        let guarded = Program::activation_guarded(kind, 3, range).unwrap();
+        assert_ne!(eager.digest(), guarded.digest());
+        assert_eq!(guarded.instructions(), eager.instructions() + 2);
+        assert_eq!(
+            guarded.work_budget(),
+            eager
+                .work_budget()
+                .checked_add(WorkBudget::local())
+                .unwrap()
+                .checked_add(WorkBudget::product(3, false).unwrap())
+                .unwrap()
+        );
+        cancel_at_every_event(&guarded, &[-9 * ONE, 0, 9 * ONE]);
+        assert!(Program::activation_guarded(kind, 129, range).is_err());
+        assert!(
+            Program::activation_guarded(kind, 1, Interval::new(i64::MIN, i64::MAX).unwrap())
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn guarded_activation_range_proof_covers_independent_rounding_choices() {
+    for kind in [Activation::Silu, Activation::Gelu] {
+        let (lo, pivot, hi, truncations) = match kind {
+            Activation::Silu => (-2097152, -1048576, 1048576, 9),
+            Activation::Gelu => (-1048576, -511180, 786432, 11),
+        };
+        // Different, overlapping public cells from the proof implementation;
+        // enumerate every floor/ceil combination in the independent recipe.
+        for start in (lo..=hi).step_by(7919).chain([lo, pivot - 1, pivot, hi]) {
+            let end = hi.min(start + 8003);
+            let bound =
+                numeric::activation_bounds(kind, Interval::new(start, end).unwrap()).unwrap();
+            for x in [start, start + (end - start) / 2, end] {
+                for bits in 0..1_u64 << truncations {
+                    let masks = (0..truncations).map(|i| {
+                        if bits >> i & 1 == 0 {
+                            0
+                        } else {
+                            (ONE - 1) as u64
+                        }
+                    });
+                    let output = oracle(kind, x, masks);
+                    assert!(
+                        (bound.lower()..=bound.upper()).contains(&output),
+                        "{kind:?}, {x}, {bits}, {output}, {bound:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn eager_polynomial_range_and_whole_program_limits_precede_randomness() {
     for kind in [Activation::Gelu, Activation::Silu] {
         assert!(Program::activation(kind, 3, Interval::new(-64 * ONE, 64 * ONE).unwrap()).is_err());
