@@ -1,0 +1,81 @@
+{
+  "schema": "pllm.benchmark_memory.v1",
+  "admitted": true,
+  "requested_backend": "native",
+  "selected_backend": "native",
+  "runtime_floor_bytes": 469762048,
+  "host": {
+    "total": 34359738368,
+    "available": 8931917824,
+    "swap_used": 720830464,
+    "disk_free": 36655439872,
+    "availability_source": "macos_mach_dispatch_v2",
+    "pressure": "normal",
+    "free": 112050176,
+    "cached": 6359908352,
+    "purgeable": 119504896,
+    "reusable": 2459959296,
+    "reserve_bytes": 0,
+    "admission_budget_bytes": 8931917824
+  },
+  "estimate": {
+    "scope": "conservative allocation estimate; not measured peak RSS",
+    "model_plan_digest": null,
+    "model_config_digest": "c3f15d3ec0180623ac2f54236c022490dd79bc6a00b5fbc4a1ffd038a43f7668",
+    "pipeline_digest": "538ca746699f360178f851d7a8eadea18c6e2223fff2892c7761d01f876f531d",
+    "max_input_tokens": 4,
+    "max_output_tokens": 2,
+    "compiled_input_bound": 4,
+    "inventory_rows": 0,
+    "kernel": "cpu",
+    "runtime_kind": "replicated",
+    "concurrent_response_bound": 1,
+    "allocation_slack_percent": 25,
+    "client_peak_bytes": 587202560,
+    "provider_peak_bytes": {
+      "worker_a": 587202560,
+      "worker_b": 587202560,
+      "worker_c": 587202560
+    },
+    "docker_provider_peak_bytes": {},
+    "native_total_peak_bytes": 2348810240,
+    "preparation_storage": "none",
+    "preparation_kernel": "none",
+    "weight_storage": "verified file-backed public Q18 weights",
+    "bundle_storage": "trusted client source publication",
+    "mask_storage": "party-local pairwise PRSS",
+    "tensor_storage": "party-local recomputed prefix, KV and Q18 activations",
+    "components": {
+      "source_float32_bytes": 1976131072,
+      "checkpoint_bytes": 988097824,
+      "per_engine_compiled_disk_bytes": 3952262144,
+      "public_weight_read_buffer_bytes": 65536,
+      "raw_client_bundle_bytes": 0
+    },
+    "limitations": []
+  },
+  "candidates": {
+    "native": {
+      "admitted": true,
+      "reasons": [],
+      "required_host_bytes": 2348810240,
+      "docker": null,
+      "expected_peak_bytes": 1879048192,
+      "safety_margin_bytes": 469762048,
+      "required_disk_bytes": 14004270080
+    },
+    "docker": {
+      "admitted": false,
+      "reasons": [
+        "selected runtime requires native role owners; Docker is not admitted",
+        "Docker memory capacity is unavailable"
+      ],
+      "required_host_bytes": 2348810240,
+      "docker": null,
+      "expected_peak_bytes": 1879048192,
+      "safety_margin_bytes": 469762048,
+      "required_disk_bytes": 14004270080
+    }
+  },
+  "enforced_wan": false
+}

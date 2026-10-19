@@ -1,0 +1,54 @@
+{
+  "attempts": {
+    "complete_retry_inputs_unchanged": true,
+    "initial_failure": "attempts/initial-validation/validation-commands.json",
+    "launcher_interruption": "attempts/launcher-timeout/interruption.json"
+  },
+  "build_receipt": "build/receipt.json",
+  "coverage_check": "passed",
+  "installed_files": {
+    "count": 367,
+    "match_wheel_before_and_after": true
+  },
+  "native": {
+    "extension_unchanged_from_previous_wheel": true,
+    "previous_validation": "../local-v6/summary.json",
+    "tests_rerun_in_this_slice": false,
+    "unchanged_source_files": 311
+  },
+  "package_delta": "package-delta.json",
+  "python": {
+    "optional_skipped": 7,
+    "passed": 317,
+    "total_cases": 324
+  },
+  "qwen": {
+    "allocation_margin_percent": 25,
+    "checkpoint_execution": false,
+    "complete_numeric_program_admission": "not exercised",
+    "input_tokens": 4,
+    "ordinary_sdk_preflight": "admitted",
+    "output_tokens": 2,
+    "required_disk_bytes": 14004270080,
+    "tensor_values_decoded": false,
+    "whole_topology_estimate_bytes": 2348810240,
+    "workers_launched": false
+  },
+  "regression": {
+    "new_large_source_cases": 9,
+    "original_installed_reader_failure": "regression/old-wheel.log"
+  },
+  "schema": "pllm.puma_sdk.source_header_conformance.v1",
+  "scope": "shared header/streaming admission, generated installed-SDK conformance and pinned checkpoint preflight",
+  "source_inputs": {
+    "archive": "inputs.tar.gz",
+    "archive_matches_manifest": true,
+    "count": 790,
+    "manifest": "validation-inputs.json",
+    "validation_unchanged_before_and_after": true
+  },
+  "status": "passed",
+  "test_and_serving_resource_claim": null,
+  "validation_receipt": "validation/validation-commands.json",
+  "wheel_sha256": "474327a20fc832f9c702bc6a722c24b631958aed8c751dd3386b2a40dfcebd5e"
+}

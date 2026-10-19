@@ -1,0 +1,13 @@
+{
+  "status": "interrupted",
+  "reason": "shell launcher timeout was 120000 milliseconds",
+  "validation_complete": false,
+  "inputs_match_after_retirement": true,
+  "retired_worker_pids": [
+    14504,
+    14514,
+    14515
+  ],
+  "forced_worker_pids": [],
+  "surviving_worker_pids": []
+}

@@ -47,6 +47,13 @@ native core/compiler/integration checks and five ownership doctests, with seven
 optional skips. Ordinary Qwen source preflight separately rejects the shared
 reader's private-weight tensor limits; it supplies no execution result.
 
+The [source-header slice](local-v7/README.md) derives shared reader bounds from
+native-admitted source shapes, independently checked against the semantic plan.
+Large F32/F16/BF16 fixtures preserve bounded conversion and malformed-header
+rejection. Ordinary pinned Qwen 4+2 memory preflight now admits a 2.19 GiB
+whole-topology estimate including 25% margin. Complete-model numeric/program
+admission, checkpoint execution and measured resources remain separate gates.
+
 ## Retained evidence
 
 [`local-v1/summary.json`](local-v1/summary.json) records:

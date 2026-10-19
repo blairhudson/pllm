@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="0.135" timestamp="2026-10-19T12:46:16.873487+11:00" hostname="macbookblair.local"><testcase classname="tests.test_replicated_public_weights" name="test_public_source_uses_admitted_header_geometry_and_bounded_frames[F32]" time="0.022"><failure message="pllm.runtime.delegated_source.DelegatedSourceError: GKM source tensor has unsupported shape or dtype">tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3928/test_public_source_uses_admitt0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x10a0a90f0&gt;
+dtype = 'F32'
+
+    @pytest.mark.parametrize("dtype", ["F32", "F16", "BF16"])
+    def test_public_source_uses_admitted_header_geometry_and_bounded_frames(tmp_path, monkeypatch, dtype):
+        from test_delegated_source import forbid_values
+    
+        experiment, contract, data_offset = large_public_source_fixture(tmp_path, dtype)
+        forbid_values(monkeypatch)
+        original = source_io._read_range
+    
+        def headers_only(path, identity, offset, size, **kwargs):
+            if path.name.endswith(".safetensors"):
+                assert offset + size &lt;= data_offset
+            return original(path, identity, offset, size, **kwargs)
+    
+        monkeypatch.setattr(source_io, "_read_range", headers_only)
+&gt;       source = admit_source(experiment)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_public_weights.py:236: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_source.py:112: in admit_source
+    store, specs = source_io._store(root, identities, metadata)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3928/test_public_source_uses_admitt0/source')
+identities = (('config.json', (16777231, 45405071, 33188, 469, 1792374376975178815, 1792374376975178815, ...)), ('model.safetensors...9901, ...)), ('tokenizer_config.json', (16777231, 45405073, 33188, 92, 1792374376969443220, 1792374376969443220, ...)))
+contract = {'composition': '3d03f98504c25f36e5293526abdeb2476c87637dba828cd316ad67c57f4763f4', 'configuration': 'b793bc47d8b552d6...a8239321cc2f00be4cde', 'decode_steps': 1, 'decoder_resources': {'profile': 'pllm.puma.public-source-capacity.v1'}, ...}
+
+    def _store(root: Path, identities, contract) -&gt; tuple[SafeTensorStore, tuple]:
+        """Bound all headers/ranges before shared shape and float-dtype preflight."""
+    
+        capacity = _capacity(contract)
+        expanded = capacity == "decoder"
+        header_limit = _DECODER_HEADER_BYTES if expanded else _MAX_HEADER_BYTES
+        metadata_limit = _DECODER_METADATA_BYTES if expanded else _MAX_METADATA_BYTES
+        replicated = contract.get("schema_version") == "pllm.replicated.sdk-contract.v1"
+        dimension_limit = 8192 if replicated else (262144 if expanded else 4096)
+        element_limit = 1 &lt;&lt; 20 if replicated else (1 &lt;&lt; 28 if expanded else 262144)
+        _unchanged(root, contract["source_float32_bytes"], identities, capacity)
+        shapes = {key: tuple(shape) for key, shape in contract["source_shapes"].items()}
+        locations = {}
+        specs = {}
+        indexes = []
+        header_bytes = 0
+        for name, identity in identities:
+            if name.endswith(".safetensors.index.json"):
+                indexes.append(name)
+            if not name.endswith(".safetensors"):
+                continue
+            path = root / name
+            prefix = _read_range(path, identity, 0, 8)
+            size = int.from_bytes(prefix, "little")
+            header_bytes += size
+            if (len(prefix) != 8 or size &gt; header_limit or size + 8 &gt; identity[9]
+                    or header_bytes &gt; metadata_limit):
+                raise DelegatedSourceError("GKM Safetensors header exceeds its byte limit")
+            header = _json(_read_range(path, identity, 8, size), "Safetensors header")
+            metadata = header.pop("__metadata__", {})
+            if type(metadata) is not dict or any(type(value) is not str for value in metadata.values()):
+                raise DelegatedSourceError("GKM invalid Safetensors metadata")
+            if not header or len(locations) + len(header) &gt; len(shapes):
+                raise DelegatedSourceError("GKM source tensor cardinality mismatch")
+            spans = []
+            for key, item in header.items():
+                if key in locations:
+                    raise DelegatedSourceError("GKM duplicate source tensor")
+                if (type(item) is not dict or set(item) != {"dtype", "shape", "data_offsets"}
+                        or type(item["dtype"]) is not str or item["dtype"] not in _DTYPES
+                        or type(item["shape"]) is not list or not 1 &lt;= len(item["shape"]) &lt;= 2
+                        or any(type(d) is not int or not 1 &lt;= d &lt;= dimension_limit
+                               for d in item["shape"])
+                        or math.prod(item["shape"]) &gt; element_limit):
+&gt;                   raise DelegatedSourceError("GKM source tensor has unsupported shape or dtype")
+E                   pllm.runtime.delegated_source.DelegatedSourceError: GKM source tensor has unsupported shape or dtype
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/delegated_source.py:376: DelegatedSourceError</failure></testcase></testsuite></testsuites>

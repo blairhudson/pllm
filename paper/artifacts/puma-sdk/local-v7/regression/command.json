@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+    "-I",
+    "-m",
+    "pytest",
+    "-x",
+    "-q",
+    "-o",
+    "pythonpath=.",
+    "tests/test_replicated_public_weights.py::test_public_source_uses_admitted_header_geometry_and_bounded_frames[F32]",
+    "--junitxml=target/puma-source-header-regression-v1/old-wheel.xml"
+  ],
+  "returncode": 1
+}

@@ -336,11 +336,16 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
     expanded = capacity == "decoder"
     header_limit = _DECODER_HEADER_BYTES if expanded else _MAX_HEADER_BYTES
     metadata_limit = _DECODER_METADATA_BYTES if expanded else _MAX_METADATA_BYTES
-    replicated = contract.get("schema_version") == "pllm.replicated.sdk-contract.v1"
-    dimension_limit = 8192 if replicated else (262144 if expanded else 4096)
-    element_limit = 1 << 20 if replicated else (1 << 28 if expanded else 262144)
-    _unchanged(root, contract["source_float32_bytes"], identities, capacity)
     shapes = {key: tuple(shape) for key, shape in contract["source_shapes"].items()}
+    plan = ModelPlan(_canonical(contract["plan"]))  # Metadata only; never a native digest.
+    if required_checkpoint_tensors(plan) != shapes:
+        raise DelegatedSourceError("GKM native and shared source shapes differ")
+    # Native admission owns the source envelope. Derive reader bounds from its
+    # checked geometry rather than a second method-specific size table. Shared
+    # semantic preflight below still checks every tensor's exact shape and dtype.
+    dimension_limit = max(max(shape) for shape in shapes.values())
+    element_limit = max(math.prod(shape) for shape in shapes.values())
+    _unchanged(root, contract["source_float32_bytes"], identities, capacity)
     locations = {}
     specs = {}
     indexes = []
@@ -402,9 +407,6 @@ def _store(root: Path, identities, contract) -> tuple[SafeTensorStore, tuple]:
         if index.get("weight_map") != locations:
             raise DelegatedSourceError("GKM Safetensors index differs from shard headers")
     store = _AdmittedTensorStore(root, identities, specs)
-    plan = ModelPlan(_canonical(contract["plan"]))  # Metadata only; never a native digest.
-    if required_checkpoint_tensors(plan) != shapes:
-        raise DelegatedSourceError("GKM native and shared source shapes differ")
     preflight_semantic_checkpoint(plan, store)
     if {store.resolve(name) for name in shapes} != set(locations):
         raise DelegatedSourceError("GKM source tensor identities differ")

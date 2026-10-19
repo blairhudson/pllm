@@ -1,6 +1,8 @@
 """Explicit public-weight adaptation: private feedback, storage and ownership."""
 
 import json
+import math
+from pathlib import Path
 
 import numpy as np
 import psutil
@@ -144,8 +146,6 @@ def test_public_wide_mlp_runs_compact_loops_through_installed_binding(tmp_path):
 
 
 def test_pinned_public_qwen_prices_shape_work_before_checkpoint_import():
-    from pathlib import Path
-
     replay = json.loads((Path(__file__).resolve().parents[1] /
         "paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json").read_text())
     case = replay["modes"]["public"]
@@ -168,3 +168,104 @@ def test_pinned_public_qwen_prices_shape_work_before_checkpoint_import():
         _native.replicated_source_contract(private["experiment"].encode(),
             replay["normalized_config"].encode(), replay["rows"], replay["outputs"],
             replay["source_lock"], replay["checkpoint"])
+
+
+def large_public_source_fixture(path, dtype="F32", change=None):
+    """Native-admitted geometry crossing both old private-header limits.
+
+    Sparse zero payloads avoid allocating full tensors. Three table sentinels
+    exercise conversion at a frame boundary and the final partial frame.
+    """
+    experiment = experiment_fixture(path, weights="public")
+    root = Path(experiment.pipeline.model.source)
+    config = json.loads((root / "config.json").read_text())
+    config.update(hidden_size=128, head_dim=128, intermediate_size=128, vocab_size=8193)
+    (root / "config.json").write_text(json.dumps(config))
+    tokenizer = json.loads((root / "tokenizer.json").read_text())
+    tokenizer["model"]["vocab"].update({f"word{i}": i for i in range(5, 8193)})
+    (root / "tokenizer.json").write_text(json.dumps(tokenizer))
+    contract = json.loads(_native.replicated_source_contract(
+        experiment.canonical_bytes(), source_io._encode_config(config), 8, 2, "0" * 64, "0" * 64,
+    ))
+    shapes = dict(contract["source_shapes"])
+    if change == "shape":
+        shapes["model.norm.weight"] = [64, 2]  # Same bytes; wrong declared layout.
+    elif change == "extra":
+        shapes["undeclared.weight"] = [1]
+    elif change == "missing":
+        shapes.pop("model.norm.weight")
+    itemsize = source_io._DTYPES[dtype].itemsize
+    header, offset = {}, 0
+    for name, shape in sorted(shapes.items()):
+        size = math.prod(shape) * itemsize
+        header[name] = {"shape": shape, "dtype": dtype, "data_offsets": [offset, offset + size]}
+        offset += size
+    table = "model.embed_tokens.weight"
+    if change == "dtype":
+        header[table]["dtype"] = "I32"
+    elif change == "range":
+        header[table]["data_offsets"][0] += itemsize
+    elif change == "dimension":
+        header[table]["shape"] = [8194, 128]
+    encoded = source_io._canonical(header)
+    encoded += b" " * (-len(encoded) % 8)
+    with (root / "model.safetensors").open("wb") as stream:
+        stream.write(len(encoded).to_bytes(8, "little") + encoded)
+        stream.truncate(8 + len(encoded) + offset)
+        begin = header[table]["data_offsets"][0]
+        for index, value in ((0, -0.0), (4095, -1.5), (8193 * 128 - 1, 1.25)):
+            stream.seek(8 + len(encoded) + begin + index * itemsize)
+            stream.write(np.array([value], dtype=source_io._DTYPES[dtype]).tobytes())
+    return experiment, contract, 8 + len(encoded)
+
+
+@pytest.mark.parametrize("dtype", ["F32", "F16", "BF16"])
+def test_public_source_uses_admitted_header_geometry_and_bounded_frames(tmp_path, monkeypatch, dtype):
+    from test_delegated_source import forbid_values
+
+    experiment, contract, data_offset = large_public_source_fixture(tmp_path, dtype)
+    forbid_values(monkeypatch)
+    original = source_io._read_range
+
+    def headers_only(path, identity, offset, size, **kwargs):
+        if path.name.endswith(".safetensors"):
+            assert offset + size <= data_offset
+        return original(path, identity, offset, size, **kwargs)
+
+    monkeypatch.setattr(source_io, "_read_range", headers_only)
+    source = admit_source(experiment)
+    assert source.source_shapes == {k: tuple(v) for k, v in contract["source_shapes"].items()}
+    monkeypatch.setattr(source_io, "_read_range", original)
+    received, frames, tails = {}, [], []
+
+    def append(key, offset, frame):
+        assert offset == received.get(key, 0)
+        assert 0 < len(frame) <= 16384 and len(frame) % 4 == 0
+        words = len(frame) // 4
+        expected = np.zeros(words, dtype="<u4")
+        if key == "model.embed_tokens.weight":
+            for index, bits in ((0, 0x80000000), (4095, 0xBFC00000), (8193 * 128 - 1, 0x3FA00000)):
+                if offset <= index < offset + words:
+                    expected[index - offset] = bits
+        np.testing.assert_array_equal(np.frombuffer(frame, dtype="<u4"), expected)
+        received[key] = offset + words
+        frames.append(len(frame))
+        if words < 4096:
+            tails.append((key, words))
+
+    source._append_source(sorted(source.source_shapes.items()), append, lambda: False)
+    assert received == {k: math.prod(v) for k, v in source.source_shapes.items()}
+    assert sum(frames) == source.source_float32_bytes
+    assert max(frames) == 16384 and ("model.embed_tokens.weight", 128) in tails
+
+
+@pytest.mark.parametrize("change", ["shape", "dimension", "dtype", "range", "extra", "missing"])
+def test_large_public_headers_reject_substitution_before_hashing_or_values(tmp_path, monkeypatch, change):
+    from test_delegated_source import forbid_values, forbidden
+
+    experiment, _, _ = large_public_source_fixture(tmp_path, change=change)
+    forbid_values(monkeypatch)
+    monkeypatch.setattr(source_io, "_locked", forbidden)
+    monkeypatch.setattr(source_io, "_source_float_frame", forbidden)
+    with pytest.raises(ValueError, match="shape|dtype|range|cardinality"):
+        admit_source(experiment)

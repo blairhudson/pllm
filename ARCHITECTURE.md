@@ -699,8 +699,13 @@ instruction schedules now price consumed sequence ordinals and per-party PRSS/AE
 bounds separately, including every loop tail and complete-prefix selection.
 Original complete-program ceilings remain independently enforced. Public 4+2
 metadata admits; at 16+2, lookup alone exceeds the sequence ceiling and rejects
-before tensor loading. Ordinary checkpoint preflight still rejects public tensors
-at the shared reader's private-weight header limits. Whole-request work
+before tensor loading. The shared Safetensors reader now derives header bounds
+from native-admitted, independently shape-checked source geometry. Bounded F32,
+F16 and BF16 import preserves original float32 conversions and rejects substituted
+shapes, dtypes and ranges before value reads. A pinned Qwen 4+2 ordinary SDK
+preflight admits a 2.19 GiB whole-topology allocation estimate, including the
+25% safety margin. This metadata/source-lock check does not decode checkpoint
+tensors or launch workers. Whole-request work
 qualification, whole-model ranges, quality and measured response costs remain
 open. Contract:
 `docs/research/puma-truncation-reference.md`.

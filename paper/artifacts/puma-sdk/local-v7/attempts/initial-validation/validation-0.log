@@ -1,0 +1,35 @@
+...F
+=================================== FAILURES ===================================
+_ test_cli_benchmark_accounts_client_and_peer_links_under_shared_caps[public] __
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3930/test_cli_benchmark_accounts_cl1')
+weights = 'public'
+
+    @pytest.mark.parametrize("weights", ["private", "public"])
+    def test_cli_benchmark_accounts_client_and_peer_links_under_shared_caps(tmp_path, weights):
+        _, path = saved_experiment(tmp_path, weights)
+        result = subprocess.run([sys.executable, "-I", "-B", "-m", "pllm", "benchmark", "run",
+            "--experiment", str(path), "--prompt", "hello", "--max-output-tokens", "2",
+            "--warmups", "0", "--repetitions", "1", "--backend", "native", "--wan", "--format", "json"],
+            capture_output=True, text=True, timeout=120)
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: {"error":{"code":"BENCHMARK_FAILED","details":{},"exit_code":6,"message":"ProtocolError: GKM worker rejected its one-use request","stage":"runtime"},"schema_version":"pllm.cli.error.v1"}
+E         
+E       assert 6 == 0
+E        +  where 6 = CompletedProcess(args=['/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python', '-I', '-B', ...":"ProtocolError: GKM worker rejected its one-use request","stage":"runtime"},"schema_version":"pllm.cli.error.v1"}\n').returncode
+
+tests/test_replicated_interfaces.py:109: AssertionError
+=============================== warnings summary ===============================
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/testclient.py:1
+  /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/testclient.py:53
+  /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_replicated_interfaces.py::test_cli_benchmark_accounts_client_and_peer_links_under_shared_caps[public]
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+1 failed, 3 passed, 2 warnings in 63.08s (0:01:03)

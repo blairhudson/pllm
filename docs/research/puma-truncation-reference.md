@@ -182,15 +182,37 @@ That metadata gate admits. At sixteen inputs/two outputs, its 1,096,788 lookup
 ordinals reject before tensor reads. The private-weight source-expansion gate
 remains separate. Metadata admission does not qualify complete-model ranges,
 whole-request work, checkpoint execution, quality or serving resources.
-An ordinary `benchmark_memory` retry against the pinned checkpoint reaches the
-shared Safetensors header reader, which still applies the private-weight
-8,192-dimension/1,048,576-value tensor limits to this public mode. It rejects
-before tensor-value decoding or worker launch. Aligning that reader with the
-native public-source envelope remains the next SDK import gate.
+The work-budget slice's ordinary `benchmark_memory` retry reached the shared
+Safetensors reader's private-weight header limits. That rejection remains in
+its original receipt.
 The installed-wheel checks pass 245 unique Python cases and 144 native checks,
 including five ownership doctests, with seven optional skips. Original attempts,
 complete collection reconciliation and replay are retained in the
 [work-budget slice](../../paper/artifacts/puma-sdk/local-v6/README.md).
+
+### Native-derived source-header bounds
+
+The shared source reader now derives maximum dimensions and element counts from
+the admitted native source shapes, after checking those shapes against the
+semantic plan. It then validates exact checkpoint shapes, floating-point dtypes,
+contiguous byte ranges, tensor cardinality and shard ownership before value reads.
+File identity, source locks, header/metadata ceilings and bounded conversions
+retain their existing contracts. GKM and private/public PUMA use the same reader.
+
+A sparse generated 8,193-by-128 token table crosses both old private-header
+limits. F32, F16 and BF16 checks preserve all converted float32 bits, signed zero,
+frame boundaries and the last partial frame. Changed shapes, dimensions, dtypes,
+ranges and missing/extra tensors reject before source hashing or value decoding.
+The original failing installed-wheel regression remains recorded.
+
+The separate pinned Qwen 4+2 `benchmark_memory` retry now admits its complete
+source-present topology. Its 2,348,810,240-byte allocation estimate includes a
+25% margin; required disk is 14,004,270,080 bytes. Source hashing and headers are
+checked, but this preflight does not decode tensor values or launch workers.
+Complete-model numeric/program admission and checkpoint execution remain open;
+these estimates are not measured RSS, quality or serving costs. Original reports,
+installed-wheel checks and replay:
+[source-header slice](../../paper/artifacts/puma-sdk/local-v7/README.md).
 
 ### Shared SDK interfaces
 
