@@ -2,6 +2,8 @@
 //! The client/model owner supplies independent input/model shares. Only final
 //! token IDs may be reconstructed after the fixed full-prefix feedback loop.
 
+pub mod cost;
+mod policy;
 mod program;
 mod public_source;
 mod runtime;
@@ -10,6 +12,7 @@ mod source;
 #[cfg(test)]
 mod tests;
 mod views;
+pub use policy::{ExecutionPolicy, LookupPolicy, PeerTransport, RangePolicy, SelectionPolicy};
 pub use program::{Program, SourceTensor};
 pub use public_source::{PublicSource, PublicSourceImport};
 pub use runtime::{PeerBytes, Worker};
@@ -83,6 +86,19 @@ enum Code {
         input: LoopInput,
         program: Arc<tensor::Program>,
         tail: Option<Arc<tensor::Program>>,
+    },
+    CheckedRange {
+        input: usize,
+        program: Arc<tensor::Program>,
+    },
+    PublicLookup {
+        input: usize,
+        weight: usize,
+        plan: Arc<runtime::lookup::Plan>,
+    },
+    Selection {
+        input: usize,
+        plan: Arc<runtime::selection::Plan>,
     },
 }
 
@@ -162,7 +178,11 @@ impl Node {
     fn work_budget(&self) -> Result<WorkBudget, Error> {
         match &self.code {
             Code::Product { rescale, .. } => WorkBudget::product(self.lanes, *rescale),
-            Code::Tensor { program, .. } => Ok(program.work_budget()),
+            Code::Tensor { program, .. } | Code::CheckedRange { program, .. } => {
+                Ok(program.work_budget())
+            }
+            Code::PublicLookup { plan, .. } => plan.work_budget(),
+            Code::Selection { plan, .. } => Ok(plan.work_budget()),
             Code::TensorLoop { program, tail, .. } => program
                 .work_budget()
                 .checked_mul((self.lanes / program.lanes()) as u64)?
@@ -186,8 +206,11 @@ impl Node {
             Code::SourceGather(view) => vec![view.owner],
             Code::Affine { left, right, .. } => std::iter::once(*left).chain(*right).collect(),
             Code::Product { left, right, .. } => vec![*left, *right],
-            Code::PublicProduct { input, weight, .. } => vec![*input, *weight],
-            Code::Tensor { input, .. } => vec![*input],
+            Code::PublicProduct { input, weight, .. }
+            | Code::PublicLookup { input, weight, .. } => vec![*input, *weight],
+            Code::Tensor { input, .. }
+            | Code::CheckedRange { input, .. }
+            | Code::Selection { input, .. } => vec![*input],
             Code::TensorLoop { input, .. } => vec![input.owner()],
         }
     }

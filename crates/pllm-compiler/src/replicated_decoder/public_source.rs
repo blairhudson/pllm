@@ -33,11 +33,12 @@ impl PublicSourceImport {
         if manifest.weights != WeightMode::Public {
             return Err("public source requires the public-weight contract".into());
         }
-        let shapes = Program::source_shapes_with_weights(
+        let shapes = Program::source_shapes_with_policy(
             &manifest.config,
             manifest.rows,
             manifest.outputs,
             manifest.weights,
+            manifest.execution,
         )?;
         if shapes.len() != manifest.tensors.len()
             || manifest.tensors.values().any(|t| {
@@ -284,4 +285,72 @@ pub(super) fn multiply(
         offset += n as u64;
     }
     Ok(out)
+}
+
+/// Add a public contiguous vocabulary range to complete ring64 accumulators.
+/// Selectors are row-major [rows, count]; the file remains [vocabulary, width].
+/// Every public coefficient is read once and reused across both components of
+/// every row. No rescale, secret-dependent seek, or resident weight copy occurs.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn accumulate_rows(
+    file: &PublicFile,
+    selectors: &Secret,
+    output: &mut Secret,
+    rows: usize,
+    vocabulary: usize,
+    width: usize,
+    start: usize,
+    count: usize,
+) -> Result<(), Error> {
+    if rows == 0
+        || width == 0
+        || count == 0
+        || start.checked_add(count).is_none_or(|n| n > vocabulary)
+        || rows.checked_mul(count) != Some(selectors.first.len())
+        || selectors.second.len() != selectors.first.len()
+        || rows.checked_mul(width) != Some(output.first.len())
+        || output.second.len() != output.first.len()
+        || vocabulary
+            .checked_mul(width)
+            .and_then(|n| n.checked_mul(8))
+            .and_then(|n| u64::try_from(n).ok())
+            != Some(file.size())
+        || rows
+            .checked_mul(count)
+            .and_then(|n| n.checked_mul(width))
+            .is_none_or(|n| n > 1usize << 32)
+    {
+        return Err(Error::Bounds);
+    }
+    let mut offset = start
+        .checked_mul(width)
+        .and_then(|n| n.checked_mul(8))
+        .ok_or(Error::Bounds)? as u64;
+    let end = (start + count)
+        .checked_mul(width)
+        .and_then(|n| n.checked_mul(8))
+        .ok_or(Error::Bounds)? as u64;
+    let base = offset;
+    let mut buffer = [0u8; 65536];
+    while offset < end {
+        let n = buffer.len().min((end - offset) as usize);
+        file.read(offset, &mut buffer[..n])
+            .map_err(|_| Error::Binding)?;
+        for (i, raw) in buffer[..n].chunks_exact(8).enumerate() {
+            let index = ((offset - base) / 8) as usize + i;
+            let k = index / width;
+            let c = index % width;
+            let weight = u64::from_le_bytes(raw.try_into().unwrap());
+            for row in 0..rows {
+                let x = row * count + k;
+                let y = row * width + c;
+                output.first[y] =
+                    output.first[y].wrapping_add(selectors.first[x].wrapping_mul(weight));
+                output.second[y] =
+                    output.second[y].wrapping_add(selectors.second[x].wrapping_mul(weight));
+            }
+        }
+        offset += n as u64;
+    }
+    Ok(())
 }

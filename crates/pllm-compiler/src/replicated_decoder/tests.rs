@@ -47,6 +47,32 @@ fn pinned_qwen_public_metadata_prices_live_frontier_without_source_values() {
 }
 
 #[test]
+fn tiled_lookup_metadata_uses_its_own_public_work_floor() {
+    let replay: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json"
+    ))
+    .unwrap();
+    let config = replay["normalized_config"].as_str().unwrap().as_bytes();
+    let policy = ExecutionPolicy {
+        lookup: LookupPolicy::Tiled,
+        ..ExecutionPolicy::default()
+    };
+    let shapes =
+        Program::source_shapes_with_policy(config, 16, 2, WeightMode::Public, policy).unwrap();
+    assert_eq!(shapes["model.embed_tokens.weight"], [151_936, 896]);
+    let publisher =
+        Publisher::new_with_policy(config, 16, 2, [1; 32], [2; 32], WeightMode::Public, policy)
+            .unwrap();
+    assert!(publisher.manifest().is_err()); // No source values or executable program admitted.
+                                            // Independent construction-view and complete-work ceilings still reject
+                                            // larger envelopes; their first failing gate need not match the old policy.
+    assert!(Program::source_shapes_with_policy(config, 32, 2, WeightMode::Public, policy).is_err());
+    assert!(
+        Program::source_shapes_with_policy(config, 16, 2, WeightMode::Private, policy).is_err()
+    );
+}
+
+#[test]
 fn public_numeric_admission_identifies_semantic_operator_and_retires_publisher() {
     let mut publisher =
         Publisher::new_with_weights(PUBLIC_CONFIG, 2, 2, [1; 32], [2; 32], WeightMode::Public)

@@ -155,6 +155,36 @@ pub(super) enum State {
 }
 
 impl State {
+    /// Compact equality only uses the one-bit OT path. Validate exact public
+    /// role/phase/binding before its full-ring arithmetic payload is allocated.
+    pub(super) fn validate_compact_header(&self, header: Header) -> Result<(), Error> {
+        let plan = match self {
+            Self::Helper { plan, .. } if header.phase == MessagePhase::BooleanOtReshare => plan,
+            Self::Receiver { plan, .. }
+                if matches!(
+                    header.phase,
+                    MessagePhase::BooleanOtMask
+                        | MessagePhase::BooleanOtZero
+                        | MessagePhase::BooleanOtOne
+                ) =>
+            {
+                plan
+            }
+            _ => return Err(Error::Phase),
+        };
+        if plan.bits != 1 {
+            return Err(Error::Binding);
+        }
+        let (from, to) = plan.endpoints(header.phase)?;
+        if header.from != from || header.to != to {
+            return Err(Error::Role);
+        }
+        if header.binding != plan.message_operation(header.phase)?.digest() {
+            return Err(Error::Binding);
+        }
+        Ok(())
+    }
+
     pub(super) fn status(&self) -> Status {
         match self {
             Self::Planned(_) => Status::Planned,

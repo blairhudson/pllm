@@ -1,0 +1,164 @@
+{
+  "base_commit": "5dd110042aae58a886afb7ef1b8126257644479b",
+  "checkpoint": {
+    "checkpoint": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+    "elapsed_seconds": 13.35226633399725,
+    "error_type": "ValueError",
+    "execution_policy": {
+      "lookup": "tiled",
+      "max_abs_activation": 256,
+      "peer_transport": "streams",
+      "range_policy": "checked",
+      "selection": "tiled"
+    },
+    "host_after": {
+      "availability_source": "macos_mach_dispatch_v2",
+      "available": 11406688256,
+      "cached": 5427216384,
+      "disk_free": 30677815296,
+      "free": 297107456,
+      "pressure": "normal",
+      "purgeable": 223395840,
+      "reusable": 5682364416,
+      "swap_used": 4760338432,
+      "total": 34359738368
+    },
+    "max_swap_used_growth_bytes": 0,
+    "memory_preflight": {
+      "admitted": true,
+      "candidates": {
+        "docker": {
+          "admitted": false,
+          "docker": null,
+          "expected_peak_bytes": 1904214016,
+          "reasons": [
+            "selected runtime requires native role owners; Docker is not admitted",
+            "Docker memory capacity is unavailable"
+          ],
+          "required_disk_bytes": 14004270080,
+          "required_host_bytes": 2380267520,
+          "safety_margin_bytes": 476053504
+        },
+        "native": {
+          "admitted": true,
+          "docker": null,
+          "expected_peak_bytes": 1904214016,
+          "reasons": [],
+          "required_disk_bytes": 14004270080,
+          "required_host_bytes": 2380267520,
+          "safety_margin_bytes": 476053504
+        }
+      },
+      "enforced_wan": false,
+      "estimate": {
+        "allocation_slack_percent": 25,
+        "bundle_storage": "trusted client source publication",
+        "client_peak_bytes": 587202560,
+        "compiled_input_bound": 4,
+        "components": {
+          "checkpoint_bytes": 988097824,
+          "peer_stream_workspace_bytes_per_worker": 8388608,
+          "per_engine_compiled_disk_bytes": 3952262144,
+          "public_weight_read_buffer_bytes": 65536,
+          "raw_client_bundle_bytes": 0,
+          "source_float32_bytes": 1976131072
+        },
+        "concurrent_response_bound": 1,
+        "docker_provider_peak_bytes": {},
+        "inventory_rows": 0,
+        "kernel": "cpu",
+        "limitations": [],
+        "mask_storage": "party-local pairwise PRSS",
+        "max_input_tokens": 4,
+        "max_output_tokens": 2,
+        "model_config_digest": "c3f15d3ec0180623ac2f54236c022490dd79bc6a00b5fbc4a1ffd038a43f7668",
+        "model_plan_digest": null,
+        "native_total_peak_bytes": 2380267520,
+        "pipeline_digest": "4c0a37134d591bbd014d499f9c9c6b8cb840313f401b1bfd228373a72179cffb",
+        "preparation_kernel": "none",
+        "preparation_storage": "none",
+        "provider_peak_bytes": {
+          "worker_a": 597688320,
+          "worker_b": 597688320,
+          "worker_c": 597688320
+        },
+        "runtime_kind": "replicated",
+        "scope": "conservative allocation estimate; not measured peak RSS",
+        "tensor_storage": "party-local recomputed prefix, KV and Q18 activations",
+        "weight_storage": "verified file-backed public Q18 weights"
+      },
+      "host": {
+        "admission_budget_bytes": 11546591232,
+        "availability_source": "macos_mach_dispatch_v2",
+        "available": 11546591232,
+        "cached": 5333434368,
+        "disk_free": 30679310336,
+        "free": 67321856,
+        "pressure": "normal",
+        "purgeable": 178323456,
+        "reserve_bytes": 0,
+        "reusable": 6145835008,
+        "swap_used": 4760338432,
+        "total": 34359738368
+      },
+      "requested_backend": "native",
+      "runtime_floor_bytes": 476053504,
+      "schema": "pllm.benchmark_memory.v1",
+      "selected_backend": "native"
+    },
+    "process_cpu_seconds": 13.284677,
+    "process_peak_rss_bytes": 274333696,
+    "reason": "replicated decoder admission: PUMA truncation rejected: Bounds; public context selection: 0, step: Some(238), operator: Some(AttentionScores), layer: Some(8), inputs: [Some((-519693187, 520545155)), Some((-447354360, 442887319))]",
+    "scope": "ordinary SDK source publisher; four fixed public zero IDs; no role workers or online execution; process peak includes validation launcher",
+    "source_lock": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+    "status": "rejected",
+    "watchdog_error": null,
+    "wheel_sha256": "c599f0781f1c7fdc0697b67118c3f0b897ae504d2f771c0a506ce8af350de73f"
+  },
+  "full_checkpoint_execution": "blocked",
+  "generated_native_cases": 64,
+  "independent_python_oracle_passed": 89,
+  "installed_package_files": 368,
+  "installed_python": {
+    "compatibility": {
+      "errors": 0,
+      "failures": 0,
+      "passed": 331,
+      "skipped": 7,
+      "tests": 338
+    },
+    "focused": {
+      "errors": 0,
+      "failures": 0,
+      "passed": 115,
+      "skipped": 0,
+      "tests": 115
+    },
+    "native_sdk": {
+      "errors": 0,
+      "failures": 0,
+      "passed": 16,
+      "skipped": 0,
+      "tests": 16
+    }
+  },
+  "installed_python_passed": 462,
+  "native": {
+    "compiler": 66,
+    "core": 98,
+    "doctests": 5,
+    "integration": 46,
+    "oracle": 3
+  },
+  "native_distinct_passed": 218,
+  "optional_skips": 7,
+  "oracle_negative_controls": 824,
+  "post_validation_test_only_changes": [
+    "SDK gate command documentation now includes pytest pythonpath override; exact tested bytes in sdk-tested-inputs.tar.gz",
+    "Native oracle rustfmt-only changes; exact tested bytes in oracle/oracle_trace-tested.rs"
+  ],
+  "schema": "pllm.puma.checked-execution-evidence.v1",
+  "status": "bounded_conformance_passed",
+  "validation_inputs": 814,
+  "wheel_package_equivalence": true
+}

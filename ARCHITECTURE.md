@@ -726,13 +726,31 @@ privately select an exact zero stand-in for unused polynomial tails, retaining
 the original interior stochastic equations and final zero/identity tails. Public
 integer partitions bound polynomial outputs; the additional fresh product and
 changed instruction identity remain charged. Public-weight decoder compilation
-selects guarded SiLU; generated controls preserve private feedback. Pinned Qwen
-source publication now passes layer-zero attention,
+selects guarded SiLU; generated controls preserve private feedback. Static-profile
+pinned Qwen source publication passes layer-zero attention,
 normalization and MLP, but rejects layer-one RMSNorm at the propagated residual
 range, with zero observed swap growth and no worker launch.
 Whole-request work qualification, whole-model ranges, quality and measured
 response costs remain open. Contract:
 `docs/research/puma-truncation-reference.md`.
+The explicit public-weight checked-range policy additionally tests frozen RMSNorm
+input intervals inside MPC, selects zero before unsafe arithmetic, and retains
+sticky shared validity across every selection. Final validity masks all tokens;
+the client rejects the complete request on any failure. This changes the numeric
+acceptance contract and does not reveal a failing location. Independent tiled
+lookup, compact proven-domain predicates and bounded stable selection reduce
+public scans or metadata while retaining complete vocabulary work and fresh
+material. Authenticated persistent peer streams bind worker epochs and ordered
+one-use sessions, with an additional 8 MiB per-worker allowance. Legacy defaults
+and existing capacity ceilings remain. Generated test-only integer/AES oracles
+check complete tensors, feedback and final acceptance. A separate pinned public
+4+2 source-publication attempt reaches layer-eight attention before rejecting its
+product bound, with zero observed swap growth and no worker launch. Full-body
+metadata, work and directed-byte floors also block the shared 64+8 envelope;
+these bounded implementations establish no full-Qwen or performance qualification.
+The installed-wheel slice passes 462 Python checks and 218 native checks; 64
+generated integer/AES oracle cases reject 824 negative controls. Full evidence:
+`paper/artifacts/puma-sdk/local-v12/README.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
 source's float32-before-division boundary. Dense XOR lookup preserves original

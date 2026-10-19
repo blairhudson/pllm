@@ -7,6 +7,8 @@ from .client import ProtocolError
 from .delegated_protocol import clear_failure_frames, digest, pack, unpack
 from .delegated_transport import _Peers
 from .replicated_protocol import ROLES, FRAME_LIMIT, ADMISSION_LIMIT, REQUEST_MEMORY, PEER_COUNTERS
+from .replicated_protocol import execution_policy
+from .replicated_peer import TRANSPORT
 
 
 @dataclass(frozen=True)
@@ -22,20 +24,31 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
         peers = _Peers(connections, timeout, attempt, roles=ROLES, namespace="replicated")
         publisher, manifest = source.publisher(experiment, ids, outputs, attempt)
         peers.request_id = digest(bytes(json.loads(manifest)["session"]).hex())
+        streams = execution_policy(experiment)["peer_transport"] == "streams"
+        epochs = {}
         for index, role in enumerate(ROLES):
             advertised = unpack(peers.post(index, "manifest", phase="setup", limit=4096))
             expected = {"schema": "pllm.replicated.worker.v1", "role": role,
                 "configuration": experiment.configuration_digest(), "source_lock": source.source_lock_digest,
                 "tokenizer": source.tokenizer_digest}
+            if streams:
+                expected["peer_transport"] = TRANSPORT
             if (set(advertised) != set(expected) | {"epoch"}
                     or any(advertised[key] != value for key, value in expected.items())):
                 raise ProtocolError("replicated worker manifest differs")
+            epochs[role] = digest(advertised["epoch"])
             peers.live[index] = True
             raw = peers.post(index, "admit", pack({"request": peers.request_id,
                 "epoch": digest(advertised["epoch"]), "manifest": manifest}, limit=ADMISSION_LIMIT),
                 phase="setup", limit=4096)
             if unpack(raw) != {"accepted": True}:
                 raise ProtocolError("replicated admission acknowledgement differs")
+        if streams:
+            for index in range(3):
+                raw = peers.post(index, "bind_peers", pack({"transport": TRANSPORT, "epochs": epochs}),
+                                 phase="setup", limit=4096)
+                if unpack(raw) != {"accepted": True}:
+                    raise ProtocolError("replicated peer binding acknowledgement differs")
         for action in ("setup_public", "setup_dispatch", "setup_seed", "setup_dispatch", "activate"):
             for index in range(3):
                 if unpack(peers.post(index, action, phase="setup", limit=4096)) != {"accepted": True}:

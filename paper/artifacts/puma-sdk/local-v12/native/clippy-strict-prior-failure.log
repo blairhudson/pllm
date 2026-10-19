@@ -1,0 +1,8 @@
+TRANSCRIPT EXCERPT — full original stdout not retained; see session-excerpts.json
+error: the loop variable `k` is used to index `acc`
+  --> crates/pllm-core/src/byte_dot.rs:90:18
+error: the loop variable `i` is used to index `input`
+   --> crates/pllm-core/src/maverick_batch/protocol.rs:333:18
+error: the loop variable `b` is used to index `q`
+   --> crates/pllm-core/src/maverick_batch/publication.rs:284:18
+error: could not compile `pllm-core` (lib) due to 3 previous errors

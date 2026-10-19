@@ -7,6 +7,21 @@ use std::collections::BTreeMap;
 #[path = "linear_tests.rs"]
 mod linear_tests;
 
+#[path = "ranges.rs"]
+mod ranges;
+#[cfg(test)]
+#[path = "ranges_tests.rs"]
+mod ranges_tests;
+
+#[path = "lookup_builder.rs"]
+mod lookup_builder;
+#[cfg(test)]
+#[path = "lookup_integration_tests.rs"]
+mod lookup_integration_tests;
+#[cfg(test)]
+#[path = "selection_integration_tests.rs"]
+mod selection_integration_tests;
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SourceTensor {
@@ -96,6 +111,7 @@ struct AdmissionSite {
     operator: Option<Op>,
     layer: Option<u64>,
     inputs: [Option<(i64, i64)>; 2],
+    complete_work: Option<(u64, u64)>,
 }
 
 impl std::fmt::Display for AdmissionSite {
@@ -104,7 +120,14 @@ impl std::fmt::Display for AdmissionSite {
             f,
             "selection: {}, step: {:?}, operator: {:?}, layer: {:?}, inputs: {:?}",
             self.selection, self.step, self.operator, self.layer, self.inputs
-        )
+        )?;
+        if let Some((ordinals, aes_blocks)) = self.complete_work {
+            write!(
+                f,
+                "; complete-program ordinals: {ordinals}, per-party AES bound: {aes_blocks}"
+            )?;
+        }
+        Ok(())
     }
 }
 
@@ -214,8 +237,13 @@ impl<'a> MatrixView<'a> {
 struct Builder {
     nodes: Vec<Node>,
     allocated: usize,
+    workspace_bytes: usize,
     tensors: BTreeMap<[u8; 32], Arc<tensor::Program>>,
     public_weights: bool,
+    checked_bound: Option<i64>,
+    validity: Option<usize>,
+    lookup: policy::LookupPolicy,
+    selection: SelectionPolicy,
     row_norms: Vec<(usize, u128)>,
     row_energies: Vec<(Words, u128)>,
     row_masses: Vec<(usize, u64)>,
@@ -296,6 +324,54 @@ impl Builder {
             Code::Input(v) => v.capacity(),
             Code::PublicInput { key, .. } => key.capacity(),
             Code::PublicValues(values) => values.capacity() * 8,
+            Code::PublicLookup { plan, .. } => {
+                let (rows, _, width) = plan.geometry();
+                if rows.checked_mul(width) != Some(lanes) {
+                    return Err(Error::Shape);
+                }
+                let output_bytes = lanes.checked_mul(16).ok_or(Error::Bounds)?;
+                // Immutable full/tail programs are shared with ordinary Tensor
+                // nodes. Charge their Arc storage once/digest; each Plan Arc is
+                // distinct. Registry/allocator allowance is separate from exact
+                // payload/reference-counter sizes.
+                let retained = plan
+                    .programs()
+                    .filter(|p| !self.tensors.contains_key(&p.digest()))
+                    .try_fold(plan.shallow_metadata_bytes() + 1024, |n, p| {
+                        n.checked_add(runtime::lookup::Plan::program_metadata_bytes(p))
+                            .and_then(|n| n.checked_add(1024))
+                            .ok_or(Error::Bounds)
+                    })?;
+                // Peak includes the active program clone, original primitive
+                // workspace and overlapping selectors/temporaries/file buffer.
+                // The accumulator becomes this node's output without a copy;
+                // its ordinary 16*lanes graph charge below covers that owner.
+                let workspace = plan
+                    .peak_extra_bytes()?
+                    .checked_sub(plan.metadata_bytes()?)
+                    .and_then(|n| n.checked_sub(output_bytes))
+                    .ok_or(Error::Bounds)?;
+                let extra = workspace.saturating_sub(self.workspace_bytes);
+                self.workspace_bytes = self.workspace_bytes.max(workspace);
+                retained.checked_add(extra).ok_or(Error::Bounds)?
+            }
+            Code::Selection { plan, .. } => {
+                let metadata = plan.metadata_bytes()?;
+                // The dedicated full-head gather and original logits already
+                // have distinct 16*lanes charges. Moving the gather into the
+                // tournament allocates no second score array.
+                let workspace = plan
+                    .peak_extra_bytes()?
+                    .checked_sub(metadata)
+                    .and_then(|n| n.checked_add(plan.predicate_workspace_bytes()))
+                    .ok_or(Error::Bounds)?;
+                let extra = workspace.saturating_sub(self.workspace_bytes);
+                self.workspace_bytes = self.workspace_bytes.max(workspace);
+                metadata
+                    .checked_add(1024)
+                    .and_then(|n| n.checked_add(extra))
+                    .ok_or(Error::Bounds)?
+            }
             _ => 0,
         };
         self.allocated = self
@@ -316,6 +392,13 @@ impl Builder {
         }
         if let Code::TensorLoop { program, tail, .. } = &code {
             for program in std::iter::once(program).chain(tail) {
+                self.tensors
+                    .entry(program.digest())
+                    .or_insert_with(|| program.clone());
+            }
+        }
+        if let Code::PublicLookup { plan, .. } = &code {
+            for program in plan.programs() {
                 self.tensors
                     .entry(program.digest())
                     .or_insert_with(|| program.clone());
@@ -511,6 +594,24 @@ impl Builder {
         let n = logits.words.len();
         if n == 0 {
             return Err(Error::Shape);
+        }
+        if self.selection == SelectionPolicy::Tiled {
+            if !self.public_weights {
+                return Err(Error::Binding);
+            }
+            let plan = Arc::new(runtime::selection::Plan::new(
+                n,
+                self.bounds(&logits.words)?,
+            )?);
+            // Dedicated immediately preceding owner: only this selection node
+            // consumes it. Original logits/views remain independently live.
+            let input = self.gather(&logits.words)?;
+            let output = self.push(
+                Code::Selection { input, plan },
+                1,
+                Interval::new(0, n as i64 - 1)?,
+            )?;
+            return Ok(self.view(output, vec![1]));
         }
         let indices = self.push(
             Code::PublicValues((0..n as i64).collect()),
@@ -967,68 +1068,78 @@ impl Builder {
                     *target = Some((bounds.lower(), bounds.upper()));
                 }
             }
+            #[cfg(test)]
+            let oracle_start = self.nodes.len();
             let output = match op.operator {
                 Op::TokenLookup => {
                     let table = source("weight")?;
                     if table.shape != [vocabulary, *shape.last().ok_or(Error::Shape)?] {
                         return Err(Error::Shape);
                     }
-                    let table_bound = self.nodes[table.owner].bounds;
-                    let mut words = Words::new();
-                    for token in tokens.words.iter() {
-                        let mut one_hot = Words::new();
-                        if self.public_weights {
-                            let original = self.nodes[token.0].bounds;
-                            let bounds = Interval::new(
-                                original
-                                    .lower()
-                                    .checked_sub((vocabulary - 1) as i64)
-                                    .ok_or(Error::Bounds)?,
-                                original.upper(),
-                            )?;
-                            let equal = self.tensor_loop(
-                                LoopInput::TokenOffsets {
-                                    owner: token.0,
-                                    index: token.1,
-                                },
-                                vocabulary,
-                                |n| tensor::Program::equal_zero(n, bounds),
-                            )?;
-                            one_hot = self.view(equal, vec![1, vocabulary]).words;
-                        } else {
-                            for start in (0..vocabulary).step_by(128) {
-                                let n = 128.min(vocabulary - start);
-                                let x = self.gather(&std::iter::repeat_n(token, n).collect())?;
-                                let mut builder = tensor::Builder::new(n, self.nodes[x].bounds)?;
-                                let coefficients: Vec<_> = (start..start + n)
-                                    .map(|i| affine(1, 0, -(i as i64)))
-                                    .collect();
-                                let shifted =
-                                    builder.affine_lanes(builder.input(), &coefficients)?;
-                                let program = builder.finish(shifted)?;
-                                let difference = self.tensor(x, program)?;
-                                let program =
-                                    tensor::Program::equal_zero(n, self.nodes[difference].bounds)?;
-                                let equal = self.tensor(difference, program)?;
-                                one_hot.extend((0..n).map(|i| (equal, i)));
+                    if self.public_weights && self.lookup == policy::LookupPolicy::Tiled {
+                        self.tiled_lookup(tokens, table, &shape)?
+                    } else {
+                        let table_bound = self.nodes[table.owner].bounds;
+                        let mut words = Words::new();
+                        for token in tokens.words.iter() {
+                            let mut one_hot = Words::new();
+                            if self.public_weights {
+                                let original = self.nodes[token.0].bounds;
+                                let bounds = Interval::new(
+                                    original
+                                        .lower()
+                                        .checked_sub((vocabulary - 1) as i64)
+                                        .ok_or(Error::Bounds)?,
+                                    original.upper(),
+                                )?;
+                                let equal = self.tensor_loop(
+                                    LoopInput::TokenOffsets {
+                                        owner: token.0,
+                                        index: token.1,
+                                    },
+                                    vocabulary,
+                                    |n| tensor::Program::equal_zero(n, bounds),
+                                )?;
+                                one_hot = self.view(equal, vec![1, vocabulary]).words;
+                            } else {
+                                for start in (0..vocabulary).step_by(128) {
+                                    let n = 128.min(vocabulary - start);
+                                    let x =
+                                        self.gather(&std::iter::repeat_n(token, n).collect())?;
+                                    let mut builder =
+                                        tensor::Builder::new(n, self.nodes[x].bounds)?;
+                                    let coefficients: Vec<_> = (start..start + n)
+                                        .map(|i| affine(1, 0, -(i as i64)))
+                                        .collect();
+                                    let shifted =
+                                        builder.affine_lanes(builder.input(), &coefficients)?;
+                                    let program = builder.finish(shifted)?;
+                                    let difference = self.tensor(x, program)?;
+                                    let program = tensor::Program::equal_zero(
+                                        n,
+                                        self.nodes[difference].bounds,
+                                    )?;
+                                    let equal = self.tensor(difference, program)?;
+                                    one_hot.extend((0..n).map(|i| (equal, i)));
+                                }
                             }
+                            let selectors = View {
+                                words: one_hot,
+                                shape: vec![1, vocabulary],
+                            };
+                            let row =
+                                self.matrix(&selectors, MatrixView::source(table, true)?, false)?;
+                            // Source input IDs and protected argmax establish exactly
+                            // one selector. The output is an original table element.
+                            for (id, _) in row.words.iter() {
+                                self.nodes[id].bounds = table_bound;
+                            }
+                            words.extend(row.words);
                         }
-                        let selectors = View {
-                            words: one_hot,
-                            shape: vec![1, vocabulary],
-                        };
-                        let row =
-                            self.matrix(&selectors, MatrixView::source(table, true)?, false)?;
-                        // Source input IDs and protected argmax establish exactly
-                        // one selector. The output is an original table element.
-                        for (id, _) in row.words.iter() {
-                            self.nodes[id].bounds = table_bound;
+                        View {
+                            words,
+                            shape: shape.clone(),
                         }
-                        words.extend(row.words);
-                    }
-                    View {
-                        words,
-                        shape: shape.clone(),
                     }
                 }
                 Op::Linear | Op::OutputHead => {
@@ -1067,7 +1178,27 @@ impl Builder {
                         return Err(Error::Shape);
                     }
                     let mut words = Words::new();
-                    for row in a.ok_or(Error::Binding)?.words.chunks_exact(width) {
+                    let original = &a.ok_or(Error::Binding)?.words;
+                    #[cfg(test)]
+                    if super::runtime::oracle_trace::enabled() {
+                        super::runtime::oracle_trace::range_begin(
+                            site.selection,
+                            &op.id,
+                            &shape[1..],
+                            original.iter().collect(),
+                        );
+                    }
+                    let checked = if self.checked_bound.is_some() {
+                        Some(self.checked_view(original)?)
+                    } else {
+                        None
+                    };
+                    #[cfg(test)]
+                    if super::runtime::oracle_trace::enabled() {
+                        super::runtime::oracle_trace::range_end();
+                    }
+                    let input_words = checked.as_ref().unwrap_or(original);
+                    for row in input_words.chunks_exact(width) {
                         let input = self.gather(&row)?;
                         let (program, squared) = if self.public_weights {
                             let gamma = gamma.public_q18.as_ref().ok_or(Error::Binding)?;
@@ -1473,6 +1604,21 @@ impl Builder {
             if output.words.len() != shape.iter().product::<usize>() {
                 return Err(Error::Shape);
             }
+            #[cfg(test)]
+            if super::runtime::oracle_trace::enabled() {
+                super::runtime::oracle_trace::boundary(
+                    site.selection,
+                    &op.id,
+                    &output.shape,
+                    output.words.iter().collect(),
+                );
+                super::runtime::oracle_trace::span(
+                    site.selection,
+                    &op.id,
+                    oracle_start,
+                    self.nodes.len(),
+                );
+            }
             values.insert(op.id.clone(), output);
             // Public construction references can retire once their final
             // semantic consumer has copied indices into the emitted schedule.
@@ -1539,6 +1685,17 @@ impl Program {
         outputs: usize,
         weights: WeightMode,
     ) -> Result<BTreeMap<String, Vec<usize>>, String> {
+        Self::source_shapes_with_policy(config, rows, outputs, weights, ExecutionPolicy::default())
+    }
+
+    pub fn source_shapes_with_policy(
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        weights: WeightMode,
+        execution: ExecutionPolicy,
+    ) -> Result<BTreeMap<String, Vec<usize>>, String> {
+        execution.validate(weights)?;
         let plan = lower_with_weights(config, rows, outputs, weights)?;
         let vocabulary = plan
             .prefill
@@ -1599,8 +1756,9 @@ impl Program {
         };
         construction_views(prefill, shapes.len())?;
         if weights == WeightMode::Public {
-            let lookup_work = public_lookup_work_floor(rows, outputs, vocabulary)
-                .map_err(|e| format!("replicated public lookup admission: {e}"))?;
+            let lookup_work =
+                public_lookup_work_floor_with_policy(rows, outputs, vocabulary, execution.lookup)
+                    .map_err(|e| format!("replicated public lookup admission: {e}"))?;
             if lookup_work.operations() > puma::MAX_PROGRAM_OPERATIONS {
                 return Err(format!(
                     "replicated public lookup operation count {} exceeds limit {}",
@@ -1635,7 +1793,26 @@ impl Program {
         sources: &BTreeMap<String, SourceTensor>,
         weights: WeightMode,
     ) -> Result<Self, String> {
-        let shapes = Self::source_shapes_with_weights(config, rows, outputs, weights)?;
+        Self::compile_with_policy(
+            config,
+            rows,
+            outputs,
+            sources,
+            weights,
+            ExecutionPolicy::default(),
+        )
+    }
+
+    pub fn compile_with_policy(
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        sources: &BTreeMap<String, SourceTensor>,
+        weights: WeightMode,
+        execution: ExecutionPolicy,
+    ) -> Result<Self, String> {
+        execution.validate(weights)?;
+        let shapes = Self::source_shapes_with_policy(config, rows, outputs, weights, execution)?;
         let first = lower_with_weights(config, rows, outputs, weights)?;
         let public: std::collections::BTreeSet<_> = first
             .prefill
@@ -1714,6 +1891,9 @@ impl Program {
         let result = (|| -> Result<Self, Error> {
             let mut builder = Builder {
                 public_weights: weights == WeightMode::Public,
+                checked_bound: execution.checked_bound(),
+                lookup: execution.lookup,
+                selection: execution.selection,
                 ..Builder::default()
             };
             let mut inputs = BTreeMap::new();
@@ -1777,6 +1957,15 @@ impl Program {
                 let plan = lower_with_weights(config, rows + output, outputs - output, weights)
                     .map_err(|_| Error::Binding)?;
                 let mut state = BTreeMap::new();
+                #[cfg(test)]
+                if super::runtime::oracle_trace::enabled() {
+                    super::runtime::oracle_trace::boundary(
+                        output,
+                        "input.tokens",
+                        &tokens.shape,
+                        tokens.words.iter().collect(),
+                    );
+                }
                 let result = builder.graph(
                     &plan.prefill,
                     &tokens,
@@ -1793,6 +1982,41 @@ impl Program {
                 selected.extend(result.words.iter());
                 tokens.words.extend(result.words.iter());
                 tokens.shape = vec![1, tokens.words.len()];
+                #[cfg(test)]
+                if super::runtime::oracle_trace::enabled() {
+                    super::runtime::oracle_trace::boundary(
+                        output,
+                        "feedback.history",
+                        &tokens.shape,
+                        tokens.words.iter().collect(),
+                    );
+                }
+            }
+            if execution.range_policy == RangePolicy::Checked {
+                let valid = if let Some(valid) = builder.validity {
+                    valid
+                } else {
+                    let anchor = builder.gather(&std::iter::once((input, 0)).collect())?;
+                    builder.constant(anchor, 1)?
+                };
+                #[cfg(test)]
+                if super::runtime::oracle_trace::enabled() {
+                    super::runtime::oracle_trace::diagnostic(
+                        0,
+                        "acceptance.valid",
+                        &[],
+                        vec![(valid, 0)],
+                    );
+                }
+                // Invalid executions reveal only zero token shares and one
+                // aggregate rejection bit. No per-site validity is exported.
+                let selected_words: Words = selected.iter().copied().collect();
+                let token_node = builder.gather(&selected_words)?;
+                let flags: Words = std::iter::repeat_n((valid, 0), outputs).collect();
+                let flag_node = builder.gather(&flags)?;
+                let masked = builder.product(token_node, flag_node, None, false)?;
+                selected = (0..outputs).map(|i| (masked, i)).collect();
+                selected.push((valid, 0));
             }
             let mut last: Vec<_> = (0..builder.nodes.len()).collect();
             site.step = None;
@@ -1804,6 +2028,10 @@ impl Program {
             h.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
             if weights == WeightMode::Public {
                 h.update(b"public-source-paged-ring64.v1");
+            }
+            if !execution.is_default() {
+                h.update(b"explicit-public-execution-policy.v1");
+                h.update(serde_json::to_vec(&execution).map_err(|_| Error::Binding)?);
             }
             h.update(config);
             h.update((rows as u64).to_le_bytes());
@@ -1846,6 +2074,27 @@ impl Program {
                         for n in [input, weight, rows, inner, columns] {
                             h.update((*n as u64).to_le_bytes());
                         }
+                    }
+                    Code::PublicLookup {
+                        input,
+                        weight,
+                        plan,
+                    } => {
+                        h.update([10]);
+                        for n in [*input, *weight] {
+                            h.update((n as u64).to_le_bytes());
+                        }
+                        h.update(plan.digest());
+                    }
+                    Code::Selection { input, plan } => {
+                        h.update([11]);
+                        h.update((*input as u64).to_le_bytes());
+                        h.update(plan.digest());
+                    }
+                    Code::CheckedRange { input, program } => {
+                        h.update([9]);
+                        h.update((*input as u64).to_le_bytes());
+                        h.update(program.digest());
                     }
                     Code::Gather(items) => {
                         h.update([1]);
@@ -1922,6 +2171,7 @@ impl Program {
             if work.operations() == 0 {
                 return Err(Error::Bounds);
             }
+            site.complete_work = Some((work.operations(), work.cursors().aes_work));
             work.limits()?;
             for &(id, index) in &selected {
                 last[id] = builder.nodes.len();
@@ -1990,23 +2240,27 @@ impl Program {
 /// Source-schedule operations and per-party AES upper bounds for lookup alone,
 /// not timing or complete-decoder costs. D9 pays for every complete prefix.
 /// Reject known impossible work before importing any checkpoint values.
-fn public_lookup_work_floor(
+fn public_lookup_work_floor_with_policy(
     rows: usize,
     outputs: usize,
     vocabulary: usize,
+    lookup: LookupPolicy,
 ) -> Result<WorkBudget, Error> {
     if rows == 0 || outputs == 0 || vocabulary == 0 {
         return Err(Error::Shape);
     }
     let bounds = Interval::new(-(vocabulary as i64 - 1), vocabulary as i64 - 1)?;
     let width = vocabulary.min(128);
-    let program = tensor::Program::equal_zero(width, bounds)?;
+    let equality = match lookup {
+        LookupPolicy::PerToken => tensor::Program::equal_zero,
+        LookupPolicy::Tiled => tensor::Program::equal_zero_bounded,
+    };
+    let program = equality(width, bounds)?;
     let mut charge = program
         .work_budget()
         .checked_mul((vocabulary / width) as u64)?;
     if vocabulary % width != 0 {
-        charge = charge
-            .checked_add(tensor::Program::equal_zero(vocabulary % width, bounds)?.work_budget())?;
+        charge = charge.checked_add(equality(vocabulary % width, bounds)?.work_budget())?;
     }
     let prefixes = (0..outputs)
         .try_fold(0usize, |n, i| n.checked_add(rows.checked_add(i)?))

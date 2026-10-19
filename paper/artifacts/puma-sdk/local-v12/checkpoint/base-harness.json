@@ -1,0 +1,10 @@
+{
+  "path": "paper/artifacts/puma-sdk/local-v10/validation/run_validation.py",
+  "sha256": "29e91aea37aa5a6e2bcc9b4c07c405b84daded22a2ba3b013e8f3ef68761d1fb",
+  "replacements": {
+    "puma-attention-range-build-v1": "puma-checked-streams-build-v1",
+    "experiment = pllm.Experiment.from_spec(saved[\"experiment\"])": "experiment = pllm.Experiment.from_spec(saved[\"experiment\"]).with_params(pipeline__components__linear__range_policy=\"checked\", pipeline__components__linear__max_abs_activation=256, pipeline__components__linear__lookup=\"tiled\", pipeline__components__linear__selection=\"tiled\", pipeline__components__linear__peer_transport=\"streams\")",
+    "\"memory_preflight\": report, \"wheel_sha256\": sha(wheel),": "\"memory_preflight\": report, \"wheel_sha256\": sha(wheel), \"execution_policy\": {\"range_policy\":\"checked\", \"max_abs_activation\":256, \"lookup\":\"tiled\", \"selection\":\"tiled\", \"peer_transport\":\"streams\"},"
+  },
+  "scope": "checkpoint_admission only"
+}

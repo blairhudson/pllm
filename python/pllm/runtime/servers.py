@@ -654,6 +654,10 @@ class LocalTopology:
             if self._privacy_mode == "replicated_public":
                 environment.pop("PYTHONPATH", None)
                 environment.pop("DYLD_LIBRARY_PATH", None)
+                # Execution choices (including peer streams) travel only in the
+                # authenticated Experiment, never a role-local transport override.
+                from .replicated_protocol import execution_policy
+                environment["PLLM_REPLICATED_PEER_TRANSPORT"] = execution_policy(self._experiment)["peer_transport"]
                 environment["PLLM_REPLICATED_API_KEY"] = self._role_credentials[role]
                 environment["PLLM_ROLE_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
                 environment["PLLM_REPLICATED_PEERS_JSON"] = json.dumps({

@@ -1,0 +1,40 @@
+{
+  "argv": [
+    "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+    "-I",
+    "-c",
+    "\nimport pathlib, sys\nimport pllm\nfrom pllm import _native\nimport pytest\npackage = pathlib.Path(pllm.__file__).resolve().parent\nassert pathlib.Path(sys.prefix).resolve() in package.parents\nclass InstalledOrigins:\n    def pytest_sessionstart(self, session):\n        assert pathlib.Path(pllm.__file__).resolve().parent == package\n        assert pathlib.Path(_native.__file__).resolve().parent == package\n    def pytest_sessionfinish(self, session, exitstatus):\n        for name, module in tuple(sys.modules.items()):\n            origin = getattr(module, '__file__', None)\n            if origin and (name == 'pllm' or name.startswith('pllm.')):\n                assert pathlib.Path(origin).resolve().is_relative_to(package), (name, origin)\nraise SystemExit(pytest.main(sys.argv[1:], plugins=[InstalledOrigins()]))\n",
+    "-x",
+    "-q",
+    "-o",
+    "pythonpath=.",
+    "-o",
+    "junit_family=xunit1",
+    "tests/test_replicated_interfaces.py",
+    "tests/test_replicated_policy_work_controls.py",
+    "tests/test_replicated_public_weights.py",
+    "tests/test_replicated_quality.py",
+    "tests/test_replicated_sdk.py",
+    "tests/test_replicated_worker.py",
+    "tests/test_delegated_source.py",
+    "tests/test_delegated_source_streaming.py",
+    "tests/test_delegated_sdk.py",
+    "tests/test_delegated_capacity.py",
+    "tests/test_reference_agreement.py",
+    "tests/test_reference_benchmark.py",
+    "tests/test_profiles.py",
+    "tests/test_component_families.py",
+    "tests/test_benchmark_memory.py",
+    "tests/test_benchmark_coverage.py",
+    "--junitxml=/Users/blairhudson/workspace/pllm/target/puma-checked-streams-compat-v1/installed-tests.xml"
+  ],
+  "excluded_separate_receipts": [
+    "test_replicated_decoder_oracle.py",
+    "test_replicated_execution_policy.py",
+    "test_replicated_peer.py",
+    "test_replicated_peer_handshake.py",
+    "test_replicated_policy_quality_failures.py",
+    "test_replicated_policy_sdk.py",
+    "test_replicated_transport.py"
+  ]
+}

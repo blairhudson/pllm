@@ -1,0 +1,47 @@
+{
+  "records": {
+    "clippy": {
+      "exit_code": 0,
+      "original_shell_id": "sh_15371341b001gRoasky67cVs7A",
+      "stdout_excerpts": [
+        "Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s"
+      ]
+    },
+    "clippy-strict-prior-failure": {
+      "exit_code": 101,
+      "original_shell_id": "sh_1536f7ade001D0Sd1HFQoTBwt4",
+      "stdout_excerpts": [
+        "error: the loop variable `k` is used to index `acc`",
+        "  --> crates/pllm-core/src/byte_dot.rs:90:18",
+        "error: the loop variable `i` is used to index `input`",
+        "   --> crates/pllm-core/src/maverick_batch/protocol.rs:333:18",
+        "error: the loop variable `b` is used to index `q`",
+        "   --> crates/pllm-core/src/maverick_batch/publication.rs:284:18",
+        "error: could not compile `pllm-core` (lib) due to 3 previous errors"
+      ]
+    },
+    "core": {
+      "exit_code": 0,
+      "original_shell_id": "sh_1535fc9f9001njR5M0Tu2yl2XI",
+      "stdout_excerpts": [
+        "running 98 tests",
+        "test result: ok. 98 passed; 0 failed; 0 ignored; 0 measured; 237 filtered out; finished in 37.66s"
+      ]
+    },
+    "integration": {
+      "exit_code": 0,
+      "original_shell_id": "sh_1536121140017YTkDbCFJJYpQG",
+      "stdout_excerpts": [
+        "Running tests/puma_allocation.rs (target/debug/deps/puma_allocation-8b403bfee3999d75)",
+        "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 341.80s",
+        "Running tests/puma_multiply.rs (target/debug/deps/puma_multiply-4b47645a5bea8341)",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s",
+        "Running tests/puma_prss.rs (target/debug/deps/puma_prss-6f5b2f4a31c8e1b3)",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "Running tests/puma_truncation.rs (target/debug/deps/puma_truncation-2f89202647c42623)",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+      ]
+    }
+  },
+  "scope": "Verbatim excerpts from completed OpenCode shell notifications; original tool stdout files were no longer retained when evidence was collected. These are transcript extracts, not reconstructed full logs or reruns."
+}

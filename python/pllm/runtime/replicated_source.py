@@ -9,6 +9,19 @@ from pathlib import Path
 from pllm import _native, model_loader
 from pllm.configuration import Experiment
 from . import delegated_source as source_io
+from .replicated_protocol import execution_binding, validate_execution_binding, STREAM_MEMORY
+
+
+def validate_execution(experiment, contract):
+    from pllm.profiles import resolve_runtime_composition
+
+    expected = execution_binding(experiment)
+    workspace = STREAM_MEMORY if expected and expected["peer_transport"] == "streams" else 0
+    actual_workspace = contract.get("peer_stream_workspace_bytes_per_worker", 0)
+    validate_execution_binding(experiment, contract)
+    if (contract.get("numeric_profile") != resolve_runtime_composition(experiment.pipeline).numeric_profile
+            or type(actual_workspace) is not int or actual_workspace != workspace):
+        raise ValueError("replicated source execution contract differs from Experiment")
 
 
 class ReplicatedSource(source_io.AdmittedSource):
@@ -17,10 +30,12 @@ class ReplicatedSource(source_io.AdmittedSource):
     def runtime_contract(self, experiment, rows, outputs):
         if experiment.canonical_bytes() != self.experiment_bytes:
             raise ValueError("replicated source requires its exact Experiment")
-        return _native.replicated_source_contract(
+        contract = _native.replicated_source_contract(
             self.experiment_bytes, self.config_bytes, rows, outputs,
             self.source_lock_digest, self.tokenizer_digest,
         )
+        validate_execution(experiment, json.loads(contract))
+        return contract
 
     @property
     def runtime_contract_digest(self):
@@ -70,10 +85,13 @@ class ReplicatedSource(source_io.AdmittedSource):
         owner = _native.ReplicatedPublisher(
             self.config_bytes, len(ids), outputs, bytes.fromhex(self.source_lock_digest),
             bytes.fromhex(experiment.pipeline.digest()), self.contract.get("weights", "private"),
+            **(execution_binding(experiment) or {}),
         )
         try:
             self._append_source(owner.shapes, owner.append, cancelled)
             manifest = owner.seal(b"".join(token.to_bytes(4, "little") for token in ids))
+            value = json.loads(manifest)
+            validate_execution_binding(experiment, value)
             return owner, manifest
         except BaseException:
             if owner is not None:
@@ -104,6 +122,7 @@ def admit_source(experiment: Experiment) -> ReplicatedSource:
     rows, outputs = experiment.budget.max_input_tokens, experiment.budget.max_new_tokens
     contract = _native.replicated_source_contract(encoded, config, rows, outputs, "0" * 64, "0" * 64)
     metadata = json.loads(contract)
+    validate_execution(experiment, metadata)
     capacity = source_io._capacity(metadata)
     size = metadata["source_float32_bytes"]
     identities = source_io._files(root, size, capacity)
@@ -118,6 +137,7 @@ def admit_source(experiment: Experiment) -> ReplicatedSource:
     if hashes["config.json"] != hashlib.sha256(original).hexdigest() or hashes["tokenizer.json"] != tokenizer_digest:
         raise ValueError("replicated source bytes differ from lock")
     contract = _native.replicated_source_contract(encoded, config, rows, outputs, lock_digest, tokenizer_digest)
+    validate_execution(experiment, json.loads(contract))
     manifest = source_io._manifest(root, model, raw, identities)
     descriptor = source_io._tokenizer(root, manifest, manifest.metadata["text_config"], metadata)
     if descriptor.pop("model") != tokenizer or source_io._locked(root, model, size, identities, capacity) != (checkpoint, lock_digest, lock):

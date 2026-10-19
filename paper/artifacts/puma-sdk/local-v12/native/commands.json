@@ -1,0 +1,58 @@
+[
+  {
+    "command": "CARGO_BUILD_JOBS=1 cargo test --locked --offline -p pllm-core --lib puma -- --test-threads=1",
+    "exit_code": 0,
+    "log": "core.log",
+    "name": "core",
+    "original_shell_id": "sh_1535fc9f9001njR5M0Tu2yl2XI",
+    "record_kind": "explicit_session_excerpt"
+  },
+  {
+    "command": "CARGO_BUILD_JOBS=1 cargo test --locked --offline -p pllm-core --test puma_allocation --test puma_multiply --test puma_prss --test puma_truncation -- --test-threads=1",
+    "exit_code": 0,
+    "log": "integration.log",
+    "name": "integration",
+    "original_shell_id": "sh_1536121140017YTkDbCFJJYpQG",
+    "record_kind": "explicit_session_excerpt"
+  },
+  {
+    "command": "CARGO_BUILD_JOBS=1 cargo test --locked --offline -p pllm-compiler --lib replicated_decoder -- --test-threads=1 --skip native_generated_capture_has_complete_checkpoints_and_actual_truncation_events --skip native_multilayer_gqa_guard_tiles_and_tensor_tails --skip native_full_vocabulary_narrow_fixture_admission_and_audit",
+    "exit_code": 0,
+    "log": "compiler.log",
+    "name": "compiler",
+    "original_shell_id": "sh_1538dd120001qUbnJaFwDTLsVK",
+    "record_kind": "original_stdout"
+  },
+  {
+    "command": "CARGO_BUILD_JOBS=1 cargo test --locked --offline -p pllm-core --doc puma -- --test-threads=1",
+    "exit_code": 0,
+    "log": "doctests.log",
+    "name": "doctests",
+    "original_shell_id": "sh_15381c191001aa5y7H40WYy3dU",
+    "record_kind": "original_stdout"
+  },
+  {
+    "command": "CARGO_BUILD_JOBS=1 cargo clippy --locked --offline -p pllm-core -p pllm-compiler -p pllm-python --lib -- -D warnings -A clippy::needless_range_loop -A clippy::nonminimal_bool",
+    "exit_code": 0,
+    "log": "clippy.log",
+    "name": "clippy",
+    "original_shell_id": "sh_15371341b001gRoasky67cVs7A",
+    "record_kind": "explicit_session_excerpt"
+  },
+  {
+    "command": "CARGO_BUILD_JOBS=1 cargo clippy --locked --offline -p pllm-core --all-targets -- -D warnings",
+    "exit_code": 101,
+    "log": "clippy-strict-prior-failure.log",
+    "name": "clippy-strict-prior-failure",
+    "original_shell_id": "sh_1536f7ade001D0Sd1HFQoTBwt4",
+    "record_kind": "explicit_session_excerpt"
+  },
+  {
+    "command": "target/puma-sdk-integration-env-v1/bin/python -I scripts/benchmark_coverage.py --check",
+    "exit_code": 0,
+    "log": "coverage.log",
+    "name": "coverage",
+    "original_shell_id": "sh_15381c195001Cs8NvIxaKzEt7D",
+    "record_kind": "original_stdout"
+  }
+]

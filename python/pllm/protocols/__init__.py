@@ -430,28 +430,67 @@ class GrottoRingDpfProtocol(PendingMethod):
 
 
 class PumaThreePartyDecoder(ProtocolMethod):
-    """Bounded source-derived Q18 replicated decoder with private token feedback."""
+    """Bounded source-derived Q18 decoder with private feedback.
+
+    Public weights optionally use checked ranges, tiled lookup, a bounded complete
+    stable-argmax selection template, and persistent peer streams. Tiled selection
+    never prunes vocabulary entries and is independent of lookup tiling.
+    """
 
     __slots__ = ()
     NUMERIC_PROFILE = "puma.source-q18.rmsnorm-epsilon1.full-prefix.final-greedy-ids.v1"
     PUBLIC_NUMERIC_PROFILE = "puma.public-q18.rmsnorm-epsilon1.full-prefix.batched-final-greedy-ids.v1"
+    CHECKED_NUMERIC_PROFILE = "puma.public-q18.checked-range.rmsnorm-epsilon1.full-prefix.final-greedy-ids.v1"
     descriptor = ComponentDescriptor(
         component="pllm/puma-three-party-decoder/v1", provider="pllm", distribution="pllm.run",
         version="1", category="pllm/protocol-method", category_version="1",
         lifecycle_phase="offline+online", parameter_schema={"type": "object", "additionalProperties": False,
-            "properties": {"weights": {"type": "string", "const": "public"}}},
-        capabilities=("bounded-replicated-q18", "protected-full-prefix-recomputation", "private-greedy-feedback"),
+            "properties": {"weights": {"type": "string", "const": "public"},
+                "range_policy": {"type": "string", "enum": ["checked"]},
+                "max_abs_activation": {"type": "integer", "minimum": 1, "maximum": 1024},
+                "lookup": {"type": "string", "enum": ["tiled"]},
+                "selection": {"type": "string", "enum": ["tiled"]},
+                "peer_transport": {"type": "string", "enum": ["streams"]}}},
+        capabilities=("bounded-replicated-q18", "protected-full-prefix-recomputation", "private-greedy-feedback",
+                      "public-checked-range-policy", "public-tiled-lookup", "public-tiled-stable-argmax", "bounded-peer-streams"),
         required_host_features=("native-replicated-decoder", "authenticated-confidential-channels"),
         role_eligibility=("client", "worker_a", "worker_b", "worker_c"),
     )
 
-    def __init__(self, *, weights: Literal["private", "public"] = "private"):
+    def __init__(self, *, weights: Literal["private", "public"] = "private",
+                 range_policy: Literal["static", "checked"] = "static", max_abs_activation: int = 256,
+                 lookup: Literal["per_token", "tiled"] = "per_token",
+                 selection: Literal["expanded", "tiled"] = "expanded",
+                 peer_transport: Literal["http", "streams"] = "http"):
         if type(weights) is not str or weights not in {"private", "public"}:
             raise ConfigurationError("PUMA weights must be private or public")
-        super().__init__(self.descriptor.component, {"weights": weights} if weights == "public" else {})
+        if (type(range_policy) is not str or range_policy not in {"static", "checked"}
+                or type(max_abs_activation) is not int or not 1 <= max_abs_activation <= 1024
+                or range_policy == "static" and max_abs_activation != 256
+                or type(lookup) is not str or lookup not in {"per_token", "tiled"}
+                or type(selection) is not str or selection not in {"expanded", "tiled"}
+                or type(peer_transport) is not str or peer_transport not in {"http", "streams"}
+                or weights == "private" and (range_policy != "static" or lookup != "per_token"
+                                             or selection != "expanded" or peer_transport != "http")):
+            raise ConfigurationError("invalid PUMA public execution policy")
+        params = {"weights": weights} if weights == "public" else {}
+        if range_policy == "checked":
+            params.update(range_policy=range_policy, max_abs_activation=max_abs_activation)
+        if lookup != "per_token":
+            params["lookup"] = lookup
+        if selection != "expanded":
+            params["selection"] = selection
+        if peer_transport != "http":
+            params["peer_transport"] = peer_transport
+        super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep=True):
-        return {"weights": self.params.get("weights", "private")}
+        return {"weights": self.params.get("weights", "private"),
+                "range_policy": self.params.get("range_policy", "static"),
+                "max_abs_activation": self.params.get("max_abs_activation", 256),
+                "lookup": self.params.get("lookup", "per_token"),
+                "selection": self.params.get("selection", "expanded"),
+                "peer_transport": self.params.get("peer_transport", "http")}
 
     @classmethod
     def describe(cls):

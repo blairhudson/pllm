@@ -1009,6 +1009,14 @@ fn tensor_run(
     owners: &mut [multiply::tensor::Executor; 3],
     watched: Option<usize>,
 ) -> Result<(), Error> {
+    tensor_run_wire(owners, watched, false)
+}
+
+fn tensor_run_wire(
+    owners: &mut [multiply::tensor::Executor; 3],
+    watched: Option<usize>,
+    encoded: bool,
+) -> Result<(), Error> {
     use multiply::tensor::Frame;
     let collect = |party| {
         let mut a = AUDIT.get();
@@ -1032,8 +1040,18 @@ fn tensor_run(
             count = 0;
             for frame in messages.into_iter().flatten() {
                 let to = frame.recipient() as usize;
-                collect(to);
-                let result = owners[to].receive(frame);
+                let result = if encoded {
+                    let from = frame.sender();
+                    collect(from as usize);
+                    let frame = frame.encode();
+                    collect(usize::MAX);
+                    let frame = frame?;
+                    collect(to);
+                    owners[to].receive_encoded(frame.as_bytes(), from)
+                } else {
+                    collect(to);
+                    owners[to].receive(frame)
+                };
                 collect(usize::MAX);
                 for frame in result?.into_iter().flatten() {
                     next[count] = Some(frame);
@@ -1050,6 +1068,153 @@ fn tensor_run(
         }
     }
     Ok(())
+}
+
+#[test]
+fn bounded_equality_allocation_failures_and_max_tile_erasure() {
+    use multiply::{tensor::Program, Interval};
+    let bounds = Interval::new(-151935, 151935).unwrap();
+    let program = Program::equal_zero_bounded(3, bounds).unwrap();
+    let mut completed = false;
+    for fail_at in 0..5000 {
+        let mut owners = tensor_program_owners(&program, (-151935_i64) as u64);
+        let usages = owners.each_ref().map(|o| o.payload_usage());
+        FAIL_AT.set(Some(fail_at));
+        let result = tensor_run(&mut owners, None);
+        FAIL_AT.set(None);
+        if result.is_err() {
+            assert_eq!(result, Err(Error::Allocation));
+            assert!(owners.iter().any(|o| o.retired()));
+        } else {
+            completed = true;
+        }
+        for owner in &mut owners {
+            owner.cancel();
+        }
+        drop(owners);
+        assert!(usages.iter().all(|u| u.live_bytes() == 0));
+        if completed {
+            break;
+        }
+    }
+    assert!(
+        completed,
+        "bounded-equality allocation sweep never completed"
+    );
+    let program = Program::equal_zero_bounded(128, bounds).unwrap();
+    for p in 0..3 {
+        let mut owners = tensor_program_owners(&program, 151935);
+        let usages = owners.each_ref().map(|o| o.payload_usage());
+        let watch = Watch::start(&usages[p], false, false);
+        tensor_run(&mut owners, Some(p)).unwrap();
+        let outputs = owners.map(|o| o.finish().unwrap());
+        drop(outputs);
+        assert_audit(watch.finish());
+        assert!(usages.iter().all(|u| u.live_bytes() == 0));
+        assert!(usages.iter().all(|u| u.peak_bytes() <= u.limit_bytes()));
+    }
+}
+
+#[test]
+fn bounded_equality_compact_codec_failures_erase_before_refund() {
+    use multiply::{tensor::Program, Interval};
+    let bounds = Interval::new(-151935, 151935).unwrap();
+    let program = Program::equal_zero_bounded(3, bounds).unwrap();
+    let mut completed = false;
+    for fail_at in 0..5000 {
+        let mut owners = tensor_program_owners(&program, (-151935_i64) as u64);
+        let usages = owners.each_ref().map(|o| o.payload_usage());
+        FAIL_AT.set(Some(fail_at));
+        let result = tensor_run_wire(&mut owners, None, true);
+        FAIL_AT.set(None);
+        if result.is_err() {
+            assert_eq!(result, Err(Error::Allocation));
+        } else {
+            completed = true;
+        }
+        // Encode errors belong to the outer transport: retire the whole attempt,
+        // including peers that have not themselves observed the failing frame.
+        for owner in &mut owners {
+            owner.cancel();
+            assert!(owner.retired());
+        }
+        drop(owners);
+        assert!(usages.iter().all(|u| u.live_bytes() == 0));
+        if completed {
+            break;
+        }
+    }
+    assert!(completed, "compact codec allocation sweep never completed");
+    for n in [3, 128] {
+        let program = Program::equal_zero_bounded(n, bounds).unwrap();
+        for p in 0..3 {
+            let mut owners = tensor_program_owners(&program, 151935);
+            let usages = owners.each_ref().map(|o| o.payload_usage());
+            let watch = Watch::start(&usages[p], false, false);
+            tensor_run_wire(&mut owners, Some(p), true).unwrap();
+            let output = owners.map(|o| o.finish().unwrap());
+            drop(output);
+            assert_audit(watch.finish());
+            assert!(usages.iter().all(|u| u.live_bytes() == 0));
+            assert!(usages.iter().all(|u| u.peak_bytes() <= u.limit_bytes()));
+        }
+    }
+}
+
+#[test]
+fn checked_range_allocation_failures_retire_and_zeroize() {
+    use multiply::{tensor::Program, Interval};
+    let program = Program::checked_range(
+        3,
+        Interval::new(i64::MIN, i64::MAX).unwrap(),
+        Interval::new(1, 9).unwrap(),
+        1,
+    )
+    .unwrap();
+    let mut completed = false;
+    for fail_at in 0..8000 {
+        let mut owners = tensor_program_owners(&program, i64::MIN as u64);
+        let usages = owners.each_ref().map(|o| o.payload_usage());
+        FAIL_AT.set(Some(fail_at));
+        let result = tensor_run(&mut owners, None);
+        FAIL_AT.set(None);
+        if result.is_err() {
+            assert_eq!(result, Err(Error::Allocation));
+            assert!(owners.iter().any(|o| o.retired()));
+        } else {
+            completed = true;
+        }
+        for owner in &mut owners {
+            owner.cancel();
+        }
+        drop(owners);
+        assert!(usages.iter().all(|u| u.live_bytes() == 0));
+        if completed {
+            break;
+        }
+    }
+    assert!(completed, "checked-range allocation sweep never completed");
+
+    let program = Program::checked_range(
+        128,
+        Interval::new(i64::MIN, i64::MAX).unwrap(),
+        Interval::new(1, 9).unwrap(),
+        1,
+    )
+    .unwrap();
+    for p in 0..3 {
+        let mut owners = tensor_program_owners(&program, i64::MAX as u64);
+        let usages = owners.each_ref().map(|o| o.payload_usage());
+        let watch = Watch::start(&usages[p], false, false);
+        tensor_run(&mut owners, Some(p)).unwrap();
+        let outputs = owners.map(|o| o.finish_checked().unwrap());
+        drop(outputs);
+        assert_audit(watch.finish());
+        assert!(usages.iter().all(|u| u.live_bytes() == 0));
+        assert!(usages.iter().all(
+            |u| u.peak_bytes() <= program.admitted_bytes() && u.peak_bytes() <= u.limit_bytes()
+        ));
+    }
 }
 
 #[test]

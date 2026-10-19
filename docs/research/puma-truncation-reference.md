@@ -428,6 +428,69 @@ acceptance would require a separate contract; this slice does not select it.
 Original receipts and replay:
 [guarded-activation slice](../../paper/artifacts/puma-sdk/local-v11/README.md).
 
+### Explicit checked-range and compact-execution policies
+
+The public-weight component additionally accepts independent `range_policy`,
+`lookup`, `selection` and `peer_transport` choices. Their defaults preserve the
+existing component, source and execution identities. Nondefault choices bind the
+complete execution policy at native source admission and every worker. Private
+weights reject these public-only choices.
+
+`range_policy="checked"` freezes `max_abs_activation` in public integer units
+(default 256, bounded to 1–1,024). Where public certificates do not already prove
+the complete RMSNorm input interval, full-word protected comparisons test the
+inclusive Q18 endpoints. A Boolean mux selects either the unchanged input or zero
+**before** arithmetic that depends on this interval. These guards do not assume
+the bound that they are checking. Tile validity reduces through fresh exact
+products into one sticky shared request bit. At the end of all fixed-count
+selections, every token is multiplied by this bit before final shares leave the
+workers. The client accepts only an aggregate bit of exactly one; a later feedback
+failure therefore suppresses earlier tokens as well. No failing value or location
+is opened. The client does learn aggregate acceptance, under the separate D12
+contract and checked-range numeric identity. Accepted arithmetic retains the
+approved equations; additional randomness changes the execution identity and
+can change a particular stochastic realization.
+
+`lookup="tiled"` traverses the full public vocabulary with at most eight private
+token rows and 128 vocabulary entries per tile. It reuses each streamed public
+weight range across those rows and both replicated components. It retains fresh
+predicates for every token/entry tile, exact ring64 accumulation, source commitments
+and the original complete table result. A public interval proof excludes nonzero
+multiples of the selected power of two before choosing a narrower equality
+domain. This equality is not a range check. Distinct compact tensor/Boolean frame
+namespaces validate the expected width and canonical padding before allocation;
+arithmetic OT words remain full-width. Immutable full/tail predicate templates
+are shared and counted once, while active executors and accumulators remain
+separate owners.
+
+`selection="tiled"` replaces the expanded tournament metadata with one bounded
+owner. It compares every required pair and preserves the lowest original index
+on ties. A dedicated last-use gather supplies the complete logits; the original
+logit owner and this copy are separately charged. Fresh protected comparisons
+and untruncated score/index products execute in public 64-comparison tiles.
+Metadata reduction does not imply fewer cryptographic operations.
+
+`peer_transport="streams"` uses bounded persistent authenticated peer WebSockets.
+An exact request/source/configuration/worker-epoch handshake precedes setup;
+ordered sequences, one-use connection admission and completion sealing reject
+substitution and reconnect replay. Public quiescence barriers and freeze-before-send
+waves remain. Queue/backpressure bounds, cancellation drains and directed control
+and data counters apply to each link. Admission adds 8 MiB per worker once, beyond
+the original request owners. Neither this transport nor the new native owners
+increase the existing session, work, node or payload ceilings.
+
+The generated native integer oracle captures complete semantic tensors, full
+prefix K/V, vocabulary logits, feedback and final acceptance under test-only
+hooks. Independent AES reconstruction derives the actual truncation tapes; every
+draw must be consumed exactly once. No trace or private-state export is installed
+in the SDK. These bounded controls and shape diagnostics do not qualify a full
+checkpoint, the shared 64+8 workload, source-model quality or response costs.
+The [completion plan](../../paper/methods/puma-completion-plan.md) and
+[feasibility account](../../paper/methods/puma-feasibility.md) retain those gates.
+The [checked-execution evidence](../../paper/artifacts/puma-sdk/local-v12/README.md)
+retains installed-wheel conformance, 64 generated native oracle cases and the
+separate layer-eight checkpoint rejection.
+
 ### Shared SDK interfaces
 
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,
@@ -453,7 +516,7 @@ retains generated controls, the installed build and the common-Qwen rejection.
 Generated Qwen2/Qwen3/Llama controls include nonzero attention/MLP paths whose
 independent sign oracle distinguishes private prefixes, private feedback, protocol
 failure retirement, ordinary SDK/gateway execution and benchmark accounting.
-Complete hidden-tensor conditional-on-mask equality, full-checkpoint ranges,
+Full-checkpoint hidden-tensor conditional-on-mask equality, full-checkpoint ranges,
 source-model quality and matched publication measurements remain separate gates.
 The [frozen SDK conformance package](../../paper/artifacts/puma-sdk/README.md)
 retains 692 broad installed-wheel checks (one optional Metal skip), 138 final-build

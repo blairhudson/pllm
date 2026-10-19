@@ -18,6 +18,27 @@ pub const PROFILE: &str = "puma.spu-a42c261.a2b-msb.ring64.replicated3.v1";
 pub enum Kind {
     Bits,
     MostSignificantBit,
+    /// Conversion in the public quotient ring Z/(2^bits). Additive components
+    /// are reduced locally before the split; no private value chooses the width.
+    /// This separate contract projects both XOR components to nominal width;
+    /// fresh typed PRSS still consumes every charged backing-type AES block.
+    LowBits(u8),
+}
+
+impl Kind {
+    fn width(self) -> u8 {
+        match self {
+            Self::LowBits(bits) => bits,
+            _ => 64,
+        }
+    }
+
+    fn rounds(self) -> u8 {
+        match self {
+            Self::LowBits(bits) => (u8::BITS - (bits - 1).leading_zeros()) as u8,
+            _ => 6,
+        }
+    }
 }
 
 /// One split plus seven Boolean gate rotations. Vmapped gates hold 2*n lanes,
@@ -54,7 +75,7 @@ impl Plan {
         self.pair_end - self.pair_start
     }
     pub fn rotations(self) -> usize {
-        8
+        usize::from(self.kind.rounds()) + 2
     }
 
     pub fn input_binding(self) -> Operation {
@@ -77,7 +98,7 @@ impl Plan {
     }
 
     pub(super) fn gate(self, round: u8) -> Result<boolean::Plan, Error> {
-        if round > 6 {
+        if round > self.kind.rounds() {
             return Err(Error::Bounds);
         }
         let mut start = self.gate_start;
@@ -86,7 +107,7 @@ impl Plan {
             start += typed_blocks(lanes, backing(bits))?;
         }
         let (lanes, bits) = self.geometry(round);
-        boolean::Plan::nested(
+        let plan = boolean::Plan::nested(
             self.operation,
             self.setup,
             round,
@@ -94,7 +115,12 @@ impl Plan {
             bits,
             start,
             self.limits,
-        )
+        )?;
+        Ok(if matches!(self.kind, Kind::LowBits(_)) {
+            plan.compact()
+        } else {
+            plan
+        })
     }
 
     pub(super) fn nested_adder(
@@ -122,11 +148,12 @@ impl Plan {
 
     fn geometry(self, round: u8) -> (usize, u8) {
         if round == 0 {
-            return (self.lanes(), 64);
+            return (self.lanes(), self.kind.width());
         }
         let bits = match self.kind {
             Kind::Bits => 64,
             Kind::MostSignificantBit => 64 >> round,
+            Kind::LowBits(bits) => bits,
         };
         (2 * self.lanes(), bits)
     }
@@ -177,6 +204,26 @@ pub(super) struct Work {
 }
 
 impl State {
+    pub(super) fn receive_layout(&self) -> Result<([u8; 32], MessagePhase, usize, u8), Error> {
+        match self {
+            Self::Split { plan, .. } => Ok((
+                plan.digest(),
+                MessagePhase::ArithmeticToBoolean,
+                plan.lanes(),
+                plan.kind.width(),
+            )),
+            Self::Circuit(work) => {
+                let gate = work.plan.gate(work.round)?;
+                Ok((
+                    gate.digest(),
+                    MessagePhase::BooleanAnd,
+                    gate.lanes(),
+                    gate.output_bits(),
+                ))
+            }
+            _ => Err(Error::Phase),
+        }
+    }
     pub(super) fn status(&self) -> Status {
         match self {
             Self::Planned(_) => Status::Planned,
@@ -254,6 +301,9 @@ impl PartyRuntime {
                 return Err(Error::Phase);
             }
             let limits = self.source.limits.core;
+            if matches!(kind, Kind::LowBits(bits) if !(1..=64).contains(&bits)) {
+                return Err(Error::Bounds);
+            }
             limits.admit(lanes.checked_mul(2).ok_or(Error::Bounds)?)?;
             // Prices state, both vmapped operands, expansion and ALL original
             // outgoing frames if the caller retains them until completion.
@@ -267,11 +317,12 @@ impl PartyRuntime {
                 return Err(Error::Bounds);
             }
             let pair_start = self.source.cursors.pair_blocks;
-            let mut count = 2 * typed_blocks(lanes, 8)?; // split + initial AND
-            for round in 1..=6 {
+            let mut count = 2 * typed_blocks(lanes, backing(kind.width()))?; // split + initial AND
+            for round in 1..=kind.rounds() {
                 let bits = match kind {
                     Kind::Bits => 64,
                     Kind::MostSignificantBit => 64 >> round,
+                    Kind::LowBits(bits) => bits,
                 };
                 count += typed_blocks(2 * lanes, backing(bits))?;
             }
@@ -289,10 +340,14 @@ impl PartyRuntime {
             hash.update(PROFILE.as_bytes());
             hash.update(PRSS_PROFILE.as_bytes());
             hash.update(self.source.setup);
-            hash.update([match kind {
-                Kind::Bits => 0,
-                Kind::MostSignificantBit => 1,
-            }]);
+            match kind {
+                Kind::Bits => hash.update([0]),
+                Kind::MostSignificantBit => hash.update([1]),
+                Kind::LowBits(bits) => {
+                    hash.update([2, bits]);
+                    hash.update(b"nominal-xor-domain.compact-wire.v1");
+                }
+            }
             hash.update(pair_start.to_le_bytes());
             hash.update(pair_end.to_le_bytes());
             operation.consumer = Some(hash.finalize().into());
@@ -301,7 +356,7 @@ impl PartyRuntime {
                 setup: self.source.setup,
                 kind,
                 pair_start,
-                gate_start: pair_start + typed_blocks(lanes, 8)?,
+                gate_start: pair_start + typed_blocks(lanes, backing(kind.width()))?,
                 pair_end,
                 admitted_bytes,
                 limits,
@@ -360,7 +415,8 @@ impl PartyRuntime {
         }
         self.source.runtime.consume_ordinal(plan.operation)?;
         let n = plan.lanes();
-        let q = typed_blocks(n, 8)?;
+        let bytes = backing(plan.kind.width());
+        let q = typed_blocks(n, bytes)?;
         self.source.cursors.aes_work = self.source.work(2 * q)?;
         self.source.cursors.pair_blocks += q;
         let usage = self.payload_usage();
@@ -368,18 +424,26 @@ impl PartyRuntime {
         let mut first = usage.zeros(n)?;
         let mut adjacent = usage.zeros(n)?;
         let seeds = self.source.seeds.as_ref().ok_or(Error::Retired)?;
-        fill_typed(&seeds.own, plan.pair_start, &mut first, 8)?;
+        fill_typed(&seeds.own, plan.pair_start, &mut first, bytes)?;
         fill_typed(
             seeds.next.as_ref().ok_or(Error::Phase)?,
             plan.pair_start,
             &mut adjacent,
-            8,
+            bytes,
         )?;
         for i in 0..n {
             first[i] ^= adjacent[i];
             if self.party() == Party::P0 {
-                first[i] ^= input.first[i].wrapping_add(input.second[i]);
+                first[i] ^= input.first[i].wrapping_add(input.second[i])
+                    & (u64::MAX >> (64 - plan.kind.width()));
             }
+            if let Kind::LowBits(bits) = plan.kind {
+                first[i] &= u64::MAX >> (64 - bits);
+            }
+            // Reduction of every additive component is a ring homomorphism;
+            // never reinterpret or independently truncate a signed share.
+            input.first[i] &= u64::MAX >> (64 - plan.kind.width());
+            input.second[i] &= u64::MAX >> (64 - plan.kind.width());
             if self.party() != Party::P2 {
                 input.first[i] = 0;
             }
@@ -423,6 +487,14 @@ impl PartyRuntime {
                     self.party(),
                     MessagePhase::ArithmeticToBoolean,
                 )?;
+                let mask = if let Kind::LowBits(bits) = plan.kind {
+                    u64::MAX >> (64 - bits)
+                } else {
+                    u64::MAX >> (64 - 8 * backing(plan.kind.width()))
+                };
+                if message.words().iter().any(|&word| word & !mask != 0) {
+                    return Err(Error::Bounds);
+                }
                 let usage = self.payload_usage();
                 message.words.charge_to(&usage)?;
                 let left = Share {
@@ -432,11 +504,11 @@ impl PartyRuntime {
                         first,
                         second: message.words,
                     },
-                    bits: 64,
+                    bits: plan.kind.width(),
                 };
                 let right = Share {
                     value: other,
-                    bits: 64,
+                    bits: plan.kind.width(),
                 };
                 let (work, outgoing) = start(&mut self.source, plan, left, right)?;
                 (State::Circuit(work), Some(outgoing))
@@ -456,7 +528,7 @@ pub(super) fn start(
     mut right: Share,
 ) -> Result<(Work, Message), Error> {
     for value in [&left, &right] {
-        if value.bits != 64
+        if value.bits != plan.kind.width()
             || value.first().len() != plan.lanes()
             || value.second().len() != plan.lanes()
         {
@@ -470,18 +542,22 @@ pub(super) fn start(
     let gate_plan = plan.gate(0)?;
     left.value.operation = gate_plan.operand(Operand::Left).0;
     right.value.operation = gate_plan.operand(Operand::Right).0;
-    let mut propagate = pair(&usage, plan.operation, source.party(), 64)?;
+    let mut propagate = pair(&usage, plan.operation, source.party(), plan.kind.width())?;
     let mut initial = pair(
         &usage,
         plan.operation,
         source.party(),
-        if plan.kind == Kind::Bits { 64 } else { 1 },
+        if plan.kind == Kind::MostSignificantBit {
+            1
+        } else {
+            plan.kind.width()
+        },
     )?;
     for second in [false, true] {
         for i in 0..plan.lanes() {
             let xor = component(&left, second)[i] ^ component(&right, second)[i];
             component_mut(&mut propagate, second)[i] = xor;
-            component_mut(&mut initial, second)[i] = if plan.kind == Kind::Bits {
+            component_mut(&mut initial, second)[i] = if plan.kind != Kind::MostSignificantBit {
                 xor
             } else {
                 xor >> 63
@@ -533,15 +609,18 @@ pub(super) fn advance(
         drop(output);
         generate
     };
-    if round == 6 {
+    if round == plan.kind.rounds() {
         for second in [false, true] {
             for i in 0..n {
                 let carry = component(&generate, second)[i];
-                component_mut(&mut initial, second)[i] ^= if plan.kind == Kind::Bits {
+                component_mut(&mut initial, second)[i] ^= if plan.kind != Kind::MostSignificantBit {
                     carry << 1
                 } else {
                     carry
                 };
+                if let Kind::LowBits(bits) = plan.kind {
+                    component_mut(&mut initial, second)[i] &= u64::MAX >> (64 - bits);
+                }
             }
         }
         if source.cursors.pair_blocks != plan.pair_end {
@@ -568,7 +647,7 @@ pub(super) fn advance(
         for i in 0..n {
             let mut p = component(&propagate, second)[i];
             let mut g = component(&generate, second)[i];
-            if plan.kind == Kind::Bits {
+            if plan.kind != Kind::MostSignificantBit {
                 let shift = 1_u32 << round;
                 component_mut(&mut left, second)[i] = p;
                 component_mut(&mut left, second)[n + i] = p;

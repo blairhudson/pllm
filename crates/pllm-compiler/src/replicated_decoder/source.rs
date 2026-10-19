@@ -20,6 +20,8 @@ pub struct Manifest {
     pub schema: String,
     #[serde(default, skip_serializing_if = "WeightMode::is_private")]
     pub weights: WeightMode,
+    #[serde(default, skip_serializing_if = "ExecutionPolicy::is_default")]
+    pub execution: ExecutionPolicy,
     pub config: Vec<u8>,
     pub rows: usize,
     pub outputs: usize,
@@ -39,12 +41,13 @@ impl Manifest {
         {
             return Err("invalid replicated manifest identity".into());
         }
-        let mut program = Program::compile_with_weights(
+        let mut program = Program::compile_with_policy(
             &self.config,
             self.rows,
             self.outputs,
             &self.tensors,
             self.weights,
+            self.execution,
         )?;
         program.bind(self.source, self.composition);
         if program.digest() != self.program {
@@ -109,9 +112,31 @@ impl Publisher {
         composition: [u8; 32],
         weights: WeightMode,
     ) -> Result<Self, String> {
-        let shapes: Vec<_> = Program::source_shapes_with_weights(config, rows, outputs, weights)?
-            .into_iter()
-            .collect();
+        Self::new_with_policy(
+            config,
+            rows,
+            outputs,
+            source,
+            composition,
+            weights,
+            ExecutionPolicy::default(),
+        )
+    }
+
+    pub fn new_with_policy(
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        source: [u8; 32],
+        composition: [u8; 32],
+        weights: WeightMode,
+        execution: ExecutionPolicy,
+    ) -> Result<Self, String> {
+        execution.validate(weights)?;
+        let shapes: Vec<_> =
+            Program::source_shapes_with_policy(config, rows, outputs, weights, execution)?
+                .into_iter()
+                .collect();
         let plan = program::lower_with_weights(config, rows, outputs, weights)?;
         let public_coefficients: std::collections::BTreeSet<String> = plan
             .prefill
@@ -144,6 +169,7 @@ impl Publisher {
             manifest: Manifest {
                 schema: "pllm.replicated-decoder.manifest.v1".into(),
                 weights,
+                execution,
                 config: config.to_vec(),
                 rows,
                 outputs,
@@ -303,12 +329,13 @@ impl Publisher {
             if ids.iter().any(|v| u64::from(*v) >= vocabulary) {
                 return Err("replicated input ID outside vocabulary".into());
             }
-            let mut program = Program::compile_with_weights(
+            let mut program = Program::compile_with_policy(
                 &self.manifest.config,
                 self.manifest.rows,
                 self.manifest.outputs,
                 &self.manifest.tensors,
                 self.manifest.weights,
+                self.manifest.execution,
             )?;
             program.bind(self.manifest.source, self.manifest.composition);
             self.manifest.program = program.digest();
@@ -390,7 +417,8 @@ impl Publisher {
         if self.retired || self.program.is_none() || self.issued != self.values.len() {
             return Err("incomplete replicated transaction".into());
         }
-        let n = self.manifest.outputs;
+        let checked = self.manifest.execution.range_policy == RangePolicy::Checked;
+        let n = self.manifest.outputs + usize::from(checked);
         let mut result = Zeroizing::new(vec_zero::<u64>(n).map_err(|e| e.to_string())?);
         for (party, frame) in frames.into_iter().enumerate() {
             if frame.len() != 73 + 8 * n
@@ -405,6 +433,9 @@ impl Publisher {
             for (sum, raw) in result.iter_mut().zip(frame[73..].chunks_exact(8)) {
                 *sum = sum.wrapping_add(u64::from_le_bytes(raw.try_into().unwrap()));
             }
+        }
+        if checked && result.pop() != Some(1) {
+            return Err("replicated request failed protected range checks".into());
         }
         let config: serde_json::Value =
             serde_json::from_slice(&self.manifest.config).map_err(|_| "invalid source config")?;
@@ -423,3 +454,7 @@ impl Drop for Publisher {
         self.cancel();
     }
 }
+
+#[cfg(test)]
+#[path = "checked_acceptance_tests.rs"]
+mod checked_acceptance_tests;

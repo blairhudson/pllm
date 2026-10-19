@@ -1,0 +1,1097 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0 -- /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/blairhudson/workspace/pllm
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.15.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 16 items
+
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices0] FAILED [  6%]
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices1] FAILED [ 12%]
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices2] FAILED [ 18%]
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices3] FAILED [ 25%]
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices4] FAILED [ 31%]
+tests/test_replicated_policy_sdk.py::test_combined_checked_rejection_masks_earlier_output_and_retires_sdk_owners FAILED [ 37%]
+tests/test_replicated_policy_sdk.py::test_combined_true_private_input_rejection_has_identical_public_work FAILED [ 43%]
+tests/test_replicated_policy_sdk.py::test_combined_stream_admission_prices_workspace_once_per_worker FAILED [ 50%]
+tests/test_replicated_policy_sdk.py::test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance FAILED [ 56%]
+tests/test_replicated_policy_sdk.py::test_combined_gateway_checked_rejection_exposes_only_error_and_retires FAILED [ 62%]
+tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[range_policy] FAILED [ 68%]
+tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[selection] FAILED [ 75%]
+tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[source] FAILED [ 81%]
+tests/test_replicated_policy_sdk.py::test_combined_async_cancellation_before_final_acceptance_drains_owners[input] FAILED [ 87%]
+tests/test_replicated_policy_sdk.py::test_combined_async_cancellation_before_final_acceptance_drains_owners[finish] FAILED [ 93%]
+tests/test_replicated_policy_sdk.py::test_combined_response_benchmark_retains_checked_rejection_as_failed_case FAILED [100%]
+
+=================================== FAILURES ===================================
+________ test_generated_public_policy_ordinary_sdk_final_only[choices0] ________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o0')
+choices = {'range_policy': 'checked'}
+
+    @pytest.mark.parametrize("choices", [
+        {"range_policy": "checked"}, {"lookup": "tiled"}, {"selection": "tiled"}, {"peer_transport": "streams"},
+        COMBINED,
+    ])
+    def test_generated_public_policy_ordinary_sdk_final_only(tmp_path, choices):
+>       baseline = experiment_fixture(tmp_path, weights="public", active=True)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o0')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+________ test_generated_public_policy_ordinary_sdk_final_only[choices1] ________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o1')
+choices = {'lookup': 'tiled'}
+
+    @pytest.mark.parametrize("choices", [
+        {"range_policy": "checked"}, {"lookup": "tiled"}, {"selection": "tiled"}, {"peer_transport": "streams"},
+        COMBINED,
+    ])
+    def test_generated_public_policy_ordinary_sdk_final_only(tmp_path, choices):
+>       baseline = experiment_fixture(tmp_path, weights="public", active=True)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o1')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+________ test_generated_public_policy_ordinary_sdk_final_only[choices2] ________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o2')
+choices = {'selection': 'tiled'}
+
+    @pytest.mark.parametrize("choices", [
+        {"range_policy": "checked"}, {"lookup": "tiled"}, {"selection": "tiled"}, {"peer_transport": "streams"},
+        COMBINED,
+    ])
+    def test_generated_public_policy_ordinary_sdk_final_only(tmp_path, choices):
+>       baseline = experiment_fixture(tmp_path, weights="public", active=True)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o2')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+________ test_generated_public_policy_ordinary_sdk_final_only[choices3] ________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o3')
+choices = {'peer_transport': 'streams'}
+
+    @pytest.mark.parametrize("choices", [
+        {"range_policy": "checked"}, {"lookup": "tiled"}, {"selection": "tiled"}, {"peer_transport": "streams"},
+        COMBINED,
+    ])
+    def test_generated_public_policy_ordinary_sdk_final_only(tmp_path, choices):
+>       baseline = experiment_fixture(tmp_path, weights="public", active=True)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o3')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+________ test_generated_public_policy_ordinary_sdk_final_only[choices4] ________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o4')
+choices = {'range_policy': 'checked', 'max_abs_activation': 256, 'lookup': 'tiled', 'selection': 'tiled', ...}
+
+    @pytest.mark.parametrize("choices", [
+        {"range_policy": "checked"}, {"lookup": "tiled"}, {"selection": "tiled"}, {"peer_transport": "streams"},
+        COMBINED,
+    ])
+    def test_generated_public_policy_ordinary_sdk_final_only(tmp_path, choices):
+>       baseline = experiment_fixture(tmp_path, weights="public", active=True)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:188: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_generated_public_policy_o4')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+_ test_combined_checked_rejection_masks_earlier_output_and_retires_sdk_owners __
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_checked_rejectio0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10dec6c50>
+
+    def test_combined_checked_rejection_masks_earlier_output_and_retires_sdk_owners(tmp_path, monkeypatch):
+>       experiment = combined_experiment(tmp_path, rejecting=True)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:215: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_checked_rejectio0')
+rejecting = True
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_checked_rejectio0')
+family = 'qwen2', outputs = 2, requests = 8, active = False
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+_____ test_combined_true_private_input_rejection_has_identical_public_work _____
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_true_private_inp0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10dec7050>
+
+    def test_combined_true_private_input_rejection_has_identical_public_work(tmp_path, monkeypatch):
+>       experiment = combined_experiment(tmp_path, rejecting=True)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:243: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_true_private_inp0')
+rejecting = True
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_true_private_inp0')
+family = 'qwen2', outputs = 2, requests = 8, active = False
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+_______ test_combined_stream_admission_prices_workspace_once_per_worker ________
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_stream_admission0')
+
+    def test_combined_stream_admission_prices_workspace_once_per_worker(tmp_path):
+        from pllm.runtime.benchmark_memory import benchmark_memory, _PROCESS_BYTES, _slack
+    
+>       stream = combined_experiment(tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:282: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_stream_admission0')
+rejecting = False
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_stream_admission0')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+__ test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance __
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_gateway_response0')
+
+    def test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance(tmp_path):
+        from fastapi.testclient import TestClient
+        from pllm.runtime.sidecar import create_sidecar_app
+    
+        captured = []
+>       with OpenAI(experiment=combined_experiment(tmp_path), timeout=300) as sdk:
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:303: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_gateway_response0')
+rejecting = False
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_gateway_response0')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+____ test_combined_gateway_checked_rejection_exposes_only_error_and_retires ____
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_gateway_checked_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10e0ad550>
+
+    def test_combined_gateway_checked_rejection_exposes_only_error_and_retires(tmp_path, monkeypatch):
+        from fastapi.testclient import TestClient
+        from pllm.runtime.sidecar import create_sidecar_app
+    
+        owners, captured = observe_publishers(monkeypatch), []
+>       with OpenAI(experiment=combined_experiment(tmp_path, rejecting=True), timeout=300) as sdk:
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:339: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_gateway_checked_0')
+rejecting = True
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_gateway_checked_0')
+family = 'qwen2', outputs = 2, requests = 8, active = False
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+_ test_combined_sdk_authenticated_publication_substitution_retires_all_roles[range_policy] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10e013770>
+swap = 'range_policy'
+
+    @pytest.mark.parametrize("swap", ["range_policy", "selection", "source"])
+    def test_combined_sdk_authenticated_publication_substitution_retires_all_roles(tmp_path, monkeypatch, swap):
+        from pllm.runtime import replicated_transport as transport
+        from pllm.runtime.client import ProtocolError
+        from pllm.runtime.delegated_protocol import pack, unpack
+    
+        original, injected = transport._Peers.post, []
+    
+        def substitute(self, index, action, payload=b"", **kwargs):
+            if index == 1 and action == "admit" and not injected:
+                value = unpack(payload, limit=transport.ADMISSION_LIMIT)
+                public = json.loads(value["manifest"])
+                if swap == "selection":
+                    public["execution"]["selection"] = "expanded"
+                elif swap == "range_policy":
+                    public["execution"]["range_policy"] = "static"
+                else:
+                    public["source"][0] ^= 1
+                value["manifest"] = json.dumps(public).encode()
+                payload = pack(value, limit=transport.ADMISSION_LIMIT)
+                injected.append(True)
+            return original(self, index, action, payload, **kwargs)
+    
+        owners, captured = observe_publishers(monkeypatch), []
+>       with OpenAI(experiment=combined_experiment(tmp_path), timeout=300) as sdk:
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:392: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate0')
+rejecting = False
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate0')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+_ test_combined_sdk_authenticated_publication_substitution_retires_all_roles[selection] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10e184050>
+swap = 'selection'
+
+    @pytest.mark.parametrize("swap", ["range_policy", "selection", "source"])
+    def test_combined_sdk_authenticated_publication_substitution_retires_all_roles(tmp_path, monkeypatch, swap):
+        from pllm.runtime import replicated_transport as transport
+        from pllm.runtime.client import ProtocolError
+        from pllm.runtime.delegated_protocol import pack, unpack
+    
+        original, injected = transport._Peers.post, []
+    
+        def substitute(self, index, action, payload=b"", **kwargs):
+            if index == 1 and action == "admit" and not injected:
+                value = unpack(payload, limit=transport.ADMISSION_LIMIT)
+                public = json.loads(value["manifest"])
+                if swap == "selection":
+                    public["execution"]["selection"] = "expanded"
+                elif swap == "range_policy":
+                    public["execution"]["range_policy"] = "static"
+                else:
+                    public["source"][0] ^= 1
+                value["manifest"] = json.dumps(public).encode()
+                payload = pack(value, limit=transport.ADMISSION_LIMIT)
+                injected.append(True)
+            return original(self, index, action, payload, **kwargs)
+    
+        owners, captured = observe_publishers(monkeypatch), []
+>       with OpenAI(experiment=combined_experiment(tmp_path), timeout=300) as sdk:
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:392: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate1')
+rejecting = False
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate1')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+_ test_combined_sdk_authenticated_publication_substitution_retires_all_roles[source] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ddc5010>
+swap = 'source'
+
+    @pytest.mark.parametrize("swap", ["range_policy", "selection", "source"])
+    def test_combined_sdk_authenticated_publication_substitution_retires_all_roles(tmp_path, monkeypatch, swap):
+        from pllm.runtime import replicated_transport as transport
+        from pllm.runtime.client import ProtocolError
+        from pllm.runtime.delegated_protocol import pack, unpack
+    
+        original, injected = transport._Peers.post, []
+    
+        def substitute(self, index, action, payload=b"", **kwargs):
+            if index == 1 and action == "admit" and not injected:
+                value = unpack(payload, limit=transport.ADMISSION_LIMIT)
+                public = json.loads(value["manifest"])
+                if swap == "selection":
+                    public["execution"]["selection"] = "expanded"
+                elif swap == "range_policy":
+                    public["execution"]["range_policy"] = "static"
+                else:
+                    public["source"][0] ^= 1
+                value["manifest"] = json.dumps(public).encode()
+                payload = pack(value, limit=transport.ADMISSION_LIMIT)
+                injected.append(True)
+            return original(self, index, action, payload, **kwargs)
+    
+        owners, captured = observe_publishers(monkeypatch), []
+>       with OpenAI(experiment=combined_experiment(tmp_path), timeout=300) as sdk:
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:392: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate2')
+rejecting = False
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_sdk_authenticate2')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+_ test_combined_async_cancellation_before_final_acceptance_drains_owners[input] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_async_cancellati0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ddc6b10>
+phase = 'input'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("phase", ["input", "finish"])
+    async def test_combined_async_cancellation_before_final_acceptance_drains_owners(tmp_path, monkeypatch, phase):
+        from pllm.runtime import replicated_transport as transport
+        from pllm.runtime.client import ProtocolError
+    
+        entered, release = threading.Event(), threading.Event()
+        original, gated = transport._Peers.post, []
+    
+        def observe(self, index, action, *args, **kwargs):
+            result = original(self, index, action, *args, **kwargs)
+            if index == 0 and action == phase and not gated:
+                gated.append(True)
+                entered.set()  # actual authenticated input/first final-share RPC completed
+                assert release.wait(45), "test cancellation gate was not released"
+            return result
+    
+        owners, captured = observe_publishers(monkeypatch), []
+        monkeypatch.setattr(transport._Peers, "post", observe)
+>       experiment = combined_experiment(tmp_path)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:431: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_async_cancellati0')
+rejecting = False
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_async_cancellati0')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+_ test_combined_async_cancellation_before_final_acceptance_drains_owners[finish] _
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_async_cancellati1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10e0a90d0>
+phase = 'finish'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("phase", ["input", "finish"])
+    async def test_combined_async_cancellation_before_final_acceptance_drains_owners(tmp_path, monkeypatch, phase):
+        from pllm.runtime import replicated_transport as transport
+        from pllm.runtime.client import ProtocolError
+    
+        entered, release = threading.Event(), threading.Event()
+        original, gated = transport._Peers.post, []
+    
+        def observe(self, index, action, *args, **kwargs):
+            result = original(self, index, action, *args, **kwargs)
+            if index == 0 and action == phase and not gated:
+                gated.append(True)
+                entered.set()  # actual authenticated input/first final-share RPC completed
+                assert release.wait(45), "test cancellation gate was not released"
+            return result
+    
+        owners, captured = observe_publishers(monkeypatch), []
+        monkeypatch.setattr(transport._Peers, "post", observe)
+>       experiment = combined_experiment(tmp_path)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:431: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_async_cancellati1')
+rejecting = False
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_async_cancellati1')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+__ test_combined_response_benchmark_retains_checked_rejection_as_failed_case ___
+
+tmp_path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_response_benchma0')
+
+    def test_combined_response_benchmark_retains_checked_rejection_as_failed_case(tmp_path):
+        from pllm.metrics import BenchmarkCase, BenchmarkSuite, BenchmarkTarget, Sampling, Scenario, benchmark_suite
+    
+>       accepted = combined_experiment(tmp_path / "accepted")
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:493: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_response_benchma0/accepted')
+rejecting = False
+
+    def combined_experiment(path, *, rejecting=False):
+        """Freeze a generated source before admission; never tune on a request.
+    
+        Rejecting source: every prompt embedding is within ±1, complete head selects
+        visible token 4 (world), whose embedding is ±1.5. One output succeeds; the
+        second full-prefix pass fails privately and must mask the earlier output.
+        This mirrors the independently proved native acceptance fixture without
+        exporting any production tensor/share or reading a validity bit in Python.
+        """
+>       baseline = experiment_fixture(path, weights="public", active=not rejecting)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_replicated_policy_sdk.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+path = PosixPath('/private/var/folders/3d/16hqtng12ng_bfz1n99jg04w0000gn/T/pytest-of-blairhudson/pytest-3989/test_combined_response_benchma0/accepted')
+family = 'qwen2', outputs = 2, requests = 8, active = True
+intermediate_size = 2, weights = 'public'
+
+    def experiment_fixture(path, *, family="qwen2", outputs=2, requests=8, active=False, intermediate_size=2, weights="private"):
+        root = path / "source"
+        root.mkdir(parents=True)
+        config = {
+            "model_type": family, "hidden_size": 2, "intermediate_size": intermediate_size,
+            "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
+            "head_dim": 2, "vocab_size": 5, "tie_word_embeddings": False,
+            "hidden_act": "silu", "attention_bias": family == "qwen2",
+            "max_position_embeddings": 64, "rope_theta": 10000,
+            "rms_norm_eps": 0.000001, "attention_dropout": 0.0,
+            "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
+            "bos_token_id": 0, "eos_token_id": 1,
+        }
+        (root / "config.json").write_text(json.dumps(config))
+        vocabulary = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}
+        tokenizer = Tokenizer(WordLevel(vocabulary, unk_token="<unk>"))
+        tokenizer.pre_tokenizer = Whitespace()
+        tokenizer.add_special_tokens(["<bos>", "<eos>", "<unk>"])
+        tokenizer.save(str(root / "tokenizer.json"))
+        (root / "tokenizer_config.json").write_text(json.dumps({
+            "bos_token": "<bos>", "eos_token": "<eos>", "add_bos_token": False,
+            "model_max_length": 64,
+        }))
+>       publisher = _native.ReplicatedPublisher(json.dumps(config).encode(), 2, outputs, b"s" * 32, b"c" * 32)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+
+tests/test_replicated_sdk.py:47: AttributeError
+=============================== warnings summary ===============================
+tests/test_replicated_policy_sdk.py::test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance
+  /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_replicated_policy_sdk.py::test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance
+  /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/blairhudson/workspace/pllm/target/puma-checked-streams-sdk-v1/run-20261019T084418283007Z/native-original.xml -
+=========================== short test summary info ============================
+FAILED tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices0] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices1] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices2] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices3] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices4] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_checked_rejection_masks_earlier_output_and_retires_sdk_owners - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_true_private_input_rejection_has_identical_public_work - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_stream_admission_prices_workspace_once_per_worker - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_gateway_checked_rejection_exposes_only_error_and_retires - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[range_policy] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[selection] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[source] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_async_cancellation_before_final_acceptance_drains_owners[input] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_async_cancellation_before_final_acceptance_drains_owners[finish] - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+FAILED tests/test_replicated_policy_sdk.py::test_combined_response_benchmark_retains_checked_rejection_as_failed_case - AttributeError: module 'pllm._native' has no attribute 'ReplicatedPublisher'
+======================== 16 failed, 2 warnings in 0.28s ========================

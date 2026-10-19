@@ -1,0 +1,308 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0 -- /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/blairhudson/workspace/pllm
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.15.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_replicated_policy_work_controls.py::test_identical_valid_private_inputs_public_work_control ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 409, in run_asgi
+    result = await self.app(self.scope, self.receive, self.send)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 354, in handle
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 184, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 181, in app
+    await func(session)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 796, in app
+    await dependant.call(**solved_result.values)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 425, in peer_stream
+    raw = await websocket.receive_bytes()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 126, in receive_bytes
+    message = await self.receive()
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 47, in receive
+    message = await self._receive()
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 552, in receive
+    message = await self.queue.get()
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 409, in run_asgi
+    result = await self.app(self.scope, self.receive, self.send)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 354, in handle
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 184, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 181, in app
+    await func(session)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 796, in app
+    await dependant.call(**solved_result.values)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 425, in peer_stream
+    raw = await websocket.receive_bytes()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 126, in receive_bytes
+    message = await self.receive()
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 47, in receive
+    message = await self._receive()
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 552, in receive
+    message = await self.queue.get()
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 409, in run_asgi
+    result = await self.app(self.scope, self.receive, self.send)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 354, in handle
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 184, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 181, in app
+    await func(session)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 796, in app
+    await dependant.call(**solved_result.values)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 425, in peer_stream
+    raw = await websocket.receive_bytes()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 126, in receive_bytes
+    message = await self.receive()
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 47, in receive
+    message = await self._receive()
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 552, in receive
+    message = await self.queue.get()
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 409, in run_asgi
+    result = await self.app(self.scope, self.receive, self.send)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 354, in handle
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 184, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 181, in app
+    await func(session)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 796, in app
+    await dependant.call(**solved_result.values)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 425, in peer_stream
+    raw = await websocket.receive_bytes()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 126, in receive_bytes
+    message = await self.receive()
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 47, in receive
+    message = await self._receive()
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 552, in receive
+    message = await self.queue.get()
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 409, in run_asgi
+    result = await self.app(self.scope, self.receive, self.send)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 354, in handle
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 184, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 181, in app
+    await func(session)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 796, in app
+    await dependant.call(**solved_result.values)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 425, in peer_stream
+    raw = await websocket.receive_bytes()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 126, in receive_bytes
+    message = await self.receive()
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 47, in receive
+    message = await self._receive()
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 552, in receive
+    message = await self.queue.get()
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 409, in run_asgi
+    result = await self.app(self.scope, self.receive, self.send)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/applications.py", line 96, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/errors.py", line 151, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 670, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/routing.py", line 354, in handle
+    await self.app(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 184, in app
+    await wrap_app_handling_exceptions(app, session)(scope, receive, send)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 181, in app
+    await func(session)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/routing.py", line 796, in app
+    await dependant.call(**solved_result.values)
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/pllm/runtime/replicated_worker.py", line 425, in peer_stream
+    raw = await websocket.receive_bytes()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 126, in receive_bytes
+    message = await self.receive()
+              ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/websockets.py", line 47, in receive
+    message = await self._receive()
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/uvicorn/protocols/websockets/websockets_sansio_impl.py", line 552, in receive
+    message = await self.queue.get()
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/lib/python3.13/asyncio/queues.py", line 186, in get
+    await getter
+asyncio.exceptions.CancelledError
+{"bytes_equal": false, "counts_equal": false, "first_bytes": {"peer_link.worker_a.worker_b.online_bytes": 233358, "peer_link.worker_a.worker_b.setup_bytes": 646, "peer_link.worker_a.worker_c.online_bytes": 329173, "peer_link.worker_a.worker_c.setup_bytes": 712, "peer_link.worker_b.worker_a.online_bytes": 267906, "peer_link.worker_b.worker_a.setup_bytes": 712, "peer_link.worker_b.worker_c.online_bytes": 55444, "peer_link.worker_b.worker_c.setup_bytes": 646, "peer_link.worker_c.worker_a.online_bytes": 175119, "peer_link.worker_c.worker_a.setup_bytes": 646, "peer_link.worker_c.worker_b.online_bytes": 150567, "peer_link.worker_c.worker_b.setup_bytes": 712}, "first_counts": {"worker_a": {"controls": 8332, "frames": 1127}, "worker_b": {"controls": 0, "frames": 1139}, "worker_c": {"controls": 0, "frames": 1154}}, "identical_valid_input": true, "second_bytes": {"peer_link.worker_a.worker_b.online_bytes": 233808, "peer_link.worker_a.worker_b.setup_bytes": 646, "peer_link.worker_a.worker_c.online_bytes": 329065, "peer_link.worker_a.worker_c.setup_bytes": 712, "peer_link.worker_b.worker_a.online_bytes": 267311, "peer_link.worker_b.worker_a.setup_bytes": 712, "peer_link.worker_b.worker_c.online_bytes": 55319, "peer_link.worker_b.worker_c.setup_bytes": 646, "peer_link.worker_c.worker_a.online_bytes": 174797, "peer_link.worker_c.worker_a.setup_bytes": 646, "peer_link.worker_c.worker_b.online_bytes": 151273, "peer_link.worker_c.worker_b.setup_bytes": 712}, "second_counts": {"worker_a": {"controls": 8332, "frames": 1129}, "worker_b": {"controls": 0, "frames": 1135}, "worker_c": {"controls": 0, "frames": 1156}}}
+PASSED
+
+- generated xml file: /Users/blairhudson/workspace/pllm/target/puma-checked-streams-sdk-v1/run-20261019T084418283007Z/installed-valid-controls/valid-input-control.xml -
+============================== 1 passed in 4.32s ===============================

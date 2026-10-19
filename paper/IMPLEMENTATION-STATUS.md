@@ -110,6 +110,20 @@ Completed foundations:
   layer-one RMSNorm at the propagated residual range. Full-checkpoint ranges, complete
   work admission, quality and response costs remain open. See the
   [public-weight contract](../docs/research/puma-truncation-reference.md#explicit-public-weight-adaptation).
+  The [completion plan](methods/puma-completion-plan.md) orders complete cost
+  qualification, whole-model range handling, execution scaling, pinned-checkpoint
+  conformance and shared benchmarks, with a first-day feasibility decision.
+  The approved checked-range composition now combines private membership checks
+  and request-wide final acceptance with tiled full-vocabulary lookup/selection
+  and authenticated peer streams. Generated independent integer/AES controls cover
+   complete hidden tensors and later-feedback rejection. The
+   [installed-wheel evidence](artifacts/puma-sdk/local-v12/README.md) retains 462
+   passing Python checks, 218 native checks and 64 generated oracle cases. A separate 4+2 pinned
+  publication reaches layer-eight attention, then rejects the product bound before
+  worker launch with zero observed swap growth. The
+  [complete feasibility account](methods/puma-feasibility.md) identifies additional
+  metadata, live-owner, protected-work and directed-traffic gates. Full-Qwen
+  execution, shared 64+8 capacity, quality and serving measurements remain open.
 - The [FuseFSS scalar specification](reproduction-contracts/fusefss/README.md)
   freezes typed descriptors, a Protocol-3 compiler and independently checked GELU
   tables. It has no protected backend or complete model execution; D8's named

@@ -19,7 +19,7 @@ import threading
 import time
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response
 
 from pllm import _native
@@ -28,8 +28,11 @@ from pllm.deployment.resources import reserve_incremental_memory
 from .delegated_protocol import clear_failure_frames, digest, pack, unpack
 from .delegated_transport import _connections
 from .delegated_worker import _Reservation, _PayloadResponse, _body
-from .replicated_protocol import ROLES, FRAME_LIMIT, ADMISSION_LIMIT, REQUEST_MEMORY, input_frame
+from .replicated_protocol import (ROLES, FRAME_LIMIT, ADMISSION_LIMIT, REQUEST_MEMORY, input_frame,
+                                  execution_policy, execution_binding, worker_request_memory)
+from .replicated_protocol import validate_transport_selector, validate_execution_binding
 from .replicated_source import admit_source
+from .replicated_peer import PeerStream, STREAM_MEMORY, TRANSPORT, binding, decode
 
 async def native_call(function, *args, _cancel=None):
     """Drain a cancelled native call before its caller can release admission."""
@@ -68,6 +71,13 @@ class _Attempt:
         self.setup_frame = None
         self.closed = False
         self.complete = False
+        self.sealed = False
+        self.epochs = None
+        self.streams = {}
+        self.stream_senders = set()
+        self.stream_tasks = set()
+        self.close_task = None
+        self.peer_counts = {"frames": 0, "controls": 0}
         self.expires = time.monotonic() + 1200
         self.peer_bytes = {role: {f"{phase}_{direction}_bytes": 0
             for phase in ("setup", "online") for direction in ("upload", "download")}
@@ -81,12 +91,34 @@ class _Attempt:
         self.pending.extend(frames)
 
     async def close(self):
+        if self.close_task is None:
+            self.closed = True
+            self.close_task = asyncio.create_task(self._close())
+        # A single retirement owner drains every producer. Repeated cancellation
+        # of an HTTP caller cannot cancel cleanup or refund its native root early.
+        cancelled = False
+        while not self.close_task.done():
+            try:
+                await asyncio.shield(self.close_task)
+            except asyncio.CancelledError:
+                cancelled = True
+        self.close_task.result()
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _close(self):
         self.closed = True
-        task, self.task = self.task, None
-        if task is not None and task is not asyncio.current_task():
+        tasks = set(self.stream_tasks)
+        if self.task is not None:
+            tasks.add(self.task)
+        self.task = None
+        for task in tasks:
             task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
-        task = None
+        await asyncio.gather(*tasks, return_exceptions=True)
+        await asyncio.gather(*(stream.aclose() for stream in self.streams.values()),
+                             return_exceptions=True)
+        self.streams.clear()
+        self.stream_tasks.clear()
         async with self.lock:
             self.pending.clear()
             self.outgoing = ()
@@ -101,6 +133,24 @@ class _Attempt:
 
 
 def create_replicated_worker_app(experiment, role, api_key, peers):
+    """Create the ordinary worker with an explicitly selected peer transport.
+
+    Stream activation contract (client/profile integration is deliberately
+    separate): select ``peer_transport="streams"`` in the Experiment, validate the extra
+    manifest ``peer_transport`` field, admit all three, then POST ``bind_peers``
+    to each request with pack({"transport": "peer-stream-v1", "epochs":
+    {role: authenticated_manifest_epoch, ...}}), before existing setup actions.
+    Final-share envelopes remain unchanged. Metrics expose cumulative initiated
+    peer frame/control RPC counts, not native ordinals or physical wire bytes.
+    Setup/online byte counters include binary handshake/RPC/ACK envelopes exactly
+    once at their initiating owner; HTTP upgrades/WebSocket framing are excluded.
+
+    Stream memory adds STREAM_MEMORY to REQUEST_MEMORY; no existing frame, queue,
+    lifetime, or barrier ceiling changes. Custom ASGI servers MUST configure
+    WebSocket max_size=FRAME_LIMIT, max_queue=1, and disable compression (main()
+    does so). Supervisor/profile and client must select this contract explicitly.
+    """
+    peer_transport = TRANSPORT if execution_policy(experiment)["peer_transport"] == "streams" else "http-v1"
     if (role not in ROLES or type(api_key) is not str or not 16 <= len(api_key) <= 256
             or not api_key.isascii()):
         raise ValueError("replicated worker identity is invalid")
@@ -121,14 +171,38 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
     active = None
     seen = set()
     clients = {}
+    retired_counts = {"frames": 0, "controls": 0}
+    retire_tasks = set()
     admission_lock = asyncio.Lock()
 
     async def retire(attempt):
         nonlocal active
         if attempt is not None:
-            await attempt.close()
-            if active is attempt:
-                active = None
+            try:
+                await attempt.close()
+            finally:
+                # close() drains before propagating cancellation. Do not strand
+                # an already-refunded attempt in role admission until its TTL.
+                if active is attempt and attempt.reservation is None:
+                    for name, count in attempt.peer_counts.items():
+                        retired_counts[name] += count
+                    active = None
+
+    def schedule_retire(attempt):
+        # A socket handler must never await cleanup that joins that same handler.
+        # Fail closed synchronously, then let the tracked retirement owner join it.
+        attempt.closed = True
+        task = asyncio.create_task(retire(attempt))
+        retire_tasks.add(task)
+
+        def done(task):
+            retire_tasks.discard(task)
+            if not task.cancelled():
+                error = task.exception()
+                if error is not None:
+                    clear_failure_frames(error)
+
+        task.add_done_callback(done)
 
     async def body(request, limit):
         # Shared fixed-length reader closes failed streams and drops traceback
@@ -136,6 +210,19 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
         return await _body(request, limit)
 
     async def rpc(attempt, peer, action, payload=b""):
+        if attempt.closed:
+            raise ValueError("replicated attempt is retired")
+        attempt.peer_counts["frames" if action in {"receive", "public", "receive_seed"}
+                            else "controls"] += 1
+        if peer_transport == TRANSPORT:
+            if attempt.epochs is None:
+                raise ValueError("replicated stream epochs are not bound")
+            if peer not in attempt.streams:
+                origin, key = outgoing[others.index(peer)]
+                attempt.streams[peer] = PeerStream(origin, key,
+                    binding(attempt.request_id, source.source_lock_digest, configuration,
+                            role, peer, attempt.epochs), attempt.expires, attempt.peer_bytes[peer])
+            return await attempt.streams[peer].call(action, payload)
         phase = "setup" if action in {"public", "receive_seed"} else "online"
         encoded = pack({"sender": role, "payload": payload}, limit=FRAME_LIMIT)
         async with clients[peer].stream("POST", f"/v1/replicated/{attempt.request_id}/peer/{action}",
@@ -153,6 +240,15 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
             return unpack(bytes(received), limit=FRAME_LIMIT)
 
     async def control(attempt, action):
+        if action == "seal":
+            if peer_transport != TRANSPORT:
+                raise ValueError("unknown replicated control")
+            async with attempt.lock:
+                if (attempt.closed or not attempt.complete or attempt.pending or attempt.outgoing
+                        or attempt.sealed):
+                    raise ValueError("replicated stream completion is not quiescent")
+                attempt.sealed = True
+                return {"sealed": True}
         if action == "prepare_dispatch":
             async with attempt.lock:
                 if attempt.closed or attempt.phase != "run" or attempt.outgoing:
@@ -182,6 +278,28 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
             return {"complete": complete}
         raise ValueError("unknown replicated control")
 
+    async def accept_peer(attempt, sender, action, payload):
+        if attempt.sealed:
+            raise ValueError("replicated peer execution is sealed")
+        if action in {"advance", "prepare_dispatch", "dispatch", "seal"}:
+            if sender != ROLES[0] or payload != b"":
+                raise ValueError("replicated coordinator identity differs")
+            return await control(attempt, action)
+        async with attempt.lock:
+            if attempt.closed:
+                raise ValueError("replicated attempt is retired")
+            if (attempt.phase == "setup" and
+                    (action == "public" and attempt.setup_step in {1, 2}
+                     or action == "receive_seed" and attempt.setup_step in {3, 4})):
+                await native_call(attempt.native.call, action, payload, ROLES.index(sender))
+            elif action == "receive" and attempt.phase == "run":
+                complete, frames = await native_call(attempt.native.call, "peer", payload, ROLES.index(sender))
+                attempt.complete = complete
+                attempt.enqueue(frames)
+            else:
+                raise ValueError("unknown replicated peer action")
+        return {"accepted": True}
+
     async def run(attempt):
         async def all_roles(action):
             tasks = [asyncio.create_task(control(attempt, action) if peer == role
@@ -198,6 +316,9 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
                 if any(set(state) != {"complete"} or type(state["complete"]) is not bool for state in states):
                     raise ValueError("replicated barrier acknowledgement differs")
                 if all(state["complete"] for state in states):
+                    if peer_transport == TRANSPORT:
+                        if await all_roles("seal") != [{"sealed": True}] * 3:
+                            raise ValueError("replicated stream completion seal differs")
                     return
                 if any(state["complete"] for state in states):
                     raise ValueError("replicated schedules diverged")
@@ -236,6 +357,7 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
             watcher.cancel()
             await asyncio.gather(watcher, return_exceptions=True)
             await retire(active)
+            await asyncio.gather(*retire_tasks, return_exceptions=True)
             await asyncio.gather(*(client.aclose() for client in clients.values()))
 
     app = FastAPI(lifespan=lifespan)
@@ -252,9 +374,12 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
     async def manifest(request: Request):
         if not authorized(request, api_key):
             return Response(status_code=401)
-        return Response(pack({"schema": "pllm.replicated.worker.v1", "role": role,
+        value = {"schema": "pllm.replicated.worker.v1", "role": role,
             "configuration": configuration, "source_lock": source.source_lock_digest,
-            "tokenizer": source.tokenizer_digest, "epoch": epoch}), media_type="application/octet-stream")
+            "tokenizer": source.tokenizer_digest, "epoch": epoch}
+        if peer_transport == TRANSPORT:
+            value["peer_transport"] = TRANSPORT
+        return Response(pack(value), media_type="application/octet-stream")
 
     @app.get("/v1/replicated/metrics")
     async def metrics(request: Request):
@@ -263,7 +388,74 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
         from .benchmark_memory import process_memory
         return JSONResponse({"schema": "pllm.replicated_worker_process_metrics.v1",
             "cpu_ns": time.process_time_ns(), "peak_rss_bytes": process_memory()["lifetime_peak_rss_bytes"],
-            "active_sessions": int(active is not None), "role": role})
+            "active_sessions": int(active is not None), "role": role,
+            "peer_transport": peer_transport,
+            "peer_counts": {name: count + (active.peer_counts[name] if active else 0)
+                            for name, count in retired_counts.items()}})
+
+    @app.websocket("/v1/replicated/{request_id}/stream")
+    async def peer_stream(request_id: str, websocket: WebSocket):
+        sender = next((name for name, key in incoming.items() if authorized(websocket, key)), None)
+        attempt = active
+        if (peer_transport != TRANSPORT or sender is None or attempt is None
+                or attempt.closed or attempt.request_id != request_id):
+            await websocket.close(code=1008)
+            return
+        lease = attempt.reservation.lease()
+        task = asyncio.current_task()
+        attempt.stream_tasks.add(task)
+        raw = value = result = None
+        failed = False
+        try:
+            # A directed stream cannot reconnect, even after an apparently clean
+            # disconnect: native acceptance may have preceded its missing ACK.
+            if sender in attempt.stream_senders or attempt.epochs is None:
+                raise ValueError("replicated stream is unbound or replayed")
+            attempt.stream_senders.add(sender)
+            await websocket.accept()
+            async with asyncio.timeout(max(0.0, attempt.expires - time.monotonic())):
+                raw = await websocket.receive_bytes()
+                if decode(raw) != binding(request_id, source.source_lock_digest, configuration,
+                                          sender, role, attempt.epochs):
+                    raise ValueError("replicated stream binding differs")
+                raw = None
+                await websocket.send_bytes(pack({"accepted": True}))
+                sequence = 0
+                while not attempt.closed:
+                    raw = await websocket.receive_bytes()
+                    value = decode(raw)
+                    raw = None
+                    if (set(value) != {"sequence", "action", "payload"}
+                            or type(value["sequence"]) is not int or value["sequence"] != sequence
+                            or sequence >= 1 << 63 or type(value["action"]) is not str
+                            or type(value["payload"]) is not bytes):
+                        raise ValueError("replicated stream request sequence differs")
+                    result = await accept_peer(attempt, sender, value["action"], value["payload"])
+                    value = None
+                    raw = pack({"sequence": sequence, "result": result}, limit=FRAME_LIMIT)
+                    result = None
+                    await websocket.send_bytes(raw)
+                    raw = None
+                    sequence += 1
+        except BaseException as error:
+            raw = value = result = None
+            clear_failure_frames(error)
+            clean_completion = (isinstance(error, WebSocketDisconnect)
+                                and error.code == 1000 and attempt.sealed)
+            if not attempt.closed and not clean_completion:
+                failed = True
+                schedule_retire(attempt)
+            if not isinstance(error, Exception):
+                raise
+        finally:
+            raw = value = result = None
+            try:
+                await websocket.close(code=1008 if failed else 1000)
+            except Exception:
+                pass
+            finally:
+                attempt.stream_tasks.discard(task)
+                lease.close()
 
     @app.post("/v1/replicated/admit")
     async def admit(request: Request):
@@ -277,7 +469,7 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
             async with admission_lock:
                 if active is not None or len(seen) >= min(4096, experiment.budget.requests):
                     raise ValueError("replicated worker capacity exhausted")
-                reservation = _Reservation(reserve_incremental_memory(REQUEST_MEMORY))
+                reservation = _Reservation(reserve_incremental_memory(worker_request_memory(experiment)))
                 raw = await asyncio.wait_for(body(request, ADMISSION_LIMIT), timeout=60)
                 value = unpack(raw, limit=ADMISSION_LIMIT)
                 if (set(value) != {"request", "epoch", "manifest"} or value["epoch"] != epoch
@@ -292,8 +484,9 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
                         or bytes(public["source"]).hex() != source.source_lock_digest
                         or bytes(public["composition"]).hex() != experiment.pipeline.digest()
                         or bytes(public["config"]) != source.config_bytes
-                        or public.get("weights", "private") != source.contract.get("weights", "private")):
+                         or public.get("weights", "private") != source.contract.get("weights", "private")):
                     raise ValueError("replicated publication differs from source")
+                validate_execution_binding(experiment, public)
                 source.runtime_contract(experiment, public["rows"], public["outputs"])
                 if source.contract.get("weights") == "public":
                     required = source.contract["public_weight_snapshot_bytes_per_worker"]
@@ -330,10 +523,14 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
         sender = next((name for name, key in incoming.items() if authorized(request, key)), None)
         if sender is None:
             return Response(status_code=401)
+        if peer_transport == TRANSPORT:
+            return Response(status_code=409)
         attempt = active
         if attempt is None or request_id != attempt.request_id or attempt.closed:
             return Response(status_code=409)
         reservation = attempt.reservation
+        if reservation is None:
+            return Response(status_code=409)
         lease = reservation.lease()
         value = result = frames = None
         try:
@@ -342,23 +539,7 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
             if (set(value) != {"sender", "payload"} or value["sender"] != sender
                     or type(value["payload"]) is not bytes):
                 raise ValueError("replicated peer sender differs")
-            if action in {"advance", "prepare_dispatch", "dispatch"}:
-                if sender != ROLES[0] or value["payload"] != b"":
-                    raise ValueError("replicated coordinator identity differs")
-                result = await control(attempt, action)
-            else:
-                async with attempt.lock:
-                    if (attempt.phase == "setup" and
-                            (action == "public" and attempt.setup_step in {1, 2}
-                             or action == "receive_seed" and attempt.setup_step in {3, 4})):
-                        await native_call(attempt.native.call, action, value["payload"], ROLES.index(sender))
-                    elif action == "receive" and attempt.phase == "run":
-                        complete, frames = await native_call(attempt.native.call, "peer", value["payload"], ROLES.index(sender))
-                        attempt.complete = complete
-                        attempt.enqueue(frames)
-                    else:
-                        raise ValueError("unknown replicated peer action")
-                result = {"accepted": True}
+            result = await accept_peer(attempt, sender, action, value["payload"])
             return _PayloadResponse(pack(result), reservation, limit=FRAME_LIMIT,
                                     media_type="application/octet-stream")
         except BaseException as error:
@@ -387,6 +568,8 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
         if attempt is None or request_id != attempt.request_id or (attempt.closed and action != "cancel"):
             return Response(status_code=409)
         reservation = attempt.reservation
+        if reservation is None:
+            return Response(status_code=409)
         lease = reservation.lease()
         raw = result = value = frame = frames = payload = response = None
         started = time.perf_counter_ns()
@@ -399,7 +582,22 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
                 response = _PayloadResponse(pack({"retired": True}), reservation, limit=4096)
                 await retire(attempt)
                 return response
-            if action == "execute":
+            if peer_transport == TRANSPORT and attempt.epochs is None and action != "bind_peers":
+                raise ValueError("replicated stream epochs are not bound")
+            if action == "bind_peers":
+                value = unpack(raw, limit=4096)
+                if (peer_transport != TRANSPORT or attempt.epochs is not None
+                        or attempt.phase != "setup" or attempt.setup_step != 0
+                        or set(value) != {"transport", "epochs"} or value["transport"] != TRANSPORT
+                        or type(value["epochs"]) is not dict or set(value["epochs"]) != set(ROLES)
+                        or any(type(item) is not str or len(item) != 64
+                               or any(c not in "0123456789abcdef" for c in item)
+                               for item in value["epochs"].values())
+                        or value["epochs"][role] != epoch):
+                    raise ValueError("replicated peer epoch binding differs")
+                attempt.epochs = dict(value["epochs"])
+                result = {"accepted": True}
+            elif action == "execute":
                 if role != ROLES[0] or raw or attempt.started:
                     raise ValueError("replicated execution is one-use")
                 attempt.started = True
@@ -447,7 +645,8 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
                         value = unpack(raw, limit=FRAME_LIMIT)
                         await native_call(attempt.native.call, "import", input_frame(value), ROLES.index(role))
                         result = {"accepted": True}
-                    elif action == "finish" and not raw and attempt.complete:
+                    elif (action == "finish" and not raw and attempt.complete
+                          and (peer_transport != TRANSPORT or attempt.sealed)):
                         frame = await native_call(attempt.native.finish)
                         result = {"frame": frame, "peer_bytes": attempt.peer_bytes}
                     else:
@@ -479,11 +678,13 @@ def main():
     parser.add_argument("--port", type=int, required=True)
     args = parser.parse_args()
     experiment = Experiment.from_spec(json.loads(os.environ["PLLM_ROLE_EXPERIMENT_JSON"]))
+    validate_transport_selector(experiment, os.environ.get("PLLM_REPLICATED_PEER_TRANSPORT"))
     app = create_replicated_worker_app(experiment, args.role, os.environ["PLLM_REPLICATED_API_KEY"],
                                        json.loads(os.environ["PLLM_REPLICATED_PEERS_JSON"]))
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False, log_level="warning",
-                limit_concurrency=16, h11_max_incomplete_event_size=16 << 10)
+                limit_concurrency=16, h11_max_incomplete_event_size=16 << 10,
+                ws_max_size=FRAME_LIMIT, ws_max_queue=1, ws_per_message_deflate=False)
 
 
 if __name__ == "__main__":

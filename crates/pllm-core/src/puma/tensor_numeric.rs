@@ -131,7 +131,109 @@ fn affine(left: i64, right: i64, constant: i64) -> Affine {
     }
 }
 
+impl Builder {
+    // Compare signed words without subtracting. Flipping the sign bit maps
+    // signed order to unsigned order. At the highest differing bit, the public
+    // bound alone determines which word is larger. Zero difference yields false.
+    fn outside_bound(&mut self, bits: Value, bound: i64, below: bool) -> Result<Value, Error> {
+        let key = (bound as u64) ^ (1 << 63);
+        let ordered = self.bit_constant_xor(bits, 1 << 63)?;
+        let diff = self.bit_constant_xor(ordered, key)?;
+        let mut spread = diff;
+        for shift in [1, 2, 4, 8, 16, 32] {
+            let lower = self.bit_map(spread, BitMap::ShiftRight(shift))?;
+            spread = self.bit_or(spread, lower)?;
+        }
+        let lower = self.bit_map(spread, BitMap::ShiftRight(1))?;
+        let highest = self.bit_xor(spread, lower)?;
+        self.bit_map(highest, BitMap::Parity(if below { key } else { !key }))
+    }
+
+    /// Inclusive frozen public interval guard, safe for every incoming i64 word.
+    /// Invalid operands become `fallback` BEFORE any range-dependent arithmetic.
+    /// Valid operands are unchanged, not clipped. Both predicate and selection
+    /// use a fixed Boolean schedule, with fresh conversions/products charged in
+    /// the program budget. The returned arithmetic bit is per lane; compose all
+    /// such bits with exact products into request-wide sticky validity.
+    pub fn checked_range(
+        &mut self,
+        input: Value,
+        accepted: Interval,
+        fallback: i64,
+    ) -> Result<CheckedValue, Error> {
+        self.node(input, false)?;
+        if fallback < accepted.lower() || fallback > accepted.upper() {
+            return Err(Error::Bounds);
+        }
+        self.0.numeric_profile = CHECKED_RANGE_PROFILE;
+        let bits = self.bits(input)?;
+        let below = self.outside_bound(bits, accepted.lower(), true)?;
+        let above = self.outside_bound(bits, accepted.upper(), false)?;
+        let invalid = self.bit_or(below, above)?;
+        let valid_bit = self.bit_constant_xor(invalid, 1)?;
+        let valid = self.from_bit(valid_bit)?;
+
+        // Expand the secret bit to an all-zero/all-one word using disjoint XORs.
+        // Boolean mux avoids x-fallback overflow even at MIN/MAX signed words.
+        let mut mask = valid_bit;
+        for shift in [1, 2, 4, 8, 16, 32] {
+            let upper = self.bit_map(mask, BitMap::ShiftLeft(shift))?;
+            mask = self.bit_xor(mask, upper)?;
+        }
+        let delta = self.bit_constant_xor(bits, fallback as u64)?;
+        let union = self.bit_or(mask, delta)?;
+        let xor = self.bit_xor(mask, delta)?;
+        let intersection = self.bit_xor(union, xor)?;
+        let selected = self.bit_constant_xor(intersection, fallback as u64)?;
+
+        // Conversion admits <=62 bits. Reassemble a signed word from disjoint
+        // 32/31/1-bit chunks; every affine intermediate fits signed i64 even
+        // without the membership invariant. No truncation or stochastic rounding.
+        let low = self.bit_map(selected, BitMap::LowBits(32))?;
+        let low = self.from_boolean(low)?;
+        let high = self.bit_map(selected, BitMap::ShiftRight(32))?;
+        let high = self.bit_map(high, BitMap::LowBits(31))?;
+        let high = self.from_boolean(high)?;
+        let sign = self.bit_map(selected, BitMap::ShiftRight(63))?;
+        let sign = self.from_bit(sign)?;
+        let negative = self.affine(sign, None, affine(i64::MIN, 0, 0))?;
+        let upper = self.affine(high, Some(negative), affine(1 << 32, 1, 0))?;
+        let safe = self.affine(upper, Some(low), affine(1, 1, 0))?;
+        // This narrowing is justified by the exact Boolean mux above, not by
+        // trusting incoming interval metadata or checking an already wrapped op.
+        self.0.nodes[safe.0 as usize].as_mut().unwrap().bounds = accepted;
+        Ok(CheckedValue { safe, valid })
+    }
+}
+
 impl Program {
+    /// Reduce proven arithmetic bits to one shared AND bit. This is local sum
+    /// plus protected sign, not an opening. Use on the validity output of a guard
+    /// before multiplying into a persistent request-wide scalar validity bit.
+    pub fn all_valid(lanes: usize) -> Result<Self, Error> {
+        let mut b = Builder::row(lanes, Interval::new(0, 1)?)?;
+        b.0.numeric_profile = CHECKED_RANGE_PROFILE;
+        let sum = b.row_map(b.input(), lanes, RowMap::Sum)?;
+        let difference = b.affine(sum, None, affine(1, 0, -(lanes as i64)))?;
+        let failed = b.sign(difference)?;
+        let failed = b.from_bit(failed)?;
+        let valid = b.affine(failed, None, affine(-1, 0, 1))?;
+        b.finish(valid)
+    }
+
+    /// Standalone checked operand program. Consume with Executor::finish_checked;
+    /// returns safe operands and secret per-lane validity for compiler composition.
+    pub fn checked_range(
+        lanes: usize,
+        incoming: Interval,
+        accepted: Interval,
+        fallback: i64,
+    ) -> Result<Self, Error> {
+        let mut b = Builder::new(lanes, incoming)?;
+        let checked = b.checked_range(b.input(), accepted, fallback)?;
+        b.finish_checked(checked.safe, checked.valid)
+    }
+
     /// Finite binary32 default split-half coefficients, then the Q18
     /// toward-zero boundary. Fixed libm implementation; no private positions.
     pub fn rotary_coefficients(
@@ -448,6 +550,58 @@ impl Program {
         }
         let bit = b.bit_map(bits, BitMap::LowBits(1))?;
         let nonzero = b.from_bit(bit)?;
+        let out = b.affine(nonzero, None, affine(-1, 0, 1))?;
+        b.finish(out)
+    }
+
+    /// Minimum positive public quotient width proving equality to zero on the
+    /// inclusive interval. Every nonzero multiple of 2^k must be excluded; this
+    /// also handles intervals not containing zero without overestimating width.
+    pub fn equality_width(input: Interval) -> u8 {
+        let lower = i128::from(input.lower());
+        let upper = i128::from(input.upper());
+        for bits in 1..=64 {
+            let modulus = 1_i128 << bits;
+            let first = -(-lower).div_euclid(modulus);
+            let last = upper.div_euclid(modulus);
+            if first > last || (first == 0 && last == 0) {
+                return bits;
+            }
+        }
+        unreachable!("signed i64 interval contains no nonzero multiple of 2^64")
+    }
+
+    /// Exact equality under a caller-proved public incoming interval, with a
+    /// separately bound quotient-ring conversion. This is not a private range
+    /// check: values violating that proof may alias zero. For lookup differences
+    /// [-151935,151935], width 18 suffices; signed shares themselves remain full
+    /// ring64 words until the conversion's correct component-wise ring reduction.
+    /// This constructor also selects the distinct compact nominal-bit wire
+    /// contract: both Boolean components are projected before encoding, while
+    /// arithmetic OT payloads retain all 64 bits. No legacy codec is changed.
+    pub fn equal_zero_bounded(lanes: usize, input: Interval) -> Result<Self, Error> {
+        let width = Self::equality_width(input);
+        let mut b = Builder::new(lanes, input)?;
+        b.0.numeric_profile = BOUNDED_EQUALITY_PROFILE;
+        let mut bits = b.push(
+            Instruction::LowBits(b.input(), width),
+            Interval::new(0, 0)?,
+            true,
+        )?;
+        // LowBits masks after each reduction, shrinking actual Boolean backing
+        // widths and their PRSS fills, not just the number of source-level loops.
+        let mut remaining = width;
+        while remaining > 1 {
+            let half = remaining.div_ceil(2);
+            let other = b.bit_map(bits, BitMap::ShiftRight(half))?;
+            bits = b.push(
+                Instruction::BitOrLow(bits, other, half),
+                Interval::new(0, 0)?,
+                true,
+            )?;
+            remaining = half;
+        }
+        let nonzero = b.from_bit(bits)?;
         let out = b.affine(nonzero, None, affine(-1, 0, 1))?;
         b.finish(out)
     }

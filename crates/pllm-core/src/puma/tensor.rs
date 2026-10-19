@@ -21,6 +21,9 @@ pub const PROFILE: &str = "pllm.puma.public-tensor-program.q18.v1";
 /// their original numerical identity.
 pub const RMS_NORM_PROFILE: &str = "puma.rmsnorm-epsilon1-q18.v1";
 pub const RMS_NORM_EPSILON_Q18: i64 = 1;
+/// Opt-in checked operands; never the default private-weight numeric identity.
+pub const CHECKED_RANGE_PROFILE: &str = "puma.checked-range-q18.v1";
+pub const BOUNDED_EQUALITY_PROFILE: &str = "puma.public-domain-equality.compact-q18.v1";
 pub const MAX_NODES: usize = 192;
 pub const MAX_TILE_LANES: usize = 128;
 /// Row reductions may carry one complete native-width row; Boolean conversion
@@ -35,6 +38,13 @@ pub enum Activation {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Value(u8);
+
+/// Secret safe operand and per-lane arithmetic validity bit. Neither is opened.
+#[derive(Clone, Copy, Debug)]
+pub struct CheckedValue {
+    pub safe: Value,
+    pub valid: Value,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Instruction {
@@ -57,9 +67,12 @@ enum Instruction {
     Sign(Value),
     FromBit(Value),
     Bits(Value),
+    LowBits(Value, u8),
     BitMap(Value, BitMap),
     BitOr(Value, Value),
+    BitOrLow(Value, Value, u8),
     BitXor(Value, Value),
+    BitConstantXor(Value, u64),
     RowMap(Value, usize, RowMap),
     LaneAffine(Value, u8),
 }
@@ -71,12 +84,15 @@ impl Instruction {
             Self::Affine { left, right, .. } => [Some(left), right],
             Self::Product { left, right, .. }
             | Self::BitOr(left, right)
+            | Self::BitOrLow(left, right, _)
             | Self::BitXor(left, right) => [Some(left), Some(right)],
             Self::Rescale { input, .. }
             | Self::Sign(input)
             | Self::FromBit(input)
             | Self::Bits(input)
+            | Self::LowBits(input, _)
             | Self::BitMap(input, _)
+            | Self::BitConstantXor(input, _)
             | Self::RowMap(input, _, _)
             | Self::LaneAffine(input, _) => [Some(input), None],
         }
@@ -100,6 +116,7 @@ pub struct Program {
     lanes: usize,
     digest: [u8; 32],
     numeric_profile: &'static str,
+    checked_validity: Option<Value>,
     last_use: [u8; MAX_NODES],
     slots: [u8; MAX_NODES],
     register_count: usize,
@@ -129,6 +146,7 @@ impl Builder {
             lanes,
             digest: [0; 32],
             numeric_profile: super::NUMERIC_PROFILE,
+            checked_validity: None,
             last_use: [0; MAX_NODES],
             slots: [0; MAX_NODES],
             register_count: 0,
@@ -192,10 +210,15 @@ impl Builder {
         self.0.bit_widths[self.0.len] = match instruction {
             Instruction::Sign(_) => 1,
             Instruction::Bits(_) => 64,
+            Instruction::LowBits(_, bits) => bits,
             Instruction::BitMap(v, map) => map.width(self.bit_width(v)?)?,
             Instruction::BitOr(a, b) | Instruction::BitXor(a, b) => {
                 self.bit_width(a)?.max(self.bit_width(b)?)
             }
+            Instruction::BitOrLow(_, _, bits) => bits,
+            Instruction::BitConstantXor(v, constant) => self
+                .bit_width(v)?
+                .max((64 - constant.leading_zeros()) as u8),
             _ => 0,
         };
         self.0.nodes[self.0.len] = Some(Node {
@@ -396,6 +419,31 @@ impl Builder {
         self.push(Instruction::BitXor(left, right), Interval::new(0, 0)?, true)
     }
 
+    fn bit_constant_xor(&mut self, input: Value, constant: u64) -> Result<Value, Error> {
+        self.bit_width(input)?;
+        self.push(
+            Instruction::BitConstantXor(input, constant),
+            Interval::new(0, 0)?,
+            true,
+        )
+    }
+
+    /// Retain secret arithmetic validity alongside the ordinary output. The
+    /// caller must AND every lane into request-wide sticky validity and disclose
+    /// only that final aggregate to the client before releasing any tokens/state.
+    pub fn finish_checked(mut self, output: Value, valid: Value) -> Result<Program, Error> {
+        if output == valid {
+            return Err(Error::Binding);
+        }
+        let bounds = self.node(valid, false)?.bounds;
+        if bounds.lower() < 0 || bounds.upper() > 1 {
+            return Err(Error::Bounds);
+        }
+        self.0.checked_validity = Some(valid);
+        self.0.numeric_profile = CHECKED_RANGE_PROFILE;
+        self.finish(output)
+    }
+
     fn highest_bit(&mut self, input: Value, width: u8) -> Result<Value, Error> {
         let bits = self.bits(input)?;
         let mut spread = self.bit_map(bits, BitMap::LowBits(width))?;
@@ -417,6 +465,10 @@ impl Builder {
         h.update(self.0.numeric_profile.as_bytes());
         h.update((self.0.lanes as u64).to_le_bytes());
         h.update((self.0.len as u64).to_le_bytes());
+        if let Some(valid) = self.0.checked_validity {
+            h.update(b"checked-validity-output.v1");
+            h.update([valid.0]);
+        }
         for (index, node) in self.0.nodes[..self.0.len].iter().flatten().enumerate() {
             for value in node.instruction.inputs().into_iter().flatten() {
                 self.0.last_use[value.0 as usize] = index as u8;
@@ -450,12 +502,18 @@ impl Builder {
                 Instruction::Sign(input) => h.update([4, input.0]),
                 Instruction::FromBit(input) => h.update([5, input.0]),
                 Instruction::Bits(input) => h.update([6, input.0]),
+                Instruction::LowBits(input, bits) => h.update([13, input.0, bits]),
                 Instruction::BitMap(input, map) => {
                     h.update([7, input.0]);
                     map.hash(&mut h);
                 }
                 Instruction::BitOr(a, b) => h.update([8, a.0, b.0]),
+                Instruction::BitOrLow(a, b, bits) => h.update([14, a.0, b.0, bits]),
                 Instruction::BitXor(a, b) => h.update([9, a.0, b.0]),
+                Instruction::BitConstantXor(input, constant) => {
+                    h.update([12, input.0]);
+                    h.update(constant.to_le_bytes());
+                }
                 Instruction::RowMap(input, width, map) => {
                     h.update([10, input.0]);
                     h.update((width as u64).to_le_bytes());
@@ -481,6 +539,9 @@ impl Builder {
         }
         self.0.digest = h.finalize().into();
         self.0.last_use[output.0 as usize] = self.0.len as u8;
+        if let Some(valid) = self.0.checked_validity {
+            self.0.last_use[valid.0 as usize] = self.0.len as u8;
+        }
         let mut available_at = [0; MAX_NODES];
         for i in 0..self.0.len {
             let slot = available_at.iter().position(|&next| next <= i).unwrap();
@@ -671,10 +732,11 @@ impl Program {
             Instruction::Rescale { .. } => WorkBudget::rescale(node.lanes)?,
             Instruction::Sign(_) => WorkBudget::conversion(node.lanes, true)?,
             Instruction::Bits(_) => WorkBudget::conversion(node.lanes, false)?,
+            Instruction::LowBits(_, bits) => WorkBudget::conversion_bounded(node.lanes, bits)?,
             Instruction::FromBit(input) => {
                 WorkBudget::from_boolean(node.lanes, self.bit_widths[input.0 as usize])?
             }
-            Instruction::BitOr(a, b) => WorkBudget::bit_or(
+            Instruction::BitOr(a, b) | Instruction::BitOrLow(a, b, _) => WorkBudget::bit_or(
                 node.lanes,
                 self.bit_widths[a.0 as usize].max(self.bit_widths[b.0 as usize]),
             )?,
@@ -682,6 +744,7 @@ impl Program {
             | Instruction::LaneAffine(..)
             | Instruction::RowMap(..)
             | Instruction::BitMap(..)
+            | Instruction::BitConstantXor(..)
             | Instruction::BitXor(..) => WorkBudget::local(),
         })
     }
@@ -691,6 +754,14 @@ impl Program {
 
     pub fn output_lanes(&self) -> usize {
         self.nodes[self.len - 1].unwrap().lanes
+    }
+
+    /// Protected validity output shape, absent for ordinary one-output programs.
+    /// Checked-range callers concatenate `output_lanes()` safe words followed by
+    /// these validity words; the aggregate is never opened by this executor.
+    pub fn validity_lanes(&self) -> Option<usize> {
+        self.checked_validity
+            .map(|v| self.nodes[v.0 as usize].unwrap().lanes)
     }
 
     /// Conservative retained-register plus primitive/copy/frame allowance.
@@ -722,10 +793,13 @@ impl Program {
                         let bits = usize::from(self.bit_widths[input.0 as usize]);
                         (if bits <= 8 { 16 * bits + 10 } else { 42 }) * node.lanes
                     }
-                    Instruction::Sign(_) | Instruction::Bits(_) => 34 * node.lanes,
+                    Instruction::Sign(_) | Instruction::Bits(_) | Instruction::LowBits(..) => {
+                        34 * node.lanes
+                    }
                     Instruction::BitMap(..) => 6 * node.lanes,
-                    Instruction::BitOr(..) => 20 * node.lanes,
+                    Instruction::BitOr(..) | Instruction::BitOrLow(..) => 20 * node.lanes,
                     Instruction::BitXor(..) => 10 * node.lanes,
+                    Instruction::BitConstantXor(..) => 6 * node.lanes,
                 };
                 (live + temporary) * 8
             })
@@ -797,7 +871,8 @@ fn select(b: &mut Builder, bit: Value, yes: Value, no: Value) -> Result<Value, E
 }
 
 /// A typed frame exposes routing and public schedule position, never payload.
-/// Outer transport must authenticate each private channel. No codec is implied.
+/// Outer transport must authenticate each private channel. Only bounded equality
+/// uses PUT2/PUC1 nominal-bit packing; all other programs retain PUT1/PUM1.
 ///
 /// ```compile_fail
 /// use pllm_core::puma::multiply::tensor::Frame;
@@ -808,15 +883,23 @@ pub struct Frame {
     invocation: u64,
     step: usize,
     inner: Message,
+    compact_bits: Option<u8>,
     // Last field: payload erasure/deallocation precedes metadata refund.
     _metadata: Reservation,
 }
 
 impl Frame {
     pub fn encode(self) -> Result<crate::puma::wire::Encoded<Self>, Error> {
-        let inner = self.inner.encode_bytes()?;
+        let inner = match self.compact_bits {
+            Some(bits) => self.inner.encode_compact(bits)?,
+            None => self.inner.encode_bytes()?,
+        };
         let mut bytes = crate::puma::wire::allocate(48 + inner.len())?;
-        bytes[..4].copy_from_slice(b"PUT1");
+        bytes[..4].copy_from_slice(if self.compact_bits.is_some() {
+            b"PUT2"
+        } else {
+            b"PUT1"
+        });
         bytes[4..36].copy_from_slice(&self.program);
         bytes[36..44].copy_from_slice(&self.invocation.to_le_bytes());
         bytes[44..48].copy_from_slice(&(self.step as u32).to_le_bytes());
@@ -875,6 +958,67 @@ fn metadata_bytes(program: &Program) -> usize {
 }
 
 impl Executor {
+    fn compact(&self) -> bool {
+        self.program.numeric_profile == BOUNDED_EQUALITY_PROFILE
+    }
+
+    fn compact_layout(&self) -> Result<(u8, usize), Error> {
+        let node = self
+            .program
+            .nodes
+            .get(self.step)
+            .copied()
+            .flatten()
+            .ok_or(Error::Phase)?;
+        match node.instruction {
+            Instruction::LowBits(_, bits) => {
+                let super::Phase::Conversion(state) =
+                    &self.runtime.as_ref().ok_or(Error::Retired)?.phase
+                else {
+                    return Err(Error::Phase);
+                };
+                let (_, _, lanes, expected_bits) = state.receive_layout()?;
+                if bits != expected_bits {
+                    return Err(Error::Binding);
+                }
+                Ok((bits, lanes))
+            }
+            Instruction::BitOrLow(a, b, _) => Ok((
+                self.program.bit_widths[a.0 as usize].max(self.program.bit_widths[b.0 as usize]),
+                node.lanes,
+            )),
+            Instruction::FromBit(_) => Ok((64, node.lanes)),
+            _ => Err(Error::Phase),
+        }
+    }
+
+    fn validate_compact_header(&self, header: Header) -> Result<(), Error> {
+        match &self.runtime.as_ref().ok_or(Error::Retired)?.phase {
+            super::Phase::Conversion(state) => {
+                let (binding, phase, _, _) = state.receive_layout()?;
+                if header.binding != binding || header.phase != phase {
+                    return Err(Error::Binding);
+                }
+                if header.from != self.party().next() || header.to != self.party() {
+                    return Err(Error::Role);
+                }
+            }
+            super::Phase::Boolean(super::boolean::State::Rotating(gate)) => {
+                if header.binding != gate.receive_layout().0
+                    || header.phase != MessagePhase::BooleanAnd
+                {
+                    return Err(Error::Binding);
+                }
+                if header.from != self.party().next() || header.to != self.party() {
+                    return Err(Error::Role);
+                }
+            }
+            super::Phase::BooleanToArithmetic(state) => state.validate_compact_header(header)?,
+            _ => return Err(Error::Phase),
+        }
+        Ok(())
+    }
+
     /// The surrounding authenticated channel supplies the peer identity.
     /// Invalid bytes retire the same owner as an invalid typed frame.
     pub fn receive_encoded(
@@ -888,7 +1032,7 @@ impl Executor {
             }
             if raw.len() < 48
                 || raw.len() > crate::puma::wire::MAX_FRAME_BYTES
-                || &raw[..4] != b"PUT1"
+                || &raw[..4] != if self.compact() { b"PUT2" } else { b"PUT1" }
             {
                 return Err(Error::Shape);
             }
@@ -899,12 +1043,33 @@ impl Executor {
             {
                 return Err(Error::Binding);
             }
-            let inner = Message::decode(&raw[48..], sender, self.party())?;
+            let compact_bits = if self.compact() {
+                Some(self.compact_layout()?.0)
+            } else {
+                None
+            };
+            let inner = if let Some(bits) = compact_bits {
+                let (_, lanes) = self.compact_layout()?;
+                let header =
+                    Message::compact_header(&raw[48..], sender, self.party(), bits, lanes)?;
+                self.validate_compact_header(header)?;
+                Message::decode_compact(
+                    &raw[48..],
+                    sender,
+                    self.party(),
+                    bits,
+                    lanes,
+                    &self.payload_usage(),
+                )?
+            } else {
+                Message::decode(&raw[48..], sender, self.party())?
+            };
             let frame = Frame {
                 program,
                 invocation,
                 step,
                 inner,
+                compact_bits,
                 _metadata: self.payload_usage().reserve(std::mem::size_of::<Frame>())?,
             };
             self.receive_inner(frame)
@@ -933,7 +1098,9 @@ impl Executor {
             }
             for node in program.nodes[..program.len].iter().flatten() {
                 let expanded = match node.instruction {
-                    Instruction::Sign(_) | Instruction::Bits(_) => 2 * node.lanes,
+                    Instruction::Sign(_) | Instruction::Bits(_) | Instruction::LowBits(..) => {
+                        2 * node.lanes
+                    }
                     Instruction::FromBit(input) => {
                         let bits = usize::from(program.bit_widths[input.0 as usize]);
                         node.lanes * if bits > 8 { 2 } else { bits.max(1) }
@@ -1076,6 +1243,11 @@ impl Executor {
                     program: self.program.digest,
                     invocation: self.invocation,
                     step: self.step,
+                    compact_bits: if self.compact() {
+                        Some(self.compact_layout()?.0)
+                    } else {
+                        None
+                    },
                     inner,
                     _metadata: self.payload_usage().reserve(std::mem::size_of::<Frame>())?,
                 });
@@ -1165,16 +1337,15 @@ impl Executor {
                     .begin_rescale(value, shift, bounds)?;
                 messages = [a, b, None];
             }
-            Instruction::Sign(input) | Instruction::Bits(input) => {
+            Instruction::Sign(input)
+            | Instruction::Bits(input)
+            | Instruction::LowBits(input, _) => {
                 let value = self.copy(input)?;
                 let runtime = self.runtime.as_mut().unwrap();
-                let kind = if matches!(
-                    self.program.nodes[self.step].unwrap().instruction,
-                    Instruction::Sign(_)
-                ) {
-                    Kind::MostSignificantBit
-                } else {
-                    Kind::Bits
+                let kind = match self.program.nodes[self.step].unwrap().instruction {
+                    Instruction::Sign(_) => Kind::MostSignificantBit,
+                    Instruction::LowBits(_, bits) => Kind::LowBits(bits),
+                    _ => Kind::Bits,
                 };
                 runtime.plan_conversion(lanes, kind)?;
                 let value = runtime.bind_conversion_input(value)?;
@@ -1203,11 +1374,28 @@ impl Executor {
                         .boolean_xor(&mut a, Some(&mut b), 0)?,
                 ));
             }
-            Instruction::BitOr(left, right) => {
+            Instruction::BitConstantXor(input, constant) => {
+                let mut value = self.copy_bit(input)?;
+                self.registers[slot] = Some(Register::Bit(
+                    self.runtime
+                        .as_mut()
+                        .unwrap()
+                        .boolean_xor(&mut value, None, constant)?,
+                ));
+            }
+            Instruction::BitOr(left, right) | Instruction::BitOrLow(left, right, _) => {
                 let a = self.copy_bit(left)?;
                 let b = self.copy_bit(right)?;
                 let runtime = self.runtime.as_mut().unwrap();
-                runtime.plan_and(lanes, a.bits(), b.bits())?;
+                if matches!(
+                    self.program.nodes[self.step].unwrap().instruction,
+                    Instruction::BitOrLow(..)
+                ) && self.program.numeric_profile == BOUNDED_EQUALITY_PROFILE
+                {
+                    runtime.plan_and_compact(lanes, a.bits(), b.bits())?;
+                } else {
+                    runtime.plan_and(lanes, a.bits(), b.bits())?;
+                }
                 let a = runtime.bind_and_operand(Operand::Left, a)?;
                 let b = runtime.bind_and_operand(Operand::Right, b)?;
                 messages[0] = Some(runtime.begin_and(a, b)?);
@@ -1258,14 +1446,29 @@ impl Executor {
         if frame.recipient() != self.party() {
             return Err(Error::Role);
         }
+        if self.compact() {
+            let (bits, lanes) = self.compact_layout()?;
+            if frame.compact_bits != Some(bits) || frame.inner.words().len() != lanes {
+                return Err(Error::Binding);
+            }
+            let mask = u64::MAX >> (64 - bits);
+            if frame.inner.words().iter().any(|&word| word & !mask != 0) {
+                return Err(Error::Bounds);
+            }
+            self.validate_compact_header(frame.inner.header())?;
+        } else if frame.compact_bits.is_some() {
+            return Err(Error::Binding);
+        }
         let runtime = self.runtime.as_mut().unwrap();
         let instruction = self.program.nodes[self.step].unwrap().instruction;
         let mut out = [None, None, None];
         match instruction {
-            Instruction::Sign(_) | Instruction::Bits(_) => {
+            Instruction::Sign(_) | Instruction::Bits(_) | Instruction::LowBits(..) => {
                 out[0] = runtime.advance_conversion(frame.inner)?
             }
-            Instruction::BitOr(_, _) => runtime.receive_and(frame.inner)?,
+            Instruction::BitOr(_, _) | Instruction::BitOrLow(..) => {
+                runtime.receive_and(frame.inner)?
+            }
             Instruction::FromBit(_) => {
                 if matches!(
                     frame.inner.header().phase,
@@ -1359,7 +1562,7 @@ impl Executor {
                 return Err(Error::Phase);
             }
             let slot = self.program.slots[self.step] as usize;
-            if let Instruction::BitOr(left, right) =
+            if let Instruction::BitOr(left, right) | Instruction::BitOrLow(left, right, _) =
                 self.program.nodes[self.step].unwrap().instruction
             {
                 let mut a = self.copy_bit(left)?;
@@ -1367,11 +1570,24 @@ impl Executor {
                 let runtime = self.runtime.as_mut().unwrap();
                 let mut product = runtime.take_boolean_output()?;
                 let mut sum = runtime.boolean_xor(&mut a, Some(&mut b), 0)?;
-                self.registers[slot] = Some(Register::Bit(runtime.boolean_xor(
-                    &mut sum,
-                    Some(&mut product),
-                    0,
-                )?));
+                let mut output = runtime.boolean_xor(&mut sum, Some(&mut product), 0)?;
+                if let Instruction::BitOrLow(_, _, bits) =
+                    self.program.nodes[self.step].unwrap().instruction
+                {
+                    // Fuse the public XOR-linear low-bit map into the existing
+                    // final XOR owner: no extra buffer, PRSS draw or ordinal.
+                    let mask = u64::MAX >> (64 - bits);
+                    for word in output
+                        .value
+                        .first
+                        .iter_mut()
+                        .chain(output.value.second.iter_mut())
+                    {
+                        *word &= mask;
+                    }
+                    output.bits = bits;
+                }
+                self.registers[slot] = Some(Register::Bit(output));
             }
             let runtime = self.runtime.as_mut().unwrap();
             if self.registers[slot].is_none() {
@@ -1408,6 +1624,9 @@ impl Executor {
     /// Return the original runtime for subsequent tensors with unchanged PRSS
     /// cursors. The result keeps its payload lease after this executor retires.
     pub fn finish(mut self) -> Result<(PartyRuntime, ReplicatedShare), Error> {
+        if self.program.checked_validity.is_some() {
+            return Err(Error::Binding);
+        }
         if !self.complete() {
             return Err(Error::Phase);
         }
@@ -1419,6 +1638,30 @@ impl Executor {
             *register = None;
         }
         Ok((self.runtime.take().unwrap(), value))
+    }
+
+    /// Transfer both protected outputs. No validity or failure location is opened
+    /// to a worker. A checked program cannot use `finish` to discard validity.
+    pub fn finish_checked(
+        mut self,
+    ) -> Result<(PartyRuntime, ReplicatedShare, ReplicatedShare), Error> {
+        if !self.complete() {
+            return Err(Error::Phase);
+        }
+        let valid = self.program.checked_validity.ok_or(Error::Binding)?;
+        let output = self.program.len - 1;
+        let slot = self.program.slots[output] as usize;
+        let valid_slot = self.program.slots[valid.0 as usize] as usize;
+        let Some(Register::Arithmetic(validity)) = self.registers[valid_slot].take() else {
+            return Err(Error::Phase);
+        };
+        let Some(Register::Arithmetic(value)) = self.registers[slot].take() else {
+            return Err(Error::Phase);
+        };
+        for register in &mut self.registers {
+            *register = None;
+        }
+        Ok((self.runtime.take().unwrap(), value, validity))
     }
 }
 

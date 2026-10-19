@@ -353,9 +353,16 @@ def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound
             budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
         contract = json.loads(_native.replicated_source_contract(experiment.canonical_bytes(),
             json.dumps(config).encode(), rows, outputs, "0" * 64, "0" * 64))
+        from .replicated_source import validate_execution
+        validate_execution(experiment, contract)
     except (ValueError, TypeError, OverflowError) as error:
         raise BenchmarkMemoryError("replicated source exceeds native admission") from error
     role = _slack(_PROCESS_BYTES + contract["execution_payload_estimate_bytes"], memory_safety_margin_percent)
+    from .replicated_protocol import execution_policy, STREAM_MEMORY
+    selected = execution_policy(experiment)["peer_transport"] == "streams"
+    stream_memory = STREAM_MEMORY if selected else 0
+    worker = _slack(_PROCESS_BYTES + contract["execution_payload_estimate_bytes"] + stream_memory,
+                    memory_safety_margin_percent)
     public_weights = contract.get("weights") == "public"
     return {
         "scope": "conservative allocation estimate; not measured peak RSS",
@@ -363,8 +370,8 @@ def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound
         "pipeline_digest": pipeline.digest(), "max_input_tokens": rows, "max_output_tokens": outputs,
         "compiled_input_bound": rows, "inventory_rows": 0, "kernel": "cpu", "runtime_kind": "replicated",
         "concurrent_response_bound": 1, "allocation_slack_percent": memory_safety_margin_percent,
-        "client_peak_bytes": role, "provider_peak_bytes": {name: role for name in ("worker_a", "worker_b", "worker_c")},
-        "docker_provider_peak_bytes": {}, "native_total_peak_bytes": 4 * role,
+        "client_peak_bytes": role, "provider_peak_bytes": {name: worker for name in ("worker_a", "worker_b", "worker_c")},
+        "docker_provider_peak_bytes": {}, "native_total_peak_bytes": role + 3 * worker,
         "preparation_storage": "none", "preparation_kernel": "none",
         "weight_storage": "verified file-backed public Q18 weights" if public_weights else "party-local Q18 shares",
         "bundle_storage": "trusted client source publication", "mask_storage": "party-local pairwise PRSS",
@@ -373,6 +380,7 @@ def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound
             "checkpoint_bytes": checkpoint_bytes,
             "per_engine_compiled_disk_bytes": contract.get("public_weight_snapshot_bytes_per_worker", 0),
             "public_weight_read_buffer_bytes": contract.get("public_weight_read_buffer_bytes", 0),
+            **({"peer_stream_workspace_bytes_per_worker": stream_memory} if stream_memory else {}),
             "raw_client_bundle_bytes": 0},
         "limitations": [],
     }

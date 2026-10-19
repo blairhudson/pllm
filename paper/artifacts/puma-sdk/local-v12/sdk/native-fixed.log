@@ -1,0 +1,38 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0 -- /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/blairhudson/workspace/pllm
+configfile: pyproject.toml
+plugins: asyncio-1.4.0, anyio-4.15.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 16 items
+
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices0] PASSED [  6%]
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices1] PASSED [ 12%]
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices2] PASSED [ 18%]
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices3] PASSED [ 25%]
+tests/test_replicated_policy_sdk.py::test_generated_public_policy_ordinary_sdk_final_only[choices4] PASSED [ 31%]
+tests/test_replicated_policy_sdk.py::test_combined_checked_rejection_masks_earlier_output_and_retires_sdk_owners PASSED [ 37%]
+tests/test_replicated_policy_sdk.py::test_combined_true_private_input_rejection_has_identical_public_work PASSED [ 43%]
+tests/test_replicated_policy_sdk.py::test_combined_stream_admission_prices_workspace_once_per_worker PASSED [ 50%]
+tests/test_replicated_policy_sdk.py::test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance PASSED [ 56%]
+tests/test_replicated_policy_sdk.py::test_combined_gateway_checked_rejection_exposes_only_error_and_retires PASSED [ 62%]
+tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[range_policy] PASSED [ 68%]
+tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[selection] PASSED [ 75%]
+tests/test_replicated_policy_sdk.py::test_combined_sdk_authenticated_publication_substitution_retires_all_roles[source] PASSED [ 81%]
+tests/test_replicated_policy_sdk.py::test_combined_async_cancellation_before_final_acceptance_drains_owners[input] PASSED [ 87%]
+tests/test_replicated_policy_sdk.py::test_combined_async_cancellation_before_final_acceptance_drains_owners[finish] PASSED [ 93%]
+tests/test_replicated_policy_sdk.py::test_combined_response_benchmark_retains_checked_rejection_as_failed_case PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_replicated_policy_sdk.py::test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance
+  /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_replicated_policy_sdk.py::test_combined_gateway_responses_stream_and_chat_keep_final_only_acceptance
+  /Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/lib/python3.13/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /Users/blairhudson/workspace/pllm/target/puma-checked-streams-sdk-v1/run-20261019T084418283007Z/installed-fixture-fixed-v2/native-fixed.xml -
+================== 16 passed, 2 warnings in 292.53s (0:04:52) ==================

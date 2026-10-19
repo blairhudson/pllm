@@ -66,6 +66,112 @@ fn phase(n: u8) -> Result<MessagePhase, Error> {
 }
 
 impl Message {
+    /// Separate nominal-bit-domain codec. Callers must first establish that
+    /// BOTH replicated components were projected under a distinct MPC contract.
+    /// Encoding rejects live high bits rather than silently truncating them.
+    pub(crate) fn encode_compact(&self, bits: u8) -> Result<Zeroizing<Vec<u8>>, Error> {
+        if !(1..=64).contains(&bits) || self.words.is_empty() || self.words.len() > 2 * MAX_LANES {
+            return Err(Error::Bounds);
+        }
+        let mask = u64::MAX >> (64 - bits);
+        if self.words.iter().any(|&word| word & !mask != 0) {
+            return Err(Error::Bounds);
+        }
+        let payload_bits = self
+            .words
+            .len()
+            .checked_mul(usize::from(bits))
+            .ok_or(Error::Bounds)?;
+        let mut bytes = allocate(44 + payload_bits.div_ceil(8))?;
+        bytes[..4].copy_from_slice(b"PUC1");
+        bytes[4..36].copy_from_slice(&self.header.binding);
+        bytes[36] = self.header.from as u8;
+        bytes[37] = self.header.to as u8;
+        bytes[38] = self.header.phase as u8;
+        bytes[39] = bits;
+        bytes[40..44].copy_from_slice(&(self.words.len() as u32).to_le_bytes());
+        if bits == 64 {
+            for (out, value) in bytes[44..].chunks_exact_mut(8).zip(self.words.iter()) {
+                out.copy_from_slice(&value.to_le_bytes());
+            }
+        } else {
+            for (i, &word) in self.words.iter().enumerate() {
+                for bit in 0..usize::from(bits) {
+                    let index = i * usize::from(bits) + bit;
+                    bytes[44 + index / 8] |= (((word >> bit) & 1) as u8) << (index % 8);
+                }
+            }
+        }
+        Ok(bytes)
+    }
+
+    /// Validate the exact public layout and canonical final-byte padding before
+    /// allocation. There is no layout negotiation from peer-supplied widths.
+    pub(crate) fn compact_header(
+        raw: &[u8],
+        sender: Party,
+        recipient: Party,
+        bits: u8,
+        words: usize,
+    ) -> Result<Header, Error> {
+        if !(1..=64).contains(&bits) || words == 0 || words > 2 * MAX_LANES {
+            return Err(Error::Bounds);
+        }
+        let payload_bits = words.checked_mul(usize::from(bits)).ok_or(Error::Bounds)?;
+        if raw.len() != 44 + payload_bits.div_ceil(8)
+            || raw.len() > MAX_FRAME_BYTES
+            || &raw[..4] != b"PUC1"
+        {
+            return Err(Error::Shape);
+        }
+        if raw[39] != bits || u32::from_le_bytes(raw[40..44].try_into().unwrap()) as usize != words
+        {
+            return Err(Error::Binding);
+        }
+        let padding = payload_bits % 8;
+        if padding != 0 && raw[raw.len() - 1] >> padding != 0 {
+            return Err(Error::Shape);
+        }
+        let header = Header {
+            binding: raw[4..36].try_into().unwrap(),
+            from: party(raw[36])?,
+            to: party(raw[37])?,
+            phase: phase(raw[38])?,
+        };
+        if header.from != sender || header.to != recipient || sender == recipient {
+            return Err(Error::Role);
+        }
+        Ok(header)
+    }
+
+    pub(crate) fn decode_compact(
+        raw: &[u8],
+        sender: Party,
+        recipient: Party,
+        bits: u8,
+        words: usize,
+        usage: &super::PayloadUsage,
+    ) -> Result<Self, Error> {
+        let header = Self::compact_header(raw, sender, recipient, bits, words)?;
+        let mut result = usage.zeros(words)?;
+        if bits == 64 {
+            for (out, data) in result.iter_mut().zip(raw[44..].chunks_exact(8)) {
+                *out = u64::from_le_bytes(data.try_into().unwrap());
+            }
+        } else {
+            for (i, word) in result.iter_mut().enumerate() {
+                for bit in 0..usize::from(bits) {
+                    let index = i * usize::from(bits) + bit;
+                    *word |= u64::from((raw[44 + index / 8] >> (index % 8)) & 1) << bit;
+                }
+            }
+        }
+        Ok(Self {
+            header,
+            words: result,
+        })
+    }
+
     pub fn encode(self) -> Result<Encoded<Self>, Error> {
         let bytes = self.encode_bytes()?;
         Ok(Encoded {
@@ -112,6 +218,74 @@ impl Message {
             *out = u64::from_le_bytes(data.try_into().unwrap());
         }
         Ok(Self { header, words })
+    }
+}
+
+#[cfg(test)]
+mod compact_tests {
+    use super::*;
+
+    #[test]
+    fn nominal_bit_stream_matches_independent_recipe_at_every_width_and_tail() {
+        for bits in 1_u8..=64 {
+            let mask = u64::MAX >> (64 - bits);
+            for lanes in [1, 3, 17, 128] {
+                let usage = super::super::PayloadUsage::new(256 * 1024);
+                let mut words = super::super::zero_words(lanes).unwrap();
+                let mut state = 0xfedcba9876543210_u64;
+                for word in words.iter_mut() {
+                    state ^= state << 13;
+                    state ^= state >> 7;
+                    state ^= state << 17;
+                    *word = state & mask;
+                }
+                let mut message = Message {
+                    header: Header {
+                        binding: [77; 32],
+                        from: Party::P0,
+                        to: Party::P2,
+                        phase: MessagePhase::BooleanAnd,
+                    },
+                    words,
+                };
+                let raw = message.encode_compact(bits).unwrap();
+                let scalar_bits: Vec<_> = message
+                    .words()
+                    .iter()
+                    .flat_map(|&word| (0..bits).map(move |bit| ((word >> bit) & 1) as u8))
+                    .collect();
+                let expected: Vec<u8> = scalar_bits
+                    .chunks(8)
+                    .map(|chunk| chunk.iter().enumerate().map(|(i, bit)| bit << i).sum())
+                    .collect();
+                assert_eq!(&raw[44..], expected, "width={bits}, lanes={lanes}");
+                let decoded =
+                    Message::decode_compact(&raw, Party::P0, Party::P2, bits, lanes, &usage)
+                        .unwrap();
+                assert_eq!(decoded.words(), message.words());
+                assert_eq!(usage.live_bytes(), lanes * 8);
+                drop(decoded);
+                assert_eq!(usage.live_bytes(), 0);
+                assert!(Message::decode(&raw, Party::P0, Party::P2).is_err());
+                let legacy = message.encode_bytes().unwrap();
+                assert_eq!(&legacy[..4], b"PUM1");
+                assert_eq!(legacy[39], 0);
+                assert_eq!(legacy.len(), 44 + lanes * 8);
+                assert!(Message::decode_compact(
+                    &legacy,
+                    Party::P0,
+                    Party::P2,
+                    bits,
+                    lanes,
+                    &usage
+                )
+                .is_err());
+                if bits < 64 {
+                    message.words[0] |= 1_u64 << bits;
+                    assert!(matches!(message.encode_compact(bits), Err(Error::Bounds)));
+                }
+            }
+        }
     }
 }
 

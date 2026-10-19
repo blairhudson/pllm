@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from pllm.configuration import ConfigurationError, Model, Pipeline
 from pllm.kernels import AppleMetal, Cpu, KernelBackend
@@ -439,15 +439,30 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
 
 
 class PumaThreePartyCpu(_TypedPipeline):
-    """Bounded source-derived Q18 graph; final-only fixed-count greedy outputs."""
+    """Bounded Q18 graph with final-only fixed-count stable greedy outputs.
+
+    Public execution choices may be supplied here or in ``linear``. Selection
+    tiling retains complete stable argmax and is independent of lookup tiling.
+    """
     PROFILE = "research.puma_three_party_cpu"
     SLOT_NAMES = ("linear", "topology", "state", "kernels")
     __slots__ = ()
 
-    def __init__(self, model: ModelSource, *, linear: ProtocolMethod = PumaThreePartyDecoder(),
-                 topology: RoleTopology = ThreePartyReplicatedRoles(),
-                 state: ReplicatedPrivatePrefix = ReplicatedPrivatePrefix(),
-                 kernels: KernelBackend = _DEFAULT_KERNELS) -> None:
+    def __init__(self, model: ModelSource, *, linear: ProtocolMethod | None = None,
+                  topology: RoleTopology = ThreePartyReplicatedRoles(),
+                  state: ReplicatedPrivatePrefix = ReplicatedPrivatePrefix(),
+                  kernels: KernelBackend = _DEFAULT_KERNELS,
+                  weights: Literal["private", "public"] = "private",
+                  range_policy: Literal["static", "checked"] = "static", max_abs_activation: int = 256,
+                  lookup: Literal["per_token", "tiled"] = "per_token",
+                  selection: Literal["expanded", "tiled"] = "expanded",
+                  peer_transport: Literal["http", "streams"] = "http") -> None:
+        selected = PumaThreePartyDecoder(weights=weights, range_policy=range_policy,
+            max_abs_activation=max_abs_activation, lookup=lookup, selection=selection, peer_transport=peer_transport)
+        if linear is not None and selected.params:
+            raise ConfigurationError("PUMA execution choices belong in linear or profile keywords, not both")
+        if linear is None:
+            linear = selected
         super().__init__(profile=self.PROFILE, model=_model(model), components={
             "linear": _slot("linear", linear, ProtocolMethod, PumaThreePartyDecoder.descriptor.component),
             "topology": _slot("topology", topology, RoleTopology, ThreePartyReplicatedRoles.descriptor.component),
@@ -850,7 +865,8 @@ def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None
             correlation_mode="none", client_runtime="compiled_replicated_v1", privacy_protocol="replicated_q18",
             weight_bits=64, activation_bits=64, inventory_policy="none", prepared_inventory_rows=0,
             background_inventory_refill=False, runtime_kind="replicated",
-            numeric_profile=(PumaThreePartyDecoder.PUBLIC_NUMERIC_PROFILE
+            numeric_profile=(PumaThreePartyDecoder.CHECKED_NUMERIC_PROFILE
+                if linear.params.get("range_policy") == "checked" else PumaThreePartyDecoder.PUBLIC_NUMERIC_PROFILE
                 if linear.params.get("weights") == "public" else PumaThreePartyDecoder.NUMERIC_PROFILE), sharing="replicated",
             generation_policy="fixed_length_greedy", setup_owner="client",
         )

@@ -1,0 +1,10 @@
+[
+  "/Users/blairhudson/workspace/pllm/target/puma-sdk-integration-env-v1/bin/python",
+  "-I",
+  "-m",
+  "pytest",
+  "tests/test_replicated_policy_sdk.py",
+  "-vv",
+  "--tb=long",
+  "--junitxml=/Users/blairhudson/workspace/pllm/target/puma-checked-streams-sdk-v1/run-20261019T084418283007Z/native-original.xml"
+]

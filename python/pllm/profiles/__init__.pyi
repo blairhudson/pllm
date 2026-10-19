@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pllm.configuration import Pipeline
 from pllm.kernels import KernelBackend
@@ -199,9 +199,13 @@ class TwoOnlineOffsetCpu(Pipeline):
 
 class PumaThreePartyCpu(Pipeline):
     PROFILE: str
-    def __init__(self, model: ModelSource, *, linear: ProtocolMethod = ...,
-                 topology: RoleTopology = ..., state: ReplicatedPrivatePrefix = ...,
-                 kernels: KernelBackend = ...) -> None: ...
+    def __init__(self, model: ModelSource, *, linear: ProtocolMethod | None = ...,
+                  topology: RoleTopology = ..., state: ReplicatedPrivatePrefix = ...,
+                  kernels: KernelBackend = ..., weights: Literal["private", "public"] = "private",
+                  range_policy: Literal["static", "checked"] = "static", max_abs_activation: int = 256,
+                  lookup: Literal["per_token", "tiled"] = "per_token",
+                  selection: Literal["expanded", "tiled"] = "expanded",
+                  peer_transport: Literal["http", "streams"] = "http") -> None: ...
     @property
     def linear(self) -> PumaThreePartyDecoder: ...
     @property

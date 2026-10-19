@@ -1,6 +1,15 @@
 use super::*;
+#[cfg(test)]
+#[path = "oracle_trace.rs"]
+pub(super) mod oracle_trace;
 use multiply::{Operand, PartyRuntime, Status};
 use puma::{Context, Message, MessagePhase, Operation, Party, ReplicatedShare};
+
+#[path = "lookup.rs"]
+pub(super) mod lookup;
+
+#[path = "selection.rs"]
+pub(super) mod selection;
 
 pub enum PeerBytes {
     Arithmetic(puma::wire::Encoded<Message>),
@@ -22,6 +31,8 @@ enum Active {
     Idle(PartyRuntime),
     Product(PartyRuntime),
     Tensor(tensor::Executor),
+    Lookup(lookup::BulkLookup),
+    Selection(selection::StableArgmax),
     Retired,
 }
 
@@ -116,6 +127,13 @@ impl Worker {
             self.loop_offset,
             self.values.iter().filter(|v| v.is_some()).count(),
         )
+    }
+    #[cfg(test)]
+    pub(super) fn selection_test_phase(&self) -> Option<u8> {
+        match &self.active {
+            Active::Selection(selection) => Some(selection.test_phase()),
+            _ => None,
+        }
     }
     pub fn cancel(&mut self) {
         self.active = Active::Retired;
@@ -233,6 +251,8 @@ impl Worker {
     }
 
     fn retire_inputs(&mut self) {
+        #[cfg(test)]
+        oracle_trace::retiring(self);
         if matches!(self.program.nodes[self.step].code, Code::TensorLoop { .. })
             && self.loop_offset < self.program.nodes[self.step].lanes
         {
@@ -355,8 +375,64 @@ impl Worker {
                     self.active = Active::Tensor(executor);
                     return tensor_frames(frames);
                 }
-                let (runtime, output) = executor.finish()?;
-                self.save(output)?;
+                let runtime = if matches!(
+                    self.program.nodes[self.step].code,
+                    Code::CheckedRange { .. }
+                ) {
+                    let (runtime, output, valid) = executor.finish_checked()?;
+                    let n = output.first().len();
+                    if valid.first().len() != n || self.program.nodes[self.step].lanes != 2 * n {
+                        return Err(Error::Shape);
+                    }
+                    let mut both = Secret::new(2 * n)?;
+                    both.first[..n].copy_from_slice(output.first());
+                    both.second[..n].copy_from_slice(output.second());
+                    both.first[n..].copy_from_slice(valid.first());
+                    both.second[n..].copy_from_slice(valid.second());
+                    self.values[self.step] = Some(both);
+                    runtime
+                } else {
+                    let (runtime, output) = executor.finish()?;
+                    self.save(output)?;
+                    runtime
+                };
+                self.retire_inputs();
+                Active::Idle(runtime)
+            }
+            Active::Lookup(mut bulk) => {
+                let Code::PublicLookup { weight, .. } = &self.program.nodes[self.step].code else {
+                    return Err(Error::Binding);
+                };
+                let Code::PublicInput { key, .. } = &self.program.nodes[*weight].code else {
+                    return Err(Error::Binding);
+                };
+                let file = self.public.as_ref().ok_or(Error::Binding)?.file(key)?;
+                bulk.finish_step(file)?;
+                if !bulk.complete() {
+                    let frames = bulk.start_step()?;
+                    self.active = Active::Lookup(bulk);
+                    return tensor_frames(frames);
+                }
+                let (runtime, output) = bulk.finish()?;
+                if output.first.len() != self.program.nodes[self.step].lanes {
+                    return Err(Error::Shape);
+                }
+                self.values[self.step] = Some(output);
+                self.retire_inputs();
+                Active::Idle(runtime)
+            }
+            Active::Selection(mut selection) => {
+                selection.finish_step()?;
+                if !selection.complete() {
+                    let frames = selection.start_step()?;
+                    self.active = Active::Selection(selection);
+                    return Ok(frames);
+                }
+                let (runtime, output) = selection.finish()?;
+                if output.first.len() != self.program.nodes[self.step].lanes {
+                    return Err(Error::Shape);
+                }
+                self.values[self.step] = Some(output);
                 self.retire_inputs();
                 Active::Idle(runtime)
             }
@@ -459,7 +535,52 @@ impl Worker {
                     self.values[self.step] = Some(output);
                     self.retire_inputs();
                 }
-                Code::Tensor { input, program } => {
+                Code::Selection { input, plan } => {
+                    // Compiler emits a dedicated immediately preceding gather.
+                    // Last-use retirement proves no live consumer/output is
+                    // invalidated when the tournament compacts that owner.
+                    if self.step.checked_sub(1) != Some(*input)
+                        || !matches!(self.program.nodes[*input].code, Code::Gather(_))
+                        || !self.program.retire[self.step].contains(input)
+                        || node.lanes != 1
+                    {
+                        return Err(Error::Binding);
+                    }
+                    let Active::Idle(runtime) =
+                        std::mem::replace(&mut self.active, Active::Retired)
+                    else {
+                        return Err(Error::Phase);
+                    };
+                    let scores = self.values[*input].take().ok_or(Error::Binding)?;
+                    let mut selection =
+                        selection::StableArgmax::new(runtime, scores, plan.clone())?;
+                    if selection.complete() {
+                        let (runtime, output) = selection.finish()?;
+                        self.values[self.step] = Some(output);
+                        self.retire_inputs();
+                        self.active = Active::Idle(runtime);
+                    } else {
+                        let frames = selection.start_step()?;
+                        self.active = Active::Selection(selection);
+                        return Ok(frames);
+                    }
+                }
+                Code::PublicLookup { input, plan, .. } => {
+                    let Active::Idle(runtime) =
+                        std::mem::replace(&mut self.active, Active::Retired)
+                    else {
+                        return Err(Error::Phase);
+                    };
+                    let source = self.values[*input].as_ref().ok_or(Error::Binding)?;
+                    let mut tokens = Secret::new(source.first.len())?;
+                    tokens.first.copy_from_slice(&source.first);
+                    tokens.second.copy_from_slice(&source.second);
+                    let mut bulk = lookup::BulkLookup::new(runtime, tokens, (**plan).clone())?;
+                    let frames = bulk.start_step()?;
+                    self.active = Active::Lookup(bulk);
+                    return tensor_frames(frames);
+                }
+                Code::Tensor { input, program } | Code::CheckedRange { input, program } => {
                     let Active::Idle(runtime) =
                         std::mem::replace(&mut self.active, Active::Retired)
                     else {
@@ -556,6 +677,8 @@ impl Worker {
             self.live()?;
             match &mut self.active {
                 Active::Tensor(executor) => tensor_frames(executor.receive_encoded(raw, sender)?),
+                Active::Lookup(bulk) => tensor_frames(bulk.receive_encoded(raw, sender)?),
+                Active::Selection(selection) => selection.receive_encoded(raw, sender),
                 Active::Product(runtime) => {
                     let message = Message::decode(raw, sender, self.party)?;
                     let mut out = [None, None, None];

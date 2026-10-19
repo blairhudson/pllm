@@ -1,0 +1,26 @@
+{
+  "elapsed_seconds": 531.079032083042,
+  "exit_code": 0,
+  "inputs_match_before_and_after": true,
+  "installed_package_files": 368,
+  "status": "passed",
+  "test_files": [
+    "tests/test_replicated_interfaces.py",
+    "tests/test_replicated_policy_work_controls.py",
+    "tests/test_replicated_public_weights.py",
+    "tests/test_replicated_quality.py",
+    "tests/test_replicated_sdk.py",
+    "tests/test_replicated_worker.py",
+    "tests/test_delegated_source.py",
+    "tests/test_delegated_source_streaming.py",
+    "tests/test_delegated_sdk.py",
+    "tests/test_delegated_capacity.py",
+    "tests/test_reference_agreement.py",
+    "tests/test_reference_benchmark.py",
+    "tests/test_profiles.py",
+    "tests/test_component_families.py",
+    "tests/test_benchmark_memory.py",
+    "tests/test_benchmark_coverage.py"
+  ],
+  "wheel_sha256": "c599f0781f1c7fdc0697b67118c3f0b897ae504d2f771c0a506ce8af350de73f"
+}

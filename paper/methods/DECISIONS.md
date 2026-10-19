@@ -286,6 +286,27 @@ identities; it does not inherit private-weight confidentiality or historical
 performance evidence. Whole-model ranges, quality and measured costs remain
 required before practical full-checkpoint qualification.
 
+## D12. Protected checked ranges for the public-weight PUMA completion
+
+**Approved by the user's instruction to proceed with the complete completion
+plan:** implement the [checked-range contract](puma-completion-plan.md#p1--resolve-the-entire-numeric-graph-once)
+under a distinct public-weight execution and acceptance identity.
+
+Public source/workload-bound ranges precede private execution. Membership checks
+remain secret-shared. An invalid operand is privately replaced with a proved-safe
+fallback before any operation whose domain would otherwise fail. A sticky shared
+validity value reaches the final client-only acceptance boundary; an invalid
+request releases no model tokens or reusable state. Workers execute the same
+public schedule without learning the failing value or location. The client learns
+the aggregate success/failure result, which belongs to this explicit contract.
+
+Accepted requests retain the approved Q18 equations, stochastic rounding law and
+piecewise tails. Fresh comparisons, products and transport are charged. Added
+randomness changes execution identity and may change individual stochastic
+realizations; neither historical bit parity nor a source-model quality claim is
+implied. Primitive domains, complete-model correctness, bounded resources and
+ordinary SDK/benchmark qualification remain required.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -301,6 +322,7 @@ required before practical full-checkpoint qualification.
 | D9 | Approved: fixed-count private full-prefix feedback | T-N1 choice closed; lowest-index argmax, final client-only IDs, and charged SIGMA/FuseFSS boundary completion still need implementation and qualification. |
 | D10 | Approved: `puma.rmsnorm-epsilon1-q18.v1` | Positive epsilon `2^-18`; separate numeric identity and shared SDK quality measurement required. |
 | D11 | Approved: both private- and public-weight PUMA modes | Public-weight storage and batched execution have distinct contracts; full-checkpoint ranges, quality and resource measurements remain required. |
+| D12 | Approved: public-weight protected checked ranges | Shared membership and safe fallback precede unsafe arithmetic; final client-only aggregate acceptance, fresh-work accounting and complete qualification remain required. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

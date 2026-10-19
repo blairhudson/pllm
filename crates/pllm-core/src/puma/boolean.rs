@@ -67,9 +67,26 @@ pub struct Plan {
     bytes: usize,
     pair_start: u64,
     admitted_bytes: usize,
+    compact: bool,
 }
 
 impl Plan {
+    pub(super) fn compact(mut self) -> Self {
+        let mut hash = Sha256::new();
+        hash.update(b"pllm.puma.boolean.nominal-domain.compact.v1");
+        hash.update(self.operation.digest());
+        self.operation.consumer = Some(hash.finalize().into());
+        self.compact = true;
+        self
+    }
+
+    fn output_mask(self) -> u64 {
+        if self.compact {
+            u64::MAX >> (64 - self.output_bits())
+        } else {
+            word_mask(self.bytes)
+        }
+    }
     pub fn digest(self) -> [u8; 32] {
         self.operation.digest()
     }
@@ -133,6 +150,7 @@ impl Plan {
             bytes,
             pair_start,
             admitted_bytes: limits.admit(lanes)?,
+            compact: false,
         })
     }
 
@@ -174,7 +192,7 @@ impl Plan {
         if words.len() != self.lanes() {
             return Err(Error::Shape);
         }
-        let mask = word_mask(self.bytes);
+        let mask = self.output_mask();
         if words.iter().any(|&v| v & !mask != 0) {
             return Err(Error::Bounds);
         }
@@ -251,11 +269,23 @@ impl PartyRuntime {
                 bytes,
                 pair_start,
                 admitted_bytes,
+                compact: false,
             };
             self.phase = Phase::Boolean(State::Planned(plan));
             Ok(plan)
         })();
         self.checked(result)
+    }
+
+    pub(super) fn plan_and_compact(
+        &mut self,
+        lanes: usize,
+        left_bits: u8,
+        right_bits: u8,
+    ) -> Result<Plan, Error> {
+        let plan = self.plan_and(lanes, left_bits, right_bits)?.compact();
+        self.phase = Phase::Boolean(State::Planned(plan));
+        Ok(plan)
     }
 
     /// Move an existing Boolean result into one admitted input position.
@@ -376,6 +406,11 @@ pub(super) fn issue(
             ^ (left.first()[i] & right.first()[i])
             ^ (left.first()[i] & right.second()[i])
             ^ (left.second()[i] & right.first()[i]);
+        // Only the separately bound compact contract applies this public
+        // XOR-linear projection to BOTH local and transmitted components.
+        if plan.compact {
+            product[i] &= plan.output_mask();
+        }
     }
     drop(adjacent);
     let message = Message {
@@ -391,6 +426,13 @@ pub(super) fn issue(
 }
 
 impl Gate {
+    pub(super) fn receive_layout(&self) -> ([u8; 32], usize, u8) {
+        (
+            self.plan.digest(),
+            self.plan.lanes(),
+            self.plan.output_bits(),
+        )
+    }
     pub(super) fn receive(
         self,
         source: &SourceParty,
@@ -403,7 +445,7 @@ impl Gate {
             source.party(),
             MessagePhase::BooleanAnd,
         )?;
-        let mask = word_mask(plan.bytes);
+        let mask = plan.output_mask();
         if message.words().iter().any(|&v| v & !mask != 0) {
             return Err(Error::Bounds);
         }

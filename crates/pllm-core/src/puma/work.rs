@@ -101,7 +101,9 @@ impl WorkBudget {
         Ok(result)
     }
 
-    pub(super) fn rescale(lanes: usize) -> Result<Self, Error> {
+    /// Read-only source rescale schedule estimate; does not admit an operand,
+    /// reserve randomness, or relax the independent complete-program ceilings.
+    pub fn rescale(lanes: usize) -> Result<Self, Error> {
         let q = blocks(lanes, 8)?;
         Ok(Self {
             operations: 1,
@@ -119,6 +121,24 @@ impl WorkBudget {
             let bits = if sign { 64 >> round } else { 64 };
             pairs += blocks(double, backing(bits)?)?;
         }
+        Ok(Self {
+            pair_blocks: pairs,
+            aes_blocks: 2 * pairs,
+            ..Self::local()
+        })
+    }
+
+    /// Exact public-width quotient-ring A2B schedule: one fresh split, one
+    /// initial AND, and ceil(log2(bits)) doubled-lane carry gates. Each fill
+    /// rounds its AES tail separately, including odd lane counts.
+    pub fn conversion_bounded(lanes: usize, bits: u8) -> Result<Self, Error> {
+        if !(1..=64).contains(&bits) {
+            return Err(Error::Bounds);
+        }
+        let double = lanes.checked_mul(2).ok_or(Error::Bounds)?;
+        let bytes = backing(bits)?;
+        let rounds = u8::BITS - (bits - 1).leading_zeros();
+        let pairs = 2 * blocks(lanes, bytes)? + u64::from(rounds) * blocks(double, bytes)?;
         Ok(Self {
             pair_blocks: pairs,
             aes_blocks: 2 * pairs,
@@ -213,6 +233,38 @@ fn backing(bits: u8) -> Result<u64, Error> {
 mod tests {
     use super::*;
     use crate::puma::{prss::MAX_PROGRAM_AES_BLOCKS, MAX_PROGRAM_OPERATIONS};
+
+    #[test]
+    fn bounded_conversion_exact_backings_and_fill_tails() {
+        for lanes in [1, 3, 17, 128, 512] {
+            for bits in 1_u8..=64 {
+                let bytes = if bits <= 8 {
+                    1
+                } else if bits <= 16 {
+                    2
+                } else if bits <= 32 {
+                    4
+                } else {
+                    8
+                };
+                let rounds = (0..=6).find(|&n| (1_u8 << n) >= bits).unwrap();
+                let expected_pairs = 2 * ((lanes * bytes) as u64).div_ceil(16)
+                    + rounds * ((2 * lanes * bytes) as u64).div_ceil(16);
+                let budget = WorkBudget::conversion_bounded(lanes, bits).unwrap();
+                assert_eq!(budget.operations(), 1);
+                assert_eq!(budget.cursors().pair_blocks, expected_pairs);
+                assert_eq!(budget.cursors().aes_work, 2 * expected_pairs);
+                assert_eq!(budget.cursors().public_blocks, 0);
+                assert_eq!(budget.cursors().private_blocks, 0);
+                if bits == 64 {
+                    assert_eq!(budget, WorkBudget::conversion(lanes, false).unwrap());
+                }
+            }
+        }
+        for (lanes, bits) in [(0, 18), (513, 18), (usize::MAX, 18), (1, 0), (1, 65)] {
+            assert!(WorkBudget::conversion_bounded(lanes, bits).is_err());
+        }
+    }
 
     #[test]
     fn independent_program_ceilings_and_checked_composition() {

@@ -1,6 +1,7 @@
 //! Bounded party-local bindings; parse failures retire the complete owner.
 use pllm_compiler::replicated_decoder::{
-    Manifest, Program, PublicSource, PublicSourceImport, Publisher, WeightMode, Worker,
+    ExecutionPolicy, LookupPolicy, Manifest, PeerTransport, Program, PublicSource,
+    PublicSourceImport, Publisher, RangePolicy, SelectionPolicy, WeightMode, Worker,
 };
 use pllm_core::puma::{multiply, prss, Party};
 use pyo3::{
@@ -72,7 +73,8 @@ impl NativePublisher {
 #[pymethods]
 impl NativePublisher {
     #[new]
-    #[pyo3(signature=(config, rows, outputs, source, composition, weights="private"))]
+    #[pyo3(signature=(config, rows, outputs, source, composition, weights="private", *, range_policy="static", max_abs_activation=256, lookup="per_token", selection="expanded", peer_transport="http"))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         py: Python<'_>,
         config: &Bound<'_, PyBytes>,
@@ -81,6 +83,11 @@ impl NativePublisher {
         source: &Bound<'_, PyBytes>,
         composition: &Bound<'_, PyBytes>,
         weights: &str,
+        range_policy: &str,
+        max_abs_activation: u32,
+        lookup: &str,
+        selection: &str,
+        peer_transport: &str,
     ) -> PyResult<Self> {
         let config = config.as_bytes();
         let source = pin(source.as_bytes())?;
@@ -90,9 +97,41 @@ impl NativePublisher {
             "public" => WeightMode::Public,
             _ => return Err(error("invalid weight visibility")),
         };
+        let execution = ExecutionPolicy {
+            range_policy: match range_policy {
+                "static" => RangePolicy::Static,
+                "checked" => RangePolicy::Checked,
+                _ => return Err(error("invalid range policy")),
+            },
+            max_abs_activation,
+            lookup: match lookup {
+                "per_token" => LookupPolicy::PerToken,
+                "tiled" => LookupPolicy::Tiled,
+                _ => return Err(error("invalid lookup policy")),
+            },
+            selection: match selection {
+                "expanded" => SelectionPolicy::Expanded,
+                "tiled" => SelectionPolicy::Tiled,
+                _ => return Err(error("invalid selection policy")),
+            },
+            peer_transport: match peer_transport {
+                "http" => PeerTransport::Http,
+                "streams" => PeerTransport::Streams,
+                _ => return Err(error("invalid peer transport")),
+            },
+        };
+        execution.validate(weights).map_err(error)?;
         let owner = py
             .detach(|| {
-                Publisher::new_with_weights(config, rows, outputs, source, composition, weights)
+                Publisher::new_with_policy(
+                    config,
+                    rows,
+                    outputs,
+                    source,
+                    composition,
+                    weights,
+                    execution,
+                )
             })
             .map_err(error)?;
         Ok(Self {
@@ -188,7 +227,7 @@ impl NativePublisher {
     ) -> PyResult<Vec<u32>> {
         let owner = self.take()?;
         let [a, b, c] = arguments(args, kwargs, ["first", "second", "third"])?;
-        let frames = [bytes(&a, 137)?, bytes(&b, 137)?, bytes(&c, 137)?];
+        let frames = [bytes(&a, 145)?, bytes(&b, 145)?, bytes(&c, 145)?];
         py.detach(|| owner.finish(frames)).map_err(error)
     }
     #[pyo3(signature=(*args,**kwargs))]

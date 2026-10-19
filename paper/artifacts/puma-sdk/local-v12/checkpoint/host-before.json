@@ -1,0 +1,12 @@
+{
+  "availability_source": "macos_mach_dispatch_v2",
+  "available": 11883544576,
+  "cached": 4829315072,
+  "disk_free": 30679871488,
+  "free": 275496960,
+  "pressure": "normal",
+  "purgeable": 110297088,
+  "reusable": 6778732544,
+  "swap_used": 4760338432,
+  "total": 34359738368
+}
