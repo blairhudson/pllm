@@ -12,6 +12,7 @@ mod fixture;
 mod json;
 #[cfg(test)]
 mod tests;
+mod typed_comparison;
 
 pub use compile::{DealerHandoff, DealerPlan, Instruction, Opcode, PredicateQuery};
 use json::Value;

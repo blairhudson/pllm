@@ -153,10 +153,18 @@ Completed foundations:
   six of the selected cases are local external encodings. Exported owners retain
   their reservations, final budgets are zero and 31 archive mutations reject.
   Table replay charges 1.428 GB private material and 6.565 GB public table copies
-  despite its 2.14 MB logical peak. Complete SiLU, exponential/softmax and
-  normalization composition and source-domain proofs remain open.
+  despite its 2.14 MB logical peak. The separate
+  [composed-gate slice](artifacts/fusefss-composition/local-v1/README.md) executes
+  SiLU, nExp, protected softmax, private normalization indexing and LayerNorm/RMSNorm
+  through party-local schedules and external fresh-material feeds. All 275 frozen
+  cases pass independent checking; six remain local external encodings. Public
+  range promises support conditional no-wrap proofs, not checkpoint admission.
+  Original table owners, cumulative public copies, private material, frames and
+  logical live bounds remain separate. Width-768 normalization executes; full
+  width-4,096 schedules reject the unchanged instruction ceiling. Complete-model
+  ranges/work, authenticated roles and SDK/model qualification remain open.
   The [next-method implementation plan](methods/fusefss-completion-plan.md)
-  retains complete-gate, semantic execution and SDK/model qualification gates.
+  retains complete semantic execution and SDK/model qualification gates.
   Existing scalar, shared-rescale
   and masked-wire references retain their own numerical and execution scopes.
 - The local cold lifecycle observer has independently checked, portable tiny

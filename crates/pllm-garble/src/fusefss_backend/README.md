@@ -3,8 +3,8 @@
 Research implementation; not independently security/side-channel reviewed and
 not a claim to reproduce the authors' evaluated backend or complete FuseFSS.
 The frozen native descriptor is connected through `CompiledGelu`. The module
-composes shared PLLM primitives; complete gate, model and SDK integration remain
-separate completion gates.
+composes shared PLLM primitives; the additional bounded source-gate schedules
+below retain separate conformance from complete decoder and SDK integration.
 
 ## Governing source and algorithm
 
@@ -189,9 +189,9 @@ implementations. They do not introduce a second cryptographic backend or transpo
 `SignedRange::source_contract` and Phi's `bit_contract` are caller provenance
 commitments, not proof verifiers or private membership checks. Lookup returns zero
 outside its table and does not prove source-index validity. A model compiler must
-establish these obligations before selecting any of these owners. Source SiLU,
-nExp, softmax and normalization still require complete protected composition,
-per-edge scales and no-wrap proofs; lookup and primitive parity do not supply it.
+establish these obligations before selecting any of these owners. The bounded
+source-gate schedules below provide conditional per-edge scale and no-wrap checks;
+lookup and primitive parity alone do not supply those schedules.
 
 Aggregate reservation precedes entropy. Every online call takes state before
 validation. Exported buffers retain leases after party retirement; fixed typed
@@ -213,6 +213,64 @@ both actual native exporters and both independent output checkers. The archived
 selected cases and table outputs replay independently, and 31 archive mutations
 reject. The eight table replays use 4,640 fresh batches and return their final
 reservations to zero; cumulative costs and logical peaks stay separately reported.
+
+## Bounded source-gate schedules
+
+`composition` lowers fixed public contracts into immutable typed instruction
+plans. `gates::{silu, nexp, reciprocal, softmax}` return a `Plan` and output layout;
+`norm::{Spec, Kind, compile}` selects LayerNorm or RMSNorm with public affine
+parameters. Native arithmetic retains the approved ring50/Q12 profile:
+
+* SiLU narrows only under the caller's signed38 promise, computes the signed
+  floor/index privately, and applies Phi to the **original** shared input.
+* nExp evaluates both original public tables, multiplies fresh shares and floors
+  the complete product. Softmax privately selects the active-row maximum, checks
+  public subtraction bounds, saturates before lookup and floors the complete
+  denominator once. Public inactive entries stay zero.
+* Normalization uses 50 fixed public exponent bins, private comparison and
+  selection, unsigned TR with **zero-extension**, and the original rsqrt table.
+  Centering, square sums, both affine products and their **separate** floors have
+  checked-i128 range obligations before material issuance. The source's Q12
+  reciprocal mean is retained, including its nonzero constant-row result at 768.
+
+Table constants replay from the frozen independent fixture. A separate exact
+integer `rsqrt-k2` supplement covers its already-existing width-two norm case;
+the original fixture and source locks are unchanged. Comparison descriptors use
+a bounded typed constructor and stack canonical encoder, avoiding generic JSON
+parser allocation in the composed path.
+
+Input ranges are fixed public assumptions; canonical party shares cannot prove
+membership of their reconstructed secret. A model compiler must establish those
+assumptions. Plan identities bind ranges, mask, shape, source, actual table bytes,
+affine parameters, register types and instruction order. They do not authenticate
+a publisher or establish whole-model ranges.
+
+`plan.runtime(role, context, inputs)` owns exactly one party's registers. `poll`
+returns `NeedMaterial { pc }`, `Frame` or `Output`. The external trusted dealer
+calls `plan.issue_step(pc, context)`; each role consumes its own material through
+`feed` and peer bytes through `advance`. No evaluator internally invokes issuance
+or reconstruction. Wrong role/plan/context/step, replay, failed feed, malformed
+frames, allocation failure and cancellation burn that runtime. Native frame and
+output leases survive runtime and plan retirement.
+
+Plans retain at most 32,768 instructions, 65,536 registers, 256 tables, 16 MiB of
+plan ownership and `2^26` cumulative work units. The combined native ceiling stays
+64 MiB, including two runtime owners, the largest primitive and previous-frame
+overlap. Construction probes current headroom; runtime construction and every
+issuance recheck reservations. The probe is not a future concurrency guarantee.
+Lookup owns all chunks of one invocation; only successive primitives stream.
+The table formula permits width 4,096, but complete LayerNorm and RMSNorm at that
+width exceed the unchanged instruction cap and reject before protected issuance.
+
+Resources distinguish original table owners, cumulative duplicated public tables,
+private material, keys/evaluations, triples, actual native frames and planned live
+envelopes. Sampled reservations can miss issuance scratch and are not a true
+high-water mark or process RSS. The opt-in full exporter runs all 275 frozen cases
+through native owners, with six external encodings remaining local public work.
+Receipt-backed evidence and complete replay commands live in
+`paper/artifacts/fusefss-composition/local-v1/`. This is bounded protected-gate
+conformance, with model lowering, authenticated roles and SDK qualification
+retaining their own gates.
 
 ## Historical scalar evidence
 

@@ -1,0 +1,65 @@
+{
+  "archive": {
+    "bytes": 582347,
+    "sha256": "5fcf50616c00c2baf40267318ab3678f08cb48a55123792998276e944a5269b9"
+  },
+  "files": {
+    "checker-complete.log": {
+      "bytes": 254,
+      "sha256": "8684e8e2dcd610842daa7545183fd447474ade9ceb726ce4716df200fe49855a"
+    },
+    "clippy.log": {
+      "bytes": 167,
+      "sha256": "eb546842a6ac557aacf9460739bfe6b831cb44f83370be0caaaf8cb83f5562d2"
+    },
+    "complete-gates.jsonl": {
+      "bytes": 27406,
+      "sha256": "69b25925dc5f1979ad67f9f36541772f185baeac8262700e003c0e58732ac548"
+    },
+    "complete-gates.receipt.json": {
+      "bytes": 290193,
+      "sha256": "95840a4509dca0fb043b925ddde18c2ab8cc5997ae80e8cadc01b97fb8989aee"
+    },
+    "complete-native.log": {
+      "bytes": 434,
+      "sha256": "e86a42aa1fb6411e9b5ebb8dbe2b027f405d8b820aa1fc0cf2fd9e5da41b4f79"
+    },
+    "format.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "frozen-reference.log": {
+      "bytes": 2967,
+      "sha256": "772fa994a4b8c0bb16ddc148e2e09af58ab85c019f45a20656c1f1967e8cba12"
+    },
+    "gate-set-fixture.log": {
+      "bytes": 2737,
+      "sha256": "7522b8c9be493b7ce79fe5084ec27846f290e36c9fe2406a1b27b5744def0856"
+    },
+    "independent-fixture.log": {
+      "bytes": 2811,
+      "sha256": "624610730b23f88d1dc9f84b0ed737f08ef3929a37144724b6c20667dc680a35"
+    },
+    "inputs.tar.gz": {
+      "bytes": 739113,
+      "sha256": "44a01148b0289ab249219fda45c7b8bc0719db60c56b58db8bb4a3da7d49187d"
+    },
+    "native-library.log": {
+      "bytes": 27827,
+      "sha256": "5962b3a49af530179524041eb4c1d52c7ea9bde2078b0ed8543e0e7abc11e5f0"
+    },
+    "native-tables.log": {
+      "bytes": 284,
+      "sha256": "58ca0ce87a550599ca62675ab174b42ba618328f57bfd2c350a0dfa655a18045"
+    },
+    "run-receipt.json": {
+      "bytes": 5084,
+      "sha256": "d5bea95f50cf4ff86babf0de96cb616a97ae9bdc78597b0d6a63827e10b487f5"
+    },
+    "source-inventory.json": {
+      "bytes": 19967,
+      "sha256": "44f145de81e80d0777ad51d7ca44c994821c3f31ac2736d3a2a64778b64f2920"
+    }
+  },
+  "schema": "pllm.fusefss.composition-evidence-files.v1"
+}

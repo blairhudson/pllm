@@ -63,9 +63,18 @@ replay count for this track: **zero**.
 The later [native gate-primitives archive](../../../artifacts/fusefss-gates/local-v1/README.md)
 separately records actual protected execution: 66 selected cases, including six
 local external encodings, and all 18,560 table outputs across eight tables.
-Its independent checkers pass; complete nonlinear composition remains open.
-Those results do not replace this fixture-only track or activate the full
-275-case protected-gate claim.
+Its independent checkers pass. Those results do not replace this fixture-only
+track or activate the full 275-case protected-gate claim.
+
+The later [native composition archive](../../../artifacts/fusefss-composition/local-v1/README.md)
+separately executes all 275 cases through protected owners, except for the six
+explicitly local external encodings. The unchanged full checker verifies that
+output. `generate-native-tables.py` reproduces the 1,536 frozen activation/exp
+constants as Rust data, and separately records `source-tables-supplement.json` for
+the original width-two norm case. Its 8,192 `rsqrt-k2` entries use the exact integer
+formula below; no original fixture or lock is replaced. These finite compositions
+retain caller range promises and native capacity limits, with complete models,
+authenticated roles and SDK qualification outside the fixture/replay contract.
 
 ## Exact numeric contracts
 

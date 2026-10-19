@@ -541,6 +541,13 @@ fn run_case(case: &J) -> (J, Stats, J) {
     (output, stats, detail)
 }
 
+/// Shared finite primitive producer for the full composition exporter. The
+/// selected subset retains its own original schema and receipt semantics.
+pub(super) fn run_selected_case(case: &J) -> (J, J, J) {
+    let (output, stats, detail) = run_case(case);
+    (output, stats.json(), detail)
+}
+
 fn frozen() -> (J, J) {
     assert_eq!(hash(FIXTURE), FIXTURE_HASH);
     assert_eq!(hash(TABLE_FIXTURE), TABLE_FIXTURE_HASH);
@@ -577,7 +584,7 @@ fn table_header() -> J {
         "implementation":implementation(),"coverage":"public-table-lookup-only",
         "table_count":8,"case_count":18560})
 }
-fn source_manifest() -> BTreeMap<String, String> {
+pub(super) fn source_manifest() -> BTreeMap<String, String> {
     SOURCES
         .iter()
         .map(|(name, bytes)| ((*name).into(), hash(bytes)))

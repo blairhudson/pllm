@@ -990,6 +990,23 @@ nonlinear composition, source-domain proofs, authenticated roles and SDK/model
 integration remain open. Evidence and replay:
 `paper/artifacts/fusefss-gates/local-v1/README.md`.
 
+The separate native FuseFSS composition now binds original-input SiLU/Phi,
+two-table nExp, protected causal maximum/reciprocal softmax and LayerNorm/RMSNorm
+to typed party-local schedules. Fixed public ranges supply conditional integer
+no-wrap proofs; unsigned normalization shifts use zero-extension and both affine
+floors remain separate. Private exponent/mantissa extraction and fresh per-step
+material retain the original ring50/Q12 equations. Runtime requests material from
+an external trusted dealer and holds only its own shares; malformed frames,
+substituted material, replay and cancellation consume the active owner. Aggregate
+native admission retains the 64 MiB ceiling, and exports retain leases through
+retirement. All 275 frozen cases pass the independent full checker, including six
+local external encodings. Width-768 normalization executes; width-4,096 complete
+schedules reject the unchanged instruction cap. Cumulative private material,
+duplicated public tables, actual native frames and sampled reservations retain
+separate scope. These bounded source gates do not admit complete-model ranges,
+full-prefix work, authenticated roles or an SDK method. Contract and replay:
+`paper/artifacts/fusefss-composition/local-v1/README.md`.
+
 The complete bounded shared Q7 gated block composes four exact rescalings and
 two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases
 check 11,540 outputs, with all remaining block material burned on failure.

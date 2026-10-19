@@ -1,8 +1,8 @@
 # FuseFSS implementation plan
 
-Status: bounded native scalar slice and protected gate primitives implemented;
-complete source-gate composition and complete-method gates remain
-open. PUMA is parked at the recorded
+Status: bounded native scalar, protected primitives and source-gate composition
+implemented. Complete semantic execution and SDK/model qualification remain open.
+PUMA is parked at the recorded
 [local-v13 admission gate](../artifacts/puma-sdk/local-v13/README.md).
 
 ## Objective and governing contract
@@ -116,19 +116,34 @@ replay charges 1.428 GB of private material, 6.565 GB of public table copies and
 9.215 MB of peer frames, with a 2,139,112-byte logical native peak and final zero
 reservations. These cumulative costs are neither wire nor measured RSS.
 
-F2 remains open. The next vertical slice must compose original-input SiLU/Phi,
-two-table nExp with its fresh product and floor, protected max/causal reductions
-and reciprocal softmax, then exponent/mantissa extraction and both normalization
-affine floors. Source signed38, nonwrapping subtraction/product/sum and valid
-lookup-index proofs must precede complete execution; public metadata digests alone
-do not prove these domains. Preserve original table bytes and negative-floor
-boundaries, charge every conversion and both parties' material, and run the full
-275-case checker only after every selected source gate actually executes.
+### F2b: bounded complete source-gate composition
+
+The [composed-gate slice](../artifacts/fusefss-composition/local-v1/README.md)
+executes original-input SiLU/Phi, two-table nExp with its fresh product/floor,
+protected max/causal reductions and reciprocal softmax, then private
+exponent/mantissa extraction and both separate normalization affine floors.
+Immutable public input intervals support checked-i128 signed38, nonwrapping
+subtraction/product/sum and valid-index obligations. They remain caller promises,
+not private membership checks or checkpoint range evidence. Original table bytes
+and negative-floor boundaries are preserved; the existing width-two norm case
+has a separately recorded exact rsqrt-table supplement.
+
+Each role owns one register schedule and consumes externally issued fresh material
+at bound public program counters. The runtime itself never issues or reconstructs
+material. Existing leases and the 64 MiB native ceiling cover both roles, the
+largest primitive and prior-frame overlap. Exported owners survive cancellation
+and plan retirement. The complete 275-case protected/local-encoding export passes
+the unchanged independent checker, including all source intermediates required
+by its test-only diagnostic outputs. Cumulative private material, public copies,
+native frames and logical ownership stay separate. Width-768 normalization must
+execute; width 4,096 rejects the unchanged 32,768-instruction ceiling.
 
 The earlier material/work estimates remain their own design evidence. Bounded
 lookup capacity and scalar key reduction do not admit complete-model cumulative
-work or select an SDK component. Reprice full-prefix D9 workloads after composing
-the complete gate schedule, before checkpoint or role launch.
+work or select an SDK component. F3 must first bind full model-neutral lowering
+and complete public range obligations, then reprice full-prefix D9 workloads
+before checkpoint or role launch. Original-model and common-Qwen source/numeric
+identities retain their separate qualification gates.
 
 ### Existing-path smoke checks
 

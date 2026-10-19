@@ -22,6 +22,7 @@
 //! Original input shares feed a fresh degree-one Beaver Horner product, with no
 //! rescale. Initial limit: four lanes; no automatic whole-tensor execution.
 mod compiled;
+pub mod composition;
 pub mod conversions;
 mod dcf;
 #[cfg(test)]
