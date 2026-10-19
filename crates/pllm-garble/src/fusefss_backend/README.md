@@ -67,8 +67,10 @@ Both choices reuse existing native families:
 * `shared_wide_product/ring.rs`: consuming ring1–64 Beaver shares. The existing
   standalone wide-product API delegates to the same algebra.
 
-The initial backend supports affine arithmetic, no Boolean outputs, identity Phi
-only. Ring multiplication is exact modulo `2^n`, using low u64 product bits;
+The frozen affine adapter supports no Boolean outputs and identity Phi only.
+Separate predicate, conversion and lookup owners are described below; they do
+not change that adapter's descriptor or automatically compose a complete gate.
+Ring multiplication is exact modulo `2^n`, using low u64 product bits;
 `n<=50` makes u64 wrapping followed by masking equivalent. Horner uses slope
 times original input plus constant. No implicit scale shift is performed.
 
@@ -152,7 +154,67 @@ Hard limit is four lanes, no automatic full-tensor execution. On the tested
 unchanged 64 MiB combined ceiling. A shared Budget prevents concurrent issuances
 from independently claiming the same live allowance.
 
-## Observed bounded evidence
+## Protected predicate and conversion substrate
+
+The additional public native modules reuse the same `Budget`, `Lease`, `Frame`
+and arithmetic `Output` owners, shared DCF, universal comparison and ring-product
+implementations. They do not introduce a second cryptographic backend or transport.
+
+* `predicates::{resources, issue}` takes an immutable typed descriptor and executes
+  its actual fresh-mask compiler handoff. Comparison queries use one-bit DCF;
+  shared `Bit` operands and fresh ring1 triples preserve the complete Boolean VM.
+  `Party::{start, advance, cancel}` returns `Step::{Frame, Output}`. Final
+  `BooleanOutput::shares()` are XOR shares. The descriptor and generic parser
+  remain separately admitted caller owners. Public instruction shapes, query
+  widths and view shifts are independent of the secret mask.
+* `conversions::{Spec, resources, issue}` admits exact reduced-ring TR, same-ring
+  ARS, zero/sign extension, B2A, arithmetic-bit Phi selection plus a public add,
+  and an ordinary modular `Multiply`. `start`, `start_phi` and `start_product`
+  enforce distinct method contracts, followed by consuming `finish` or `cancel`.
+  Widths are 1–50, with at most four lanes. A product uses one fresh existing
+  ring triple per lane. ARS/TR use private carry comparisons, preserving signed
+  floor rather than sharewise shifts or nearest rounding. Phi consumes an
+  arithmetic bit; an XOR output first needs a separate fresh B2A issuance.
+* `lookup::Table::new_zero_extended` binds the original public table, ring,
+  source commitment and fixed 256-entry chunk geometry. Each chunk is zero
+  outside its public slice. Every party evaluates **all** chunks, with independent
+  fresh masks and DCF owners for every chunk/lane, then sums opaque output shares.
+  The existing 513-interval primitive ceiling stays unchanged. The composition
+  admits at most 131,072 entries under the same four-lane/64 MiB ceiling; larger
+  public compositions reject. Each chunk contains at most 2 KiB of original u64
+  values, but boundary/coefficient copies and all other owners cost more and are
+  separately charged. Index and payload both remain ring50 for the source norm
+  and reciprocal tables, whose payloads exceed their index bit widths.
+
+`SignedRange::source_contract` and Phi's `bit_contract` are caller provenance
+commitments, not proof verifiers or private membership checks. Lookup returns zero
+outside its table and does not prove source-index validity. A model compiler must
+establish these obligations before selecting any of these owners. Source SiLU,
+nExp, softmax and normalization still require complete protected composition,
+per-edge scales and no-wrap proofs; lookup and primitive parity do not supply it.
+
+Aggregate reservation precedes entropy. Every online call takes state before
+validation. Exported buffers retain leases after party retirement; fixed typed
+allocations reject allocator capacity over-grants before receiving secrets.
+Nested allocation-failure injection remains partial, although the allocation
+paths themselves are fallible. Counts distinguish DCF-only keys, complete private
+material, original public tables, duplicated public tables, native reservation
+peaks and actual peer-frame lengths. Cumulative material is not live memory.
+
+Frozen source contracts and independent checkers are under
+`paper/reproduction-contracts/fusefss/gate-set/`. The source fixture contains 275
+cases; explicit selected-gate replay covers 66 (60 protected outputs and six
+local exact-rational external encodings). A separate public-table replay covers
+18,560 entries across eight tables. Neither accepts a complete-gate claim from
+partial output. Evidence belongs to
+`paper/artifacts/fusefss-gates/local-v1/`, separate from the historical GELU slice.
+Its accepted fresh attempt passes 239 native library tests, 66 Python checks,
+both actual native exporters and both independent output checkers. The archived
+selected cases and table outputs replay independently, and 31 archive mutations
+reject. The eight table replays use 4,640 fresh batches and return their final
+reservations to zero; cumulative costs and logical peaks stay separately reported.
+
+## Historical scalar evidence
 
 Command, repository root:
 
@@ -160,7 +222,7 @@ Command, repository root:
 CARGO_BUILD_JOBS=1 cargo test -p pllm-garble fusefss_backend -- --test-threads=1 --nocapture
 ```
 
-The integrated backend's focused suite passes 14 tests. Logical layout counts
+The initial scalar backend's focused suite passed 14 tests. Logical layout counts
 below are checked by native controls; neither key codec nor wire measurement is
 implied. Both frozen-GELU choices use 511 source / 512 padded intervals.
 
@@ -200,6 +262,6 @@ online allocation sites and issuance failure sites, preflight rejection before
 callback, and leases surviving exported frame/output lifetimes.
 
 Remaining gates: independent cryptographic/side-channel review; real role separation and network
-authentication; complete source gate/Boolean/Phi coverage; signed38 provenance
+authentication; complete source nonlinear/Phi composition; signed38 provenance
 and full-model feasibility; SDK and model qualification. Scalar backend success
 does not discharge any complete-method claim.

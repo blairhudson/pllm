@@ -975,6 +975,21 @@ scalar reference does not reproduce the paper's optimized backend or establish
 whole-model costs. Evidence and replay:
 `paper/artifacts/fusefss-scalar/local-v1/README.md`.
 
+The separate FuseFSS gate-primitives slice adds a protected Boolean VM, exact
+floor TR/ARS and extensions, B2A/Phi selection, fresh ring products and complete
+public tables assembled from fixed 256-entry chunks. Every chunk/lane consumes
+fresh masks and keys; both parties evaluate every chunk without exposing its
+private selection. Existing four-lane, 513-interval and 64 MiB limits remain.
+Independent replay checks 66 selected cases, including six local external
+encodings, and 18,560 table outputs across eight tables. Exported buffers retain
+capacity-matched leases through retirement. The table replay charges 1.428 GB
+private material, 6.565 GB public table copies and 9.215 MB actual peer frames,
+with a 2.14 MB logical native peak and final zero reservations. These are bounded
+in-process primitive costs, not RSS or whole-model qualification. Complete
+nonlinear composition, source-domain proofs, authenticated roles and SDK/model
+integration remain open. Evidence and replay:
+`paper/artifacts/fusefss-gates/local-v1/README.md`.
+
 The complete bounded shared Q7 gated block composes four exact rescalings and
 two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases
 check 11,540 outputs, with all remaining block material burned on failure.

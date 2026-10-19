@@ -1,5 +1,19 @@
 use super::*;
 
+#[test]
+fn exported_allocation_capacity_cannot_exceed_its_lease() {
+    let too_large = Vec::<u64>::with_capacity(16);
+    assert!(matches!(exact_capacity(too_large, 8), Err(Error::Resource)));
+    let too_small = Vec::<u64>::with_capacity(4);
+    assert!(matches!(exact_capacity(too_small, 8), Err(Error::Resource)));
+    let budget = Budget::new(1024).unwrap();
+    for count in [0, 1, 4, 80, 96] {
+        let values = allocate::<u8>(count, &budget).unwrap();
+        assert_eq!(values.capacity(), count);
+    }
+    assert_eq!(budget.used_bytes(), 0);
+}
+
 fn context() -> Context {
     Context {
         plan: [1; 32],

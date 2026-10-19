@@ -163,7 +163,14 @@ fn malformed_replayed_cross_issuance_and_cancelled_frames_burn_party_state() {
         let first = left.start(2, &[1, 2, 3]).unwrap();
         let second = right.start(4, &[3, 2, 1]).unwrap();
         let mut malformed = second.clone();
-        malformed[changed_byte] = 255;
+        if changed_byte < 72 {
+            // Hash/nonce bytes can already be 255. Always alter the header;
+            // assigning 255 made this negative control randomly leave it valid.
+            malformed[changed_byte] ^= 1;
+        } else {
+            malformed[changed_byte] = 255;
+        }
+        assert_ne!(malformed, second);
         assert!(left.finish(&malformed).is_err());
         assert_eq!(left.finish(&second).err(), Some(Error::Consumed));
         right.finish(&first).unwrap();

@@ -1,0 +1,43 @@
+    Checking pllm-garble v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-garble)
+error: doc list item without indentation
+ --> crates/pllm-garble/src/fusefss_backend/conversions.rs:9:5
+  |
+9 | //! never clear predicate openings. Widths 1..=50 match existing compact DCF.
+  |     ^
+  |
+  = help: if this is supposed to be its own paragraph, add a blank line
+  = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#doc_lazy_continuation
+  = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+  |
+9 | //!   never clear predicate openings. Widths 1..=50 match existing compact DCF.
+  |     ++
+
+error: doc list item without indentation
+  --> crates/pllm-garble/src/fusefss_backend/conversions.rs:10:5
+   |
+10 | //! This original decomposition is not an evaluated-source protocol identity or
+   |     ^
+   |
+   = help: if this is supposed to be its own paragraph, add a blank line
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#doc_lazy_continuation
+help: indent this line
+   |
+10 | //!   This original decomposition is not an evaluated-source protocol identity or
+   |     ++
+
+error: doc list item without indentation
+  --> crates/pllm-garble/src/fusefss_backend/conversions.rs:11:5
+   |
+11 | //! independently reviewed security claim. Transport authentication remains external.
+   |     ^
+   |
+   = help: if this is supposed to be its own paragraph, add a blank line
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#doc_lazy_continuation
+help: indent this line
+   |
+11 | //!   independently reviewed security claim. Transport authentication remains external.
+   |     ++
+
+error: could not compile `pllm-garble` (lib) due to 3 previous errors

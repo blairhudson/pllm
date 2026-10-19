@@ -229,7 +229,7 @@ fn hex(bytes: &[u8]) -> String {
 
 /// Test-only exact finite signed rational encoding, checked throughout. This is
 /// not an external tensor frontend and makes no binary-float conversion choice.
-fn encode_q12(numerator: i128, denominator: i128) -> Result<i64> {
+pub(crate) fn encode_q12(numerator: i128, denominator: i128) -> Result<i64> {
     if denominator <= 0 {
         return Err(Error::Range);
     }

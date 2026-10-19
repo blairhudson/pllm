@@ -16,11 +16,18 @@
 //! corruption, fresh material, and the PRG/FSS assumptions of compact DCF.
 //! Functional tests do not constitute independent cryptographic/side-channel
 //! review. Frames bind public context, role, fresh issuance and order; they are
-//! NOT authenticated network transport. Boolean outputs/nonidentity Phi reject.
+//! NOT authenticated network transport. The affine adapter still rejects Boolean
+//! outputs/nonidentity Phi; separate consuming predicate/conversion owners expose
+//! those bounded primitives without declaring a complete compiled gate schedule.
 //! Original input shares feed a fresh degree-one Beaver Horner product, with no
 //! rescale. Initial limit: four lanes; no automatic whole-tensor execution.
 mod compiled;
+pub mod conversions;
 mod dcf;
+#[cfg(test)]
+mod gate_conformance;
+pub mod lookup;
+pub mod predicates;
 
 pub use compiled::{CompiledGelu, CompiledResources};
 
@@ -136,6 +143,14 @@ fn allocate<T>(capacity: usize, budget: &Budget) -> Result<Vec<T>, Error> {
     values
         .try_reserve_exact(capacity)
         .map_err(|_| Error::Allocation)?;
+    exact_capacity(values, capacity)
+}
+// Exported frames/outputs may outlive all party slack. Their leases charge the
+// backing capacity, so reject allocator over-grants before secret data is filled.
+fn exact_capacity<T>(values: Vec<T>, capacity: usize) -> Result<Vec<T>, Error> {
+    if values.capacity() != capacity {
+        return Err(Error::Resource);
+    }
     Ok(values)
 }
 fn random() -> Result<u64, Error> {

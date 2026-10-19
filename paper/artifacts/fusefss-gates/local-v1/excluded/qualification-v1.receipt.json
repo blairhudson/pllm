@@ -1,0 +1,62 @@
+{
+  "failure_type": "KeyboardInterrupt",
+  "schema": "pllm.fusefss.gates-validation.v1",
+  "source_unchanged": false,
+  "status": "failed",
+  "steps": [
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--locked",
+        "--offline",
+        "-p",
+        "pllm-garble",
+        "-p",
+        "pllm-python",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings",
+        "-A",
+        "clippy::needless_range_loop",
+        "-A",
+        "clippy::nonminimal_bool",
+        "-A",
+        "clippy::assertions_on_constants"
+      ],
+      "elapsed_seconds": 11.337307499721646,
+      "environment_overrides": {},
+      "expected_returncode": 0,
+      "log_sha256": "ff40bc9e09c60ed4ae97e8f6773f4cb81e40505fc4334779c0f3b29f18d305f4",
+      "name": "clippy",
+      "returncode": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "--locked",
+        "--offline",
+        "-p",
+        "pllm-garble",
+        "--lib",
+        "fusefss_backend::gate_conformance::export_selected_gates",
+        "--",
+        "--ignored",
+        "--exact",
+        "--test-threads=1"
+      ],
+      "elapsed_seconds": 39.04653229098767,
+      "environment_overrides": {
+        "PLLM_FUSEFSS_EXPORT_GATE_SET": "1",
+        "PLLM_FUSEFSS_F2_EXPORT_DIR": "/Users/blairhudson/workspace/pllm/target/fusefss-f2-final-v1"
+      },
+      "expected_returncode": 0,
+      "log_sha256": "0a2c961f67350092ffbba8ff1e25a2cb626d2174e9d467881a56e216b3bc899c",
+      "name": "selected-native",
+      "returncode": 0
+    }
+  ]
+}

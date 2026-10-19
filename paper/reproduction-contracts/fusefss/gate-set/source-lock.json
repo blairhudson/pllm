@@ -1,0 +1,19 @@
+{
+  "schema": "pllm.fusefss.gate-set.source-lock.v1",
+  "profile": "fusefss.source-derived-ring50-q12.v1",
+  "local_sha256": {
+    "paper/reproduction-contracts/fusefss/source-lock.json": "8c42ba8f3ff7156fe87882dca089b8fb6c71b2739f8d761583e2ccc94c794609",
+    "paper/reproduction-contracts/shared-profile-resolution.md": "f747a29002d6d0e459680480bb457ba172f3b546d039bea0c9098a0b34d4a296",
+    "paper/reproduction-contracts/shared_profile_oracle.py": "bbb4e013c7f78a209408564b48b205a47049af618cca9fe3bd211cfd56b338e1",
+    "paper/reproduction-contracts/fusefss/reference.py": "66b9e8c8a6b686119e91d5de4663a6c04c639b8fa237ae9100430b8be04a8bb8"
+  },
+  "normative": [
+    "SIGMA PDF Fig.6/App.F: early signed TR before abs; SiLU K=1024",
+    "SIGMA PDF Fig.8/section5.2 pp9-10: two nExp tables, floor sum/64, reciprocal",
+    "SIGMA PDF Figs.11-12 p18: reciprocal-integer mean, untruncated squares+1, rsqrt index",
+    "FuseFSS PDF pp16-19: Protocol3, typed B/A expressions and Phi",
+    "Local resolution section2 and D8: nearest-even EXTERNAL; floor INTERNAL"
+  ],
+  "corroboration_only": "Immutable S-CPU source and hashes inherited from parent lock. Activation api.cpp2707-2827; mean3377-3416; SumOfSquare3269-3342/SlothLayerNorm3429-3432 omit paper +1. No upstream file imported or executed.",
+  "unresolved": ["original evaluated descriptor manifest", "RoPE coefficient bytes", "common-Qwen numerical profile", "external tensor/checkpoint bridge", "model-wide range provenance"]
+}

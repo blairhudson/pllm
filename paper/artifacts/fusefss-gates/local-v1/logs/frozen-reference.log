@@ -1,0 +1,25 @@
+test_bounded_parsing_and_early_geometry_rejection (test_reference.DescriptorAndEncoding.test_bounded_parsing_and_early_geometry_rejection) ... ok
+test_descriptor_substitution_same_label_and_shape_is_rejected (test_reference.DescriptorAndEncoding.test_descriptor_substitution_same_label_and_shape_is_rejected) ... ok
+test_external_format_overflow_and_bounded_rationals (test_reference.DescriptorAndEncoding.test_external_format_overflow_and_bounded_rationals) ... ok
+test_signed_external_ties_and_neighbors (test_reference.DescriptorAndEncoding.test_signed_external_ties_and_neighbors) ... ok
+test_type_order_scale_and_phi_metadata_are_canonical (test_reference.DescriptorAndEncoding.test_type_order_scale_and_phi_metadata_are_canonical) ... ok
+test_every_boundary_neighbor_and_full_ring_wrap (test_reference.GeluAndNegativeControls.test_every_boundary_neighbor_and_full_ring_wrap) ... ok
+test_every_central_signed_code_and_frozen_tails (test_reference.GeluAndNegativeControls.test_every_central_signed_code_and_frozen_tails) ... ok
+test_floor_abs_and_extra_rescale_negative_controls (test_reference.GeluAndNegativeControls.test_floor_abs_and_extra_rescale_negative_controls) ... ok
+test_source_effective_width_is_a_real_precondition (test_reference.GeluAndNegativeControls.test_source_effective_width_is_a_real_precondition) ... ok
+test_wrap_rescale_type_and_order_negative_controls (test_reference.GeluAndNegativeControls.test_wrap_rescale_type_and_order_negative_controls) ... ok
+test_xor_and_low_mask_negative_controls (test_reference.GeluAndNegativeControls.test_xor_and_low_mask_negative_controls) ... ok
+test_all_small_partitions_masks_and_inputs (test_reference.ProtocolThree.test_all_small_partitions_masks_and_inputs) ... ok
+test_all_small_predicates_shifts_signed_and_low_views (test_reference.ProtocolThree.test_all_small_predicates_shifts_signed_and_low_views) ... ok
+test_fixed_first_split_full_domain_and_maximum_capacity (test_reference.ProtocolThree.test_fixed_first_split_full_domain_and_maximum_capacity) ... ok
+test_mask_derived_zero_threshold_keeps_query_slots_and_bytes (test_reference.ProtocolThree.test_mask_derived_zero_threshold_keeps_query_slots_and_bytes) ... ok
+test_original_x_horner_counterexample_and_fixed_work (test_reference.ProtocolThree.test_original_x_horner_counterexample_and_fixed_work) ... ok
+test_approved_decision_section_snapshots (test_reference.SourceAndTable.test_approved_decision_section_snapshots) ... ok
+test_frozen_vectors_and_derived_descriptor_bytes (test_reference.SourceAndTable.test_frozen_vectors_and_derived_descriptor_bytes) ... ok
+test_local_pdf_source_hashes (test_reference.SourceAndTable.test_local_pdf_source_hashes) ... ok
+test_table_floors_have_rational_enclosures_and_independent_erfc_check (test_reference.SourceAndTable.test_table_floors_have_rational_enclosures_and_independent_erfc_check) ... ok
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.569s
+
+OK

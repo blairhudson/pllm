@@ -1,0 +1,1 @@
+{"cases": 66, "coverage": "selected-gates-only", "fixture_sha256": "ae1d8ba29b2563761ce1362688c4ff893812294d76066b0f398fb3388ace2a87", "scope": "reported finite outputs only; execution provenance not established", "selected_gates": ["shift", "b2a", "compare", "phi-select", "external"], "status": "pass"}

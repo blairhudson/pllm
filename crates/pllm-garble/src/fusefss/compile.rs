@@ -1,4 +1,20 @@
 use super::*;
+
+// Compiler handoff allocations have fixed public shapes and are covered by the
+// enclosing issuer. Unlike the separate generic JSON parser, this path cannot
+// retain an allocator over-grant beyond the caller's capacity estimate.
+fn reserve<T>(values: &mut Vec<T>, count: usize) -> Result<()> {
+    if !values.is_empty() || values.capacity() != 0 {
+        return Err(Error::Allocation);
+    }
+    values
+        .try_reserve_exact(count)
+        .map_err(|_| Error::Allocation)?;
+    if values.capacity() != count {
+        return Err(Error::Allocation);
+    }
+    Ok(())
+}
 use zeroize::{Zeroize, Zeroizing};
 
 /// Typed comparison query. Clear thresholds are dealer secrets, never evaluator

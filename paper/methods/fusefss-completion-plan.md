@@ -1,6 +1,7 @@
 # FuseFSS implementation plan
 
-Status: bounded native scalar slice implemented; complete-method gates remain
+Status: bounded native scalar slice and protected gate primitives implemented;
+complete source-gate composition and complete-method gates remain
 open. PUMA is parked at the recorded
 [local-v13 admission gate](../artifacts/puma-sdk/local-v13/README.md).
 
@@ -94,11 +95,40 @@ source binding and live reservations. They do not establish independent security
 qualification. Complete results, source snapshots, costs and read-only replay:
 [native scalar evidence](../artifacts/fusefss-scalar/local-v1/README.md).
 
-F2 remains the next gate: complete protected Boolean/Phi execution, remaining
-source-defined nonlinear and conversion gates, signed38/source-range provenance,
-and repriced complete-model admission. The earlier material/work estimates remain
-their own design evidence; scalar key reduction does not admit a whole model or
-select an SDK component.
+### F2a: protected primitives and frozen source gates
+
+The follow-up adds actual compiled protected Boolean execution, exact signed
+floor/TR/ARS and extensions, B2A, consuming Phi selection and ordinary ring
+products. Fixed 256-entry public chunks compose complete zero-extended lookup
+tables up to 131,072 entries under the existing 513-interval primitive,
+four-lane and 64 MiB limits. All chunks and lanes issue fresh material.
+The independent [source gate contract](../reproduction-contracts/fusefss/gate-set/README.md)
+freezes SiLU, exponential, reciprocal and width-specific normalization tables,
+plus 275 complete/primitive clear cases. Selected-gate and complete-table replays
+have different explicit coverage schemas; neither authorizes a complete-model
+claim. Source-bound validation belongs to
+[the gate-primitives evidence](../artifacts/fusefss-gates/local-v1/README.md).
+Its accepted fresh attempt passes 239 native and 66 Python tests. Independent
+checkers accept all 66 selected cases and 18,560 table outputs across 4,640 fresh
+batches; the six external encodings remain local public frontend work. Archive
+replay passes and rejects all 31 re-pinned negative mutations. Complete table
+replay charges 1.428 GB of private material, 6.565 GB of public table copies and
+9.215 MB of peer frames, with a 2,139,112-byte logical native peak and final zero
+reservations. These cumulative costs are neither wire nor measured RSS.
+
+F2 remains open. The next vertical slice must compose original-input SiLU/Phi,
+two-table nExp with its fresh product and floor, protected max/causal reductions
+and reciprocal softmax, then exponent/mantissa extraction and both normalization
+affine floors. Source signed38, nonwrapping subtraction/product/sum and valid
+lookup-index proofs must precede complete execution; public metadata digests alone
+do not prove these domains. Preserve original table bytes and negative-floor
+boundaries, charge every conversion and both parties' material, and run the full
+275-case checker only after every selected source gate actually executes.
+
+The earlier material/work estimates remain their own design evidence. Bounded
+lookup capacity and scalar key reduction do not admit complete-model cumulative
+work or select an SDK component. Reprice full-prefix D9 workloads after composing
+the complete gate schedule, before checkpoint or role launch.
 
 ### Existing-path smoke checks
 
@@ -135,8 +165,9 @@ The initial GELU slice has 511 source/512 padded intervals, two arithmetic
 coefficients, no Boolean outputs and identity Phi. Its slope is Q0 and constant
 is Q12: no extra Q12 rescale follows the product. The signed38 effective-input
 obligation belongs to source lowering; mathematical ring50 extension tests do
-not discharge it. Unsupported Boolean/Phi execution stays explicit while its
-typed compiler may be independently tested.
+not discharge it. That frozen affine adapter still rejects Boolean/nonidentity
+Phi. The separately implemented primitive owners do not implicitly expand its
+descriptor contract.
 
 ## Resource and evidence rules
 

@@ -1,0 +1,27 @@
+test_fixed_shape_and_zero_threshold_slot (test_conformance.CheckerTests.test_fixed_shape_and_zero_threshold_slot) ... ok
+test_gelu_floor_and_extra_rescale_mutations_rejected (test_conformance.CheckerTests.test_gelu_floor_and_extra_rescale_mutations_rejected) ... ok
+test_gelu_suite_filters_without_changing_order (test_conformance.CheckerTests.test_gelu_suite_filters_without_changing_order) ... ok
+test_hand_solved_valid_stream (test_conformance.CheckerTests.test_hand_solved_valid_stream) ... ok
+test_json_duplicates_trailing_unterminated_and_budget (test_conformance.CheckerTests.test_json_duplicates_trailing_unterminated_and_budget) ... ok
+test_missing_reordered_duplicate_outputs (test_conformance.CheckerTests.test_missing_reordered_duplicate_outputs) ... ok
+test_missing_reordered_duplicate_records (test_conformance.CheckerTests.test_missing_reordered_duplicate_records) ... ok
+test_nearest_even_mutation (test_conformance.CheckerTests.test_nearest_even_mutation) ... ok
+test_padding_sentinel_and_inverse_image (test_conformance.CheckerTests.test_padding_sentinel_and_inverse_image) ... ok
+test_suite_binding (test_conformance.CheckerTests.test_suite_binding) ... ok
+test_wrong_arithmetic_boolean_and_types (test_conformance.CheckerTests.test_wrong_arithmetic_boolean_and_types) ... ok
+test_wrong_coefficient_and_order (test_conformance.CheckerTests.test_wrong_coefficient_and_order) ... ok
+test_wrong_low_mask_shift_query_order (test_conformance.CheckerTests.test_wrong_low_mask_shift_query_order) ... ok
+test_wrong_mask_descriptor_context_and_fixture (test_conformance.CheckerTests.test_wrong_mask_descriptor_context_and_fixture) ... ok
+test_all_small_predicates_truth_tables (test_conformance.IndependentMathTests.test_all_small_predicates_truth_tables) ... ok
+test_exact_formula_hash_and_host_formula_crosscheck (test_conformance.IndependentMathTests.test_exact_formula_hash_and_host_formula_crosscheck) ... ok
+test_external_ties_independently_solved (test_conformance.IndependentMathTests.test_external_ties_independently_solved) ... ok
+test_floor_abs_q0_and_original_x_counterexamples (test_conformance.IndependentMathTests.test_floor_abs_q0_and_original_x_counterexamples) ... ok
+test_frozen_fixture_reproducible_and_bounded (test_conformance.IndependentMathTests.test_frozen_fixture_reproducible_and_bounded) ... ok
+test_receipt_matches_frozen_fixture (test_conformance.IndependentMathTests.test_receipt_matches_frozen_fixture) ... ok
+test_rounding_descriptor_mutation_changes_identity (test_conformance.IndependentMathTests.test_rounding_descriptor_mutation_changes_identity) ... ok
+test_source_range_vs_total_ring (test_conformance.IndependentMathTests.test_source_range_vs_total_ring) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.194s
+
+OK

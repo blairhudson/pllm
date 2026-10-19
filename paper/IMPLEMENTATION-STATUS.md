@@ -146,6 +146,15 @@ Completed foundations:
   engineering reviews cover provenance, allocation and failure retirement.
   This bounded native slice has no authenticated role transport, complete gate
   set, signed38 frontend proof, model execution or selectable SDK component.
+  The separate [gate-primitives follow-up](artifacts/fusefss-gates/local-v1/README.md)
+  adds protected Boolean execution, exact floor conversions, B2A/Phi/products and
+  fixed-chunk complete public-table lookup. It passes 239 native and 66 Python
+  tests, with independent replay of 66 selected cases and 18,560 table outputs;
+  six of the selected cases are local external encodings. Exported owners retain
+  their reservations, final budgets are zero and 31 archive mutations reject.
+  Table replay charges 1.428 GB private material and 6.565 GB public table copies
+  despite its 2.14 MB logical peak. Complete SiLU, exponential/softmax and
+  normalization composition and source-domain proofs remain open.
   The [next-method implementation plan](methods/fusefss-completion-plan.md)
   retains complete-gate, semantic execution and SDK/model qualification gates.
   Existing scalar, shared-rescale
