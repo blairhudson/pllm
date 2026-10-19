@@ -491,6 +491,73 @@ The [checked-execution evidence](../../paper/artifacts/puma-sdk/local-v12/README
 retains installed-wheel conformance, 64 generated native oracle cases and the
 separate layer-eight checkpoint rejection.
 
+### Trie lookup and complete attention-vector certificates
+
+The public-only `lookup="trie"` choice converts each private token to Boolean
+shares once, then builds an MSB-first prefix trie over the complete public
+vocabulary. Bounded bit projection and fresh protected products retain distinct
+selectors for each token. A branch is omitted only when the public vocabulary
+contains no such prefix. The compiler authenticates the original admitted token
+IDs or the complete stable-selection output as provenance for `[0,V−1]`; an
+interval annotation alone cannot authorize the shorter conversion. The immutable
+source, vocabulary, logical row order, dedicated last-use input gather, primitive
+profile and complete work budget bind the owner. Public table scans still cover
+all rows and both replicated components.
+
+Eight-row lookup ownership is bounded at 29,773,248 bytes in the native fixture,
+including selector overlap and primitive scratch. Schedule-derived lookup work
+is 10,707 ordinals for 4+2 and 641,966 for 64+8 at the pinned vocabulary. These are
+lookup-only contracts and counts; complete-decoder work, admission and response
+costs require separate evidence. Existing complete-program ceilings still apply.
+
+Checked public source publication additionally streams Q/K projection and bias
+statistics per semantic head block: maximum absolute row/column sums and squared
+Frobenius norm. Each worker recomputes every statistic from its immutable Q18
+source before execution. Shape, head width, source identity and the complete
+record set bind publication and native planning. Ordered scans and bounded
+metadata include partial import-frame tails and retire on malformed input.
+The existing 1 MiB source-norm allowance now preflights retained metadata copies,
+request-map capacity and overlapping scan/output scratch before cloning or reads.
+
+An attention-only compiler ledger propagates complete normalized-row energy
+through the original projection, bias and half-split RoPE. Each RoPE output
+coordinate retains both separately truncated coefficient products and both
+rounding errors. Exact word-reference provenance binds complete query rows and
+the physical right-matrix **columns** representing each causal key. Native
+integer Cauchy–Schwarz admission then bounds the full contraction before its
+single Q18 truncation, intersecting any already admitted scalar-product hull.
+A loose energy certificate cannot widen that scalar bound. The general RMSNorm
+energy ledger remains separate;
+these sidecar proofs do not select a different normalization recipe. Scalar
+operator domains, ring64 quarter-gap admission and fresh-material budgets still
+apply.
+
+Three compiler/source controls and six generated native/Python oracle cases
+cover this integration. The latter compare 1,150 complete tensor checkpoints
+across two-layer Qwen2/Qwen3/Llama GQA, including later-feedback rejection,
+actual truncation tapes and wrong-KV-routing controls. Worker source imports
+recompute the tested statistics. The complete compiler run covers 70 generated
+oracle cases, 9,816 tensor checkpoints and 962 negative controls. Installed-wheel
+validation passes 656 Python tests with eight skips; the subsequent two-file
+bound-intersection change passes 59 targeted installed SDK checks. All 369
+installed package files match each tested wheel before and after its suite.
+
+Two pinned Qwen 4+2 source-publication attempts select trie lookup, checked ranges,
+tiled selection and streams. Both reject at layer-six RMSNorm before worker
+launch, with zero observed swap growth. They retain separate identities from the
+earlier tiled-lookup layer-eight attention rejection. No whole-checkpoint response
+or quality result follows. Source snapshots, original attempts and replay are in
+[the follow-up evidence](../../paper/artifacts/puma-sdk/local-v13/README.md).
+
+The separate native compact-sign constructors cover guarded SiLU/GELU,
+reciprocal/rsqrt, complete-row normalization and softmax. Signed interval proofs
+select public 8/16/32/64-bit conversion buckets, with checked subtraction and
+full-word membership guards where required. Distinct compact frame identities
+retain full-width arithmetic OT words and rounding equations. These constructors
+are not yet selected by a decoder execution policy. The bounded body-layer
+executor likewise has local operator, liveness and failure controls but still
+needs outer compiler ownership, source-certificate and dispatch integration.
+
 ### Shared SDK interfaces
 
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,
@@ -512,6 +579,20 @@ These repeated requests measure numeric agreement rather than a single serving
 response's costs. Full-checkpoint admission still precedes any quality execution.
 The separate [quality/wide-contraction evidence](../../paper/artifacts/puma-sdk/local-v2/README.md)
 retains generated controls, the installed build and the common-Qwen rejection.
+
+The explicit quality `outcomes="record"` mode uses a separate version-two report.
+A typed native numeric rejection retains its original logical cohort position;
+transport/admission failures remain distinct. Accepted-only agreement reports its
+own sample count, and incomplete candidates cannot enter ordinary rankings. A
+caller-owned private cohort key binds comparison identity. Decode diagnostics
+require caller-supplied frozen continuations rather than deriving a teacher from
+a possibly rejected first candidate. Bounded serialization, atomic publication
+and cancellation cleanup preserve sanitized partial reports. Default version-one
+execution continues to abort on rejection. Generated installed-wheel gates cover
+typed numeric rejection, accepted/rejected sample accounting, stopped candidates,
+partial-cohort ranking rejection and cancellation. UTF-8 report byte limits and
+private traceback-reference cleanup are checked; cleanup is not a secure-erasure
+claim. The CLI exposes the same explicit record mode and frozen cohort inputs.
 
 Generated Qwen2/Qwen3/Llama controls include nonzero attention/MLP paths whose
 independent sign oracle distinguishes private prefixes, private feedback, protocol

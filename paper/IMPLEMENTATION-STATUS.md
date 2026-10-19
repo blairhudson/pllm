@@ -124,6 +124,15 @@ Completed foundations:
   [complete feasibility account](methods/puma-feasibility.md) identifies additional
   metadata, live-owner, protected-work and directed-traffic gates. Full-Qwen
   execution, shared 64+8 capacity, quality and serving measurements remain open.
+  The [trie/attention follow-up](artifacts/puma-sdk/local-v13/README.md) adds
+  provenance-bound trie lookup, worker-recomputed Q/K energy certificates and
+  shared typed quality-outcome reports. Its broad installed wheel passes 656
+  Python checks with eight skips; the bound-intersection follow-up passes 59
+  targeted SDK checks. Native validation includes 70 complete generated oracle
+  cases and 962 negative controls. Both pinned trie-policy 4+2 publications reject
+  layer-six RMSNorm before worker launch, with zero observed swap growth.
+  Compact nonlinear constructors and the bounded body-layer executor retain
+  separate native tests and remain unselected by the outer decoder.
 - The [FuseFSS scalar specification](reproduction-contracts/fusefss/README.md)
   freezes typed descriptors, a Protocol-3 compiler and independently checked GELU
   tables. It has no protected backend or complete model execution; D8's named

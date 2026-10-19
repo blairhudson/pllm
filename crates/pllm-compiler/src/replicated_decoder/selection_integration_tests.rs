@@ -255,6 +255,7 @@ fn stable_selection_manifest_selector_and_source_substitution_are_rejected() {
         composition: [2; 32],
         session: [3; 32],
         tensors: sources,
+        norms: BTreeMap::new(),
         program: bound.digest(),
     };
     assert!(manifest.compile().is_ok());

@@ -3,6 +3,150 @@ use super::*;
 use crate::replicated_decoder::runtime::lookup::{Plan, ROW_TILE};
 
 impl Builder {
+    // Proof issuance is confined to the two trusted model-compiler boundaries.
+    // No bounds-only helper grants this capability to a gather/affine result.
+    pub(super) fn register_initial_tokens(
+        &mut self,
+        words: &Words,
+        vocabulary: usize,
+    ) -> Result<(), Error> {
+        for (owner, slot) in words.iter() {
+            if !matches!(&self.nodes[owner].code, Code::Input(key) if key == "input.tokens")
+                || slot >= self.nodes[owner].lanes
+                || self.nodes[owner].bounds != Interval::new(0, vocabulary as i64 - 1)?
+            {
+                return Err(Error::Binding);
+            }
+            let mut h = Sha256::new();
+            h.update(b"pllm.trie.validated-initial-id-route.v1");
+            h.update(self.token_source_binding);
+            for n in [owner, slot, vocabulary] {
+                h.update((n as u64).to_le_bytes());
+            }
+            self.retain_token_domain(
+                (owner, slot),
+                vocabulary,
+                runtime::trie::DomainOrigin::ValidatedInitialIds(h.finalize().into()),
+            )?;
+        }
+        Ok(())
+    }
+    pub(super) fn register_selected_token(
+        &mut self,
+        output: &Words,
+        logits: &Words,
+        vocabulary: usize,
+    ) -> Result<(), Error> {
+        if output.len() != 1 || logits.len() != vocabulary {
+            return Err(Error::Binding);
+        }
+        let bounds = self.bounds(output)?;
+        if bounds.lower() < 0 || bounds.upper() >= vocabulary as i64 {
+            return Err(Error::Binding);
+        }
+        let mut h = Sha256::new();
+        h.update(b"pllm.trie.complete-native-stable-selection-route.v1");
+        h.update(self.token_source_binding);
+        h.update((vocabulary as u64).to_le_bytes());
+        for (owner, slot) in logits.iter().chain(output.iter()) {
+            h.update((owner as u64).to_le_bytes());
+            h.update((slot as u64).to_le_bytes());
+        }
+        self.retain_token_domain(
+            output.at(0),
+            vocabulary,
+            runtime::trie::DomainOrigin::NativeStableSelection(h.finalize().into()),
+        )
+    }
+    fn retain_token_domain(
+        &mut self,
+        word: (usize, usize),
+        vocabulary: usize,
+        proof: runtime::trie::DomainOrigin,
+    ) -> Result<(), Error> {
+        if self.token_source_binding == [0; 32] || self.token_domains.contains_key(&word) {
+            return Err(Error::Binding);
+        }
+        // Conservative construction registry/BTree allowance, retained in payload
+        // pricing even though this compiler-only map is discarded after lowering.
+        self.allocated = self.allocated.checked_add(160).ok_or(Error::Bounds)?;
+        if self.allocated > MAX_PROGRAM_BYTES {
+            return Err(Error::Bounds);
+        }
+        self.token_domains.insert(word, (vocabulary, proof));
+        Ok(())
+    }
+    pub(super) fn trie_lookup(
+        &mut self,
+        tokens: &View,
+        table: &SourceView,
+        shape: &[usize],
+    ) -> Result<View, Error> {
+        let [vocabulary, width] = table.shape.as_slice() else {
+            return Err(Error::Shape);
+        };
+        let owner = self.nodes.get(table.owner).ok_or(Error::Binding)?;
+        let Code::PublicInput { digest, .. } = &owner.code else {
+            return Err(Error::Binding);
+        };
+        let digest = *digest;
+        let bounds = owner.bounds;
+        if !self.public_weights
+            || self.lookup != LookupPolicy::Trie
+            || vocabulary.checked_mul(*width) != Some(owner.lanes)
+            || tokens.words.is_empty()
+            || shape.last() != Some(width)
+            || shape.iter().try_fold(1usize, |n, d| n.checked_mul(*d))
+                != tokens.words.len().checked_mul(*width)
+        {
+            return Err(Error::Shape);
+        }
+        let mut words = Words::new();
+        for tile in tokens.words.chunks(ROW_TILE) {
+            let mut proofs = Vec::new();
+            proofs
+                .try_reserve_exact(tile.len())
+                .map_err(|_| Error::Allocation)?;
+            for word in tile.iter() {
+                let (v, proof) = self.token_domains.get(&word).ok_or(Error::Binding)?;
+                if v != vocabulary {
+                    return Err(Error::Binding);
+                }
+                proofs.push(*proof);
+            }
+            let input = self.gather(&tile)?;
+            // The native owner MOVES this dedicated immediately preceding gather.
+            // A matching numeric interval alone never justifies trie pruning.
+            let plan = Arc::new(runtime::trie::Plan::new(
+                tile.len(),
+                *vocabulary,
+                *width,
+                input,
+                Interval::new(0, *vocabulary as i64 - 1)?,
+                &proofs,
+                runtime::trie::SourceBinding {
+                    owner: table.owner,
+                    source_commitment: self.token_source_binding,
+                    file_digest: digest,
+                },
+            )?);
+            let lanes = tile.len().checked_mul(*width).ok_or(Error::Bounds)?;
+            let output = self.push(
+                Code::TrieLookup {
+                    input,
+                    weight: table.owner,
+                    plan,
+                },
+                lanes,
+                bounds,
+            )?;
+            words.extend((0..lanes).map(|slot| (output, slot)));
+        }
+        Ok(View {
+            words,
+            shape: shape.to_vec(),
+        })
+    }
     pub(super) fn tiled_lookup(
         &mut self,
         tokens: &View,

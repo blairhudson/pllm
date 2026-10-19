@@ -1,0 +1,999 @@
+use super::super::*;
+use crate::replicated_decoder::{
+    runtime::body::{self, layer},
+    tests::workers,
+};
+use sha2::Digest;
+
+fn fixture(plan: &Arc<layer::Plan>, inputs: &[body::Register]) -> Arc<Program> {
+    let outputs = [body::View::contiguous(0, inputs[0].lanes)];
+    let mut program = super::expanded(inputs, &[], &outputs);
+    let program_mut = Arc::get_mut(&mut program).unwrap();
+    program_mut.work = plan.work_budget();
+    program_mut.digest = plan.digest();
+    program
+}
+
+type Signature = Vec<Vec<(Vec<u8>, usize)>>;
+fn signature(queue: &[(puma::Party, puma::Party, PeerBytes)]) -> Vec<(Vec<u8>, usize)> {
+    let mut out: Vec<_> = queue
+        .iter()
+        .map(|(_, _, frame)| {
+            let raw = frame.as_bytes();
+            let len = if raw.starts_with(b"PUT") { 48 } else { 4 };
+            (raw[..len].to_vec(), raw.len())
+        })
+        .collect();
+    out.sort();
+    out
+}
+fn run(mut owners: [layer::Executor; 3], plan: &Arc<layer::Plan>) -> (Vec<Vec<u64>>, Signature) {
+    let mut queue = Vec::new();
+    let mut trace = Vec::new();
+    let mut advances = 0u64;
+    for _ in 0..500_000 {
+        if owners.iter().all(layer::Executor::complete) {
+            break;
+        }
+        if queue.is_empty() {
+            advances += 1;
+            for (i, owner) in owners.iter_mut().enumerate() {
+                queue.extend(owner.advance().unwrap().into_iter().map(|(to, frame)| {
+                    (
+                        [puma::Party::P0, puma::Party::P1, puma::Party::P2][i],
+                        to,
+                        frame,
+                    )
+                }));
+            }
+        } else {
+            trace.push(signature(&queue));
+            for (from, to, frame) in std::mem::take(&mut queue) {
+                queue.extend(
+                    owners[to as usize]
+                        .receive(frame.as_bytes(), from)
+                        .unwrap()
+                        .into_iter()
+                        .map(|(next, frame)| (to, next, frame)),
+                );
+            }
+        }
+        for owner in &owners {
+            assert!(owner.live_bytes() <= plan.resources().peak_live_secret_bytes);
+        }
+    }
+    assert!(queue.is_empty());
+    assert!(owners.iter().all(layer::Executor::complete));
+    assert_eq!(advances, plan.coordinator_advances());
+    for owner in &owners {
+        assert_eq!(
+            owner.observed_register_peak(),
+            plan.resources().peak_live_secret_bytes
+        );
+    }
+    let finished = owners.map(|owner| owner.finish().unwrap());
+    let budget = plan.work_budget().cursors();
+    for (runtime, _) in &finished {
+        let actual = runtime.cursors();
+        assert_eq!(actual.public_blocks, budget.public_blocks);
+        assert_eq!(actual.pair_blocks, budget.pair_blocks);
+        assert!(actual.private_blocks <= budget.private_blocks);
+        assert!(actual.aes_work <= budget.aes_work);
+    }
+    let outputs = (0..plan.output_count())
+        .map(|output| {
+            (0..finished[0].1.output_len(output).unwrap())
+                .map(|index| {
+                    finished.iter().fold(0u64, |sum, (_, values)| {
+                        sum.wrapping_add(values.word(output, index).unwrap().0)
+                    })
+                })
+                .collect()
+        })
+        .collect();
+    (outputs, trace)
+}
+
+#[test]
+fn body_layer_complete_guards_sticky_tail_failure_and_elision() {
+    for failing in [false, true] {
+        let inputs = [body::Register {
+            lanes: 129,
+            bounds: Interval::new(-4 * ONE, 4 * ONE).unwrap(),
+        }];
+        let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+        let x = b.input(0).unwrap();
+        let (safe, first) = b.checked(&x, ONE, None).unwrap();
+        let (safe2, sticky) = b.checked(&x, ONE, first.as_ref()).unwrap();
+        let (alias, sticky2) = b.checked(&safe2, ONE, sticky.as_ref()).unwrap();
+        assert_eq!(alias.len(), 129);
+        let plan = b.finish(&[safe, alias, sticky2.unwrap()]).unwrap();
+        let mut x = vec![0i64; 129];
+        if failing {
+            x[128] = 2 * ONE;
+        }
+        let clear = BTreeMap::from([("x0".into(), x)]);
+        let program = fixture(&plan, &inputs);
+        let owners =
+            workers(program, &clear).map(|worker| layer::from_worker(plan.clone(), worker, None));
+        let (output, _) = run(owners, &plan);
+        assert_eq!(output[0], vec![0u64; 129]);
+        assert_eq!(output[1], vec![0u64; 129]);
+        assert_eq!(output[2], vec![u64::from(!failing)]);
+    }
+}
+
+#[test]
+fn body_layer_rank_four_permutation_and_concat_are_owner_retaining() {
+    let inputs = [body::Register {
+        lanes: 24,
+        bounds: Interval::new(-ONE, ONE).unwrap(),
+    }];
+    let a = layer::Layout::affine(0, 0, &[2, 3, 4], &[4, 8, 1]).unwrap();
+    let joined = layer::Layout::concat(&[a.slice(0, 5).unwrap(), a.slice(5, 19).unwrap()]).unwrap();
+    assert_eq!(
+        (0..24).map(|i| a.word(i).unwrap()).collect::<Vec<_>>(),
+        (0..24).map(|i| joined.word(i).unwrap()).collect::<Vec<_>>()
+    );
+    assert!(a.slice(0, 4).unwrap().row_key(4).is_some());
+    assert!(a.slice(0, 8).unwrap().row_key(8).is_none());
+    assert!(layer::Layout::affine(0, usize::MAX, &[2], &[1]).is_err());
+    let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+    let output = b.binary(&a, &joined, false).unwrap();
+    let plan = b.finish(&[output]).unwrap();
+    assert!(plan.resources().admitted_bytes < MAX_PROGRAM_BYTES);
+}
+
+fn finish_expanded(b: Builder, inputs: usize, outputs: Vec<(usize, usize)>) -> Arc<Program> {
+    let work = schedule_work(&b.nodes).unwrap();
+    let mut last: Vec<_> = (0..b.nodes.len()).collect();
+    for (step, node) in b.nodes.iter().enumerate() {
+        for owner in node.inputs() {
+            last[owner] = step;
+        }
+    }
+    for &(owner, _) in &outputs {
+        last[owner] = b.nodes.len();
+    }
+    let mut retire = vec![vec![]; b.nodes.len()];
+    for (owner, step) in last.into_iter().enumerate() {
+        if step < retire.len() {
+            retire[step].push(owner);
+        }
+    }
+    Arc::new(Program {
+        nodes: b.nodes,
+        inputs,
+        outputs,
+        retire,
+        digest: [83; 32],
+        source_binding: [0; 32],
+        payload_bytes: b.allocated,
+        work,
+    })
+}
+
+fn native_rms(b: &mut Builder, a: &View, width: usize) -> View {
+    let safe = b.checked_view(&a.words).unwrap();
+    let mut words = Words::new();
+    for row in safe.chunks_exact(width) {
+        let input = b.gather(&row).unwrap();
+        let gamma = vec![ONE; width];
+        let (program, squared) = match b.row_norm(&row, width) {
+            Some(norm) => tensor::Program::rms_norm_with_input_norm(
+                1,
+                width,
+                b.nodes[input].bounds,
+                &gamma,
+                norm,
+            )
+            .unwrap(),
+            None => tensor::Program::rms_norm_certified(1, width, b.nodes[input].bounds, &gamma)
+                .unwrap(),
+        };
+        let output = b.tensor(input, program).unwrap();
+        b.row_norms.push((output, squared));
+        words.extend((0..width).map(|i| (output, i)));
+    }
+    View {
+        words,
+        shape: a.shape.clone(),
+    }
+}
+fn native_rope(b: &mut Builder, a: &View, width: usize, sequence: usize) -> View {
+    let mut words = Words::new();
+    for (i, row) in a.words.chunks_exact(width).enumerate() {
+        let (cos, sin) =
+            tensor::Program::rotary_coefficients(10000.0, (i % sequence) as u32, width).unwrap();
+        let input = b.gather(&row).unwrap();
+        let p = tensor::Program::rotary_half(1, width, b.nodes[input].bounds, &cos, &sin).unwrap();
+        let output = b.tensor(input, p).unwrap();
+        words.extend((0..width).map(|i| (output, i)));
+    }
+    View {
+        words,
+        shape: a.shape.clone(),
+    }
+}
+fn native_public(
+    b: &mut Builder,
+    a: &View,
+    weight: usize,
+    columns: usize,
+    bias: Option<usize>,
+) -> View {
+    let mut output = b.public_matrix(a, weight, columns, false, true).unwrap();
+    if let Some(bias) = bias {
+        let repeated = (0..output.words.len())
+            .map(|i| (bias, i % columns))
+            .collect();
+        output.words = b.binary(&output.words, &repeated, false).unwrap();
+    }
+    output
+}
+fn native_drive(mut owners: [Worker; 3]) -> (Vec<u64>, Signature) {
+    let mut queue = Vec::new();
+    let mut trace = Vec::new();
+    for _ in 0..500_000 {
+        if owners.iter().all(Worker::complete) {
+            break;
+        }
+        if queue.is_empty() {
+            for owner in &mut owners {
+                let from = owner.party();
+                queue.extend(
+                    owner
+                        .advance()
+                        .unwrap()
+                        .into_iter()
+                        .map(|(to, frame)| (from, to, frame)),
+                );
+            }
+        } else {
+            trace.push(signature(&queue));
+            for (from, to, frame) in std::mem::take(&mut queue) {
+                queue.extend(
+                    owners[to as usize]
+                        .receive(frame.as_bytes(), from)
+                        .unwrap()
+                        .into_iter()
+                        .map(|(next, frame)| (to, next, frame)),
+                );
+            }
+        }
+    }
+    assert!(queue.is_empty());
+    assert!(owners.iter().all(Worker::complete));
+    let shares = owners.map(|w| w.finish().unwrap());
+    (
+        (0..shares[0].len())
+            .map(|i| shares.iter().fold(0u64, |sum, s| sum.wrapping_add(s[i])))
+            .collect(),
+        trace,
+    )
+}
+
+#[test]
+fn body_layer_generated_complete_gqa_hidden_logits_kv_feedback_matches_expanded() {
+    // Deliberately exact-zero public projections: full noninteger RMS/RoPE/SiLU/
+    // softmax circuits still execute, while exported results are independent of
+    // stochastic masks. This is NOT the stronger fixed-PRSS promotion proof.
+    let (seq, hidden, heads, kv, width, intermediate, vocabulary) =
+        (3usize, 4usize, 2usize, 1usize, 2usize, 6usize, 5usize);
+    let shapes = BTreeMap::from([
+        ("q", 16usize),
+        ("k", 8),
+        ("v", 8),
+        ("o", 16),
+        ("gate", 24),
+        ("up", 24),
+        ("down", 24),
+        ("head", 20),
+        ("qb", 4),
+        ("kb", 2),
+        ("vb", 2),
+    ]);
+    let mut native = Builder {
+        public_weights: true,
+        checked_bound: Some(ONE),
+        ..Builder::default()
+    };
+    let mut ids = BTreeMap::new();
+    let mut sources = BTreeMap::new();
+    let mut clear = BTreeMap::new();
+    for (&key, &lanes) in &shapes {
+        let digest: [u8; 32] = Sha256::digest(vec![0u8; 8 * lanes]).into();
+        let id = native
+            .push(
+                Code::PublicInput {
+                    key: key.into(),
+                    digest,
+                    row_l1: None,
+                    row_squared_norm: None,
+                    row_l1_squared_sum: None,
+                },
+                lanes,
+                Interval::new(0, 0).unwrap(),
+            )
+            .unwrap();
+        ids.insert(key, id);
+        sources.insert(
+            key,
+            layer::Source::new(id, key.into(), digest, lanes, Interval::new(0, 0).unwrap())
+                .unwrap(),
+        );
+        clear.insert(key.into(), vec![0; lanes]);
+    }
+    let input = native
+        .push(
+            Code::Input("x0".into()),
+            seq * hidden,
+            Interval::new(-4 * ONE, 4 * ONE).unwrap(),
+        )
+        .unwrap();
+    clear.insert("x0".into(), vec![0; seq * hidden]);
+    let x = native.view(input, vec![1, seq, hidden]);
+    let norm = native_rms(&mut native, &x, hidden);
+    let q = native_public(&mut native, &norm, ids["q"], hidden, Some(ids["qb"]));
+    let k = native_public(&mut native, &norm, ids["k"], kv * width, Some(ids["kb"]));
+    let v = native_public(&mut native, &norm, ids["v"], kv * width, Some(ids["vb"]));
+    let q = View {
+        words: (0..heads)
+            .flat_map(|h| {
+                (0..seq).flat_map({
+                    let q = &q;
+                    move |r| (0..width).map(move |d| q.words.at((r * heads + h) * width + d))
+                })
+            })
+            .collect(),
+        shape: vec![1, heads, seq, width],
+    };
+    let k = View {
+        words: k.words.clone(),
+        shape: vec![1, kv, seq, width],
+    };
+    let q = native_rope(&mut native, &q, width, seq);
+    let k = native_rope(&mut native, &k, width, seq);
+    let anchor = native.gather(&x.words.slice(..1)).unwrap();
+    let zero = native.constant(anchor, 0).unwrap();
+    let mut scores = Words::new();
+    for h in 0..heads {
+        for r in 0..seq {
+            let query = View {
+                words: q
+                    .words
+                    .slice((h * seq + r) * width..(h * seq + r + 1) * width),
+                shape: vec![1, width],
+            };
+            let keys = View {
+                words: k.words.slice(..(r + 1) * width),
+                shape: vec![r + 1, width],
+            };
+            scores.extend(native.linear(&query, &keys, true).unwrap().words);
+            scores.extend(std::iter::repeat_n((zero, 0), seq - r - 1));
+        }
+    }
+    let mut scaled = Words::new();
+    let coefficient = ((1.0_f32 / (width as f32).sqrt()) * ONE as f32) as i64;
+    for chunk in scores.chunks(128) {
+        let input = native.gather(&chunk).unwrap();
+        let mut b = tensor::Builder::new(chunk.len(), native.nodes[input].bounds).unwrap();
+        let raw = b
+            .affine(b.input(), None, affine(coefficient, 0, 0))
+            .unwrap();
+        let output = b.rescale(raw, 18).unwrap();
+        let id = native.tensor(input, b.finish(output).unwrap()).unwrap();
+        scaled.extend((0..chunk.len()).map(|i| (id, i)));
+    }
+    let mut probabilities = Words::new();
+    for (i, row) in scaled.chunks_exact(seq).enumerate() {
+        let n = i % seq + 1;
+        let input = native.gather(&row.slice(..n)).unwrap();
+        let (program, mass) =
+            tensor::Program::softmax_certified(1, n, native.nodes[input].bounds).unwrap();
+        let id = native.tensor(input, program).unwrap();
+        native.row_masses.push((id, mass));
+        probabilities.extend((0..n).map(|i| (id, i)));
+        probabilities.extend(std::iter::repeat_n((zero, 0), seq - n));
+    }
+    let mut attention = Words::new();
+    for h in 0..heads {
+        for r in 0..seq {
+            let valid = r + 1;
+            let p = View {
+                words: probabilities.slice((h * seq + r) * seq..(h * seq + r) * seq + valid),
+                shape: vec![1, valid],
+            };
+            let selected = (0..width)
+                .flat_map(|d| {
+                    (0..valid).map({
+                        let v = &v;
+                        move |key| v.words.at(key * width + d)
+                    })
+                })
+                .collect();
+            attention.extend(
+                native
+                    .linear(
+                        &p,
+                        &View {
+                            words: selected,
+                            shape: vec![width, valid],
+                        },
+                        true,
+                    )
+                    .unwrap()
+                    .words,
+            );
+        }
+    }
+    let merged = View {
+        words: (0..seq)
+            .flat_map(|r| {
+                (0..heads).flat_map({
+                    let attention = &attention;
+                    move |h| (0..width).map(move |d| attention.at((h * seq + r) * width + d))
+                })
+            })
+            .collect(),
+        shape: vec![1, seq, hidden],
+    };
+    let output = native_public(&mut native, &merged, ids["o"], hidden, None);
+    let residual = View {
+        words: native.residual(&x, &output).unwrap(),
+        shape: x.shape.clone(),
+    };
+    let norm2 = native_rms(&mut native, &residual, hidden);
+    let gate = native_public(&mut native, &norm2, ids["gate"], intermediate, None);
+    let up = native_public(&mut native, &norm2, ids["up"], intermediate, None);
+    let input = native.gather(&gate.words).unwrap();
+    let bounds = native.nodes[input].bounds;
+    let act = native
+        .tensor_loop(LoopInput::Slice(input), seq * intermediate, |n| {
+            tensor::Program::activation_guarded(tensor::Activation::Silu, n, bounds)
+        })
+        .unwrap();
+    let activation = native.view(act, vec![1, seq, intermediate]);
+    let product = View {
+        words: native.binary(&activation.words, &up.words, true).unwrap(),
+        shape: activation.shape,
+    };
+    let down = native_public(&mut native, &product, ids["down"], hidden, None);
+    let hidden_out = View {
+        words: native.residual(&residual, &down).unwrap(),
+        shape: x.shape.clone(),
+    };
+    let final_norm = native_rms(&mut native, &hidden_out, hidden);
+    let last = View {
+        words: final_norm.words.slice((seq - 1) * hidden..seq * hidden),
+        shape: vec![1, 1, hidden],
+    };
+    let logits = native_public(&mut native, &last, ids["head"], vocabulary, None);
+    let outputs: Vec<_> = hidden_out
+        .words
+        .iter()
+        .chain(logits.words.iter())
+        .chain(k.words.iter())
+        .chain(v.words.iter())
+        .chain(std::iter::once((native.validity.unwrap(), 0)))
+        .collect();
+    let expanded = finish_expanded(native, shapes.len() + 1, outputs);
+
+    let inputs = [body::Register {
+        lanes: seq * hidden,
+        bounds: Interval::new(-4 * ONE, 4 * ONE).unwrap(),
+    }];
+    let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+    let x = b.input(0).unwrap();
+    let gamma = vec![ONE; hidden];
+    let (norm, valid) = b.rms(&x, hidden, &gamma, Some(ONE), None).unwrap();
+    let q = b
+        .public_matrix(
+            &norm,
+            sources["q"].clone(),
+            seq,
+            hidden,
+            hidden,
+            false,
+            true,
+        )
+        .unwrap();
+    let q = b.bias(&q, sources["qb"].clone(), hidden).unwrap();
+    let k = b
+        .public_matrix(
+            &norm,
+            sources["k"].clone(),
+            seq,
+            hidden,
+            kv * width,
+            false,
+            true,
+        )
+        .unwrap();
+    let k = b.bias(&k, sources["kb"].clone(), kv * width).unwrap();
+    let v = b
+        .public_matrix(
+            &norm,
+            sources["v"].clone(),
+            seq,
+            hidden,
+            kv * width,
+            false,
+            true,
+        )
+        .unwrap();
+    let v = b.bias(&v, sources["vb"].clone(), kv * width).unwrap();
+    let q_owner = q.word(0).unwrap().0;
+    let q = layer::Layout::affine(q_owner, 0, &[heads, seq, width], &[width, heads * width, 1])
+        .unwrap();
+    let q = b.rope(&q, width, seq, 0, 10000.0).unwrap();
+    let k = b.rope(&k, width, seq, 0, 10000.0).unwrap();
+    let scores = b.scores(&q, &k, heads, kv, seq, 0, width).unwrap();
+    let scaled = b.attention_scale(&scores, width).unwrap();
+    let p = b.softmax(&scaled, seq, 0).unwrap();
+    let attention = b.values(&p, &v, heads, kv, seq, 0, width).unwrap();
+    let owner = attention.word(0).unwrap().0;
+    let merged =
+        layer::Layout::affine(owner, 0, &[seq, heads, width], &[width, seq * width, 1]).unwrap();
+    let output = b
+        .public_matrix(
+            &merged,
+            sources["o"].clone(),
+            seq,
+            hidden,
+            hidden,
+            false,
+            true,
+        )
+        .unwrap();
+    let residual = b.residual(&x, &output, hidden).unwrap();
+    let (norm2, valid) = b
+        .rms(&residual, hidden, &gamma, Some(ONE), valid.as_ref())
+        .unwrap();
+    let gate = b
+        .public_matrix(
+            &norm2,
+            sources["gate"].clone(),
+            seq,
+            hidden,
+            intermediate,
+            false,
+            true,
+        )
+        .unwrap();
+    let up = b
+        .public_matrix(
+            &norm2,
+            sources["up"].clone(),
+            seq,
+            hidden,
+            intermediate,
+            false,
+            true,
+        )
+        .unwrap();
+    let activation = b.silu(&gate).unwrap();
+    let product = b.binary(&activation, &up, true).unwrap();
+    let down = b
+        .public_matrix(
+            &product,
+            sources["down"].clone(),
+            seq,
+            intermediate,
+            hidden,
+            false,
+            true,
+        )
+        .unwrap();
+    let hidden_out = b.residual(&residual, &down, hidden).unwrap();
+    let (final_norm, valid) = b
+        .rms(&hidden_out, hidden, &gamma, Some(ONE), valid.as_ref())
+        .unwrap();
+    let logits = b
+        .public_matrix(
+            &final_norm.slice((seq - 1) * hidden, hidden).unwrap(),
+            sources["head"].clone(),
+            1,
+            hidden,
+            vocabulary,
+            false,
+            true,
+        )
+        .unwrap();
+    let plan = b
+        .finish(&[hidden_out, logits, k, v, valid.unwrap()])
+        .unwrap();
+    assert_eq!(plan.work_budget(), expanded.work_budget());
+    for input in [0, 2 * ONE] {
+        clear.insert("x0".into(), vec![input; seq * hidden]);
+        let (expected, expanded_trace) = native_drive(workers(expanded.clone(), &clear));
+        let owners = workers(expanded.clone(), &clear)
+            .map(|worker| layer::from_worker(plan.clone(), worker, None));
+        let (actual, body_trace) = run(owners, &plan);
+        assert_eq!(actual[0], vec![input as u64; seq * hidden]);
+        assert_eq!(actual[4], vec![u64::from(input == 0)]);
+        assert_eq!(actual.into_iter().flatten().collect::<Vec<_>>(), expected);
+        assert_eq!(body_trace, expanded_trace);
+    }
+    eprintln!(
+        "semantic layer {}",
+        serde_json::to_string(&crate::replicated_decoder::cost::semantic_body(&plan)).unwrap()
+    );
+}
+
+#[test]
+fn body_layer_nonzero_matrix_original_column_tiles_and_odd_tail() {
+    let (rows, inner, columns) = (2, 3, 129);
+    let bounds = Interval::new(ONE, ONE).unwrap();
+    let inputs = [
+        body::Register {
+            lanes: rows * inner,
+            bounds,
+        },
+        body::Register {
+            lanes: inner * columns,
+            bounds,
+        },
+    ];
+    let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+    let left = b.input(0).unwrap();
+    let right = b.input(1).unwrap();
+    let output = b
+        .dense_private(&left, &right, rows, inner, columns, true)
+        .unwrap();
+    let plan = b.finish(&[output]).unwrap();
+    let mut n = Builder::default();
+    let a = n
+        .push(Code::Input("x0".into()), rows * inner, bounds)
+        .unwrap();
+    let b = n
+        .push(Code::Input("x1".into()), inner * columns, bounds)
+        .unwrap();
+    let left = n.view(a, vec![1, rows, inner]);
+    let right = n.view(b, vec![columns, inner]);
+    let output = n.linear(&left, &right, true).unwrap();
+    let native = finish_expanded(n, 2, output.words.iter().collect());
+    assert_eq!(native.work_budget(), plan.work_budget());
+    let clear = BTreeMap::from([
+        ("x0".into(), vec![ONE; rows * inner]),
+        ("x1".into(), vec![ONE; inner * columns]),
+    ]);
+    let (expected, trace) = native_drive(workers(native.clone(), &clear));
+    let (actual, body_trace) = run(
+        workers(native, &clear).map(|w| layer::from_worker(plan.clone(), w, None)),
+        &plan,
+    );
+    assert_eq!(expected, vec![(3 * ONE) as u64; rows * columns]);
+    assert_eq!(actual[0], expected);
+    assert_eq!(trace, body_trace);
+}
+
+#[test]
+fn body_layer_retires_complete_registers_not_cumulative_expansion() {
+    let inputs = [
+        body::Register {
+            lanes: 1024,
+            bounds: Interval::new(-ONE, ONE).unwrap(),
+        },
+        body::Register {
+            lanes: 1024,
+            bounds: Interval::new(0, 0).unwrap(),
+        },
+    ];
+    let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+    let mut value = b.input(0).unwrap();
+    let zero = b.input(1).unwrap();
+    for _ in 0..100 {
+        value = b.binary(&value, &zero, false).unwrap();
+    }
+    let plan = b.finish(&[value]).unwrap();
+    assert_eq!(plan.resources().peak_live_secret_bytes, 3 * 1024 * 16);
+    let clear = BTreeMap::from([("x0".into(), vec![ONE; 1024]), ("x1".into(), vec![0; 1024])]);
+    let program = fixture(&plan, &inputs);
+    let (actual, _) = run(
+        workers(program, &clear).map(|w| layer::from_worker(plan.clone(), w, None)),
+        &plan,
+    );
+    assert_eq!(actual[0], vec![ONE as u64; 1024]);
+}
+
+#[test]
+fn body_layer_checked_rms_failure_and_tensor_cancellation_burn_owner() {
+    let inputs = [body::Register {
+        lanes: 8,
+        bounds: Interval::new(-4 * ONE, 4 * ONE).unwrap(),
+    }];
+    let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+    let x = b.input(0).unwrap();
+    let (output, valid) = b.rms(&x, 4, &[ONE; 4], Some(ONE), None).unwrap();
+    let first_row = output.slice(0, 4).unwrap();
+    let plan = b.finish(&[output, valid.unwrap()]).unwrap();
+    assert!(plan.complete_row(&first_row).unwrap().energy().is_some());
+    assert!(plan.complete_row(&first_row.slice(0, 3).unwrap()).is_none());
+    let clear = BTreeMap::from([("x0".into(), vec![2 * ONE; 8])]);
+    let program = fixture(&plan, &inputs);
+    let (actual, _) = run(
+        workers(program.clone(), &clear).map(|w| layer::from_worker(plan.clone(), w, None)),
+        &plan,
+    );
+    assert_eq!(actual, vec![vec![0u64; 8], vec![0]]);
+    let mut owners = workers(program, &clear).map(|w| layer::from_worker(plan.clone(), w, None));
+    for owner in &mut owners {
+        owner.advance().unwrap();
+        owner.cancel();
+        assert_eq!(owner.live_bytes(), 0);
+        assert_eq!(owner.advance().err(), Some(Error::Retired));
+    }
+    assert!(layer::Builder::new(WeightMode::Private, &inputs).is_err());
+}
+
+#[test]
+fn body_layer_public_transposed_nonzero_bias_and_exact_source_binding() {
+    let weight = vec![ONE, 0, ONE, 0, ONE, ONE];
+    let bias = vec![ONE, -ONE, 0];
+    let clear = BTreeMap::from([
+        ("w".into(), weight.clone()),
+        ("bias".into(), bias.clone()),
+        ("x0".into(), vec![ONE, 2 * ONE]),
+    ]);
+    let digest = |v: &[i64]| -> [u8; 32] {
+        let mut h = Sha256::new();
+        for x in v {
+            h.update(x.to_le_bytes());
+        }
+        h.finalize().into()
+    };
+    let mut n = Builder {
+        public_weights: true,
+        ..Builder::default()
+    };
+    let wb = Interval::new(0, ONE).unwrap();
+    let bb = Interval::new(-ONE, ONE).unwrap();
+    let xb = Interval::new(ONE, 2 * ONE).unwrap();
+    let w = n
+        .push(
+            Code::PublicInput {
+                key: "w".into(),
+                digest: digest(&weight),
+                row_l1: None,
+                row_squared_norm: None,
+                row_l1_squared_sum: None,
+            },
+            6,
+            wb,
+        )
+        .unwrap();
+    let bias_owner = n
+        .push(
+            Code::PublicInput {
+                key: "bias".into(),
+                digest: digest(&bias),
+                row_l1: None,
+                row_squared_norm: None,
+                row_l1_squared_sum: None,
+            },
+            3,
+            bb,
+        )
+        .unwrap();
+    let x = n.push(Code::Input("x0".into()), 2, xb).unwrap();
+    let x = n.view(x, vec![1, 1, 2]);
+    let product = n.public_matrix(&x, w, 3, true, true).unwrap();
+    let repeated = (0..3).map(|i| (bias_owner, i)).collect();
+    let output = n.binary(&product.words, &repeated, false).unwrap();
+    let native = finish_expanded(n, 3, output.iter().collect());
+    let make = |bad: bool| {
+        let mut b = layer::Builder::new(
+            WeightMode::Public,
+            &[body::Register {
+                lanes: 2,
+                bounds: xb,
+            }],
+        )
+        .unwrap();
+        let input = b.input(0).unwrap();
+        let source = layer::Source::new(
+            w,
+            "w".into(),
+            if bad { [99; 32] } else { digest(&weight) },
+            6,
+            wb,
+        )
+        .unwrap();
+        let out = b
+            .public_matrix(&input, source, 1, 2, 3, true, true)
+            .unwrap();
+        let source = layer::Source::new(bias_owner, "bias".into(), digest(&bias), 3, bb).unwrap();
+        let out = b.bias(&out, source, 3).unwrap();
+        b.finish(&[out]).unwrap()
+    };
+    let plan = make(false);
+    assert_eq!(plan.statistics().logical_public_file_read_bytes, 72);
+    assert_eq!(plan.statistics().public_bias_vector_reads, 1);
+    assert_eq!(plan.statistics().public_ring64_macs, 12);
+    let (expected, trace) = native_drive(workers(native.clone(), &clear));
+    let (actual, body_trace) = run(
+        workers(native.clone(), &clear).map(|w| layer::from_worker(plan.clone(), w, None)),
+        &plan,
+    );
+    assert_eq!(
+        expected,
+        vec![(2 * ONE) as u64, ONE as u64, (3 * ONE) as u64]
+    );
+    assert_eq!(actual[0], expected);
+    assert_eq!(trace, body_trace);
+    let bad = make(true);
+    for worker in workers(native, &clear) {
+        assert!(matches!(
+            layer::try_from_worker(bad.clone(), worker, None),
+            Err(Error::Binding)
+        ));
+    }
+}
+
+#[test]
+fn body_layer_malformed_tensor_frame_and_original_memory_ceiling_fail_closed() {
+    let inputs = [body::Register {
+        lanes: 2,
+        bounds: Interval::new(-ONE, ONE).unwrap(),
+    }];
+    let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+    let x = b.input(0).unwrap();
+    let output = b.attention_scale(&x, 2).unwrap();
+    let plan = b.finish(&[output]).unwrap();
+    let clear = BTreeMap::from([("x0".into(), vec![0; 2])]);
+    let program = fixture(&plan, &inputs);
+    for mut owner in workers(program, &clear).map(|w| layer::from_worker(plan.clone(), w, None)) {
+        owner.advance().unwrap();
+        assert!(owner.receive(b"invalid", puma::Party::P1).is_err());
+        assert_eq!(owner.live_bytes(), 0);
+        assert_eq!(owner.advance().err(), Some(Error::Retired));
+    }
+    let inputs = [body::Register {
+        lanes: MAX_VALUES,
+        bounds: Interval::new(-1, 1).unwrap(),
+    }; 4];
+    let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+    let x = b.input(0).unwrap();
+    let y = b.input(1).unwrap();
+    let output = b.binary(&x, &y, false).unwrap();
+    assert!(matches!(b.finish(&[output]), Err(Error::Bounds)));
+}
+
+#[test]
+fn body_layer_nonzero_causal_gqa_with_concatenated_previous_kv() {
+    let (heads, kv, seq, position, width) = (4usize, 2usize, 3usize, 2usize, 3usize);
+    let keys = position + seq;
+    for values in [false, true] {
+        let left_len = if values {
+            heads * seq * keys
+        } else {
+            heads * seq * width
+        };
+        let left: Vec<i64> = (0..left_len)
+            .map(|i| {
+                if values {
+                    ((i / keys + i % keys) % 5 + 1) as i64 * ONE
+                } else {
+                    ((i / width + i % width) % 5 + 1) as i64 * ONE
+                }
+            })
+            .collect();
+        let previous: Vec<i64> = (0..kv * position * width)
+            .map(|i| ((i / width + i % width) % 4 + 1) as i64 * ONE)
+            .collect();
+        let current: Vec<i64> = (0..kv * seq * width)
+            .map(|i| ((i / width + i % width) % 6 + 2) as i64 * ONE)
+            .collect();
+        let bound = Interval::new(0, 8 * ONE).unwrap();
+        let specs = [
+            body::Register {
+                lanes: left.len(),
+                bounds: bound,
+            },
+            body::Register {
+                lanes: previous.len(),
+                bounds: bound,
+            },
+            body::Register {
+                lanes: current.len(),
+                bounds: bound,
+            },
+        ];
+        let mut b = layer::Builder::new(WeightMode::Public, &specs).unwrap();
+        let a = b.input(0).unwrap();
+        let old = b.input(1).unwrap();
+        let new = b.input(2).unwrap();
+        let mut parts = Vec::new();
+        for head in 0..kv {
+            parts.push(
+                old.slice(head * position * width, position * width)
+                    .unwrap(),
+            );
+            parts.push(new.slice(head * seq * width, seq * width).unwrap());
+        }
+        let cache = layer::Layout::concat(&parts).unwrap();
+        let output = if values {
+            b.values(&a, &cache, heads, kv, seq, position, width)
+        } else {
+            b.scores(&a, &cache, heads, kv, seq, position, width)
+        }
+        .unwrap();
+        let plan = b.finish(&[output, cache]).unwrap();
+        let mut n = Builder::default();
+        let mut ids = Vec::new();
+        for (i, spec) in specs.iter().enumerate() {
+            ids.push(
+                n.push(Code::Input(format!("x{i}")), spec.lanes, bound)
+                    .unwrap(),
+            );
+        }
+        let mut cache = Words::new();
+        for head in 0..kv {
+            cache.extend(
+                (head * position * width..(head + 1) * position * width).map(|i| (ids[1], i)),
+            );
+            cache.extend((head * seq * width..(head + 1) * seq * width).map(|i| (ids[2], i)));
+        }
+        let mut output = Words::new();
+        let zero = n.constant(ids[0], 0).unwrap();
+        for head in 0..heads {
+            for row in 0..seq {
+                let valid = position + row + 1;
+                let key_head = head / (heads / kv);
+                let (left_words, right_words, columns, inner) = if values {
+                    (
+                        (0..valid)
+                            .map(|k| (ids[0], (head * seq + row) * keys + k))
+                            .collect(),
+                        (0..width)
+                            .flat_map(|d| {
+                                (0..valid).map({
+                                    let cache = &cache;
+                                    move |k| cache.at((key_head * keys + k) * width + d)
+                                })
+                            })
+                            .collect(),
+                        width,
+                        valid,
+                    )
+                } else {
+                    (
+                        (0..width)
+                            .map(|d| (ids[0], (head * seq + row) * width + d))
+                            .collect(),
+                        cache.slice(key_head * keys * width..(key_head * keys + valid) * width),
+                        valid,
+                        width,
+                    )
+                };
+                let a = View {
+                    words: left_words,
+                    shape: vec![1, inner],
+                };
+                let w = View {
+                    words: right_words,
+                    shape: vec![columns, inner],
+                };
+                output.extend(n.linear(&a, &w, true).unwrap().words);
+                if !values {
+                    output.extend(std::iter::repeat_n((zero, 0), keys - valid));
+                }
+            }
+        }
+        let native = finish_expanded(n, 3, output.iter().chain(cache.iter()).collect());
+        assert_eq!(native.work_budget(), plan.work_budget());
+        let clear = BTreeMap::from([
+            ("x0".into(), left),
+            ("x1".into(), previous),
+            ("x2".into(), current),
+        ]);
+        let (expected, trace) = native_drive(workers(native.clone(), &clear));
+        let (actual, body_trace) = run(
+            workers(native, &clear).map(|w| layer::from_worker(plan.clone(), w, None)),
+            &plan,
+        );
+        assert_eq!(actual.into_iter().flatten().collect::<Vec<_>>(), expected);
+        assert_eq!(trace, body_trace);
+    }
+}

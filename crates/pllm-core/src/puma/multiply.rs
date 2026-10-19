@@ -33,6 +33,9 @@ pub mod arithmetic;
 #[path = "tensor.rs"]
 pub mod tensor;
 
+#[path = "multiply_norm.rs"]
+pub mod norm;
+
 pub const PROFILE: &str = "puma.spu-a42c261.mul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
 pub const MATMUL_PROFILE: &str =
     "puma.spu-a42c261.matmul-aa-truncapr18.ring64.quarter-gap.replicated3.v1";
@@ -504,7 +507,10 @@ impl PartyRuntime {
                 if rescale {
                     arithmetic::rescaled_bounds(raw, FRACTION_BITS)?;
                 }
-                hash.update(b"native-tensor-correlated-product.v1");
+                hash.update(match product {
+                    Product::Elementwise => b"native-tensor-correlated-product.v1".as_slice(),
+                    Product::Matrix(_) => b"public-row-energy-matmul.v1".as_slice(),
+                });
                 hash.update(graph);
                 hash.update(raw.lower().to_le_bytes());
                 hash.update(raw.upper().to_le_bytes());
@@ -516,8 +522,8 @@ impl PartyRuntime {
             }
             for bound in bounds {
                 if certified.is_some() {
-                    // Complete native graph range proof replaces only the
-                    // independent-box product, not shape/work/owner admission.
+                    // A native graph or typed row-energy proof replaces only
+                    // the independent-box product, not shape/work/owner admission.
                 } else if rescale {
                     bound.dot_product(match product {
                         Product::Elementwise => 1,

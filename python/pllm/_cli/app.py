@@ -515,6 +515,12 @@ def build_parser() -> _Parser:
     benchmark_quality.add_argument("--memory-safety-margin-percent", type=int, default=25,
                                    help="allocation safety margin above expected peak (0-100; default 25; 0 disables margin)")
     benchmark_quality.add_argument("--output", type=Path, help="write the prompt-free JSON report")
+    benchmark_quality.add_argument("--outcomes", choices=("abort", "record"), default="abort",
+        help="abort with historical v1 semantics, or retain aligned v2 acceptance outcomes")
+    benchmark_quality.add_argument("--cohort-key-file", type=Path, help="32-byte private campaign key for record mode")
+    benchmark_quality.add_argument("--cohort-key-id", help="public campaign label for record mode")
+    benchmark_quality.add_argument("--continuations-file", type=Path,
+        help="bounded JSON frozen teacher token rows for record-mode decode")
     benchmark_quality.add_argument("--force", action="store_true", help="replace --output")
 
     dev = _command(commands, "dev", help="development tools")
@@ -1279,22 +1285,55 @@ def _benchmark_quality(
         ReferenceBenchmarkError,
         run_reference_benchmark,
     )
+    from pllm.runtime.quality_outcomes import QualityRunCancelled
+    record_mode = getattr(args, "outcomes", "abort") == "record"
+    extra = {}
+    if record_mode:
+        try:
+            with args.cohort_key_file.expanduser().open("rb") as source:
+                key = source.read(33)
+            extra = {"outcomes": "record", "cohort_key": key, "cohort_key_id": args.cohort_key_id}
+            if args.continuations_file is not None:
+                with args.continuations_file.expanduser().open("rb") as source:
+                    raw = source.read(32769)
+                if len(raw) > 32768:
+                    raise ValueError()
+                extra["continuations"] = json.loads(raw)
+                raw = None
+        except (OSError, ValueError, AttributeError, TypeError, RecursionError, OverflowError):
+            raise ResolutionError("QUALITY_COHORT", "record mode requires valid private cohort key and frozen continuations") from None
+    elif any(getattr(args, name, None) is not None for name in ("cohort_key_file", "cohort_key_id", "continuations_file")):
+        raise ResolutionError("QUALITY_COHORT", "cohort options require record mode")
 
+    cancelled_quality = False
     try:
         report = run_reference_benchmark(experiments, prompts, top_k=args.top_k,
                                           reference_storage=args.reference_storage,
                                           decode_steps=args.decode_steps,
-                                          memory_safety_margin_percent=args.memory_safety_margin_percent)
+                                          memory_safety_margin_percent=args.memory_safety_margin_percent, **extra)
+    except QualityRunCancelled as exc:
+        report, cancelled_quality = exc.report, True
     except BenchmarkMemoryError as exc:
+        if record_mode:
+            raise RuntimeFailure("QUALITY_MEMORY", "quality memory preflight rejected") from None
         raise RuntimeFailure("QUALITY_MEMORY", str(exc)) from exc
     except (ReferenceBenchmarkError, TypeError, ValueError) as exc:
+        if record_mode:
+            raise RuntimeFailure("QUALITY_FAILED", "quality preflight or report validation failed") from None
         raise RuntimeFailure("QUALITY_FAILED", str(exc)) from exc
+    finally:
+        extra.clear()
+        key = None
     if output is not None:
         mode = "w" if args.force else "x"
         try:
-            with output.open(mode, encoding="utf-8") as destination:
-                json.dump(report, destination, allow_nan=False, indent=2, sort_keys=True)
-                destination.write("\n")
+            if record_mode:
+                from pllm.runtime.quality_outcomes import write_report
+                write_report(report, output, force=args.force)
+            else:
+                with output.open(mode, encoding="utf-8") as destination:
+                    json.dump(report, destination, allow_nan=False, indent=2, sort_keys=True)
+                    destination.write("\n")
         except FileExistsError as exc:
             raise LocalIOError("OUTPUT_EXISTS", "output exists; use --force to replace it") from exc
         except OSError as exc:
@@ -1305,14 +1344,22 @@ def _benchmark_quality(
 
         for candidate in report["candidates"]:
             print(
-                f"{candidate['name']}: top-1 {candidate['top1_agreement']:.3f}, "
+                f"{candidate['name']}: top-1 {quality_value(candidate['top1_agreement'])}, "
                 f"top-{args.top_k} recall {quality_value(candidate['top_k_recall'])}, "
                 f"max logit error {quality_value(candidate['max_abs_logit_error'])}"
             )
+            if record_mode:
+                counts = candidate["all_positions"]["coverage"]
+                print(f"  Coverage: {counts['accepted']}/{counts['total']} accepted, "
+                      f"{counts['rejected']} rejected, {counts['failed']} failed")
+                if candidate["score_status"] != "complete":
+                    conditional = candidate["accepted_agreement"]
+                    print(f"  Accepted-only diagnostic: top-1 {quality_value(conditional['top1_agreement'])} "
+                          f"over {conditional['sample_count']} scored positions; not a complete-cohort score")
             if decode := candidate.get("same_token_decode"):
                 print(
                     f"  Same-token decode ({decode['sample_count']} positions): "
-                    f"top-1 {decode['top1_agreement']:.3f}, "
+                    f"top-1 {quality_value(decode['top1_agreement'])}, "
                     f"top-{args.top_k} recall {quality_value(decode['top_k_recall'])}, "
                     f"max logit error {quality_value(decode['max_abs_logit_error'])}"
                 )
@@ -1324,6 +1371,10 @@ def _benchmark_quality(
             {"report": report, "output": str(output) if output else None},
             output_format,
         )
+    if cancelled_quality:
+        raise KeyboardInterrupt()
+    if record_mode and report.get("terminal_state") == "execution_failed":
+        raise RuntimeFailure("QUALITY_EXECUTION_FAILED", "quality execution incomplete; sanitized outcomes retained")
 
 
 def _dev(args: argparse.Namespace, output_format: str, dry_run: bool) -> None:

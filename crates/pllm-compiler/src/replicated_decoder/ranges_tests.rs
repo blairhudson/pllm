@@ -39,6 +39,7 @@ fn recipe(builder: &Builder, input: &[i64]) -> Vec<Vec<i64>> {
                 right,
                 shape: None,
                 rescale: false,
+                ..
             } => values[*left]
                 .iter()
                 .zip(&values[*right])

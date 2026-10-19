@@ -29,6 +29,8 @@ pub struct Manifest {
     pub composition: [u8; 32],
     pub session: [u8; 32],
     pub tensors: BTreeMap<String, SourceTensor>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub norms: SourceNorms,
     pub program: [u8; 32],
 }
 
@@ -41,13 +43,14 @@ impl Manifest {
         {
             return Err("invalid replicated manifest identity".into());
         }
-        let mut program = Program::compile_with_policy(
+        let mut program = Program::compile_with_norms(
             &self.config,
             self.rows,
             self.outputs,
             &self.tensors,
             self.weights,
             self.execution,
+            &self.norms,
         )?;
         program.bind(self.source, self.composition);
         if program.digest() != self.program {
@@ -84,6 +87,8 @@ pub struct Publisher {
     row_square_sum: u128,
     row_squared_norm: u128,
     row_l1_squared_sum: u128,
+    norm_requests: BTreeMap<String, (usize, usize, usize)>,
+    norm_scan: Option<source_norms::BlockScan>,
 }
 
 impl Publisher {
@@ -138,6 +143,12 @@ impl Publisher {
                 .into_iter()
                 .collect();
         let plan = program::lower_with_weights(config, rows, outputs, weights)?;
+        let norm_requests = if execution.range_policy == RangePolicy::Checked {
+            source_norms::requests(&plan.prefill).map_err(|e| e.to_string())?
+        } else {
+            BTreeMap::new()
+        };
+        source_norms::requests_envelope(&norm_requests).map_err(|e| e.to_string())?;
         let public_coefficients: std::collections::BTreeSet<String> = plan
             .prefill
             .operations
@@ -177,6 +188,7 @@ impl Publisher {
                 composition,
                 session,
                 tensors: BTreeMap::new(),
+                norms: BTreeMap::new(),
                 program: [0; 32],
             },
             shapes,
@@ -196,6 +208,8 @@ impl Publisher {
             row_square_sum: 0,
             row_squared_norm: 0,
             row_l1_squared_sum: 0,
+            norm_requests,
+            norm_scan: None,
         })
     }
     pub fn shapes(&self) -> &[(String, Vec<usize>)] {
@@ -205,6 +219,7 @@ impl Publisher {
         self.retired = true;
         self.values.clear();
         self.program = None;
+        self.norm_scan = None;
     }
     fn checked<T>(&mut self, result: Result<T, String>) -> Result<T, String> {
         if result.is_err() {
@@ -228,8 +243,22 @@ impl Publisher {
             {
                 return Err("invalid ordered replicated source frame".into());
             }
+            if offset == 0 {
+                self.norm_scan = self
+                    .norm_requests
+                    .get(key)
+                    .map(|&(rows, columns, block_rows)| {
+                        source_norms::BlockScan::new(rows, columns, block_rows)
+                    })
+                    .transpose()
+                    .map_err(|e| e.to_string())?;
+            }
             for (i, raw) in data.chunks_exact(4).enumerate() {
                 let value = encode_q18(raw)?;
+                if let Some(scan) = &mut self.norm_scan {
+                    scan.append(offset + i, std::slice::from_ref(&value))
+                        .map_err(|e| e.to_string())?;
+                }
                 if !self.values[self.cursor].is_empty() {
                     self.values[self.cursor][offset + i] = value;
                 }
@@ -262,6 +291,13 @@ impl Publisher {
             self.offset += data.len() / 4;
             if self.offset == self.shapes[self.cursor].1.iter().product::<usize>() {
                 let (key, shape) = &self.shapes[self.cursor];
+                if let Some(scan) = self.norm_scan.take() {
+                    self.manifest
+                        .norms
+                        .insert(key.clone(), scan.finish().map_err(|e| e.to_string())?);
+                    source_norms::metadata_bytes(&self.manifest.norms)
+                        .map_err(|e| e.to_string())?;
+                }
                 self.manifest.tensors.insert(
                     key.clone(),
                     SourceTensor {
@@ -329,13 +365,14 @@ impl Publisher {
             if ids.iter().any(|v| u64::from(*v) >= vocabulary) {
                 return Err("replicated input ID outside vocabulary".into());
             }
-            let mut program = Program::compile_with_policy(
+            let mut program = Program::compile_with_norms(
                 &self.manifest.config,
                 self.manifest.rows,
                 self.manifest.outputs,
                 &self.manifest.tensors,
                 self.manifest.weights,
                 self.manifest.execution,
+                &self.manifest.norms,
             )?;
             program.bind(self.manifest.source, self.manifest.composition);
             self.manifest.program = program.digest();
@@ -413,7 +450,29 @@ impl Publisher {
         })();
         self.checked(result)
     }
-    pub fn finish(mut self, frames: [&[u8]; 3]) -> Result<Vec<u32>, String> {
+    pub fn finish(self, frames: [&[u8]; 3]) -> Result<Vec<u32>, String> {
+        match self.finish_outcome(frames)? {
+            FinalOutcome::Accepted(tokens) => Ok(tokens),
+            FinalOutcome::NumericRejected | FinalOutcome::MalformedAcceptance => {
+                Err("replicated request failed protected range checks".into())
+            }
+        }
+    }
+
+    /// None means only an authenticated, well-formed aggregate numeric rejection.
+    /// Malformed acceptance words/outputs remain errors, never numeric outcomes.
+    /// This consumes and retires the publisher on every path.
+    pub fn finish_numeric_outcome(self, frames: [&[u8]; 3]) -> Result<Option<Vec<u32>>, String> {
+        match self.finish_outcome(frames)? {
+            FinalOutcome::Accepted(tokens) => Ok(Some(tokens)),
+            FinalOutcome::NumericRejected => Ok(None),
+            FinalOutcome::MalformedAcceptance => {
+                Err("replicated final acceptance word or masked output malformed".into())
+            }
+        }
+    }
+
+    fn finish_outcome(mut self, frames: [&[u8]; 3]) -> Result<FinalOutcome, String> {
         if self.retired || self.program.is_none() || self.issued != self.values.len() {
             return Err("incomplete replicated transaction".into());
         }
@@ -434,8 +493,14 @@ impl Publisher {
                 *sum = sum.wrapping_add(u64::from_le_bytes(raw.try_into().unwrap()));
             }
         }
-        if checked && result.pop() != Some(1) {
-            return Err("replicated request failed protected range checks".into());
+        if checked {
+            match result.pop() {
+                Some(0) if result.iter().all(|word| *word == 0) => {
+                    return Ok(FinalOutcome::NumericRejected);
+                }
+                Some(1) => (),
+                _ => return Ok(FinalOutcome::MalformedAcceptance),
+            }
         }
         let config: serde_json::Value =
             serde_json::from_slice(&self.manifest.config).map_err(|_| "invalid source config")?;
@@ -446,12 +511,89 @@ impl Publisher {
             return Err("replicated final token range".into());
         }
         self.cancel();
-        Ok(result.iter().map(|v| *v as u32).collect())
+        Ok(FinalOutcome::Accepted(
+            result.iter().map(|v| *v as u32).collect(),
+        ))
     }
 }
+enum FinalOutcome {
+    Accepted(Vec<u32>),
+    NumericRejected,
+    MalformedAcceptance,
+}
+
 impl Drop for Publisher {
     fn drop(&mut self) {
         self.cancel();
+    }
+}
+
+#[cfg(test)]
+mod final_outcome_tests {
+    use super::*;
+
+    fn transaction(words: [u64; 2]) -> (Publisher, [Vec<u8>; 3]) {
+        let config = br#"{"model_type":"qwen2","hidden_size":2,"intermediate_size":2,"num_hidden_layers":1,"num_attention_heads":1,"num_key_value_heads":1,"head_dim":2,"vocab_size":3,"hidden_act":"silu","tie_word_embeddings":false,"attention_bias":true,"max_position_embeddings":16,"rope_theta":10000,"rms_norm_eps":0.000001}"#;
+        let policy = super::super::ExecutionPolicy {
+            range_policy: RangePolicy::Checked,
+            max_abs_activation: 1,
+            ..Default::default()
+        };
+        let mut publisher =
+            Publisher::new_with_policy(config, 1, 1, [1; 32], [2; 32], WeightMode::Public, policy)
+                .unwrap();
+        for (key, shape) in publisher.shapes().to_vec() {
+            let value = if key.contains("norm") { 1f32 } else { 0f32 };
+            let data: Vec<u8> = (0..shape.iter().product::<usize>())
+                .flat_map(|_| value.to_le_bytes())
+                .collect();
+            publisher.append(&key, 0, &data).unwrap();
+        }
+        publisher.seal(&[0]).unwrap();
+        // Parser-only unit: final frames are synthetic. End-to-end range failure
+        // remains covered by real protected executions in checked_acceptance_tests.
+        publisher.issued = publisher.values.len();
+        let frames = std::array::from_fn(|party| {
+            let mut frame = b"PUR1".to_vec();
+            frame.extend(publisher.manifest.session);
+            frame.extend(publisher.manifest.program);
+            frame.push(party as u8);
+            frame.extend(2u32.to_le_bytes());
+            for word in words {
+                frame.extend(if party == 0 { word } else { 0 }.to_le_bytes());
+            }
+            frame
+        });
+        (publisher, frames)
+    }
+
+    #[test]
+    fn only_well_formed_zero_acceptance_is_numeric_rejection() {
+        let (publisher, frames) = transaction([0, 0]);
+        assert_eq!(
+            publisher
+                .finish_numeric_outcome(frames.each_ref().map(Vec::as_slice))
+                .unwrap(),
+            None
+        );
+        let (publisher, frames) = transaction([0, 1]);
+        assert_eq!(
+            publisher
+                .finish_numeric_outcome(frames.each_ref().map(Vec::as_slice))
+                .unwrap(),
+            Some(vec![0])
+        );
+        for words in [[0, 2], [1, 0], [3, 1]] {
+            let (publisher, frames) = transaction(words);
+            assert!(publisher
+                .finish_numeric_outcome(frames.each_ref().map(Vec::as_slice))
+                .is_err());
+        }
+        let (publisher, mut frames) = transaction([0, 0]);
+        frames[0][4] ^= 1;
+        assert!(publisher
+            .finish_numeric_outcome(frames.each_ref().map(Vec::as_slice))
+            .is_err());
     }
 }
 

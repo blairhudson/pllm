@@ -5,11 +5,20 @@ pub(super) mod oracle_trace;
 use multiply::{Operand, PartyRuntime, Status};
 use puma::{Context, Message, MessagePhase, Operation, Party, ReplicatedShare};
 
+// A reusable execution unit, not yet a selectable whole-decoder policy. The
+// enclosing Body compiler must bind its digest and aggregate its complete work.
+#[allow(dead_code)]
+#[path = "body.rs"]
+pub(super) mod body;
+
 #[path = "lookup.rs"]
 pub(super) mod lookup;
 
 #[path = "selection.rs"]
 pub(super) mod selection;
+
+#[path = "trie.rs"]
+pub(super) mod trie;
 
 pub enum PeerBytes {
     Arithmetic(puma::wire::Encoded<Message>),
@@ -32,6 +41,7 @@ enum Active {
     Product(PartyRuntime),
     Tensor(tensor::Executor),
     Lookup(lookup::BulkLookup),
+    Trie(trie::TrieLookup),
     Selection(selection::StableArgmax),
     Retired,
 }
@@ -421,6 +431,28 @@ impl Worker {
                 self.retire_inputs();
                 Active::Idle(runtime)
             }
+            Active::Trie(mut lookup) => {
+                let Code::TrieLookup { weight, .. } = &self.program.nodes[self.step].code else {
+                    return Err(Error::Binding);
+                };
+                let Code::PublicInput { key, .. } = &self.program.nodes[*weight].code else {
+                    return Err(Error::Binding);
+                };
+                let file = self.public.as_ref().ok_or(Error::Binding)?.file(key)?;
+                lookup.finish_step(*weight, file)?;
+                if !lookup.complete() {
+                    let frames = lookup.start_step()?;
+                    self.active = Active::Trie(lookup);
+                    return Ok(frames);
+                }
+                let (runtime, output) = lookup.finish()?;
+                if output.first.len() != self.program.nodes[self.step].lanes {
+                    return Err(Error::Shape);
+                }
+                self.values[self.step] = Some(output);
+                self.retire_inputs();
+                Active::Idle(runtime)
+            }
             Active::Selection(mut selection) => {
                 selection.finish_step()?;
                 if !selection.complete() {
@@ -565,6 +597,42 @@ impl Worker {
                         return Ok(frames);
                     }
                 }
+                Code::TrieLookup {
+                    input,
+                    weight,
+                    plan,
+                } => {
+                    plan.validate_owners(*input, *weight, self.program.source_binding)?;
+                    if self.step.checked_sub(1) != Some(*input)
+                        || !matches!(self.program.nodes[*input].code, Code::Gather(_))
+                        || !self.program.retire[self.step].contains(input)
+                    {
+                        return Err(Error::Binding);
+                    }
+                    let Code::PublicInput { key, .. } = &self.program.nodes[*weight].code else {
+                        return Err(Error::Binding);
+                    };
+                    let file = self.public.as_ref().ok_or(Error::Binding)?.file(key)?;
+                    let context = Context::new(self.session, self.program.digest(), 0)?;
+                    let Active::Idle(runtime) =
+                        std::mem::replace(&mut self.active, Active::Retired)
+                    else {
+                        return Err(Error::Phase);
+                    };
+                    let tokens = self.values[*input].take().ok_or(Error::Binding)?;
+                    let mut lookup = trie::TrieLookup::new(
+                        runtime,
+                        tokens,
+                        plan.clone(),
+                        context,
+                        *input,
+                        *weight,
+                        file,
+                    )?;
+                    let frames = lookup.start_step()?;
+                    self.active = Active::Trie(lookup);
+                    return Ok(frames);
+                }
                 Code::PublicLookup { input, plan, .. } => {
                     let Active::Idle(runtime) =
                         std::mem::replace(&mut self.active, Active::Retired)
@@ -631,6 +699,7 @@ impl Worker {
                     right,
                     shape,
                     rescale,
+                    norm,
                 } => {
                     let Active::Idle(mut runtime) =
                         std::mem::replace(&mut self.active, Active::Retired)
@@ -641,11 +710,25 @@ impl Worker {
                         left: self.program.nodes[*left].bounds,
                         right: self.program.nodes[*right].bounds,
                     };
-                    let plan = match (shape, rescale) {
-                        (Some(shape), true) => runtime.plan_matmul(*shape, bounds)?,
-                        (Some(shape), false) => runtime.plan_ring_matmul(*shape, bounds)?,
-                        (None, true) => runtime.plan(&vec![bounds; node.lanes])?,
-                        (None, false) => runtime.plan_ring_product(&vec![bounds; node.lanes])?,
+                    let plan = if let Some(proof) = norm {
+                        if proof.input_bounds() != bounds {
+                            return Err(Error::Binding);
+                        }
+                        let shape = shape.ok_or(Error::Binding)?;
+                        if *rescale {
+                            runtime.plan_norm_matmul(shape, **proof)?
+                        } else {
+                            runtime.plan_ring_norm_matmul(shape, **proof)?
+                        }
+                    } else {
+                        match (shape, rescale) {
+                            (Some(shape), true) => runtime.plan_matmul(*shape, bounds)?,
+                            (Some(shape), false) => runtime.plan_ring_matmul(*shape, bounds)?,
+                            (None, true) => runtime.plan(&vec![bounds; node.lanes])?,
+                            (None, false) => {
+                                runtime.plan_ring_product(&vec![bounds; node.lanes])?
+                            }
+                        }
                     };
                     let a = self.values[*left].as_ref().ok_or(Error::Binding)?;
                     let b = self.values[*right].as_ref().ok_or(Error::Binding)?;
@@ -678,6 +761,7 @@ impl Worker {
             match &mut self.active {
                 Active::Tensor(executor) => tensor_frames(executor.receive_encoded(raw, sender)?),
                 Active::Lookup(bulk) => tensor_frames(bulk.receive_encoded(raw, sender)?),
+                Active::Trie(lookup) => lookup.receive_encoded(raw, sender),
                 Active::Selection(selection) => selection.receive_encoded(raw, sender),
                 Active::Product(runtime) => {
                     let message = Message::decode(raw, sender, self.party)?;

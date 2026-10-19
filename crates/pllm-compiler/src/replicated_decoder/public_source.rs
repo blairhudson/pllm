@@ -22,6 +22,8 @@ struct Pending {
     row_squared_norm: u128,
     row_l1_squared_sum: u128,
     binding: [u8; 32],
+    norms: SourceNorms,
+    norm_scan: Option<source_norms::BlockScan>,
 }
 
 /// Any invalid append consumes the incomplete source and closes its files.
@@ -53,6 +55,18 @@ impl PublicSourceImport {
         {
             return Err("public source shape commitments differ".into());
         }
+        if !manifest.norms.is_empty() && manifest.execution.range_policy != RangePolicy::Checked {
+            return Err("public source norms require checked execution".into());
+        }
+        let plan = program::lower_with_weights(
+            &manifest.config,
+            manifest.rows,
+            manifest.outputs,
+            manifest.weights,
+        )?;
+        source_norms::validate_set(&plan.prefill, &shapes, &manifest.norms)
+            .map_err(|e| e.to_string())?;
+        source_norms::import_envelope(&manifest.norms).map_err(|e| e.to_string())?;
         Ok(Self(Some(Pending {
             tensors: manifest
                 .tensors
@@ -69,7 +83,9 @@ impl PublicSourceImport {
             row_square_sum: 0,
             row_squared_norm: 0,
             row_l1_squared_sum: 0,
-            binding: program::source_binding(&manifest.tensors),
+            binding: program::source_binding_with_norms(&manifest.tensors, &manifest.norms),
+            norms: manifest.norms.clone(),
+            norm_scan: None,
         })))
     }
 
@@ -94,6 +110,17 @@ impl PublicSourceImport {
         if offset == 0 && tensor.public_q18.is_none() {
             pending.writer = Some(PublicFileWriter::new(count as u64 * 8, tensor.digest)?);
         }
+        if offset == 0 {
+            pending.norm_scan = pending
+                .norms
+                .get(key)
+                .map(|norms| {
+                    let (rows, columns, block_rows) = norms.geometry();
+                    source_norms::BlockScan::new(rows, columns, block_rows)
+                })
+                .transpose()
+                .map_err(|e| e.to_string())?;
+        }
         let mut encoded = vec_zero::<u8>(bytes.len() * 2).map_err(|e| e.to_string())?;
         for (i, (raw, out)) in bytes
             .chunks_exact(4)
@@ -101,6 +128,10 @@ impl PublicSourceImport {
             .enumerate()
         {
             let value = super::source::encode_q18(raw)?;
+            if let Some(scan) = &mut pending.norm_scan {
+                scan.append(offset + i, std::slice::from_ref(&value))
+                    .map_err(|e| e.to_string())?;
+            }
             if value < tensor.lower
                 || value > tensor.upper
                 || tensor
@@ -141,6 +172,12 @@ impl PublicSourceImport {
         }
         pending.offset += bytes.len() / 4;
         if pending.offset == count {
+            if let Some(scan) = pending.norm_scan.take() {
+                let actual = scan.finish().map_err(|e| e.to_string())?;
+                if pending.norms.get(key) != Some(&actual) {
+                    return Err("public source block norm certificate differs".into());
+                }
+            }
             if tensor.row_l1.is_some_and(|sum| sum != pending.row_l1)
                 || tensor
                     .row_squared_norm

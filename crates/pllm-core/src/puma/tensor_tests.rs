@@ -4,6 +4,9 @@ use crate::puma::prss::{fill, PrssLimits};
 
 const ONE: i64 = 1 << 18;
 
+#[path = "tensor_compact_tests.rs"]
+mod compact_tests;
+
 #[test]
 fn bounded_equality_derives_minimum_public_width_and_excludes_zero_aliases() {
     for (lo, hi, width) in [

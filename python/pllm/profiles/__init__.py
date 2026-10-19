@@ -454,7 +454,7 @@ class PumaThreePartyCpu(_TypedPipeline):
                   kernels: KernelBackend = _DEFAULT_KERNELS,
                   weights: Literal["private", "public"] = "private",
                   range_policy: Literal["static", "checked"] = "static", max_abs_activation: int = 256,
-                  lookup: Literal["per_token", "tiled"] = "per_token",
+                  lookup: Literal["per_token", "tiled", "trie"] = "per_token",
                   selection: Literal["expanded", "tiled"] = "expanded",
                   peer_transport: Literal["http", "streams"] = "http") -> None:
         selected = PumaThreePartyDecoder(weights=weights, range_policy=range_policy,

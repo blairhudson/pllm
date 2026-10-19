@@ -1,4 +1,4 @@
-from typing import Any, Never, final
+from typing import Any, Literal, Never, final
 
 def macos_host_memory() -> bytes: ...
 
@@ -488,11 +488,14 @@ def coded_delegation_projection(rows: int, columns: int, queries: int) -> str: .
 def coded_delegation_benchmark(rows: int, columns: int, queries: int, public_seed: bytes,
                                weights: bytes, inputs: bytes) -> tuple[bytes, str]: ...
 
+class NumericDomainRejected(ValueError):
+    """Well-formed aggregate numeric rejection; no output or failing site."""
+
 class ReplicatedPublisher:
     def __init__(self, config: bytes, rows: int, outputs: int,
                   source: bytes, composition: bytes, weights: str = "private", *,
                   range_policy: str = "static", max_abs_activation: int = 256,
-                  lookup: str = "per_token", selection: str = "expanded", peer_transport: str = "http") -> None: ...
+                  lookup: Literal["per_token", "tiled", "trie"] = "per_token", selection: str = "expanded", peer_transport: str = "http") -> None: ...
     @property
     def shapes(self) -> list[tuple[str, list[int]]]: ...
     def append(self, key: str, offset: int, data: bytes) -> None: ...

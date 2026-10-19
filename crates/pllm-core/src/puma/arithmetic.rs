@@ -12,6 +12,7 @@ pub const XOR_PROFILE: &str = "puma.spu-a42c261.local-xor.ring64.replicated3.v1"
 pub const BOOLEAN_MAP_PROFILE: &str = "puma.public-bit-linear-map.replicated3.v1";
 pub const ROW_MAP_PROFILE: &str = "puma.public-row-linear-map.replicated3.v1";
 pub const LANE_AFFINE_PROFILE: &str = "puma.public-lane-affine.replicated3.v1";
+pub const BOOLEAN_BIT_SLICE_PROFILE: &str = "puma.public-row-major-bit-slice.replicated3.v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RowMap {
@@ -589,3 +590,6 @@ impl PartyRuntime {
 #[cfg(test)]
 #[path = "arithmetic_tests.rs"]
 mod tests;
+
+#[path = "boolean_bit_slice.rs"]
+mod bit_slice;

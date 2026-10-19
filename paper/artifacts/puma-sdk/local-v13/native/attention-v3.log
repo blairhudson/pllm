@@ -1,0 +1,23 @@
+   Compiling pllm-core v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-core)
+   Compiling pllm-garble v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-garble)
+   Compiling pllm-compiler v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.34s
+     Running unittests src/lib.rs (target/debug/deps/pllm_compiler-102706cdd876eb14)
+
+running 7 tests
+test attention_tiling::tests::binds_schedule_geometry_and_optional_mlp_regions ... ok
+test attention_tiling::tests::rejects_external_consumers_numeric_changes_and_state_roots ... ok
+test replicated_decoder::program::attention_energy::tests::attention_energy_requires_complete_ordered_rows_without_general_norm_side_effects ... ok
+test replicated_decoder::program::attention_energy::tests::attention_norm_admits_complete_dots_and_preserves_integer_oracle_and_work ... ok
+test replicated_decoder::program::attention_energy::tests::checked_public_source_norms_are_recomputed_and_source_bound ... ok
+test replicated_decoder::runtime::oracle_trace::native_certified_attention_complete_tensor_oracle ... ORACLE_CASE {"checkpoints":189,"family":"qwen2","head_dim":18,"heads":4,"hidden":72,"intermediate":131,"kv_heads":2,"layers":2,"lookup_tiled":true,"mode":"checked_valid","negative_controls":{"cursor_order":1,"final_response_mutation":1,"guard_tile_sticky_mutation":1,"missing_frame":1,"missing_trace":1,"rounding_shift":1,"tensor_mutation":1,"wrong_kv_group_routing":16},"selection_tiled":true,"truncation_invocations":1176,"vocab":5}
+ORACLE_CASE {"checkpoints":189,"family":"qwen2","head_dim":18,"heads":4,"hidden":72,"intermediate":131,"kv_heads":2,"layers":2,"lookup_tiled":true,"mode":"checked_invalid","negative_controls":{"cursor_order":1,"final_response_mutation":1,"guard_tile_sticky_mutation":1,"missing_frame":1,"missing_trace":1,"rounding_shift":1,"tensor_mutation":1,"wrong_kv_group_routing":16},"selection_tiled":true,"truncation_invocations":1176,"vocab":5}
+ORACLE_CASE {"checkpoints":197,"family":"qwen3","head_dim":18,"heads":4,"hidden":72,"intermediate":131,"kv_heads":2,"layers":2,"lookup_tiled":true,"mode":"checked_valid","negative_controls":{"cursor_order":1,"final_response_mutation":1,"guard_tile_sticky_mutation":1,"missing_frame":1,"missing_trace":1,"rounding_shift":1,"tensor_mutation":1,"wrong_kv_group_routing":16},"selection_tiled":true,"truncation_invocations":1776,"vocab":5}
+ORACLE_CASE {"checkpoints":197,"family":"qwen3","head_dim":18,"heads":4,"hidden":72,"intermediate":131,"kv_heads":2,"layers":2,"lookup_tiled":true,"mode":"checked_invalid","negative_controls":{"cursor_order":1,"final_response_mutation":1,"guard_tile_sticky_mutation":1,"missing_frame":1,"missing_trace":1,"rounding_shift":1,"tensor_mutation":1,"wrong_kv_group_routing":16},"selection_tiled":true,"truncation_invocations":1776,"vocab":5}
+ORACLE_CASE {"checkpoints":189,"family":"llama","head_dim":18,"heads":4,"hidden":72,"intermediate":131,"kv_heads":2,"layers":2,"lookup_tiled":true,"mode":"checked_valid","negative_controls":{"cursor_order":1,"final_response_mutation":1,"guard_tile_sticky_mutation":1,"missing_frame":1,"missing_trace":1,"rounding_shift":1,"tensor_mutation":1,"wrong_kv_group_routing":16},"selection_tiled":true,"truncation_invocations":1176,"vocab":5}
+ORACLE_CASE {"checkpoints":189,"family":"llama","head_dim":18,"heads":4,"hidden":72,"intermediate":131,"kv_heads":2,"layers":2,"lookup_tiled":true,"mode":"checked_invalid","negative_controls":{"cursor_order":1,"final_response_mutation":1,"guard_tile_sticky_mutation":1,"missing_frame":1,"missing_trace":1,"rounding_shift":1,"tensor_mutation":1,"wrong_kv_group_routing":16},"selection_tiled":true,"truncation_invocations":1176,"vocab":5}
+ok
+test replicated_decoder::tests::nonzero_attention_and_mlp_preserve_private_prefix_dependence ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 155 filtered out; finished in 109.98s
+

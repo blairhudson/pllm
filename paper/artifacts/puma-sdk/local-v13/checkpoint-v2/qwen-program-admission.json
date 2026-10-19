@@ -1,0 +1,115 @@
+{
+  "checkpoint": "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd",
+  "elapsed_seconds": 12.711024208925664,
+  "error_type": "ValueError",
+  "execution_policy": {
+    "lookup": "trie",
+    "max_abs_activation": 256,
+    "peer_transport": "streams",
+    "range_policy": "checked",
+    "selection": "tiled"
+  },
+  "host_after": {
+    "availability_source": "macos_mach_dispatch_v2",
+    "available": 16507060224,
+    "cached": 4990828544,
+    "disk_free": 33139519488,
+    "free": 149667840,
+    "pressure": "normal",
+    "purgeable": 286228480,
+    "reusable": 11366563840,
+    "swap_used": 3022323712,
+    "total": 34359738368
+  },
+  "max_swap_used_growth_bytes": 0,
+  "memory_preflight": {
+    "admitted": true,
+    "candidates": {
+      "docker": {
+        "admitted": false,
+        "docker": null,
+        "expected_peak_bytes": 1904214016,
+        "reasons": [
+          "selected runtime requires native role owners; Docker is not admitted",
+          "Docker memory capacity is unavailable"
+        ],
+        "required_disk_bytes": 14004270080,
+        "required_host_bytes": 2380267520,
+        "safety_margin_bytes": 476053504
+      },
+      "native": {
+        "admitted": true,
+        "docker": null,
+        "expected_peak_bytes": 1904214016,
+        "reasons": [],
+        "required_disk_bytes": 14004270080,
+        "required_host_bytes": 2380267520,
+        "safety_margin_bytes": 476053504
+      }
+    },
+    "enforced_wan": false,
+    "estimate": {
+      "allocation_slack_percent": 25,
+      "bundle_storage": "trusted client source publication",
+      "client_peak_bytes": 587202560,
+      "compiled_input_bound": 4,
+      "components": {
+        "checkpoint_bytes": 988097824,
+        "peer_stream_workspace_bytes_per_worker": 8388608,
+        "per_engine_compiled_disk_bytes": 3952262144,
+        "public_weight_read_buffer_bytes": 65536,
+        "raw_client_bundle_bytes": 0,
+        "source_float32_bytes": 1976131072
+      },
+      "concurrent_response_bound": 1,
+      "docker_provider_peak_bytes": {},
+      "inventory_rows": 0,
+      "kernel": "cpu",
+      "limitations": [],
+      "mask_storage": "party-local pairwise PRSS",
+      "max_input_tokens": 4,
+      "max_output_tokens": 2,
+      "model_config_digest": "c3f15d3ec0180623ac2f54236c022490dd79bc6a00b5fbc4a1ffd038a43f7668",
+      "model_plan_digest": null,
+      "native_total_peak_bytes": 2380267520,
+      "pipeline_digest": "61d39a1413518a650ae9bbaab0893ad38d3141c50262e751eb7fe0bed08f9073",
+      "preparation_kernel": "none",
+      "preparation_storage": "none",
+      "provider_peak_bytes": {
+        "worker_a": 597688320,
+        "worker_b": 597688320,
+        "worker_c": 597688320
+      },
+      "runtime_kind": "replicated",
+      "scope": "conservative allocation estimate; not measured peak RSS",
+      "tensor_storage": "party-local recomputed prefix, KV and Q18 activations",
+      "weight_storage": "verified file-backed public Q18 weights"
+    },
+    "host": {
+      "admission_budget_bytes": 16525803520,
+      "availability_source": "macos_mach_dispatch_v2",
+      "available": 16525803520,
+      "cached": 5058248704,
+      "disk_free": 33136783360,
+      "free": 115490816,
+      "pressure": "normal",
+      "purgeable": 283623424,
+      "reserve_bytes": 0,
+      "reusable": 11352064000,
+      "swap_used": 3022323712,
+      "total": 34359738368
+    },
+    "requested_backend": "native",
+    "runtime_floor_bytes": 476053504,
+    "schema": "pllm.benchmark_memory.v1",
+    "selected_backend": "native"
+  },
+  "process_cpu_seconds": 12.702264000000001,
+  "process_peak_rss_bytes": 275529728,
+  "reason": "replicated decoder admission: PUMA truncation rejected: Bounds; public context selection: 0, step: Some(190), operator: Some(RmsNorm), layer: Some(6), inputs: [Some((-31289011493243, 31289011484027)), None]",
+  "scope": "ordinary SDK source publisher; four fixed public zero IDs; no role workers or online execution; process peak includes validation launcher",
+  "source_lock": "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29",
+  "status": "rejected",
+  "watchdog_error": null,
+  "wheel_sha256": "4e4541d526da6413282a8622407e605d8dd6faed36d13b56351883287206fc64"
+}

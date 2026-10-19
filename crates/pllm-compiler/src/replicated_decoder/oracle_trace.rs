@@ -489,6 +489,7 @@ fn truncation(worker: &Worker, frame: &PeerBytes) -> Option<serde_json::Value> {
 fn make_workers(
     program: Arc<Program>,
     clear: &BTreeMap<String, Vec<i64>>,
+    manifest: Option<&Manifest>,
 ) -> ([Worker; 3], zeroize::Zeroizing<[[u8; 16]; 3]>, u128) {
     use puma::prss::{PublicContribution, SeedMessage};
     let parties = [Party::P0, Party::P1, Party::P2];
@@ -529,11 +530,30 @@ fn make_workers(
             .unwrap();
     }
     let mut workers = std::array::from_fn(|i| {
+        let source = if let Some(manifest) = manifest {
+            // Exercise the same coefficient conversion, ordered streaming,
+            // source hashes and statistics recomputation as a real worker.
+            let mut importer = PublicSourceImport::new(manifest).unwrap();
+            for key in manifest.tensors.keys() {
+                for (chunk, values) in clear[key].chunks(113).enumerate() {
+                    let mut bytes = Vec::new();
+                    for &value in values {
+                        let raw = ((value as f64 / ONE as f64) as f32).to_le_bytes();
+                        assert_eq!(super::super::source::encode_q18(&raw).unwrap(), value);
+                        bytes.extend_from_slice(&raw);
+                    }
+                    importer.append(key, chunk * 113, &bytes).unwrap();
+                }
+            }
+            Some(importer.finish().unwrap())
+        } else {
+            PublicSource::test_values(&program, clear)
+        };
         Worker::new_with_source(
             program.clone(),
             setups[i].finish().unwrap(),
             [42; 32],
-            PublicSource::test_values(&program, clear),
+            source,
         )
         .unwrap()
     });
@@ -561,13 +581,38 @@ fn make_workers(
     (workers, keys, public_seed)
 }
 
+type Fixture = (
+    Arc<Program>,
+    BTreeMap<String, Vec<i64>>,
+    serde_json::Value,
+    Option<Manifest>,
+);
+
 fn generated(
     family: &str,
     mode: &str,
     tiled_lookup: bool,
     tiled_selection: bool,
     intermediate: usize,
-) -> Result<(Arc<Program>, BTreeMap<String, Vec<i64>>, serde_json::Value), String> {
+) -> Result<Fixture, String> {
+    generated_with_norms(
+        family,
+        mode,
+        tiled_lookup,
+        tiled_selection,
+        intermediate,
+        false,
+    )
+}
+
+fn generated_with_norms(
+    family: &str,
+    mode: &str,
+    tiled_lookup: bool,
+    tiled_selection: bool,
+    intermediate: usize,
+    certified: bool,
+) -> Result<Fixture, String> {
     let wide = matches!(intermediate, 131 | 133);
     let full_vocab = intermediate == 132;
     let hidden = if intermediate == 133 {
@@ -731,18 +776,63 @@ fn generated(
         },
         ..ExecutionPolicy::default()
     };
-    Ok((
-        Arc::new(Program::compile_with_policy(
-            &raw,
-            2,
-            2,
-            &sources,
-            WeightMode::Public,
-            policy,
-        )?),
-        clear,
-        config,
-    ))
+    let mut norms = SourceNorms::new();
+    if certified {
+        let plan = super::super::program::lower_with_weights(&raw, 2, 2, WeightMode::Public)?;
+        for (key, (rows, columns, block_rows)) in
+            super::super::source_norms::requests(&plan.prefill).map_err(|e| e.to_string())?
+        {
+            let mut scan = super::super::source_norms::BlockScan::new(rows, columns, block_rows)
+                .map_err(|e| e.to_string())?;
+            for (offset, values) in clear[&key].chunks(17).enumerate() {
+                scan.append(offset * 17, values)
+                    .map_err(|e| e.to_string())?;
+            }
+            norms.insert(key, scan.finish().map_err(|e| e.to_string())?);
+        }
+    }
+    let mut program =
+        Program::compile_with_norms(&raw, 2, 2, &sources, WeightMode::Public, policy, &norms)?;
+    if certified {
+        assert!(!norms.is_empty());
+        assert!(program
+            .nodes
+            .iter()
+            .any(|node| matches!(node.code, Code::Product { norm: Some(_), .. })));
+    }
+    let manifest = if certified {
+        program.bind([11; 32], [12; 32]);
+        Some(Manifest {
+            schema: "pllm.replicated-decoder.manifest.v1".into(),
+            weights: WeightMode::Public,
+            execution: policy,
+            config: raw,
+            rows: 2,
+            outputs: 2,
+            source: [11; 32],
+            composition: [12; 32],
+            session: [42; 32],
+            tensors: sources,
+            norms,
+            program: program.digest(),
+        })
+    } else {
+        None
+    };
+    Ok((Arc::new(program), clear, config, manifest))
+}
+
+#[test]
+fn native_certified_attention_complete_tensor_oracle() {
+    for family in ["qwen2", "qwen3", "llama"] {
+        for mode in ["checked_valid", "checked_invalid"] {
+            let _session = Session::start();
+            // Distinct two-layer GQA weights; 18-wide heads and 131-wide MLP
+            // include partial guard/activation tiles and every causal key.
+            let fixture = generated_with_norms(family, mode, true, true, 131, true).unwrap();
+            audit_fixture(fixture, mode, true, true);
+        }
+    }
 }
 
 fn audit_case(
@@ -757,20 +847,15 @@ fn audit_case(
     audit_fixture(fixture, mode, tiled_lookup, tiled_selection);
 }
 
-fn audit_fixture(
-    fixture: (Arc<Program>, BTreeMap<String, Vec<i64>>, serde_json::Value),
-    mode: &str,
-    tiled_lookup: bool,
-    tiled_selection: bool,
-) {
-    let (program, clear, config) = fixture;
+fn audit_fixture(fixture: Fixture, mode: &str, tiled_lookup: bool, tiled_selection: bool) {
+    let (program, clear, config, manifest) = fixture;
     CAPTURE.with(|slot| {
         assert!(
             !slot.borrow().boundaries.is_empty(),
             "semantic compile hook missing"
         )
     });
-    let (mut workers, keys, public_seed) = make_workers(program, &clear);
+    let (mut workers, keys, public_seed) = make_workers(program, &clear, manifest.as_ref());
     let mut queue: Vec<(Party, Party, PeerBytes)> = Vec::new();
     let mut records = Vec::new();
     let mut record_words = 0;

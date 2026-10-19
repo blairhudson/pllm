@@ -74,7 +74,7 @@ impl WorkBudget {
         PrssLimits::program(self.operations.max(1), self.aes_blocks)
     }
 
-    pub(super) const fn local() -> Self {
+    pub const fn local() -> Self {
         Self {
             operations: 1,
             public_blocks: 0,
@@ -146,7 +146,25 @@ impl WorkBudget {
         })
     }
 
-    pub(super) fn from_boolean(lanes: usize, bits: u8) -> Result<Self, Error> {
+    /// Exact shrinking-carry schedule for an explicitly proved signed bucket.
+    pub fn conversion_signed_compact(lanes: usize, bits: u8) -> Result<Self, Error> {
+        if ![8, 16, 32, 64].contains(&bits) {
+            return Err(Error::Bounds);
+        }
+        let doubled = lanes.checked_mul(2).ok_or(Error::Bounds)?;
+        blocks(doubled, 8)?;
+        let mut pairs = 2 * blocks(lanes, backing(bits)?)?;
+        for round in 1..=bits.ilog2() {
+            pairs += blocks(doubled, backing(bits >> round)?)?;
+        }
+        Ok(Self {
+            pair_blocks: pairs,
+            aes_blocks: 2 * pairs,
+            ..Self::local()
+        })
+    }
+
+    pub fn from_boolean(lanes: usize, bits: u8) -> Result<Self, Error> {
         blocks(lanes, 8)?;
         match bits {
             0 => Ok(Self::local()),

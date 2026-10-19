@@ -13,6 +13,7 @@ use crate::puma::*;
 use sha2::{Digest, Sha256};
 
 pub const PROFILE: &str = "puma.spu-a42c261.a2b-msb.ring64.replicated3.v1";
+pub const COMPACT_MSB_PROFILE: &str = "puma.signed-bucket-msb.compact.replicated3.v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -23,12 +24,15 @@ pub enum Kind {
     /// This separate contract projects both XOR components to nominal width;
     /// fresh typed PRSS still consumes every charged backing-type AES block.
     LowBits(u8),
+    /// Sign bit in a publicly proved signed bucket; not a membership check.
+    /// Only native widths 8/16/32/64 are supported by the shrinking circuit.
+    CompactMostSignificantBit(u8),
 }
 
 impl Kind {
     fn width(self) -> u8 {
         match self {
-            Self::LowBits(bits) => bits,
+            Self::LowBits(bits) | Self::CompactMostSignificantBit(bits) => bits,
             _ => 64,
         }
     }
@@ -36,8 +40,20 @@ impl Kind {
     fn rounds(self) -> u8 {
         match self {
             Self::LowBits(bits) => (u8::BITS - (bits - 1).leading_zeros()) as u8,
+            Self::CompactMostSignificantBit(bits) => bits.ilog2() as u8,
             _ => 6,
         }
+    }
+
+    fn sign(self) -> bool {
+        matches!(
+            self,
+            Self::MostSignificantBit | Self::CompactMostSignificantBit(_)
+        )
+    }
+
+    fn compact(self) -> bool {
+        matches!(self, Self::LowBits(_) | Self::CompactMostSignificantBit(_))
     }
 }
 
@@ -116,7 +132,7 @@ impl Plan {
             start,
             self.limits,
         )?;
-        Ok(if matches!(self.kind, Kind::LowBits(_)) {
+        Ok(if self.kind.compact() {
             plan.compact()
         } else {
             plan
@@ -153,6 +169,7 @@ impl Plan {
         let bits = match self.kind {
             Kind::Bits => 64,
             Kind::MostSignificantBit => 64 >> round,
+            Kind::CompactMostSignificantBit(bits) => bits >> round,
             Kind::LowBits(bits) => bits,
         };
         (2 * self.lanes(), bits)
@@ -304,6 +321,10 @@ impl PartyRuntime {
             if matches!(kind, Kind::LowBits(bits) if !(1..=64).contains(&bits)) {
                 return Err(Error::Bounds);
             }
+            if matches!(kind, Kind::CompactMostSignificantBit(bits) if ![8, 16, 32, 64].contains(&bits))
+            {
+                return Err(Error::Bounds);
+            }
             limits.admit(lanes.checked_mul(2).ok_or(Error::Bounds)?)?;
             // Prices state, both vmapped operands, expansion and ALL original
             // outgoing frames if the caller retains them until completion.
@@ -322,6 +343,7 @@ impl PartyRuntime {
                 let bits = match kind {
                     Kind::Bits => 64,
                     Kind::MostSignificantBit => 64 >> round,
+                    Kind::CompactMostSignificantBit(bits) => bits >> round,
                     Kind::LowBits(bits) => bits,
                 };
                 count += typed_blocks(2 * lanes, backing(bits))?;
@@ -343,6 +365,10 @@ impl PartyRuntime {
             match kind {
                 Kind::Bits => hash.update([0]),
                 Kind::MostSignificantBit => hash.update([1]),
+                Kind::CompactMostSignificantBit(bits) => {
+                    hash.update([3, bits]);
+                    hash.update(COMPACT_MSB_PROFILE.as_bytes());
+                }
                 Kind::LowBits(bits) => {
                     hash.update([2, bits]);
                     hash.update(b"nominal-xor-domain.compact-wire.v1");
@@ -437,8 +463,8 @@ impl PartyRuntime {
                 first[i] ^= input.first[i].wrapping_add(input.second[i])
                     & (u64::MAX >> (64 - plan.kind.width()));
             }
-            if let Kind::LowBits(bits) = plan.kind {
-                first[i] &= u64::MAX >> (64 - bits);
+            if plan.kind.compact() {
+                first[i] &= u64::MAX >> (64 - plan.kind.width());
             }
             // Reduction of every additive component is a ring homomorphism;
             // never reinterpret or independently truncate a signed share.
@@ -487,8 +513,8 @@ impl PartyRuntime {
                     self.party(),
                     MessagePhase::ArithmeticToBoolean,
                 )?;
-                let mask = if let Kind::LowBits(bits) = plan.kind {
-                    u64::MAX >> (64 - bits)
+                let mask = if plan.kind.compact() {
+                    u64::MAX >> (64 - plan.kind.width())
                 } else {
                     u64::MAX >> (64 - 8 * backing(plan.kind.width()))
                 };
@@ -547,7 +573,7 @@ pub(super) fn start(
         &usage,
         plan.operation,
         source.party(),
-        if plan.kind == Kind::MostSignificantBit {
+        if plan.kind.sign() {
             1
         } else {
             plan.kind.width()
@@ -557,10 +583,10 @@ pub(super) fn start(
         for i in 0..plan.lanes() {
             let xor = component(&left, second)[i] ^ component(&right, second)[i];
             component_mut(&mut propagate, second)[i] = xor;
-            component_mut(&mut initial, second)[i] = if plan.kind != Kind::MostSignificantBit {
+            component_mut(&mut initial, second)[i] = if !plan.kind.sign() {
                 xor
             } else {
-                xor >> 63
+                xor >> (plan.kind.width() - 1)
             };
         }
     }
@@ -613,13 +639,13 @@ pub(super) fn advance(
         for second in [false, true] {
             for i in 0..n {
                 let carry = component(&generate, second)[i];
-                component_mut(&mut initial, second)[i] ^= if plan.kind != Kind::MostSignificantBit {
-                    carry << 1
-                } else {
-                    carry
-                };
+                component_mut(&mut initial, second)[i] ^=
+                    if !plan.kind.sign() { carry << 1 } else { carry };
                 if let Kind::LowBits(bits) = plan.kind {
                     component_mut(&mut initial, second)[i] &= u64::MAX >> (64 - bits);
+                }
+                if matches!(plan.kind, Kind::CompactMostSignificantBit(_)) {
+                    component_mut(&mut initial, second)[i] &= 1;
                 }
             }
         }
@@ -647,7 +673,7 @@ pub(super) fn advance(
         for i in 0..n {
             let mut p = component(&propagate, second)[i];
             let mut g = component(&generate, second)[i];
-            if plan.kind != Kind::MostSignificantBit {
+            if !plan.kind.sign() {
                 let shift = 1_u32 << round;
                 component_mut(&mut left, second)[i] = p;
                 component_mut(&mut left, second)[n + i] = p;

@@ -1,0 +1,12 @@
+{
+  "path": "target/puma-trie-norm-validation-v1/run_installed.py",
+  "sha256": "5c41a0c159d5bf37a131b2c31d2ad3598fb8aac936ded1b4acc9f53613d0f45f",
+  "build": "target/puma-trie-norm-build-v2",
+  "tests": [
+    "tests/test_replicated_public_weights.py",
+    "tests/test_replicated_policy_sdk.py",
+    "tests/test_replicated_trie_sdk.py",
+    "tests/test_replicated_worker.py",
+    "tests/test_quality_outcomes_sdk.py"
+  ]
+}

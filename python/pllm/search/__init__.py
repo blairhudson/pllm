@@ -455,7 +455,14 @@ class QualityLockedNetworkSearch:
     ) -> dict[str, Any]:
         from pllm.model_loader import expected_model_id
 
-        if quality_report.get("schema_version") != "pllm.reference_quality_benchmark.v1":
+        version = quality_report.get("schema_version")
+        if version == "pllm.reference_quality_benchmark.v2":
+            from pllm.runtime.quality_outcomes import require_complete_for_ranking
+            try:
+                require_complete_for_ranking(quality_report)
+            except (ValueError, TypeError, KeyError) as error:
+                raise SearchError("quality report requires complete accepted coverage") from error
+        elif version != "pllm.reference_quality_benchmark.v1":
             raise SearchError("quality report must be a versioned executed reference cohort")
         if quality_report.get("scope") != "local-compiled-clear-kernel-prefill-reference":
             raise SearchError("quality report has unsupported execution scope")

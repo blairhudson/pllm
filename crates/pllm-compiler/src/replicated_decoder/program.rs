@@ -7,12 +7,18 @@ use std::collections::BTreeMap;
 #[path = "linear_tests.rs"]
 mod linear_tests;
 
+#[cfg(test)]
+#[path = "body_tests.rs"]
+mod body_tests;
+
 #[path = "ranges.rs"]
 mod ranges;
 #[cfg(test)]
 #[path = "ranges_tests.rs"]
 mod ranges_tests;
 
+#[path = "attention_energy.rs"]
+mod attention_energy;
 #[path = "lookup_builder.rs"]
 mod lookup_builder;
 #[cfg(test)]
@@ -21,6 +27,9 @@ mod lookup_integration_tests;
 #[cfg(test)]
 #[path = "selection_integration_tests.rs"]
 mod selection_integration_tests;
+#[cfg(test)]
+#[path = "trie_integration_tests.rs"]
+mod trie_integration_tests;
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -77,6 +86,21 @@ pub(super) fn source_binding(sources: &BTreeMap<String, SourceTensor>) -> [u8; 3
             h.update(sum.to_le_bytes());
         }
     }
+    h.finalize().into()
+}
+
+pub(super) fn source_binding_with_norms(
+    sources: &BTreeMap<String, SourceTensor>,
+    norms: &SourceNorms,
+) -> [u8; 32] {
+    let original = source_binding(sources);
+    if norms.is_empty() {
+        return original;
+    }
+    let mut h = Sha256::new();
+    h.update(b"pllm.replicated-decoder.norm-certified-source.v1");
+    h.update(original);
+    h.update(source_norms::digest(norms));
     h.finalize().into()
 }
 
@@ -244,9 +268,13 @@ struct Builder {
     validity: Option<usize>,
     lookup: policy::LookupPolicy,
     selection: SelectionPolicy,
+    token_domains: BTreeMap<(usize, usize), (usize, runtime::trie::DomainOrigin)>,
+    token_source_binding: [u8; 32],
     row_norms: Vec<(usize, u128)>,
     row_energies: Vec<(Words, u128)>,
     row_masses: Vec<(usize, u64)>,
+    public_norms: BTreeMap<usize, BlockNorms>,
+    attention_energies: Vec<(Words, u128)>,
 }
 
 fn construction_views(graph: &DecoderGraph, sources: usize) -> Result<(), String> {
@@ -306,6 +334,10 @@ impl Builder {
             return Err(Error::Bounds);
         }
         let metadata = match &code {
+            Code::Product { norm: Some(_), .. } => {
+                std::mem::size_of::<puma::multiply::norm::RowEnergyProof>()
+                    + 2 * std::mem::size_of::<usize>()
+            }
             Code::Gather(v) => v.metadata_bytes(),
             Code::Tensor { program, .. } if !self.tensors.contains_key(&program.digest()) => {
                 // One conservative complete primitive allowance per immutable
@@ -354,6 +386,41 @@ impl Builder {
                 let extra = workspace.saturating_sub(self.workspace_bytes);
                 self.workspace_bytes = self.workspace_bytes.max(workspace);
                 retained.checked_add(extra).ok_or(Error::Bounds)?
+            }
+            Code::TrieLookup {
+                input,
+                weight,
+                plan,
+            } => {
+                let (rows, _, width) = plan.geometry();
+                plan.validate_owners(*input, *weight, self.token_source_binding)?;
+                if !self.public_weights
+                    || !matches!(
+                        self.nodes.get(*weight).map(|n| &n.code),
+                        Some(Code::PublicInput { .. })
+                    )
+                {
+                    return Err(Error::Binding);
+                }
+                if rows.checked_mul(width) != Some(lanes) {
+                    return Err(Error::Shape);
+                }
+                let metadata = plan.metadata_bytes();
+                // Input gather and final output each have ordinary graph charges.
+                // All live selector levels, primitive state, copies and allocator
+                // overlap remain in the peak owner allowance, never per-template.
+                let workspace = plan
+                    .peak_extra_bytes()?
+                    .checked_sub(metadata)
+                    .and_then(|n| n.checked_sub(lanes.checked_mul(16)?))
+                    .and_then(|n| n.checked_sub(rows.checked_mul(16)?))
+                    .ok_or(Error::Bounds)?;
+                let extra = workspace.saturating_sub(self.workspace_bytes);
+                self.workspace_bytes = self.workspace_bytes.max(workspace);
+                metadata
+                    .checked_add(1024)
+                    .and_then(|n| n.checked_add(extra))
+                    .ok_or(Error::Bounds)?
             }
             Code::Selection { plan, .. } => {
                 let metadata = plan.metadata_bytes()?;
@@ -462,6 +529,17 @@ impl Builder {
         shape: Option<MatrixShape>,
         rescale: bool,
     ) -> Result<usize, Error> {
+        self.product_with_norm(left, right, shape, rescale, None)
+    }
+
+    fn product_with_norm(
+        &mut self,
+        left: usize,
+        right: usize,
+        shape: Option<MatrixShape>,
+        rescale: bool,
+        norm: Option<puma::multiply::norm::RowEnergyProof>,
+    ) -> Result<usize, Error> {
         let a = &self.nodes[left];
         let b = &self.nodes[right];
         let (n, terms) = if let Some(s) = shape {
@@ -479,7 +557,16 @@ impl Builder {
             left: a.bounds,
             right: b.bounds,
         };
-        let range = if rescale {
+        let range = if let Some(proof) = norm {
+            if shape.is_none() || proof.inner() != terms || proof.input_bounds() != bounds {
+                return Err(Error::Binding);
+            }
+            if rescale {
+                proof.output_bounds()?
+            } else {
+                proof.raw_bounds()
+            }
+        } else if rescale {
             bounds.dot_output(terms)?
         } else {
             bounds.dot_product(terms)?
@@ -490,6 +577,7 @@ impl Builder {
                 right,
                 shape,
                 rescale,
+                norm: norm.map(Arc::new),
             },
             n,
             range,
@@ -664,6 +752,16 @@ impl Builder {
         weight: MatrixView<'_>,
         rescale: bool,
     ) -> Result<View, Error> {
+        self.matrix_with_attention(input, weight, rescale, false)
+    }
+
+    fn matrix_with_attention(
+        &mut self,
+        input: &View,
+        weight: MatrixView<'_>,
+        rescale: bool,
+        attention: bool,
+    ) -> Result<View, Error> {
         let inner = *input.shape.last().ok_or(Error::Shape)?;
         let (columns, contraction) = weight.dimensions()?;
         if inner == 0
@@ -703,8 +801,18 @@ impl Builder {
             for start in (0..columns).step_by(tile) {
                 let n = tile.min(columns - start);
                 let right = weight.gather(self, start, n, 0, inner)?;
-                let output =
-                    self.product(left, right, Some(MatrixShape::new(1, inner, n)?), rescale)?;
+                let norm = if attention && !self.attention_energies.is_empty() {
+                    self.attention_dot(&row, &weight, start, n, inner, left, right)?
+                } else {
+                    None
+                };
+                let output = self.product_with_norm(
+                    left,
+                    right,
+                    Some(MatrixShape::new(1, inner, n)?),
+                    rescale,
+                    norm,
+                )?;
                 if let Some(mass) = mass {
                     // Only intact native softmax rows carry nonnegative mass.
                     // Ordinary product/quarter-ring admission above still runs;
@@ -1076,7 +1184,9 @@ impl Builder {
                     if table.shape != [vocabulary, *shape.last().ok_or(Error::Shape)?] {
                         return Err(Error::Shape);
                     }
-                    if self.public_weights && self.lookup == policy::LookupPolicy::Tiled {
+                    if self.public_weights && self.lookup == policy::LookupPolicy::Trie {
+                        self.trie_lookup(tokens, table, &shape)?
+                    } else if self.public_weights && self.lookup == policy::LookupPolicy::Tiled {
                         self.tiled_lookup(tokens, table, &shape)?
                     } else {
                         let table_bound = self.nodes[table.owner].bounds;
@@ -1159,6 +1269,16 @@ impl Builder {
                         output.words = self.binary(&output.words, &repeated, false)?;
                     }
                     output.shape = shape.clone();
+                    self.projection_energies(
+                        a.ok_or(Error::Binding)?,
+                        &output,
+                        source("weight")?,
+                        op.attributes
+                            .get("bias")
+                            .filter(|v| !v.is_null())
+                            .map(|_| source("bias"))
+                            .transpose()?,
+                    )?;
                     output
                 }
                 Op::RmsNorm => {
@@ -1345,6 +1465,14 @@ impl Builder {
                             (position + index % sequence) as u32,
                             width,
                         )?;
+                        let energy = if self.public_norms.is_empty() {
+                            None
+                        } else {
+                            self.row_norm(&row, width)
+                                .or_else(|| self.attention_energy(&row, width))
+                                .map(|energy| norm_bounds::rotary_energy(energy, &cos, &sin, 18))
+                                .transpose()?
+                        };
                         let input = self.gather(&row)?;
                         let program = tensor::Program::rotary_half(
                             1,
@@ -1354,6 +1482,10 @@ impl Builder {
                             &sin,
                         )?;
                         let output = self.tensor(input, program)?;
+                        if let Some(energy) = energy {
+                            let row = (0..width).map(|i| (output, i)).collect();
+                            self.record_attention_energy(&row, energy)?;
+                        }
                         words.extend((0..width).map(|i| (output, i)));
                     }
                     View {
@@ -1446,7 +1578,15 @@ impl Builder {
                                 ),
                                 shape: vec![position + r + 1, width],
                             };
-                            words.extend(self.linear(&query, &key_rows, true)?.words);
+                            words.extend(
+                                self.matrix_with_attention(
+                                    &query,
+                                    MatrixView::Values(&key_rows),
+                                    true,
+                                    true,
+                                )?
+                                .words,
+                            );
                             words.extend(std::iter::repeat_n((zero, 0), sequence - r - 1));
                         }
                     }
@@ -1577,7 +1717,11 @@ impl Builder {
                     }
                 }
                 Op::GreedyTokenSelection if self.public_weights => {
-                    let mut output = self.argmax_tree(a.ok_or(Error::Binding)?)?;
+                    let logits = a.ok_or(Error::Binding)?;
+                    let mut output = self.argmax_tree(logits)?;
+                    if self.lookup == LookupPolicy::Trie {
+                        self.register_selected_token(&output.words, &logits.words, vocabulary)?;
+                    }
                     output.shape = shape.clone();
                     output
                 }
@@ -1811,9 +1955,35 @@ impl Program {
         weights: WeightMode,
         execution: ExecutionPolicy,
     ) -> Result<Self, String> {
+        Self::compile_with_norms(
+            config,
+            rows,
+            outputs,
+            sources,
+            weights,
+            execution,
+            &SourceNorms::new(),
+        )
+    }
+
+    pub fn compile_with_norms(
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        sources: &BTreeMap<String, SourceTensor>,
+        weights: WeightMode,
+        execution: ExecutionPolicy,
+        norms: &SourceNorms,
+    ) -> Result<Self, String> {
         execution.validate(weights)?;
         let shapes = Self::source_shapes_with_policy(config, rows, outputs, weights, execution)?;
         let first = lower_with_weights(config, rows, outputs, weights)?;
+        if !norms.is_empty()
+            && (weights != WeightMode::Public || execution.range_policy != RangePolicy::Checked)
+        {
+            return Err("public source norms require checked public execution".into());
+        }
+        source_norms::validate_set(&first.prefill, &shapes, norms).map_err(|e| e.to_string())?;
         let public: std::collections::BTreeSet<_> = first
             .prefill
             .operations
@@ -1890,10 +2060,18 @@ impl Program {
         let mut site = AdmissionSite::default();
         let result = (|| -> Result<Self, Error> {
             let mut builder = Builder {
+                // Retained certificates, request/tree owners, largest scan and
+                // completed-output overlap share the existing program allowance.
+                allocated: source_norms::import_envelope(norms)?.total_bytes,
                 public_weights: weights == WeightMode::Public,
                 checked_bound: execution.checked_bound(),
                 lookup: execution.lookup,
                 selection: execution.selection,
+                token_source_binding: if execution.lookup == LookupPolicy::Trie {
+                    source_binding_with_norms(sources, norms)
+                } else {
+                    [0; 32]
+                },
                 ..Builder::default()
             };
             let mut inputs = BTreeMap::new();
@@ -1927,6 +2105,9 @@ impl Program {
                         shape: source.shape.clone(),
                     },
                 );
+                if let Some(norms) = norms.get(key) {
+                    builder.public_norms.insert(id, norms.clone());
+                }
             }
             let first =
                 lower_with_weights(config, rows, outputs, weights).map_err(|_| Error::Binding)?;
@@ -1944,6 +2125,9 @@ impl Program {
             )?;
             let count = builder.nodes.len();
             let mut tokens = builder.view(input, vec![1, rows]);
+            if execution.lookup == LookupPolicy::Trie {
+                builder.register_initial_tokens(&tokens.words, vocabulary)?;
+            }
             let mut selected = vec![];
             for output in 0..outputs {
                 site = AdmissionSite {
@@ -2037,6 +2221,10 @@ impl Program {
             h.update((rows as u64).to_le_bytes());
             h.update((outputs as u64).to_le_bytes());
             h.update(serde_json::to_vec(sources).map_err(|_| Error::Binding)?);
+            if !norms.is_empty() {
+                h.update(b"public-head-row-norms.v1");
+                h.update(source_norms::digest(norms));
+            }
             for (id, node) in builder.nodes.iter().enumerate() {
                 for input in node.inputs() {
                     last[input] = id;
@@ -2091,6 +2279,16 @@ impl Program {
                         h.update((*input as u64).to_le_bytes());
                         h.update(plan.digest());
                     }
+                    Code::TrieLookup {
+                        input,
+                        weight,
+                        plan,
+                    } => {
+                        h.update([12]);
+                        h.update((*input as u64).to_le_bytes());
+                        h.update((*weight as u64).to_le_bytes());
+                        h.update(plan.digest());
+                    }
                     Code::CheckedRange { input, program } => {
                         h.update([9]);
                         h.update((*input as u64).to_le_bytes());
@@ -2130,12 +2328,19 @@ impl Program {
                         right,
                         shape,
                         rescale,
+                        norm,
                     } => {
-                        h.update([3, u8::from(*rescale)]);
+                        // Legacy products retain their original identity. A
+                        // certified complete dot binds the public obligations
+                        // alongside exact ordered operand owners and shape.
+                        h.update([if norm.is_some() { 13 } else { 3 }, u8::from(*rescale)]);
                         h.update((*left as u64).to_le_bytes());
                         h.update((*right as u64).to_le_bytes());
                         for n in shape.map_or([0, 0, 0], MatrixShape::dimensions) {
                             h.update((n as u64).to_le_bytes());
+                        }
+                        if let Some(proof) = norm {
+                            h.update(proof.digest());
                         }
                     }
                     Code::Tensor { input, program } => {
@@ -2192,7 +2397,7 @@ impl Program {
                 digest: h.finalize().into(),
                 payload_bytes: builder.allocated,
                 work,
-                source_binding: source_binding(sources),
+                source_binding: source_binding_with_norms(sources, norms),
             })
         })();
         result.map_err(|e| format!("replicated decoder admission: {e}; public context {site}"))
@@ -2249,11 +2454,25 @@ fn public_lookup_work_floor_with_policy(
     if rows == 0 || outputs == 0 || vocabulary == 0 {
         return Err(Error::Shape);
     }
+    if lookup == LookupPolicy::Trie {
+        let mut work = WorkBudget::default();
+        for selection in 0..outputs {
+            let n = rows.checked_add(selection).ok_or(Error::Bounds)?;
+            for start in (0..n).step_by(8) {
+                work = work.checked_add(runtime::trie::Plan::work_for_geometry(
+                    8.min(n - start),
+                    vocabulary,
+                )?)?;
+            }
+        }
+        return Ok(work);
+    }
     let bounds = Interval::new(-(vocabulary as i64 - 1), vocabulary as i64 - 1)?;
     let width = vocabulary.min(128);
     let equality = match lookup {
         LookupPolicy::PerToken => tensor::Program::equal_zero,
         LookupPolicy::Tiled => tensor::Program::equal_zero_bounded,
+        LookupPolicy::Trie => unreachable!("trie work returned above"),
     };
     let program = equality(width, bounds)?;
     let mut charge = program

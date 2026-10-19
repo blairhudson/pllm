@@ -165,7 +165,9 @@ impl Builder {
         if fallback < accepted.lower() || fallback > accepted.upper() {
             return Err(Error::Bounds);
         }
-        self.0.numeric_profile = CHECKED_RANGE_PROFILE;
+        if self.0.numeric_profile != COMPACT_NONLINEAR_PROFILE {
+            self.0.numeric_profile = CHECKED_RANGE_PROFILE;
+        }
         let bits = self.bits(input)?;
         let below = self.outside_bound(bits, accepted.lower(), true)?;
         let above = self.outside_bound(bits, accepted.upper(), false)?;
@@ -311,7 +313,7 @@ impl Program {
     /// Shifted, strictly clipped P-N1 softmax. Every eagerly evaluated power is
     /// admitted, including the lanes subsequently masked below -14.
     pub fn softmax(rows: usize, width: usize, input: Interval) -> Result<Self, Error> {
-        Ok(Self::softmax_schedule(rows, width, input, false, false)?.0)
+        Ok(Self::softmax_schedule(rows, width, input, false, false, false)?.0)
     }
 
     /// Range-safe shifted softmax. Secretly replace clipped inputs by zero
@@ -319,7 +321,7 @@ impl Program {
     /// Retained-domain stochastic equations and the strict cutoff are unchanged;
     /// the additional exact shared product has a distinct program identity.
     pub fn softmax_guarded(rows: usize, width: usize, input: Interval) -> Result<Self, Error> {
-        Ok(Self::softmax_schedule(rows, width, input, true, false)?.0)
+        Ok(Self::softmax_schedule(rows, width, input, true, false, false)?.0)
     }
 
     /// Original guarded schedule with a public proof of each complete row's
@@ -330,29 +332,37 @@ impl Program {
         width: usize,
         input: Interval,
     ) -> Result<(Self, u64), Error> {
-        let (program, mass) = Self::softmax_schedule(rows, width, input, true, true)?;
+        let (program, mass) = Self::softmax_schedule(rows, width, input, true, true, false)?;
         Ok((program, mass.ok_or(Error::Binding)?))
     }
 
-    fn softmax_schedule(
+    pub(super) fn softmax_schedule(
         rows: usize,
         width: usize,
         input: Interval,
         guard_tail: bool,
         certify_mass: bool,
+        compact: bool,
     ) -> Result<(Self, Option<u64>), Error> {
         let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
         if width == 0 || rows == 0 {
             return Err(Error::Bounds);
         }
         let mut b = Builder::row(lanes, input)?;
+        if compact {
+            b.0.numeric_profile = COMPACT_NONLINEAR_PROFILE;
+        }
         let x = b.input();
         let mut maximum = x;
         let mut offset = 1;
         while offset < width {
             let other = b.row_map(maximum, width, RowMap::Rotate(offset))?;
             let difference = b.affine(maximum, Some(other), affine(1, -1, 0))?;
-            let bit = b.sign(difference)?;
+            let bit = if compact {
+                b.sign_compact(difference)?
+            } else {
+                b.sign(difference)?
+            };
             let bit = b.from_bit(bit)?;
             maximum = select(&mut b, bit, other, maximum)?;
             // The secret selector chooses one of the two candidates exactly.
@@ -425,11 +435,25 @@ impl Program {
         gamma: &[i64],
         beta: &[i64],
     ) -> Result<Self, Error> {
+        Self::layer_norm_schedule(rows, width, input, gamma, beta, false)
+    }
+
+    pub(super) fn layer_norm_schedule(
+        rows: usize,
+        width: usize,
+        input: Interval,
+        gamma: &[i64],
+        beta: &[i64],
+        compact: bool,
+    ) -> Result<Self, Error> {
         let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
         if width == 0 || rows == 0 || gamma.len() != width || beta.len() != width {
             return Err(Error::Shape);
         }
         let mut b = Builder::row(lanes, input)?;
+        if compact {
+            b.0.numeric_profile = COMPACT_NONLINEAR_PROFILE;
+        }
         let x = b.input();
         let inverse_width = ((1.0_f32 / width as f32) * ONE as f32) as i64;
         let sum = b.row_map(x, width, RowMap::Sum)?;
@@ -466,7 +490,8 @@ impl Program {
         input: Interval,
         gamma: &[i64],
     ) -> Result<Self, Error> {
-        Self::rms_norm_proof(rows, width, input, gamma, false, None).map(|(program, _)| program)
+        Self::rms_norm_proof(rows, width, input, gamma, false, None, false)
+            .map(|(program, _)| program)
     }
 
     /// The same RMSNorm arithmetic with a finer public proof of its rsqrt
@@ -478,7 +503,7 @@ impl Program {
         input: Interval,
         gamma: &[i64],
     ) -> Result<(Self, u128), Error> {
-        Self::rms_norm_proof(rows, width, input, gamma, true, None)
+        Self::rms_norm_proof(rows, width, input, gamma, true, None, false)
     }
 
     /// Same arithmetic under an additional caller-proved upper bound on each
@@ -491,23 +516,24 @@ impl Program {
         gamma: &[i64],
         squared_norm: u128,
     ) -> Result<(Self, u128), Error> {
-        Self::rms_norm_proof(rows, width, input, gamma, true, Some(squared_norm))
+        Self::rms_norm_proof(rows, width, input, gamma, true, Some(squared_norm), false)
     }
 
-    fn rms_norm_proof(
+    pub(super) fn rms_norm_proof(
         rows: usize,
         width: usize,
         input: Interval,
         gamma: &[i64],
         partitioned: bool,
         input_norm: Option<u128>,
+        compact: bool,
     ) -> Result<(Self, u128), Error> {
         let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
         if width == 0 || rows == 0 || gamma.len() != width {
             return Err(Error::Shape);
         }
         let (mut b, normalized, radius) =
-            rms_normalization(rows, width, input, partitioned, input_norm)?;
+            rms_normalization(rows, width, input, partitioned, input_norm, compact)?;
         let scales: [Affine; MAX_ROW_LANES] =
             std::array::from_fn(|i| affine(gamma[i % width], 0, 0));
         let scaled = b.affine_lanes(normalized, &scales[..lanes])?;
@@ -625,7 +651,11 @@ impl Program {
 
 fn softmax_keep(b: &mut Builder, z: Value) -> Result<Value, Error> {
     let threshold = b.affine(z, None, affine(-1, 0, -14 * ONE))?;
-    let keep = b.sign(threshold)?;
+    let keep = if b.0.numeric_profile == COMPACT_NONLINEAR_PROFILE {
+        b.sign_compact(threshold)?
+    } else {
+        b.sign(threshold)?
+    };
     b.from_bit(keep)
 }
 
@@ -635,13 +665,18 @@ fn rms_normalization(
     input: Interval,
     partitioned: bool,
     input_norm: Option<u128>,
+    compact: bool,
 ) -> Result<(Builder, Value, u128), Error> {
     let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
     if rows == 0 || width == 0 {
         return Err(Error::Shape);
     }
     let mut b = Builder::row(lanes, input)?;
-    b.0.numeric_profile = RMS_NORM_PROFILE;
+    b.0.numeric_profile = if compact {
+        COMPACT_NONLINEAR_PROFILE
+    } else {
+        RMS_NORM_PROFILE
+    };
     let x = b.input();
     let square = b.square(x)?;
     let sum = b.row_map(square, width, RowMap::Sum)?;

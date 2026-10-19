@@ -3,12 +3,14 @@
 //! token IDs may be reconstructed after the fixed full-prefix feedback loop.
 
 pub mod cost;
+mod norm_bounds;
 mod policy;
 mod program;
 mod public_source;
 mod runtime;
 pub mod sdk;
 mod source;
+mod source_norms;
 #[cfg(test)]
 mod tests;
 mod views;
@@ -17,6 +19,7 @@ pub use program::{Program, SourceTensor};
 pub use public_source::{PublicSource, PublicSourceImport};
 pub use runtime::{PeerBytes, Worker};
 pub use source::{Manifest, Publisher, SourceChunk};
+pub use source_norms::{BlockNorms, SourceNorms};
 
 use multiply::{arithmetic::Affine, tensor, InputBounds, Interval, MatrixShape};
 use pllm_core::puma::{self, multiply, Error, WorkBudget};
@@ -69,6 +72,7 @@ enum Code {
         right: usize,
         shape: Option<MatrixShape>,
         rescale: bool,
+        norm: Option<Arc<puma::multiply::norm::RowEnergyProof>>,
     },
     PublicProduct {
         input: usize,
@@ -95,6 +99,11 @@ enum Code {
         input: usize,
         weight: usize,
         plan: Arc<runtime::lookup::Plan>,
+    },
+    TrieLookup {
+        input: usize,
+        weight: usize,
+        plan: Arc<runtime::trie::Plan>,
     },
     Selection {
         input: usize,
@@ -182,6 +191,7 @@ impl Node {
                 Ok(program.work_budget())
             }
             Code::PublicLookup { plan, .. } => plan.work_budget(),
+            Code::TrieLookup { plan, .. } => Ok(plan.work_budget()),
             Code::Selection { plan, .. } => Ok(plan.work_budget()),
             Code::TensorLoop { program, tail, .. } => program
                 .work_budget()
@@ -207,7 +217,8 @@ impl Node {
             Code::Affine { left, right, .. } => std::iter::once(*left).chain(*right).collect(),
             Code::Product { left, right, .. } => vec![*left, *right],
             Code::PublicProduct { input, weight, .. }
-            | Code::PublicLookup { input, weight, .. } => vec![*input, *weight],
+            | Code::PublicLookup { input, weight, .. }
+            | Code::TrieLookup { input, weight, .. } => vec![*input, *weight],
             Code::Tensor { input, .. }
             | Code::CheckedRange { input, .. }
             | Code::Selection { input, .. } => vec![*input],

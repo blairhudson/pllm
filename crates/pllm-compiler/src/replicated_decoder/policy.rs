@@ -23,6 +23,7 @@ pub enum LookupPolicy {
     #[default]
     PerToken,
     Tiled,
+    Trie,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -103,6 +104,9 @@ impl ExecutionPolicy {
         }
         if self.lookup == LookupPolicy::Tiled {
             params.insert("lookup".into(), serde_json::json!("tiled"));
+        }
+        if self.lookup == LookupPolicy::Trie {
+            params.insert("lookup".into(), serde_json::json!("trie"));
         }
         if self.selection == SelectionPolicy::Tiled {
             params.insert("selection".into(), serde_json::json!("tiled"));
@@ -198,6 +202,27 @@ mod tests {
             .component_params(weights)
             .get("selection")
             .is_none());
+    }
+
+    #[test]
+    fn trie_lookup_is_explicit_public_canonical_and_preserves_execution_fields() {
+        let value = json!({"weights":"public", "lookup":"trie"});
+        let (weights, policy) = ExecutionPolicy::from_component(value.clone()).unwrap();
+        assert_eq!(policy.lookup, LookupPolicy::Trie);
+        assert_eq!(policy.component_params(weights), value);
+        assert!(policy.validate(WeightMode::Private).is_err());
+        assert_eq!(
+            serde_json::to_value(policy)
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .len(),
+            5
+        );
+        assert!(ExecutionPolicy::from_component(json!({"lookup":"trie"})).is_err());
+        assert!(
+            ExecutionPolicy::from_component(json!({"weights":"public", "lookup":"TRIE"})).is_err()
+        );
     }
 
     #[test]

@@ -1,0 +1,21 @@
+Recovered verbatim command output from the original validation session.
+This is not a separately retained raw stdout file or a new test run.
+Command: CARGO_BUILD_JOBS=1 cargo test --locked --offline -p pllm-core --lib multiply::norm -- --test-threads=1
+
+   Compiling pllm-core v0.1.0-alpha.2 (/Users/blairhudson/workspace/pllm/crates/pllm-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.77s
+     Running unittests src/lib.rs (target/debug/deps/pllm_core-b6ca37a70c04a366)
+
+running 10 tests
+test puma::prss::multiply::norm::tests::every_stochastic_mask_respects_integer_envelope ... ok
+test puma::prss::multiply::norm::tests::integer_square_root_and_overflow_boundaries ... ok
+test puma::prss::multiply::norm::tests::intersected_bounds_cover_every_admitted_small_two_term_dot ... ok
+test puma::prss::multiply::norm::tests::loose_energy_certificates_cannot_widen_admitted_scalar_bounds ... ok
+test puma::prss::multiply::norm::tests::malformed_rotation_cancel_and_resource_limits_preserve_ledger ... ok
+test puma::prss::multiply::norm::tests::scalar_obligations_and_quarter_gap_remain_binding ... ok
+test puma::prss::multiply::norm::tests::signed_dot_oracles_rounding_envelopes_and_unchanged_work ... ok
+test puma::prss::multiply::norm::tests::substituted_proof_inputs_malformed_imports_and_narrow_limits_reject ... ok
+test puma::prss::multiply::norm::tests::whole_row_energy_admits_sparse_dot_rejected_by_independent_boxes ... ok
+test puma::prss::multiply::norm::tests::width_tampered_proof_geometry_context_and_replay_fail_closed ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 354 filtered out; finished in 0.15s

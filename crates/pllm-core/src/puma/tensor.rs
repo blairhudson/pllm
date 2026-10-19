@@ -24,6 +24,7 @@ pub const RMS_NORM_EPSILON_Q18: i64 = 1;
 /// Opt-in checked operands; never the default private-weight numeric identity.
 pub const CHECKED_RANGE_PROFILE: &str = "puma.checked-range-q18.v1";
 pub const BOUNDED_EQUALITY_PROFILE: &str = "puma.public-domain-equality.compact-q18.v1";
+pub const COMPACT_NONLINEAR_PROFILE: &str = "puma.signed-nonlinear.compact-q18.v1";
 pub const MAX_NODES: usize = 192;
 pub const MAX_TILE_LANES: usize = 128;
 /// Row reductions may carry one complete native-width row; Boolean conversion
@@ -65,6 +66,7 @@ enum Instruction {
         shift: u8,
     },
     Sign(Value),
+    CompactSign(Value, u8),
     FromBit(Value),
     Bits(Value),
     LowBits(Value, u8),
@@ -88,6 +90,7 @@ impl Instruction {
             | Self::BitXor(left, right) => [Some(left), Some(right)],
             Self::Rescale { input, .. }
             | Self::Sign(input)
+            | Self::CompactSign(input, _)
             | Self::FromBit(input)
             | Self::Bits(input)
             | Self::LowBits(input, _)
@@ -208,7 +211,7 @@ impl Builder {
             return Err(Error::Bounds);
         }
         self.0.bit_widths[self.0.len] = match instruction {
-            Instruction::Sign(_) => 1,
+            Instruction::Sign(_) | Instruction::CompactSign(..) => 1,
             Instruction::Bits(_) => 64,
             Instruction::LowBits(_, bits) => bits,
             Instruction::BitMap(v, map) => map.width(self.bit_width(v)?)?,
@@ -440,16 +443,39 @@ impl Builder {
             return Err(Error::Bounds);
         }
         self.0.checked_validity = Some(valid);
-        self.0.numeric_profile = CHECKED_RANGE_PROFILE;
+        if self.0.numeric_profile != COMPACT_NONLINEAR_PROFILE {
+            self.0.numeric_profile = CHECKED_RANGE_PROFILE;
+        }
         self.finish(output)
     }
 
     fn highest_bit(&mut self, input: Value, width: u8) -> Result<Value, Error> {
-        let bits = self.bits(input)?;
+        let compact = self.0.numeric_profile == COMPACT_NONLINEAR_PROFILE;
+        let bits = if compact {
+            let bounds = self.node(input, false)?.bounds;
+            if bounds.lower() <= 0 || i128::from(bounds.upper()) >= 1_i128 << width {
+                return Err(Error::Bounds);
+            }
+            self.push(
+                Instruction::LowBits(input, width),
+                Interval::new(0, 0)?,
+                true,
+            )?
+        } else {
+            self.bits(input)?
+        };
         let mut spread = self.bit_map(bits, BitMap::LowBits(width))?;
         for shift in [1, 2, 4, 8, 16, 32] {
             let lower = self.bit_map(spread, BitMap::ShiftRight(shift))?;
-            spread = self.bit_or(spread, lower)?;
+            spread = if compact {
+                self.push(
+                    Instruction::BitOrLow(spread, lower, width),
+                    Interval::new(0, 0)?,
+                    true,
+                )?
+            } else {
+                self.bit_or(spread, lower)?
+            };
         }
         let lower = self.bit_map(spread, BitMap::ShiftRight(1))?;
         self.bit_xor(spread, lower)
@@ -500,6 +526,7 @@ impl Builder {
                 }
                 Instruction::Rescale { input, shift } => h.update([3, input.0, shift]),
                 Instruction::Sign(input) => h.update([4, input.0]),
+                Instruction::CompactSign(input, bits) => h.update([15, input.0, bits]),
                 Instruction::FromBit(input) => h.update([5, input.0]),
                 Instruction::Bits(input) => h.update([6, input.0]),
                 Instruction::LowBits(input, bits) => h.update([13, input.0, bits]),
@@ -563,6 +590,7 @@ fn activation_predicates(
     b: &mut Builder,
     input: Value,
     pivots: [i64; 3],
+    compact: bool,
 ) -> Result<[Value; 3], Error> {
     let mut predicates = [input; 3];
     for (i, pivot) in pivots.into_iter().enumerate() {
@@ -577,7 +605,11 @@ fn activation_predicates(
                 constant: -pivot - i64::from(i == 2),
             },
         )?;
-        let bit = b.sign(delta)?;
+        let bit = if compact {
+            b.sign_compact(delta)?
+        } else {
+            b.sign(delta)?
+        };
         predicates[i] = b.from_bit(bit)?;
     }
     Ok(predicates)
@@ -588,7 +620,7 @@ impl Program {
     /// Coefficients/pivots are the binary32/toward-zero Q18 constants frozen in
     /// paper/reproduction-contracts/shared-profile-resolution.md, section 3.3.
     pub fn activation(kind: Activation, lanes: usize, input: Interval) -> Result<Self, Error> {
-        Self::activation_impl(kind, lanes, input, false)
+        Self::activation_impl(kind, lanes, input, false, false)
     }
 
     /// Preserve the source piecewise equations while excluding zero/identity
@@ -599,7 +631,7 @@ impl Program {
         lanes: usize,
         input: Interval,
     ) -> Result<Self, Error> {
-        Self::activation_impl(kind, lanes, input, true)
+        Self::activation_impl(kind, lanes, input, true, false)
     }
 
     fn activation_impl(
@@ -607,15 +639,19 @@ impl Program {
         lanes: usize,
         input: Interval,
         guarded: bool,
+        compact: bool,
     ) -> Result<Self, Error> {
         let mut b = Builder::new(lanes, input)?;
+        if compact {
+            b.0.numeric_profile = COMPACT_NONLINEAR_PROFILE;
+        }
         let original = b.input();
         let pivots = match kind {
             Activation::Gelu => [-1048576, -511180, 786432],
             Activation::Silu => [-2097152, -1048576, 1048576],
         };
         let early = if guarded {
-            Some(activation_predicates(&mut b, original, pivots)?)
+            Some(activation_predicates(&mut b, original, pivots, compact)?)
         } else {
             None
         };
@@ -685,7 +721,7 @@ impl Program {
         };
         let predicates = match early {
             Some(predicates) => predicates,
-            None => activation_predicates(&mut b, original, pivots)?,
+            None => activation_predicates(&mut b, original, pivots, compact)?,
         };
         let upper = select(&mut b, predicates[2], high, original)?;
         let middle = select(&mut b, predicates[1], low, upper)?;
@@ -731,6 +767,9 @@ impl Program {
             Instruction::Product { rescale, .. } => WorkBudget::product(node.lanes, rescale)?,
             Instruction::Rescale { .. } => WorkBudget::rescale(node.lanes)?,
             Instruction::Sign(_) => WorkBudget::conversion(node.lanes, true)?,
+            Instruction::CompactSign(_, bits) => {
+                WorkBudget::conversion_signed_compact(node.lanes, bits)?
+            }
             Instruction::Bits(_) => WorkBudget::conversion(node.lanes, false)?,
             Instruction::LowBits(_, bits) => WorkBudget::conversion_bounded(node.lanes, bits)?,
             Instruction::FromBit(input) => {
@@ -793,9 +832,10 @@ impl Program {
                         let bits = usize::from(self.bit_widths[input.0 as usize]);
                         (if bits <= 8 { 16 * bits + 10 } else { 42 }) * node.lanes
                     }
-                    Instruction::Sign(_) | Instruction::Bits(_) | Instruction::LowBits(..) => {
-                        34 * node.lanes
-                    }
+                    Instruction::Sign(_)
+                    | Instruction::CompactSign(..)
+                    | Instruction::Bits(_)
+                    | Instruction::LowBits(..) => 34 * node.lanes,
                     Instruction::BitMap(..) => 6 * node.lanes,
                     Instruction::BitOr(..) | Instruction::BitOrLow(..) => 20 * node.lanes,
                     Instruction::BitXor(..) => 10 * node.lanes,
@@ -960,6 +1000,18 @@ fn metadata_bytes(program: &Program) -> usize {
 impl Executor {
     fn compact(&self) -> bool {
         self.program.numeric_profile == BOUNDED_EQUALITY_PROFILE
+            || (self.program.numeric_profile == COMPACT_NONLINEAR_PROFILE
+                && match self.program.nodes[self.step].map(|n| n.instruction) {
+                    Some(
+                        Instruction::CompactSign(..)
+                        | Instruction::LowBits(..)
+                        | Instruction::BitOrLow(..),
+                    ) => true,
+                    Some(Instruction::FromBit(input)) => {
+                        self.program.bit_widths[input.0 as usize] == 1
+                    }
+                    _ => false,
+                })
     }
 
     fn compact_layout(&self) -> Result<(u8, usize), Error> {
@@ -971,6 +1023,15 @@ impl Executor {
             .flatten()
             .ok_or(Error::Phase)?;
         match node.instruction {
+            Instruction::CompactSign(..) => {
+                let super::Phase::Conversion(state) =
+                    &self.runtime.as_ref().ok_or(Error::Retired)?.phase
+                else {
+                    return Err(Error::Phase);
+                };
+                let (_, _, lanes, bits) = state.receive_layout()?;
+                Ok((bits, lanes))
+            }
             Instruction::LowBits(_, bits) => {
                 let super::Phase::Conversion(state) =
                     &self.runtime.as_ref().ok_or(Error::Retired)?.phase
@@ -1098,9 +1159,10 @@ impl Executor {
             }
             for node in program.nodes[..program.len].iter().flatten() {
                 let expanded = match node.instruction {
-                    Instruction::Sign(_) | Instruction::Bits(_) | Instruction::LowBits(..) => {
-                        2 * node.lanes
-                    }
+                    Instruction::Sign(_)
+                    | Instruction::CompactSign(..)
+                    | Instruction::Bits(_)
+                    | Instruction::LowBits(..) => 2 * node.lanes,
                     Instruction::FromBit(input) => {
                         let bits = usize::from(program.bit_widths[input.0 as usize]);
                         node.lanes * if bits > 8 { 2 } else { bits.max(1) }
@@ -1338,12 +1400,14 @@ impl Executor {
                 messages = [a, b, None];
             }
             Instruction::Sign(input)
+            | Instruction::CompactSign(input, _)
             | Instruction::Bits(input)
             | Instruction::LowBits(input, _) => {
                 let value = self.copy(input)?;
                 let runtime = self.runtime.as_mut().unwrap();
                 let kind = match self.program.nodes[self.step].unwrap().instruction {
                     Instruction::Sign(_) => Kind::MostSignificantBit,
+                    Instruction::CompactSign(_, bits) => Kind::CompactMostSignificantBit(bits),
                     Instruction::LowBits(_, bits) => Kind::LowBits(bits),
                     _ => Kind::Bits,
                 };
@@ -1390,8 +1454,10 @@ impl Executor {
                 if matches!(
                     self.program.nodes[self.step].unwrap().instruction,
                     Instruction::BitOrLow(..)
-                ) && self.program.numeric_profile == BOUNDED_EQUALITY_PROFILE
-                {
+                ) && matches!(
+                    self.program.numeric_profile,
+                    BOUNDED_EQUALITY_PROFILE | COMPACT_NONLINEAR_PROFILE
+                ) {
                     runtime.plan_and_compact(lanes, a.bits(), b.bits())?;
                 } else {
                     runtime.plan_and(lanes, a.bits(), b.bits())?;
@@ -1463,9 +1529,10 @@ impl Executor {
         let instruction = self.program.nodes[self.step].unwrap().instruction;
         let mut out = [None, None, None];
         match instruction {
-            Instruction::Sign(_) | Instruction::Bits(_) | Instruction::LowBits(..) => {
-                out[0] = runtime.advance_conversion(frame.inner)?
-            }
+            Instruction::Sign(_)
+            | Instruction::CompactSign(..)
+            | Instruction::Bits(_)
+            | Instruction::LowBits(..) => out[0] = runtime.advance_conversion(frame.inner)?,
             Instruction::BitOr(_, _) | Instruction::BitOrLow(..) => {
                 runtime.receive_and(frame.inner)?
             }
@@ -1677,6 +1744,12 @@ impl Drop for Executor {
 #[cfg(test)]
 #[path = "tensor_tests.rs"]
 mod tests;
+
+#[path = "tensor_compact.rs"]
+mod compact;
+
+#[path = "tensor_compact_rows.rs"]
+mod compact_rows;
 
 #[path = "tensor_numeric.rs"]
 mod numeric;

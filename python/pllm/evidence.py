@@ -586,16 +586,40 @@ def benchmark_reference_quality(
     experiments: Iterable[Any], prompts: Iterable[str], *, top_k: int = 5,
     reference_storage: str = "resident",
     decode_steps: int = 0,
+    outcomes: str = "abort",
+    cohort_key: bytes | None = None,
+    cohort_key_id: str | None = None,
+    continuations: Iterable[Iterable[int]] | None = None,
 ) -> dict[str, Any]:
     """Score bounded immutable candidates against one same-token local reference.
 
-    This is a clear-kernel prefill quality diagnostic, not provider execution.
-    Prompt text and logits are never included in the returned report.
+    This is a shared numeric diagnostic, not provider serving or task accuracy.
+    Default v1 aborts; explicit v2 record mode retains typed final rejections.
+    Prompt text, teacher tokens and logits are not included in the report.
     """
     from pllm.runtime.reference_benchmark import run_reference_benchmark
+    from itertools import islice
 
-    return run_reference_benchmark(list(experiments), list(prompts), top_k=top_k,
-                                   reference_storage=reference_storage, decode_steps=decode_steps)
+    extra = {}
+    choices = cohort = None
+    try:
+        if outcomes != "abort" or any(value is not None for value in (cohort_key, cohort_key_id, continuations)):
+            extra.update(outcomes=outcomes, cohort_key=cohort_key, cohort_key_id=cohort_key_id,
+                continuations=None if continuations is None else tuple(tuple(islice(row, 9)) for row in islice(continuations, 33)))
+        choices = list(islice(experiments, 9)) if outcomes == "record" else list(experiments)
+        cohort = list(islice(prompts, 33)) if outcomes == "record" else list(prompts)
+        return run_reference_benchmark(choices, cohort, top_k=top_k,
+            reference_storage=reference_storage, decode_steps=decode_steps, **extra)
+    except BaseException as error:
+        if outcomes == "record":
+            from pllm.runtime.delegated_protocol import clear_failure_frames
+            clear_failure_frames(error)
+        raise
+    finally:
+        # Drop our aliases, including on cancellation during iterable materialization.
+        # Do not modify caller-owned prompts/continuations or claim secure erasure.
+        extra.clear()
+        choices = cohort = cohort_key = continuations = prompts = None
 
 
 def benchmark_network_candidates(

@@ -1,5 +1,33 @@
 # PUMA P0 feasibility and native cost inventory
 
+## Trie and attention-certificate follow-up
+
+The explicit public-only `lookup="trie"` implementation now shares each token's
+Boolean conversion across a complete vocabulary prefix trie. At 151,936 rows,
+lookup-only work is 10,707 ordinals for 4+2 and 641,966 for 64+8. The conservative
+eight-row native lookup envelope is 29,773,248 bytes. These counts replace neither
+the retained tiled-lookup inventory below nor complete-program admission.
+
+Checked public source import also recomputes per-head Q/K matrix and bias
+statistics at every worker. Complete-vector energy proofs bind the original
+projection, both RoPE product roundings, query rows and physical key columns.
+Native Cauchy–Schwarz bounds intersect any admitted scalar-product hull; they
+cannot widen an existing scalar bound. Source-norm import prices retained copies,
+request maps and scan/output overlap under the existing 1 MiB metadata limit.
+
+Two separately retained pinned 4+2 publisher attempts with trie lookup reject at
+layer-six RMSNorm before any worker launch, both with zero observed swap growth.
+The scalar-bound intersection follow-up still rejects there. This differs from
+the older tiled-lookup layer-eight attention rejection; no monotonic admission
+improvement or full-checkpoint execution follows. Evidence and exact build/input
+identities: [local-v13](../artifacts/puma-sdk/local-v13/README.md).
+
+The independent body-node/value-charge gates below remain. The native bounded
+body-layer executor and compact nonlinear/row constructors have their own
+operator and ownership controls, but neither is selected by the outer decoder.
+They cannot supply missing whole-program capacity or timing evidence. Full-Qwen
+execution, the shared 64+8 envelope, quality and matched serving costs remain open.
+
 ## Integrated capacity audit: current decision
 
 **No-go for all three workloads under current resource defaults, including 4+2.**
@@ -8,13 +36,13 @@ blocker in guarded SiLU**, not merely unknown performance: its legacy sign
 traffic alone exceeds 1,200 seconds even at 100 Mbps. See the body bound below.
 The sections below headed “Archived baseline” preserve the original full64
 lookup/expanded-selection identity. They are not updated with compact-codec
-timings. Current dimension-only audit is separately identified as
+timings. This retained tiled-lookup dimension-only audit is separately identified as
 `pllm.puma.capacity-audit.guard256.v1`, exposed by
 `cost::audit_common_capacity(rows, selections)`. It returns diagnostics only.
 
-### Current complete-body scaling, not lookup-only scaling
+### Retained tiled-lookup complete-body scaling
 
-The audit counts the current expanded body with tiled selection and eight-row
+The audit counts the expanded body with tiled selection and eight-row
 bulk lookup. It prices the actual fixed native RMSNorm, guarded SiLU, softmax,
 rotary, attention scale/products, body/head rescale and selection schedules.
 Synthetic public coefficients are used **only to query instruction/work shapes**:

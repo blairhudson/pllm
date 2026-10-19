@@ -11,6 +11,69 @@ use std::collections::BTreeMap;
 
 pub const PROFILE: &str = "pllm.puma.shape-cost.pre-bulk.v1";
 
+/// Executable binary-unit accounting, deliberately separate from the frozen
+/// shape baseline and from admission of a complete decoder. No peer-round or
+/// whole-body performance claim follows from this local register unit.
+#[derive(Debug, Serialize)]
+pub struct BinaryBodyUnitReport {
+    pub profile: &'static str,
+    pub complete_decoder: bool,
+    pub resources: super::runtime::body::Resources,
+    pub work: Work,
+    pub coordinator_advances: u64,
+    pub peer_frames: Option<u64>,
+    pub peer_rounds: Option<u64>,
+    pub peer_bytes: Option<u64>,
+}
+
+pub fn binary_body_unit(plan: &super::runtime::body::Plan) -> BinaryBodyUnitReport {
+    BinaryBodyUnitReport {
+        profile: "pllm.puma.binary-body-unit.v1",
+        complete_decoder: false,
+        resources: plan.resources(),
+        work: plan.work_budget().into(),
+        coordinator_advances: plan.coordinator_advances(),
+        peer_frames: None,
+        peer_rounds: None,
+        peer_bytes: None,
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct SemanticBodyReport {
+    pub profile: &'static str,
+    pub complete_decoder_admission: bool,
+    pub resources: super::runtime::body::Resources,
+    pub statistics: super::runtime::body::layer::Statistics,
+    pub work: Work,
+    pub coordinator_advances: u64,
+    pub peer_frames: Option<u64>,
+    pub peer_rounds: Option<u64>,
+    pub peer_bytes: Option<u64>,
+    pub external_owners: [&'static str; 2],
+}
+
+/// An admitted semantic body is not an admitted outer request. Lookup, retained
+/// outer operands, source/file owners, result binding and transport remain with
+/// the enclosing compiler/runtime. Never substitute this for its admission.
+pub fn semantic_body(plan: &super::runtime::body::layer::Plan) -> SemanticBodyReport {
+    SemanticBodyReport {
+        profile: "pllm.puma.semantic-body.v1",
+        complete_decoder_admission: false,
+        resources: plan.resources(),
+        statistics: plan.statistics(),
+        work: plan.work_budget().into(),
+        coordinator_advances: plan.coordinator_advances(),
+        peer_frames: None,
+        peer_rounds: None,
+        peer_bytes: None,
+        external_owners: [
+            "outer graph/input/result owners",
+            "verified PublicSource/files and transport",
+        ],
+    }
+}
+
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct Dimensions {
     pub layers: usize,
@@ -809,6 +872,7 @@ pub fn admitted(program: &Program) -> Result<AdmittedReport, Error> {
             Code::TensorLoop { .. } => "tensor_loop",
             Code::CheckedRange { .. } => "checked_range",
             Code::PublicLookup { .. } => "public_lookup",
+            Code::TrieLookup { .. } => "trie_lookup",
             Code::Selection { .. } => "selection",
         };
         let count = report.nodes_by_code.entry(code).or_default();
@@ -904,6 +968,30 @@ pub fn admitted(program: &Program) -> Result<AdmittedReport, Error> {
                 report.largest_compound_workspace_bytes = report
                     .largest_compound_workspace_bytes
                     .max(workspace as u64);
+            }
+            Code::TrieLookup { plan, .. } => {
+                let logical = plan.logical_cost();
+                report.public_ring64_macs_per_worker = add(
+                    report.public_ring64_macs_per_worker,
+                    logical.public_ring64_macs,
+                )?;
+                report.logical_public_file_read_bytes_per_worker = add(
+                    report.logical_public_file_read_bytes_per_worker,
+                    logical.table_bytes,
+                )?;
+                report.scheduled_coordinator_advances = add(
+                    report.scheduled_coordinator_advances,
+                    logical.quiescence_barriers,
+                )?;
+                report.compound_plan_metadata_bytes = add(
+                    report.compound_plan_metadata_bytes,
+                    plan.metadata_bytes() as u64,
+                )?;
+                report.largest_compound_workspace_bytes = report
+                    .largest_compound_workspace_bytes
+                    .max(plan.peak_extra_bytes()? as u64);
+                report.tensor_instruction_count_complete = false;
+                report.unpriced_native_nodes = add(report.unpriced_native_nodes, 1)?;
             }
             Code::Selection { plan, .. } => {
                 let (comparisons, products, tiles) = plan.logical_cost();

@@ -11,6 +11,12 @@ use pyo3::{
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
+pyo3::create_exception!(
+    pllm._native,
+    NumericDomainRejected,
+    pyo3::exceptions::PyValueError
+);
+
 fn error(message: impl ToString) -> PyErr {
     crate::invalid(message.to_string())
 }
@@ -107,6 +113,7 @@ impl NativePublisher {
             lookup: match lookup {
                 "per_token" => LookupPolicy::PerToken,
                 "tiled" => LookupPolicy::Tiled,
+                "trie" => LookupPolicy::Trie,
                 _ => return Err(error("invalid lookup policy")),
             },
             selection: match selection {
@@ -228,7 +235,11 @@ impl NativePublisher {
         let owner = self.take()?;
         let [a, b, c] = arguments(args, kwargs, ["first", "second", "third"])?;
         let frames = [bytes(&a, 145)?, bytes(&b, 145)?, bytes(&c, 145)?];
-        py.detach(|| owner.finish(frames)).map_err(error)
+        py.detach(|| owner.finish_numeric_outcome(frames))
+            .map_err(error)?
+            .ok_or_else(|| {
+                NumericDomainRejected::new_err("replicated request failed protected range checks")
+            })
     }
     #[pyo3(signature=(*args,**kwargs))]
     fn close(
@@ -520,10 +531,35 @@ impl NativeWorker {
 }
 
 pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add(
+        "NumericDomainRejected",
+        module.py().get_type::<NumericDomainRejected>(),
+    )?;
     module.add_class::<NativePublisher>()?;
     module.add_class::<NativeWorker>()?;
     module.add_function(wrap_pyfunction!(replicated_source_contract, module)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod quality_rejection_tests {
+    use super::*;
+
+    #[test]
+    fn numeric_rejection_type_is_not_generic_error_text() {
+        Python::initialize();
+        Python::attach(|py| {
+            let module = PyModule::new(py, "_quality_native_test").unwrap();
+            register(&module).unwrap();
+            let kind = module.getattr("NumericDomainRejected").unwrap();
+            let rejected =
+                NumericDomainRejected::new_err("replicated request failed protected range checks");
+            assert!(rejected.is_instance_of::<pyo3::exceptions::PyValueError>(py));
+            assert!(rejected.is_instance(py, &kind));
+            let malformed = error("replicated request failed protected range checks");
+            assert!(!malformed.is_instance(py, &kind));
+        });
+    }
 }
 
 #[pyfunction]

@@ -3,6 +3,15 @@ use pllm_core::puma::*;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 
+#[path = "puma_bit_slice_next/allocation.rs"]
+mod bit_slice_next;
+
+#[path = "puma_compact_nonlinear/allocation.rs"]
+mod compact_nonlinear;
+
+#[path = "puma_compact_rows/allocation.rs"]
+mod compact_rows;
+
 thread_local! {
     static TRACK: Cell<bool> = const { Cell::new(false) };
     static COUNT: Cell<usize> = const { Cell::new(0) };

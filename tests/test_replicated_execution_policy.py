@@ -34,7 +34,7 @@ def test_legacy_defaults_keep_params_and_digests():
 @pytest.mark.parametrize("choices", [
     {"range_policy": "checked"}, {"range_policy": "checked", "max_abs_activation": 1},
     {"range_policy": "checked", "max_abs_activation": 1024}, {"lookup": "tiled"},
-    {"peer_transport": "streams"}, {"selection": "tiled"},
+    {"peer_transport": "streams"}, {"selection": "tiled"}, {"lookup": "trie"},
     {"range_policy": "checked", "max_abs_activation": 128, "lookup": "tiled", "selection": "tiled", "peer_transport": "streams"},
 ])
 def test_public_choices_roundtrip_and_numeric_identity(choices):
@@ -67,7 +67,7 @@ def test_invalid_public_choices_rejected(choices):
         PumaThreePartyDecoder(weights="public", **choices)
 
 
-@pytest.mark.parametrize("choices", [{"range_policy": "checked"}, {"lookup": "tiled"}, {"selection": "tiled"}, {"peer_transport": "streams"}])
+@pytest.mark.parametrize("choices", [{"range_policy": "checked"}, {"lookup": "tiled"}, {"lookup": "trie"}, {"selection": "tiled"}, {"peer_transport": "streams"}])
 def test_private_weights_cannot_select_public_execution(choices):
     with pytest.raises(ValueError):
         PumaThreePartyDecoder(**choices)
@@ -115,7 +115,7 @@ def test_native_contract_policy_substitutions_rejected(substitution):
         replicated_source.validate_execution(experiment, contract)
 
 
-@pytest.mark.parametrize("choices", [{}, {"weights": "public"},
+@pytest.mark.parametrize("choices", [{}, {"weights": "public"}, {"weights": "public", "lookup": "trie"},
     {"weights": "public", "range_policy": "checked", "max_abs_activation": 128,
      "lookup": "tiled", "selection": "tiled", "peer_transport": "streams"}])
 def test_publisher_passes_native_policy_without_changing_legacy_call(monkeypatch, choices):
@@ -195,7 +195,7 @@ def test_discovery_and_capability_coverage_expose_explicit_choices():
     fields = descriptor.to_dict()["parameter_schema"]["properties"]
     assert fields["max_abs_activation"]["maximum"] == 1024
     assert fields["range_policy"]["enum"] == ["checked"]
-    assert fields["lookup"]["enum"] == ["tiled"]
+    assert fields["lookup"]["enum"] == ["tiled", "trie"]
     assert fields["selection"]["enum"] == ["tiled"]
     assert fields["peer_transport"]["enum"] == ["streams"]
     requirements = [row.to_spec() for row in benchmark_capabilities(include_planned=False)

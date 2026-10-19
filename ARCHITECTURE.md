@@ -751,6 +751,25 @@ these bounded implementations establish no full-Qwen or performance qualificatio
 The installed-wheel slice passes 462 Python checks and 218 native checks; 64
 generated integer/AES oracle cases reject 824 negative controls. Full evidence:
 `paper/artifacts/puma-sdk/local-v12/README.md`.
+The public-only `lookup="trie"` follow-up converts each private token once and
+executes a complete vocabulary prefix trie under exact compiler token provenance.
+Bounded eight-row ownership includes selector overlap; lookup-only 64+8 work falls
+to 641,966 ordinals, while complete-body gates remain. Worker-recomputed per-head
+Q/K source statistics and complete-vector energy proofs bind projection, both RoPE
+roundings and physical key columns. Native dot admission intersects any admitted
+scalar hull, with full contraction and one final Q18 truncation unchanged.
+Source-norm import prices metadata copies and scan/output overlap before allocation.
+Seventy generated integer/AES cases check 9,816 complete tensor checkpoints and
+reject 962 negative controls. The broad installed wheel passes 656 Python checks
+with eight skips; a subsequent bound-intersection build passes 59 targeted SDK
+checks, with all 369 installed package files matching. Both pinned trie-policy
+4+2 publications reject layer-six RMSNorm with zero observed swap growth and no
+worker launch. Separate compact nonlinear/row constructors and a bounded body-layer
+executor remain outside outer-decoder selection. Shared opt-in quality v2 records
+typed rejection and failure at original cohort positions, scores accepted values
+separately and rejects incomplete rankings. Full-checkpoint capacity, quality and
+serving measurements remain open. Evidence:
+`paper/artifacts/puma-sdk/local-v13/README.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
 source's float32-before-division boundary. Dense XOR lookup preserves original

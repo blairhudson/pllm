@@ -1,0 +1,7 @@
+{
+  "status": "excluded_duplicate",
+  "reason": "final-wheel five-file retry already passed 59 tests in validation-v2-retry; no new code changes",
+  "pytest_pids_sent_sigint": [
+    74356
+  ]
+}
