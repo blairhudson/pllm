@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-    import pllm
-  File "/Users/blairhudson/workspace/pllm/paper/artifacts/conformance/2026-10-16-child-isolation-v3/shadow/pllm/__init__.py", line 1, in <module>
-    raise RuntimeError('PYTHONPATH_CANARY_EXECUTED')
-RuntimeError: PYTHONPATH_CANARY_EXECUTED

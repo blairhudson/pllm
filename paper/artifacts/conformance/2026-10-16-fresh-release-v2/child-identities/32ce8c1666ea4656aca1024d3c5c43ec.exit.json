@@ -1,7 +1,0 @@
-{
-  "observed_by_pid": 41685,
-  "pid": 41743,
-  "returncode": -15,
-  "schema": "pllm.paper_python_exit.v1",
-  "signal": 15
-}

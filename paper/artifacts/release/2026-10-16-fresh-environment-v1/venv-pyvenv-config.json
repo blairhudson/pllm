@@ -1,5 +1,0 @@
-{
-  "contents": "home = /Users/blairhudson/.local/share/uv/python/cpython-3.13-macos-aarch64-none/bin\ninclude-system-site-packages = false\nversion = 3.13.15\nexecutable = /Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/bin/python3.13\ncommand = /Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python -m venv --without-pip /Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-replay-44b5fdd8174a4a3493396125f0983da3/venv\n",
-  "path": "/Users/blairhudson/workspace/pllm/paper/artifacts/release/.work/fresh-replay-44b5fdd8174a4a3493396125f0983da3/venv/pyvenv.cfg",
-  "sha256": "1d6c556da92c4401095dc0fb7cbffb242db617db6684a637e7eae6613f959d3e"
-}

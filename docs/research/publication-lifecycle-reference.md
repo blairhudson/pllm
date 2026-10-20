@@ -114,17 +114,17 @@ performance results.
 
 Archive: [`paper/artifacts/publication-lifecycle/2026-10-17-tiny-v3/`](../../paper/artifacts/publication-lifecycle/2026-10-17-tiny-v3/README.md).
 
-Verified commands, from the repository root:
+Run with a normal uv environment from the repository root:
 
 ```sh
-paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python -B scripts/audit_publication_lifecycle.py
-paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python -B -m pytest -q -o pythonpath= tests/test_publication_lifecycle.py
+uv run --no-sync python -B scripts/audit_publication_lifecycle.py
+uv run --no-sync python -B -m pytest -q -o pythonpath= tests/test_publication_lifecycle.py
 ```
 
-The completed smoke used:
+The same smoke configuration uses the ordinary benchmark driver:
 
 ```sh
-paper/artifacts/clean-build/2026-10-16-local-v5/work/venv/bin/python -B scripts/benchmark_publication_lifecycle.py --tiny --replicates 1 --output target/research/publication-lifecycle-archive-2026-10-17-v3/cohort.json
+uv run --no-sync python -B scripts/benchmark_publication_lifecycle.py --tiny --replicates 1 --output target/research/publication-lifecycle/cohort.json
 ```
 
 That output is write-once. A new execution needs a new output path and fresh

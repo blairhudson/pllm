@@ -1,0 +1,12 @@
+# Repository workflow
+
+- Build wheels with standard uv/Maturin commands and normal tool options. See
+  `CONTRIBUTING.md`; do not add bespoke build wrappers or attestation drivers.
+- Experiment evidence is a reusable `.py` experiment plus the ordinary benchmark
+  output. Use normal tests for correctness.
+- Do not add receipt collections, copied source trees, environment dumps, nested
+  evidence archives, or custom archive/replay verifiers as completion gates.
+- Keep build products and temporary diagnostics in ignored `target/` or `dist/`.
+  Use Git history for old source and change history.
+- Simplify legacy evidence machinery when touching it. Preserve useful experiment
+  definitions, benchmark results, numerical contracts, and regression tests.

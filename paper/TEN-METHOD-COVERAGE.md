@@ -97,9 +97,10 @@ The installed native binary also matched the accepted conformance identity.
 | Installed native binary | `826c2f41612912c38a2cd902a1988b50a069b4e278f1f05ffdb6980744e42c64` |
 | Runtime `BuildRef` | `8a8803783aa2b61f84ac461c209925f911acbc447dc86bdc3120ee384d4c83d9` |
 
-The [current-build link](artifacts/conformance/2026-10-16-clean-build-links-v1/receipt.json) connects these identities to their build receipt.
-The [accepted family manifest](artifacts/conformance/2026-10-16-families-clean-v1/manifest.json) records bounded execution for the FSS, lookup, and softmax adaptations.
-Its 46 passing tests do not represent 46 methods or a performance campaign.
+The [historical results](artifacts/conformance/README.md) retain ordinary reports
+for the bounded FSS, lookup and softmax adaptations. Build receipts and archive
+manifests have been retired; use standard uv/Maturin builds and normal tests.
+The historical 46 passing tests do not represent 46 methods or a performance campaign.
 Historical cost records retain their original builds, workloads, ownership scopes, and failures.
 This audit neither repeats those executions nor transfers their measurements to clean-local-v5.
 

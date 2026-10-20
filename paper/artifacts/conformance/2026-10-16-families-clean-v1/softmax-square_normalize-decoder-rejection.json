@@ -1,4 +1,0 @@
-{
-  "exception": "ConfigurationError",
-  "reason": "unsupported masked-linear component composition; expected exact core and optional quantization, verification, cache, boundary, placement, and prepared topology slots"
-}

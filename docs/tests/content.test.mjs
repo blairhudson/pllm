@@ -1197,12 +1197,12 @@ test('technical draft preserves archived evidence and explicit unfinished gates'
   const memoryGain = (peak('resident') / peak('paged')).toFixed(2);
   assert.ok(paper.includes(`${memoryGain}\\times`));
   for (const gate of ['E2', 'E3', 'A1']) assert.ok(paper.includes(`[${gate}: evidence to add]`));
-  const conformance = JSON.parse(fs.readFileSync(path.join(root,
-    'paper/artifacts/conformance/2026-10-16-installed-v4/manifest.json'), 'utf8'));
-  const generated = conformance.cases.find((row) => row.name === 'generated-independent-conformance');
-  assert.equal(generated.status, 'passed');
-  assert.equal(generated.result.families, 3);
-  assert.ok(paper.includes(generated.result.bit_exact_values.toLocaleString('en-US')));
+  const generated = JSON.parse(fs.readFileSync(path.join(root,
+    'paper/artifacts/conformance/2026-10-16-installed-v4/generated-conformance.json'), 'utf8'));
+  assert.equal(generated.length, 3);
+  assert.ok(generated.every((row) => row.tiled_vs_untiled_bit_exact));
+  const exactValues = generated.reduce((sum, row) => sum + row.exact_tiled_vs_untiled_values, 0);
+  assert.ok(paper.includes(exactValues.toLocaleString('en-US')));
   assert.ok(paper.includes('[E1: generated implementation checks recorded]'));
   assert.ok(paper.includes('This manuscript is a draft.'));
   assert.ok(paper.includes('Placeholders identify evidence that is necessary for publication.'));

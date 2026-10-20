@@ -1,9 +1,0 @@
-Traceback (most recent call last):
-  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 470, in main
-    result = run()
-  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 461, in <lambda>
-    ("generated-independent-conformance", lambda: generated_conformance(output, args.reference_python)),
-                                                  ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/blairhudson/workspace/pllm/scripts/audit_paper_conformance.py", line 171, in generated_conformance
-    import torch
-ModuleNotFoundError: No module named 'torch'

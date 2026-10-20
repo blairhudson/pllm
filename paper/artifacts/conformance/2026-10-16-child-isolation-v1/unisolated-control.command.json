@@ -1,9 +1,0 @@
-{
-  "argv": [
-    "/Users/blairhudson/workspace/pllm/target/frontier-sdk-env/bin/python",
-    "-c",
-    "import pllm"
-  ],
-  "exit_code": 1,
-  "scope": "non-provider subprocess probe"
-}

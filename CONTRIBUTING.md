@@ -17,6 +17,32 @@ source that you want to test through the installed CLI.
 Rust sources live in `crates/`; Python sources live in `python/pllm/`. Do not
 add another Python package at the repository root.
 
+## Build a wheel
+
+Use the standard uv/Maturin workflow from the repository root:
+
+```bash
+uv sync --group dev
+uv run --no-sync maturin build --release --locked --out dist
+```
+
+Maturin's normal `--offline` and `-j 1` options are available when needed.
+Build outputs stay ignored. No separate build receipt or attestation wrapper is
+required. When testing an installed wheel, use `pytest -o pythonpath=` so the
+checkout's Python package does not shadow the installation.
+
+## Experiments and results
+
+Keep reusable experiment `.py` files in `examples/` and retain ordinary benchmark
+outputs for reported results in `docs/evidence/`. These are the evidence record;
+correctness belongs in normal tests. Preserve the benchmark's own workload,
+configuration, build, and metric fields.
+
+Do not add separate receipt collections, source copies, environment dumps,
+nested archives, or custom archive validators. Temporary diagnostics belong in
+ignored `target/`. Git history supplies old source and change history. Simplify
+legacy collections as they are touched, retaining useful results and tests.
+
 ## Run the documentation site
 
 From the repository root:
@@ -36,8 +62,8 @@ npm --prefix docs run papers
 ```
 
 Keep working plans in `docs/plans/`, research notes in `docs/research/`, and
-session handoffs in `docs/handoffs/`. Put measurements and reproduction records
-in `docs/evidence/`; use lower-case kebab-case filenames for new documents.
+session handoffs in `docs/handoffs/`. Use lower-case kebab-case filenames for new
+documents.
 Do not commit generated PDFs, archives, figures, publication MDX, or download copies.
 
 ## Check changes

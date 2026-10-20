@@ -20,7 +20,13 @@ reimplementations of ten selected methods. See `FRAMEWORK-REWRITE-PLAN.md`,
 adaptations require the author's approval before implementation. The current
 manuscript and historical configuration results do not complete that study.
 
-Publication evidence has separate, auditable owners:
+Experiments use reusable `.py` definitions in `examples/` and ordinary benchmark
+outputs in `docs/evidence/`. Correctness belongs in normal tests. Build wheels
+with standard uv/Maturin commands; see [CONTRIBUTING.md](../CONTRIBUTING.md).
+Do not add parallel receipt collections, environment inventories, copied sources
+or archive-verification workflows.
+
+Publication references:
 
 - `COMPARISON-CONTRACT.md` and `comparison-contract.v1.json`: normative definitions,
   resource profiles, statistical design and explicit capability gaps.
@@ -30,22 +36,16 @@ Publication evidence has separate, auditable owners:
   mapping, adaptation tracks and outstanding complete-decoder comparison gates.
 - `SECURITY-AND-CORRECTNESS.md`: exactness and a conditional static, untimed
   four-provider argument, with bounded witnesses in `artifacts/security/`.
-- `IMPLEMENTATION-EVIDENCE.md` and `artifacts/conformance/`: frozen installed-wheel
-  execution, independent oracles, failed attempts and local build provenance.
-- `artifacts/release/`: separate empty-target build and fresh-environment generated
-  replay, with a distinct native identity and retained failed setup attempts.
-- `artifacts/clean-build/`: a separately traced empty-target build and fresh
-  installation used by the full generated SDK and six-family conformance replays.
+- `IMPLEMENTATION-EVIDENCE.md`: ordinary test entry points and a concise historical
+  summary. `artifacts/conformance/` retains original benchmark/numerical outputs.
 - `artifacts/listing1/`: exact published Qwen listing through SDK and ASGI gateway.
 - `HISTORICAL-RESULTS.md` and `artifacts/historical-results-v1.json`: four original
   cohorts with raw replicate identities, separate windows and unknowns retained.
 
-Read-only evidence checks, from the repository root:
+Historical table check, from the repository root:
 
 ```bash
 node scripts/audit_publication_evidence.mjs --check
-python3 paper/artifacts/conformance/verify.py
-python3 paper/artifacts/listing1/verify.py
 ```
 
 The table auditor's `--write` regenerates its JSON and historical Markdown;

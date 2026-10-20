@@ -10,13 +10,12 @@ __pycache__/
 coverage.xml
 htmlcov/
 build/
-!paper/artifacts/gkm-sdk/*/build/
-!paper/artifacts/gkm-sdk/*/build/**
 !docs/content/docs/build/
 !docs/content/docs/build/**
 !docs/public/releases/*/docs/build/
 !docs/public/releases/*/docs/build/**
 dist/
+*.whl
 results/
 !research/evidence/
 !research/lifecycle/results/
@@ -73,6 +72,8 @@ docs/public/releases/*/docs-manifest.json
 /docs/public/downloads/
 /paper/*.pdf
 /paper/figures/
+/paper/artifacts/clean-build/
+/paper/artifacts/release/
 /docs/content/docs/research/papers/
 /docs/data/research/scorecard.json
 /docs/data/research/results.json

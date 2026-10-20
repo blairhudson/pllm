@@ -253,48 +253,32 @@ checkpoint, serving, security or model-quality measurements.
 - `HISTORICAL-RESULTS.md` and its generated JSON audit 51 original clients in four
   separate cohorts. Metric contracts, role CPU sums, integer-byte peaks, explicit
   recipe labels and maximum-client qualification have 23 focused regressions.
-- `IMPLEMENTATION-EVIDENCE.md` records generated conformance and six mechanism
-  families. The main extension checks 29,592 exact logit/KV values and independent
-  FP32 errors below the declared 0.1 fixture tolerance. Original failed attempts,
-  including a two-byte equalization framing assertion, remain archived.
+- `IMPLEMENTATION-EVIDENCE.md` summarizes generated conformance and links ordinary
+  test entry points. The main extension checks 29,592 exact logit/KV values and
+  independent FP32 errors below the declared 0.1 fixture tolerance. The historical
+  two-byte equalization framing failure remains distinct from its later repair.
 - Listing 1's Qwen SDK/gateway functionality passes at 40+8 tokens with matching
   text and zero observed swap growth. Its first archive does not establish actual
-  provider-child imports or retain the full model-file lock. Stronger isolated
-  replay and clean-cache/fresh-environment release checks are in progress.
+  provider-child imports or retain the full model-file lock. A later replay
+  supplied those checks, as summarized below.
 
 The drafts now contain scoped historical results rather than empty numerical
 headline slots. New publication campaign, complete-system competitor qualification,
 independent confirmation and final author/release review remain open. Neither
 draft claims a new SOTA result.
 
-## Fresh-target release follow-up — 16 October 2026
+## Historical conformance follow-ups — 16 October 2026
 
-- `artifacts/release/README.md` binds an empty-target, locked offline build to a
-  separate fresh installation and generated replay. All 355 package files match
-  the new wheel; 180 trajectory array pairs (88,776 values), six binding
-  rejections and twelve boundary checks pass. The read-only verifier passes.
-- This native binary differs from the historical cached build. The release uses
-  existing toolchains, Cargo sources and RECORD-checked Python dependency payloads;
-  it is neither an independent attestation nor a clean operating-system image.
-  Historical execution and failed/interrupted attempts retain their identities.
-- Equalization's exact byte check now separates the actual encoded `server_ns`
-  field from arithmetic and non-timing framing. The repaired case and 19 negative
-  and accounting controls pass. The original failed frames were not retained,
-  so that historical failure remains unresolved. Fresh full conformance still
-  requires complete provider shutdown receipts.
-
-## Complete fresh conformance follow-up — 16 October 2026
-
-- A second empty-target build in `artifacts/clean-build/2026-10-16-local-v5/`
-  verifies 127 receipt artifacts and 26,231 installed distribution files. It keeps
-  its own wheel/native identity and reuses recorded dependency/toolchain inputs.
-- `artifacts/conformance/2026-10-16-clean-local-v1/` passes 29 tests, 29,592 exact
-  logit/KV values, independent FP32 reference checks, the SDK/gateway and ordinary
-  benchmark. All 31 Python children retain complete installed-package identities.
-- `artifacts/conformance/2026-10-16-families-clean-v1/` passes 46 tests and the ten
-  bounded operator/replay pairs. All 26 child identities pass, including both
-  provider roles. Actual equalization frames are retained and reconcile; the old
-  missing-frame failure remains unresolved rather than being rewritten.
+- A separate fresh installation passed 180 trajectory array pairs (88,776 values),
+  six binding rejections and twelve boundary checks. This was local testing with
+  cached dependencies, not independent reproduction.
+- The later generated SDK/gateway run passed 29 tests and checked 29,592 exact
+  logit/KV values against its untiled control, with separate upstream FP32 checks.
+  A family run passed 46 tests and bounded operator checks. Their original
+  benchmark outputs remain under `artifacts/conformance/`.
+- Equalization checks now account for encoded `server_ns` separately from
+  arithmetic and non-timing framing. The repaired case and 19 accounting controls
+  passed. The original failure's uncaptured frames prevent retrospective attribution.
 - `artifacts/listing1/qwen-fresh-v2/` freezes a separate successful 40+8 Qwen
   SDK/gateway replay from the earlier fresh-target release chain. Text, actual
   provider imports and complete model-file locks agree; observed swap growth is
@@ -304,9 +288,11 @@ draft claims a new SOTA result.
   point, an exact-W8A8 adaptation and a packed-DPF control have separate labels.
   Complete-decoder qualification and matched costs remain open.
 
-These results close the specified local conformance gaps. Fresh publication-cost
-cohorts, external replay, concrete cryptographic review and author/submission
-approval retain their separate gates.
+Build receipt bundles and archive-verifier tooling have been retired. New work
+uses standard uv/Maturin builds, normal tests, reusable experiment files and
+ordinary benchmark outputs. Historical observations do not qualify current code.
+Fresh publication-cost cohorts, external reproduction, concrete cryptographic
+review and author/submission approval remain open.
 
 ## Historical implementation and evidence notes
 

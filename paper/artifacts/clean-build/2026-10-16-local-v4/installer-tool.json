@@ -1,6 +1,0 @@
-{
-  "path": "/opt/homebrew/bin/uv",
-  "resolved_path": "/opt/homebrew/Cellar/uv/0.13.0/bin/uv",
-  "selection": "Explicit --uv tool, or PATH default; existing local executable",
-  "sha256": "c3082a66a6e40a36347045c141311b0e8a5d83ba9639fdc2e24ec33a4b2b0edd"
-}
