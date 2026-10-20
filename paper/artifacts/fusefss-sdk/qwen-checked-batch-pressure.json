@@ -1,0 +1,76 @@
+{
+  "candidates": [
+    {
+      "experiment": {
+        "configuration_digest": "b6846b4249cbb691d5af5b98e4ca9657c252b9899989fdac60ae8ddcc5874a24",
+        "name": "fusefss-checked-ranges-batch",
+        "pipeline_digest": "7a45c4f8ff6e902fe6cdb015e50532774ff79926439ddf6bfaeb1a49ef05defc"
+      },
+      "index": 1,
+      "report": null,
+      "status": "failed"
+    }
+  ],
+  "checks": {
+    "complete": false,
+    "passed": false
+  },
+  "complete": false,
+  "configuration": {
+    "bundle_compression": "none",
+    "experiments": [
+      {
+        "configuration_digest": "b6846b4249cbb691d5af5b98e4ca9657c252b9899989fdac60ae8ddcc5874a24",
+        "generation_policy": "fixed_length_greedy",
+        "name": "fusefss-checked-ranges-batch",
+        "output_delivery": "buffered_final_ids",
+        "pipeline_digest": "7a45c4f8ff6e902fe6cdb015e50532774ff79926439ddf6bfaeb1a49ef05defc",
+        "runtime_kind": "fss",
+        "sampling": {
+          "effective_temperature": 0.0,
+          "mode": "greedy",
+          "requested_temperature": 0.0,
+          "top_p": null
+        }
+      }
+    ],
+    "inventory_policy": "none",
+    "max_output_tokens": 1,
+    "memory_budget_bytes": null,
+    "memory_safety_margin_percent": 25,
+    "model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "model_id": null,
+    "output": "target/fusefss-qwen-checked-batch-response.json",
+    "prefill_cache_bound_tokens": null,
+    "prefill_cache_mib": 0,
+    "prefill_cache_mode": "exact",
+    "provider_backend": "native",
+    "repetitions": 1,
+    "sampling": {
+      "effective_temperature": 0.0,
+      "mode": "greedy",
+      "requested_temperature": 0.0,
+      "top_p": null
+    },
+    "save_best": null,
+    "sequence_length": null,
+    "show_dashboard": false,
+    "timeout_seconds": 14400.0,
+    "tiny": false,
+    "wan_conditions": {
+      "download_mbps": 100.0,
+      "parties": [],
+      "role_parties": [],
+      "schema": "pllm.wan_conditions.v1",
+      "upload_mbps": 40.0
+    },
+    "wan_mode": "analytic-only",
+    "warmups": 0
+  },
+  "failure": {
+    "type": "LoopbackBenchmarkError"
+  },
+  "schema_version": "pllm.benchmark_progress.v1",
+  "status": "failed",
+  "updated_at": "2026-10-20T11:04:39.412463+00:00"
+}

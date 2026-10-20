@@ -72,3 +72,31 @@ This generated single pair establishes neither trained-checkpoint acceptance nor
 an independently confirmed performance effect. Installed batching checks pass 282
 tests; the factory-name follow-up passes 24 checks. Native decoder
 tests pass 107 cases; both batched three-process parity/rejection tests pass.
+
+## Pressure-stopped trained-Qwen attempt
+
+`qwen-checked-batch-pressure.json` preserves the ordinary CLI progress checkpoint
+from the pinned checked-range/batched factory, with a four-input-token bound and
+one output selection:
+
+```sh
+uv run --no-sync pllm benchmark run \
+  --experiment examples/papers/fusefss.py:qwen_checked_batch_smoke \
+  --factory --trust-python --backend native --prompt hello \
+  --max-output-tokens 1 --timeout 14400 --capture-output-digest \
+  --output target/fusefss-qwen-checked-batch-response.json
+```
+
+Source and topology admission passed, and the holders reached online execution.
+After approximately 66 minutes in the measured request window, the benchmark
+stopped with `benchmark stopped: macOS memory pressure is warning`. The four-hour
+deadline had not expired. All role processes retired; temporary disk ownership
+was released. The host-pressure observation does not identify which allocation
+or process caused it.
+
+The checkpoint retains `status="failed"`, `complete=false` and `report=null`.
+There is no accepted token, final numeric verdict, completed resource report or
+quality/performance result. A three-second live stack sample was also taken
+during this attempt; it is a narrow diagnostic, not whole-request attribution.
+Online peer exchanges remain unbatched. Calibrate dependency-safe online batching
+and callback/transport costs before another long trained-model attempt.

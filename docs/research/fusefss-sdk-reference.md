@@ -185,6 +185,17 @@ External-AAD tape pricing reduces that quote to 47,630,190,304 bytes while
 preserving all material records, complete metadata authentication and replay
 storage. This is admitted storage arithmetic, not measured request execution.
 
+A subsequent checked-range/batched Qwen attempt passes source and topology
+admission and reaches online execution. After approximately 66 minutes in the
+measured request window, macOS warning-level memory pressure triggers retirement
+before final acceptance. The four-hour deadline remains unexpired; the pressure
+observation alone does not attribute its cause to a process or allocation. The
+[ordinary failed checkpoint](../../paper/artifacts/fusefss-sdk/qwen-checked-batch-pressure.json)
+retains an incomplete status and no report. No token, numeric acceptance,
+completed resource measurement or quality result follows. All role processes
+retire. Online gate batching and callback-cost calibration are the next execution
+gate; offline material batching does not reduce these peer exchanges.
+
 The integrated revision passes 1,025 Rust library tests across core, garble and
 compiler, 816 installed Python checks, and two additional three-child Decoder
 tests. The latter consume more than 4,096 v2 tape records and enforce late

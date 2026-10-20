@@ -102,8 +102,9 @@ schedule are charged. Generated three-role tests cover late rejection without
 token disclosure and fresh-request recovery. Actual checkpoint request acceptance
 is still unmeasured; static proof improvements remain a separate follow-up.
 
-Next: qualify whole-topology disk and execute the ordinary short Qwen factory,
-check independent complete integer results, then quality and matched benchmarks.
+Next: calibrate and reduce online execution overhead, complete the ordinary short
+Qwen request, check independent complete integer results, then quality and matched
+benchmarks.
 The initial inline-metadata tape quote needs 71.53 GB including reserve; the host
 rejects before child launch. External-AAD tape storage reduces the quote to
 47.63 GB without removing authenticated metadata, material or replay claims.
@@ -114,6 +115,14 @@ one-use records, complete acknowledgements and numeric identity through ordinary
 SDK execution. A fresh-client generated pair lowers preparation from 5.393 to
 0.390 seconds with matching outputs, tape bytes and online bodies. This remains
 separate from trained-Qwen execution and independent performance confirmation.
+A subsequent checked-range/batched Qwen attempt passes topology admission and
+reaches online execution, but the host memory-pressure guard stops it after about
+66 minutes, before final acceptance and before its four-hour deadline. The
+[ordinary failed checkpoint](../artifacts/fusefss-sdk/qwen-checked-batch-pressure.json)
+retains no completed report. All role processes retire. The cause of host pressure
+is unassigned. Scalar online gates still incur millions of Python/HTTP callbacks;
+measure a representative bounded fixture and reuse shared transport/scheduling
+owners for dependency-safe batching before another long checkpoint run.
 Launch uses bounded temporary source qualification, fresh exact
 topology pricing and independently checked worker imports. Qualification cost,
 all source/tape/replay disk, cumulative material and execution work stay charged.
