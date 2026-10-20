@@ -6,6 +6,21 @@ use pllm_garble::fusefss_backend::{
 use pllm_models::{DecoderPlan, ModelOperation, ModelOperator as Op};
 use sha2::{Digest, Sha256};
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum OnlineSchedule {
+    #[default]
+    Serial,
+    WavefrontV1,
+}
+impl OnlineSchedule {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Serial => "serial",
+            Self::WavefrontV1 => "wavefront-v1",
+        }
+    }
+}
+
 /// Admission ceilings may only reduce the fixed native envelope.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
@@ -158,6 +173,7 @@ impl Node {
 /// Immutable instruction templates; no expanded per-scalar graph or public
 /// constructor for ranges, output obligations, or program digests.
 pub struct Program {
+    pub(super) online: OnlineSchedule,
     pub(super) source: Source,
     pub(super) nodes: Vec<Node>,
     pub(super) initial: usize,
@@ -393,6 +409,16 @@ impl Program {
         source: Source,
         selections: usize,
         limits: Limits,
+    ) -> Result<Self, Error> {
+        Self::compile_with_schedule(plan, source, selections, limits, OnlineSchedule::Serial)
+    }
+
+    pub fn compile_with_schedule(
+        plan: &DecoderPlan,
+        source: Source,
+        selections: usize,
+        limits: Limits,
+        online: OnlineSchedule,
     ) -> Result<Self, Error> {
         let capacity = source.capacity();
         let hard = Limits::for_capacity(capacity);
@@ -1314,11 +1340,15 @@ impl Program {
             hash.update(energy.as_ref().ok_or(Error::Context)?.digest());
         }
         hash.update(source.digest());
+        if online == OnlineSchedule::WavefrontV1 {
+            hash.update(b"online=wavefront-v1;independent-lanes;balanced-stable-selection\0");
+        }
         hash.update(plan.digest().as_str().as_bytes());
         for n in [initial, selections, sequence, vocabulary] {
             hash.update((n as u64).to_le_bytes());
         }
         let mut program = Self {
+            online,
             source,
             nodes,
             initial,
@@ -1383,6 +1413,12 @@ impl Program {
             + 8 * (sequence + selections)
             + gather_workspace
             + program.nodes.len() * std::mem::size_of::<Option<zeroize::Zeroizing<Vec<u64>>>>();
+        if online == OnlineSchedule::WavefrontV1 {
+            // Full tournament frontier plus bounded lane-major gather/output
+            // overlap. Public geometry only, allocated before any private use.
+            program.resources.live_array_bytes_per_party += 8 * (vocabulary + 1)
+                + 2 * 8 * pllm_garble::fusefss_backend::composition::MAX_INPUTS;
+        }
         if 3 * program.resources.metadata_bytes + 2 * program.resources.live_array_bytes_per_party
             > pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
         {
@@ -1396,6 +1432,9 @@ impl Program {
     }
     pub fn digest(&self) -> [u8; 32] {
         self.digest
+    }
+    pub fn online_schedule(&self) -> OnlineSchedule {
+        self.online
     }
     pub fn source_digest(&self) -> [u8; 32] {
         self.source.digest()

@@ -64,6 +64,13 @@ def _material_delivery(record):
         raise FssSourceError("FuseFSS material delivery must be single or batch-v1") from error
 
 
+def _online_schedule(record):
+    schedule = record.get("online_schedule", "serial")
+    if type(schedule) is not str or schedule not in {"serial", "wavefront-v1"}:
+        raise FssSourceError("FuseFSS online schedule must be serial or wavefront-v1")
+    return schedule
+
+
 def _experiment(experiment):
     if not isinstance(experiment, Experiment):
         raise TypeError("FuseFSS source requires an Experiment")
@@ -80,6 +87,7 @@ def _experiment(experiment):
             or profile not in _PROFILES):
         raise FssSourceError("FuseFSS source requires its explicit numeric profile")
     _material_delivery(method.params)
+    _online_schedule(method.params)
     model = experiment.pipeline.model
     if model.kind not in {"huggingface", "safetensors"}:
         raise FssSourceError("FuseFSS requires public HF/Safetensors source")
@@ -140,6 +148,8 @@ def _contract(experiment, encoded, config, rows, outputs, sourcepin, tokenizerpi
         raise FssSourceError("FuseFSS native capacity differs from Experiment")
     if _material_delivery(record) != _material_delivery(experiment.pipeline.components["linear"].params):
         raise FssSourceError("FuseFSS native material delivery differs from Experiment")
+    if _online_schedule(record) != _online_schedule(experiment.pipeline.components["linear"].params):
+        raise FssSourceError("FuseFSS native online schedule differs from Experiment")
     expanded = capacity == "decoder"
     shapes, layouts = record.get("source_shapes"), record.get("source_layouts")
     if (type(shapes) is not dict or not 1 <= len(shapes) <= 1024
@@ -552,7 +562,7 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         if _locked(source.path, source.model, size, source._identities, capacity) != expected_lock:
             raise FssSourceError("FuseFSS source changed during import")
         _cancelled(cancelled)
-        program = builder.seal()
+        program = builder.seal_wavefront() if _online_schedule(record) == "wavefront-v1" else builder.seal()
         manifest_bytes = program.manifest(contract_bytes)
         manifest = _document(manifest_bytes, "program manifest", 1024)
         expected = {"schema": "pllm.fss.channel.program.v1", "contract": hashlib.sha256(contract_bytes).hexdigest(),

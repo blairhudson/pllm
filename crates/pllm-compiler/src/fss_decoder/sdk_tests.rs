@@ -1,6 +1,73 @@
 use super::*;
 
 #[test]
+fn wavefront_online_schedule_is_checked_policy_and_preserves_numeric_source_contract() {
+    for capacity in [Capacity::Capsule, Capacity::Decoder] {
+        let config = dense();
+        let mut experiment = experiment(DENSE_ROPE_NUMERIC);
+        if capacity == Capacity::Decoder {
+            experiment["pipeline"]["components"]["linear"]["params"]["capacity"] = json!("decoder");
+        }
+        let serial = contract(&experiment, &config, 3, 2).unwrap();
+        let original: Value = serde_json::from_slice(&serial).unwrap();
+        assert!(original.get("online_schedule").is_none());
+        assert_eq!(
+            contract_online_schedule(&serial).unwrap(),
+            super::super::OnlineSchedule::Serial
+        );
+        let admitted = preflight_source_with_capacity(
+            &canonical_bytes(&config),
+            3,
+            2,
+            DENSE_ROPE_NUMERIC,
+            capacity,
+        )
+        .unwrap();
+        let binding = SourceExecutionBinding::new(&admitted, 2).unwrap();
+        experiment["pipeline"]["components"]["linear"]["params"]["online_schedule"] =
+            json!("wavefront-v1");
+        let wave = contract(&experiment, &config, 3, 2).unwrap();
+        assert_ne!(
+            binding.checked_contract_digest(&serial).unwrap(),
+            binding.checked_contract_digest(&wave).unwrap()
+        );
+        assert_eq!(
+            contract_online_schedule(&wave).unwrap(),
+            super::super::OnlineSchedule::WavefrontV1
+        );
+        let mut selected: Value = serde_json::from_slice(&wave).unwrap();
+        for field in [
+            "plan",
+            "source_shapes",
+            "numeric_profile",
+            "source_q12_value_bytes",
+        ] {
+            assert_eq!(selected[field], original[field]);
+        }
+        for invalid in [
+            json!("serial"),
+            json!("wavefront-v2"),
+            json!(true),
+            json!(1),
+            Value::Null,
+        ] {
+            experiment["pipeline"]["components"]["linear"]["params"]["online_schedule"] =
+                invalid.clone();
+            assert!(contract(&experiment, &config, 3, 2).is_err());
+            selected["online_schedule"] = invalid;
+            assert!(binding
+                .checked_contract_digest(&canonical_bytes(&selected))
+                .is_err());
+        }
+        experiment["pipeline"]["components"]["linear"]["params"]
+            .as_object_mut()
+            .unwrap()
+            .remove("online_schedule");
+        assert_eq!(contract(&experiment, &config, 3, 2).unwrap(), serial);
+    }
+}
+
+#[test]
 fn material_delivery_is_checked_contract_policy_and_default_identities_stay_omitted() {
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         let config = dense();

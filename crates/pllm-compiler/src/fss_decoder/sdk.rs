@@ -325,6 +325,37 @@ fn delivery_field(value: Option<&Value>) -> Result<MaterialDelivery, String> {
     }
 }
 
+fn online_field(value: Option<&Value>) -> Result<super::OnlineSchedule, String> {
+    match value {
+        None => Ok(super::OnlineSchedule::Serial),
+        Some(Value::String(s)) if s == "wavefront-v1" => Ok(super::OnlineSchedule::WavefrontV1),
+        _ => Err(reject(
+            "online_schedule must be omitted for serial or explicitly wavefront-v1",
+        )),
+    }
+}
+fn online_schedule(document: &ExperimentDocument) -> Result<super::OnlineSchedule, String> {
+    online_field(
+        document
+            .pipeline
+            .components
+            .get("linear")
+            .and_then(|c| c.params.get("online_schedule")),
+    )
+}
+pub fn contract_online_schedule(contract: &[u8]) -> Result<super::OnlineSchedule, String> {
+    if contract.is_empty() || contract.len() > MAX_CONTRACT_BYTES {
+        return Err(reject("contract byte bound"));
+    }
+    let value = bounded_json_value_with_capacity(contract, Capacity::Decoder)?;
+    online_field(
+        value
+            .as_object()
+            .ok_or_else(|| reject("contract must be an object"))?
+            .get("online_schedule"),
+    )
+}
+
 fn material_delivery(document: &ExperimentDocument) -> Result<MaterialDelivery, String> {
     delivery_field(
         document
@@ -357,6 +388,7 @@ pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     let chosen = profile(document)?;
     let capacity = capacity(document)?;
     let delivery = material_delivery(document)?;
+    let online = online_schedule(document)?;
     let limits = Limits::default();
     sequence(
         usize::try_from(document.budget.max_input_tokens)
@@ -380,6 +412,9 @@ pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     }
     if delivery == MaterialDelivery::BatchV1 {
         linear["material_delivery"] = json!(delivery.name());
+    }
+    if online == super::OnlineSchedule::WavefrontV1 {
+        linear["online_schedule"] = json!(online.name());
     }
     let expected = [
         ("linear", PROTOCOL, linear),
@@ -1365,6 +1400,7 @@ pub fn preflight_source_with_capacity(
     let sizing = ContractView {
         admitted: &admitted,
         material_delivery: MaterialDelivery::Single,
+        online_schedule: super::OnlineSchedule::Serial,
         rows,
         outputs,
         configuration: "0".repeat(64),
@@ -1501,6 +1537,7 @@ pub struct SourceExecutionBinding {
 struct ContractView<'a> {
     admitted: &'a SourcePreflight,
     material_delivery: MaterialDelivery,
+    online_schedule: super::OnlineSchedule,
     configuration: String,
     composition: String,
     sourcepin: &'a str,
@@ -1528,6 +1565,9 @@ impl Serialize for ContractView<'_> {
         entry!("numeric_profile", a.numeric_profile);
         if self.material_delivery == MaterialDelivery::BatchV1 {
             entry!("material_delivery", self.material_delivery.name());
+        }
+        if self.online_schedule == super::OnlineSchedule::WavefrontV1 {
+            entry!("online_schedule", self.online_schedule.name());
         }
         if a.capacity == Capacity::Decoder {
             entry!("capacity", a.capacity);
@@ -1625,6 +1665,7 @@ impl SourceExecutionBinding {
         // claim. It is bound by the complete returned contract digest (and hence
         // Manifest/Request), while the source execution identity stays unchanged.
         delivery_field(object.remove("material_delivery").as_ref())?;
+        online_field(object.remove("online_schedule").as_ref())?;
         for (key, expected) in fixed.as_object().unwrap() {
             if object.remove(key).as_ref() != Some(expected) {
                 return Err(reject("contract schema/policy differs"));
@@ -1732,6 +1773,7 @@ pub fn source_contract(
     let view = ContractView {
         admitted: &admitted,
         material_delivery: delivery,
+        online_schedule: online_schedule(&document)?,
         rows,
         outputs,
         configuration: crate::configuration_digest_bytes(experiment).to_string(),

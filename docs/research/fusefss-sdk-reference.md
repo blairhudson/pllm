@@ -85,6 +85,27 @@ charges under the existing aggregate ceiling. The checked SDK contract binds the
 choice; numeric Program/source-body identities and default single delivery remain
 unchanged. Batching does not merge one-use records or online peer exchanges.
 
+The separate `online_schedule="wavefront-v1"` option executes public dependency
+groups of the original consuming primitives. At most 256 ready primitives,
+2 MiB of decoded party material and a 1 MiB framed opening fit one group; the
+unchanged aggregate 64 MiB ceiling includes schedules, registers, exports and
+retained frames. Exact kernel resources may reduce the group further. Every
+primitive retains its own context, original packet and fresh one-use material.
+Malformed groups, replay, partial replies and cancellation consume the active
+owner. Public schedule construction and repeated metadata also count as work.
+
+Bounded lane templates combine independent contractions, floors, activations,
+normalization rows and attention work. Public matrix products retain complete
+accumulation before their floor. Adjacent-pair private selection preserves the
+lowest original index on ties and carries odd tails unchanged. Logical tree
+depth and actual tile/exchange counts remain separate. Checked-range validity
+stays secret and sticky through complete feedback and final masking. D15 records
+the approved execution adaptation; numeric source identities stay comparable,
+while Program, schedule and admission commitments bind the new order. Serial
+execution remains the default. Full dense conformance fixtures use Decoder's
+existing cumulative-work envelope; the new construction work can exceed Capsule
+even when its live payload fits.
+
 `capacity="decoder"` streams Q12 coefficients and row statistics into shared-core
 immutable files. Public contractions reuse `pllm_core::streamed_matrix`; the
 complete product still precedes the original FuseFSS floor. Complete vocabulary
@@ -241,6 +262,68 @@ scope. Setup material, client/relay work and all routed role bodies remain charg
 Buffered final disclosure still supplies no streaming TTFT or decode throughput.
 The scalar online schedule is not WAN-qualified; tensor-wide dependent rounds,
 balanced private selection and preprocessing volume remain execution gates.
+
+The matched online-schedule factories are
+`examples/papers/fusefss_smoke.py:dense_batch_smoke` and
+`examples/papers/fusefss_smoke.py:dense_wavefront_smoke`. The pinned checked-source
+candidate is `examples/papers/fusefss.py:qwen_checked_wavefront_smoke`. Selection
+alone supplies no trained acceptance or WAN performance result.
+
+A separate fresh-client matched pair runs both generated factories at shared
+100/40 Mbps caps and 20 ms per direction (40 ms added RTT). Both produce the
+same output commitment with zero observed swap growth; native and SDK controls
+above supply the independent tensor/selection and rejection evidence.
+
+| Measured scope, one sample per arm | Serial | Wavefront |
+| --- | ---: | ---: |
+| Full request, including offline preparation | 222.505 s | 34.583 s |
+| Maximum holder native-run elapsed | 212.013 s | 24.251 s |
+| Dealer preparation elapsed | 8.801 s | 8.469 s |
+| Covered all-link application bodies | 19,909,435 B | 14,022,118 B |
+| Covered online application bodies | 7,681,488 B | 1,716,046 B |
+| Startup-through-response TCP streams | 24,273,664 B | 14,584,395 B |
+| Client lifetime peak RSS | 112,312,320 B | 112,295,936 B |
+
+This is a generated hidden-width-two, one-layer, three-token-vocabulary 1+2
+workload. Its 6.43-fold request reduction and 8.74-fold holder reduction do not
+project full-Qwen performance. Client RSS is effectively unchanged. Fresh
+preprocessing remains charged; checkpoint distribution, physical TCP/IP overhead,
+Internet measurements and independent operators remain outside scope. The
+ordinary report is [`fusefss-wavefront-wan-pair.json`](../evidence/fusefss-wavefront-wan-pair.json).
+
+```sh
+uv run --no-sync pllm benchmark run \
+  --experiment examples/papers/fusefss_smoke.py:dense_batch_smoke \
+  --experiment examples/papers/fusefss_smoke.py:dense_wavefront_smoke \
+  --factory --trust-python --backend native --wan \
+  --link-conditions examples/benchmarks/wan_20ms.json \
+  --prompt hello --max-output-tokens 2 --timeout 600 \
+  --capture-output-digest --isolate-candidates \
+  --output target/fusefss-wavefront-wan-pair.json
+```
+
+### Trained-source scheduling gate
+
+Source-only qualification of the pinned checked Qwen candidate at 4+1 completes
+range construction but rejects the kernel walk at layer 23 SiLU: cumulative public
+copies reach 34,371,192,850 bytes, above the unchanged 34,359,738,368-byte ceiling.
+This includes the new public schedule construction; it is not a private-value
+rejection or a completed request. No workers launch.
+
+A separate 1+1 source/pricing control admits 29,334 peer exchanges per holder,
+4,144,944 fresh primitive records per holder, and a 64,688,850-byte combined native
+transport reservation under the 64 MiB ceiling. Native packet pricing is bounded
+by 5,181,796,140 bytes per holder, before HTTP metadata; that bound is neither an
+observed transfer nor a transfer lower bound. Complete source/tape/guard/reserve
+disk pricing is 25,317,061,976 bytes. Qualification retires its source owner and
+observes zero swap growth, without launching workers or executing private input.
+
+At 40 ms RTT, the current sequential HTTP exchange schedule alone implies about
+1,173 seconds (19.6 minutes) of latency waits for that 1+1 control. The logical
+selection tree therefore does not make the bounded tiled schedule WAN-practical.
+Reducing repeated public schedule ownership and enabling wider bounded tensor
+waves remain execution gates; fresh preprocessing delivery remains a separate
+cost gate. These estimates do not qualify trained acceptance, quality or serving.
 
 The ordinary [generated response report](../evidence/fusefss-generated-wan.json)
 records two final outputs in 222.124 seconds, with 7.766 seconds of dealer

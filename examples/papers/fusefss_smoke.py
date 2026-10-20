@@ -41,6 +41,12 @@ def dense_batch_smoke(path=Path("target/fusefss-dense-delivery-smoke")):
         name="generated-fss-dense-batch", pipeline__linear__material_delivery="batch-v1")
 
 
+def dense_wavefront_smoke(path=Path("target/fusefss-dense-delivery-smoke")):
+    """Same Q12 source and workload; bounded independent online waves."""
+    return dense_batch_smoke(path).with_params(
+        name="generated-fss-dense-wavefront", pipeline__linear__online_schedule="wavefront-v1")
+
+
 def _experiment(path, *, requests, dense):
     from tokenizers import Tokenizer
     from tokenizers.models import WordLevel

@@ -18,9 +18,11 @@ pub mod cache;
 mod conformance;
 pub mod gates;
 pub mod kernels;
+mod lanes;
 pub mod norm;
 mod runtime;
 mod source_tables;
+pub mod wavefront;
 pub use runtime::{wire, Engine, Event, Material, OwnedRuntime, Runtime};
 
 #[cfg(test)]
@@ -846,6 +848,10 @@ impl<'a> Plan<'a> {
     }
     pub fn input_bits(&self) -> &[u8] {
         &self.inputs
+    }
+    /// Whole-vector lookup is already one atomic exchange, not a scalar DAG.
+    pub fn is_atomic_vector(&self) -> bool {
+        self.compact_vocabulary().is_some()
     }
     /// Exact output count. Only the explicit compact one-hot plan can exceed the
     /// ordinary scalar register cap; its native output is independently priced.

@@ -135,6 +135,20 @@ fn retiring_guard_changes_same_nonce_different_context_contract() {
 }
 
 fn fixture(layers: u32, initial: u64, selections: u64) -> Program {
+    fixture_schedule(
+        layers,
+        initial,
+        selections,
+        crate::fss_decoder::OnlineSchedule::Serial,
+    )
+}
+
+fn fixture_schedule(
+    layers: u32,
+    initial: u64,
+    selections: u64,
+    online: crate::fss_decoder::OnlineSchedule,
+) -> Program {
     let config = json!({"model_type":"gpt2","n_embd":2,"n_head":1,"n_layer":layers,"n_positions":8,"vocab_size":3,"n_inner":2});
     let plan = pllm_models::lower_model_json(
         &serde_json::to_vec(&config).unwrap(),
@@ -146,7 +160,14 @@ fn fixture(layers: u32, initial: u64, selections: u64) -> Program {
     )
     .unwrap();
     let source = source(&plan);
-    Program::compile(&plan, source, selections as usize, Limits::default()).unwrap()
+    Program::compile_with_schedule(
+        &plan,
+        source,
+        selections as usize,
+        Limits::default(),
+        online,
+    )
+    .unwrap()
 }
 fn source(plan: &DecoderPlan) -> Source {
     let mut tensors: Vec<Tensor> = Vec::new();
@@ -542,6 +563,45 @@ fn endpoints(fault: Fault) -> (DealerEndpoint, [RoleEndpoint; 2], Inspection) {
 }
 
 type Execution = (Result<TokenShares, Error>, Trace);
+
+#[test]
+fn wavefront_wire_preserves_complete_tensors_with_fewer_rounds_and_burns_failures() {
+    let serial = fixture(1, 2, 2);
+    let wave = fixture_schedule(1, 2, 2, crate::fss_decoder::OnlineSchedule::WavefrontV1);
+    assert_eq!(serial.source_digest(), wave.source_digest());
+    assert_ne!(serial.digest(), wave.digest());
+    let a = admit(&serial, context(&serial)).unwrap();
+    let b = admit(&wave, context(&wave)).unwrap();
+    assert!(b.frames_per_party() < a.frames_per_party() / 2);
+    assert!(b.combined_reservation_bytes() <= MAX_ALLOCATION_BYTES);
+    let (dealer, sa, sb, si) = serialized(&serial, Fault::None);
+    dealer.unwrap();
+    si.drained();
+    let (dealer, wa, wb, wi) = serialized(&wave, Fault::None);
+    dealer.unwrap();
+    wi.drained();
+    assert_eq!(
+        open(wa.0.unwrap().values(), wb.0.unwrap().values()),
+        open(sa.0.unwrap().values(), sb.0.unwrap().values())
+    );
+    assert_eq!(wa.1.len(), sa.1.len());
+    for ((a, b), (c, d)) in wa.1.iter().zip(&wb.1).zip(sa.1.iter().zip(&sb.1)) {
+        assert_eq!((a.0, a.1), (c.0, c.1));
+        assert_eq!(open(&a.2, &b.2), open(&c.2, &d.2));
+    }
+    for fault in [
+        Fault::ReplayMaterial,
+        Fault::CorruptMaterial,
+        Fault::CorruptFrame,
+        Fault::ReplayFrame,
+        Fault::NoReply,
+        Fault::FinishError,
+    ] {
+        let (_, a, b, inspection) = serialized(&wave, fault);
+        assert!(a.0.is_err() || b.0.is_err(), "{fault:?}");
+        inspection.drained();
+    }
+}
 fn inputs(program: &Program) -> [Zeroizing<Vec<u64>>; 2] {
     let left: Vec<_> = (0..program.initial_tokens())
         .map(|i| 123456789 + i as u64 * 31)

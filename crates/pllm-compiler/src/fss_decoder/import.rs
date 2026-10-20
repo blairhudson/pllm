@@ -225,10 +225,23 @@ impl SourceBuilder {
     }
 
     pub fn seal(self) -> Result<ImportedProgram, Error> {
+        self.seal_with_schedule(super::OnlineSchedule::Serial)
+    }
+
+    pub fn seal_with_schedule(
+        self,
+        online: super::OnlineSchedule,
+    ) -> Result<ImportedProgram, Error> {
         let imported = self.seal_source()?;
         let ownership = compile_ownership(&imported.plan, &imported.source, imported.phases)?;
         let limits = Limits::for_capacity(imported.source.capacity());
-        let program = Program::compile(&imported.plan, imported.source, imported.outputs, limits)?;
+        let program = Program::compile_with_schedule(
+            &imported.plan,
+            imported.source,
+            imported.outputs,
+            limits,
+            online,
+        )?;
         // Compatibility assertion, not a late primary gate: the pre-call floor
         // above follows the current core formula and is tested against resources.
         if program.resources().metadata_bytes < ownership.schedule_metadata_credit_floor {

@@ -1044,6 +1044,15 @@ issuance; bounded native queues and Python copies remain charged. A separate
 fresh-client generated pair preserves outputs and online/tape bytes with zero
 observed swap growth. Preparation falls 5.393 to 0.390 seconds and full request
 time 9.680 to 4.796 seconds; holder-online time remains separate and increases.
+The separately explicit `online_schedule="wavefront-v1"` groups public dependency
+frontiers of the original consuming primitives and bounded independent tensor
+lanes. Stable adjacent-pair selection retains lowest-index ties and odd tails;
+public group limits still split logical tree levels into multiple exchanges.
+Original Q12 floors, private feedback, sticky checked validity and final-only
+acceptance remain. Schedule, frontier, frame and construction costs precede
+execution under the unchanged live ceiling. Five generated semantic controls and
+four installed three-process SDK/gateway checks preserve their declared outputs
+and failure retirement; trained-source resources and WAN practicality remain gates.
 Trained request acceptance, quality and matched performance remain
 open. These controls establish neither independent operators nor paper-system
 performance. Contract and examples:
@@ -1054,8 +1063,14 @@ graph under per-party access caps and explicit, bounded pipelined propagation
 delay. A generated 1+2 response at 100/40 Mbps and 20 ms per direction completes
 in 222.124 seconds with zero observed swap growth; maximum holder execution is
 212.664 seconds. This negative transport qualification establishes no practical
-trained-model WAN result. Tensor-wide online scheduling, balanced private
-selection and fresh-material volume remain completion gates.
+trained-model WAN result. A separate fresh-client matched serial/wavefront pair
+under the same rates and delay preserves output commitments with zero observed
+swap growth. Full requests fall 222.505 to 34.583 seconds; maximum holder execution
+falls 212.013 to 24.251 seconds. Covered all-link bodies fall 19.91 to 14.02 MB,
+while dealer preparation remains about 8.5 seconds. This generated 1+2 workload
+establishes a bounded scheduling gain, not trained-model WAN practicality.
+Source distribution, independent operators and full-Qwen acceptance remain open.
+Evidence: `docs/evidence/fusefss-wavefront-wan-pair.json`.
 
 The complete bounded shared Q7 gated block composes four exact rescalings and
 two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases

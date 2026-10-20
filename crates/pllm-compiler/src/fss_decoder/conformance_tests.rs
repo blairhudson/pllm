@@ -1,5 +1,54 @@
 use super::*;
 
+#[test]
+#[ignore = "fresh-material wavefront full-decoder regression; explicit focused run"]
+fn wavefront_preserves_every_frozen_semantic_tensor_and_private_feedback() {
+    let inputs = read_json(fixture_dir().join("inputs.json"));
+    let graphs = read_json(fixture_dir().join("semantic-graphs.json"));
+    let expected = read_json(fixture_dir().join("semantic-expected.json"));
+    for (index, case) in inputs["cases"].as_array().unwrap().iter().enumerate() {
+        for decoder in [false, true] {
+            // Dense full-prefix fixtures use explicit Decoder capacity: the
+            // additional schedule-construction work exceeds Capsule's ceiling.
+            // Learned-position/input-output fixtures retain their Capsule path.
+            if decoder == (case["profile"] == "fusefss.gpt2-complete-ring50-q12.v1") {
+                continue;
+            }
+            let semantic = semantic(case);
+            let resident = source(case, &semantic).unwrap();
+            let source = if decoder {
+                into_decoder_files(resident)
+            } else {
+                resident
+            };
+            let limits = Limits::for_capacity(source.capacity());
+            let program = Program::compile_with_schedule(
+                &semantic,
+                source,
+                number(case, "generation_count"),
+                limits,
+                OnlineSchedule::WavefrontV1,
+            )
+            .unwrap_or_else(|e| panic!("{} decoder={decoder}: {e:?}", case["id"]));
+            let (tokens, trace, actual) = execute(&program, case, index);
+            let result =
+                semantic_native_result(&semantic, case, &graphs["cases"][index], &tokens, &trace);
+            assert_eq!(
+                result, expected["results"][index],
+                "{} decoder={decoder}",
+                case["id"]
+            );
+            assert!(actual.frames > 0);
+        }
+    }
+}
+
+#[test]
+#[ignore = "fresh-material wavefront D14 regression; explicit focused run"]
+fn wavefront_checked_profile_preserves_frozen_generated_qwen() {
+    frozen_generated_qwen_with_schedule(true, OnlineSchedule::WavefrontV1);
+}
+
 /// Ordinary regression: every physical node and private feedback step is checked
 /// against the independently frozen integer result. No export/evidence bundle.
 #[test]
@@ -15,13 +64,10 @@ fn checked_profile_matches_frozen_generated_qwen() {
 }
 
 fn frozen_generated_qwen_with_policy(checked: bool) {
-    let inputs = read_json(fixture_dir().join("inputs.json"));
-    let graphs = read_json(fixture_dir().join("semantic-graphs.json"));
-    let expected = read_json(fixture_dir().join("semantic-expected.json"));
-    let case = &inputs["cases"][2];
-    assert_eq!(case["id"], "qwen2-tied-generated");
-    let semantic = semantic(case);
-    let resident = source(case, &semantic).unwrap();
+    frozen_generated_qwen_with_schedule(checked, OnlineSchedule::Serial);
+}
+
+fn into_decoder_files(resident: Source) -> Source {
     let digest = resident.digest();
     let mut tensors = Vec::new();
     for tensor in resident.tensors {
@@ -49,19 +95,32 @@ fn frozen_generated_qwen_with_policy(checked: bool) {
         }
         tensors.push(import.finish().unwrap());
     }
-    let mut source = Source::new_with_capacity(tensors, Capacity::Decoder)
-        .unwrap()
-        .with_rotary(resident.rotary)
-        .unwrap();
+    let mut source = Source::new_with_capacity(tensors, Capacity::Decoder).unwrap();
+    if !resident.rotary.is_empty() {
+        source = source.with_rotary(resident.rotary).unwrap();
+    }
     assert_eq!(source.digest(), digest);
+    source
+}
+
+fn frozen_generated_qwen_with_schedule(checked: bool, online: OnlineSchedule) {
+    let inputs = read_json(fixture_dir().join("inputs.json"));
+    let graphs = read_json(fixture_dir().join("semantic-graphs.json"));
+    let expected = read_json(fixture_dir().join("semantic-expected.json"));
+    let case = &inputs["cases"][2];
+    assert_eq!(case["id"], "qwen2-tied-generated");
+    let semantic = semantic(case);
+    let resident = source(case, &semantic).unwrap();
+    let mut source = into_decoder_files(resident);
     if checked {
         source = source.with_checked_ranges();
     }
-    let program = Program::compile(
+    let program = Program::compile_with_schedule(
         &semantic,
         source,
         number(case, "generation_count"),
         Limits::for_capacity(Capacity::Decoder),
+        online,
     )
     .unwrap();
     let (tokens, trace, _) = execute(&program, case, 2);
@@ -215,7 +274,8 @@ fn frozen_rope_signed_product_order_matches_approved_oracle() {
         (q[j] as u64).wrapping_sub(a[1]) & MASK,
     ];
     let mut actual = Actual::default();
-    let [left, right] = native_pair(&plan, context, &a, &b, &mut actual).unwrap();
+    let [left, right] =
+        native_pair(&plan, OnlineSchedule::Serial, context, &a, &b, &mut actual).unwrap();
     // Isolated native witness from frozen operands, NOT a complete native model.
     let native = reconstruct(&left.shares, &right.shares);
     let frozen = [expected_output[i], expected_output[j]];

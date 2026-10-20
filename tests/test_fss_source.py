@@ -103,9 +103,10 @@ def write_tensor_file(path, header, payload):
     path.write_bytes(struct.pack("<Q", len(encoded)) + encoded + payload)
 
 
-def experiment(root, profile=GPT, rows=3, outputs=3, capacity="capsule", material_delivery="single"):
+def experiment(root, profile=GPT, rows=3, outputs=3, capacity="capsule", material_delivery="single", online_schedule="serial"):
     return Experiment(name="generated-fss-source", pipeline=FuseFssSourceCpu(Model.path(str(root)),
-                      numeric_profile=profile, capacity=capacity, material_delivery=material_delivery),
+                      numeric_profile=profile, capacity=capacity, material_delivery=material_delivery,
+                      online_schedule=online_schedule),
                       deployment=Deployment.local(root="local://fss-source-test"),
                       budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
 
@@ -197,6 +198,10 @@ def bridge(monkeypatch):
             self.program = Program(self)
             return self.program
 
+        def seal_wavefront(self):
+            self.online_schedule = "wavefront-v1"
+            return self.seal()
+
     def contract(encoded, config, rows, outputs, sourcepin, tokenizerpin):
         Bridge.events.append("pinned_contract")
         exp, config = Bridge.experiment, json.loads(config)
@@ -229,6 +234,8 @@ def bridge(monkeypatch):
                          source_resident_bound_bytes=65536 + 4096*len(shapes))
         if exp.pipeline.components["linear"].params.get("material_delivery") == "batch-v1":
             data["material_delivery"] = "batch-v1"
+        if exp.pipeline.components["linear"].params.get("online_schedule") == "wavefront-v1":
+            data["online_schedule"] = "wavefront-v1"
         if Bridge.contract_mutation:
             Bridge.contract_mutation(data)
         return canonical(data)

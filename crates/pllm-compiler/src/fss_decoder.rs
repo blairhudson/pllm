@@ -24,7 +24,7 @@ mod source;
 pub mod transport;
 pub use capacity::Capacity;
 pub use pllm_garble::fusefss_backend::Error;
-pub use program::{Limits, Program, Resources};
+pub use program::{Limits, OnlineSchedule, Program, Resources};
 pub use runtime::{Driver, MaterialVisitor, NativeOutput, TokenShares, Worker};
 pub use source::{RotaryCoefficients, Source, Tensor, WeightDtype};
 

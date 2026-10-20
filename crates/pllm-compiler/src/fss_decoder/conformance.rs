@@ -360,6 +360,7 @@ struct Request {
     reply: mpsc::SyncSender<Result<NativeOutput, Error>>,
 }
 struct Harness<'a> {
+    online: OnlineSchedule,
     role: u8,
     send: Option<mpsc::SyncSender<Request>>,
     receive: Option<mpsc::Receiver<Request>>,
@@ -373,6 +374,7 @@ struct Harness<'a> {
 /// Dealer receives only public pc/context, not private worker input or register.
 fn native_pair(
     plan: &Plan<'_>,
+    online: OnlineSchedule,
     context: Context,
     a: &[u64],
     b: &[u64],
@@ -391,8 +393,20 @@ fn native_pair(
             }
             count
         });
-        let mut left = plan.runtime(0, context, a)?;
-        let mut right = plan.runtime(1, context, b)?;
+        use super::transport::Execution;
+        let wave = if online == OnlineSchedule::WavefrontV1 && !plan.is_atomic_vector() {
+            Some(pllm_garble::fusefss_backend::composition::wavefront::Schedule::new(plan)?)
+        } else {
+            None
+        };
+        let runtime = |role, input| -> Result<Execution<'_, '_, '_>, Error> {
+            match &wave {
+                Some(wave) => Ok(Execution::Wave(wave.runtime(role, context, input)?)),
+                None => Ok(Execution::Serial(plan.runtime(role, context, input)?)),
+            }
+        };
+        let mut left = runtime(0, a)?;
+        let mut right = runtime(1, b)?;
         let mut le = left.poll()?;
         let mut re = right.poll()?;
         let result = loop {
@@ -403,8 +417,8 @@ fn native_pair(
                     }
                     requests.send(a).map_err(|_| Error::Context)?;
                     let [a, b] = material_rx.recv().map_err(|_| Error::Context)??;
-                    le = left.feed(a)?;
-                    re = right.feed(b)?;
+                    le = left.feed_result(Ok(a))?;
+                    re = right.feed_result(Ok(b))?;
                 }
                 (Event::Frame(a), Event::Frame(b)) => {
                     actual.frames += 2;
@@ -472,7 +486,14 @@ impl Driver for Harness<'_> {
             {
                 return Err(Error::Context);
             }
-            match native_pair(plan, c, input, &request.input, &mut self.actual) {
+            match native_pair(
+                plan,
+                self.online,
+                c,
+                input,
+                &request.input,
+                &mut self.actual,
+            ) {
                 Ok([a, b]) => {
                     request
                         .reply
@@ -555,6 +576,7 @@ fn execute(
     let (a, b) = thread::scope(|scope| {
         let worker = |role, input, send, receive| {
             let mut harness = Harness {
+                online: program.online_schedule(),
                 role,
                 send,
                 receive,

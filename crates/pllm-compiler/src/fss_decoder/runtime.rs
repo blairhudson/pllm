@@ -4,14 +4,14 @@ use pllm_garble::{
     fusefss_backend::{
         composition::{
             cache::{self, SourceTableCache},
-            gates, kernels, norm, Plan,
+            gates, kernels, norm, wavefront, Plan,
         },
         Budget,
     },
     shared_rescale_reference::Context,
 };
 use sha2::{Digest, Sha256};
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 /// External, role-local native executor. Implementations must return exactly one
 /// party's Plan output, drive consuming Runtime through externally supplied fresh
@@ -466,6 +466,14 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             return Err(Error::Domain);
         }
         let r = plan.resources();
+        let wave = if self.program.online == OnlineSchedule::WavefrontV1 && !plan.is_atomic_vector()
+        {
+            let schedule = wavefront::Schedule::new(plan)?;
+            self.hash.update(schedule.digest());
+            Some(schedule.resources())
+        } else {
+            None
+        };
         self.resources.kernels = checked_add(self.resources.kernels, 1)?;
         self.resources.primitive_requests_per_party =
             checked_add(self.resources.primitive_requests_per_party, r.secret_steps)?;
@@ -473,6 +481,18 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             self.resources.work,
             r.cumulative_work.checked_mul(2).ok_or(Error::Resource)?,
         )?;
+        if let Some(wave) = wave {
+            // Each of three roles builds a schedule for the public obligation
+            // walk and again for its concrete material/runtime owner. These
+            // bounded public copies/sorts remain work, not free transport.
+            self.resources.work = checked_add(
+                self.resources.work,
+                wave.construction_work
+                    .checked_mul(6)
+                    .ok_or(Error::Resource)?,
+            )?;
+            self.public_copy(wave.metadata_bytes.checked_mul(6).ok_or(Error::Resource)?)?;
+        }
         let tables = self.tables.stats();
         let delta = |now: usize, before: usize| now.checked_sub(before).ok_or(Error::Context);
         let references = delta(tables.references, self.accounted_tables.references)?;
@@ -554,7 +574,10 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             self.resources.material_bytes,
             r.private_material_bytes_total,
         )?;
-        self.resources.frame_bytes = checked_add(self.resources.frame_bytes, r.frame_bytes_total)?;
+        self.resources.frame_bytes = checked_add(
+            self.resources.frame_bytes,
+            wave.map_or(r.frame_bytes_total, |w| 2 * w.frame_bytes_per_party),
+        )?;
         self.resources.public_copy_bytes = checked_add(
             self.resources.public_copy_bytes,
             r.public_table_copy_bytes_total,
@@ -565,6 +588,8 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         // other two immutable Plans explicitly; no shared-address-space discount.
         self.resources.peak_native_bytes = self.resources.peak_native_bytes.max(
             r.combined_reservation_bytes
+                .checked_add(wave.map_or(0, |w| w.additional_reservation_bytes))
+                .ok_or(Error::Resource)?
                 .checked_add(
                     r.plan_reservation_bytes
                         .checked_mul(2)
@@ -660,6 +685,161 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
     {
         let plan = build(self.tables)?;
         self.run(&plan, input, outputs, true)
+    }
+
+    fn lanes<F, I, O>(
+        &mut self,
+        count: usize,
+        cached: bool,
+        mut build: F,
+        mut gather: I,
+        mut store: O,
+    ) -> Result<(), Error>
+    where
+        F: FnMut(&SourceTableCache<'b>) -> Result<Plan<'b>, Error>,
+        I: FnMut(usize, &mut Vec<u64>) -> Result<(), Error>,
+        O: FnMut(usize, &[u64]) -> Result<(), Error>,
+    {
+        let mut start = 0;
+        while start < count {
+            let template = build(self.tables)?;
+            let inputs = template.input_bits().len();
+            let outputs = template.output_count();
+            let lanes = (count - start)
+                .min(template.repetition_bound())
+                .min(MAX_VALUES / outputs);
+            if lanes == 0 {
+                return Err(Error::Resource);
+            }
+            let plan = template.repeat(lanes)?;
+            let mut values = Zeroizing::new(vector(inputs * lanes)?);
+            for lane in 0..lanes {
+                gather(start + lane, &mut values)?;
+                if values.len() != (lane + 1) * inputs {
+                    return Err(Error::Context);
+                }
+            }
+            let result = self.run(&plan, &values, outputs * lanes, cached)?;
+            for lane in 0..lanes {
+                store(start + lane, &result[lane * outputs..(lane + 1) * outputs])?;
+            }
+            start += lanes;
+        }
+        Ok(())
+    }
+
+    fn floor_values(&mut self, values: &mut [u64], range: Range) -> Result<(), Error> {
+        let binding = self.binding();
+        for chunk in values.chunks_mut(wavefront::MAX_ACTIVE) {
+            let mut inputs = Zeroizing::new(vector(chunk.len())?);
+            inputs.extend(chunk.iter().map(|&v| v & MASK));
+            let n = chunk.len();
+            let output = self.kernel(&inputs, n, |b| {
+                kernels::floor(binding, range.gate(), 12, b)?.0.repeat(n)
+            })?;
+            chunk.copy_from_slice(&output);
+        }
+        Ok(())
+    }
+
+    fn dot_lanes<I, O>(
+        &mut self,
+        count: usize,
+        inner: usize,
+        a: Range,
+        b: Range,
+        gather: I,
+        store: O,
+    ) -> Result<(), Error>
+    where
+        I: FnMut(usize, &mut Vec<u64>) -> Result<(), Error>,
+        O: FnMut(usize, &[u64]) -> Result<(), Error>,
+    {
+        let left = ranges(inner, a)?;
+        let right = ranges(inner, b)?;
+        let binding = self.binding();
+        let proof = self.program.dot_proof(self.node)?;
+        if proof.is_some_and(|p| p.inner != inner) {
+            return Err(Error::Context);
+        }
+        self.lanes(
+            count,
+            false,
+            |tables| {
+                if let Some(p) = proof {
+                    let (plan, metadata) = kernels::private_dot_with_row_energy(
+                        binding,
+                        &left,
+                        &right,
+                        [p.left, p.right],
+                        tables.budget(),
+                    )?;
+                    if metadata.raw_range != Some(p.raw.gate()) {
+                        return Err(Error::Context);
+                    }
+                    Ok(plan)
+                } else {
+                    Ok(kernels::private_dot(binding, &left, &right, tables.budget())?.0)
+                }
+            },
+            gather,
+            store,
+        )
+    }
+
+    fn tree_argmax(&mut self, values: &[u64], range: Range) -> Result<u64, Error> {
+        if values.len() == 1 {
+            return Ok(0);
+        }
+        let binding = self.binding();
+        let ids = Range::new(0, values.len() as i128 - 1)?.gate();
+        let mut frontier = Zeroizing::new(zeros(2 * values.len().div_ceil(2))?);
+        let role = self.role;
+        self.lanes(
+            values.len() / 2,
+            false,
+            |t| Ok(kernels::stable_max(binding, [range.gate(); 2], ids, t.budget())?.0),
+            |i, v| {
+                v.extend_from_slice(&[
+                    values[2 * i],
+                    if role == 0 { 2 * i as u64 } else { 0 },
+                    values[2 * i + 1],
+                    if role == 0 { (2 * i + 1) as u64 } else { 0 },
+                ]);
+                Ok(())
+            },
+            |i, v| {
+                frontier[2 * i..2 * i + 2].copy_from_slice(v);
+                Ok(())
+            },
+        )?;
+        if values.len() % 2 != 0 {
+            let i = values.len() - 1;
+            let last = frontier.len() - 2;
+            frontier[last] = values[i];
+            frontier[last + 1] = if role == 0 { i as u64 } else { 0 };
+        }
+        while frontier.len() > 2 {
+            let nodes = frontier.len() / 2;
+            let mut pair = 0;
+            while pair < nodes / 2 {
+                let template =
+                    kernels::stable_max(binding, [range.gate(); 2], ids, self.tables.budget())?.0;
+                let count = (nodes / 2 - pair).min(template.repetition_bound());
+                let plan = template.repeat(count)?;
+                let input = Zeroizing::new(copied(&frontier[4 * pair..4 * (pair + count)])?);
+                let output = self.run(&plan, &input, 2 * count, false)?;
+                frontier[2 * pair..2 * (pair + count)].copy_from_slice(&output);
+                pair += count;
+            }
+            if nodes % 2 != 0 {
+                frontier.copy_within(2 * (nodes - 1)..2 * nodes, 2 * (nodes / 2));
+            }
+            let retained = 2 * nodes.div_ceil(2);
+            frontier[retained..].zeroize();
+            frontier.truncate(retained);
+        }
+        Ok(frontier[1])
     }
     fn public_dot(
         &mut self,
@@ -918,6 +1098,79 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let w = &p.source.tensors[weight];
                 let inner = *p.nodes[input].shape.last().unwrap();
                 let columns = *node.shape.last().unwrap();
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    let mut raw_range: Option<Range> = None;
+                    if let Some(file) = w.fixed_file() {
+                        if input_output {
+                            return Err(Error::Unsupported);
+                        }
+                        self.public_copy(checked_add(
+                            w.len().checked_mul(16).ok_or(Error::Resource)?,
+                            columns
+                                .checked_mul(3 * pllm_core::fixed_file::ROW_STATISTICS_RECORD_BYTES)
+                                .ok_or(Error::Resource)?,
+                        )?)?;
+                        for col in 0..columns {
+                            let r = p.linear_raw_range(self.node, col)?;
+                            raw_range = Some(raw_range.map_or(r, |v| Range {
+                                lo: v.lo.min(r.lo),
+                                hi: v.hi.max(r.hi),
+                            }));
+                        }
+                        if self.driver.is_some() {
+                            file.multiply_ring64(
+                                &[x],
+                                &mut [out.as_mut_slice()],
+                                x.len() / inner,
+                                pllm_core::streamed_matrix::MatrixLayout::OutputInput,
+                            )
+                            .map_err(|_| Error::Context)?;
+                        }
+                    } else {
+                        self.public_copy(
+                            w.len()
+                                .checked_mul(8 * (2 * x.len() / inner + 3))
+                                .ok_or(Error::Resource)?,
+                        )?;
+                        for col in 0..columns {
+                            let mut r = Range::new(0, 0)?;
+                            for k in 0..inner {
+                                let coefficient = w.values[if input_output {
+                                    k * columns + col
+                                } else {
+                                    col * inner + k
+                                }];
+                                r = r.add(p.nodes[input].range.scale(coefficient)?)?;
+                                if self.driver.is_some() {
+                                    for row in 0..x.len() / inner {
+                                        let index = row * columns + col;
+                                        out[index] = out[index].wrapping_add(
+                                            x[row * inner + k].wrapping_mul(word(coefficient)),
+                                        ) & MASK;
+                                    }
+                                }
+                            }
+                            raw_range = Some(raw_range.map_or(r, |v| Range {
+                                lo: v.lo.min(r.lo),
+                                hi: v.hi.max(r.hi),
+                            }));
+                        }
+                    }
+                    self.local(x.len().checked_mul(columns).ok_or(Error::Resource)?)?;
+                    self.floor_values(&mut out, raw_range.ok_or(Error::Domain)?)?;
+                    if let Some(b) = bias {
+                        let bias = p.source.tensors[b]
+                            .resident_values()
+                            .ok_or(Error::Context)?;
+                        if self.role == 0 {
+                            for (i, v) in out.iter_mut().enumerate() {
+                                *v = v.wrapping_add(word(bias[i % columns])) & MASK;
+                            }
+                        }
+                        self.local(out.len())?;
+                    }
+                    return Ok(out);
+                }
                 if let Some(file) = w.fixed_file() {
                     use pllm_core::streamed_matrix::MatrixLayout;
                     if input_output {
@@ -1018,13 +1271,51 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 };
                 let source = p.source.digest();
                 let input_energy = p.norm_row_energy(self.node)?;
+                if p.online == OnlineSchedule::WavefrontV1 && !p.checked_ranges() {
+                    let spec = norm::Spec {
+                        kind: if layer {
+                            norm::Kind::Layer
+                        } else {
+                            norm::Kind::Rms
+                        },
+                        input_min: range.lo,
+                        input_max: range.hi,
+                        gamma,
+                        beta,
+                    };
+                    self.lanes(
+                        x.len() / width,
+                        true,
+                        |tables| {
+                            if let Some(energy) = input_energy {
+                                norm::compile_cached_with_row_energy(source, &spec, energy, tables)
+                            } else {
+                                norm::compile_cached(source, &spec, tables)
+                            }
+                        },
+                        |row, values| {
+                            values.extend_from_slice(&x[row * width..(row + 1) * width]);
+                            Ok(())
+                        },
+                        |row, values| {
+                            out[row * width..(row + 1) * width].copy_from_slice(values);
+                            Ok(())
+                        },
+                    )?;
+                    return Ok(out);
+                }
                 for row in 0..x.len() / width {
                     let guarded = if p.checked_ranges() {
                         let binding = self.binding();
                         let rs = ranges(width, original_range)?;
                         let values =
                             self.kernel(&x[row * width..(row + 1) * width], width + 1, |budget| {
-                                Ok(kernels::checked_range_with_fallback(
+                                let check = if p.online == OnlineSchedule::WavefrontV1 {
+                                    kernels::checked_range_balanced
+                                } else {
+                                    kernels::checked_range_with_fallback
+                                };
+                                Ok(check(
                                     binding,
                                     &rs,
                                     range.gate(),
@@ -1082,6 +1373,23 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             Product(a, b) => {
                 let x = get(a)?;
                 let y = get(b)?;
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    self.dot_lanes(
+                        out.len(),
+                        1,
+                        p.nodes[a].range,
+                        p.nodes[b].range,
+                        |i, v| {
+                            v.extend_from_slice(&[x[i], y[i]]);
+                            Ok(())
+                        },
+                        |i, v| {
+                            out[i] = v[0];
+                            Ok(())
+                        },
+                    )?;
+                    return Ok(out);
+                }
                 for i in 0..out.len() {
                     out[i] = self.private_dot(
                         &x[i..i + 1],
@@ -1095,6 +1403,28 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let x = get(input)?;
                 let range = p.nodes[input].range.gate();
                 let binding = self.binding();
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    self.lanes(
+                        x.len(),
+                        silu,
+                        |tables| {
+                            if silu {
+                                Ok(gates::silu_cached(range, tables)?.0)
+                            } else {
+                                Ok(kernels::gelu(binding, range, tables.budget())?.0)
+                            }
+                        },
+                        |i, v| {
+                            v.push(x[i]);
+                            Ok(())
+                        },
+                        |i, v| {
+                            out[i] = v[0];
+                            Ok(())
+                        },
+                    )?;
+                    return Ok(out);
+                }
                 for i in 0..x.len() {
                     out[i] = if silu {
                         self.cached_kernel(&x[i..i + 1], 1, |tables| {
@@ -1147,6 +1477,43 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let r = &p.source.rotary[descriptor];
                 let original = p.nodes[input].range;
                 let binding = self.binding();
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    let pairs = x.len() / 2;
+                    for start in (0..pairs).step_by(wavefront::MAX_ACTIVE / 4) {
+                        let count = (pairs - start).min(wavefront::MAX_ACTIVE / 4);
+                        let mut terms = Zeroizing::new(vector(4 * count)?);
+                        let mut bound: Option<Range> = None;
+                        for pair in start..start + count {
+                            let c = pair % (d / 2);
+                            let row = pair / (d / 2);
+                            let s = row % t;
+                            let i = row * d + c;
+                            let j = i + d / 2;
+                            let cosine = r.cos[s * d + c];
+                            let sine = r.sin[s * d + c];
+                            for (value, coefficient) in
+                                [(x[i], cosine), (x[j], -sine), (x[j], cosine), (x[i], sine)]
+                            {
+                                let domain = original.scale(coefficient)?;
+                                bound = Some(bound.map_or(domain, |b| Range {
+                                    lo: b.lo.min(domain.lo),
+                                    hi: b.hi.max(domain.hi),
+                                }));
+                                terms.push(value.wrapping_mul(word(coefficient)) & MASK);
+                            }
+                        }
+                        self.floor_values(&mut terms, bound.ok_or(Error::Domain)?)?;
+                        for (lane, pair) in (start..start + count).enumerate() {
+                            let i = pair / (d / 2) * d + pair % (d / 2);
+                            out[i] = terms[4 * lane].wrapping_add(terms[4 * lane + 1]) & MASK;
+                            out[i + d / 2] =
+                                terms[4 * lane + 2].wrapping_add(terms[4 * lane + 3]) & MASK;
+                        }
+                    }
+                    self.local(3 * x.len())?;
+                    self.public_copy(16 * pairs)?;
+                    return Ok(out);
+                }
                 for h in 0..node.shape[1] {
                     for s in 0..t {
                         for c in 0..d / 2 {
@@ -1181,6 +1548,29 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let b = get(right)?;
                 let d = p.nodes[left].shape[3];
                 let heads = node.shape[1];
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    self.dot_lanes(
+                        out.len(),
+                        d,
+                        p.nodes[left].range,
+                        p.nodes[right].range,
+                        |i, v| {
+                            let h = i / (t * t);
+                            let q = i / t % t;
+                            let k = i % t;
+                            let ai = (h * t + q) * d;
+                            let bi = (h / group * t + k) * d;
+                            v.extend_from_slice(&a[ai..ai + d]);
+                            v.extend_from_slice(&b[bi..bi + d]);
+                            Ok(())
+                        },
+                        |i, v| {
+                            out[i] = v[0];
+                            Ok(())
+                        },
+                    )?;
+                    return Ok(out);
+                }
                 for h in 0..heads {
                     for q in 0..t {
                         for k in 0..t {
@@ -1198,6 +1588,36 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             }
             Scale { input, coefficient } => {
                 let x = get(input)?;
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    let binding = self.binding();
+                    let r = gates::InputRange {
+                        min: coefficient,
+                        max: coefficient,
+                    };
+                    self.lanes(
+                        x.len(),
+                        false,
+                        |t| {
+                            Ok(kernels::public_scale_q12(
+                                binding,
+                                p.nodes[input].range.gate(),
+                                coefficient,
+                                r,
+                                t.budget(),
+                            )?
+                            .0)
+                        },
+                        |i, v| {
+                            v.push(x[i]);
+                            Ok(())
+                        },
+                        |i, v| {
+                            out[i] = v[0];
+                            Ok(())
+                        },
+                    )?;
+                    return Ok(out);
+                }
                 for i in 0..out.len() {
                     out[i] =
                         self.public_dot(&x[i..i + 1], p.nodes[input].range, &[coefficient], 0)?;
@@ -1208,6 +1628,28 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let heads = node.shape[1];
                 let rs = ranges(t, p.nodes[input].range)?;
                 let mut active = vector(t)?;
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    for q in 0..t {
+                        active.clear();
+                        active.extend((0..t).map(|k| k <= q && k < prefix));
+                        self.lanes(
+                            heads,
+                            true,
+                            |tables| Ok(gates::softmax_cached(&rs, &active, tables)?.0),
+                            |head, values| {
+                                let start = (head * t + q) * t;
+                                values.extend_from_slice(&x[start..start + t]);
+                                Ok(())
+                            },
+                            |head, values| {
+                                let start = (head * t + q) * t;
+                                out[start..start + t].copy_from_slice(values);
+                                Ok(())
+                            },
+                        )?;
+                    }
+                    return Ok(out);
+                }
                 for h in 0..heads {
                     for q in 0..t {
                         active.clear();
@@ -1225,6 +1667,29 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let b = get(right)?;
                 let heads = node.shape[1];
                 let d = node.shape[3];
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    self.dot_lanes(
+                        out.len(),
+                        t,
+                        p.nodes[left].range,
+                        p.nodes[right].range,
+                        |i, v| {
+                            let h = i / (t * d);
+                            let q = i / d % t;
+                            let c = i % d;
+                            v.extend_from_slice(&a[(h * t + q) * t..(h * t + q + 1) * t]);
+                            for k in 0..t {
+                                v.push(b[(h / group * t + k) * d + c]);
+                            }
+                            Ok(())
+                        },
+                        |i, v| {
+                            out[i] = v[0];
+                            Ok(())
+                        },
+                    )?;
+                    return Ok(out);
+                }
                 let mut column = Zeroizing::new(zeros(t)?);
                 for h in 0..heads {
                     for q in 0..t {
@@ -1250,6 +1715,10 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             }
             Argmax(input) => {
                 let x = get(input)?;
+                if p.online == OnlineSchedule::WavefrontV1 {
+                    out[0] = self.tree_argmax(x, p.nodes[input].range)?;
+                    return Ok(out);
+                }
                 let binding = self.binding();
                 if p.capacity() == Capacity::Decoder {
                     let range = p.nodes[input].range.gate();

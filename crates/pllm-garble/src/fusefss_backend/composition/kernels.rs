@@ -491,6 +491,29 @@ pub fn checked_range_with_fallback<'a>(
     fallback: RangeFallback,
     budget: &'a Budget,
 ) -> Result<(Plan<'a>, Metadata), Error> {
+    checked_range_inner(binding, input_ranges, accepted, fallback, false, budget)
+}
+
+/// Same inclusive predicate and zero fallback, with a balanced protected AND.
+/// Membership remains secret; the public tree visits every coordinate.
+pub fn checked_range_balanced<'a>(
+    binding: Binding,
+    input_ranges: &[InputRange],
+    accepted: InputRange,
+    fallback: RangeFallback,
+    budget: &'a Budget,
+) -> Result<(Plan<'a>, Metadata), Error> {
+    checked_range_inner(binding, input_ranges, accepted, fallback, true, budget)
+}
+
+fn checked_range_inner<'a>(
+    binding: Binding,
+    input_ranges: &[InputRange],
+    accepted: InputRange,
+    fallback: RangeFallback,
+    balanced: bool,
+    budget: &'a Budget,
+) -> Result<(Plan<'a>, Metadata), Error> {
     checked(accepted)?;
     if input_ranges.is_empty()
         || input_ranges.len() > MAX_INPUTS
@@ -505,6 +528,9 @@ pub fn checked_range_with_fallback<'a>(
         input_ranges,
     )?;
     h.update(accepted.min.to_le_bytes());
+    if balanced {
+        h.update(b"balanced-complete-membership.v1\0");
+    }
     h.update(accepted.max.to_le_bytes());
     h.update([match fallback {
         RangeFallback::PerInput => 0,
@@ -512,7 +538,7 @@ pub fn checked_range_with_fallback<'a>(
     }]);
     let count = input_ranges.len().checked_add(1).ok_or(Error::Resource)?;
     let scratch = count
-        .checked_mul(std::mem::size_of::<Value>())
+        .checked_mul(std::mem::size_of::<Value>() * if balanced { 2 } else { 1 })
         .and_then(|n| n.checked_add(SCRATCH))
         .ok_or(Error::Resource)?;
     let _scratch = budget.reserve(scratch)?;
@@ -522,6 +548,11 @@ pub fn checked_range_with_fallback<'a>(
     let one = b.constant(50, 1)?;
     let sign_bit = b.constant(50, HALF as u64)?;
     let mut valid = one;
+    let mut members = if balanced {
+        super::super::allocate(input_ranges.len(), budget)?
+    } else {
+        Vec::new()
+    };
     // (word(x) + 2^49) mod 2^50 == signed(x) + 2^49. This public
     // sign-bit rotation gives exact unsigned order over the ENTIRE signed ring.
     // It intentionally wraps; neither subtraction nor signed no-wrap is assumed.
@@ -536,11 +567,28 @@ pub fn checked_range_with_fallback<'a>(
         // Both comparison outputs are proven A50 bits. Phi preserves bit typing
         // for membership and its AND chain, and uses existing fresh products.
         let member = b.select(below, zero, below_upper)?;
-        valid = b.select(member, valid, zero)?;
+        if balanced {
+            members.push(member);
+        } else {
+            valid = b.select(member, valid, zero)?;
+        }
         outputs.push(match fallback {
             RangeFallback::PerInput => b.select(member, input, zero)?,
             RangeFallback::WholeRow => input,
         });
+    }
+    if balanced {
+        while members.len() > 1 {
+            let length = members.len();
+            for pair in 0..length / 2 {
+                members[pair] = b.select(members[2 * pair], members[2 * pair + 1], zero)?;
+            }
+            if length % 2 != 0 {
+                members[length / 2] = members[length - 1];
+            }
+            members.truncate(length.div_ceil(2));
+        }
+        valid = members[0];
     }
     if fallback == RangeFallback::WholeRow {
         for output in &mut outputs {

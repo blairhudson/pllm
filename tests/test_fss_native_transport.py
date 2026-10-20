@@ -30,8 +30,8 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
-@pytest.fixture(scope="module")
-def program():
+@pytest.fixture(scope="module", params=["serial", "wavefront-v1"])
+def program(request):
     from pllm import Deployment, ExecutionBudget, Model
     from pllm.configuration import Experiment
     from pllm.profiles import FuseFssSourceCpu
@@ -46,11 +46,12 @@ def program():
         elif name == "transformer.wte.weight":
             values = [1.0, 0.0, 0.0, 1.0]
         builder.append(name, "F32", 0, struct.pack("<" + "f" * len(values), *values))
-    value = builder.seal()
+    value = builder.seal_wavefront() if request.param == "wavefront-v1" else builder.seal()
     experiment = Experiment(
         name="generated-native-transport", pipeline=FuseFssSourceCpu(
             Model.path("/generated/fss-native-fixture"),
             numeric_profile="fusefss.gpt2-complete-ring50-q12.v1",
+            online_schedule=request.param,
         ),
         deployment=Deployment.local(root="local://fss-native-fixture"),
         budget=ExecutionBudget(requests=1, max_input_tokens=1, max_new_tokens=1),
@@ -195,6 +196,13 @@ def test_program_admission_before_tokens_and_rejects_wrong_typed_contract(progra
     assert admission["scope"] == "program-pricing-not-request-admission"
     assert "transcript_digest" not in admission and "context" not in admission
     assert admission["combined_reservation_bytes"] <= 64 << 20
+    substituted = json.loads(contract)
+    if substituted.get("online_schedule") == "wavefront-v1":
+        del substituted["online_schedule"]
+    else:
+        substituted["online_schedule"] = "wavefront-v1"
+    with pytest.raises(Exception, match="schedule differs"):
+        native.fss_transport_admission(source, canonical(substituted))
     assert 0 < admission["peer_frame_bytes_bound"] < json.loads(source.metadata())["frame_bytes"]
     client, role = request(program, 0)
     try:

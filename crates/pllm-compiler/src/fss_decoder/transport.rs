@@ -9,7 +9,7 @@
 use super::{Driver, Error, MaterialVisitor, NativeOutput, Program, TokenShares, Worker};
 use pllm_garble::{
     fusefss_backend::{
-        composition::{Event, Plan},
+        composition::{wavefront, Event, Material, Plan, Runtime as SerialRuntime},
         wire::{ImportGuard, MaterialPacket, ENVELOPE_BYTES},
         Budget, MAX_ALLOCATION_BYTES,
     },
@@ -159,6 +159,7 @@ pub trait WorkerTransport {
 /// Every prepare/execute recomputes this before any issuance/input acceptance.
 #[derive(Clone, Copy, Debug)]
 pub struct Admission {
+    online: super::OnlineSchedule,
     delivery: MaterialDelivery,
     batch: Option<BatchResources>,
     kernels: usize,
@@ -258,6 +259,7 @@ pub fn admit_with_delivery(
         (ImportGuard::indexed_reservation_bytes(guard_capacity)?, 0)
     };
     struct Scan {
+        online: super::OnlineSchedule,
         kernels: usize,
         requests: usize,
         frames: usize,
@@ -283,10 +285,26 @@ pub fn admit_with_delivery(
                 ordinal: self.kernels,
             };
             hash_kernel(&mut self.hash, k);
+            let wave =
+                if self.online == super::OnlineSchedule::WavefrontV1 && !plan.is_atomic_vector() {
+                    Some(wavefront::Schedule::new(plan)?)
+                } else {
+                    None
+                };
+            if let Some(w) = &wave {
+                self.hash.update(w.digest());
+            }
             self.kernels = add(self.kernels, 1)?;
             self.requests = add(self.requests, r.secret_steps)?;
-            self.frames = add(self.frames, plan.resources().frames_per_party)?;
-            self.peer_frame_bytes = self.peer_frame_bytes.max(r.retained_frame_bytes_per_party);
+            self.frames = add(
+                self.frames,
+                wave.as_ref()
+                    .map_or(plan.resources().frames_per_party, |w| w.resources().rounds),
+            )?;
+            let frame_bytes = wave.as_ref().map_or(r.retained_frame_bytes_per_party, |w| {
+                w.resources().largest_frame_bytes
+            });
+            self.peer_frame_bytes = self.peer_frame_bytes.max(frame_bytes);
             self.packet = self.packet.max(r.largest_packet_bytes_bound);
             self.cumulative = add(self.cumulative, r.cumulative_packet_bytes_per_party_bound)?;
             if self.cumulative > self.max_cumulative {
@@ -296,13 +314,17 @@ pub fn admit_with_delivery(
                 mul(2, r.combined_worker_reservation_bytes)?,
                 r.combined_dealer_export_reservation_bytes,
             )?;
-            let frame_copies = mul(2 * FRAME_COPY_SLOTS, r.retained_frame_bytes_per_party)?;
-            self.peak = self.peak.max(add(native, frame_copies)?);
+            let frame_copies = mul(2 * FRAME_COPY_SLOTS, frame_bytes)?;
+            let extra = wave
+                .as_ref()
+                .map_or(0, |w| w.resources().additional_reservation_bytes);
+            self.peak = self.peak.max(add(add(native, frame_copies)?, extra)?);
             Ok(())
         }
         fn cancel(&mut self) {}
     }
     let mut scan = Scan {
+        online: program.online_schedule(),
         kernels: 0,
         requests: 0,
         frames: 0,
@@ -348,6 +370,7 @@ pub fn admit_with_delivery(
         return Err(Error::Resource);
     }
     Ok(Admission {
+        online: program.online_schedule(),
         delivery,
         batch,
         kernels: scan.kernels,
@@ -442,8 +465,18 @@ impl<T: DealerTransport> MaterialVisitor for Dealer<'_, '_, T> {
             ordinal: self.kernels,
         };
         hash_kernel(&mut self.hash, k);
+        let wave = if self.admission.online == super::OnlineSchedule::WavefrontV1
+            && !plan.is_atomic_vector()
+        {
+            Some(wavefront::Schedule::new(plan)?)
+        } else {
+            None
+        };
+        if let Some(w) = &wave {
+            self.hash.update(w.digest());
+        }
         self.kernels = add(self.kernels, 1)?;
-        for pc in plan.material_steps() {
+        let mut deliver = |pc| {
             let bound = plan.step_transport_resources(pc)?.packet_bytes_bound;
             let singleton = self.before_pair(bound)?;
             let [left, right] = plan.issue_step(pc, context)?;
@@ -456,6 +489,16 @@ impl<T: DealerTransport> MaterialVisitor for Dealer<'_, '_, T> {
                 packet_bytes_bound: bound,
             });
             self.deliver_pair(requests, [left, right], singleton)?;
+            Ok::<_, Error>(())
+        };
+        if let Some(w) = &wave {
+            for pc in w.material_steps() {
+                deliver(pc)?;
+            }
+        } else {
+            for pc in plan.material_steps() {
+                deliver(pc)?;
+            }
         }
         Ok(())
     }
@@ -554,6 +597,42 @@ struct Role<'g, 't, T: WorkerTransport> {
     cancelled: bool,
     complete: bool,
 }
+
+// Fixed stack storage avoids another unpriced/fallible heap owner per kernel.
+#[allow(clippy::large_enum_variant)]
+pub(super) enum Execution<'s, 'p, 'a> {
+    Serial(SerialRuntime<'p, 'a>),
+    Wave(wavefront::Runtime<'s, 'p, 'a>),
+}
+impl<'a> Execution<'_, '_, 'a> {
+    pub(super) fn poll(&mut self) -> Result<Event<'a>, Error> {
+        match self {
+            Self::Serial(r) => r.poll(),
+            Self::Wave(r) => r.poll(),
+        }
+    }
+    pub(super) fn feed_result(
+        &mut self,
+        m: Result<Material<'a>, Error>,
+    ) -> Result<Event<'a>, Error> {
+        match self {
+            Self::Serial(r) => r.feed_result(m),
+            Self::Wave(r) => r.feed_result(m),
+        }
+    }
+    pub(super) fn advance(&mut self, p: &[u8]) -> Result<Event<'a>, Error> {
+        match self {
+            Self::Serial(r) => r.advance(p),
+            Self::Wave(r) => r.advance(p),
+        }
+    }
+    fn cancel(&mut self) {
+        match self {
+            Self::Serial(r) => r.cancel(),
+            Self::Wave(r) => r.cancel(),
+        }
+    }
+}
 impl<T: WorkerTransport> Role<'_, '_, T> {
     fn abort(&mut self) {
         if !self.cancelled {
@@ -582,11 +661,28 @@ impl<T: WorkerTransport> Driver for Role<'_, '_, T> {
             ordinal: self.kernels,
         };
         hash_kernel(&mut self.hash, k);
+        let wave = if self.admission.online == super::OnlineSchedule::WavefrontV1
+            && !plan.is_atomic_vector()
+        {
+            Some(wavefront::Schedule::new(plan)?)
+        } else {
+            None
+        };
+        if let Some(w) = &wave {
+            self.hash.update(w.digest());
+        }
         self.kernels = add(self.kernels, 1)?;
         if self.kernels > self.admission.kernels {
             return Err(Error::Context);
         }
-        let mut runtime = plan.runtime(self.role, context, input)?;
+        let expected_frames = wave
+            .as_ref()
+            .map_or(plan.resources().frames_per_party, |w| w.resources().rounds);
+        let mut runtime = if let Some(w) = &wave {
+            Execution::Wave(w.runtime(self.role, context, input)?)
+        } else {
+            Execution::Serial(plan.runtime(self.role, context, input)?)
+        };
         let result = (|| {
             let mut event = runtime.poll()?;
             let mut frames = 0usize;
@@ -654,7 +750,7 @@ impl<T: WorkerTransport> Driver for Role<'_, '_, T> {
                         runtime.advance(peer)?
                     }
                     Event::Output(output) => {
-                        if frames != plan.resources().frames_per_party {
+                        if frames != expected_frames {
                             return Err(Error::Context);
                         }
                         return NativeOutput::from_native_plan(output, plan);

@@ -38,6 +38,7 @@ fn embedding(
         ..Resources::default()
     };
     Program {
+        online: OnlineSchedule::Serial,
         source,
         nodes: vec![
             Node {

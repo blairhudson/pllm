@@ -207,6 +207,7 @@ class FuseFssSourceCpu(Pipeline):
                  numeric_profile: Literal["fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1", "fusefss.dense-rope-checked-ranges-ring50-q12.v1"] | None = ...,
                  capacity: Literal["capsule", "decoder"] = "capsule",
                  material_delivery: Literal["single", "batch-v1"] = "single",
+                 online_schedule: Literal["serial", "wavefront-v1"] = "serial",
                  topology: RoleTopology = ..., state: StateProtocol = ..., kernels: KernelBackend = ...) -> None: ...
     @property
     def linear(self) -> FuseFssSourceDecoder: ...

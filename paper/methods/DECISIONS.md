@@ -370,6 +370,27 @@ checkpoint execution, quality (including rejected cases), SDK/gateway and matche
 benchmarks remain required. Tighter public certificates may be investigated
 separately; they do not retroactively qualify static-profile failures.
 
+## D15. Explicit WAN-oriented FuseFSS online scheduling
+
+**Approved by the user's continuation of the proposed execution rewrite:** add
+public dependency-aware tensor batching and balanced private argmax. Preserve
+Q12 equations, both normalization floors, per-term rotary floors, fresh per-lane
+material, lowest-index ties, private feedback and final-only acceptance.
+
+`online_schedule="wavefront-v1"` binds the execution order independently of
+offline `material_delivery`. Public ready sets group the original consuming
+primitives; bounded tensor tiles repeat immutable templates with distinct PCs and
+material. Stable selection compares adjacent ordered subtrees, including odd
+tails. Its logical tree depth does not imply one network exchange per level:
+public frame, live-material and tile bounds may split each level into many batches.
+
+Schedule construction, live frontiers, framing, material and complete setup
+remain charged under the existing ceilings. The original serial default keeps
+its identity. This authorizes an execution adaptation, not changed method
+arithmetic, preprocessing reuse or an automatic performance claim. Generated
+integer/SDK parity and matched rate-plus-delay measurements precede practical
+WAN claims; trained checkpoint acceptance, setup volume and quality remain gates.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -388,6 +409,7 @@ separately; they do not retroactively qualify static-profile failures.
 | D12 | Approved: public-weight protected checked ranges | Shared membership and safe fallback precede unsafe arithmetic; final client-only aggregate acceptance, fresh-work accounting and complete qualification remain required. |
 | D13 | Approved: FuseFSS complete GPT-2 and common-Qwen arithmetic | Complete-dot floor, separate attention-scale floor, source-table RMSNorm and per-term Q12 RoPE floors bind distinct decoder numeric identities; exact execution and checkpoint quality remain unqualified. |
 | D14 | Approved: opt-in FuseFSS checked ranges | Original Q12 arithmetic on accepted requests; secret safe fallback, sticky validity, final whole-request acceptance and complete work/quality qualification required. |
+| D15 | Approved: explicit FuseFSS online wavefront and stable tree selection | Exact Q12 arithmetic and fresh material; bounded execution/resource identity, complete setup and measured bandwidth-plus-delay qualification required. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

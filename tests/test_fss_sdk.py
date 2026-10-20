@@ -119,10 +119,12 @@ def test_sdk_exact_f3_final_only_fixed_count_and_three_real_children(tmp_path, m
     assert all(not s.running for s in topology.statuses)
 
 
-def test_dense_rope_sdk_preserves_native_oracle_and_private_feedback(tmp_path):
+@pytest.mark.parametrize("online_schedule", ["serial", "wavefront-v1"])
+def test_dense_rope_sdk_preserves_native_oracle_and_private_feedback(tmp_path, online_schedule):
     from examples.papers.fusefss_smoke import dense_experiment
     captured = []
-    with OpenAI(experiment=dense_experiment(tmp_path), timeout=300) as client:
+    experiment = dense_experiment(tmp_path).with_params(pipeline__linear__online_schedule=online_schedule)
+    with OpenAI(experiment=experiment, timeout=300) as client:
         topology = client._owned_topology
         client._core._result_hook = captured.append
         response = client.responses.create(input="hello", max_output_tokens=2, store=False)
@@ -241,9 +243,11 @@ async def test_async_cancellation_drains_and_closes_children(tmp_path, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_real_role_children_through_ordinary_gateway_final_buffered_sse(tmp_path):
+@pytest.mark.parametrize("online_schedule", ["serial", "wavefront-v1"])
+async def test_real_role_children_through_ordinary_gateway_final_buffered_sse(tmp_path, online_schedule):
     from pllm.runtime.servers import build_roles
-    topology = build_roles(fixture_experiment(tmp_path), log_dir=tmp_path / "logs")
+    experiment = fixture_experiment(tmp_path).with_params(pipeline__linear__online_schedule=online_schedule)
+    topology = build_roles(experiment, log_dir=tmp_path / "logs")
     await asyncio.to_thread(topology.start)
     role_secrets = {*topology._role_credentials.values(), *topology._peer_credentials.values()}
     try:

@@ -167,11 +167,12 @@ def assert_retired(core):
 @pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.rust
-@pytest.mark.parametrize(("capacity", "material_delivery"), [
-    ("capsule", "single"), ("decoder", "single"), ("decoder", "batch-v1"),
+@pytest.mark.parametrize(("capacity", "material_delivery", "online_schedule"), [
+    ("capsule", "single", "serial"), ("decoder", "single", "serial"), ("decoder", "batch-v1", "serial"),
+    ("decoder", "batch-v1", "wavefront-v1"),
 ])
 def test_qwen2_three_child_sdk_final_oracle_and_large_tape(
-        control, monkeypatch, capacity, material_delivery):
+        control, monkeypatch, capacity, material_delivery, online_schedule):
     from pllm.runtime.benchmark_memory import execution_memory_admission
 
     case, exp, root = control
@@ -179,6 +180,8 @@ def test_qwen2_three_child_sdk_final_oracle_and_large_tape(
         exp = experiment(root.parent, capacity=capacity)
     if material_delivery != "single":
         exp = exp.with_params(pipeline__linear__material_delivery=material_delivery)
+    if online_schedule != "serial":
+        exp = exp.with_params(pipeline__linear__online_schedule=online_schedule)
     required = ("FssSourceBuilder", "FssClientRequest", "FssRoleRequest", "fss_transport_admission")
     assert all(callable(getattr(_native, name, None)) for name in required), "rebuild the installed wheel"
     oracle = json.loads(INPUTS.with_name("semantic-expected.json").read_bytes())

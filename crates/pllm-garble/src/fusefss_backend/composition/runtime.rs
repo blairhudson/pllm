@@ -7,7 +7,7 @@ use zeroize::Zeroizing;
 #[path = "wire.rs"]
 pub mod wire;
 
-enum Primitive<'a> {
+pub(super) enum Primitive<'a> {
     Conversion(conversions::Party<'a>),
     Predicate(predicates::Party<'a>),
     Lookup(lookup::Party<'a>),
@@ -19,11 +19,93 @@ enum Primitive<'a> {
 
 /// Role-separated envelope. No public constructor, cloning, or key access.
 pub struct Material<'a> {
-    plan: [u8; 32],
-    operation: [u8; 32],
-    pc: usize,
-    role: u8,
-    primitive: Primitive<'a>,
+    pub(super) plan: [u8; 32],
+    pub(super) operation: [u8; 32],
+    pub(super) pc: usize,
+    pub(super) role: u8,
+    pub(super) primitive: Primitive<'a>,
+}
+
+pub(super) enum PrimitiveEvent<'a> {
+    Frame(Frame<'a>),
+    Output(Output<'a>),
+    Scalar(Zeroizing<u64>),
+}
+
+impl<'a> Primitive<'a> {
+    pub(super) fn start(
+        &mut self,
+        instruction: Instruction,
+        operands: &[u64; 3],
+    ) -> Result<Frame<'a>, Error> {
+        match (self, instruction) {
+            (Self::Conversion(p), Instruction::Convert(..)) => p.start(&operands[..1]),
+            (Self::Conversion(p), Instruction::Multiply(..)) => {
+                p.start_product(&operands[..1], &operands[1..2])
+            }
+            (Self::Conversion(p), Instruction::Select(..)) => {
+                p.start_phi(&operands[..1], &operands[1..2], &operands[2..])
+            }
+            (Self::Predicate(p), Instruction::Predicate(..)) => p.start(operands[0]),
+            (Self::Lookup(p), Instruction::Lookup(..)) => p.start(&operands[..1]),
+            (Self::Gelu(p, _), Instruction::Gelu(_)) => p.start(&operands[..1]),
+            (Self::OneHot(p), Instruction::CompactTokenOneHot(_)) => p.start(operands[0]),
+            _ => Err(Error::Context),
+        }
+    }
+
+    pub(super) fn advance(&mut self, peer: &[u8]) -> Result<PrimitiveEvent<'a>, Error> {
+        Ok(match self {
+            Self::Conversion(p) => PrimitiveEvent::Output(p.finish(peer)?),
+            Self::Lookup(p) => PrimitiveEvent::Output(p.finish(peer)?),
+            Self::OneHot(p) => PrimitiveEvent::Output(p.finish(peer)?),
+            Self::Predicate(p) => match p.advance(peer)? {
+                predicates::Step::Frame(frame) => PrimitiveEvent::Frame(frame),
+                predicates::Step::Output(output) => PrimitiveEvent::Scalar(Zeroizing::new(
+                    *output.shares().first().ok_or(Error::Domain)?,
+                )),
+            },
+            Self::Gelu(p, advanced) if !*advanced => {
+                let frame = p.advance(peer)?;
+                *advanced = true;
+                PrimitiveEvent::Frame(frame)
+            }
+            Self::Gelu(p, _) => PrimitiveEvent::Output(p.finish(peer)?),
+        })
+    }
+}
+
+pub(super) fn local_value(instruction: Instruction, role: u8, values: &[u64]) -> Option<u64> {
+    Some(match instruction {
+        Instruction::Constant(value) => {
+            if role == 0 {
+                value
+            } else {
+                0
+            }
+        }
+        Instruction::Add(a, b) => values[a].wrapping_add(values[b]),
+        Instruction::Sub(a, b) => values[a].wrapping_sub(values[b]),
+        Instruction::PublicMultiply(a, coefficient) => values[a].wrapping_mul(coefficient),
+        Instruction::Narrow(a) => values[a],
+        _ => return None,
+    })
+}
+
+pub(super) fn operands(
+    instruction: Instruction,
+    values: &[u64],
+) -> Result<Zeroizing<[u64; 3]>, Error> {
+    Ok(Zeroizing::new(match instruction {
+        Instruction::Convert(a, _)
+        | Instruction::Predicate(a, _, _)
+        | Instruction::Lookup(a, _)
+        | Instruction::Gelu(a) => [values[a], 0, 0],
+        Instruction::Multiply(a, b) => [values[a], values[b], 0],
+        Instruction::Select(bit, yes, no) => [values[bit], values[yes], values[no]],
+        Instruction::CompactTokenOneHot(_) => [values[0], 0, 0],
+        _ => return Err(Error::Context),
+    }))
 }
 
 /// Frame ownership and its native budget lease pass directly to caller. Drop
@@ -227,24 +309,15 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
             let pc = execution.pc;
             let dest = self.plan.inputs.len() + pc;
             let m = mask(self.plan.registers[dest].bits);
-            let v = &execution.values;
-            let result = Zeroizing::new(match self.plan.code[pc] {
-                Instruction::Constant(value) => {
-                    if self.role == 0 {
-                        value
-                    } else {
-                        0
+            let result = Zeroizing::new(
+                match local_value(self.plan.code[pc], self.role, &execution.values) {
+                    Some(value) => value,
+                    None => {
+                        self.state = Some(execution);
+                        return Ok(Event::NeedMaterial { pc });
                     }
-                }
-                Instruction::Add(a, b) => v[a].wrapping_add(v[b]),
-                Instruction::Sub(a, b) => v[a].wrapping_sub(v[b]),
-                Instruction::PublicMultiply(a, coefficient) => v[a].wrapping_mul(coefficient),
-                Instruction::Narrow(a) => v[a],
-                _ => {
-                    self.state = Some(execution);
-                    return Ok(Event::NeedMaterial { pc });
-                }
-            });
+                },
+            );
             execution.values[dest] = *result & m;
             execution.pc += 1;
         }
@@ -273,31 +346,8 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
         }
         let instruction = *self.plan.code.get(execution.pc).ok_or(Error::Context)?;
         let mut primitive = material.primitive;
-        let v = &execution.values;
-        let operands = Zeroizing::new(match instruction {
-            Instruction::Convert(a, _)
-            | Instruction::Predicate(a, _, _)
-            | Instruction::Lookup(a, _)
-            | Instruction::Gelu(a) => [v[a], 0, 0],
-            Instruction::Multiply(a, b) => [v[a], v[b], 0],
-            Instruction::Select(bit, yes, no) => [v[bit], v[yes], v[no]],
-            Instruction::CompactTokenOneHot(_) => [v[0], 0, 0],
-            _ => return Err(Error::Context),
-        });
-        let frame = match (&mut primitive, instruction) {
-            (Primitive::Conversion(p), Instruction::Convert(_, _)) => p.start(&operands[..1])?,
-            (Primitive::Conversion(p), Instruction::Multiply(_, _)) => {
-                p.start_product(&operands[..1], &operands[1..2])?
-            }
-            (Primitive::Conversion(p), Instruction::Select(_, _, _)) => {
-                p.start_phi(&operands[..1], &operands[1..2], &operands[2..])?
-            }
-            (Primitive::Predicate(p), Instruction::Predicate(_, _, _)) => p.start(operands[0])?,
-            (Primitive::Lookup(p), Instruction::Lookup(_, _)) => p.start(&operands[..1])?,
-            (Primitive::Gelu(p, _), Instruction::Gelu(_)) => p.start(&operands[..1])?,
-            (Primitive::OneHot(p), Instruction::CompactTokenOneHot(_)) => p.start(operands[0])?,
-            _ => return Err(Error::Context),
-        };
+        let operands = operands(instruction, &execution.values)?;
+        let frame = primitive.start(instruction, &operands)?;
         execution.active = Some(primitive);
         self.state = Some(execution);
         Ok(Event::Frame(frame))
@@ -324,46 +374,22 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
     pub fn advance(&mut self, peer: &[u8]) -> Result<Event<'a>, Error> {
         let mut execution = self.state.take().ok_or(Error::Consumed)?;
         let mut primitive = execution.active.take().ok_or(Error::Context)?;
-        let value = Zeroizing::new(match &mut primitive {
-            Primitive::OneHot(p) => {
-                let spec = self.plan.one_hot_spec(execution.pc)?;
-                if p.resources().vocabulary != spec.vocabulary {
-                    return Err(Error::Context);
-                }
-                // Transfer the native vector and its output lease without a
-                // scalar register expansion or another full-vocabulary copy.
-                // State was taken above: success and failure both consume us.
-                return Ok(Event::Output(p.finish(peer)?));
+        if let Primitive::OneHot(p) = &primitive {
+            if p.resources().vocabulary != self.plan.one_hot_spec(execution.pc)?.vocabulary {
+                return Err(Error::Context);
             }
-            Primitive::Conversion(p) => {
-                let output = p.finish(peer)?;
-                *output.shares().first().ok_or(Error::Domain)?
+        }
+        let value = Zeroizing::new(match primitive.advance(peer)? {
+            PrimitiveEvent::Frame(frame) => {
+                execution.active = Some(primitive);
+                self.state = Some(execution);
+                return Ok(Event::Frame(frame));
             }
-            Primitive::Lookup(p) => {
-                let output = p.finish(peer)?;
-                *output.shares().first().ok_or(Error::Domain)?
+            PrimitiveEvent::Output(output) if self.plan.compact_vocabulary().is_some() => {
+                return Ok(Event::Output(output))
             }
-            Primitive::Predicate(p) => match p.advance(peer)? {
-                predicates::Step::Frame(frame) => {
-                    execution.active = Some(primitive);
-                    self.state = Some(execution);
-                    return Ok(Event::Frame(frame));
-                }
-                predicates::Step::Output(output) => {
-                    *output.shares().first().ok_or(Error::Domain)?
-                }
-            },
-            Primitive::Gelu(p, advanced) => {
-                if !*advanced {
-                    let frame = p.advance(peer)?;
-                    *advanced = true;
-                    execution.active = Some(primitive);
-                    self.state = Some(execution);
-                    return Ok(Event::Frame(frame));
-                }
-                let output = p.finish(peer)?;
-                *output.shares().first().ok_or(Error::Domain)?
-            }
+            PrimitiveEvent::Output(output) => *output.shares().first().ok_or(Error::Domain)?,
+            PrimitiveEvent::Scalar(value) => *value,
         });
         drop(primitive);
         let dest = self.plan.inputs.len() + execution.pc;

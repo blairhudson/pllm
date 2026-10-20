@@ -6,7 +6,7 @@ PUMA remains parked at its separate admission gate.
 
 ## Contract
 
-Follow [D1, D3, D5, D8, D9, D13 and D14](DECISIONS.md), the
+Follow [D1, D3, D5, D8, D9, D13, D14 and D15](DECISIONS.md), the
 [shared computation contract](shared-computation-contracts.md#4-fusefss) and
 [frozen scalar specification](../reproduction-contracts/fusefss/README.md).
 The implementation is independent PLLM Rust/Python code.
@@ -139,12 +139,30 @@ The shared native relay now routes dealer delivery and both holder-peer paths;
 its bounded propagation queues and report validation are transport qualification.
 
 The scalar schedule has 13,424,643 peer frames per Qwen holder. Merely replacing
-HTTP or batching offline delivery does not remove those dependent waits. Next
-execution slice must preserve D13/D14 values, private feedback, lowest-index ties
-and final acceptance while scheduling independent tensor lanes together. Balanced
-private selection must replace the full-vocabulary serial dependency chain.
-Every lane still consumes fresh, context-bound material and exact replay claims;
-frontier storage must be priced before issuance under existing live limits.
+HTTP or batching offline delivery does not remove those dependent waits. D15's
+explicit `online_schedule="wavefront-v1"` now groups independent tensor lanes and
+uses balanced stable selection. Every lane still consumes fresh, context-bound
+material and exact replay claims; frontier storage is priced before issuance
+under the existing live limits. Public group and tile bounds still split logical
+tree levels into multiple exchanges.
+
+The core passes 105 composition checks; 115 decoder checks include all five
+frozen semantic outputs and the checked-profile control. Four installed
+three-process checks cover generated Decoder feedback, late rejection/recovery,
+Capsule execution and buffered gateway output. A fresh-client matched generated
+pair at 100/40 Mbps plus 40 ms added RTT lowers full requests from 222.505 to
+34.583 seconds, with identical output commitments and zero observed swap growth.
+The [ordinary report](../../docs/evidence/fusefss-wavefront-wan-pair.json) retains
+that tiny source and separate cohort.
+
+Pinned-source 4+1 wavefront qualification still rejects: repeated public schedule
+construction pushes the kernel walk past the existing 32 GiB public-copy ceiling
+at layer 23 SiLU. A separate 1+1 control admits but retains 29,334 sequential peer
+exchanges per holder, roughly 19.6 minutes of waiting at 40 ms RTT before compute.
+Its packet allowance is 5.18 GB per holder, an upper-bound price rather than a
+measured transfer. No private request runs in either qualification control.
+Reduce public schedule duplication and carry wider bounded tensor waves before
+another long trained request; increasing capacity ceilings is not the solution.
 
 Round reduction alone does not solve cold-request bytes. Reprice and measure the
 complete fresh-material delivery, source/setup scope, online traffic and aggregate

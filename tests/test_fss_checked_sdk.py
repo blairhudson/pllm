@@ -61,9 +61,11 @@ def checked_experiment(path):
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("material_delivery", ["single", "batch-v1"])
+@pytest.mark.parametrize(("material_delivery", "online_schedule"), [
+    ("single", "serial"), ("batch-v1", "serial"), ("batch-v1", "wavefront-v1"),
+])
 def test_checked_feedback_rejects_all_tokens_and_fresh_request_recovers(
-        tmp_path, monkeypatch, material_delivery):
+        tmp_path, monkeypatch, material_delivery, online_schedule):
     captured, receipts = [], []
     original = fss_transport._receipt
 
@@ -78,6 +80,8 @@ def test_checked_feedback_rejects_all_tokens_and_fresh_request_recovers(
     experiment = checked_experiment(tmp_path)
     if material_delivery != "single":
         experiment = experiment.with_params(pipeline__linear__material_delivery=material_delivery)
+    if online_schedule != "serial":
+        experiment = experiment.with_params(pipeline__linear__online_schedule=online_schedule)
     with OpenAI(experiment=experiment, timeout=300) as client:
         topology = client._owned_topology
         client._core._result_hook = captured.append
