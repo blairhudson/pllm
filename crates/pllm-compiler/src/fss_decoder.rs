@@ -4,8 +4,12 @@
 //! intermediate range obligations; callers cannot supply range certificates.
 //! Workers execute one role through an external material/transport driver. No
 //! worker-side preprocessing, sibling evaluation, or reconstruction is provided.
+#[path = "fss_decoder/capacity.rs"]
+pub mod capacity;
 #[path = "fss_decoder/channel.rs"]
 pub mod channel;
+#[path = "fss_decoder/energy.rs"]
+mod energy;
 #[path = "fss_decoder/import.rs"]
 pub mod import;
 #[path = "fss_decoder/program.rs"]
@@ -18,6 +22,7 @@ pub mod sdk;
 mod source;
 #[path = "fss_decoder/transport.rs"]
 pub mod transport;
+pub use capacity::Capacity;
 pub use pllm_garble::fusefss_backend::Error;
 pub use program::{Limits, Program, Resources};
 pub use runtime::{Driver, MaterialVisitor, NativeOutput, TokenShares, Worker};

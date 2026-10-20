@@ -11,11 +11,14 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from contextlib import ExitStack
+from copy import deepcopy
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -201,6 +204,11 @@ class LocalTopology:
         "_local_engine",
         "_model",
         "_model_id",
+        "_memory_admission",
+        "_memory_budget_bytes",
+        "_memory_safety_margin_percent",
+        "_memory_enforced_wan",
+        "_capacity_reservations",
         "_preparation_key",
         "_preparation_url",
         "_process_lock",
@@ -218,6 +226,7 @@ class LocalTopology:
         "_role_ids",
         "_role_urls",
         "_source_pins",
+        "_source_qualification",
         "_started",
         "_starting",
         "_startup_timeout",
@@ -273,7 +282,14 @@ class LocalTopology:
         startup_timeout: float,
         progress: Callable[[str], None] | None,
         private_boundary: bool = False,
+        memory_budget_bytes: int | None = None,
+        memory_safety_margin_percent: int = 25,
+        memory_enforced_wan: bool = False,
     ) -> None:
+        from .benchmark_memory import _memory_budget, _memory_margin
+
+        memory_budget_bytes = _memory_budget(memory_budget_bytes)
+        memory_safety_margin_percent = _memory_margin(memory_safety_margin_percent)
         self._model = model
         self._model_id = model_id
         self._experiment = experiment
@@ -288,6 +304,12 @@ class LocalTopology:
         self._peer_credentials: dict[tuple[str, str], str] = {}
         self._role_urls: dict[str, str] = {}
         self._source_pins: dict[str, str] | None = None
+        self._memory_admission = None
+        self._source_qualification = None
+        self._capacity_reservations = None
+        self._memory_budget_bytes = memory_budget_bytes
+        self._memory_safety_margin_percent = memory_safety_margin_percent
+        self._memory_enforced_wan = memory_enforced_wan
         self._local_engine: Any | None = None
         self._requires_preparation = requires_preparation
         self._guard_max_rows_per_request = guard_max_rows_per_request
@@ -330,6 +352,16 @@ class LocalTopology:
     @property
     def model_id(self) -> str:
         return self._model_id
+
+    @property
+    def memory_admission(self) -> dict[str, Any] | None:
+        """Locally recomputed admission, including failures; not caller authority."""
+        return deepcopy(self._memory_admission)
+
+    @property
+    def source_qualification(self) -> dict[str, Any] | None:
+        """Setup/publication work already included in the coordinator cold CPU window."""
+        return deepcopy(self._source_qualification)
 
     @property
     def inference_url(self) -> str:
@@ -375,10 +407,10 @@ class LocalTopology:
             ),
         }
 
-    def worker_process_metrics(self) -> dict[str, dict[str, int | None]]:
+    def worker_process_metrics(self) -> dict[str, dict[str, Any]]:
         """Read authenticated in-process clocks; missing samples are never zero-filled."""
         connections = self.worker_connections()
-        result: dict[str, dict[str, int | None]] = {}
+        result: dict[str, dict[str, Any]] = {}
         delegation = self._privacy_mode == "gkm_public"
         replicated = self._privacy_mode == "replicated_public"
         fss = self._privacy_mode == "fss_public"
@@ -411,6 +443,13 @@ class LocalTopology:
                 "cpu_ns": value["cpu_ns"],
                 "peak_rss_bytes": value["peak_rss_bytes"],
             }
+            if fss:
+                from .benchmark_delegated import FSS_PHASE_COUNTERS, fss_phase_timing_delta
+
+                timing = fss_phase_timing_delta(
+                    dict.fromkeys(FSS_PHASE_COUNTERS, 0), value.get("phase_timing"))
+                if timing is not None:
+                    result[role]["phase_timing"] = timing
         return result
 
     def client_model_ownership(self) -> dict[str, int | None]:
@@ -826,13 +865,110 @@ class LocalTopology:
             time.sleep(0.1)
         raise TopologyError(f"local {role} service did not become ready before timeout")
 
+    def _qualify_fss_decoder(self) -> None:
+        """One bounded source owner before the independently importing role graph."""
+        import shutil
+        from pllm.deployment.resources import reserve_incremental_memory, reserve_incremental_disk
+        from .benchmark_memory import (
+            _fss_memory, _fss_source_qualification_estimate, admit_memory,
+            benchmark_memory, host_memory, require_admission,
+        )
+        from .fss_source import resolve_client_source, load_role_source
+
+        wall, cpu = time.perf_counter(), time.process_time()
+        priced = retired = completed = False
+        directory = Path(tempfile.gettempdir())  # Same device as native sources, guards and holder tapes.
+        policy = {"backend": "native", "enforced_wan": self._memory_enforced_wan,
+                  "memory_budget_bytes": self._memory_budget_bytes}
+
+        def observe():
+            return replace(host_memory(), disk_free=int(shutil.disk_usage(directory).free))
+
+        def running():
+            if self._stopping.is_set():
+                raise TopologyError("local topology stopped during source qualification")
+
+        try:
+            running()
+            source = resolve_client_source(self._experiment)
+            contract = source.contract
+            pins = dict(source.snapshot_pins)
+            estimate = _fss_memory(json.loads(source.config_bytes), self._experiment.pipeline,
+                self._experiment.budget.max_input_tokens, self._experiment.budget.max_new_tokens,
+                0, None, contract["source_float32_bytes"], self._memory_safety_margin_percent,
+                contract=contract, source_pins=pins)
+            phase = admit_memory(_fss_source_qualification_estimate(estimate), observe(), **policy)
+            phase.update(admission_scope="source_qualification_only", full_topology_admitted=False)
+            self._memory_admission = phase
+            require_admission(phase)
+            # Keep source leases live until the native owner retires, including
+            # cancellation during its blocking seal/compile. No tape is created.
+            with ExitStack() as qualification:
+                qualification.enter_context(reserve_incremental_memory(
+                    estimate["incremental_owner_bounds"]["per_role"]))
+                if contract["source_disk_bytes"]:
+                    qualification.enter_context(reserve_incremental_disk(contract["source_disk_bytes"],
+                        directory=directory, minimum_free_bytes=2 << 30))
+                running()
+                loaded = load_role_source(self._experiment, expected_pins=pins, source=source,
+                                          cancelled=self._stopping.is_set)
+                try:
+                    running()
+                    report = benchmark_memory(self._experiment, fss_imported=loaded,
+                        memory_safety_margin_percent=self._memory_safety_margin_percent, **policy)
+                    if report["estimate"]["fss_admission"]["source_pins"] != pins:
+                        raise TopologyError("qualified FuseFSS source pins differ")
+                    priced = True
+                    # The live qualification owner can reduce observed free disk.
+                    # Recheck this native-derived estimate only after retirement.
+                    estimate = report["estimate"]
+                finally:
+                    loaded.close()
+                    retired = True
+            running()
+            report = admit_memory(estimate, observe(), **policy)
+            report.update(admission_scope="complete_topology_before_children",
+                full_topology_admitted=report["admitted"],
+                reservation_scope="process_local_logical_memory_and_disk; not_filesystem_or_cross_process_quota")
+            self._memory_admission = report
+            require_admission(report)
+            # Reserve the complete, internally priced graph after the temporary
+            # qualification owner and its leases are gone. Runtime processes also
+            # reserve their own owners; no speculative resident/cache credit.
+            with ExitStack() as graph:
+                required = report["candidates"]["native"]
+                graph.enter_context(reserve_incremental_memory(required["required_host_bytes"]))
+                disk = required["required_disk_bytes"] - (2 << 30)
+                if disk:
+                    graph.enter_context(reserve_incremental_disk(disk, directory=directory,
+                                                               minimum_free_bytes=2 << 30))
+                with self._process_lock:
+                    running()
+                    self._source_pins = pins
+                    self._capacity_reservations = graph.pop_all()
+                completed = True
+        finally:
+            self._source_qualification = {
+                "wall_seconds": time.perf_counter() - wall,
+                "process_cpu_seconds": time.process_time() - cpu,
+                "scope": "coordinator_source_import_native_pricing_and_admission_before_children",
+                "included_in_cold_cpu": True, "native_program_priced": priced,
+                "owner_retired": retired, "completed": completed,
+            }
+            if self._memory_admission is not None:
+                self._memory_admission["source_qualification"] = dict(self._source_qualification)
+                self._memory_admission["full_topology_admitted"] = completed
+
     def start(self) -> LocalTopology:
         with self._process_lock:
             if self._started or self._starting or self._closed:
                 raise TopologyError("local topology cannot be started again")
             self._starting = True
         try:
-            if self._privacy_mode in {"gkm_public", "replicated_public", "fss_public"}:
+            if (self._privacy_mode == "fss_public"
+                    and self._experiment.pipeline.components["linear"].params.get("capacity", "capsule") == "decoder"):
+                self._qualify_fss_decoder()
+            elif self._privacy_mode in {"gkm_public", "replicated_public", "fss_public"}:
                 # Source/numerical admission must precede ordinary model lowering,
                 # tensor import and process creation, including bare SDK launch.
                 if self._privacy_mode == "fss_public":
@@ -1136,6 +1272,9 @@ class LocalTopology:
             with self._process_lock:
                 processes = dict(self._processes)
             if self._closed and all(process.poll() is not None for process in processes.values()):
+                if self._capacity_reservations is not None:
+                    self._capacity_reservations.close()
+                    self._capacity_reservations = None
                 return
             self._closed = True
             try:
@@ -1153,6 +1292,11 @@ class LocalTopology:
                 self._role_credentials.clear()
                 self._peer_credentials.clear()
                 self._source_pins = None
+            # Only refund after all child owners have actually retired. A failed
+            # stop retains leases for a later close attempt.
+            if self._capacity_reservations is not None:
+                self._capacity_reservations.close()
+                self._capacity_reservations = None
 
     def __enter__(self) -> LocalTopology:
         if self._started and not self._closed:
@@ -1187,6 +1331,8 @@ def build_roles(
     docker_network=None,
     wan=None,
     memory_limits: dict[str, int] | None = None,
+    memory_budget_bytes: int | None = None,
+    memory_safety_margin_percent: int = 25,
 ) -> LocalTopology:
     if type(docker) is not bool:
         raise TypeError("docker must be a boolean")
@@ -1368,6 +1514,9 @@ def build_roles(
         extra["wan"] = wan
     return topology_type(
         model,
+        memory_budget_bytes=memory_budget_bytes,
+        memory_safety_margin_percent=memory_safety_margin_percent,
+        memory_enforced_wan=wan is not None,
         model_id=resolved_id,
         experiment=experiment,
         engine_threads=engine_threads,

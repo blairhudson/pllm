@@ -16,7 +16,8 @@ from pllm.runtime import reference_benchmark as quality, quality_outcomes as out
 from test_quality_outcomes import quality_controls, experiment as existing_experiment
 
 
-PROFILES = ("fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1")
+PROFILES = ("fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1",
+            "fusefss.dense-rope-checked-ranges-ring50-q12.v1")
 
 
 def experiment(profile=PROFILES[0], name="fss-quality"):
@@ -28,14 +29,15 @@ def experiment(profile=PROFILES[0], name="fss-quality"):
 @pytest.fixture
 def fss_controls(quality_controls,monkeypatch):
     from tokenizers import Tokenizer,models,pre_tokenizers
-    from pllm.runtime import fss_source,fss_transport,servers
+    from pllm.runtime import benchmark_memory,fss_source,fss_transport,servers
     from pllm.runtime.client import ProtocolError
 
     tokenizer=Tokenizer(models.WordLevel({'[UNK]':0,'seed':1,'boom':2,'pass':3,'reject':4},unk_token='[UNK]'))
     tokenizer.pre_tokenizer=pre_tokenizers.Whitespace()
     raw=tokenizer.to_str().encode()
-    calls,admissions,role_calls,references=[],[],[],[]
-    state=SimpleNamespace(error=None,token=4,mutation=None)
+    calls,admissions,role_calls,references,phases,policies=[],[],[],[],[],[]
+    state=SimpleNamespace(error=None,token=4,mutation=None,
+        final_admission={"admitted": True, "full_topology_admitted": True})
 
     def source(experiment):
         admissions.append(experiment)
@@ -46,6 +48,8 @@ def fss_controls(quality_controls,monkeypatch):
             'source_lock':resolved.source_lock_digest,'tokenizer':'c'*64,
             'vocabulary':5,'numeric_profile':experiment.pipeline.components['linear'].params['numeric_profile'],
             'runtime_kind':'fss','client_runtime':'compiled_fss_v1','ring_bits':50,'fractional_bits':12}
+        if experiment.pipeline.components['linear'].params.get('capacity') == 'decoder':
+            contract['capacity']='decoder'
         # Deliberately NO legacy source.source or source.tokenizer() compatibility.
         owner=SimpleNamespace(path=resolved.path,source_lock_digest=resolved.source_lock_digest,
             checkpoint_digest=resolved.checkpoint_digest,tokenizer_digest='c'*64,contract=contract,
@@ -55,12 +59,14 @@ def fss_controls(quality_controls,monkeypatch):
         return owner
 
     @contextmanager
-    def roles(experiment):
+    def roles(experiment, **policy):
         quality_controls.lifecycle.append('roles_start')
         role_calls.append(experiment)
+        policies.append(policy)
         names=('worker_a','worker_b','dealer') if resolve_runtime_composition(experiment.pipeline).client_runtime=='compiled_fss_v1' else ('worker_a','worker_b','worker_c')
         try:
-            yield SimpleNamespace(worker_connections=lambda:dict.fromkeys(names,('http://127.0.0.1:1','fake-key')))
+            yield SimpleNamespace(worker_connections=lambda:dict.fromkeys(names,('http://127.0.0.1:1','fake-key')),
+                memory_admission=state.final_admission)
         finally:
             quality_controls.lifecycle.append('roles_close')
 
@@ -82,12 +88,17 @@ def fss_controls(quality_controls,monkeypatch):
         references.append(args[2:4])
         return original_reference(*args)
 
+    def execution_admission(experiment, **kwargs):
+        phases.append((experiment, kwargs))
+        return {"admitted": True, "full_topology_admitted": False, "admission_scope": "source_qualification_only"}
+
+    monkeypatch.setattr(benchmark_memory,'execution_memory_admission',execution_admission)
     monkeypatch.setattr(fss_source,'resolve_client_source',source)
     monkeypatch.setattr(fss_transport,'execute_request',execute)
     monkeypatch.setattr(servers,'build_roles',roles)
     monkeypatch.setattr(quality,'_reference_trajectories',reference)
     return SimpleNamespace(calls=calls,admissions=admissions,roles=role_calls,references=references,
-        state=state,shared=quality_controls,source=source)
+        state=state,shared=quality_controls,source=source,phases=phases,policies=policies)
 
 
 def run(experiments,prompts,**kwargs):
@@ -125,6 +136,56 @@ def test_record_range_rejection_keeps_all_positions_and_no_partial_ranking(fss_c
         outcomes.require_complete_for_ranking(report)
     serialized=json.dumps(report)
     assert not any(secret in serialized for secret in ('SECRET','"pass"','"reject"','"selected"','"logits"','unit-only-source'))
+
+
+def test_checked_decoder_quality_scores_only_accepted_original_positions(fss_controls, monkeypatch):
+    candidate = experiment(PROFILES[2]).with_params(pipeline__linear__capacity="decoder")
+    values, original = [], quality.measure_reference_agreement
+    def metric(*args, **kwargs):
+        values.append(kwargs["selected_token"])
+        return original(*args, **kwargs)
+    monkeypatch.setattr(quality, "measure_reference_agreement", metric)
+    report = run([candidate], ["pass", "reject", "pass"], memory_safety_margin_percent=40)
+    row, = report["candidates"]
+    assert row["numeric_profile"] == PROFILES[2]
+    assert row["outcomes"] == [
+        {"position": 0, "status": "accepted", "code": None, "attempted": True},
+        {"position": 1, "status": "rejected", "code": "numeric_domain_rejected", "attempted": True},
+        {"position": 2, "status": "accepted", "code": None, "attempted": True}]
+    assert row["sample_count"] == row["accepted_agreement"]["sample_count"] == 2
+    assert row["accepted_agreement"]["top1_agreement"] == 1 and row["top1_agreement"] is None
+    assert values and set(values) == {4}  # No zero placeholder reaches the scorer.
+    assert fss_controls.phases == [(candidate, {"backend": "native", "memory_safety_margin_percent": 40})]
+    assert fss_controls.policies == [{"memory_safety_margin_percent": 40}]
+    assert "SECRET_INTERNAL_FSS_RANGE_SITE" not in json.dumps(report)
+    outcomes.validate_report(report)
+
+
+@pytest.mark.parametrize("final", [None, {"admitted": True, "full_topology_admitted": False}])
+def test_checked_decoder_quality_cannot_execute_on_qualification_only_admission(fss_controls, final):
+    fss_controls.state.final_admission = final
+    candidate = experiment(PROFILES[2]).with_params(pipeline__linear__capacity="decoder")
+    report = run([candidate], ["pass"])
+    assert not fss_controls.calls and not fss_controls.references
+    assert report["candidates"][0]["outcomes"] == [
+        {"position": 0, "status": "failed", "code": "admission_failed", "attempted": False}]
+
+
+@pytest.mark.parametrize("returned", [PROFILES[1], None])
+def test_checked_quality_rejects_missing_or_static_native_identity(fss_controls, returned):
+    fss_controls.state.mutation = (lambda source: source.contract.pop("numeric_profile")) if returned is None else (
+        lambda source: source.contract.update(numeric_profile=returned))
+    with pytest.raises(outcomes.QualityIntegrityError):
+        run([experiment(PROFILES[2])], ["pass"])
+    assert not fss_controls.calls and not fss_controls.roles
+
+
+def test_checked_quality_requires_native_decoder_capacity(fss_controls):
+    fss_controls.state.mutation = lambda source: source.contract.pop("capacity")
+    candidate = experiment(PROFILES[2]).with_params(pipeline__linear__capacity="decoder")
+    with pytest.raises(outcomes.QualityIntegrityError):
+        run([candidate], ["pass"])
+    assert not fss_controls.roles
 
 
 def test_frozen_same_token_prefixes_survive_range_rejection(fss_controls):

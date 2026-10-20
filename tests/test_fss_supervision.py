@@ -19,7 +19,8 @@ PINS = {"source_lock": "a"*64, "tokenizer": "b"*64, "checkpoint": "c"*64, "confi
 
 def topology(tmp_path):
     declaration = SimpleNamespace(canonical_bytes=lambda: b'{"fixture":"supervision-only"}',
-        budget=SimpleNamespace(max_input_tokens=1, max_new_tokens=2), pipeline=object())
+        budget=SimpleNamespace(max_input_tokens=1, max_new_tokens=2),
+        pipeline=SimpleNamespace(components={"linear": SimpleNamespace(params={"capacity": "capsule"})}))
     return servers.LocalTopology(Model.path(str(tmp_path / "source")), model_id="generated-fss-supervision",
         experiment=declaration, engine_threads=1, weight_bits=16, activation_bits=16,
         correlation_mode="local-test", privacy_mode="fss_public", proprietary_protocol="guarded",

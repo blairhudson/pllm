@@ -1,4 +1,8 @@
 use super::*;
+use pllm_garble::fusefss_backend::{
+    composition::{cache, gates},
+    Budget,
+};
 use pllm_models::{DecoderPlan, ModelOperation, ModelOperator as Op};
 use sha2::{Digest, Sha256};
 
@@ -24,6 +28,23 @@ impl Default for Limits {
         }
     }
 }
+impl Limits {
+    /// Cumulative work/storage envelopes are distinct from the unchanged native
+    /// live-material ceiling. Decoder execution still admits every actual kernel,
+    /// source owner, tensor frontier and transport owner before private input.
+    pub fn for_capacity(capacity: Capacity) -> Self {
+        match capacity {
+            Capacity::Capsule => Self::default(),
+            Capacity::Decoder => Self {
+                max_work: 1 << 38,
+                max_material_bytes: 32 << 30,
+                max_frame_bytes: 8 << 30,
+                max_public_copy_bytes: 32 << 30,
+                ..Self::default()
+            },
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Resources {
     pub kernels: usize,
@@ -43,6 +64,7 @@ pub struct Resources {
     pub combined_reservation_bytes: usize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Code {
     Embedding {
         weight: usize,
@@ -146,14 +168,26 @@ pub struct Program {
     pub(super) obligations: [u8; 32],
     pub(super) resources: Resources,
     pub(super) limits: Limits,
+    pub(super) energy: Option<super::energy::Ledger>,
 }
 
-fn dimensions(op: &ModelOperation) -> Result<Vec<usize>, Error> {
+pub(super) fn graph_elements(capacity: Capacity, shape: &[usize]) -> Result<usize, Error> {
+    if shape.is_empty() || shape.len() > 4 || shape.contains(&0) {
+        return Err(Error::Domain);
+    }
+    shape.iter().try_fold(1usize, |n, &d| {
+        n.checked_mul(d)
+            .filter(|&n| n <= capacity.max_graph_values())
+            .ok_or(Error::Resource)
+    })
+}
+
+fn dimensions(op: &ModelOperation, capacity: Capacity) -> Result<Vec<usize>, Error> {
     let mut out = vector(op.output_shape.len())?;
     for &n in &op.output_shape {
         out.push(usize::try_from(n).map_err(|_| Error::Resource)?);
     }
-    elements(&out)?;
+    graph_elements(capacity, &out)?;
     Ok(out)
 }
 fn field<'a>(op: &'a ModelOperation, key: &str) -> Result<&'a str, Error> {
@@ -212,6 +246,87 @@ pub(super) fn public_dot_range(
         sum = sum.add(x.scale(w)?)?;
     }
     sum.floor()?.add(Range::new(bias as i128, bias as i128)?)
+}
+
+/// Immutable source-derived statistics price complete rows without expanding the
+/// checkpoint. Also bound every possible prefix, not just a cancelling final sum.
+pub(super) fn public_row_raw_range(
+    x: Range,
+    row: pllm_core::fixed_file::RowStatistics,
+) -> Result<Range, Error> {
+    let (lo, hi) = (i128::from(x.lo), i128::from(x.hi));
+    let (positive, negative) = (row.positive_sum, row.negative_sum);
+    if positive < 0 || negative > 0 {
+        return Err(Error::Domain);
+    }
+    let sum = |a: i128, b: i128| {
+        a.checked_mul(positive)
+            .and_then(|n| n.checked_add(b.checked_mul(negative)?))
+            .ok_or(Error::Domain)
+    };
+    Range::new(sum(lo.min(0), hi.max(0))?, sum(hi.max(0), lo.min(0))?)?;
+    Range::new(sum(lo, hi)?, sum(hi, lo)?)
+}
+
+fn source_linear_range(
+    source: &Source,
+    weight: usize,
+    bias: Option<usize>,
+    input_output: bool,
+    input: Range,
+    input_energy: Option<u128>,
+    affine: Option<super::energy::AffineLinear>,
+) -> Result<Range, Error> {
+    let w = &source.tensors[weight];
+    let (inner, columns) = match (w.shape.as_slice(), input_output) {
+        ([rows, columns], true) => (*rows, *columns),
+        ([rows, columns], false) => (*columns, *rows),
+        _ => return Err(Error::Domain),
+    };
+    let row_energies = if let Some(input_energy) = input_energy {
+        w.maximum_row_energy()?
+            .map(|weight_energy| (input_energy, weight_energy))
+    } else {
+        None
+    };
+    let mut range = None;
+    let mut coefficients = zeroize::Zeroizing::new(vector::<i64>(inner)?);
+    coefficients.resize(inner, 0);
+    for col in 0..columns {
+        let b = if let Some(index) = bias {
+            *source.tensors[index]
+                .resident_values()
+                .and_then(|v| v.get(col))
+                .ok_or(Error::Domain)?
+        } else {
+            0
+        };
+        let row = if input_energy.is_some() && !input_output {
+            super::energy::public_raw_with_affine(
+                input,
+                w.row_statistics(col)?,
+                row_energies,
+                affine,
+            )?
+            .floor()?
+            .add(Range::new(b as i128, b as i128)?)?
+        } else if w.is_file_backed() && !input_output {
+            public_row_raw_range(input, w.row_statistics(col)?)?
+                .floor()?
+                .add(Range::new(b as i128, b as i128)?)?
+        } else {
+            if input_output {
+                for (k, value) in coefficients.iter_mut().enumerate() {
+                    w.read_range(k * columns + col, std::slice::from_mut(value))?;
+                }
+            } else {
+                w.read_row(col, 0, &mut coefficients)?;
+            }
+            public_dot_range(input, coefficients.iter().copied(), b)?
+        };
+        range = Some(range.map_or(row, |r| union(r, row)));
+    }
+    range.ok_or(Error::Domain)
 }
 pub(super) fn dot_range(a: Range, b: Range, n: usize) -> Result<Range, Error> {
     let p = a.product(b)?;
@@ -279,7 +394,8 @@ impl Program {
         selections: usize,
         limits: Limits,
     ) -> Result<Self, Error> {
-        let hard = Limits::default();
+        let capacity = source.capacity();
+        let hard = Limits::for_capacity(capacity);
         if plan.schema_version.capacity() > 1024
             || plan.model_family.capacity() > 1024
             || plan.adapter.capacity() > 1024
@@ -334,7 +450,7 @@ impl Program {
                 for &n in &state.shape {
                     shape.push(usize::try_from(n).map_err(|_| Error::Resource)?);
                 }
-                elements(&shape)?;
+                graph_elements(capacity, &shape)?;
             }
             for op in &graph.operations {
                 if op.id.is_empty()
@@ -345,18 +461,86 @@ impl Program {
                 {
                     return Err(Error::Resource);
                 }
-                dimensions(op)?;
+                dimensions(op, capacity)?;
                 metadata(&op.attributes, 0, &mut meta_nodes, &mut meta_bytes)?;
             }
         }
         plan.validate().map_err(|_| Error::Domain)?;
+        let checked_ranges = source.checked_ranges();
+        if checked_ranges
+            && (!plan
+                .prefill
+                .operations
+                .iter()
+                .any(|op| op.operator == Op::RotaryEmbedding)
+                || plan.prefill.operations.iter().any(|op| {
+                    matches!(op.operator, Op::LayerNorm | Op::GeluTanh)
+                        || (op.operator == Op::TokenLookup && op.inputs == ["input.positions"])
+                }))
+        {
+            return Err(Error::Unsupported);
+        }
         let mut ids = vector::<&str>(plan.prefill.operations.len())?;
         let mut originals = vector::<Vec<usize>>(plan.prefill.operations.len())?;
         let mut nodes: Vec<Node> = vector(plan.prefill.operations.len())?;
+        let mut energy = if capacity == Capacity::Decoder || checked_ranges {
+            Some(super::energy::Ledger::new(
+                source.digest(),
+                plan.digest().as_str(),
+                plan.prefill.operations.len(),
+            )?)
+        } else {
+            None
+        };
+        // Same native ownership convention as numeric construction below: three
+        // conservative compiler owners plus three gate Budgets fit 64 MiB. This
+        // cache is public, construction-local, and retired before the executable
+        // schedule. It prevents later graph errors from hiding earlier conditional
+        // normalization/activation obligations.
+        let (construction_budget, construction_limit) = if energy.is_some() {
+            let node_bytes = plan
+                .prefill
+                .operations
+                .len()
+                .checked_mul(
+                    std::mem::size_of::<Node>() + 2 * std::mem::size_of::<Vec<usize>>() + 10 * 8,
+                )
+                .ok_or(Error::Resource)?;
+            let metadata = source
+                .reservation_bytes()
+                .checked_add(energy.as_ref().ok_or(Error::Context)?.resident_bytes())
+                .and_then(|n| n.checked_add(node_bytes))
+                .and_then(|n| n.checked_add(meta_nodes * 128 + meta_bytes * 2))
+                .and_then(|n| {
+                    n.checked_add(
+                        (plan.prefill.operations.len() + plan.decode.operations.len()) * 4096,
+                    )
+                })
+                .ok_or(Error::Resource)?;
+            let available = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
+                .checked_sub(metadata.checked_mul(3).ok_or(Error::Resource)?)
+                .ok_or(Error::Resource)?;
+            (Some(Budget::new(available / 3)?), available / 3)
+        } else {
+            (None, 0)
+        };
+        let construction_tables = construction_budget
+            .as_ref()
+            .map(|budget| {
+                cache::SourceTableCache::new(
+                    source.digest(),
+                    cache::Limits {
+                        max_entries: cache::MAX_ENTRIES,
+                        max_retained_bytes: cache::MAX_RETAINED_BYTES,
+                    },
+                    budget,
+                )
+            })
+            .transpose()?;
         let mut vocabulary = None;
         for op in &plan.prefill.operations {
             if op.operator == Op::OutputHead {
-                let d = dimensions(op)?;
+                let d = dimensions(op, capacity)?;
                 if d.len() != 2 || d[0] != 1 || vocabulary.replace(d[1]).is_some() {
                     return Err(Error::Domain);
                 }
@@ -364,10 +548,24 @@ impl Program {
         }
         let mut head = None;
         for (index, op) in plan.prefill.operations.iter().enumerate() {
+            if std::env::var_os("PLLM_FSS_ADMISSION_DEBUG").is_some() {
+                eprintln!(
+                    "FSS public admission node {index}: {:?} inputs {:?}",
+                    op.operator, op.inputs
+                );
+                for input in &op.inputs {
+                    if let Some(i) = ids.iter().position(|id| *id == input) {
+                        eprintln!(
+                            "  public range {:?} shape {:?}",
+                            nodes[i].range, nodes[i].shape
+                        );
+                    }
+                }
+            }
             if ids.contains(&op.id.as_str()) {
                 return Err(Error::Domain);
             }
-            let declared = dimensions(op)?;
+            let declared = dimensions(op, capacity)?;
             let operand = |i: usize| -> Result<usize, Error> {
                 let id = op.inputs.get(i).ok_or(Error::Domain)?;
                 ids.iter().position(|s| *s == id).ok_or(Error::Domain)
@@ -383,6 +581,15 @@ impl Program {
                     Err(Error::Domain)
                 }
             };
+            let row_energy = |i: usize| -> Result<Option<u128>, Error> {
+                energy
+                    .as_ref()
+                    .map(|proofs| proofs.row(source.digest(), i, &nodes[i]))
+                    .transpose()
+            };
+            let mut derived_energy = None;
+            let mut dot_proof = None;
+            let mut affine_proof = None;
             let (code, shape, range) = match op.operator {
                 Op::TokenLookup => {
                     if op.inputs.len() != 1 || declared.len() != 3 || declared[..2] != [1, initial]
@@ -423,6 +630,9 @@ impl Program {
                         vocabulary = Some(rows);
                     }
                     let weight = tensor(&source, op, "weight", &[rows, declared[2]])?;
+                    if energy.is_some() {
+                        derived_energy = source.tensors[weight].maximum_row_energy()?;
+                    }
                     (
                         Code::Embedding { weight, positions },
                         copied(&[1, sequence, declared[2]])?,
@@ -457,21 +667,48 @@ impl Program {
                     if bias.is_some() && !op.attributes["bias_shape"].is_null() {
                         attr_shape(op, "bias_shape", &[columns])?;
                     }
-                    let mut r = None;
-                    for col in 0..columns {
-                        let b = bias.map_or(0, |i| source.tensors[i].values[col]);
-                        let row = public_dot_range(
-                            n.range,
-                            (0..inner).map(|k| {
-                                source.tensors[weight].values[if input_output {
-                                    k * columns + col
-                                } else {
-                                    col * inner + k
-                                }]
-                            }),
-                            b,
+                    if !input_output
+                        && source.tensors[weight].is_file_backed()
+                        && matches!(n.code, Code::Norm { .. })
+                    {
+                        if let Some(budget) = &construction_budget {
+                            // Only this immediately preceding, already-admitted
+                            // norm owns the latent normalized-row premise.
+                            row_energy(input)?.ok_or(Error::Context)?;
+                            affine_proof = super::energy::AffineLinear::derive(
+                                &source,
+                                input,
+                                n,
+                                weight,
+                                construction_limit
+                                    .checked_sub(budget.used_bytes())
+                                    .ok_or(Error::Resource)?,
+                            )?;
+                        }
+                    }
+                    let range = source_linear_range(
+                        &source,
+                        weight,
+                        bias,
+                        input_output,
+                        n.range,
+                        row_energy(input)?,
+                        affine_proof,
+                    )?;
+                    if let Some(input_energy) = row_energy(input)? {
+                        derived_energy = super::energy::linear(
+                            input_energy,
+                            &source.tensors[weight],
+                            input_output,
+                            bias.map(|i| &source.tensors[i]),
                         )?;
-                        r = Some(r.map_or(row, |r| union(r, row)));
+                    }
+                    if let Some(proof) = affine_proof {
+                        if let Some(bound) =
+                            proof.output_energy(bias.map(|i| &source.tensors[i]))?
+                        {
+                            derived_energy = Some(derived_energy.map_or(bound, |e| e.min(bound)));
+                        }
                     }
                     let mut shape = copied(&n.shape)?;
                     *shape.last_mut().unwrap() = columns;
@@ -491,7 +728,7 @@ impl Program {
                             input_output,
                         },
                         shape,
-                        r.ok_or(Error::Domain)?,
+                        range,
                     )
                 }
                 Op::LayerNorm | Op::RmsNorm => {
@@ -535,7 +772,34 @@ impl Program {
                             lo = mid + 1;
                         }
                     }
-                    let normalized = Range::new(-(lo as i128), lo as i128)?;
+                    let normalized = if energy.is_some() {
+                        let mut input_energy = row_energy(input)?.ok_or(Error::Context)?;
+                        let norm_range = if checked_ranges {
+                            let accepted = super::energy::rms_guard(width)?;
+                            input_energy =
+                                input_energy.min(super::energy::scalar_energy(accepted, width)?);
+                            accepted
+                        } else {
+                            n.range
+                        };
+                        let proof = super::energy::admit_norm(source.digest(), norm_range, input_energy,
+                            &source.tensors[gamma], beta.map(|i| &source.tensors[i]), layer,
+                            construction_tables.as_ref().ok_or(Error::Context)?)
+                            .inspect_err(|error| {
+                                if std::env::var_os("PLLM_FSS_ADMISSION_DEBUG").is_some() {
+                                    eprintln!("FSS public norm rejection at node {index}: width={width} input={:?} row_energy={input_energy} layer={layer} error={error:?}", n.range);
+                                }
+                            })?;
+                        derived_energy = super::energy::affine(
+                            proof.normalized_row_energy(),
+                            &source.tensors[gamma],
+                            beta.map(|i| &source.tensors[i]),
+                        )?;
+                        let (lower, upper) = proof.normalized_interval();
+                        Range::new(i128::from(lower), i128::from(upper))?
+                    } else {
+                        Range::new(-(lo as i128), lo as i128)?
+                    };
                     let mut range = None;
                     for c in 0..width {
                         let b = beta.map_or(0, |i| source.tensors[i].values[c]);
@@ -567,17 +831,34 @@ impl Program {
                     }
                     same(&originals[a])?;
                     if op.operator == Op::ResidualAdd {
+                        if let (Some(a), Some(b)) = (row_energy(a)?, row_energy(b)?) {
+                            derived_energy = pllm_core::integer_bounds::sum_energy(a, b).ok();
+                        }
                         (
                             Code::Add(a, b),
                             copied(&nodes[a].shape)?,
                             nodes[a].range.add(nodes[b].range)?,
                         )
                     } else {
-                        (
-                            Code::Product(a, b),
-                            copied(&nodes[a].shape)?,
-                            nodes[a].range.product(nodes[b].range)?.floor()?,
-                        )
+                        let range = if energy.is_some() {
+                            let pair = row_energy(a)?.zip(row_energy(b)?);
+                            let (raw, proof) =
+                                super::energy::dot_bounds(nodes[a].range, nodes[b].range, 1, pair)?;
+                            dot_proof = proof;
+                            if let Some((left_energy, right_energy)) = pair {
+                                derived_energy = super::energy::product_energy(
+                                    nodes[a].range,
+                                    left_energy,
+                                    nodes[b].range,
+                                    right_energy,
+                                    *nodes[a].shape.last().unwrap(),
+                                )?;
+                            }
+                            raw.floor()?
+                        } else {
+                            nodes[a].range.product(nodes[b].range)?.floor()?
+                        };
+                        (Code::Product(a, b), copied(&nodes[a].shape)?, range)
                     }
                 }
                 Op::GeluTanh | Op::Silu => {
@@ -598,7 +879,8 @@ impl Program {
                         let available = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
                             .checked_sub(compiler_bytes)
                             .ok_or(Error::Resource)?;
-                        let budget = pllm_garble::fusefss_backend::Budget::new(available / 3)?;
+                        let standalone = pllm_garble::fusefss_backend::Budget::new(available / 3)?;
+                        let budget = construction_budget.as_ref().unwrap_or(&standalone);
                         let binding = pllm_garble::fusefss_backend::composition::kernels::Binding {
                             source_digest: source.digest(),
                             contract_digest: source.digest(),
@@ -606,10 +888,19 @@ impl Program {
                         let (_, meta) = pllm_garble::fusefss_backend::composition::kernels::gelu(
                             binding,
                             n.range.gate(),
-                            &budget,
+                            budget,
                         )?;
                         Range::new(meta.range.min as i128, meta.range.max as i128)?
                     } else {
+                        if let Some(tables) = &construction_tables {
+                            drop(gates::silu_cached(n.range.gate(), tables)?);
+                        }
+                        if let Some(input_energy) = row_energy(input)? {
+                            let correction = (*n.shape.last().unwrap() as u128) * 65536u128.pow(2);
+                            derived_energy =
+                                pllm_core::integer_bounds::sum_energy(input_energy, correction)
+                                    .ok();
+                        }
                         // Source SiLU is ReLU(original)-unsigned table correction;
                         // the frozen correction payload is in [0,65536].
                         Range::new(-65536, n.range.hi.max(0) as i128)?
@@ -639,6 +930,7 @@ impl Program {
                     same(&expected)?;
                     let mut shape = copied(&n.shape)?;
                     *shape.last_mut().unwrap() = end - start;
+                    derived_energy = row_energy(input)?; // A within-row subset.
                     (Code::Slice { input, start }, shape, n.range)
                 }
                 Op::Reshape => {
@@ -658,6 +950,9 @@ impl Program {
                         {
                             return Err(Error::Domain);
                         }
+                        // Each output head row is a subset of exactly one token
+                        // row. A whole token-row bound may enclose each subset.
+                        derived_energy = row_energy(input)?;
                         (
                             Code::Heads { input, split: true },
                             copied(&[1, declared[1], sequence, declared[3]])?,
@@ -669,6 +964,10 @@ impl Program {
                         {
                             return Err(Error::Domain);
                         }
+                        // Conversely, a merged token row concatenates H distinct
+                        // head rows. Do not reuse one head-row bound unchanged.
+                        derived_energy =
+                            row_energy(input)?.and_then(|e| e.checked_mul(original[1] as u128));
                         (
                             Code::Heads {
                                 input,
@@ -714,6 +1013,9 @@ impl Program {
                     {
                         return Err(Error::Domain);
                     }
+                    if let Some(input_energy) = row_energy(input)? {
+                        derived_energy = super::energy::rotary(input_energy, r, sequence)?;
+                    }
                     let mut range = None;
                     for (&c, &s) in r.cos.iter().zip(r.sin.iter()) {
                         let x = rotary_output_range(n.range, c, s)?;
@@ -745,6 +1047,7 @@ impl Program {
                     {
                         return Err(Error::Unsupported);
                     }
+                    derived_energy = row_energy(input)?;
                     (Code::Identity(input), copied(&n.shape)?, n.range)
                 }
                 Op::AttentionScores | Op::AttentionValues => {
@@ -771,10 +1074,22 @@ impl Program {
                             return Err(Error::Domain);
                         }
                         same(&[1, a.shape[1], initial, initial])?;
+                        let range = if energy.is_some() {
+                            let (raw, proof) = super::energy::dot_bounds(
+                                a.range,
+                                b.range,
+                                a.shape[3],
+                                row_energy(left)?.zip(row_energy(right)?),
+                            )?;
+                            dot_proof = proof;
+                            raw.floor()?
+                        } else {
+                            dot_range(a.range, b.range, a.shape[3])?
+                        };
                         (
                             Code::Scores { left, right, group },
                             copied(&[1, a.shape[1], sequence, sequence])?,
-                            dot_range(a.range, b.range, a.shape[3])?,
+                            range,
                         )
                     } else {
                         if a.shape[2] != sequence
@@ -784,10 +1099,32 @@ impl Program {
                             return Err(Error::Domain);
                         }
                         same(&[1, a.shape[1], initial, b.shape[3]])?;
+                        let range = if energy.is_some() {
+                            let probabilities = row_energy(left)?.ok_or(Error::Context)?;
+                            let value_row = row_energy(right)?.ok_or(Error::Context)?;
+                            let column =
+                                super::energy::gathered_column(value_row, b.range, sequence)?;
+                            let (raw, proof) = super::energy::dot_bounds(
+                                a.range,
+                                b.range,
+                                sequence,
+                                Some((probabilities, column)),
+                            )?;
+                            dot_proof = proof;
+                            derived_energy = super::energy::values_output(
+                                probabilities,
+                                value_row,
+                                sequence,
+                                b.shape[3],
+                            );
+                            raw.floor()?
+                        } else {
+                            dot_range(a.range, b.range, sequence)?
+                        };
                         (
                             Code::Values { left, right, group },
                             copied(&[1, a.shape[1], sequence, b.shape[3]])?,
-                            dot_range(a.range, b.range, sequence)?,
+                            range,
                         )
                     }
                 }
@@ -800,6 +1137,17 @@ impl Program {
                     }
                     let coefficient =
                         ((1.0f32 / (d as f32).sqrt()) as f64 * 4096.0).round_ties_even() as i64;
+                    derived_energy = row_energy(input)?
+                        .and_then(|e| e.checked_mul(u128::from(coefficient.unsigned_abs()).pow(2)))
+                        .and_then(|raw| {
+                            pllm_core::integer_bounds::rescaled_energy(
+                                raw,
+                                *n.shape.last().unwrap(),
+                                12,
+                                1,
+                            )
+                            .ok()
+                        });
                     (
                         Code::Scale { input, coefficient },
                         copied(&n.shape)?,
@@ -817,6 +1165,7 @@ impl Program {
                     {
                         return Err(Error::Unsupported);
                     }
+                    derived_energy = row_energy(input)?;
                     (Code::Mask(input), copied(&n.shape)?, n.range)
                 }
                 Op::Softmax => {
@@ -824,6 +1173,18 @@ impl Program {
                     same(original)?;
                     if !matches!(n.code, Code::Mask(_)) || op.attributes["axis"] != -1 {
                         return Err(Error::Unsupported);
+                    }
+                    if let Some(tables) = &construction_tables {
+                        let ranges = [n.range.gate(); 16];
+                        let mut active = [false; 16];
+                        for k in 0..sequence {
+                            active[k] = true;
+                            drop(gates::softmax_cached(
+                                &ranges[..sequence],
+                                &active[..sequence],
+                                tables,
+                            )?);
+                        }
                     }
                     (
                         Code::Softmax(input),
@@ -839,6 +1200,7 @@ impl Program {
                     {
                         return Err(Error::Domain);
                     }
+                    derived_energy = row_energy(input)?; // Select one intact token row.
                     (Code::Last(input), copied(&declared)?, n.range)
                 }
                 Op::GreedyTokenSelection => {
@@ -872,7 +1234,12 @@ impl Program {
                 }
                 _ => return Err(Error::Unsupported),
             };
-            elements(&shape)?;
+            graph_elements(capacity, &shape)?;
+            let range = if let Some(proofs) = &mut energy {
+                proofs.record(code, &shape, range, derived_energy, dot_proof, affine_proof)?
+            } else {
+                range
+            };
             ids.push(&op.id);
             originals.push(declared);
             nodes.push(Node {
@@ -881,7 +1248,17 @@ impl Program {
                 range,
                 last_use: index,
             });
+            if std::env::var_os("PLLM_FSS_ADMISSION_DEBUG").is_some() {
+                if let Some(ledger) = &energy {
+                    eprintln!(
+                        "fss node {index} complete-row width={} energy={} dot={dot_proof:?}",
+                        nodes[index].shape.last().unwrap_or(&0),
+                        ledger.row(source.digest(), index, &nodes[index])?
+                    );
+                }
+            }
         }
+        drop(construction_tables);
         if nodes.is_empty() || !matches!(nodes.last().unwrap().code, Code::Identity(_)) {
             return Err(Error::Domain);
         }
@@ -901,11 +1278,41 @@ impl Program {
             }
         }
         let vocabulary = vocabulary.ok_or(Error::Domain)?;
-        if vocabulary == 0 || vocabulary > MAX_VALUES {
+        if vocabulary == 0 || vocabulary > capacity.max_vocabulary() {
             return Err(Error::Resource);
         }
         let mut hash = Sha256::new();
         hash.update(b"pllm.fss-decoder.program.fixed-T.full-prefix.v2\0rotary=floor(l*c)+floor((-r)*s),floor(r*c)+floor(l*s)\0");
+        if checked_ranges {
+            hash.update(super::sdk::DENSE_ROPE_CHECKED_NUMERIC.as_bytes());
+            hash.update(b"rms-all-rows:abs(x)<=floor_sqrt((2^49-2)/width);fallback=whole-row-zero;sticky-a50-and;all-selections;final-unscaled-token-mask;aggregate-share-only.v1\0");
+            for (index, node) in nodes.iter().enumerate() {
+                if matches!(node.code, Code::Norm { layer: false, .. }) {
+                    let width = *node.shape.last().ok_or(Error::Context)?;
+                    let accepted = super::energy::rms_guard(width)?;
+                    hash.update((index as u64).to_le_bytes());
+                    hash.update((width as u64).to_le_bytes());
+                    hash.update(accepted.lo.to_le_bytes());
+                    hash.update(accepted.hi.to_le_bytes());
+                }
+            }
+        }
+        if capacity == Capacity::Decoder {
+            hash.update(b"storage=immutable-fixed-files;public-contractions=complete-ring50;capacity=decoder.v1\0");
+            if nodes.iter().any(|node| {
+                matches!(node.code, Code::Linear { weight, .. }
+                    if source.tensors[weight].is_file_backed()
+                        && node.shape[..node.shape.len() - 1].iter().product::<usize>() > 1)
+            }) {
+                hash.update(
+                    b"public-file-linear-floors=column-major;one-certificate-per-column.v1\0",
+                );
+            }
+            hash.update(b"source-derived-complete-row-energy.v1\0");
+            hash.update(energy.as_ref().ok_or(Error::Context)?.digest());
+        } else if checked_ranges {
+            hash.update(energy.as_ref().ok_or(Error::Context)?.digest());
+        }
         hash.update(source.digest());
         hash.update(plan.digest().as_str().as_bytes());
         for n in [initial, selections, sequence, vocabulary] {
@@ -922,10 +1329,12 @@ impl Program {
             obligations: [0; 32],
             resources: Resources::default(),
             limits,
+            energy,
         };
         // Include admitted input metadata and public validation/compiler scratch,
         // even though the finished Program retains neither graph nor its names.
         program.resources.metadata_bytes = program.source.reservation_bytes()
+            + program.energy.as_ref().map_or(0, |e| e.resident_bytes())
             + std::mem::size_of::<Self>()
             + program.nodes.capacity() * std::mem::size_of::<Node>()
             + program
@@ -945,23 +1354,42 @@ impl Program {
         let mut peak = 0usize;
         for i in 0..program.nodes.len() {
             live = live
-                .checked_add(elements(&program.nodes[i].shape)? * 8)
+                .checked_add(graph_elements(capacity, &program.nodes[i].shape)? * 8)
                 .ok_or(Error::Resource)?;
             peak = peak.max(live);
             for j in 0..i {
                 if program.nodes[j].last_use == i {
-                    live -= elements(&program.nodes[j].shape)? * 8;
+                    live -= graph_elements(capacity, &program.nodes[j].shape)? * 8;
                 }
             }
         }
+        let gather_workspace = if capacity == Capacity::Decoder {
+            // Retain a bounded batch of complete compact one-hot exports so the
+            // shared reader scans the public embedding once for the whole batch.
+            // The just-produced kernel output/import copies remain separately
+            // included in that Plan's native reservation while copied here.
+            (8 * MAX_VALUES * 8).max(
+                program
+                    .embedding_batch_rows()?
+                    .checked_mul(vocabulary)
+                    .and_then(|n| n.checked_mul(8))
+                    .ok_or(Error::Resource)?
+                    + 2 * super::capacity::SOURCE_READ_BYTES,
+            )
+        } else {
+            8 * MAX_VALUES * 8
+        };
         program.resources.live_array_bytes_per_party = peak
             + 8 * (sequence + selections)
-            + 8 * MAX_VALUES * 8
+            + gather_workspace
             + program.nodes.len() * std::mem::size_of::<Option<zeroize::Zeroizing<Vec<u64>>>>();
         if 3 * program.resources.metadata_bytes + 2 * program.resources.live_array_bytes_per_party
             > pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
         {
             return Err(Error::Resource);
+        }
+        if std::env::var_os("PLLM_FSS_ADMISSION_DEBUG").is_some() {
+            eprintln!("FSS public range construction complete; beginning kernel admission");
         }
         super::runtime::preflight(&mut program)?;
         Ok(program)
@@ -971,6 +1399,143 @@ impl Program {
     }
     pub fn source_digest(&self) -> [u8; 32] {
         self.source.digest()
+    }
+    pub fn capacity(&self) -> Capacity {
+        self.source.capacity()
+    }
+    /// Public read batching is bounded by existing logical activation geometry.
+    /// The resulting gather owner is priced above and every kernel still checks
+    /// the unchanged combined live envelope before any private execution.
+    pub(super) fn embedding_batch_rows(&self) -> Result<usize, Error> {
+        if self.sequence == 0 || self.vocabulary == 0 {
+            return Err(Error::Domain);
+        }
+        match self.capacity() {
+            Capacity::Capsule => Ok(1),
+            Capacity::Decoder => {
+                let rows =
+                    (self.capacity().max_graph_values() / self.vocabulary).min(self.sequence);
+                if rows == 0 {
+                    return Err(Error::Resource);
+                }
+                Ok(rows)
+            }
+        }
+    }
+    pub fn checked_ranges(&self) -> bool {
+        self.source.checked_ranges()
+    }
+    pub(super) fn norm_row_energy(&self, node: usize) -> Result<Option<u128>, Error> {
+        let n = self.nodes.get(node).ok_or(Error::Context)?;
+        let Code::Norm { input, layer, .. } = n.code else {
+            return Err(Error::Context);
+        };
+        let Some(ledger) = &self.energy else {
+            return Ok(None);
+        };
+        // Validate both the consumer and the intact input row; this normalization
+        // must never use its own conditional output proof as the input premise.
+        ledger.row(self.source.digest(), node, n)?;
+        if layer {
+            return Ok(None);
+        }
+        let input_node = self.nodes.get(input).ok_or(Error::Context)?;
+        if n.shape != input_node.shape {
+            return Err(Error::Context);
+        }
+        let energy = ledger.row(self.source.digest(), input, input_node)?;
+        let energy = if self.checked_ranges() {
+            let width = *n.shape.last().ok_or(Error::Context)?;
+            energy.min(super::energy::scalar_energy(
+                super::energy::rms_guard(width)?,
+                width,
+            )?)
+        } else {
+            energy
+        };
+        Ok(Some(energy))
+    }
+    pub(super) fn dot_proof(&self, node: usize) -> Result<Option<super::energy::Dot>, Error> {
+        let n = self.nodes.get(node).ok_or(Error::Context)?;
+        let Some(ledger) = &self.energy else {
+            return Ok(None);
+        };
+        let proof = ledger.dot(self.source.digest(), node, n)?;
+        let (left, right, inner) = match n.code {
+            Code::Scores { left, right, .. } => (
+                left,
+                right,
+                *self
+                    .nodes
+                    .get(left)
+                    .and_then(|n| n.shape.get(3))
+                    .ok_or(Error::Context)?,
+            ),
+            Code::Values { left, right, .. } => (left, right, self.sequence),
+            Code::Product(left, right) => (left, right, 1),
+            _ => return Err(Error::Context),
+        };
+        ledger.row(
+            self.source.digest(),
+            left,
+            self.nodes.get(left).ok_or(Error::Context)?,
+        )?;
+        ledger.row(
+            self.source.digest(),
+            right,
+            self.nodes.get(right).ok_or(Error::Context)?,
+        )?;
+        if proof.is_some_and(|proof| proof.inner != inner) {
+            return Err(Error::Context);
+        }
+        Ok(proof)
+    }
+    pub(super) fn linear_raw_range(&self, node: usize, column: usize) -> Result<Range, Error> {
+        let n = self.nodes.get(node).ok_or(Error::Context)?;
+        let Code::Linear {
+            input,
+            weight,
+            input_output: false,
+            ..
+        } = n.code
+        else {
+            return Err(Error::Context);
+        };
+        let w = self.source.tensors.get(weight).ok_or(Error::Context)?;
+        if column >= *n.shape.last().ok_or(Error::Context)?
+            || w.shape[0] != *n.shape.last().unwrap()
+        {
+            return Err(Error::Context);
+        }
+        let input_node = self.nodes.get(input).ok_or(Error::Context)?;
+        if w.shape.get(1) != input_node.shape.last() {
+            return Err(Error::Context);
+        }
+        let mut affine = None;
+        let input_energy = self
+            .energy
+            .as_ref()
+            .map(|ledger| {
+                ledger.row(self.source.digest(), node, n)?;
+                affine = ledger.affine(self.source.digest(), node, n)?;
+                if affine.is_some_and(|proof| !proof.matches(input, input_node)) {
+                    return Err(Error::Context);
+                }
+                ledger.row(self.source.digest(), input, input_node)
+            })
+            .transpose()?;
+        super::energy::public_raw_with_affine(
+            input_node.range,
+            w.row_statistics(column)?,
+            input_energy.zip(w.maximum_row_energy()?),
+            affine,
+        )
+    }
+    pub fn source_disk_bytes(&self) -> u64 {
+        self.source.disk_bytes()
+    }
+    pub fn disk_backing(&self) -> Result<Vec<pllm_core::public_file::FileBacking>, Error> {
+        self.source.disk_backing()
     }
     pub fn resources(&self) -> Resources {
         self.resources
@@ -985,7 +1550,9 @@ impl Program {
         self.vocabulary
     }
     pub fn profile(&self) -> &'static str {
-        if self
+        if self.checked_ranges() {
+            super::sdk::DENSE_ROPE_CHECKED_NUMERIC
+        } else if self
             .nodes
             .iter()
             .any(|n| matches!(n.code, Code::Rotary { .. }))

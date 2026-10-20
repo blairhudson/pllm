@@ -364,10 +364,11 @@ impl NativeRoleRequest {
             let a = owner.admission;
             let c = owner.channel;
             let value = json!({"schema":"pllm.fss.role_admission.v1","role":owner.role,"context":context(owner.request.context()),
+                "capacity":owner.program.capacity().name(),"guard_disk_bytes":a.guard_disk_bytes(),
                 "kernels":a.kernels(),"primitive_requests_per_party":a.primitive_requests_per_party(),"frames_per_party":a.frames_per_party(),
                 "largest_packet_bytes":a.largest_packet_bytes(),"cumulative_packet_bytes_per_party_bound":a.cumulative_packet_bytes_per_party_bound(),
-                "guard_capacity":a.guard_capacity(),"combined_reservation_bytes":a.combined_reservation_bytes(),"transcript_digest":hex(a.transcript_digest()),
-                "peer_frame_bytes_bound":owner.program.resources().frame_bytes.min(pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES),
+                "guard_capacity":a.guard_capacity(),"guard_reservation_bytes":a.guard_reservation_bytes(),"combined_reservation_bytes":a.combined_reservation_bytes(),"transcript_digest":hex(a.transcript_digest()),
+                "peer_frame_bytes_bound":a.peer_frame_bytes_bound(),
                 "callback_metadata_bytes_bound":1024,"request_bytes":c.request_bytes,"input_frame_bytes":c.input_frame_bytes,"output_frame_bytes":c.output_frame_bytes,
                 "client_peak_bytes":c.client_peak_bytes,"worker_input_import_bytes":c.worker_input_import_bytes,"worker_output_export_bytes":c.worker_output_export_bytes});
             Ok(PyBytes::new(py, &canonical_bytes(&value)))
@@ -493,13 +494,14 @@ fn fss_transport_admission<'py>(
             plan:source.digest(),session:[1;32],operation:[2;32],first_tensor_index:0 };
         let a=transport::admit(&source,pricing_context)?;let c=manifest.resources();
         Ok::<_,Error>(json!({"schema":"pllm.fss.program_transport_admission.v1",
+            "capacity":source.capacity().name(),"guard_disk_bytes":a.guard_disk_bytes(),
             "scope":"program-pricing-not-request-admission","contract_digest":hex(digest),"program_digest":hex(source.digest()),
             "source_digest":hex(source.source_digest()),"input_digest":hex(input_digest),"numeric_profile":source.profile(),
             "initial_tokens":source.initial_tokens(),"selections":source.selections(),"vocabulary":source.vocabulary(),
             "kernels":a.kernels(),"primitive_requests_per_party":a.primitive_requests_per_party(),"frames_per_party":a.frames_per_party(),
             "largest_packet_bytes":a.largest_packet_bytes(),"cumulative_packet_bytes_per_party_bound":a.cumulative_packet_bytes_per_party_bound(),
-            "guard_capacity":a.guard_capacity(),"combined_reservation_bytes":a.combined_reservation_bytes(),
-            "peer_frame_bytes_bound":source.resources().frame_bytes.min(pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES),
+            "guard_capacity":a.guard_capacity(),"guard_reservation_bytes":a.guard_reservation_bytes(),"combined_reservation_bytes":a.combined_reservation_bytes(),
+            "peer_frame_bytes_bound":a.peer_frame_bytes_bound(),
             "callback_metadata_bytes_bound":1024,"request_bytes":c.request_bytes,"input_frame_bytes":c.input_frame_bytes,"output_frame_bytes":c.output_frame_bytes,
             "client_peak_bytes":c.client_peak_bytes,"worker_input_import_bytes":c.worker_input_import_bytes,"worker_output_export_bytes":c.worker_output_export_bytes,
             "offline_tape_storage_cpu_and_http_charges":"caller-owned-additional"}))

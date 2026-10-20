@@ -1,11 +1,11 @@
 //! Public-source FSS bindings. Bounded immutable bytes cross the interpreter
 //! boundary; native source assembly and numeric admission run without its lock.
 use pllm_compiler::fss_decoder::{
-    channel::Manifest, import::SourceBuilder, sdk, Program, WeightDtype,
+    channel::Manifest, import::SourceBuilder, sdk, Capacity, Program, WeightDtype,
 };
 use pyo3::{
     prelude::*,
-    types::{PyAny, PyBool, PyBytes, PyDict, PyTuple},
+    types::{PyAny, PyBool, PyBytes, PyDict, PyList, PyTuple},
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -81,19 +81,31 @@ impl NativeSourceBuilder {
 #[pymethods]
 impl NativeSourceBuilder {
     #[new]
-    #[pyo3(signature=(config, rows, outputs, numeric_profile))]
+    #[pyo3(signature=(config, rows, outputs, numeric_profile, *, capacity="capsule"))]
     fn new(
         py: Python<'_>,
         config: &Bound<'_, PyBytes>,
         rows: &Bound<'_, PyAny>,
         outputs: &Bound<'_, PyAny>,
         numeric_profile: &str,
+        capacity: &str,
     ) -> PyResult<Self> {
         let config = config.as_bytes();
         let rows = integer(rows)?;
         let outputs = integer(outputs)?;
+        let capacity = match capacity {
+            "capsule" => Capacity::Capsule,
+            "decoder" => Capacity::Decoder,
+            _ => {
+                return Err(invalid(
+                    "FuseFSS source capacity must be capsule or decoder",
+                ))
+            }
+        };
         let owner = py
-            .detach(|| SourceBuilder::new(config, rows, outputs, numeric_profile))
+            .detach(|| {
+                SourceBuilder::new_with_capacity(config, rows, outputs, numeric_profile, capacity)
+            })
             .map_err(invalid)?;
         Ok(Self {
             owner: Some(owner),
@@ -113,6 +125,10 @@ impl NativeSourceBuilder {
             .map_err(native_error)?;
         let value = json!({
             "schema":"pllm.fss.import_geometry.v1",
+            "capacity":admitted.capacity.name(),
+            "source_q12_value_bytes":admitted.source_q12_value_bytes,
+            "source_disk_bytes":admitted.source_disk_bytes,
+            "source_resident_bound_bytes":admitted.source_resident_bound_bytes,
             "numeric_profile":admitted.numeric_profile,
             "source_shapes":admitted.source_shapes,
             "rotary_shapes":admitted.rotary_shapes,
@@ -229,11 +245,29 @@ impl NativeProgram {
 
 #[pymethods]
 impl NativeProgram {
+    /// Local immutable-file observations; never part of source/program identity
+    /// or a peer-supplied admission quote. The borrowed program retains the files.
+    fn disk_backing<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+        let program = self.borrow()?;
+        let backing = py.detach(|| program.disk_backing()).map_err(native_error)?;
+        let result = PyList::empty(py);
+        for item in backing {
+            let record = PyDict::new(py);
+            record.set_item("device", item.device)?;
+            record.set_item("file", item.file)?;
+            record.set_item("allocated_bytes", item.allocated_bytes)?;
+            result.append(record)?;
+        }
+        Ok(result)
+    }
+
     fn metadata<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let program = self.borrow()?;
         let r = program.resources();
         let value = json!({
             "schema":"pllm.fss.program_resources.v1",
+            "capacity":program.capacity().name(),
+            "source_disk_bytes":program.source_disk_bytes(),
             "program_digest":hex(program.digest()),
             "source_digest":hex(program.source_digest()),
             "original_input_digest":hex(self.input_digest),

@@ -10,6 +10,71 @@ TPS_UNAVAILABLE = "request_end_verification_buffers_all_output"
 REPLICATED_DELIVERY = "buffered_final_ids"
 REPLICATED_TPS_UNAVAILABLE = "final_only_private_token_disclosure"
 
+# Cumulative worker-local wall clocks, sampled by the existing metrics path.
+# These are neither remote compute counters nor protocol/body measurements.
+FSS_PHASE_COUNTERS = frozenset({
+    "preparation_calls", "preparation_ns", "delivery_callback_ns", "seal_callback_ns",
+    "online_calls", "online_ns",
+})
+
+
+def fss_phase_timing_delta(before, after):
+    """Difference complete same-worker snapshots; absent/reset samples stay unknown.
+
+    Both arguments are the worker metrics' ``phase_timing`` objects. Completed
+    native calls include failed/cancelled calls, after their native thread drains.
+    Callback times are serial subsets of preparation_ns, including bridge/HTTP
+    waiting and seal acknowledgements. The remainder is not pure native compute.
+    """
+    def valid(value):
+        return (type(value) is dict and set(value) == FSS_PHASE_COUNTERS
+                and all(type(n) is int and 0 <= n < 1 << 63 for n in value.values())
+                and value["preparation_calls"] <= 64 and value["online_calls"] <= 64
+                and value["delivery_callback_ns"] + value["seal_callback_ns"] <= value["preparation_ns"]
+                and (value["preparation_calls"] != 0 or value["preparation_ns"] == 0)
+                and (value["online_calls"] != 0 or value["online_ns"] == 0))
+    if not valid(before) or not valid(after):
+        return None
+    delta = {key: after[key] - before[key] for key in FSS_PHASE_COUNTERS}
+    return delta if valid(delta) else None
+
+
+def fss_phase_timing(record):
+    """Summarize measured per-role deltas; never infer phases from disclosure time.
+
+    ``processes[role].phase_timing`` holds fss_phase_timing_delta's counters.
+    Independent holder run clocks overlap: their maximum is a role-run envelope,
+    not the client's complete online wall interval, and must not be summed.
+    """
+    from .fss_protocol import HOLDERS, ROLES
+    processes = record.get("processes")
+    processes = processes if type(processes) is dict else {}
+    zero = dict.fromkeys(FSS_PHASE_COUNTERS, 0)
+    counters = {role: fss_phase_timing_delta(zero, value.get("phase_timing"))
+                if type(value := processes.get(role)) is dict else None for role in ROLES}
+    dealer = counters["dealer"]
+    # Ordinary run records cover one request. Never combine maxima of unrelated
+    # multi-request holder totals into a purported request latency.
+    prepared = dealer is not None and dealer["preparation_calls"] == 1 and dealer["online_calls"] == 0
+    online = {role: (value["online_ns"] / 1e9 if value is not None
+                      and value["online_calls"] == 1 and value["preparation_calls"] == 0 else None)
+              for role in HOLDERS for value in [counters[role]]}
+    return {
+        "preparation_seconds": dealer["preparation_ns"] / 1e9 if prepared else None,
+        "delivery_callback_seconds": dealer["delivery_callback_ns"] / 1e9 if prepared else None,
+        "seal_callback_seconds": dealer["seal_callback_ns"] / 1e9 if prepared else None,
+        "preparation_outside_callbacks_seconds": (
+            dealer["preparation_ns"] - dealer["delivery_callback_ns"] - dealer["seal_callback_ns"]
+        ) / 1e9 if prepared else None,
+        "online_seconds_by_holder": online,
+        "online_seconds": max(online.values()) if all(value is not None for value in online.values()) else None,
+        "preparation_scope": "dealer_native_run_wall_including_serial_delivery_and_seal_callbacks",
+        "outside_callbacks_scope": "native_planning_issuance_encoding_and_bridge_not_pure_compute",
+        "online_scope": "maximum_holder_native_run_wall_not_client_online_interval",
+        "excludes": ["source_import", "native_role_bind", "client_input_output_transport", "retirement"],
+        "includes_failed_calls": True,
+    }
+
 
 def is_delegated(experiment):
     if experiment is None:
@@ -278,7 +343,8 @@ def fss_body_accounting(record):
             "total_wire_bytes": None, "full_response_compute_cap_checked": False,
             "total_body_bytes": sum(phases.values()) if complete else None,
             "decode_online_body_bytes": None, "decode_output_tokens": None,
-            "storage_bytes": {key: privacy[key] if valid(key) else None for key in disk_keys},
+             "storage_bytes": {key: privacy[key] if valid(key) else None for key in disk_keys},
+             "phase_timing": fss_phase_timing(record),
             "excluded_costs": ["HTTP/TLS framing", "uninstrumented retries", "source checkpoint delivery"],
             "storage_in_network_totals": False, "streaming_ttft_supported": False}
 
@@ -291,30 +357,39 @@ def inspect_fss_imported(loaded):
     Program pricing is not request admission or measured memory/traffic.
     """
     from pllm import _native
-    from .fss_protocol import CLIENT_MEMORY, METADATA_LIMIT
-    from .fss_tape import MAX_PACKET_BYTES, MAX_TOTAL_PACKET_BYTES, MaterialTape
+    from .fss_protocol import METADATA_LIMIT
+    from .fss_tape import MAX_PACKET_BYTES, capacity_limits
+    from .fss_transport import client_memory_bytes, price_transport, transport_capacity
     contract = json.loads(loaded.contract_bytes)
+    capacity = transport_capacity(contract)
+    packet_limit, _ = capacity_limits(capacity)
     pricing = json.loads(_native.fss_transport_admission(loaded.native_program, loaded.contract_bytes))
+    manifest = json.loads(loaded.manifest_bytes)
     if (pricing.get("schema") != "pllm.fss.program_transport_admission.v1"
             or pricing.get("scope") != "program-pricing-not-request-admission"
+            or manifest.get("schema") != "pllm.fss.channel.program.v1"
+            or pricing.get("contract_digest") != hashlib.sha256(loaded.contract_bytes).hexdigest()
+            or any(pricing.get(key) != manifest.get(field) for key, field in (
+                ("contract_digest", "contract"), ("program_digest", "program"),
+                ("source_digest", "source"), ("input_digest", "input_digest")))
             or pricing.get("numeric_profile") != contract["numeric_profile"]
             or pricing.get("initial_tokens") != contract["input_rows"]
             or pricing.get("selections") != contract["output_tokens"]
             or pricing.get("vocabulary") != contract["vocabulary"]):
         raise ValueError("FuseFSS imported native program pricing differs")
     for field, bound in (("largest_packet_bytes", MAX_PACKET_BYTES),
-                         ("cumulative_packet_bytes_per_party_bound", MAX_TOTAL_PACKET_BYTES),
-                         ("peer_frame_bytes_bound", MAX_PACKET_BYTES),
-                         ("callback_metadata_bytes_bound", METADATA_LIMIT),
-                         ("kernels", 4096), ("input_frame_bytes", 272), ("output_frame_bytes", 272),
-                         ("combined_reservation_bytes", 64 << 20), ("client_peak_bytes", CLIENT_MEMORY)):
+                          ("cumulative_packet_bytes_per_party_bound", packet_limit),
+                          ("peer_frame_bytes_bound", MAX_PACKET_BYTES),
+                          ("callback_metadata_bytes_bound", METADATA_LIMIT),
+                          ("kernels", 4096 if capacity == "capsule" else (1 << 64) - 1),
+                          ("input_frame_bytes", 272), ("output_frame_bytes", 272),
+                          ("combined_reservation_bytes", 64 << 20),
+                          ("client_peak_bytes", client_memory_bytes(capacity))):
         if type(pricing.get(field)) is not int or not 0 <= pricing[field] <= bound:
             raise ValueError("FuseFSS imported program exceeds unchanged transport bounds")
     if pricing["client_peak_bytes"] > 8 << 20:
         raise ValueError("FuseFSS imported client exceeds benchmark native workspace allowance")
     # Same pure storage admission used by actual workers. No files, shares,
     # packet issuance or model execution; metadata-only estimates lack this proof.
-    MaterialTape.price(records=pricing.get("primitive_requests_per_party"),
-                       packet_bytes=pricing["largest_packet_bytes"],
-                       total_packet_bytes=pricing["cumulative_packet_bytes_per_party_bound"])
+    price_transport(pricing, loaded.contract_bytes)
     return pricing

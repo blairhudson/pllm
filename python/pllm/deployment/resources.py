@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 import platform
 import re
+import shutil
+import stat
 import threading
 import time
 
@@ -216,3 +218,187 @@ _capacity = _ClientCapacity()
 def reserve_incremental_memory(incremental_bytes):
     """Hold a conservative byte price through the lifetime of its local owners."""
     return _capacity.hold_bytes(incremental_bytes)
+
+
+@dataclass(frozen=True, slots=True)
+class DiskResources:
+    """Live free-space observation plus this process's logical device charges.
+
+    Not a filesystem quota, allocation guarantee or cross-process reservation.
+    Reservations retain their ownership until retirement. Only locally observed,
+    deduplicated backing reduces pending bytes; logical file lengths and changes
+    in global free space never earn backing credit.
+    """
+
+    device: int
+    available_disk_bytes: int
+    reserved_disk_bytes: int
+    reserve_bytes: int
+    backed_disk_bytes: int = 0
+
+    @property
+    def pending_disk_bytes(self):
+        return self.reserved_disk_bytes - self.backed_disk_bytes
+
+    @property
+    def headroom_bytes(self):
+        return max(0, self.available_disk_bytes - self.pending_disk_bytes - self.reserve_bytes)
+
+
+class DiskLease:
+    """Live local ownership, with the immutable observation made at admission.
+
+    bind_backing accepts a synchronous LOCAL owner method, never a resource
+    claim from a remote client. It must return a bounded list of plain records:
+    {device: st_dev, file: st_ino, allocated_bytes: physical allocated bytes}.
+    Files must stay owned until cleanup; closed owners must raise. Sparse length
+    is not allocated backing. Callbacks run under the ledger lock and must only
+    sample their owned backing, without modifying the reservation ledger.
+    """
+
+    __slots__ = ("_capacity", "_token", "_directory", "_bound", "_minimum_free",
+                 "_observation", "_backing", "_closed")
+
+    def __init__(self, capacity, token, directory, bound, minimum_free, observation):
+        self._capacity, self._token, self._directory = capacity, token, directory
+        self._bound, self._minimum_free = bound, minimum_free
+        self._observation = observation
+        self._backing, self._closed = None, False
+
+    @property
+    def observation(self):
+        return self._observation
+
+    @property
+    def closed(self):
+        return self._closed
+
+    def clear_backing(self):
+        """Drain any observation before closing files; retain the full pending bound."""
+        with self._capacity.lock:
+            self._backing = None
+
+    def bind_backing(self, local_callable):
+        with self._capacity.lock:
+            if (self._closed or self._capacity._owners.get(self._token) is not self
+                    or self._backing is not None or not callable(local_callable)):
+                raise NetworkError("DISK_BACKING_BINDING_INVALID")
+            self._backing = local_callable
+            try:
+                # Validate immediately; later admissions always resample rather
+                # than caching credit that could outlive its native owner.
+                observed = self._capacity.observe(self._directory, self._minimum_free)
+                if observed.device != self._observation.device:
+                    raise NetworkError("DISK_BACKING_DEVICE_CHANGED")
+            except BaseException:
+                self._backing = None  # Failed binding leaves the full bound pending.
+                raise
+
+
+class _DiskCapacity:
+    MAX_OWNERS = 1024
+    MAX_BACKING_FILES = 4096  # total records in one device observation, not per owner
+
+    def __init__(self):
+        self.lock = threading.RLock()
+        self._owners = {}
+
+    def _pending(self, owners, device):
+        """Bounded temporary file identities; never cache backing between observations."""
+        snapshots, allocated, count = [], {}, 0
+        try:
+            for owner in owners:
+                keys = set()
+                if owner._backing is not None:
+                    records = owner._backing()
+                    if type(records) is not list or len(records) > self.MAX_BACKING_FILES - count:
+                        raise ValueError("disk backing records exceed bounds")
+                    count += len(records)
+                    for record in records:
+                        if type(record) is not dict or set(record) != {"device", "file", "allocated_bytes"}:
+                            raise ValueError("disk backing fields differ")
+                        dev, inode, size = record["device"], record["file"], record["allocated_bytes"]
+                        for name, value in (("device", dev), ("file", inode), ("allocated_bytes", size)):
+                            integer(value, name)
+                        if dev != device:
+                            raise ValueError("disk backing device differs")
+                        identity = dev, inode
+                        # Duplicate samples may straddle filesystem allocation.
+                        # The smaller observation is the conservative credit.
+                        allocated[identity] = min(allocated.get(identity, size), size)
+                        keys.add(identity)
+                snapshots.append((owner._bound, keys))
+            pending = 0
+            for bound, keys in snapshots:
+                remaining = bound
+                for identity in keys:
+                    credit = min(remaining, allocated[identity])
+                    remaining -= credit
+                    allocated[identity] -= credit  # shared inodes can be credited only once
+                pending += remaining
+            return pending
+        except Exception as error:
+            raise NetworkError("DISK_BACKING_UNAVAILABLE") from error
+
+    def observe(self, directory, minimum_free_bytes):
+        with self.lock:
+            try:
+                before = directory.stat()
+                owners = [owner for owner in self._owners.values()
+                          if owner._observation.device == before.st_dev]
+                pending = self._pending(owners, before.st_dev)
+                # Backing MUST be sampled before this fresh free-space reading.
+                usage = shutil.disk_usage(directory)
+                after = directory.stat()
+                if (not stat.S_ISDIR(before.st_mode) or before.st_dev != after.st_dev
+                        or before.st_ino != after.st_ino
+                        or type(usage.free) is not int or type(usage.total) is not int
+                        or not 0 <= usage.free <= usage.total or usage.total <= 0):
+                    raise ValueError("disk identity or free-space observation differs")
+                reserved = sum(owner._bound for owner in owners)
+                return DiskResources(before.st_dev, usage.free, reserved,
+                                     max([minimum_free_bytes, *(owner._minimum_free for owner in owners)]),
+                                     reserved - pending)
+            except NetworkError:
+                raise
+            except (OSError, ValueError, TypeError, AttributeError) as error:
+                raise NetworkError("DISK_OBSERVATION_UNAVAILABLE") from error
+
+    @contextmanager
+    def hold_bytes(self, incremental_bytes, *, directory, minimum_free_bytes=1 << 20):
+        integer(incremental_bytes, "incremental_disk_bytes", minimum=1)
+        integer(minimum_free_bytes, "minimum_free_disk_bytes", minimum=1)
+        try:
+            directory = Path(directory).resolve(strict=True)
+        except (OSError, ValueError, TypeError, RuntimeError) as error:
+            raise NetworkError("DISK_OBSERVATION_UNAVAILABLE") from error
+        token = object()
+        with self.lock:
+            if len(self._owners) >= self.MAX_OWNERS:
+                raise NetworkError("DISK_RESERVATION_CAPACITY_EXHAUSTED")
+            resources = self.observe(directory, minimum_free_bytes)
+            if incremental_bytes > resources.headroom_bytes:
+                raise NetworkError("DISK_CAPACITY_CHANGED")
+            lease = DiskLease(self, token, directory, incremental_bytes, minimum_free_bytes, resources)
+            self._owners[token] = lease
+        try:
+            yield lease
+        finally:
+            with self.lock:
+                self._owners.pop(token, None)
+                lease._closed, lease._backing = True, None
+
+
+_disk_capacity = _DiskCapacity()
+
+
+def reserve_incremental_disk(incremental_bytes, *, directory, minimum_free_bytes=1 << 20):
+    """Hold a bounded process-local charge on the observed filesystem device.
+
+    Yields DiskLease; its observation records admission-time headroom. Unbound
+    leases remain fully pending. Aliased directories share the device ledger;
+    admissions sample local backing before live free space under the same lock.
+    Other processes/writers remain outside this logical reservation's scope.
+    """
+    return _disk_capacity.hold_bytes(incremental_bytes, directory=directory,
+                                     minimum_free_bytes=minimum_free_bytes)

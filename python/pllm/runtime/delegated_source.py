@@ -35,6 +35,7 @@ from .loaders import _architecture, _int
 from .models import ModelManifest
 from .safetensors_store import SafeTensorStore, TensorLocation
 from .semantic_tensors import preflight_semantic_checkpoint, required_checkpoint_tensors
+from . import tokenizer_admission
 from .transformer_client import TokenizersJSONTokenizer
 
 
@@ -449,27 +450,10 @@ def _tokenizer(root, manifest, config, contract):
     expanded = _capacity(contract) == "decoder"
     raw = _read_bounded(root / "tokenizer.json", _DECODER_TOKENIZER_BYTES if expanded else _MAX_TOKENIZER_BYTES)
     document = _json(raw, "tokenizer.json")
-    # Batch-one execution has no admitted padding owner. Reject before creating
-    # the tokenizer: a tiny document can request a billion padded output IDs.
-    if document.get("padding") is not None:
-        raise DelegatedSourceError("GKM tokenizer padding is not admitted")
-    if document.get("truncation") is not None:
-        raise DelegatedSourceError("GKM tokenizer must not silently truncate source input")
-    model = document.get("model")
-    vocab = model.get("vocab") if isinstance(model, dict) else None
-    added = document.get("added_tokens", [])
-    maximum = contract["vocabulary"] if expanded else 256
-    if (not isinstance(vocab, (dict, list)) or not 1 <= len(vocab) <= maximum
-            or not isinstance(added, list) or len(added) > maximum):
-        raise DelegatedSourceError("GKM tokenizer vocabulary exceeds its complete-table limit")
-    # Bound numeric IDs before the native tokenizer can build reverse indexes.
-    # A small JSON object with sparse billion-wide IDs is not a small vocabulary.
-    ids = vocab.values() if isinstance(vocab, dict) else range(len(vocab))
-    if any(type(i) is not int or not 0 <= i < contract["vocabulary"] for i in ids):
-        raise DelegatedSourceError("GKM tokenizer IDs exceed the complete vocabulary")
-    if any(type(row) is not dict or type(row.get("id")) is not int
-           or not 0 <= row["id"] < contract["vocabulary"] for row in added):
-        raise DelegatedSourceError("GKM added tokenizer IDs exceed the complete vocabulary")
+    tokenizer_admission.validate_document(
+        document, vocabulary=contract["vocabulary"],
+        max_entries=contract["vocabulary"] if expanded else 256,
+        error=DelegatedSourceError, label="GKM")
     options = {}
     if (root / "tokenizer_config.json").exists():
         options = _json(_read_bounded(root / "tokenizer_config.json", _MAX_CONFIG_BYTES),
@@ -493,13 +477,9 @@ def _tokenizer(root, manifest, config, contract):
         inner = HFTokenizer.from_buffer(raw)
     except Exception as exc:
         raise DelegatedSourceError("GKM invalid tokenizer.json model") from exc
-    tokenizer = TokenizersJSONTokenizer(inner, bos, eos_ids[0])
-    complete = inner.get_vocab(with_added_tokens=True)
-    expected_size = tokenizer.vocab_size if expanded else contract["vocabulary"]
-    if (not 1 <= expected_size <= contract["vocabulary"] or len(complete) != expected_size
-            or set(complete.values()) != set(range(expected_size))
-            or any(inner.id_to_token(i) != text for text, i in complete.items())):
-        raise DelegatedSourceError("GKM tokenizer must cover the complete table/head vocabulary")
+    expected_size = tokenizer_admission.validate_vocabulary(
+        inner, vocabulary=contract["vocabulary"], allow_model_padding=expanded,
+        error=DelegatedSourceError, label="GKM")
     if any(i >= expected_size for i in [bos, *eos_ids]):
         raise DelegatedSourceError("GKM special tokens require original tokenizer entries")
     if inner.truncation is not None:
@@ -954,12 +934,10 @@ def admit_source(model_or_experiment, *, input_rows=None, decode_steps=None) -> 
     if (isinstance(model_or_experiment, Experiment)
             and model_or_experiment.pipeline.components.get("linear") is not None
             and model_or_experiment.pipeline.components["linear"].params.get("capacity") == "decoder"):
-        from pllm.deployment.resources import reserve_incremental_memory
-
         _experiment_bytes(model_or_experiment)
         # Full-vocabulary JSON parsing, reverse indexes, tokenizer construction,
         # source graph copies and retained raw bytes are real metadata owners.
-        with reserve_incremental_memory(384 << 20):
+        with tokenizer_admission.reserve_decoder_metadata():
             return _admit_source(model_or_experiment, input_rows=input_rows, decode_steps=decode_steps)
     return _admit_source(model_or_experiment, input_rows=input_rows, decode_steps=decode_steps)
 

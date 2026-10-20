@@ -168,12 +168,16 @@ Completed foundations:
    a separate offline dealer, two authenticated online holders and encrypted
    one-use preprocessing tapes. Five generated decoders match 918 complete
    semantic observations. Generated SDK/gateway execution, cancellation and
-   ordinary CLI benchmarks pass; 392 installed Python and 590 native checks cover
-   the integrated slice. Standard outputs and reusable factories are linked from
+   ordinary CLI benchmarks pass. Explicit Decoder capacity adds shared streamed
+   weights, file-backed replay and externally authenticated tape metadata. The
+   opt-in D14 profile passes pinned Qwen 4+1 numeric/work admission; actual trained
+   request acceptance remains unmeasured. The integrated follow-up passes 1,025
+   native and 816 installed Python checks plus two three-child Decoder tests.
+   Standard outputs and reusable factories are linked from
    [the SDK benchmarks](artifacts/fusefss-sdk/README.md). Full trained checkpoints,
    source-model quality and matched performance remain unqualified. The
-   [implementation plan](methods/fusefss-completion-plan.md) retains the request-long
-   replay/tape and complete-checkpoint admission gates.
+   [implementation plan](methods/fusefss-completion-plan.md) retains complete
+   trained execution, independent parity, quality and performance gates.
   Existing scalar, shared-rescale
   and masked-wire references retain their own numerical and execution scopes.
 - The local cold lifecycle observer has independently checked, portable tiny

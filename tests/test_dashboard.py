@@ -4,6 +4,7 @@ from collections import deque
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
     ExportMetricsServiceRequest,
 )
@@ -152,7 +153,8 @@ def test_dashboard_defaults_to_real_qwen_and_keeps_tiny_explicit() -> None:
     assert tiny.tiny is True
 
 
-def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
+@pytest.mark.parametrize("request_timeout", [300, 1200])
+def test_dashboard_launches_internal_runtime_services(monkeypatch, request_timeout) -> None:
     from pllm import Model
     from pllm.runtime import benchmark_memory as memory
     monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(
@@ -166,6 +168,7 @@ def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
             model_path="/tmp/model",
             model_id="model",
             default_max_output_tokens=8,
+            request_timeout_seconds=request_timeout,
         ),
         OTelStore(),
     )
@@ -210,7 +213,9 @@ def test_dashboard_launches_internal_runtime_services(monkeypatch) -> None:
     assert captured["model"].kind == "huggingface"
     assert captured["roles"]["model_id"] == "model"
     assert captured["roles"]["credential_prefix"] == "dash"
+    assert captured["roles"]["startup_timeout"] == request_timeout
     assert captured["client"]["prepared_inventory_rows"] == 64
+    assert captured["client"]["timeout"] == request_timeout
     runtime._memory_guard.close()
     runtime._temporary.cleanup()
 

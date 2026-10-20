@@ -16,6 +16,7 @@ from pllm.configuration import Experiment
 from pllm.metrics import ReferenceAgreement, measure_reference_agreement
 from pllm.model_loader import resolve_model
 from pllm.profiles import resolve_runtime_composition
+from pllm.protocols import FuseFssSourceDecoder
 from pllm.runtime.model_binding import compile_runtime_model
 from pllm.runtime.public_equalization import equalize_activation
 from pllm.runtime.quantization import dequantize_matmul, quantize_activation_per_row
@@ -100,10 +101,11 @@ def _fss_numeric(experiment, source):
         "configuration": experiment.configuration_digest(), "composition": experiment.pipeline.digest(),
         "input_rows": experiment.budget.max_input_tokens, "output_tokens": experiment.budget.max_new_tokens,
         "source_lock": source.source_lock_digest, "tokenizer": source.tokenizer_digest}
-    if (profile not in {"fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1"}
+    if (profile not in FuseFssSourceDecoder.NUMERIC_PROFILES
             or any(type(contract.get(key)) is not type(value) or contract.get(key) != value
                    for key, value in expected.items())
             or contract.get("numeric_profile") != profile
+            or contract.get("capacity", "capsule") != experiment.pipeline.components["linear"].params.get("capacity", "capsule")
             or contract.get("runtime_kind") != "fss" or contract.get("client_runtime") != "compiled_fss_v1"
             or type(contract.get("ring_bits")) is not int or contract["ring_bits"] != 50
             or type(contract.get("fractional_bits")) is not int or contract["fractional_bits"] != 12):
@@ -231,7 +233,8 @@ def _final_token_candidate(experiment, prompts, source, decode_steps, continuati
     """
     from threading import Event
 
-    from .benchmark_memory import MemoryWatchdog, benchmark_memory, require_admission
+    from .benchmark_memory import (
+        BenchmarkMemoryError, MemoryWatchdog, benchmark_memory, execution_memory_admission, require_admission)
     if runtime == "compiled_fss_v1":
         from .fss_transport import execute_request
     else:
@@ -253,16 +256,28 @@ def _final_token_candidate(experiment, prompts, source, decode_steps, continuati
                                                for token in row) for row in continuations)
     ):
         raise ReferenceBenchmarkError("quality continuation does not match the bounded token cohort")
-    report = benchmark_memory(experiment, backend="native",
-                              memory_safety_margin_percent=memory_safety_margin_percent)
+    decoder = (runtime == "compiled_fss_v1"
+               and experiment.pipeline.components["linear"].params.get("capacity") == "decoder")
+    inspect_memory = execution_memory_admission if decoder else benchmark_memory
+    report = inspect_memory(experiment, backend="native",
+                            memory_safety_margin_percent=memory_safety_margin_percent)
     require_admission(report)
     cancelled = Event()
     guard = MemoryWatchdog(report, lambda _: cancelled.set())
     actual, decoded, selected = [], [], []
     result = None
+    policy = {"memory_safety_margin_percent": memory_safety_margin_percent} if decoder else {}
     try:
         guard.start()
-        with build_roles(experiment) as topology:
+        with build_roles(experiment, **policy) as topology:
+            if decoder:
+                # The initial gate admits only source qualification on disk. Keep
+                # its conservative memory watchdog; consume the topology's final
+                # native-derived quote before sending any protected request.
+                report = getattr(topology, "memory_admission", None)
+                if type(report) is not dict or report.get("full_topology_admitted") is not True:
+                    raise BenchmarkMemoryError("quality FSS requires complete native topology admission")
+                require_admission(report)
             for index, row in enumerate(ids):
                 prefix, continuation = list(row), []
                 for step in range(decode_steps + 1):

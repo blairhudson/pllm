@@ -105,6 +105,13 @@ def test_program_admission_before_tokens_and_rejects_wrong_typed_contract(progra
     assert admission["scope"] == "program-pricing-not-request-admission"
     assert "transcript_digest" not in admission and "context" not in admission
     assert admission["combined_reservation_bytes"] <= 64 << 20
+    assert 0 < admission["peer_frame_bytes_bound"] < json.loads(source.metadata())["frame_bytes"]
+    client, role = request(program, 0)
+    try:
+        assert json.loads(role.metadata())["peer_frame_bytes_bound"] == admission["peer_frame_bytes_bound"]
+    finally:
+        role.close()
+        client.close()
     for field in ("profile", "plan", "empty"):
         if field == "profile":
             bad_contract = contract.replace(

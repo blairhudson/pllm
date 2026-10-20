@@ -13,6 +13,9 @@ CONTROL_LIMIT = 16 << 10
 METADATA_LIMIT = 4096
 PACKET_LIMIT = 16 << 20
 FRAME_LIMIT = PACKET_LIMIT + (16 << 10)
+# Native header, up to four token shares and one checked-validity share, checksum.
+# Native admission still checks the exact namespace/count for each request.
+FINAL_FRAME_LIMIT = 112 + 5 * 8 + 32
 CLIENT_MEMORY = 64 << 20
 ROLE_MEMORY = 256 << 20
 PEER_COUNTERS = frozenset(

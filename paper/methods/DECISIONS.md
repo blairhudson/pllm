@@ -341,6 +341,35 @@ Checked source-derived ranges and complete live/work admission precede execution
 Independent integer parity, complete original/common-checkpoint quality and
 ordinary SDK/role/benchmark qualification remain separate gates.
 
+## D14. Opt-in checked ranges for FuseFSS Qwen completion
+
+**Approved via the user question tool:** add an opt-in checked-range profile for
+Qwen while retaining the D13 static profiles. Reuse existing range predicates,
+arithmetic selection, consuming material and the shared quality-outcome path.
+
+`fusefss.dense-rope-checked-ranges-ring50-q12.v1` retains D13 arithmetic for
+accepted requests. Public source/workload-bound predicates bind the compiled
+acceptance/execution identity; each private check precedes unsafe arithmetic. A failed predicate
+selects a proved-safe zero before unsafe arithmetic and updates sticky shared
+validity. All scheduled work still executes. Final token shares are privately
+masked by aggregate validity; only the client learns final success or failure.
+Invalid requests release no model tokens, reusable state or failing location.
+
+The initial RMSNorm predicate bounds each input coordinate by the public integer
+`floor_sqrt((2^49 - 2) / width)`, sufficient for the signed50 square sum plus one.
+Failure replaces the complete row. Validity covers every padded row and selection.
+Both normalization floors, source rsqrt tables, full-head selection and D9 private
+feedback remain. Other arithmetic obligations still require proof or separately
+bound checks; this approval supplies no exemption from them. Bounds cannot be
+fitted to a private prompt. Every added comparison, selection, product, frame and
+owner is charged, with fresh material and unchanged primitive live ceilings.
+
+This is a changed numeric-acceptance contract, not a claim of the original paper's
+evaluated implementation. Independent integer/negative controls, complete
+checkpoint execution, quality (including rejected cases), SDK/gateway and matched
+benchmarks remain required. Tighter public certificates may be investigated
+separately; they do not retroactively qualify static-profile failures.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -358,6 +387,7 @@ ordinary SDK/role/benchmark qualification remain separate gates.
 | D11 | Approved: both private- and public-weight PUMA modes | Public-weight storage and batched execution have distinct contracts; full-checkpoint ranges, quality and resource measurements remain required. |
 | D12 | Approved: public-weight protected checked ranges | Shared membership and safe fallback precede unsafe arithmetic; final client-only aggregate acceptance, fresh-work accounting and complete qualification remain required. |
 | D13 | Approved: FuseFSS complete GPT-2 and common-Qwen arithmetic | Complete-dot floor, separate attention-scale floor, source-table RMSNorm and per-term Q12 RoPE floors bind distinct decoder numeric identities; exact execution and checkpoint quality remain unqualified. |
+| D14 | Approved: opt-in FuseFSS checked ranges | Original Q12 arithmetic on accepted requests; secret safe fallback, sticky validity, final whole-request acceptance and complete work/quality qualification required. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

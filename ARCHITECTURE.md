@@ -43,6 +43,15 @@ cryptographic dependency.
 | `pllm-plugin-api` | Independently versioned C-compatible native provider vtables, statuses, handles, buffers, header, and conformance fixtures |
 | `pllm-python` | The PyO3 `pllm._native` boundary exposed through the `pllm.run` distribution |
 
+Shared source arithmetic lives in `pllm-core`: `public_file` owns immutable
+authenticated files, `fixed_file` adds bounded signed-coefficient reads and streamed
+row statistics, and `streamed_matrix` provides complete ring64 contractions through
+64 KiB buffers. PUMA and FuseFSS use these owners and kernels. `integer_bounds`
+provides checked matrix certificates, row-energy and contraction bounds. The
+compiler binds certificates to source tensors and semantic views; each method
+retains its own quantization, range obligations and final rescaling. PUMA's Q18
+stochastic truncation and FuseFSS's exact Q12 floor remain distinct.
+
 `crates/pllm-core` contains the integer matrix executor, scalar reference paths,
 runtime AVX2 and NEON selection, bounded coefficient arithmetic, codecs,
 quantization, masking, output subtraction, and operating system random sampling.
@@ -1018,9 +1027,20 @@ native context checks and draining failure/cancellation retain existing bounds;
 only final fixed-count token IDs reach the client. Ordinary benchmark factories
 charge all directed bodies, dealer/holder CPU and separate tape I/O, with
 setup-inclusive final disclosure and no streaming TTFT/decode-throughput metric.
-Full trained checkpoints and larger transport workloads remain capacity/work
-blocked. These generated controls establish neither model quality nor independent
-operators or paper-system performance. Contract and examples:
+Explicit Decoder capacity now reuses shared immutable fixed-weight files,
+streamed contractions, integer-energy certificates and full-vocabulary primitives.
+File-backed replay and bounded encrypted tapes retain request-long one-use claims.
+An opt-in checked-range profile sanitizes unsafe RMSNorm rows privately, keeps
+sticky validity across complete feedback and rejects all tokens on final failure.
+Generated three-role controls preserve accepted outputs and reject late failures
+without disclosure. Pinned Qwen2.5 4+1 passes source/numeric/work admission with
+zero observed swap growth; its first whole-topology disk quote rejects before
+child launch. External-AAD tapes retain complete metadata authentication while
+reducing the source/tape/replay quote from 71.53 to 47.63 GB. Generated Decoder
+SDK controls consume more than 4,096 records and preserve final acceptance.
+Trained request acceptance, quality and matched performance remain
+open. These controls establish neither independent operators nor paper-system
+performance. Contract and examples:
 `docs/research/fusefss-sdk-reference.md`.
 
 The complete bounded shared Q7 gated block composes four exact rescalings and

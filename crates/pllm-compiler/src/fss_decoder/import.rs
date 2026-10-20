@@ -1,7 +1,10 @@
 //! Ordered, bounded public checkpoint ingestion. Source geometry is lowered before
 //! any payload is accepted; malformed input consumes the complete pending owner.
 //! The caller authenticates checkpoint files and prices its read buffers separately.
-use super::{sdk, vector, Error, Limits, Program, RotaryCoefficients, Source, Tensor, WeightDtype};
+use super::source::TensorImport;
+use super::{
+    sdk, vector, Capacity, Error, Limits, Program, RotaryCoefficients, Source, Tensor, WeightDtype,
+};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
@@ -16,7 +19,7 @@ struct Pending {
     outputs: usize,
     tensors: Vec<Tensor>,
     rotary: Vec<RotaryCoefficients>,
-    words: Zeroizing<Vec<u32>>,
+    tensor: Option<TensorImport>,
     sine: Zeroizing<Vec<f32>>,
     cosine: Zeroizing<Vec<f32>>,
     dtype: Option<WeightDtype>,
@@ -30,6 +33,18 @@ pub struct ImportedProgram {
     pub input_digest: [u8; 32],
     pub execution_binding: sdk::SourceExecutionBinding,
     pub ownership: CompileOwnership,
+}
+
+/// Source-only completion. This is not complete-program or transport admission.
+/// The immutable binding and actual certificates were minted by this importer.
+pub struct ImportedSource {
+    pub source: Source,
+    pub plan: pllm_models::DecoderPlan,
+    pub input_digest: [u8; 32],
+    pub execution_binding: sdk::SourceExecutionBinding,
+    pub phases: sdk::SourcePhaseAdmission,
+    pub outputs: usize,
+    pub numeric_profile: &'static str,
 }
 
 /// Logical phase/overlap proof. The schedule fields partition the *existing*
@@ -49,7 +64,13 @@ fn compile_ownership(
     let floor =
         sdk::compile_credit_floor(plan, source.reservation_bytes()).map_err(|_| Error::Resource)?;
     let credit = floor.checked_mul(3).ok_or(Error::Resource)?;
+    let proofs = if source.capacity() == Capacity::Decoder || source.checked_ranges() {
+        super::energy::reservation_bound(plan.prefill.operations.len())?
+    } else {
+        0
+    };
     let program = source.reservation_bytes()
+        + proofs
         + std::mem::size_of::<Program>()
         + plan.prefill.operations.len() * (std::mem::size_of::<super::program::Node>() + 4 * 8);
     let retained = program
@@ -94,7 +115,17 @@ impl SourceBuilder {
         outputs: usize,
         numeric_profile: &str,
     ) -> Result<Self, String> {
-        let admitted = sdk::preflight_source(config, rows, outputs, numeric_profile)?;
+        Self::new_with_capacity(config, rows, outputs, numeric_profile, Capacity::Capsule)
+    }
+    pub fn new_with_capacity(
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        numeric_profile: &str,
+        capacity: Capacity,
+    ) -> Result<Self, String> {
+        let admitted =
+            sdk::preflight_source_with_capacity(config, rows, outputs, numeric_profile, capacity)?;
         let tensors = vector(admitted.source_shapes.len())
             .map_err(|_| "FuseFSS source tensor-owner allocation rejected".to_string())?;
         let rotary = vector(admitted.rotary_shapes.len())
@@ -107,7 +138,7 @@ impl SourceBuilder {
                 outputs,
                 tensors,
                 rotary,
-                words: Zeroizing::new(Vec::new()),
+                tensor: None,
                 sine: Zeroizing::new(Vec::new()),
                 cosine: Zeroizing::new(Vec::new()),
                 dtype: None,
@@ -153,11 +184,11 @@ impl SourceBuilder {
         Ok(())
     }
 
-    pub fn seal(mut self) -> Result<ImportedProgram, Error> {
+    pub fn seal_source(mut self) -> Result<ImportedSource, Error> {
         let pending = self.pending.take().ok_or(Error::Consumed)?;
         if pending.tensors.len() != pending.admitted.source_shapes.len()
             || pending.rotary.len() != pending.admitted.rotary_shapes.len()
-            || !pending.words.is_empty()
+            || pending.tensor.is_some()
             || !pending.cosine.is_empty()
             || !pending.sine.is_empty()
             || pending.dtype.is_some()
@@ -168,7 +199,10 @@ impl SourceBuilder {
         let execution_binding =
             sdk::SourceExecutionBinding::new(&pending.admitted, pending.outputs)
                 .map_err(|_| Error::Resource)?;
-        let mut source = Source::new(pending.tensors)?;
+        let mut source = Source::new_with_capacity(pending.tensors, pending.admitted.capacity)?;
+        if pending.admitted.numeric_profile == sdk::DENSE_ROPE_CHECKED_NUMERIC {
+            source = source.with_checked_ranges();
+        }
         if !pending.rotary.is_empty() {
             source = source.with_rotary(pending.rotary)?;
         }
@@ -179,20 +213,34 @@ impl SourceBuilder {
         drop(pending.admitted.source_layouts);
         drop(pending.admitted.rotary_shapes);
         drop(pending.admitted.source_config_sha256);
-        let ownership = compile_ownership(&plan, &source, pending.admitted.phase_admission)?;
-        let program = Program::compile(&plan, source, pending.outputs, Limits::default())?;
+        Ok(ImportedSource {
+            source,
+            plan,
+            input_digest,
+            execution_binding,
+            phases: pending.admitted.phase_admission,
+            outputs: pending.outputs,
+            numeric_profile: pending.admitted.numeric_profile,
+        })
+    }
+
+    pub fn seal(self) -> Result<ImportedProgram, Error> {
+        let imported = self.seal_source()?;
+        let ownership = compile_ownership(&imported.plan, &imported.source, imported.phases)?;
+        let limits = Limits::for_capacity(imported.source.capacity());
+        let program = Program::compile(&imported.plan, imported.source, imported.outputs, limits)?;
         // Compatibility assertion, not a late primary gate: the pre-call floor
         // above follows the current core formula and is tested against resources.
         if program.resources().metadata_bytes < ownership.schedule_metadata_credit_floor {
             return Err(Error::Context);
         }
-        if program.profile() != pending.admitted.numeric_profile {
+        if program.profile() != imported.numeric_profile {
             return Err(Error::Context);
         }
         Ok(ImportedProgram {
             program,
-            input_digest,
-            execution_binding,
+            input_digest: imported.input_digest,
+            execution_binding: imported.execution_binding,
             ownership,
         })
     }
@@ -217,12 +265,12 @@ impl Pending {
             .nth(self.tensors.len())
             .ok_or(Error::Context)?;
         let word_bytes = if dtype_id(dtype) == 0 { 4 } else { 2 };
-        let length = elements(shape)?;
+        let length = self.admitted.capacity.source_elements(shape)?;
         if name != expected
             || payload.is_empty()
             || payload.len() > MAX_FRAME_BYTES
             || payload.len() % word_bytes != 0
-            || offset != self.words.len()
+            || offset != self.tensor.as_ref().map_or(0, TensorImport::written)
             || offset
                 .checked_add(payload.len() / word_bytes)
                 .is_none_or(|end| end > length)
@@ -233,7 +281,7 @@ impl Pending {
             return Err(Error::Context);
         }
         if self.dtype.is_none() {
-            self.words = Zeroizing::new(vector(length)?);
+            self.tensor = Some(TensorImport::new(name, shape, self.admitted.capacity)?);
             self.dtype = Some(dtype);
             self.input_hash.update((name.len() as u64).to_le_bytes());
             self.input_hash.update(name.as_bytes());
@@ -243,20 +291,12 @@ impl Pending {
                 self.input_hash.update((dimension as u64).to_le_bytes());
             }
         }
-        for bytes in payload.chunks_exact(word_bytes) {
-            let bits = if word_bytes == 4 {
-                u32::from_le_bytes(bytes.try_into().map_err(|_| Error::Context)?)
-            } else {
-                u16::from_le_bytes(bytes.try_into().map_err(|_| Error::Context)?) as u32
-            };
-            validate_word(dtype, bits)?;
-            self.words.push(bits);
-        }
+        let tensor = self.tensor.as_mut().ok_or(Error::Context)?;
+        tensor.append(dtype, payload)?;
         self.input_hash.update(payload);
-        if self.words.len() == length {
+        if tensor.complete() {
             self.tensors
-                .push(Tensor::from_ieee(name, shape, dtype, &self.words)?);
-            self.words = Zeroizing::new(Vec::new());
+                .push(self.tensor.take().ok_or(Error::Context)?.finish()?);
             self.dtype = None;
         }
         Ok(())
@@ -353,6 +393,7 @@ impl Pending {
 /// All finite F16 values fit signed50/Q12. For F32/BF16 the representable spacing
 /// next to 2^37 is much greater than half a Q12 unit: positive 2^37 is excluded,
 /// negative -2^37 included. Integer bit comparison also excludes NaN/infinity.
+#[cfg(test)]
 fn validate_word(dtype: WeightDtype, bits: u32) -> Result<(), Error> {
     let full = match dtype {
         WeightDtype::F32 => bits,

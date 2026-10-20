@@ -62,6 +62,36 @@ class LoopbackBenchmarkError(RuntimeError):
     """Raised when the local benchmark roles cannot produce a complete run."""
 
 
+def validate_benchmark_timeout(timeout_seconds: float, *, experiment: Experiment | None = None) -> None:
+    """Extend the legacy window only for an explicitly admitted FSS Decoder.
+
+    Recognition is declaration-only; native capability resolution must also
+    succeed before a caller can spend more than the ordinary 3600-second window.
+    Source/numeric admission remains in the existing benchmark startup path.
+    """
+    from pllm.configuration import Experiment
+    from pllm.profiles import resolve_runtime_composition
+
+    maximum = 3600
+    decoder = False
+    if isinstance(experiment, Experiment):
+        linear = experiment.pipeline.components.get("linear")
+        if linear is not None and linear.params.get("capacity") == "decoder":
+            composition = resolve_runtime_composition(experiment.pipeline)
+            decoder = composition is not None and composition.client_runtime == "compiled_fss_v1"
+            if decoder:
+                from .fss_transport import timeout_limit
+
+                maximum = timeout_limit("decoder")
+    if (type(timeout_seconds) not in (int, float) or not 1 <= timeout_seconds <= maximum
+            or not math.isfinite(timeout_seconds)):
+        raise ValueError(f"timeout must be between 1 and {maximum} seconds")
+    if decoder and experiment is not None and timeout_seconds > 3600:
+        # An exact Python composition alone cannot grant a larger runtime budget.
+        if experiment.resolve().client_runtime != "compiled_fss_v1":
+            raise ValueError("extended benchmark timeout requires native FuseFSS Decoder admission")
+
+
 def _generation_metadata(value: dict[str, Any], *, capture_output_digest: bool) -> dict[str, Any]:
     """Terminal status by default; fingerprints only for opted-in public diagnostics."""
     result = {"response_status": value.get("response_status")}
@@ -144,13 +174,13 @@ class _DashboardHandle:
         return "" if self.error is None else f"{type(self.error).__name__}: {self.error}"
 
 
-def _wait_for_dashboard_listener(handle: _DashboardHandle, origin: str, timeout: float) -> None:
-    deadline = time.monotonic() + timeout
+def _wait_for_dashboard_listener(handle: _DashboardHandle, origin: str, deadline: float) -> None:
     while time.monotonic() < deadline:
         if handle.poll() is not None:
             raise LoopbackBenchmarkError("benchmark dashboard exited during startup")
         try:
-            if httpx.get(f"{origin}/api/snapshot", timeout=0.5).status_code == 200:
+            if (httpx.get(f"{origin}/api/snapshot", timeout=0.5).status_code == 200
+                    and time.monotonic() < deadline):
                 return
         except httpx.HTTPError:
             pass
@@ -459,18 +489,32 @@ def build_loopback_report(
             if runtime_kind in {"replicated", "fss"} else
             "Request-end verification buffers all output; TTFT measures first accepted text and emission/decode TPS is unsupported.")
     if runtime_kind == "fss":
+        from .benchmark_delegated import fss_phase_timing
+
         report["summary"]["median_final_disclosure_seconds"] = report["summary"]["median_ttft_seconds"]
         report["summary"]["median_ttft_seconds"] = None
         report["summary"]["median_online_seconds"] = None
         report["configuration"]["preparation_roles"] = ["dealer"]
         for record in all_runs:
+            record["phase_timing"] = fss_phase_timing(record)
             durations = record["durations"] = dict(record["durations"])
             durations["final_disclosure_seconds"] = durations["ttft_seconds"]
             durations["ttft_seconds"] = durations["online_seconds"] = None
             record["measurement"] = dict(record["measurement"],
                 ttft_scope="sdk_call_to_final_disclosure_including_preprocessing")
+        # Worker clocks have their own scopes. In particular, the maximum of
+        # overlapping holder runs is not the client's complete online interval.
+        for name, field in {
+            "dealer_preparation": "preparation_seconds",
+            "delivery_callback": "delivery_callback_seconds",
+            "seal_callback": "seal_callback_seconds",
+            "preparation_outside_callbacks": "preparation_outside_callbacks_seconds",
+            "max_holder_native_run": "online_seconds",
+        }.items():
+            report["summary"][f"median_fss_{name}_seconds"] = _median(runs, "phase_timing", field)
         report["limitations"].append(
-            "FuseFSS final-disclosure timing includes source admission and offline preprocessing inside the SDK call; online-only elapsed time is unmeasured.")
+            "FuseFSS final-disclosure timing includes source admission and offline preprocessing inside the SDK call; "
+            "the client online interval is unmeasured. Worker-local phase timings use their separately recorded scopes.")
     from pllm.metrics import communication_per_token, wan_readiness
 
     report["communication_per_token"] = communication_per_token(report)
@@ -843,6 +887,8 @@ def _wait_for_ready(
         run = _run_state(snapshot)
         phase = str(run.get("phase", "starting"))
         startup_step = str(run.get("startup_step", "dashboard"))
+        if time.monotonic() >= deadline:
+            break
         if phase == "ready":
             return
         status = (phase, startup_step)
@@ -889,6 +935,8 @@ def _run_once(
     }
     if temperature is not None:
         payload["temperature"] = temperature
+    started = time.monotonic()
+    deadline = started + timeout_seconds
     response = client.post(
         "/api/run",
         json=payload,
@@ -898,8 +946,6 @@ def _run_once(
     except httpx.HTTPStatusError as exc:
         raise LoopbackBenchmarkError("benchmark run was rejected") from exc
 
-    deadline = time.monotonic() + timeout_seconds
-    started = time.monotonic()
     next_update = started + 10
     while time.monotonic() < deadline:
         if process.poll() is not None:
@@ -911,6 +957,8 @@ def _run_once(
             continue
         run = _run_state(snapshot)
         now = time.monotonic()
+        if now >= deadline:
+            break
         if progress is not None and now >= next_update:
             progress(f"{progress_label} ({int(now - started)}s)")
             next_update = now + 10
@@ -931,6 +979,8 @@ def _run_once(
         if record.get("status") != "completed":
             failure = record.get("failure", {}).get("type") or "unknown failure"
             raise LoopbackBenchmarkError(f"benchmark run failed: {failure}")
+        if time.monotonic() >= deadline:
+            break
         # Ephemeral metadata stays outside the immutable history schema. Text-free.
         if isinstance(run.get("sampling"), dict):
             record["sampling"] = run["sampling"]
@@ -1130,6 +1180,7 @@ def _run_loopback_benchmark(
             256, max(len(context_bytes(value)) for value in (
                 *(prompt_sequence or (prompt,)), *((warmup_prompt,) if warmup_prompt is not None else ())
             )) + 256)),
+        request_timeout_seconds=timeout_seconds,
     )
     origin = f"http://127.0.0.1:{port}"
     dashboard_app = create_dashboard_app(config)
@@ -1154,8 +1205,9 @@ def _run_loopback_benchmark(
         previous_sigterm = signal.getsignal(signal.SIGTERM)
         signal.signal(signal.SIGTERM, terminate)
     try:
+        startup_deadline = time.monotonic() + timeout_seconds
         handle.start()
-        _wait_for_dashboard_listener(handle, origin, timeout_seconds)
+        _wait_for_dashboard_listener(handle, origin, startup_deadline)
         if show_dashboard:
             webbrowser.open(origin)
         with httpx.Client(base_url=origin, timeout=5.0) as client:
@@ -1167,7 +1219,7 @@ def _run_loopback_benchmark(
             _wait_for_ready(
                 client,
                 handle,
-                time.monotonic() + timeout_seconds,
+                startup_deadline,
                 progress,
             )
             runtime = dashboard_app.state.dashboard_runtime
@@ -1397,6 +1449,7 @@ def run_loopback_benchmark(
     memory_safety_margin_percent: int = 25,
 ) -> dict[str, Any]:
     """Run ordinary loopback roles; None preserves SDK sampling, 0 requests greedy."""
+    validate_benchmark_timeout(timeout_seconds, experiment=experiment)
     with _DASHBOARD_LOCK:
         # Retired dashboards can retain native arrays through Python cycles.
         # Release them before pricing another candidate's live host headroom.

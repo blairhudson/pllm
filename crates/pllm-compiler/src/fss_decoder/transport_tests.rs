@@ -350,6 +350,7 @@ enum Fault {
     None,
     CorruptMaterial,
     ReplayMaterial,
+    ReplayMaterialAfter4096,
     DowngradeMaterial,
     NoReply,
     DoubleWrite,
@@ -403,6 +404,14 @@ impl WorkerTransport for RoleEndpoint {
                     return reply.write(saved);
                 }
                 self.saved = Some(Zeroizing::new(bytes.to_vec()));
+            }
+            Fault::ReplayMaterialAfter4096 => {
+                if self.material_calls > 4096 {
+                    return reply.write(self.saved.as_ref().unwrap());
+                }
+                if self.saved.is_none() {
+                    self.saved = Some(Zeroizing::new(bytes.to_vec()));
+                }
             }
             _ => {}
         }
@@ -530,37 +539,50 @@ fn endpoints(fault: Fault) -> (DealerEndpoint, [RoleEndpoint; 2], Inspection) {
 }
 
 type Execution = (Result<TokenShares, Error>, Trace);
+fn inputs(program: &Program) -> [Zeroizing<Vec<u64>>; 2] {
+    let left: Vec<_> = (0..program.initial_tokens())
+        .map(|i| 123456789 + i as u64 * 31)
+        .collect();
+    let right = left
+        .iter()
+        .enumerate()
+        .map(|(i, &share)| (1 + i as u64 % 2).wrapping_sub(share) & MASK)
+        .collect();
+    [Zeroizing::new(left), Zeroizing::new(right)]
+}
 fn serialized(
     program: &Program,
     fault: Fault,
 ) -> (Result<(), Error>, Execution, Execution, Inspection) {
     let (mut dealer, [mut left, mut right], inspection) = endpoints(fault);
     let context = context(program);
+    let [input_a, input_b] = inputs(program);
     let result = thread::scope(|scope| {
         let d = scope.spawn(move || prepare(program, context, &mut dealer));
         let a = scope.spawn(move || {
-            let r = execute(
-                program,
-                0,
-                context,
-                Zeroizing::new(vec![123456789]),
-                &mut left,
-            );
+            let r = execute(program, 0, context, input_a, &mut left);
             (r, std::mem::take(&mut left.trace))
         });
         let b = scope.spawn(move || {
-            let r = execute(
-                program,
-                1,
-                context,
-                Zeroizing::new(vec![1u64.wrapping_sub(123456789) & MASK]),
-                &mut right,
-            );
+            let r = execute(program, 1, context, input_b, &mut right);
             (r, std::mem::take(&mut right.trace))
         });
         (d.join().unwrap(), a.join().unwrap(), b.join().unwrap())
     });
     (result.0, result.1, result.2, inspection)
+}
+
+#[test]
+fn single_peer_frame_bound_does_not_grow_with_cumulative_traffic() {
+    let shorter = fixture(1, 1, 2);
+    let longer = fixture(2, 1, 2);
+    let a = admit(&shorter, context(&shorter)).unwrap();
+    let b = admit(&longer, context(&longer)).unwrap();
+    assert!(a.peer_frame_bytes_bound() > 0);
+    assert!(a.peer_frame_bytes_bound() < shorter.resources().frame_bytes);
+    assert_eq!(a.peer_frame_bytes_bound(), b.peer_frame_bytes_bound());
+    assert!(b.frames_per_party() > a.frames_per_party());
+    assert!(longer.resources().frame_bytes > shorter.resources().frame_bytes);
 }
 
 #[test]
@@ -571,11 +593,13 @@ fn admission_and_reply_caps_are_pre_input_and_consuming() {
         a.primitive_requests_per_party(),
         program.resources().primitive_requests_per_party
     );
-    assert!(a.guard_capacity() <= 4096);
+    assert_eq!(a.guard_capacity(), a.primitive_requests_per_party());
     assert!(a.combined_reservation_bytes() <= MAX_ALLOCATION_BYTES);
     assert!(a.largest_packet_bytes() > ENVELOPE_BYTES);
-    let too_large = fixture(2, 2, 2);
-    assert!(too_large.resources().primitive_requests_per_party > 4096);
+    // A forged public cost cannot allocate or issue before overflow rejection.
+    // Real larger schedules have their full exact ledger priced below.
+    let mut too_large = fixture(2, 2, 2);
+    too_large.resources.primitive_requests_per_party = usize::MAX;
     let (mut dealer, [mut role, _], inspection) = endpoints(Fault::None);
     assert!(matches!(
         prepare(&too_large, context(&too_large), &mut dealer),
@@ -786,6 +810,7 @@ impl Driver for Direct {
 fn direct(program: &Program) -> [Execution; 2] {
     let (send, recv) = mpsc::sync_channel(0);
     let context = context(program);
+    let [input_a, input_b] = inputs(program);
     thread::scope(|scope| {
         let a = scope.spawn(move || {
             let mut driver = Direct {
@@ -794,7 +819,7 @@ fn direct(program: &Program) -> [Execution; 2] {
                 recv: Some(recv),
                 trace: Vec::new(),
             };
-            let result = Worker::new(program, 0, context, Zeroizing::new(vec![123456789]))
+            let result = Worker::new(program, 0, context, input_a)
                 .unwrap()
                 .execute(&mut driver);
             (result, driver.trace)
@@ -806,14 +831,9 @@ fn direct(program: &Program) -> [Execution; 2] {
                 recv: None,
                 trace: Vec::new(),
             };
-            let result = Worker::new(
-                program,
-                1,
-                context,
-                Zeroizing::new(vec![1u64.wrapping_sub(123456789) & MASK]),
-            )
-            .unwrap()
-            .execute(&mut driver);
+            let result = Worker::new(program, 1, context, input_b)
+                .unwrap()
+                .execute(&mut driver);
             (result, driver.trace)
         });
         [a.join().unwrap(), b.join().unwrap()]
@@ -829,16 +849,43 @@ fn open(a: &[u64], b: &[u64]) -> Vec<u64> {
 #[test]
 fn serialized_three_actors_match_direct_native_full_tokens_and_observations() {
     let program = fixture(1, 1, 2);
-    let (dealer, wire_a, wire_b, inspection) = serialized(&program, Fault::None);
+    let tokens = serialized_matches_direct(&program);
+    assert_eq!(tokens, [0, 0]);
+}
+
+#[test]
+fn complete_larger_request_keeps_global_replay_ownership_and_exact_observations() {
+    let program = fixture(2, 2, 2);
+    let admission = admit(&program, context(&program)).unwrap();
+    assert!(admission.primitive_requests_per_party() > 4096);
+    assert_eq!(
+        admission.guard_capacity(),
+        admission.primitive_requests_per_party()
+    );
+    assert!(admission.combined_reservation_bytes() <= MAX_ALLOCATION_BYTES);
+    assert_eq!(serialized_matches_direct(&program).len(), 2);
+
+    // Replaying material after crossing the former ledger limit must still burn
+    // the request and wake both other actors. No per-kernel ledger replacement.
+    let (_, left, right, inspection) = serialized(&program, Fault::ReplayMaterialAfter4096);
+    assert!(left.0.is_err());
+    assert!(right.0.is_err());
+    assert!(inspection.counts.delivered.load(Ordering::SeqCst) > 8192);
+    assert_eq!(inspection.counts.worker[1].load(Ordering::SeqCst), 1);
+    inspection.drained();
+}
+
+pub(in crate::fss_decoder) fn serialized_matches_direct(program: &Program) -> Vec<u64> {
+    let (dealer, wire_a, wire_b, inspection) = serialized(program, Fault::None);
     dealer.unwrap();
     let a = wire_a.0.unwrap();
     let b = wire_b.0.unwrap();
-    assert_eq!(open(a.values(), b.values()), [0, 0]);
+    let tokens = open(a.values(), b.values());
     inspection.drained();
     assert_eq!(inspection.counts.dealer.load(Ordering::SeqCst), 0);
     assert_eq!(inspection.counts.worker[0].load(Ordering::SeqCst), 0);
     assert_eq!(inspection.counts.worker[1].load(Ordering::SeqCst), 0);
-    let [control_a, control_b] = direct(&program);
+    let [control_a, control_b] = direct(program);
     let ca = control_a.0.unwrap();
     let cb = control_b.0.unwrap();
     assert_eq!(open(a.values(), b.values()), open(ca.values(), cb.values()));
@@ -861,4 +908,5 @@ fn serialized_three_actors_match_direct_native_full_tokens_and_observations() {
             wa.1
         );
     }
+    tokens
 }

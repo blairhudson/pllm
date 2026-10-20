@@ -252,6 +252,13 @@ fn reconstructed(a: &[u64], b: &[u64]) -> Vec<i64> {
 }
 
 fn execute_fixture(program: &Program, token: u64) -> ((TokenShares, Trace), (TokenShares, Trace)) {
+    execute_prefix(program, &[token])
+}
+
+fn execute_prefix(
+    program: &Program,
+    prefix: &[u64],
+) -> ((TokenShares, Trace), (TokenShares, Trace)) {
     let context = Context {
         plan: program.digest(),
         session: [7; 32],
@@ -269,7 +276,14 @@ fn execute_fixture(program: &Program, token: u64) -> ((TokenShares, Trace), (Tok
     );
     let expected = visits.records.as_slice();
     let (sender, receiver) = mpsc::sync_channel(0);
-    let share = 123456789u64;
+    let left: Vec<_> = (0..prefix.len())
+        .map(|i| 123456789u64 + i as u64 * 71893)
+        .collect();
+    let right: Vec<_> = prefix
+        .iter()
+        .zip(&left)
+        .map(|(&id, &share)| id.wrapping_sub(share) & MASK)
+        .collect();
     thread::scope(|scope| {
         let a = scope.spawn(move || {
             let mut driver = HarnessDriver {
@@ -281,7 +295,7 @@ fn execute_fixture(program: &Program, token: u64) -> ((TokenShares, Trace), (Tok
                 expected,
                 next: 0,
             };
-            let result = Worker::new(program, 0, context, Zeroizing::new(vec![share]))
+            let result = Worker::new(program, 0, context, Zeroizing::new(left))
                 .unwrap()
                 .execute(&mut driver);
             assert!(!driver.cancelled, "worker0: {:?}", result.as_ref().err());
@@ -298,14 +312,9 @@ fn execute_fixture(program: &Program, token: u64) -> ((TokenShares, Trace), (Tok
                 expected,
                 next: 0,
             };
-            let result = Worker::new(
-                program,
-                1,
-                context,
-                Zeroizing::new(vec![token.wrapping_sub(share) & MASK]),
-            )
-            .unwrap()
-            .execute(&mut driver);
+            let result = Worker::new(program, 1, context, Zeroizing::new(right))
+                .unwrap()
+                .execute(&mut driver);
             assert!(!driver.cancelled, "worker1: {:?}", result.as_ref().err());
             assert_eq!(driver.next, expected.len());
             (result.unwrap(), driver.trace)
@@ -356,8 +365,7 @@ fn complete_generated_gpt2_two_selections_native_dealer_workers() {
     check(1, "output_head", &[1315, 1276, -3084]);
 }
 
-#[test]
-fn complete_dense_source_rms_rope_silu_native_two_selections() {
+fn dense_fixture() -> (serde_json::Value, DecoderPlan, Source) {
     let config = json!({"model_type":"qwen2","hidden_size":2,"intermediate_size":2,"num_hidden_layers":1,"num_attention_heads":1,"num_key_value_heads":1,"vocab_size":3,"max_position_embeddings":4,"hidden_act":"silu","rms_norm_eps":"0.000001","rope_theta":10000,"tie_word_embeddings":true});
     let semantic = pllm_models::lower_model_json(
         &serde_json::to_vec(&config).unwrap(),
@@ -436,6 +444,12 @@ fn complete_dense_source_rms_rope_silu_native_two_selections() {
         }
     }
     let source = Source::new(tensors).unwrap().with_rotary(rotary).unwrap();
+    (config, semantic, source)
+}
+
+#[test]
+fn complete_dense_source_rms_rope_silu_native_two_selections() {
+    let (_, semantic, source) = dense_fixture();
     let program = Program::compile(&semantic, source, 2, Limits::default()).unwrap();
     assert_eq!(program.profile(), "fusefss.dense-rope-ring50-q12.v1");
     let (a, b) = execute_fixture(&program, 1);
@@ -640,3 +654,9 @@ fn material_visit_failure_cancels_and_retires_retained_owners() {
     assert!(visitor.cancelled);
     assert!(visitor.records.is_empty());
 }
+
+#[path = "decoder_execution_tests.rs"]
+mod decoder_execution_tests;
+
+#[path = "checked_range_tests.rs"]
+mod checked_range_tests;

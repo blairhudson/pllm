@@ -4,7 +4,7 @@
 //! proof of honest evaluation. Authenticated, recipient-bound SDK channels and a
 //! session/epoch replay registry are mandatory. This module performs no HTTP,
 //! preprocessing, intermediate export, source loading, or worker reconstruction.
-use super::{Error, Limits, Program, TokenShares, MASK, MAX_VALUES};
+use super::{Capacity, Error, Limits, Program, TokenShares, MASK};
 use pllm_garble::shared_rescale_reference::Context;
 use sha2::{Digest, Sha256};
 use std::mem::size_of;
@@ -15,13 +15,15 @@ pub const REQUEST_BYTES: usize = 248;
 pub const FRAME_HEADER_BYTES: usize = 112;
 pub const FRAME_TRAILER_BYTES: usize = 32;
 pub const MAX_INPUT_FRAME_BYTES: usize = FRAME_HEADER_BYTES + 16 * 8 + FRAME_TRAILER_BYTES;
-pub const MAX_OUTPUT_FRAME_BYTES: usize = FRAME_HEADER_BYTES + 4 * 8 + FRAME_TRAILER_BYTES;
+pub const MAX_OUTPUT_FRAME_BYTES: usize = FRAME_HEADER_BYTES + (4 + 1) * 8 + FRAME_TRAILER_BYTES;
 const REQUEST_MAGIC: &[u8; 8] = b"PLLMRQ01";
 const INPUT_MAGIC: &[u8; 8] = b"PLLMIN01";
 const OUTPUT_MAGIC: &[u8; 8] = b"PLLMOU01";
+const CHECKED_OUTPUT_MAGIC: &[u8; 8] = b"PLLMOC01";
 const SCHEMA: &[u8] = b"pllm.fss.channel.program.v1";
 const GPT2: &str = "fusefss.gpt2-complete-ring50-q12.v1";
 const ROPE: &str = "fusefss.dense-rope-ring50-q12.v1";
+const CHECKED_ROPE: &str = "fusefss.dense-rope-checked-ranges-ring50-q12.v1";
 const SCRATCH_BYTES: usize = 4096;
 
 /// Actual-byte identity of the bounded public SDK source contract. Source-file
@@ -67,7 +69,7 @@ impl Geometry {
             || self.program == [0; 32]
             || self.source == [0; 32]
             || self.input == [0; 32]
-            || self.profile > 1
+            || self.profile > 2
             || self.initial == 0
             || self.initial > hard.max_sequence
             || self.selections == 0
@@ -78,17 +80,32 @@ impl Geometry {
                 .filter(|n| *n <= hard.max_sequence)
                 .is_none()
             || self.vocabulary == 0
-            || self.vocabulary > MAX_VALUES
+            // Structural framing ceiling only; no vocabulary-sized allocation.
+            // The compiled Program and checked source contract own capacity policy.
+            || self.vocabulary > Capacity::Decoder.max_vocabulary()
         {
             return Err(Error::Domain);
         }
         Ok(())
     }
     fn profile(&self) -> &'static str {
-        if self.profile == 0 {
-            GPT2
+        match self.profile {
+            0 => GPT2,
+            1 => ROPE,
+            _ => CHECKED_ROPE,
+        }
+    }
+    fn checked_ranges(&self) -> bool {
+        self.profile == 2
+    }
+    fn output_words(&self) -> usize {
+        self.selections + usize::from(self.checked_ranges())
+    }
+    fn output_namespace(&self) -> (&'static [u8; 8], u8) {
+        if self.checked_ranges() {
+            (CHECKED_OUTPUT_MAGIC, 2)
         } else {
-            ROPE
+            (OUTPUT_MAGIC, 1)
         }
     }
 }
@@ -109,11 +126,18 @@ impl Manifest {
         input_digest: [u8; 32],
         program: &Program,
     ) -> Result<Self, Error> {
+        if program.vocabulary() > program.capacity().max_vocabulary() {
+            return Err(Error::Domain);
+        }
         let profile = match program.profile() {
             GPT2 => 0,
             ROPE => 1,
+            CHECKED_ROPE => 2,
             _ => return Err(Error::Unsupported),
         };
+        if program.checked_ranges() != (profile == 2) {
+            return Err(Error::Context);
+        }
         Self::from_geometry(Geometry {
             contract: contract_digest,
             program: program.digest(),
@@ -179,6 +203,9 @@ impl Manifest {
         let profile = if input.remaining().starts_with(GPT2.as_bytes()) {
             input.literal(GPT2.as_bytes())?;
             0
+        } else if input.remaining().starts_with(CHECKED_ROPE.as_bytes()) {
+            input.literal(CHECKED_ROPE.as_bytes())?;
+            2
         } else {
             input.literal(ROPE.as_bytes())?;
             1
@@ -192,7 +219,7 @@ impl Manifest {
         input.literal(b",\"source\":\"")?;
         let source = input.hex()?;
         input.literal(b"\",\"vocabulary\":")?;
-        let vocabulary = input.number(MAX_VALUES)?;
+        let vocabulary = input.number(Capacity::Decoder.max_vocabulary())?;
         input.literal(b"}")?;
         if input.offset != bytes.len() || contract != expected_contract {
             return Err(Error::Context);
@@ -246,7 +273,7 @@ impl Manifest {
     }
     pub fn resources(&self) -> Resources {
         let input = frame_bytes(self.geometry.initial);
-        let output = frame_bytes(self.geometry.selections);
+        let output = frame_bytes(self.geometry.output_words());
         Resources {
             manifest_bytes: self.length,
             request_bytes: REQUEST_BYTES,
@@ -263,7 +290,7 @@ impl Manifest {
                 + SCRATCH_BYTES,
             worker_output_export_bytes: size_of::<Request>()
                 + size_of::<TokenShares>()
-                + 8 * self.geometry.selections
+                + 8 * self.geometry.output_words()
                 + output
                 + SCRATCH_BYTES,
         }
@@ -469,22 +496,31 @@ impl Request {
         let Phase::Input(input_role) = self.phase.take().ok_or(Error::Consumed)? else {
             return Err(Error::Context);
         };
+        let geometry = self.manifest.geometry;
+        let validity = Zeroizing::new(shares.validity_share());
         if role > 1
             || role != input_role
             || shares.role() != role
             || shares.program_digest() != self.context.plan
             || shares.values().len() != self.manifest.selections()
             || shares.values().iter().any(|v| *v > MASK)
+            || validity.is_some() != geometry.checked_ranges()
+            || validity.is_some_and(|v| v > MASK)
         {
             return Err(Error::Context);
         }
-        let mut frame = new_frame(OUTPUT_MAGIC, self.context, role, shares.values().len(), 1)?;
+        let (magic, kind) = geometry.output_namespace();
+        let mut frame = new_frame(magic, self.context, role, geometry.output_words(), kind)?;
         for (chunk, word) in frame
             [FRAME_HEADER_BYTES..FRAME_HEADER_BYTES + shares.values().len() * 8]
             .chunks_exact_mut(8)
             .zip(shares.values())
         {
             chunk.copy_from_slice(&word.to_le_bytes());
+        }
+        if let Some(word) = validity.as_ref() {
+            let start = FRAME_HEADER_BYTES + geometry.selections * 8;
+            frame[start..start + 8].copy_from_slice(&word.to_le_bytes());
         }
         seal(&mut frame);
         Ok(frame)
@@ -569,6 +605,11 @@ impl ClientRequest {
     pub fn manifest_bytes(&self) -> &[u8] {
         self.request.manifest_bytes()
     }
+    /// Profile fixed by the three matching, authenticated public manifests.
+    /// Only checked final acceptance may classify Domain as numeric rejection.
+    pub fn checked_ranges(&self) -> bool {
+        self.request.manifest.geometry.checked_ranges()
+    }
     pub fn close(&mut self) {
         self.state = None;
         self.request.close();
@@ -602,10 +643,27 @@ impl ClientRequest {
         if state.sent != 3 {
             return Err(Error::Context);
         }
-        let count = self.request.manifest.selections();
-        check_frame(response0, OUTPUT_MAGIC, self.request.context, 0, count, 1)?;
-        check_frame(response1, OUTPUT_MAGIC, self.request.context, 1, count, 1)?;
-        let token = |i| -> Result<u32, Error> {
+        let geometry = self.request.manifest.geometry;
+        let count = geometry.selections;
+        let (magic, kind) = geometry.output_namespace();
+        // Counts come from the admitted manifest, never from either peer frame.
+        check_frame(
+            response0,
+            magic,
+            self.request.context,
+            0,
+            geometry.output_words(),
+            kind,
+        )?;
+        check_frame(
+            response1,
+            magic,
+            self.request.context,
+            1,
+            geometry.output_words(),
+            kind,
+        )?;
+        let word = |i| {
             let start = FRAME_HEADER_BYTES + i * 8;
             let a = Zeroizing::new(u64::from_le_bytes(
                 response0[start..start + 8].try_into().unwrap(),
@@ -613,9 +671,38 @@ impl ClientRequest {
             let b = Zeroizing::new(u64::from_le_bytes(
                 response1[start..start + 8].try_into().unwrap(),
             ));
-            let sum = Zeroizing::new(a.wrapping_add(*b) & MASK);
-            if *sum >= self.request.manifest.vocabulary() as u64 {
-                return Err(Error::Domain);
+            Zeroizing::new(a.wrapping_add(*b) & MASK)
+        };
+        if geometry.checked_ranges() {
+            // Workers have already executed the entire schedule and privately
+            // multiplied every final token by this one sticky validity bit.
+            // The trusted client opens only that bit and the masked final IDs.
+            let validity = word(count);
+            match *validity {
+                1 => {}
+                0 => {
+                    let mut nonzero = Zeroizing::new(0u64);
+                    for i in 0..count {
+                        *nonzero |= *word(i);
+                    }
+                    // Contradictory masking is malformed, not numeric rejection.
+                    return Err(if *nonzero == 0 {
+                        Error::Domain
+                    } else {
+                        Error::Context
+                    });
+                }
+                _ => return Err(Error::Context),
+            }
+        }
+        let token = |i| -> Result<u32, Error> {
+            let sum = word(i);
+            if *sum >= geometry.vocabulary as u64 {
+                return Err(if geometry.checked_ranges() {
+                    Error::Context
+                } else {
+                    Error::Domain
+                });
             }
             Ok(*sum as u32)
         };
@@ -647,7 +734,13 @@ fn new_frame(
     count: usize,
     kind: u8,
 ) -> Result<Zeroizing<Vec<u8>>, Error> {
-    if role > 1 || count == 0 || count > 16 || (kind == 1 && count > 4) {
+    let valid_geometry = match kind {
+        0 => magic == INPUT_MAGIC && (1..=16).contains(&count),
+        1 => magic == OUTPUT_MAGIC && (1..=4).contains(&count),
+        2 => magic == CHECKED_OUTPUT_MAGIC && (2..=5).contains(&count),
+        _ => false,
+    };
+    if role > 1 || !valid_geometry {
         return Err(Error::Domain);
     }
     let mut bytes = Zeroizing::new(allocate(frame_bytes(count))?);

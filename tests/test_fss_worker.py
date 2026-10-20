@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import AsyncExitStack, contextmanager
 import threading
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -22,9 +23,9 @@ PROFILE = "fusefss.gpt2-complete-ring50-q12.v1"
 ORIGINS = {r: f"http://127.0.0.1:{7300+i}" for i, r in enumerate(p.ROLES)}
 
 
-def configuration():
+def configuration(capacity="capsule"):
     return Experiment(name="protocol-only-fss", pipeline=FuseFssSourceCpu(
-        Model.path("/generated/protocol-only"), numeric_profile=PROFILE),
+        Model.path("/generated/protocol-only"), numeric_profile=PROFILE, capacity=capacity),
         deployment=Deployment.local(root="local://protocol-only"),
         budget=ExecutionBudget(requests=8, max_input_tokens=3, max_new_tokens=3))
 
@@ -46,8 +47,11 @@ def credentials(role):
     return {} if role == "dealer" else {r: key(r, role) for r in p.ROLES if r != role}
 
 
-def contract(rows=3, outputs=3):
-    return p.canonical({"rows": rows, "outputs": outputs, "profile": PROFILE})
+def contract(rows=3, outputs=3, capacity="capsule"):
+    return p.canonical({"rows": rows, "outputs": outputs, "profile": PROFILE,
+                        **({"capacity": capacity, "source_disk_bytes": 4096,
+                            "source_float32_bytes": 4096, "source_q12_value_bytes": 8192,
+                            "source_resident_bound_bytes": 1024} if capacity != "capsule" else {})})
 
 
 class Frozen:
@@ -56,23 +60,31 @@ class Frozen:
     snapshot_pins = {"source_lock": "a"*64, "tokenizer": "b"*64,
                      "checkpoint": "c"*64, "config": "d"*64}
 
-    def __init__(self, role):
+    def __init__(self, role, capacity="capsule"):
         self.role = role
+        self.contract = {"vocabulary": 32, **({"capacity": capacity} if capacity != "capsule" else {})}
 
     def runtime_contract(self, experiment, rows, outputs):
-        return contract(rows, outputs)
+        return contract(rows, outputs, self.contract.get("capacity", "capsule"))
 
 
 class Loaded:
-    def __init__(self, role, rows, outputs):
+    def __init__(self, role, rows, outputs, capacity="capsule"):
         self.native_program = self
         self.role, self.closed = role, False
-        self.contract_bytes = contract(rows, outputs)
+        self.contract_bytes = contract(rows, outputs, capacity)
         self.manifest_bytes = p.canonical({"schema": "pllm.fss.channel.program.v1",
             "program": "e"*64, "profile": PROFILE, "initial": rows, "selections": outputs})
 
     def close(self):
         self.closed = True
+
+    def disk_backing(self):
+        if self.closed:
+            raise ValueError("native source double is closed")
+        # This source double creates no files. Its public price is not evidence
+        # of allocated backing; the real lease must keep all bytes pending.
+        return []
 
 
 def callback_metadata(request_id, kind, role, kernel=0):
@@ -81,7 +93,7 @@ def callback_metadata(request_id, kind, role, kernel=0):
             "operation": "f"*64, "first_tensor_index": 0},
             "plan_digest": "a"*64, "ordinal": kernel}}
     meta.update({"pc": 3, "packet_bytes_bound": 64} if kind == "material"
-                else {"frame": 0, "frame_bytes": 7})
+                else {"frame": 0, "frame_bytes": len(f"peer{role}-{kernel}".encode())})
     return p.canonical(meta)
 
 
@@ -98,6 +110,11 @@ def double(monkeypatch):
         load_fail = False
         load_wait = False
         bad_admission = False
+        kernels = 2
+        admission_changes = {}
+        capacity = "capsule"
+        storage_reservations = []
+        disk_threads = {}
         hold_role = None
         entered = threading.Event()
         exited = threading.Event()
@@ -122,16 +139,22 @@ def double(monkeypatch):
     def metadata(experiment, *, expected_pins=None):
         if expected_pins is not None and expected_pins != Frozen.snapshot_pins:
             raise ValueError("wrong startup pins")
-        return Frozen(Double.making_role)
+        return Frozen(Double.making_role, Double.capacity)
 
     def load(experiment, *, expected_pins, source, input_rows, outputs, cancelled):
         assert expected_pins == source.snapshot_pins
         assert any(not r["closed"] for r in Double.reservations)
+        if Double.capacity == "decoder":
+            row = next(r for r in reversed(Double.storage_reservations)
+                       if r["thread"] == threading.get_ident() and not r["closed"])
+            row["role"] = source.role
         Double.load_entered.set()
         if Double.load_wait:
             assert Double.load_release.wait(5)
         Double.load_cancelled.append(cancelled())
-        owner = Loaded(source.role, input_rows, outputs)
+        if Double.capacity == "decoder":
+            assert any(r["role"] == source.role and not r["closed"] for r in Double.storage_reservations)
+        owner = Loaded(source.role, input_rows, outputs, Double.capacity)
         Double.loaded.append(owner)
         if Double.load_fail:
             owner.close()  # loader owns its unpublished partial owner
@@ -144,6 +167,7 @@ def double(monkeypatch):
             assert request.startswith(b"request:")
             self.request_id = request[8:].decode()
             self.role, self.closed = role, False
+            Double.disk_threads[threading.get_ident()] = p.ROLES[role]
             self.stop = threading.Event()
             self.callbacks = None
             self.running = False
@@ -154,11 +178,14 @@ def double(monkeypatch):
                 "role": True if Double.bad_admission else self.role,
                 "context": {"plan": "e"*64, "session": self.request_id,
                     "operation": "f"*64, "first_tensor_index": 0},
-                "kernels": 2, "primitive_requests_per_party": 2, "frames_per_party": 2,
-                "largest_packet_bytes": 64, "cumulative_packet_bytes_per_party_bound": 128,
+                "kernels": Double.kernels, "primitive_requests_per_party": Double.kernels,
+                "frames_per_party": Double.kernels,
+                "largest_packet_bytes": 64, "cumulative_packet_bytes_per_party_bound": 64 * Double.kernels,
                 "guard_capacity": 10, "combined_reservation_bytes": 64 << 20,
                 "peer_frame_bytes_bound": 64, "callback_metadata_bytes_bound": 1024,
-                "input_frame_bytes": 272, "output_frame_bytes": 272})
+                "input_frame_bytes": 272, "output_frame_bytes": 272,
+                **({"capacity": "decoder", "guard_disk_bytes": 8192, "guard_reservation_bytes": 4096}
+                   if Double.capacity == "decoder" else {}), **Double.admission_changes})
 
         def run(self, frame, callbacks):
             self.callbacks, self.running = callbacks, True
@@ -166,7 +193,7 @@ def double(monkeypatch):
             try:
                 if self.role == 2:
                     assert frame is None
-                    for kernel in range(2):
+                    for kernel in range(Double.kernels):
                         for holder in (0, 1):
                             callbacks.deliver(callback_metadata(self.request_id, "material", holder, kernel),
                                               f"material-{holder}-{kernel}".encode())
@@ -176,7 +203,7 @@ def double(monkeypatch):
                     Double.entered.set()
                     if Double.hold_role == p.ROLES[self.role]:
                         assert Double.release.wait(5)
-                    for kernel in range(2):
+                    for kernel in range(Double.kernels):
                         if self.stop.is_set():
                             raise ValueError("native cancellation")
                         Double.calls.append((self.role, "material"))
@@ -219,6 +246,22 @@ def double(monkeypatch):
     monkeypatch.setattr(worker._native, "FssRoleRequest", Native, raising=False)
     monkeypatch.setattr(worker.MaterialTape, "seal", seal)
     monkeypatch.setattr(worker.MaterialTape, "append", append)
+    real_disk = worker.reserve_incremental_disk
+    @contextmanager
+    def reserve_storage(amount, *, directory):
+        thread = threading.get_ident()
+        row = {"role": Double.disk_threads.get(thread), "closed": False, "directory": directory,
+               "amount": amount, "thread": thread}
+        with real_disk(amount, directory=directory) as observation:
+            row["lease"] = observation
+            Double.storage_reservations.append(row)
+            try:
+                yield observation
+            finally:
+                assert all(n.closed for n in Double.natives if p.ROLES[n.role] == row["role"])
+                assert all(n.closed for n in Double.loaded if n.role == row["role"])
+                row["closed"] = True
+    monkeypatch.setattr(worker, "reserve_incremental_disk", reserve_storage)
     return Double
 
 
@@ -240,6 +283,9 @@ class Routing(httpx.AsyncBaseTransport):
 @pytest_asyncio.fixture
 async def cluster(double, monkeypatch, request):
     apps = {}
+    options = getattr(request, "param", 300)
+    options = options if type(options) is dict else {"ttl": options}
+    double.capacity = options.get("capacity", "capsule")
     def outbound(**kwargs):
         assert kwargs["trust_env"] is False and kwargs["follow_redirects"] is False
         assert kwargs["limits"].max_connections == 1
@@ -247,12 +293,12 @@ async def cluster(double, monkeypatch, request):
     monkeypatch.setattr(worker.httpx, "AsyncClient", outbound)
     async with AsyncExitStack() as stack:
         clients = {}
-        exp = configuration()
+        exp = configuration(double.capacity)
         for role in p.ROLES:
             double.making_role = role
             apps[role] = worker.create_fss_worker_app(exp, role, client_key(role),
                 peer_connections=connections(role), peer_credentials=credentials(role),
-                ttl=getattr(request,'param',300))
+                ttl=options.get("ttl", 300))
             await stack.enter_async_context(apps[role].router.lifespan_context(apps[role]))
             clients[role] = await stack.enter_async_context(HTTPClient(
                 transport=httpx.ASGITransport(app=apps[role]), base_url=ORIGINS[role],
@@ -275,7 +321,9 @@ async def cluster(double, monkeypatch, request):
                 results = {}
                 for r in roles:
                     value = {"request": self.request_id, "epoch": self.epochs[r], "epochs": self.epochs,
-                             "rows": 3, "outputs": 3, "contract": contract(), **changes}
+                             "rows": 3, "outputs": 3, "contract": contract(capacity=double.capacity),
+                             **({"remaining_seconds": options.get("remaining_seconds", 300)}
+                                if double.capacity == "decoder" else {}), **changes}
                     results[r] = await clients[r].post('/v1/fss/admit', content=p.pack(value, limit=p.ADMISSION_LIMIT))
                 return results
 
@@ -293,8 +341,8 @@ async def cluster(double, monkeypatch, request):
                 assert all(r.status_code == 200 for r in (await self.admit()).values())
                 await self.bind()
 
-            async def prepare(self):
-                response = await asyncio.wait_for(self.post('dealer', 'prepare'), 5)
+            async def prepare(self, timeout=5):
+                response = await asyncio.wait_for(self.post('dealer', 'prepare'), timeout)
                 assert response.status_code == 200, response.content
                 assert p.unpack(response.content) == {"prepared": True}
 
@@ -313,6 +361,7 @@ async def cluster(double, monkeypatch, request):
     assert all(r["closed"] for r in double.reservations)
     assert all(x.closed for x in double.loaded)
     assert all(x.closed for x in double.natives)
+    assert all(r["closed"] for r in double.storage_reservations)
 
 
 @pytest.mark.asyncio
@@ -659,3 +708,150 @@ def test_channels_fail_closed_before_source_and_reservation(double,change):
         worker.create_fss_worker_app(configuration(),'dealer',client_key('dealer'),
             peer_connections=c,peer_credentials=credentials_map)
     assert not double.reservations
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changes", [
+    {"kernels": True}, {"kernels": -1}, {"kernels": 1 << 64},
+    {"primitive_requests_per_party": True}, {"primitive_requests_per_party": 1 << 64},
+    {"frames_per_party": -1}, {"frames_per_party": 1 << 64}, {"guard_capacity": True},
+    {"largest_packet_bytes": (16 << 20) + 1},
+    {"cumulative_packet_bytes_per_party_bound": (256 << 20) + 1},
+    {"primitive_requests_per_party": ((1 << 30) - (256 << 20)) // (4096 + 40) + 1,
+     "largest_packet_bytes": 16 << 20, "cumulative_packet_bytes_per_party_bound": 256 << 20},
+    {"peer_frame_bytes_bound": (16 << 20) + 1},
+    {"callback_metadata_bytes_bound": 4097}, {"combined_reservation_bytes": (64 << 20) + 1},
+])
+async def test_native_count_and_byte_preflight_before_tape_or_run(cluster, monkeypatch, changes):
+    await cluster.admit(roles=("worker_a",))
+    cluster.double.admission_changes = changes
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid native admission reached tape/file/key")
+    monkeypatch.setattr(worker.MaterialTape, "__init__", forbidden)
+    response = await cluster.post("worker_a", "bind", {"request_frame": b"request:" + cluster.request_id.encode()})
+    assert response.status_code == 400
+    assert not cluster.double.native_threads
+    assert cluster.double.natives[-1].closed and cluster.double.loaded[-1].closed
+    assert (await cluster.metrics("worker_a"))["active_sessions"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ordinal", [2, True, -1, 1 << 64])
+async def test_material_kernel_ordinal_uses_exact_native_count(cluster, ordinal):
+    await cluster.ready()
+    message = {"sender": "dealer", "sender_epoch": cluster.epochs["dealer"],
+        "recipient_epoch": cluster.epochs["worker_a"], "sequence": 0,
+        "metadata": callback_metadata(cluster.request_id, "material", 0, ordinal), "packet": b"packet"}
+    assert (await cluster.post("worker_a", "material", message,
+        credential=key("dealer", "worker_a"))).status_code == 400
+    assert (await cluster.metrics("worker_a"))["active_sessions"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field,value", [("frame", 2), ("frame", True), ("frame", -1),
+                                         ("frame", 1 << 64), ("kernel", 2), ("frame_bytes", 65)])
+async def test_peer_callback_uses_native_kernel_frame_and_payload_maxima(cluster, field, value):
+    await cluster.ready(); await cluster.prepare(); await cluster.inputs()
+    meta = p.metadata(callback_metadata(cluster.request_id, "peer", 1))
+    if field == "kernel": meta["kernel"]["ordinal"] = value
+    else: meta[field] = value
+    message = {"sender": "worker_b", "epochs": cluster.epochs, "sequence": 0,
+               "metadata": p.canonical(meta), "frame": b"peer1-0"}
+    assert (await cluster.post("worker_a", "peer", message,
+        credential=key("worker_b", "worker_a"))).status_code == 400
+    assert (await cluster.metrics("worker_a"))["active_sessions"] == 0
+
+
+@pytest.mark.asyncio
+async def test_callback_metadata_cannot_exceed_native_admitted_bytes(cluster):
+    cluster.double.admission_changes = {"callback_metadata_bytes_bound": 32}
+    await cluster.ready()
+    message = {"sender": "dealer", "sender_epoch": cluster.epochs["dealer"],
+        "recipient_epoch": cluster.epochs["worker_a"], "sequence": 0,
+        "metadata": callback_metadata(cluster.request_id, "material", 0), "packet": b"packet"}
+    assert (await cluster.post("worker_a", "material", message,
+        credential=key("dealer", "worker_a"))).status_code == 400
+    assert not cluster.double.native_threads
+
+
+@pytest.mark.asyncio
+async def test_bind_frame_replay_stays_bounded_by_burned_session_ledger(cluster):
+    await cluster.admit(roles=("worker_a",))
+    await cluster.bind(roles=("worker_a",))
+    original = b"request:" + cluster.request_id.encode()
+    assert (await cluster.post("worker_a", "cancel")).status_code == 200
+    for number in range(2, 9):
+        assert (await cluster.admit(roles=("worker_a",), request_id=f"{number:064x}"))["worker_a"].status_code == 200
+        # One bind per burned session. A replay is rejected before constructing
+        # another native owner, even with a fresh authenticated outer request ID.
+        assert (await cluster.post("worker_a", "bind", {"request_frame": original})).status_code == 400
+        assert len(cluster.double.natives) == 1
+    assert (await cluster.metrics("worker_a"))["seen_requests"] == 8
+    assert (await cluster.admit(roles=("worker_a",), request_id="9" * 64))["worker_a"].status_code == 409
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fail_delivery", [False, True])
+async def test_preparation_wall_clock_partition_survives_retirement(cluster, monkeypatch, fail_delivery):
+    from pllm.runtime.benchmark_delegated import FSS_PHASE_COUNTERS, fss_phase_timing_delta
+
+    # Controlled wall clock, not a performance assertion. Four material RPCs
+    # cost one second each; both seal RPCs cost three each. Native work outside
+    # callbacks costs 2+5 seconds, independently of callback count.
+    clock = SimpleNamespace(ns=0)
+    monkeypatch.setattr(worker.time, "perf_counter_ns", lambda: clock.ns)
+    original = worker._native.FssRoleRequest.run
+    def native_run(self, frame, callbacks):
+        clock.ns += 2_000_000_000
+        try:
+            return original(self, frame, callbacks)
+        finally:
+            clock.ns += 5_000_000_000
+    monkeypatch.setattr(worker._native.FssRoleRequest, "run", native_run)
+    def delivery(request):
+        clock.ns += 3_000_000_000 if request.url.path.endswith("/seal") else 1_000_000_000
+        if fail_delivery:
+            raise RuntimeError("private callback detail")
+        return request
+    cluster.double.peer_transform = delivery
+    await cluster.ready()
+    before = (await cluster.metrics("dealer"))["phase_timing"]
+    assert before == dict.fromkeys(FSS_PHASE_COUNTERS, 0)
+    clock.ns += 1_000_000_000_000  # Admission/control time is outside the native call.
+    response = await cluster.post("dealer", "prepare")
+    assert response.status_code == (400 if fail_delivery else 200)
+    expected = {"preparation_calls": 1, "preparation_ns": (8 if fail_delivery else 17) * 10**9,
+        "delivery_callback_ns": (1 if fail_delivery else 4) * 10**9,
+        "seal_callback_ns": 0 if fail_delivery else 6 * 10**9, "online_calls": 0, "online_ns": 0}
+    after = (await cluster.metrics("dealer"))["phase_timing"]
+    assert after == expected
+    assert fss_phase_timing_delta(before, after) == expected
+    if not fail_delivery:
+        reply = await cluster.post("dealer", "finish")
+        assert set(p.unpack(reply.content)) == {"frame", "peer_bytes", "storage"}
+    assert (await cluster.metrics("dealer"))["phase_timing"] == expected
+    assert (await cluster.metrics("dealer"))["active_sessions"] == 0
+    assert all(native.closed for native in cluster.double.natives if native.role == 2)
+
+
+@pytest.mark.asyncio
+async def test_cancelled_online_call_is_measured_once_after_native_drain(cluster, monkeypatch):
+    await cluster.ready(); await cluster.prepare(); await cluster.inputs()
+    clock = SimpleNamespace(ns=0)
+    monkeypatch.setattr(worker.time, "perf_counter_ns", lambda: clock.ns)
+    cluster.double.hold_role = "worker_a"
+    assert (await cluster.post("worker_a", "start")).status_code == 200
+    assert await asyncio.to_thread(cluster.double.entered.wait, 2)
+    clock.ns = 5_000_000_000
+    cancel = asyncio.create_task(cluster.post("worker_a", "cancel"))
+    await asyncio.sleep(.02)
+    assert not cancel.done()
+    assert (await cluster.metrics("worker_a"))["phase_timing"]["online_calls"] == 0
+    clock.ns = 12_000_000_000
+    cluster.double.release.set()
+    assert (await asyncio.wait_for(cancel, 3)).status_code == 200
+    after = (await cluster.metrics("worker_a"))["phase_timing"]
+    assert after == {"preparation_calls": 0, "preparation_ns": 0, "delivery_callback_ns": 0,
+        "seal_callback_ns": 0, "online_calls": 1, "online_ns": 12_000_000_000}
+    assert (await cluster.post("worker_a", "cancel")).status_code == 200
+    assert (await cluster.metrics("worker_a"))["phase_timing"] == after

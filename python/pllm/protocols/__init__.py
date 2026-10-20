@@ -430,16 +430,20 @@ class GrottoRingDpfProtocol(PendingMethod):
 
 
 class FuseFssSourceDecoder(ProtocolMethod):
-    """D13 public-weight decoder contract, not executable capability admission.
+    """Public-weight ring50/Q12 contract, not executable capability admission.
 
     Original learned-position and adapted dense-RoPE arithmetic have distinct
     identities. The caller must select one; neither is floating-point parity.
+    The opt-in checked-range identity retains D13 arithmetic on accepted requests;
+    native membership rejection is whole-request, after the complete schedule and
+    final mask, without a failure location.
     """
 
     __slots__ = ()
     GPT2_NUMERIC_PROFILE = "fusefss.gpt2-complete-ring50-q12.v1"
     DENSE_ROPE_NUMERIC_PROFILE = "fusefss.dense-rope-ring50-q12.v1"
-    NUMERIC_PROFILES = (GPT2_NUMERIC_PROFILE, DENSE_ROPE_NUMERIC_PROFILE)
+    DENSE_ROPE_CHECKED_NUMERIC_PROFILE = "fusefss.dense-rope-checked-ranges-ring50-q12.v1"
+    NUMERIC_PROFILES = (GPT2_NUMERIC_PROFILE, DENSE_ROPE_NUMERIC_PROFILE, DENSE_ROPE_CHECKED_NUMERIC_PROFILE)
     RING_BITS = 50
     FRACTIONAL_BITS = 12
     descriptor = ComponentDescriptor(
@@ -448,27 +452,35 @@ class FuseFssSourceDecoder(ProtocolMethod):
         lifecycle_phase="offline+online",
         parameter_schema={"type": "object", "additionalProperties": False,
             "required": ["numeric_profile"], "properties": {
-                "numeric_profile": {"type": "string", "enum": list(NUMERIC_PROFILES)},
-                "weights": {"type": "string", "const": "public"}}},
+                 "numeric_profile": {"type": "string", "enum": list(NUMERIC_PROFILES)},
+                 "weights": {"type": "string", "const": "public"},
+                 "capacity": {"type": "string", "enum": ["decoder"]}}},
         capabilities=("public-weight-source-decoder", "ring50-q12", "external-nearest-even",
                       "internal-signed-floor", "protected-full-prefix-recomputation",
-                      "private-greedy-feedback", "final-only-token-ids"),
+                       "private-greedy-feedback", "final-only-token-ids", "opt-in-checked-range-whole-request-outcome"),
         required_host_features=("native-fss-decoder-admission", "independent-trusted-dealer",
                                 "distinct-authenticated-confidential-role-channels"),
         role_eligibility=("client", "dealer", "worker_a", "worker_b"),
     )
 
     def __init__(self, *, numeric_profile: Literal[
-            "fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1"],
-            weights: Literal["public"] = "public") -> None:
+            "fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1",
+            "fusefss.dense-rope-checked-ranges-ring50-q12.v1"],
+             weights: Literal["public"] = "public", capacity: Literal["capsule", "decoder"] = "capsule") -> None:
         if type(numeric_profile) is not str or numeric_profile not in self.NUMERIC_PROFILES:
-            raise ConfigurationError("FuseFSS numeric_profile must explicitly select a D13 complete-decoder identity")
+            raise ConfigurationError("FuseFSS numeric_profile must explicitly select a complete-decoder identity")
         if type(weights) is not str or weights != "public":
             raise ConfigurationError("FuseFSS source decoder supports public weights only")
-        super().__init__(self.descriptor.component, {"numeric_profile": numeric_profile})
+        if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
+            raise ConfigurationError("FuseFSS capacity must be capsule or decoder")
+        params = {"numeric_profile": numeric_profile}
+        if capacity != "capsule":
+            params["capacity"] = capacity
+        super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {"numeric_profile": self.params["numeric_profile"], "weights": "public"}
+        return {"numeric_profile": self.params["numeric_profile"], "weights": "public",
+                "capacity": self.params.get("capacity", "capsule")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

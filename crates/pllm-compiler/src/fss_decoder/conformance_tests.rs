@@ -1,5 +1,75 @@
 use super::*;
 
+/// Ordinary regression: every physical node and private feedback step is checked
+/// against the independently frozen integer result. No export/evidence bundle.
+#[test]
+#[ignore = "fresh-material full generated Qwen regression; explicit focused run"]
+fn decoder_row_energy_matches_frozen_generated_qwen() {
+    frozen_generated_qwen_with_policy(false);
+}
+
+#[test]
+#[ignore = "fresh-material D14 full generated Qwen regression; explicit focused run"]
+fn checked_profile_matches_frozen_generated_qwen() {
+    frozen_generated_qwen_with_policy(true);
+}
+
+fn frozen_generated_qwen_with_policy(checked: bool) {
+    let inputs = read_json(fixture_dir().join("inputs.json"));
+    let graphs = read_json(fixture_dir().join("semantic-graphs.json"));
+    let expected = read_json(fixture_dir().join("semantic-expected.json"));
+    let case = &inputs["cases"][2];
+    assert_eq!(case["id"], "qwen2-tied-generated");
+    let semantic = semantic(case);
+    let resident = source(case, &semantic).unwrap();
+    let digest = resident.digest();
+    let mut tensors = Vec::new();
+    for tensor in resident.tensors {
+        if tensor.shape().len() != 2 {
+            tensors.push(tensor);
+            continue;
+        }
+        let mut import = crate::fss_decoder::source::TensorImport::new(
+            tensor.id(),
+            tensor.shape(),
+            Capacity::Decoder,
+        )
+        .unwrap();
+        for values in tensor.values().unwrap().chunks(8192) {
+            let mut frame = Vec::new();
+            for &code in values {
+                let word = (code as f32 / 4096.0).to_bits();
+                assert_eq!(
+                    crate::fss_decoder::source::decode_ieee(WeightDtype::F32, word).unwrap(),
+                    code
+                );
+                frame.extend_from_slice(&word.to_le_bytes());
+            }
+            import.append(WeightDtype::F32, &frame).unwrap();
+        }
+        tensors.push(import.finish().unwrap());
+    }
+    let mut source = Source::new_with_capacity(tensors, Capacity::Decoder)
+        .unwrap()
+        .with_rotary(resident.rotary)
+        .unwrap();
+    assert_eq!(source.digest(), digest);
+    if checked {
+        source = source.with_checked_ranges();
+    }
+    let program = Program::compile(
+        &semantic,
+        source,
+        number(case, "generation_count"),
+        Limits::for_capacity(Capacity::Decoder),
+    )
+    .unwrap();
+    let (tokens, trace, _) = execute(&program, case, 2);
+    let actual = semantic_native_result(&semantic, case, &graphs["cases"][2], &tokens, &trace);
+    assert_eq!(actual["nodes"].as_array().unwrap().len(), 186);
+    assert_eq!(actual, expected["results"][2]);
+}
+
 // Preserve original witnessed rejection/source snapshots byte-for-byte. Future
 // reruns of the original stricter schema get distinct artifact names.
 fn original_rerun_json(name: &str, value: &Value) {
@@ -104,7 +174,7 @@ fn frozen_rope_signed_product_order_matches_approved_oracle() {
             for feature in 0..d / 2 {
                 let i = (head * sequence + position) * d + feature;
                 let j = i + d / 2;
-                if (q[j] * sin.values()[position * d + feature]).rem_euclid(4096) != 0 {
+                if (q[j] * sin.values().unwrap()[position * d + feature]).rem_euclid(4096) != 0 {
                     witness = Some((head, position, feature, i, j));
                     break 'outer;
                 }
@@ -123,8 +193,8 @@ fn frozen_rope_signed_product_order_matches_approved_oracle() {
     };
     let lo = q[i].min(q[j]);
     let hi = q[i].max(q[j]);
-    let cosine = cos.values()[position * d + feature];
-    let sine = sin.values()[position * d + feature];
+    let cosine = cos.values().unwrap()[position * d + feature];
+    let sine = sin.values().unwrap()[position * d + feature];
     let (plan, _) = kernels::rope(
         binding,
         [gates::InputRange { min: lo, max: hi }; 2],
@@ -208,7 +278,11 @@ fn attempt_frozen_exchange_native_replay_without_fabricating_checkpoints() {
         for (name, value) in c["tensors"].as_object().unwrap() {
             checkpoints.insert(
                 format!("public.{name}"),
-                public_tensor(name, value).unwrap().values().to_vec(),
+                public_tensor(name, value)
+                    .unwrap()
+                    .values()
+                    .unwrap()
+                    .to_vec(),
             );
         }
         checkpoints.insert(
@@ -216,6 +290,7 @@ fn attempt_frozen_exchange_native_replay_without_fabricating_checkpoints() {
             public_tensor("scale", &c["attention_scale"])
                 .unwrap()
                 .values()
+                .unwrap()
                 .to_vec(),
         );
         let mut tensors = Vec::new();

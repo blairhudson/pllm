@@ -97,9 +97,10 @@ async def client_route(cluster, monkeypatch):
     clients = []
     reservations = []
     transforms = []
+    requests = []
     class NativeClient:
         def __init__(self, raw_contract, session, manifests, ids):
-            assert raw_contract == contract()
+            assert raw_contract == contract(capacity=cluster.double.capacity)
             assert len(manifests) == 3 and ids == [1, 2, 3]
             assert all(p.metadata(m)["program"] == "e" * 64 for m in manifests)
             self.session, self.closed = session.hex(), False
@@ -126,16 +127,17 @@ async def client_route(cluster, monkeypatch):
             assert kwargs == {"roles": p.ROLES, "namespace": "fss"}
             assert set(connections_map) == set(p.ROLES)
             self.request_id, self.live, self.counts = None, [False] * 3, {}
-            self.deadline, self.cancelled = time.monotonic() + timeout, cancelled
+            self.deadline, self.cancelled = client.time.monotonic() + timeout, cancelled
             self.closed = False
             owners.append(self)
         def check(self):
-            if self.cancelled() or time.monotonic() >= self.deadline:
+            if self.cancelled() or client.time.monotonic() >= self.deadline:
                 raise ProtocolError("bounded review client cancelled", 499)
         def post(self, index, action, payload=b"", *, phase, limit):
             self.check()
             role = p.ROLES[index]
             events.append((role, action, phase))
+            requests.append((role, action, payload))
             async def request():
                 if action == "manifest":
                     return await cluster.clients[role].get("/v1/fss/manifest")
@@ -165,7 +167,7 @@ async def client_route(cluster, monkeypatch):
 
     @contextmanager
     def reserve(size):
-        assert size == p.CLIENT_MEMORY
+        assert size == client.client_memory_bytes(cluster.double.capacity)
         record = {"closed": False}; reservations.append(record)
         try: yield
         finally: record["closed"] = True
@@ -178,10 +180,9 @@ async def client_route(cluster, monkeypatch):
         audit = None
         def __call__(self): return self.cancelled
         def record_audit(self, value): self.audit = value
-    source = Frozen("client")
-    source.contract = {"vocabulary": 32}
+    source = Frozen("client", cluster.double.capacity)
     return SimpleNamespace(events=events, peers=owners, clients=clients,
-        reservations=reservations, attempt=Attempt(), source=source, transforms=transforms)
+        reservations=reservations, attempt=Attempt(), source=source, transforms=transforms, requests=requests)
 
 
 @pytest.mark.asyncio
@@ -197,6 +198,11 @@ async def test_ordinary_client_handler_path_completes_after_dealer_retirement_an
     assert "input-0-after-dealer-retirement" in client_route.events
     assert "input-1-after-dealer-retirement" in client_route.events
     assert "native-final-reconstruction" in client_route.events
+    for _, action, raw in client_route.requests:
+        if action == "admit":
+            value = p.unpack(raw, limit=p.ADMISSION_LIMIT)
+            assert raw == p.pack({"request": value["request"], "epoch": value["epoch"],
+                "epochs": value["epochs"], "rows": 3, "outputs": 3, "contract": contract()}, limit=p.ADMISSION_LIMIT)
     assert attempt.audit is not None
     await retired(cluster)
 
@@ -524,3 +530,127 @@ async def test_whole_private_body_declaration_rejected_before_receive(cluster):
     assert not reads
     assert next(m["status"] for m in messages if m["type"] == "http.response.start") == 400
     await retired(cluster, ("worker_a",))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replay_at_boundary", [False, True])
+async def test_more_than_4096_native_admitted_records_through_authenticated_lifecycle(cluster, replay_at_boundary):
+    count = cluster.double.kernels = 4097
+    if replay_at_boundary:
+        def transform(request):
+            if request.url.path.endswith("/material") and request.url.port == 7300:
+                value = p.unpack(request.content, limit=p.FRAME_LIMIT)
+                if value["sequence"] == 4096:
+                    value["sequence"] = 4095
+                    return httpx.Request(request.method, request.url, headers=request.headers,
+                                         content=p.pack(value, limit=p.FRAME_LIMIT))
+            return request
+        cluster.double.peer_transform = transform
+    await cluster.ready()
+    prepared = await asyncio.wait_for(cluster.post("dealer", "prepare"), 30)
+    if replay_at_boundary:
+        assert prepared.status_code == 400
+        assert not cluster.double.calls  # failure is still strictly offline
+        await retired(cluster, ("dealer", "worker_a"))
+        assert (await cluster.post("worker_b", "cancel")).status_code == 200
+    else:
+        assert prepared.status_code == 200
+        assert cluster.double.sealed_roles == set(p.HOLDERS)
+        assert (await cluster.post("dealer", "finish")).status_code == 200
+        assert next(n for n in cluster.double.natives if n.role == 2).closed
+        await cluster.inputs()
+        for role in p.HOLDERS:
+            assert (await cluster.post(role, "start")).status_code == 200
+        replies = await asyncio.wait_for(asyncio.gather(*(cluster.post(r, "finish") for r in p.HOLDERS)), 30)
+        assert all(r.status_code == 200 for r in replies)
+        for role, reply in zip(p.HOLDERS, replies):
+            _, _, receipt = client._receipt(reply.content, role)
+            assert receipt["records_written"] == receipt["records_read"] == count
+            assert receipt["state"] == "finished"
+        assert len(cluster.double.calls) == 2 * count
+    await retired(cluster)
+    # The native double deliberately retains callback objects after close.
+    # They must retain neither payload/native/source owners nor callback queues.
+    for native in cluster.double.natives:
+        if native.callbacks is None:
+            continue
+        attempt = native.callbacks.attempt
+        assert attempt.reservation is attempt.native is attempt.tape is attempt.loaded is None
+        assert attempt.input is attempt.output is attempt.mailbox is attempt.contract is None
+        assert not attempt.callback_tasks and not attempt.callback_futures
+        with pytest.raises(ValueError):
+            await asyncio.to_thread(native.callbacks.finish)
+        native.callbacks.cancel()  # retained cancellation owner remains idempotent
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cluster", [300, {"capacity": "decoder"}], indirect=True)
+async def test_cancelled_callback_future_keeps_single_live_slot_until_coroutine_drains(cluster, monkeypatch):
+    await cluster.ready()
+    native = next(n for n in cluster.double.natives if n.role == 2)
+    entered, release = asyncio.Event(), asyncio.Event()
+    failed, native_release = threading.Event(), threading.Event()
+    original = Routing.handle_async_request
+    async def stalled(self, request):
+        response = await original(self, request)
+        entered.set()
+        # Model a transport cancellation finalizer that still owns its body.
+        while not release.is_set():
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                pass
+        return response
+    monkeypatch.setattr(Routing, "handle_async_request", stalled)
+    def run(frame, callbacks):
+        native.running, native.callbacks = True, callbacks
+        try:
+            try:
+                callbacks.deliver(callback_metadata(cluster.request_id, "material", 0), b"packet")
+            except BaseException:
+                failed.set()
+                assert native_release.wait(5)
+                raise ValueError("test callback cancellation") from None
+        finally:
+            native.running = False
+    native.run = run
+    preparing = asyncio.create_task(cluster.post("dealer", "prepare"))
+    cancelling = None
+    try:
+        await asyncio.wait_for(entered.wait(), 2)
+        callbacks = native.callbacks  # intentionally retain the owner past cancellation
+        attempt = callbacks.attempt
+        with attempt.callback_lock:
+            assert len(attempt.callback_futures) == 1
+            next(iter(attempt.callback_futures)).cancel()
+        assert await asyncio.to_thread(failed.wait, 2)
+        assert not attempt.cancelled() and not attempt.callback_futures
+        assert attempt.callback_pending and len(attempt.callback_tasks) == 1
+        calls = len(cluster.double.rpc_log)
+        with pytest.raises(ValueError, match="callback retired"):
+            await asyncio.wait_for(asyncio.to_thread(callbacks.deliver,
+                callback_metadata(cluster.request_id, "material", 1), b"second-packet"), 1)
+        assert len(cluster.double.rpc_log) == calls
+        held = [r for r in cluster.double.reservations if not r["closed"]]
+        storage = [r for r in cluster.double.storage_reservations if r["role"] == "dealer"]
+        loaded = next(x for x in cluster.double.loaded if x.role == "dealer")
+        cancelling = asyncio.create_task(cluster.post("dealer", "cancel"))
+        native_release.set()
+        await asyncio.sleep(.02)
+        assert not cancelling.done() and not loaded.closed
+        assert all(not r["closed"] for r in held)
+        assert all(not r["closed"] for r in storage)
+        release.set()
+        assert (await asyncio.wait_for(cancelling, 3)).status_code == 200
+        assert native.closed and loaded.closed
+        assert all(r["closed"] for r in storage)
+        assert not attempt.callback_pending and not attempt.callback_tasks and not attempt.callback_futures
+        assert attempt.reservation is attempt.native is attempt.loaded is None
+        with pytest.raises(ValueError):
+            await asyncio.to_thread(callbacks.deliver,
+                callback_metadata(cluster.request_id, "material", 0), b"late-packet")
+    finally:
+        native_release.set()
+        release.set()
+        await asyncio.wait_for(asyncio.gather(preparing, *([cancelling] if cancelling else []),
+                                              return_exceptions=True), 5)

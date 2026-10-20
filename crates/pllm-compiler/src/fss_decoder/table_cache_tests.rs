@@ -130,7 +130,7 @@ fn transport_prices_live_request_cache_alongside_each_kernel() {
     }
     impl MaterialVisitor for Check<'_, '_> {
         fn visit(&mut self, _: Context, plan: &Plan<'_>) -> Result<(), Error> {
-            let r = plan.transport_resources(6, self.admission.guard_capacity())?;
+            let r = plan.transport_resources_indexed(6, self.admission.guard_capacity())?;
             let cache = self.tables.stats();
             // Observe actual live cache leases while this Plan is borrowed.
             // Neither current Plan resources nor unrelated per-role cache

@@ -204,7 +204,8 @@ class FuseFssSourceCpu(Pipeline):
     PROFILE: str
     SLOT_NAMES: tuple[str, ...]
     def __init__(self, model: ModelSource, *, linear: ProtocolMethod | None = ...,
-                 numeric_profile: Literal["fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1"] | None = ...,
+                 numeric_profile: Literal["fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1", "fusefss.dense-rope-checked-ranges-ring50-q12.v1"] | None = ...,
+                 capacity: Literal["capsule", "decoder"] = "capsule",
                  topology: RoleTopology = ..., state: StateProtocol = ..., kernels: KernelBackend = ...) -> None: ...
     @property
     def linear(self) -> FuseFssSourceDecoder: ...

@@ -1,9 +1,9 @@
-//! Immutable SDK composition and source *geometry* admission for D13.
+//! Immutable SDK composition and source geometry admission for D13 / opt-in D14.
 //!
 //! No checkpoint values are read here. Pins bind caller-verified artifacts;
 //! numeric domains, range proofs, fresh material, live owners and complete work
 //! admission remain the responsibility of Source/Program and the role runtime.
-use super::{Limits, MAX_BYTES, MAX_NODES, MAX_VALUES};
+use super::{Capacity, Limits, MAX_NODES, MAX_VALUES};
 use crate::{ExperimentDeployment, ExperimentDocument, ExperimentPipeline};
 use pllm_models::{
     DecoderExpansionBudget, DecoderPlan, DecoderWorkload, ModelOperation, ModelOperator as Op,
@@ -20,6 +20,7 @@ pub const TOPOLOGY: &str = "pllm/trusted-dealer-two-share/v1";
 pub const STATE: &str = "pllm/fixed-count-private-prefix/v1";
 pub const GPT2_NUMERIC: &str = "fusefss.gpt2-complete-ring50-q12.v1";
 pub const DENSE_ROPE_NUMERIC: &str = "fusefss.dense-rope-ring50-q12.v1";
+pub const DENSE_ROPE_CHECKED_NUMERIC: &str = "fusefss.dense-rope-checked-ranges-ring50-q12.v1";
 pub const MAX_CONFIG_BYTES: usize = 16 << 10;
 const MAX_EXPERIMENT_BYTES: usize = 32 << 10;
 const MAX_REQUESTS: u64 = 64;
@@ -45,10 +46,20 @@ impl Write for Count {
     }
 }
 pub fn encoded_length<T: Serialize>(value: &T, limit: usize) -> Result<usize, String> {
+    encoded_length_with_capacity(value, limit, Capacity::Capsule)
+}
+pub fn encoded_length_with_capacity<T: Serialize>(
+    value: &T,
+    limit: usize,
+    capacity: Capacity,
+) -> Result<usize, String> {
     let mut count = Count {
         length: 0,
         limit,
-        lexical: Lexical::default(),
+        lexical: Lexical {
+            capacity,
+            ..Lexical::default()
+        },
     };
     serde_json::to_writer(&mut count, value)
         .map_err(|_| reject("serialized metadata exceeds bound"))?;
@@ -91,12 +102,26 @@ fn canonical_value(value: &Value, out: &mut Vec<u8>) -> Result<(), String> {
 /// Two passes: counting sink before Value/canonical output materialization. The
 /// bounded Value copy and borrowed-key sorting scratch are separately priced.
 pub fn bounded_canonical<T: Serialize>(value: &T, limit: usize) -> Result<Vec<u8>, String> {
-    encoded_length(value, limit)?;
+    bounded_canonical_with_capacity(value, limit, Capacity::Capsule)
+}
+pub fn bounded_canonical_with_capacity<T: Serialize>(
+    value: &T,
+    limit: usize,
+    capacity: Capacity,
+) -> Result<Vec<u8>, String> {
+    encoded_length_with_capacity(value, limit, capacity)?;
     let value = serde_json::to_value(value).map_err(|_| reject("invalid canonical metadata"))?;
-    bounded_value_canonical(&value, limit)
+    bounded_value_canonical_with_capacity(&value, limit, capacity)
 }
 pub fn bounded_value_canonical(value: &Value, limit: usize) -> Result<Vec<u8>, String> {
-    let length = encoded_length(value, limit)?;
+    bounded_value_canonical_with_capacity(value, limit, Capacity::Capsule)
+}
+pub fn bounded_value_canonical_with_capacity(
+    value: &Value,
+    limit: usize,
+    capacity: Capacity,
+) -> Result<Vec<u8>, String> {
+    let length = encoded_length_with_capacity(value, limit, capacity)?;
     let mut output = Vec::new();
     output
         .try_reserve_exact(length)
@@ -113,6 +138,7 @@ pub fn bounded_value_canonical(value: &Value, limit: usize) -> Result<Vec<u8>, S
 /// byte lengths. At most 6 encoded bytes/decoded byte are needed for JSON escapes.
 #[derive(Default)]
 struct Lexical {
+    capacity: Capacity,
     quoted: bool,
     escaped: bool,
     run: usize,
@@ -154,7 +180,12 @@ impl Lexical {
                     }
                     _ => {}
                 }
-                if self.depth > 16 || self.structural > 32768 {
+                let structural_limit = if self.capacity == Capacity::Decoder {
+                    1 << 17
+                } else {
+                    32768
+                };
+                if self.depth > 16 || self.structural > structural_limit {
                     return Err(reject("JSON structural admission exceeded"));
                 }
             }
@@ -163,11 +194,18 @@ impl Lexical {
     }
 }
 fn bounded_json_value(bytes: &[u8]) -> Result<Value, String> {
-    Lexical::default().accept(bytes)?;
+    bounded_json_value_with_capacity(bytes, Capacity::Capsule)
+}
+fn bounded_json_value_with_capacity(bytes: &[u8], capacity: Capacity) -> Result<Value, String> {
+    Lexical {
+        capacity,
+        ..Lexical::default()
+    }
+    .accept(bytes)?;
     let value = serde_json::from_slice(bytes).map_err(|_| reject("invalid bounded JSON"))?;
     let mut nodes = 0;
     let mut strings = 0;
-    check_metadata(&value, 0, &mut nodes, &mut strings)?;
+    check_metadata_with_capacity(&value, 0, &mut nodes, &mut strings, capacity)?;
     Ok(value)
 }
 
@@ -177,10 +215,24 @@ fn check_metadata(
     nodes: &mut usize,
     strings: &mut usize,
 ) -> Result<(), String> {
+    check_metadata_with_capacity(value, depth, nodes, strings, Capacity::Capsule)
+}
+fn check_metadata_with_capacity(
+    value: &Value,
+    depth: usize,
+    nodes: &mut usize,
+    strings: &mut usize,
+    capacity: Capacity,
+) -> Result<(), String> {
     *nodes = nodes
         .checked_add(1)
         .ok_or_else(|| reject("metadata overflow"))?;
-    if depth > 16 || *nodes > 32768 {
+    let node_limit = if capacity == Capacity::Decoder {
+        1 << 16
+    } else {
+        32768
+    };
+    if depth > 16 || *nodes > node_limit {
         return Err(reject("metadata nodes/depth exceed native bound"));
     }
     match value {
@@ -195,7 +247,7 @@ fn check_metadata(
                 return Err(reject("metadata array exceeds bound"));
             }
             for v in a {
-                check_metadata(v, depth + 1, nodes, strings)?;
+                check_metadata_with_capacity(v, depth + 1, nodes, strings, capacity)?;
             }
         }
         Value::Object(m) => {
@@ -204,7 +256,7 @@ fn check_metadata(
                     return Err(reject("metadata key exceeds bound"));
                 }
                 *strings += k.len();
-                check_metadata(v, depth + 1, nodes, strings)?;
+                check_metadata_with_capacity(v, depth + 1, nodes, strings, capacity)?;
             }
         }
         _ => {}
@@ -222,6 +274,7 @@ fn numeric(profile: &str) -> Result<&'static str, String> {
     match profile {
         GPT2_NUMERIC => Ok(GPT2_NUMERIC),
         DENSE_ROPE_NUMERIC => Ok(DENSE_ROPE_NUMERIC),
+        DENSE_ROPE_CHECKED_NUMERIC => Ok(DENSE_ROPE_CHECKED_NUMERIC),
         _ => Err(reject(
             "explicit D13 complete-decoder numeric_profile required",
         )),
@@ -247,12 +300,28 @@ fn profile(document: &ExperimentDocument) -> Result<&'static str, String> {
     )
 }
 
+fn capacity(document: &ExperimentDocument) -> Result<Capacity, String> {
+    match document
+        .pipeline
+        .components
+        .get("linear")
+        .and_then(|c| c.params.get("capacity"))
+    {
+        None => Ok(Capacity::Capsule),
+        Some(Value::String(s)) if s == "decoder" => Ok(Capacity::Decoder),
+        _ => Err(reject(
+            "capacity must be omitted for capsule or explicitly decoder",
+        )),
+    }
+}
+
 pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     // Generic checks only: never route this composition through client-KV or
     // masked/int8 composition validation. The top-level resolver selects us.
     crate::validate_experiment(document)?;
     crate::validate_experiment_model(&document.pipeline.model)?;
     let chosen = profile(document)?;
+    let capacity = capacity(document)?;
     let limits = Limits::default();
     sequence(
         usize::try_from(document.budget.max_input_tokens)
@@ -270,8 +339,12 @@ pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     {
         return Err(reject("unsupported source, deployment or request envelope"));
     }
+    let mut linear = json!({"numeric_profile": chosen});
+    if capacity == Capacity::Decoder {
+        linear["capacity"] = json!("decoder");
+    }
     let expected = [
-        ("linear", PROTOCOL, json!({"numeric_profile": chosen})),
+        ("linear", PROTOCOL, linear),
         ("topology", TOPOLOGY, json!({})),
         ("state", STATE, json!({})),
         ("kernels", "pllm/cpu", json!({"threads":1})),
@@ -313,12 +386,20 @@ fn sequence(rows: usize, outputs: usize) -> Result<usize, String> {
 /// Shapes are checkpoint storage shapes, not silently transposed kernel shapes.
 /// Every byte count below is a payload count, NOT an actual allocator reservation.
 pub struct SourcePreflight {
+    pub capacity: Capacity,
     pub source_config_sha256: String,
     pub plan: DecoderPlan,
     pub source_shapes: BTreeMap<String, Vec<usize>>,
     pub source_layouts: BTreeMap<String, String>,
     pub source_float32_bytes: usize,
     pub source_q12_value_bytes: usize,
+    /// File payload only. Independent of native resident admission.
+    pub source_disk_bytes: u64,
+    /// Conservative logical native source owner plus one bounded read scratch.
+    /// Not process RSS, page-cache residency, or complete execution admission.
+    pub source_resident_bound_bytes: usize,
+    /// Peak optional producer certificate payload, including column scratch once.
+    pub source_certificate_peak_bytes: usize,
     pub rotary_shapes: BTreeMap<String, Vec<usize>>,
     pub rotary_float32_bytes: usize,
     pub source_minimum_owner_bytes: usize,
@@ -413,17 +494,18 @@ fn phase_admission(a: &SourcePreflight) -> Result<SourcePhaseAdmission, String> 
     // Output is <=1 MiB. Sorting/index scratch and both parsed configs are priced.
     let scratch = MAX_NODES * 512 + MAX_CONFIG_BYTES * 3 + MAX_CONTRACT_BYTES;
     let serialization = add_bytes(add_bytes(plan * 2, inventory * 2)?, scratch)?;
-    // Final encoded source is moved, not duplicated. New final Q12 values belong
-    // to its 8 MiB allowance; additional staging is max 8*n original rotary F32
-    // bytes (or 4*n tensor words). Borrowed pair frames add 128 KiB. A 1 MiB
-    // conversion/name/container slack also covers the current not-yet-final owner.
+    // Final source owners move without copying. The 8-MiB resident allowance
+    // excludes separately checked immutable files. Rotary staging is <=8*n;
+    // borrowed pair frames add 128 KiB. The additional MiB covers two bounded
+    // Q12/file write buffers, source hashing scratch, names and pending owners.
     let ingestion = add_bytes(
         add_bytes(plan, inventory)?,
         super::MAX_BYTES
             + MAX_VALUES * 8
             + 2 * super::import::MAX_FRAME_BYTES
             + (1 << 20)
-            + scratch,
+            + scratch
+            + a.source_certificate_peak_bytes,
     )?;
     let external = add_bytes(
         plan,
@@ -431,10 +513,26 @@ fn phase_admission(a: &SourcePreflight) -> Result<SourcePhaseAdmission, String> 
     )?;
     let native_nodes =
         a.plan.prefill.operations.len() * (std::mem::size_of::<super::program::Node>() + 4 * 8);
-    let preparation = add_bytes(
+    let proof_bytes =
+        if a.capacity == Capacity::Decoder || a.numeric_profile == DENSE_ROPE_CHECKED_NUMERIC {
+            super::energy::reservation_bound(a.plan.prefill.operations.len())
+                .map_err(|_| reject("row proof owner overflow"))?
+        } else {
+            0
+        };
+    let mut preparation = add_bytes(
         plan * 3,
-        super::MAX_BYTES + native_nodes + scratch + external - plan,
+        super::MAX_BYTES + native_nodes + proof_bytes + scratch + external - plan,
     )?;
+    if proof_bytes != 0 {
+        // Public ordered admission builds bounded native Plans/cache; weighted
+        // certificate scans share the same remaining construction allowance.
+        // Program limits that combined allowance to at most one third of 64 MiB.
+        preparation = add_bytes(
+            preparation,
+            pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES / 3,
+        )?;
+    }
     let cap = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
     if serialization > cap || ingestion > cap || preparation > cap {
         return Err(reject(
@@ -476,12 +574,15 @@ pub(super) fn compile_credit_floor(
 }
 
 fn count(shape: &[u64]) -> Result<usize, String> {
+    count_limit(shape, MAX_VALUES)
+}
+fn count_limit(shape: &[u64], limit: usize) -> Result<usize, String> {
     if shape.is_empty() || shape.len() > 4 || shape.contains(&0) {
         return Err(reject("invalid source/graph tensor shape"));
     }
     shape.iter().try_fold(1usize, |p, &d| {
         p.checked_mul(usize::try_from(d).map_err(|_| reject("shape overflow"))?)
-            .filter(|&v| v <= MAX_VALUES)
+            .filter(|&v| v <= limit)
             .ok_or_else(|| reject("tensor exceeds native MAX_VALUES"))
     })
 }
@@ -703,13 +804,14 @@ fn declared(op: &ModelOperation, key: &str, expected: &[u64]) -> Result<(), Stri
 }
 
 fn bind(
+    capacity: Capacity,
     shapes: &mut BTreeMap<String, Vec<usize>>,
     layouts: &mut BTreeMap<String, String>,
     name: &str,
     shape: &[u64],
     layout: &str,
 ) -> Result<(), String> {
-    count(shape)?;
+    count_limit(shape, capacity.max_tensor_values())?;
     if name.is_empty() || name.len() > 1024 || name.bytes().any(|v| v == 0) {
         return Err(reject("invalid source tensor identifier"));
     }
@@ -741,10 +843,20 @@ fn artifact<'a>(op: &'a ModelOperation, key: &str) -> Result<&'a str, String> {
 
 // Internal inspection only: never accept a caller-supplied plan instead of
 // lowering the byte-bounded source config through preflight_source.
+#[cfg(test)]
 fn preflight_plan(
     plan: DecoderPlan,
     outputs: usize,
     numeric_profile: &str,
+) -> Result<SourcePreflight, String> {
+    preflight_plan_with_capacity(plan, outputs, numeric_profile, Capacity::Capsule)
+}
+
+fn preflight_plan_with_capacity(
+    plan: DecoderPlan,
+    outputs: usize,
+    numeric_profile: &str,
+    capacity: Capacity,
 ) -> Result<SourcePreflight, String> {
     let chosen = numeric(numeric_profile)?;
     let rows = usize::try_from(plan.prefill.query_sequence).map_err(|_| reject("row overflow"))?;
@@ -766,10 +878,10 @@ fn preflight_plan(
             return Err(reject("graph exceeds native descriptor limits"));
         }
         for s in g.state_inputs.iter().chain(&g.state_outputs) {
-            count(&s.shape)?;
+            count_limit(&s.shape, capacity.max_graph_values())?;
         }
         for op in &g.operations {
-            count(&op.output_shape)?;
+            count_limit(&op.output_shape, capacity.max_graph_values())?;
             allowed_attributes(op)?;
             // Program executes all selections on a complete growing prefix.
             // Price the largest active view, not merely the initial prefill.
@@ -787,7 +899,7 @@ fn preflight_plan(
                         expanded[3] = maximum_sequence as u64;
                     }
                 }
-                count(&expanded)?;
+                count_limit(&expanded, capacity.max_graph_values())?;
             }
         }
     }
@@ -805,7 +917,7 @@ fn preflight_plan(
             || ops
                 .iter()
                 .any(|v| matches!(v.operator, Op::Silu | Op::RmsNorm | Op::Multiply))))
-        || (chosen == DENSE_ROPE_NUMERIC
+        || (matches!(chosen, DENSE_ROPE_NUMERIC | DENSE_ROPE_CHECKED_NUMERIC)
             && (!rotary
                 || positions
                 || layer_norm
@@ -868,6 +980,7 @@ fn preflight_plan(
                     ];
                     declared(op, "weight_shape", &shape)?;
                     bind(
+                        capacity,
                         &mut source_shapes,
                         &mut source_layouts,
                         artifact(op, "weight")?,
@@ -902,6 +1015,7 @@ fn preflight_plan(
                             layout
                         };
                     bind(
+                        capacity,
                         &mut source_shapes,
                         &mut source_layouts,
                         name,
@@ -911,6 +1025,7 @@ fn preflight_plan(
                     if !op.attributes["bias"].is_null() {
                         declared(op, "bias_shape", &[columns])?;
                         bind(
+                            capacity,
                             &mut source_shapes,
                             &mut source_layouts,
                             artifact(op, "bias")?,
@@ -929,6 +1044,7 @@ fn preflight_plan(
                     }
                     declared(op, "weight_shape", &[width])?;
                     bind(
+                        capacity,
                         &mut source_shapes,
                         &mut source_layouts,
                         artifact(op, "weight")?,
@@ -938,6 +1054,7 @@ fn preflight_plan(
                     if !op.attributes["bias"].is_null() {
                         declared(op, "bias_shape", &[width])?;
                         bind(
+                            capacity,
                             &mut source_shapes,
                             &mut source_layouts,
                             artifact(op, "bias")?,
@@ -961,20 +1078,47 @@ fn preflight_plan(
     })?;
     let source_q12_value_bytes = values
         .checked_mul(8)
-        .filter(|&n| n <= MAX_BYTES)
+        .filter(|&n| n as u64 <= capacity.max_source_bytes())
         .ok_or_else(|| reject("source Q12 payload exceeds native MAX_BYTES"))?;
     let source_float32_bytes = values
         .checked_mul(4)
         .ok_or_else(|| reject("source FP32 payload overflow"))?;
     let mut rotary_shapes = BTreeMap::new();
     let mut rotary_float32_bytes = 0usize;
+    let mut source_disk_bytes = 0u64;
+    let mut source_certificate_peak_bytes = 0usize;
     let mut source_minimum_owner_bytes = std::mem::size_of::<super::Source>()
-        + source_shapes.len() * std::mem::size_of::<super::Tensor>()
-        + source_q12_value_bytes;
+        + source_shapes.len() * std::mem::size_of::<super::Tensor>();
     for (name, shape) in &source_shapes {
+        let bytes = shape.iter().product::<usize>() * 8;
+        let resident = if capacity.file_backed(shape) {
+            let layout = super::source::certified_file_layout(shape, capacity)
+                .map_err(|_| reject("source certificate geometry exceeds bounds"))?;
+            let resources = layout.resources();
+            source_certificate_peak_bytes =
+                source_certificate_peak_bytes.max(resources.certificate_payload_bytes);
+            source_disk_bytes = source_disk_bytes
+                .checked_add(resources.disk_bytes)
+                .and_then(|n| n.checked_add(resources.row_statistics_disk_bytes))
+                .ok_or_else(|| reject("source disk accounting overflow"))?;
+            super::capacity::FILE_OWNER_BYTES
+        } else {
+            bytes
+        };
         source_minimum_owner_bytes = source_minimum_owner_bytes
-            .checked_add(name.len() + shape.len() * std::mem::size_of::<usize>())
+            .checked_add(name.len() + shape.len() * std::mem::size_of::<usize>() + resident)
             .ok_or_else(|| reject("source owner size overflow"))?;
+    }
+    if source_disk_bytes != 0 {
+        source_minimum_owner_bytes = add_bytes(
+            source_minimum_owner_bytes,
+            super::capacity::SOURCE_READ_BYTES,
+        )?;
+    }
+    if source_disk_bytes > capacity.max_source_bytes() {
+        return Err(reject(
+            "source files and statistics exceed aggregate disk allowance",
+        ));
     }
     for op in ops.iter().filter(|op| op.operator == Op::RotaryEmbedding) {
         let width = *op
@@ -990,16 +1134,34 @@ fn preflight_plan(
             .ok_or_else(|| reject("rotary owner overflow"))?;
         rotary_shapes.insert(op.id.clone(), vec![maximum_sequence, width as usize]);
     }
-    if source_minimum_owner_bytes > MAX_BYTES {
+    if source_minimum_owner_bytes > capacity.max_resident_bytes() {
         return Err(reject("source owner minimum exceeds native MAX_BYTES"));
     }
+    let source_resident_bound_bytes = source_minimum_owner_bytes;
+    if capacity == Capacity::Capsule {
+        source_minimum_owner_bytes -=
+            std::mem::size_of::<super::Source>() - super::source::legacy_source_header_bytes();
+        source_minimum_owner_bytes -= source_shapes.len()
+            * (std::mem::size_of::<super::Tensor>() - super::source::legacy_tensor_header_bytes());
+    } else {
+        let files = source_shapes
+            .values()
+            .filter(|s| capacity.file_backed(s))
+            .count();
+        source_minimum_owner_bytes -= files * super::capacity::FILE_OWNER_BYTES
+            + usize::from(files != 0) * super::capacity::SOURCE_READ_BYTES;
+    }
     let mut admitted = SourcePreflight {
+        capacity,
         source_config_sha256: String::new(),
         plan,
         source_shapes,
         source_layouts,
         source_float32_bytes,
         source_q12_value_bytes,
+        source_disk_bytes,
+        source_resident_bound_bytes,
+        source_certificate_peak_bytes,
         rotary_shapes,
         rotary_float32_bytes,
         source_minimum_owner_bytes,
@@ -1020,6 +1182,16 @@ pub fn preflight_source(
     outputs: usize,
     numeric_profile: &str,
 ) -> Result<SourcePreflight, String> {
+    preflight_source_with_capacity(config, rows, outputs, numeric_profile, Capacity::Capsule)
+}
+
+pub fn preflight_source_with_capacity(
+    config: &[u8],
+    rows: usize,
+    outputs: usize,
+    numeric_profile: &str,
+    capacity: Capacity,
+) -> Result<SourcePreflight, String> {
     numeric(numeric_profile)?;
     sequence(rows, outputs)?;
     if config.is_empty() || config.len() > MAX_CONFIG_BYTES {
@@ -1031,23 +1203,32 @@ pub fn preflight_source(
     let chosen = match numeric_profile {
         GPT2_NUMERIC => GPT2_NUMERIC,
         DENSE_ROPE_NUMERIC => DENSE_ROPE_NUMERIC,
+        DENSE_ROPE_CHECKED_NUMERIC => DENSE_ROPE_CHECKED_NUMERIC,
         _ => return Err(reject("unapproved numeric profile")),
     };
     if document.get("rope_scaling").is_some_and(|v| !v.is_null()) {
         return Err(reject("scaled/partial rotary is not approved"));
     }
-    config_attributes(&document, chosen == DENSE_ROPE_NUMERIC)?;
+    config_attributes(&document, chosen != GPT2_NUMERIC)?;
     let workload = DecoderWorkload {
         batch: 1,
         max_input_tokens: rows as u64,
         max_new_tokens: outputs as u64,
     };
     let budget = DecoderExpansionBudget {
-        max_layers: MAX_NODES as u64,
-        max_feature_width: MAX_VALUES as u64,
-        max_attention_heads: MAX_VALUES as u64,
-        max_vocabulary: MAX_VALUES as u64,
-        max_tensor_elements: MAX_VALUES as u64,
+        max_layers: if capacity == Capacity::Decoder {
+            32
+        } else {
+            MAX_NODES as u64
+        },
+        max_feature_width: capacity.max_feature_width() as u64,
+        max_attention_heads: if capacity == Capacity::Decoder {
+            128
+        } else {
+            MAX_VALUES as u64
+        },
+        max_vocabulary: capacity.max_vocabulary() as u64,
+        max_tensor_elements: capacity.max_graph_values() as u64,
     };
     let expansion = budget
         .preflight_metadata(&document, workload, MAX_NODES, 1024, 32768, 1 << 20)
@@ -1076,7 +1257,7 @@ pub fn preflight_source(
         }
     }
     // A known incompatible canonical plan must reject before accepting values.
-    encoded_length(&plan, MAX_CONTRACT_BYTES)?;
+    encoded_length_with_capacity(&plan, MAX_CONTRACT_BYTES, capacity)?;
     config_attributes(
         &document,
         plan.prefill
@@ -1137,7 +1318,7 @@ pub fn preflight_source(
             }
         }
     }
-    let mut admitted = preflight_plan(plan, outputs, numeric_profile)?;
+    let mut admitted = preflight_plan_with_capacity(plan, outputs, numeric_profile, capacity)?;
     admitted.source_config_sha256 = format!("{:x}", Sha256::digest(config));
     admitted.phase_admission = phase_admission(&admitted)?;
     // Count the complete SDK document, including inventories/policy, before any
@@ -1152,7 +1333,7 @@ pub fn preflight_source(
         sourcepin: "0000000000000000000000000000000000000000000000000000000000000000",
         tokenizerpin: "0000000000000000000000000000000000000000000000000000000000000000",
     };
-    encoded_length(&sizing, MAX_CONTRACT_BYTES)?;
+    encoded_length_with_capacity(&sizing, MAX_CONTRACT_BYTES, capacity)?;
     Ok(admitted)
 }
 
@@ -1175,6 +1356,8 @@ fn admission_record(minimum: usize) -> Value {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ExecutionFields {
+    #[serde(default)]
+    capacity: Capacity,
     source_config_sha256: String,
     plan: DecoderPlan,
     source_shapes: BTreeMap<String, Vec<usize>>,
@@ -1233,9 +1416,13 @@ fn execution_identity(
     vocabulary: usize,
     width: usize,
     sequence: usize,
+    capacity: Capacity,
 ) -> Result<[u8; 32], String> {
     let mut writer = HashWriter(Sha256::new());
     writer.0.update(b"pllm.fss.source-execution-binding.v1\0");
+    if capacity == Capacity::Decoder {
+        writer.0.update(b"explicit-source-capacity:decoder\0");
+    }
     serde_json::to_writer(
         &mut writer,
         &(
@@ -1263,6 +1450,9 @@ fn execution_identity(
 /// File/tokenizer and external Experiment identities remain authenticated caller
 /// claims: an IEEE tensor stream does not prove whole-file/publisher identities.
 pub struct SourceExecutionBinding {
+    capacity: Capacity,
+    source_disk_bytes: u64,
+    source_resident_bound_bytes: usize,
     identity: [u8; 32],
     rows: usize,
     outputs: usize,
@@ -1296,6 +1486,11 @@ impl Serialize for ContractView<'_> {
         entry!("tokenizer", self.tokenizerpin);
         entry!("weights", "public");
         entry!("numeric_profile", a.numeric_profile);
+        if a.capacity == Capacity::Decoder {
+            entry!("capacity", a.capacity);
+            entry!("source_disk_bytes", a.source_disk_bytes);
+            entry!("source_resident_bound_bytes", a.source_resident_bound_bytes);
+        }
         entry!("plan", a.plan);
         entry!("source_shapes", a.source_shapes);
         entry!("source_layouts", a.source_layouts);
@@ -1326,12 +1521,18 @@ impl Serialize for ContractView<'_> {
     }
 }
 impl SourceExecutionBinding {
+    pub fn capacity(&self) -> Capacity {
+        self.capacity
+    }
     pub fn new(admitted: &SourcePreflight, outputs: usize) -> Result<Self, String> {
         if !pin(&admitted.source_config_sha256) {
             return Err(reject("missing admitted config byte identity"));
         }
         let rows = admitted.plan.prefill.query_sequence as usize;
         Ok(Self {
+            capacity: admitted.capacity,
+            source_disk_bytes: admitted.source_disk_bytes,
+            source_resident_bound_bytes: admitted.source_resident_bound_bytes,
             identity: execution_identity(
                 &admitted.plan,
                 &admitted.source_config_sha256,
@@ -1347,6 +1548,7 @@ impl SourceExecutionBinding {
                 admitted.vocabulary,
                 admitted.width,
                 admitted.maximum_sequence,
+                admitted.capacity,
             )?,
             rows,
             outputs,
@@ -1357,20 +1559,22 @@ impl SourceExecutionBinding {
         if contract.is_empty() || contract.len() > MAX_CONTRACT_BYTES {
             return Err(reject("contract byte bound"));
         }
-        let mut record = bounded_json_value(contract)?;
-        let mut nodes = 0;
-        let mut strings = 0;
-        // Contract wrapper adds a few nodes around the separately bounded plan.
-        check_metadata(&record, 0, &mut nodes, &mut strings)?;
-        if bounded_value_canonical(&record, MAX_CONTRACT_BYTES)? != contract {
+        let mut record = bounded_json_value_with_capacity(contract, self.capacity)?;
+        if bounded_value_canonical_with_capacity(&record, MAX_CONTRACT_BYTES, self.capacity)?
+            != contract
+        {
             return Err(reject("contract is not canonical JSON"));
         }
-        let fixed = json!({"schema_version":"pllm.fss.sdk-contract.v1","weights":"public",
+        let mut fixed = json!({"schema_version":"pllm.fss.sdk-contract.v1","weights":"public",
             "runtime_kind":"fss","client_runtime":"compiled_fss_v1","ring_bits":50,"fractional_bits":12,
             "setup_owner":"dealer","generation_policy":"fixed_length_greedy","state_policy":"complete_prefix_recomputation",
             "disclosure":"final_client_only_token_ids","persistent_kv":false,"verification":null,
             "decode_steps":self.outputs-1,"selection_prefix_rows":(self.rows..self.rows+self.outputs).collect::<Vec<_>>(),
             "admission":admission_record(self.minimum_source_bytes)});
+        if self.capacity == Capacity::Decoder {
+            fixed["source_disk_bytes"] = json!(self.source_disk_bytes);
+            fixed["source_resident_bound_bytes"] = json!(self.source_resident_bound_bytes);
+        }
         let object = record
             .as_object_mut()
             .ok_or_else(|| reject("contract must be an object"))?;
@@ -1391,8 +1595,11 @@ impl SourceExecutionBinding {
                 ));
             }
         }
-        if object.len() != EXECUTION_KEYS.len()
+        let capacity_fields = usize::from(self.capacity == Capacity::Decoder);
+        if object.len() != EXECUTION_KEYS.len() + capacity_fields
             || EXECUTION_KEYS.iter().any(|k| !object.contains_key(*k))
+            || (self.capacity == Capacity::Decoder
+                && object.get("capacity") != Some(&json!("decoder")))
         {
             return Err(reject("contract execution fields differ"));
         }
@@ -1413,6 +1620,7 @@ impl SourceExecutionBinding {
             fields.vocabulary,
             fields.width,
             fields.maximum_sequence,
+            fields.capacity,
         )?;
         if actual != self.identity {
             return Err(reject(
@@ -1454,11 +1662,13 @@ pub fn source_contract(
     }
     // Do not let a small actual query conceal an unsupported saved envelope.
     let profile = profile(&document)?;
-    let envelope = preflight_source(
+    let capacity = capacity(&document)?;
+    let envelope = preflight_source_with_capacity(
         config,
         document.budget.max_input_tokens as usize,
         document.budget.max_new_tokens as usize,
         profile,
+        capacity,
     )?;
     let admitted = if rows as u64 == document.budget.max_input_tokens
         && outputs as u64 == document.budget.max_new_tokens
@@ -1466,7 +1676,7 @@ pub fn source_contract(
         envelope
     } else {
         drop(envelope);
-        preflight_source(config, rows, outputs, profile)?
+        preflight_source_with_capacity(config, rows, outputs, profile, capacity)?
     };
     // Top-level native dispatch is mandatory, including when invoked via PyO3.
     // Parent integration owns that registration; metadata cannot bypass it.
@@ -1480,9 +1690,13 @@ pub fn source_contract(
         sourcepin,
         tokenizerpin,
     };
-    bounded_canonical(&view, MAX_CONTRACT_BYTES)
+    bounded_canonical_with_capacity(&view, MAX_CONTRACT_BYTES, capacity)
 }
 
 #[cfg(test)]
 #[path = "sdk_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "capacity_tests.rs"]
+mod capacity_tests;

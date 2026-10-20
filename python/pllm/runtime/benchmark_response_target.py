@@ -243,6 +243,8 @@ def execute_response(p, m):
     # Only owned caches are reset; the shared checkpoint/compiled cache is explicit.
     experiment = experiment.with_params(deployment__root=str(m.directory / "roles"))
     wan = None if p["wan"] is None else WanConditions.from_spec(p["wan"])
+    if runtime_kind == "fss":
+        from .benchmark_memory import execution_memory_admission as benchmark_memory
     admission = benchmark_memory(experiment, backend=p["backend"], enforced_wan=wan is not None,
                                  memory_budget_bytes=m.sampling.memory_bytes)
     if p.get("client_attention") is not None:
@@ -287,6 +289,8 @@ def execute_response(p, m):
         stage_scope = response_state_audit(m.salt)
     with stage_scope as stage_records:
         report, = m.run(execute)
+    if runtime_kind == "fss" and report.get("memory_preflight") is not None:
+        m.details["topology_admission"] = report["memory_preflight"]
     if selected is not None:
         if not stage_records or sum(record["calls"] for record in stage_records) == 0:
             raise TargetUnavailable("research_client_stage_not_executed", status="failed")

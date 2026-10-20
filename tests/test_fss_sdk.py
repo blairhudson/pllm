@@ -156,6 +156,15 @@ def test_ordinary_benchmark_prices_dealer_cpu_and_buffered_disclosure(tmp_path):
     ledger, = report["topology_accounting"]["runs"]
     assert ledger["aggregate_run_window_cpu_seconds"] > 0
     assert ledger["storage_bytes"]["fss_storage.worker_a.read_bytes"] > 0
+    phases = ledger["phase_timing"]
+    assert phases["preparation_seconds"] > 0
+    assert phases["delivery_callback_seconds"] > 0
+    assert phases["seal_callback_seconds"] > 0
+    assert phases["preparation_outside_callbacks_seconds"] > 0
+    assert all(value > 0 for value in phases["online_seconds_by_holder"].values())
+    assert phases["online_seconds"] == max(phases["online_seconds_by_holder"].values())
+    assert phases["online_scope"] == "maximum_holder_native_run_wall_not_client_online_interval"
+    assert run["processes"]["dealer"]["phase_timing"]["preparation_calls"] == 1
 
 
 @pytest.mark.parametrize("failure", ["partial_admission", "cancel", "malformed", "replay"])

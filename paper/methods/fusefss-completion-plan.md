@@ -6,7 +6,7 @@ PUMA remains parked at its separate admission gate.
 
 ## Contract
 
-Follow [D1, D3, D5, D8, D9 and D13](DECISIONS.md), the
+Follow [D1, D3, D5, D8, D9, D13 and D14](DECISIONS.md), the
 [shared computation contract](shared-computation-contracts.md#4-fusefss) and
 [frozen scalar specification](../reproduction-contracts/fusefss/README.md).
 The implementation is independent PLLM Rust/Python code.
@@ -50,6 +50,11 @@ only their stated scopes; generated benchmarks cannot fill a trained-model cell.
   exact kernels, compact private one-hot lookup and bounded material codecs.
   Immutable source-table sharing removes repeated table construction; fresh
   masks, keys and request state are never cached.
+- `pllm_core::{public_file,fixed_file,streamed_matrix,integer_bounds}` supplies
+  shared immutable storage, streamed public contractions and integer certificates.
+  PUMA and FuseFSS retain their separate source encodings, rounding and proofs.
+  Shared tokenizer validation and process-local resource reservations remain
+  outside method-specific arithmetic.
 - `FuseFssSourceDecoder`, `TrustedDealerTwoShareRoles` and
   `FixedCountPrivatePrefix` compose through `FuseFssSourceCpu`.
 - `python/pllm/runtime/fss_*` owns bounded source import, authenticated channels,
@@ -79,18 +84,38 @@ is required.
 
 ## Next blocking slice
 
-The bounded F3 fixtures fit native work/live-owner admission after immutable-table
-sharing, but their 24,769–49,933 primitive imports exceed F4's request-long
-4,096-entry replay/tape limit. Do not reset the guard or reuse material. A bounded
-monotonic schedule owner needs replay, out-of-order, cancellation and partial-import
-tests before it can replace that retained set; disk and cumulative work remain
-separate limits.
+Prioritize pinned Qwen benchmarking. Exact-key indexed replay owners and
+framing-derived tape admission now support the larger generated Qwen SDK control,
+including file-backed Decoder execution. Native tests preserve all 186 independent
+Qwen observations; three-role tests preserve three selections and failure cleanup.
 
-Full GPT-2 and Qwen also exceed existing source/sequence/value bounds. Their
-complete norm/table, private-product, full-vocabulary and full-prefix work must be
-admitted and priced before any tensor or material launch. Raising a constant does
-not supply this proof. Preserve the approved arithmetic and role graph; obtain
-approval before substantial protocol, numeric, state or trust adaptations.
+The static profile's earlier 1+1 checkpoint import rejects numeric admission
+before workers launch. An offline Gram/Hadamard-lift diagnostic certifies the
+layer-zero residual, but has neither full-layer coverage nor a bounded production
+owner. Later conditional propagation does not certify earlier obligations.
+
+The approved [D14](DECISIONS.md#d14-opt-in-checked-ranges-for-fusefss-qwen-completion)
+profile now passes actual pinned-Qwen source, numeric and work admission at 4+1.
+It preserves D13 arithmetic on accepted requests and rejects invalid requests only
+at final aggregate acceptance. Shared private predicates/selection and their full
+schedule are charged. Generated three-role tests cover late rejection without
+token disclosure and fresh-request recovery. Actual checkpoint request acceptance
+is still unmeasured; static proof improvements remain a separate follow-up.
+
+Next: qualify whole-topology disk and execute the ordinary short Qwen factory,
+check independent complete integer results, then quality and matched benchmarks.
+The initial inline-metadata tape quote needs 71.53 GB including reserve; the host
+rejects before child launch. External-AAD tape storage reduces the quote to
+47.63 GB without removing authenticated metadata, material or replay claims.
+Generated Decoder tests cover this format through actual role processes.
+A separate small serial-HTTP benchmark attributes 97.82% of dealer preparation
+to delivery callbacks; bounded delivery batching is the next execution-cost gate.
+Launch uses bounded temporary source qualification, fresh exact
+topology pricing and independently checked worker imports. Qualification cost,
+all source/tape/replay disk, cumulative material and execution work stay charged.
+The common 64+8 workload still exceeds sequence/selection bounds. Preserve the
+approved arithmetic and role graph; obtain approval before substantial protocol,
+numeric, state or trust adaptations.
 
 See the [SDK contract](../../docs/research/fusefss-sdk-reference.md) and the
 [historical scalar cost inventory](fusefss-decoder-feasibility.md) for separate

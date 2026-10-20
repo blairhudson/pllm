@@ -158,6 +158,15 @@ def _duration(explicit: float | None, start: int | None, end: int | None) -> flo
     return explicit if explicit is not None else _seconds(start, end)
 
 
+def _phase_timing(value: Any) -> dict[str, int]:
+    from .benchmark_delegated import FSS_PHASE_COUNTERS, fss_phase_timing_delta
+
+    timing = fss_phase_timing_delta(dict.fromkeys(FSS_PHASE_COUNTERS, 0), value)
+    if timing is None:
+        raise ValueError("invalid bounded worker phase timing")
+    return timing
+
+
 @dataclass(frozen=True, slots=True)
 class BenchmarkRun:
     run_id: str
@@ -191,7 +200,7 @@ class BenchmarkRun:
     inventory_consumed: int = 0
     inventory_burned: int = 0
     privacy_delta: Mapping[str, int] = field(default_factory=dict)
-    process_metrics: Mapping[str, Mapping[str, float | int | None]] = field(default_factory=dict)
+    process_metrics: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     failure_type: str | None = None
     output_delivery: str = "incremental"
 
@@ -257,9 +266,13 @@ class BenchmarkRun:
             raise ValueError("privacy deltas must be non-negative integers")
         if set(self.process_metrics).difference(_PROCESS_ROLES):
             raise ValueError("unsupported process role")
-        for metrics in self.process_metrics.values():
-            if set(metrics).difference({"cpu_seconds", "rss_peak_bytes"}):
+        for role, metrics in self.process_metrics.items():
+            if set(metrics).difference({"cpu_seconds", "rss_peak_bytes", "phase_timing"}):
                 raise ValueError("unsupported process metric")
+            if metrics.get("phase_timing") is not None:
+                if role not in {"worker_a", "worker_b", "dealer"} or self.output_delivery != "buffered_final_ids":
+                    raise ValueError("phase timing requires a final-only worker role")
+                _phase_timing(metrics["phase_timing"])
             cpu_value = metrics.get("cpu_seconds")
             rss_value = metrics.get("rss_peak_bytes")
             if cpu_value is not None and (
@@ -353,6 +366,8 @@ class BenchmarkRun:
                 role: {
                     "cpu_seconds": float(cpu) if (cpu := metrics.get("cpu_seconds")) is not None else None,
                     "rss_peak_bytes": int(rss) if (rss := metrics.get("rss_peak_bytes")) is not None else None,
+                    **({"phase_timing": _phase_timing(metrics["phase_timing"])}
+                       if metrics.get("phase_timing") is not None else {}),
                 }
                 for role, metrics in sorted(self.process_metrics.items())
             },

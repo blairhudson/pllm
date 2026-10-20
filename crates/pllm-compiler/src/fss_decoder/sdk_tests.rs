@@ -1,5 +1,53 @@
 use super::*;
 
+#[test]
+fn explicit_source_capacity_is_bound_and_legacy_contract_has_no_capacity_fields() {
+    let config = dense();
+    let old = contract(&experiment(DENSE_ROPE_NUMERIC), &config, 3, 2).unwrap();
+    let old_record: Value = serde_json::from_slice(&old).unwrap();
+    for field in [
+        "capacity",
+        "source_disk_bytes",
+        "source_resident_bound_bytes",
+    ] {
+        assert!(old_record.get(field).is_none());
+    }
+    let capsule = preflight(&config, DENSE_ROPE_NUMERIC).unwrap();
+    let capsule_binding = SourceExecutionBinding::new(&capsule, 2).unwrap();
+    capsule_binding.checked_contract_digest(&old).unwrap();
+    let mut experiment = experiment(DENSE_ROPE_NUMERIC);
+    experiment["pipeline"]["components"]["linear"]["params"]["capacity"] = json!("decoder");
+    let encoded = contract(&experiment, &config, 3, 2).unwrap();
+    let decoder = preflight_source_with_capacity(
+        &canonical_bytes(&config),
+        3,
+        2,
+        DENSE_ROPE_NUMERIC,
+        Capacity::Decoder,
+    )
+    .unwrap();
+    let binding = SourceExecutionBinding::new(&decoder, 2).unwrap();
+    binding.checked_contract_digest(&encoded).unwrap();
+    assert_ne!(binding.identity, capsule_binding.identity);
+    assert!(binding.checked_contract_digest(&old).is_err());
+    assert!(capsule_binding.checked_contract_digest(&encoded).is_err());
+    let record: Value = serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(record["capacity"], "decoder");
+    assert_eq!(record["admission"]["numeric"], "not_performed");
+    assert_eq!(record["admission"]["serving_qualified"], false);
+    for (field, replacement) in [
+        ("capacity", json!("capsule")),
+        ("source_disk_bytes", json!(0)),
+        ("source_resident_bound_bytes", json!(1)),
+    ] {
+        let mut changed = record.clone();
+        changed[field] = replacement;
+        assert!(binding
+            .checked_contract_digest(&canonical_bytes(&changed))
+            .is_err());
+    }
+}
+
 fn experiment(profile: &str) -> Value {
     json!({"schema":"pllm.experiment.v2","name":"fss-metadata-only",
         "pipeline":{"model":{"source":"generated/public-source"},"components":{
@@ -514,9 +562,33 @@ fn tensor_geometry_total_source_owner_and_expanded_views_reject_before_reads() {
     assert!(count(&[u64::MAX, 2]).is_err());
     let mut shapes = BTreeMap::new();
     let mut layouts = BTreeMap::new();
-    bind(&mut shapes, &mut layouts, "shared", &[2, 4], "output_input").unwrap();
-    assert!(bind(&mut shapes, &mut layouts, "shared", &[4, 2], "output_input").is_err());
-    assert!(bind(&mut shapes, &mut layouts, "shared", &[2, 4], "input_output").is_err());
+    bind(
+        Capacity::Capsule,
+        &mut shapes,
+        &mut layouts,
+        "shared",
+        &[2, 4],
+        "output_input",
+    )
+    .unwrap();
+    assert!(bind(
+        Capacity::Capsule,
+        &mut shapes,
+        &mut layouts,
+        "shared",
+        &[4, 2],
+        "output_input"
+    )
+    .is_err());
+    assert!(bind(
+        Capacity::Capsule,
+        &mut shapes,
+        &mut layouts,
+        "shared",
+        &[2, 4],
+        "input_output"
+    )
+    .is_err());
 }
 
 #[test]

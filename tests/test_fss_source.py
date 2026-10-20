@@ -20,6 +20,7 @@ from pllm.runtime.safetensors_store import SafeTensorStore
 
 GPT = "fusefss.gpt2-complete-ring50-q12.v1"
 ROPE = "fusefss.dense-rope-ring50-q12.v1"
+CHECKED = "fusefss.dense-rope-checked-ranges-ring50-q12.v1"
 REAL_BRIDGE = callable(getattr(_native, "fss_source_contract", None)) and callable(getattr(_native, "FssSourceBuilder", None))
 
 
@@ -65,11 +66,13 @@ def write_checkpoint(root, *, profile=GPT, vocabulary=32, tied=True, all_f32=Fal
               "n_positions": 16, "vocab_size": vocabulary, "activation_function": "gelu_new",
               "layer_norm_epsilon": 1e-5, "bos_token_id": 0, "eos_token_id": 1,
               "tie_word_embeddings": tied}
-    if profile == ROPE:
+    if profile in {ROPE, CHECKED}:
         config = {"model_type": "qwen3", "num_hidden_layers": 1, "hidden_size": 4,
                   "intermediate_size": 8, "num_attention_heads": 1, "num_key_value_heads": 1,
                   "head_dim": 4, "max_position_embeddings": 16, "vocab_size": vocabulary,
                   "hidden_act": "silu", "rms_norm_eps": 1e-6, "rope_theta": 10000,
+                  "attention_bias": False, "attention_dropout": 0.0,
+                  "use_sliding_window": False, "use_cache": True, "max_window_layers": 1,
                   "tie_word_embeddings": tied, "bos_token_id": 0, "eos_token_id": 1}
     (root / "config.json").write_text(json.dumps(config, indent=2))
     vocab = {"<bos>": 0, "<eos>": 1, "<unk>": 2}
@@ -100,8 +103,8 @@ def write_tensor_file(path, header, payload):
     path.write_bytes(struct.pack("<Q", len(encoded)) + encoded + payload)
 
 
-def experiment(root, profile=GPT, rows=3, outputs=3):
-    return Experiment(name="generated-fss-source", pipeline=FuseFssSourceCpu(Model.path(str(root)), numeric_profile=profile),
+def experiment(root, profile=GPT, rows=3, outputs=3, capacity="capsule"):
+    return Experiment(name="generated-fss-source", pipeline=FuseFssSourceCpu(Model.path(str(root)), numeric_profile=profile, capacity=capacity),
                       deployment=Deployment.local(root="local://fss-source-test"),
                       budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
 
@@ -140,13 +143,15 @@ def bridge(monkeypatch):
             return canonical(data)
 
     class Builder:
-        def __init__(self, config, rows, outputs, profile):
+        def __init__(self, config, rows, outputs, profile, capacity="capsule"):
             config = json.loads(config)
             Bridge.events.append("geometry")
             if (rows + outputs - 1 > 16 or outputs > 4 or rows < 1 or outputs < 1
-                    or config.get("n_embd", config.get("hidden_size")) * config["vocab_size"] > 32768):
+                    or (capacity == "capsule"
+                        and config.get("n_embd", config.get("hidden_size")) * config["vocab_size"] > 32768)):
                 raise ValueError("native geometry bound")
             self.config, self.profile = config, profile
+            self.capacity = capacity
             self.rows, self.outputs = rows, outputs
             self.shapes, _ = inventory(config, profile)
             self.closed, self.frames, self.rotary_frames, self.program = False, [], [], None
@@ -201,7 +206,7 @@ def bridge(monkeypatch):
         assert encoded == exp.canonical_bytes()
         shapes, layouts = inventory(config, exp.pipeline.components["linear"].params["numeric_profile"])
         rotary_shapes, operations = {}, []
-        if exp.pipeline.components["linear"].params["numeric_profile"] == ROPE:
+        if exp.pipeline.components["linear"].params["numeric_profile"] in {ROPE, CHECKED}:
             for operation in ("layer.0.key.rope", "layer.0.query.rope"):
                 rotary_shapes[operation] = [rows + outputs - 1, 4]
                 operations.append({"id": operation, "operator": "rotary_embedding", "output_shape": [1, 1, rows, 4],
@@ -216,6 +221,11 @@ def bridge(monkeypatch):
                 "rotary_shapes": rotary_shapes, "plan": {"prefill": {"operations": operations}},
                 "input_rows": rows, "output_tokens": outputs, "maximum_sequence": rows + outputs - 1,
                 "vocabulary": config["vocab_size"]}
+        if exp.pipeline.components["linear"].params.get("capacity") == "decoder":
+            # Explicit native metadata double, not measured resource admission.
+            data.update(capacity="decoder", source_q12_value_bytes=2*data["source_float32_bytes"],
+                        source_disk_bytes=sum(math.prod(s)*8 for s in shapes.values() if len(s) == 2),
+                        source_resident_bound_bytes=65536 + 4096*len(shapes))
         if Bridge.contract_mutation:
             Bridge.contract_mutation(data)
         return canonical(data)
@@ -271,7 +281,7 @@ def test_client_metadata_pins_original_bytes_without_value_decode(tmp_path, monk
     assert "append" not in bridge.events
 
 
-@pytest.mark.parametrize("profile,tied", [(GPT, True), (GPT, False), (ROPE, True), (ROPE, False)])
+@pytest.mark.parametrize("profile,tied", [(GPT, True), (GPT, False), (ROPE, True), (ROPE, False), (CHECKED, True), (CHECKED, False)])
 def test_original_dtype_signed_zero_storage_orientation_and_pins(tmp_path, bridge, profile, tied):
     _, originals = write_checkpoint(tmp_path, profile=profile, tied=tied)
     admitted = admit(bridge, tmp_path, profile=profile)
@@ -283,10 +293,10 @@ def test_original_dtype_signed_zero_storage_orientation_and_pins(tmp_path, bridg
         assert {row[1] for row in owner.frames} == {"F32", "F16", "BF16"}
         assert loaded.manifest["contract"] == hashlib.sha256(loaded.contract_bytes).hexdigest()
         assert loaded.manifest["input_digest"] == owner.digest.hexdigest()
-        assert bool(owner.rotary_frames) == (profile == ROPE)
+        assert bool(owner.rotary_frames) == (profile in {ROPE, CHECKED})
         descriptor = loaded.rotary_source
         assert len(descriptor["sha256"]) == 64
-        assert bool(descriptor["tables"]) == (profile == ROPE)
+        assert bool(descriptor["tables"]) == (profile in {ROPE, CHECKED})
         if profile == GPT:
             assert admitted.contract["source_layouts"]["transformer.h.0.attn.c_attn.weight"] == "input_output"
     assert owner.closed and loaded.native_program.closed
@@ -304,6 +314,135 @@ def test_large_tensor_streams_bounded_frames_without_full_reader(tmp_path, bridg
         assert [row[2] for row in frames] == ([0, 16384] if dtype == "F32" else [0])
         assert all(len(row[3]) == 65536 for row in frames)
         assert b"".join(row[3] for row in frames) == originals["transformer.wte.weight"][1]
+
+
+def test_checked_profile_reuses_original_ieee_and_d13_rotary_frames(tmp_path, bridge):
+    write_checkpoint(tmp_path, profile=ROPE)
+    static = admit(bridge, tmp_path, profile=ROPE, capacity="decoder")
+    with source.load_role_source(bridge.experiment, source=static, expected_pins=static.snapshot_pins) as loaded:
+        static_frames = loaded.native_program.builder.frames
+        rotary = loaded.rotary_source
+        original_input = loaded.manifest["input_digest"]
+        static_contract = loaded.manifest["contract"]
+    checked = admit(bridge, tmp_path, profile=CHECKED, capacity="decoder")
+    assert checked.snapshot_pins == static.snapshot_pins
+    with source.load_role_source(bridge.experiment, source=checked, expected_pins=checked.snapshot_pins) as loaded:
+        assert loaded.native_program.builder.profile == CHECKED
+        assert loaded.native_program.builder.capacity == "decoder"
+        assert loaded.native_program.builder.frames == static_frames
+        assert loaded.rotary_source == rotary
+        assert loaded.manifest["profile"] == CHECKED
+        assert loaded.manifest["input_digest"] == original_input
+        assert loaded.manifest["contract"] != static_contract
+
+
+@pytest.mark.parametrize("requested,returned", [(CHECKED, ROPE), (ROPE, CHECKED), (CHECKED, None)])
+def test_checked_and_static_native_contracts_cannot_be_substituted(tmp_path, bridge, requested, returned):
+    write_checkpoint(tmp_path, profile=ROPE)
+    bridge.contract_mutation = (lambda record: record.pop("numeric_profile")) if returned is None else (
+        lambda record: record.update(numeric_profile=returned))
+    with pytest.raises(source.FssSourceError, match="contract differs"):
+        admit(bridge, tmp_path, profile=requested, capacity="decoder")
+    assert all(owner.closed and not owner.frames for owner in bridge.owners)
+
+
+def test_checked_manifest_cannot_relabel_static_program(tmp_path, bridge):
+    write_checkpoint(tmp_path, profile=ROPE)
+    admitted = admit(bridge, tmp_path, profile=CHECKED, capacity="decoder")
+    bridge.manifest_mutation = lambda record: record.update(profile=ROPE)
+    with pytest.raises(source.FssSourceError, match="manifest differs"):
+        source.load_role_source(bridge.experiment, source=admitted, expected_pins=admitted.snapshot_pins)
+    assert all(owner.closed and (owner.program is None or owner.program.closed) for owner in bridge.owners)
+
+
+def test_checked_source_does_not_fall_back_when_native_profile_is_unavailable(tmp_path, bridge, monkeypatch):
+    def unavailable(payload):
+        assert json.loads(payload)["pipeline"]["components"]["linear"]["params"]["numeric_profile"] == CHECKED
+        raise ValueError("native checked-range profile unavailable")
+    monkeypatch.setattr(_native, "resolve_experiment", unavailable)
+    monkeypatch.setattr(source.io, "_read_bounded", forbidden)
+    with pytest.raises(ValueError, match="native checked-range profile unavailable"):
+        source.resolve_client_source(experiment(tmp_path, profile=CHECKED, capacity="decoder"))
+    assert not bridge.owners
+
+
+def test_decoder_native_shapes_and_exact_ieee_frames_preserve_full_vocabulary(tmp_path, bridge, monkeypatch):
+    _, originals = write_checkpoint(tmp_path, profile=ROPE, vocabulary=32769, all_dtype="BF16")
+    for name in ("get", "get_slice", "iter_slices", "get_linear"):
+        monkeypatch.setattr(SafeTensorStore, name, forbidden)
+    with pytest.raises(ValueError, match="native geometry bound"):
+        admit(bridge, tmp_path, profile=ROPE)
+    admitted = admit(bridge, tmp_path, profile=ROPE, capacity="decoder")
+    assert admitted.capacity == "decoder"
+    assert admitted.contract["source_shapes"]["model.embed_tokens.weight"] == [32769, 4]
+    assert admitted.tokenizer_descriptor["vocab_size"] == 32769
+    assert admitted.tokenizer_digest == hashlib.sha256((tmp_path / "tokenizer.json").read_bytes()).hexdigest()
+    with source.load_role_source(bridge.experiment, source=admitted, expected_pins=admitted.snapshot_pins) as loaded:
+        builder = loaded.native_program.builder
+        assert builder.capacity == "decoder" and loaded.manifest["vocabulary"] == 32769
+        frames = [row for row in builder.frames if row[0] == "model.embed_tokens.weight"]
+        assert len(frames) == 5 and max(len(row[3]) for row in frames) == 65536
+        assert b"".join(row[3] for row in frames) == originals["model.embed_tokens.weight"][1]
+    assert all(owner.closed for owner in bridge.owners)
+
+
+@pytest.mark.parametrize("filename", ["tokenizer.json", "merges.txt", "vocab.json"])
+def test_only_explicit_decoder_uses_shared_expanded_metadata_limits(tmp_path, bridge, filename):
+    write_checkpoint(tmp_path, profile=ROPE)
+    path = tmp_path / filename
+    raw = path.read_bytes() if path.exists() else b"{}"
+    path.write_bytes(raw + b" " * (256 << 10))
+    with pytest.raises(ValueError, match="bounded geometry/metadata"):
+        admit(bridge, tmp_path, profile=ROPE)
+    admitted = admit(bridge, tmp_path, profile=ROPE, capacity="decoder")
+    assert admitted.capacity == "decoder"
+    assert admitted.snapshot_pins["source_lock"] == model_loader._source_lock(tmp_path, admitted.model)[1]
+
+
+@pytest.mark.parametrize("profile", [ROPE, CHECKED])
+@pytest.mark.parametrize("field", ["capacity", "source_q12_value_bytes", "source_disk_bytes", "source_resident_bound_bytes"])
+def test_decoder_requires_native_storage_fields_without_fallback(tmp_path, bridge, field, profile):
+    write_checkpoint(tmp_path, profile=profile)
+    bridge.contract_mutation = lambda record: record.pop(field)
+    with pytest.raises(ValueError, match="capacity differs|storage admission"):
+        admit(bridge, tmp_path, profile=profile, capacity="decoder")
+    assert all(owner.closed and not owner.frames for owner in bridge.owners)
+
+
+@pytest.mark.parametrize("field,value", [("capacity", True), ("source_q12_value_bytes", True),
+    ("source_disk_bytes", -1), ("source_disk_bytes", 1 << 34),
+    ("source_resident_bound_bytes", 0), ("source_resident_bound_bytes", (8 << 20) + 1)])
+def test_decoder_rejects_malformed_native_storage_bounds(tmp_path, bridge, field, value):
+    write_checkpoint(tmp_path, profile=ROPE)
+    bridge.contract_mutation = lambda record: record.update({field: value})
+    with pytest.raises(ValueError, match="capacity|storage admission"):
+        admit(bridge, tmp_path, profile=ROPE, capacity="decoder")
+    assert all(owner.closed and not owner.frames for owner in bridge.owners)
+
+
+def test_decoder_capacity_is_not_inferred_from_native_return(tmp_path, bridge):
+    write_checkpoint(tmp_path)
+    bridge.contract_mutation = lambda record: record.update(capacity="decoder")
+    with pytest.raises(ValueError, match="capacity differs"):
+        admit(bridge, tmp_path)
+
+
+def test_decoder_padded_model_rows_keep_source_pins_and_model_vocabulary(tmp_path, bridge):
+    write_checkpoint(tmp_path, profile=ROPE)
+    path = tmp_path / "tokenizer.json"
+    tokenizer = json.loads(path.read_bytes())
+    del tokenizer["model"]["vocab"]["t31"]
+    path.write_bytes(canonical(tokenizer))
+    with pytest.raises(ValueError, match="complete table/head"):
+        admit(bridge, tmp_path, profile=ROPE)
+    admitted = admit(bridge, tmp_path, profile=ROPE, capacity="decoder")
+    assert admitted.tokenizer().vocab_size == 31
+    assert admitted.tokenizer_descriptor["vocab_size"] == admitted.contract["vocabulary"] == 32
+    assert admitted.tokenizer().decode([3, 31, 4]) == "t3 t4"
+    assert admitted.tokenizer().decode([31]) == ""
+    with source.load_role_source(bridge.experiment, source=admitted, expected_pins=admitted.snapshot_pins) as loaded:
+        assert loaded.manifest["vocabulary"] == 32
+        assert loaded.native_program.builder.shapes["model.embed_tokens.weight"] == [32, 4]
 
 
 @pytest.mark.parametrize("pin", ["checkpoint", "source_lock", "tokenizer", "config"])
@@ -382,7 +521,7 @@ def test_config_replacement_cannot_keep_original_source_pin(tmp_path, bridge):
         source.load_role_source(bridge.experiment, source=modified, expected_pins=admitted.snapshot_pins)
 
 
-@pytest.mark.parametrize("profile", [GPT, ROPE])
+@pytest.mark.parametrize("profile", [GPT, ROPE, CHECKED])
 def test_actual_request_contract_and_coefficient_geometry(tmp_path, bridge, profile):
     write_checkpoint(tmp_path, profile=profile)
     admitted = admit(bridge, tmp_path, profile=profile)
@@ -593,6 +732,35 @@ def test_rebuilt_native_generated_gpt2_import(tmp_path):
             changed[key] = wrong
             with pytest.raises(ValueError):
                 loaded.native_program.manifest(canonical(changed))
+
+
+@pytest.mark.skipif(not REAL_BRIDGE, reason="requires rebuilt native audit-fixed source bridge")
+@pytest.mark.parametrize("capacity", ["capsule", "decoder"])
+def test_native_backing_is_local_owned_and_outside_program_identity(tmp_path, capacity):
+    import os
+    import tempfile
+
+    write_checkpoint(tmp_path, profile=ROPE, all_f32=True)
+    exp = experiment(tmp_path, profile=ROPE, rows=1, outputs=1, capacity=capacity)
+    metadata = source.resolve_client_source(exp)
+    with source.load_role_source(exp, source=metadata, expected_pins=metadata.snapshot_pins) as loaded:
+        program = loaded.native_program
+        original = program.metadata()
+        backing = program.disk_backing()
+        assert program.metadata() == original
+        assert program.disk_backing() == backing
+        identities = [(row["device"], row["file"]) for row in backing]
+        assert len(identities) == len(set(identities))
+        assert all(set(row) == {"device", "file", "allocated_bytes"} for row in backing)
+        assert all(type(value) is int and value >= 0 for row in backing for value in row.values())
+        if capacity == "capsule" or os.name != "posix":
+            assert backing == []
+        else:
+            assert backing
+            assert {row["device"] for row in backing} == {os.stat(tempfile.gettempdir()).st_dev}
+            assert all(row["allocated_bytes"] % 512 == 0 for row in backing)
+    with pytest.raises(ValueError, match="retired"):
+        program.disk_backing()
 
 
 @pytest.mark.skipif(not REAL_BRIDGE, reason="requires rebuilt native audit-fixed source bridge")

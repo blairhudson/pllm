@@ -4,6 +4,7 @@ No real wheel acceptance, role launch, model execution or performance evidence.
 """
 import copy
 from contextlib import closing
+import hashlib
 import json
 from types import SimpleNamespace as NS
 
@@ -104,6 +105,58 @@ def test_all_body_links_conserve_and_disk_is_separate():
     assert sum(ledger["storage_bytes"].values()) == 4 * 999
     assert ledger["decode_online_body_bytes"] is None
     assert ledger["roles"] == ["client", *ROLES]
+
+
+def phase_counters(**changes):
+    return dict.fromkeys(delegated.FSS_PHASE_COUNTERS, 0) | changes
+
+
+def test_phase_accounting_reports_overlapping_wall_clocks_not_remote_compute():
+    processes = {
+        "dealer": {"phase_timing": phase_counters(preparation_calls=1, preparation_ns=17 * 10**9,
+            delivery_callback_ns=4 * 10**9, seal_callback_ns=6 * 10**9)},
+        "worker_a": {"phase_timing": phase_counters(online_calls=1, online_ns=11 * 10**9)},
+        "worker_b": {"phase_timing": phase_counters(online_calls=1, online_ns=13 * 10**9)},
+    }
+    report = delegated.fss_body_accounting({"privacy": counters(), "processes": processes})
+    timing = report["phase_timing"]
+    assert timing["preparation_seconds"] == 17
+    assert timing["delivery_callback_seconds"] == 4 and timing["seal_callback_seconds"] == 6
+    assert timing["preparation_outside_callbacks_seconds"] == 7
+    assert timing["online_seconds_by_holder"] == {"worker_a": 11, "worker_b": 13}
+    assert timing["online_seconds"] == 13  # Concurrent holder times are not summed.
+    assert "not_pure_compute" in timing["outside_callbacks_scope"]
+    assert "not_client_online_interval" in timing["online_scope"]
+    assert report["all_link_serialized_body_bytes"] == delegated.fss_body_accounting({"privacy": counters()})["all_link_serialized_body_bytes"]
+    assert timing["includes_failed_calls"]
+
+
+@pytest.mark.parametrize("change", [None, {}, {"preparation_ns": True}, {"preparation_ns": -1},
+    {"preparation_ns": 1 << 63}, {"preparation_calls": 65}, {"delivery_callback_ns": 101},
+    {"preparation_calls": 0}, {"online_calls": 0, "online_ns": 1}, {"private_location": 3}])
+def test_phase_samples_missing_reset_or_malformed_stay_unknown(change):
+    zero = phase_counters()
+    sample = phase_counters(preparation_calls=1, preparation_ns=100, delivery_callback_ns=40)
+    bad = change if change in (None, {}) else sample | change
+    assert delegated.fss_phase_timing_delta(zero, bad) is None
+    assert delegated.fss_phase_timing_delta(bad, sample) is None
+
+
+def test_phase_samples_are_differenced_without_zero_filling_or_disclosure_inference():
+    before = phase_counters(preparation_calls=1, preparation_ns=100, delivery_callback_ns=40)
+    after = phase_counters(preparation_calls=2, preparation_ns=170, delivery_callback_ns=80)
+    assert delegated.fss_phase_timing_delta(before, after) == phase_counters(
+        preparation_calls=1, preparation_ns=70, delivery_callback_ns=40)
+    assert delegated.fss_phase_timing_delta(after, before) is None
+    assert delegated.fss_phase_timing_delta(before, after | {"preparation_ns": 120}) is None
+    # A historical client-side interval includes source/preparation and cannot be
+    # treated as holder execution merely because its key says online_seconds.
+    missing = delegated.fss_phase_timing({"durations": {"online_seconds": 20, "full_seconds": 30}})
+    assert missing["online_seconds"] is missing["preparation_seconds"] is None
+    record = {"processes": {"worker_a": {"phase_timing": phase_counters(online_calls=1, online_ns=10)}}}
+    assert delegated.fss_phase_timing(record)["online_seconds"] is None
+    record["processes"]["worker_b"] = {"phase_timing": phase_counters(online_calls=2, online_ns=10)}
+    assert delegated.fss_phase_timing(record)["online_seconds"] is None
 
 
 def test_ordinary_report_and_history_preserve_dealer_and_final_disclosure(experiment, source):
@@ -209,12 +262,63 @@ def test_bare_metadata_estimate_uses_geometry_first_unverified_pins(experiment, 
     assert not result["fss_admission"]["serving_qualified"]
 
 
-def test_conservative_owners_reject_without_raising_native_caps(experiment, contract):
-    too_large = copy.deepcopy(contract)
-    too_large["source_float32_bytes"] = 8 << 20
-    with pytest.raises(memory.BenchmarkMemoryError, match="incremental owners"):
-        memory._fss_memory({}, experiment.pipeline, 2, 3, 0, None, 0, contract=too_large)
+def test_source_import_scratch_is_chunk_bounded_without_raising_native_caps(experiment, contract):
+    larger = copy.deepcopy(contract)
+    larger["source_float32_bytes"] = 8 << 20
+    small = memory._fss_memory({}, experiment.pipeline, 2, 3, 0, None, 0, contract=contract)
+    big = memory._fss_memory({}, experiment.pipeline, 2, 3, 0, None, 0, contract=larger)
+    assert small["allocation_owners"]["each_role"]["source_import_scratch"] == big["allocation_owners"]["each_role"]["source_import_scratch"]
     assert CLIENT_MEMORY == 64 << 20 and ROLE_MEMORY == 256 << 20
+
+
+def decoder_contract(contract):
+    return copy.deepcopy(contract) | {"capacity": "decoder", "source_float32_bytes": 1 << 30,
+        "source_q12_value_bytes": 2 << 30, "source_disk_bytes": 2 << 30,
+        "source_resident_bound_bytes": 8 << 20}
+
+
+def test_decoder_memory_prices_separate_metadata_peak_and_exact_topology_disk(experiment, contract):
+    pipeline = FuseFssSourceCpu(experiment.pipeline.model, numeric_profile=PROFILE, capacity="decoder")
+    quote = {"capacity": "decoder", "primitive_requests_per_party": 4097,
+        "largest_packet_bytes": 512, "cumulative_packet_bytes_per_party_bound": 4097 * 512,
+        "callback_metadata_bytes_bound": 1024, "guard_disk_bytes": 8192,
+        "guard_reservation_bytes": 4096, "combined_reservation_bytes": 64 << 20}
+    estimate = memory._fss_memory({}, pipeline, 2, 3, 0, None, 0,
+        contract=decoder_contract(contract), transport_admission=quote)
+    owners, bounds, parts = estimate["allocation_owners"], estimate["incremental_owner_bounds"], estimate["components"]
+    assert owners["source_metadata_preflight_bytes_per_process"] == 384 << 20
+    assert owners["each_role"]["native_kernel_owner"] == 64 << 20
+    assert owners["each_role"]["native_source_program_owner"] == 8 << 20
+    assert owners["client"]["tokenizer_parse_copies"] == owners["each_role"]["tokenizer_parse_copies"] == 64 << 20
+    assert owners["each_role"]["source_import_scratch"] < 5 << 20
+    assert bounds["client"] == bounds["per_role"] == 384 << 20
+    assert bounds["client_execution"] == 128 << 20 and bounds["per_role_execution"] == ROLE_MEMORY
+    assert estimate["fss_admission"]["disk_price_scope"] == "native transport admission after import"
+    tape = 4097 * (512 + 40)
+    assert parts["fss_encrypted_tape_disk_bytes"] == 2 * tape
+    assert parts["fss_guard_disk_bytes"] == 2 * 8192
+    assert parts["fss_source_disk_bytes"] == 3 * (2 << 30)
+    report = memory.admit_memory(estimate, memory.HostMemory(16 << 30, 15 << 30, 0, 20 << 30))
+    assert report["candidates"]["native"]["required_disk_bytes"] == (6 << 30) + 2 * (tape + 8192) + (2 << 30)
+    assert report["admitted"]
+
+
+def test_decoder_without_import_uses_explicit_disk_ceilings_not_free_unknown_guards(experiment, contract):
+    pipeline = FuseFssSourceCpu(experiment.pipeline.model, numeric_profile=PROFILE, capacity="decoder")
+    estimate = memory._fss_memory({}, pipeline, 2, 3, 0, None, 0, contract=decoder_contract(contract))
+    assert estimate["components"]["fss_tape_disk_bytes"] == 2 * ((32 << 30) + (32 << 30))
+    assert estimate["fss_admission"]["disk_price_scope"] == "capacity ceilings before native import"
+    assert not memory.admit_memory(estimate, memory.HostMemory(16 << 30, 15 << 30, 0, 20 << 30))["admitted"]
+
+
+@pytest.mark.parametrize("field,value", [("source_disk_bytes", None), ("source_disk_bytes", True),
+    ("source_disk_bytes", -1), ("source_disk_bytes", (8 << 30) + 1),
+    ("source_resident_bound_bytes", (8 << 20) + 1), ("source_q12_value_bytes", 1)])
+def test_decoder_memory_requires_native_storage_contract(experiment, contract, field, value):
+    pipeline = FuseFssSourceCpu(experiment.pipeline.model, numeric_profile=PROFILE, capacity="decoder")
+    record = decoder_contract(contract) | {field: value}
+    with pytest.raises(memory.BenchmarkMemoryError, match="native admission"):
+        memory._fss_memory({}, pipeline, 2, 3, 0, None, 0, contract=record)
 
 
 def test_native_binding_presence_does_not_qualify_execution():
@@ -268,21 +372,40 @@ def test_geometry_source_metadata_rejection_is_blocked_not_generic_fallback(expe
         execute_target(BenchmarkTarget.geometry(experiment), meter)
 
 
-def test_imported_program_pricing_only_when_native_owner_supplied(contract, monkeypatch):
+@pytest.fixture
+def imported_source(experiment, source, monkeypatch):
     from pllm import _native
-    owner = object()
-    loaded = NS(native_program=owner, contract_bytes=json.dumps(contract).encode())
+    manifest = {"schema": "pllm.fss.channel.program.v1",
+        "contract": hashlib.sha256(source.contract_bytes).hexdigest(),
+        "program": "4" * 64, "source": "5" * 64, "input_digest": "6" * 64}
     pricing = {"schema": "pllm.fss.program_transport_admission.v1",
         "scope": "program-pricing-not-request-admission", "numeric_profile": PROFILE,
+        "contract_digest": manifest["contract"], "program_digest": manifest["program"],
+        "source_digest": manifest["source"], "input_digest": manifest["input_digest"],
         "initial_tokens": 2, "selections": 3, "vocabulary": 7, "largest_packet_bytes": 1024,
         "cumulative_packet_bytes_per_party_bound": 4096, "combined_reservation_bytes": 2048,
         "client_peak_bytes": 128, "peer_frame_bytes_bound": 1024, "kernels": 4,
         "primitive_requests_per_party": 4, "callback_metadata_bytes_bound": 1024,
         "input_frame_bytes": 128, "output_frame_bytes": 128}
+    resources = {"schema": "pllm.fss.program_resources.v1", "program_digest": manifest["program"],
+        "source_digest": manifest["source"], "original_input_digest": manifest["input_digest"],
+        "numeric_profile": PROFILE, "initial_tokens": 2, "selections": 3, "vocabulary": 7}
+    owner = NS(metadata=lambda: json.dumps(resources).encode(), close=lambda: None)
+    loaded = fss_source.LoadedFssSource(source, source.contract_bytes, owner,
+                                      json.dumps(manifest).encode(), b"{}")
+    def runtime_contract(exp, rows, outputs):
+        assert exp is experiment and rows == 2 and outputs == 3
+        return source.contract_bytes
+    source.runtime_contract = runtime_contract
     def native_double(program, raw):
         assert program is owner and raw == loaded.contract_bytes
         return json.dumps(pricing).encode()
     monkeypatch.setattr(_native, "fss_transport_admission", native_double, raising=False)
+    return loaded, pricing, resources
+
+
+def test_imported_program_pricing_only_when_native_owner_supplied(imported_source):
+    loaded, pricing, _ = imported_source
     assert delegated.inspect_fss_imported(loaded) == pricing
     pricing["largest_packet_bytes"] = (16 << 20) + 1
     with pytest.raises(ValueError, match="transport bounds"):
@@ -291,6 +414,104 @@ def test_imported_program_pricing_only_when_native_owner_supplied(contract, monk
     pricing["primitive_requests_per_party"] = 4097
     with pytest.raises(ValueError, match="limits"):
         delegated.inspect_fss_imported(loaded)
+
+
+def test_imported_decoder_pricing_reuses_shared_capacity_policy(imported_source):
+    loaded, pricing, _ = imported_source
+    loaded.contract_bytes = json.dumps(decoder_contract(loaded.source.contract)).encode()
+    manifest = json.loads(loaded.manifest_bytes)
+    manifest["contract"] = hashlib.sha256(loaded.contract_bytes).hexdigest()
+    loaded.manifest_bytes = json.dumps(manifest).encode()
+    pricing.update(capacity="decoder", contract_digest=manifest["contract"], kernels=5000,
+        primitive_requests_per_party=5000, largest_packet_bytes=65536,
+        cumulative_packet_bytes_per_party_bound=5000 * 65536,
+        guard_disk_bytes=8192, guard_reservation_bytes=4096)
+    assert delegated.inspect_fss_imported(loaded) == pricing
+    del pricing["guard_disk_bytes"]
+    with pytest.raises(ValueError, match="resource bound"):
+        delegated.inspect_fss_imported(loaded)
+
+
+@pytest.mark.parametrize("field", ["contract_digest", "program_digest", "source_digest", "input_digest"])
+def test_imported_price_must_match_native_source_manifest(imported_source, field):
+    loaded, pricing, _ = imported_source
+    pricing[field] = "f" * 64
+    with pytest.raises(ValueError, match="pricing differs"):
+        delegated.inspect_fss_imported(loaded)
+
+
+def test_memory_uses_live_native_price_without_reimport(experiment, imported_source, monkeypatch):
+    loaded, pricing, resources = imported_source
+    monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(16 << 30, 15 << 30, 0, 20 << 30))
+    monkeypatch.setattr(fss_source, "resolve_client_source", lambda *a, **k: pytest.fail("source re-resolved"))
+    monkeypatch.setattr(fss_source, "load_role_source", lambda *a, **k: pytest.fail("source reimported"))
+    report = memory.benchmark_memory(experiment, max_input_tokens=1, max_output_tokens=1, fss_imported=loaded)
+    assert report["admitted"]
+    native = report["estimate"]["fss_admission"]
+    assert native["transport_admission"] == pricing
+    assert native["complete_program_resources"] == resources
+    assert native["numeric_admission"] == "native_imported_program"
+    assert not native["metadata_only"] and not native["serving_qualified"]
+    # Capsule retains its 4096-byte metadata allowance, even for smaller native callbacks.
+    assert report["candidates"]["native"]["required_disk_bytes"] == (2 << 30) + 2 * (4096 + 4 * (4096 + 40))
+    assert not loaded._closed  # Caller still owns reservation and retirement.
+
+
+def test_decoder_live_owner_reprices_ceiling_rejection_but_keeps_memory_gate(experiment, imported_source, monkeypatch):
+    loaded, pricing, _ = imported_source
+    decoder = Experiment(experiment.name, FuseFssSourceCpu(experiment.pipeline.model,
+        numeric_profile=PROFILE, capacity="decoder"), experiment.deployment, experiment.budget)
+    source = loaded.source
+    source.contract = decoder_contract(source.contract)
+    source.contract_bytes = loaded.contract_bytes = json.dumps(source.contract).encode()
+    def runtime_contract(exp, rows, outputs):
+        assert exp is decoder and (rows, outputs) == (2, 3)
+        return source.contract_bytes
+    source.runtime_contract = runtime_contract
+    manifest = json.loads(loaded.manifest_bytes)
+    manifest["contract"] = hashlib.sha256(source.contract_bytes).hexdigest()
+    loaded.manifest_bytes = json.dumps(manifest).encode()
+    pricing.update(capacity="decoder", contract_digest=manifest["contract"], kernels=5000,
+        primitive_requests_per_party=5000, largest_packet_bytes=65536,
+        cumulative_packet_bytes_per_party_bound=5000 * 65536,
+        guard_disk_bytes=8192, guard_reservation_bytes=4096)
+    monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(16 << 30, 15 << 30, 0, 20 << 30))
+    ceiling = memory.benchmark_memory(decoder)
+    assert not ceiling["admitted"] and ceiling["estimate"]["fss_admission"]["metadata_only"]
+    report = memory.benchmark_memory(decoder, fss_imported=loaded)
+    assert report["admitted"]
+    # Three 2GiB source owners; two tapes with 5000 native packets and framing;
+    # complete metadata is external AAD, not duplicated on disk;
+    # two separate 8192-byte guards; ordinary whole-host 2GiB disk reserve.
+    assert report["candidates"]["native"]["required_disk_bytes"] == (
+        (8 << 30) + 2 * (5000 * (65536 + 40) + 8192))
+    assert not memory.benchmark_memory(decoder, fss_imported=loaded, memory_budget_bytes=1 << 20)["admitted"]
+
+
+def test_memory_rejects_json_price_and_closed_owner(experiment, imported_source, monkeypatch):
+    loaded, pricing, _ = imported_source
+    monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(16 << 30, 15 << 30, 0, 20 << 30))
+    with pytest.raises(memory.BenchmarkMemoryError, match="imported source pricing"):
+        memory.benchmark_memory(experiment, fss_imported=pricing)
+    loaded.close()
+    with pytest.raises(memory.BenchmarkMemoryError, match="imported source pricing"):
+        memory.benchmark_memory(experiment, fss_imported=loaded)
+
+
+@pytest.mark.parametrize("mismatch", ["source", "envelope", "program_resources"])
+def test_memory_imported_price_rechecks_source_and_envelope(experiment, imported_source, monkeypatch, mismatch):
+    loaded, _, resources = imported_source
+    monkeypatch.setattr(memory, "host_memory", lambda: memory.HostMemory(16 << 30, 15 << 30, 0, 20 << 30))
+    if mismatch == "source":
+        def changed(*args):
+            raise ValueError("source file identity changed")
+        loaded.source.runtime_contract = changed
+    elif mismatch == "envelope":
+        loaded.contract_bytes = b'{"input_rows":1,"output_tokens":1}'
+    else:
+        resources["program_digest"] = "f" * 64
+    with pytest.raises(memory.BenchmarkMemoryError, match="imported source pricing"):
+        memory.benchmark_memory(experiment, fss_imported=loaded)
 
 
 @pytest.mark.parametrize("kind,roles", [("fss", ROLES), ("gkm", ROLES[:2]),

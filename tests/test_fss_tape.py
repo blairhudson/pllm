@@ -5,7 +5,9 @@ import hashlib
 import os
 import pickle
 from pathlib import Path
+import struct
 import threading
+import tracemalloc
 from types import SimpleNamespace
 
 import pytest
@@ -101,7 +103,12 @@ def test_pure_pricing_exact_limits_and_copies(monkeypatch):
 
 
 @pytest.mark.parametrize("limits", [
-    dict(records=4097, packet_bytes=1, total_packet_bytes=4097),
+    dict(records=tape.MAX_RECORDS + 1, packet_bytes=1, total_packet_bytes=tape.MAX_RECORDS + 1),
+    dict(records=1 << 32, packet_bytes=1, total_packet_bytes=1 << 32),
+    dict(records=1 << 96, packet_bytes=1, total_packet_bytes=1 << 96),
+    dict(records=10**100, packet_bytes=1, total_packet_bytes=10**100),
+    dict(records=((1 << 30) - (256 << 20)) // (4096 + 24 + 16) + 1,
+         packet_bytes=16 << 20, total_packet_bytes=256 << 20),
     dict(records=1, packet_bytes=(16 << 20) + 1, total_packet_bytes=1),
     dict(records=1, packet_bytes=1, total_packet_bytes=(256 << 20) + 1),
     dict(records=True, packet_bytes=1, total_packet_bytes=1),
@@ -365,3 +372,147 @@ def test_active_tape_copy_attempt_burns_without_exporting_key(tmp_path):
         pickle.dumps(owner)
     assert_retired(owner)
     assert handle.closed
+
+
+def test_record_ceiling_prices_complete_framing_and_live_buffers(monkeypatch):
+    def forbidden(*_, **__):
+        pytest.fail("pure preflight reached file/key allocation")
+    monkeypatch.setattr(tape.tempfile, "TemporaryFile", forbidden)
+    monkeypatch.setattr(tape.AESGCM, "generate_key", forbidden)
+    overhead = 4096 + 24 + 16
+    maximum = min((1 << 32) - 1, 1 << 32, 1 << 96, 256 << 20,
+                  (1 << 30) // (overhead + 1))
+    assert tape.MAX_RECORDS == maximum > 4096
+    r = tape.MaterialTape.price(records=maximum, packet_bytes=1, total_packet_bytes=maximum)
+    assert r.max_file_bytes == maximum * (overhead + 1) <= 1 << 30
+    assert r.max_file_bytes + overhead + 1 > 1 << 30
+    assert r.framing_bytes_per_record == 40
+    # The largest packet budget reduces the admissible record count. Neither
+    # metadata, per-record tags nor the full cumulative packet sum may be omitted.
+    count = ((1 << 30) - (256 << 20)) // overhead
+    full = tape.MaterialTape.price(records=count, packet_bytes=16 << 20,
+                                   total_packet_bytes=256 << 20)
+    assert full.max_file_bytes == (256 << 20) + count * overhead
+    assert full.max_file_bytes <= 1 << 30 < full.max_file_bytes + overhead
+    small = tape.MaterialTape.price(records=1, packet_bytes=1, total_packet_bytes=1)
+    for field in ("max_ciphertext_bytes", "append_buffer_bytes", "take_buffer_bytes",
+                  "max_internal_buffer_bytes", "caller_input_bytes", "max_returned_packet_bytes"):
+        assert getattr(r, field) == getattr(small, field)
+    assert r.max_retained_output_bytes == maximum  # caller-retained outputs are NOT constant
+
+
+def test_many_records_stream_with_bounded_python_owners_and_v1_ordinals(tmp_path, monkeypatch):
+    monkeypatch.setattr(tape.AESGCM, "generate_key", lambda **_: b"k" * 32)
+    count = 16385
+    # Independent v1 framing/AAD calculation pins compatibility, including the
+    # former 4096 boundary. No record-sized index is needed on either pass.
+    binding = (b"pllm.fss.offline-material-tape.aesgcm.v1\0" + bytes.fromhex(REQUEST)
+               + b"\0" + struct.pack(">IQQ", count, 4, 4 * count))
+    expected_aead = tape.AESGCM(b"k" * 32)
+    width = 24 + 1 + 4 + 16
+    owner = None
+    tracemalloc.start()
+    try:
+        baseline = tracemalloc.get_traced_memory()[0]
+        owner = make(tmp_path, records=count, packet_bytes=4, total_packet_bytes=4 * count)
+        for ordinal in range(count):
+            owner.append(b"m", ordinal.to_bytes(4, "big"))
+        owner.seal()
+        for ordinal in (0, 4095, 4096, count - 1):
+            nonce = ordinal.to_bytes(12, "big")
+            header = struct.pack(">IQ12s", 1, 20, nonce)
+            sealed = expected_aead.encrypt(nonce, ordinal.to_bytes(4, "big"),
+                binding + ordinal.to_bytes(4, "big") + header + b"m")
+            owner._file.seek(ordinal * width)
+            assert owner._file.read(width) == header + b"m" + sealed
+        owner._file.seek(0)
+        for ordinal in range(count):
+            assert owner.take(b"m") == ordinal.to_bytes(4, "big")
+        owner.finish()
+        # Python-visible retained owners only, not RSS/OpenSSL allocation proof.
+        # Include construction: even one pointer per record exceeds this allowance.
+        assert tracemalloc.get_traced_memory()[1] - baseline < 128 << 10
+    finally:
+        tracemalloc.stop()
+        if owner is not None: owner.close()
+    assert_retired(owner)
+    r = owner.receipt()
+    assert r["records_written"] == r["records_read"] == count
+    assert r["sealed_file_bytes"] == count * width
+
+
+@pytest.mark.parametrize("mutation", ["header_truncate", "packet_truncate", "ciphertext", "tag",
+    "metadata", "huge_metadata", "huge_packet", "swap", "replay", "forged_replay_nonce"])
+def test_corrupt_records_across_old_count_boundary_burn_owner(tmp_path, mutation):
+    count, boundary = 4098, 4096
+    owner = make(tmp_path, records=count, packet_bytes=1, total_packet_bytes=count)
+    for _ in range(count):
+        owner.append(b"m", b"p")
+    owner.seal()
+    width = 24 + 1 + 1 + 16
+    offset = boundary * width
+    handle = owner._file
+    handle.seek(offset)
+    raw = bytearray(handle.read(2 * width))
+    if mutation == "header_truncate": handle.truncate(offset + 23)
+    elif mutation == "packet_truncate": handle.truncate(offset + width - 1)
+    else:
+        if mutation == "ciphertext": raw[25] ^= 1
+        elif mutation == "tag": raw[width - 1] ^= 1
+        elif mutation == "metadata": raw[24] ^= 1
+        elif mutation == "huge_metadata": raw[:4] = (4097).to_bytes(4, "big")
+        elif mutation == "huge_packet": raw[4:12] = ((1 << 64) - 1).to_bytes(8, "big")
+        elif mutation == "swap": raw = raw[width:] + raw[:width]
+        else:
+            handle.seek(offset - width)
+            raw[:width] = handle.read(width)
+            if mutation == "forged_replay_nonce": raw[12:24] = boundary.to_bytes(12, "big")
+        handle.seek(offset)
+        handle.write(raw)
+    handle.seek(0)
+    for _ in range(boundary):
+        assert owner.take(b"m") == b"p"
+    # Corrupt length declarations must fail before allocating their payload.
+    sizes = []
+    original = owner._read_exact
+    def read(size):
+        sizes.append(size)
+        return original(size)
+    owner._read_exact = read
+    with pytest.raises(tape.MaterialTapeError):
+        owner.take(b"m")
+    assert max(sizes) <= 24
+    assert handle.closed
+    assert_retired(owner)
+
+
+def test_cancel_large_tape_waits_for_take_and_does_not_erase_returned_owner(tmp_path):
+    count = 4097
+    owner = make(tmp_path, records=count, packet_bytes=1, total_packet_bytes=count)
+    for _ in range(count): owner.append(b"m", b"p")
+    owner.seal()
+    for _ in range(count - 1): assert owner.take(b"m") == b"p"
+    entered, release, retired = threading.Event(), threading.Event(), threading.Event()
+    aead, handle = owner._aead, owner._file
+    def decrypt(*args):
+        entered.set()
+        assert release.wait(5)
+        return aead.decrypt(*args)
+    owner._aead = SimpleNamespace(decrypt=decrypt)
+    results = []
+    reader = threading.Thread(target=lambda: results.append(owner.take(b"m")))
+    closer = threading.Thread(target=lambda: (owner.cancel(), retired.set()))
+    reader.start()
+    try:
+        assert entered.wait(5)
+        closer.start()
+        assert not retired.wait(.02)
+    finally:
+        release.set()
+        reader.join(5)
+        if closer.ident is not None: closer.join(5)
+        owner.close()
+    assert not reader.is_alive() and not closer.is_alive()
+    assert results == [b"p"] and retired.is_set() and handle.closed
+    assert_retired(owner)
+    with pytest.raises(tape.MaterialTapeError): owner.finish()

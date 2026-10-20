@@ -413,10 +413,14 @@ class DashboardConfig:
     memory_budget_bytes: int | None = None
     memory_safety_margin_percent: int = 25
     memory_input_tokens: int | None = None
+    request_timeout_seconds: float = 300.0
 
     def __post_init__(self) -> None:
         _validate_request_temperature(self.temperature)
         _validate_output_digest_capture(self.capture_output_digest)
+        if (type(self.request_timeout_seconds) not in (int, float)
+                or not 0 < self.request_timeout_seconds < float("inf")):
+            raise ValueError("request timeout must be finite and positive")
         if type(self.docker) is not bool or (self.docker_image is not None and not self.docker
                                             and self.backend not in {"docker", "auto"}):
             raise ValueError("Docker image requires the Docker role backend")
@@ -448,8 +452,8 @@ class _RunCapture:
     inventory_reused: int = 0
     inventory_consumed_before: int = 0
     inventory_burned_before: int = 0
-    process_metrics: dict[str, dict[str, float | int | None]] = field(default_factory=dict)
-    worker_metrics_before: dict[str, dict[str, int | None]] | None = None
+    process_metrics: dict[str, dict[str, Any]] = field(default_factory=dict)
+    worker_metrics_before: dict[str, dict[str, Any]] | None = None
     preparation_started_monotonic_ns: int | None = None
     preparation_finished_monotonic_ns: int | None = None
     online_started_monotonic_ns: int | None = None
@@ -794,11 +798,11 @@ class DashboardRuntime:
                 )
             if self._stopping.is_set():
                 return
-            from .benchmark_memory import benchmark_memory, require_admission, MemoryWatchdog
+            from .benchmark_memory import execution_memory_admission, require_admission, MemoryWatchdog
 
             self._set(startup_step="memory preflight")
             self.memory_preflight = await asyncio.to_thread(
-                benchmark_memory, topology_source,
+                execution_memory_admission, topology_source,
                 max_input_tokens=self.config.memory_input_tokens,
                 max_output_tokens=self.config.default_max_output_tokens,
                 inventory_rows=self._inventory_rows,
@@ -827,6 +831,7 @@ class DashboardRuntime:
                 telemetry_endpoint=_http_origin(self.config.host, self.config.port),
                 telemetry_token=self.config.otel_token,
                 credential_prefix="dash",
+                startup_timeout=self.config.request_timeout_seconds,
                 progress=lambda role: self._set(startup_step=role),
                 memory_limits=self.memory_preflight["estimate"][
                     "docker_provider_peak_bytes" if use_docker else "provider_peak_bytes"
@@ -834,6 +839,9 @@ class DashboardRuntime:
                 **({"docker": True, "docker_image": self.config.docker_image,
                     "docker_network": self.config.docker_network} if use_docker else {}),
                 wan=self.config.wan,
+                **({"memory_budget_bytes": self.config.memory_budget_bytes,
+                    "memory_safety_margin_percent": self.config.memory_safety_margin_percent}
+                   if self._fss else {}),
             )
             def memory_abort(reason):
                 self._stopping.set()
@@ -845,6 +853,20 @@ class DashboardRuntime:
             self._memory_guard = MemoryWatchdog(self.memory_preflight, memory_abort)
             self._memory_guard.start()
             await asyncio.to_thread(self._topology.start)
+            complete_admission = getattr(self._topology, "memory_admission", None)
+            if self._fss and complete_admission is not None:
+                require_admission(complete_admission)
+                # Preserve monitoring from before qualification, including swap
+                # history; a stronger final floor takes effect without a gap.
+                self._memory_guard.report = {
+                    **self._memory_guard.report,
+                    "runtime_floor_bytes": max(
+                        self.memory_preflight["runtime_floor_bytes"],
+                        complete_admission["runtime_floor_bytes"],
+                    ),
+                }
+                self._memory_guard.check()
+                self.memory_preflight = complete_admission
             for status in self._topology.statuses:
                 pid = getattr(status, "pid", None)
                 if pid is not None and status.running:
@@ -855,7 +877,13 @@ class DashboardRuntime:
                         )
                     except (psutil.Error, OSError):
                         pass
-            client_options: dict[str, Any] = {"timeout": 300}
+            request_timeout = self.config.request_timeout_seconds
+            if self._fss:
+                from .fss_transport import timeout_limit
+
+                capacity = experiment.pipeline.components["linear"].params.get("capacity", "capsule")
+                request_timeout = min(request_timeout, timeout_limit(capacity))
+            client_options: dict[str, Any] = {"timeout": request_timeout}
             if not self._delegated:
                 client_options["bundle_compression"] = self._bundle_compression
                 client_options["prefill_cache_bytes"] = self._prefill_cache_mib << 20
@@ -1412,6 +1440,13 @@ class DashboardRuntime:
                         ),
                         "rss_peak_bytes": after_value.get("peak_rss_bytes"),
                     }
+                    if getattr(self, "_fss", False):
+                        from .benchmark_delegated import fss_phase_timing_delta
+
+                        timing = fss_phase_timing_delta(
+                            before_value.get("phase_timing"), after_value.get("phase_timing"))
+                        if timing is not None:
+                            capture.process_metrics[role]["phase_timing"] = timing
         except Exception as telemetry_error:
             capture.process_metrics = {}
             if display_error is None:

@@ -23,7 +23,6 @@ use zeroize::Zeroizing;
 // is forbidden, not silently included in a process-wide/RSS claim.
 const PACKET_SLOTS: usize = 6;
 const FRAME_COPY_SLOTS: usize = 8;
-const MAX_GUARD: usize = 4096;
 
 #[derive(Clone, Copy)]
 pub struct Kernel {
@@ -145,9 +144,12 @@ pub struct Admission {
     kernels: usize,
     requests: usize,
     frames: usize,
+    peer_frame_bytes: usize,
     packet_bytes: usize,
     cumulative_packet_bytes: usize,
     guard_capacity: usize,
+    guard_reservation_bytes: usize,
+    guard_disk_bytes: u64,
     combined_bytes: usize,
     transcript: [u8; 32],
 }
@@ -161,6 +163,11 @@ impl Admission {
     pub fn frames_per_party(&self) -> usize {
         self.frames
     }
+    /// Largest retained per-party primitive frame set. This bounds each single
+    /// peer frame; cumulative request traffic is a separate resource.
+    pub fn peer_frame_bytes_bound(&self) -> usize {
+        self.peer_frame_bytes
+    }
     pub fn largest_packet_bytes(&self) -> usize {
         self.packet_bytes
     }
@@ -169,6 +176,12 @@ impl Admission {
     }
     pub fn guard_capacity(&self) -> usize {
         self.guard_capacity
+    }
+    pub fn guard_reservation_bytes(&self) -> usize {
+        self.guard_reservation_bytes
+    }
+    pub fn guard_disk_bytes(&self) -> u64 {
+        self.guard_disk_bytes
     }
     pub fn combined_reservation_bytes(&self) -> usize {
         self.combined_bytes
@@ -198,27 +211,38 @@ fn hash_kernel(hash: &mut Sha256, k: Kernel) {
 }
 
 pub fn admit(program: &Program, context: Context) -> Result<Admission, Error> {
-    // Whole-request guard: no scope reset, retry, capacity increase or per-kernel
-    // exception. SDK must admit a fresh authenticated session before accepting
-    // input. Existing 4096-claim ceiling remains an explicit fail-closed limit.
+    // Keep every exact (role,nonce) claim across the complete request. Indexed,
+    // preallocated storage removes the quadratic scan; its complete capacity is
+    // priced before kernel visitation and private input. No per-kernel reset.
     let requests = program.resources().primitive_requests_per_party;
-    if requests > MAX_GUARD {
-        return Err(Error::Resource);
-    }
     let guard_capacity = requests.max(1);
+    let file_guard = program.capacity() == super::Capacity::Decoder;
+    let (guard_reservation_bytes, guard_disk_bytes) = if file_guard {
+        let resources = ImportGuard::indexed_file_resources(guard_capacity)?;
+        (resources.resident_bytes, resources.disk_bytes)
+    } else {
+        (ImportGuard::indexed_reservation_bytes(guard_capacity)?, 0)
+    };
     struct Scan {
         kernels: usize,
         requests: usize,
         frames: usize,
+        peer_frame_bytes: usize,
         packet: usize,
         cumulative: usize,
         peak: usize,
         guard: usize,
+        file_guard: bool,
+        max_cumulative: usize,
         hash: Sha256,
     }
     impl MaterialVisitor for Scan {
         fn visit(&mut self, context: Context, plan: &Plan<'_>) -> Result<(), Error> {
-            let r = plan.transport_resources(PACKET_SLOTS, self.guard)?;
+            let r = if self.file_guard {
+                plan.transport_resources_indexed_file(PACKET_SLOTS, self.guard)?
+            } else {
+                plan.transport_resources_indexed(PACKET_SLOTS, self.guard)?
+            };
             let k = Kernel {
                 context,
                 plan_digest: plan.digest(),
@@ -228,9 +252,10 @@ pub fn admit(program: &Program, context: Context) -> Result<Admission, Error> {
             self.kernels = add(self.kernels, 1)?;
             self.requests = add(self.requests, r.secret_steps)?;
             self.frames = add(self.frames, plan.resources().frames_per_party)?;
+            self.peer_frame_bytes = self.peer_frame_bytes.max(r.retained_frame_bytes_per_party);
             self.packet = self.packet.max(r.largest_packet_bytes_bound);
             self.cumulative = add(self.cumulative, r.cumulative_packet_bytes_per_party_bound)?;
-            if self.cumulative > 1 << 30 {
+            if self.cumulative > self.max_cumulative {
                 return Err(Error::Resource);
             }
             let native = add(
@@ -247,10 +272,13 @@ pub fn admit(program: &Program, context: Context) -> Result<Admission, Error> {
         kernels: 0,
         requests: 0,
         frames: 0,
+        peer_frame_bytes: 0,
         packet: 0,
         cumulative: 0,
         peak: 0,
         guard: guard_capacity,
+        file_guard,
+        max_cumulative: if file_guard { 32 << 30 } else { 1 << 30 },
         hash: hash_start(program),
     };
     program.visit_material(context, &mut scan)?;
@@ -280,9 +308,12 @@ pub fn admit(program: &Program, context: Context) -> Result<Admission, Error> {
         kernels: scan.kernels,
         requests,
         frames: scan.frames,
+        peer_frame_bytes: scan.peer_frame_bytes,
         packet_bytes: scan.packet,
         cumulative_packet_bytes: scan.cumulative,
         guard_capacity,
+        guard_reservation_bytes,
+        guard_disk_bytes,
         combined_bytes: combined,
         transcript: scan.hash.finalize().into(),
     })
@@ -483,6 +514,9 @@ impl<T: WorkerTransport> Driver for Role<'_, '_, T> {
                             return Err(Error::Resource);
                         }
                         let len = frame.as_bytes().len();
+                        if len > self.admission.peer_frame_bytes {
+                            return Err(Error::Resource);
+                        }
                         let mut reply = Reply::new(len)?;
                         self.transport.exchange(
                             PeerRequest {
@@ -506,7 +540,7 @@ impl<T: WorkerTransport> Driver for Role<'_, '_, T> {
                         if frames != plan.resources().frames_per_party {
                             return Err(Error::Context);
                         }
-                        return NativeOutput::from_native(output);
+                        return NativeOutput::from_native_plan(output, plan);
                     }
                 };
             }
@@ -548,14 +582,22 @@ pub fn execute(
         transport.cancel();
         return Err(Error::Domain);
     }
-    let budget = match mul(admission.guard_capacity, 33).and_then(Budget::new) {
+    let budget = match Budget::new(admission.guard_reservation_bytes) {
         Ok(b) => b,
         Err(e) => {
             transport.cancel();
             return Err(e);
         }
     };
-    let guard = match ImportGuard::new(admission.guard_capacity, &budget) {
+    let guard = match if admission.guard_disk_bytes != 0 {
+        ImportGuard::new_indexed_file(
+            admission.guard_capacity,
+            admission.guard_disk_bytes,
+            &budget,
+        )
+    } else {
+        ImportGuard::new_indexed(admission.guard_capacity, &budget)
+    } {
         Ok(g) => g,
         Err(e) => {
             transport.cancel();
@@ -596,4 +638,4 @@ pub fn execute(
 
 #[cfg(test)]
 #[path = "transport_tests.rs"]
-mod tests;
+pub(super) mod tests;

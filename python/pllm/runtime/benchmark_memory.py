@@ -7,6 +7,7 @@ Pipeline, privacy topology, kernel, or an enforced-WAN measurement into an estim
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 import json
 import math
@@ -147,6 +148,12 @@ def _memory_margin(percent: int) -> int:
     if type(percent) is not int or not 0 <= percent <= 100:
         raise ValueError("memory safety margin must be an integer from 0 to 100 percent")
     return percent
+
+
+def _memory_budget(value: int | None) -> int | None:
+    if value is not None and (type(value) is not int or value <= 0):
+        raise ValueError("memory budget must be a positive byte count")
+    return value
 
 
 def _slack(value: int, percent: int = 25) -> int:
@@ -345,15 +352,23 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
 
 
 def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
-                memory_safety_margin_percent=25, *, contract=None, source_pins=None):
+                memory_safety_margin_percent=25, *, contract=None, source_pins=None,
+                transport_admission=None):
     """Bounded metadata/owner estimate; never admits numeric/program resources."""
-    from .fss_protocol import CLIENT_MEMORY, ROLE_MEMORY, FRAME_LIMIT, ADMISSION_LIMIT, CONTROL_LIMIT, ROLES
-    from .fss_tape import MAX_PACKET_BYTES, MAX_TOTAL_PACKET_BYTES, MAX_FILE_BYTES
+    from .fss_protocol import ROLE_MEMORY, FRAME_LIMIT, ADMISSION_LIMIT, CONTROL_LIMIT, ROLES
+    from .fss_tape import MAX_PACKET_BYTES, capacity_limits
+    from .fss_transport import client_memory_bytes, price_transport, transport_capacity, MAX_GUARD_DISK_BYTES
+    from . import delegated_source as source_io
+    from .fss_source import _FRAME
+    from .tokenizer_admission import DECODER_METADATA_MEMORY_BYTES
     from pllm.configuration import Deployment, ExecutionBudget, Experiment
     _validate_workload(rows, outputs, 1, cache_bytes, cache_bound)
     if cache_bytes or cache_bound is not None or outputs > 4 or rows + outputs - 1 > 16:
         raise BenchmarkMemoryError("FuseFSS requires bounded fixed-count complete-prefix recomputation")
     try:
+        capacity = pipeline.components["linear"].params.get("capacity", "capsule")
+        expanded = capacity == "decoder"
+        total_packet_limit, tape_limit = capacity_limits(capacity)
         raw = json.dumps(config, separators=(",", ":"), allow_nan=False).encode()
         if len(raw) > 16384:
             raise ValueError("config exceeds native metadata bound")
@@ -361,7 +376,8 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
             from .fss_source import _contract, _geometry
             experiment = Experiment("fss-memory-estimate", pipeline, Deployment.local(root="."),
                 budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
-            _geometry(raw, rows, outputs, pipeline.components["linear"].params["numeric_profile"])
+            _geometry(raw, rows, outputs, pipeline.components["linear"].params["numeric_profile"],
+                      **({"capacity": capacity} if expanded else {}))
             # Native requires nonzero pins. These intentionally synthetic pins
             # are never represented as source verification or serving admission.
             _, contract = _contract(experiment, experiment.canonical_bytes(), raw, rows, outputs,
@@ -369,29 +385,55 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
         if (contract["schema_version"] != "pllm.fss.sdk-contract.v1"
                 or contract["runtime_kind"] != "fss" or contract["ring_bits"] != 50
                 or contract["fractional_bits"] != 12 or contract["input_rows"] != rows
-                or contract["output_tokens"] != outputs):
+                or contract["output_tokens"] != outputs or transport_capacity(contract) != capacity):
             raise ValueError("native metadata identity differs")
         source = contract["source_float32_bytes"]
         minimum = contract["admission"]["source_minimum_owner_bytes"]
-        if (type(source) is not int or not 0 < source <= 8 * MiB
+        if (type(source) is not int or not 0 < source <= (source_io._DECODER_SOURCE_BYTES if expanded else 8 * MiB)
                 or type(minimum) is not int or not 0 < minimum <= 64 * MiB
                 or contract["admission"]["numeric"] != "not_performed"
                 or contract["admission"]["program_resources"] is not None):
             raise ValueError("native metadata admission differs")
+        source_disk, source_resident = 0, 64 * MiB
+        if expanded:
+            source_disk = contract["source_disk_bytes"]
+            source_resident = contract["source_resident_bound_bytes"]
+            q12 = contract["source_q12_value_bytes"]
+            if (type(q12) is not int or q12 != 2 * source
+                    or type(source_disk) is not int or not 0 <= source_disk <= 2 * source_io._DECODER_SOURCE_BYTES
+                    or type(source_resident) is not int or not 0 < source_resident <= 8 * MiB):
+                raise ValueError("native source storage admission differs")
+        guard_disk = MAX_GUARD_DISK_BYTES if expanded else 0
+        disk_scope = "capacity ceilings before native import"
+        if transport_admission is not None:
+            resources = price_transport(transport_admission, json.dumps(contract).encode())
+            tape_limit, guard_disk = resources.tape.max_file_bytes, resources.guard_disk_bytes
+            total_packet_limit = resources.tape.total_packet_bytes
+            disk_scope = "native transport admission after import"
     except (ValueError, TypeError, KeyError, AttributeError, OverflowError, ImportError) as error:
         raise BenchmarkMemoryError("FuseFSS source exceeds metadata-only native admission") from error
     metadata = 8 * (len(raw) + len(json.dumps(contract).encode()))
     client_parts = {"native_request_workspace": 8 * MiB, "metadata_parse_copies": metadata,
                     "hash_and_source_inspection_scratch": 4 * MiB,
-                    "tokenizer_parse_copies": 32 * MiB,
+                    # Match the shared decoder's bounded 64MiB tokenizer/outer
+                    # workspace convention, derived from its 16MiB byte limit.
+                    "tokenizer_parse_copies": 4 * source_io._DECODER_TOKENIZER_BYTES if expanded else 32 * MiB,
                     "http_control_overlap": 6 * ADMISSION_LIMIT + 8 * CONTROL_LIMIT}
-    role_parts = {"native_kernel_owner": 64 * MiB, "native_source_program_owner": 64 * MiB,
+    role_parts = {"native_kernel_owner": 64 * MiB, "native_source_program_owner": source_resident,
                   "metadata_parse_copies": metadata, "http_native_aead_tape_overlap": 6 * FRAME_LIMIT,
-                  "source_import_scratch": 5 * source + 2 * contract["rotary_float32_bytes"] + 4 * MiB,
+                  "source_import_scratch": 7 * _FRAME + 4 * MiB,
                   "thread_stack_allowance": 8 * MiB}
+    if expanded:
+        role_parts["tokenizer_parse_copies"] = 4 * source_io._DECODER_TOKENIZER_BYTES
     client_work, role_work = sum(client_parts.values()), sum(role_parts.values())
-    if client_work > CLIENT_MEMORY or role_work > ROLE_MEMORY:
-        raise BenchmarkMemoryError("FuseFSS conservative incremental owners exceed unchanged client/role memory caps")
+    client_bound = client_memory_bytes(capacity)
+    if client_work > client_bound or role_work > ROLE_MEMORY:
+        raise BenchmarkMemoryError("FuseFSS conservative incremental owners exceed client/role memory caps")
+    # Source metadata preflight precedes role import/execution. Price its shared
+    # transient JSON/reverse-index reservation as a separate peak, not another
+    # live copy of the checkpoint or an increase to the native primitive bound.
+    metadata_preflight = DECODER_METADATA_MEMORY_BYTES if expanded else 0
+    client_work, role_work = max(client_work, metadata_preflight), max(role_work, metadata_preflight)
     margin = memory_safety_margin_percent
     providers = {role: _slack(_PROCESS_BYTES + role_work, margin) for role in ROLES}
     # SDK, supervisor, dashboard and relay can overlap, plus three role processes.
@@ -412,17 +454,26 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
         "fss_admission": {"source_pins": source_pins, "source_pins_verified": source_pins is not None,
             "synthetic_nonzero_pins_used": source_pins is None, "metadata_only": True,
             "numeric_admission": "not_performed", "complete_program_resources": None,
-            "transport_admission": None,
+            "transport_admission": transport_admission, "disk_price_scope": disk_scope,
             "native_admission": contract["admission"], "serving_qualified": False},
-        "incremental_owner_bounds": {"client": CLIENT_MEMORY, "per_role": ROLE_MEMORY},
+        "incremental_owner_bounds": {"client": max(client_bound, metadata_preflight),
+            "per_role": max(ROLE_MEMORY, metadata_preflight), "client_execution": client_bound,
+            "per_role_execution": ROLE_MEMORY, "source_metadata_preflight": metadata_preflight},
         "allocation_owners": {"client": client_parts, "each_role": role_parts,
+            "source_metadata_preflight_bytes_per_process": metadata_preflight,
             "client_sdk_supervisor_dashboard_processes": 3, "relay_workspace_bytes": 32 * MiB},
         "components": {"checkpoint_bytes": checkpoint_bytes, "source_float32_bytes": source,
             "checkpoint_byte_count_scope": "caller_supplied_or_float32_geometry_upper_bound_not_delivery",
-            "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0,
-            "fss_tape_disk_bytes": 2 * MAX_FILE_BYTES, "fss_packet_bound_bytes": MAX_PACKET_BYTES,
-            "fss_cumulative_packets_per_holder_bytes": MAX_TOTAL_PACKET_BYTES,
-            "fss_tape_file_per_holder_bytes": MAX_FILE_BYTES}}
+            # The shared whole-topology gate multiplies per-engine storage by
+            # all three roles, and adds its holder-transport bucket exactly once.
+            "per_engine_compiled_disk_bytes": source_disk, "raw_client_bundle_bytes": 0,
+            "fss_source_disk_bytes": 3 * source_disk,
+            "fss_tape_disk_bytes": 2 * (tape_limit + guard_disk),
+            "fss_tape_disk_scope": "two holder tapes plus two separate native replay guards",
+            "fss_encrypted_tape_disk_bytes": 2 * tape_limit, "fss_guard_disk_bytes": 2 * guard_disk,
+            "fss_packet_bound_bytes": MAX_PACKET_BYTES,
+            "fss_cumulative_packets_per_holder_bytes": total_packet_limit,
+            "fss_tape_file_per_holder_bytes": tape_limit}}
 
 
 def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
@@ -873,8 +924,7 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
                  enforced_wan=False, memory_budget_bytes=None):
     if backend not in {"native", "docker", "auto"}:
         raise ValueError("benchmark backend must be native, docker or auto")
-    if memory_budget_bytes is not None and (type(memory_budget_bytes) is not int or memory_budget_bytes <= 0):
-        raise ValueError("memory budget must be a positive byte count")
+    memory_budget_bytes = _memory_budget(memory_budget_bytes)
     budget = max(0, host.available - host.reserve)
     if memory_budget_bytes is not None:
         budget = min(budget, memory_budget_bytes)  # explicit budget can only tighten admission
@@ -960,8 +1010,13 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
 
 def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
                      cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
-                     memory_budget_bytes=None, memory_safety_margin_percent=25):
-    """Inspect an Experiment/Model without loading tensor values or starting roles."""
+                     memory_budget_bytes=None, memory_safety_margin_percent=25, fss_imported=None):
+    """Inspect without importing tensors or starting roles.
+
+    An optional live LoadedFssSource supplies native program pricing. The caller
+    owns its prior import reservation, setup measurements and lifetime; a JSON
+    price cannot replace it. Omitting it preserves metadata-only preflight.
+    """
     from pllm.configuration import Experiment, Model, Pipeline
     from pllm.profiles import MaskedLinearCpu, resolve_runtime_composition
 
@@ -987,6 +1042,8 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
     options = resolve_runtime_composition(pipeline)
     if options is None:
         raise BenchmarkMemoryError("no allocation model for the selected runtime composition")
+    if fss_imported is not None and options.client_runtime != "compiled_fss_v1":
+        raise BenchmarkMemoryError("imported FuseFSS pricing requires its complete Experiment")
     if inventory_rows is None:
         inventory_rows = options.prepared_inventory_rows
     source = pipeline.model
@@ -997,16 +1054,45 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
             raise BenchmarkMemoryError("FuseFSS source preflight requires complete Experiment")
         if max_input_tokens > model.budget.max_input_tokens or max_output_tokens > model.budget.max_new_tokens:
             raise BenchmarkMemoryError("FuseFSS measurement exceeds saved workload envelope")
-        from .fss_source import resolve_client_source
+        from .fss_source import LoadedFssSource, resolve_client_source
+        pricing = program_resources = None
         try:
-            admitted = resolve_client_source(model)
+            if fss_imported is None:
+                admitted = resolve_client_source(model)
+            else:
+                if type(fss_imported) is not LoadedFssSource or fss_imported._closed:
+                    raise ValueError("FuseFSS pricing requires a live imported source owner")
+                admitted = fss_imported.source
+                # Reuse the frozen source's Experiment, file-identity and full
+                # saved-envelope checks. A smaller prompt's price is not enough.
+                raw = admitted.runtime_contract(model, model.budget.max_input_tokens,
+                                                 model.budget.max_new_tokens)
+                if raw != admitted.contract_bytes or raw != fss_imported.contract_bytes:
+                    raise ValueError("FuseFSS imported pricing differs from saved source envelope")
+                from .benchmark_delegated import inspect_fss_imported
+                pricing = inspect_fss_imported(fss_imported)
+                program_resources = json.loads(fss_imported.native_program.metadata())
+                if (program_resources.get("schema") != "pllm.fss.program_resources.v1"
+                        or any(program_resources.get(key) != pricing.get(field) for key, field in (
+                            ("program_digest", "program_digest"), ("source_digest", "source_digest"),
+                            ("original_input_digest", "input_digest"), ("numeric_profile", "numeric_profile"),
+                            ("initial_tokens", "initial_tokens"), ("selections", "selections"),
+                            ("vocabulary", "vocabulary")))):
+                    raise ValueError("FuseFSS native program resource identity differs")
         except ValueError as error:
-            raise BenchmarkMemoryError("FuseFSS source metadata preflight rejected before model loading") from error
+            scope = ("source metadata preflight rejected before model loading" if fss_imported is None
+                     else "imported source pricing rejected")
+            raise BenchmarkMemoryError(f"FuseFSS {scope}") from error
         contract = admitted.contract
         estimate = _fss_memory(json.loads(admitted.config_bytes), pipeline,
             contract["input_rows"], contract["output_tokens"], cache_bytes, cache_bound_tokens,
             contract["source_float32_bytes"], memory_safety_margin_percent,
-            contract=contract, source_pins=admitted.snapshot_pins)
+            contract=contract, source_pins=admitted.snapshot_pins, transport_admission=pricing)
+        if program_resources is not None:
+            estimate["fss_admission"].update(metadata_only=False,
+                numeric_admission="native_imported_program", complete_program_resources=program_resources,
+                pricing_scope="saved_full_envelope; not_request_admission",
+                qualification_owner_lifetime="caller_owned; retire_before_full_topology_source_imports")
         return admit_memory(estimate, host_memory(), backend=backend, enforced_wan=enforced_wan,
                             memory_budget_bytes=memory_budget_bytes)
     if options.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1"}:
@@ -1080,6 +1166,62 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
             pass
     return admit_memory(estimate, host_memory(), backend=backend, docker_capacity=docker,
                         enforced_wan=enforced_wan, memory_budget_bytes=memory_budget_bytes)
+
+
+def _fss_source_qualification_estimate(estimate):
+    """Single coordinator source owner on disk; unchanged whole-topology memory.
+
+    Only the decoder execution path uses this phase. Transport is not yet
+    priced, no role may start from this estimate, and the final native program
+    estimate must replace it before allocating the complete graph.
+    """
+    if (estimate.get("runtime_kind") != "fss"
+            or not estimate["incremental_owner_bounds"]["source_metadata_preflight"]
+            or not estimate["fss_admission"]["metadata_only"]):
+        raise BenchmarkMemoryError("source qualification requires decoder metadata admission")
+    value = deepcopy(estimate)
+    original = estimate["components"]
+    source_disk = original["per_engine_compiled_disk_bytes"]
+    value["components"] = {
+        "checkpoint_bytes": original["checkpoint_bytes"],
+        "source_float32_bytes": original["source_float32_bytes"],
+        "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0,
+        "client_additional_paged_disk_bytes": source_disk,
+        "source_qualification_disk_bytes": source_disk,
+    }
+    value["fss_admission"].update(disk_price_scope="single_source_qualification_only; graph_transport_unpriced",
+        full_graph_disk_admitted=False, qualification_required_before_children=True)
+    return value
+
+
+def execution_memory_admission(model, *, max_input_tokens=None, max_output_tokens=None, inventory_rows=None,
+                               cache_bytes=0, cache_bound_tokens=None, backend="native", enforced_wan=False,
+                               memory_budget_bytes=None, memory_safety_margin_percent=25):
+    """Admission for the next execution phase; never imports tensor values.
+
+    Decoder FuseFSS first admits one source-qualification owner on disk while
+    retaining the full graph's conservative memory estimate and watchdog floor.
+    LocalTopology must qualify and admit the complete graph before any child.
+    Other runtimes and the capsule retain ordinary benchmark_memory behavior.
+    """
+    from pllm.configuration import Experiment
+    from pllm.metrics import benchmark_memory as inspect_memory
+    from .benchmark_delegated import is_fss
+
+    report = inspect_memory(model, max_input_tokens=max_input_tokens, max_output_tokens=max_output_tokens,
+        inventory_rows=inventory_rows, cache_bytes=cache_bytes, cache_bound_tokens=cache_bound_tokens,
+        backend=backend, enforced_wan=enforced_wan, memory_budget_bytes=memory_budget_bytes,
+        memory_safety_margin_percent=memory_safety_margin_percent)
+    if (not isinstance(model, Experiment)
+            or model.pipeline.components.get("linear") is None
+            or model.pipeline.components["linear"].params.get("capacity", "capsule") != "decoder"
+            or not is_fss(model)):
+        return report
+    estimate = _fss_source_qualification_estimate(report["estimate"])
+    report = admit_memory(estimate, host_memory(), backend=backend, enforced_wan=enforced_wan,
+                          memory_budget_bytes=memory_budget_bytes)
+    report.update(admission_scope="source_qualification_only", full_topology_admitted=False)
+    return report
 
 
 def require_admission(report):

@@ -756,8 +756,18 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         raise ResolutionError("BENCHMARK_WARMUPS", "warmups must be between 0 and 100")
     if not 1 <= args.repetitions <= 100:
         raise ResolutionError("BENCHMARK_REPETITIONS", "repetitions must be between 1 and 100")
-    if not 1 <= args.timeout <= 3600:
-        raise ResolutionError("BENCHMARK_TIMEOUT", "timeout must be between 1 and 3600 seconds")
+    from pllm.runtime.benchmark_cli import validate_benchmark_timeout
+    from pllm.runtime.fss_transport import timeout_limit
+
+    # A Python factory must resolve before its explicit capacity is knowable.
+    # Defer only the potentially valid extended range; invalid numbers and
+    # ordinary/no-target requests still reject before executing a factory.
+    if not (getattr(args, "experiment", None) and type(args.timeout) in (int, float)
+            and 3600 < args.timeout <= timeout_limit("decoder")):
+        try:
+            validate_benchmark_timeout(args.timeout)
+        except ValueError as exc:
+            raise ResolutionError("BENCHMARK_TIMEOUT", str(exc)) from exc
 
     experiments = []
     if getattr(args, "experiment", None):
@@ -791,6 +801,11 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                     f"--max-output-tokens exceeds {target.configuration.name!r} budget",
                 )
             experiments.append(target.configuration)
+        for experiment in experiments:
+            try:
+                validate_benchmark_timeout(args.timeout, experiment=experiment)
+            except (TypeError, ValueError) as exc:
+                raise ResolutionError("BENCHMARK_TIMEOUT", str(exc)) from exc
         digests = [experiment.configuration_digest() for experiment in experiments]
         names = [experiment.name for experiment in experiments]
         if len(set(digests)) != len(digests):
@@ -882,6 +897,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         raise ResolutionError("BENCHMARK_KERNEL_COMPARISON",
                               "--compare-kernels requires multiple --experiment targets and --capture-output-digest")
 
+    from pllm.profiles import resolve_runtime_composition
     from pllm.runtime.benchmark_delegated import admit_options, is_buffered, is_replicated, output_contract
 
     delegated_experiments = [experiment for experiment in experiments if is_buffered(experiment)]
@@ -952,6 +968,8 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
     for experiment, entry in zip(experiments, configuration["experiments"]):
         if experiment not in delegated_experiments:
             continue
+        runtime = resolve_runtime_composition(experiment.pipeline)
+        assert runtime is not None  # Already classified as an exact buffered composition.
         try:
             admit_options(experiment, backend=backend, docker=args.docker,
                 docker_image=args.docker_image, docker_network=args.docker_network_profile,
@@ -962,7 +980,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                 requests=args.warmups + args.repetitions * (len(prompt_sequence) if prompt_sequence is not None else 1))
         except ValueError as exc:
             raise ResolutionError("BENCHMARK_PUMA_CONTRACT" if is_replicated(experiment) else "BENCHMARK_GKM_CONTRACT", str(exc)) from exc
-        entry.update(runtime_kind="replicated" if is_replicated(experiment) else "gkm", output_delivery=output_contract(experiment)[0],
+        entry.update(runtime_kind=runtime.runtime_kind, output_delivery=output_contract(experiment)[0],
                      generation_policy="fixed_length_greedy", sampling=_sampling_choice(0.0))
     if emulate_wan and selection is not None:
         raise ResolutionError("BENCHMARK_WAN_PROFILE", "WAN emulation requires local roles; live network plans support --wan-estimate")

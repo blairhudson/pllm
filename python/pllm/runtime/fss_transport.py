@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import json
 import math
 import secrets
 import time
@@ -15,6 +17,106 @@ from .fss_protocol import (
     ADMISSION_LIMIT, CLIENT_MEMORY, CONTROL_LIMIT, HOLDERS, PEER_COUNTERS, ROLES,
     TRANSPORT, clear_failure_frames, collect_peer_bytes, digest, pack, unpack,
 )
+from .fss_tape import (MaterialTape, TapeResources, capacity_limits, DISK_HEADROOM_BYTES,
+                       MAX_METADATA_BYTES, MAX_PACKET_BYTES)
+
+
+DECODER_TIMEOUT_LIMIT = 24 * 60 * 60
+MAX_GUARD_DISK_BYTES = 32 << 30
+
+
+def transport_capacity(contract):
+    """Read a locally recomputed source contract; this is not authentication."""
+    if type(contract) is bytes:
+        if not 0 < len(contract) <= 1 << 20:
+            raise ValueError("FuseFSS source contract exceeds bounds")
+        contract = json.loads(contract)
+    if type(contract) is not dict:
+        raise ValueError("FuseFSS source contract differs")
+    capacity = contract.get("capacity", "capsule")
+    capacity_limits(capacity)
+    return capacity
+
+
+def timeout_limit(capacity):
+    capacity_limits(capacity)
+    return DECODER_TIMEOUT_LIMIT if capacity == "decoder" else 600
+
+
+def client_memory_bytes(capacity):
+    """Bounded outer owner; decoder adds the shared 64MiB tokenizer allowance.
+
+    Native request/primitive limits remain unchanged. The extra Python/tokenizer
+    ownership is charged through the ordinary process-wide memory reservation.
+    """
+    from .delegated_source import _DECODER_TOKENIZER_BYTES
+    capacity_limits(capacity)
+    return CLIENT_MEMORY + (4 * _DECODER_TOKENIZER_BYTES if capacity == "decoder" else 0)
+
+
+@dataclass(frozen=True)
+class TransportResources:
+    """Pure price for a caller-owned reservation, never an admission certificate.
+
+    Source files are priced separately by the caller from the native source
+    contract. The guard is a separate native owner, not part of the opaque tape.
+    No source payload, material, record index or per-record metadata is retained.
+    """
+
+    contract_digest: str
+    tape: TapeResources
+    guard_disk_bytes: int
+    guard_reservation_bytes: int
+    combined_reservation_bytes: int
+
+    @property
+    def transport_disk_bytes_per_holder(self):
+        return self.tape.max_file_bytes + self.guard_disk_bytes
+
+    @property
+    def required_disk_free_bytes_per_holder(self):
+        return self.transport_disk_bytes_per_holder + DISK_HEADROOM_BYTES
+
+
+def _tape_metadata_storage(capacity):
+    """Local capacity policy shared by pricing and completion accounting."""
+    capacity_limits(capacity)
+    return "external_aad" if capacity == "decoder" else "inline"
+
+
+def price_transport(admission, contract: bytes) -> TransportResources:
+    """Price native-derived bounds without reading source or creating any file.
+
+    Exact transport counts exist only after native import/range admission. The
+    worker prices its own native role's metadata and reserves disk before tape
+    or guard creation. Source storage has its earlier, separate native contract
+    and reservation. A remote/public price cannot authorize execution.
+    Decoder opts into v2 external-metadata AAD; Capsule keeps inline/v1. This
+    local storage policy never follows a remote or native metadata-storage hint.
+    """
+    if type(contract) is not bytes or type(admission) is not dict:
+        raise ValueError("FuseFSS transport pricing contract differs")
+    capacity = transport_capacity(contract)
+    if admission.get("capacity", "capsule") != capacity:
+        raise ValueError("FuseFSS native transport capacity differs")
+    def integer(name, maximum, default=None):
+        value = admission.get(name, default)
+        if type(value) is not int or not 0 <= value <= maximum:
+            raise ValueError("FuseFSS transport resource bound differs")
+        return value
+    metadata = integer("callback_metadata_bytes_bound", MAX_METADATA_BYTES)
+    if metadata == 0:
+        raise ValueError("FuseFSS callback metadata bound differs")
+    tape = MaterialTape.price(records=admission.get("primitive_requests_per_party"),
+        packet_bytes=admission.get("largest_packet_bytes"),
+        total_packet_bytes=admission.get("cumulative_packet_bytes_per_party_bound"),
+        capacity=capacity, metadata_bytes_per_record=metadata if capacity == "decoder" else MAX_METADATA_BYTES,
+        metadata_storage=_tape_metadata_storage(capacity))
+    default = 0 if capacity == "capsule" else None
+    return TransportResources(hashlib.sha256(contract).hexdigest(), tape,
+        integer("guard_disk_bytes", MAX_GUARD_DISK_BYTES, default),
+        integer("guard_reservation_bytes", 64 << 20, default),
+        integer("combined_reservation_bytes", 64 << 20))
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,12 +132,15 @@ def _ack(peers, index, action, expected, payload=b"", *, phase="setup", limit=CO
         raise ProtocolError("FuseFSS acknowledgement differs")
 
 
-def _receipt(raw, role):
+def _receipt(raw, role, *, capacity="capsule"):
+    from .fss_protocol import FINAL_FRAME_LIMIT
+
+    packet_limit, file_limit = capacity_limits(capacity)
     value = unpack(raw, limit=CONTROL_LIMIT)
     if type(value) is not dict or set(value) != {"frame", "peer_bytes", "storage"}:
         raise ProtocolError("FuseFSS completion envelope differs")
     frame = value["frame"]
-    if type(frame) is not bytes or (frame != b"" if role == "dealer" else not 0 < len(frame) <= 176):
+    if type(frame) is not bytes or (frame != b"" if role == "dealer" else not 0 < len(frame) <= FINAL_FRAME_LIMIT):
         raise ProtocolError("FuseFSS completion frame exceeds its bound")
     counts = collect_peer_bytes(value["peer_bytes"], role)
     storage = value["storage"]
@@ -49,20 +154,32 @@ def _receipt(raw, role):
                     "packet_bytes_written", "packet_bytes_read", "records_written", "records_read",
                     "sealed_file_bytes", "sealed_digest"}
         if (set(storage) != required or storage["state"] != "finished"
-                or any(type(storage[k]) is not int or not 0 <= storage[k] <= 1 << 30
+                or any(type(storage[k]) is not int or not 0 <= storage[k] <= file_limit
                        for k in required - {"state", "sealed_digest"})
                 or storage["records_read"] != storage["records_written"]
                 or storage["packet_bytes_read"] != storage["packet_bytes_written"]
                 or storage["encrypted_file_bytes_read"] != storage["encrypted_file_bytes_written"]
                 or storage["sealed_file_bytes"] != storage["encrypted_file_bytes_written"]):
             raise ProtocolError("FuseFSS complete tape accounting differs")
+        records, packets, encrypted = (storage["records_read"], storage["packet_bytes_read"],
+                                       storage["encrypted_file_bytes_read"])
+        # The mode comes from the locally selected capacity, never the receipt.
+        # V2 stores only the 24-byte header + 16-byte tag beyond the packet;
+        # v1 additionally stores nonempty metadata. Neither mode permits empty
+        # metadata INPUT; that bound and the full original AAD remain in the tape.
+        metadata_min, metadata_max = ((0, 0) if _tape_metadata_storage(capacity) == "external_aad"
+                                      else (1, MAX_METADATA_BYTES))
+        if (records >= 1 << 32 or not records <= packets <= min(packet_limit, records * MAX_PACKET_BYTES)
+                or not packets + records * (40 + metadata_min) <= encrypted <= packets + records * (40 + metadata_max)):
+            raise ProtocolError("FuseFSS tape framing accounting differs")
         digest(storage["sealed_digest"])
     return frame, counts, storage
 
 
 def execute_request(experiment, source, ids, outputs, connections, timeout, attempt, *, completed_program=None):
     """Return fixed-count token IDs after both complete one-use holder responses."""
-    if (type(timeout) not in (float, int) or not math.isfinite(timeout) or not 0 < timeout <= 600
+    capacity = transport_capacity(source.contract)
+    if (type(timeout) not in (float, int) or not math.isfinite(timeout) or not 0 < timeout <= timeout_limit(capacity)
             or type(ids) not in (tuple, list) or not 1 <= len(ids) <= 16
             or any(type(i) is not int or not 0 <= i < source.contract["vocabulary"] for i in ids)
             or type(outputs) is not int or not 1 <= outputs <= 4 or not callable(attempt)):
@@ -71,15 +188,20 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
     connections = dict(zip(ROLES, _connections(connections, roles=ROLES), strict=True))
     deadline = time.monotonic() + timeout
     peers = native = manifests = frame = frames = raw = value = storage = None
-    with reserve_incremental_memory(CLIENT_MEMORY):
+    with reserve_incremental_memory(client_memory_bytes(capacity)):
         try:
             if attempt():
                 raise ProtocolError("FuseFSS request cancelled", 499)
             contract = source.runtime_contract(experiment, len(ids), outputs)
+            if transport_capacity(contract) != capacity:
+                raise ValueError("FuseFSS runtime capacity differs from source")
+            receipt_options = {} if capacity == "capsule" else {"capacity": capacity}
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise ProtocolError("FuseFSS request timed out", 499)
             peers = _Peers(connections, remaining, attempt, roles=ROLES, namespace="fss")
+            # Channel construction also spends the original request budget.
+            peers.deadline = min(peers.deadline, deadline)
             peers.request_id = secrets.token_hex(32)
             epochs = {}
             for index, role in enumerate(ROLES):
@@ -97,9 +219,18 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
             for index, role in enumerate(ROLES):
                 # Lost or malformed acknowledgements still require retirement.
                 peers.live[index] = True
-                payload = pack({"request": peers.request_id, "epoch": epochs[role], "epochs": epochs,
-                                "rows": len(ids), "outputs": outputs, "contract": contract},
-                               limit=ADMISSION_LIMIT)
+                admission = {"request": peers.request_id, "epoch": epochs[role], "epochs": epochs,
+                             "rows": len(ids), "outputs": outputs, "contract": contract}
+                if capacity == "decoder":
+                    peers.check()
+                    remaining = min(timeout, peers.deadline - time.monotonic())
+                    if remaining <= 0:
+                        raise ProtocolError("FuseFSS request timed out", 499)
+                    # Recompute after each earlier role's source import. This is
+                    # a duration on authenticated client control, not a remote
+                    # monotonic timestamp or a renewable peer-traffic lease.
+                    admission["remaining_seconds"] = remaining
+                payload = pack(admission, limit=ADMISSION_LIMIT)
                 value = unpack(peers.post(index, "admit", payload, phase="setup", limit=CONTROL_LIMIT),
                                limit=CONTROL_LIMIT)
                 if (type(value) is not dict or set(value) != {"manifest"}
@@ -114,7 +245,7 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
             # Dealer retires before input release; final-only token shares never
             # flow through it. Its direct setup counters remain charged.
             raw = peers.post(2, "finish", phase="setup", limit=CONTROL_LIMIT)
-            _, peer_counts, _ = _receipt(raw, "dealer")
+            _, peer_counts, _ = _receipt(raw, "dealer", **receipt_options)
             peers.live[2] = False
             for index in range(2):
                 frame = native.take_input(index)
@@ -125,7 +256,7 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
             frames = []
             for index, role in enumerate(HOLDERS):
                 raw = peers.post(index, "finish", phase="online", limit=CONTROL_LIMIT)
-                frame, counts, storage = _receipt(raw, role)
+                frame, counts, storage = _receipt(raw, role, **receipt_options)
                 frames.append(frame)
                 for key, count in counts.items():
                     peer_counts[key] += count

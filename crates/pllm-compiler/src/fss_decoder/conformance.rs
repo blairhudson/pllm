@@ -253,7 +253,13 @@ fn source(c: &Value, semantic: &DecoderPlan) -> Result<Source, Error> {
                 let mut codes = Vec::new();
                 for role in ["q", "k", "v"] {
                     let name = format!("{base}.{role}.{}", if is_bias { "bias" } else { "weight" });
-                    codes.extend_from_slice(imported.get(&name).ok_or(Error::Domain)?.values());
+                    codes.extend_from_slice(
+                        imported
+                            .get(&name)
+                            .ok_or(Error::Domain)?
+                            .values()
+                            .ok_or(Error::Context)?,
+                    );
                 }
                 let h = number(&c["dimensions"], "hidden");
                 let (shape, values) = if is_bias {
@@ -277,7 +283,8 @@ fn source(c: &Value, semantic: &DecoderPlan) -> Result<Source, Error> {
             let t = imported.get(&role).ok_or(Error::Domain)?;
             let transpose = !is_bias && op.attributes["weight_layout"] == "input_output";
             let mut shape = t.shape().to_vec();
-            let mut values = t.values().to_vec();
+            let resident = t.values().ok_or(Error::Context)?;
+            let mut values = resident.to_vec();
             if transpose {
                 if shape.len() != 2 {
                     return Err(Error::Domain);
@@ -285,7 +292,7 @@ fn source(c: &Value, semantic: &DecoderPlan) -> Result<Source, Error> {
                 let (out, input) = (shape[0], shape[1]);
                 for o in 0..out {
                     for i in 0..input {
-                        values[i * out + o] = t.values()[o * input + i];
+                        values[i * out + o] = resident[o * input + i];
                     }
                 }
                 shape.swap(0, 1);
@@ -573,6 +580,17 @@ fn execute(
         (a.join().unwrap(), b.join().unwrap())
     });
     assert_eq!(a.1.len(), b.1.len());
+    if program.checked_ranges() {
+        assert_eq!(
+            a.0.validity_share()
+                .unwrap()
+                .wrapping_add(b.0.validity_share().unwrap())
+                & MASK,
+            1
+        );
+    } else {
+        assert_eq!((a.0.validity_share(), b.0.validity_share()), (None, None));
+    }
     let trace =
         a.1.into_iter()
             .zip(b.1)

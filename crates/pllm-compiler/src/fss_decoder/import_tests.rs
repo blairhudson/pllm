@@ -3,6 +3,9 @@ use pllm_types::canonical_bytes;
 use serde_json::json;
 
 fn builder(rotary: bool) -> SourceBuilder {
+    builder_with_capacity(rotary, Capacity::Capsule)
+}
+fn builder_with_capacity(rotary: bool, capacity: Capacity) -> SourceBuilder {
     let config = if rotary {
         json!({"model_type":"qwen2","hidden_size":2,"intermediate_size":2,
             "num_hidden_layers":1,"num_attention_heads":1,"num_key_value_heads":1,
@@ -12,7 +15,7 @@ fn builder(rotary: bool) -> SourceBuilder {
         json!({"model_type":"gpt2","n_embd":2,"n_head":1,"n_layer":1,
             "n_positions":4,"vocab_size":3,"n_inner":2})
     };
-    SourceBuilder::new(
+    SourceBuilder::new_with_capacity(
         &canonical_bytes(&config),
         1,
         2,
@@ -21,8 +24,100 @@ fn builder(rotary: bool) -> SourceBuilder {
         } else {
             sdk::GPT2_NUMERIC
         },
+        capacity,
     )
     .unwrap()
+}
+
+#[test]
+fn decoder_file_import_preserves_original_and_canonical_source_identities() {
+    for is_rotary in [false, true] {
+        for dtype in [WeightDtype::F32, WeightDtype::F16, WeightDtype::Bf16] {
+            let mut resident = builder(is_rotary);
+            let mut paged = builder_with_capacity(is_rotary, Capacity::Decoder);
+            let disk_estimate = paged.admitted().unwrap().source_disk_bytes;
+            let resident_estimate = paged.admitted().unwrap().source_resident_bound_bytes;
+            fill(&mut resident, dtype, 2);
+            fill(&mut paged, dtype, 3);
+            rotary(&mut resident, 2);
+            rotary(&mut paged, 3);
+            let resident = resident.seal_source().unwrap();
+            let paged = paged.seal_source().unwrap();
+            assert_eq!(resident.input_digest, paged.input_digest);
+            assert_eq!(resident.source.digest(), paged.source.digest());
+            assert_eq!(paged.source.capacity(), Capacity::Decoder);
+            assert_eq!(paged.source.disk_bytes(), disk_estimate);
+            assert!(paged.source.reservation_bytes() <= resident_estimate);
+            for tensor in paged.source.tensors() {
+                assert_eq!(tensor.is_file_backed(), tensor.shape().len() == 2);
+            }
+        }
+    }
+}
+
+#[test]
+fn partial_decoder_file_and_bad_ieee_retire_the_entire_import() {
+    let mut builder = builder_with_capacity(true, Capacity::Decoder);
+    let name = builder
+        .admitted()
+        .unwrap()
+        .source_shapes
+        .first_key_value()
+        .unwrap()
+        .0
+        .clone();
+    builder
+        .append(&name, WeightDtype::F32, 0, &1f32.to_le_bytes())
+        .unwrap();
+    assert_eq!(
+        builder.append(&name, WeightDtype::F32, 1, &f32::NAN.to_le_bytes()),
+        Err(Error::Domain)
+    );
+    assert!(matches!(builder.admitted(), Err(Error::Consumed)));
+    assert!(matches!(builder.seal_source(), Err(Error::Consumed)));
+    assert!(matches!(
+        builder_with_capacity(true, Capacity::Decoder).seal_source(),
+        Err(Error::Context)
+    ));
+}
+
+#[test]
+fn checked_profile_import_binds_policy_without_changing_original_or_q12_source() {
+    let config = json!({"model_type":"qwen2","hidden_size":2,"intermediate_size":2,
+        "num_hidden_layers":1,"num_attention_heads":1,"num_key_value_heads":1,
+        "vocab_size":3,"max_position_embeddings":4,"hidden_act":"silu",
+        "rms_norm_eps":0.000001,"rope_theta":10000,"tie_word_embeddings":true});
+    for capacity in [Capacity::Capsule, Capacity::Decoder] {
+        let mut ordinary = builder_with_capacity(true, capacity);
+        let mut checked = SourceBuilder::new_with_capacity(
+            &canonical_bytes(&config),
+            1,
+            2,
+            sdk::DENSE_ROPE_CHECKED_NUMERIC,
+            capacity,
+        )
+        .unwrap();
+        assert_eq!(
+            ordinary.admitted().unwrap().source_shapes,
+            checked.admitted().unwrap().source_shapes
+        );
+        fill(&mut ordinary, WeightDtype::F32, 3);
+        fill(&mut checked, WeightDtype::F32, 2);
+        rotary(&mut ordinary, 3);
+        rotary(&mut checked, 2);
+        let ordinary = ordinary.seal().unwrap();
+        let checked = checked.seal().unwrap();
+        assert_eq!(ordinary.input_digest, checked.input_digest);
+        assert_eq!(
+            ordinary.program.source_digest(),
+            checked.program.source_digest()
+        );
+        assert!(!ordinary.program.checked_ranges());
+        assert!(checked.program.checked_ranges());
+        assert_eq!(checked.program.profile(), sdk::DENSE_ROPE_CHECKED_NUMERIC);
+        assert_ne!(ordinary.program.digest(), checked.program.digest());
+        assert!(checked.program.resources().kernels > ordinary.program.resources().kernels);
+    }
 }
 
 fn fill(builder: &mut SourceBuilder, dtype: WeightDtype, chunk: usize) {

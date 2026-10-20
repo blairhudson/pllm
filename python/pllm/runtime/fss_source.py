@@ -17,10 +17,12 @@ import struct
 
 from pllm import _native
 from pllm.configuration import Experiment
+from pllm.protocols import FuseFssSourceDecoder
 
 from . import delegated_source as io
+from . import tokenizer_admission
 
-_PROFILES = {"fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1"}
+_PROFILES = frozenset(FuseFssSourceDecoder.NUMERIC_PROFILES)
 _FRAME = 64 << 10
 _SOURCE = 8 << 20
 _METADATA = 1 << 20
@@ -47,6 +49,13 @@ def _cancelled(cancelled):
         raise FssSourceError("FuseFSS source import cancelled")
 
 
+def _capacity(record):
+    capacity = record.get("capacity", "capsule")
+    if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
+        raise FssSourceError("FuseFSS capacity must be capsule or decoder")
+    return capacity
+
+
 def _experiment(experiment):
     if not isinstance(experiment, Experiment):
         raise TypeError("FuseFSS source requires an Experiment")
@@ -65,20 +74,23 @@ def _experiment(experiment):
     model = experiment.pipeline.model
     if model.kind not in {"huggingface", "safetensors"}:
         raise FssSourceError("FuseFSS requires public HF/Safetensors source")
-    return encoded, model, profile
+    return encoded, model, profile, _capacity(method.params)
 
 
-def _geometry(config, rows, outputs, profile):
+def _geometry(config, rows, outputs, profile, capacity="capsule"):
     # SourceBuilder::new lowers/bounds geometry before reserving metadata vectors;
     # it allocates no tensor/rotary payload until append. No fabricated source pin.
-    owner = _native.FssSourceBuilder(config, rows, outputs, profile)
+    kwargs = {"capacity": capacity} if capacity == "decoder" else {}
+    owner = _native.FssSourceBuilder(config, rows, outputs, profile, **kwargs)
     owner.close()
 
 
-def _files(root, size):
-    # Reuse bounded traversal that ignores documentation, but retain F3's small
-    # metadata/header/tokenizer limits (not the older decoder's expanded caps).
+def _files(root, size, capacity="capsule"):
+    # The explicit decoder uses the shared expanded metadata envelope. Capsule
+    # retains its original additional limits and documentation-ignore behavior.
     identities = io._files(root, size, "decoder")
+    if capacity == "decoder":
+        return identities
     limits = {**io._METADATA_LIMITS, "vocab.json": 256 << 10, "merges.txt": 256 << 10}
     total = 0
     for name, identity in identities:
@@ -92,15 +104,15 @@ def _files(root, size):
     return identities
 
 
-def _unchanged(root, size, identities):
-    if _files(root, size) != identities:
+def _unchanged(root, size, identities, capacity="capsule"):
+    if _files(root, size, capacity) != identities:
         raise FssSourceError("FuseFSS source changed after admission")
 
 
-def _locked(root, model, size, identities):
-    _unchanged(root, size, identities)
+def _locked(root, model, size, identities, capacity="capsule"):
+    _unchanged(root, size, identities, capacity)
     result = io._locked(root, model, size, identities, "decoder")
-    _unchanged(root, size, identities)
+    _unchanged(root, size, identities, capacity)
     return result
 
 
@@ -114,6 +126,10 @@ def _contract(experiment, encoded, config, rows, outputs, sourcepin, tokenizerpi
                 "numeric_profile": experiment.pipeline.components["linear"].params["numeric_profile"]}
     if any(record.get(k) != v for k, v in expected.items()):
         raise FssSourceError("FuseFSS native contract differs from source or Experiment")
+    capacity = _capacity(record)
+    if capacity != _capacity(experiment.pipeline.components["linear"].params):
+        raise FssSourceError("FuseFSS native capacity differs from Experiment")
+    expanded = capacity == "decoder"
     shapes, layouts = record.get("source_shapes"), record.get("source_layouts")
     if (type(shapes) is not dict or not 1 <= len(shapes) <= 1024
             or type(layouts) is not dict or set(layouts) != set(shapes)):
@@ -121,18 +137,31 @@ def _contract(experiment, encoded, config, rows, outputs, sourcepin, tokenizerpi
     for name, shape in shapes.items():
         if (type(name) is not str or not name or len(name.encode()) > 1024
                 or type(shape) is not list or not 1 <= len(shape) <= 2
-                or any(type(d) is not int or not 1 <= d <= 32768 for d in shape)
-                or math.prod(shape) > 32768
+                or any(type(d) is not int or d < 1 for d in shape)
+                or (not expanded and math.prod(shape) > 32768)
                 or layouts[name] not in {"features", "rows_features", "input_output", "output_input"}
                 or (len(shape) == 1) != (layouts[name] == "features")):
             raise FssSourceError("FuseFSS invalid source shape/layout")
     total = sum(math.prod(shape) * 4 for shape in shapes.values())
-    if type(record.get("source_float32_bytes")) is not int or not 0 < total <= _SOURCE or total != record["source_float32_bytes"]:
+    source_limit = io._DECODER_SOURCE_BYTES if expanded else _SOURCE
+    if type(record.get("source_float32_bytes")) is not int or not 0 < total <= source_limit or total != record["source_float32_bytes"]:
         raise FssSourceError("FuseFSS source byte accounting differs")
+    if expanded:
+        # Native storage admission owns these exact bounds. They must be present;
+        # source geometry never grants an expanded activation/material allowance.
+        matrix_bytes = sum(math.prod(s) * 8 for s in shapes.values() if len(s) == 2)
+        if (type(record.get("source_q12_value_bytes")) is not int
+                or record["source_q12_value_bytes"] != 2 * total
+                or type(record.get("source_disk_bytes")) is not int
+                or not matrix_bytes <= record["source_disk_bytes"] <= 2 * source_limit
+                or type(record.get("source_resident_bound_bytes")) is not int
+                or not 0 < record["source_resident_bound_bytes"] <= _SOURCE):
+            raise FssSourceError("FuseFSS missing or invalid native source storage admission")
+    vocabulary_limit = max(max(s) for s in shapes.values()) if expanded else 32768
     if (type(rows) is not int or type(outputs) is not int or not 1 <= outputs <= 4
             or not 1 <= rows <= rows + outputs - 1 <= 16
             or record.get("maximum_sequence") != rows + outputs - 1
-            or type(record.get("vocabulary")) is not int or not 1 <= record["vocabulary"] <= 32768):
+            or type(record.get("vocabulary")) is not int or not 1 <= record["vocabulary"] <= vocabulary_limit):
         raise FssSourceError("FuseFSS invalid request geometry")
     _rotary_specs(record)  # Validate the semantic label and explicit D13 override.
     return payload, record
@@ -145,7 +174,9 @@ def _store(root, identities, contract):
     LayerNorm bias or input_output Conv1D. Never reinterpret these as dense OI.
     """
     shapes = contract["source_shapes"]
-    header_limit = min(64 << 10, max(1024, 1024 + sum(
+    expanded = _capacity(contract) == "decoder"
+    metadata_limit = io._DECODER_METADATA_BYTES if expanded else _METADATA
+    header_limit = min(io._DECODER_HEADER_BYTES if expanded else 64 << 10, max(1024, 1024 + sum(
         len(name.encode()) + 192 + 24 * len(shape) for name, shape in shapes.items())))
     specs, locations, indexes = {}, {}, []
     header_bytes = 0
@@ -157,7 +188,7 @@ def _store(root, identities, contract):
         path = root / filename
         size = int.from_bytes(io._read_range(path, identity, 0, 8), "little")
         header_bytes += size
-        if not 0 < size <= header_limit or 8 + size > identity[9] or header_bytes > _METADATA:
+        if not 0 < size <= header_limit or 8 + size > identity[9] or header_bytes > metadata_limit:
             raise FssSourceError("FuseFSS Safetensors header exceeds geometry-derived bounds")
         header = _document(io._read_range(path, identity, 8, size), "Safetensors header", header_limit)
         metadata = header.pop("__metadata__", {})
@@ -251,25 +282,17 @@ def _rotary_frames(shape, theta):
 def _tokenizer(root, config, contract):
     from tokenizers import Tokenizer
 
-    raw = io._read_bounded(root / "tokenizer.json", 256 << 10)
-    doc = _document(raw, "tokenizer.json", 256 << 10)
-    model = doc.get("model")
-    vocab = model.get("vocab") if type(model) is dict else None
-    added, maximum = doc.get("added_tokens", []), contract["vocabulary"]
-    if (doc.get("padding") is not None or doc.get("truncation") is not None
-            or not isinstance(vocab, (dict, list)) or not 1 <= len(vocab) <= maximum
-            or type(added) is not list or len(added) > maximum):
-        raise FssSourceError("FuseFSS requires bounded complete unpadded/untruncated tokenizer")
-    ids = vocab.values() if isinstance(vocab, dict) else range(len(vocab))
-    if (any(type(i) is not int or not 0 <= i < maximum for i in ids)
-            or any(type(row) is not dict or type(row.get("id")) is not int
-                   or not 0 <= row["id"] < maximum for row in added)):
-        raise FssSourceError("FuseFSS tokenizer IDs exceed complete vocabulary")
+    expanded = _capacity(contract) == "decoder"
+    tokenizer_limit = io._DECODER_TOKENIZER_BYTES if expanded else io._MAX_TOKENIZER_BYTES
+    raw = io._read_bounded(root / "tokenizer.json", tokenizer_limit)
+    doc = _document(raw, "tokenizer.json", tokenizer_limit)
+    maximum = contract["vocabulary"]
+    tokenizer_admission.validate_document(
+        doc, vocabulary=maximum, max_entries=maximum, error=FssSourceError, label="FuseFSS")
     inner = Tokenizer.from_buffer(raw)
-    complete = inner.get_vocab(with_added_tokens=True)
-    if (len(complete) != maximum or set(complete.values()) != set(range(maximum))
-            or any(inner.id_to_token(i) != text for text, i in complete.items())):
-        raise FssSourceError("FuseFSS tokenizer must cover complete table/head vocabulary")
+    actual_size = tokenizer_admission.validate_vocabulary(
+        inner, vocabulary=maximum, allow_model_padding=expanded,
+        error=FssSourceError, label="FuseFSS")
     options = {}
     if (root / "tokenizer_config.json").exists():
         options = _document(io._read_bounded(root / "tokenizer_config.json", 16384), "tokenizer options", 16384)
@@ -282,6 +305,11 @@ def _tokenizer(root, config, contract):
     eos = eos if type(eos) is list else [eos]
     if not eos or any(type(i) is not int or not 0 <= i < maximum for i in [bos, *eos]):
         raise FssSourceError("FuseFSS special token IDs exceed complete vocabulary")
+    if expanded and any(i >= actual_size for i in [bos, *eos]):
+        raise FssSourceError("FuseFSS special tokens require original tokenizer entries")
+    # Descriptor retains the complete model vocabulary. Unmapped model IDs remain
+    # valid final IDs; ordinary TokenizersJSONTokenizer delegates text rendering
+    # to tokenizers.decode (which omits unmapped IDs), without rewriting feedback.
     descriptor = {"type": "tokenizer_json", "vocab_size": maximum, "bos_token_id": bos,
                   "eos_token_id": eos[0], "chat_template": options.get("chat_template"),
                   "bos_token": options.get("bos_token", ""), "eos_token": options.get("eos_token", ""),
@@ -313,6 +341,10 @@ class FrozenFssSource:
         return _document(self.contract_bytes, "source contract")
 
     @property
+    def capacity(self):
+        return _capacity(self.contract)
+
+    @property
     def snapshot_pins(self):
         return {"checkpoint": self.checkpoint_digest, "source_lock": self.source_lock_digest,
                 "tokenizer": self.tokenizer_digest,
@@ -331,7 +363,7 @@ class FrozenFssSource:
                                        descriptor["bos_token_id"], descriptor["eos_token_id"])
 
     def runtime_contract(self, experiment, rows, outputs):
-        encoded, _, _ = _experiment(experiment)
+        encoded, _, _, _ = _experiment(experiment)
         if encoded != self.experiment_bytes:
             raise FssSourceError("FuseFSS requires exact admitted Experiment")
         if (type(rows) is not int or type(outputs) is not int
@@ -340,7 +372,7 @@ class FrozenFssSource:
             raise FssSourceError("FuseFSS request exceeds saved envelope")
         if io._canonical(_document(self.config_source_bytes, "original config", 16384)) != self.config_bytes:
             raise FssSourceError("FuseFSS canonical config differs from original snapshot")
-        _unchanged(self.path, self.contract["source_float32_bytes"], self._identities)
+        _unchanged(self.path, self.contract["source_float32_bytes"], self._identities, self.capacity)
         return _contract(experiment, encoded, self.config_bytes, rows, outputs,
                          self.source_lock_digest, self.tokenizer_digest)[0]
 
@@ -350,9 +382,9 @@ def _check_pins(source, expected):
         raise FssSourceError("FuseFSS worker original snapshot pins differ")
 
 
-def resolve_client_source(experiment, *, expected_pins=None):
+def _resolve_client_source(experiment, *, expected_pins=None):
     """Resolve original source pins and tokenizer without decoding any weight values."""
-    encoded, model, profile = _experiment(experiment)
+    encoded, model, profile, capacity = _experiment(experiment)
     root = Path(model.source).expanduser()
     if model.kind == "huggingface" and not root.exists() and not root.is_absolute():
         from .hf_hub import resolve_huggingface_source
@@ -369,23 +401,25 @@ def resolve_client_source(experiment, *, expected_pins=None):
             raise FssSourceError("FuseFSS requires original unquantized floating-point source")
     config = io._canonical(raw)
     rows, outputs = experiment.budget.max_input_tokens, experiment.budget.max_new_tokens
-    _geometry(config, rows, outputs, profile)
-    identities = _files(root, _SOURCE)
+    _geometry(config, rows, outputs, profile, capacity)
+    source_limit = io._DECODER_SOURCE_BYTES if capacity == "decoder" else _SOURCE
+    tokenizer_limit = io._DECODER_TOKENIZER_BYTES if capacity == "decoder" else io._MAX_TOKENIZER_BYTES
+    identities = _files(root, source_limit, capacity)
     if dict(identities)["config.json"] != identity:
         raise FssSourceError("FuseFSS config changed during admission")
-    checkpoint, lock_digest, lock = _locked(root, model, _SOURCE, identities)
+    checkpoint, lock_digest, lock = _locked(root, model, source_limit, identities, capacity)
     hashes = {row["path"]: row["sha256"] for row in lock["files"]}
-    tokenizer = io._read_bounded(root / "tokenizer.json", 256 << 10)
+    tokenizer = io._read_bounded(root / "tokenizer.json", tokenizer_limit)
     tokenizer_digest = hashlib.sha256(tokenizer).hexdigest()
     if hashes.get("config.json") != hashlib.sha256(original).hexdigest() or hashes.get("tokenizer.json") != tokenizer_digest:
         raise FssSourceError("FuseFSS config/tokenizer differ from original source lock")
     contract, record = _contract(experiment, encoded, config, rows, outputs, lock_digest, tokenizer_digest)
     size = record["source_float32_bytes"]
-    _unchanged(root, size, identities)
+    _unchanged(root, size, identities, capacity)
     store, specs = _store(root, identities, record)
     store.clear_cache()
     tokenizer_again, descriptor = _tokenizer(root, raw.get("text_config", raw), record)
-    if tokenizer_again != tokenizer or _locked(root, model, size, identities) != (checkpoint, lock_digest, lock):
+    if tokenizer_again != tokenizer or _locked(root, model, size, identities, capacity) != (checkpoint, lock_digest, lock):
         raise FssSourceError("FuseFSS source changed during admission")
     result = FrozenFssSource(model, root, encoded, config, original, contract, checkpoint,
                              lock_digest, tokenizer_digest, tokenizer, io._canonical(lock), descriptor,
@@ -393,6 +427,17 @@ def resolve_client_source(experiment, *, expected_pins=None):
     if expected_pins is not None:
         _check_pins(result, expected_pins)
     return result
+
+
+def resolve_client_source(experiment, *, expected_pins=None):
+    """Reserve expanded source metadata before hashing, headers or tokenizers."""
+    if (isinstance(experiment, Experiment)
+            and experiment.pipeline.components.get("linear") is not None
+            and experiment.pipeline.components["linear"].params.get("capacity") == "decoder"):
+        _experiment(experiment)  # Validate the explicit native policy before reservation.
+        with tokenizer_admission.reserve_decoder_metadata():
+            return _resolve_client_source(experiment, expected_pins=expected_pins)
+    return _resolve_client_source(experiment, expected_pins=expected_pins)
 
 
 @dataclass(slots=True)
@@ -443,16 +488,18 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
     outputs = experiment.budget.max_new_tokens if outputs is None else outputs
     contract_bytes = source.runtime_contract(experiment, rows, outputs)
     record = _document(contract_bytes, "source contract")
+    capacity = _capacity(record)
     size = record["source_float32_bytes"]
     expected_lock = (source.checkpoint_digest, source.source_lock_digest, _document(source._lock, "source lock"))
-    if _locked(source.path, source.model, size, source._identities) != expected_lock:
+    if _locked(source.path, source.model, size, source._identities, capacity) != expected_lock:
         raise FssSourceError("FuseFSS source changed after admission")
     store, specs = _store(source.path, source._identities, record)
     builder = program = None
     try:
         if specs != source._specs:
             raise FssSourceError("FuseFSS tensor headers changed after admission")
-        builder = _native.FssSourceBuilder(source.config_bytes, rows, outputs, record["numeric_profile"])
+        kwargs = {"capacity": capacity} if capacity == "decoder" else {}
+        builder = _native.FssSourceBuilder(source.config_bytes, rows, outputs, record["numeric_profile"], **kwargs)
         original_hash = hashlib.sha256(b"pllm.fss.original-ieee-stream.v1\0")
         identities, specs = dict(source._identities), dict(specs)
         for name in sorted(record["source_shapes"]):
@@ -487,7 +534,7 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
                 del cosine, sine
             tables.append({"operation": operation, "shape": shape, "theta": theta,
                            "cosine_sha256": cosine_hash.hexdigest(), "sine_sha256": sine_hash.hexdigest()})
-        if _locked(source.path, source.model, size, source._identities) != expected_lock:
+        if _locked(source.path, source.model, size, source._identities, capacity) != expected_lock:
             raise FssSourceError("FuseFSS source changed during import")
         _cancelled(cancelled)
         program = builder.seal()

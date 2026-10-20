@@ -441,9 +441,10 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
 
 
 class FuseFssSourceCpu(_TypedPipeline):
-    """D13 CPU configuration; production resolution still requires native admission.
+    """Ring50/Q12 CPU configuration; resolution still requires native admission.
 
     Supply either an explicit numeric_profile or a configured linear component.
+    Checked ranges require their distinct opt-in numeric identity.
     Dealer preprocessing is not client-owned model-aware preparation. This
     profile makes no malicious-result-verification or serving-availability claim.
     """
@@ -453,17 +454,23 @@ class FuseFssSourceCpu(_TypedPipeline):
     __slots__ = ()
 
     def __init__(self, model: ModelSource, *, linear: ProtocolMethod | None = None,
-                 numeric_profile: Literal["fusefss.gpt2-complete-ring50-q12.v1",
-                                          "fusefss.dense-rope-ring50-q12.v1"] | None = None,
+                   numeric_profile: Literal["fusefss.gpt2-complete-ring50-q12.v1",
+                                            "fusefss.dense-rope-ring50-q12.v1",
+                                            "fusefss.dense-rope-checked-ranges-ring50-q12.v1"] | None = None,
+                  capacity: Literal["capsule", "decoder"] = "capsule",
                  topology: RoleTopology = TrustedDealerTwoShareRoles(),
                  state: StateProtocol = FixedCountPrivatePrefix(),
                  kernels: KernelBackend = _DEFAULT_KERNELS) -> None:
         if linear is not None and numeric_profile is not None:
             raise ConfigurationError("FuseFSS numeric_profile belongs in linear or profile keywords, not both")
+        if linear is not None and capacity != "capsule":
+            raise ConfigurationError("FuseFSS capacity belongs in linear or profile keywords, not both")
+        if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
+            raise ConfigurationError("FuseFSS capacity must be capsule or decoder")
         if linear is None:
             if numeric_profile is None:
                 raise ConfigurationError("FuseFSS requires an explicit numeric_profile")
-            linear = FuseFssSourceDecoder(numeric_profile=numeric_profile)
+            linear = FuseFssSourceDecoder(numeric_profile=numeric_profile, capacity=capacity)
         components = {
             "linear": _slot("linear", linear, ProtocolMethod, FuseFssSourceDecoder.descriptor.component),
             "topology": _slot("topology", topology, RoleTopology, TrustedDealerTwoShareRoles.descriptor.component),

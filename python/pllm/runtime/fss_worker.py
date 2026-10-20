@@ -14,10 +14,13 @@ from contextlib import asynccontextmanager
 import hashlib
 import hmac
 import json
+import math
 import os
+from pathlib import Path
 import resource
 import secrets
 import threading
+import tempfile
 import time
 
 import httpx
@@ -27,13 +30,19 @@ from starlette.routing import Route
 
 from pllm import _native
 from pllm.configuration import Experiment
-from pllm.deployment.resources import reserve_incremental_memory
+from pllm.deployment.resources import reserve_incremental_memory, reserve_incremental_disk
 from .delegated_transport import _connections
 from .delegated_worker import _Reservation, _PayloadResponse, _body
 from .replicated_worker import native_call
 from .fss_source import resolve_client_source, load_role_source
 from .fss_tape import MaterialTape
+from .fss_transport import price_transport, timeout_limit, transport_capacity
+from .benchmark_delegated import FSS_PHASE_COUNTERS
+from .delegated_source import _DECODER_SOURCE_BYTES
 from . import fss_protocol as p
+
+
+_NATIVE_COUNT_MAX = (1 << 64) - 1  # native usize counts / u64 callback encodings
 
 
 def _key(value):
@@ -78,10 +87,13 @@ class _Attempt:
         self.loop = asyncio.get_running_loop()
         self.request_id = self.epochs = self.contract = None
         self.loaded = self.native = self.tape = self.admission = None
+        self.disk_reservations = []  # at most source, tape and native guard owners
+        self.source_disk_lease = None
         self.input = self.output = None
         self.phase = "admitting"
         self.stop = threading.Event()
         self.callback_lock = threading.Lock()
+        self.callback_pending = False
         self.callback_futures = set()
         self.callback_tasks = set()
         self.handlers = set()
@@ -98,12 +110,23 @@ class _Attempt:
         self.sent = {r: 0 for r in p.ROLES}
         self.material_count = self.peer_received = self.peer_sent = 0
         self.peer_bytes = p.peer_bytes()
+        self.native_run_ns = None
+        self.delivery_callback_ns = self.seal_callback_ns = 0
 
     def cancelled(self):
         return self.stop.is_set() or time.monotonic() >= self.expires
 
+    def reserve_disk(self, amount, directory):
+        if amount:
+            manager = reserve_incremental_disk(amount, directory=directory)
+            lease = manager.__enter__()
+            self.disk_reservations.append(manager)
+            return lease
+
     def signal(self):
         """Safe inside native cancel callbacks: never join or call native again."""
+        if self.stop.is_set():
+            return
         self.stop.set()
         with self.callback_lock:
             for future in tuple(self.callback_futures):
@@ -168,10 +191,25 @@ class _Attempt:
         if self.tape is not None:
             await drain(self.tape.close)
         if self.loaded is not None:
-            await drain(self.loaded.close)
+            def close_source():
+                if self.source_disk_lease is not None:
+                    # The native fstat getter can release the GIL while borrowing
+                    # its program. Drain that borrow before mutable native close.
+                    self.source_disk_lease.clear_backing()
+                self.loaded.close()
+            await drain(close_source)
+        # Source files, native exact-nonce index and tape may overlap. Shared
+        # process-local leases outlive every owner/callback, including failure.
+        # A failed owner cleanup must not refund potentially live disk either.
+        while not errors and self.disk_reservations:
+            await drain(self.disk_reservations[-1].__exit__, None, None, None)
+            if not errors:
+                self.disk_reservations.pop()
         self.clients.clear()
         self.mailbox = self.input = self.output = self.contract = None
         self.native = self.tape = self.loaded = self.job = self.timer = None
+        if not errors:
+            self.source_disk_lease = None
         self.phase = "closed"
         reservation, self.reservation = self.reservation, None
         # A failed native cleanup must not silently refund potentially live owners.
@@ -182,22 +220,45 @@ class _Attempt:
 
 
 def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
-                          peer_credentials, source_pins=None, ttl=300):
-    """One independent dealer or holder; no reusable requests/reconnects/retries."""
-    if type(ttl) not in (int, float) or not 0 < ttl <= 600:
+                          peer_credentials, source_pins=None, ttl=300,
+                          tape_directory=None):
+    """One independent dealer or holder; no reusable requests/reconnects/retries.
+
+    Source disk is reserved from the locally recomputed native source contract
+    before import. Transport disk is priced after native role admission and held
+    before tape/guard creation. Shared reservations recheck device free space;
+    they are process-local logical charges, not cross-process filesystem quotas.
+    Decoder admission requires the client's remaining_seconds; ttl is its local
+    maximum. The admission-time clamp cannot be refreshed by subsequent traffic.
+    """
+    configured_capacity = experiment.pipeline.components["linear"].params.get("capacity", "capsule")
+    if (type(ttl) not in (int, float) or not math.isfinite(ttl)
+            or not 0 < ttl <= timeout_limit(configured_capacity)):
         raise ValueError("FuseFSS lifetime differs")
+    if tape_directory is not None and not isinstance(tape_directory, Path):
+        raise ValueError("FuseFSS tape directory differs")
+    native_directory = Path(tempfile.gettempdir())  # native tempfile owners use the OS temporary directory
+    tape_directory = tape_directory if tape_directory is not None else native_directory
     outgoing, incoming = _channels(role, api_key, peer_connections, peer_credentials)
     if not callable(getattr(_native, "FssRoleRequest", None)):
         raise ValueError("installed native core lacks FssRoleRequest; rebuild required")
     source = resolve_client_source(experiment, expected_pins=source_pins)
+    capacity = transport_capacity(source.contract)
+    if capacity != configured_capacity:
+        raise ValueError("FuseFSS native source capacity differs from configuration")
     configuration = experiment.configuration_digest()
     epoch = secrets.token_hex(32)
     active = None
     closing = False
     seen, seen_frames = set(), set()
+    # These are epoch-local *session* ledgers, not primitive/frame ledgers:
+    # at most min(64, budget.requests) IDs and one bind hash per burned ID.
+    # Per-attempt replay/order uses exact sequences and native-bound metadata,
+    # with only one incoming mailbox and one live outgoing callback.
     handlers, retirements = set(), set()
     admission_lock = asyncio.Lock()
     retired_sessions = 0
+    phase_timing = dict.fromkeys(FSS_PHASE_COUNTERS, 0)
 
     def authorized(request, key):
         values = request.headers.getlist("authorization")
@@ -236,15 +297,30 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 raise ValueError("FuseFSS callback retired")
             async with asyncio.timeout(max(0, attempt.expires - time.monotonic())):
                 return await function(attempt, *args)
+        except BaseException as error:
+            p.clear_failure_frames(error)
+            raise
         finally:
             args = function = None
             attempt.callback_tasks.discard(task)
+            with attempt.callback_lock:
+                attempt.callback_pending = False
 
     def bridge(attempt, function, *args):
         with attempt.callback_lock:
-            if attempt.cancelled() or attempt.callback_futures:
+            if attempt.cancelled() or attempt.callback_pending or attempt.callback_futures:
                 raise ValueError("FuseFSS callback retired")
-            future = asyncio.run_coroutine_threadsafe(callback_job(attempt, function, args), attempt.loop)
+            # A cancelled concurrent Future may finish before its coroutine has
+            # drained. Keep the single payload slot until callback_job retires;
+            # otherwise a caught callback failure could enqueue retained bodies.
+            attempt.callback_pending = True
+            job = callback_job(attempt, function, args)
+            try:
+                future = asyncio.run_coroutine_threadsafe(job, attempt.loop)
+            except BaseException:
+                job.close()
+                attempt.callback_pending = False
+                raise
             attempt.callback_futures.add(future)
         try:
             return future.result(timeout=max(.001, attempt.expires - time.monotonic()))
@@ -255,6 +331,8 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 attempt.callback_futures.discard(future)
 
     def callback_meta(attempt, raw, kind, expected_role):
+        if type(raw) is not bytes or len(raw) > attempt.admission["callback_metadata_bytes_bound"]:
+            raise ValueError("FuseFSS callback metadata exceeds admission")
         meta = p.metadata(raw)
         fields = {"schema", "kind", "kernel", "role"} | (
             {"pc", "packet_bytes_bound"} if kind == "material" else {"frame", "frame_bytes"})
@@ -265,7 +343,7 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
         if type(kernel) is not dict or set(kernel) != {"context", "plan_digest", "ordinal"}:
             raise ValueError("FuseFSS kernel differs")
         _hex(kernel["plan_digest"])
-        _integer(kernel["ordinal"], 4095)
+        _integer(kernel["ordinal"], attempt.admission["kernels"] - 1)
         context = kernel["context"]
         if type(context) is not dict or set(context) != {"plan", "session", "operation", "first_tensor_index"}:
             raise ValueError("FuseFSS callback context differs")
@@ -279,7 +357,9 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             _integer(meta["pc"], (1 << 64)-1)
             _integer(meta["packet_bytes_bound"], attempt.admission["largest_packet_bytes"], minimum=1)
         else:
-            _integer(meta["frame"], (1 << 64)-1)
+            # Frame is kernel-local, but can never reach the admitted whole-run
+            # count. Its exact expected index/context is matched to native below.
+            _integer(meta["frame"], attempt.admission["frames_per_party"] - 1)
             _integer(meta["frame_bytes"], attempt.admission["peer_frame_bytes_bound"])
         return meta
 
@@ -379,7 +459,11 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             self.attempt = attempt
 
         def deliver(self, meta, packet):
-            return bridge(self.attempt, deliver, meta, packet)
+            started = time.perf_counter_ns()
+            try:
+                return bridge(self.attempt, deliver, meta, packet)
+            finally:
+                self.attempt.delivery_callback_ns += time.perf_counter_ns() - started
 
         def material(self, meta):
             attempt = self.attempt
@@ -392,16 +476,32 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             return bridge(self.attempt, exchange, meta, frame)
 
         def finish(self):
+            if self.attempt.cancelled() or self.attempt.phase != ("preparing" if role == "dealer" else "running"):
+                raise ValueError("FuseFSS callback retired")
             if role in p.HOLDERS:
                 self.attempt.tape.finish()  # native-owned thread; validates complete consumption
-            return bridge(self.attempt, finish_callback)
+                return bridge(self.attempt, finish_callback)
+            started = time.perf_counter_ns()
+            try:
+                return bridge(self.attempt, finish_callback)
+            finally:
+                self.attempt.seal_callback_ns += time.perf_counter_ns() - started
 
         def cancel(self):
             self.attempt.signal()
 
     async def run(attempt, input_frame):
+        def measured_run():
+            # Clock the actual native call on its owning thread, excluding the
+            # executor queue and later retirement. Native planning, callbacks,
+            # packet/frame encoding and Python/native bridge overhead remain in it.
+            started = time.perf_counter_ns()
+            try:
+                return attempt.native.run(input_frame, Callbacks(attempt))
+            finally:
+                attempt.native_run_ns = time.perf_counter_ns() - started
         try:
-            result = await native_call(attempt.native.run, input_frame, Callbacks(attempt), _cancel=attempt.signal)
+            result = await native_call(measured_run, _cancel=attempt.signal)
             if attempt.cancelled() or not attempt.finished_callback:
                 raise ValueError("FuseFSS native run incomplete")
             if role == "dealer":
@@ -425,12 +525,22 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 schedule_retire(attempt)
             raise
         finally:
+            # native_call drains cancellation before this point. Publish once on
+            # the event-loop thread, retaining aggregate failed-call work after
+            # the attempt/source/tape retire, without keeping request identifiers.
+            if attempt.native_run_ns is not None:
+                phase = "preparation" if role == "dealer" else "online"
+                phase_timing[f"{phase}_calls"] += 1
+                phase_timing[f"{phase}_ns"] += attempt.native_run_ns
+                if role == "dealer":
+                    phase_timing["delivery_callback_ns"] += attempt.delivery_callback_ns
+                    phase_timing["seal_callback_ns"] += attempt.seal_callback_ns
             input_frame = None
 
     def validate_admission(attempt, raw):
         a = p.metadata(raw)
         if (a.get("schema") != "pllm.fss.role_admission.v1" or type(a.get("role")) is not int
-                or a["role"] != p.ROLES.index(role)):
+                or a["role"] != p.ROLES.index(role) or a.get("capacity", "capsule") != capacity):
             raise ValueError("FuseFSS native role admission differs")
         context = a.get("context")
         if (type(context) is not dict or set(context) != {"plan", "session", "operation", "first_tensor_index"}
@@ -440,8 +550,7 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             _hex(context[name])
         _integer(context["first_tensor_index"], (1 << 64)-1)
         for name in ("kernels", "primitive_requests_per_party", "frames_per_party", "guard_capacity"):
-            _integer(a.get(name), (1 << 63)-1)
-        _integer(a.get("kernels"), 4096)
+            _integer(a.get(name), _NATIVE_COUNT_MAX)
         _integer(a.get("combined_reservation_bytes"), 64 << 20)
         _integer(a.get("peer_frame_bytes_bound"), p.PACKET_LIMIT)
         _integer(a.get("callback_metadata_bytes_bound"), p.METADATA_LIMIT, minimum=1)
@@ -449,13 +558,11 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             _integer(a.get(name), 272, minimum=1)
         # Native admits every primitive/guard/work requirement. Tape adds tighter
         # storage limits, never authorizes a request rejected by native admission.
-        price = MaterialTape.price(records=a["primitive_requests_per_party"],
-            packet_bytes=a.get("largest_packet_bytes"),
-            total_packet_bytes=a.get("cumulative_packet_bytes_per_party_bound"))
+        resources = price_transport(a, attempt.contract)
         manifest = p.metadata(attempt.loaded.manifest_bytes)
         if context["plan"] != manifest.get("program"):
             raise ValueError("FuseFSS admitted program differs from loaded source")
-        return a, price
+        return a, resources
 
     async def manifest(request, reservation):
         return reply({"schema": "pllm.fss.worker.v1", "role": role, "epoch": epoch,
@@ -466,25 +573,38 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
         value = {"schema": "pllm.fss.worker.metrics.v1", "role": role,
             "cpu_ns": time.process_time_ns(), "peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
                 * (1 if os.sys.platform == "darwin" else 1024),
-            "active_sessions": int(active is not None), "seen_requests": len(seen),
-            "retired_sessions": retired_sessions, "serving_qualified": False}
+             "active_sessions": int(active is not None), "seen_requests": len(seen),
+            "retired_sessions": retired_sessions, "serving_qualified": False,
+            "phase_timing": dict(phase_timing)}
         return _PayloadResponse(json.dumps(value).encode(), reservation,
                                 limit=p.CONTROL_LIMIT, media_type="application/json")
 
     async def admit(request, reservation):
         nonlocal active
+        started = time.monotonic()
         attempt = _Attempt(reservation, ttl)
         active = attempt
         request.state.attempt = attempt
         attempt.handlers.add(asyncio.current_task())
         value = p.unpack(await _body(request, p.ADMISSION_LIMIT), limit=p.ADMISSION_LIMIT)
-        if set(value) != {"request", "epoch", "epochs", "rows", "outputs", "contract"}:
+        fields = {"request", "epoch", "epochs", "rows", "outputs", "contract"}
+        if capacity == "decoder":
+            fields.add("remaining_seconds")
+        if set(value) != fields:
             raise ValueError("FuseFSS admission fields differ")
         request_id = _hex(value["request"])
         if request_id in seen or request_id == "0"*64:
             raise ValueError("FuseFSS session replay")
         seen.add(request_id)  # before source/native work, including failed admission
         attempt.request_id = request_id
+        if capacity == "decoder":
+            remaining = value["remaining_seconds"]
+            if (type(remaining) not in (int, float) or not 0 < remaining <= timeout_limit(capacity)
+                    or not math.isfinite(remaining)):
+                raise ValueError("FuseFSS remaining request lifetime differs")
+            # The only clamp: charge body reading/validation from admission
+            # entry, before any source/native work. Expiry stays fixed thereafter.
+            attempt.expires = min(attempt.expires, started + remaining)
         epochs = value["epochs"]
         if (value["epoch"] != epoch or type(epochs) is not dict or set(epochs) != set(p.ROLES)
                 or any(_hex(e) == "0"*64 for e in epochs.values())
@@ -496,14 +616,32 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             raise ValueError("FuseFSS request geometry/contract differs")
         attempt.epochs, attempt.contract = epochs, value["contract"]
         def load():
-            if source.runtime_contract(experiment, rows, outputs) != attempt.contract:
+            source_lease = None
+            if attempt.cancelled():
+                raise ValueError("FuseFSS source admission retired")
+            local_contract = source.runtime_contract(experiment, rows, outputs)
+            if local_contract != attempt.contract or transport_capacity(local_contract) != capacity:
                 raise ValueError("FuseFSS source runtime contract differs")
+            if capacity == "decoder":
+                source_disk = _integer(json.loads(local_contract).get("source_disk_bytes"), 2 * _DECODER_SOURCE_BYTES)
+                source_lease = attempt.reserve_disk(source_disk, native_directory)
+                attempt.source_disk_lease = source_lease
+            if attempt.cancelled():
+                raise ValueError("FuseFSS source admission retired")
             attempt.loaded = load_role_source(experiment, expected_pins=source.snapshot_pins,
                 input_rows=rows, outputs=outputs, cancelled=attempt.cancelled, source=source)
             if attempt.loaded.contract_bytes != attempt.contract:
                 raise ValueError("FuseFSS loaded source contract differs")
-        attempt.job = asyncio.create_task(native_call(load, _cancel=attempt.signal))
-        await asyncio.shield(attempt.job)
+            if source_lease is not None and hasattr(attempt.loaded.native_program, "disk_backing"):
+                # Only the locally imported native owner can establish backing.
+                # Older cores without this API retain the full pending charge.
+                source_lease.bind_backing(attempt.loaded.native_program.disk_backing)
+        # Admission's outer timeout bounds the unread body by the configured
+        # maximum. Its authenticated, possibly shorter budget must also cover
+        # import; the idle expiry timer is installed only after this job drains.
+        async with asyncio.timeout(max(0, attempt.expires-time.monotonic())):
+            attempt.job = asyncio.create_task(native_call(load, _cancel=attempt.signal))
+            await asyncio.shield(attempt.job)
         attempt.job = None
         if attempt.cancelled():
             raise ValueError("FuseFSS source admission retired")
@@ -543,10 +681,18 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 def bind():
                     attempt.native = _native.FssRoleRequest(attempt.loaded.native_program,
                         attempt.contract, value["request_frame"], p.ROLES.index(role))
-                    attempt.admission, price = validate_admission(attempt, attempt.native.metadata())
+                    attempt.admission, resources = validate_admission(attempt, attempt.native.metadata())
                     if role in p.HOLDERS:
+                        price = resources.tape
+                        # Native role construction is metadata-only; the native
+                        # file guard is allocated by run, after these leases.
+                        attempt.reserve_disk(resources.guard_disk_bytes, native_directory)
+                        attempt.reserve_disk(price.max_file_bytes, tape_directory)
                         attempt.tape = MaterialTape(attempt.request_id, role, records=price.records,
-                            packet_bytes=price.packet_bytes, total_packet_bytes=price.total_packet_bytes)
+                            packet_bytes=price.packet_bytes, total_packet_bytes=price.total_packet_bytes,
+                             capacity=price.capacity, metadata_bytes_per_record=price.metadata_bytes_per_record,
+                             metadata_storage=price.metadata_storage,
+                             directory=tape_directory)
                 attempt.job = asyncio.create_task(native_call(bind, _cancel=attempt.signal))
                 await asyncio.shield(attempt.job)
                 attempt.job = None
@@ -788,10 +934,12 @@ def main():
     if args.role not in p.ROLES or not 1 <= args.port <= 65535:
         parser.error("valid role and port required")
     experiment = Experiment.from_spec(json.loads(os.environ["PLLM_ROLE_EXPERIMENT_JSON"]))
+    capacity = experiment.pipeline.components["linear"].params.get("capacity", "capsule")
     app = create_fss_worker_app(experiment, args.role, os.environ["PLLM_FSS_API_KEY"],
         peer_connections=json.loads(os.environ["PLLM_FSS_PEERS_JSON"]),
         peer_credentials=json.loads(os.environ["PLLM_FSS_PEER_CREDENTIALS_JSON"]),
-        source_pins=json.loads(os.environ["PLLM_FSS_SOURCE_PINS_JSON"]) if "PLLM_FSS_SOURCE_PINS_JSON" in os.environ else None)
+        source_pins=json.loads(os.environ["PLLM_FSS_SOURCE_PINS_JSON"]) if "PLLM_FSS_SOURCE_PINS_JSON" in os.environ else None,
+        ttl=timeout_limit(capacity) if capacity == "decoder" else 300)
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False, log_level="warning",
                 limit_concurrency=8, h11_max_incomplete_event_size=16 << 10,

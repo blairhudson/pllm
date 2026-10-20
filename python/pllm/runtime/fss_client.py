@@ -24,19 +24,24 @@ class FssClient(DelegatedClient):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.timeout > 600:
-            raise ValueError("FuseFSS request lifetime exceeds 600 seconds")
+        from .fss_transport import timeout_limit
+        maximum = timeout_limit(self._capacity)
+        if self.timeout > maximum:
+            raise ValueError(f"FuseFSS request lifetime exceeds {maximum} seconds")
         self.audit = _FssAudit(self._lock, self.counter_fields)
         self._completed_program = None
 
     def _ensure_source(self):
         from .fss_source import FrozenFssSource, resolve_client_source
+        from .fss_transport import transport_capacity
         with self._lock:
             self._check_open()
             if not self._source_checked:
                 source = self._source or resolve_client_source(self._declaration)
                 if not isinstance(source, FrozenFssSource):
                     raise TypeError("FuseFSS requires its admitted source metadata")
+                if transport_capacity(source.contract) != self._capacity:
+                    raise ValueError("FuseFSS native source capacity differs from Experiment")
                 source.runtime_contract(self._declaration, self._experiment_budget.max_input_tokens,
                                         self._experiment_budget.max_new_tokens)
                 self._source, self._source_checked = source, True

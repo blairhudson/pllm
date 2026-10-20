@@ -22,6 +22,7 @@ from pllm.verification import FreivaldsVerify
 PROFILES = (
     "fusefss.gpt2-complete-ring50-q12.v1",
     "fusefss.dense-rope-ring50-q12.v1",
+    "fusefss.dense-rope-checked-ranges-ring50-q12.v1",
 )
 
 
@@ -37,7 +38,8 @@ def test_explicit_numeric_choice_compact_params_discovery_and_immutable_replay(n
     assert isinstance(method, ProtocolMethod)
     assert method.to_spec() == {"component": "pllm/fusefss-source-decoder/v1",
                                 "params": {"numeric_profile": numeric_profile}}
-    assert method.get_params() == {"numeric_profile": numeric_profile, "weights": "public"}
+    assert method.get_params() == {"numeric_profile": numeric_profile, "weights": "public",
+                                   "capacity": "capsule"}
     assert method == FuseFssSourceDecoder(numeric_profile=numeric_profile, weights="public")
     for cls, instance, category in (
         (FuseFssSourceDecoder, method, "pllm/protocol-method"),
@@ -75,6 +77,22 @@ def test_explicit_numeric_choice_compact_params_discovery_and_immutable_replay(n
     assert restored == original
     assert restored.configuration_digest() == original.configuration_digest()
     assert resolve_runtime_composition(restored.pipeline) == resolve_runtime_composition(pipeline)
+
+
+@pytest.mark.parametrize("numeric_profile", PROFILES)
+def test_decoder_capacity_is_explicit_and_canonical(numeric_profile):
+    original = FuseFssSourceCpu(TinyModel(), numeric_profile=numeric_profile)
+    decoder = FuseFssSourceCpu(TinyModel(), numeric_profile=numeric_profile, capacity="decoder")
+    method = decoder.components["linear"]
+    assert original.digest() != decoder.digest()
+    assert method.params == {"numeric_profile": numeric_profile, "capacity": "decoder"}
+    assert FuseFssSourceDecoder(**method.get_params()) == method
+    assert loads_configuration(experiment(decoder).canonical_bytes().decode()) == experiment(decoder)
+    Draft202012Validator(method.describe().to_dict()["parameter_schema"]).validate(method.to_spec()["params"])
+    assert "capacity" not in original.components["linear"].params
+    for invalid in (True, None, [], "unbounded"):
+        with pytest.raises(ConfigurationError):
+            FuseFssSourceDecoder(numeric_profile=numeric_profile, capacity=invalid)
 
 
 @pytest.mark.parametrize("numeric_profile", PROFILES)
@@ -142,6 +160,8 @@ def test_independent_dealer_trust_graph_excludes_online_dealer_and_client_materi
     {"numeric_profile": PROFILES[0], "weights": ["public"]},
     {"numeric_profile": PROFILES[0], "fractional_bits": 18},
     {"numeric_profile": PROFILES[0], "setup_owner": "client"},
+    {"numeric_profile": PROFILES[2], "range_policy": "checked"},
+    {"numeric_profile": PROFILES[2], "max_abs_activation": 256},
 ])
 def test_malformed_method_parameters_reject_in_construction_discovery_and_replay(params):
     with pytest.raises((ConfigurationError, TypeError)):
@@ -209,10 +229,11 @@ def test_unapproved_extra_slots_do_not_resolve(slot, value):
         FuseFssSourceCpu(TinyModel(), numeric_profile=PROFILES[0], **{slot: value})
 
 
-def test_production_resolution_calls_native_and_never_treats_description_as_admission(monkeypatch):
+@pytest.mark.parametrize("numeric_profile", PROFILES)
+def test_production_resolution_calls_native_and_never_treats_description_as_admission(monkeypatch, numeric_profile):
     from pllm import _native
 
-    p = FuseFssSourceCpu(TinyModel(), numeric_profile=PROFILES[0])
+    p = FuseFssSourceCpu(TinyModel(), numeric_profile=numeric_profile)
     e = experiment(p)
     calls = []
     def unavailable(payload):
@@ -222,6 +243,25 @@ def test_production_resolution_calls_native_and_never_treats_description_as_admi
     with pytest.raises(ConfigurationError, match="requires native complete-decoder composition admission"):
         e.resolve()
     assert calls == [e.canonical_bytes()]
+
+
+def test_checked_qwen_factory_is_distinct_explicit_and_bounded(monkeypatch):
+    from pathlib import Path
+
+    monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1]))
+    from examples.papers.common import MODEL
+    from examples.papers.fusefss import qwen_checked_smoke, qwen_smoke
+
+    static, checked = qwen_smoke(), qwen_checked_smoke()
+    assert static.pipeline.linear.params == {"numeric_profile": PROFILES[1], "capacity": "decoder"}
+    assert checked.pipeline.linear.params == {"numeric_profile": PROFILES[2], "capacity": "decoder"}
+    assert FuseFssSourceDecoder.DENSE_ROPE_CHECKED_NUMERIC_PROFILE == PROFILES[2]
+    assert checked.pipeline.model == static.pipeline.model == MODEL
+    assert checked.budget == static.budget == pllm.ExecutionBudget(requests=1, max_input_tokens=4, max_new_tokens=1)
+    assert static.configuration_digest() != checked.configuration_digest()
+    assert loads_configuration(checked.canonical_bytes().decode()) == checked
+    assert "opt-in-checked-range-whole-request-outcome" in checked.pipeline.linear.describe().capabilities
+    assert checked.pipeline.with_params(linear__numeric_profile=PROFILES[1]) == static.pipeline
 
 
 def test_public_exports_and_old_defaults_remain_distinct():

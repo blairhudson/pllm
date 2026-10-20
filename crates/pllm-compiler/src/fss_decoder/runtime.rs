@@ -1,4 +1,4 @@
-use super::program::{Code, Node};
+use super::program::{graph_elements, Code, Node};
 use super::*;
 use pllm_garble::{
     fusefss_backend::{
@@ -109,11 +109,34 @@ impl NativeOutput {
         let values = Zeroizing::new(copied(output.shares())?);
         Ok(Self { values })
     }
+
+    /// A large output is admitted only by the concrete native Plan, never by an
+    /// unchecked caller count. Ordinary scalar plans retain their own limits.
+    pub fn from_native_plan(
+        output: pllm_garble::fusefss_backend::Output<'_>,
+        plan: &Plan<'_>,
+    ) -> Result<Self, Error> {
+        let n = output.shares().len();
+        if n == 0 || n > pllm_garble::fusefss_backend::one_hot::MAX_VOCABULARY {
+            return Err(Error::Domain);
+        }
+        for (i, &value) in output.shares().iter().enumerate() {
+            if value > MASK || plan.output_is_xor(i)? || plan.output_bits(i)? != 50 {
+                return Err(Error::Domain);
+            }
+        }
+        if plan.output_bits(n).is_ok() {
+            return Err(Error::Domain);
+        }
+        let values = Zeroizing::new(copied(output.shares())?);
+        Ok(Self { values })
+    }
 }
 
 /// Final client-only additive token shares. No intermediate retrieval API.
 pub struct TokenShares {
     values: Zeroizing<Vec<u64>>,
+    validity: Zeroizing<Option<u64>>,
     program: [u8; 32],
     role: u8,
 }
@@ -126,6 +149,9 @@ impl TokenShares {
     }
     pub fn role(&self) -> u8 {
         self.role
+    }
+    pub fn validity_share(&self) -> Option<u64> {
+        *self.validity
     }
 }
 
@@ -203,6 +229,9 @@ impl<'p> Worker<'p> {
             Ok(values) if state.hash.clone().finalize().as_slice() == self.program.obligations => {
                 Ok(TokenShares {
                     values,
+                    validity: Zeroizing::new(
+                        self.program.checked_ranges().then_some(*state.validity),
+                    ),
                     program: self.program.digest,
                     role: self.role,
                 })
@@ -230,7 +259,24 @@ pub(super) fn preflight(program: &mut Program) -> Result<(), Error> {
     let tables = request_tables(program, &budget)?;
     let mut state = Schedule::new(program, context, 0, None, &tables)?;
     let input = Zeroizing::new(zeros(program.initial)?);
-    drop(state.execute(&input)?);
+    // This walk has only zero placeholders, no Driver, and no material visitor.
+    // Diagnostics belong here, never on the live private execution path.
+    let admitted = state.execute(&input);
+    if let Err(error) = &admitted {
+        if std::env::var_os("PLLM_FSS_ADMISSION_DEBUG").is_some() {
+            eprintln!(
+                "FSS public kernel admission failed: selection={} node={} code={:?} error={error:?} resources={:?} limits={:?} native_budget_used={} cache={:?}",
+                state.selection,
+                state.node,
+                program.nodes.get(state.node).map(|node| node.code),
+                state.resources,
+                program.limits,
+                budget.used_bytes(),
+                tables.stats(),
+            );
+        }
+    }
+    drop(admitted?);
     let resources = state.resources;
     let obligations = state.hash.clone().finalize().into();
     program.resources = resources;
@@ -302,6 +348,7 @@ struct Schedule<'a, 'd, 'c, 'b> {
     hash: Sha256,
     selection: usize,
     node: usize,
+    validity: Zeroizing<u64>,
 }
 impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
     fn new(
@@ -366,6 +413,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             hash,
             selection: 0,
             node: 0,
+            validity: Zeroizing::new(u64::from(role == 0)),
         })
     }
     fn cancel(&mut self) {
@@ -388,6 +436,13 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             n.checked_mul(2).ok_or(Error::Resource)?,
         )?;
         if self.resources.work > self.program.limits.max_work {
+            return Err(Error::Resource);
+        }
+        Ok(())
+    }
+    fn public_copy(&mut self, bytes: usize) -> Result<(), Error> {
+        self.resources.public_copy_bytes = checked_add(self.resources.public_copy_bytes, bytes)?;
+        if self.resources.public_copy_bytes > self.program.limits.max_public_copy_bytes {
             return Err(Error::Resource);
         }
         Ok(())
@@ -536,7 +591,11 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             self.resources.peak_native_bytes,
         )?;
         let l = self.program.limits;
-        if self.resources.kernels > 32768
+        let kernel_limit = match self.program.capacity() {
+            Capacity::Capsule => 32768,
+            Capacity::Decoder => 1 << 22,
+        };
+        if self.resources.kernels > kernel_limit
             || self.resources.work > l.max_work
             || self.resources.material_bytes > l.max_material_bytes
             || self.resources.frame_bytes > l.max_frame_bytes
@@ -612,13 +671,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         // Each role gathers one public coefficient row while the immutable
         // checkpoint owner remains live. Account cumulative copies as well as
         // the already-reserved bounded gather workspace.
-        self.resources.public_copy_bytes = checked_add(
-            self.resources.public_copy_bytes,
-            weights.len().checked_mul(16).ok_or(Error::Resource)?,
-        )?;
-        if self.resources.public_copy_bytes > self.program.limits.max_public_copy_bytes {
-            return Err(Error::Resource);
-        }
+        self.public_copy(weights.len().checked_mul(16).ok_or(Error::Resource)?)?;
         let rs = ranges(x.len(), range)?;
         let lo = *weights.iter().min().ok_or(Error::Domain)?;
         let hi = *weights.iter().max().ok_or(Error::Domain)?;
@@ -649,8 +702,26 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         input.extend_from_slice(left);
         input.extend_from_slice(right);
         let binding = self.binding();
+        let proof = self.program.dot_proof(self.node)?;
+        if proof.is_some_and(|proof| proof.inner != left.len() || left.len() != right.len()) {
+            return Err(Error::Context);
+        }
         Ok(self.kernel(&input, 1, |budget| {
-            Ok(kernels::private_dot(binding, &lr, &rr, budget)?.0)
+            if let Some(proof) = proof {
+                let (plan, metadata) = kernels::private_dot_with_row_energy(
+                    binding,
+                    &lr,
+                    &rr,
+                    [proof.left, proof.right],
+                    budget,
+                )?;
+                if metadata.raw_range != Some(proof.raw.gate()) {
+                    return Err(Error::Context);
+                }
+                Ok(plan)
+            } else {
+                Ok(kernels::private_dot(binding, &lr, &rr, budget)?.0)
+            }
         })?[0])
     }
     fn execute(&mut self, input: &[u64]) -> Result<Zeroizing<Vec<u64>>, Error> {
@@ -666,7 +737,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             for (index, node) in p.nodes.iter().enumerate() {
                 self.node = index;
                 let values = self.node(node, &arrays, &tokens, prefix)?;
-                if values.len() != elements(&node.shape)? {
+                if values.len() != graph_elements(p.capacity(), &node.shape)? {
                     return Err(Error::Domain);
                 }
                 #[cfg(test)]
@@ -691,6 +762,20 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 tokens[prefix] = *token;
             }
         }
+        if p.checked_ranges() {
+            // Full private feedback has already finished. One final, unscaled
+            // mask protects EVERY selection, including outputs before a failure.
+            self.node = p.nodes.len();
+            let mut input = Zeroizing::new(vector(finals.len() + 1)?);
+            input.extend_from_slice(&finals);
+            input.push(*self.validity);
+            let rs = ranges(finals.len(), Range::new(0, p.vocabulary as i128 - 1)?)?;
+            let binding = self.binding();
+            let masked = self.kernel(&input, finals.len(), |budget| {
+                Ok(kernels::mask_by_validity(binding, &rs, budget)?.0)
+            })?;
+            finals.copy_from_slice(&masked);
+        }
         Ok(finals)
     }
     fn node(
@@ -709,7 +794,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 .map(|v| v.as_slice())
                 .ok_or(Error::Domain)
         };
-        let mut out = Zeroizing::new(zeros(elements(&node.shape)?)?);
+        let mut out = Zeroizing::new(zeros(graph_elements(p.capacity(), &node.shape)?)?);
         use Code::*;
         match node.code {
             Embedding { weight, positions } => {
@@ -718,23 +803,101 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let rows = w.shape[0];
                 if positions {
                     if self.role == 0 {
+                        if w.is_file_backed() {
+                            // Only this role copies position rows; unused table
+                            // rows and the other holder cause no coefficient read.
+                            self.public_copy(
+                                t.checked_mul(columns)
+                                    .and_then(|n| n.checked_mul(8))
+                                    .ok_or(Error::Resource)?,
+                            )?;
+                        }
+                        let mut coefficients = Zeroizing::new(vector::<i64>(columns)?);
+                        coefficients.resize(columns, 0);
                         for i in 0..t {
+                            w.read_row(i, 0, &mut coefficients)?;
                             for c in 0..columns {
-                                out[i * columns + c] = word(w.values[i * columns + c]);
+                                out[i * columns + c] = word(coefficients[c]);
                             }
                         }
                     }
                 } else {
                     let binding = self.binding();
                     let id_range = Range::new(0, p.vocabulary as i128 - 1)?.gate();
-                    for i in 0..t {
-                        let hot = self.kernel(&tokens[i..i + 1], rows, |budget| {
-                            Ok(kernels::token_one_hot(binding, id_range, rows, budget)?.0)
-                        })?;
-                        for row in 0..rows {
-                            for c in 0..columns {
-                                let v = hot[row].wrapping_mul(word(w.values[row * columns + c]));
-                                out[i * columns + c] = out[i * columns + c].wrapping_add(v) & MASK;
+                    if let Some(file) = w.fixed_file() {
+                        let batch = p.embedding_batch_rows()?;
+                        // One complete table scan serves all padded rows in each
+                        // bounded batch, on both holders. Price the whole node
+                        // BEFORE any kernel/read, including dry/dealer walks.
+                        self.public_copy(
+                            t.div_ceil(batch)
+                                .checked_mul(rows)
+                                .and_then(|n| n.checked_mul(columns))
+                                .and_then(|n| n.checked_mul(16))
+                                .ok_or(Error::Resource)?,
+                        )?;
+                        // Only workers evaluate the public contraction. Dealer
+                        // and dry admission retain no multi-row selector owner;
+                        // their identical fresh kernel walk still prices both
+                        // workers' actual gather/copy work below.
+                        let mut selectors = if self.driver.is_some() {
+                            Some(Zeroizing::new(zeros(
+                                batch.checked_mul(rows).ok_or(Error::Resource)?,
+                            )?))
+                        } else {
+                            None
+                        };
+                        for start in (0..t).step_by(batch) {
+                            let count = batch.min(t - start);
+                            for i in 0..count {
+                                // Identical order and fresh invocation to the
+                                // single-row schedule; no key/material reuse.
+                                let token = start + i;
+                                let hot =
+                                    self.kernel(&tokens[token..token + 1], rows, |budget| {
+                                        Ok(kernels::compact_token_one_hot(
+                                            binding, id_range, rows, budget,
+                                        )?
+                                        .0)
+                                    })?;
+                                if let Some(selectors) = selectors.as_mut() {
+                                    selectors[i * rows..(i + 1) * rows].copy_from_slice(&hot);
+                                }
+                            }
+                            if let Some(selectors) = selectors.as_ref() {
+                                file.accumulate_rows_ring64(
+                                    &[&selectors[..count * rows]],
+                                    &mut [&mut out[start * columns..(start + count) * columns]],
+                                    count,
+                                    0,
+                                    rows,
+                                )
+                                .map_err(|_| Error::Context)?;
+                                for value in &mut out[start * columns..(start + count) * columns] {
+                                    *value &= MASK;
+                                }
+                            }
+                        }
+                        // Gathering private selector words is real local copy
+                        // work in addition to all original multiply/add work.
+                        self.local(t.checked_mul(rows).ok_or(Error::Resource)?)?;
+                    } else {
+                        for i in 0..t {
+                            let hot = self.kernel(&tokens[i..i + 1], rows, |budget| {
+                                Ok(if p.capacity() == Capacity::Decoder {
+                                    kernels::compact_token_one_hot(binding, id_range, rows, budget)?
+                                        .0
+                                } else {
+                                    kernels::token_one_hot(binding, id_range, rows, budget)?.0
+                                })
+                            })?;
+                            for row in 0..rows {
+                                for c in 0..columns {
+                                    let v =
+                                        hot[row].wrapping_mul(word(w.values[row * columns + c]));
+                                    out[i * columns + c] =
+                                        out[i * columns + c].wrapping_add(v) & MASK;
+                                }
                             }
                         }
                     }
@@ -755,6 +918,61 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let w = &p.source.tensors[weight];
                 let inner = *p.nodes[input].shape.last().unwrap();
                 let columns = *node.shape.last().unwrap();
+                if let Some(file) = w.fixed_file() {
+                    use pllm_core::streamed_matrix::MatrixLayout;
+                    if input_output {
+                        // Stored row certificates must never be treated as
+                        // certificates for the transposed contraction columns.
+                        return Err(Error::Unsupported);
+                    }
+                    // One coefficient scan per holder serves ALL input rows.
+                    // One immutable certificate per output column serves all
+                    // rows on both holders AND the dealer. Its raw interval is
+                    // compiler-bound to this input's complete-row proof, which
+                    // holds uniformly for every token row. Each output retains
+                    // its independent fresh floor invocation.
+                    // Source-import/hash and compiler-only range reads are not
+                    // execution reads and must not be multiplied by selections.
+                    let coefficients = w.len().checked_mul(16).ok_or(Error::Resource)?;
+                    let statistics = columns
+                        .checked_mul(pllm_core::fixed_file::ROW_STATISTICS_RECORD_BYTES)
+                        .and_then(|n| n.checked_mul(3))
+                        .ok_or(Error::Resource)?;
+                    self.public_copy(checked_add(coefficients, statistics)?)?;
+                    if self.driver.is_some() {
+                        file.multiply_ring64(
+                            &[x],
+                            &mut [out.as_mut_slice()],
+                            x.len() / inner,
+                            MatrixLayout::OutputInput,
+                        )
+                        .map_err(|_| Error::Context)?;
+                    }
+                    self.local(x.len().checked_mul(columns).ok_or(Error::Resource)?)?;
+                    let binding = self.binding();
+                    for col in 0..columns {
+                        let raw_range = p.linear_raw_range(self.node, col)?;
+                        let bias = if let Some(b) = bias {
+                            *p.source.tensors[b]
+                                .resident_values()
+                                .and_then(|v| v.get(col))
+                                .ok_or(Error::Domain)?
+                        } else {
+                            0
+                        };
+                        for row in 0..x.len() / inner {
+                            let index = row * columns + col;
+                            let raw = [out[index] & MASK];
+                            let value = self.kernel(&raw, 1, |budget| {
+                                Ok(kernels::floor(binding, raw_range.gate(), 12, budget)?.0)
+                            })?[0];
+                            out[index] =
+                                value.wrapping_add(if self.role == 0 { word(bias) } else { 0 })
+                                    & MASK;
+                        }
+                    }
+                    return Ok(out);
+                }
                 let mut coefficients = Zeroizing::new(vector(inner)?);
                 for row in 0..x.len() / inner {
                     for col in 0..columns {
@@ -792,9 +1010,41 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                     v
                 });
                 let beta = beta.map_or(zeros.as_slice(), |b| p.source.tensors[b].values.as_slice());
-                let range = p.nodes[input].range;
+                let original_range = p.nodes[input].range;
+                let range = if p.checked_ranges() {
+                    super::energy::rms_guard(width)?
+                } else {
+                    original_range
+                };
                 let source = p.source.digest();
+                let input_energy = p.norm_row_energy(self.node)?;
                 for row in 0..x.len() / width {
+                    let guarded = if p.checked_ranges() {
+                        let binding = self.binding();
+                        let rs = ranges(width, original_range)?;
+                        let values =
+                            self.kernel(&x[row * width..(row + 1) * width], width + 1, |budget| {
+                                Ok(kernels::checked_range_with_fallback(
+                                    binding,
+                                    &rs,
+                                    range.gate(),
+                                    kernels::RangeFallback::WholeRow,
+                                    budget,
+                                )?
+                                .0)
+                            })?;
+                        let pair = Zeroizing::new([*self.validity, values[width]]);
+                        let combined = self.kernel(&pair[..], 1, |budget| {
+                            Ok(kernels::validity_and(binding, budget)?.0)
+                        })?;
+                        *self.validity = combined[0];
+                        Some(values)
+                    } else {
+                        None
+                    };
+                    let row_input = guarded
+                        .as_ref()
+                        .map_or(&x[row * width..(row + 1) * width], |v| &v[..width]);
                     let spec = norm::Spec {
                         kind: if layer {
                             norm::Kind::Layer
@@ -807,8 +1057,16 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                         beta,
                     };
                     let y =
-                        self.cached_kernel(&x[row * width..(row + 1) * width], width, |tables| {
-                            norm::compile_cached(source, &spec, tables)
+                        self.cached_kernel(row_input, width, |tables| {
+                            let plan = if let Some(energy) = input_energy {
+                                norm::compile_cached_with_row_energy(source, &spec, energy, tables)
+                            } else {
+                                norm::compile_cached(source, &spec, tables)
+                            };
+                            if plan.is_err() && std::env::var_os("PLLM_FSS_ADMISSION_DEBUG").is_some() {
+                                eprintln!("fss norm rejection: width={width} input={range:?} row_energy={input_energy:?} layer={layer}");
+                            }
+                            plan
                         })?;
                     out[row * width..(row + 1) * width].copy_from_slice(&y);
                 }
@@ -992,10 +1250,29 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             }
             Argmax(input) => {
                 let x = get(input)?;
-                let rs = ranges(x.len(), p.nodes[input].range)?;
                 let binding = self.binding();
-                out[0] =
-                    self.kernel(x, 1, |budget| Ok(kernels::argmax(binding, &rs, budget)?.0))?[0];
+                if p.capacity() == Capacity::Decoder {
+                    let range = p.nodes[input].range.gate();
+                    let ids = Range::new(0, x.len() as i128 - 1)?.gate();
+                    let mut winner = Zeroizing::new([x[0], 0]);
+                    for (index, &value) in x.iter().enumerate().skip(1) {
+                        let input = Zeroizing::new([
+                            winner[0],
+                            winner[1],
+                            value,
+                            if self.role == 0 { index as u64 } else { 0 },
+                        ]);
+                        let selected = self.kernel(input.as_slice(), 2, |budget| {
+                            Ok(kernels::stable_max(binding, [range; 2], ids, budget)?.0)
+                        })?;
+                        winner.copy_from_slice(&selected);
+                    }
+                    out[0] = winner[1];
+                } else {
+                    let rs = ranges(x.len(), p.nodes[input].range)?;
+                    out[0] = self
+                        .kernel(x, 1, |budget| Ok(kernels::argmax(binding, &rs, budget)?.0))?[0];
+                }
             }
         }
         Ok(out)
@@ -1009,3 +1286,7 @@ mod tests;
 #[cfg(test)]
 #[path = "table_cache_tests.rs"]
 mod table_cache_tests;
+
+#[cfg(test)]
+#[path = "runtime_accounting_tests.rs"]
+mod runtime_accounting_tests;

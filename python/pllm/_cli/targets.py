@@ -8,6 +8,7 @@ import importlib.util
 import re
 import sys
 from collections.abc import Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -125,6 +126,21 @@ def _load_python_target(left: str, *, is_file: bool) -> ModuleType:
         ) from exc
 
 
+@contextmanager
+def _target_imports():
+    """Match python -m's working-directory imports during trusted target execution."""
+    original = sys.path
+    entries = original[:]
+    try:
+        directory = str(Path.cwd())
+        if directory not in sys.path:
+            sys.path.insert(0, directory)
+        yield
+    finally:
+        original[:] = entries
+        sys.path = original
+
+
 def resolve_target(
     target: str,
     *,
@@ -180,25 +196,28 @@ def resolve_target(
         trust_python=trust_python,
         output_format=output_format,
     )
-    module = _load_python_target(left, is_file=is_file)
-    value: object = module
-    try:
-        for attribute in object_path.split("."):
-            value = getattr(value, attribute)
-    except AttributeError as exc:
-        raise ResolutionError("TARGET_OBJECT", f"Python target has no object {object_path!r}") from exc
-
-    if factory:
-        if not callable(value):
-            raise ResolutionError("TARGET_FACTORY", "--factory target is not callable")
+    # Scope includes lazy imports inside factories, not just module execution.
+    # Confirmation above remains mandatory before enabling any Python target.
+    with _target_imports():
+        module = _load_python_target(left, is_file=is_file)
+        value: object = module
         try:
-            value = value()
-        except SystemExit as exc:
-            raise ResolutionError("TARGET_FACTORY", "Python target factory attempted to exit") from exc
-        except Exception as exc:
-            raise ResolutionError(
-                "TARGET_FACTORY", f"Python target factory failed ({type(exc).__name__})"
-            ) from exc
+            for attribute in object_path.split("."):
+                value = getattr(value, attribute)
+        except AttributeError as exc:
+            raise ResolutionError("TARGET_OBJECT", f"Python target has no object {object_path!r}") from exc
+
+        if factory:
+            if not callable(value):
+                raise ResolutionError("TARGET_FACTORY", "--factory target is not callable")
+            try:
+                value = value()
+            except SystemExit as exc:
+                raise ResolutionError("TARGET_FACTORY", "Python target factory attempted to exit") from exc
+            except Exception as exc:
+                raise ResolutionError(
+                    "TARGET_FACTORY", f"Python target factory failed ({type(exc).__name__})"
+                ) from exc
     if type(value) is not Experiment:
         raise ResolutionError(
             "TARGET_TYPE", "Python target must resolve to a public pllm.config.Experiment"
