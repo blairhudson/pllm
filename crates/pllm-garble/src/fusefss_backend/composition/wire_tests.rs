@@ -455,3 +455,376 @@ fn retained_receiver_packet_and_frame_owners_outlive_cancelled_plan() {
     drop(frame);
     assert_eq!(worker.used_bytes(), 0);
 }
+
+#[test]
+fn request_layout_pricing_charges_full_guard_without_changing_other_owners() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let plan = mixed_plan(&budget);
+    let digest = plan.digest();
+    let historical = plan.resources();
+    let baseline = budget.used_bytes();
+    let legacy = plan.transport_resources(1, 32).unwrap();
+    assert_eq!(
+        legacy,
+        plan.transport_resources_with_guard(1, ImportGuardLayout::legacy(32).unwrap())
+            .unwrap()
+    );
+    let layout = ImportGuardLayout::for_requests(49_933).unwrap();
+    let priced = plan
+        .transport_resources_indexed(1, layout.capacity())
+        .unwrap();
+    assert_eq!(
+        priced,
+        plan.transport_resources_with_guard(1, layout).unwrap()
+    );
+    assert_eq!(
+        priced.guard_reservation_bytes,
+        ImportGuard::indexed_reservation_bytes(layout.capacity()).unwrap()
+    );
+    assert_eq!(priced.guard_reservation_bytes, layout.reservation_bytes());
+    assert!(priced.guard_reservation_bytes > 4096 * 33);
+    assert_eq!(
+        priced.combined_worker_reservation_bytes,
+        legacy.combined_worker_reservation_bytes - legacy.guard_reservation_bytes
+            + layout.reservation_bytes()
+    );
+    assert_eq!(
+        priced.combined_dealer_export_reservation_bytes,
+        legacy.combined_dealer_export_reservation_bytes
+    );
+    assert_eq!(
+        priced.retained_frame_bytes_per_party,
+        legacy.retained_frame_bytes_per_party
+    );
+    assert_eq!(
+        priced.largest_import_overlap_bytes,
+        legacy.largest_import_overlap_bytes
+    );
+    assert_eq!(priced.retained_packet_bytes, legacy.retained_packet_bytes);
+    assert_eq!(
+        priced.cumulative_packet_bytes_per_party_bound,
+        legacy.cumulative_packet_bytes_per_party_bound
+    );
+    assert_eq!(plan.digest(), digest);
+    assert_eq!(
+        plan.resources().combined_reservation_bytes,
+        historical.combined_reservation_bytes
+    );
+    assert_eq!(
+        plan.resources().private_material_bytes_total,
+        historical.private_material_bytes_total
+    );
+    assert_eq!(budget.used_bytes(), baseline);
+    let guard = ImportGuard::with_layout(layout, &budget).unwrap();
+    assert_eq!(
+        budget.used_bytes(),
+        baseline + priced.guard_reservation_bytes
+    );
+    drop(guard);
+    assert_eq!(budget.used_bytes(), baseline);
+    let excess_slots = (MAX_ALLOCATION_BYTES - priced.combined_worker_reservation_bytes)
+        / priced.largest_packet_bytes_bound
+        + 2;
+    assert!(matches!(
+        plan.transport_resources_with_guard(excess_slots, layout),
+        Err(Error::Resource)
+    ));
+    assert!(matches!(
+        plan.transport_resources_with_guard(usize::MAX, layout),
+        Err(Error::Resource)
+    ));
+}
+
+#[test]
+fn request_guard_imports_4097_fresh_contexts_then_rejects_same_nonce_new_context() {
+    let dealer = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let worker = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let dp = small_plan(&dealer, b"request-long-replay");
+    let wp = small_plan(&worker, b"request-long-replay");
+    let layout = ImportGuardLayout::for_requests(4097).unwrap();
+    let mut guard = ImportGuard::new_indexed(layout.capacity(), &worker).unwrap();
+    let baseline = worker.used_bytes();
+    let mut first_nonce = [0; 32];
+    for ordinal in 0..4097u64 {
+        let mut ctx = context();
+        ctx.operation[..8].copy_from_slice(&ordinal.to_le_bytes());
+        // Every iteration issues entirely fresh one-use masks/triples/keys.
+        let [a, b] = dp.issue_step(0, ctx).unwrap();
+        drop(b);
+        let packet = a.export_packet().unwrap();
+        if ordinal == 0 {
+            first_nonce = packet.nonce();
+        }
+        drop(
+            wp.import_step_bytes(0, ctx, 0, packet.nonce(), packet.as_bytes(), &mut guard)
+                .unwrap(),
+        );
+        assert_eq!(worker.used_bytes(), baseline);
+    }
+    let mut ctx = context();
+    ctx.operation[..8].copy_from_slice(&u64::MAX.to_le_bytes());
+    let [a, b] = dp.issue_step(0, ctx).unwrap();
+    drop(b);
+    let packet = a.export_packet().unwrap();
+    let mut fresh = Zeroizing::new(packet.as_bytes().to_vec());
+    // Model trusted issuance repeating ONLY the envelope nonce. Its fresh
+    // material genuinely belongs to a different valid public context.
+    fresh[48..80].copy_from_slice(&first_nonce);
+    let end = fresh.len() - 32;
+    let checksum = Sha256::digest(&fresh[..end]);
+    fresh[end..].copy_from_slice(&checksum);
+    {
+        // Separate receiving session proves those bytes/context are valid; the
+        // actual request-long guard is never retired or reset.
+        let mut independent = ImportGuard::new(1, &worker).unwrap();
+        drop(
+            wp.import_step_bytes(0, ctx, 0, first_nonce, &fresh, &mut independent)
+                .unwrap(),
+        );
+    }
+    assert!(matches!(
+        wp.import_step_bytes(0, ctx, 0, first_nonce, &fresh, &mut guard),
+        Err(Error::Consumed)
+    ));
+    assert!(matches!(
+        wp.import_step_bytes(0, ctx, 0, packet.nonce(), packet.as_bytes(), &mut guard),
+        Err(Error::Resource)
+    ));
+    assert_eq!(worker.used_bytes(), baseline);
+    drop(wp);
+    assert_eq!(worker.used_bytes(), layout.reservation_bytes());
+    drop(guard);
+    drop(packet);
+    drop(dp);
+    assert_eq!(worker.used_bytes(), 0);
+    assert_eq!(dealer.used_bytes(), 0);
+}
+
+#[test]
+fn request_guard_survives_cancel_out_of_order_and_preparation_failure() {
+    let dealer = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let worker = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let dp = small_plan(&dealer, b"request-long-failures");
+    let wp = small_plan(&worker, b"request-long-failures");
+    let layout = ImportGuardLayout::for_requests(5000).unwrap();
+    let pricing = wp.transport_resources_with_guard(1, layout).unwrap();
+    let mut guard = ImportGuard::with_layout(layout, &worker).unwrap();
+    let [a, b] = dp.issue_step(0, context()).unwrap();
+    drop(b);
+    let source = a.export_packet().unwrap();
+    let retained = MaterialPacket::from_bytes(source.as_bytes(), &worker).unwrap();
+    let material = wp
+        .import_step_bytes(
+            0,
+            context(),
+            0,
+            source.nonce(),
+            source.as_bytes(),
+            &mut guard,
+        )
+        .unwrap();
+    let mut runtime = wp.runtime(0, context(), &[0, 0]).unwrap();
+    assert!(matches!(
+        runtime.poll().unwrap(),
+        Event::NeedMaterial { pc: 0 }
+    ));
+    let frame = match runtime.feed(material).unwrap() {
+        Event::Frame(frame) => frame,
+        _ => panic!("opening"),
+    };
+    assert!(worker.used_bytes() <= pricing.combined_worker_reservation_bytes);
+    runtime.cancel();
+    drop(runtime);
+    assert!(matches!(
+        wp.import_step_bytes(
+            0,
+            context(),
+            0,
+            source.nonce(),
+            source.as_bytes(),
+            &mut guard
+        ),
+        Err(Error::Consumed)
+    ));
+    drop(source);
+
+    let mut waiting = wp.runtime(0, context(), &[0, 0]).unwrap();
+    assert!(matches!(
+        waiting.poll().unwrap(),
+        Event::NeedMaterial { pc: 0 }
+    ));
+    let [a, b] = dp.issue_step(1, context()).unwrap();
+    drop(b);
+    let later = a.export_packet().unwrap();
+    let delivered = MaterialPacket::from_bytes(later.as_bytes(), &worker).unwrap();
+    let out_of_order = wp.import_step(0, context(), 0, later.nonce(), delivered, &mut guard);
+    assert!(matches!(
+        waiting.feed_result(out_of_order),
+        Err(Error::Context)
+    ));
+    assert!(waiting.is_consumed());
+    assert!(matches!(
+        wp.import_step_bytes(1, context(), 0, later.nonce(), later.as_bytes(), &mut guard),
+        Err(Error::Consumed)
+    ));
+    drop(waiting);
+    drop(later);
+
+    let [a, b] = dp.issue_step(0, context()).unwrap();
+    drop(b);
+    let fresh = a.export_packet().unwrap();
+    assert!(matches!(
+        wp.import_step_bytes(0, context(), 0, fresh.nonce(), &[], &mut guard),
+        Err(Error::Resource)
+    ));
+    assert!(matches!(
+        wp.import_step_bytes(0, context(), 0, fresh.nonce(), fresh.as_bytes(), &mut guard),
+        Err(Error::Consumed)
+    ));
+    drop(fresh);
+    drop(wp);
+    assert_eq!(
+        worker.used_bytes(),
+        layout.reservation_bytes() + retained.as_bytes().len() + frame.as_bytes().len()
+    );
+    drop(guard);
+    assert_eq!(
+        worker.used_bytes(),
+        retained.as_bytes().len() + frame.as_bytes().len()
+    );
+    drop((retained, frame, dp));
+    assert_eq!(worker.used_bytes(), 0);
+    assert_eq!(dealer.used_bytes(), 0);
+}
+
+#[test]
+fn file_guard_prices_qwen_resident_overlap_with_disk_separate() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let plan = small_plan(&budget, b"file-replay-price");
+    let baseline = budget.used_bytes();
+    let small = plan.transport_resources(1, 2).unwrap();
+    let r = ImportGuard::indexed_file_resources(3_530_000).unwrap();
+    let file = plan.transport_resources_indexed_file(1, 3_530_000).unwrap();
+    assert!(matches!(
+        plan.transport_resources_indexed(1, 3_530_000),
+        Err(Error::Resource)
+    ));
+    assert_eq!(file.guard_reservation_bytes, r.resident_bytes);
+    assert_eq!(
+        file.combined_worker_reservation_bytes,
+        small.combined_worker_reservation_bytes - small.guard_reservation_bytes + r.resident_bytes
+    );
+    assert_eq!(
+        file.combined_dealer_export_reservation_bytes,
+        small.combined_dealer_export_reservation_bytes
+    );
+    assert_eq!(
+        file.retained_frame_bytes_per_party,
+        small.retained_frame_bytes_per_party
+    );
+    assert_eq!(file.retained_packet_bytes, small.retained_packet_bytes);
+    assert_eq!(r.disk_bytes, 8_388_608 * 33);
+    assert_eq!(budget.used_bytes(), baseline);
+    for capacity in [0, usize::MAX] {
+        assert!(matches!(
+            plan.transport_resources_indexed_file(1, capacity),
+            Err(Error::Resource)
+        ));
+    }
+    assert!(matches!(
+        plan.transport_resources_indexed_file(usize::MAX, 4),
+        Err(Error::Resource)
+    ));
+}
+
+#[test]
+fn file_guard_rejects_same_nonce_across_sessions_after_cancel_and_burns_malformed() {
+    let dealer = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let worker = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let dp = small_plan(&dealer, b"file-request-replay");
+    let wp = small_plan(&worker, b"file-request-replay");
+    let r = ImportGuard::indexed_file_resources(4).unwrap();
+    let mut guard = ImportGuard::new_indexed_file(4, r.disk_bytes, &worker).unwrap();
+    let [a, b] = dp.issue_step(0, context()).unwrap();
+    drop(b);
+    let packet = a.export_packet().unwrap();
+    let nonce = packet.nonce();
+    let retained = MaterialPacket::from_bytes(packet.as_bytes(), &worker).unwrap();
+    let material = wp
+        .import_step_bytes(0, context(), 0, nonce, packet.as_bytes(), &mut guard)
+        .unwrap();
+    drop(packet);
+    let mut runtime = wp.runtime(0, context(), &[0, 0]).unwrap();
+    assert!(matches!(
+        runtime.poll().unwrap(),
+        Event::NeedMaterial { pc: 0 }
+    ));
+    let frame = match runtime.feed(material).unwrap() {
+        Event::Frame(frame) => frame,
+        _ => panic!("opening"),
+    };
+    runtime.cancel();
+    drop(runtime);
+    let ctx = Context {
+        session: [19; 32],
+        operation: [20; 32],
+        ..context()
+    };
+    let [a, b] = dp.issue_step(0, ctx).unwrap();
+    drop(b);
+    let packet = a.export_packet().unwrap();
+    let mut fresh = Zeroizing::new(packet.as_bytes().to_vec());
+    fresh[48..80].copy_from_slice(&nonce);
+    let end = fresh.len() - 32;
+    let checksum = Sha256::digest(&fresh[..end]);
+    fresh[end..].copy_from_slice(&checksum);
+    {
+        let mut independent = ImportGuard::new_indexed(1, &worker).unwrap();
+        drop(
+            wp.import_step_bytes(0, ctx, 0, nonce, &fresh, &mut independent)
+                .unwrap(),
+        );
+    }
+    assert!(matches!(
+        wp.import_step_bytes(0, ctx, 0, nonce, &fresh, &mut guard),
+        Err(Error::Consumed)
+    ));
+
+    // Failure before constructing a MaterialPacket still burns the new nonce.
+    assert!(matches!(
+        wp.import_step_bytes(0, ctx, 0, packet.nonce(), &[], &mut guard),
+        Err(Error::Resource)
+    ));
+    assert!(matches!(
+        wp.import_step_bytes(0, ctx, 0, packet.nonce(), packet.as_bytes(), &mut guard),
+        Err(Error::Consumed)
+    ));
+    drop(packet);
+    let [a, b] = dp.issue_step(0, ctx).unwrap();
+    drop(b);
+    let packet = a.export_packet().unwrap();
+    let mut malformed = Zeroizing::new(packet.as_bytes().to_vec());
+    malformed[88] ^= 1;
+    assert!(matches!(
+        wp.import_step_bytes(0, ctx, 0, packet.nonce(), &malformed, &mut guard),
+        Err(Error::Context)
+    ));
+    assert!(matches!(
+        wp.import_step_bytes(0, ctx, 0, packet.nonce(), packet.as_bytes(), &mut guard),
+        Err(Error::Consumed)
+    ));
+    drop(packet);
+    drop(wp);
+    assert_eq!(
+        worker.used_bytes(),
+        r.resident_bytes + retained.as_bytes().len() + frame.as_bytes().len()
+    );
+    drop(guard);
+    assert_eq!(
+        worker.used_bytes(),
+        retained.as_bytes().len() + frame.as_bytes().len()
+    );
+    drop((frame, retained, dp));
+    assert_eq!(worker.used_bytes(), 0);
+    assert_eq!(dealer.used_bytes(), 0);
+}

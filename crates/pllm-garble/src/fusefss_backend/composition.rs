@@ -1,11 +1,13 @@
-//! Immutable, bounded scalar arithmetic schedules over the existing primitives.
+//! Immutable, bounded arithmetic schedules over the existing primitives.
+//! Compact token one-hot is a standalone single-step plan, not a scalar register
+//! expansion. Ordinary scalar instruction, register and input limits are unchanged.
 //!
 //! Public lowering contracts are commitments, not proofs of secret input ranges.
 //! Runtime never issues preprocessing and owns exactly one party's registers.
 //! Dealer material is explicitly issued by public instruction index, permitting
 //! bounded streaming without an offline transport or SDK integration claim.
 use super::{
-    allocate, conversions, lookup, predicates, Budget, Error, Lease, MAX_ALLOCATION_BYTES,
+    allocate, conversions, lookup, one_hot, predicates, Budget, Error, Lease, MAX_ALLOCATION_BYTES,
 };
 use crate::{fusefss::Descriptor, shared_rescale_reference::Context};
 use sha2::{Digest, Sha256};
@@ -20,6 +22,10 @@ pub mod norm;
 mod runtime;
 mod source_tables;
 pub use runtime::{wire, Engine, Event, Material, OwnedRuntime, Runtime};
+
+#[cfg(test)]
+#[path = "composition/compact_one_hot_tests.rs"]
+mod compact_one_hot_tests;
 
 pub(crate) type Value = usize;
 pub const MAX_INSTRUCTIONS: usize = 32768;
@@ -55,6 +61,9 @@ enum Instruction {
     Select(Value, Value, Value),
     Lookup(Value, usize),
     Gelu(Value),
+    // Whole-plan tag. Builder rejects this variant; its vector output belongs to
+    // the native one-hot owner, never to the scalar register/output arrays.
+    CompactTokenOneHot(usize),
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -79,7 +88,8 @@ pub struct Resources {
     /// Original immutable tables remain separate live plan owners.
     pub public_table_copy_bytes_total: usize,
     /// Conservative bit-level work: DCF evaluations times input width, plus
-    /// local instructions and primitive triples/VM instructions.
+    /// local instructions and primitive triples/VM instructions. Compact one-hot
+    /// additionally charges its full-domain PRG blocks and derivative row work.
     pub cumulative_work: usize,
     pub plan_reservation_bytes: usize,
     /// Included in plan_reservation_bytes, held by independent Table leases.
@@ -297,6 +307,9 @@ impl<'a> Builder<'a> {
         }
     }
     fn push(&mut self, instruction: Instruction, register: Register) -> Result<Value, Error> {
+        if matches!(instruction, Instruction::CompactTokenOneHot(_)) {
+            return Err(Error::Unsupported);
+        }
         self.room(1)?;
         if self.resources.cumulative_work >= MAX_WORK {
             return Err(Error::Resource);
@@ -714,7 +727,117 @@ impl<'a> Builder<'a> {
     }
 }
 
-impl Plan<'_> {
+impl<'a> Plan<'a> {
+    /// Called only by the declared-range-validating kernel entrypoint. The native
+    /// primitive owns the complete output and its lease; no per-vocabulary Plan
+    /// metadata or second output vector is allocated.
+    fn compact_token_one_hot(
+        source: [u8; 32],
+        contract: [u8; 32],
+        vocabulary: usize,
+        budget: &'a Budget,
+    ) -> Result<Self, Error> {
+        let spec = one_hot::Spec {
+            vocabulary,
+            source_digest: source,
+            profile_digest: contract,
+        };
+        let native = one_hot::resources(spec)?;
+        // Commit the existing backend identity as well as the kernel's source,
+        // declared membership interval and parent profile. Issuance below uses
+        // this complete Plan digest as its own profile binding.
+        let digest = Sha256::new()
+            .chain_update(b"pllm.fusefss.composition.compact-token-one-hot.v1\0")
+            .chain_update(spec.digest()?)
+            .finalize()
+            .into();
+        let plan_bytes = size_of::<Self>()
+            + 4096 // Arc counters, hashing and fixed owner/alignment scratch.
+            + size_of::<u8>()
+            + size_of::<Instruction>()
+            + size_of::<Register>();
+        let owner = runtime::owner_bytes(1, 0);
+        let work = native
+            .dcf_evaluations_per_party
+            .checked_mul(usize::from(native.input_bits))
+            .and_then(|n| n.checked_add(native.prg_blocks_per_party))
+            .and_then(|n| n.checked_add(8 * native.derivative_rows_per_party))
+            .and_then(|n| n.checked_add(1))
+            .ok_or(Error::Resource)?;
+        let combined = plan_bytes
+            .checked_add(2 * owner)
+            .and_then(|n| n.checked_add(native.combined_reservation_bytes))
+            .and_then(|n| n.checked_add(native.frame_bytes_total))
+            .ok_or(Error::Resource)?;
+        if plan_bytes > MAX_PLAN_BYTES || work > MAX_WORK || combined > MAX_ALLOCATION_BYTES {
+            return Err(Error::Resource);
+        }
+        // Preflight the entire live envelope before even allocating metadata.
+        // Online constructors and native issuance independently reserve again.
+        let mut reservation = budget.reserve(combined)?;
+        let mut inputs = allocate(1, budget)?;
+        inputs.push(50);
+        let mut code = allocate(1, budget)?;
+        code.push(Instruction::CompactTokenOneHot(vocabulary));
+        let mut registers = allocate(1, budget)?;
+        registers.push(Register {
+            bits: 50,
+            domain: Domain::Arithmetic,
+        });
+        Ok(Self {
+            source,
+            digest,
+            inputs,
+            code,
+            registers,
+            outputs: Vec::new(),
+            tables: Vec::new(),
+            resources: Resources {
+                instructions: 1,
+                registers: 1,
+                secret_steps: 1,
+                dcf_keys_per_party: native.dcf_keys_per_party,
+                dcf_evaluations_per_party: native.dcf_evaluations_per_party,
+                triples_per_party: native.triples_per_party,
+                frames_per_party: native.frames_per_party,
+                frame_bytes_per_party: native.frame_bytes_per_party,
+                dcf_keys_total: 2 * native.dcf_keys_per_party,
+                dcf_evaluations_total: 2 * native.dcf_evaluations_per_party,
+                triples_total: 2 * native.triples_per_party,
+                frames_total: 2 * native.frames_per_party,
+                frame_bytes_total: native.frame_bytes_total,
+                private_material_bytes_total: native.private_material_bytes_total,
+                public_table_copy_bytes_total: 0,
+                cumulative_work: work,
+                plan_reservation_bytes: plan_bytes,
+                public_table_reservation_bytes: 0,
+                register_owner_bytes_per_party: owner,
+                largest_primitive_reservation_bytes: native.combined_reservation_bytes,
+                retained_frame_overlap_bytes: native.frame_bytes_total,
+                combined_reservation_bytes: combined,
+            },
+            lease: reservation.split(plan_bytes)?,
+        })
+    }
+
+    fn compact_vocabulary(&self) -> Option<usize> {
+        match self.code.as_slice() {
+            [Instruction::CompactTokenOneHot(vocabulary)] => Some(*vocabulary),
+            _ => None,
+        }
+    }
+
+    fn one_hot_spec(&self, pc: usize) -> Result<one_hot::Spec, Error> {
+        if pc != 0 {
+            return Err(Error::Domain);
+        }
+        Ok(one_hot::Spec {
+            vocabulary: self.compact_vocabulary().ok_or(Error::Domain)?,
+            source_digest: self.source,
+            profile_digest: self.digest,
+        })
+    }
+
     pub fn digest(&self) -> [u8; 32] {
         self.digest
     }
@@ -724,7 +847,15 @@ impl Plan<'_> {
     pub fn input_bits(&self) -> &[u8] {
         &self.inputs
     }
+    /// Exact output count. Only the explicit compact one-hot plan can exceed the
+    /// ordinary scalar register cap; its native output is independently priced.
+    pub fn output_count(&self) -> usize {
+        self.compact_vocabulary().unwrap_or(self.outputs.len())
+    }
     pub fn output_bits(&self, index: usize) -> Result<u8, Error> {
+        if let Some(vocabulary) = self.compact_vocabulary() {
+            return (index < vocabulary).then_some(50).ok_or(Error::Domain);
+        }
         self.outputs
             .get(index)
             .map(|&v| self.registers[v].bits)
@@ -732,6 +863,9 @@ impl Plan<'_> {
     }
     /// True denotes a native XOR-shared output; all other outputs are additive.
     pub fn output_is_xor(&self, index: usize) -> Result<bool, Error> {
+        if let Some(vocabulary) = self.compact_vocabulary() {
+            return (index < vocabulary).then_some(false).ok_or(Error::Domain);
+        }
         self.outputs
             .get(index)
             .map(|&v| self.registers[v].domain == Domain::Xor)

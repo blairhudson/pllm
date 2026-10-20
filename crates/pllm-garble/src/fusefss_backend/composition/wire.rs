@@ -4,7 +4,9 @@
 //! or digests. Outer transport must authenticate packet recipient and issuance.
 use super::super::*;
 use super::{Material, Primitive};
-pub use crate::fusefss_backend::wire::{ImportGuard, MaterialPacket};
+pub use crate::fusefss_backend::wire::{
+    ImportGuard, ImportGuardLayout, IndexedFileResources, MaterialPacket,
+};
 use crate::fusefss_backend::{wire::ENVELOPE_BYTES, CompiledGelu, LookupBackend};
 
 /// Additional logical storage at one public step. Public Plan/Table owners and
@@ -73,6 +75,7 @@ impl<'a> Material<'a> {
             Primitive::Lookup(p) => p.export_material(),
             Primitive::Gelu(p, false) => p.export_material(),
             Primitive::Gelu(_, true) => Err(Error::Consumed),
+            Primitive::OneHot(p) => (*p).export_material(),
         }
     }
 }
@@ -125,6 +128,16 @@ impl<'a> Plan<'a> {
                     r.descriptor_reservation_bytes,
                 )
             }
+            Instruction::CompactTokenOneHot(_) => {
+                let r = one_hot::resources(self.one_hot_spec(pc)?)?;
+                // Native party reservation includes output, full-domain scratch,
+                // key storage and the Party moved into the adapter's Box.
+                step_cost(
+                    r.material_packet_bytes_per_party,
+                    r.party_reservation_bytes,
+                    0,
+                )
+            }
             _ => Err(Error::Domain),
         }
     }
@@ -141,9 +154,62 @@ impl<'a> Plan<'a> {
         retained_packet_slots: usize,
         guard_capacity: usize,
     ) -> Result<TransportResources, Error> {
-        if !(1..=4096).contains(&guard_capacity) {
-            return Err(Error::Resource);
-        }
+        self.transport_resources_with_guard(
+            retained_packet_slots,
+            ImportGuardLayout::legacy(guard_capacity)?,
+        )
+    }
+
+    /// Request-sized counterpart to transport_resources. Charges the exact
+    /// ImportGuard::new_indexed allocation for the entire request-long claim
+    /// allowance, rather than capping its price at the legacy 4096-entry ledger.
+    pub fn transport_resources_indexed(
+        &self,
+        retained_packet_slots: usize,
+        guard_capacity: usize,
+    ) -> Result<TransportResources, Error> {
+        self.transport_resources_with_guard(
+            retained_packet_slots,
+            ImportGuardLayout::for_requests(guard_capacity)?,
+        )
+    }
+
+    /// Price the exact validated layout used by ImportGuard::with_layout. Use
+    /// ImportGuardLayout::for_requests for the full request-long claim count,
+    /// including all contexts and any failed-import allowance. The same owner
+    /// must survive every Plan/runtime, cancellation and malformed packet.
+    /// This is overlap admission, not a claim that unused slots remain. Public
+    /// source/table owners and the native aggregate budget remain separate.
+    pub fn transport_resources_with_guard(
+        &self,
+        retained_packet_slots: usize,
+        guard_layout: ImportGuardLayout,
+    ) -> Result<TransportResources, Error> {
+        self.transport_resources_with_guard_bytes(
+            retained_packet_slots,
+            guard_layout.reservation_bytes(),
+        )
+    }
+
+    /// Resident overlap for one file-backed guard, including its two fixed I/O
+    /// scratch buffers. Reserve indexed_file_resources(capacity).disk_bytes
+    /// separately for the full request; two holders need two disk/resident owners.
+    pub fn transport_resources_indexed_file(
+        &self,
+        retained_packet_slots: usize,
+        guard_capacity: usize,
+    ) -> Result<TransportResources, Error> {
+        self.transport_resources_with_guard_bytes(
+            retained_packet_slots,
+            ImportGuard::indexed_file_resources(guard_capacity)?.resident_bytes,
+        )
+    }
+
+    fn transport_resources_with_guard_bytes(
+        &self,
+        retained_packet_slots: usize,
+        guard_bytes: usize,
+    ) -> Result<TransportResources, Error> {
         let mut largest_packet = 0;
         let mut largest_import = 0;
         let mut largest_export = 0;
@@ -167,8 +233,6 @@ impl<'a> Plan<'a> {
         }
         let retained_packet_bytes = mul(retained_packet_slots, largest_packet)?;
         let retained_frames = self.resources.retained_frame_overlap_bytes / 2;
-        // ImportGuard charges exactly one 32-byte nonce + recipient byte/claim.
-        let guard_bytes = mul(guard_capacity, 33)?;
         let worker = add(
             add(
                 add(
@@ -287,6 +351,15 @@ impl<'a> Plan<'a> {
                         public.import_material(1, context, role, nonce, packet, guard)?,
                         false,
                     )
+                }
+                Instruction::CompactTokenOneHot(_) => {
+                    let spec = self.one_hot_spec(pc)?;
+                    dispatched = true;
+                    let party = one_hot::Party::import_material(
+                        spec, context, role, nonce, packet, guard, budget,
+                    )?;
+                    budget.allocation()?;
+                    Primitive::OneHot(Box::new(party))
                 }
                 _ => return Err(Error::Domain),
             };

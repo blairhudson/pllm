@@ -362,3 +362,207 @@ fn protected_frozen_source_norm_cases() {
         assert_eq!(budget.used_bytes(), 0);
     }
 }
+
+fn row_energy_oracle(row: &[i64], gamma: &[i64], beta: &[i64]) -> Vec<i64> {
+    let energy: u128 = row
+        .iter()
+        .map(|&x| i128::from(x).unsigned_abs().pow(2))
+        .sum();
+    let s = energy + 1;
+    assert!(s < HALF as u128);
+    let e = (0..49).rev().find(|&e| (1u128 << e) <= s).unwrap();
+    let j = 128 * s / (1u128 << e);
+    let n = ((1u128 << 55) * row.len() as u128) / (j * (1u128 << e));
+    let (mut lo, mut hi) = (0u128, 1u128 << 30);
+    while lo < hi {
+        let mid = lo + (hi - lo).div_ceil(2);
+        if mid * mid <= n {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    let mut output = vec![
+        0,
+        s as i64,
+        e as i64,
+        (j - 128) as i64,
+        (64 * (j - 128) + e) as i64,
+        lo as i64,
+    ];
+    for ((&x, &g), &b) in row.iter().zip(gamma).zip(beta) {
+        let raw = i128::from(x) * lo as i128;
+        let q = raw.div_euclid(4096);
+        let affine = q * i128::from(g);
+        let y = affine.div_euclid(4096) + i128::from(b);
+        for v in [raw, affine, y] {
+            assert!((-HALF..HALF).contains(&v));
+        }
+        output.push(y as i64);
+    }
+    output
+}
+
+#[test]
+fn protected_row_energy_rms_admits_loose_intervals_with_both_original_floors() {
+    let budget = Budget::new(64 * 1024 * 1024).unwrap();
+    for (row, gamma, beta) in [
+        (vec![2], vec![8192], vec![0]),
+        (
+            vec![1 << 24, -2, 17, 0],
+            vec![4097, 8193, -8192, 5001],
+            vec![1, -7, 2, 0],
+        ),
+    ] {
+        let spec = assume(Kind::Rms, -(1 << 25), 1 << 25, &gamma, &beta);
+        let energy = row
+            .iter()
+            .map(|&x| i128::from(x).unsigned_abs().pow(2))
+            .sum();
+        assert!(matches!(
+            compile([5; 32], &spec, &budget),
+            Err(Error::Domain)
+        ));
+        let expected = row_energy_oracle(&row, &gamma, &beta);
+        if row.len() == 1 {
+            // Combining the two floors would give 7327 instead.
+            assert_eq!(expected[6], 7326);
+        }
+        let plan = compile_inner([5; 32], &spec, &budget, true, None, Some(energy)).unwrap();
+        let words: Vec<_> = row.iter().map(|&x| word(x)).collect();
+        assert_eq!(
+            execute(&plan, &words),
+            expected.iter().map(|&x| word(x)).collect::<Vec<_>>()
+        );
+        drop(plan);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn row_energy_rejects_unproved_inputs_wrap_affine_and_layer_before_allocation() {
+    use super::super::cache::{Limits, SourceTableCache};
+    use std::sync::atomic::Ordering;
+    let budget = Budget::new(64 * 1024 * 1024).unwrap();
+    let cache = SourceTableCache::new(
+        [7; 32],
+        Limits {
+            max_entries: 2,
+            max_retained_bytes: 1024 * 1024,
+        },
+        &budget,
+    )
+    .unwrap();
+    let baseline = budget.used_bytes();
+    let h = HALF as i64;
+    let max_code = [h - 1];
+    let invalid_high = [h];
+    let invalid_low = [-h - 1];
+    let cases = [
+        (assume(Kind::Layer, -1, 1, &[4096], &[0]), 1),
+        (assume(Kind::Rms, 0, 0, &[], &[]), 0),
+        (assume(Kind::Rms, 0, 1, &[4096], &[]), 1),
+        (assume(Kind::Rms, 2, 1, &[4096], &[0]), 4),
+        (assume(Kind::Rms, -h - 1, 1, &[4096], &[0]), 1),
+        (assume(Kind::Rms, 0, h, &[4096], &[0]), 0),
+        (assume(Kind::Rms, 1, 2, &[4096; 4], &[0; 4]), 3),
+        (
+            assume(Kind::Rms, -(1 << 25), 1 << 25, &[4096], &[0]),
+            HALF as u128 - 1,
+        ),
+        (assume(Kind::Rms, 1 << 25, 1 << 25, &[4096], &[0]), 1 << 50),
+        (assume(Kind::Rms, 0, 1, &[4096], &[0]), u128::MAX),
+        (assume(Kind::Rms, 0, h / 2, &[4096; 4], &[0; 4]), 0),
+        (assume(Kind::Rms, 1, 1, &max_code, &[0]), 1),
+        (assume(Kind::Rms, 1, 1, &[4096], &max_code), 1),
+        (assume(Kind::Rms, 0, 0, &invalid_high, &[0]), 0),
+        (assume(Kind::Rms, 0, 0, &[4096], &invalid_low), 0),
+    ];
+    budget.fail_after.store(0, Ordering::SeqCst);
+    for (spec, energy) in cases {
+        assert!(matches!(
+            compile_cached_with_row_energy([5; 32], &spec, energy, &cache),
+            Err(Error::Domain)
+        ));
+        assert_eq!(budget.used_bytes(), baseline);
+        assert_eq!(cache.stats().references, 0);
+    }
+    let spec = assume(Kind::Rms, -(1 << 25), 1 << 25, &[4096], &[0]);
+    let proof = preflight_inner(&spec, inverse_max(1), Some(HALF as u128 - 2)).unwrap();
+    assert_eq!(proof.s.hi, HALF - 1);
+    assert!(matches!(
+        compile_cached_with_row_energy([0; 32], &spec, 1, &cache),
+        Err(Error::Domain)
+    ));
+    let too_wide = assume(Kind::Rms, 0, 0, &[4096; 4097], &[0; 4097]);
+    assert!(matches!(
+        compile_cached_with_row_energy([5; 32], &too_wide, 0, &cache),
+        Err(Error::Domain)
+    ));
+    assert_eq!(budget.used_bytes(), baseline);
+    drop(cache);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn row_energy_proof_pins_reject_substitution_and_cached_plan_owns_its_lifetime() {
+    use super::super::{
+        cache::{Limits, SourceTableCache},
+        runtime::Event,
+    };
+    use crate::shared_rescale_reference::Context;
+    let budget = Budget::new(64 * 1024 * 1024).unwrap();
+    let cache = SourceTableCache::new(
+        [7; 32],
+        Limits {
+            max_entries: 2,
+            max_retained_bytes: 1024 * 1024,
+        },
+        &budget,
+    )
+    .unwrap();
+    let spec = assume(Kind::Rms, -2, 2, &[8192], &[0]);
+    let plain = compile_cached([5; 32], &spec, &cache).unwrap();
+    let tight = compile_cached_with_row_energy([5; 32], &spec, 4, &cache).unwrap();
+    let loose = compile_cached_with_row_energy([5; 32], &spec, 8, &cache).unwrap();
+    let same = compile_cached_with_row_energy([5; 32], &spec, 4, &cache).unwrap();
+    assert_ne!(plain.digest(), tight.digest());
+    assert_ne!(tight.digest(), loose.digest());
+    assert_eq!(tight.digest(), same.digest());
+    for plan in [&tight, &loose, &same] {
+        assert_eq!(plan.source, plain.source);
+        assert_eq!(format!("{:?}", plan.code), format!("{:?}", plain.code));
+        assert_eq!(plan.tables[0].digest(), plain.tables[0].digest());
+        assert_eq!(
+            plan.resources().private_material_bytes_total,
+            plain.resources().private_material_bytes_total
+        );
+        assert_eq!(
+            plan.resources().frames_total,
+            plain.resources().frames_total
+        );
+    }
+    assert_eq!(cache.stats().table_constructions, 1);
+    let context = Context {
+        plan: [91; 32],
+        session: [92; 32],
+        operation: [93; 32],
+        first_tensor_index: 0,
+    };
+    let mut receiver = loose.runtime(0, context, &[word(2)]).unwrap();
+    let pc = match receiver.poll().unwrap() {
+        Event::NeedMaterial { pc } => pc,
+        _ => panic!("first source product"),
+    };
+    let [left, right] = tight.issue_step(pc, context).unwrap();
+    assert!(matches!(receiver.feed(left), Err(Error::Context)));
+    drop(receiver);
+    drop((right, plain, loose, same, cache));
+    let expected = row_energy_oracle(&[2], &[8192], &[0]);
+    assert_eq!(
+        execute(&tight, &[word(2)]),
+        expected[6..].iter().map(|&x| word(x)).collect::<Vec<_>>()
+    );
+    drop(tight);
+    assert_eq!(budget.used_bytes(), 0);
+}

@@ -4,6 +4,12 @@ use crate::fusefss_backend::{Output, MAX_ALLOCATION_BYTES};
 use crate::shared_rescale_reference::Context;
 use std::ops::Deref;
 
+#[path = "kernels_energy_tests.rs"]
+mod energy;
+
+#[path = "kernels_range_tests.rs"]
+mod checked_ranges;
+
 fn binding() -> Binding {
     Binding {
         source_digest: [13; 32],

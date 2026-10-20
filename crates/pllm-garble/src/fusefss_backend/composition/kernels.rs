@@ -1,5 +1,6 @@
 //! Bounded row/output kernels. Bounds are explicit public source contracts, not
-//! secret membership proofs. No whole-matrix schedule or approximation lives here.
+//! secret membership proofs unless the explicit checked-range kernel is used.
+//! No whole-matrix schedule or approximation lives here.
 use super::super::{
     conversions::{Operation, SignedRange},
     Budget, Error,
@@ -49,6 +50,12 @@ fn interval(lo: i128, hi: i128) -> Result<InputRange, Error> {
     })
 }
 fn product(a: InputRange, b: InputRange) -> Result<InputRange, Error> {
+    let (lo, hi) = product_limits(a, b)?;
+    interval(lo, hi)
+}
+// Keep wide exact endpoints until an optional independent bound is intersected.
+// All input endpoints still satisfy the same signed50 contract.
+fn product_limits(a: InputRange, b: InputRange) -> Result<(i128, i128), Error> {
     checked(a)?;
     checked(b)?;
     let products = [
@@ -64,7 +71,7 @@ fn product(a: InputRange, b: InputRange) -> Result<InputRange, Error> {
         lo = lo.min(p);
         hi = hi.max(p);
     }
-    interval(lo, hi)
+    Ok((lo, hi))
 }
 fn sum(a: InputRange, b: InputRange) -> Result<InputRange, Error> {
     interval(
@@ -181,13 +188,86 @@ pub fn private_dot<'a>(
     right: &[InputRange],
     budget: &'a Budget,
 ) -> Result<(Plan<'a>, Metadata), Error> {
+    private_dot_inner(binding, left, right, None, budget)
+}
+
+/// Same complete accumulation and one ARS12, conditional on independently
+/// established complete-vector squared energies. The compiler authenticates
+/// source/view provenance. No private membership check or raw-range override is
+/// accepted; this kernel derives and intersects the integer Cauchy bound itself.
+/// `energies` are [sum(left_i^2), sum(right_i^2)] upper bounds on ordinary signed
+/// Q12 codes, not modular residues and not per-coordinate allowances. Both must
+/// cover the full declared vector. Nonnegative energies bound every coordinate
+/// and every prefix too, even when the final dot cancels to zero. Each product
+/// and prefix must fit signed50 BEFORE the sole final ARS12; Metadata includes
+/// the asymmetric signed floor interval. Premises are pinned in the Plan domain.
+/// Lower-bound consistency checks are not authentication or private membership
+/// proofs. Returned Plan borrows only Budget, not input intervals/proof owners.
+pub fn private_dot_with_row_energy<'a>(
+    binding: Binding,
+    left: &[InputRange],
+    right: &[InputRange],
+    energies: [u128; 2],
+    budget: &'a Budget,
+) -> Result<(Plan<'a>, Metadata), Error> {
+    private_dot_inner(binding, left, right, Some(energies), budget)
+}
+
+fn private_dot_inner<'a>(
+    binding: Binding,
+    left: &[InputRange],
+    right: &[InputRange],
+    energies: Option<[u128; 2]>,
+    budget: &'a Budget,
+) -> Result<(Plan<'a>, Metadata), Error> {
     if left.is_empty() || left.len() != right.len() || left.len() > MAX_INPUTS / 2 {
         return Err(Error::Domain);
     }
-    let mut h = hash(binding, b"private-dot-complete-accumulation-ars12", left)?;
+    let kind: &[u8] = if energies.is_some() {
+        b"private-dot-complete-row-energy-ars12.v1"
+    } else {
+        b"private-dot-complete-accumulation-ars12"
+    };
+    let mut h = hash(binding, kind, left)?;
+    let radius = if let Some(energies) = energies {
+        for (ranges, energy) in [(left, energies[0]), (right, energies[1])] {
+            if minimum_row_energy(ranges)? > energy {
+                return Err(Error::Domain);
+            }
+            h.update(energy.to_le_bytes());
+        }
+        Some(
+            i128::try_from(
+                pllm_core::integer_bounds::dot_radius(energies[0], energies[1])
+                    .map_err(|_| Error::Domain)?,
+            )
+            .map_err(|_| Error::Domain)?,
+        )
+    } else {
+        None
+    };
     let mut raw = InputRange { min: 0, max: 0 };
     for (&a, &r) in left.iter().zip(right) {
-        raw = sum(raw, product(a, r)?)?;
+        raw = if let Some(radius) = radius {
+            // A coordinate product and every prefix dot are subsets of these
+            // complete vectors. For every prefix J, E_left(J)<=E_left and
+            // E_right(J)<=E_right; shared integer Cauchy bounds |dot(J)|.
+            // Check the term BEFORE the addition: later cancellation cannot
+            // justify a wrapped product or prefix. Keep tighter scalar bounds.
+            let (lo, hi) = product_limits(a, r)?;
+            let term = intersect_dot_radius(lo, hi, radius)?;
+            intersect_dot_radius(
+                i128::from(raw.min)
+                    .checked_add(term.min.into())
+                    .ok_or(Error::Domain)?,
+                i128::from(raw.max)
+                    .checked_add(term.max.into())
+                    .ok_or(Error::Domain)?,
+                radius,
+            )?
+        } else {
+            sum(raw, product(a, r)?)?
+        };
         h.update(r.min.to_le_bytes());
         h.update(r.max.to_le_bytes());
     }
@@ -204,6 +284,35 @@ pub fn private_dot<'a>(
     finish_dot(b, output, raw)
 }
 
+fn minimum_row_energy(ranges: &[InputRange]) -> Result<u128, Error> {
+    ranges.iter().try_fold(0u128, |sum, &range| {
+        checked(range)?;
+        let nearest = if range.min > 0 {
+            range.min
+        } else if range.max < 0 {
+            range.max
+        } else {
+            0
+        };
+        // Shared exact signed-code energy arithmetic, no second square routine.
+        let square =
+            pllm_core::integer_bounds::row_energy(&[nearest]).map_err(|_| Error::Domain)?;
+        sum.checked_add(square).ok_or(Error::Domain)
+    })
+}
+
+fn intersect_dot_radius(lo: i128, hi: i128, radius: i128) -> Result<InputRange, Error> {
+    if radius < 0 {
+        return Err(Error::Domain);
+    }
+    let lo = lo.max(-radius);
+    let hi = hi.min(radius);
+    if lo > hi {
+        return Err(Error::Domain);
+    }
+    interval(lo, hi)
+}
+
 /// Explicit numeric order: exact source-code product followed by signed ARS12.
 /// Does not claim this order is approved for any unresolved decoder profile.
 pub fn public_scale_q12(
@@ -214,6 +323,35 @@ pub fn public_scale_q12(
     budget: &Budget,
 ) -> Result<(Plan<'_>, Metadata), Error> {
     public_dot(binding, &[range], &[coefficient], coefficient_range, budget)
+}
+
+/// Standalone full-vocabulary D9 plan over the existing consuming raw-DCF owner.
+/// The declared interval must lie in [0,V); the compiler must establish actual
+/// membership and authenticate source/profile provenance. Local A50 shares are
+/// not bits. No scalar register/input/instruction limit is increased.
+pub fn compact_token_one_hot(
+    binding: Binding,
+    id_range: InputRange,
+    vocabulary: usize,
+    budget: &Budget,
+) -> Result<(Plan<'_>, Metadata), Error> {
+    checked(id_range)?;
+    if vocabulary == 0
+        || vocabulary > super::one_hot::MAX_VOCABULARY
+        || id_range.min < 0
+        || id_range.max >= vocabulary as i64
+    {
+        return Err(Error::Domain);
+    }
+    let mut h = hash(binding, b"compact-token-one-hot-raw-dcf", &[id_range])?;
+    h.update((vocabulary as u64).to_le_bytes());
+    let plan = Plan::compact_token_one_hot(
+        binding.source_digest,
+        h.finalize().into(),
+        vocabulary,
+        budget,
+    )?;
+    Ok((plan, metadata(vocabulary, InputRange { min: 0, max: 1 })))
 }
 
 /// Equality-derived one-hot; no caller-supplied selector is treated as proven bit.
@@ -306,6 +444,174 @@ fn metadata(outputs: usize, range: InputRange) -> Metadata {
         range,
         raw_range: None,
     }
+}
+
+/// Public zero-fallback policy, committed into the checked-range Plan domain.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RangeFallback {
+    /// Preserve each accepted coordinate; replace each rejected coordinate by zero.
+    PerInput,
+    /// Preserve the entire row iff every coordinate is accepted; otherwise zero it.
+    WholeRow,
+}
+
+/// Opt-in private inclusive signed50 membership check with fixed PerInput fallback.
+/// Outputs are sanitized A50 inputs in order, then ONE A50 bit equal to the AND
+/// of all membership predicates. Zero must belong to `accepted`. No predicate or
+/// failing position is opened; the complete public schedule runs on every input.
+///
+/// Every signed50 ring value is checked, even outside a declared `input_ranges`
+/// interval. Those public intervals are identity metadata, never a reason to elide
+/// a check. The caller must route only sanitized outputs to downstream arithmetic,
+/// accumulate validity secretly, and make any rejection decision only at its final
+/// boundary. This kernel alone does not implement request-level rejection.
+///
+/// Metadata.range covers ALL outputs, including the final bit: the first n outputs
+/// have the tighter `accepted` range and the last has range [0,1].
+pub fn checked_range<'a>(
+    binding: Binding,
+    input_ranges: &[InputRange],
+    accepted: InputRange,
+    budget: &'a Budget,
+) -> Result<(Plan<'a>, Metadata), Error> {
+    checked_range_with_fallback(
+        binding,
+        input_ranges,
+        accepted,
+        RangeFallback::PerInput,
+        budget,
+    )
+}
+
+/// Same protected check, with an explicit public whole-row/per-input policy.
+pub fn checked_range_with_fallback<'a>(
+    binding: Binding,
+    input_ranges: &[InputRange],
+    accepted: InputRange,
+    fallback: RangeFallback,
+    budget: &'a Budget,
+) -> Result<(Plan<'a>, Metadata), Error> {
+    checked(accepted)?;
+    if input_ranges.is_empty()
+        || input_ranges.len() > MAX_INPUTS
+        || accepted.min > 0
+        || accepted.max < 0
+    {
+        return Err(Error::Domain);
+    }
+    let mut h = hash(
+        binding,
+        b"checked-signed50-inclusive-range-zero-fallback.v1",
+        input_ranges,
+    )?;
+    h.update(accepted.min.to_le_bytes());
+    h.update(accepted.max.to_le_bytes());
+    h.update([match fallback {
+        RangeFallback::PerInput => 0,
+        RangeFallback::WholeRow => 1,
+    }]);
+    let count = input_ranges.len().checked_add(1).ok_or(Error::Resource)?;
+    let scratch = count
+        .checked_mul(std::mem::size_of::<Value>())
+        .and_then(|n| n.checked_add(SCRATCH))
+        .ok_or(Error::Resource)?;
+    let _scratch = budget.reserve(scratch)?;
+    let mut b = builder(binding, h, input_ranges.len(), budget)?;
+    let mut outputs = super::super::allocate(count, budget)?;
+    let zero = b.constant(50, 0)?;
+    let one = b.constant(50, 1)?;
+    let sign_bit = b.constant(50, HALF as u64)?;
+    let mut valid = one;
+    // (word(x) + 2^49) mod 2^50 == signed(x) + 2^49. This public
+    // sign-bit rotation gives exact unsigned order over the ENTIRE signed ring.
+    // It intentionally wraps; neither subtraction nor signed no-wrap is assumed.
+    // Thresholds include 0 and 2^50, both supported by the existing DCF predicate.
+    let lower_threshold = (i128::from(accepted.min) + HALF) as u64;
+    let upper_threshold = (i128::from(accepted.max) + HALF + 1) as u64;
+    for i in 0..input_ranges.len() {
+        let input = b.input(i)?;
+        let ordered = b.add(input, sign_bit)?;
+        let below = b.lt_unsigned(ordered, lower_threshold)?;
+        let below_upper = b.lt_unsigned(ordered, upper_threshold)?;
+        // Both comparison outputs are proven A50 bits. Phi preserves bit typing
+        // for membership and its AND chain, and uses existing fresh products.
+        let member = b.select(below, zero, below_upper)?;
+        valid = b.select(member, valid, zero)?;
+        outputs.push(match fallback {
+            RangeFallback::PerInput => b.select(member, input, zero)?,
+            RangeFallback::WholeRow => input,
+        });
+    }
+    if fallback == RangeFallback::WholeRow {
+        for output in &mut outputs {
+            *output = b.select(valid, *output, zero)?;
+        }
+    }
+    outputs.push(valid);
+    Ok((
+        b.finish(&outputs)?,
+        metadata(
+            count,
+            InputRange {
+                min: accepted.min,
+                max: accepted.max.max(1),
+            },
+        ),
+    ))
+}
+
+/// Exact sticky AND of [prior_valid, new_valid], returning one A50 bit. Both
+/// reconstructed inputs must be bits established by protected checks or earlier
+/// ANDs; arbitrary local A50 shares are not Boolean inputs. Caller owns provenance.
+/// This is an unscaled existing private product, with no opening or early exit.
+pub fn validity_and(binding: Binding, budget: &Budget) -> Result<(Plan<'_>, Metadata), Error> {
+    let bit = InputRange { min: 0, max: 1 };
+    let h = hash(binding, b"private-validity-bit-and.v1", &[bit; 2])?;
+    let _scratch = budget.reserve(SCRATCH)?;
+    let mut b = builder(binding, h, 2, budget)?;
+    let prior = b.input(0)?;
+    let next = b.input(1)?;
+    let valid = b.multiply(prior, next)?;
+    Ok((b.finish(&[valid])?, metadata(1, bit)))
+}
+
+/// Inputs [values..., validity]; outputs only validity * values, without ARS or
+/// opening. Validity must be a caller-proven reconstructed A50 bit, e.g. the output
+/// of checked_range/validity_and. Multiplication by 0/1 is signed50-safe for every
+/// value in the declared intervals. Suitable for final token masking; the caller
+/// retains the separate shared aggregate bit for its final-only rejection boundary.
+pub fn mask_by_validity<'a>(
+    binding: Binding,
+    input_ranges: &[InputRange],
+    budget: &'a Budget,
+) -> Result<(Plan<'a>, Metadata), Error> {
+    if input_ranges.is_empty() || input_ranges.len() >= MAX_INPUTS {
+        return Err(Error::Domain);
+    }
+    let h = hash(
+        binding,
+        b"private-values-first-validity-last-unscaled-mask.v1",
+        input_ranges,
+    )?;
+    let mut output_range = InputRange { min: 0, max: 0 };
+    for range in input_ranges {
+        output_range.min = output_range.min.min(range.min);
+        output_range.max = output_range.max.max(range.max);
+    }
+    let scratch = input_ranges
+        .len()
+        .checked_mul(std::mem::size_of::<Value>())
+        .and_then(|n| n.checked_add(SCRATCH))
+        .ok_or(Error::Resource)?;
+    let _scratch = budget.reserve(scratch)?;
+    let mut b = builder(binding, h, input_ranges.len() + 1, budget)?;
+    let valid = b.input(input_ranges.len())?;
+    let mut outputs = super::super::allocate(input_ranges.len(), budget)?;
+    for i in 0..input_ranges.len() {
+        let value = b.input(i)?;
+        outputs.push(b.multiply(valid, value)?);
+    }
+    Ok((b.finish(&outputs)?, metadata(outputs.len(), output_range)))
 }
 
 /// Signed floor division by 2^shift, retaining the signed50 output ring.

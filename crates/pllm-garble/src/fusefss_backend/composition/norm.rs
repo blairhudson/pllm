@@ -13,10 +13,14 @@ use super::{Builder, Plan, Value};
 use sha2::{Digest, Sha256};
 use std::mem::size_of;
 
+#[path = "norm_bounds.rs"]
+pub mod bounds;
+
 const BITS: u8 = 50;
 const HALF: i128 = 1i128 << 49;
 const MASK: u64 = (1u64 << BITS) - 1;
 const CONTRACT: &[u8] = b"pllm.fusefss.source-norm.v1\0A50/Q12;sum:A50/Q12;mean=floor((4096//k)*sum/4096);center:A50/Q12;squares:S=A50/Q24+1;unsigned-nonzero-index:e=floor(log2(S)),m=floor(128*S/2^e)-128,index=64*m+e;rsqrt-table:k-specific,8192-slots,A50,isqrt((2^55*k)//((128+m)*2^e));product:A50/Q24;ARS12:Q12;affine-product:A50/Q24;ARS12:Q12;beta-after-floor;caller-interval-assumption-not-membership-proof\0";
+const ROW_ENERGY_CONTRACT: &[u8] = b"pllm.fusefss.source-rms-input-row-energy.v1\0caller-proved-complete-row:sum(x_i^2)<=E;intersect-scalar-square-and-partial-sum-bounds;S=1+sum(x_i^2)<2^49;closed-source-rsqrt-k;correlated-raw-product;two-separate-ARS12-floors;not-private-membership-or-output-energy-proof\0";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -134,8 +138,20 @@ struct Proof {
 }
 
 fn preflight(spec: &Spec, inverse_max: u64) -> Result<Proof, Error> {
+    preflight_inner(spec, inverse_max, None)
+}
+
+fn preflight_inner(
+    spec: &Spec,
+    inverse_max: u64,
+    input_energy: Option<u128>,
+) -> Result<Proof, Error> {
     let k = spec.gamma.len();
-    if !(1..=4096).contains(&k) || spec.beta.len() != k || inverse_max > 1u64 << 30 {
+    if !(1..=4096).contains(&k)
+        || spec.beta.len() != k
+        || inverse_max > 1u64 << 30
+        || (input_energy.is_some() && spec.kind != Kind::Rms)
+    {
         return Err(Error::Domain);
     }
     let x = Interval::checked(spec.input_min as i128, spec.input_max as i128)?;
@@ -156,27 +172,52 @@ fn preflight(spec: &Spec, inverse_max: u64) -> Result<Proof, Error> {
         a.min(b)
     };
     let square_max = a.max(b);
-    Interval::checked(square_min, square_max)?;
-    // Nonnegative squares make every partial sum fit whenever this sum fits.
-    let squares = Interval::checked(
-        square_min.checked_mul(k as i128).ok_or(Error::Domain)?,
-        square_max.checked_mul(k as i128).ok_or(Error::Domain)?,
-    )?;
+    let squares = match input_energy {
+        Some(energy) => {
+            // RMS has z=x. The independent complete-row premise bounds EACH
+            // nonnegative square and EVERY partial sum, before either enters
+            // signed50. This is not a per-coordinate allowance multiplied by k.
+            let (_, sum) = bounds::rms_input_energy_bounds(
+                super::cache::Kind::Rsqrt { k },
+                square_min,
+                square_max,
+                energy,
+            )?;
+            sum
+        }
+        None => {
+            Interval::checked(square_min, square_max)?;
+            // Nonnegative squares make every partial sum fit whenever this sum fits.
+            Interval::checked(
+                square_min.checked_mul(k as i128).ok_or(Error::Domain)?,
+                square_max.checked_mul(k as i128).ok_or(Error::Domain)?,
+            )?
+        }
+    };
     let s = Interval::checked(
         squares.lo.checked_add(1).ok_or(Error::Domain)?,
         squares.hi.checked_add(1).ok_or(Error::Domain)?,
     )?;
+    // Only AFTER the unchanged input/mean/square/+1 proof may we use the
+    // correlation between S, the closed source rsqrt table, and each z_i.
+    // Intersect with the old interval so zero/small inputs retain their tighter
+    // bounds. These product/affine checks do not change the historical Plan
+    // hash. An optional input-energy premise is bound separately below.
+    let source_bound = bounds::source_bounds(k)?;
+    let radius = i128::from(source_bound.raw_product_abs_max());
     let product = Interval::checked(
         centered
             .lo
             .checked_mul(inverse_max as i128)
             .ok_or(Error::Domain)?
-            .min(0),
+            .min(0)
+            .max(-radius),
         centered
             .hi
             .checked_mul(inverse_max as i128)
             .ok_or(Error::Domain)?
-            .max(0),
+            .max(0)
+            .min(radius),
     )?;
     let q = product.floor12();
     for (&gamma, &beta) in spec.gamma.iter().zip(spec.beta) {
@@ -214,7 +255,7 @@ pub fn compile<'a>(
     spec: &Spec,
     budget: &'a Budget,
 ) -> Result<Plan<'a>, Error> {
-    compile_inner(source_digest, spec, budget, false, None)
+    compile_inner(source_digest, spec, budget, false, None, None)
 }
 
 /// Identical source formula, range proof and Plan digest. Only immutable rsqrt
@@ -224,7 +265,42 @@ pub fn compile_cached<'a>(
     spec: &Spec,
     cache: &super::cache::SourceTableCache<'a>,
 ) -> Result<Plan<'a>, Error> {
-    compile_inner(source_digest, spec, cache.budget(), false, Some(cache))
+    compile_inner(
+        source_digest,
+        spec,
+        cache.budget(),
+        false,
+        Some(cache),
+        None,
+    )
+}
+
+/// Compile the unchanged RMS source formula conditional on a PUBLIC, externally
+/// established bound `sum(x_i^2) <= input_energy` for the ENTIRE input row (Q24
+/// integer codes). The declared scalar interval remains an additional premise.
+/// No private input is inspected and no runtime membership check is added.
+/// Compiler provenance must establish this premise BEFORE this normalization;
+/// this row's conditional output-energy bound cannot justify its own input.
+///
+/// LayerNorm is rejected: an input-energy premise alone has not proved its
+/// source reciprocal mean/centering. Only the closed source Rsqrt{k} table is
+/// used. The optional premise is pinned in the Plan domain, including when it
+/// does not tighten the scalar bound; ordinary compile APIs keep their identity.
+/// Returned Plan borrows the cache's Budget, not the cache/proof/spec owners.
+pub fn compile_cached_with_row_energy<'a>(
+    source_digest: [u8; 32],
+    spec: &Spec,
+    input_energy: u128,
+    cache: &super::cache::SourceTableCache<'a>,
+) -> Result<Plan<'a>, Error> {
+    compile_inner(
+        source_digest,
+        spec,
+        cache.budget(),
+        false,
+        Some(cache),
+        Some(input_energy),
+    )
 }
 
 /// Test-only layout: mean, S, exponent, mantissa, index, inverse, then Y[0..k].
@@ -235,7 +311,7 @@ pub(super) fn compile_fixture<'a>(
     spec: &Spec,
     budget: &'a Budget,
 ) -> Result<Plan<'a>, Error> {
-    compile_inner(source_digest, spec, budget, true, None)
+    compile_inner(source_digest, spec, budget, true, None, None)
 }
 
 fn compile_inner<'a>(
@@ -244,6 +320,7 @@ fn compile_inner<'a>(
     budget: &'a Budget,
     intermediates: bool,
     cache: Option<&super::cache::SourceTableCache<'a>>,
+    input_energy: Option<u128>,
 ) -> Result<Plan<'a>, Error> {
     let k = spec.gamma.len();
     if source_digest == [0; 32] || (intermediates && !cfg!(test)) {
@@ -265,7 +342,10 @@ fn compile_inner<'a>(
             hi = mid - 1;
         }
     }
-    let proof = preflight(spec, lo)?;
+    let proof = match input_energy {
+        Some(energy) => preflight_inner(spec, lo, Some(energy))?,
+        None => preflight(spec, lo)?,
+    };
     // Conservatively charge borrowed affine buffers too; callers retain these
     // owners while source generation and Plan construction overlap.
     let _affine = budget.reserve(k.checked_mul(2 * size_of::<i64>()).ok_or(Error::Resource)?)?;
@@ -297,6 +377,10 @@ fn compile_inner<'a>(
         hash.update(bound.hi.to_le_bytes());
     }
     hash.update([u8::from(intermediates)]);
+    if let Some(energy) = input_energy {
+        hash.update(ROW_ENERGY_CONTRACT);
+        hash.update(energy.to_le_bytes());
+    }
     let contract: [u8; 32] = hash.finalize().into();
     // Temporary register-id vectors remain budgeted while Builder/Plan coexist.
     let capacity = k

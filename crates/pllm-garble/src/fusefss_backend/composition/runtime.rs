@@ -12,6 +12,9 @@ enum Primitive<'a> {
     Predicate(predicates::Party<'a>),
     Lookup(lookup::Party<'a>),
     Gelu(super::super::Party<'a>, bool),
+    // Keep the historical scalar runtime layout. Native resources already price
+    // this boxed Party's entire owner; the adapter checks its allocation too.
+    OneHot(Box<one_hot::Party<'a>>),
 }
 
 /// Role-separated envelope. No public constructor, cloning, or key access.
@@ -70,6 +73,7 @@ impl<'a> Plan<'a> {
                         | Instruction::Predicate(..)
                         | Instruction::Lookup(..)
                         | Instruction::Gelu(..)
+                        | Instruction::CompactTokenOneHot(..)
                 )
                 .then_some(pc)
             })
@@ -123,6 +127,14 @@ impl<'a> Plan<'a> {
                 )?;
                 gate.issue(1, context)?
                     .map(|party| Primitive::Gelu(party, false))
+            }
+            Instruction::CompactTokenOneHot(_) => {
+                let spec = self.one_hot_spec(pc)?;
+                // Both adapter allocations are admitted before native entropy.
+                budget.allocation()?;
+                budget.allocation()?;
+                one_hot::issue(spec, context, budget)?
+                    .map(|party| Primitive::OneHot(Box::new(party)))
             }
             _ => return Err(Error::Domain),
         };
@@ -204,6 +216,13 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
     }
 
     fn local(&mut self, mut execution: Execution<'a>) -> Result<Event<'a>, Error> {
+        if self.plan.compact_vocabulary().is_some() {
+            if execution.pc != 0 {
+                return Err(Error::Context);
+            }
+            self.state = Some(execution);
+            return Ok(Event::NeedMaterial { pc: 0 });
+        }
         while execution.pc < self.plan.code.len() {
             let pc = execution.pc;
             let dest = self.plan.inputs.len() + pc;
@@ -262,6 +281,7 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
             | Instruction::Gelu(a) => [v[a], 0, 0],
             Instruction::Multiply(a, b) => [v[a], v[b], 0],
             Instruction::Select(bit, yes, no) => [v[bit], v[yes], v[no]],
+            Instruction::CompactTokenOneHot(_) => [v[0], 0, 0],
             _ => return Err(Error::Context),
         });
         let frame = match (&mut primitive, instruction) {
@@ -275,6 +295,7 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
             (Primitive::Predicate(p), Instruction::Predicate(_, _, _)) => p.start(operands[0])?,
             (Primitive::Lookup(p), Instruction::Lookup(_, _)) => p.start(&operands[..1])?,
             (Primitive::Gelu(p, _), Instruction::Gelu(_)) => p.start(&operands[..1])?,
+            (Primitive::OneHot(p), Instruction::CompactTokenOneHot(_)) => p.start(operands[0])?,
             _ => return Err(Error::Context),
         };
         execution.active = Some(primitive);
@@ -304,6 +325,16 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
         let mut execution = self.state.take().ok_or(Error::Consumed)?;
         let mut primitive = execution.active.take().ok_or(Error::Context)?;
         let value = Zeroizing::new(match &mut primitive {
+            Primitive::OneHot(p) => {
+                let spec = self.plan.one_hot_spec(execution.pc)?;
+                if p.resources().vocabulary != spec.vocabulary {
+                    return Err(Error::Context);
+                }
+                // Transfer the native vector and its output lease without a
+                // scalar register expansion or another full-vocabulary copy.
+                // State was taken above: success and failure both consume us.
+                return Ok(Event::Output(p.finish(peer)?));
+            }
             Primitive::Conversion(p) => {
                 let output = p.finish(peer)?;
                 *output.shares().first().ok_or(Error::Domain)?
