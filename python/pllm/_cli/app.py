@@ -374,7 +374,8 @@ def build_parser() -> _Parser:
     benchmark_run.add_argument("--memory-safety-margin-percent", type=int, default=25,
                                help="allocation safety margin above expected peak (0-100; default 25; 0 disables margin)")
     benchmark_run.add_argument("--docker-image", help="use an existing runtime image instead of building the checkout")
-    benchmark_run.add_argument("--docker-network-profile", help="LinkConditions JSON for provider-egress latency/rate/loss")
+    benchmark_run.add_argument("--link-conditions", "--docker-network-profile", dest="docker_network_profile",
+                               help="LinkConditions JSON; native WAN supports delay, Docker also supports loss")
     wan_mode = benchmark_run.add_mutually_exclusive_group()
     wan_mode.add_argument("--wan", action="store_true", help="enforce shared 100/40 Mbps party caps: native TCP pacing or Docker kernel shaping")
     wan_mode.add_argument("--wan-estimate", action="store_true", help="calculate WAN bandwidth floors without throttling execution")
@@ -971,8 +972,10 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         runtime = resolve_runtime_composition(experiment.pipeline)
         assert runtime is not None  # Already classified as an exact buffered composition.
         try:
+            from pllm.deployment import LinkConditions
+            link = LinkConditions.from_file(args.docker_network_profile) if args.docker_network_profile else None
             admit_options(experiment, backend=backend, docker=args.docker,
-                docker_image=args.docker_image, docker_network=args.docker_network_profile,
+                docker_image=args.docker_image, docker_network=link, emulate_wan=emulate_wan,
                 cache_bytes=args.prefill_cache_mib << 20, cache_mode=args.prefill_cache_mode,
                 cache_bound=args.prefill_cache_bound_tokens, inventory_policy=args.inventory_policy,
                 bundle_compression=args.bundle_compression, temperature=args.temperature,
@@ -1067,7 +1070,7 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
         docker_network = (LinkConditions.from_file(args.docker_network_profile)
                           if args.docker_network_profile else None)
         if docker_network is not None and not (backend in {"docker", "auto"} or emulate_wan):
-            raise ValueError("--docker-network-profile requires --docker")
+            raise ValueError("--link-conditions requires Docker or native --wan")
         candidate_reports = []
         cohort_salt = secrets.token_bytes(32)
         report: dict[str, Any] | None = None
@@ -1219,8 +1222,14 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
                     print(f"{label} WAN bandwidth floor: {window['minimum_transfer_seconds']:.3f}s (analytic, shared per-party access)")
             emulation = report.get("wan_readiness", {}).get("emulation")
             if emulation is not None:
-                print("WAN rates enforced: shared party upload/download kernel queues"
-                      if emulation["kernel_rate_snapshots_checked"] else "WAN emulation: no inter-party links")
+                if not emulation["inter_party_links_present"]:
+                    print("WAN emulation: no inter-party links")
+                elif emulation.get("native_stream_rate_snapshots_checked"):
+                    print("WAN rates enforced: shared party upload/download TCP-stream pacing")
+                elif emulation["kernel_rate_snapshots_checked"]:
+                    print("WAN rates enforced: shared party upload/download kernel queues")
+                if docker_network is not None:
+                    print(f"Added inter-party one-way delay: {docker_network.latency_ms:g} ms (local emulation)")
                 for key, label in (("end_to_end", "End-to-end"), ("online", "Online"), ("decode", "Decode")):
                     value = emulation["summary"][key + "_tokens_per_second"]
                     if value is not None:

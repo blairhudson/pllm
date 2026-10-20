@@ -111,14 +111,17 @@ def output_contract(experiment):
 
 
 def admit_options(experiment, *, backend=None, docker=False, docker_image=None,
-                  docker_network=None, cache_bytes=0, cache_mode="exact", cache_bound=None,
+                  docker_network=None, emulate_wan=False, cache_bytes=0, cache_mode="exact", cache_bound=None,
                   inventory_policy=None, bundle_compression=None, temperature=None,
                   output_tokens, requests=1):
     """Reject incompatible benchmark choices before source inspection or role startup."""
     name = "FuseFSS" if is_fss(experiment) else "PUMA" if is_replicated(experiment) else "GKM"
     if (backend not in (None, "native") or docker or docker_image is not None
-            or docker_network is not None):
+            or docker_network is not None and not emulate_wan):
         raise ValueError(f"{name} benchmarking requires the native role backend")
+    if docker_network is not None:
+        from .native_wan import validate_native_link
+        validate_native_link(docker_network)
     if cache_bytes or cache_mode != "exact" or cache_bound is not None:
         raise ValueError(f"{name} benchmarking does not support prefix/KV reuse")
     if inventory_policy not in (None, "none") or bundle_compression not in (None, "none"):

@@ -1,0 +1,7 @@
+{
+  "schema": "pllm.link_conditions.v1",
+  "latency_ms": 20,
+  "bytes_per_second": null,
+  "loss_fraction": 0,
+  "seed": 42
+}

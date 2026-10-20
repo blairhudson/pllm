@@ -1028,7 +1028,7 @@ def _run_loopback_benchmark(
     delegated = is_buffered(experiment)
     if delegated:
         admit_options(experiment, backend=backend, docker=docker, docker_image=docker_image,
-            docker_network=docker_network, cache_bytes=prefill_cache_mib << 20,
+            docker_network=docker_network, emulate_wan=emulate_wan, cache_bytes=prefill_cache_mib << 20,
             cache_mode=prefill_cache_mode, cache_bound=prefill_cache_bound_tokens,
             inventory_policy=inventory_policy, bundle_compression=bundle_compression,
             temperature=temperature, output_tokens=max_output_tokens,
@@ -1397,6 +1397,7 @@ def _run_loopback_benchmark(
         }
     if emulate_wan:
         from pllm.metrics import wan_readiness
+        report["configuration"]["link_conditions_digest"] = docker_network.digest if docker_network is not None else None
         report["configuration"]["wan_emulation"] = True
         report["configuration"]["wan_emulation_digest"] = wan.digest
         if not docker:

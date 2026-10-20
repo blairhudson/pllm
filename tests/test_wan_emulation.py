@@ -103,7 +103,13 @@ def test_retained_wan_cohort_preserves_outputs_and_kernel_bound_throughput():
         assert row["privacy"]["plaintext_prompt_bytes_sent"] == 0
         assert row["privacy"]["plaintext_token_ids_sent"] == 0
         profile = WanConditions.from_spec(item["wan_readiness"]["conditions"])
-        assert wan_readiness(item, profile) == item["wan_readiness"]
+        replay = wan_readiness(item, profile)
+        # Legacy reports predate the explicit coverage label. Keep every frozen
+        # value intact; assert the additive label separately before comparison.
+        for window in (replay["summary"]["online"], replay["summary"]["setup_inclusive"],
+                       replay["runs"][0]["online"], replay["runs"][0]["covered"]):
+            assert window.pop("body_counter_coverage") == "pllm.topology_body_accounting.v1"
+        assert replay == item["wan_readiness"]
     assert cohort[0]["wan_readiness"]["emulation"] is None
     for item in cohort[1:]:
         measured = item["wan_readiness"]["emulation"]

@@ -1343,7 +1343,10 @@ def build_roles(
     if docker_image is not None and not docker:
         raise ValueError("docker_image requires docker=True")
     if docker_network is not None and not docker:
-        raise ValueError("docker_network requires docker=True")
+        if wan is None:
+            raise ValueError("link conditions require Docker or enforced native WAN")
+        from .native_wan import validate_native_link
+        validate_native_link(docker_network)
     experiment = model if isinstance(model, Experiment) else None
     pipeline: Pipeline | None = None
     if experiment is not None:
@@ -1512,6 +1515,7 @@ def build_roles(
         from .native_wan import NativeWanTopology
         topology_type = NativeWanTopology
         extra["wan"] = wan
+        extra["link_conditions"] = docker_network
     return topology_type(
         model,
         memory_budget_bytes=memory_budget_bytes,

@@ -496,6 +496,7 @@ class DashboardRuntime:
                 raise ValueError("buffered role benchmarking has no preparation inventory")
             admit_options(experiment, backend=config.backend, docker=config.docker,
                 docker_image=config.docker_image, docker_network=config.docker_network,
+                emulate_wan=config.wan is not None,
                 cache_bytes=config.prefill_cache_mib << 20, cache_mode=config.prefill_cache_mode,
                 cache_bound=config.prefill_cache_bound_tokens,
                 inventory_policy="request-sized" if config.defer_inventory_until_request else None,
@@ -836,8 +837,8 @@ class DashboardRuntime:
                 memory_limits=self.memory_preflight["estimate"][
                     "docker_provider_peak_bytes" if use_docker else "provider_peak_bytes"
                 ],
-                **({"docker": True, "docker_image": self.config.docker_image,
-                    "docker_network": self.config.docker_network} if use_docker else {}),
+                **({"docker": True, "docker_image": self.config.docker_image} if use_docker else {}),
+                docker_network=self.config.docker_network,
                 wan=self.config.wan,
                 **({"memory_budget_bytes": self.config.memory_budget_bytes,
                     "memory_safety_margin_percent": self.config.memory_safety_margin_percent}

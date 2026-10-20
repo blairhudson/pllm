@@ -130,6 +130,29 @@ The common 64+8 workload still exceeds sequence/selection bounds. Preserve the
 approved arithmetic and role graph; obtain approval before substantial protocol,
 numeric, state or trust adaptations.
 
+### WAN requirement
+
+Loopback completion does not close F5. Use the ordinary three-role benchmark
+under shared 100/40 Mbps party caps and a declared inter-party delay, starting
+with the 20-ms-per-direction profile in `examples/benchmarks/wan_20ms.json`.
+The shared native relay now routes dealer delivery and both holder-peer paths;
+its bounded propagation queues and report validation are transport qualification.
+
+The scalar schedule has 13,424,643 peer frames per Qwen holder. Merely replacing
+HTTP or batching offline delivery does not remove those dependent waits. Next
+execution slice must preserve D13/D14 values, private feedback, lowest-index ties
+and final acceptance while scheduling independent tensor lanes together. Balanced
+private selection must replace the full-vocabulary serial dependency chain.
+Every lane still consumes fresh, context-bound material and exact replay claims;
+frontier storage must be priced before issuance under existing live limits.
+
+Round reduction alone does not solve cold-request bytes. Reprice and measure the
+complete fresh-material delivery, source/setup scope, online traffic and aggregate
+resources before another long trained run. Require generated integer/feedback
+parity and failure retirement first, then a bounded delay-injected response, then
+pinned-Qwen acceptance, quality and matched WAN measurements. Keep warm/offline
+pre-positioning separate from a setup-inclusive result.
+
 See the [SDK contract](../../docs/research/fusefss-sdk-reference.md) and the
 [historical scalar cost inventory](fusefss-decoder-feasibility.md) for separate
 current and earlier scopes.

@@ -208,3 +208,44 @@ limits. The reusable pinned-source factory is
 [`examples/papers/fusefss.py`](../../examples/papers/fusefss.py).
 The [completion plan](../../paper/methods/fusefss-completion-plan.md) keeps these
 remaining method gates explicit.
+
+## WAN execution gate
+
+Full-model completion requires measured execution with both access-rate caps and
+propagation delay. The shared native relay now covers the complete FSS graph:
+client controls, dealer-to-holder material delivery and both online peer paths.
+Each party shares its upload/download allowance across peers. Same-party traffic
+remains local. `--link-conditions` selects a delay-only `LinkConditions` document;
+`--docker-network-profile` remains an alias.
+
+```sh
+uv run --no-sync pllm benchmark run \
+  --experiment examples/papers/fusefss_smoke.py:dense_batch_smoke \
+  --factory --trust-python --backend native --wan \
+  --link-conditions examples/benchmarks/wan_20ms.json \
+  --prompt hello --max-output-tokens 2 --timeout 600 \
+  --capture-output-digest --output target/fusefss-generated-wan.json
+```
+
+This selects 100 Mbps download/40 Mbps upload per party and 20 ms of added delay
+per inter-party direction: 40 ms added request/reply RTT. Propagation is pipelined
+after rate admission, not a serial sleep for every read chunk. A shared eight-MiB
+queue allowance, charged within the existing 32-MiB relay owner, bounds delayed
+reads. Bandwidth-delay products beyond that allowance reject before startup.
+Cancellation drains queued owners; reports bind and validate the selected delay,
+rates, role routes and queue bounds. Native loss and a second rate limiter reject.
+
+This is local TCP-payload emulation, not Internet measurement. TCP handshakes,
+kernel headers, retransmissions and checkpoint distribution remain outside its
+scope. Setup material, client/relay work and all routed role bodies remain charged.
+Buffered final disclosure still supplies no streaming TTFT or decode throughput.
+The scalar online schedule is not WAN-qualified; tensor-wide dependent rounds,
+balanced private selection and preprocessing volume remain execution gates.
+
+The ordinary [generated response report](../evidence/fusefss-generated-wan.json)
+records two final outputs in 222.124 seconds, with 7.766 seconds of dealer
+preparation and 212.664 seconds for the maximum holder-native run. Covered
+all-link bodies are 19,909,435 bytes, including 7,681,488 online bytes. All runtime
+checks pass and observed swap growth is zero. This single transport qualification
+run, which overlaps short regression checks, is a negative practicality result;
+it supplies no trained-Qwen timing or matched speed comparison.

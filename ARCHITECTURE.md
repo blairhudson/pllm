@@ -1049,6 +1049,14 @@ open. These controls establish neither independent operators nor paper-system
 performance. Contract and examples:
 `docs/research/fusefss-sdk-reference.md`.
 
+The shared native WAN relay additionally routes FuseFSS's complete dealer/holder
+graph under per-party access caps and explicit, bounded pipelined propagation
+delay. A generated 1+2 response at 100/40 Mbps and 20 ms per direction completes
+in 222.124 seconds with zero observed swap growth; maximum holder execution is
+212.664 seconds. This negative transport qualification establishes no practical
+trained-model WAN result. Tensor-wide online scheduling, balanced private
+selection and fresh-material volume remain completion gates.
+
 The complete bounded shared Q7 gated block composes four exact rescalings and
 two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases
 check 11,540 outputs, with all remaining block material burned on failure.

@@ -115,7 +115,8 @@ def _measured_emulation(report, conditions):
     def check(value):
         data = value.get("wan_emulation", {}) if isinstance(value, Mapping) else {}
         if native:
-            _check_native_sample(data, conditions, assignments)
+            _check_native_sample(data, conditions, assignments,
+                                 link_digest=configuration.get("link_conditions_digest"))
             return
         if roles == ["client"]:
             return
@@ -171,9 +172,13 @@ def _measured_emulation(report, conditions):
     return {"schema": "pllm.measured_wan_throughput.v1",
             "backend": "client-only-no-wan-links" if roles == ["client"] else
                 "native-shared-tcp-pacer" if native else "linux-tbf-routed-party-ports",
-            "scope": "measured local inference under enforced shared party access rates",
+             "scope": ("measured local inference under enforced shared party access rates"
+                       + (" and selected inter-party delay" if native and configuration.get("link_conditions_digest") else "")),
             "kernel_rate_snapshots_checked": not native and roles != ["client"],
-            **({"native_stream_rate_snapshots_checked": True} if native else {}),
+             **({"native_stream_rate_snapshots_checked": True} if native else {}),
+             **({"native_delay_snapshots_checked": True,
+                 "link_conditions_digest": configuration["link_conditions_digest"]}
+                if native and configuration.get("link_conditions_digest") else {}),
             "conditions_digest": conditions.digest,
             "inter_party_links_present": len(expected) > 1,
             "request_scope": "demand preparation and request execution; excludes provider startup and warmups",
@@ -181,11 +186,23 @@ def _measured_emulation(report, conditions):
             "internet_measurement": False, "runs": rows, "summary": summary}
 
 
-def _check_native_sample(data, conditions, assignments):
+def _check_native_sample(data, conditions, assignments, *, link_digest=None):
     if (data.get("schema") != "pllm.native_wan.v1" or data.get("backend") != "native-shared-tcp-pacer"
             or data.get("enforced") is not True or data.get("conditions_digest") != conditions.digest
             or data.get("role_parties") != assignments or set(data.get("parties", {})) != set(assignments.values())):
         raise ValueError("native WAN sampling does not cover the executed parties")
+    from pllm.deployment import LinkConditions
+    from pllm.runtime.native_wan import DELAY_BUFFER_BYTES, DELAY_SLOTS, validate_native_link
+    link = data.get("link_conditions")
+    link = LinkConditions.from_spec(link) if link is not None else None
+    validate_native_link(link)
+    if (link.digest if link is not None else None) != link_digest or data.get("link_conditions_digest") != link_digest:
+        raise ValueError("native WAN delay differs from the selected link conditions")
+    if link is not None:
+        pending, peak = data.get("delayed_chunks"), data.get("peak_delayed_chunks")
+        if (data.get("delay_buffer_bytes") != DELAY_BUFFER_BYTES or data.get("delay_slots") != DELAY_SLOTS
+                or type(pending) is not int or type(peak) is not int or not 0 <= pending <= peak <= DELAY_SLOTS):
+            raise ValueError("native WAN delay queue exceeds its admitted bound")
     elapsed, burst = data.get("elapsed_seconds"), data.get("burst_bytes")
     if type(elapsed) not in (int, float) or not math.isfinite(elapsed) or elapsed < 0 or burst != 16384:
         raise ValueError("native WAN sampling has invalid pacing bounds")

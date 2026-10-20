@@ -2,16 +2,17 @@
 
 An opaque loopback relay counts each directed stream once. HTTP/WebSocket/TLS
 bytes are covered; IP/TCP headers, ACKs and retransmissions are not. This is a
-userspace bandwidth experiment, not kernel shaping or measured Internet latency.
+userspace rate/delay experiment, not kernel shaping or measured Internet latency.
 """
 from __future__ import annotations
 
 import asyncio
 import json
+import math
 import threading
 import time
 
-from pllm.deployment import WanConditions
+from pllm.deployment import LinkConditions, WanConditions
 from .servers import LocalTopology, TopologyError
 
 CHUNK_BYTES = 16 << 10
@@ -20,6 +21,20 @@ CHUNK_BYTES = 16 << 10
 # Socket buffers and the aggregate per-party burst remain independently bounded.
 READ_CHUNK_BYTES = CHUNK_BYTES // 2
 MAX_CONNECTIONS = 32
+# Pipelined propagation, not one sleep per serialized read. Slots charge a full
+# read buffer even for a one-byte chunk, bounding both payload and queue objects.
+# This fits the existing 32 MiB relay allowance alongside socket/stream buffers.
+DELAY_BUFFER_BYTES = 8 << 20
+DELAY_SLOTS = DELAY_BUFFER_BYTES // READ_CHUNK_BYTES
+
+
+def validate_native_link(link):
+    if link is not None:
+        if type(link) is not LinkConditions:
+            raise TypeError("native WAN delay requires LinkConditions")
+        if link.bytes_per_second is not None or link.loss_fraction:
+            raise ValueError("native WAN supports delay only; WanConditions owns rates, packet loss requires Docker")
+    return link
 
 
 class SharedPacer:
@@ -81,10 +96,22 @@ class SharedPacer:
 
 
 class NativePartyNetwork:
-    def __init__(self, conditions, roles):
+    def __init__(self, conditions, roles, *, link_conditions=None):
         if type(conditions) is not WanConditions:
             raise TypeError("native WAN requires WanConditions")
         self.pacer = SharedPacer(conditions, roles)
+        self.link = validate_native_link(link_conditions)
+        self.delay_seconds = self.link.latency_ms / 1000 if self.link is not None else 0
+        parties = set(self.pacer.assignments.values())
+        rate = min(sum(getattr(conditions.access(party), direction + "_mbps") * 1e6 / 8
+                       for party in parties) for direction in ("upload", "download"))
+        # Include idle reads and burst overlap, not just the bandwidth-delay product.
+        required = math.ceil(rate * self.delay_seconds) + 2 * MAX_CONNECTIONS * READ_CHUNK_BYTES + len(parties) * CHUNK_BYTES
+        if self.delay_seconds and required > DELAY_BUFFER_BYTES:
+            raise TopologyError("native WAN bandwidth-delay product exceeds bounded relay storage")
+        self.delay_slots = asyncio.BoundedSemaphore(DELAY_SLOTS)
+        self.delayed_chunks = 0
+        self.peak_delayed_chunks = 0
         self.loop = None
         self.thread = None
         self.servers = []
@@ -93,6 +120,62 @@ class NativePartyNetwork:
         self.error = None
         self.closed = False
         self.lifecycle = threading.Lock()
+
+    async def _delayed_copy(self, origin, output, source, destination):
+        queue = asyncio.Queue()
+
+        def release():
+            self.delayed_chunks -= 1
+            self.delay_slots.release()
+
+        async def receive():
+            held = False
+            try:
+                while True:
+                    await self.delay_slots.acquire()
+                    held = True
+                    self.delayed_chunks += 1
+                    self.peak_delayed_chunks = max(self.peak_delayed_chunks, self.delayed_chunks)
+                    chunk = await origin.read(READ_CHUNK_BYTES)
+                    if not chunk:
+                        break
+                    await self.pacer.reserve(source, destination, len(chunk))
+                    queue.put_nowait((time.monotonic() + self.delay_seconds, chunk))
+                    chunk = None
+                    held = False
+            finally:
+                if held:
+                    release()
+                queue.put_nowait(None)
+
+        receiving = asyncio.create_task(receive())
+        try:
+            while True:
+                item = await queue.get()
+                if item is None:
+                    await receiving
+                    if output.can_write_eof():
+                        output.write_eof()
+                    break
+                due, chunk = item
+                item = None
+                try:
+                    remaining = due - time.monotonic()
+                    if remaining > 0:
+                        await asyncio.sleep(remaining)
+                    output.write(chunk)
+                    await output.drain()
+                finally:
+                    chunk = None
+                    release()
+        finally:
+            receiving.cancel()
+            await asyncio.gather(receiving, return_exceptions=True)
+            while not queue.empty():
+                item = queue.get_nowait()
+                if item is not None:
+                    item = None
+                    release()
 
     async def _connect(self, reader, writer, source, destination, target):
         task = asyncio.current_task()
@@ -110,6 +193,9 @@ class NativePartyNetwork:
                 stream.transport.set_write_buffer_limits(high=2 * CHUNK_BYTES, low=CHUNK_BYTES)
 
             async def copy(origin, output, a, b):
+                if self.delay_seconds and self.pacer.assignments[a] != self.pacer.assignments[b]:
+                    await self._delayed_copy(origin, output, a, b)
+                    return
                 while chunk := await origin.read(READ_CHUNK_BYTES):
                     await self.pacer.reserve(a, b, len(chunk))
                     output.write(chunk)
@@ -170,11 +256,19 @@ class NativePartyNetwork:
     def snapshot(self):
         if self.error:
             raise TopologyError("native WAN relay failed: " + self.error)
-        async def capture():
-            return self.pacer.snapshot()
+        def capture():
+            sample = self.pacer.snapshot()
+            if self.link is not None:
+                sample.update(link_conditions=self.link.to_spec(), link_conditions_digest=self.link.digest,
+                              delay_scope="per-inter-party-direction propagation after rate admission; no TCP handshake emulation",
+                              delay_buffer_bytes=DELAY_BUFFER_BYTES, delay_slots=DELAY_SLOTS,
+                              delayed_chunks=self.delayed_chunks, peak_delayed_chunks=self.peak_delayed_chunks)
+            return sample
         if self.loop is None:
-            return self.pacer.snapshot()  # Client-only has no channels.
-        return asyncio.run_coroutine_threadsafe(capture(), self.loop).result(timeout=5)
+            return capture()  # Client-only has no channels.
+        async def on_loop():
+            return capture()
+        return asyncio.run_coroutine_threadsafe(on_loop(), self.loop).result(timeout=5)
 
     async def _close(self):
         self.closed = True
@@ -203,11 +297,11 @@ class NativePartyNetwork:
 class NativeWanTopology(LocalTopology):
     __slots__ = ("_native_network", "_peer_inference_url", "_replicated_peer_urls")
 
-    def __init__(self, *args, wan, **kwargs):
+    def __init__(self, *args, wan, link_conditions=None, **kwargs):
         super().__init__(*args, **kwargs)
-        if self._privacy_mode not in {"public", "offset_public", "client_only", "gkm_public", "replicated_public"}:
+        if self._privacy_mode not in {"public", "offset_public", "client_only", "gkm_public", "replicated_public", "fss_public"}:
             raise TopologyError("native WAN requires an admitted public role topology")
-        self._native_network = NativePartyNetwork(wan, ("client", *self._role_ids))
+        self._native_network = NativePartyNetwork(wan, ("client", *self._role_ids), link_conditions=link_conditions)
         self._peer_inference_url = None
         self._replicated_peer_urls = {}
 
@@ -218,10 +312,12 @@ class NativeWanTopology(LocalTopology):
             backends[role] = self._free_port(excluded)
             excluded.add(backends[role])
         routes = [("client", role, ports[role], backends[role]) for role in ports]
-        if self._privacy_mode == "replicated_public":
+        if self._privacy_mode in {"replicated_public", "fss_public"}:
             for source in ports:
                 for destination in ports:
                     if source == destination:
+                        continue
+                    if self._privacy_mode == "fss_public" and destination == "dealer":
                         continue
                     peer = self._free_port(excluded)
                     excluded.add(peer)
@@ -237,11 +333,12 @@ class NativeWanTopology(LocalTopology):
 
     def _environment(self, role):
         environment = super()._environment(role)
-        if self._privacy_mode == "replicated_public":
-            peers = json.loads(environment["PLLM_REPLICATED_PEERS_JSON"])
+        if self._privacy_mode in {"replicated_public", "fss_public"}:
+            key = "PLLM_FSS_PEERS_JSON" if self._privacy_mode == "fss_public" else "PLLM_REPLICATED_PEERS_JSON"
+            peers = json.loads(environment[key])
             for peer, values in peers.items():
                 values[0] = self._replicated_peer_urls[role, peer]
-            environment["PLLM_REPLICATED_PEERS_JSON"] = json.dumps(peers)
+            environment[key] = json.dumps(peers)
         if role == "preparation":
             environment["PLLM_INFERENCE_URL"] = self._peer_inference_url
         return environment

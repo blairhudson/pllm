@@ -7,7 +7,7 @@ import threading
 
 import pytest
 
-from pllm.deployment import WanConditions
+from pllm.deployment import LinkConditions, WanConditions
 from pllm.metrics.wan import _check_native_sample
 from pllm.runtime.native_wan import CHUNK_BYTES, READ_CHUNK_BYTES, NativePartyNetwork, SharedPacer
 
@@ -182,3 +182,124 @@ def test_total_memory_uses_same_window_sum_not_sum_of_independent_peaks(monkeypa
     runtime._topology._processes["inference"].pid = 3
     sampler.sample()
     assert sampler.error
+
+
+def test_delayed_relay_pipelines_bulk_bytes_and_preserves_round_trip_floor():
+    link = LinkConditions(latency_ms=50)
+    conditions = WanConditions()
+    network = NativePartyNetwork(conditions, ("client", "inference"), link_conditions=link)
+
+    async def run():
+        async def echo(reader, writer):
+            try:
+                while data := await reader.read(65536):
+                    writer.write(data)
+                    await writer.drain()
+            finally:
+                writer.close()
+        backend = await asyncio.start_server(echo, "127.0.0.1", 0)
+        try:
+            network.start([("client", "inference", 0, backend.sockets[0].getsockname()[1])])
+            reader, writer = await asyncio.open_connection("127.0.0.1", network.servers[0].sockets[0].getsockname()[1])
+            try:
+                for _ in range(2):
+                    started = time.monotonic()
+                    writer.write(b"q")
+                    await writer.drain()
+                    assert await asyncio.wait_for(reader.readexactly(1), 5) == b"q"
+                    assert time.monotonic() - started >= 0.1
+                payload = bytes(range(256)) * 8192
+                writer.write(payload)
+                await writer.drain()
+                # Per-read sleeps would take >25 s for this duplex transfer.
+                assert await asyncio.wait_for(reader.readexactly(len(payload)), 5) == payload
+                sample = network.snapshot()
+                assert sample["total_stream_bytes"] == 2 * (len(payload) + 2)
+                _check_native_sample(sample, conditions, network.pacer.assignments, link_digest=link.digest)
+                for mutate in (
+                    lambda s: s.update(link_conditions_digest="wrong"),
+                    lambda s: s["link_conditions"].update(latency_ms=0),
+                    lambda s: s.update(peak_delayed_chunks=s["delay_slots"] + 1),
+                    lambda s: s.update(delayed_chunks=-1),
+                ):
+                    forged = copy.deepcopy(sample)
+                    mutate(forged)
+                    with pytest.raises(ValueError):
+                        _check_native_sample(forged, conditions, network.pacer.assignments, link_digest=link.digest)
+                with pytest.raises(ValueError):
+                    _check_native_sample(sample, conditions, network.pacer.assignments)
+            finally:
+                network.close()
+                assert network.delayed_chunks == 0
+                assert not network.connections and not network.writers
+                writer.close()
+                await writer.wait_closed()
+        finally:
+            backend.close()
+            await backend.wait_closed()
+    try:
+        asyncio.run(run())
+    finally:
+        network.close()
+
+
+def test_delayed_relay_cancellation_retires_all_queued_chunks():
+    from pllm.runtime.native_wan import DELAY_SLOTS
+    network = NativePartyNetwork(WanConditions(), ("client", "inference"),
+                                 link_conditions=LinkConditions(latency_ms=500))
+
+    async def run():
+        class Origin:
+            async def read(self, _):
+                return b"x" * READ_CHUNK_BYTES
+        class Output:
+            def write(self, _):
+                pytest.fail("cancel before propagation delay")
+        task = asyncio.create_task(network._delayed_copy(Origin(), Output(), "client", "inference"))
+        await asyncio.sleep(0.02)
+        assert network.delayed_chunks > 1
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert network.delayed_chunks == 0
+        assert network.delay_slots._value == DELAY_SLOTS
+    asyncio.run(run())
+
+
+def test_native_delay_rejects_unemulated_loss_conflicting_rate_and_excess_storage():
+    from pllm.runtime.servers import TopologyError
+    for link in (LinkConditions(loss_fraction=0.01), LinkConditions(bytes_per_second=1024)):
+        with pytest.raises(ValueError):
+            NativePartyNetwork(WanConditions(), ("client", "inference"), link_conditions=link)
+    with pytest.raises(TopologyError, match="storage"):
+        NativePartyNetwork(WanConditions(), ("client", "inference"),
+                           link_conditions=LinkConditions(latency_ms=5000))
+
+
+def test_intra_party_stream_bypasses_selected_delay(monkeypatch):
+    conditions = WanConditions(role_parties=(("client", "local"), ("inference", "local")))
+    network = NativePartyNetwork(conditions, ("client", "inference"),
+                                link_conditions=LinkConditions(latency_ms=50))
+    async def reject(*args):
+        pytest.fail("same-party traffic entered delay queue")
+    monkeypatch.setattr(network, "_delayed_copy", reject)
+    async def run():
+        async def echo(reader, writer):
+            data = await reader.readexactly(1)
+            writer.write(data)
+            await writer.drain()
+            writer.close()
+        backend = await asyncio.start_server(echo, "127.0.0.1", 0)
+        try:
+            network.start([("client", "inference", 0, backend.sockets[0].getsockname()[1])])
+            reader, writer = await asyncio.open_connection("127.0.0.1", network.servers[0].sockets[0].getsockname()[1])
+            writer.write(b"x")
+            assert await asyncio.wait_for(reader.readexactly(1), 2) == b"x"
+            writer.close()
+            await writer.wait_closed()
+            assert network.snapshot()["peak_delayed_chunks"] == 0
+        finally:
+            network.close()
+            backend.close()
+            await backend.wait_closed()
+    asyncio.run(run())
