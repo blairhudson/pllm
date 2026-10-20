@@ -281,9 +281,9 @@ pub fn preprocess(plan: AllocationPlan, source: SetupInputs<'_>) -> Result<Unval
     let mut aux = Words::zeros(&memory, LENGTH * SECONDARY_LENGTH)?;
     let mut stacked_row = Words::zeros(&memory, SECONDARY_DIMENSION)?;
     for row in 0..LENGTH {
-        for b in 0..BATCH_SIZE {
+        for (b, values) in q.iter().enumerate() {
             stacked_row.as_mut()[b * DIMENSION..][..DIMENSION]
-                .copy_from_slice(&q[b].as_slice()[row * DIMENSION..][..DIMENSION]);
+                .copy_from_slice(&values.as_slice()[row * DIMENSION..][..DIMENSION]);
         }
         let encoded = gp.encode(&memory, stacked_row.as_slice())?;
         aux.as_mut()[row * SECONDARY_LENGTH..][..SECONDARY_LENGTH]

@@ -330,8 +330,8 @@ impl Client {
         let mask = m.gx[slot].syndrome(&m.memory, &noise)?;
         let mut masked = Words::zeros(&m.memory, DIMENSION)?;
         let mut correction = Words::zeros(&m.memory, DIMENSION)?;
-        for i in 0..DIMENSION {
-            masked.as_mut()[i] = add(input[i], mask.as_slice()[i]);
+        for (i, &value) in input[..DIMENSION].iter().enumerate() {
+            masked.as_mut()[i] = add(value, mask.as_slice()[i]);
             correction.as_mut()[i] = noise.dot(&m.p[slot].as_slice()[i * LENGTH..][..LENGTH]);
         }
         let request = Request {

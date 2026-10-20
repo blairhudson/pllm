@@ -87,12 +87,12 @@ unsafe fn sdot(weights: &[i8], limbs: &[i8]) -> u32 {
     while i + 16 <= n {
         // SAFETY: the loop guard and slab geometry bound all sixteen-byte loads.
         let w = unsafe { vld1q_s8(weights.as_ptr().add(i)) };
-        for k in 0..4 {
+        for (k, lane) in acc.iter_mut().enumerate() {
             let x = unsafe { vld1q_s8(limbs.as_ptr().add(k * n + i)) };
             // Stable Rust 1.85 lacks stable dotprod intrinsics. No global flags.
             unsafe {
                 std::arch::asm!("sdot {acc:v}.4s, {w:v}.16b, {x:v}.16b",
-                    acc = inout(vreg) acc[k], w = in(vreg) w,
+                    acc = inout(vreg) *lane, w = in(vreg) w,
                     x = in(vreg) x, options(pure, nomem, nostack));
             }
         }
