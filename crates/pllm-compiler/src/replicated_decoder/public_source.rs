@@ -2,6 +2,7 @@
 //! frames; neither publication nor execution retains a resident weight matrix.
 use super::*;
 use pllm_core::public_file::{PublicFile, PublicFileWriter};
+use pllm_core::streamed_matrix::{self, MatrixGeometry, MatrixLayout, SelectionGeometry};
 use std::collections::BTreeMap;
 
 pub struct PublicSource {
@@ -280,47 +281,24 @@ pub(super) fn multiply(
     columns: usize,
     transposed: bool,
 ) -> Result<Secret, Error> {
-    if rows == 0
-        || inner == 0
-        || columns == 0
-        || rows.checked_mul(inner) != Some(input.first.len())
-        || input.second.len() != input.first.len()
-        || inner
-            .checked_mul(columns)
-            .and_then(|n| n.checked_mul(8))
-            .map(|n| n as u64)
-            != Some(file.size())
-        || (rows as u64)
-            .checked_mul(inner as u64)
-            .and_then(|n| n.checked_mul(columns as u64))
-            .is_none_or(|n| n > 1 << 32)
-    {
-        return Err(Error::Bounds);
-    }
-    let mut out = Secret::new(rows.checked_mul(columns).ok_or(Error::Bounds)?)?;
-    let mut buffer = [0u8; 65536];
-    let mut offset = 0u64;
-    while offset < file.size() {
-        let n = buffer.len().min((file.size() - offset) as usize);
-        file.read(offset, &mut buffer[..n])
-            .map_err(|_| Error::Binding)?;
-        for (i, raw) in buffer[..n].chunks_exact(8).enumerate() {
-            let index = offset as usize / 8 + i;
-            let (k, c) = if transposed {
-                (index / columns, index % columns)
-            } else {
-                (index % inner, index / inner)
-            };
-            let weight = u64::from_le_bytes(raw.try_into().unwrap());
-            for row in 0..rows {
-                let x = row * inner + k;
-                let y = row * columns + c;
-                out.first[y] = out.first[y].wrapping_add(input.first[x].wrapping_mul(weight));
-                out.second[y] = out.second[y].wrapping_add(input.second[x].wrapping_mul(weight));
-            }
-        }
-        offset += n as u64;
-    }
+    let layout = if transposed {
+        MatrixLayout::InputOutput
+    } else {
+        MatrixLayout::OutputInput
+    };
+    let geometry = MatrixGeometry::new(rows, inner, columns, layout).map_err(stream_error)?;
+    let inputs = [input.first.as_slice(), input.second.as_slice()];
+    geometry
+        .validate_inputs(file, &inputs)
+        .map_err(stream_error)?;
+    let mut out = Secret::new(geometry.output_elements())?;
+    streamed_matrix::multiply(
+        file,
+        &inputs,
+        &mut [out.first.as_mut_slice(), out.second.as_mut_slice()],
+        geometry,
+    )
+    .map_err(stream_error)?;
     Ok(out)
 }
 
@@ -339,55 +317,20 @@ pub(super) fn accumulate_rows(
     start: usize,
     count: usize,
 ) -> Result<(), Error> {
-    if rows == 0
-        || width == 0
-        || count == 0
-        || start.checked_add(count).is_none_or(|n| n > vocabulary)
-        || rows.checked_mul(count) != Some(selectors.first.len())
-        || selectors.second.len() != selectors.first.len()
-        || rows.checked_mul(width) != Some(output.first.len())
-        || output.second.len() != output.first.len()
-        || vocabulary
-            .checked_mul(width)
-            .and_then(|n| n.checked_mul(8))
-            .and_then(|n| u64::try_from(n).ok())
-            != Some(file.size())
-        || rows
-            .checked_mul(count)
-            .and_then(|n| n.checked_mul(width))
-            .is_none_or(|n| n > 1usize << 32)
-    {
-        return Err(Error::Bounds);
+    let geometry =
+        SelectionGeometry::new(rows, vocabulary, width, start, count).map_err(stream_error)?;
+    streamed_matrix::accumulate_rows(
+        file,
+        &[selectors.first.as_slice(), selectors.second.as_slice()],
+        &mut [output.first.as_mut_slice(), output.second.as_mut_slice()],
+        geometry,
+    )
+    .map_err(stream_error)
+}
+
+fn stream_error(error: streamed_matrix::Error) -> Error {
+    match error {
+        streamed_matrix::Error::Bounds => Error::Bounds,
+        streamed_matrix::Error::Read => Error::Binding,
     }
-    let mut offset = start
-        .checked_mul(width)
-        .and_then(|n| n.checked_mul(8))
-        .ok_or(Error::Bounds)? as u64;
-    let end = (start + count)
-        .checked_mul(width)
-        .and_then(|n| n.checked_mul(8))
-        .ok_or(Error::Bounds)? as u64;
-    let base = offset;
-    let mut buffer = [0u8; 65536];
-    while offset < end {
-        let n = buffer.len().min((end - offset) as usize);
-        file.read(offset, &mut buffer[..n])
-            .map_err(|_| Error::Binding)?;
-        for (i, raw) in buffer[..n].chunks_exact(8).enumerate() {
-            let index = ((offset - base) / 8) as usize + i;
-            let k = index / width;
-            let c = index % width;
-            let weight = u64::from_le_bytes(raw.try_into().unwrap());
-            for row in 0..rows {
-                let x = row * count + k;
-                let y = row * width + c;
-                output.first[y] =
-                    output.first[y].wrapping_add(selectors.first[x].wrapping_mul(weight));
-                output.second[y] =
-                    output.second[y].wrapping_add(selectors.second[x].wrapping_mul(weight));
-            }
-        }
-        offset += n as u64;
-    }
-    Ok(())
 }

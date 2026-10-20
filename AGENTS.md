@@ -10,3 +10,12 @@
   Use Git history for old source and change history.
 - Simplify legacy evidence machinery when touching it. Preserve useful experiment
   definitions, benchmark results, numerical contracts, and regression tests.
+
+## Reusable implementation
+
+- Before implementing a paper, audit existing primitives, components, capabilities,
+  source/import owners, scheduling, transport, and admission machinery.
+- Reuse or extend shared model-/method-neutral contracts. Extract shared code when
+  needed instead of adding parallel paper-specific implementations.
+- Each paper should advance the reusable architecture. Keep its distinct numeric,
+  trust, verification, and lifecycle contracts explicit and independently checked.

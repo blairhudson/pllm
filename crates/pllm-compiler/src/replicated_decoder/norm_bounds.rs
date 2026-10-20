@@ -4,8 +4,10 @@
 //! of stochastic truncation. They neither inspect private values nor establish
 //! the provenance of a caller-supplied row certificate. The compiler must bind
 //! that provenance and workers must recompute public matrix certificates.
+//! Shared arithmetic lives in `pllm_core::integer_bounds`; these adapters retain
+//! the original admission limits, public certificate fields, and error mapping.
 
-use pllm_core::puma::Error;
+use pllm_core::{integer_bounds, puma::Error};
 
 const MAX_ROWS: usize = 128;
 const MAX_COLUMNS: usize = 16_384;
@@ -20,120 +22,71 @@ pub(super) struct MatrixCertificate {
 }
 
 impl MatrixCertificate {
+    fn shared(self) -> Result<integer_bounds::MatrixCertificate, Error> {
+        shape(self.rows, self.columns)?;
+        integer_bounds::MatrixCertificate::from_bounds(
+            self.rows,
+            self.columns,
+            self.maximum_row_l1,
+            self.maximum_column_l1,
+            self.frobenius_squared,
+        )
+        .map_err(error)
+    }
+
     /// ||W||_2^2 <= min(||W||_infinity * ||W||_1, ||W||_F^2).
     pub fn operator_squared(self) -> Result<u128, Error> {
-        if self.rows == 0 || self.rows > MAX_ROWS || self.columns == 0 || self.columns > MAX_COLUMNS
-        {
-            return Err(Error::Shape);
-        }
-        // An overflowing product exceeds every representable Frobenius bound.
-        Ok(self
-            .maximum_row_l1
-            .checked_mul(self.maximum_column_l1)
-            .map_or(self.frobenius_squared, |bound| {
-                bound.min(self.frobenius_squared)
-            }))
+        self.shared()?.operator_squared().map_err(error)
     }
-}
-
-struct Pending {
-    columns: Vec<u128>,
-    rows: usize,
-    offset: usize,
-    current_row: u128,
-    maximum_row: u128,
-    frobenius_squared: u128,
 }
 
 /// Ordered, one-use public coefficient scan. Any error retires the scan.
-pub(super) struct MatrixScan(Option<Pending>);
+#[repr(transparent)]
+pub(super) struct MatrixScan(integer_bounds::MatrixScan);
 
 impl MatrixScan {
     pub fn payload_bytes(rows: usize, columns: usize) -> Result<usize, Error> {
-        if rows == 0 || rows > MAX_ROWS || columns == 0 || columns > MAX_COLUMNS {
-            return Err(Error::Shape);
-        }
-        columns
-            .checked_mul(std::mem::size_of::<u128>())
-            .and_then(|n| {
-                n.checked_add(std::mem::size_of::<Self>() + std::mem::size_of::<Pending>())
-            })
-            .ok_or(Error::Bounds)
+        shape(rows, columns)?;
+        integer_bounds::MatrixScan::payload_bytes(rows, columns).map_err(error)
     }
 
     pub fn new(rows: usize, columns: usize) -> Result<Self, Error> {
-        Self::payload_bytes(rows, columns)?;
-        let mut sums = Vec::new();
-        sums.try_reserve_exact(columns)
-            .map_err(|_| Error::Allocation)?;
-        sums.resize(columns, 0);
-        Ok(Self(Some(Pending {
-            columns: sums,
-            rows,
-            offset: 0,
-            current_row: 0,
-            maximum_row: 0,
-            frobenius_squared: 0,
-        })))
+        let payload = Self::payload_bytes(rows, columns)?;
+        integer_bounds::MatrixScan::new(rows, columns, payload)
+            .map(Self)
+            .map_err(error)
     }
 
     pub fn append(&mut self, offset: usize, values: &[i64]) -> Result<(), Error> {
-        let mut pending = self.0.take().ok_or(Error::Binding)?;
-        let columns = pending.columns.len();
-        if values.is_empty()
-            || offset != pending.offset
-            || offset
-                .checked_add(values.len())
-                .is_none_or(|n| n > pending.rows * columns)
-        {
-            return Err(Error::Shape);
-        }
-        for value in values {
-            let magnitude = u128::from(value.unsigned_abs());
-            let column = pending.offset % columns;
-            pending.columns[column] = pending.columns[column]
-                .checked_add(magnitude)
-                .ok_or(Error::Bounds)?;
-            pending.current_row = pending
-                .current_row
-                .checked_add(magnitude)
-                .ok_or(Error::Bounds)?;
-            pending.frobenius_squared = pending
-                .frobenius_squared
-                .checked_add(magnitude * magnitude)
-                .ok_or(Error::Bounds)?;
-            pending.offset += 1;
-            if pending.offset % columns == 0 {
-                pending.maximum_row = pending.maximum_row.max(pending.current_row);
-                pending.current_row = 0;
-            }
-        }
-        self.0 = Some(pending);
-        Ok(())
+        self.0.append(offset, values).map_err(error)
     }
 
-    pub fn finish(mut self) -> Result<MatrixCertificate, Error> {
-        let pending = self.0.take().ok_or(Error::Binding)?;
-        if pending.offset != pending.rows * pending.columns.len() || pending.current_row != 0 {
-            return Err(Error::Shape);
-        }
+    pub fn finish(self) -> Result<MatrixCertificate, Error> {
+        let certificate = self.0.finish().map_err(error)?;
         Ok(MatrixCertificate {
-            rows: pending.rows,
-            columns: pending.columns.len(),
-            maximum_row_l1: pending.maximum_row,
-            maximum_column_l1: pending.columns.into_iter().max().ok_or(Error::Shape)?,
-            frobenius_squared: pending.frobenius_squared,
+            rows: certificate.rows(),
+            columns: certificate.columns(),
+            maximum_row_l1: certificate.maximum_row_l1(),
+            maximum_column_l1: certificate.maximum_column_l1(),
+            frobenius_squared: certificate.frobenius_squared(),
         })
     }
 }
 
-fn root(value: u128) -> u128 {
-    let floor = value.isqrt();
-    floor + u128::from(floor * floor != value)
+fn shape(rows: usize, columns: usize) -> Result<(), Error> {
+    if rows == 0 || rows > MAX_ROWS || columns == 0 || columns > MAX_COLUMNS {
+        return Err(Error::Shape);
+    }
+    Ok(())
 }
 
-fn squared(radius: u128) -> Result<u128, Error> {
-    radius.checked_mul(radius).ok_or(Error::Bounds)
+fn error(error: integer_bounds::Error) -> Error {
+    match error {
+        integer_bounds::Error::Shape => Error::Shape,
+        integer_bounds::Error::Bounds => Error::Bounds,
+        integer_bounds::Error::Allocation => Error::Allocation,
+        integer_bounds::Error::Retired => Error::Binding,
+    }
 }
 
 /// Complete output row after one truncation per coordinate. Each truncation's
@@ -146,18 +99,11 @@ pub(super) fn linear_energy(
     if shift == 0 || shift >= 64 {
         return Err(Error::Bounds);
     }
-    let raw = input_squared
-        .checked_mul(matrix.operator_squared()?)
-        .ok_or(Error::Bounds)?;
-    let radius = root(raw)
-        .div_ceil(1u128 << shift)
-        .checked_add(root(matrix.rows as u128))
-        .ok_or(Error::Bounds)?;
-    squared(radius)
+    integer_bounds::linear_energy(input_squared, matrix.shared()?, shift, 1).map_err(error)
 }
 
 pub(super) fn sum_energy(left: u128, right: u128) -> Result<u128, Error> {
-    squared(root(left).checked_add(root(right)).ok_or(Error::Bounds)?)
+    integer_bounds::sum_energy(left, right).map_err(error)
 }
 
 /// Half-split rotation with separate signed coefficient-product truncations.
@@ -177,35 +123,14 @@ pub(super) fn rotary_energy(
     {
         return Err(Error::Shape);
     }
-    let mut maximum = 0u128;
-    for (&c, &s) in cos.iter().zip(sin) {
-        let c = u128::from(c.unsigned_abs());
-        let s = u128::from(s.unsigned_abs());
-        maximum = maximum.max(
-            c.checked_mul(c)
-                .and_then(|v| v.checked_add(s * s))
-                .ok_or(Error::Bounds)?,
-        );
-    }
-    let raw = input_squared.checked_mul(maximum).ok_or(Error::Bounds)?;
-    let rounding = 2 * root((2 * cos.len()) as u128);
-    squared(
-        root(raw)
-            .div_ceil(1u128 << shift)
-            .checked_add(rounding)
-            .ok_or(Error::Bounds)?,
-    )
+    integer_bounds::rotary_energy(input_squared, cos, sin, shift, 2).map_err(error)
 }
 
 /// Cauchy--Schwarz bound for the complete untruncated dot, before ring narrowing.
 /// The caller must additionally prove the primitive's strict quarter-ring bound.
 #[cfg(test)]
 pub(super) fn dot_radius(left_squared: u128, right_squared: u128) -> Result<u128, Error> {
-    Ok(root(
-        left_squared
-            .checked_mul(right_squared)
-            .ok_or(Error::Bounds)?,
-    ))
+    integer_bounds::dot_radius(left_squared, right_squared).map_err(error)
 }
 
 #[cfg(test)]
@@ -225,6 +150,28 @@ mod tests {
             owner.append(i * chunk, values).unwrap();
         }
         owner.finish().unwrap()
+    }
+
+    #[test]
+    fn shared_adapters_preserve_legacy_envelopes_and_admission_limits() {
+        let cert = scan(2, 3, &[1, -2, 3, -4, 0, 5], 4);
+        assert_eq!(cert.operator_squared().unwrap(), 55);
+        assert_eq!(linear_energy(25, cert, 1).unwrap(), 441);
+        assert_eq!(linear_energy(25, cert, 3).unwrap(), 49);
+        assert_eq!(linear_energy(0, cert, 18).unwrap(), 4);
+        assert_eq!(linear_energy(17, cert, 18).unwrap(), 9);
+        assert_eq!(sum_energy(2, 3).unwrap(), 16);
+        assert_eq!(rotary_energy(25, &[5], &[6], 3).unwrap(), 81);
+        assert_eq!(dot_radius(25, 61).unwrap(), 40);
+        assert_eq!(linear_energy(1, cert, 0), Err(Error::Bounds));
+        assert_eq!(rotary_energy(1, &[1], &[0], 0), Err(Error::Shape));
+        assert_eq!(rotary_energy(1, &[1; 65], &[0; 65], 18), Err(Error::Shape));
+        let invalid = MatrixCertificate { rows: 129, ..cert };
+        assert_eq!(invalid.operator_squared(), Err(Error::Shape));
+        let mut owner = MatrixScan::new(1, 1).unwrap();
+        assert_eq!(owner.append(1, &[1]), Err(Error::Shape));
+        assert_eq!(owner.append(0, &[1]), Err(Error::Binding));
+        assert_eq!(owner.finish(), Err(Error::Binding));
     }
 
     #[test]
