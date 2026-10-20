@@ -167,13 +167,18 @@ def assert_retired(core):
 @pytest.mark.slow
 @pytest.mark.integration
 @pytest.mark.rust
-@pytest.mark.parametrize("capacity", ["capsule", "decoder"])
-def test_qwen2_three_child_sdk_final_oracle_and_large_tape(control, monkeypatch, capacity):
+@pytest.mark.parametrize(("capacity", "material_delivery"), [
+    ("capsule", "single"), ("decoder", "single"), ("decoder", "batch-v1"),
+])
+def test_qwen2_three_child_sdk_final_oracle_and_large_tape(
+        control, monkeypatch, capacity, material_delivery):
     from pllm.runtime.benchmark_memory import execution_memory_admission
 
     case, exp, root = control
     if capacity == "decoder":
         exp = experiment(root.parent, capacity=capacity)
+    if material_delivery != "single":
+        exp = exp.with_params(pipeline__linear__material_delivery=material_delivery)
     required = ("FssSourceBuilder", "FssClientRequest", "FssRoleRequest", "fss_transport_admission")
     assert all(callable(getattr(_native, name, None)) for name in required), "rebuild the installed wheel"
     oracle = json.loads(INPUTS.with_name("semantic-expected.json").read_bytes())

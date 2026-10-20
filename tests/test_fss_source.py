@@ -103,8 +103,9 @@ def write_tensor_file(path, header, payload):
     path.write_bytes(struct.pack("<Q", len(encoded)) + encoded + payload)
 
 
-def experiment(root, profile=GPT, rows=3, outputs=3, capacity="capsule"):
-    return Experiment(name="generated-fss-source", pipeline=FuseFssSourceCpu(Model.path(str(root)), numeric_profile=profile, capacity=capacity),
+def experiment(root, profile=GPT, rows=3, outputs=3, capacity="capsule", material_delivery="single"):
+    return Experiment(name="generated-fss-source", pipeline=FuseFssSourceCpu(Model.path(str(root)),
+                      numeric_profile=profile, capacity=capacity, material_delivery=material_delivery),
                       deployment=Deployment.local(root="local://fss-source-test"),
                       budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
 
@@ -225,7 +226,9 @@ def bridge(monkeypatch):
             # Explicit native metadata double, not measured resource admission.
             data.update(capacity="decoder", source_q12_value_bytes=2*data["source_float32_bytes"],
                         source_disk_bytes=sum(math.prod(s)*8 for s in shapes.values() if len(s) == 2),
-                        source_resident_bound_bytes=65536 + 4096*len(shapes))
+                         source_resident_bound_bytes=65536 + 4096*len(shapes))
+        if exp.pipeline.components["linear"].params.get("material_delivery") == "batch-v1":
+            data["material_delivery"] = "batch-v1"
         if Bridge.contract_mutation:
             Bridge.contract_mutation(data)
         return canonical(data)

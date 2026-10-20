@@ -19,23 +19,32 @@ from .fss_protocol import (
 )
 from .fss_tape import (MaterialTape, TapeResources, capacity_limits, DISK_HEADROOM_BYTES,
                        MAX_METADATA_BYTES, MAX_PACKET_BYTES)
+from . import fss_protocol as p
 
 
 DECODER_TIMEOUT_LIMIT = 24 * 60 * 60
 MAX_GUARD_DISK_BYTES = 32 << 30
 
 
-def transport_capacity(contract):
-    """Read a locally recomputed source contract; this is not authentication."""
+def _contract(contract):
     if type(contract) is bytes:
         if not 0 < len(contract) <= 1 << 20:
             raise ValueError("FuseFSS source contract exceeds bounds")
         contract = json.loads(contract)
     if type(contract) is not dict:
         raise ValueError("FuseFSS source contract differs")
-    capacity = contract.get("capacity", "capsule")
+    return contract
+
+
+def transport_capacity(contract):
+    """Read a locally recomputed source contract; this is not authentication."""
+    capacity = _contract(contract).get("capacity", "capsule")
     capacity_limits(capacity)
     return capacity
+
+
+def transport_material_delivery(contract):
+    return p.material_delivery(_contract(contract).get("material_delivery", "single"))
 
 
 def timeout_limit(capacity):
@@ -68,6 +77,9 @@ class TransportResources:
     guard_disk_bytes: int
     guard_reservation_bytes: int
     combined_reservation_bytes: int
+    material_delivery: str = "single"
+    python_batch_reservation_bytes: int = 0
+    native_batch_reservation_bytes: int = 0
 
     @property
     def transport_disk_bytes_per_holder(self):
@@ -104,6 +116,30 @@ def price_transport(admission, contract: bytes) -> TransportResources:
         if type(value) is not int or not 0 <= value <= maximum:
             raise ValueError("FuseFSS transport resource bound differs")
         return value
+    delivery = transport_material_delivery(contract)
+    if p.material_delivery(admission.get("material_delivery", "single")) != delivery:
+        raise ValueError("FuseFSS native material delivery differs")
+    combined = integer("combined_reservation_bytes", 64 << 20)
+    native_batch = python_batch = 0
+    if delivery == "batch-v1":
+        batch = admission.get("delivery_batch")
+        if type(batch) is not dict or set(batch) != {
+                "records_bound", "body_bytes_bound", "envelope_bytes_bound",
+                "record_overhead_bytes", "native_reservation_bytes", "python_overlap_bytes"}:
+            raise ValueError("FuseFSS native material batch pricing differs")
+        for name, expected in (("records_bound", p.MATERIAL_BATCH_RECORDS),
+                               ("body_bytes_bound", p.MATERIAL_BATCH_BYTES),
+                               ("envelope_bytes_bound", p.MATERIAL_BATCH_ENVELOPE_BYTES),
+                               ("record_overhead_bytes", 8),
+                               ("python_overlap_bytes", p.MATERIAL_BATCH_PYTHON_BYTES)):
+            if type(batch[name]) is not int or batch[name] != expected:
+                raise ValueError("FuseFSS native material batch bound differs")
+        native_batch = batch["native_reservation_bytes"]
+        if type(native_batch) is not int or not 2 * p.MATERIAL_BATCH_BYTES <= native_batch <= combined:
+            raise ValueError("FuseFSS native material batch reservation differs")
+        python_batch = p.MATERIAL_BATCH_PYTHON_BYTES
+    elif "delivery_batch" in admission:
+        raise ValueError("FuseFSS unexpected material batch pricing")
     metadata = integer("callback_metadata_bytes_bound", MAX_METADATA_BYTES)
     if metadata == 0:
         raise ValueError("FuseFSS callback metadata bound differs")
@@ -116,7 +152,7 @@ def price_transport(admission, contract: bytes) -> TransportResources:
     return TransportResources(hashlib.sha256(contract).hexdigest(), tape,
         integer("guard_disk_bytes", MAX_GUARD_DISK_BYTES, default),
         integer("guard_reservation_bytes", 64 << 20, default),
-        integer("combined_reservation_bytes", 64 << 20))
+        combined, delivery, python_batch, native_batch)
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +215,10 @@ def _receipt(raw, role, *, capacity="capsule"):
 def execute_request(experiment, source, ids, outputs, connections, timeout, attempt, *, completed_program=None):
     """Return fixed-count token IDs after both complete one-use holder responses."""
     capacity = transport_capacity(source.contract)
+    delivery = transport_material_delivery(source.contract)
+    configured_delivery = p.material_delivery(experiment.pipeline.components["linear"].params.get("material_delivery", "single"))
+    if delivery != configured_delivery:
+        raise ValueError("FuseFSS native source material delivery differs")
     if (type(timeout) not in (float, int) or not math.isfinite(timeout) or not 0 < timeout <= timeout_limit(capacity)
             or type(ids) not in (tuple, list) or not 1 <= len(ids) <= 16
             or any(type(i) is not int or not 0 <= i < source.contract["vocabulary"] for i in ids)
@@ -193,7 +233,7 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
             if attempt():
                 raise ProtocolError("FuseFSS request cancelled", 499)
             contract = source.runtime_contract(experiment, len(ids), outputs)
-            if transport_capacity(contract) != capacity:
+            if transport_capacity(contract) != capacity or transport_material_delivery(contract) != delivery:
                 raise ValueError("FuseFSS runtime capacity differs from source")
             receipt_options = {} if capacity == "capsule" else {"capacity": capacity}
             remaining = deadline - time.monotonic()

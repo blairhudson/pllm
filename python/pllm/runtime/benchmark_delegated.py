@@ -213,10 +213,13 @@ def _inspect_replicated(experiment):
 
 def _inspect_fss(experiment):
     from pllm._benchmark_contract import digest
-    from .fss_source import resolve_client_source
+    from .fss_source import resolve_client_source, _material_delivery
     from .fss_protocol import ROLES
     source = resolve_client_source(experiment)
     contract = source.contract
+    delivery = _material_delivery(contract)
+    if delivery != _material_delivery(experiment.pipeline.components["linear"].params):
+        raise ValueError("FuseFSS source material delivery differs from benchmark Experiment")
     numeric = {"numeric_profile": contract["numeric_profile"], "ring_bits": 50,
                "fractional_bits": 12, "external_encoding": "exact_ieee_nearest_even_q12",
                "internal_rescale": "signed_floor", "state": "private_complete_prefix"}
@@ -225,6 +228,7 @@ def _inspect_fss(experiment):
     return {
         "schema": "pllm.fss.benchmark_contract.v1", "runtime_kind": "fss",
         "client_runtime": "compiled_fss_v1", "numeric": numeric, **pins,
+        **({"material_delivery": delivery} if delivery != "single" else {}),
         "snapshot_pins": source.snapshot_pins,
         "model_fingerprint": digest({"schema": "pllm.fss.numeric_source.v1", **pins, **numeric}),
         "source_contract_bytes_sha256": hashlib.sha256(source.contract_bytes).hexdigest(),
@@ -360,6 +364,7 @@ def inspect_fss_imported(loaded):
     from .fss_protocol import METADATA_LIMIT
     from .fss_tape import MAX_PACKET_BYTES, capacity_limits
     from .fss_transport import client_memory_bytes, price_transport, transport_capacity
+    from .fss_source import _material_delivery
     contract = json.loads(loaded.contract_bytes)
     capacity = transport_capacity(contract)
     packet_limit, _ = capacity_limits(capacity)
@@ -373,6 +378,7 @@ def inspect_fss_imported(loaded):
                 ("contract_digest", "contract"), ("program_digest", "program"),
                 ("source_digest", "source"), ("input_digest", "input_digest")))
             or pricing.get("numeric_profile") != contract["numeric_profile"]
+            or _material_delivery(pricing) != _material_delivery(contract)
             or pricing.get("initial_tokens") != contract["input_rows"]
             or pricing.get("selections") != contract["output_tokens"]
             or pricing.get("vocabulary") != contract["vocabulary"]):

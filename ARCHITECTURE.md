@@ -1038,6 +1038,12 @@ zero observed swap growth; its first whole-topology disk quote rejects before
 child launch. External-AAD tapes retain complete metadata authentication while
 reducing the source/tape/replay quote from 71.53 to 47.63 GB. Generated Decoder
 SDK controls consume more than 4,096 records and preserve final acceptance.
+The explicit `material_delivery="batch-v1"` coalesces at most 64 original records
+within a 1 MiB authenticated body. Both complete acknowledgements precede further
+issuance; bounded native queues and Python copies remain charged. A separate
+fresh-client generated pair preserves outputs and online/tape bytes with zero
+observed swap growth. Preparation falls 5.393 to 0.390 seconds and full request
+time 9.680 to 4.796 seconds; holder-online time remains separate and increases.
 Trained request acceptance, quality and matched performance remain
 open. These controls establish neither independent operators nor paper-system
 performance. Contract and examples:

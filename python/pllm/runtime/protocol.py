@@ -174,18 +174,39 @@ def envelope_from_json(data: bytes) -> ProtocolEnvelope:
     return unpack_envelope(msgpack.packb(value, use_bin_type=True))
 
 
-def encode_length_prefixed(frames: Iterable[bytes]) -> bytes:
+def _length_prefixed_limits(max_count, max_total_bytes):
+    for value in (max_count, max_total_bytes):
+        if value is not None and (type(value) is not int or value < 0):
+            raise ProtocolError("invalid length-prefixed bound")
+
+
+def encode_length_prefixed(frames: Iterable[bytes], *, max_count: int | None = None,
+                           max_total_bytes: int | None = None) -> bytes:
+    """Encode frames; optional bounds cover count and complete prefixed bytes."""
+    _length_prefixed_limits(max_count, max_total_bytes)
     out = bytearray()
-    for frame in frames:
+    for index, frame in enumerate(frames):
+        if max_count is not None and index >= max_count:
+            raise ProtocolError("length-prefixed frame count exceeds bound")
+        if max_total_bytes is not None and len(out) + FRAME_HEADER.size + len(frame) > max_total_bytes:
+            raise ProtocolError("length-prefixed bytes exceed bound")
         out.extend(FRAME_HEADER.pack(len(frame)))
         out.extend(frame)
     return bytes(out)
 
 
-def iter_length_prefixed(data: bytes) -> Iterator[bytes]:
+def iter_length_prefixed(data: bytes, *, max_count: int | None = None,
+                         max_total_bytes: int | None = None) -> Iterator[bytes]:
+    """Iterate bounded frames without allocating from an unchecked length."""
+    _length_prefixed_limits(max_count, max_total_bytes)
     offset = 0
     length = len(data)
+    count = 0
+    if max_total_bytes is not None and length > max_total_bytes:
+        raise ProtocolError("length-prefixed bytes exceed bound")
     while offset < length:
+        if max_count is not None and count >= max_count:
+            raise ProtocolError("length-prefixed frame count exceeds bound")
         if length - offset < FRAME_HEADER.size:
             raise ProtocolError("truncated frame header")
         (size,) = FRAME_HEADER.unpack_from(data, offset)
@@ -194,6 +215,7 @@ def iter_length_prefixed(data: bytes) -> Iterator[bytes]:
             raise ProtocolError("truncated frame")
         yield data[offset : offset + size]
         offset += size
+        count += 1
 
 
 def sse_event(value: dict[str, Any]) -> bytes:

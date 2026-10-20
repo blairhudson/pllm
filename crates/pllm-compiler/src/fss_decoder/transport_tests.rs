@@ -1,4 +1,7 @@
 use super::*;
+
+#[path = "transport_batch_tests.rs"]
+mod batching;
 use crate::fss_decoder::{Limits, Source, Tensor};
 use pllm_models::{DecoderPlan, DecoderWorkload, ModelOperator as Op};
 use serde_json::json;

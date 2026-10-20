@@ -56,6 +56,14 @@ def _capacity(record):
     return capacity
 
 
+def _material_delivery(record):
+    from .fss_protocol import material_delivery
+    try:
+        return material_delivery(record.get("material_delivery", "single"))
+    except ValueError as error:
+        raise FssSourceError("FuseFSS material delivery must be single or batch-v1") from error
+
+
 def _experiment(experiment):
     if not isinstance(experiment, Experiment):
         raise TypeError("FuseFSS source requires an Experiment")
@@ -71,6 +79,7 @@ def _experiment(experiment):
     if (method is None or method.component != "pllm/fusefss-source-decoder/v1"
             or profile not in _PROFILES):
         raise FssSourceError("FuseFSS source requires its explicit numeric profile")
+    _material_delivery(method.params)
     model = experiment.pipeline.model
     if model.kind not in {"huggingface", "safetensors"}:
         raise FssSourceError("FuseFSS requires public HF/Safetensors source")
@@ -129,6 +138,8 @@ def _contract(experiment, encoded, config, rows, outputs, sourcepin, tokenizerpi
     capacity = _capacity(record)
     if capacity != _capacity(experiment.pipeline.components["linear"].params):
         raise FssSourceError("FuseFSS native capacity differs from Experiment")
+    if _material_delivery(record) != _material_delivery(experiment.pipeline.components["linear"].params):
+        raise FssSourceError("FuseFSS native material delivery differs from Experiment")
     expanded = capacity == "decoder"
     shapes, layouts = record.get("source_shapes"), record.get("source_layouts")
     if (type(shapes) is not dict or not 1 <= len(shapes) <= 1024
@@ -343,6 +354,10 @@ class FrozenFssSource:
     @property
     def capacity(self):
         return _capacity(self.contract)
+
+    @property
+    def material_delivery(self):
+        return _material_delivery(self.contract)
 
     @property
     def snapshot_pins(self):

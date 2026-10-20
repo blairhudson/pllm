@@ -10,13 +10,21 @@ use super::{Driver, Error, MaterialVisitor, NativeOutput, Program, TokenShares, 
 use pllm_garble::{
     fusefss_backend::{
         composition::{Event, Plan},
-        wire::{ImportGuard, ENVELOPE_BYTES},
+        wire::{ImportGuard, MaterialPacket, ENVELOPE_BYTES},
         Budget, MAX_ALLOCATION_BYTES,
     },
     shared_rescale_reference::Context,
 };
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
+
+#[path = "transport_batch.rs"]
+mod batch;
+pub use batch::{
+    BatchResources, MaterialDelivery, MaterialRecord, CALLBACK_METADATA_BYTES_BOUND,
+    MATERIAL_BATCH_BODY_BYTES_BOUND, MATERIAL_BATCH_ENVELOPE_BYTES_BOUND,
+    MATERIAL_BATCH_RECORDS_BOUND, MATERIAL_BATCH_RECORD_OVERHEAD_BYTES,
+};
 
 // Includes native reply/delivery buffers, Python byte copies, and single-slot
 // authenticated queue/HTTP ownership at each end. Arbitrary callback retention
@@ -113,6 +121,16 @@ pub trait DealerTransport {
     /// Accept exactly this recipient's opaque material before returning. Both
     /// recipients must accept the current pc before the dealer advances.
     fn deliver(&mut self, request: MaterialRequest, packet: &[u8]) -> Result<(), Error>;
+    /// Explicit opt-in batch ACK. Every record must be accepted before success;
+    /// a partial/lost ACK burns the entire request, never a retryable suffix.
+    /// Oversized records still use deliver() with its original ACK contract.
+    fn deliver_batch(&mut self, _role: u8, _records: &[MaterialRecord<'_>]) -> Result<(), Error> {
+        Err(Error::Unsupported)
+    }
+    /// A consuming bridge may expose cancellation between bounded deliveries.
+    fn check_active(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
     /// No unsent/undelivered retained buffers may remain after success.
     fn finish(&mut self) -> Result<(), Error>;
     /// Erase retained copies, close queues and wake blocked consumers/producers.
@@ -141,6 +159,8 @@ pub trait WorkerTransport {
 /// Every prepare/execute recomputes this before any issuance/input acceptance.
 #[derive(Clone, Copy, Debug)]
 pub struct Admission {
+    delivery: MaterialDelivery,
+    batch: Option<BatchResources>,
     kernels: usize,
     requests: usize,
     frames: usize,
@@ -154,6 +174,12 @@ pub struct Admission {
     transcript: [u8; 32],
 }
 impl Admission {
+    pub fn material_delivery(&self) -> MaterialDelivery {
+        self.delivery
+    }
+    pub fn delivery_batch(&self) -> Option<&BatchResources> {
+        self.batch.as_ref()
+    }
     pub fn kernels(&self) -> usize {
         self.kernels
     }
@@ -211,6 +237,14 @@ fn hash_kernel(hash: &mut Sha256, k: Kernel) {
 }
 
 pub fn admit(program: &Program, context: Context) -> Result<Admission, Error> {
+    admit_with_delivery(program, context, MaterialDelivery::Single)
+}
+
+pub fn admit_with_delivery(
+    program: &Program,
+    context: Context,
+    delivery: MaterialDelivery,
+) -> Result<Admission, Error> {
     // Keep every exact (role,nonce) claim across the complete request. Indexed,
     // preallocated storage removes the quadratic scan; its complete capacity is
     // priced before kernel visitation and private input. No per-kernel reset.
@@ -300,11 +334,22 @@ pub fn admit(program: &Program, context: Context) -> Result<Admission, Error> {
     // generated-value staging alongside the final immutable cached owner.
     // Fixed native adapter/ledger/callback metadata slack, in addition to exact
     // guard, packet, frame, Plan, source/program and tensor-array reservations.
-    let combined = add(add(owners, scan.peak)?, 64 * 1024)?;
+    let mut combined = add(add(owners, scan.peak)?, 64 * 1024)?;
+    let batch = match delivery {
+        MaterialDelivery::Single => None,
+        MaterialDelivery::BatchV1 => {
+            let resources = BatchResources::new()?;
+            combined = add(combined, resources.native_reservation_bytes())?;
+            combined = add(combined, resources.python_overlap_bytes())?;
+            Some(resources)
+        }
+    };
     if combined > MAX_ALLOCATION_BYTES {
         return Err(Error::Resource);
     }
     Ok(Admission {
+        delivery,
+        batch,
         kernels: scan.kernels,
         requests,
         frames: scan.frames,
@@ -319,8 +364,9 @@ pub fn admit(program: &Program, context: Context) -> Result<Admission, Error> {
     })
 }
 
-struct Dealer<'t, T: DealerTransport> {
+struct Dealer<'t, 'b, T: DealerTransport> {
     transport: &'t mut T,
+    batches: Option<batch::Queues<'b>>,
     admission: Admission,
     kernels: usize,
     requests: usize,
@@ -328,22 +374,67 @@ struct Dealer<'t, T: DealerTransport> {
     cancelled: bool,
     complete: bool,
 }
-impl<T: DealerTransport> Dealer<'_, T> {
+impl<T: DealerTransport> Dealer<'_, '_, T> {
     fn abort(&mut self) {
         if !self.cancelled {
             self.cancelled = true;
+            if let Some(queues) = &mut self.batches {
+                queues.clear();
+            }
             self.transport.cancel();
         }
     }
+    fn before_pair(&mut self, bound: usize) -> Result<bool, Error> {
+        self.transport.check_active()?;
+        if bound > self.admission.packet_bytes || self.requests >= self.admission.requests {
+            return Err(Error::Resource);
+        }
+        let singleton = self.batches.is_none() || batch::Queues::singleton(bound)?;
+        if let Some(queues) = &mut self.batches {
+            if singleton || queues.needs_flush(bound)? {
+                queues.flush(self.transport)?;
+            }
+        }
+        Ok(singleton)
+    }
+    fn deliver_pair(
+        &mut self,
+        requests: [MaterialRequest; 2],
+        packets: [MaterialPacket<'_>; 2],
+        singleton: bool,
+    ) -> Result<(), Error> {
+        for (request, packet) in requests.iter().zip(&packets) {
+            if packet.as_bytes().len() > request.packet_bytes_bound {
+                return Err(Error::Resource);
+            }
+        }
+        if let Some(queues) = self.batches.as_mut().filter(|_| !singleton) {
+            queues.push_pair(requests, [packets[0].as_bytes(), packets[1].as_bytes()])?;
+            drop(packets);
+            if queues.full() {
+                queues.flush(self.transport)?;
+            }
+        } else {
+            for (request, packet) in requests.into_iter().zip(&packets) {
+                self.transport.deliver(request, packet.as_bytes())?;
+                self.transport.check_active()?;
+            }
+            if let Some(queues) = &mut self.batches {
+                queues.accept_singleton()?;
+            }
+        }
+        self.requests = add(self.requests, 1)?;
+        Ok(())
+    }
 }
-impl<T: DealerTransport> Drop for Dealer<'_, T> {
+impl<T: DealerTransport> Drop for Dealer<'_, '_, T> {
     fn drop(&mut self) {
         if !self.complete {
             self.abort();
         }
     }
 }
-impl<T: DealerTransport> MaterialVisitor for Dealer<'_, T> {
+impl<T: DealerTransport> MaterialVisitor for Dealer<'_, '_, T> {
     fn visit(&mut self, context: Context, plan: &Plan<'_>) -> Result<(), Error> {
         let k = Kernel {
             context,
@@ -354,27 +445,17 @@ impl<T: DealerTransport> MaterialVisitor for Dealer<'_, T> {
         self.kernels = add(self.kernels, 1)?;
         for pc in plan.material_steps() {
             let bound = plan.step_transport_resources(pc)?.packet_bytes_bound;
-            if bound > self.admission.packet_bytes {
-                return Err(Error::Resource);
-            }
+            let singleton = self.before_pair(bound)?;
             let [left, right] = plan.issue_step(pc, context)?;
             let left = left.export_packet()?;
             let right = right.export_packet()?;
-            for (role, packet) in [(0, &left), (1, &right)] {
-                if packet.as_bytes().len() > bound {
-                    return Err(Error::Resource);
-                }
-                self.transport.deliver(
-                    MaterialRequest {
-                        kernel: k,
-                        role,
-                        pc,
-                        packet_bytes_bound: bound,
-                    },
-                    packet.as_bytes(),
-                )?;
-            }
-            self.requests = add(self.requests, 1)?;
+            let requests = [0, 1].map(|role| MaterialRequest {
+                kernel: k,
+                role,
+                pc,
+                packet_bytes_bound: bound,
+            });
+            self.deliver_pair(requests, [left, right], singleton)?;
         }
         Ok(())
     }
@@ -391,15 +472,45 @@ pub fn prepare(
     context: Context,
     transport: &mut impl DealerTransport,
 ) -> Result<(), Error> {
-    let admission = match admit(program, context) {
+    prepare_with_delivery(program, context, MaterialDelivery::Single, transport)
+}
+
+pub fn prepare_with_delivery(
+    program: &Program,
+    context: Context,
+    delivery: MaterialDelivery,
+    transport: &mut impl DealerTransport,
+) -> Result<(), Error> {
+    let admission = match admit_with_delivery(program, context, delivery) {
         Ok(a) => a,
         Err(e) => {
             transport.cancel();
             return Err(e);
         }
     };
+    // This independent owner outlives Program::visit_material and every Plan
+    // Budget it creates. Only copied opaque packets borrow it.
+    let budget = if admission.batch.is_some() {
+        match Budget::new(BatchResources::packet_budget_bytes()) {
+            Ok(b) => Some(b),
+            Err(error) => {
+                transport.cancel();
+                return Err(error);
+            }
+        }
+    } else {
+        None
+    };
+    let batches = match budget.as_ref().map(batch::Queues::new).transpose() {
+        Ok(queues) => queues,
+        Err(error) => {
+            transport.cancel();
+            return Err(error);
+        }
+    };
     let mut dealer = Dealer {
         transport,
+        batches,
         admission,
         kernels: 0,
         requests: 0,
@@ -409,6 +520,12 @@ pub fn prepare(
     };
     let result = (|| {
         program.visit_material(context, &mut dealer)?;
+        if let Some(queues) = &mut dealer.batches {
+            queues.flush(dealer.transport)?;
+            if !queues.complete(admission.requests) {
+                return Err(Error::Context);
+            }
+        }
         if dealer.kernels != admission.kernels
             || dealer.requests != admission.requests
             || dealer.hash.clone().finalize().as_slice() != admission.transcript
@@ -571,7 +688,25 @@ pub fn execute(
     input: Zeroizing<Vec<u64>>,
     transport: &mut impl WorkerTransport,
 ) -> Result<TokenShares, Error> {
-    let admission = match admit(program, context) {
+    execute_with_delivery(
+        program,
+        role,
+        context,
+        input,
+        MaterialDelivery::Single,
+        transport,
+    )
+}
+
+pub fn execute_with_delivery(
+    program: &Program,
+    role: u8,
+    context: Context,
+    input: Zeroizing<Vec<u64>>,
+    delivery: MaterialDelivery,
+    transport: &mut impl WorkerTransport,
+) -> Result<TokenShares, Error> {
+    let admission = match admit_with_delivery(program, context, delivery) {
         Ok(a) => a,
         Err(e) => {
             transport.cancel();

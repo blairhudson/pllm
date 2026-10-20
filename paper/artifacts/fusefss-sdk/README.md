@@ -39,3 +39,36 @@ The subsequent Decoder/checked-range integration passes 1,025 native tests,
 816 installed Python checks and two three-child Decoder controls. Its pinned
 Qwen 4+1 source/numeric/work admission is distinct from these generated serving
 samples; no successful trained serving result is recorded here.
+
+## Matched material-delivery pair
+
+`material-batch-pair.json` retains one fresh client per choice under a shared
+private cohort. Both use the same generated 1+2 source and numeric contract.
+
+```sh
+uv run --no-sync pllm benchmark run \
+  --experiment examples/papers/fusefss_smoke.py:dense_single_smoke \
+  --experiment examples/papers/fusefss_smoke.py:dense_batch_smoke \
+  --factory --trust-python --backend native --prompt hello \
+  --max-output-tokens 2 --timeout 300 --capture-output-digest \
+  --isolate-candidates --output target/fusefss-material-batch-pair.json
+```
+
+| Measured owner/window | Single | Batch v1 |
+| --- | ---: | ---: |
+| Dealer preparation, seconds | 5.393 | 0.390 |
+| Delivery callbacks, seconds | 5.277 | 0.288 |
+| Maximum holder-native run, seconds | 3.565 | 3.656 |
+| Full request, seconds | 9.680 | 4.796 |
+| Aggregate cold-first CPU, seconds | 11.022 | 6.956 |
+| Covered all-link bodies, bytes | 21,618,568 | 19,909,435 |
+| Online bodies, bytes | 7,681,488 | 7,681,488 |
+| Each holder's tape reads/writes, bytes each | 6,189,173 | 6,189,173 |
+
+Output digests agree and both memory guards observe zero swap growth. Fresh
+material remains distinct per request. Full request time excludes topology startup;
+cold-first CPU includes it. The unchanged online protocol retains its own cost.
+This generated single pair establishes neither trained-checkpoint acceptance nor
+an independently confirmed performance effect. Installed batching checks pass 282
+tests; the factory-name follow-up passes 24 checks. Native decoder
+tests pass 107 cases; both batched three-process parity/rejection tests pass.

@@ -30,6 +30,17 @@ def dense_experiment(path=Path("target/fusefss-dense-smoke"), *, requests=8):
     return _experiment(path, requests=requests, dense=True)
 
 
+def dense_single_smoke(path=Path("target/fusefss-dense-delivery-smoke")):
+    """One bounded request; matched source/workload for material delivery tests."""
+    return dense_experiment(path, requests=1)
+
+
+def dense_batch_smoke(path=Path("target/fusefss-dense-delivery-smoke")):
+    """Same generated D13 source and two selections with batch-v1 delivery."""
+    return dense_single_smoke(path).with_params(
+        name="generated-fss-dense-batch", pipeline__linear__material_delivery="batch-v1")
+
+
 def _experiment(path, *, requests, dense):
     from tokenizers import Tokenizer
     from tokenizers.models import WordLevel

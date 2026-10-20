@@ -33,3 +33,9 @@ def qwen_checked_smoke():
         pipeline__linear__numeric_profile="fusefss.dense-rope-checked-ranges-ring50-q12.v1",
         deployment__root=".pllm/papers/fusefss-checked-ranges",
     )
+
+
+def qwen_checked_batch_smoke():
+    """Matched checked-range workload with explicit bounded material batching."""
+    return qwen_checked_smoke().with_params(
+        name="fusefss-checked-ranges-batch", pipeline__linear__material_delivery="batch-v1")

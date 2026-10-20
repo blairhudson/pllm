@@ -437,6 +437,8 @@ class FuseFssSourceDecoder(ProtocolMethod):
     The opt-in checked-range identity retains D13 arithmetic on accepted requests;
     native membership rejection is whole-request, after the complete schedule and
     final mask, without a failure location.
+    Material delivery is an independent transport choice; batch-v1 retains the
+    same material and numerical contract and requires native queue admission.
     """
 
     __slots__ = ()
@@ -444,6 +446,7 @@ class FuseFssSourceDecoder(ProtocolMethod):
     DENSE_ROPE_NUMERIC_PROFILE = "fusefss.dense-rope-ring50-q12.v1"
     DENSE_ROPE_CHECKED_NUMERIC_PROFILE = "fusefss.dense-rope-checked-ranges-ring50-q12.v1"
     NUMERIC_PROFILES = (GPT2_NUMERIC_PROFILE, DENSE_ROPE_NUMERIC_PROFILE, DENSE_ROPE_CHECKED_NUMERIC_PROFILE)
+    MATERIAL_DELIVERIES = ("single", "batch-v1")
     RING_BITS = 50
     FRACTIONAL_BITS = 12
     descriptor = ComponentDescriptor(
@@ -454,7 +457,8 @@ class FuseFssSourceDecoder(ProtocolMethod):
             "required": ["numeric_profile"], "properties": {
                  "numeric_profile": {"type": "string", "enum": list(NUMERIC_PROFILES)},
                  "weights": {"type": "string", "const": "public"},
-                 "capacity": {"type": "string", "enum": ["decoder"]}}},
+                 "capacity": {"type": "string", "enum": ["decoder"]},
+                 "material_delivery": {"type": "string", "enum": ["batch-v1"]}}},
         capabilities=("public-weight-source-decoder", "ring50-q12", "external-nearest-even",
                       "internal-signed-floor", "protected-full-prefix-recomputation",
                        "private-greedy-feedback", "final-only-token-ids", "opt-in-checked-range-whole-request-outcome"),
@@ -466,21 +470,27 @@ class FuseFssSourceDecoder(ProtocolMethod):
     def __init__(self, *, numeric_profile: Literal[
             "fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1",
             "fusefss.dense-rope-checked-ranges-ring50-q12.v1"],
-             weights: Literal["public"] = "public", capacity: Literal["capsule", "decoder"] = "capsule") -> None:
+             weights: Literal["public"] = "public", capacity: Literal["capsule", "decoder"] = "capsule",
+             material_delivery: Literal["single", "batch-v1"] = "single") -> None:
         if type(numeric_profile) is not str or numeric_profile not in self.NUMERIC_PROFILES:
             raise ConfigurationError("FuseFSS numeric_profile must explicitly select a complete-decoder identity")
         if type(weights) is not str or weights != "public":
             raise ConfigurationError("FuseFSS source decoder supports public weights only")
         if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
             raise ConfigurationError("FuseFSS capacity must be capsule or decoder")
+        if type(material_delivery) is not str or material_delivery not in self.MATERIAL_DELIVERIES:
+            raise ConfigurationError("FuseFSS material_delivery must be single or batch-v1")
         params = {"numeric_profile": numeric_profile}
         if capacity != "capsule":
             params["capacity"] = capacity
+        if material_delivery != "single":
+            params["material_delivery"] = material_delivery
         super().__init__(self.descriptor.component, params)
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
         return {"numeric_profile": self.params["numeric_profile"], "weights": "public",
-                "capacity": self.params.get("capacity", "capsule")}
+                "capacity": self.params.get("capacity", "capsule"),
+                "material_delivery": self.params.get("material_delivery", "single")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

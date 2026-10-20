@@ -458,6 +458,7 @@ class FuseFssSourceCpu(_TypedPipeline):
                                             "fusefss.dense-rope-ring50-q12.v1",
                                             "fusefss.dense-rope-checked-ranges-ring50-q12.v1"] | None = None,
                   capacity: Literal["capsule", "decoder"] = "capsule",
+                  material_delivery: Literal["single", "batch-v1"] = "single",
                  topology: RoleTopology = TrustedDealerTwoShareRoles(),
                  state: StateProtocol = FixedCountPrivatePrefix(),
                  kernels: KernelBackend = _DEFAULT_KERNELS) -> None:
@@ -465,12 +466,17 @@ class FuseFssSourceCpu(_TypedPipeline):
             raise ConfigurationError("FuseFSS numeric_profile belongs in linear or profile keywords, not both")
         if linear is not None and capacity != "capsule":
             raise ConfigurationError("FuseFSS capacity belongs in linear or profile keywords, not both")
+        if linear is not None and material_delivery != "single":
+            raise ConfigurationError("FuseFSS material_delivery belongs in linear or profile keywords, not both")
         if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
             raise ConfigurationError("FuseFSS capacity must be capsule or decoder")
+        if type(material_delivery) is not str or material_delivery not in FuseFssSourceDecoder.MATERIAL_DELIVERIES:
+            raise ConfigurationError("FuseFSS material_delivery must be single or batch-v1")
         if linear is None:
             if numeric_profile is None:
                 raise ConfigurationError("FuseFSS requires an explicit numeric_profile")
-            linear = FuseFssSourceDecoder(numeric_profile=numeric_profile, capacity=capacity)
+            linear = FuseFssSourceDecoder(numeric_profile=numeric_profile, capacity=capacity,
+                                         material_delivery=material_delivery)
         components = {
             "linear": _slot("linear", linear, ProtocolMethod, FuseFssSourceDecoder.descriptor.component),
             "topology": _slot("topology", topology, RoleTopology, TrustedDealerTwoShareRoles.descriptor.component),

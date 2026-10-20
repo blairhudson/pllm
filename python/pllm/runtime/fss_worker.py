@@ -36,7 +36,7 @@ from .delegated_worker import _Reservation, _PayloadResponse, _body
 from .replicated_worker import native_call
 from .fss_source import resolve_client_source, load_role_source
 from .fss_tape import MaterialTape
-from .fss_transport import price_transport, timeout_limit, transport_capacity
+from .fss_transport import price_transport, timeout_limit, transport_capacity, transport_material_delivery
 from .benchmark_delegated import FSS_PHASE_COUNTERS
 from .delegated_source import _DECODER_SOURCE_BYTES
 from . import fss_protocol as p
@@ -87,6 +87,7 @@ class _Attempt:
         self.loop = asyncio.get_running_loop()
         self.request_id = self.epochs = self.contract = None
         self.loaded = self.native = self.tape = self.admission = None
+        self.transport_resources = None
         self.disk_reservations = []  # at most source, tape and native guard owners
         self.source_disk_lease = None
         self.input = self.output = None
@@ -208,6 +209,7 @@ class _Attempt:
         self.clients.clear()
         self.mailbox = self.input = self.output = self.contract = None
         self.native = self.tape = self.loaded = self.job = self.timer = None
+        self.transport_resources = None
         if not errors:
             self.source_disk_lease = None
         self.phase = "closed"
@@ -232,6 +234,7 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
     maximum. The admission-time clamp cannot be refreshed by subsequent traffic.
     """
     configured_capacity = experiment.pipeline.components["linear"].params.get("capacity", "capsule")
+    configured_delivery = p.material_delivery(experiment.pipeline.components["linear"].params.get("material_delivery", "single"))
     if (type(ttl) not in (int, float) or not math.isfinite(ttl)
             or not 0 < ttl <= timeout_limit(configured_capacity)):
         raise ValueError("FuseFSS lifetime differs")
@@ -244,8 +247,13 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
         raise ValueError("installed native core lacks FssRoleRequest; rebuild required")
     source = resolve_client_source(experiment, expected_pins=source_pins)
     capacity = transport_capacity(source.contract)
-    if capacity != configured_capacity:
-        raise ValueError("FuseFSS native source capacity differs from configuration")
+    delivery = transport_material_delivery(source.contract)
+    if capacity != configured_capacity or delivery != configured_delivery:
+        raise ValueError("FuseFSS native source policy differs from configuration")
+    # One shared/refcounted owner covers admission, native callbacks, incoming
+    # bodies and exported ACKs. Batch Python overlap is additional to both the
+    # legacy role owner and native's separately checked queue reservation.
+    role_memory = p.ROLE_MEMORY + (p.MATERIAL_BATCH_PYTHON_BYTES if delivery == "batch-v1" else 0)
     configuration = experiment.configuration_digest()
     epoch = secrets.token_hex(32)
     active = None
@@ -372,7 +380,10 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 attempt.clients[peer] = httpx.AsyncClient(trust_env=False, follow_redirects=False,
                     limits=httpx.Limits(max_connections=1, max_keepalive_connections=1),
                     timeout=httpx.Timeout(max(.001, attempt.expires-time.monotonic()), connect=10, pool=10))
-            raw = p.pack(value, limit=p.FRAME_LIMIT)
+            limit = p.MATERIAL_BATCH_BYTES if action == "material-batch" else p.FRAME_LIMIT
+            raw = p.pack(value, limit=limit)
+            if action == "material-batch" and len(raw) - len(value["records"]) > p.MATERIAL_BATCH_ENVELOPE_BYTES:
+                raise ValueError("FuseFSS material batch envelope exceeds bound")
             counts = attempt.peer_bytes[peer]
             counts[f"{phase}_upload_bytes"] += len(raw)
             result_bytes = bytearray()
@@ -392,6 +403,8 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                             raise ValueError("FuseFSS peer ACK exceeds bound")
                         result_bytes.extend(block)
                     expected = {"accepted": True, "sequence": value["sequence"]}
+                    if action == "material-batch":
+                        expected["count"] = value["count"]
                     if (result.status_code != 200 or len(result_bytes) != int(lengths[0])
                             or p.pack(p.unpack(bytes(result_bytes), limit=p.CONTROL_LIMIT)) != p.pack(expected)):
                         raise ValueError("FuseFSS peer ACK differs")
@@ -414,6 +427,34 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             "recipient_epoch": attempt.epochs[peer], "sequence": sequence,
             "metadata": raw, "packet": packet}, "setup")
         attempt.sent[peer] += 1
+
+
+    def require_batch(attempt):
+        if (delivery != "batch-v1" or attempt.transport_resources is None
+                or attempt.transport_resources.material_delivery != "batch-v1"):
+            raise ValueError("FuseFSS material batch was not admitted")
+
+    async def deliver_batch(attempt, recipient, records):
+        require_batch(attempt)
+        if role != "dealer" or attempt.phase != "preparing":
+            raise ValueError("FuseFSS dealer is offline only")
+        recipient = _integer(recipient, 1)
+        p.material_batch_size(records)
+        peer, count = p.HOLDERS[recipient], len(records)
+        sequence = attempt.sent[peer]
+        if count > attempt.admission["primitive_requests_per_party"] - sequence:
+            raise ValueError("FuseFSS material batch count exceeds admission")
+        for raw, packet in records:
+            meta = callback_meta(attempt, raw, "material", recipient)
+            if len(packet) > meta["packet_bytes_bound"]:
+                raise ValueError("FuseFSS material size differs")
+        encoded = p.encode_material_batch(records)
+        await rpc(attempt, peer, "material-batch", {"sender": role, "sender_epoch": epoch,
+            "recipient_epoch": attempt.epochs[peer], "sequence": sequence, "count": count,
+            "records": encoded}, "setup")
+        if attempt.cancelled():
+            raise ValueError("FuseFSS material batch retired")
+        attempt.sent[peer] += count
 
     async def exchange(attempt, raw, frame):
         if role not in p.HOLDERS or attempt.phase != "running":
@@ -462,6 +503,18 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             started = time.perf_counter_ns()
             try:
                 return bridge(self.attempt, deliver, meta, packet)
+            finally:
+                self.attempt.delivery_callback_ns += time.perf_counter_ns() - started
+
+        def deliver_batch(self, role, records):
+            started = time.perf_counter_ns()
+            try:
+                return bridge(self.attempt, deliver_batch, role, records)
+            except BaseException as error:
+                self.attempt.retiring = True
+                self.attempt.signal()
+                p.clear_failure_frames(error)
+                raise
             finally:
                 self.attempt.delivery_callback_ns += time.perf_counter_ns() - started
 
@@ -620,7 +673,8 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             if attempt.cancelled():
                 raise ValueError("FuseFSS source admission retired")
             local_contract = source.runtime_contract(experiment, rows, outputs)
-            if local_contract != attempt.contract or transport_capacity(local_contract) != capacity:
+            if (local_contract != attempt.contract or transport_capacity(local_contract) != capacity
+                    or transport_material_delivery(local_contract) != delivery):
                 raise ValueError("FuseFSS source runtime contract differs")
             if capacity == "decoder":
                 source_disk = _integer(json.loads(local_contract).get("source_disk_bytes"), 2 * _DECODER_SOURCE_BYTES)
@@ -682,6 +736,9 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                     attempt.native = _native.FssRoleRequest(attempt.loaded.native_program,
                         attempt.contract, value["request_frame"], p.ROLES.index(role))
                     attempt.admission, resources = validate_admission(attempt, attempt.native.metadata())
+                    if resources.python_batch_reservation_bytes != role_memory - p.ROLE_MEMORY:
+                        raise ValueError("FuseFSS Python batch reservation differs")
+                    attempt.transport_resources = resources
                     if role in p.HOLDERS:
                         price = resources.tape
                         # Native role construction is metadata-only; the native
@@ -748,19 +805,48 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
         try:
             if attempt.cancelled():
                 raise ValueError("FuseFSS peer retired")
-            if action in {"material", "seal"}:
+            if action in {"material", "material-batch", "seal"}:
                 if sender != "dealer" or role not in p.HOLDERS or attempt.phase != "bound":
                     raise ValueError("FuseFSS material is offline only")
-                value = p.unpack(await _body(request, p.FRAME_LIMIT), limit=p.FRAME_LIMIT)
+                if action == "material-batch":
+                    require_batch(attempt)
+                limit = p.MATERIAL_BATCH_BYTES if action == "material-batch" else p.FRAME_LIMIT
+                raw = await _body(request, limit)
+                value = p.unpack(raw, limit=limit)
+                body_bytes, raw = len(raw), None
                 fields = {"sender", "sender_epoch", "recipient_epoch", "sequence"}
                 if action == "material":
                     fields |= {"metadata", "packet"}
+                elif action == "material-batch":
+                    fields |= {"records", "count"}
                 if (set(value) != fields or value["sender"] != sender
                         or value["sender_epoch"] != attempt.epochs[sender]
                         or value["recipient_epoch"] != epoch
                         or type(value["sequence"]) is not int or value["sequence"] != attempt.material_count):
                     raise ValueError("FuseFSS material epoch/sequence differs")
-                if action == "material":
+                if action == "material-batch":
+                    count = _integer(value["count"], p.MATERIAL_BATCH_RECORDS, minimum=1)
+                    if (count > attempt.admission["primitive_requests_per_party"] - attempt.material_count
+                            or type(value["records"]) is not bytes
+                            or body_bytes - len(value["records"]) > p.MATERIAL_BATCH_ENVELOPE_BYTES):
+                        raise ValueError("FuseFSS material batch envelope differs")
+                    records = p.decode_material_batch(value["records"], count)
+                    for metadata, packet in records:
+                        meta = callback_meta(attempt, metadata, "material", p.HOLDERS.index(role))
+                        if len(packet) > meta["packet_bytes_bound"]:
+                            raise ValueError("FuseFSS material packet differs")
+                    def append_batch():
+                        for metadata, packet in records:
+                            if attempt.cancelled():
+                                raise ValueError("FuseFSS material batch retired")
+                            attempt.tape.append(metadata, packet)
+                    # No executor job per record, and no partial-batch ACK. A
+                    # cancelled/failing append drains before the attempt retires.
+                    await native_call(append_batch, _cancel=attempt.signal)
+                    if attempt.cancelled():
+                        raise ValueError("FuseFSS material batch retired")
+                    attempt.material_count += count
+                elif action == "material":
                     meta = callback_meta(attempt, value["metadata"], "material", p.HOLDERS.index(role))
                     if (attempt.material_count >= attempt.admission["primitive_requests_per_party"]
                             or type(value["packet"]) is not bytes
@@ -795,7 +881,10 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 attempt.mail_empty.clear()
                 attempt.mail_available.set()
                 attempt.peer_received += 1
-            return reply({"accepted": True, "sequence": value["sequence"]}, reservation)
+            ack = {"accepted": True, "sequence": value["sequence"]}
+            if action == "material-batch":
+                ack["count"] = value["count"]
+            return reply(ack, reservation)
         finally:
             attempt.peer_busy = False
 
@@ -805,7 +894,7 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             if closing:
                 return Response(status_code=503)
             action = request.path_params.get("action")
-            is_peer = action in {"material", "seal", "peer"}
+            is_peer = action in {"material", "material-batch", "seal", "peer"}
             sender = next((r for r, key in incoming.items() if authorized(request, key)), None) if is_peer else None
             if (is_peer and sender is None) or (not is_peer and not authorized(request, api_key)):
                 return Response(status_code=401)
@@ -831,7 +920,7 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                                 and candidate.reservation is not None and candidate.phase != "closed"):
                             reservation = candidate.reservation
                         else:
-                            temporary = reservation = _Reservation(reserve_incremental_memory(p.ROLE_MEMORY))
+                            temporary = reservation = _Reservation(reserve_incremental_memory(role_memory))
                         lease = reservation.lease()
                         # Acquire the exported-body lease before cleanup can close
                         # its root; an existing handler lease cannot mint a new
@@ -846,12 +935,12 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                         return Response(status_code=409)
                     await admission_lock.acquire()
                     admission_owned = True
-                    reservation = _Reservation(reserve_incremental_memory(p.ROLE_MEMORY))
+                    reservation = _Reservation(reserve_incremental_memory(role_memory))
                 elif function in (manifest, metrics):
                     if active is not None and not active.retiring:
                         reservation = active.reservation
                     else:
-                        temporary = reservation = _Reservation(reserve_incremental_memory(p.ROLE_MEMORY))
+                        temporary = reservation = _Reservation(reserve_incremental_memory(role_memory))
                 else:
                     attempt = active
                     if (attempt is None or attempt.retiring

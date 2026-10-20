@@ -12,9 +12,10 @@
 use crate::fss_source::NativeProgram;
 use pllm_compiler::fss_decoder::{
     channel::{self, Manifest, Request},
+    sdk,
     transport::{
-        self, Admission, DealerTransport, Kernel, MaterialRequest, PeerRequest, Reply,
-        WorkerTransport,
+        self, Admission, DealerTransport, Kernel, MaterialRecord, MaterialRequest, PeerRequest,
+        Reply, WorkerTransport, CALLBACK_METADATA_BYTES_BOUND,
     },
     Error, Program,
 };
@@ -73,6 +74,20 @@ fn peer_meta(request: PeerRequest) -> Vec<u8> {
     canonical_bytes(
         &json!({"schema":"pllm.fss.callback.v1","kind":"peer","kernel":kernel(request.kernel),"role":request.role,"frame":request.frame,"frame_bytes":request.frame_bytes}),
     )
+}
+
+fn delivery_metadata(value: &mut Value, admission: &Admission) {
+    if let Some(batch) = admission.delivery_batch() {
+        value["material_delivery"] = json!(admission.material_delivery().name());
+        value["delivery_batch"] = json!({
+            "records_bound": batch.records_bound(),
+            "body_bytes_bound": batch.body_bytes_bound(),
+            "envelope_bytes_bound": batch.envelope_bytes_bound(),
+            "record_overhead_bytes": batch.record_overhead_bytes(),
+            "native_reservation_bytes": batch.native_reservation_bytes(),
+            "python_overlap_bytes": batch.python_overlap_bytes(),
+        });
+    }
 }
 
 #[derive(Default)]
@@ -153,13 +168,16 @@ impl Bridge {
     }
 }
 impl DealerTransport for Bridge {
+    fn check_active(&mut self) -> Result<(), Error> {
+        self.control.check()
+    }
     fn deliver(&mut self, request: MaterialRequest, packet: &[u8]) -> Result<(), Error> {
         self.control.check()?;
         if packet.is_empty() || packet.len() > request.packet_bytes_bound {
             return Err(Error::Resource);
         }
         let meta = material_meta(request);
-        if meta.len() > 1024 {
+        if meta.len() > CALLBACK_METADATA_BYTES_BOUND {
             return Err(Error::Resource);
         }
         Python::attach(|py| {
@@ -171,6 +189,55 @@ impl DealerTransport for Bridge {
                     "deliver",
                     (PyBytes::new(py, &meta), PyBytes::new(py, packet)),
                 )
+                .map_err(|_| Error::Context)?;
+            if !result.is_none() {
+                return Err(Error::Context);
+            }
+            self.control.check()
+        })
+    }
+    fn deliver_batch(&mut self, role: u8, records: &[MaterialRecord<'_>]) -> Result<(), Error> {
+        self.control.check()?;
+        if role > 1 || records.is_empty() || records.len() > transport::MATERIAL_BATCH_RECORDS_BOUND
+        {
+            return Err(Error::Resource);
+        }
+        Python::attach(|py| {
+            self.control.check()?;
+            let mut pairs = Vec::new();
+            pairs
+                .try_reserve_exact(records.len())
+                .map_err(|_| Error::Allocation)?;
+            let mut body_bytes = transport::MATERIAL_BATCH_ENVELOPE_BYTES_BOUND;
+            for record in records {
+                let request = record.request();
+                let packet = record.packet();
+                if request.role != role
+                    || packet.is_empty()
+                    || packet.len() > request.packet_bytes_bound
+                {
+                    return Err(Error::Context);
+                }
+                let meta = material_meta(request);
+                if meta.len() > CALLBACK_METADATA_BYTES_BOUND {
+                    return Err(Error::Resource);
+                }
+                body_bytes = body_bytes
+                    .checked_add(transport::MATERIAL_BATCH_RECORD_OVERHEAD_BYTES)
+                    .and_then(|n| n.checked_add(meta.len()))
+                    .and_then(|n| n.checked_add(packet.len()))
+                    .filter(|&n| n <= transport::MATERIAL_BATCH_BODY_BYTES_BOUND)
+                    .ok_or(Error::Resource)?;
+                pairs.push(
+                    PyTuple::new(py, [PyBytes::new(py, &meta), PyBytes::new(py, packet)])
+                        .map_err(|_| Error::Allocation)?,
+                );
+            }
+            let records = PyTuple::new(py, pairs).map_err(|_| Error::Allocation)?;
+            let result = self
+                .callback
+                .bind(py)
+                .call_method1("deliver_batch", (role, records))
                 .map_err(|_| Error::Context)?;
             if !result.is_none() {
                 return Err(Error::Context);
@@ -314,6 +381,7 @@ impl NativeRoleRequest {
         let program = program.extract::<PyRef<'_, NativeProgram>>()?;
         let contract = bytes(&contract, 1 << 20)?;
         let contract_digest = program.checked_contract_digest(contract)?;
+        let delivery = sdk::contract_material_delivery(contract).map_err(|_| invalid())?;
         let source = Arc::clone(program.borrow()?);
         let input_digest = program.input_digest;
         drop(program);
@@ -329,7 +397,8 @@ impl NativeRoleRequest {
             .detach(|| {
                 let manifest = Manifest::new(contract_digest, input_digest, &source)?;
                 let request = Request::parse(request, &manifest)?;
-                let admission = transport::admit(&source, request.context())?;
+                let admission =
+                    transport::admit_with_delivery(&source, request.context(), delivery)?;
                 Ok::<_, Error>(Owner {
                     program: source,
                     request,
@@ -363,7 +432,7 @@ impl NativeRoleRequest {
             let owner = owner.as_ref().ok_or_else(invalid)?;
             let a = owner.admission;
             let c = owner.channel;
-            let value = json!({"schema":"pllm.fss.role_admission.v1","role":owner.role,"context":context(owner.request.context()),
+            let mut value = json!({"schema":"pllm.fss.role_admission.v1","role":owner.role,"context":context(owner.request.context()),
                 "capacity":owner.program.capacity().name(),"guard_disk_bytes":a.guard_disk_bytes(),
                 "kernels":a.kernels(),"primitive_requests_per_party":a.primitive_requests_per_party(),"frames_per_party":a.frames_per_party(),
                 "largest_packet_bytes":a.largest_packet_bytes(),"cumulative_packet_bytes_per_party_bound":a.cumulative_packet_bytes_per_party_bound(),
@@ -371,6 +440,7 @@ impl NativeRoleRequest {
                 "peer_frame_bytes_bound":a.peer_frame_bytes_bound(),
                 "callback_metadata_bytes_bound":1024,"request_bytes":c.request_bytes,"input_frame_bytes":c.input_frame_bytes,"output_frame_bytes":c.output_frame_bytes,
                 "client_peak_bytes":c.client_peak_bytes,"worker_input_import_bytes":c.worker_input_import_bytes,"worker_output_export_bytes":c.worker_output_export_bytes});
+            delivery_metadata(&mut value, &a);
             Ok(PyBytes::new(py, &canonical_bytes(&value)))
         })();
         if result.is_err() {
@@ -412,17 +482,23 @@ impl NativeRoleRequest {
                 .detach(|| {
                     bridge.control.check()?;
                     if owner.role == 2 {
-                        transport::prepare(&owner.program, owner.request.context(), &mut bridge)?;
+                        transport::prepare_with_delivery(
+                            &owner.program,
+                            owner.request.context(),
+                            owner.admission.material_delivery(),
+                            &mut bridge,
+                        )?;
                         Ok(None)
                     } else {
                         let input = owner
                             .request
                             .take_input(owner.role, input.ok_or(Error::Context)?)?;
-                        let output = transport::execute(
+                        let output = transport::execute_with_delivery(
                             &owner.program,
                             owner.role,
                             owner.request.context(),
                             input,
+                            owner.admission.material_delivery(),
                             &mut bridge,
                         )?;
                         bridge.control.check()?;
@@ -484,7 +560,9 @@ fn fss_transport_admission<'py>(
 ) -> PyResult<Bound<'py, PyBytes>> {
     let [program, contract] = arguments(args, kwargs, ["program", "contract"])?;
     let program = program.extract::<PyRef<'_, NativeProgram>>()?;
-    let digest = program.checked_contract_digest(bytes(&contract, 1 << 20)?)?;
+    let contract = bytes(&contract, 1 << 20)?;
+    let digest = program.checked_contract_digest(contract)?;
+    let delivery = sdk::contract_material_delivery(contract).map_err(|_| invalid())?;
     let source = Arc::clone(program.borrow()?);
     let input_digest = program.input_digest;
     drop(program);
@@ -492,8 +570,8 @@ fn fss_transport_admission<'py>(
         let manifest=Manifest::new(digest,input_digest,&source)?;
         let pricing_context=pllm_garble::shared_rescale_reference::Context {
             plan:source.digest(),session:[1;32],operation:[2;32],first_tensor_index:0 };
-        let a=transport::admit(&source,pricing_context)?;let c=manifest.resources();
-        Ok::<_,Error>(json!({"schema":"pllm.fss.program_transport_admission.v1",
+        let a=transport::admit_with_delivery(&source,pricing_context,delivery)?;let c=manifest.resources();
+        let mut value=json!({"schema":"pllm.fss.program_transport_admission.v1",
             "capacity":source.capacity().name(),"guard_disk_bytes":a.guard_disk_bytes(),
             "scope":"program-pricing-not-request-admission","contract_digest":hex(digest),"program_digest":hex(source.digest()),
             "source_digest":hex(source.source_digest()),"input_digest":hex(input_digest),"numeric_profile":source.profile(),
@@ -504,7 +582,9 @@ fn fss_transport_admission<'py>(
             "peer_frame_bytes_bound":a.peer_frame_bytes_bound(),
             "callback_metadata_bytes_bound":1024,"request_bytes":c.request_bytes,"input_frame_bytes":c.input_frame_bytes,"output_frame_bytes":c.output_frame_bytes,
             "client_peak_bytes":c.client_peak_bytes,"worker_input_import_bytes":c.worker_input_import_bytes,"worker_output_export_bytes":c.worker_output_export_bytes,
-            "offline_tape_storage_cpu_and_http_charges":"caller-owned-additional"}))
+            "offline_tape_storage_cpu_and_http_charges":"caller-owned-additional"});
+        delivery_metadata(&mut value, &a);
+        Ok::<_,Error>(value)
     }).map_err(|_|invalid())?;
     Ok(PyBytes::new(py, &canonical_bytes(&value)))
 }

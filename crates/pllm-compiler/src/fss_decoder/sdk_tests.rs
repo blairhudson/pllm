@@ -1,6 +1,79 @@
 use super::*;
 
 #[test]
+fn material_delivery_is_checked_contract_policy_and_default_identities_stay_omitted() {
+    for capacity in [Capacity::Capsule, Capacity::Decoder] {
+        let config = dense();
+        let mut experiment = experiment(DENSE_ROPE_NUMERIC);
+        if capacity == Capacity::Decoder {
+            experiment["pipeline"]["components"]["linear"]["params"]["capacity"] = json!("decoder");
+        }
+        let single = contract(&experiment, &config, 3, 2).unwrap();
+        let admitted = preflight_source_with_capacity(
+            &canonical_bytes(&config),
+            3,
+            2,
+            DENSE_ROPE_NUMERIC,
+            capacity,
+        )
+        .unwrap();
+        let binding = SourceExecutionBinding::new(&admitted, 2).unwrap();
+        let single_digest = binding.checked_contract_digest(&single).unwrap();
+        assert_eq!(
+            contract_material_delivery(&single).unwrap(),
+            MaterialDelivery::Single
+        );
+        let single_value: Value = serde_json::from_slice(&single).unwrap();
+        assert!(single_value.get("material_delivery").is_none());
+
+        experiment["pipeline"]["components"]["linear"]["params"]["material_delivery"] =
+            json!("batch-v1");
+        let batched = contract(&experiment, &config, 3, 2).unwrap();
+        assert_eq!(
+            contract_material_delivery(&batched).unwrap(),
+            MaterialDelivery::BatchV1
+        );
+        assert_ne!(
+            binding.checked_contract_digest(&batched).unwrap(),
+            single_digest
+        );
+        let mut batch_value: Value = serde_json::from_slice(&batched).unwrap();
+        assert_eq!(batch_value["material_delivery"], "batch-v1");
+        for key in [
+            "plan",
+            "source_shapes",
+            "numeric_profile",
+            "source_q12_value_bytes",
+        ] {
+            assert_eq!(batch_value[key], single_value[key]);
+        }
+        // Default omission is canonical. Arbitrary or type-coerced selectors
+        // cannot enter either source-contract generation or checked binding.
+        for invalid in [
+            json!("single"),
+            json!("batch-v2"),
+            json!(true),
+            json!(1),
+            Value::Null,
+        ] {
+            experiment["pipeline"]["components"]["linear"]["params"]["material_delivery"] =
+                invalid.clone();
+            assert!(contract(&experiment, &config, 3, 2).is_err());
+            batch_value["material_delivery"] = invalid;
+            assert!(binding
+                .checked_contract_digest(&canonical_bytes(&batch_value))
+                .is_err());
+            assert!(contract_material_delivery(&canonical_bytes(&batch_value)).is_err());
+        }
+        experiment["pipeline"]["components"]["linear"]["params"]
+            .as_object_mut()
+            .unwrap()
+            .remove("material_delivery");
+        assert_eq!(contract(&experiment, &config, 3, 2).unwrap(), single);
+    }
+}
+
+#[test]
 fn explicit_source_capacity_is_bound_and_legacy_contract_has_no_capacity_fields() {
     let config = dense();
     let old = contract(&experiment(DENSE_ROPE_NUMERIC), &config, 3, 2).unwrap();

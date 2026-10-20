@@ -359,7 +359,7 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
     from .fss_tape import MAX_PACKET_BYTES, capacity_limits
     from .fss_transport import client_memory_bytes, price_transport, transport_capacity, MAX_GUARD_DISK_BYTES
     from . import delegated_source as source_io
-    from .fss_source import _FRAME
+    from .fss_source import _FRAME, _material_delivery
     from .tokenizer_admission import DECODER_METADATA_MEMORY_BYTES
     from pllm.configuration import Deployment, ExecutionBudget, Experiment
     _validate_workload(rows, outputs, 1, cache_bytes, cache_bound)
@@ -367,6 +367,7 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
         raise BenchmarkMemoryError("FuseFSS requires bounded fixed-count complete-prefix recomputation")
     try:
         capacity = pipeline.components["linear"].params.get("capacity", "capsule")
+        delivery = _material_delivery(pipeline.components["linear"].params)
         expanded = capacity == "decoder"
         total_packet_limit, tape_limit = capacity_limits(capacity)
         raw = json.dumps(config, separators=(",", ":"), allow_nan=False).encode()
@@ -385,7 +386,8 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
         if (contract["schema_version"] != "pllm.fss.sdk-contract.v1"
                 or contract["runtime_kind"] != "fss" or contract["ring_bits"] != 50
                 or contract["fractional_bits"] != 12 or contract["input_rows"] != rows
-                or contract["output_tokens"] != outputs or transport_capacity(contract) != capacity):
+                or contract["output_tokens"] != outputs or transport_capacity(contract) != capacity
+                or _material_delivery(contract) != delivery):
             raise ValueError("native metadata identity differs")
         source = contract["source_float32_bytes"]
         minimum = contract["admission"]["source_minimum_owner_bytes"]
@@ -405,11 +407,23 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
                 raise ValueError("native source storage admission differs")
         guard_disk = MAX_GUARD_DISK_BYTES if expanded else 0
         disk_scope = "capacity ceilings before native import"
+        python_batch, native_batch = 0, None
+        batch_scope = "conservative transport envelope before native import"
+        if delivery == "batch-v1":
+            from .fss_protocol import MATERIAL_BATCH_PYTHON_BYTES
+            python_batch = MATERIAL_BATCH_PYTHON_BYTES
         if transport_admission is not None:
             resources = price_transport(transport_admission, json.dumps(contract).encode())
             tape_limit, guard_disk = resources.tape.max_file_bytes, resources.guard_disk_bytes
             total_packet_limit = resources.tape.total_packet_bytes
             disk_scope = "native transport admission after import"
+            if delivery == "batch-v1":
+                # Shared transport admission validates the native bound/mode.
+                # Native packet/queue leases are already inside the fixed native
+                # kernel owner; Python callback/HTTP copies are a separate owner.
+                python_batch = resources.python_batch_reservation_bytes
+                native_batch = resources.native_batch_reservation_bytes
+                batch_scope = "shared transport price from imported native program"
     except (ValueError, TypeError, KeyError, AttributeError, OverflowError, ImportError) as error:
         raise BenchmarkMemoryError("FuseFSS source exceeds metadata-only native admission") from error
     metadata = 8 * (len(raw) + len(json.dumps(contract).encode()))
@@ -425,9 +439,15 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
                   "thread_stack_allowance": 8 * MiB}
     if expanded:
         role_parts["tokenizer_parse_copies"] = 4 * source_io._DECODER_TOKENIZER_BYTES
+    if delivery == "batch-v1":
+        role_parts["material_batch_python_overlap"] = python_batch
     client_work, role_work = sum(client_parts.values()), sum(role_parts.values())
     client_bound = client_memory_bytes(capacity)
-    if client_work > client_bound or role_work > ROLE_MEMORY:
+    # The authenticated worker reserves its existing role envelope plus the
+    # explicit batch Python overlap. Native's combined <=64MiB proof remains
+    # independent; this matches the outer Python lease rather than raising it.
+    role_bound = ROLE_MEMORY + python_batch
+    if client_work > client_bound or role_work > role_bound:
         raise BenchmarkMemoryError("FuseFSS conservative incremental owners exceed client/role memory caps")
     # Source metadata preflight precedes role import/execution. Price its shared
     # transient JSON/reverse-index reservation as a separate peak, not another
@@ -455,10 +475,14 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
             "synthetic_nonzero_pins_used": source_pins is None, "metadata_only": True,
             "numeric_admission": "not_performed", "complete_program_resources": None,
             "transport_admission": transport_admission, "disk_price_scope": disk_scope,
+            **({"material_delivery": delivery, "material_batch_memory_scope": batch_scope,
+                "material_batch_python_reservation_bytes": python_batch,
+                "material_batch_native_reservation_bytes": native_batch,
+                "material_batch_native_in_kernel_owner": True} if delivery == "batch-v1" else {}),
             "native_admission": contract["admission"], "serving_qualified": False},
         "incremental_owner_bounds": {"client": max(client_bound, metadata_preflight),
-            "per_role": max(ROLE_MEMORY, metadata_preflight), "client_execution": client_bound,
-            "per_role_execution": ROLE_MEMORY, "source_metadata_preflight": metadata_preflight},
+            "per_role": max(role_bound, metadata_preflight), "client_execution": client_bound,
+            "per_role_execution": role_bound, "source_metadata_preflight": metadata_preflight},
         "allocation_owners": {"client": client_parts, "each_role": role_parts,
             "source_metadata_preflight_bytes_per_process": metadata_preflight,
             "client_sdk_supervisor_dashboard_processes": 3, "relay_workspace_bytes": 32 * MiB},

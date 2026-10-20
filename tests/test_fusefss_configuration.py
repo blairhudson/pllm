@@ -39,7 +39,7 @@ def test_explicit_numeric_choice_compact_params_discovery_and_immutable_replay(n
     assert method.to_spec() == {"component": "pllm/fusefss-source-decoder/v1",
                                 "params": {"numeric_profile": numeric_profile}}
     assert method.get_params() == {"numeric_profile": numeric_profile, "weights": "public",
-                                   "capacity": "capsule"}
+                                   "capacity": "capsule", "material_delivery": "single"}
     assert method == FuseFssSourceDecoder(numeric_profile=numeric_profile, weights="public")
     for cls, instance, category in (
         (FuseFssSourceDecoder, method, "pllm/protocol-method"),

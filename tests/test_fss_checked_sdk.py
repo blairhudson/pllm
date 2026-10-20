@@ -61,7 +61,9 @@ def checked_experiment(path):
 
 
 @pytest.mark.slow
-def test_checked_feedback_rejects_all_tokens_and_fresh_request_recovers(tmp_path, monkeypatch):
+@pytest.mark.parametrize("material_delivery", ["single", "batch-v1"])
+def test_checked_feedback_rejects_all_tokens_and_fresh_request_recovers(
+        tmp_path, monkeypatch, material_delivery):
     captured, receipts = [], []
     original = fss_transport._receipt
 
@@ -73,7 +75,10 @@ def test_checked_feedback_rejects_all_tokens_and_fresh_request_recovers(tmp_path
         return result
 
     monkeypatch.setattr(fss_transport, "_receipt", observe)
-    with OpenAI(experiment=checked_experiment(tmp_path), timeout=300) as client:
+    experiment = checked_experiment(tmp_path)
+    if material_delivery != "single":
+        experiment = experiment.with_params(pipeline__linear__material_delivery=material_delivery)
+    with OpenAI(experiment=experiment, timeout=300) as client:
         topology = client._owned_topology
         client._core._result_hook = captured.append
         # Complete body projections are zero, leaving the original embedding.

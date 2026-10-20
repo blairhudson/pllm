@@ -109,7 +109,11 @@ rejects before child launch. External-AAD tape storage reduces the quote to
 47.63 GB without removing authenticated metadata, material or replay claims.
 Generated Decoder tests cover this format through actual role processes.
 A separate small serial-HTTP benchmark attributes 97.82% of dealer preparation
-to delivery callbacks; bounded delivery batching is the next execution-cost gate.
+to delivery callbacks. Explicit bounded delivery batching now preserves original
+one-use records, complete acknowledgements and numeric identity through ordinary
+SDK execution. A fresh-client generated pair lowers preparation from 5.393 to
+0.390 seconds with matching outputs, tape bytes and online bodies. This remains
+separate from trained-Qwen execution and independent performance confirmation.
 Launch uses bounded temporary source qualification, fresh exact
 topology pricing and independently checked worker imports. Qualification cost,
 all source/tape/replay disk, cumulative material and execution work stay charged.

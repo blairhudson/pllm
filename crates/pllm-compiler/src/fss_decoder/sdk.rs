@@ -3,7 +3,7 @@
 //! No checkpoint values are read here. Pins bind caller-verified artifacts;
 //! numeric domains, range proofs, fresh material, live owners and complete work
 //! admission remain the responsibility of Source/Program and the role runtime.
-use super::{Capacity, Limits, MAX_NODES, MAX_VALUES};
+use super::{transport::MaterialDelivery, Capacity, Limits, MAX_NODES, MAX_VALUES};
 use crate::{ExperimentDeployment, ExperimentDocument, ExperimentPipeline};
 use pllm_models::{
     DecoderExpansionBudget, DecoderPlan, DecoderWorkload, ModelOperation, ModelOperator as Op,
@@ -315,6 +315,40 @@ fn capacity(document: &ExperimentDocument) -> Result<Capacity, String> {
     }
 }
 
+fn delivery_field(value: Option<&Value>) -> Result<MaterialDelivery, String> {
+    match value {
+        None => Ok(MaterialDelivery::Single),
+        Some(Value::String(s)) if s == "batch-v1" => Ok(MaterialDelivery::BatchV1),
+        _ => Err(reject(
+            "material_delivery must be omitted for single or explicitly batch-v1",
+        )),
+    }
+}
+
+fn material_delivery(document: &ExperimentDocument) -> Result<MaterialDelivery, String> {
+    delivery_field(
+        document
+            .pipeline
+            .components
+            .get("linear")
+            .and_then(|c| c.params.get("material_delivery")),
+    )
+}
+
+/// Read the validated transport selector after checked_contract_digest has
+/// authenticated the complete typed source contract. This bounded selector
+/// reader alone does NOT certify a source/execution binding or caller pin.
+pub fn contract_material_delivery(contract: &[u8]) -> Result<MaterialDelivery, String> {
+    if contract.is_empty() || contract.len() > MAX_CONTRACT_BYTES {
+        return Err(reject("contract byte bound"));
+    }
+    let value = bounded_json_value_with_capacity(contract, Capacity::Decoder)?;
+    let object = value
+        .as_object()
+        .ok_or_else(|| reject("contract must be an object"))?;
+    delivery_field(object.get("material_delivery"))
+}
+
 pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     // Generic checks only: never route this composition through client-KV or
     // masked/int8 composition validation. The top-level resolver selects us.
@@ -322,6 +356,7 @@ pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     crate::validate_experiment_model(&document.pipeline.model)?;
     let chosen = profile(document)?;
     let capacity = capacity(document)?;
+    let delivery = material_delivery(document)?;
     let limits = Limits::default();
     sequence(
         usize::try_from(document.budget.max_input_tokens)
@@ -342,6 +377,9 @@ pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     let mut linear = json!({"numeric_profile": chosen});
     if capacity == Capacity::Decoder {
         linear["capacity"] = json!("decoder");
+    }
+    if delivery == MaterialDelivery::BatchV1 {
+        linear["material_delivery"] = json!(delivery.name());
     }
     let expected = [
         ("linear", PROTOCOL, linear),
@@ -1326,6 +1364,7 @@ pub fn preflight_source_with_capacity(
     // placeholders only: never emitted, authenticated or accepted as pins.
     let sizing = ContractView {
         admitted: &admitted,
+        material_delivery: MaterialDelivery::Single,
         rows,
         outputs,
         configuration: "0".repeat(64),
@@ -1461,6 +1500,7 @@ pub struct SourceExecutionBinding {
 
 struct ContractView<'a> {
     admitted: &'a SourcePreflight,
+    material_delivery: MaterialDelivery,
     configuration: String,
     composition: String,
     sourcepin: &'a str,
@@ -1486,6 +1526,9 @@ impl Serialize for ContractView<'_> {
         entry!("tokenizer", self.tokenizerpin);
         entry!("weights", "public");
         entry!("numeric_profile", a.numeric_profile);
+        if self.material_delivery == MaterialDelivery::BatchV1 {
+            entry!("material_delivery", self.material_delivery.name());
+        }
         if a.capacity == Capacity::Decoder {
             entry!("capacity", a.capacity);
             entry!("source_disk_bytes", a.source_disk_bytes);
@@ -1578,6 +1621,10 @@ impl SourceExecutionBinding {
         let object = record
             .as_object_mut()
             .ok_or_else(|| reject("contract must be an object"))?;
+        // Transport selection is checked policy, not a tensor-derived numeric
+        // claim. It is bound by the complete returned contract digest (and hence
+        // Manifest/Request), while the source execution identity stays unchanged.
+        delivery_field(object.remove("material_delivery").as_ref())?;
         for (key, expected) in fixed.as_object().unwrap() {
             if object.remove(key).as_ref() != Some(expected) {
                 return Err(reject("contract schema/policy differs"));
@@ -1663,6 +1710,7 @@ pub fn source_contract(
     // Do not let a small actual query conceal an unsupported saved envelope.
     let profile = profile(&document)?;
     let capacity = capacity(&document)?;
+    let delivery = material_delivery(&document)?;
     let envelope = preflight_source_with_capacity(
         config,
         document.budget.max_input_tokens as usize,
@@ -1683,6 +1731,7 @@ pub fn source_contract(
     crate::resolve_experiment(experiment)?;
     let view = ContractView {
         admitted: &admitted,
+        material_delivery: delivery,
         rows,
         outputs,
         configuration: crate::configuration_digest_bytes(experiment).to_string(),

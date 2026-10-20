@@ -69,6 +69,96 @@ def request(program, role):
     return client, native.FssRoleRequest(program, contract, client.request_bytes(), role)
 
 
+def delivery_contract(program, delivery):
+    source, contract = program
+    if delivery == "single":
+        return source, contract
+    # Transport policy is not a tensor-derived claim; native validates the full
+    # typed contract and binds the new bytes into Manifest/Request. SDK generation
+    # of the experiment/composition identity is covered by native SDK tests.
+    value = json.loads(contract)
+    value["material_delivery"] = "batch-v1"
+    return source, canonical(value)
+
+
+def test_batched_admission_prices_all_overlap_and_request_binds_selector(program):
+    source, single_contract = program
+    _, batch_contract = delivery_contract(program, "batch-v1")
+    single = json.loads(native.fss_transport_admission(source, single_contract))
+    batched = json.loads(native.fss_transport_admission(source, batch_contract))
+    assert "material_delivery" not in single and "delivery_batch" not in single
+    assert batched["material_delivery"] == "batch-v1"
+    extra = batched["delivery_batch"]
+    assert extra["records_bound"] == 64
+    assert extra["body_bytes_bound"] == 1 << 20
+    assert extra["envelope_bytes_bound"] == 1024
+    assert extra["record_overhead_bytes"] == 8
+    assert batched["combined_reservation_bytes"] == (single["combined_reservation_bytes"]
+        + extra["native_reservation_bytes"] + extra["python_overlap_bytes"])
+    assert batched["combined_reservation_bytes"] <= 64 << 20
+    for field in ("kernels", "primitive_requests_per_party", "cumulative_packet_bytes_per_party_bound",
+                  "guard_capacity", "frames_per_party"):
+        assert batched[field] == single[field]
+    for chosen, other in ((single_contract, batch_contract), (batch_contract, single_contract)):
+        manifest = source.manifest(chosen)
+        client = native.FssClientRequest(chosen, bytes([33]) * 32, (manifest,) * 3, [0])
+        try:
+            with pytest.raises(Exception):
+                native.FssRoleRequest(source, other, client.request_bytes(), 2)
+        finally:
+            client.close()
+
+
+@pytest.mark.parametrize("failure", ["partial", "lost", "non-none"])
+def test_batched_delivery_failure_burns_complete_request_without_suffix_retry(program, failure):
+    client, role = request(delivery_contract(program, "batch-v1"), 2)
+
+    class Transport:
+        cancellations = 0
+        calls = 0
+        accepted = [0, 0]
+
+        def deliver(self, meta, packet):
+            pytest.fail("small fixture must enter explicit batch callback")
+
+        def deliver_batch(self, recipient, records):
+            assert type(recipient) is int and recipient in (0, 1)
+            assert type(records) is tuple and 1 < len(records) <= 64
+            self.calls += 1
+            for index, record in enumerate(records):
+                assert type(record) is tuple and len(record) == 2
+                meta, packet = record
+                value = parse_meta(meta, "material", recipient)
+                assert type(packet) is bytes and len(packet) <= value["packet_bytes_bound"]
+                self.accepted[recipient] += 1
+                if failure == "partial" and index == 0:
+                    raise RuntimeError("PRIVATE-BATCH-PREFIX-DETAIL")
+            if failure == "lost":
+                raise RuntimeError("PRIVATE-BATCH-LOST-ACK-DETAIL")
+            return False  # Anything except None is not an acknowledgement.
+
+        def finish(self):
+            pytest.fail("failed batch cannot seal")
+
+        def cancel(self):
+            self.cancellations += 1
+            self.accepted = [0, 0]
+
+    callback = Transport()
+    try:
+        with pytest.raises(Exception) as error:
+            role.run(None, callback)
+        assert "PRIVATE-BATCH" not in str(error.value)
+        assert callback.calls == callback.cancellations == 1
+        assert callback.accepted == [0, 0]
+        with pytest.raises(Exception):
+            role.run(None, callback)
+        assert callback.calls == callback.cancellations == 1
+    finally:
+        role.close()
+        client.close()
+
+
 def parse_meta(data, kind, role):
     assert type(data) is bytes and len(data) <= 1024
     value = json.loads(data)
@@ -210,8 +300,9 @@ def test_callback_failure_is_sanitized_and_cancellation_once(program):
     client.close()
 
 
-def test_concurrent_cancel_wakes_callback_without_exclusive_pyclass_borrow(program):
-    client, role = request(program, 2)
+@pytest.mark.parametrize("material_delivery", ["single", "batch-v1"])
+def test_concurrent_cancel_wakes_callback_without_exclusive_pyclass_borrow(program, material_delivery):
+    client, role = request(delivery_contract(program, material_delivery), 2)
 
     class Transport:
         entered = threading.Event()
@@ -225,6 +316,9 @@ def test_concurrent_cancel_wakes_callback_without_exclusive_pyclass_borrow(progr
             self.entered.set()
             assert self.cancelled.wait(30), "cancel must wake the bounded callback"
             self.callback_returned.set()
+
+        def deliver_batch(self, role, records):
+            self.deliver(*records[0])
 
         def finish(self):
             pytest.fail("cancelled request cannot finish")
@@ -287,8 +381,9 @@ def test_holder_reply_type_corruption_or_bound_failure_burns(program, returned):
     client.close()
 
 
-def test_generated_native_offline_dealer_then_two_holders_and_client_final_only(program, tmp_path):
-    program, contract = program
+@pytest.mark.parametrize("material_delivery", ["single", "batch-v1"])
+def test_generated_native_offline_dealer_then_two_holders_and_client_final_only(program, tmp_path, material_delivery):
+    program, contract = delivery_contract(program, material_delivery)
     manifest = program.manifest(contract)
     client = native.FssClientRequest(contract, bytes([9]) * 32, (manifest,) * 3, [0])
     roles = [native.FssRoleRequest(program, contract, client.request_bytes(), role) for role in range(3)]
@@ -363,11 +458,27 @@ def test_generated_native_offline_dealer_then_two_holders_and_client_final_only(
         raise RuntimeError("bounded transport cancelled")
 
     class Dealer:
+        batches = 0
+        cross_plan = False
+
         def deliver(self, meta, packet):
             role = json.loads(meta)["role"]
             value = parse_meta(meta, "material", role)
             assert role in (0, 1) and len(packet) <= value["packet_bytes_bound"]
             tapes[role].deliver(meta, packet)
+
+        def deliver_batch(self, role, records):
+            assert material_delivery == "batch-v1"
+            assert type(role) is int and role in (0, 1)
+            assert type(records) is tuple and 1 <= len(records) <= 64
+            assert 1024 + sum(8 + len(meta) + len(packet) for meta, packet in records) <= 1 << 20
+            self.batches += 1
+            self.cross_plan |= (json.loads(records[0][0])["kernel"]["ordinal"]
+                                != json.loads(records[-1][0])["kernel"]["ordinal"])
+            for record in records:
+                assert type(record) is tuple and len(record) == 2
+                assert json.loads(record[0])["role"] == role
+                self.deliver(*record)
 
         def finish(self):
             for tape in tapes:
@@ -404,7 +515,11 @@ def test_generated_native_offline_dealer_then_two_holders_and_client_final_only(
     try:
         # Strict offline barrier: dealer completes and BOTH recipient tapes are
         # sealed/acknowledged before any holder input or peer opening is sent.
-        assert roles[2].run(None, Dealer()) is None
+        dealer = Dealer()
+        assert roles[2].run(None, dealer) is None
+        assert (dealer.batches > 0) == (material_delivery == "batch-v1")
+        if material_delivery == "batch-v1":
+            assert dealer.cross_plan
         assert all(tape.sealed for tape in tapes)
         inputs = [client.take_input(0), client.take_input(1)]
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:

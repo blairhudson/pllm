@@ -74,6 +74,17 @@ Pricing is `min(cumulative_packet_bound, record_count * packet_bound) + 40 * rec
 metadata input and live-buffer bounds remain charged. Capsule and direct tape
 callers retain inline metadata and the original v1 format by default.
 
+The explicit `material_delivery="batch-v1"` choice coalesces up to 64 original
+material records per authenticated HTTP body, bounded to 1 MiB including framing.
+It reuses shared length-prefixed framing, native erasing packet owners and the
+existing sequential tape append. Both holders acknowledge a complete batch before
+the dealer advances; partial acceptance, lost acknowledgement or cancellation
+retires the whole attempt. Larger admitted records use the existing singleton
+path after queued records drain. Native queues and Python copies receive separate
+charges under the existing aggregate ceiling. The checked SDK contract binds the
+choice; numeric Program/source-body identities and default single delivery remain
+unchanged. Batching does not merge one-use records or online peer exchanges.
+
 `capacity="decoder"` streams Q12 coefficients and row statistics into shared-core
 immutable files. Public contractions reuse `pllm_core::streamed_matrix`; the
 complete product still precedes the original FuseFSS floor. Complete vocabulary
@@ -116,8 +127,21 @@ peer frames per holder. Dealer preparation takes 5.396 seconds, including 5.279
 seconds in delivery callbacks (97.82%). Maximum holder-native execution takes
 3.683 seconds. The original ordinary report is
 [`dense-phase-single.json`](../../paper/artifacts/fusefss-sdk/dense-phase-single.json).
-This identifies fixed callback cost in that small serial-HTTP case; it supplies
-neither trained-Qwen timing nor a measured batching improvement.
+Delivery callbacks include HTTP, receiver append and scheduling. This small
+serial-HTTP sample supplies neither trained-Qwen timing nor a measured batching
+improvement.
+
+A subsequent fresh-client single/batch pair uses the same generated source,
+numeric contract, private cohort and 1+2 workload. Dealer preparation falls from
+5.393 to 0.390 seconds, delivery callbacks from 5.277 to 0.288 seconds, and full
+request time from 9.680 to 4.796 seconds. Output digests agree; online bodies stay
+7,681,488 bytes and each holder reads/writes the same 6,189,173 tape bytes. Covered
+all-link bodies fall from 21,618,568 to 19,909,435 bytes through reduced delivery
+envelopes and acknowledgements. Aggregate cold-first CPU falls from 11.022 to
+6.956 seconds; maximum holder-native time rises from 3.565 to 3.656 seconds.
+Both samples observe zero swap growth. This one-pair generated screen is separate
+from trained-Qwen execution and independent confirmation. The ordinary report and
+exact factories are linked from the [benchmark README](../../paper/artifacts/fusefss-sdk/README.md).
 
 Decoder launch first admits a bounded source-qualification phase. One temporary
 native owner supplies actual program and transport prices, then retires before
