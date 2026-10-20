@@ -12,6 +12,14 @@ pub(super) struct Key {
     inner: VectorComparison,
 }
 impl Key {
+    pub(super) fn write_material(&self, out: &mut Vec<u8>) {
+        self.inner.write_material(out);
+    }
+    pub(super) fn read_material(bytes: &[u8], bits: u8, budget: &Budget) -> Result<Self, Error> {
+        Ok(Self {
+            inner: VectorComparison::read_material(bytes, bits, bits, budget)?,
+        })
+    }
     pub(super) fn logical_bytes(bits: u8) -> usize {
         32 + 34 * usize::from(bits)
     }

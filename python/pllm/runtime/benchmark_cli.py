@@ -205,9 +205,11 @@ def build_loopback_report(
     )
 
     from .dashboard import _sampling_choice, _validate_output_digest_capture
+    from .benchmark_delegated import fss_body_accounting
 
     capture_output_digest = _validate_output_digest_capture(capture_output_digest)
     sampling = _sampling_choice(temperature)
+    runtime_kind = runtime_contract.get("runtime_kind") if runtime_contract is not None else None
     warmup_runs = [
         _report_record(run, capture_output_digest=capture_output_digest) for run in warmup_runs
     ]
@@ -242,15 +244,16 @@ def build_loopback_report(
             and record.get("durations", {}).get("tokens_per_second") is None
             and record.get("durations", {}).get("generation_seconds") is None
             for record in all_runs)
-    if runtime_contract is not None and runtime_contract.get("runtime_kind") == "replicated":
+    if runtime_kind in {"replicated", "fss"}:
         checks["fixed_count_final_ids_delivery"] = all(
             record.get("measurement", {}).get("output_delivery") == "buffered_final_ids"
             and record.get("tokens", {}).get("output_tokens") == max_output_tokens
             and record.get("durations", {}).get("tokens_per_second") is None
             and record.get("durations", {}).get("generation_seconds") is None
             for record in all_runs)
-        checks["three_worker_bodies_tracked"] = all(
-            replicated_body_accounting(record)["tracked_body_counter_set_present"]
+        buffered_account = fss_body_accounting if runtime_kind == "fss" else replicated_body_accounting
+        checks["three_role_bodies_tracked" if runtime_kind == "fss" else "three_worker_bodies_tracked"] = all(
+            buffered_account(record)["tracked_body_counter_set_present"]
             for record in all_runs)
     if roles == ("client",):
         checks["no_provider_stage_traffic"] = all(
@@ -279,6 +282,8 @@ def build_loopback_report(
         if set(roles) == {"client", "worker_a", "worker_b"}
         else replicated_body_accounting
         if set(roles) == {"client", "worker_a", "worker_b", "worker_c"}
+        else fss_body_accounting
+        if set(roles) == {"client", "worker_a", "worker_b", "dealer"}
         else prepared_body_accounting
         if set(roles) == {"client", "preparation", "inference"}
         else private_boundary_body_accounting
@@ -362,7 +367,8 @@ def build_loopback_report(
                            if {"boundary_a", "boundary_b"} <= set(roles)
                            else "loopback offset workers share one operator and host"),
             }
-            if (set(roles) in ({"client", "worker_a", "worker_b"}, {"client", "worker_a", "worker_b", "worker_c"})
+            if (set(roles) in ({"client", "worker_a", "worker_b"}, {"client", "worker_a", "worker_b", "worker_c"},
+                              {"client", "worker_a", "worker_b", "dealer"})
                 or {"boundary_a", "boundary_b"} <= set(roles))
             else None
         ),
@@ -429,7 +435,8 @@ def build_loopback_report(
                 "warmups": [account(run) for run in warmup_runs],
                 "runs": [account(run) for run in runs],
             }
-            if set(roles) in ({"client", "worker_a", "worker_b"}, {"client", "worker_a", "worker_b", "worker_c"})
+            if set(roles) in ({"client", "worker_a", "worker_b"}, {"client", "worker_a", "worker_b", "worker_c"},
+                              {"client", "worker_a", "worker_b", "dealer"})
             else None
         ),
         "limitations": [
@@ -449,8 +456,21 @@ def build_loopback_report(
         report["privacy_admission"]["reason"] = "loopback workers share one operator and host"
         report["limitations"].append(
             "Final-only token disclosure buffers all output; TTFT measures final disclosure and emission/decode TPS is unsupported."
-            if runtime_contract["runtime_kind"] == "replicated" else
+            if runtime_kind in {"replicated", "fss"} else
             "Request-end verification buffers all output; TTFT measures first accepted text and emission/decode TPS is unsupported.")
+    if runtime_kind == "fss":
+        report["summary"]["median_final_disclosure_seconds"] = report["summary"]["median_ttft_seconds"]
+        report["summary"]["median_ttft_seconds"] = None
+        report["summary"]["median_online_seconds"] = None
+        report["configuration"]["preparation_roles"] = ["dealer"]
+        for record in all_runs:
+            durations = record["durations"] = dict(record["durations"])
+            durations["final_disclosure_seconds"] = durations["ttft_seconds"]
+            durations["ttft_seconds"] = durations["online_seconds"] = None
+            record["measurement"] = dict(record["measurement"],
+                ttft_scope="sdk_call_to_final_disclosure_including_preprocessing")
+        report["limitations"].append(
+            "FuseFSS final-disclosure timing includes source admission and offline preprocessing inside the SDK call; online-only elapsed time is unmeasured.")
     from pllm.metrics import communication_per_token, wan_readiness
 
     report["communication_per_token"] = communication_per_token(report)

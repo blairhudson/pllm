@@ -19,6 +19,7 @@ from pllm.protocols import (
     MaskedLinear,
     OpenWeightVerifiableOutsourcing,
     PumaThreePartyDecoder,
+    FuseFssSourceDecoder,
     ProtocolMethod,
     TwoOnlineOffsetLinear,
 )
@@ -38,10 +39,11 @@ from pllm.roles import (
     TwoOnlineOffsetRoles,
     TwoOnlineDelegationRoles,
     ThreePartyReplicatedRoles,
+    TrustedDealerTwoShareRoles,
 )
 from pllm.sources import ModelSource
 from pllm.schedulers import MlpPrefillTiling
-from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, ReplicatedPrivatePrefix, StateProtocol
+from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, ReplicatedPrivatePrefix, StateProtocol, FixedCountPrivatePrefix
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, PublishedLinearVerify, VerificationScheme
 
@@ -436,6 +438,55 @@ class TwoOnlineOffsetCpu(_TypedPipeline):
     @property
     def nonlinear(self) -> NonlinearProtocol | None:
         return self.components.get("nonlinear")
+
+
+class FuseFssSourceCpu(_TypedPipeline):
+    """D13 CPU configuration; production resolution still requires native admission.
+
+    Supply either an explicit numeric_profile or a configured linear component.
+    Dealer preprocessing is not client-owned model-aware preparation. This
+    profile makes no malicious-result-verification or serving-availability claim.
+    """
+
+    PROFILE = "research.fusefss_source_cpu"
+    SLOT_NAMES = ("linear", "topology", "state", "kernels")
+    __slots__ = ()
+
+    def __init__(self, model: ModelSource, *, linear: ProtocolMethod | None = None,
+                 numeric_profile: Literal["fusefss.gpt2-complete-ring50-q12.v1",
+                                          "fusefss.dense-rope-ring50-q12.v1"] | None = None,
+                 topology: RoleTopology = TrustedDealerTwoShareRoles(),
+                 state: StateProtocol = FixedCountPrivatePrefix(),
+                 kernels: KernelBackend = _DEFAULT_KERNELS) -> None:
+        if linear is not None and numeric_profile is not None:
+            raise ConfigurationError("FuseFSS numeric_profile belongs in linear or profile keywords, not both")
+        if linear is None:
+            if numeric_profile is None:
+                raise ConfigurationError("FuseFSS requires an explicit numeric_profile")
+            linear = FuseFssSourceDecoder(numeric_profile=numeric_profile)
+        components = {
+            "linear": _slot("linear", linear, ProtocolMethod, FuseFssSourceDecoder.descriptor.component),
+            "topology": _slot("topology", topology, RoleTopology, TrustedDealerTwoShareRoles.descriptor.component),
+            "state": _slot("state", state, StateProtocol, FixedCountPrivatePrefix.descriptor.component),
+            "kernels": _slot("kernels", kernels, KernelBackend, Cpu.descriptor.component),
+        }
+        super().__init__(profile=self.PROFILE, model=_model(model), components=components)
+
+    @property
+    def linear(self) -> FuseFssSourceDecoder:
+        return self.components["linear"]
+
+    @property
+    def topology(self) -> TrustedDealerTwoShareRoles:
+        return self.components["topology"]
+
+    @property
+    def state(self) -> FixedCountPrivatePrefix:
+        return self.components["state"]
+
+    @property
+    def kernels(self) -> Cpu:
+        return self.components["kernels"]
 
 
 class PumaThreePartyCpu(_TypedPipeline):
@@ -852,6 +903,28 @@ def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
 
 def resolve_runtime_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     identities = {name: component.component for name, component in pipeline.components.items()}
+    if set(identities.values()) & {
+            FuseFssSourceDecoder.descriptor.component, TrustedDealerTwoShareRoles.descriptor.component,
+            FixedCountPrivatePrefix.descriptor.component}:
+        # Pure configuration recognition, never a substitute for resolve_experiment
+        # or complete native source/model/dealer/channel/range admission.
+        try:
+            linear = FuseFssSourceDecoder.from_params(pipeline.components["linear"].params)
+            kernels = Cpu.from_params(pipeline.components["kernels"].params)
+            expected = FuseFssSourceCpu(pipeline.model, linear=linear, kernels=kernels)
+        except (KeyError, TypeError, ValueError):
+            return None
+        if pipeline.components != expected.components:
+            return None
+        return RuntimeComposition(
+            privacy_mode="fss_public", proprietary_protocol="none", requires_preparation=True,
+            correlation_mode="trusted_dealer", client_runtime="compiled_fss_v1",
+            privacy_protocol="fss_ring50_q12", weight_bits=FuseFssSourceDecoder.RING_BITS,
+            activation_bits=FuseFssSourceDecoder.RING_BITS,
+            inventory_policy="none", prepared_inventory_rows=0, background_inventory_refill=False,
+            runtime_kind="fss", numeric_profile=linear.params["numeric_profile"],
+            sharing="additive_two_share", generation_policy="fixed_length_greedy", setup_owner="dealer",
+        )
     if set(identities.values()) & {PumaThreePartyDecoder.descriptor.component,
                                    ThreePartyReplicatedRoles.descriptor.component, ReplicatedPrivatePrefix.descriptor.component}:
         try:
@@ -1405,6 +1478,7 @@ __all__ = [
     "TwoOnlineOffsetCpu",
     "OpenWeightVerifiableCpu",
     "PumaThreePartyCpu",
+    "FuseFssSourceCpu",
     "DirectFHEProfile",
     "MaskedLinearCpu",
     "VerifiedMaskedLinearCpu",

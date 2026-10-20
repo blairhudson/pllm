@@ -52,6 +52,20 @@ fn issue_with(
 }
 
 impl TripleShare {
+    pub(crate) fn write_material(&self, out: &mut Vec<u8>) {
+        for value in self.words.iter() {
+            out.extend_from_slice(&value.to_le_bytes());
+        }
+    }
+    pub(crate) fn read_material(
+        input: &mut crate::fusefss_backend::wire::Reader<'_>,
+        bits: u8,
+    ) -> Result<Self, crate::fusefss_backend::Error> {
+        Ok(Self {
+            words: Zeroizing::new([input.word(bits)?, input.word(bits)?, input.word(bits)?]),
+            mask: mask(bits).map_err(crate::fusefss_backend::primitive_error)?,
+        })
+    }
     /// Local [x-a, y-b] share, with canonical input validation rather than silent
     /// narrowing. Borrowing allows state to remain at the enclosing Party;
     /// callers must not expose repeated openings with different operands.

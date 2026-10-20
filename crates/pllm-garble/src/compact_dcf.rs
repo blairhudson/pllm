@@ -237,11 +237,34 @@ fn generate_with_reservation<W: Word>(
     mask: u64,
     owner_bytes: usize,
     limit: usize,
-    mut before_reserve: impl FnMut(usize) -> Result<(), Error>,
-    mut random: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    before_reserve: impl FnMut(usize) -> Result<(), Error>,
+    random: impl FnMut(&mut [u8]) -> Result<(), Error>,
 ) -> Result<[Key<W>; 2], Error> {
     let threshold = Zeroizing::new(threshold);
     let payload = Zeroizing::new(payload);
+    generate_with_setup(
+        bits,
+        mask,
+        owner_bytes,
+        limit,
+        before_reserve,
+        |_| Ok((*threshold, *payload)),
+        random,
+    )
+}
+
+// Setup runs only after both correction vectors have passed exact-capacity
+// admission. Existing fixed-threshold issuers retain their exact RNG sequence;
+// bounded one-hot may sample its threshold and independent split here instead.
+fn generate_with_setup<W: Word, R: FnMut(&mut [u8]) -> Result<(), Error>>(
+    bits: u8,
+    mask: u64,
+    owner_bytes: usize,
+    limit: usize,
+    mut before_reserve: impl FnMut(usize) -> Result<(), Error>,
+    setup: impl FnOnce(&mut R) -> Result<(u64, W), Error>,
+    mut random: R,
+) -> Result<[Key<W>; 2], Error> {
     if resources::<W>(bits, owner_bytes, [usize::from(bits); 2]).combined_allocation_bytes > limit {
         return Err(Error::Resource);
     }
@@ -260,6 +283,9 @@ fn generate_with_reservation<W: Word>(
     {
         return Err(Error::Resource);
     }
+    let (threshold, payload) = setup(&mut random)?;
+    let threshold = Zeroizing::new(threshold);
+    let payload = Zeroizing::new(payload);
     let mut roots = Zeroizing::new([[0; 16]; 2]);
     for root in roots.iter_mut() {
         random(root)?;
@@ -365,6 +391,105 @@ pub(crate) struct RingComparison {
     output_bits: u8,
 }
 impl RingComparison {
+    /// Uniform raw threshold and independent additive threshold-mask split.
+    /// Both correction allocations complete before this method requests entropy.
+    /// Only the enclosing one-use operator receives the split; neither threshold
+    /// nor the sibling key may reach an evaluator.
+    pub(crate) fn issue_uniform_split(
+        input_bits: u8,
+        output_bits: u8,
+        allocation_limit: usize,
+        random: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<([Self; 2], [u64; 2]), Error> {
+        Self::validate(input_bits, output_bits)?;
+        let mut shares = Zeroizing::new([0u64; 2]);
+        let keys = generate_with_setup(
+            input_bits,
+            (1u64 << output_bits) - 1,
+            std::mem::size_of::<Self>(),
+            allocation_limit,
+            |_| Ok(()),
+            |rng| {
+                let mut bytes = Zeroizing::new([0u8; 16]);
+                rng(&mut *bytes)?;
+                let mask = (1u64 << input_bits) - 1;
+                let threshold =
+                    Zeroizing::new(u64::from_le_bytes(bytes[..8].try_into().unwrap()) & mask);
+                shares[0] = u64::from_le_bytes(bytes[8..].try_into().unwrap()) & mask;
+                shares[1] = threshold.wrapping_sub(shares[0]) & mask;
+                Ok((*threshold, 1u64))
+            },
+            random,
+        )?;
+        Ok((
+            keys.map(|key| Self {
+                key,
+                input_bits,
+                output_bits,
+            }),
+            *shares,
+        ))
+    }
+
+    /// Fixed natural-order scalar traversal. At most 19 live DFS nodes, no heap
+    /// allocation, pruning, new PRG, or changed point-evaluation arithmetic.
+    /// Deliberately bounded to the one-hot operator's 18-bit public domain.
+    pub(crate) fn eval_all_into(&self, party: u8, output: &mut [u64]) -> Result<(), Error> {
+        if party > 1 || self.input_bits > 18 || output.len() != 1usize << self.input_bits {
+            return Err(Error::Domain);
+        }
+        type Node = ([u8; 16], u8, u64, usize, usize);
+        let mut stack = Zeroizing::new([([0u8; 16], 0u8, 0u64, 0usize, 0usize); 19]);
+        let mask = (1u64 << self.output_bits) - 1;
+        stack[0] = (*self.key.root, party, 0, 0, 0);
+        let mut len = 1;
+        while len != 0 {
+            len -= 1;
+            let node = Zeroizing::<Node>::new(stack[len]);
+            stack[len].zeroize();
+            let (seed, control, sum, depth, prefix) = &*node;
+            if *depth == usize::from(self.input_bits) {
+                output[*prefix] = sum.add(
+                    signed(
+                        convert::<u64>(seed, mask)
+                            .add(self.key.final_word.scale(u64::from(*control), mask), mask),
+                        party,
+                        mask,
+                    ),
+                    mask,
+                );
+                continue;
+            }
+            let word = &self.key.words[*depth];
+            let mut children = Zeroizing::new(expand::<u64>(seed, mask));
+            // Push right then left: leaves emerge in ordinary unsigned/MSB order.
+            for direction in [1usize, 0] {
+                let value = Zeroizing::new(
+                    sum.add(
+                        signed(
+                            children.1[direction]
+                                .add(word.value.scale(u64::from(*control), mask), mask),
+                            party,
+                            mask,
+                        ),
+                        mask,
+                    ),
+                );
+                correct(&mut children.0[direction], &word.seed, *control);
+                let next_control = children.2[direction] ^ (*control & word.control[direction]);
+                stack[len] = (
+                    children.0[direction],
+                    next_control,
+                    *value,
+                    depth + 1,
+                    (prefix << 1) | direction,
+                );
+                len += 1;
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn resources(input_bits: u8, output_bits: u8) -> Result<Resources, Error> {
         Self::validate(input_bits, output_bits)?;
         Ok(resources::<u64>(
@@ -446,6 +571,65 @@ impl RingComparison {
     }
 }
 
+#[cfg(test)]
+mod full_domain_tests {
+    use super::*;
+    #[test]
+    fn every_leaf_matches_point_eval_for_fresh_and_imported_scalar_keys() {
+        use crate::fusefss_backend::{Budget, MAX_ALLOCATION_BYTES};
+        let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mask = (1u64 << 50) - 1;
+        for bits in 1..=6 {
+            let n = 1usize << bits;
+            let cost = RingComparison::resources(bits, 50).unwrap();
+            for r in 0..n {
+                let mut setup = true;
+                let (keys, shares) = RingComparison::issue_uniform_split(
+                    bits,
+                    50,
+                    cost.combined_allocation_bytes,
+                    |bytes| {
+                        if setup {
+                            bytes[..8].copy_from_slice(&(r as u64).to_le_bytes());
+                            bytes[8..].copy_from_slice(&((r * 37 + 11) as u64).to_le_bytes());
+                            setup = false;
+                            Ok(())
+                        } else {
+                            getrandom::fill(bytes).map_err(|_| Error::Randomness)
+                        }
+                    },
+                )
+                .unwrap();
+                assert_eq!(shares[0].wrapping_add(shares[1]) & (n as u64 - 1), r as u64);
+                let mut full = [vec![0; n], vec![0; n]];
+                for role in 0..2 {
+                    keys[role]
+                        .eval_all_into(role as u8, &mut full[role])
+                        .unwrap();
+                    let mut encoded = Zeroizing::new(Vec::new());
+                    keys[role].write_material(&mut encoded);
+                    let imported =
+                        RingComparison::read_material(&encoded, bits, 50, &budget).unwrap();
+                    let mut decoded_full = vec![0; n];
+                    imported
+                        .eval_all_into(role as u8, &mut decoded_full)
+                        .unwrap();
+                    assert_eq!(decoded_full, full[role]);
+                    for x in 0..n {
+                        assert_eq!(
+                            full[role][x],
+                            keys[role].eval(role as u8, x as u64).unwrap()
+                        );
+                    }
+                }
+                for x in 0..n {
+                    assert_eq!(full[0][x].wrapping_add(full[1][x]) & mask, u64::from(x < r));
+                }
+            }
+        }
+    }
+}
+
 /// Private two-coordinate payload DCF over (Z/2^output_bits)^2. This wraps the
 /// same Key/Correction/PRG/generation/traversal as both scalar variants. One
 /// vector key has one root and one correction path, NOT two scalar DCF keys.
@@ -456,6 +640,140 @@ pub(crate) struct VectorComparison {
     input_bits: u8,
     output_bits: u8,
 }
+
+// Private native codec seam for enclosing consuming party owners. Widths and
+// exact length are caller-supplied public geometry, never attacker counts.
+pub(crate) trait WireWord: Word {
+    fn write(self, out: &mut Vec<u8>);
+    fn read(
+        input: &mut crate::fusefss_backend::wire::Reader<'_>,
+        bits: u8,
+    ) -> Result<Self, crate::fusefss_backend::Error>;
+}
+impl WireWord for u64 {
+    fn write(self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&self.to_le_bytes());
+    }
+    fn read(
+        input: &mut crate::fusefss_backend::wire::Reader<'_>,
+        bits: u8,
+    ) -> Result<Self, crate::fusefss_backend::Error> {
+        input.word(bits)
+    }
+}
+impl WireWord for [u64; 2] {
+    fn write(self, out: &mut Vec<u8>) {
+        for value in self {
+            value.write(out);
+        }
+    }
+    fn read(
+        input: &mut crate::fusefss_backend::wire::Reader<'_>,
+        bits: u8,
+    ) -> Result<Self, crate::fusefss_backend::Error> {
+        Ok([input.word(bits)?, input.word(bits)?])
+    }
+}
+impl<W: WireWord> Key<W> {
+    fn write_material(&self, out: &mut Vec<u8>) {
+        out.extend_from_slice(&*self.root);
+        self.final_word.write(out);
+        for correction in &self.words {
+            out.extend_from_slice(&correction.seed);
+            correction.value.write(out);
+            out.extend_from_slice(&correction.control);
+        }
+    }
+    fn validate_material(
+        bytes: &[u8],
+        input_bits: u8,
+        output_bits: u8,
+    ) -> Result<(), crate::fusefss_backend::Error> {
+        use crate::fusefss_backend::{wire::Reader, Error as E};
+        RingComparison::validate(input_bits, output_bits).map_err(|_| E::Domain)?;
+        if bytes.len()
+            != 16
+                + std::mem::size_of::<W>()
+                + usize::from(input_bits) * (18 + std::mem::size_of::<W>())
+        {
+            return Err(E::Context);
+        }
+        // Complete canonical preflight before correction allocation.
+        let scan = |reader: &mut Reader<'_>| -> Result<(), E> {
+            reader.take(16)?;
+            let _ = Zeroizing::new(W::read(reader, output_bits)?);
+            for _ in 0..input_bits {
+                reader.take(16)?;
+                let _ = Zeroizing::new(W::read(reader, output_bits)?);
+                if reader.take(2)?.iter().any(|b| *b > 1) {
+                    return Err(E::Context);
+                }
+            }
+            Ok(())
+        };
+        let mut reader = Reader::new(bytes);
+        scan(&mut reader)?;
+        reader.finish()
+    }
+    fn read_material(
+        bytes: &[u8],
+        input_bits: u8,
+        output_bits: u8,
+        budget: &crate::fusefss_backend::Budget,
+    ) -> Result<Self, crate::fusefss_backend::Error> {
+        use crate::fusefss_backend::wire::Reader;
+        Self::validate_material(bytes, input_bits, output_bits)?;
+        let mut words = crate::fusefss_backend::allocate(usize::from(input_bits), budget)?;
+        let mut reader = Reader::new(bytes);
+        let root = Zeroizing::new(reader.take(16)?.try_into().unwrap());
+        let final_word = Zeroizing::new(W::read(&mut reader, output_bits)?);
+        for _ in 0..input_bits {
+            let seed = Zeroizing::new(reader.take(16)?.try_into().unwrap());
+            let value = Zeroizing::new(W::read(&mut reader, output_bits)?);
+            let control = reader.take(2)?.try_into().unwrap();
+            words.push(Correction {
+                seed: *seed,
+                value: *value,
+                control,
+            });
+        }
+        Ok(Self {
+            root,
+            words,
+            final_word,
+        })
+    }
+}
+macro_rules! material_codec {
+    ($owner:ty, $word:ty) => {
+        impl $owner {
+            pub(crate) fn validate_material(
+                bytes: &[u8],
+                input_bits: u8,
+                output_bits: u8,
+            ) -> Result<(), crate::fusefss_backend::Error> {
+                Key::<$word>::validate_material(bytes, input_bits, output_bits)
+            }
+            pub(crate) fn write_material(&self, out: &mut Vec<u8>) {
+                self.key.write_material(out);
+            }
+            pub(crate) fn read_material(
+                bytes: &[u8],
+                input_bits: u8,
+                output_bits: u8,
+                budget: &crate::fusefss_backend::Budget,
+            ) -> Result<Self, crate::fusefss_backend::Error> {
+                Ok(Self {
+                    key: Key::<$word>::read_material(bytes, input_bits, output_bits, budget)?,
+                    input_bits,
+                    output_bits,
+                })
+            }
+        }
+    };
+}
+material_codec!(RingComparison, u64);
+material_codec!(VectorComparison, [u64; 2]);
 impl VectorComparison {
     pub(crate) fn resources(input_bits: u8, output_bits: u8) -> Result<Resources, Error> {
         RingComparison::validate(input_bits, output_bits)?;

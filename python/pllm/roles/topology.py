@@ -178,6 +178,8 @@ class RoleGraph:
 
 def graph_for_runtime(composition: RuntimeComposition) -> RoleGraph:
     """Describe installed executor traffic; never enable execution from a graph."""
+    if composition.runtime_kind == "fss" and composition.setup_owner == "dealer":
+        return trusted_dealer_two_share_graph()
     if composition.runtime_kind == "replicated" and not composition.requires_preparation:
         workers = ("worker_a", "worker_b", "worker_c")
         channels = []
@@ -248,6 +250,36 @@ def graph_for_runtime(composition: RuntimeComposition) -> RoleGraph:
             ),
         )
     raise ConfigurationError("composition has no admitted role topology")
+
+
+def trusted_dealer_two_share_graph() -> RoleGraph:
+    """Declared trust/traffic requirements, not transport or native admission.
+
+    Dealer supplies fresh offline material directly to each holder, not through
+    client. Only holders exchange online protected frames. Client receives final
+    token-ID shares after the fixed-count loop, never intermediate feedback.
+    """
+    workers = ("worker_a", "worker_b")
+    channels = [Channel("client", "dealer", "offline", "authenticated_public_preprocessing_request"),
+                Channel("dealer", "client", "offline", "authenticated_preprocessing_completion")]
+    for worker in workers:
+        channels.extend((
+            Channel("client", worker, "offline", "authenticated_public_source_admission"),
+            Channel(worker, "client", "offline", "authenticated_source_admission_ack"),
+            Channel("dealer", worker, "offline", "authenticated_fresh_preprocessing"),
+            Channel(worker, "dealer", "offline", "authenticated_preprocessing_acknowledgement"),
+            Channel("client", worker, "online", "authenticated_input_shares"),
+            Channel(worker, "client", "online", "final_token_id_shares"),
+        ))
+    channels.extend((Channel("worker_a", "worker_b", "online", "protected_tensor_frames"),
+                     Channel("worker_b", "worker_a", "online", "protected_tensor_frames")))
+    return RoleGraph(
+        roles=(Role("client", "trusted_client"), Role("dealer", "trusted_offline_dealer"),
+               *(Role(worker, "online_share_holder") for worker in workers)),
+        channels=tuple(channels),
+        separate_operators=(("client", "dealer"), ("dealer", "worker_a"),
+                            ("dealer", "worker_b"), ("worker_a", "worker_b")),
+    )
 
 
 def client_only_reference_graph() -> RoleGraph:

@@ -1,7 +1,7 @@
 from typing import Any, Literal
 
 from pllm.configuration import Pipeline
-from pllm.kernels import KernelBackend
+from pllm.kernels import Cpu, KernelBackend
 from pllm.preparation import PreparationProvider, PreparedInventory
 from pllm.quantization import QuantizationScheme, SymmetricPerRow
 from pllm.protocols import (
@@ -12,6 +12,7 @@ from pllm.protocols import (
     GuardedLinear,
     OpenWeightVerifiableOutsourcing,
     PumaThreePartyDecoder,
+    FuseFssSourceDecoder,
     ProtocolMethod,
     TwoOnlineOffsetLinear,
 )
@@ -20,6 +21,8 @@ from pllm.sources import ModelSource
 from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule
 from pllm.state import ReplicatedPrivatePrefix
 from pllm.roles import ThreePartyReplicatedRoles
+from pllm.roles import TrustedDealerTwoShareRoles
+from pllm.state import FixedCountPrivatePrefix, StateProtocol
 from pllm.schedulers import MlpPrefillTiling
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, PublishedLinearVerify, VerificationScheme
@@ -196,6 +199,23 @@ class TwoOnlineOffsetCpu(Pipeline):
     @property
     def delivery(self) -> ClientBundleTransport | None: ...
     def with_params(self, **changes: object) -> TwoOnlineOffsetCpu: ...
+
+class FuseFssSourceCpu(Pipeline):
+    PROFILE: str
+    SLOT_NAMES: tuple[str, ...]
+    def __init__(self, model: ModelSource, *, linear: ProtocolMethod | None = ...,
+                 numeric_profile: Literal["fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1"] | None = ...,
+                 topology: RoleTopology = ..., state: StateProtocol = ..., kernels: KernelBackend = ...) -> None: ...
+    @property
+    def linear(self) -> FuseFssSourceDecoder: ...
+    @property
+    def topology(self) -> TrustedDealerTwoShareRoles: ...
+    @property
+    def state(self) -> FixedCountPrivatePrefix: ...
+    @property
+    def kernels(self) -> Cpu: ...
+    def get_params(self, deep: bool = True) -> dict[str, Any]: ...
+    def with_params(self, **changes: object) -> FuseFssSourceCpu: ...
 
 class PumaThreePartyCpu(Pipeline):
     PROFILE: str

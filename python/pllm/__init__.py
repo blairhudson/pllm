@@ -5,6 +5,10 @@ from importlib import import_module
 from ._version import __version__
 
 _EXPORTS = {
+    "FuseFssSourceDecoder": ("pllm.protocols", "FuseFssSourceDecoder"),
+    "TrustedDealerTwoShareRoles": ("pllm.roles", "TrustedDealerTwoShareRoles"),
+    "FixedCountPrivatePrefix": ("pllm.state", "FixedCountPrivatePrefix"),
+    "FuseFssSourceCpu": ("pllm.profiles", "FuseFssSourceCpu"),
     "ArtifactLock": ("pllm.research", "ArtifactLock"),
     "AsyncOpenAI": ("pllm.runtime.client", "AsyncOpenAI"),
     "AsyncConversation": ("pllm.runtime.conversation", "AsyncConversation"),

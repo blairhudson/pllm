@@ -1007,6 +1007,22 @@ separate scope. These bounded source gates do not admit complete-model ranges,
 full-prefix work, authenticated roles or an SDK method. Contract and replay:
 `paper/artifacts/fusefss-composition/local-v1/README.md`.
 
+The subsequent `FuseFssSourceCpu` composition binds explicit learned-position and
+dense-RoPE ring50/Q12 profiles to model-neutral native decoding. Bounded original
+IEEE source import, immutable public-table sharing and compact private one-hot
+lookup precede full-prefix private feedback. Five generated models match 918
+complete semantic observations against the independent integer interpreter.
+Three authenticated role children execute generated SDK/gateway requests through
+an offline dealer and two online holders. Ordered encrypted one-use tapes,
+native context checks and draining failure/cancellation retain existing bounds;
+only final fixed-count token IDs reach the client. Ordinary benchmark factories
+charge all directed bodies, dealer/holder CPU and separate tape I/O, with
+setup-inclusive final disclosure and no streaming TTFT/decode-throughput metric.
+Full trained checkpoints and larger transport workloads remain capacity/work
+blocked. These generated controls establish neither model quality nor independent
+operators or paper-system performance. Contract and examples:
+`docs/research/fusefss-sdk-reference.md`.
+
 The complete bounded shared Q7 gated block composes four exact rescalings and
 two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases
 check 11,540 outputs, with all remaining block material burned on failure.

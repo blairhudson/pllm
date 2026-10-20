@@ -72,6 +72,16 @@ fn builder<'a>(
     parameter: usize,
     budget: &'a Budget,
 ) -> Result<Builder<'a>, Error> {
+    builder_source(gate, ranges, active, parameter, budget, source_digest())
+}
+fn builder_source<'a>(
+    gate: &[u8],
+    ranges: &[InputRange],
+    active: &[bool],
+    parameter: usize,
+    budget: &'a Budget,
+    source: [u8; 32],
+) -> Result<Builder<'a>, Error> {
     // Internally computed commitment to numerically checked metadata. This is
     // not a caller-supplied proof digest. Streaming avoids unreserved buffers and
     // preserves Builder's fixed contract-size ceiling for full 1024-entry rows.
@@ -92,7 +102,7 @@ fn builder<'a>(
     }
     let contract: [u8; 32] = contract.finalize().into();
     let widths = [50u8; 1024];
-    Builder::new(source_digest(), &contract, &widths[..ranges.len()], budget)
+    Builder::new(source, &contract, &widths[..ranges.len()], budget)
 }
 
 fn finish<'a>(
@@ -143,6 +153,21 @@ fn tr_positive(b: &mut Builder<'_>, x: Value, shift: u8) -> Result<Value, Error>
 
 /// Source-effective signed38/Q12 SiLU, retaining ORIGINAL input in Phi.
 pub fn silu(range: InputRange, budget: &Budget) -> Result<(Plan<'_>, OutputLayout), Error> {
+    silu_inner(range, budget, None)
+}
+/// Same immutable schedule/numeric identity, retaining a request-owned source
+/// Table rather than copying/hashing its payload at every scalar invocation.
+pub fn silu_cached<'a>(
+    range: InputRange,
+    cache: &super::cache::SourceTableCache<'a>,
+) -> Result<(Plan<'a>, OutputLayout), Error> {
+    silu_inner(range, cache.budget(), Some(cache))
+}
+fn silu_inner<'a>(
+    range: InputRange,
+    budget: &'a Budget,
+    cache: Option<&super::cache::SourceTableCache<'a>>,
+) -> Result<(Plan<'a>, OutputLayout), Error> {
     let (lo, hi) = range.checked()?;
     if lo < -(1i128 << 37) || hi >= 1i128 << 37 {
         return Err(Error::Domain);
@@ -154,8 +179,14 @@ pub fn silu(range: InputRange, budget: &Budget) -> Result<(Plan<'_>, OutputLayou
     sub(lo.min(0), 65_536)?;
     signed50(hi.max(0))?;
     let _scratch = budget.reserve(LOWERING_SCRATCH_BYTES)?;
-    let mut b = builder(b"silu", &[range], &[], 0, budget)?;
-    let table = b.table(50, source_tables::silu())?;
+    let mut b = match cache {
+        Some(c) => builder_source(b"silu", &[range], &[], 0, budget, c.numeric_revision())?,
+        None => builder(b"silu", &[range], &[], 0, budget)?,
+    };
+    let table = match cache {
+        Some(c) => b.source_table(c, super::cache::Kind::Silu)?,
+        None => b.table(50, source_tables::silu())?,
+    };
     let original = b.input(0)?;
     let x38 = b.narrow(original, 38)?;
     let y32 = b.convert(
@@ -285,14 +316,52 @@ pub fn softmax<'a>(
     active: &[bool],
     budget: &'a Budget,
 ) -> Result<(Plan<'a>, OutputLayout), Error> {
+    softmax_inner(ranges, active, budget, None)
+}
+/// Cached source constants only; every lookup/input still receives fresh native
+/// material and executes every original public-table evaluation.
+pub fn softmax_cached<'a>(
+    ranges: &[InputRange],
+    active: &[bool],
+    cache: &super::cache::SourceTableCache<'a>,
+) -> Result<(Plan<'a>, OutputLayout), Error> {
+    softmax_inner(ranges, active, cache.budget(), Some(cache))
+}
+fn softmax_inner<'a>(
+    ranges: &[InputRange],
+    active: &[bool],
+    budget: &'a Budget,
+    cache: Option<&super::cache::SourceTableCache<'a>>,
+) -> Result<(Plan<'a>, OutputLayout), Error> {
     let k = check_softmax(ranges, active)?;
     let _scratch = budget.reserve(LOWERING_SCRATCH_BYTES)?;
-    let mut b = builder(b"softmax-public-causal-mask", ranges, active, k, budget)?;
-    let tables = (
-        b.table(50, source_tables::exp0())?,
-        b.table(50, source_tables::exp1())?,
-    );
-    let inverse_table = reciprocal_table(&mut b, k, budget)?;
+    let mut b = match cache {
+        Some(c) => builder_source(
+            b"softmax-public-causal-mask",
+            ranges,
+            active,
+            k,
+            budget,
+            c.numeric_revision(),
+        )?,
+        None => builder(b"softmax-public-causal-mask", ranges, active, k, budget)?,
+    };
+    let (tables, inverse_table) = match cache {
+        Some(c) => (
+            (
+                b.source_table(c, super::cache::Kind::Exp0)?,
+                b.source_table(c, super::cache::Kind::Exp1)?,
+            ),
+            b.source_table(c, super::cache::Kind::Reciprocal { k })?,
+        ),
+        None => (
+            (
+                b.table(50, source_tables::exp0())?,
+                b.table(50, source_tables::exp1())?,
+            ),
+            reciprocal_table(&mut b, k, budget)?,
+        ),
+    };
     let zero = b.constant(50, 0)?;
     let first = active.iter().position(|&bit| bit).ok_or(Error::Domain)?;
     let mut maximum = b.input(first)?;

@@ -27,6 +27,7 @@ pub const MAX_TABLE_ENTRIES: usize = 1 << 17;
 pub const CHUNK_ENTRIES: usize = 256;
 const MAGIC: &[u8; 8] = b"PLLMFL01";
 const FIXED_BYTES: usize = 4096;
+const TABLE_DOMAIN: &[u8] = b"pllm.fusefss.zero-extended-public-table.v1\0";
 
 /// Immutable original public table, with its own live logical reservation.
 /// Caller buffers and delivery remain separate owners. The source digest is a
@@ -85,7 +86,7 @@ impl<'a> Table<'a> {
         let mut copy = exact(values.len(), budget)?;
         copy.extend_from_slice(values);
         let mut hash = Sha256::new();
-        hash.update(b"pllm.fusefss.zero-extended-public-table.v1\0");
+        hash.update(TABLE_DOMAIN);
         hash.update(source_digest);
         hash.update([bits]);
         hash.update((values.len() as u64).to_le_bytes());
@@ -104,6 +105,14 @@ impl<'a> Table<'a> {
 
     pub fn digest(&self) -> [u8; 32] {
         self.digest
+    }
+
+    pub(crate) fn source_digest(&self) -> [u8; 32] {
+        self.source_digest
+    }
+
+    pub(crate) fn construction_hash_bytes(entries: usize) -> usize {
+        TABLE_DOMAIN.len() + 32 + 1 + 8 + 8 + 8 * entries
     }
 
     pub fn bits(&self) -> u8 {
@@ -221,16 +230,7 @@ impl<'a> Table<'a> {
         let mut reservation = budget.reserve(r.issuance_reservation_bytes)?;
         let mut left = exact(r.dcf_keys_per_party, budget)?;
         let mut right = exact(r.dcf_keys_per_party, budget)?;
-        let mut hash = Sha256::new();
-        hash.update(b"pllm.fusefss.chunked-public-lookup.v1\0");
-        hash.update(self.digest);
-        hash.update(self.source_digest);
-        hash.update(context.plan);
-        hash.update(context.session);
-        hash.update(context.operation);
-        hash.update(context.first_tensor_index.to_le_bytes());
-        hash.update((lanes as u64).to_le_bytes());
-        let binding = hash.finalize().into();
+        let binding = self.binding(lanes, context);
         let mut nonce = [0; 32];
         getrandom::fill(&mut nonce).map_err(|_| Error::Randomness)?;
         let mask = (1u64 << self.bits) - 1;
@@ -279,6 +279,21 @@ impl<'a> Table<'a> {
     }
 }
 
+impl Table<'_> {
+    fn binding(&self, lanes: usize, context: Context) -> [u8; 32] {
+        let mut hash = Sha256::new();
+        hash.update(b"pllm.fusefss.chunked-public-lookup.v1\0");
+        hash.update(self.digest);
+        hash.update(self.source_digest);
+        hash.update(context.plan);
+        hash.update(context.session);
+        hash.update(context.operation);
+        hash.update(context.first_tensor_index.to_le_bytes());
+        hash.update((lanes as u64).to_le_bytes());
+        hash.finalize().into()
+    }
+}
+
 struct Unit {
     lookup: RingParty,
     mask: Zeroizing<u64>,
@@ -303,6 +318,93 @@ pub struct Party<'a> {
 }
 
 impl<'a> Party<'a> {
+    pub fn export_material(mut self) -> Result<super::wire::MaterialPacket<'a>, Error> {
+        let state = self.state.take().ok_or(Error::Consumed)?;
+        let State::Ready(keys) = state else {
+            return Err(Error::Context);
+        };
+        super::wire::packet(
+            3,
+            self.id,
+            self.binding,
+            self.nonce,
+            self.resources.private_key_bytes_per_party,
+            self.lease.budget,
+            |out| {
+                for unit in &keys {
+                    super::wire::word(out, *unit.mask);
+                    unit.lookup.write_material(out);
+                }
+                Ok(())
+            },
+        )
+    }
+
+    pub fn import_material(
+        table: &Table<'a>,
+        lanes: usize,
+        context: Context,
+        role: u8,
+        nonce: [u8; 32],
+        packet: super::wire::MaterialPacket<'_>,
+        guard: &mut super::wire::ImportGuard<'_>,
+    ) -> Result<Self, Error> {
+        guard.claim(role, nonce)?;
+        let r = table.resources(lanes)?;
+        context
+            .first_tensor_index
+            .checked_add(lanes as u64)
+            .ok_or(Error::Domain)?;
+        let binding = table.binding(lanes, context);
+        let mut input = super::wire::open(
+            &packet,
+            3,
+            role,
+            binding,
+            nonce,
+            r.private_key_bytes_per_party,
+        )?;
+        let mut scan = input.fork();
+        let key_bytes = crate::compact_dcf::RingComparison::resources(table.bits, table.bits)
+            .map_err(primitive_error)?
+            .encoded_key_bytes;
+        for _ in 0..r.dcf_keys_per_party {
+            for _ in 0..3 {
+                let _ = Zeroizing::new(scan.word(table.bits)?);
+            }
+            crate::compact_dcf::RingComparison::validate_material(
+                scan.take(key_bytes)?,
+                table.bits,
+                table.bits,
+            )?;
+        }
+        scan.finish()?;
+        let budget = table.lease.budget;
+        // One public chunk constructor overlaps imported copies, never dealer RNG.
+        let mut reservation =
+            budget.reserve(r.issuance_reservation_bytes - r.party_reservation_bytes)?;
+        let mut keys = exact(r.dcf_keys_per_party, budget)?;
+        for chunk in 0..r.chunks_per_lane {
+            let public = table.chunk(chunk)?;
+            for _ in 0..lanes {
+                let mask = Zeroizing::new(input.word(table.bits)?);
+                let lookup = RingParty::read_material(&mut input, role, &public, budget)?;
+                keys.push(Unit { lookup, mask });
+            }
+        }
+        input.finish()?;
+        Ok(Self {
+            id: role,
+            bits: table.bits,
+            lanes,
+            binding,
+            nonce,
+            resources: r,
+            state: Some(State::Ready(keys)),
+            lease: reservation.split(r.party_reservation_bytes)?,
+        })
+    }
+
     pub fn cancel(&mut self) {
         self.state = None;
     }

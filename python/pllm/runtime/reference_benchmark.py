@@ -74,10 +74,61 @@ def _prompts(value: Sequence[str]) -> tuple[str, ...]:
     return tuple(value)
 
 
-def _source_ids(source, prompts):
-    tokenizer = source.tokenizer()
+def _final_token_runtime(runtime):
+    return runtime in {"compiled_replicated_v1", "compiled_fss_v1"}
+
+
+def _source_ids(source, prompts, *, runtime=None):
+    if runtime == "compiled_fss_v1":
+        from tokenizers import Tokenizer
+        from .transformer_client import TokenizersJSONTokenizer
+
+        descriptor = source.tokenizer_descriptor
+        tokenizer = TokenizersJSONTokenizer(Tokenizer.from_buffer(source.tokenizer_bytes),
+            descriptor["bos_token_id"], descriptor["eos_token_id"])
+    else:
+        tokenizer = source.tokenizer()
     return tuple(tuple(tokenizer.encode(prompt,
         add_bos=source.tokenizer_descriptor.get("add_bos_token", True))) for prompt in prompts)
+
+
+def _fss_numeric(experiment, source):
+    """Check native source identity, never substitute replicated/Q12 oracles."""
+    contract = source.contract
+    profile = experiment.pipeline.components["linear"].params.get("numeric_profile")
+    expected = {"schema_version": "pllm.fss.sdk-contract.v1", "weights": "public",
+        "configuration": experiment.configuration_digest(), "composition": experiment.pipeline.digest(),
+        "input_rows": experiment.budget.max_input_tokens, "output_tokens": experiment.budget.max_new_tokens,
+        "source_lock": source.source_lock_digest, "tokenizer": source.tokenizer_digest}
+    if (profile not in {"fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1"}
+            or any(type(contract.get(key)) is not type(value) or contract.get(key) != value
+                   for key, value in expected.items())
+            or contract.get("numeric_profile") != profile
+            or contract.get("runtime_kind") != "fss" or contract.get("client_runtime") != "compiled_fss_v1"
+            or type(contract.get("ring_bits")) is not int or contract["ring_bits"] != 50
+            or type(contract.get("fractional_bits")) is not int or contract["fractional_bits"] != 12):
+        from .quality_outcomes import QualityIntegrityError
+        raise QualityIntegrityError("quality FSS native numeric/source contract differs")
+    return contract
+
+
+def _fss_reference_source(experiment, source):
+    """Bind reference metadata only after FSS native source admission, with exact pins."""
+    _fss_numeric(experiment, source)
+    resolved = resolve_model(experiment.pipeline.model)
+    if (resolved.path != source.path or resolved.source_lock_digest != source.source_lock_digest
+            or resolved.checkpoint_digest != source.checkpoint_digest
+            or resolved.manifest.vocab_size != source.contract["vocabulary"]):
+        from .quality_outcomes import QualityIntegrityError
+        raise QualityIntegrityError("quality FSS reference source binding failed")
+    return resolved
+
+
+def _fss_quality_identity(experiment, source, decode_steps, prompts):
+    contract = _fss_numeric(experiment, source)
+    return {"numeric_profile": contract["numeric_profile"], "fraction_bits": 12, "ring_bits": 50,
+        "candidate_logits_available": False, "execution": "three-role-offline-tape-final-token-full-prefix",
+        "diagnostic_requests": len(prompts)*(decode_steps+1), "output_selections_per_request": 1}
 
 
 def _delegated_candidate(experiment, prompts, source, decode_steps, continuations, memory_safety_margin_percent=25, *, outcomes=None, expected_cohort=None):
@@ -158,22 +209,39 @@ def _delegated_candidate(experiment, prompts, source, decode_steps, continuation
 
 
 def _replicated_candidate(experiment, prompts, source, decode_steps, continuations, memory_safety_margin_percent=25, *, outcomes=None, expected_cohort=None):
+    return _final_token_candidate(experiment, prompts, source, decode_steps, continuations,
+        memory_safety_margin_percent, outcomes=outcomes, expected_cohort=expected_cohort,
+        runtime="compiled_replicated_v1")
+
+
+def _fss_candidate(experiment, prompts, source, decode_steps, continuations, memory_safety_margin_percent=25, *, outcomes=None, expected_cohort=None):
+    _fss_numeric(experiment, source)
+    return _final_token_candidate(experiment, prompts, source, decode_steps, continuations,
+        memory_safety_margin_percent, outcomes=outcomes, expected_cohort=expected_cohort,
+        runtime="compiled_fss_v1")
+
+
+def _final_token_candidate(experiment, prompts, source, decode_steps, continuations, memory_safety_margin_percent=25, *, outcomes=None, expected_cohort=None, runtime):
     """Score final IDs through ordinary protected requests on caller-owned prefixes.
 
     One fixed-count selection completes before each diagnostic prefix extension.
-    Each prefix has fresh source sharing, setup and material. This permits a common
-    teacher-forced cohort without opening hidden logits or modifying D9 feedback.
+    Each prefix has a fresh protected request, setup and material. FSS imports
+    role-local public weights, not secret source shares. This permits a common
+    teacher-forced cohort without opening hidden logits or modifying feedback.
     """
     from threading import Event
 
     from .benchmark_memory import MemoryWatchdog, benchmark_memory, require_admission
-    from .replicated_transport import execute_request
+    if runtime == "compiled_fss_v1":
+        from .fss_transport import execute_request
+    else:
+        from .replicated_transport import execute_request
     from .servers import build_roles
 
     requests = len(prompts) * (decode_steps + 1)
-    if requests > experiment.budget.requests:
+    if requests > (min(64, experiment.budget.requests) if runtime == "compiled_fss_v1" else experiment.budget.requests):
         raise ReferenceBenchmarkError("final-token quality requests exceed the Experiment request budget")
-    ids = _source_ids(source, prompts)
+    ids = _source_ids(source, prompts, runtime=runtime)
     if expected_cohort is not None and ids != expected_cohort:
         from .quality_outcomes import QualityIntegrityError
         raise QualityIntegrityError("quality source/cohort binding failed")
@@ -205,7 +273,8 @@ def _replicated_candidate(experiment, prompts, source, decode_steps, continuatio
                         outcomes.attempted = True
                     try:
                         result = execute_request(experiment, source, tuple(prefix), 1,
-                            topology.worker_connections(), 3600.0, cancelled.is_set)
+                            topology.worker_connections(), 600.0 if runtime == "compiled_fss_v1" else 3600.0,
+                            cancelled.is_set)
                     except Exception as error:
                         from .quality_outcomes import numeric_rejection, Outcome
                         if outcomes is None or not numeric_rejection(error):
@@ -238,9 +307,12 @@ def _replicated_candidate(experiment, prompts, source, decode_steps, continuatio
     metadata = {
         "name": experiment.name, "configuration_digest": experiment.configuration_digest(),
         "pipeline_digest": experiment.pipeline.digest(), "weight_bits": None, "activation_bits": None,
-        "numeric_profile": source.contract["numeric_profile"], "fraction_bits": 18, "ring_bits": 64,
+        "numeric_profile": source.contract["numeric_profile"],
+        "fraction_bits": 12 if runtime == "compiled_fss_v1" else 18,
+        "ring_bits": 50 if runtime == "compiled_fss_v1" else 64,
         "kernel_threads": kernel.params.get("threads"), "kernel_backend": kernel.component,
-        "execution": "three-worker-final-token-full-prefix", "candidate_logits_available": False,
+        "execution": ("three-role-offline-tape-final-token-full-prefix" if runtime == "compiled_fss_v1"
+                      else "three-worker-final-token-full-prefix"), "candidate_logits_available": False,
         "diagnostic_requests": requests, "output_selections_per_request": 1,
         "memory_admission": report,
     }
@@ -373,7 +445,9 @@ def run_reference_benchmark(
         runtime_options = resolve_runtime_composition(experiment.pipeline)
         delegated = runtime_options is not None and runtime_options.client_runtime == "compiled_gkm_v1"
         replicated = runtime_options is not None and runtime_options.client_runtime == "compiled_replicated_v1"
-        if not (delegated or replicated) and (
+        fss = runtime_options is not None and runtime_options.client_runtime == "compiled_fss_v1"
+        final_tokens = replicated or fss
+        if not (delegated or final_tokens) and (
             runtime_options is None
             or runtime_options.client_runtime != "masked_transformer_v1"
             or runtime_options.privacy_mode != "public"
@@ -388,20 +462,22 @@ def run_reference_benchmark(
             raise ReferenceBenchmarkError("decode steps exceed the Experiment output budget")
         if len(prompt_set) > experiment.budget.requests:
             raise ReferenceBenchmarkError("prompt cohort exceeds the Experiment request budget")
-        if replicated and len(prompt_set) * (decode_steps + 1) > experiment.budget.requests:
+        if final_tokens and len(prompt_set) * (decode_steps + 1) > (min(64, experiment.budget.requests) if fss else experiment.budget.requests):
             raise ReferenceBenchmarkError("final-token quality requests exceed the Experiment request budget")
-        if (record and replicated and experiment.pipeline.components["linear"].params.get("range_policy") == "checked"
+        if (record and (fss or replicated and experiment.pipeline.components["linear"].params.get("range_policy") == "checked")
                 and not numeric_rejection_available()):
             raise ReferenceBenchmarkError("record mode requires typed native final acceptance")
         admitted = None
-        if delegated or replicated:
-            if replicated:
+        if delegated or final_tokens:
+            if fss:
+                from .fss_source import resolve_client_source as admit_source
+            elif replicated:
                 from .replicated_source import admit_source
             else:
                 from .delegated_source import admit_source
 
             admitted = admit_source(experiment)
-            resolved = admitted.source
+            resolved = _fss_reference_source(experiment, admitted) if fss else admitted.source
         else:
             resolved = resolve_model(experiment.pipeline.model)
         if resolved.path is None or resolved.manifest.metadata.get("config_only"):
@@ -461,13 +537,13 @@ def run_reference_benchmark(
     if record:
         for candidate, candidate_options, _, admitted_source in configurations:
             if admitted_source is not None:
-                current = _source_ids(admitted_source, prompt_set)
+                current = _source_ids(admitted_source, prompt_set, runtime=candidate_options.client_runtime)
                 if token_cohort is not None and current != token_cohort:
                     raise ReferenceBenchmarkError("shared source/cohort preflight binding failed")
                 token_cohort = current
         if token_cohort is not None:
             for candidate, candidate_options, _, _ in configurations:
-                extra_prefix = decode_steps if candidate_options.client_runtime == "compiled_replicated_v1" else 0
+                extra_prefix = decode_steps if _final_token_runtime(candidate_options.client_runtime) else 0
                 if any(not 1 <= len(row) or len(row) + extra_prefix > candidate.budget.max_input_tokens for row in token_cohort):
                     raise ReferenceBenchmarkError("tokenized cohort exceeds the Experiment input budget")
     decode_cohort: list[tuple[int, ...]] = ([tuple(row) for row in continuations] if record and decode_steps
@@ -482,12 +558,16 @@ def run_reference_benchmark(
         batches.append(batch)
         if record and stopped:
             batch.fence("candidate_stopped")
-            pending.append(({"name": experiment.name, "configuration_digest": experiment.configuration_digest(),
-                "pipeline_digest": experiment.pipeline.digest()}, []))
+            metadata = {"name": experiment.name, "configuration_digest": experiment.configuration_digest(),
+                "pipeline_digest": experiment.pipeline.digest()}
+            if options.client_runtime == "compiled_fss_v1":
+                metadata.update(_fss_quality_identity(experiment, admitted, decode_steps, prompt_set))
+            pending.append((metadata, []))
             pending_decode.append([])
             continue
         if admitted is not None:
-            runner = (_replicated_candidate if options.client_runtime == "compiled_replicated_v1"
+            runner = (_fss_candidate if options.client_runtime == "compiled_fss_v1"
+                      else _replicated_candidate if options.client_runtime == "compiled_replicated_v1"
                       else _delegated_candidate)
             result_rows = None
             teacher = None if token_cohort is None else decode_cohort
@@ -506,15 +586,17 @@ def run_reference_benchmark(
                     raise ReferenceBenchmarkError("quality candidate failed")
                 current_cohort = token_cohort
                 if current_cohort is None:
-                    current_cohort = _source_ids(admitted, prompt_set)
-                extra_prefix = decode_steps if options.client_runtime == "compiled_replicated_v1" else 0
+                    current_cohort = _source_ids(admitted, prompt_set, runtime=options.client_runtime)
+                extra_prefix = decode_steps if _final_token_runtime(options.client_runtime) else 0
                 if any(not 1 <= len(row) or len(row) + extra_prefix > experiment.budget.max_input_tokens for row in current_cohort):
                     raise ReferenceBenchmarkError("quality prompt exceeds the Experiment input budget")
                 batch.fence(phase.code)
                 stopped, cancelled_run = True, cancelled_run or phase.cancelled
                 metadata = {"name": experiment.name, "configuration_digest": experiment.configuration_digest(),
                     "pipeline_digest": experiment.pipeline.digest(), "numeric_profile": admitted.contract["numeric_profile"],
-                    "candidate_logits_available": options.client_runtime != "compiled_replicated_v1"}
+                    "candidate_logits_available": not _final_token_runtime(options.client_runtime)}
+                if options.client_runtime == "compiled_fss_v1":
+                    metadata.update(_fss_quality_identity(experiment, admitted, decode_steps, prompt_set))
                 actual_rows, decode_rows, selected = [], [], decode_cohort
             else:
                 metadata, actual_rows, decode_rows, current_cohort, selected = result_rows
@@ -574,7 +656,7 @@ def run_reference_benchmark(
         decode_rows: list[np.ndarray] = []
         if record and token_cohort is None:
             for candidate, candidate_options, _, _ in configurations:
-                extra_prefix = decode_steps if candidate_options.client_runtime == "compiled_replicated_v1" else 0
+                extra_prefix = decode_steps if _final_token_runtime(candidate_options.client_runtime) else 0
                 if any(not 1 <= len(row) or len(row) + extra_prefix > candidate.budget.max_input_tokens for row in encoded):
                     raise ReferenceBenchmarkError("tokenized cohort exceeds the Experiment input budget")
             token_cohort = tuple(encoded)
@@ -789,7 +871,9 @@ def run_reference_benchmark(
             "prefill and optional same-token decode agreement, not full-generation or task accuracy",
             "float32 reference loading and evaluation excluded from provider latency and cost",
             *(["final-token protocols expose top-1 only; fresh one-selection prefix requests are numeric diagnostics, not one serving response"]
-              if any(row.get("candidate_logits_available") is False for row in candidates) else []),
+               if any(row.get("candidate_logits_available") is False for row in candidates) else []),
+            *(["FSS source-model agreement requires this pinned FP32 comparison; independent integer/Q12 correctness is not source-model reference quality"]
+               if any(options.client_runtime == "compiled_fss_v1" for _, options, _, _ in configurations) else []),
         ],
     }
     if record:

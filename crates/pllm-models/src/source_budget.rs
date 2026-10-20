@@ -4,6 +4,130 @@
 use crate::{DecoderWorkload, ModelError};
 use serde_json::Value;
 
+/// Pre-construction logical metadata allowance. These are conservative, checked
+/// builder bounds, not allocator observations or a process/RSS reservation.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceMetadataEstimate {
+    pub operations_per_phase: usize,
+    pub states_per_phase: usize,
+    pub attribute_nodes: usize,
+    pub retained_string_bytes: usize,
+    pub retained_metadata_bytes: usize,
+}
+
+impl DecoderExpansionBudget {
+    /// Additional opt-in admission; old lowering entrypoints/digests are unchanged.
+    /// Callers still bound config bytes, and must bound serialized output before
+    /// materializing a canonical document. Mapping formulas precede expansion.
+    pub fn preflight_metadata(
+        &self,
+        document: &Value,
+        workload: DecoderWorkload,
+        max_operations: usize,
+        max_string: usize,
+        max_nodes: usize,
+        max_strings: usize,
+    ) -> Result<SourceMetadataEstimate, ModelError> {
+        fn strings(
+            v: &Value,
+            depth: usize,
+            ceiling: usize,
+            nodes: &mut usize,
+        ) -> Result<(), ModelError> {
+            *nodes = nodes.checked_add(1).ok_or_else(rejected)?;
+            if depth > 16 || *nodes > 32768 {
+                return Err(rejected());
+            }
+            match v {
+                Value::String(s) if s.len() > ceiling => return Err(rejected()),
+                Value::Array(a) => {
+                    for v in a {
+                        strings(v, depth + 1, ceiling, nodes)?;
+                    }
+                }
+                Value::Object(m) => {
+                    for (k, v) in m {
+                        if k.len() > ceiling {
+                            return Err(rejected());
+                        }
+                        strings(v, depth + 1, ceiling, nodes)?;
+                    }
+                }
+                _ => {}
+            }
+            Ok(())
+        }
+        // In particular, reject a huge valid decimal before each norm clones it.
+        let mut config_nodes = 0;
+        strings(document, 0, max_string, &mut config_nodes)?;
+        let (layer_key, per_layer, attr_per_layer, fixed_operations) =
+            super::source_mappings::metadata_expansion(document)?;
+        let layers = positive(field(document, layer_key)?, self.max_layers)?;
+        if workload.batch == 0 || workload.max_input_tokens == 0 || workload.max_new_tokens == 0 {
+            return Err(rejected());
+        }
+        let operations = layers
+            .checked_mul(per_layer)
+            .and_then(|n| n.checked_add(fixed_operations))
+            .ok_or_else(rejected)?;
+        let operations = usize::try_from(operations).map_err(|_| rejected())?;
+        if operations > max_operations {
+            return Err(rejected());
+        }
+        let layers = usize::try_from(layers).map_err(|_| rejected())?;
+        let nodes = layers
+            .checked_mul(attr_per_layer as usize)
+            .and_then(|n| n.checked_add(256))
+            .and_then(|n| n.checked_mul(2))
+            .and_then(|n| n.checked_add(config_nodes * 2))
+            .ok_or_else(rejected)?;
+        let epsilon = document
+            .get("rms_norm_eps")
+            .or_else(|| document.get("layer_norm_epsilon"))
+            .and_then(Value::as_str)
+            .map_or(32, str::len);
+        // Static paths/IDs/keys are bounded by the registered builder recipes;
+        // 4 KiB/layer/view covers their aggregate string payload. Norms may clone
+        // epsilon four times/layer/view (Q/K norms), plus the final norm.
+        let retained_strings = layers
+            .checked_mul(4096)
+            .and_then(|n| n.checked_add(4096))
+            .and_then(|n| {
+                (layers * 4 + 1)
+                    .checked_mul(epsilon)
+                    .and_then(|e| n.checked_add(e))
+            })
+            .and_then(|n| n.checked_mul(2))
+            .ok_or_else(rejected)?;
+        if nodes > max_nodes || retained_strings > max_strings {
+            return Err(rejected());
+        }
+        // Registered recipes bound ordinary op attributes at 8 KiB of map/vector
+        // backing (four sparse BTree nodes plus arrays/nested fields). A further
+        // 256 KiB/view covers the once-per-view source config. A standard BTree
+        // node has 11 key/value slots and 12 edges (<1024 B on this ABI). Leaf
+        // headers, op vectors and strings are additional below. The importer
+        // separately prices phase overlap, not process allocator/RSS usage.
+        let retained = nodes
+            .checked_mul(std::mem::size_of::<Value>())
+            .and_then(|n| {
+                n.checked_add(
+                    operations * 2 * (std::mem::size_of::<crate::ModelOperation>() + 512 + 8192),
+                )
+            })
+            .and_then(|n| n.checked_add(2 * (256 << 10)))
+            .and_then(|n| n.checked_add(retained_strings * 2))
+            .ok_or_else(rejected)?;
+        Ok(SourceMetadataEstimate {
+            operations_per_phase: operations,
+            states_per_phase: layers * 2,
+            attribute_nodes: nodes,
+            retained_string_bytes: retained_strings,
+            retained_metadata_bytes: retained,
+        })
+    }
+}
+
 /// Logical expansion limits, not a process-memory or source-byte allowance.
 /// Callers must bound configuration bytes before parsing. Unsupported source
 /// mappings reject rather than constructing a graph without this admission.

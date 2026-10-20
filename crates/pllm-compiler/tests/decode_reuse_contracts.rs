@@ -183,8 +183,7 @@ fn network_auto_planning_rejects_unowned_unpriced_decode_resources() {
     let composition = composition(true, 32 << 20);
     let error =
         network_placement_requirements(&canonical_bytes(&model), &canonical_bytes(&composition))
-            .err()
-            .expect("caller-owned decode cache cannot be automatically placed");
+            .expect_err("caller-owned decode cache cannot be automatically placed");
     assert!(
         error.contains("caller-owned decode cache resources"),
         "{error}"

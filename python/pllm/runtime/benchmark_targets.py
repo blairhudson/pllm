@@ -25,8 +25,8 @@ def model_context(parameters, m):
     options = resolve_runtime_composition(experiment.pipeline)
     if options is None:
         raise TargetUnavailable("unimplemented_composition")
-    if options.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1"}:
-        kind = "gkm" if options.client_runtime == "compiled_gkm_v1" else "replicated"
+    if options.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1", "compiled_fss_v1"}:
+        kind = {"compiled_gkm_v1": "gkm", "compiled_replicated_v1": "replicated", "compiled_fss_v1": "fss"}[options.client_runtime]
         raise TargetUnavailable(f"{kind}_requires_native_geometry_or_response_target")
     config, resolved = declared["config"], None
     if config is None:
@@ -319,28 +319,33 @@ def execute_target(target, m):
         from .benchmark_response_target import execute_operator
         return execute_operator(p, m)
     from pllm.configuration import Experiment
-    from .benchmark_delegated import admit_options, inspect_runtime, is_buffered, is_replicated
+    from .benchmark_delegated import admit_options, inspect_runtime, is_buffered, is_replicated, is_fss
 
     declared = p["model"]
     experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
     if is_buffered(experiment):
-        kind = "replicated" if is_replicated(experiment) else "gkm"
+        kind = "fss" if is_fss(experiment) else "replicated" if is_replicated(experiment) else "gkm"
         if declared["config"] is not None:
             raise TargetUnavailable(f"{kind}_geometry_requires_source_configuration")
         admit_options(experiment, output_tokens=experiment.budget.max_new_tokens)
         m.admit(128 << 20)
-        metadata, contract = m.run(lambda _: inspect_runtime(experiment))[-1]
-        identity = metadata["native_runtime_contract_digest"]
-        # Native identity belongs to the admitted SDK contract. Re-encoding its
-        # nested plan in Python can change canonical floating-point spelling.
+        try:
+            metadata, contract = m.run(lambda _: inspect_runtime(experiment))[-1]
+        except ValueError as error:
+            if kind == "fss":
+                raise TargetUnavailable("fss_source_metadata_admission", status="blocked") from error
+            raise
+        identity = metadata["source_contract_bytes_sha256"] if kind == "fss" else metadata["native_runtime_contract_digest"]
+        # FSS uses the actual metadata-byte SHA, not an unavailable native
+        # execution binding. Other SDK contracts retain their native identity.
         m.details.update(runtime_contract=metadata, plan_digest=None,
-            stages=contract["source_shapes"] if kind == "replicated" else contract["decoder"]["matrices"],
+            stages=contract["source_shapes"] if kind in {"replicated", "fss"} else contract["decoder"]["matrices"],
             component_ids=sorted({c.component for c in experiment.pipeline.components.values()}),
             model={"id": str(experiment.pipeline.model.model_id or experiment.pipeline.model.source),
                    "checkpoint_digest": metadata["checkpoint_digest"],
                    "source_lock_digest": metadata["source_lock_digest"]})
         m.fixture = {"kind": "projection", "digest": identity, "metadata": {"values_loaded": False}}
-        m.oracle = {"kind": f"native_{kind}_semantic_contract", "outcome": "passed",
+        m.oracle = {"kind": "native_fss_metadata_geometry_contract" if kind == "fss" else f"native_{kind}_semantic_contract", "outcome": "passed",
                     "checked_values": metadata["matrix_count"]}
         m.comparison.update(source_digest=metadata["source_lock_digest"],
             numeric_digest=digest(metadata["numeric"]), privacy_digest=digest({"scope": "geometry_only"}),

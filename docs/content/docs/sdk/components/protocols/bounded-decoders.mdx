@@ -1,0 +1,77 @@
+---
+title: "Bounded protected decoders"
+description: "Explicit GKM, PUMA and FuseFSS component contracts and their model-capacity gates."
+---
+
+These compositions execute generated checkpoints through the ordinary SDK.
+Component availability does not establish full-model capacity, model quality or
+independent operators. Source and workload admission still apply to each request.
+
+## Python SDK example
+
+```python
+from pllm.protocols import OpenWeightVerifiableOutsourcing, PumaThreePartyDecoder, FuseFssSourceDecoder
+from pllm.roles import TwoOnlineDelegationRoles, ThreePartyReplicatedRoles, TrustedDealerTwoShareRoles
+from pllm.state import ReplicatedPrivatePrefix, FixedCountPrivatePrefix
+from pllm.verification import PublishedLinearVerify
+
+methods = (
+    OpenWeightVerifiableOutsourcing(),
+    PumaThreePartyDecoder(),
+    FuseFssSourceDecoder(numeric_profile="fusefss.gpt2-complete-ring50-q12.v1"),
+)
+assert len({method.component for method in methods}) == 3
+assert PublishedLinearVerify().component == "pllm/published-linear-verify/v1"
+assert TwoOnlineDelegationRoles().component == "pllm/two-online-delegation-workers/v1"
+assert ThreePartyReplicatedRoles().component == "pllm/three-party-replicated/v1"
+assert TrustedDealerTwoShareRoles().component == "pllm/trusted-dealer-two-share/v1"
+assert ReplicatedPrivatePrefix().component == "pllm/replicated-private-prefix/v1"
+assert FixedCountPrivatePrefix().component == "pllm/fixed-count-private-prefix/v1"
+```
+
+These are immutable declarations. Execution uses the corresponding typed profile,
+an Experiment, a supported checkpoint and ordinary request/resource admission.
+
+## Verified delegation
+
+[GKM](/research/papers/open-weight-verifiable/) uses
+`pllm/open-weight-verifiable-outsourcing/v1`, `pllm/published-linear-verify/v1`
+and `pllm/two-online-delegation-workers/v1` through `OpenWeightVerifiableCpu`.
+The client retains full KV and releases text only after request-end verification.
+`capacity="decoder"` selects larger explicit envelopes than the default Capsule.
+See [verified delegation](/sdk/inference/verified-delegation/) for its bounded
+checkpoint result and remaining quality gates.
+
+## Replicated private decoder
+
+[PUMA](/research/papers/puma/) uses `pllm/puma-three-party-decoder/v1`,
+`pllm/three-party-replicated/v1` and `pllm/replicated-private-prefix/v1` through
+`PumaThreePartyCpu`. Three party-local owners recompute the prefix with Q18
+arithmetic and private feedback. Private and public weights have separate
+identities. Public-weight range, lookup, selection and peer-transport choices
+retain their native work and memory gates. Full pinned Qwen execution remains blocked.
+
+## Offline-dealer source decoder
+
+[FuseFSS](/research/papers/fusefss/) uses `pllm/fusefss-source-decoder/v1`,
+`pllm/trusted-dealer-two-share/v1` and `pllm/fixed-count-private-prefix/v1` through
+`FuseFssSourceCpu`. Select either `fusefss.gpt2-complete-ring50-q12.v1` or
+`fusefss.dense-rope-ring50-q12.v1` explicitly. Both use public weights, nearest-even
+external Q12 encoding and the approved internal floors.
+
+A separate trusted dealer fills encrypted one-use worker tapes before either
+holder receives private input. Two online holders retain additive activations,
+complete-vocabulary selection and private token feedback. Only final token IDs
+reach the client. Fixed-count output ignores EOS; continuations, tools and
+stochastic sampling reject. Buffered delivery supplies no streaming TTFT or
+decode-throughput measurement.
+
+The [generated example](https://github.com/blairhudson/pllm/blob/main/examples/papers/fusefss_smoke.py)
+runs both numeric profiles through SDK, gateway and ordinary benchmarks. Full
+GPT-2/Qwen checkpoints exceed current source/work limits; the generated results
+are not trained-model quality or performance evidence.
+
+API: [Protocol methods](/sdk/reference/python/pllm/protocols/#objects-and-signatures),
+[profiles](/sdk/reference/python/pllm/profiles/#objects-and-signatures),
+[roles](/sdk/reference/python/pllm/roles/#objects-and-signatures),
+[state](/sdk/reference/python/pllm/state/#objects-and-signatures).

@@ -10,6 +10,7 @@ from pllm.roles.topology import (
     client_only_reference_graph,
     two_online_delegation_graph,
     two_online_reference_graph,
+    trusted_dealer_two_share_graph,
 )
 
 
@@ -161,6 +162,39 @@ class TwoOnlineDelegationRoles(RoleTopology):
         role_eligibility=("client", "worker_a", "worker_b"),
         artifacts=({"kind": "setup-owner", "role": "client", "phase": "offline",
                     "capability": "trusted-publisher"},),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
+class TrustedDealerTwoShareRoles(RoleTopology):
+    """Independent trusted dealer and two noncolluding online share holders.
+
+    Client is never dealer. Distinct credentials and operator independence need
+    deployment evidence; this immutable declaration does not establish either.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/trusted-dealer-two-share/v1", provider="pllm", distribution="pllm.run",
+        version="1", category="pllm/role-topology", category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("independent-trusted-offline-dealer", "two-noncolluding-online-share-holders",
+                      "client-is-not-dealer", "distinct-role-credentials-required"),
+        required_host_features=("independent-trusted-dealer", "distinct-role-credentials",
+                                "distinct-authenticated-confidential-role-channels"),
+        role_eligibility=("client", "dealer", "worker_a", "worker_b"),
+        artifacts=({"kind": "setup-owner", "role": "dealer", "phase": "offline",
+                    "capability": "trusted-preprocessing"},),
     )
 
     def __init__(self) -> None:
@@ -453,6 +487,8 @@ __all__ = [
     "TwoOnlineOffsetRoles",
     "TwoOnlineDelegationRoles",
     "ThreePartyReplicatedRoles",
+    "TrustedDealerTwoShareRoles",
+    "trusted_dealer_two_share_graph",
     "OutputHeadAtInference",
     "BoundaryPlacement",
     "PrivateLookupAndFullHead",

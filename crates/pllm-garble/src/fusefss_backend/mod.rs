@@ -28,7 +28,9 @@ mod dcf;
 #[cfg(test)]
 mod gate_conformance;
 pub mod lookup;
+pub mod one_hot;
 pub mod predicates;
+pub mod wire;
 
 pub use compiled::{CompiledGelu, CompiledResources};
 
@@ -61,7 +63,7 @@ pub enum Error {
     Consumed,
 }
 
-fn primitive_error(error: crate::shared_rescale_reference::Error) -> Error {
+pub(crate) fn primitive_error(error: crate::shared_rescale_reference::Error) -> Error {
     use crate::shared_rescale_reference::Error as Primitive;
     match error {
         Primitive::Domain => Error::Domain,
@@ -106,7 +108,7 @@ impl Budget {
             bytes,
         })
     }
-    fn allocation(&self) -> Result<(), Error> {
+    pub(crate) fn allocation(&self) -> Result<(), Error> {
         #[cfg(test)]
         {
             let n = self.fail_after.load(Ordering::SeqCst);
@@ -138,7 +140,7 @@ impl Drop for Lease<'_> {
         self.budget.used.fetch_sub(self.bytes, Ordering::SeqCst);
     }
 }
-fn allocate<T>(capacity: usize, budget: &Budget) -> Result<Vec<T>, Error> {
+pub(crate) fn allocate<T>(capacity: usize, budget: &Budget) -> Result<Vec<T>, Error> {
     budget.allocation()?;
     let mut values = Vec::new();
     values
@@ -379,7 +381,8 @@ enum State {
         Zeroizing<Vec<[u64; 2]>>,
     ),
 }
-/// One-use local evaluator; no cloning or key export. Any failed online method
+/// One-use local evaluator; no cloning or reusable key export. Fresh material
+/// may be transferred only by consuming export. Any failed online method
 /// takes/burns state, including wrong order, malformed input/frame and replay.
 pub struct Party<'a> {
     id: u8,
@@ -473,28 +476,7 @@ where
         .checked_add(spec.lanes as u64)
         .ok_or(Error::Domain)?;
     let mut reservation = budget.reserve(r.combined_reservation_bytes)?;
-    let mut hash = Sha256::new();
-    hash.update(b"pllm.fusefss.affine-backend.v1\0");
-    hash.update(spec.descriptor_digest);
-    hash.update(spec.source_digest);
-    hash.update([spec.bits]);
-    hash.update((spec.source_intervals as u64).to_le_bytes());
-    hash.update((spec.lanes as u64).to_le_bytes());
-    hash.update(context.plan);
-    hash.update(context.session);
-    hash.update(context.operation);
-    hash.update(context.first_tensor_index.to_le_bytes());
-    if let Some(table) = public {
-        hash.update(b"public-original-boundary.v1\0");
-        for word in table
-            .boundaries()
-            .iter()
-            .chain(table.coefficients().iter().flatten())
-        {
-            hash.update(word.to_le_bytes());
-        }
-    }
-    let binding = hash.finalize().into();
+    let binding = material_binding(spec, context, public);
     let mut nonce = [0; 32];
     getrandom::fill(&mut nonce).map_err(|_| Error::Randomness)?;
     let mask = (1u64 << spec.bits) - 1;
@@ -571,7 +553,183 @@ where
     ])
 }
 
+fn material_binding(spec: Spec, context: Context, public: Option<&RingTable>) -> [u8; 32] {
+    let mut hash = Sha256::new();
+    hash.update(b"pllm.fusefss.affine-backend.v1\0");
+    hash.update(spec.descriptor_digest);
+    hash.update(spec.source_digest);
+    hash.update([spec.bits]);
+    hash.update((spec.source_intervals as u64).to_le_bytes());
+    hash.update((spec.lanes as u64).to_le_bytes());
+    hash.update(context.plan);
+    hash.update(context.session);
+    hash.update(context.operation);
+    hash.update(context.first_tensor_index.to_le_bytes());
+    if let Some(table) = public {
+        hash.update(b"public-original-boundary.v1\0");
+        for word in table
+            .boundaries()
+            .iter()
+            .chain(table.coefficients().iter().flatten())
+        {
+            hash.update(word.to_le_bytes());
+        }
+    }
+    hash.finalize().into()
+}
+
 impl<'a> Party<'a> {
+    pub fn export_material(mut self) -> Result<wire::MaterialPacket<'a>, Error> {
+        let state = self.state.take().ok_or(Error::Consumed)?;
+        let State::Ready(keys) = state else {
+            return Err(Error::Context);
+        };
+        let mut body = 0;
+        for lane in &keys {
+            body += 8
+                + ring::TRIPLE_BYTES
+                + match &lane.lookup {
+                    Lookup::Private { keys, .. } => {
+                        16 + keys.len() * dcf::Key::logical_bytes(self.spec.bits)
+                    }
+                    Lookup::Public(_) => {
+                        16 + crate::compact_dcf::RingComparison::resources(
+                            self.spec.bits,
+                            self.spec.bits,
+                        )
+                        .map_err(primitive_error)?
+                        .encoded_key_bytes
+                    }
+                    Lookup::Consumed => return Err(Error::Consumed),
+                };
+        }
+        wire::packet(
+            1,
+            self.id,
+            self.binding,
+            self.nonce,
+            body,
+            self.lease.budget,
+            |out| {
+                for lane in &keys {
+                    wire::word(out, *lane.mask);
+                    lane.triple.write_material(out);
+                    match &lane.lookup {
+                        Lookup::Private { keys, base } => {
+                            for value in base.iter() {
+                                wire::word(out, *value);
+                            }
+                            for key in keys {
+                                key.write_material(out);
+                            }
+                        }
+                        Lookup::Public(key) => key.write_material(out),
+                        Lookup::Consumed => return Err(Error::Consumed),
+                    }
+                }
+                Ok(())
+            },
+        )
+    }
+
+    pub fn import_material(
+        spec: Spec,
+        context: Context,
+        role: u8,
+        nonce: [u8; 32],
+        packet: wire::MaterialPacket<'_>,
+        guard: &mut wire::ImportGuard<'_>,
+        budget: &'a Budget,
+    ) -> Result<Self, Error> {
+        Self::import_with_lookup(spec, context, role, nonce, packet, guard, budget, None)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn import_with_lookup(
+        spec: Spec,
+        context: Context,
+        role: u8,
+        nonce: [u8; 32],
+        packet: wire::MaterialPacket<'_>,
+        guard: &mut wire::ImportGuard<'_>,
+        budget: &'a Budget,
+        public: Option<&RingTable>,
+    ) -> Result<Self, Error> {
+        guard.claim(role, nonce)?;
+        let r = resources_for(spec, public)?;
+        context
+            .first_tensor_index
+            .checked_add(spec.lanes as u64)
+            .ok_or(Error::Domain)?;
+        let binding = material_binding(spec, context, public);
+        let key_bytes = if public.is_some() {
+            crate::compact_dcf::RingComparison::resources(spec.bits, spec.bits)
+                .map_err(primitive_error)?
+                .encoded_key_bytes
+        } else {
+            r.padded_intervals * dcf::Key::logical_bytes(spec.bits)
+        };
+        let body = spec.lanes * (48 + key_bytes);
+        let mut input = wire::open(&packet, 1, role, binding, nonce, body)?;
+        let mut scan = input.fork();
+        for _ in 0..spec.lanes {
+            // Own mask, Beaver triple and randomized coefficient/base pair.
+            for _ in 0..6 {
+                let _ = Zeroizing::new(scan.word(spec.bits)?);
+            }
+            if public.is_some() {
+                crate::compact_dcf::RingComparison::validate_material(
+                    scan.take(key_bytes)?,
+                    spec.bits,
+                    spec.bits,
+                )?;
+            } else {
+                for _ in 0..r.padded_intervals {
+                    crate::compact_dcf::VectorComparison::validate_material(
+                        scan.take(dcf::Key::logical_bytes(spec.bits))?,
+                        spec.bits,
+                        spec.bits,
+                    )?;
+                }
+            }
+        }
+        scan.finish()?;
+        let lease = budget.reserve(r.party_reservation_bytes)?;
+        let mut lanes = allocate(spec.lanes, budget)?;
+        for _ in 0..spec.lanes {
+            let mask = Zeroizing::new(input.word(spec.bits)?);
+            let triple = ring::TripleShare::read_material(&mut input, spec.bits)?;
+            let lookup = if let Some(table) = public {
+                Lookup::Public(RingParty::read_material(&mut input, role, table, budget)?)
+            } else {
+                let base = Zeroizing::new([input.word(spec.bits)?, input.word(spec.bits)?]);
+                let mut keys = allocate(r.padded_intervals, budget)?;
+                for _ in 0..r.padded_intervals {
+                    keys.push(dcf::Key::read_material(
+                        input.take(dcf::Key::logical_bytes(spec.bits))?,
+                        spec.bits,
+                        budget,
+                    )?);
+                }
+                Lookup::Private { keys, base }
+            };
+            lanes.push(Lane {
+                lookup,
+                mask,
+                triple,
+            });
+        }
+        input.finish()?;
+        Ok(Self {
+            id: role,
+            spec,
+            binding,
+            nonce,
+            state: Some(State::Ready(lanes)),
+            lease,
+        })
+    }
+
     pub fn cancel(&mut self) {
         self.state = None;
     }

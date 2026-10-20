@@ -20,6 +20,7 @@ BOUNDARY_ACCOUNTING_SCHEMA = "pllm.topology_body_accounting.v4"
 BOUNDARY_COVERAGE = "prepared_body_and_private_boundary_lifecycle_v4"
 BOUNDARY_ROLES = ("client", "inference", "preparation", "boundary_a", "boundary_b")
 REPLICATED_COVERAGE = "replicated_client_and_direct_peer_lifecycle_v1"
+FSS_COVERAGE = "fss_client_controls_dealer_packets_acks_direct_peer_v1"
 
 # Count every serialized body once, from the sending side of one edge. Other
 # audit counters (masked_online_*, upload_bytes, and server metrics) overlap.
@@ -65,7 +66,7 @@ def body_coverage_identity(ledger: Mapping[str, Any]) -> str | None:
     if not isinstance(ledger, Mapping):
         return None
     coverage = ledger.get("body_counter_coverage")
-    if coverage == REPLICATED_COVERAGE:
+    if coverage in {REPLICATED_COVERAGE, FSS_COVERAGE}:
         return coverage if ledger.get("tracked_body_counter_set_present") is True else None
     if coverage == BOUNDARY_COVERAGE:
         return coverage if all(ledger.get(key) is True for key in (

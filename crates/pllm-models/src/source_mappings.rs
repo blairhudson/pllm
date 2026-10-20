@@ -3,9 +3,9 @@
 
 use super::source_budget::{preflight_dense_source, HeadWidth};
 use super::{
-    dense_gated_source, fused_dense_decoder, hybrid_text_decoder, lower_qwen3_decoder,
-    lower_qwen_decoder, shared_kv_decoder, DecoderExpansionBudget, DecoderPlan, DecoderWorkload,
-    ModelError, Qwen3Config, QwenConfig,
+    absolute_position_decoder, dense_gated_source, fused_dense_decoder, hybrid_text_decoder,
+    lower_qwen3_decoder, lower_qwen_decoder, shared_kv_decoder, DecoderExpansionBudget,
+    DecoderPlan, DecoderWorkload, ModelError, Qwen3Config, QwenConfig,
 };
 use serde_json::Value;
 
@@ -79,6 +79,30 @@ const HYBRID_ARTIFACTS: ArtifactLayout<'static> = ArtifactLayout {
 type SourceLowering = fn(&[u8], Value, DecoderWorkload) -> Result<DecoderPlan, ModelError>;
 type SourcePreflight =
     fn(&Value, DecoderWorkload, DecoderExpansionBudget) -> Result<(), ModelError>;
+
+/// Declarative expansion contracts for the builders that opt in to bounded
+/// metadata admission. No graph construction or family-specific execution here.
+pub(super) fn metadata_expansion(
+    document: &Value,
+) -> Result<(&'static str, u64, u64, u64), ModelError> {
+    // (source format, layer field, operations per layer, attribute nodes/layer).
+    // Ordinary dense views have six fixed ops, learned-position views eight;
+    // each has two KV states per layer. Counts are tested against graph builders.
+    const MAPPINGS: &[(&str, &str, u64, u64, u64)] = &[
+        ("gpt2", "n_layer", 25, 480, 8),
+        ("qwen2", "num_hidden_layers", 28, 352, 6),
+        ("qwen3", "num_hidden_layers", 30, 384, 6),
+        ("llama", "num_hidden_layers", 28, 352, 6),
+    ];
+    let source = document.get("model_type").and_then(Value::as_str);
+    MAPPINGS
+        .iter()
+        .find(|m| Some(m.0) == source)
+        .map(|m| (m.1, m.2, m.3, m.4))
+        .ok_or_else(|| {
+            ModelError::Unsupported("source has no bounded metadata expansion contract".into())
+        })
+}
 
 pub(super) struct HybridSource<'a> {
     pub(super) outer_type: &'static str,
@@ -274,6 +298,14 @@ struct SourceMapping {
 
 const SOURCE_MAPPINGS: &[SourceMapping] = &[
     SourceMapping {
+        model_type: "gpt2",
+        semantic_family: "gpt2",
+        lower: |_, document, workload| {
+            absolute_position_decoder::lower_source_json(&document, workload, &ABSOLUTE_POSITION)
+        },
+        preflight: Some(absolute_position_decoder::preflight),
+    },
+    SourceMapping {
         model_type: "qwen2",
         semantic_family: "qwen2",
         lower: lower_dense_qwen2,
@@ -316,6 +348,39 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
         preflight: None,
     },
 ];
+
+pub(super) const ABSOLUTE_POSITION: FusedDenseSource<'static> = FusedDenseSource {
+    model_type: "gpt2",
+    family: "gpt2",
+    adapter: "pllm.absolute_position_decoder.v1",
+    digest_domain: "pllm.absolute_position_source_config.v1",
+    artifacts: &ArtifactLayout {
+        token_embedding: "transformer.wte.weight",
+        output_head: "lm_head.weight",
+        final_norm: "transformer.ln_f.weight",
+        layer_prefix: "transformer.h",
+        layer_artifacts: &[
+            ("input_norm", "ln_1.weight"),
+            ("input_norm_bias", "ln_1.bias"),
+            ("post_attention_norm", "ln_2.weight"),
+            ("post_attention_norm_bias", "ln_2.bias"),
+            ("attention_qkv", "attn.c_attn.weight"),
+            ("attention_qkv_bias", "attn.c_attn.bias"),
+            ("attention_output", "attn.c_proj.weight"),
+            ("attention_output_bias", "attn.c_proj.bias"),
+            ("mlp_up", "mlp.c_fc.weight"),
+            ("mlp_up_bias", "mlp.c_fc.bias"),
+            ("mlp_down", "mlp.c_proj.weight"),
+            ("mlp_down_bias", "mlp.c_proj.bias"),
+        ],
+        global_artifacts: &[
+            ("position_embedding", "transformer.wpe.weight"),
+            ("final_norm_bias", "transformer.ln_f.bias"),
+        ],
+    },
+};
+
+pub(super) const ABSOLUTE_POSITION_ARCHITECTURE: &str = "GPT2LMHeadModel";
 
 pub(super) fn lower_json(
     bytes: &[u8],
@@ -413,6 +478,73 @@ mod tests {
     use serde_json::json;
     use std::fs;
     use std::path::Path;
+
+    #[test]
+    fn metadata_recipe_counts_cover_valid_registered_views_without_changing_identity() {
+        let budget = DecoderExpansionBudget {
+            max_layers: 1024,
+            max_feature_width: 32768,
+            max_attention_heads: 32768,
+            max_vocabulary: 32768,
+            max_tensor_elements: 32768,
+        };
+        let workload = DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 2,
+            max_new_tokens: 2,
+        };
+        for family in ["gpt2", "qwen2", "qwen3", "llama"] {
+            for layers in [1, 2, 3] {
+                let source = if family == "gpt2" {
+                    json!({"model_type":family,"n_layer":layers,"n_embd":4,"n_head":2,
+                        "n_inner":8,"n_positions":8,"vocab_size":7})
+                } else {
+                    json!({"model_type":family,"num_hidden_layers":layers,"hidden_size":4,
+                        "intermediate_size":8,"num_attention_heads":2,"num_key_value_heads":1,
+                        "head_dim":2,"vocab_size":7,"max_position_embeddings":8,
+                        "hidden_act":"silu","rms_norm_eps":0.000001,"rope_theta":10000,
+                        "tie_word_embeddings":true,"attention_bias":false,"attention_dropout":0.0,
+                        "use_sliding_window":false,"use_cache":true,"max_window_layers":layers})
+                };
+                let estimate = budget
+                    .preflight_metadata(&source, workload, 1024, 1024, 32768, 1 << 20)
+                    .unwrap();
+                let bytes = serde_json::to_vec(&source).unwrap();
+                let plain = lower_json(&bytes, workload, None).unwrap();
+                let bounded = lower_json(&bytes, workload, Some(budget)).unwrap();
+                assert_eq!(plain, bounded);
+                assert_eq!(plain.digest(), bounded.digest());
+                assert_eq!(
+                    plain.prefill.operations.len(),
+                    estimate.operations_per_phase,
+                    "{family}"
+                );
+                assert_eq!(
+                    plain.decode.operations.len(),
+                    estimate.operations_per_phase,
+                    "{family}"
+                );
+                assert_eq!(plain.prefill.state_outputs.len(), estimate.states_per_phase);
+                fn nodes(v: &Value) -> usize {
+                    1 + match v {
+                        Value::Array(a) => a.iter().map(nodes).sum::<usize>(),
+                        Value::Object(m) => m.values().map(nodes).sum::<usize>(),
+                        _ => 0,
+                    }
+                }
+                let actual: usize = [&plain.prefill, &plain.decode]
+                    .into_iter()
+                    .flat_map(|g| &g.operations)
+                    .map(|op| nodes(&op.attributes))
+                    .sum();
+                assert!(
+                    actual <= estimate.attribute_nodes,
+                    "{family}: {actual} > {}",
+                    estimate.attribute_nodes
+                );
+            }
+        }
+    }
 
     fn lowering_sentinel(
         _: &[u8],
@@ -566,13 +698,14 @@ mod tests {
     fn executable_decoder_modules_are_named_and_bound_by_architecture() {
         let source_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         for module in [
+            "absolute_position_decoder.rs",
             "hybrid_text_decoder.rs",
             "fused_dense_decoder.rs",
             "shared_kv_decoder.rs",
         ] {
             let contents = fs::read_to_string(source_dir.join(module)).unwrap();
             let implementation = contents.split("#[cfg(test)]").next().unwrap();
-            for source_label in ["qwen", "gemma", "phi4"] {
+            for source_label in ["qwen", "gemma", "phi4", "gpt2", "GPT2"] {
                 assert!(
                     !implementation.contains(source_label),
                     "{module} places source identity {source_label:?} in executable graph code"

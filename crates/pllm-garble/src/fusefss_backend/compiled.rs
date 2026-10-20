@@ -82,6 +82,29 @@ impl<'a> CompiledGelu<'a> {
         self.descriptor.digest()
     }
 
+    /// Import a fresh evaluator using only the frozen public descriptor/table.
+    /// No masks, dealer compilation at a secret rotation, or issuance RNG run.
+    pub fn import_material(
+        &self,
+        lanes: usize,
+        context: Context,
+        role: u8,
+        nonce: [u8; 32],
+        packet: super::wire::MaterialPacket<'_>,
+        guard: &mut super::wire::ImportGuard<'_>,
+    ) -> Result<Party<'a>, Error> {
+        Party::import_with_lookup(
+            self.spec(lanes),
+            context,
+            role,
+            nonce,
+            packet,
+            guard,
+            self.lease.budget,
+            self.public_table.as_ref(),
+        )
+    }
+
     fn spec(&self, lanes: usize) -> super::Spec {
         super::Spec {
             bits: self.descriptor.word().bits,

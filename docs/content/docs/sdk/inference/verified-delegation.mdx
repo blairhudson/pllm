@@ -9,7 +9,7 @@ Generated checkpoints pass the ordinary SDK path. A pinned Qwen2.5-0.5B request
 also completes four input tokens and two verified outputs under the explicit
 Decoder policy. This short functionality check does not establish model quality.
 
-## Configure one Experiment
+## Python SDK example
 
 Provide a complete Safetensors checkpoint and genuine `tokenizer.json`,
 with at most 256 vocabulary entries and shapes within native limits. The default
@@ -25,6 +25,7 @@ experiment = Experiment(
     deployment=Deployment.local(root=".pllm/delegated"),
     budget=ExecutionBudget(requests=4, max_input_tokens=8, max_new_tokens=3),
 )
+assert experiment.pipeline.components["linear"].component == "pllm/open-weight-verifiable-outsourcing/v1"
 
 with OpenAI(experiment=experiment) as client:
     response = client.responses.create(
@@ -74,3 +75,5 @@ Local worker processes do not establish non-collusion or production privacy.
 See the [complete contract and validation record](https://github.com/blairhudson/pllm/blob/main/docs/research/gkm-sdk-reference.md)
 for source limits, transport admission, exact-state checks and remaining
 checkpoint and performance gates.
+
+API: [Profiles](/sdk/reference/python/pllm/profiles/#objects-and-signatures).

@@ -46,8 +46,8 @@ async def load_role_adapter(
 
     profile = experiment.resolve()
     options = resolve_runtime_composition(experiment.pipeline)
-    if profile.client_runtime == "compiled_gkm_v1":
-        raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: GKM requires its bounded local worker launcher")
+    if profile.client_runtime in {"compiled_gkm_v1", "compiled_fss_v1"}:
+        raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: selected method requires its bounded local role launcher")
     roles = {role.id for role in profile.role_graph.roles} - {"client"}
     if options is None or role_id not in roles or roles not in (
         {"worker_a", "worker_b"}, {"inference", "preparation"},
@@ -104,7 +104,8 @@ def role_client(experiment, connections):
     roles = set(connections)
     if {"boundary_a", "boundary_b"} & roles:
         raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: private boundary supports local children only")
-    if roles in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
+    if roles in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"},
+                 {"worker_a", "worker_b", "dealer"}):
         return OpenAI(default_model=experiment.resolve().model, experiment=experiment,
                        role_connections=connections, _automatic=False)
     if roles == {"inference", "preparation"}:
@@ -216,6 +217,7 @@ class LocalTopology:
         "_peer_credentials",
         "_role_ids",
         "_role_urls",
+        "_source_pins",
         "_started",
         "_starting",
         "_startup_timeout",
@@ -285,6 +287,7 @@ class LocalTopology:
         self._role_credentials: dict[str, str] = {}
         self._peer_credentials: dict[tuple[str, str], str] = {}
         self._role_urls: dict[str, str] = {}
+        self._source_pins: dict[str, str] | None = None
         self._local_engine: Any | None = None
         self._requires_preparation = requires_preparation
         self._guard_max_rows_per_request = guard_max_rows_per_request
@@ -345,9 +348,10 @@ class LocalTopology:
         return self._preparation_url
 
     def worker_connections(self) -> dict[str, tuple[str, str]]:
-        if (set(self._role_ids) not in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"})
+        if (set(self._role_ids) not in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"},
+                                       {"worker_a", "worker_b", "dealer"})
                 or not self.is_healthy()):
-            raise TopologyError("two-worker topology is not running")
+            raise TopologyError("selected worker topology is not running")
         return {
             role: (self._role_urls[role], self._role_credentials[role]) for role in self._role_ids
         }
@@ -377,7 +381,8 @@ class LocalTopology:
         result: dict[str, dict[str, int | None]] = {}
         delegation = self._privacy_mode == "gkm_public"
         replicated = self._privacy_mode == "replicated_public"
-        namespace = "replicated" if replicated else "delegation" if delegation else "offset-reference"
+        fss = self._privacy_mode == "fss_public"
+        namespace = "fss" if fss else "replicated" if replicated else "delegation" if delegation else "offset-reference"
         for role, (url, key) in connections.items():
             response = httpx.get(
                 f"{url}/v1/{namespace}/metrics",
@@ -390,7 +395,8 @@ class LocalTopology:
             if (
                 type(value) is not dict
                 or value.get("schema") != (
-                    "pllm.replicated_worker_process_metrics.v1" if replicated
+                    "pllm.fss.worker.metrics.v1" if fss
+                    else "pllm.replicated_worker_process_metrics.v1" if replicated
                     else "pllm.delegation_worker_process_metrics.v1" if delegation
                     else "pllm.offset_worker_process_metrics.v1")
                 or type(value.get("cpu_ns")) is not int
@@ -534,6 +540,10 @@ class LocalTopology:
         return options
 
     def _commands(self, ports: dict[str, int]) -> dict[str, list[str]]:
+        if self._privacy_mode == "fss_public":
+            return {role: [sys.executable, "-I", "-m", "pllm.runtime.fss_worker",
+                           "--role", role, "--port", str(ports[role])]
+                    for role in self._role_ids}
         if self._privacy_mode == "replicated_public":
             return {role: [sys.executable, "-I", "-m", "pllm.runtime.replicated_worker",
                            "--role", role, "--port", str(ports[role])]
@@ -633,7 +643,7 @@ class LocalTopology:
         return commands
 
     def _environment(self, role: str) -> dict[str, str]:
-        if role in {"worker_a", "worker_b", "worker_c"}:
+        if role in {"worker_a", "worker_b", "worker_c", "dealer"}:
             environment = {
                 name: value
                 for name, value in os.environ.items()
@@ -651,7 +661,23 @@ class LocalTopology:
                 }
             }
             assert self._experiment is not None
-            if self._privacy_mode == "replicated_public":
+            if self._privacy_mode == "fss_public":
+                if self._source_pins is None:
+                    raise TopologyError("FuseFSS source must be pinned before role launch")
+                environment.pop("PYTHONPATH", None)
+                environment.pop("DYLD_LIBRARY_PATH", None)
+                environment["PLLM_FSS_API_KEY"] = self._role_credentials[role]
+                environment["PLLM_ROLE_EXPERIMENT_JSON"] = self._experiment.canonical_bytes().decode()
+                environment["PLLM_FSS_SOURCE_PINS_JSON"] = json.dumps(self._source_pins)
+                environment["PLLM_FSS_PEERS_JSON"] = json.dumps({
+                    peer: [self._role_urls[peer], self._peer_credentials[(role, peer)]]
+                    for peer in self._role_ids if peer != role and peer != "dealer"})
+                environment["PLLM_FSS_PEER_CREDENTIALS_JSON"] = json.dumps({
+                    peer: self._peer_credentials[(peer, role)]
+                    for peer in self._role_ids if peer != role and role != "dealer"})
+                if self._hf_cache_dir is not None:
+                    environment["HF_HUB_CACHE"] = self._hf_cache_dir
+            elif self._privacy_mode == "replicated_public":
                 environment.pop("PYTHONPATH", None)
                 environment.pop("DYLD_LIBRARY_PATH", None)
                 # Execution choices (including peer streams) travel only in the
@@ -767,6 +793,7 @@ class LocalTopology:
             self._preparation_key,
             self._push_key,
             *self._role_credentials.values(),
+            *self._peer_credentials.values(),
         ):
             if secret:
                 text = text.replace(secret, "<redacted>")
@@ -805,10 +832,12 @@ class LocalTopology:
                 raise TopologyError("local topology cannot be started again")
             self._starting = True
         try:
-            if self._privacy_mode in {"gkm_public", "replicated_public"}:
+            if self._privacy_mode in {"gkm_public", "replicated_public", "fss_public"}:
                 # Source/numerical admission must precede ordinary model lowering,
                 # tensor import and process creation, including bare SDK launch.
-                if self._privacy_mode == "replicated_public":
+                if self._privacy_mode == "fss_public":
+                    from .fss_source import admit_source
+                elif self._privacy_mode == "replicated_public":
                     from .replicated_source import admit_source
                 else:
                     from .delegated_source import admit_source
@@ -816,12 +845,15 @@ class LocalTopology:
 
                 source = admit_source(self._experiment)
                 budget = self._experiment.budget
-                estimate = estimate_memory(source.config, self._experiment.pipeline,
+                config = json.loads(source.config_bytes) if self._privacy_mode == "fss_public" else source.config
+                estimate = estimate_memory(config, self._experiment.pipeline,
                     max_input_tokens=budget.max_input_tokens,
                     max_output_tokens=budget.max_new_tokens)
                 admission = admit_memory(estimate, host_memory(), backend="native")
                 if not admission["admitted"]:
                     raise TopologyError("complete topology exceeds safe memory admission")
+                if self._privacy_mode == "fss_public":
+                    self._source_pins = dict(source.snapshot_pins)
                 del source
             if self._model.kind == "tiny":
                 from pllm.model_loader import resolve_model
@@ -891,12 +923,12 @@ class LocalTopology:
             self._preparation_url = self._role_urls.get("preparation", "")
             used: set[str] = set()
             self._role_credentials = {role: self._credential(used) for role in self._role_ids}
-            if self._privacy_mode == "replicated_public":
+            if self._privacy_mode in {"replicated_public", "fss_public"}:
                 self._peer_credentials = {(sender, receiver): self._credential(used)
                     for sender in self._role_ids for receiver in self._role_ids if sender != receiver}
             self._inference_key = self._role_credentials.get("inference", "")
             self._preparation_key = self._role_credentials.get("preparation", "")
-            self._push_key = self._credential(used) if self._requires_preparation else ""
+            self._push_key = self._credential(used) if "preparation" in self._role_ids else ""
             commands = self._commands(ports)
             for role in self._role_ids:
                 if self._progress is not None:
@@ -905,7 +937,8 @@ class LocalTopology:
                 expected = (
                     "trusted-preparation"
                     if role == "preparation"
-                    else ("replicated-worker" if self._privacy_mode == "replicated_public"
+                    else (role if self._privacy_mode == "fss_public"
+                          else "replicated-worker" if self._privacy_mode == "replicated_public"
                           else "delegation-worker" if self._privacy_mode == "gkm_public"
                           else role if role in {"boundary_a", "boundary_b"}
                           else "offset-worker" if role in {"worker_a", "worker_b"} else "inference")
@@ -949,6 +982,8 @@ class LocalTopology:
             expected_roles.update(worker_a="delegation-worker", worker_b="delegation-worker")
         if self._privacy_mode == "replicated_public":
             expected_roles.update({role: "replicated-worker" for role in self._role_ids})
+        if self._privacy_mode == "fss_public":
+            expected_roles.update({role: role for role in self._role_ids})
         for status in self.statuses:
             if not status.running:
                 return False
@@ -1001,7 +1036,8 @@ class LocalTopology:
                 _automatic=False,
                 **overrides,
             )
-        if set(self._role_ids) in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
+        if set(self._role_ids) in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"},
+                                  {"worker_a", "worker_b", "dealer"}):
             if not overrides:
                 return role_client(self._experiment, self.worker_connections())
             return OpenAI(
@@ -1062,7 +1098,8 @@ class LocalTopology:
                 local_engine=self._local_engine,
                 **overrides,
             )
-        if set(self._role_ids) in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
+        if set(self._role_ids) in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"},
+                                  {"worker_a", "worker_b", "dealer"}):
             return create_sidecar_app(
                 local_api_key=local_api_key,
                 default_model=self._model_id,
@@ -1114,6 +1151,8 @@ class LocalTopology:
                 self._preparation_key = ""
                 self._push_key = ""
                 self._role_credentials.clear()
+                self._peer_credentials.clear()
+                self._source_pins = None
 
     def __enter__(self) -> LocalTopology:
         if self._started and not self._closed:
@@ -1212,6 +1251,7 @@ def build_roles(
         {"inference", "preparation"},
         {"worker_a", "worker_b"},
         {"worker_a", "worker_b", "worker_c"},
+        {"worker_a", "worker_b", "dealer"},
         {"inference", "preparation", "boundary_a", "boundary_b"},
     ):
         raise ValueError("role graph requires an unavailable local role implementation")
@@ -1248,7 +1288,11 @@ def build_roles(
         weight_bits = runtime_options.weight_bits
     if activation_bits is None:
         activation_bits = runtime_options.activation_bits
-    if runtime_options.client_runtime == "compiled_replicated_v1":
+    if runtime_options.client_runtime == "compiled_fss_v1":
+        if (experiment is None or docker or tenseal_path is not None
+                or weight_bits != 50 or activation_bits != 50 or engine_threads != 1):
+            raise TopologyError("FuseFSS requires its bounded native CPU Experiment and separate dealer")
+    elif runtime_options.client_runtime == "compiled_replicated_v1":
         if (experiment is None or docker or tenseal_path is not None
                 or weight_bits != 64 or activation_bits != 64 or engine_threads != 1):
             raise TopologyError("replicated execution requires its bounded native CPU Experiment")

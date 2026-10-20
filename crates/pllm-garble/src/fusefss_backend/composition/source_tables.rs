@@ -20,6 +20,11 @@ pub(crate) fn source_digest() -> [u8; 32] {
     .into()
 }
 
+pub(crate) fn source_lock_bytes() -> usize {
+    include_bytes!("../../../../../paper/reproduction-contracts/fusefss/gate-set/source-lock.json")
+        .len()
+}
+
 pub(crate) fn silu() -> &'static [u64] {
     &values::SILU
 }

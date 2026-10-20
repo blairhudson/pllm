@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+mod absolute_position_decoder;
 mod dense_gated_source;
 mod fused_dense_decoder;
 mod hybrid_text_decoder;
@@ -282,6 +283,7 @@ pub enum ModelOperator {
     GatedDeltaRule,
     GatedDeltaStateUpdate,
     RmsNormGated,
+    LayerNorm,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -393,6 +395,7 @@ impl DecoderPlan {
             validate_dense_qwen_semantics(self)?;
         }
         cache::validate_transformation(self)?;
+        absolute_position_decoder::validate_plan(self)?;
         Ok(())
     }
 }
@@ -1290,6 +1293,7 @@ fn validate_operation(
     let expected_arity = match operation.operator {
         ModelOperator::TokenLookup => Some(1),
         ModelOperator::Reshape
+        | ModelOperator::LayerNorm
         | ModelOperator::RmsNorm
         | ModelOperator::Linear
         | ModelOperator::AttentionScale
@@ -1335,6 +1339,14 @@ fn validate_operation(
     }
     let attributes = operation.attributes.as_object().expect("checked above");
     let required = match operation.operator {
+        ModelOperator::LayerNorm => &[
+            "epsilon",
+            "weight",
+            "bias",
+            "axis",
+            "variance",
+            "compute_dtype",
+        ][..],
         ModelOperator::RmsNorm => &["epsilon", "weight", "weight_offset"][..],
         ModelOperator::Linear | ModelOperator::TokenLookup | ModelOperator::OutputHead => {
             &["weight"][..]
@@ -1408,6 +1420,9 @@ fn validate_operation(
         }
     }
     match operation.operator {
+        ModelOperator::LayerNorm => {
+            absolute_position_decoder::validate_layer_norm(operation, shapes)?
+        }
         ModelOperator::Reshape => validate_reshape(operation, shapes)?,
         ModelOperator::Permute => validate_permute(operation, shapes)?,
         ModelOperator::RotaryEmbedding => validate_rotary_embedding(operation, shapes)?,

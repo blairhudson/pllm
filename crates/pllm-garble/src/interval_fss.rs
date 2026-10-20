@@ -58,6 +58,21 @@ pub(crate) struct RingComparison {
 }
 
 impl RingComparison {
+    pub(crate) fn write_material(&self, out: &mut Vec<u8>) {
+        self.key.write_material(out);
+    }
+    pub(crate) fn read_material(
+        bytes: &[u8],
+        bits: u8,
+        output_bits: u8,
+        budget: &crate::fusefss_backend::Budget,
+    ) -> Result<Self, crate::fusefss_backend::Error> {
+        Ok(Self {
+            bits,
+            output_bits,
+            key: compact_dcf::RingComparison::read_material(bytes, bits, output_bits, budget)?,
+        })
+    }
     pub(crate) fn resources(bits: u8, output_bits: u8) -> Result<compact_dcf::Resources, Error> {
         let mut cost = compact_dcf::RingComparison::resources(bits, output_bits)?;
         let extra = std::mem::size_of::<Self>() - cost.key_owner_bytes;

@@ -307,6 +307,40 @@ realizations; neither historical bit parity nor a source-model quality claim is
 implied. Primitive domains, complete-model correctness, bounded resources and
 ordinary SDK/benchmark qualification remain required.
 
+## D13. FuseFSS complete-decoder arithmetic
+
+**Approved via the user question tool:** complete both the original GPT-2 track
+and the separate common-Qwen track under explicit ring50/Q12 numeric identities.
+This completes the remaining graph-order choices; it does not identify the
+missing evaluated FuseFSS graph or qualify checkpoint quality.
+
+`fusefss.gpt2-complete-ring50-q12.v1` retains D8 external nearest-even input and
+weight encoding and the source-table nonlinear functions. Each complete linear
+or attention contraction accumulates exact Q24 products, then applies one signed
+floor to Q12. Linear bias is Q12 and is added after that floor. Attention scores
+receive a separate multiplication by the pinned public Q12 inverse-square-root
+scale and a separate floor before source softmax. No per-product truncation,
+reordered attention scaling, or folded rescale is implied.
+
+`fusefss.dense-rope-ring50-q12.v1` additionally uses uncentered source-table
+RMSNorm: the complete untruncated squared sum plus integer one, the width-dependent
+rsqrt lookup, and the original separate normalization/gamma floors. This differs
+from the checkpoint's mean-square/epsilon rule and is not D10's PUMA adaptation.
+Split-half RoPE uses pinned public finite F32 coefficient bytes encoded nearest-even
+to Q12; each signed coefficient product is floored separately before addition.
+For halves `l,r` and coefficients `c,s`, the results are
+`floor(l*c/4096) + floor((-r)*s/4096)` and
+`floor(r*c/4096) + floor(l*s/4096)`. The rotate-half negation precedes the
+product's floor; replacing its term with `-floor(r*s/4096)` changes this contract.
+Source positions, head layout, Q/K normalization and causal GQA remain bound by
+semantic lowering. Unsupported rotary variants reject.
+
+Both profiles preserve public weights, two online share holders, separate trusted
+preprocessing, D9 full-prefix recomputation and final-only token-ID disclosure.
+Checked source-derived ranges and complete live/work admission precede execution.
+Independent integer parity, complete original/common-checkpoint quality and
+ordinary SDK/role/benchmark qualification remain separate gates.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -323,6 +357,7 @@ ordinary SDK/benchmark qualification remain required.
 | D10 | Approved: `puma.rmsnorm-epsilon1-q18.v1` | Positive epsilon `2^-18`; separate numeric identity and shared SDK quality measurement required. |
 | D11 | Approved: both private- and public-weight PUMA modes | Public-weight storage and batched execution have distinct contracts; full-checkpoint ranges, quality and resource measurements remain required. |
 | D12 | Approved: public-weight protected checked ranges | Shared membership and safe fallback precede unsafe arithmetic; final client-only aggregate acceptance, fresh-work accounting and complete qualification remain required. |
+| D13 | Approved: FuseFSS complete GPT-2 and common-Qwen arithmetic | Complete-dot floor, separate attention-scale floor, source-table RMSNorm and per-term Q12 RoPE floors bind distinct decoder numeric identities; exact execution and checkpoint quality remain unqualified. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

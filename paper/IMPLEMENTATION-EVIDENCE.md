@@ -50,6 +50,7 @@ their own ordinary tests; historical results do not qualify the current build.
 | Public channel equalization and exact frame accounting | `tests/test_public_equalization.py`, `tests/test_public_equalization_accounting.py` |
 | Curl, LogRow and Compact gated operators | `docs/research/nonlinear-frontier.md` and linked operator tests |
 | Masked-wire FSS operators | `docs/research/masked-wire-reference.md` |
+| Bounded FuseFSS decoder, authenticated roles and SDK | `tests/test_fss_sdk.py`, `tests/test_fss_native_transport.py`, `docs/research/fusefss-sdk-reference.md` |
 | Private embedding lookup and repacking | `docs/research/packed-embedding-reference.md` |
 | Encrypted softmax | `tests/test_encrypted_softmax.py` |
 

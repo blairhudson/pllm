@@ -25,7 +25,10 @@ def test_role_process_construction_has_one_implementation() -> None:
     users = sorted(
         path.name
         for path in root.glob("*.py")
-        if "subprocess.Popen" in path.read_text(encoding="utf-8")
+        # The stage-only stripe fixture owns a push/ack measurement peer, not a
+        # serving role. Every serving graph still uses this shared supervisor.
+        if path.name != "benchmark_correction_stripes.py"
+        and "subprocess.Popen" in path.read_text(encoding="utf-8")
     )
     assert users == ["servers.py"]
 
@@ -370,6 +373,7 @@ def test_client_and_gateway_keep_private_routing_immutable(monkeypatch) -> None:
         "preparation_api_key": "preparation-secret",
         "correlation_mode": "bfv",
         "experiment": None,
+        "_automatic": False,
         "timeout": 12,
     }
     with pytest.raises(TopologyError, match="cannot be overridden"):

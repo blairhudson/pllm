@@ -324,6 +324,9 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
     options = resolve_runtime_composition(pipeline)
     if options is None:
         raise BenchmarkMemoryError("memory estimation requires an implemented composition")
+    if options.client_runtime == "compiled_fss_v1":
+        return _fss_memory(config, pipeline, max_input_tokens, max_output_tokens,
+            cache_bytes, cache_bound_tokens, checkpoint_bytes, memory_safety_margin_percent)
     if options.client_runtime == "compiled_replicated_v1":
         return _replicated_memory(config, pipeline, max_input_tokens, max_output_tokens,
             cache_bytes, cache_bound_tokens, checkpoint_bytes, memory_safety_margin_percent)
@@ -339,6 +342,87 @@ def estimate_memory(config, pipeline, *, max_input_tokens, max_output_tokens,
         max_output_tokens=max_output_tokens, inventory_rows=inventory_rows, cache_bytes=cache_bytes,
         cache_bound_tokens=cache_bound_tokens, checkpoint_bytes=checkpoint_bytes, store=store,
         memory_safety_margin_percent=memory_safety_margin_percent)
+
+
+def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
+                memory_safety_margin_percent=25, *, contract=None, source_pins=None):
+    """Bounded metadata/owner estimate; never admits numeric/program resources."""
+    from .fss_protocol import CLIENT_MEMORY, ROLE_MEMORY, FRAME_LIMIT, ADMISSION_LIMIT, CONTROL_LIMIT, ROLES
+    from .fss_tape import MAX_PACKET_BYTES, MAX_TOTAL_PACKET_BYTES, MAX_FILE_BYTES
+    from pllm.configuration import Deployment, ExecutionBudget, Experiment
+    _validate_workload(rows, outputs, 1, cache_bytes, cache_bound)
+    if cache_bytes or cache_bound is not None or outputs > 4 or rows + outputs - 1 > 16:
+        raise BenchmarkMemoryError("FuseFSS requires bounded fixed-count complete-prefix recomputation")
+    try:
+        raw = json.dumps(config, separators=(",", ":"), allow_nan=False).encode()
+        if len(raw) > 16384:
+            raise ValueError("config exceeds native metadata bound")
+        if contract is None:
+            from .fss_source import _contract, _geometry
+            experiment = Experiment("fss-memory-estimate", pipeline, Deployment.local(root="."),
+                budget=ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
+            _geometry(raw, rows, outputs, pipeline.components["linear"].params["numeric_profile"])
+            # Native requires nonzero pins. These intentionally synthetic pins
+            # are never represented as source verification or serving admission.
+            _, contract = _contract(experiment, experiment.canonical_bytes(), raw, rows, outputs,
+                                    "1" * 64, "2" * 64)
+        if (contract["schema_version"] != "pllm.fss.sdk-contract.v1"
+                or contract["runtime_kind"] != "fss" or contract["ring_bits"] != 50
+                or contract["fractional_bits"] != 12 or contract["input_rows"] != rows
+                or contract["output_tokens"] != outputs):
+            raise ValueError("native metadata identity differs")
+        source = contract["source_float32_bytes"]
+        minimum = contract["admission"]["source_minimum_owner_bytes"]
+        if (type(source) is not int or not 0 < source <= 8 * MiB
+                or type(minimum) is not int or not 0 < minimum <= 64 * MiB
+                or contract["admission"]["numeric"] != "not_performed"
+                or contract["admission"]["program_resources"] is not None):
+            raise ValueError("native metadata admission differs")
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError, ImportError) as error:
+        raise BenchmarkMemoryError("FuseFSS source exceeds metadata-only native admission") from error
+    metadata = 8 * (len(raw) + len(json.dumps(contract).encode()))
+    client_parts = {"native_request_workspace": 8 * MiB, "metadata_parse_copies": metadata,
+                    "hash_and_source_inspection_scratch": 4 * MiB,
+                    "tokenizer_parse_copies": 32 * MiB,
+                    "http_control_overlap": 6 * ADMISSION_LIMIT + 8 * CONTROL_LIMIT}
+    role_parts = {"native_kernel_owner": 64 * MiB, "native_source_program_owner": 64 * MiB,
+                  "metadata_parse_copies": metadata, "http_native_aead_tape_overlap": 6 * FRAME_LIMIT,
+                  "source_import_scratch": 5 * source + 2 * contract["rotary_float32_bytes"] + 4 * MiB,
+                  "thread_stack_allowance": 8 * MiB}
+    client_work, role_work = sum(client_parts.values()), sum(role_parts.values())
+    if client_work > CLIENT_MEMORY or role_work > ROLE_MEMORY:
+        raise BenchmarkMemoryError("FuseFSS conservative incremental owners exceed unchanged client/role memory caps")
+    margin = memory_safety_margin_percent
+    providers = {role: _slack(_PROCESS_BYTES + role_work, margin) for role in ROLES}
+    # SDK, supervisor, dashboard and relay can overlap, plus three role processes.
+    client = _slack(3 * _PROCESS_BYTES + client_work + 32 * MiB, margin)
+    return {"scope": "conservative allocation estimate; not measured peak RSS",
+        "runtime_kind": "fss", "model_plan_digest": None,
+        "model_config_digest": contract["plan"]["config_digest"], "pipeline_digest": pipeline.digest(),
+        "max_input_tokens": rows, "max_output_tokens": outputs, "compiled_input_bound": rows,
+        "inventory_rows": 0, "kernel": "cpu", "concurrent_response_bound": 1,
+        "allocation_slack_percent": margin, "client_peak_bytes": client,
+        "provider_peak_bytes": providers, "docker_provider_peak_bytes": {},
+        "native_total_peak_bytes": client + sum(providers.values()), "limitations": [],
+        "preparation_storage": "dealer-generated encrypted holder disk tapes",
+        "preparation_kernel": "native_trusted_dealer", "preparation_roles": ["dealer"],
+        "weight_storage": "public original IEEE to exact nearest-even ring50/Q12",
+        "bundle_storage": "no source checkpoint delivery measured", "mask_storage": "one-use offline tape",
+        "tensor_storage": "private complete-prefix recomputation; no persistent KV",
+        "fss_admission": {"source_pins": source_pins, "source_pins_verified": source_pins is not None,
+            "synthetic_nonzero_pins_used": source_pins is None, "metadata_only": True,
+            "numeric_admission": "not_performed", "complete_program_resources": None,
+            "transport_admission": None,
+            "native_admission": contract["admission"], "serving_qualified": False},
+        "incremental_owner_bounds": {"client": CLIENT_MEMORY, "per_role": ROLE_MEMORY},
+        "allocation_owners": {"client": client_parts, "each_role": role_parts,
+            "client_sdk_supervisor_dashboard_processes": 3, "relay_workspace_bytes": 32 * MiB},
+        "components": {"checkpoint_bytes": checkpoint_bytes, "source_float32_bytes": source,
+            "checkpoint_byte_count_scope": "caller_supplied_or_float32_geometry_upper_bound_not_delivery",
+            "per_engine_compiled_disk_bytes": 0, "raw_client_bundle_bytes": 0,
+            "fss_tape_disk_bytes": 2 * MAX_FILE_BYTES, "fss_packet_bound_bytes": MAX_PACKET_BYTES,
+            "fss_cumulative_packets_per_holder_bytes": MAX_TOTAL_PACKET_BYTES,
+            "fss_tape_file_per_holder_bytes": MAX_FILE_BYTES}}
 
 
 def _replicated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, checkpoint_bytes,
@@ -818,7 +902,7 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
                 else:
                     reasons.append("enforced WAN auto fallback requires explicit native TCP pacing selection")
         else:
-            if estimate.get("runtime_kind") in {"gkm", "replicated"}:
+            if estimate.get("runtime_kind") in {"gkm", "replicated", "fss"}:
                 reasons.append("selected runtime requires native role owners; Docker is not admitted")
             if estimate.get("preparation_kernel") == "digit8":
                 reasons.append("digit8 requires native Apple Silicon CPU execution")
@@ -854,6 +938,7 @@ def admit_memory(estimate, host: HostMemory, *, backend="native", docker_capacit
         disk_required += estimate["components"].get("preparation_additional_paged_disk_bytes", 0)
         disk_required += estimate["components"].get("client_tokenizer_snapshot_disk_bytes", 0)
         disk_required += sum(estimate["components"].get("provider_artifact_cache_disk_bytes", {}).values())
+        disk_required += estimate["components"].get("fss_tape_disk_bytes", 0)
         if host.disk_free < disk_required:
             reasons.append("insufficient disk headroom for compiled caches, bundles and 2 GiB reserve")
         candidates[kind] = {"admitted": not reasons, "reasons": reasons,
@@ -907,6 +992,23 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
     source = pipeline.model
     checkpoint_bytes = 0
     store = None
+    if options.client_runtime == "compiled_fss_v1":
+        if not isinstance(model, Experiment):
+            raise BenchmarkMemoryError("FuseFSS source preflight requires complete Experiment")
+        if max_input_tokens > model.budget.max_input_tokens or max_output_tokens > model.budget.max_new_tokens:
+            raise BenchmarkMemoryError("FuseFSS measurement exceeds saved workload envelope")
+        from .fss_source import resolve_client_source
+        try:
+            admitted = resolve_client_source(model)
+        except ValueError as error:
+            raise BenchmarkMemoryError("FuseFSS source metadata preflight rejected before model loading") from error
+        contract = admitted.contract
+        estimate = _fss_memory(json.loads(admitted.config_bytes), pipeline,
+            contract["input_rows"], contract["output_tokens"], cache_bytes, cache_bound_tokens,
+            contract["source_float32_bytes"], memory_safety_margin_percent,
+            contract=contract, source_pins=admitted.snapshot_pins)
+        return admit_memory(estimate, host_memory(), backend=backend, enforced_wan=enforced_wan,
+                            memory_budget_bytes=memory_budget_bytes)
     if options.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1"}:
         if options.client_runtime == "compiled_replicated_v1":
             from .replicated_source import admit_source

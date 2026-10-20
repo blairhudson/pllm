@@ -1,6 +1,7 @@
 //! Public-original-table specialization, not arbitrary private-partition FSS.
 //! Shares one common input rotation through the existing universal DCF. No
-//! framing, mask shares, codecs, PRG, products or transport live in this module.
+//! framing, mask shares, PRG, products or transport live in this module. A private
+//! native codec seam supports the enclosing consuming party transport owner.
 use crate::{compact_dcf, interval_fss, shared_rescale_reference::Error};
 use std::mem::size_of;
 use zeroize::Zeroizing;
@@ -180,6 +181,49 @@ pub(crate) struct RingParty {
 }
 
 impl RingParty {
+    /// Public table is supplied independently by receiving compiled owner. Only
+    /// randomized base and this party's universal DCF cross private transport.
+    pub(crate) fn write_material(&self, out: &mut Vec<u8>) {
+        for value in self.base.iter() {
+            out.extend_from_slice(&value.to_le_bytes());
+        }
+        self.comparison.write_material(out);
+    }
+    pub(crate) fn read_material(
+        input: &mut crate::fusefss_backend::wire::Reader<'_>,
+        party: u8,
+        table: &RingTable,
+        budget: &crate::fusefss_backend::Budget,
+    ) -> Result<Self, crate::fusefss_backend::Error> {
+        use crate::fusefss_backend::{allocate, primitive_error, Error as E};
+        if party > 1 {
+            return Err(E::Domain);
+        }
+        let base = Zeroizing::new([input.word(table.bits)?, input.word(table.bits)?]);
+        let bytes = interval_fss::RingComparison::resources(table.bits, table.bits)
+            .map_err(primitive_error)?
+            .encoded_key_bytes;
+        let comparison = interval_fss::RingComparison::read_material(
+            input.take(bytes)?,
+            table.bits,
+            table.bits,
+            budget,
+        )?;
+        let mut boundaries = allocate(table.boundaries.len(), budget)?;
+        let mut coefficients = allocate(table.coefficients.len(), budget)?;
+        boundaries.extend_from_slice(&table.boundaries);
+        coefficients.extend_from_slice(&table.coefficients);
+        Ok(Self {
+            party,
+            table: RingTable {
+                bits: table.bits,
+                boundaries,
+                coefficients,
+            },
+            comparison,
+            base,
+        })
+    }
     pub(crate) fn evaluate(self, opened: u64) -> Result<Zeroizing<[u64; 2]>, Error> {
         let n = 1u64 << self.table.bits;
         if opened >= n {

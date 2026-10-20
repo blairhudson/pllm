@@ -17,6 +17,10 @@ The optional [public-prefix capsule](/sdk/components/state/public-prefix-capsule
 imports trusted, explicitly public completed-prefill state into that cache under
 the canonical full-KV numeric contract.
 
+[Private full-prefix state](/sdk/components/protocols/bounded-decoders/) instead
+recomputes every selection inside protected workers and discloses only final
+token IDs. It does not retain reusable cross-request KV.
+
 ## Python SDK example
 
 ```python

@@ -62,6 +62,7 @@ from pllm.protocols import (
     OpenWeightVerifiableOutsourcing,
     PackedEncryptedLinear,
     PumaThreePartyDecoder,
+    FuseFssSourceDecoder,
     SecureLinear,
     TwoOnlineOffsetLinear,
 )
@@ -78,6 +79,7 @@ from pllm.roles import (
     TwoOnlineOffsetRoles,
     TwoOnlineDelegationRoles,
     ThreePartyReplicatedRoles,
+    TrustedDealerTwoShareRoles,
 )
 from pllm.schedulers import (
     BoundedIndependentElementsProtectedTensorSchedule,
@@ -88,7 +90,7 @@ from pllm.schedulers import (
     ScalarProtectedTensorSchedule,
 )
 from pllm.sources import BundleModel, ModelSource, TinyModel
-from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, ReplicatedPrivatePrefix, StateProtocol
+from pllm.state import ClientLocalKv, ClientPrefixReuse, PublicPrefixCapsule, ReplicatedPrivatePrefix, StateProtocol, FixedCountPrivatePrefix
 from pllm.tokenization import IndexedTokenizer
 from pllm.verification import FreivaldsVerify, LinearIntegrity, PublishedLinearVerify, VerificationScheme
 
@@ -152,6 +154,9 @@ def _instances():
         PublishedLinearVerify(),
         PublicPrefixCapsule("public-prefix", digest="a" * 64, size_bytes=1024),
         PumaThreePartyDecoder(),
+        FuseFssSourceDecoder(numeric_profile=FuseFssSourceDecoder.GPT2_NUMERIC_PROFILE),
+        FixedCountPrivatePrefix(),
+        TrustedDealerTwoShareRoles(),
         R03CrtGatedMultiplyQ7(),
         ReferenceAgreement(dataset_digest="a" * 64, reference_checkpoint_digest="b" * 64),
         ReplicatedPrivatePrefix(),

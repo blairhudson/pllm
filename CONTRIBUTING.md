@@ -30,6 +30,8 @@ Maturin's normal `--offline` and `-j 1` options are available when needed.
 Build outputs stay ignored. No separate build receipt or attestation wrapper is
 required. When testing an installed wheel, use `pytest -o pythonpath=` so the
 checkout's Python package does not shadow the installation.
+Use `uv run --no-sync` for those checks: an ordinary `uv run` can reinstall the
+editable checkout in place of the wheel being tested.
 
 ## Experiments and results
 

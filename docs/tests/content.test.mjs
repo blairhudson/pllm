@@ -296,7 +296,7 @@ test('inference option guides resolve real experiments and lead to serving', () 
     assert.match(content, /pllm gateway --local --experiment experiment\.py:experiment --trust-python/, route);
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
     assert.equal(examples.length, 1, route);
-    const execution = spawnSync('uv', ['run', 'python', '-c', examples[0][1]], {
+    const execution = spawnSync('uv', ['run', '--no-sync', 'python', '-c', examples[0][1]], {
       cwd: path.join(siteRoot, '..'), encoding: 'utf8',
       env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
       timeout: 120_000,
@@ -315,7 +315,7 @@ test('experiment guides construct and round-trip supported configuration', () =>
     assert.ok(content.includes('pllm gateway --local --experiment experiment.py:experiment --trust-python'), route);
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
     assert.equal(examples.length, 1, route);
-    const execution = spawnSync('uv', ['run', 'python', '-c', examples[0][1]], {
+    const execution = spawnSync('uv', ['run', '--no-sync', 'python', '-c', examples[0][1]], {
       cwd: path.join(siteRoot, '..'), encoding: 'utf8',
       env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
       timeout: 120_000,
@@ -335,7 +335,7 @@ test('relocated evaluation guides execute their real SDK examples', () => {
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
     assert.ok(examples.length > 0, route);
     for (const [index, example] of examples.entries()) {
-      const execution = spawnSync('uv', ['run', 'python', '-c', example[1]], {
+      const execution = spawnSync('uv', ['run', '--no-sync', 'python', '-c', example[1]], {
         cwd: path.join(siteRoot, '..'), encoding: 'utf8',
         env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
         timeout: 120_000,
@@ -381,6 +381,13 @@ test('component option guides execute supported examples and cite bounded resear
     ['/sdk/components/protocols/private-embedding-lookup/', 'pllm/private-embedding-lookup/v1', '/research/papers/fastquery/'],
     ['/sdk/components/protocols/maverick-delegated-linear/', 'pllm/maverick-delegated-linear/v1', '/research/papers/maverick/'],
     ['/sdk/components/protocols/packed-encrypted-linear/', 'pllm/packed-encrypted-linear/v1', '/research/papers/nexus/'],
+    ...[
+      'pllm/open-weight-verifiable-outsourcing/v1', 'pllm/published-linear-verify/v1',
+      'pllm/two-online-delegation-workers/v1', 'pllm/puma-three-party-decoder/v1',
+      'pllm/three-party-replicated/v1', 'pllm/replicated-private-prefix/v1',
+      'pllm/fusefss-source-decoder/v1', 'pllm/trusted-dealer-two-share/v1',
+      'pllm/fixed-count-private-prefix/v1',
+    ].map((identity) => ['/sdk/components/protocols/bounded-decoders/', identity, null]),
     ['/sdk/components/nonlinear/packed-encrypted-softmax/', 'pllm/packed-encrypted-softmax/v1', '/research/papers/thor/'],
     ['/sdk/components/preparation/model-aware-corrections/', 'pllm/model-aware-corrections', null],
     ['/sdk/components/preparation/inventory-policy/', 'pllm/prepared-inventory-policy/v1', null],
@@ -433,7 +440,7 @@ test('component option guides execute supported examples and cite bounded resear
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
     assert.ok(examples.length > 0, route);
     for (const [index, example] of examples.entries()) {
-      const execution = spawnSync('uv', ['run', 'python', '-c', example[1]], {
+      const execution = spawnSync('uv', ['run', '--no-sync', 'python', '-c', example[1]], {
         cwd: path.join(siteRoot, '..'), encoding: 'utf8',
         env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
         timeout: 120_000,
@@ -442,7 +449,7 @@ test('component option guides execute supported examples and cite bounded resear
         `${route} example ${index + 1}:\n${execution.stdout}\n${execution.stderr}`);
     }
   }
-  const inventory = spawnSync('uv', ['run', 'python', '-c',
+  const inventory = spawnSync('uv', ['run', '--no-sync', 'python', '-c',
     'import json; from pllm.components import list_component_classes; print(json.dumps(sorted(cls.describe().component for cls in list_component_classes())))'], {
     cwd: path.join(siteRoot, '..'), encoding: 'utf8',
   });
@@ -465,7 +472,7 @@ test('all metric option guides execute declarations without invented measurement
     assert.ok(content?.includes(slug === 'reference-agreement' ? 'pllm/reference-agreement/v1' : `pllm/${slug}`), route);
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
     assert.equal(examples.length, 1, route);
-    const execution = spawnSync('uv', ['run', 'python', '-c', examples[0][1]], {
+    const execution = spawnSync('uv', ['run', '--no-sync', 'python', '-c', examples[0][1]], {
       cwd: path.join(siteRoot, '..'), encoding: 'utf8',
       env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
       timeout: 120_000,
@@ -483,7 +490,7 @@ test('source option guides distinguish configured, imported, and runnable models
     assert.ok(content?.includes('## Python SDK example'), route);
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)];
     assert.equal(examples.length, 1, route);
-    const execution = spawnSync('uv', ['run', 'python', '-c', examples[0][1]], {
+    const execution = spawnSync('uv', ['run', '--no-sync', 'python', '-c', examples[0][1]], {
       cwd: path.join(siteRoot, '..'), encoding: 'utf8',
       env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },
       timeout: 120_000,
@@ -564,7 +571,7 @@ test('relocated advanced guides retain executable component walkthroughs', { tim
 
     const examples = [...content.matchAll(/```python\n([\s\S]*?)```/g)].map((match) => match[1]);
     for (const [index, example] of examples.entries()) {
-      const execution = spawnSync('uv', ['run', 'python', '-c', example], {
+      const execution = spawnSync('uv', ['run', '--no-sync', 'python', '-c', example], {
         cwd: path.join(siteRoot, '..'),
         encoding: 'utf8',
         env: { ...process.env, PYTHONPATH: path.join(siteRoot, '..', 'python') },

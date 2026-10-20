@@ -11,13 +11,15 @@ use crate::{fusefss::Descriptor, shared_rescale_reference::Context};
 use sha2::{Digest, Sha256};
 use std::{fmt::Write, mem::size_of};
 
+pub mod cache;
 #[cfg(test)]
 mod conformance;
 pub mod gates;
+pub mod kernels;
 pub mod norm;
 mod runtime;
 mod source_tables;
-pub use runtime::{Event, Material, Runtime};
+pub use runtime::{wire, Engine, Event, Material, OwnedRuntime, Runtime};
 
 pub(crate) type Value = usize;
 pub const MAX_INSTRUCTIONS: usize = 32768;
@@ -52,6 +54,7 @@ enum Instruction {
     Predicate(Value, bool, i64),
     Select(Value, Value, Value),
     Lookup(Value, usize),
+    Gelu(Value),
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -124,7 +127,7 @@ pub struct Builder<'a> {
     code: Vec<Instruction>,
     registers: Vec<Register>,
     outputs: Vec<Value>,
-    tables: Vec<lookup::Table<'a>>,
+    tables: Vec<TableOwner<'a>>,
     resources: Resources,
     lease: Lease<'a>,
 }
@@ -135,9 +138,34 @@ pub struct Plan<'a> {
     code: Vec<Instruction>,
     registers: Vec<Register>,
     outputs: Vec<Value>,
-    tables: Vec<lookup::Table<'a>>,
+    tables: Vec<TableOwner<'a>>,
     resources: Resources,
     lease: Lease<'a>,
+}
+
+enum TableOwner<'a> {
+    Local(lookup::Table<'a>),
+    Shared(std::sync::Arc<cache::SharedTable<'a>>),
+}
+impl<'a> std::ops::Deref for TableOwner<'a> {
+    type Target = lookup::Table<'a>;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Local(table) => table,
+            Self::Shared(table) => &table.table,
+        }
+    }
+}
+impl TableOwner<'_> {
+    fn reservation_bytes(&self) -> Result<usize, Error> {
+        let table = self.resources(1)?.table_reservation_bytes;
+        Ok(table
+            + if matches!(self, Self::Shared(_)) {
+                cache::shared_metadata_bytes()
+            } else {
+                0
+            })
+    }
 }
 
 fn width(bits: u8) -> Result<(), Error> {
@@ -195,6 +223,11 @@ impl<'a> Builder<'a> {
             + MAX_INSTRUCTIONS * size_of::<Instruction>()
             + MAX_REGISTERS * (size_of::<Register>() + size_of::<Value>())
             + MAX_TABLES * size_of::<lookup::Table<'_>>();
+        // Shared handles add one enum tag per slot. Existing 4096-byte owner
+        // slack covers all tags; preserve default F2 reservation identities.
+        if MAX_TABLES * (size_of::<TableOwner<'_>>() - size_of::<lookup::Table<'_>>()) > 4096 {
+            return Err(Error::Resource);
+        }
         if bytes > MAX_PLAN_BYTES {
             return Err(Error::Resource);
         }
@@ -539,10 +572,28 @@ impl<'a> Builder<'a> {
             return Err(Error::Resource);
         }
         let table = lookup::Table::new_zero_extended(bits, values, self.source, self.lease.budget)?;
+        self.retain_table(TableOwner::Local(table))
+    }
+    fn source_table(
+        &mut self,
+        cache: &cache::SourceTableCache<'a>,
+        kind: cache::Kind,
+    ) -> Result<usize, Error> {
+        if self.tables.len() == MAX_TABLES {
+            return Err(Error::Resource);
+        }
+        if !std::ptr::eq(self.lease.budget, cache.budget()) {
+            return Err(Error::Domain);
+        }
+        let table = cache.get(kind, self.source)?;
+        self.retain_table(TableOwner::Shared(table))
+    }
+    fn retain_table(&mut self, table: TableOwner<'a>) -> Result<usize, Error> {
+        let reservation = table.reservation_bytes()?;
         let bytes = self
             .resources
             .plan_reservation_bytes
-            .checked_add(table.resources(1)?.table_reservation_bytes)
+            .checked_add(reservation)
             .ok_or(Error::Resource)?;
         if bytes > MAX_PLAN_BYTES {
             return Err(Error::Resource);
@@ -551,8 +602,7 @@ impl<'a> Builder<'a> {
         self.hash.update(b"table\0");
         self.hash.update(table.digest());
         self.resources.plan_reservation_bytes = bytes;
-        self.resources.public_table_reservation_bytes +=
-            table.resources(1)?.table_reservation_bytes;
+        self.resources.public_table_reservation_bytes += reservation;
         self.tables.push(table);
         Ok(id)
     }
@@ -585,6 +635,32 @@ impl<'a> Builder<'a> {
                 ..r
             },
         )
+    }
+    pub(crate) fn gelu(&mut self, value: Value) -> Result<Value, Error> {
+        self.room(1)?;
+        let register = self.arithmetic(value)?;
+        if register.bits != 50 {
+            return Err(Error::Domain);
+        }
+        let gate = super::CompiledGelu::with_backend(
+            self.lease.budget,
+            super::LookupBackend::PublicBoundary,
+        )?;
+        let cost = gate.resources(1)?;
+        self.hash.update(b"source-gelu-public-boundary\0");
+        self.hash.update(gate.descriptor_digest());
+        self.charge(NativeCost {
+            peak: cost.combined_reservation_bytes,
+            keys: cost.issuance.dcf_keys_per_party,
+            evaluations: cost.issuance.dcf_evaluations_per_party,
+            triples: 1,
+            frames: 2,
+            frame_bytes: cost.issuance.total_peer_frame_bytes / 2,
+            private_bytes_total: 2 * cost.issuance.party_key_logical_bytes,
+            public_copy_bytes_total: 2 * cost.issuance.public_table_bytes_per_party,
+            work: cost.issuance.dcf_evaluations_per_party * 50 + 1,
+        })?;
+        self.push(Instruction::Gelu(value), register)
     }
     pub(crate) fn finish(mut self, outputs: &[Value]) -> Result<Plan<'a>, Error> {
         if outputs.is_empty() || outputs.len() > MAX_REGISTERS {

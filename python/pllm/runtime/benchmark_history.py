@@ -15,7 +15,7 @@ SCHEMA_VERSION = 3
 DEFAULT_LIMIT = 200
 MAX_LIMIT = 2000
 
-_TOPOLOGY_ROLES = frozenset({"client", "preparation", "inference", "worker_a", "worker_b", "worker_c",
+_TOPOLOGY_ROLES = frozenset({"client", "preparation", "inference", "worker_a", "worker_b", "worker_c", "dealer",
                            "boundary_a", "boundary_b"})
 _ROLE_BODY_FIELDS = frozenset(
     f"role_link.{role}.{phase}_{direction}_bytes"
@@ -107,9 +107,13 @@ _PRIVACY_FIELDS = frozenset(
 _PRIVACY_FIELDS |= _ROLE_BODY_FIELDS
 _PRIVACY_FIELDS |= frozenset(
     f"peer_link.{source}.{destination}.{phase}_bytes"
-    for source in ("worker_a", "worker_b", "worker_c")
-    for destination in ("worker_a", "worker_b", "worker_c") if source != destination
+    for source in ("worker_a", "worker_b", "worker_c", "dealer")
+    for destination in ("worker_a", "worker_b", "worker_c", "dealer") if source != destination
     for phase in ("setup", "online")
+)
+_PRIVACY_FIELDS |= frozenset(
+    f"fss_storage.{role}.{operation}_bytes"
+    for role in ("worker_a", "worker_b") for operation in ("read", "write")
 )
 _PRIVACY_FIELDS |= frozenset({
     "generation_requested_prefill_tokens", "generation_requested_decode_steps",

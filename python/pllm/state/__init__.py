@@ -56,6 +56,35 @@ class StateProtocol(ComponentRef, ABC):
     def describe(cls) -> ComponentDescriptor: ...
 
 
+class FixedCountPrivatePrefix(StateProtocol):
+    """Complete-prefix recomputation, private feedback, final-only token IDs.
+
+    Public generation count belongs to the execution budget. No KV caching,
+    streaming, intermediate logits/token reveal, EOS exit or continuation.
+    """
+
+    __slots__ = ()
+    descriptor = ComponentDescriptor(
+        component="pllm/fixed-count-private-prefix/v1", provider="pllm", distribution="pllm.run",
+        version="1", category="pllm/state-protocol", category_version="1", lifecycle_phase="online",
+        parameter_schema={"type": "object", "additionalProperties": False},
+        capabilities=("public-fixed-generation-count", "protected-full-prefix-recomputation",
+                      "private-token-feedback", "lowest-index-protected-argmax", "final-only-token-ids",
+                      "no-kv-cache", "no-eos-early-exit", "no-cross-request-continuation"),
+        role_eligibility=("client", "worker_a", "worker_b"),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(self.descriptor.component)
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class ReplicatedPrivatePrefix(StateProtocol):
     """Private full-prefix recomputation and fixed-count final token-ID disclosure."""
     __slots__ = ()
@@ -249,6 +278,7 @@ class LongRopeCacheRerotation(PendingModelCapability):
 
 __all__ = [
     "ReplicatedPrivatePrefix",
+    "FixedCountPrivatePrefix",
     "DecodeCache", "DecodeCacheHead",
     "ConversationCheckpoint",
     "CheckpointHead", "CheckpointSession",

@@ -163,8 +163,17 @@ Completed foundations:
   logical live bounds remain separate. Width-768 normalization executes; full
   width-4,096 schedules reject the unchanged instruction ceiling. Complete-model
   ranges/work, authenticated roles and SDK/model qualification remain open.
-  The [next-method implementation plan](methods/fusefss-completion-plan.md)
-  retains complete semantic execution and SDK/model qualification gates.
+   The later [bounded decoder and SDK](../docs/research/fusefss-sdk-reference.md)
+   adds semantic learned-position and dense-RoPE profiles, checked source import,
+   a separate offline dealer, two authenticated online holders and encrypted
+   one-use preprocessing tapes. Five generated decoders match 918 complete
+   semantic observations. Generated SDK/gateway execution, cancellation and
+   ordinary CLI benchmarks pass; 392 installed Python and 590 native checks cover
+   the integrated slice. Standard outputs and reusable factories are linked from
+   [the SDK benchmarks](artifacts/fusefss-sdk/README.md). Full trained checkpoints,
+   source-model quality and matched performance remain unqualified. The
+   [implementation plan](methods/fusefss-completion-plan.md) retains the request-long
+   replay/tape and complete-checkpoint admission gates.
   Existing scalar, shared-rescale
   and masked-wire references retain their own numerical and execution scopes.
 - The local cold lifecycle observer has independently checked, portable tiny

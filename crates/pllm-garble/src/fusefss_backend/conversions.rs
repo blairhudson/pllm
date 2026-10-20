@@ -203,7 +203,7 @@ pub struct Resources {
     /// Complete issued private payload, not just DCF keys: DCF encoding plus
     /// input-mask/base shares (16 bytes/lane), or triple shares (24 bytes/lane).
     /// Excludes public bindings/nonces, online scratch, owner padding and dealer
-    /// temporaries. Logical layout count only; there is no private key codec.
+    /// temporaries and the material packet's 120-byte canonical envelope.
     pub private_material_bytes_per_party: usize,
     /// Both online roles' private payload. Not peak allocation or RSS.
     pub private_material_bytes_total: usize,
@@ -463,6 +463,147 @@ fn issue_key(
 }
 
 impl<'a> Party<'a> {
+    /// Consume fresh, unstarted material. Export after any online use burns it.
+    pub fn export_material(mut self) -> Result<super::wire::MaterialPacket<'a>, Error> {
+        let state = self.state.take().ok_or(Error::Consumed)?;
+        let State::Ready(keys) = state else {
+            return Err(Error::Context);
+        };
+        let cost = resources(self.spec)?;
+        super::wire::packet(
+            2,
+            self.id,
+            self.binding,
+            self.nonce,
+            cost.private_material_bytes_per_party,
+            self.lease.budget,
+            |out| {
+                for lane in &keys {
+                    match lane {
+                        Lane::Product(triple) => triple.write_material(out),
+                        Lane::Convert {
+                            full,
+                            low,
+                            input_mask,
+                            base,
+                        } => {
+                            super::wire::word(out, **input_mask);
+                            super::wire::word(out, **base);
+                            if let Some(key) = full {
+                                key.write_material(out);
+                            }
+                            if let Some(key) = low {
+                                key.write_material(out);
+                            }
+                        }
+                    }
+                }
+                Ok(())
+            },
+        )
+    }
+
+    /// Import only this recipient's authenticated fresh packet. Guard must live
+    /// for the receiving session, including failed/cancelled imports.
+    pub fn import_material(
+        spec: Spec,
+        context: Context,
+        role: u8,
+        nonce: [u8; 32],
+        packet: super::wire::MaterialPacket<'_>,
+        guard: &mut super::wire::ImportGuard<'_>,
+        budget: &'a Budget,
+    ) -> Result<Self, Error> {
+        guard.claim(role, nonce)?;
+        let cost = resources(spec)?;
+        context
+            .first_tensor_index
+            .checked_add(spec.lanes as u64)
+            .ok_or(Error::Domain)?;
+        let binding = binding(spec, context);
+        let mut input = super::wire::open(
+            &packet,
+            2,
+            role,
+            binding,
+            nonce,
+            cost.private_material_bytes_per_party,
+        )?;
+        let mut scan = input.fork();
+        for _ in 0..spec.lanes {
+            if spec.product() {
+                let _ = ring::TripleShare::read_material(&mut scan, spec.output_bits)?;
+            } else {
+                let _ = Zeroizing::new(scan.word(spec.input_bits)?);
+                let _ = Zeroizing::new(scan.word(spec.output_bits)?);
+                for bits in [
+                    if spec.weight() != 0 {
+                        spec.input_bits
+                    } else {
+                        0
+                    },
+                    spec.shift(),
+                ] {
+                    if bits != 0 {
+                        let len = Key::resources(bits, spec.output_bits)
+                            .map_err(primitive_error)?
+                            .encoded_key_bytes;
+                        Key::validate_material(scan.take(len)?, bits, spec.output_bits)?;
+                    }
+                }
+            }
+        }
+        scan.finish()?;
+        let lease = budget.reserve(cost.party_reservation_bytes)?;
+        let mut keys = allocate(spec.lanes, budget)?;
+        for _ in 0..spec.lanes {
+            if spec.product() {
+                keys.push(Lane::Product(ring::TripleShare::read_material(
+                    &mut input,
+                    spec.output_bits,
+                )?));
+            } else {
+                let input_mask = Zeroizing::new(input.word(spec.input_bits)?);
+                let base = Zeroizing::new(input.word(spec.output_bits)?);
+                let mut read_key = |bits| -> Result<Option<Key>, Error> {
+                    if bits == 0 {
+                        return Ok(None);
+                    }
+                    let bytes = Key::resources(bits, spec.output_bits)
+                        .map_err(primitive_error)?
+                        .encoded_key_bytes;
+                    Ok(Some(Key::read_material(
+                        input.take(bytes)?,
+                        bits,
+                        spec.output_bits,
+                        budget,
+                    )?))
+                };
+                let full = read_key(if spec.weight() != 0 {
+                    spec.input_bits
+                } else {
+                    0
+                })?;
+                let low = read_key(spec.shift())?;
+                keys.push(Lane::Convert {
+                    full,
+                    low,
+                    input_mask,
+                    base,
+                });
+            }
+        }
+        input.finish()?;
+        Ok(Self {
+            id: role,
+            spec,
+            binding,
+            nonce,
+            state: Some(State::Ready(keys)),
+            lease,
+        })
+    }
+
     pub fn cancel(&mut self) {
         self.state = None;
     }

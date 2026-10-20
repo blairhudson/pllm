@@ -27,6 +27,9 @@ pub struct Resources {
     pub frames_per_party: usize,
     pub total_peer_frame_bytes: usize,
     pub output_bytes_per_party: usize,
+    /// Additional live packet reservation, including canonical envelope. Low-bit
+    /// queries can shorten this public-width bound; never sampled secret values.
+    pub material_packet_bytes_bound: usize,
     pub compiler_overlap_bytes: usize,
     pub party_reservation_bytes: usize,
     pub combined_reservation_bytes: usize,
@@ -67,6 +70,11 @@ pub fn resources(descriptor: &Descriptor) -> Result<Resources, Error> {
         frames_per_party: 1 + s.boolean_ands,
         total_peer_frame_bytes: 2 * frames,
         output_bytes_per_party: output,
+        material_packet_bytes_bound: super::wire::ENVELOPE_BYTES
+            + 8
+            + s.queries * (16 + key.encoded_key_bytes)
+            + s.vm_ops * 16
+            + s.boolean_ands * ring::TRIPLE_BYTES,
         compiler_overlap_bytes: compiler,
         party_reservation_bytes: party,
         combined_reservation_bytes: combined,
@@ -115,7 +123,7 @@ enum State {
 }
 
 /// One scalar issuance, input additive shares over Descriptor.word(), outputs
-/// XOR shares. No Clone, key codec, clear predicate or clear-output API.
+/// XOR shares. No Clone, reusable key codec, clear predicate or clear-output API.
 pub struct Party<'a> {
     id: u8,
     bits: u8,
@@ -268,16 +276,7 @@ fn issue_inner<'a>(
             })())
         })
         .map_err(compiler_error)??;
-    let binding = Sha256::new()
-        .chain_update(b"pllm.fusefss.boolean-vm.v1\0")
-        .chain_update(descriptor.digest())
-        .chain_update(source_digest)
-        .chain_update(context.plan)
-        .chain_update(context.session)
-        .chain_update(context.operation)
-        .chain_update(context.first_tensor_index.to_le_bytes())
-        .finalize()
-        .into();
+    let binding = binding(descriptor, source_digest, context);
     let mut nonce = [0; 32];
     getrandom::fill(&mut nonce).map_err(|_| Error::Randomness)?;
     let make = |id, material, lease| Party {
@@ -296,7 +295,189 @@ fn issue_inner<'a>(
     ])
 }
 
+fn binding(descriptor: &Descriptor, source_digest: [u8; 32], context: Context) -> [u8; 32] {
+    Sha256::new()
+        .chain_update(b"pllm.fusefss.boolean-vm.v1\0")
+        .chain_update(descriptor.digest())
+        .chain_update(source_digest)
+        .chain_update(context.plan)
+        .chain_update(context.session)
+        .chain_update(context.operation)
+        .chain_update(context.first_tensor_index.to_le_bytes())
+        .finalize()
+        .into()
+}
+
+fn scan_program(
+    input: &mut super::wire::Reader<'_>,
+    shape: Shape,
+    mut instruction: impl FnMut([u64; 2]),
+) -> Result<(), Error> {
+    let mut gates = 0;
+    let mut count = 0;
+    for output in 0..shape.boolean_outputs {
+        let mut depth = 0usize;
+        for _ in 0..shape.program_lengths[output] {
+            let op = input.word(3)?;
+            let arg = Zeroizing::new(input.word(32)?);
+            match op {
+                0 if *arg <= 1 => depth += 1,
+                1 if *arg < shape.queries as u64 => depth += 1,
+                2 if *arg == 0 && depth >= 1 => {}
+                3..=5 if *arg == 0 && depth >= 2 => {
+                    depth -= 1;
+                    gates += usize::from(op >= 4);
+                }
+                _ => return Err(Error::Context),
+            }
+            if count == shape.vm_ops {
+                return Err(Error::Context);
+            }
+            count += 1;
+            instruction([op, *arg]);
+        }
+        if depth != 1 {
+            return Err(Error::Context);
+        }
+    }
+    if count != shape.vm_ops || gates != shape.boolean_ands {
+        return Err(Error::Context);
+    }
+    Ok(())
+}
+
 impl<'a> Party<'a> {
+    pub fn export_material(mut self) -> Result<super::wire::MaterialPacket<'a>, Error> {
+        let state = self.state.take().ok_or(Error::Consumed)?;
+        let State::Ready(material) = state else {
+            return Err(Error::Context);
+        };
+        let mut body = 8 + material.code.len() * 16 + material.triples.len() * ring::TRIPLE_BYTES;
+        for query in &material.queries {
+            body += 16
+                + RingComparison::resources(query.bits, 1)
+                    .map_err(primitive_error)?
+                    .encoded_key_bytes;
+        }
+        super::wire::packet(
+            4,
+            self.id,
+            self.binding,
+            self.nonce,
+            body,
+            self.lease.budget,
+            |out| {
+                super::wire::word(out, *material.mask);
+                for query in &material.queries {
+                    super::wire::word(out, u64::from(query.bits));
+                    super::wire::word(out, query.shift);
+                    query.key.write_material(out);
+                }
+                for instruction in material.code.iter() {
+                    for value in instruction {
+                        super::wire::word(out, *value);
+                    }
+                }
+                for triple in &material.triples {
+                    triple.as_ref().ok_or(Error::Consumed)?.write_material(out);
+                }
+                Ok(())
+            },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn import_material(
+        descriptor: &Descriptor,
+        source_digest: [u8; 32],
+        context: Context,
+        role: u8,
+        nonce: [u8; 32],
+        packet: super::wire::MaterialPacket<'_>,
+        guard: &mut super::wire::ImportGuard<'_>,
+        budget: &'a Budget,
+    ) -> Result<Self, Error> {
+        guard.claim(role, nonce)?;
+        let cost = resources(descriptor)?;
+        context
+            .first_tensor_index
+            .checked_add(1)
+            .ok_or(Error::Domain)?;
+        let bits = descriptor.word().bits;
+        let shape = descriptor.shape();
+        let binding = binding(descriptor, source_digest, context);
+        let max_key = RingComparison::resources(bits, 1)
+            .map_err(primitive_error)?
+            .encoded_key_bytes;
+        let max_body = 8
+            + shape.queries * (16 + max_key)
+            + shape.vm_ops * 16
+            + shape.boolean_ands * ring::TRIPLE_BYTES;
+        if packet.body_len() > max_body {
+            return Err(Error::Resource);
+        }
+        let mut input = super::wire::open(&packet, 4, role, binding, nonce, packet.body_len())?;
+        let mut scan = input.fork();
+        let _ = Zeroizing::new(scan.word(bits)?);
+        for _ in 0..shape.queries {
+            let query_bits = scan.word(6)? as u8;
+            if query_bits == 0 || query_bits > bits {
+                return Err(Error::Context);
+            }
+            let _ = scan.word(query_bits)?;
+            let len = RingComparison::resources(query_bits, 1)
+                .map_err(primitive_error)?
+                .encoded_key_bytes;
+            RingComparison::validate_material(scan.take(len)?, query_bits, 1)?;
+        }
+        scan_program(&mut scan, shape, |_| {})?;
+        for _ in 0..shape.boolean_ands {
+            let _ = ring::TripleShare::read_material(&mut scan, 1)?;
+        }
+        scan.finish()?;
+        let lease = budget.reserve(cost.party_reservation_bytes)?;
+        let mask = Zeroizing::new(input.word(bits)?);
+        let mut queries = allocate(shape.queries, budget)?;
+        for _ in 0..shape.queries {
+            let query_bits = input.word(6)? as u8;
+            if query_bits == 0 || query_bits > bits {
+                return Err(Error::Context);
+            }
+            let shift = input.word(query_bits)?;
+            let len = RingComparison::resources(query_bits, 1)
+                .map_err(primitive_error)?
+                .encoded_key_bytes;
+            let key = RingComparison::read_material(input.take(len)?, query_bits, 1, budget)?;
+            queries.push(Query {
+                bits: query_bits,
+                shift,
+                key,
+            });
+        }
+        let mut code = Zeroizing::new(allocate(shape.vm_ops, budget)?);
+        scan_program(&mut input, shape, |instruction| code.push(instruction))?;
+        let mut triples = allocate(shape.boolean_ands, budget)?;
+        for _ in 0..shape.boolean_ands {
+            triples.push(Some(ring::TripleShare::read_material(&mut input, 1)?));
+        }
+        input.finish()?;
+        Ok(Self {
+            id: role,
+            bits,
+            shape,
+            binding,
+            nonce,
+            round: 0,
+            state: Some(State::Ready(Material {
+                mask,
+                queries,
+                code,
+                triples,
+            })),
+            lease,
+        })
+    }
+
     pub fn cancel(&mut self) {
         self.state = None;
     }

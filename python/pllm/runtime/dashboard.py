@@ -479,9 +479,11 @@ class DashboardRuntime:
         self._bundle_compression = getattr(config, "bundle_compression", None)
         experiment = getattr(config, "experiment", None)
         profile = experiment.resolve() if experiment is not None else None
-        self._delegated = getattr(profile, "client_runtime", None) in {"compiled_gkm_v1", "compiled_replicated_v1"}
+        self._delegated = getattr(profile, "client_runtime", None) in {"compiled_gkm_v1", "compiled_replicated_v1", "compiled_fss_v1"}
+        self._fss = getattr(profile, "client_runtime", None) == "compiled_fss_v1"
         self._replicated = getattr(profile, "client_runtime", None) == "compiled_replicated_v1"
-        self._worker_roles = ("worker_a", "worker_b", "worker_c") if self._replicated else ("worker_a", "worker_b")
+        self._worker_roles = (("worker_a", "worker_b", "dealer") if self._fss else
+                              ("worker_a", "worker_b", "worker_c") if self._replicated else ("worker_a", "worker_b"))
         self._runtime_contract = None
         if self._delegated:
             from .benchmark_delegated import admit_options
@@ -861,7 +863,7 @@ class DashboardRuntime:
                 client_options["prefill_cache_bound_tokens"] = self._prefill_cache_bound_tokens
                 if self._topology.statuses:
                     client_options["bundle_cache_dir"] = root / "bundle-cache"
-            if self._topology.requires_preparation:
+            if self._topology.requires_preparation and not self._fss:
                 client_options.update(
                     prepared_inventory_rows=(
                         self._inventory_rows
@@ -884,12 +886,12 @@ class DashboardRuntime:
                 phase="preparing",
                 startup_step=(
                     "inventory"
-                    if self._topology.requires_preparation
+                    if self._topology.requires_preparation and not self._fss
                     else ("client" if not endpoints else "inference")
                 ),
                 endpoints=endpoints,
             )
-            if self._topology.requires_preparation:
+            if self._topology.requires_preparation and not self._fss:
                 before_preparation = self._audit_snapshot()
                 if not self._defer_inventory:
                     await self._background_call(
@@ -924,6 +926,9 @@ class DashboardRuntime:
                         if self._replicated:
                             from .replicated_protocol import PEER_COUNTERS
                             self._initial_preparation_audit.update(dict.fromkeys(PEER_COUNTERS, 0))
+                        if self._fss:
+                            from .fss_protocol import PEER_COUNTERS
+                            self._initial_preparation_audit.update(dict.fromkeys(PEER_COUNTERS, 0))
             await asyncio.sleep(0.6)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
@@ -935,7 +940,7 @@ class DashboardRuntime:
                 startup_step="ready",
                 inventory=(
                     self._client.prepared_inventory_status(self.config.model_id)
-                    if self._topology.requires_preparation
+                    if self._topology.requires_preparation and not self._fss
                     else {"required": False}
                 ),
             )
@@ -984,7 +989,7 @@ class DashboardRuntime:
             )
             if self._topology is not None and {
                 status.role for status in self._topology.statuses
-            } in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
+            } in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}, {"worker_a", "worker_b", "dealer"}):
                 try:
                     capture.worker_metrics_before = self._topology.worker_process_metrics()
                 except (httpx.HTTPError, ValueError, RuntimeError):
@@ -1054,7 +1059,7 @@ class DashboardRuntime:
                 count = self._client._core._response_input_tokens(self.config.model_id, prompt)
                 if count > admission["estimate"]["max_input_tokens"]:
                     raise ValueError("input exceeds the memory-admitted workload")
-            if self._topology is not None and self._topology.requires_preparation:
+            if self._topology is not None and self._topology.requires_preparation and not getattr(self, "_fss", False):
                 capture.preparation_started_at_ns = time.time_ns()
                 capture.preparation_started_monotonic_ns = time.monotonic_ns()
                 self._set(preparation_started_at=capture.preparation_started_at_ns / 1_000_000_000)
@@ -1383,11 +1388,11 @@ class DashboardRuntime:
 
         try:
             capture.process_metrics = self.store.finish_run_window(capture.run_id)
-            if self._topology is not None and not self._topology.requires_preparation:
+            if self._topology is not None and (not self._topology.requires_preparation or getattr(self, "_fss", False)):
                 capture.process_metrics.pop("preparation", None)
             if self._topology is not None and {
                 status.role for status in self._topology.statuses
-            } in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}):
+            } in ({"worker_a", "worker_b"}, {"worker_a", "worker_b", "worker_c"}, {"worker_a", "worker_b", "dealer"}):
                 try:
                     after = self._topology.worker_process_metrics()
                 except (httpx.HTTPError, ValueError, RuntimeError):
@@ -1413,7 +1418,13 @@ class DashboardRuntime:
                 display_error = f"telemetry failed: {type(telemetry_error).__name__}"
         inventory: dict[str, Any] = {}
         client = self._client
-        if client is not None and (self._topology is None or self._topology.requires_preparation):
+        if client is not None and getattr(self, "_fss", False) and status == "completed":
+            from .benchmark_delegated import completed_fss_contract
+
+            manifest = getattr(client._core, "_completed_program", None)
+            if manifest is not None:
+                self._runtime_contract = completed_fss_contract(self._runtime_contract, manifest)
+        if client is not None and not getattr(self, "_fss", False) and (self._topology is None or self._topology.requires_preparation):
             try:
                 inventory = client.prepared_inventory_status(self.config.model_id)
             except Exception:
@@ -1439,7 +1450,7 @@ class DashboardRuntime:
                 if self._topology is not None else ("client", "preparation", "inference")
             )
             decode_measured = (
-                status == "completed" and capture.token_usage_authoritative
+                not getattr(self, "_fss", False) and status == "completed" and capture.token_usage_authoritative
                 and capture.output_tokens is not None and capture.output_tokens > 0
             )
             decode_bytes = decode_tokens = None
@@ -1522,6 +1533,10 @@ class DashboardRuntime:
             )
             if self.history is not None:
                 self.history.add(run)
+            if getattr(self, "_fss", False):
+                from .benchmark_delegated import fss_body_accounting
+                self._set(body_accounting=fss_body_accounting({"privacy": privacy_delta, "processes": capture.process_metrics}),
+                          preparation_roles=["dealer"], ttft_scope="sdk_call_to_final_disclosure_including_preprocessing")
         except Exception as history_error:
             if display_error is None:
                 display_error = f"history write failed: {type(history_error).__name__}"
@@ -1546,6 +1561,9 @@ class DashboardRuntime:
         started = state.get("started_at")
         first = state.get("first_token_at")
         state["ttft_seconds"] = first - started if first and started else None
+        if getattr(self, "_fss", False):
+            state["final_disclosure_seconds"] = state["ttft_seconds"]
+            state["ttft_seconds"] = None
         generated_after_first = max(0, int(state.get("tokens", 0)) - 1)
         state["tps"] = (
             generated_after_first / max(0.001, now - first)

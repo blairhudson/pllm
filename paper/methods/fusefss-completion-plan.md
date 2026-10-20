@@ -1,199 +1,97 @@
 # FuseFSS implementation plan
 
-Status: bounded native scalar, protected primitives and source-gate composition
-implemented. Complete semantic execution and SDK/model qualification remain open.
-PUMA is parked at the recorded
-[local-v13 admission gate](../artifacts/puma-sdk/local-v13/README.md).
+Status: bounded source decoder and ordinary SDK integration implemented and
+tested on generated checkpoints. Full trained-model qualification remains open.
+PUMA remains parked at its separate admission gate.
 
-## Objective and governing contract
+## Contract
 
-Implement FuseFSS independently in PLLM, through reusable native components and
-the ordinary Pipeline, Experiment, SDK/gateway, CLI and benchmark paths. Follow
-[D1, D3, D5, D8 and D9](DECISIONS.md), the
-[shared-computation contract](shared-computation-contracts.md#4-fusefss), and the
+Follow [D1, D3, D5, D8, D9 and D13](DECISIONS.md), the
+[shared computation contract](shared-computation-contracts.md#4-fusefss) and
 [frozen scalar specification](../reproduction-contracts/fusefss/README.md).
+The implementation is independent PLLM Rust/Python code.
 
-The selected profile is `fusefss.source-derived-ring50-q12.v1`: nearest-even
-external input/weight encoding, source-defined floor operations internally, two
-online share holders and a separate trusted preprocessing dealer. Preserve public
-model ownership, private activations and fixed-count full-prefix token feedback,
-lowest-index argmax, and final client-only token-ID disclosure. CPU-first is the
-approved execution profile. The missing evaluated descriptor manifest remains a
-separate source-identity limitation.
+D13 selects two explicit ring50/Q12 profiles:
 
-## Ordered completion gates
+- `fusefss.gpt2-complete-ring50-q12.v1`: learned positions, centered LayerNorm,
+  affine GELU and Conv1D-oriented public projections.
+- `fusefss.dense-rope-ring50-q12.v1`: source-table RMSNorm, gated SiLU and
+  split-half public RoPE. Negative rotary coefficients are applied before each
+  product floor; floors cannot move across subtraction.
 
-| Gate | Deliverable | Evidence required before advancing |
+Both preserve nearest-even external encoding, source-defined internal floors,
+two online share holders, a separate trusted offline dealer, complete-vocabulary
+lowest-index argmax, fixed-count full-prefix feedback and final client-only IDs.
+The dense-RoPE profile is a named adaptation. The paper's missing evaluated
+descriptor manifest still prevents claiming its exact evaluated numeric identity.
+
+## Gates
+
+| Gate | Current evidence | Remaining work |
 | --- | --- | --- |
-| F0: source and feasibility | Exact backend/source mapping, numeric frontend obligations, full gate inventory, owner and work budgets | Page-pinned sources, arithmetic counterexamples, complete known/unknown cost ledger; early rejection of unsupported capacities |
-| F1: native scalar vertical slice | Typed Protocol-3 descriptor compiler, actual protected vector interval lookup, fresh shared Horner product and consuming scalar owners | Frozen descriptor/table parity; independent fused/unfused integer results; fixed public shape for every mask; role, replay, malformed-frame, cancellation and allocation controls |
-| F2: complete protected gates | Source-defined SiLU, nExp, reciprocal/rsqrt, ARS/TR, comparisons, conversions and non-identity Phi | Exact descriptor/LUT bytes, independent exhaustive bounded oracles, explicit ranges and complete material/frame accounting |
-| F3: complete semantic execution | Model-neutral source lowering, protected embedding, every body operation, full head, stable selection and private feedback | All generated-model tensors and state against an independent interpreter, multiple selections, zero unsupported fallbacks; complete metadata/live-owner/work admission |
-| F4: ordinary SDK composition | Capability configuration, source and material roles, authenticated transport, lifecycle supervision, SDK/gateway/CLI/benchmark integration | Installed-wheel round trips, real separate-role requests, exact published invocations, cancellation/failure retirement and receipt-backed benchmark replay |
-| F5: model qualification | Original-model track and separately identified pinned common-Qwen track | Source locks, full-checkpoint admission, complete integer parity and independent model quality; matched fresh-process CPU/memory/traffic/lifecycle measurements and confirmation |
+| F0: source and feasibility | Pinned equations, public model metadata and explicit cost estimates | Reprice complete trained-model execution after each scaling change |
+| F1: scalar | Typed descriptors, shared DCF, affine lookup and consuming products; independent frozen GELU checks | Independent security qualification |
+| F2: protected gates | Complete SiLU, softmax, LayerNorm/RMSNorm and floor/conversion gates; 275 frozen cases | Full-model domains and efficient complete widths |
+| F3: semantic decoder | Five generated GPT-2/Qwen2/Qwen3/Llama controls; 918 complete semantic observations, private feedback and final IDs | Trained-checkpoint integer/domain admission; original 5,125 internal-tensor interface is not claimed |
+| F4: ordinary SDK | Immutable components, source import, three actual role children, encrypted one-use tapes, SDK/gateway/CLI, failure/cancellation and standard benchmark paths | Larger admitted workloads, independent deployment and security review |
+| F5: model qualification | No passing full trained-model result | Original-model and pinned common-Qwen capacity, exact integer parity, quality and matched resource/performance cohorts |
 
-Complete serving or method status requires F0–F5. Each earlier slice records its
-actual scope. Full-model feasibility is examined during F0 and repriced after
-F1/F2; a scalar success cannot supply a missing complete-model budget.
+The complete method remains unqualified until F5 passes. Earlier gates supply
+only their stated scopes; generated benchmarks cannot fill a trained-model cell.
 
-## First parallel implementation tranche
+## Implemented paths
 
-Reuse-first review precedes integration: extend existing exact primitives where
-their numerical, secrecy and ownership contracts match. New module boundaries
-below organize the work; they do not justify duplicating a compatible existing
-backend or introducing separate SDK configuration, transport or benchmark stacks.
+- Shared absolute-position model lowering lives in
+  `crates/pllm-models/src/absolute_position_decoder.rs`; checkpoint names and
+  orientations remain source-mapping data.
+- `crates/pllm-compiler/src/fss_decoder/` binds public source, numeric profile,
+  semantic operations, fixed-count execution, resource bounds and one-use roles.
+- `crates/pllm-garble/src/fusefss_backend/` supplies the common typed gates,
+  exact kernels, compact private one-hot lookup and bounded material codecs.
+  Immutable source-table sharing removes repeated table construction; fresh
+  masks, keys and request state are never cached.
+- `FuseFssSourceDecoder`, `TrustedDealerTwoShareRoles` and
+  `FixedCountPrivatePrefix` compose through `FuseFssSourceCpu`.
+- `python/pllm/runtime/fss_*` owns bounded source import, authenticated channels,
+  one-use encrypted preprocessing tapes, offline-dealer retirement and draining
+  cancellation. Local children establish role separation, not non-collusion.
 
-The coordinator owns shared module registration, integration, combined tests and
-evidence. Sol 6.1 workers have non-overlapping ownership:
+## Reproduce
 
-1. **Native compiler:** `crates/pllm-garble/src/fusefss/` only. Implement bounded
-   typed descriptor validation and Protocol-3 mask compilation, preserving frozen
-   canonical identities and Boolean/arithmetic distinctions. Clear mask-dependent
-   plans are dealer-only; evaluators must never receive their thresholds or masks.
-2. **Protected backend:** new `crates/pllm-garble/src/fusefss_backend/` only.
-   Implement source-compatible bounded ring50 vector interval FSS and fresh
-   shared degree-one Horner execution. Establish the backend mapping before
-   implementation. Preserve party-local views, fixed shapes, fresh randomness,
-   one-use failure semantics, erasure and allocation limits. Report any source
-   uncertainty or required adaptation instead of silently substituting a protocol.
-3. **Independent conformance:** new files under
-   `paper/reproduction-contracts/fusefss/native-conformance/` only. Freeze
-   independent numeric and compiler vectors, adversarial cases, and a replayable
-   native-output checker. Retain original scalar evidence unchanged.
-4. **Reuse/source/feasibility review:** `paper/methods/fusefss-feasibility.md` and its
-   dedicated calculation script/artifact only. Audit backend legitimacy, remaining
-   source/frontend decisions, complete-model work/material lower bounds and SDK
-   extension points. Map existing primitives to direct reuse, bounded extensions
-   and incompatible contracts before integrating new code. Clearly separate
-   calculated costs from measurements.
-
-Workers may read the entire repository but must not edit PUMA, overwrite another
-worker's changes, run checkpoint loads, launch model benchmarks, rebuild/install
-wheels, change resource ceilings, or create commits. Native validation uses one
-Cargo build job and bounded serial tests; combined validation belongs to the
-coordinator. Any shared-file change is proposed for coordinator integration.
-
-### Reuse audit decision
-
-The [reuse and feasibility audit](fusefss-feasibility.md) identifies existing
-ring50 Boolean DPF comparisons, ring64 Beaver products, and public-boundary affine
-lookup as the implementation base. A private payload vector-DCF implementation
-is a valid bounded Appendix-I.2 control, but its projected activation material
-fails the full-model feasibility gate. It is not the default model backend.
-
-The first tranche consolidates common scalar/vector DCF and Beaver algebra and
-extends the existing universal public-boundary comparison to ring50. The native
-compiler preserves frozen identities; independent replay checks all 58,400 clear
-compiler gates and 43,544 freshly issued protected GELU outputs. Both include the
-38 exact-rational external-encoding cases. Private-vector control and original
-public-boundary specialization have distinct bindings; only the latter is used
-for the full protected replay. Its public duplicate refinement preserves the
-whole-ring function without exposing sampled-mask-dependent table order.
-
-Engineering reviews cover original-x multiplication, consuming lifecycle,
-source binding and live reservations. They do not establish independent security
-qualification. Complete results, source snapshots, costs and read-only replay:
-[native scalar evidence](../artifacts/fusefss-scalar/local-v1/README.md).
-
-### F2a: protected primitives and frozen source gates
-
-The follow-up adds actual compiled protected Boolean execution, exact signed
-floor/TR/ARS and extensions, B2A, consuming Phi selection and ordinary ring
-products. Fixed 256-entry public chunks compose complete zero-extended lookup
-tables up to 131,072 entries under the existing 513-interval primitive,
-four-lane and 64 MiB limits. All chunks and lanes issue fresh material.
-The independent [source gate contract](../reproduction-contracts/fusefss/gate-set/README.md)
-freezes SiLU, exponential, reciprocal and width-specific normalization tables,
-plus 275 complete/primitive clear cases. Selected-gate and complete-table replays
-have different explicit coverage schemas; neither authorizes a complete-model
-claim. Source-bound validation belongs to
-[the gate-primitives evidence](../artifacts/fusefss-gates/local-v1/README.md).
-Its accepted fresh attempt passes 239 native and 66 Python tests. Independent
-checkers accept all 66 selected cases and 18,560 table outputs across 4,640 fresh
-batches; the six external encodings remain local public frontend work. Archive
-replay passes and rejects all 31 re-pinned negative mutations. Complete table
-replay charges 1.428 GB of private material, 6.565 GB of public table copies and
-9.215 MB of peer frames, with a 2,139,112-byte logical native peak and final zero
-reservations. These cumulative costs are neither wire nor measured RSS.
-
-### F2b: bounded complete source-gate composition
-
-The [composed-gate slice](../artifacts/fusefss-composition/local-v1/README.md)
-executes original-input SiLU/Phi, two-table nExp with its fresh product/floor,
-protected max/causal reductions and reciprocal softmax, then private
-exponent/mantissa extraction and both separate normalization affine floors.
-Immutable public input intervals support checked-i128 signed38, nonwrapping
-subtraction/product/sum and valid-index obligations. They remain caller promises,
-not private membership checks or checkpoint range evidence. Original table bytes
-and negative-floor boundaries are preserved; the existing width-two norm case
-has a separately recorded exact rsqrt-table supplement.
-
-Each role owns one register schedule and consumes externally issued fresh material
-at bound public program counters. The runtime itself never issues or reconstructs
-material. Existing leases and the 64 MiB native ceiling cover both roles, the
-largest primitive and prior-frame overlap. Exported owners survive cancellation
-and plan retirement. The complete 275-case protected/local-encoding export passes
-the unchanged independent checker, including all source intermediates required
-by its test-only diagnostic outputs. Cumulative private material, public copies,
-native frames and logical ownership stay separate. Width-768 normalization must
-execute; width 4,096 rejects the unchanged 32,768-instruction ceiling.
-
-The earlier material/work estimates remain their own design evidence. Bounded
-lookup capacity and scalar key reduction do not admit complete-model cumulative
-work or select an SDK component. F3 must first bind full model-neutral lowering
-and complete public range obligations, then reprice full-prefix D9 workloads
-before checkpoint or role launch. Original-model and common-Qwen source/numeric
-identities retain their separate qualification gates.
-
-### Existing-path smoke checks
-
-The coordinator checked two existing contracts before new native integration:
+Build/install with the standard uv/Maturin commands in
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md). Use ordinary tests for correctness:
 
 ```sh
-.venv/bin/python -m pytest tests/test_scalar_fss_reference.py -q
-.venv/bin/python -m pytest tests/test_shared_rescale_sdk.py -q -k 'all_backends_and_layouts_preserve_signed_contract or replay_coverage_and_historical_material_contract'
+cargo test --release --locked --offline -p pllm-compiler --lib fss_decoder:: -- --test-threads=1
+uv run --no-sync python -m pytest -o pythonpath=. tests/test_fss_sdk.py tests/test_fss_native_transport.py
 ```
 
-These pass 8 and 11 checks respectively. The first covers bounded dense scalar
-sharing and simulated authenticated peer exchanges; it does not use the new
-ring50 backend. The second checks the existing three rescale backends, signed
-rounding, fused/unfused layouts and replay accounting. This is source-checkout
-Python 3.13.15 validation using the already-built
-`python/pllm/_native.abi3.so` (SHA-256
-`d8aa2635e2388eb38f5cec4a10314ea109901ccb6cb5baa3a119a0b628d6dc21`),
-not an installed-wheel or new-FuseFSS validation receipt.
+[`examples/papers/fusefss_smoke.py`](../../examples/papers/fusefss_smoke.py)
+constructs reproducible generated sources for both profiles. Its ordinary CLI
+outputs are in [`paper/artifacts/fusefss-sdk/`](../artifacts/fusefss-sdk/README.md).
+Use [`examples/papers/fusefss.py`](../../examples/papers/fusefss.py) for the pinned
+common-Qwen configuration; selection does not waive its admission failures.
 
-## Scalar integration boundary
+Benchmark reports retain dealer and holder costs, directed bodies, separate tape
+I/O and setup-inclusive final disclosure. Buffered output supplies neither streaming
+TTFT nor model decode throughput. No receipt archive or copied build/source tree
+is required.
 
-The descriptor's public identity, types, geometry and source commitments precede
-issuance. Protocol-3 shifted partitions and coefficient payloads remain at the
-dealer. A general protected backend receives them only during key generation.
-Each evaluator receives its own keys, mask shares and fresh correlations. The
-public-boundary specialization additionally receives the unchanged original
-public descriptor table, never its secret translated order or clear corrections.
-Input and output values remain additive shares. A masked input may be opened;
-an unmasked activation, selected interval or selected clear coefficient must not
-be opened.
-The Horner product uses the original shared input, not the opened masked input.
+## Next blocking slice
 
-The initial GELU slice has 511 source/512 padded intervals, two arithmetic
-coefficients, no Boolean outputs and identity Phi. Its slope is Q0 and constant
-is Q12: no extra Q12 rescale follows the product. The signed38 effective-input
-obligation belongs to source lowering; mathematical ring50 extension tests do
-not discharge it. That frozen affine adapter still rejects Boolean/nonidentity
-Phi. The separately implemented primitive owners do not implicitly expand its
-descriptor contract.
+The bounded F3 fixtures fit native work/live-owner admission after immutable-table
+sharing, but their 24,769–49,933 primitive imports exceed F4's request-long
+4,096-entry replay/tape limit. Do not reset the guard or reuse material. A bounded
+monotonic schedule owner needs replay, out-of-order, cancellation and partial-import
+tests before it can replace that retained set; disk and cumulative work remain
+separate limits.
 
-## Resource and evidence rules
+Full GPT-2 and Qwen also exceed existing source/sequence/value bounds. Their
+complete norm/table, private-product, full-vocabulary and full-prefix work must be
+admitted and priced before any tensor or material launch. Raising a constant does
+not supply this proof. Preserve the approved arithmetic and role graph; obtain
+approval before substantial protocol, numeric, state or trust adaptations.
 
-Preflight both parties' keys, dealer compilation and issuance overlap, triples,
-frames, outputs, descriptor owners and scratch before randomness/allocation.
-Charge live allocations separately from cumulative one-use material. Frames and
-exported owners retain reservations until retirement. Keep setup, issuance,
-online execution, local files and transport separate in reports. Historical
-masked-wire, PUMA and scalar-reference costs do not transfer to this build.
-
-Independent security review remains distinct from functional tests. Preserve
-approved arithmetic, role/trust and output contracts; substantial substitutions
-require an explicit decision. All unresolved model or SDK coverage remains
-visible until its own gate passes.
+See the [SDK contract](../../docs/research/fusefss-sdk-reference.md) and the
+[historical scalar cost inventory](fusefss-decoder-feasibility.md) for separate
+current and earlier scopes.

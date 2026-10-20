@@ -25,6 +25,7 @@ mod decoder_continuation;
 mod decoder_matrix_inventory;
 mod decoder_runtime_schedule;
 mod delegated_decoder;
+pub mod fss_decoder;
 pub mod replicated_decoder;
 pub use decoder_boundary::{PrivateBoundaryContract, PrivateBoundaryPhase};
 pub use decoder_matrix_inventory::{
@@ -1982,14 +1983,14 @@ fn validate_all_link_composition(pipeline: &ExperimentPipeline) -> Result<(), St
                     == Some("prefix_f32")
         });
     if !prefix_f32
-        || !pipeline
+        || pipeline
             .components
             .get("linear")
-            .is_some_and(|value| value.component == "pllm/masked-linear")
-        || !pipeline
+            .is_none_or(|value| value.component != "pllm/masked-linear")
+        || pipeline
             .components
             .get("preparation")
-            .is_some_and(|value| value.component == "pllm/model-aware-corrections")
+            .is_none_or(|value| value.component != "pllm/model-aware-corrections")
         || [
             "verification",
             "state",
@@ -2005,10 +2006,10 @@ fn validate_all_link_composition(pipeline: &ExperimentPipeline) -> Result<(), St
     }
     if decode
         && (inflight
-            || !pipeline
+            || pipeline
                 .components
                 .get("kernels")
-                .is_some_and(|value| value.component == "pllm/cpu")
+                .is_none_or(|value| value.component != "pllm/cpu")
             || !inventory.is_some_and(|value| {
                 value
                     .params
@@ -2674,6 +2675,8 @@ pub fn resolve_experiment(bytes: &[u8]) -> Result<ResolvedExperimentComposition,
         delegated_decoder::sdk::validate_experiment(&document)?;
     } else if replicated_decoder::sdk::selected(&document.pipeline) {
         replicated_decoder::sdk::validate(&document)?;
+    } else if fss_decoder::sdk::selected(&document.pipeline) {
+        fss_decoder::sdk::validate(&document)?;
     } else {
         validate_decoder_linear_composition(&document.pipeline)?;
     }

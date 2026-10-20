@@ -429,6 +429,52 @@ class GrottoRingDpfProtocol(PendingMethod):
     pass
 
 
+class FuseFssSourceDecoder(ProtocolMethod):
+    """D13 public-weight decoder contract, not executable capability admission.
+
+    Original learned-position and adapted dense-RoPE arithmetic have distinct
+    identities. The caller must select one; neither is floating-point parity.
+    """
+
+    __slots__ = ()
+    GPT2_NUMERIC_PROFILE = "fusefss.gpt2-complete-ring50-q12.v1"
+    DENSE_ROPE_NUMERIC_PROFILE = "fusefss.dense-rope-ring50-q12.v1"
+    NUMERIC_PROFILES = (GPT2_NUMERIC_PROFILE, DENSE_ROPE_NUMERIC_PROFILE)
+    RING_BITS = 50
+    FRACTIONAL_BITS = 12
+    descriptor = ComponentDescriptor(
+        component="pllm/fusefss-source-decoder/v1", provider="pllm", distribution="pllm.run",
+        version="1", category="pllm/protocol-method", category_version="1",
+        lifecycle_phase="offline+online",
+        parameter_schema={"type": "object", "additionalProperties": False,
+            "required": ["numeric_profile"], "properties": {
+                "numeric_profile": {"type": "string", "enum": list(NUMERIC_PROFILES)},
+                "weights": {"type": "string", "const": "public"}}},
+        capabilities=("public-weight-source-decoder", "ring50-q12", "external-nearest-even",
+                      "internal-signed-floor", "protected-full-prefix-recomputation",
+                      "private-greedy-feedback", "final-only-token-ids"),
+        required_host_features=("native-fss-decoder-admission", "independent-trusted-dealer",
+                                "distinct-authenticated-confidential-role-channels"),
+        role_eligibility=("client", "dealer", "worker_a", "worker_b"),
+    )
+
+    def __init__(self, *, numeric_profile: Literal[
+            "fusefss.gpt2-complete-ring50-q12.v1", "fusefss.dense-rope-ring50-q12.v1"],
+            weights: Literal["public"] = "public") -> None:
+        if type(numeric_profile) is not str or numeric_profile not in self.NUMERIC_PROFILES:
+            raise ConfigurationError("FuseFSS numeric_profile must explicitly select a D13 complete-decoder identity")
+        if type(weights) is not str or weights != "public":
+            raise ConfigurationError("FuseFSS source decoder supports public weights only")
+        super().__init__(self.descriptor.component, {"numeric_profile": numeric_profile})
+
+    def get_params(self, deep: bool = True) -> dict[str, object]:
+        return {"numeric_profile": self.params["numeric_profile"], "weights": "public"}
+
+    @classmethod
+    def describe(cls) -> ComponentDescriptor:
+        return cls.descriptor
+
+
 class PumaThreePartyDecoder(ProtocolMethod):
     """Bounded source-derived Q18 decoder with private feedback.
 
@@ -617,6 +663,7 @@ __all__ += [
     "FlutePrivateLookup",
     "GrottoRingDpfProtocol",
     "PumaThreePartyDecoder",
+    "FuseFssSourceDecoder",
     "PrimerHomomorphicTransformer",
     "CheetahTwoPartyNeural",
     "IronTwoPartyTransformer",

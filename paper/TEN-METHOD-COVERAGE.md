@@ -30,6 +30,14 @@ The shared full-Qwen workload remains outside its admitted envelope. Full-model
 numeric/quality qualification and matched performance remain open; the historical
 table below and zero-qualified-method count retain their original scope.
 
+FuseFSS subsequently gained the bounded `FuseFssSourceCpu` composition with a
+separate offline dealer, two online share holders and ordinary SDK/gateway/CLI
+execution. Five generated decoders match 918 complete semantic observations;
+standard generated-source benchmarks cover both approved numeric profiles. See
+[the SDK reference](../docs/research/fusefss-sdk-reference.md). Request-long
+replay/tape limits and complete-checkpoint admission still block trained-model
+qualification; these results do not fill a complete-system ranking cell.
+
 **The requested ten-system ranking is not currently supported.**
 Six selected methods have executable component adaptations.
 None has a qualified, complete PLLM reimplementation under the proposed common comparison contract.

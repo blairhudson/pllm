@@ -803,6 +803,10 @@ class ExperimentProfile:
         try:
             resolved = _native.resolve_experiment(experiment.canonical_bytes())
         except ValueError as exc:
+            if runtime_options is not None and runtime_options.runtime_kind == "fss":
+                raise ConfigurationError(
+                    f"FuseFSS production resolution requires native complete-decoder composition admission: {exc}"
+                ) from exc
             raise ConfigurationError(str(exc)) from exc
         from pllm.model_loader import expected_model_id
 

@@ -5572,14 +5572,16 @@ class OpenAI:
             raise ValueError("resource planning requires a configured network")
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
-        if profile is not None and profile.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1"}:
+        if profile is not None and profile.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1", "compiled_fss_v1"}:
             from .delegated_client import DelegatedClient
+            from .fss_client import FssClient
             from .replicated_client import ReplicatedClient
 
-            buffered_client = ReplicatedClient if profile.client_runtime == "compiled_replicated_v1" else DelegatedClient
+            buffered_client = {"compiled_gkm_v1": DelegatedClient, "compiled_replicated_v1": ReplicatedClient,
+                               "compiled_fss_v1": FssClient}[profile.client_runtime]
 
             if not isinstance(experiment, Experiment):
-                raise ValueError("GKM requires the complete bounded Experiment source")
+                raise ValueError("buffered protected execution requires the complete bounded Experiment source")
             unsupported = (
                 api_key, base_url, session_transport, correlation_mode,
                 preparation_base_url, preparation_api_key, correlation_prefetch,
@@ -5590,7 +5592,7 @@ class OpenAI:
             )
             if (any(value is not None for value in unsupported) or prefill_cache_bytes
                     or prefill_cache_mode != "exact" or background_inventory_refill is not None):
-                raise ValueError("GKM requires its exact source, full-KV and two-worker contracts")
+                raise ValueError("buffered protected execution requires its exact source, state and role contracts")
             if (default_model or model) is not None and (default_model or model) != profile.model:
                 raise ValueError("request model conflicts with Experiment model")
             self._owned_topology = None

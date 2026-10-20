@@ -214,7 +214,17 @@ pub fn compile<'a>(
     spec: &Spec,
     budget: &'a Budget,
 ) -> Result<Plan<'a>, Error> {
-    compile_inner(source_digest, spec, budget, false)
+    compile_inner(source_digest, spec, budget, false, None)
+}
+
+/// Identical source formula, range proof and Plan digest. Only immutable rsqrt
+/// generation/validation/copy/hash ownership is shared across request rows.
+pub fn compile_cached<'a>(
+    source_digest: [u8; 32],
+    spec: &Spec,
+    cache: &super::cache::SourceTableCache<'a>,
+) -> Result<Plan<'a>, Error> {
+    compile_inner(source_digest, spec, cache.budget(), false, Some(cache))
 }
 
 /// Test-only layout: mean, S, exponent, mantissa, index, inverse, then Y[0..k].
@@ -225,7 +235,7 @@ pub(super) fn compile_fixture<'a>(
     spec: &Spec,
     budget: &'a Budget,
 ) -> Result<Plan<'a>, Error> {
-    compile_inner(source_digest, spec, budget, true)
+    compile_inner(source_digest, spec, budget, true, None)
 }
 
 fn compile_inner<'a>(
@@ -233,6 +243,7 @@ fn compile_inner<'a>(
     spec: &Spec,
     budget: &'a Budget,
     intermediates: bool,
+    cache: Option<&super::cache::SourceTableCache<'a>>,
 ) -> Result<Plan<'a>, Error> {
     let k = spec.gamma.len();
     if source_digest == [0; 32] || (intermediates && !cfg!(test)) {
@@ -258,10 +269,15 @@ fn compile_inner<'a>(
     // Conservatively charge borrowed affine buffers too; callers retain these
     // owners while source generation and Plan construction overlap.
     let _affine = budget.reserve(k.checked_mul(2 * size_of::<i64>()).ok_or(Error::Resource)?)?;
-    let table = super::source_tables::rsqrt(k, budget)?;
-    let values = table.as_ref();
-    if values.len() != 8192 || values.iter().any(|&v| v > lo || v >= 1u64 << BITS) {
-        return Err(Error::Domain);
+    let table = if cache.is_none() {
+        Some(super::source_tables::rsqrt(k, budget)?)
+    } else {
+        None
+    };
+    if let Some(table) = &table {
+        if table.len() != 8192 || table.iter().any(|&v| v > lo || v >= 1u64 << BITS) {
+            return Err(Error::Domain);
+        }
     }
     let mut hash = Sha256::new();
     hash.update(CONTRACT);
@@ -323,7 +339,12 @@ fn compile_inner<'a>(
     let one = builder.constant(BITS, 1)?;
     let s = builder.add(squares, one)?;
     let extracted = index(&mut builder, s)?;
-    let table_index = builder.table(BITS, values)?;
+    // Cached factory admits ONLY this closed source formula/k, never caller
+    // values. Its exact maximum is the same slot0 value used by preflight above.
+    let table_index = match cache {
+        Some(c) => builder.source_table(c, super::cache::Kind::Rsqrt { k })?,
+        None => builder.table(BITS, table.as_ref().ok_or(Error::Domain)?.as_ref())?,
+    };
     let inverse = builder.lookup(extracted.index, table_index)?;
     if intermediates {
         outputs.extend_from_slice(&[

@@ -161,10 +161,10 @@ pub(crate) fn validate_composition(pipeline: &ExperimentPipeline) -> Result<(), 
     options(pipeline)?;
     let topology = pipeline.components.get("topology");
     if !topology.is_some_and(|c| c.component == TOPOLOGY && c.params.is_empty())
-        || !pipeline
+        || pipeline
             .components
             .get("kernels")
-            .is_some_and(|c| c.component == "pllm/cpu")
+            .is_none_or(|c| c.component != "pllm/cpu")
         || [
             "verification",
             "nonlinear",

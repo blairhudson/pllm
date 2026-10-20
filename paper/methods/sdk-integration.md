@@ -140,5 +140,17 @@ state, framing and retirement stay visible under their actual owners and windows
 8. Update existing benchmark capability coverage and public API inventories with
    measured, unsupported and blocked cells kept distinct.
 
+## Bounded FuseFSS milestone
+
+`FuseFssSourceCpu` now follows this chain with explicit D13 numeric profiles,
+`TrustedDealerTwoShareRoles` and `FixedCountPrivatePrefix`. Generated SDK/gateway
+requests run three real child roles; the dealer retires before private input
+release. Final IDs follow complete protected feedback, and failure/cancellation
+retire native, tape and HTTP owners. Both profiles run the ordinary benchmark
+CLI using `examples/papers/fusefss_smoke.py`, with dealer/holder costs and separate
+disk/network accounting. The [SDK reference](../../docs/research/fusefss-sdk-reference.md)
+records this bounded result and full-checkpoint/work limits. The original-model
+and common-Qwen qualification cells remain open.
+
 The same requirements govern later methods. Original-model validation, current
 cryptographic review and matched publication measurements remain separate gates.

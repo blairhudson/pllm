@@ -43,7 +43,7 @@ def audit_metrics(windows, m, *, window="request_windows"):
     names = set(AUDIT_COUNTERS)
     names.update(key for row in windows for key in row if key.startswith("inflight_"))
     names.update(key for row in windows for key in row if key.startswith((
-        "role_link.", "peer_link.", "generation_prefill_", "generation_decode_", "inference_")))
+        "role_link.", "peer_link.", "fss_storage.", "generation_prefill_", "generation_decode_", "inference_")))
     totals = {}
     for name in sorted(names):
         values = [row.get(name) for row in windows]
@@ -70,13 +70,15 @@ def response_metrics(report, m):
         body_scope += f":{coverage or 'mixed_or_unknown'}"
     runs = report["runs"]
     contract = report.get("runtime_contract", {})
-    delegated = contract.get("runtime_kind") in {"gkm", "replicated"}
+    fss = contract.get("runtime_kind") == "fss"
+    delegated = contract.get("runtime_kind") in {"gkm", "replicated", "fss"}
     from .benchmark_delegated import TPS_UNAVAILABLE
     reason = contract.get("decode_tps_unavailable_reason", TPS_UNAVAILABLE)
     worker_roles = (tuple(role for role in report["configuration"]["roles"] if role != "client")
                     if delegated else ())
 
-    first_window = ("online_to_final_token_disclosure" if contract.get("runtime_kind") == "replicated"
+    first_window = ("sdk_call_to_final_disclosure_including_preprocessing" if fss
+                    else "online_to_final_token_disclosure" if contract.get("runtime_kind") == "replicated"
                     else "online_to_first_accepted_text" if delegated else "online_to_first_token")
     audit_metrics([run.get("privacy", {}) for run in runs], m)
     cpu = report.get("process_cpu_accounting", {}).get("cold_first_response_cpu_seconds_by_role", {}) or {}
@@ -87,8 +89,9 @@ def response_metrics(report, m):
                  window="benchmark_start_through_first_response" if role == "client" else "role_birth_through_first_response",
                  scope="process_cpu")
     peaks = [run.get("processes", {}).get("preparation", {}).get("rss_peak_bytes") for run in runs]
-    m.metric("preparation.peak_rss", max(peaks) if peaks and all(v is not None for v in peaks) else None,
-             kind="memory", role="preparation", window="request_windows", scope="sampled_process_rss")
+    if not fss:
+        m.metric("preparation.peak_rss", max(peaks) if peaks and all(v is not None for v in peaks) else None,
+                  kind="memory", role="preparation", window="request_windows", scope="sampled_process_rss")
     if delegated:
         for role in worker_roles:
             peaks = [run.get("processes", {}).get(role, {}).get("rss_peak_bytes") for run in runs]
@@ -105,14 +108,36 @@ def response_metrics(report, m):
         m.metric(f"request.{index}.epoch_pause", pause / 1e9 if type(pause) is int and pause >= 0 else None,
                  window="request_epoch_pauses", scope="runtime_idle_epoch_pause", statistic="sum")
         denominator = max(0, tokens["output_tokens"] - 1)
-        m.metric(f"request.{index}.ttft", duration.get("ttft_seconds"), window=first_window, phase="online")
+        m.metric(f"request.{index}.ttft", None if fss else duration.get("ttft_seconds"), window=first_window, phase="online")
+        if fss:
+            m.metric(f"request.{index}.final_disclosure", duration.get("final_disclosure_seconds", duration.get("ttft_seconds")),
+                     window=first_window, phase="online", scope="buffered_fixed_count_final_ids")
         m.metric(f"request.{index}.decode_tps", duration.get("tokens_per_second") if denominator and not delegated else None,
                  kind="throughput", window="after_first_output", phase="online",
                  denominator={"value": denominator, "unit": "generated_tokens"},
                   **({"reason": reason} if delegated else {}))
     ttfts = [r["durations"].get("ttft_seconds") for r in runs]
-    m.metric("response.ttft", statistics.median(ttfts) if ttfts and all(v is not None for v in ttfts) else None,
-             window=first_window, phase="online", count=len(runs))
+    m.metric("response.ttft", statistics.median(ttfts) if not fss and ttfts and all(v is not None for v in ttfts) else None,
+              window=first_window, phase="online", count=len(runs))
+    if fss:
+        from .benchmark_delegated import fss_body_accounting
+        disclosures = [r["durations"].get("final_disclosure_seconds", r["durations"].get("ttft_seconds")) for r in runs]
+        m.metric("response.final_disclosure", statistics.median(disclosures) if disclosures and all(v is not None for v in disclosures) else None,
+                 window=first_window, phase="online", count=len(runs), scope="buffered_fixed_count_final_ids")
+        m.details["fss_accounting"] = [fss_body_accounting({"privacy": r.get("privacy"), "processes": r.get("processes")}) for r in runs]
+        m.details["fss_measurement_scope"] = {"decode_body_partition": None, "streaming_ttft": False,
+            "source_checkpoint_delivery_measured": False, "cross_numeric_rankings_supported": False,
+            "preparation_roles": ["dealer"], "preparation_inventory": False}
+        totals = [ledger["all_link_serialized_body_bytes"] for ledger in m.details["fss_accounting"]]
+        m.metric("network.fss_request_bodies", sum(totals) if totals and all(v is not None for v in totals) else None,
+                 kind="bytes", role="all-links", statistic="sum", window="request_windows",
+                 scope="fss_client_controls_dealer_packets_acks_direct_peer_v1")
+        for role in ("worker_a", "worker_b"):
+            for operation in ("read", "write"):
+                key = f"fss_storage.{role}.{operation}_bytes"
+                values = [r.get("privacy", {}).get(key) for r in runs]
+                m.metric(key, sum(values) if values and all(type(v) is int and v >= 0 for v in values) else None,
+                         kind="bytes", role=role, statistic="sum", window="request_windows", scope="encrypted_tape_disk_io_not_network")
     decode = [r["durations"].get("tokens_per_second") if r["tokens"]["output_tokens"] > 1 else None for r in runs]
     m.metric("response.decode_tps", statistics.median(decode) if not delegated and decode and all(v is not None for v in decode) else None,
               kind="throughput", window="after_first_output", phase="online", count=len(runs),
@@ -132,6 +157,13 @@ def response_metrics(report, m):
         None if rate is None or count is None else rate * count * 1e6)
     if coverage is None:
         covered = None
+    if fss:
+        accounting = report.get("topology_accounting") or {}
+        ledgers = [accounting.get("startup"), *accounting.get("warmups", []), *accounting.get("runs", [])]
+        if not all(isinstance(row, dict) and row.get("tracked_body_counter_set_present") is True
+                   and row.get("body_counter_coverage") == "fss_client_controls_dealer_packets_acks_direct_peer_v1"
+                   for row in ledgers):
+            covered = None  # Never relabel an old two-worker ledger as all-link FSS.
     m.metric("network.covered_body_bytes", covered,
               kind="bytes", role="all-links", statistic="sum", window="setup_through_scenario", scope=body_scope)
     startup = (report.get("topology_accounting") or {}).get("startup") or {}
@@ -190,10 +222,10 @@ def execute_response(p, m):
         raise TargetUnavailable("response_input_contract") from None
     declared = p["model"]
     experiment = Experiment.from_spec(declared["experiment"]).with_params(pipeline__profile=declared["profile"])
-    from .benchmark_delegated import admit_options, is_buffered, is_replicated
+    from .benchmark_delegated import admit_options, is_buffered, is_replicated, is_fss
 
     delegated = is_buffered(experiment)
-    runtime_kind = "replicated" if is_replicated(experiment) else "gkm"
+    runtime_kind = "fss" if is_fss(experiment) else "replicated" if is_replicated(experiment) else "gkm"
     if delegated:
         if (p.get("concurrent_requests", 1) != 1 or any(p.get(key) for key in (
                 "client_stage", "client_mlp", "client_metadata", "client_attention", "state_audit"))):
@@ -299,7 +331,7 @@ def execute_response(p, m):
             "output_delivery": report["runtime_contract"]["output_delivery"],
             "generation_policy": "fixed_length_greedy", "kv_reuse": False})
         m.limitations.append("Final-only buffered output: TTFT measures final token disclosure; emission TPS is unsupported."
-            if runtime_kind == "replicated" else
+            if runtime_kind in {"replicated", "fss"} else
             "Request-end verified buffered output: TTFT is first accepted text; emission TPS is unsupported.")
     from .topology_accounting import ACCOUNTING_SCHEMA, accounting_coverage_identity
     coverage = accounting_coverage_identity(report.get("topology_accounting"))
