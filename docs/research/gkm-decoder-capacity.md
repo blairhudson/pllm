@@ -113,8 +113,8 @@ A separate source-present Qwen metadata preflight at a 64-input/two-output bound
 requires 10.83 GiB of host allocation against 8.11 GiB of safe headroom. It rejects
 before tensor-value decoding or worker launch. This historical attempt establishes
 no execution or resource measurement.
-Original receipts, negative controls and read-only replay:
-[Decoder-capacity archive](../../paper/artifacts/gkm-sdk/decoder-capacity.md).
+Original standard report:
+[memory preflight](../../paper/artifacts/gkm-sdk/decoder-capacity-v1/qwen-smoke-v2/preflight.json).
 
 A subsequent source-present retry passes fresh admission and completes four input
 tokens plus two verified outputs through separate local workers. The original
@@ -130,5 +130,4 @@ acceptance supplies no decode-throughput measurement. Exact costs, scope and rep
 Native APIs and focused replay commands:
 [`wire-api.md`](../../crates/pllm-core/src/gkm/wire-api.md).
 Previous installed SDK and streaming evidence retains its original Capsule scope:
-[`gkm-sdk-reference.md`](gkm-sdk-reference.md) and
-[the streaming-import archive](../../paper/artifacts/gkm-sdk/source-stream.md).
+[`gkm-sdk-reference.md`](gkm-sdk-reference.md).

@@ -1,9 +1,0 @@
-public compiler geometry: 512 intervals; duplicate [0,1)/[1,64); 1024 independent endpoint checks passed
-PublicBoundary: 40 direct-oracle protected outputs passed; fresh issuance per chunk/lane
-PrivateVector: 8 direct-oracle protected outputs passed; fresh issuance per chunk/lane
-heap lanes=1: constructor_peak=557300, resident_heap=73820, descriptor_reserved=1310720, issued_heap=101980, issued_reserved=1350372, masked_heap=102188, product_heap=74620, finish_heap=74204, exported_heap_and_reserved=384, issuance_online_peak=102236, combined_reserved=2679510, public_source=12296, public_party_copies_each=12296, private_key_payload_each=1372
-heap lanes=4: constructor_peak=557300, resident_heap=73820, descriptor_reserved=1310720, issued_heap=186460, issued_reserved=1435764, masked_heap=186812, product_heap=76060, finish_heap=74396, exported_heap_and_reserved=576, issuance_online_peak=187004, combined_reserved=2764902, public_source=12296, public_party_copies_each=49184, private_key_payload_each=5488
-cross-backend binding: both directions reject after nonce control; 6 malformed/reflected frames consume owner
-8 real issuance allocator failures retire both partial public copies/key owners; 8 real online allocator failure sites consume public lookup/party and refund after owner drop
-combined reservation minus one rejects before issuance; descriptor lease retained separately
-7 bounded public-API review groups passed; no security/full-model certification

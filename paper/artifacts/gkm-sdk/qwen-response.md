@@ -18,9 +18,9 @@ remain open. The ten-method comparison still has zero qualified systems.
 
 - Checkpoint revision: `7ae557604adf67be50417f59c2c2f167def9a775`.
 - Wheel SHA-256: `135fef0c7502e21f82669e1faacdc7a3c1174848f7111d06da4928c0200c7989`.
-- The wheel is the cached local build already checked by the
-  [Decoder-capacity conformance archive](decoder-capacity.md): 640 installed
-  Python tests and 134 native checks plus Clippy.
+- The wheel is the cached local build used for the
+  [Decoder-capacity checks](../../../docs/research/gkm-decoder-capacity.md): 640
+  installed Python tests and 134 native checks plus Clippy.
 - All 362 installed package files match before and after the response. All seven
   checkpoint files match their original source lock on post-run hashing.
 - The complete compiled bound remains 64 input rows and two output selections,
@@ -29,7 +29,8 @@ remain open. The ten-method comparison still has zero qualified systems.
   safe host headroom. Execution rechecks admission against 13.94 GiB of safe
   headroom. Both retain the ordinary 4 GiB host reserve and allocation margins.
 
-The original 8.11-GiB-headroom rejection remains in `decoder-capacity-v1/`.
+The original 8.11-GiB-headroom rejection remains in the
+[standard preflight report](decoder-capacity-v1/qwen-smoke-v2/preflight.json).
 Later insufficient-headroom retries produced no response measurements. This
 successful sample has its own fresh process, cohort and host-admission receipt.
 The ordinary response target redirects the role root to its private directory;
@@ -70,31 +71,12 @@ headers/framing, monitoring, checkpoint distribution and physical wire. The
 report's 100/40 Mbps values are analytical floors only. No matched control or
 independent confirmation runs here, so these costs establish no comparative win.
 
-## Retention and read-only replay
+## Benchmark output and rerun
 
-`qwen-response-v1/` retains 14 hash-bound files: the original report, runner,
-Experiment, source/runtime/native contracts, preflight, input and installed-file
-receipts, execution log, post-run checks and capture program. The capture records
-zero visible workers using this interpreter/module after completion; 221 unrelated
-processes deny inspection. This is a process-table snapshot, not historical child
-PID attestation. Original absolute paths remain as provenance.
-
-From the repository root:
-
-```sh
-python3 -I -B paper/artifacts/gkm-sdk/verify_qwen_response.py
-```
-
-Replay validates the archived conformance link, original bytes, installed build,
-source and geometry, fresh admission, runtime acceptance, phase/role body
-conservation, resource windows and unavailable decode throughput. Negative
-controls in `tests/test_gkm_qwen_response_archive.py` reject changed sources or
-builds, rejected admission, omitted workers, swap growth, altered metrics and
-promotion to independent quality or operator evidence.
-
-For a new execution, use the retained `runner.py` with the same installed wheel
-and dependencies. Its `prepare` mode accepts a fresh output directory and checks
-ordinary admission without reading tensor values. Only an admitted preparation
-may run `execute`, which rechecks live admission. Relocate source/interpreter
-paths as needed and retain the new cohort separately. This read-only verifier
-never runs a model or treats a saved preflight as a live execution permit.
+The original [benchmark output](qwen-response-v1/benchmark.json) and
+[memory preflight](qwen-response-v1/preflight.json) remain unchanged.
+[`examples/delegated_sdk.py`](../../../examples/delegated_sdk.py) supplies the
+reusable experiment and ordinary response benchmark. Select `capacity="decoder"`,
+the pinned local source, a 64-input/two-output budget, and public prompt `Hello.`
+for this workload. Every new run performs fresh admission and produces its own
+standard benchmark output. Historical source versions live in Git.

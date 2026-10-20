@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/Users/blairhudson/workspace/pllm/target/puma-trie-norm-validation-v2/run_installed.py", line 22, in <module>
-    end = text.index("\nfor path in tests:", start)
-ValueError: substring not found

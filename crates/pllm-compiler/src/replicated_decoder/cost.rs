@@ -1116,12 +1116,10 @@ mod tests {
 
     #[test]
     fn dimensions_match_source_locked_metadata_without_loading_checkpoint() {
-        let replay: serde_json::Value = serde_json::from_str(include_str!(
-            "../../../../paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json"
+        let config: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../tests/fixtures/qwen25_0_5b_config.json"
         ))
         .unwrap();
-        let config: serde_json::Value =
-            serde_json::from_str(replay["normalized_config"].as_str().unwrap()).unwrap();
         let d = Dimensions::COMMON_QWEN;
         for (key, expected) in [
             ("hidden_size", d.hidden),

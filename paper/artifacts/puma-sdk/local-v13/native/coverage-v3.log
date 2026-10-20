@@ -1,1 +1,0 @@
-{"api": {"declaration": 23, "resolved": 84, "source_reference_only": 56, "unmapped": 185, "unsupported": 142}, "capabilities": {"measured": 7, "measured_external": 9, "partial": 87, "unmapped": 269, "unsupported": 147}, "evidence_sources": {"linked_only": 160, "typed_evidence": 40, "validated_historical": 4, "validation_failed": 2}, "unmeasured_cases": 31}

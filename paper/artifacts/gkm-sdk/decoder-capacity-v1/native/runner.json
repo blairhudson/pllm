@@ -1,7 +1,0 @@
-{
-  "argv": [
-    "target/research/gkm-capacity-validation-v1/run_native.py",
-    "native-v4"
-  ],
-  "sha256": "e1b8ce02bcc15c5fc392bad5f159c275d88e30b3cd287095580165d502e48b09"
-}

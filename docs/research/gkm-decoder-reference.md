@@ -152,10 +152,8 @@ The native suite passes **44 tests**, including three source-mapping and five
 decoder/session tests. Test-source snapshots remain unchanged. These results
 do not replace the earlier functional evidence or constitute security certification.
 
-Build and test records, source snapshots and the read-only replay verifier are
-under `paper/artifacts/gkm-decoder/`. All three guarded cached wheel builds observed zero
-swap-use or actual compressor-swapout growth. This is local build evidence, not
-a clean-build attestation or a serving-resource measurement.
+Build with the standard uv/Maturin workflow in `CONTRIBUTING.md`, then run the
+ordinary compiler and decoder tests. Historical source versions live in Git.
 
 ```sh
 CARGO_BUILD_JOBS=2 cargo test --offline --locked -p pllm-compiler \
@@ -165,8 +163,7 @@ python -I -B -m pytest -q -o pythonpath= tests/test_delegated_decoder.py
 ```
 
 The Python command requires a wheel containing this internal binding. It must
-not silently run against an older extension. The archive records the checked
-wheel and test environment.
+not silently run against an older extension.
 
 ## Next gates
 

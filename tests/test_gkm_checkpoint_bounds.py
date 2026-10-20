@@ -10,7 +10,6 @@ import math
 import os
 from pathlib import Path
 import random
-import shutil
 import struct
 import subprocess
 import sys
@@ -193,7 +192,7 @@ def test_input_mutation_and_symlink_retarget_reject(tmp_path):
             source.check_identity()
 
 
-@pytest.mark.parametrize("reader", ["source", "code_receipt", "archive"])
+@pytest.mark.parametrize("reader", ["source", "code_receipt"])
 def test_fifo_inputs_reject_without_waiting_for_writer(tmp_path, reader):
     path = tmp_path / "fifo"
     os.mkfifo(path)
@@ -201,7 +200,6 @@ def test_fifo_inputs_reject_without_waiting_for_writer(tmp_path, reader):
     # suite. No writer is ever opened, and no checkpoint files are inspected.
     code = """
 from collections import Counter
-import importlib.util
 from pathlib import Path
 import sys
 sys.path.insert(0, sys.argv[1])
@@ -211,16 +209,9 @@ try:
     if reader == 'source':
         with probe.InputFile(path, Counter(), None):
             raise AssertionError('FIFO admitted')
-    elif reader == 'code_receipt':
+    else:
         probe.__file__ = str(path)
         probe.receipt_code_identity()
-        raise AssertionError('FIFO admitted')
-    else:
-        filename = Path(sys.argv[1]) / 'paper/artifacts/gkm-checkpoint-bounds/verify.py'
-        spec = importlib.util.spec_from_file_location('archive_verifier', filename)
-        verifier = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(verifier)
-        verifier.read_bounded(path)
         raise AssertionError('FIFO admitted')
 except ValueError as exc:
     assert 'regular file' in str(exc), str(exc)
@@ -466,21 +457,3 @@ def test_failed_final_observation_does_not_relabel_an_earlier_sample(tmp_path):
     assert final["status"] == "failed"
     assert final["publication_work_after_report_serialization"] is None
     assert final["final_observation_error"]["reason"] == "final telemetry read failed"
-
-
-def test_negative_evidence_archive_verifies_and_rejects_byte_tampering(tmp_path):
-    verifier_path = Path(__file__).resolve().parents[1] / "paper/artifacts/gkm-checkpoint-bounds/verify.py"
-    spec = importlib.util.spec_from_file_location("gkm_negative_archive_verifier", verifier_path)
-    verifier = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(verifier)
-    result = verifier.verify()
-    assert result["verified_files"] == 7
-    assert result["attempt_statuses"] == ["failed", "failed"]
-    assert result["source_numeric_eligibility"] == "not_established"
-    copied = tmp_path / "archive"
-    shutil.copytree(verifier.ARCHIVE, copied)
-    altered = copied / "receipts/v2/report.json"
-    altered.chmod(0o600)
-    altered.write_bytes(altered.read_bytes() + b" ")
-    with pytest.raises(ValueError, match="byte hash mismatch"):
-        verifier.verify(copied)

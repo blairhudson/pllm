@@ -17,16 +17,16 @@ Completed foundations:
 - The bounded GKM decoder checks full logits, active KV, history and pending
   selections against independent oracles. Its repaired installed-wheel evidence
   passes 206 Python and 44 native checks, with two optional checkpoint skips;
-  [the archive](artifacts/gkm-decoder/README.md) retains exact execution identities.
+  [the decoder reference](../docs/research/gkm-decoder-reference.md) describes these checks.
   Its original in-process evidence retains that scope.
 - The subsequent bounded GKM composition runs through ordinary Pipeline/Experiment,
   two party-local worker processes, SDK, gateway, CLI and response benchmarks.
   Request-end verification precedes every model-derived output. The final cached
   wheel passes 547 Python and 117 native checks plus Clippy; all 362 installed
   package files match before and after testing. See
-  [the SDK archive](artifacts/gkm-sdk/README.md). This generated-checkpoint slice
+  [the SDK reference](../docs/research/gkm-sdk-reference.md). This generated-checkpoint slice
   does not admit the official Qwen checkpoint or qualify publication performance.
-- The subsequent [explicit GKM Decoder-capacity slice](artifacts/gkm-sdk/decoder-capacity.md)
+- The subsequent [explicit GKM Decoder-capacity slice](../docs/research/gkm-decoder-capacity.md)
   passes 640 installed Python and 134 native checks plus Clippy, with all 362
   installed files matching. Six generated two-worker cases preserve 20,376 complete
   logit/KV values beyond the Capsule vocabulary ceiling. The original full-checkpoint
@@ -101,10 +101,10 @@ Completed foundations:
   the first attention product. Guarded shared softmax retains the source's strict
   cutoff and retained-domain rounding while charging its extra product. Source
   publication then rejects layer-zero post-attention RMSNorm. The
-  [attention-range slice](artifacts/puma-sdk/local-v10/README.md) certifies complete
+  [attention-range slice](../docs/research/puma-truncation-reference.md#complete-attention-row-and-residual-energy-proofs) certifies complete
   softmax mass and residual energy under the original arithmetic. Pinned publication
   clears that RMSNorm and next rejects layer-zero SiLU before worker launch.
-  The [guarded-activation slice](artifacts/puma-sdk/local-v11/README.md) then
+  The [guarded-activation slice](../docs/research/puma-truncation-reference.md#guarded-piecewise-activations) then
   preserves the approved SiLU/GeLU interior arithmetic and zero/identity tails
   through private preselection. Pinned publication clears the first MLP and rejects
   layer-one RMSNorm at the propagated residual range. Full-checkpoint ranges, complete
@@ -117,14 +117,14 @@ Completed foundations:
   and request-wide final acceptance with tiled full-vocabulary lookup/selection
   and authenticated peer streams. Generated independent integer/AES controls cover
    complete hidden tensors and later-feedback rejection. The
-   [installed-wheel evidence](artifacts/puma-sdk/local-v12/README.md) retains 462
+   [checked-execution reference](../docs/research/puma-truncation-reference.md#explicit-checked-range-and-compact-execution-policies) records 462
    passing Python checks, 218 native checks and 64 generated oracle cases. A separate 4+2 pinned
   publication reaches layer-eight attention, then rejects the product bound before
   worker launch with zero observed swap growth. The
   [complete feasibility account](methods/puma-feasibility.md) identifies additional
   metadata, live-owner, protected-work and directed-traffic gates. Full-Qwen
   execution, shared 64+8 capacity, quality and serving measurements remain open.
-  The [trie/attention follow-up](artifacts/puma-sdk/local-v13/README.md) adds
+  The [trie/attention follow-up](../docs/research/puma-truncation-reference.md#trie-lookup-and-complete-attention-vector-certificates) adds
   provenance-bound trie lookup, worker-recomputed Q/K energy certificates and
   shared typed quality-outcome reports. Its broad installed wheel passes 656
   Python checks with eight skips; the bound-intersection follow-up passes 59

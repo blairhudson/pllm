@@ -1,9 +1,0 @@
-{
-  "status": "passed",
-  "exit_codes": {
-    "model-admission-tests": 0,
-    "native-tests": 0,
-    "clippy": 0
-  },
-  "source_changed": false
-}

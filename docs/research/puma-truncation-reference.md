@@ -86,8 +86,8 @@ Qwen2/Qwen3/Llama execution identities match the preceding installed wheel, and
 mixed compact/expanded-gather workers preserve exact integer matrix outputs.
 Resident source shares, expanded operation schedules and primitive work retain
 their existing admission bounds. This construction change supplies no measured
-whole-client memory or full-checkpoint capacity result. Build and installed SDK
-checks: [compact-compiler evidence](../../paper/artifacts/puma-sdk/local-v3/README.md).
+whole-client memory or full-checkpoint capacity result. Compiler regressions live
+in `crates/pllm-compiler/src/replicated_decoder/`.
 
 ### Explicit public-weight adaptation
 
@@ -122,8 +122,7 @@ three worker costs remain charged.
 The original pinned Qwen2.5 4-input/two-output metadata check rejected the
 compiler-view payload bound rather than the private-mode source-expansion bound.
 It read no tensor values and launched no workers. Generated SDK controls and
-complete integer matrix oracles establish this bounded adaptation only. Evidence:
-[public-weight slice](../../paper/artifacts/puma-sdk/local-v4/README.md).
+complete integer matrix oracles establish this bounded adaptation only.
 
 ### Compact activation views and tensor loops
 
@@ -154,8 +153,7 @@ qualification, complete-model range admission, quality and matched resource cost
 remain gates. These storage/scheduling changes establish no whole-client memory
 or full-checkpoint serving result. Installed-wheel validation passes 245 Python
 and 20 native checks, with seven optional skips and all 367 package files matching
-before and after. Replay and original receipts:
-[loop/view slice](../../paper/artifacts/puma-sdk/local-v5/README.md).
+before and after.
 
 ### Schedule-derived work admission
 
@@ -184,11 +182,9 @@ remains separate. Metadata admission does not qualify complete-model ranges,
 whole-request work, checkpoint execution, quality or serving resources.
 The work-budget slice's ordinary `benchmark_memory` retry reached the shared
 Safetensors reader's private-weight header limits. That rejection remains in
-its original receipt.
+the historical work-budget attempt.
 The installed-wheel checks pass 245 unique Python cases and 144 native checks,
-including five ownership doctests, with seven optional skips. Original attempts,
-complete collection reconciliation and replay are retained in the
-[work-budget slice](../../paper/artifacts/puma-sdk/local-v6/README.md).
+including five ownership doctests, with seven optional skips.
 
 ### Native-derived source-header bounds
 
@@ -210,9 +206,9 @@ source-present topology. Its 2,348,810,240-byte allocation estimate includes a
 25% margin; required disk is 14,004,270,080 bytes. Source hashing and headers are
 checked, but this preflight does not decode tensor values or launch workers.
 Complete-model numeric/program admission and checkpoint execution remain open;
-these estimates are not measured RSS, quality or serving costs. Original reports,
-installed-wheel checks and replay:
-[source-header slice](../../paper/artifacts/puma-sdk/local-v7/README.md).
+these estimates are not measured RSS, quality or serving costs. The original
+[standard memory-preflight output](../../paper/artifacts/puma-sdk/local-v7/documented-preflight-replay.json)
+retains this result.
 
 ### Public range certificates and semantic admission diagnostics
 
@@ -270,8 +266,7 @@ evaluated exponential schedule under the public input interval. No role workers
 or online decoder are launched. All retained publication attempts observe zero
 swap growth; their process peaks and CPU are admission diagnostics, not serving
 metrics. Whole-model range/work admission, quality and matched response costs
-remain open. Original attempts, installed-wheel conformance and replay are in the
-[range-proof slice](../../paper/artifacts/puma-sdk/local-v8/README.md).
+remain open.
 
 ### Guarded shared softmax tails
 
@@ -307,9 +302,7 @@ softmax. It rejects layer-zero post-attention `RmsNorm` at semantic step 22,
 with public encoded input
 interval `[-1571860067, 1571850851]`, before role-worker launch. This guarded source
 publication observes zero swap growth. Whole-model ranges, complete-program work,
-hidden-state parity, quality and response costs remain open. Original receipts,
-installed-wheel checks and replay are in the
-[guarded-softmax slice](../../paper/artifacts/puma-sdk/local-v9/README.md).
+hidden-state parity, quality and response costs remain open.
 
 ### Complete attention-row and residual-energy proofs
 
@@ -378,8 +371,7 @@ proof admits it. Pinned 4+2 source publication next rejects layer-zero `Silu`,
 step 25 of selection zero, at encoded interval `[-28618714, 28618714]`. No role
 workers or online decoder run; retained source-publication attempts observe zero swap
 growth. Whole-model ranges, total work, hidden-state correctness, quality and
-serving measurements remain open. Original receipts and replay:
-[attention-range slice](../../paper/artifacts/puma-sdk/local-v10/README.md).
+serving measurements remain open.
 
 ### Guarded piecewise activations
 
@@ -425,8 +417,6 @@ growth and launches no role workers. Source-only whole-model range proofs,
 complete-program work, full-checkpoint hidden-state correctness, source-model
 quality and matched response costs remain open. Protected runtime range-check
 acceptance would require a separate contract; this slice does not select it.
-Original receipts and replay:
-[guarded-activation slice](../../paper/artifacts/puma-sdk/local-v11/README.md).
 
 ### Explicit checked-range and compact-execution policies
 
@@ -487,9 +477,9 @@ in the SDK. These bounded controls and shape diagnostics do not qualify a full
 checkpoint, the shared 64+8 workload, source-model quality or response costs.
 The [completion plan](../../paper/methods/puma-completion-plan.md) and
 [feasibility account](../../paper/methods/puma-feasibility.md) retain those gates.
-The [checked-execution evidence](../../paper/artifacts/puma-sdk/local-v12/README.md)
-retains installed-wheel conformance, 64 generated native oracle cases and the
-separate layer-eight checkpoint rejection.
+The checked-execution slice passed 462 Python checks and 218 native checks;
+64 generated oracle cases rejected 824 negative controls. Its separate pinned
+4+2 source publication rejected layer-eight attention before worker launch.
 
 ### Trie lookup and complete attention-vector certificates
 
@@ -546,8 +536,7 @@ Two pinned Qwen 4+2 source-publication attempts select trie lookup, checked rang
 tiled selection and streams. Both reject at layer-six RMSNorm before worker
 launch, with zero observed swap growth. They retain separate identities from the
 earlier tiled-lookup layer-eight attention rejection. No whole-checkpoint response
-or quality result follows. Source snapshots, original attempts and replay are in
-[the follow-up evidence](../../paper/artifacts/puma-sdk/local-v13/README.md).
+or quality result follows. Historical source versions remain in Git.
 
 The separate native compact-sign constructors cover guarded SiLU/GELU,
 reciprocal/rsqrt, complete-row normalization and softmax. Signed interval proofs
@@ -577,8 +566,8 @@ The Experiment must budget every diagnostic request and the longest extended
 input. Top-1 agreement is observable; top-k recall and logit error are null.
 These repeated requests measure numeric agreement rather than a single serving
 response's costs. Full-checkpoint admission still precedes any quality execution.
-The separate [quality/wide-contraction evidence](../../paper/artifacts/puma-sdk/local-v2/README.md)
-retains generated controls, the installed build and the common-Qwen rejection.
+Generated quality and wide-contraction controls retain the common-Qwen admission
+rejection as a distinct outcome.
 
 The explicit quality `outcomes="record"` mode uses a separate version-two report.
 A typed native numeric rejection retains its original logical cohort position;
@@ -599,8 +588,8 @@ independent sign oracle distinguishes private prefixes, private feedback, protoc
 failure retirement, ordinary SDK/gateway execution and benchmark accounting.
 Full-checkpoint hidden-tensor conditional-on-mask equality, full-checkpoint ranges,
 source-model quality and matched publication measurements remain separate gates.
-The [frozen SDK conformance package](../../paper/artifacts/puma-sdk/README.md)
-retains 692 broad installed-wheel checks (one optional Metal skip), 138 final-build
+The initial SDK slice passed 692 broad installed-wheel checks (one optional
+Metal skip), 138 final-build
 checks, 165 native checks and five ownership doctests. All 367 installed package
 files match before and after each suite. The final rebuild only sorts native
 module declarations; overlapping suite counts remain separate. The ordinary

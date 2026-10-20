@@ -8,10 +8,10 @@ import numpy as np
 import psutil
 import pytest
 
-from pllm import OpenAI, _native
+from pllm import Deployment, ExecutionBudget, Model, OpenAI, _native
 from pllm.configuration import Experiment
 from pllm.protocols import PumaThreePartyDecoder
-from pllm.profiles import resolve_runtime_composition
+from pllm.profiles import PumaThreePartyCpu, resolve_runtime_composition
 from pllm.runtime import delegated_source as source_io
 from pllm.runtime.replicated_source import admit_source
 
@@ -275,28 +275,31 @@ def test_public_wide_mlp_runs_compact_loops_through_installed_binding(tmp_path):
 
 
 def test_pinned_public_qwen_prices_shape_work_before_checkpoint_import():
-    replay = json.loads((Path(__file__).resolve().parents[1] /
-        "paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json").read_text())
-    case = replay["modes"]["public"]
-    contract = json.loads(_native.replicated_source_contract(case["experiment"].encode(),
-        replay["normalized_config"].encode(), replay["rows"], replay["outputs"],
-        replay["source_lock"], replay["checkpoint"]))
+    config = (Path(__file__).parent / "fixtures/qwen25_0_5b_config.json").read_bytes()
+    public = Experiment(
+        "puma-metadata-gate",
+        PumaThreePartyCpu(Model.hf("Qwen/Qwen2.5-0.5B-Instruct",
+            revision="7ae557604adf67be50417f59c2c2f167def9a775",
+            local_files_only=True), weights="public"),
+        Deployment.local(root="local://puma-metadata-gate"),
+        ExecutionBudget(requests=1, max_input_tokens=4, max_new_tokens=2),
+    )
+    # Placeholder source commitments: this test admits metadata, not checkpoint values.
+    source_lock = checkpoint = "00" * 32
+    contract = json.loads(_native.replicated_source_contract(public.canonical_bytes(),
+        config, 4, 2, source_lock, checkpoint))
     assert contract["weights"] == "public"
     assert contract["vocabulary"] == 151936
     assert contract["selection_prefix_rows"] == [4, 5]
     assert contract["public_weight_snapshot_bytes_per_worker"] == 2 * contract["source_float32_bytes"]
-    larger = Experiment.from_spec(json.loads(case["experiment"])).with_params(
-        budget__max_input_tokens=16,
-    )
+    larger = public.with_params(budget__max_input_tokens=16)
     with pytest.raises(ValueError, match="public lookup operation count"):
         _native.replicated_source_contract(larger.canonical_bytes(),
-            replay["normalized_config"].encode(), 16, replay["outputs"],
-            replay["source_lock"], replay["checkpoint"])
-    private = replay["modes"]["private"]
+            config, 16, 2, source_lock, checkpoint)
+    private = public.with_params(pipeline__linear__weights="private")
     with pytest.raises(ValueError, match="source expansion budget"):
-        _native.replicated_source_contract(private["experiment"].encode(),
-            replay["normalized_config"].encode(), replay["rows"], replay["outputs"],
-            replay["source_lock"], replay["checkpoint"])
+        _native.replicated_source_contract(private.canonical_bytes(),
+            config, 4, 2, source_lock, checkpoint)
 
 
 def large_public_source_fixture(path, dtype="F32", change=None):

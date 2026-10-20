@@ -308,11 +308,7 @@ fn tiled_lookup_common_four_plus_two_cost_inspection_not_admission() {
 
 #[test]
 fn tiled_lookup_common_four_plus_two_generated_metadata_capacity_probe() {
-    let replay: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json"
-    ))
-    .unwrap();
-    let config = replay["normalized_config"].as_str().unwrap().as_bytes();
+    let config = include_bytes!("../../../../tests/fixtures/qwen25_0_5b_config.json");
     // Shape-only synthetic zero matrices. Never checkpoint bytes, never a
     // pinned-source admission claim, and no full-size matrix allocation.
     let sources = Program::source_shapes_with_weights(config, 4, 2, WeightMode::Public)

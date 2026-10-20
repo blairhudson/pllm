@@ -1,1 +1,0 @@
-{"cases": 18560, "coverage": "public-table-lookup-only", "fixture_sha256": "161cb9531a63f5937f090494a5fc1a37a4d4ab8e34d22ed4f2a628f2081ae283", "scope": "finite reported lookup values; no complete gates or execution provenance established", "status": "pass", "tables": 8}

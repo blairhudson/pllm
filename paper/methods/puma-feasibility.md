@@ -19,8 +19,9 @@ Two separately retained pinned 4+2 publisher attempts with trie lookup reject at
 layer-six RMSNorm before any worker launch, both with zero observed swap growth.
 The scalar-bound intersection follow-up still rejects there. This differs from
 the older tiled-lookup layer-eight attention rejection; no monotonic admission
-improvement or full-checkpoint execution follows. Evidence and exact build/input
-identities: [local-v13](../artifacts/puma-sdk/local-v13/README.md).
+improvement or full-checkpoint execution follows. The
+[trie/attention reference](../../docs/research/puma-truncation-reference.md#trie-lookup-and-complete-attention-vector-certificates)
+records the checks and remaining gates.
 
 The independent body-node/value-charge gates below remain. The native bounded
 body-layer executor and compact nonlinear/row constructors have their own
@@ -81,7 +82,8 @@ case exceeds the ordinal ceiling by 146,285. Therefore no honest blanket
 “4+2 now fits” claim; metadata/body-loop work is required even if numeric guards
 mostly elide. The subsequent frozen-wheel source publication reaches layer-eight
 attention before rejecting its product range; no complete source program admits.
-The original receipt is in [local-v12](../artifacts/puma-sdk/local-v12/README.md).
+The [checked-execution reference](../../docs/research/puma-truncation-reference.md#explicit-checked-range-and-compact-execution-policies)
+records that rejection.
 
 **16+2:** 267,566 priced unguarded nodes and 1.192 GB cumulative value charges
 fail resource admission. Even the no-guard shape schedule is 3.194 times the
@@ -399,9 +401,9 @@ internal direct client; both request clocks begin before publisher rescan. Worke
 lifetime starts after native compilation and before source import, so serial
 admission consumes the earliest worker's remaining time.
 
-Exact owner paths, framed-publication formulas, independently executable byte
-calculations and remaining cancellation/cache gates are retained in the
-[source lifecycle audit](../artifacts/puma-sdk/local-v12/source-lifecycle/README.md).
+`python/pllm/runtime/replicated_source.py` and `replicated_transport.py` own
+publication; `replicated_worker.py` rebuilds each worker's source. Native file
+ownership is in `crates/pllm-compiler/src/replicated_decoder/public_source.rs`.
 This accounting supplies no new source cache, deadline policy or execution result.
 
 ## Archived baseline: original decision
@@ -469,7 +471,7 @@ must get separately priced diagnostics, not silently reuse baseline numbers.
 `Qwen/Qwen2.5-0.5B-Instruct` revision
 `7ae557604adf67be50417f59c2c2f167def9a775`, with 64 input/eight output bounds.
 Metadata-only regression checks dimensions against the existing
-`paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json` normalized config:
+`tests/fixtures/qwen25_0_5b_config.json`:
 24 layers, hidden 896, intermediate 4,864, 14 query heads, two KV heads,
 64-dimensional heads, vocabulary 151,936, tied embedding/head source.
 

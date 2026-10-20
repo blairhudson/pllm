@@ -4,8 +4,8 @@ This slice composes the approved ring50/Q12 source gates over PLLM's existing
 protected predicates, conversions, public-table lookup and ring products.
 It follows [F2 in the completion plan](../../../methods/fusefss-completion-plan.md).
 The earlier [scalar GELU](../../fusefss-scalar/local-v1/README.md) and
-[gate-primitives](../../fusefss-gates/local-v1/README.md) evidence retain their
-original source snapshots and scopes.
+[gate-primitives](../../fusefss-gates/local-v1/README.md) results retain their
+original scopes. Git retains historical source versions.
 
 ## Native execution contract
 
@@ -50,14 +50,11 @@ encodings. All outputs must match the unchanged independent full-case checker;
 an omitted, reordered or substituted case rejects. The width-768 norm must execute,
 and its ordinary regression no longer accepts a silent resource skip.
 
-The fresh source-bound run passed **278 native library tests** (eight opt-in
+The original run passed **278 native library tests** (eight opt-in
 fixtures ignored by the ordinary suite, with the complete exporter run explicitly),
 **66 Python fixture checks**, native-table replay, formatting and Clippy with its
-recorded allowances. Read-only archive replay passes; **13 basic archive controls**
-pass and **46 mutated evidence variants** reject, including re-pinned output,
-source, accounting and coverage substitutions. Inputs matched before and after
-native execution. `verification.json` binds the archived result to these replay
-scripts and observations.
+recorded allowances. Receipt bundles, copied sources, logs and archive-only
+validators were retired; numerical and ownership checks remain in normal tests.
 
 The 209 new composition fixtures cumulatively consume **81,551,384 private
 material bytes**, **42,353,952 duplicated public-table bytes** and **10,082,032
@@ -67,8 +64,7 @@ primitive/local-encoding cases add 78,992 private bytes and 13,344 native frame
 bytes. These sums describe this heterogeneous finite fixture set, not a model,
 network measurement or serving comparison.
 
-Receipts bind compiled source, original fixture/oracles, before/after identities,
-native case coverage and final zero reservations. They separately record:
+The original results separately record:
 
 - cumulative private material and duplicated party-public-table payloads;
 - retained original public-table/plan owners and conservative live envelopes;
@@ -81,22 +77,13 @@ filesystem work remain outside the primitive allocation ledger. Cumulative publi
 copy bytes are local ownership work, not a measured network delivery. The trusted
 dealer is local; context headers do not supply authenticated role transport.
 
-## Reproduce
+## Correctness tests
 
-From repository root, with a new directory per fresh native attempt:
-
-```sh
-.venv/bin/python -B paper/artifacts/fusefss-composition/local-v1/run-native.py --output target/fusefss-composition-replay-new
-.venv/bin/python -B paper/artifacts/fusefss-composition/local-v1/replay.py
-.venv/bin/python -B paper/artifacts/fusefss-composition/local-v1/negative_controls.py --evidence paper/artifacts/fusefss-composition/local-v1
-```
-
-The native driver runs the full exporter/checker, library regressions, independent
-Python fixtures, table generation, formatting and Clippy. It snapshots all Rust
-and source-oracle inputs before execution and rejects drift. Clippy retains the
-three explicit lint allowances recorded in its receipt. Read-only replay checks
-the archived hashes and pinned independent oracle without issuing new material;
-negative controls exercise re-pinned corruptions as well as broken hashes.
+Current native tests live in `crates/pllm-garble/src/fusefss_backend/composition/`.
+The [independent fixtures](../../../reproduction-contracts/fusefss/gate-set/README.md)
+retain source equations, expected values and direct native-export checkers.
+Use ordinary Cargo and pytest commands; generated exports belong in ignored
+`target/`. Experiments use ordinary benchmark outputs.
 
 ## Review resolutions and remaining gates
 

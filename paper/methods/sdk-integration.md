@@ -66,15 +66,14 @@ Qwen3 and Llama fixtures fit the vocabulary ceiling of 256; default
 `Model.tiny()` retains 258 entries and rejects. Co-located workers establish
 functionality, not independent operators. Exact contracts and the 547 Python /
 117 native conformance checks are in the
-[SDK reference](../../docs/research/gkm-sdk-reference.md) and
-[archive](../artifacts/gkm-sdk/README.md).
-The subsequent [streaming-import slice](../artifacts/gkm-sdk/source-stream.md)
+[SDK reference](../../docs/research/gkm-sdk-reference.md).
+The subsequent [streaming-import slice](../../docs/research/gkm-sdk-reference.md#configuration-and-execution)
 retains the same ordinary path and passes 571 installed-wheel and 120 native
 checks. Bounded original-value frames replace eager Python source buffers;
 encoded weights move into their final worker owners. Full-width admission and
 whole-client memory measurements remain separate gates.
 
-The [explicit Decoder-capacity slice](../artifacts/gkm-sdk/decoder-capacity.md)
+The [explicit Decoder-capacity slice](../../docs/research/gkm-decoder-capacity.md)
 then passes 640 installed Python and 134 native checks, including complete
 generated two-worker results beyond the Capsule vocabulary ceiling. Native source
 geometry and owner bounds admit pinned Qwen metadata. Its source-present

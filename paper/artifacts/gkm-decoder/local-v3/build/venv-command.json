@@ -1,7 +1,0 @@
-[
-  "/opt/homebrew/bin/uv",
-  "venv",
-  "--python",
-  "/Users/blairhudson/.local/share/uv/python/cpython-3.13.15-macos-aarch64-none/bin/python3.13",
-  "/Users/blairhudson/workspace/pllm/target/research/gkm-decoder-wheel-v3/venv"
-]

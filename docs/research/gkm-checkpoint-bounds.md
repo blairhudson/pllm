@@ -7,9 +7,9 @@ bounds; the first two failed receipts remain unchanged.
 
 ## Accepted third scan
 
-The [installed-build/source archive](../../paper/artifacts/native-inventory/2026-10-17-installed-v6/README.md)
-retains the build, all test attempts, selected executed-source snapshots, source
-report and its separate finalization receipt. The corrected installed suite passes
+The original [source report](../../paper/artifacts/native-inventory/2026-10-17-installed-v6/scan/report.json)
+and [completion result](../../paper/artifacts/native-inventory/2026-10-17-installed-v6/scan/finalization.json)
+retain this measurement. The corrected installed suite passes
 67 tests, including all five previously blocked binding/generated-family checks.
 
 All **290 tensors / 494,032,768 elements** are scanned. All **169 linear/head
@@ -84,27 +84,14 @@ increased cumulative swapout independently triggered rejection. The receipts do
 not attribute host-wide activity to this process. This paragraph records the
 two original attempts; the separately admitted third scan appears above.
 
-### Immutable negative-evidence archive
+### Earlier failed results
 
-Exact original bytes are retained separately under
-`paper/artifacts/gkm-checkpoint-bounds/2026-10-17-interrupted-v1-v2/`:
-
-- both original `report.json` files and the second `admission.json`;
-- original scanner, scalar oracle, tests and this document before repair;
-- `index.json`, with origin paths, sizes and SHA-256 for seven files totaling
-  **117,699 bytes**. Its SHA-256 is
-  `dbde8d326fa84e6ed2472d71d1e0b2593953426036beebfb769a68409cc65037`.
-
-Archived files are read-only and append-only historical evidence. Their verifier
-reads only archive bytes and checks that both attempts remain failed; it never
-imports the old code or opens the model cache:
-
-```sh
-.venv/bin/python paper/artifacts/gkm-checkpoint-bounds/verify.py
-```
-
-The original target directories remain distinct and unchanged. Repair-check
-outputs use `target/research/gkm-checkpoint-bounds-maintenance-2026-10-17/`.
+The original
+[first report](../../paper/artifacts/gkm-checkpoint-bounds/2026-10-17-interrupted-v1-v2/receipts/v1/report.json),
+[second report](../../paper/artifacts/gkm-checkpoint-bounds/2026-10-17-interrupted-v1-v2/receipts/v2/report.json)
+and [second admission](../../paper/artifacts/gkm-checkpoint-bounds/2026-10-17-interrupted-v1-v2/receipts/v2/admission.json)
+remain failed results. Old scanner versions live in Git; normal scanner tests
+check current arithmetic, file integrity and admission behavior.
 
 ## Source identity
 
@@ -129,7 +116,7 @@ checkpoint/tokenizer source lock or before/after content/identity verification.
 The third scan separately completes that lock and verifies the geometry below.
 No download or source-cache modification occurred.
 Historical checkout hashes also cannot establish the imported Python metadata
-implementation's identity; that provenance gap is preserved in the archive.
+implementation's identity; that provenance gap remains in the historical results.
 
 The configuration declares 24 layers, hidden width 896, MLP width 4,864,
 14 attention heads, two KV heads, vocabulary 151,936, tied embeddings,

@@ -1,9 +1,0 @@
-TRANSCRIPT EXCERPT — full original stdout not retained; see session-excerpts.json
-Running tests/puma_allocation.rs (target/debug/deps/puma_allocation-8b403bfee3999d75)
-test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 341.80s
-Running tests/puma_multiply.rs (target/debug/deps/puma_multiply-4b47645a5bea8341)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
-Running tests/puma_prss.rs (target/debug/deps/puma_prss-6f5b2f4a31c8e1b3)
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-Running tests/puma_truncation.rs (target/debug/deps/puma_truncation-2f89202647c42623)
-test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s

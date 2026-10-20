@@ -1,1 +1,0 @@
-{"error":{"code":"QUALITY_FAILED","details":{},"exit_code":6,"message":"invalid model configuration: decoder source expansion budget exceeded or invalid","stage":"runtime"},"schema_version":"pllm.cli.error.v1"}

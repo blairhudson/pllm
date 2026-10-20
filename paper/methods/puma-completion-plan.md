@@ -2,7 +2,7 @@
 
 Status: approved for implementation, including the protected checked-range
 profile, with Sol 6.1 subagents on independent workstreams. Baseline: `5dd11004` and
-[local-v11 validation](../artifacts/puma-sdk/local-v11/README.md).
+[guarded-activation validation](../../docs/research/puma-truncation-reference.md#guarded-piecewise-activations).
 Completion still requires the evidence gates below.
 
 ## 1. Concrete finish line

@@ -15,7 +15,7 @@ passes fresh admission and completes four input tokens plus two verified outputs
 through both workers, with zero observed swap growth. Independent full-checkpoint
 quality and matched comparison remain open. See the
 [Decoder contract](gkm-decoder-capacity.md) and
-[separate archive](../../paper/artifacts/gkm-sdk/decoder-capacity.md).
+[original preflight](../../paper/artifacts/gkm-sdk/decoder-capacity-v1/qwen-smoke-v2/preflight.json).
 
 ## Configuration and execution
 
@@ -105,10 +105,9 @@ failed-call timing remains unknown rather than fabricated zero.
 The local generated fixtures test lookup bytes, full logits/KV, history and
 pending selection; real process controls test final corruption, replay, partial
 admission and cancellation. SDK, gateway and both ordinary benchmark entry points
-share the same admitted Experiment. Validation receipts and replay are retained
-in [the SDK archive](../../paper/artifacts/gkm-sdk/README.md).
-The separate [streaming-import archive](../../paper/artifacts/gkm-sdk/source-stream.md)
-passes 571 installed-wheel tests and 120 native checks, including complete SDK
+share the same admitted Experiment. Ordinary tests under `tests/test_delegated_*`
+cover these contracts. The streaming-import slice passed 571 installed-wheel
+tests and 120 native checks, including complete SDK
 execution after ownership transfer. All 362 installed package files match that
 wheel. These checks establish correctness and bounded ownership, not RSS savings.
 

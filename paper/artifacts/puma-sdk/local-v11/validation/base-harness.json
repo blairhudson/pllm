@@ -1,7 +1,0 @@
-{
-  "path": "paper/artifacts/puma-sdk/local-v10/validation/run_validation.py",
-  "sha256": "29e91aea37aa5a6e2bcc9b4c07c405b84daded22a2ba3b013e8f3ef68761d1fb",
-  "replacement": {
-    "puma-attention-range-build-v1": "puma-guarded-activation-build-v2"
-  }
-}

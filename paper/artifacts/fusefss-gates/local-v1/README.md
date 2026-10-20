@@ -1,6 +1,6 @@
 # FuseFSS protected gate primitives — local v1
 
-Status: **bounded F2a validation and read-only archival replay pass**. This is the
+Status: **historical bounded F2a validation**. This is the
 gate-primitives slice in the [completion plan](../../../methods/fusefss-completion-plan.md).
 The [scalar GELU evidence](../../fusefss-scalar/local-v1/README.md) retains its
 original build and scope.
@@ -47,16 +47,16 @@ widths 4/768. The full 131,072-entry reciprocal layout has a separate bounded
 endpoint/capacity test; it does not inherit exhaustive replay from smaller tables.
 Large canonical indices return zero; malformed noncanonical inputs consume state.
 
-Receipts separate cumulative private material, duplicated public tables, actual
+The results separate cumulative private material, duplicated public tables, actual
 peer frames, peak logical native reservations and final retirement. None is
 process RSS, physical wire, separate-role performance or a whole-model cost.
 The fixture parser, caller buffers, descriptor parser, exports and filesystem
-work retain the explicitly excluded test-harness scope in each receipt.
+work remain outside the native resource counts.
 
 ### Recorded results
 
-The accepted fresh attempt is `target/fusefss-f2-final-v2`; its complete receipts,
-source snapshot and logs are archived here. Before/after source identities match.
+The original attempt was `target/fusefss-f2-final-v2`. Git retains its historical
+records; source copies, receipts, logs and archive-only validators were retired.
 
 - **239 native library tests pass**, with seven ignored in that invocation.
   The selected-gate and table exporters run separately and both pass.
@@ -64,10 +64,8 @@ source snapshot and logs are archived here. Before/after source identities match
   and 24 gate-set controls.
 - Clippy and Rust formatting pass. The exact Clippy command retains the three
   recorded lint allowances; this is not an unqualified all-lints claim.
-- Both independent output checkers and the read-only archive replay pass.
-  Eight basic malformed-evidence controls pass and all **31 real archive
-  mutations reject**, including re-pinned wrong outputs and conserved-but-wrong
-  accounting. Native reservations return to zero in every replayed record.
+- Both independent output checkers passed. Native reservations returned to zero
+  in every replayed record.
 
 | Both-party accumulated cost | Selected gates | Complete-table replay |
 | --- | ---: | ---: |
@@ -84,22 +82,13 @@ Bounded live ownership does not remove cumulative material, public-copy or
 traversal costs. The earlier full-model feasibility estimates retain their own
 scope until complete source-gate schedules supply a new ledger.
 
-## Reproduce
+## Correctness tests
 
-From repository root, using a new output directory for each native attempt:
-
-```sh
-.venv/bin/python -B paper/artifacts/fusefss-gates/local-v1/run-native.py --output target/fusefss-gates-replay-new
-python3 -B paper/artifacts/fusefss-gates/local-v1/replay.py
-python3 -B paper/artifacts/fusefss-gates/local-v1/negative_controls.py --evidence paper/artifacts/fusefss-gates/local-v1
-```
-
-The first command runs fresh native execution and the combined checks. The last
-two verify archived evidence and mutations without building or issuing keys.
-The archive binds the original producer, fixture, independent checker and shared
-mathematical-oracle dependencies. Read-only replay checks installed repository
-checker bytes against those snapshots before execution; it fails on drift rather
-than silently using a changed oracle.
+Current native tests live in `crates/pllm-garble/src/fusefss_backend/`.
+The [independent fixtures](../../../reproduction-contracts/fusefss/gate-set/README.md)
+retain source equations, expected values and direct native-export checkers.
+Use ordinary Cargo and pytest commands; generated exports belong in ignored
+`target/`. Experiments use ordinary benchmark outputs.
 
 ## Earlier attempts
 
@@ -109,11 +98,7 @@ The regression now XORs header bytes and asserts that the malformed frame differ
 payload noncanonical-value controls keep their original mutation. Production
 secret-replication code is unchanged.
 
-An initial Clippy run rejected conversion-module doc-list indentation. A later
-qualification attempt was intentionally stopped after discovering an omitted
-shared-oracle snapshot. Its completed Clippy/selected-gate steps do not supply
-the replacement attempt's remaining evidence. Original failed/interrupted records
-are kept separately from accepted qualification.
+Failed and interrupted attempts did not supply successful results.
 
 ## Next complete gate
 

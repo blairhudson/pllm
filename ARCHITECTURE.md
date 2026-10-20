@@ -750,7 +750,7 @@ metadata, work and directed-byte floors also block the shared 64+8 envelope;
 these bounded implementations establish no full-Qwen or performance qualification.
 The installed-wheel slice passes 462 Python checks and 218 native checks; 64
 generated integer/AES oracle cases reject 824 negative controls. Full evidence:
-`paper/artifacts/puma-sdk/local-v12/README.md`.
+`docs/research/puma-truncation-reference.md`.
 The public-only `lookup="trie"` follow-up converts each private token once and
 executes a complete vocabulary prefix trie under exact compiler token provenance.
 Bounded eight-row ownership includes selector overlap; lookup-only 64+8 work falls
@@ -769,7 +769,7 @@ executor remain outside outer-decoder selection. Shared opt-in quality v2 record
 typed rejection and failure at original cohort positions, scores accepted values
 separately and rejects incomplete rankings. Full-checkpoint capacity, quality and
 serving measurements remain open. Evidence:
-`paper/artifacts/puma-sdk/local-v13/README.md`.
+`docs/research/puma-truncation-reference.md`.
 The separate Rust-only GKM delegation capsule independently implements bounded
 signed-i16 weights, exact ring64 products, nearest-even/2048 encoding and the
 source's float32-before-division boundary. Dense XOR lookup preserves original
@@ -1839,7 +1839,7 @@ capacity and measured whole-client memory remain separate admission gates.
 A separate cached wheel passes 571 installed Python and 120 native checks,
 including generated two-process decoder parity and gateway/benchmark execution.
 All 362 installed package files match; the build observes zero swap growth.
-Evidence and replay: `paper/artifacts/gkm-sdk/source-stream.md`.
+Contract and tests: `docs/research/gkm-sdk-reference.md`.
 The explicit `OpenWeightVerifiableOutsourcing(capacity="decoder")` additionally
 binds larger native source, publication, wire, operation and result envelopes.
 Default Capsule identities remain unchanged. Geometry-derived complete-result
@@ -1853,7 +1853,7 @@ but its original 64-input/two-output whole-topology preflight requires 10.83 GiB
 against 8.11 GiB of safe host headroom. It rejects before tensor-value decoding or worker
 launch; that attempt establishes no checkpoint execution or measured resources.
 Contract and original evidence: `docs/research/gkm-decoder-capacity.md` and
-`paper/artifacts/gkm-sdk/decoder-capacity.md`.
+`paper/artifacts/gkm-sdk/decoder-capacity-v1/qwen-smoke-v2/preflight.json`.
 A separate source-present retry passes fresh host admission and executes the
 pinned Qwen checkpoint through two local worker processes. Four input tokens and
 two fixed-count outputs pass final native verification, with zero observed swap

@@ -26,11 +26,7 @@ fn largest_live_prefix_views_reject_before_source_values() {
 
 #[test]
 fn pinned_qwen_public_metadata_prices_live_frontier_without_source_values() {
-    let replay: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json"
-    ))
-    .unwrap();
-    let config = replay["normalized_config"].as_str().unwrap().as_bytes();
+    let config = include_bytes!("../../../../tests/fixtures/qwen25_0_5b_config.json");
     Program::source_shapes_with_weights(config, 4, 2, WeightMode::Public).unwrap();
     let reason =
         Program::source_shapes_with_weights(config, 16, 2, WeightMode::Public).unwrap_err();
@@ -48,11 +44,7 @@ fn pinned_qwen_public_metadata_prices_live_frontier_without_source_values() {
 
 #[test]
 fn tiled_lookup_metadata_uses_its_own_public_work_floor() {
-    let replay: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../paper/artifacts/puma-sdk/local-v4/qwen-metadata-replay.json"
-    ))
-    .unwrap();
-    let config = replay["normalized_config"].as_str().unwrap().as_bytes();
+    let config = include_bytes!("../../../../tests/fixtures/qwen25_0_5b_config.json");
     let policy = ExecutionPolicy {
         lookup: LookupPolicy::Tiled,
         ..ExecutionPolicy::default()

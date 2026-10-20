@@ -74,6 +74,10 @@ docs/public/releases/*/docs-manifest.json
 /paper/figures/
 /paper/artifacts/clean-build/
 /paper/artifacts/release/
+# Temporary evidence bundles and source copies belong in target/.
+/paper/artifacts/**/*.tar.*
+/paper/artifacts/**/inputs/
+/paper/artifacts/**/logs/
 /docs/content/docs/research/papers/
 /docs/data/research/scorecard.json
 /docs/data/research/results.json

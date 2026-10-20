@@ -206,12 +206,11 @@ Frozen source contracts and independent checkers are under
 cases; explicit selected-gate replay covers 66 (60 protected outputs and six
 local exact-rational external encodings). A separate public-table replay covers
 18,560 entries across eight tables. Neither accepts a complete-gate claim from
-partial output. Evidence belongs to
-`paper/artifacts/fusefss-gates/local-v1/`, separate from the historical GELU slice.
-Its accepted fresh attempt passes 239 native library tests, 66 Python checks,
-both actual native exporters and both independent output checkers. The archived
-selected cases and table outputs replay independently, and 31 archive mutations
-reject. The eight table replays use 4,640 fresh batches and return their final
+partial output. Historical results are summarized in
+`paper/artifacts/fusefss-gates/local-v1/README.md`, separate from the GELU slice.
+That run passed 239 native library tests, 66 Python checks, both native exporters
+and both independent output checkers. The eight table replays use 4,640 fresh
+batches and return their final
 reservations to zero; cumulative costs and logical peaks stay separately reported.
 
 ## Bounded source-gate schedules
@@ -267,8 +266,10 @@ private material, keys/evaluations, triples, actual native frames and planned li
 envelopes. Sampled reservations can miss issuance scratch and are not a true
 high-water mark or process RSS. The opt-in full exporter runs all 275 frozen cases
 through native owners, with six external encodings remaining local public work.
-Receipt-backed evidence and complete replay commands live in
-`paper/artifacts/fusefss-composition/local-v1/`. This is bounded protected-gate
+Historical results live in
+`paper/artifacts/fusefss-composition/local-v1/README.md`; current correctness
+checks use ordinary Cargo/pytest tests and the independent fixtures. Generated
+exports belong in ignored `target/`. This is bounded protected-gate
 conformance, with model lowering, authenticated roles and SDK qualification
 retaining their own gates.
 

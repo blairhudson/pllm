@@ -49,28 +49,15 @@ outputs therefore retain different meanings. The independent checker calculates
 expected values from the original equations and rejects substituted outputs,
 geometry, ordering and encoding. It cannot itself prove crypto execution.
 
-`run-receipt.json` and `logs/` record final release-library, frozen-reference,
-independent-fixture, formatting and export/checker runs with exact commands and
-exit codes. Logs retain their original bytes in gzip files. The library passes
-208 tests with five opt-in tests ignored; both
-conformance exporters run explicitly in separate successful steps. The original
-reference and independent-fixture suites pass 20 and 22 Python tests respectively.
-`clippy.json` records the separate successful all-target garble/PyO3
-check with warnings denied except the three explicitly listed existing lint
-classes. No wheel was built or installed. These records are not a performance
-cohort or revision-bound release CI.
+The original library run passed 208 tests with five opt-in tests ignored; both
+conformance exporters ran separately. The original reference and independent
+fixture suites passed 20 and 22 Python tests. These are historical correctness
+checks, not serving measurements.
 
-Both engineering reviews found no blocking scalar algebra, provenance, lifecycle
-or resource defect. Their P3 documentation and stale-receipt findings were
-addressed. A deliberate missing-opt-in attempt removes **both** prior success
-receipts before rejecting, then a new complete run republishes them. A complete
-claim requires the adapter receipt, linked runtime receipt, successful process
-exit and independent checker result together.
-
-The public-boundary review has its own source snapshot under `initial/`.
-`reviews/review-to-final.patch` records subsequent documentation, lint and
-test-export changes. No reviewed lookup or product equation changed. Final
-compiler/protected replays use the final `inputs.tar.gz` source overlay.
+Independent algebra and public-API allocation controls now run as ordinary tests
+in `tests/test_fss_public_boundary_algebra.py` and
+`crates/pllm-garble/tests/fusefss_public_boundary.rs`. Source snapshots, receipts,
+logs and archive-only validators were retired; Git retains the original run.
 
 ## Complete bounded scalar costs
 
@@ -103,21 +90,16 @@ bytes. Stack, allocator overhead, caller copies and external oracle storage are
 excluded. Generic JSON descriptor parsing is outside the frozen adapter's bounded
 path. No whole-client memory tier, checkpoint admission or serving speed follows.
 
-## Read-only replay and native reproduction
+## Correctness tests
 
-From repository root:
+From repository root, run the current implementation with ordinary tools:
 
 ```sh
-python3 -B paper/artifacts/fusefss-scalar/local-v1/replay.py
+uv run --no-sync pytest tests/test_fss_public_boundary_algebra.py
+cargo test --release --locked --offline -p pllm-garble --test fusefss_public_boundary -- --test-threads=1
 ```
 
-This verifies artifact and source hashes, original review/final source overlays,
-receipt linkage, native exits, material/frame conservation and both independent
-checker passes. It reads original compressed outputs; it issues no keys, compiles
-no code and accesses no model or network. Preserve this repository's frozen
-fixture/checker files, or restore their verified overlay first.
-
-Native reproduction on the recorded source/build inputs:
+The independent numerical fixtures and native exporters remain available:
 
 ```sh
 CARGO_BUILD_JOBS=1 PLLM_FUSEFSS_EXPORT_COMPILER_CONFORMANCE=1 cargo test --release --locked --offline -p pllm-garble --lib fusefss::conformance::export_compiler_conformance_all -- --ignored --exact --test-threads=1 --nocapture
@@ -126,8 +108,6 @@ CARGO_BUILD_JOBS=1 PLLM_FUSEFSS_EXPORT_PROTECTED_GELU=1 cargo test --release --l
 python3 -B paper/reproduction-contracts/fusefss/native-conformance/check_native.py --suite gelu target/fusefss-native-protected-v1/protected.jsonl
 ```
 
-The archived `run-native.py` additionally documents the validation sequence and
-stale-receipt negative control; that control requires the prior successful export
-receipts in `target/`. Test-only reconstruction never becomes a production clear
-interpreter or an SDK capability. Signed38 frontend provenance and complete-model
-material/work feasibility remain separate gates in the completion plan.
+Generated exports belong in ignored `target/`. Signed38 frontend provenance and
+complete-model material/work feasibility remain separate gates in the completion
+plan. Experiments use ordinary benchmark outputs.
