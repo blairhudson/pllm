@@ -36,6 +36,12 @@ std::thread_local! {
     static ERASED_KEYS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
+/// Test-only actual block counter, shared with consuming arithmetic regressions.
+#[cfg(test)]
+pub(crate) fn measured_aes_blocks() -> usize {
+    AES_BLOCKS.with(std::cell::Cell::get)
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Error {
     Domain,

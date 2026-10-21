@@ -88,9 +88,21 @@ Completed foundations:
   contraction over shared resident ring kernels. Independent integer/AES and
   failure-retirement tests pass; the matrix harness couples both shares in one
   process, not isolated workers. Existing DPF defaults remain unchanged. CPU
-  terminal leakage and one-bit arithmetic-output masks remain prohibited; D17's
-  full-output-ring masking proposal awaits approval. No trained decoder or SDK
-  availability follows from these primitives.
+  terminal leakage and one-bit arithmetic-output masks remain prohibited; D17 now
+  approves full-output-ring masks. Bounded TR/GapARS/DReLU execution uses the
+  distinct GPU127/full-ring profile, separate party-local owners from a local
+  trusted research dealer, and shared masked-floor equations. GapARS correctness
+  is conditional on an unenforced quarter-ring input promise; comparisons below
+  eight bits publicly zero-extend into the DPF domain. Complete output-mask sampling,
+  logical keys, RNG/AES work, physical owners and peer-frame sizes are priced in
+  the reference. No authenticated material delivery, material codec or peer
+  transport is supplied. Fourteen native arithmetic tests and an external
+  masked-floor chain pass, including integer oracles, exact cost counters and
+  failure/lifetime controls. The complete garbling suite passes 413 unit and two
+  external tests, with eight opt-in skips; 280 source-leakage controls also pass.
+  No runnable SIGMA, trained decoder, SDK availability or composed security proof
+  follows from these primitives. Typed wire provenance and party-local matrix
+  composition are the next integration gates.
 - The [PUMA truncation/PRSS reference](../docs/research/puma-truncation-reference.md)
   checks the source AES schedule and replicated arithmetic. Its live payload
   ledger now retains exported-buffer charges through erasure and deallocation.

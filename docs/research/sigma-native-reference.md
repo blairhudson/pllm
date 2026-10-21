@@ -1,10 +1,10 @@
-# Bounded SIGMA masked-matrix reference
+# Bounded SIGMA native references
 
 Source arithmetic: [SIGMA](https://petsymposium.org/popets/2024/popets-2024-0107.php),
 §3.2.1 masked multiplication and §4.1.1 matrix multiplication. The reference
 independently implements these equations; upstream code is not a dependency.
 
-This native reference is a **single-process, coupled two-share harness**, not a
+The matrix reference is a **single-process, coupled two-share harness**, not a
 SIGMA decoder, independently hosted party implementation, SDK component or
 security qualification. The approved GPU-derived DPF port is a separate primitive
 under decision D16; it is not used by this matrix product.
@@ -81,8 +81,67 @@ evaluation borrows it for table scans. This private algebra does not enforce
 authenticated session binding or one-use transport: those remain outer-runtime
 duties. Same-profile payload substitution is not detected by its canonical codec.
 There is no upstream wire-byte equivalence, GPU performance or security-proof
-claim. The arithmetic-output mask disposition remains separately unresolved in
-`paper/reproduction-contracts/sigma-arithmetic-masks.md`.
+claim. D17 separately approves complete-output-ring arithmetic masks; its source
+audit remains in `paper/reproduction-contracts/sigma-arithmetic-masks.md`.
+
+## Bounded TR / GapARS / DReLU adaptation
+
+`masked_wire_reference::arithmetic` uses the distinct
+`pllm.sigma.gpu127-full-ring-masks.v1` identity and D16 GPU127 keys. It is not
+the pinned CPU implementation or the existing Q12 gated-block profile; defaults
+remain unchanged. `rescale.rs` factors shared masked-floor equations, not a new
+rounding rule. Native tests below qualify bounded arithmetic and ownership,
+not a composed protocol or decoder.
+
+Admission covers 1–256 lanes and input widths `3 <= n <= 64`. TR admits
+`0 < s < n`, returning exact unsigned floor modulo `2^(n-s)` (also the reduced-ring
+representation of signed floor). GapARS admits `0 < s < n-1`, returning signed
+floor in the original ring **conditional on the unwrapped private input promise
+`-2^(n-2) <= x < 2^(n-2)`**. That promise is not enforced or proved by this owner.
+DReLU returns the XOR-masked bit `[signed x >= 0]`, including zero.
+
+Comparison width is `c=max(s,8)` for TR/GapARS and `c=max(n-1,8)` for DReLU.
+Comparisons below eight bits publicly zero-extend threshold and query into the
+GPU127 domain; they do not truncate or change the comparison. Issuance samples
+fresh uniform masks over all `n-s` TR output bits, all `n` GapARS output bits,
+or one DReLU bit. Caller-supplied input-mask freshness remains a caller obligation.
+
+For `L` lanes, `d=c-7` and output width `m`, checked costs are:
+
+| Cost | TR | GapARS | DReLU |
+| --- | --- | --- | --- |
+| Logical key bits per party | `L*(129*d+255+2*m)` | `L*(129*d+255+3*m)` | `L*(129*d+256)` |
+| RNG byte requests (including nonce, roots, masks and splits) | `32+64*L` | `32+72*L` | `32+48*L` |
+| Frames per party | 2 | 2 | 1 |
+
+Each operation requests `m*L` output-mask bits; RNG request bytes are not an
+entropy/security claim. Paired issuance costs `4*d*L` AES blocks; evaluation costs
+`d*L` per party. Each frame is exactly `76+8*L` bytes, totaling
+`2*frames_per_party*(76+8*L)` across both directions. Party material physically
+stores `L*sizeof(Lane)` bytes, including inline keys and three u64 constants per
+lane even where unused; logical key bits are not encoded delivery bytes.
+
+`resources()` separately prices dealer, each party and combined logical live
+reservations before randomness/allocation, under the shared 64 MiB ceiling. With
+`F=76+8*L+sizeof(Frame)+64`, `O=8*L+sizeof(MaskedOutput)+64`, party reservation is
+`P=sizeof(Party)+L*sizeof(Lane)+24*L+3*64+frames_per_party*F+O+8192`;
+dealer reservation is `D=sizeof(OutputMasks)+16*L+64`, combined `2*P+D`.
+Borrowed input masks (`8*L`) and both masked-input views (`16*L`) are included
+allowances, not transferred ownership; excess backing capacities and unrelated
+owners remain additional. These are logical allowances, not RSS/allocator limits.
+
+A local trusted research dealer sees input masks and returns a separate output-mask
+owner plus two separate party-local owners, each holding only its own key and
+constants. This differs from the coupled matrix owner. Frames bind public
+plan/session/operation/wires/index, nonce, input digest, sender and phase, but are
+not authenticated. Successful completion or a failed call consumes local execution
+state; cancellation burns it. Orchestration must also retire the other party on
+failure. Frames and outputs retain split leases independently; cancelled/consumed
+party owners retain their remaining reservation until drop. Zeroizing owners
+erase/deallocate before lease refund. No material codec, authenticated material
+delivery or peer transport, persistent replay protection, malicious-output
+verification, SDK integration, runnable SIGMA decoder or composed security proof
+is supplied by this source slice.
 
 ## Correctness checks
 
@@ -96,16 +155,24 @@ cargo test --release --offline -j 1 -p pllm-core --lib streamed_matrix::tests:: 
 cargo test --release --offline -j 1 -p pllm-garble --lib masked_wire_reference:: -- --test-threads=1
 cargo test --release --offline -j 1 -p pllm-garble --lib fusefss_backend:: -- --test-threads=1
 cargo test --release --offline -j 1 -p pllm-garble --lib compact_dpf:: -- --test-threads=1
+cargo test --release --offline -j 1 -p pllm-garble --test sigma_masked_floor_chain
 ```
 
 The FuseFSS run checks the extracted shared logical allocator's existing users.
 The DPF run adds independent AES wordwise/NIST/frozen OpenSSL vectors, complete
 width-8/9 point and strict-less tables under both root phases, wide endpoints,
 bounded expansion/work counters, canonical parsing and erasure/failure controls.
-The complete `pllm-garble --lib` run passes 399 tests with eight opt-in exporters
-or measurements ignored; eight shared-core traversal tests and 280 independent
-source-terminal/arithmetic-mask negative controls also pass. Filtered native
-reruns overlap that complete suite and are not additional distinct checks.
+The complete `cargo test --release --offline -j 1 -p pllm-garble` run passes
+413 unit tests and two external integration tests; eight opt-in exporters or
+measurements remain ignored. Its fourteen arithmetic tests cover every legal
+small-ring shift/input/mask, exact RNG requests and measured AES block counts,
+64-bit boundaries, all-gate entropy/allocation failures and retained-owner leases.
+The external chain passes common masked outputs and dealer-only masks through
+TR, GapARS and DReLU without opening intermediates to either evaluator, against
+independent signed floor equations. It does not enforce general graph provenance
+or establish matrix-chain execution. Shared-core traversal's eight tests and
+280 independent source-terminal/arithmetic-mask negative controls also pass.
+Filtered native reruns overlap the complete suite, not additional distinct checks.
 Primitive parity supplies no trained-checkpoint, quality, WAN, performance or
 whole-client memory result. Complete source-specific truncation, nonlinear
 programs, compiler scheduling and ordinary SDK/gateway/benchmark execution remain

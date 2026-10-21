@@ -17,9 +17,11 @@ use pllm_core::residual_silu_reference::{
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
+pub mod arithmetic;
 mod coins;
 pub mod matrix;
 mod product;
+mod rescale;
 mod seeded_codec;
 pub mod transport;
 use coins::Coins;
@@ -172,31 +174,21 @@ impl Shift {
             .unwrap())
     }
     fn adjusted(&self, x: u64) -> u64 {
-        x.wrapping_add(if self.gap { 1 << (self.n - 2) } else { 0 }) & mask(self.n)
+        rescale::adjusted(x, self.n, self.gap)
     }
     fn start(&self, b: u8, x: u64) -> u64 {
         u64::from(self.dpf.less(b, self.adjusted(x) & mask(self.shift))) ^ (self.constants[0] & 1)
     }
     fn finish(&self, b: u8, x: u64, opened_bit: u64) -> u64 {
-        let x = self.adjusted(x);
-        let carry = u64::from(b)
-            .wrapping_mul(opened_bit)
-            .wrapping_add(self.constants[0])
-            .wrapping_sub(
-                2u64.wrapping_mul(opened_bit)
-                    .wrapping_mul(self.constants[0]),
-            );
-        let wrap = self.constants[1].wrapping_mul(1 - (x >> (self.n - 1)));
-        (u64::from(b)
-            .wrapping_mul(x >> self.shift)
-            .wrapping_add(self.constants[2])
-            .wrapping_add(wrap)
-            .wrapping_sub(carry))
-            & mask(if self.gap {
-                self.n
-            } else {
-                self.n - self.shift
-            })
+        rescale::finish(
+            b,
+            x,
+            self.n,
+            self.shift,
+            self.gap,
+            &self.constants,
+            opened_bit,
+        )
     }
     fn bits(n: u8, shift: u8, gap: bool) -> usize {
         Key::encoded_bits(shift)

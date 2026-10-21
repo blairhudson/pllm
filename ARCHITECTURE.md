@@ -1186,6 +1186,28 @@ operation; borrowed outputs retain its reservation through retirement. It suppli
 no truncation, isolated party transport or decoder selection. Caller-supplied mask
 freshness and excess backing capacities remain caller obligations. Contract and
 normal correctness tests: `docs/research/sigma-native-reference.md`.
+The bounded `masked_wire_reference::arithmetic` owner separately adapts
+TR, GapARS and DReLU under `pllm.sigma.gpu127-full-ring-masks.v1`, not the existing
+Q12 gated-block profile. D16 supplies GPU127 comparisons; sub-eight-bit comparisons
+publicly zero-extend into its domain. D17 approves fresh complete-output-ring
+masks: `n-s` bits for TR, `n` for GapARS, one bit for DReLU. Shared `rescale`
+equations preserve integer floor; same-ring GapARS remains conditional on an
+unenforced unwrapped quarter-ring input promise. A local trusted research dealer
+returns a separate output-mask owner and two separately owned party-local
+materials, unlike the matrix's coupled owner. Checked logical admission prices
+inline keys, RNG/AES work, physical material, frames, borrowed inputs and stack
+allowances under 64 MiB; exact formulas are in the reference. Frames bind context,
+input, sender and phase without authentication. Completion/failure consumes local
+state; orchestration must retire its peer, and retained frames/outputs keep split
+leases through erasure/deallocation. No material codec, authenticated material
+delivery or peer transport is supplied. Fourteen native arithmetic tests check
+all legal small-ring shifts/inputs/masks, signed floors, exact RNG/AES/frame
+counts and failure/retirement controls. An external caller chains TR, GapARS
+and DReLU against independent floor equations without evaluator access to masks.
+The complete garbling suite passes 413 unit and two external tests with eight
+opt-in skips; 280 source-leakage controls also pass. General wire provenance,
+party-local matrix composition, SDK integration, a runnable SIGMA decoder and
+composed security remain open.
 The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private
 4,096-row lookup with exact half-gates rescaling and multiplication through opaque
 labels. Its Q18-to-Q9 numeric profile matches uncompressed Curl; the existing

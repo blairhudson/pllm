@@ -1,9 +1,9 @@
 # SIGMA CPU arithmetic-output mask audit
 
-Status: **source disposition unresolved**. This is a bounded output-view finding
-in EzPC commit `aa0f2f860266fb79901405ef5e9965b8c9fe2e88`, not an executed
-upstream attack, a finding about every SIGMA implementation, or permission to
-change an approved protocol.
+Status: **full-output-ring mask adaptation approved in D17**. This is a bounded
+output-view finding in EzPC commit `aa0f2f860266fb79901405ef5e9965b8c9fe2e88`,
+not an executed upstream attack, a finding about every SIGMA implementation,
+or authorization for unrelated protocol changes.
 
 ## Exact source trace
 
@@ -38,16 +38,16 @@ exhausts small full-ring masks to show that they remove this specific boundary
 witness. The tests do not execute or establish correctness of the source
 truncation routine and are not a composed security proof.
 
-## Proposed disposition, not yet approved
+## Approved disposition (D17)
 
-Do not reproduce literal one-bit arithmetic-output masks. A possible distinct
-profile would sample fresh uniform masks over the complete output ring: `n-s`
+Do not reproduce literal one-bit arithmetic-output masks. The approved distinct
+profile samples fresh uniform masks over the complete output ring: `n-s`
 bits for TR and `n` bits for same-ring arithmetic shifts. Boolean outputs still
 use fresh Boolean masks. Preserve the original integer floor function and
 explicitly charge sampling, correction material, physical storage and delivery.
 
-This changes the inspected source's randomness/view contract and therefore needs
-explicit approval before implementation. D16 approves only the distinct DPF
-primitive; it does not authorize this mask change. Native matrix and DPF
-foundation work can continue independently, but the next source arithmetic
-executor must not silently inherit this unsafe source choice.
+This changes the inspected source's randomness/view contract. The user's explicit
+D17 approval authorizes this mask change separately from D16's DPF primitive.
+It does not establish an implemented decoder, source-CPU byte equivalence or a
+composed security proof. The next source arithmetic executor must not inherit
+the unsafe one-bit choice; existing legacy profiles remain unchanged.

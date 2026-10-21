@@ -425,19 +425,21 @@ approval is implied.
 
 ## D17. SIGMA arithmetic-output mask width
 
-**Approval required:** the pinned CPU `SlothLRSfromWrap` and `SlothTRfromWrap`
+**Explicitly approved by the user:** replace the pinned CPU output-mask choice
+with fresh uniform masks over the complete arithmetic output ring. The pinned
+CPU `SlothLRSfromWrap` and `SlothTRfromWrap`
 sample literal one-bit output masks before reconstructing multi-bit arithmetic
 outputs. Under the intended masked floor contract, results zero and two have
 disjoint observable sets. Source trace and independent negative controls:
 `paper/reproduction-contracts/sigma-arithmetic-masks.md`.
 
-Do not adopt that output-mask choice. The proposed disposition samples fresh
+Do not adopt that output-mask choice. The approved disposition samples fresh
 uniform masks over the complete output ring (`n-s` bits for TR, `n` bits for
 same-ring shifts), retaining the original integer floor equations and charging
 randomness, material, physical owners and delivery. Boolean masks remain one bit.
-This source-view adaptation is separate from D16 and remains unimplemented until
-explicit approval. Primitive parity would not qualify composed security or SDK
-execution.
+This source-view adaptation is separate from D16. Preserve existing default
+profiles and bind the adaptation to a distinct source/numeric identity. Approval
+does not establish implementation, composed security or SDK execution.
 
 ## Decision record
 
@@ -459,7 +461,7 @@ execution.
 | D14 | Approved: opt-in FuseFSS checked ranges | Original Q12 arithmetic on accepted requests; secret safe fallback, sticky validity, final whole-request acceptance and complete work/quality qualification required. |
 | D15 | Approved: explicit FuseFSS online wavefront and stable tree selection | Exact Q12 arithmetic and fresh material; bounded execution/resource identity, complete setup and measured bandwidth-plus-delay qualification required. |
 | D16 | Approved: distinct CPU port of SIGMA GPU-source DPF | CPU numeric rules unchanged; randomized controls, full AES-expanded terminal, actual key/PRG costs and independent qualification required; leaking CPU terminal remains blocked. |
-| D17 | Required: full-ring SIGMA arithmetic-output masks | Literal one-bit CPU TR/LRS masks remain prohibited; proposed fresh output-ring masking needs explicit approval beyond D16. |
+| D17 | Approved: full-ring SIGMA arithmetic-output masks | Literal one-bit CPU TR/LRS masks remain prohibited; fresh complete-output-ring masks preserve floor arithmetic and charge randomness, material, owners and delivery under a distinct identity. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
