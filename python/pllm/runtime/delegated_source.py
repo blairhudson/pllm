@@ -585,6 +585,13 @@ class AdmittedSource:
         return self.contract["execution_payload_estimate_bytes"]
 
     @property
+    def batch_copy_prices(self) -> dict:
+        from .delegated_protocol import batch_memory_bytes
+
+        return ({} if self.runtime_contract_bytes is None else
+                batch_memory_bytes(json.loads(self.runtime_contract_bytes), self.capacity))
+
+    @property
     def source_lock(self) -> dict[str, Any]:
         return json.loads(self._source_lock_bytes)
 
@@ -830,6 +837,15 @@ def _bind_runtime(experiment, experiment_bytes, config_bytes, decoder_bytes,
     }
     if experiment.pipeline.components["linear"].params["sharing"] == "seeded":
         expected["sharing_profile"] = "gkm.seeded.aes128.duplicate-le64.two-purpose.window.v1"
+    execution = experiment.pipeline.components["linear"].params.get("execution")
+    if execution is not None:
+        from .delegated_protocol import BATCH_EXECUTION, batch_memory_bytes
+
+        if execution != BATCH_EXECUTION or "batch_execution" not in bound:
+            raise DelegatedSourceError("GKM native batch execution differs from Experiment")
+        if not batch_memory_bytes(bound, _capacity(decoder)):
+            raise DelegatedSourceError("GKM native batch execution metadata is missing")
+        expected["batch_execution"] = bound["batch_execution"]
     if (set(bound) != {*expected, "decoder"}
             or any(bound[key] != value for key, value in expected.items())
             or bound["decoder"] != decoder):

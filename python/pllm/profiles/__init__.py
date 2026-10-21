@@ -884,10 +884,15 @@ def _resolve_gkm_composition(pipeline: Pipeline) -> RuntimeComposition | None:
     linear = pipeline.components.get("linear")
     capacity = linear.params.get("capacity", "capsule") if linear is not None else "capsule"
     sharing = linear.params.get("sharing") if linear is not None else None
+    execution = linear.params.get("execution") if linear is not None else None
     if capacity not in {"capsule", "decoder"} or sharing not in {"full", "seeded"}:
         return None
+    if execution is not None and (
+            type(execution) is not str or execution != "source_stage_batch_v1"):
+        return None
     expected = {
-        "linear": OpenWeightVerifiableOutsourcing(capacity=capacity, sharing=sharing),
+        "linear": OpenWeightVerifiableOutsourcing(
+            capacity=capacity, sharing=sharing, execution=execution),
         "kernels": _DEFAULT_KERNELS,
         "verification": _DEFAULT_GKM_VERIFICATION,
         "topology": _DEFAULT_GKM_ROLES,

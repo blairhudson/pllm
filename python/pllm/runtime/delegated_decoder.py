@@ -24,6 +24,17 @@ from .transformer_client import LayerCache
 
 _MAX_CONFIG_BYTES = 16 << 10
 _MAX_CONFIG_DEPTH = 64
+_BATCH_EXECUTION = "source_stage_batch_v1"
+
+
+def _batch_output(raw, rows, width):
+    """Borrow one immutable native reconstruction; never stack/copy its rows."""
+    try:
+        if type(raw) is not bytes or len(raw) != 4 * rows * width:
+            raise ValueError("GKM batch reconstruction shape mismatch")
+        return np.frombuffer(raw, dtype="<f4").reshape(rows, width)
+    finally:
+        raw = None
 
 
 def result_payload_limit(contract, *, capacity="capsule"):
@@ -183,9 +194,37 @@ def decoder_contract(config: Mapping[str, Any], *, input_rows: int, decode_steps
 
 
 class _Request(SemanticLocalOperators):
+    """One request's local graph, with optional native-selected stage batching.
+
+    Python batch owner inventory (B rows, C input columns, R combined outputs):
+    * Reconstruction O=4BR is the graph's combined root, not another copy beside
+      its member views. Views/reshape/last-row aliases can retain all O bytes.
+      The compiler decoder_tensor_bytes already prices these complete roots and
+      alias lifetimes. Bias outputs and finite-check temporaries are unchanged.
+    * Dtype coercion can own I=4BC alongside the graph input, as in scalar mode.
+      C-order serialization additionally owns I through linear_batch's return.
+      No flatten/contiguous array copy or per-row reconstruction list is made.
+      An extra max(I) reserve conservatively prices batch serialization without
+      charging coercion or O again; subtract a scalar-row reserve only if that
+      reserve is explicitly present in the caller's existing accounting.
+    * All raw/combined/input/serialization/output loop aliases are cleared before
+      proceeding, including finally on failure/cancellation. Only graph-reachable
+      views retain reconstructed bytes. Phase exit clears the complete graph.
+
+    Native/HTTP frames, native accepted buffers, KV capacity, final snapshots and
+    audit scratch are separate existing owners, not hidden in this inventory.
+    """
+
     def __init__(self, native, contract):
         self._native = native
         self._contract = contract
+        # Only the consuming native owner selects execution. Decoder/source
+        # identity deliberately stays unchanged; caller metadata cannot opt in.
+        execution = getattr(native, "execution", lambda: None)()
+        if execution not in (None, _BATCH_EXECUTION):
+            raise ValueError("GKM native execution profile is unsupported")
+        self._batch = execution == _BATCH_EXECUTION
+        self._phase_index = self._batch_claims = 0
         self._graphs = {phase: contract["plan"][phase] for phase in ("prefill", "decode")}
         self._coefficients = {
             key: np.frombuffer(value, dtype="<f4") for key, value in native.coefficients().items()
@@ -201,6 +240,9 @@ class _Request(SemanticLocalOperators):
     def phase(self, ids):
         phase = "prefill" if self.position == 0 else "decode"
         graph, schedule = self._graphs[phase], self._contract[phase]
+        if self._batch and (self._phase_index > self._contract["decode_steps"]
+                            or len(ids) != schedule["query_sequence"]):
+            raise ValueError("GKM batch phase differs from admitted row count")
         operations = {op["id"]: op for op in graph["operations"]}
         steps = schedule["steps"]
         remaining = Counter(key for step in steps for key in step["input_ids"])
@@ -222,23 +264,48 @@ class _Request(SemanticLocalOperators):
         pending = {}
         kinds = self._declared_state_kinds(graph)
         stage = 0
+        raw = serialized = None
         try:
             for step in steps:
                 if step["executor"] == "client_local":
                     for key in step["operation_ids"]:
                         values[key] = self._local(operations[key], values, kinds, pending)
                 elif step["operators"][0] == "token_lookup":
-                    rows = [np.frombuffer(self._native.lookup(token), dtype="<f4") for token in ids]
-                    values[step["operation_ids"][0]] = np.stack(rows)
+                    if self._batch:
+                        batch_rows = self._batch_rows(step, schedule)
+                        raw = self._native.lookup_batch(tuple(ids))
+                        values[step["operation_ids"][0]] = _batch_output(
+                            raw, batch_rows, self._contract["width"])
+                        raw = None
+                        self._batch_claims += batch_rows
+                    else:
+                        rows = [np.frombuffer(self._native.lookup(token), dtype="<f4") for token in ids]
+                        values[step["operation_ids"][0]] = np.stack(rows)
                 else:
                     spec = self._contract["matrices"][stage]
                     source = values[step["input_ids"][0]]
-                    source = np.asarray(source, dtype="<f4").reshape(-1, spec["columns"])
-                    rows = [
-                        np.frombuffer(self._native.linear(stage, row.tobytes()), dtype="<f4")
-                        for row in source
-                    ]
-                    combined = np.stack(rows)
+                    if self._batch:
+                        batch_rows = self._batch_rows(step, schedule, spec)
+                        source = np.asarray(source)
+                        if (source.ndim < 2 or source.shape[-1] != spec["columns"]
+                                or math.prod(source.shape[:-1]) != batch_rows):
+                            raise ValueError("GKM batch input shape differs from admitted stage")
+                        source = np.asarray(source, dtype="<f4")
+                        # No contiguous coercion/flatten copy: tobytes handles
+                        # strided views directly. At most dtype coercion I plus
+                        # immutable serialization I coexist with graph input.
+                        serialized = source.tobytes(order="C")
+                        raw = self._native.linear_batch(stage, serialized)
+                        combined = _batch_output(raw, batch_rows, spec["rows"])
+                        serialized = raw = None
+                        self._batch_claims += batch_rows
+                    else:
+                        source = np.asarray(source, dtype="<f4").reshape(-1, spec["columns"])
+                        rows = [
+                            np.frombuffer(self._native.linear(stage, row.tobytes()), dtype="<f4")
+                            for row in source
+                        ]
+                        combined = np.stack(rows)
                     for key, member in zip(step["operation_ids"], spec["members"], strict=True):
                         start, width = member["offset"], member["rows"]
                         output = combined[:, start : start + width]
@@ -246,6 +313,10 @@ class _Request(SemanticLocalOperators):
                             output = output + self._weight(member["bias"])
                         values[key] = output
                     stage += 1
+                    if self._batch:
+                        # Member views alone retain reconstruction O=4BR. Do not
+                        # keep a dead full backing through these loop locals.
+                        source = combined = output = None
                 for key in step["operation_ids"]:
                     value = np.asarray(values[key])
                     # Causal masks deliberately contain -inf; all other local
@@ -254,12 +325,19 @@ class _Request(SemanticLocalOperators):
                         np.isfinite(value)
                     ):
                         raise ValueError("GKM local arithmetic left its finite domain")
+                    if self._batch:
+                        value = None
                 for key in step["input_ids"]:
                     remaining[key] -= 1
                     if remaining[key] == 0 and key != logits_id:
                         values.pop(key, None)
             if pending or stage != len(self._contract["matrices"]):
                 raise ValueError("GKM phase is incomplete")
+            if self._batch:
+                self._phase_index += 1
+                if (self._phase_index == self._contract["decode_steps"] + 1
+                        and self._batch_claims != self._contract["window_steps"]):
+                    raise ValueError("GKM batch scalar-claim cursor is incomplete")
             logits = np.asarray(values[logits_id], dtype="<f4").reshape(-1)
             if logits.size != self._contract["vocabulary"]:
                 raise ValueError("GKM full-head shape mismatch")
@@ -269,6 +347,28 @@ class _Request(SemanticLocalOperators):
             values.clear()
             pending.clear()
             source = rows = combined = output = value = logits = stored = cache = None
+            raw = serialized = None
+
+    def _batch_rows(self, step, schedule, spec=None):
+        """Compiler BatchPlan cursor: phase 0 prefill, subsequent phases decode.
+
+        A remote schedule step is one source-stage descriptor, including grouped
+        members. Output-head alone consumes the last row; all decode rows are 1.
+        Native consumes/binds the actual phase/operation/claim cursor as well.
+        """
+        rows = 1 if step["operators"][0] == "output_head" else schedule["query_sequence"]
+        outputs = step["outputs"]
+        members = spec["members"] if spec is not None else [
+            {"offset": 0, "rows": self._contract["width"]}]
+        if len(outputs) != len(members) or len(outputs) != len(step["operation_ids"]):
+            raise ValueError("GKM batch output descriptors differ from source stage")
+        for key, output, member in zip(step["operation_ids"], outputs, members, strict=True):
+            shape = output["output_shape"]
+            if (not shape or math.prod(shape[:-1]) != rows or shape[-1] != member["rows"]
+                    or output["operation_id"] != key or output["stage_offset"] != member["offset"]
+                    or output["stage_width"] != member["rows"]):
+                raise ValueError("GKM batch output descriptors differ from source stage")
+        return rows
 
     def retire(self):
         self._native.abort()

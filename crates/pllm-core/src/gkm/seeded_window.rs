@@ -159,14 +159,90 @@ impl SeededWorker {
     }
 
     fn complete_step(&mut self) -> Result<(), Error> {
+        self.commit_rows(1)
+    }
+
+    pub(super) fn commit_rows(&mut self, rows: usize) -> Result<(), Error> {
+        self._lease.ensure_open()?;
         self.export_keys = None;
-        self.ordinal += 1;
+        self.ordinal = self
+            .ordinal
+            .checked_add(rows)
+            .filter(|&end| end <= self.plan.len())
+            .ok_or(Error::Schedule)?;
         if self.ordinal == self.plan.len() && !self.streams.complete() {
             return Err(Error::Incomplete);
         }
         self._lease
             .seeded_completed
             .store(self.ordinal as u32, Ordering::Release);
+        Ok(())
+    }
+
+    fn check_rows(&self, binding: Binding, lease: &Arc<Lease>, rows: usize) -> Result<(), Error> {
+        self.check(binding, lease)?;
+        if rows == 0 {
+            return Err(Error::Shape);
+        }
+        let end = self.ordinal.checked_add(rows).ok_or(Error::Limit)?;
+        if self
+            .plan
+            .get(self.ordinal..end)
+            .ok_or(Error::Schedule)?
+            .iter()
+            .any(|step| *step != binding.step)
+        {
+            return Err(Error::Binding);
+        }
+        Ok(())
+    }
+
+    pub(super) fn fill_linear_rows(
+        &mut self,
+        binding: Binding,
+        lease: &Arc<Lease>,
+        rows: usize,
+        output: &mut [u64],
+    ) -> Result<(), Error> {
+        self.check_rows(binding, lease, rows)?;
+        let Step::Linear(id) = binding.step else {
+            return Err(Error::Binding);
+        };
+        let public = &lease.budget.publication;
+        let columns = public.matrices[public.matrix_index(&id)?].columns;
+        if output.len() != rows.checked_mul(columns).ok_or(Error::Limit)? {
+            return Err(Error::Shape);
+        }
+        let mut word = Zeroizing::new([0u8; 8]);
+        for value in output {
+            self.streams.linear.fill(&mut *word)?;
+            *value = u64::from_le_bytes(*word);
+        }
+        Ok(())
+    }
+
+    pub(super) fn fill_lookup_rows(
+        &mut self,
+        binding: Binding,
+        lease: &Arc<Lease>,
+        rows: usize,
+        output: &mut [u8],
+    ) -> Result<(), Error> {
+        self.check_rows(binding, lease, rows)?;
+        if binding.step != Step::Lookup {
+            return Err(Error::Binding);
+        }
+        let vocabulary = lease.budget.publication.row_hashes.len();
+        let stride = vocabulary.div_ceil(8);
+        if output.len() != rows.checked_mul(stride).ok_or(Error::Limit)? {
+            return Err(Error::Shape);
+        }
+        for selector in output.chunks_exact_mut(stride) {
+            self.streams.lookup.fill(selector)?;
+            if vocabulary % 8 != 0 {
+                selector[stride - 1] &= (1u8 << (vocabulary % 8)) - 1;
+            }
+        }
         Ok(())
     }
 
@@ -183,11 +259,7 @@ impl SeededWorker {
                 return Err(Error::Binding);
             }
             let mut mask = Zeroizing::new(payload::filled(matrix.columns, 0u64)?);
-            let mut word = Zeroizing::new([0; 8]);
-            for value in mask.iter_mut() {
-                self.streams.linear.fill(&mut *word)?;
-                *value = u64::from_le_bytes(*word);
-            }
+            self.fill_linear_rows(share.binding, share.lease, 1, &mut mask)?;
             let values = matrix.multiply_share(&mask)?;
             self.complete_step()?;
             Ok(LinearResponse {
@@ -214,11 +286,7 @@ impl SeededWorker {
                 return Err(Error::Binding);
             }
             let mut selector = Zeroizing::new(payload::filled(table.vocabulary.div_ceil(8), 0)?);
-            self.streams.lookup.fill(&mut selector)?;
-            if table.vocabulary % 8 != 0 {
-                let last = selector.len() - 1;
-                selector[last] &= (1u8 << (table.vocabulary % 8)) - 1;
-            }
+            self.fill_lookup_rows(share.binding, share.lease, 1, &mut selector)?;
             let bytes = table.xor_rows(&selector)?;
             self.complete_step()?;
             Ok(LookupResponse {

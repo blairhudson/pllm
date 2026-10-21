@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use pllm_compiler::{GkmDecoderContract, GkmDecoderSession, GkmRuntimeContract};
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyBool, PyBytes, PyDict};
+use pyo3::types::{PyAny, PyBool, PyBytes, PyDict, PyTuple};
 
 #[pyfunction]
 #[pyo3(signature = (config, input_rows, decode_steps, *, capacity="capsule", streamed=false))]
@@ -155,6 +155,25 @@ impl PySession {
         Ok(result)
     }
 
+    #[pyo3(signature = (*args, **kwargs))]
+    fn lookup_batch<'py>(
+        &mut self,
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let mut inner = self.inner.take().ok_or_else(retired)?;
+        let [tokens] = crate::owned_arguments::arguments(args, kwargs, ["tokens"], "GKM")?;
+        let rows = inner.lookup_batch_rows().map_err(crate::invalid)?;
+        let tokens = crate::delegated_transport::batch_tokens(&tokens, rows)?;
+        let bytes = py
+            .detach(|| inner.lookup_batch(&tokens))
+            .map_err(crate::invalid)?;
+        let result = PyBytes::new(py, &bytes);
+        self.inner = Some(inner);
+        Ok(result)
+    }
+
     fn linear<'py>(
         &mut self,
         py: Python<'py>,
@@ -172,6 +191,32 @@ impl PySession {
             .as_bytes();
         let bytes = py
             .detach(|| inner.linear(stage, input))
+            .map_err(crate::invalid)?;
+        let result = PyBytes::new(py, &bytes);
+        self.inner = Some(inner);
+        Ok(result)
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn linear_batch<'py>(
+        &mut self,
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let mut inner = self.inner.take().ok_or_else(retired)?;
+        let [stage, values] =
+            crate::owned_arguments::arguments(args, kwargs, ["stage", "values"], "GKM")?;
+        if stage.is_instance_of::<PyBool>() {
+            return Err(crate::invalid("GKM stage must be an integer".into()));
+        }
+        let stage = stage.extract::<usize>()?;
+        let values = values
+            .cast::<PyBytes>()
+            .map_err(|_| crate::invalid("GKM input must be float32 bytes".into()))?
+            .as_bytes();
+        let bytes = py
+            .detach(|| inner.linear_batch(stage, values))
             .map_err(crate::invalid)?;
         let result = PyBytes::new(py, &bytes);
         self.inner = Some(inner);

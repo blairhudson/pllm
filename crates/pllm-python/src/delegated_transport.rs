@@ -7,7 +7,8 @@ use pllm_compiler::{
 };
 use pllm_core::gkm::{WireBytes, Worker};
 use pyo3::prelude::*;
-use pyo3::types::{PyAny, PyBool, PyBytes, PyDict, PyString, PyTuple};
+use pyo3::types::{PyAny, PyBool, PyBytes, PyDict, PyInt, PyString, PyTuple};
+use zeroize::Zeroizing;
 
 fn invalid(message: &str) -> PyErr {
     crate::invalid(message.into())
@@ -76,6 +77,34 @@ fn pair(py: Python<'_>, bytes: [WireBytes; 2]) -> (Bound<'_, PyBytes>, Bound<'_,
         PyBytes::new(py, bytes[0].as_bytes()),
         PyBytes::new(py, bytes[1].as_bytes()),
     )
+}
+
+/// The descriptor bounds collection size before token extraction/allocation.
+/// Strict integers exclude user-defined index callbacks and Boolean tokens.
+pub(crate) fn batch_tokens(
+    value: &Bound<'_, PyAny>,
+    expected: usize,
+) -> PyResult<Zeroizing<Vec<usize>>> {
+    let tokens = value
+        .cast::<PyTuple>()
+        .map_err(|_| invalid("GKM batch tokens must be a tuple"))?;
+    if tokens.len() != expected {
+        return Err(invalid("GKM batch token count differs from descriptor"));
+    }
+    for token in tokens.iter() {
+        if token.is_instance_of::<PyBool>() || !token.is_instance_of::<PyInt>() {
+            return Err(invalid("GKM batch token must be an integer"));
+        }
+        token.extract::<usize>()?;
+    }
+    let mut result = Zeroizing::new(Vec::new());
+    result
+        .try_reserve_exact(expected)
+        .map_err(|_| invalid("GKM token allocation failed"))?;
+    for token in tokens.iter() {
+        result.push(token.extract::<usize>()?);
+    }
+    Ok(result)
 }
 
 #[pyclass(name = "_GkmTransportImport")]
@@ -251,6 +280,10 @@ impl PyClient {
         ))
     }
 
+    fn execution(&self) -> PyResult<Option<&'static str>> {
+        Ok(self.inner.as_ref().ok_or_else(retired)?.execution())
+    }
+
     fn decoder<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         Ok(PyBytes::new(
             py,
@@ -338,6 +371,25 @@ impl PyClient {
     }
 
     #[pyo3(signature = (*args, **kwargs))]
+    fn lookup_batch<'py>(
+        &mut self,
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<(Bound<'py, PyBytes>, Bound<'py, PyBytes>)> {
+        let mut inner = self.inner.take().ok_or_else(retired)?;
+        let [tokens] = arguments(args, kwargs, ["tokens"])?;
+        let rows = inner.lookup_batch_rows().map_err(crate::invalid)?;
+        let tokens = batch_tokens(&tokens, rows)?;
+        let bytes = py
+            .detach(|| inner.lookup_batch(&tokens))
+            .map_err(crate::invalid)?;
+        let result = pair(py, bytes);
+        self.inner = Some(inner);
+        Ok(result)
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
     fn linear<'py>(
         &mut self,
         py: Python<'py>,
@@ -363,6 +415,31 @@ impl PyClient {
     }
 
     #[pyo3(signature = (*args, **kwargs))]
+    fn linear_batch<'py>(
+        &mut self,
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<(Bound<'py, PyBytes>, Bound<'py, PyBytes>)> {
+        let mut inner = self.inner.take().ok_or_else(retired)?;
+        let [stage, values] = arguments(args, kwargs, ["stage", "values"])?;
+        if stage.is_instance_of::<PyBool>() {
+            return Err(invalid("GKM stage must be an integer"));
+        }
+        let stage = stage.extract::<usize>()?;
+        let values = values
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("GKM input must be float32 bytes"))?
+            .as_bytes();
+        let bytes = py
+            .detach(|| inner.linear_batch(stage, values))
+            .map_err(crate::invalid)?;
+        let result = pair(py, bytes);
+        self.inner = Some(inner);
+        Ok(result)
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
     fn accept<'py>(
         &mut self,
         py: Python<'py>,
@@ -381,6 +458,31 @@ impl PyClient {
             .as_bytes();
         let bytes = py
             .detach(|| inner.accept(zero, one))
+            .map_err(crate::invalid)?;
+        let result = PyBytes::new(py, &bytes);
+        self.inner = Some(inner);
+        Ok(result)
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn accept_batch<'py>(
+        &mut self,
+        py: Python<'py>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyBytes>> {
+        let mut inner = self.inner.take().ok_or_else(retired)?;
+        let [zero, one] = arguments(args, kwargs, ["zero", "one"])?;
+        let zero = zero
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("GKM reply must be bytes"))?
+            .as_bytes();
+        let one = one
+            .cast::<PyBytes>()
+            .map_err(|_| invalid("GKM reply must be bytes"))?
+            .as_bytes();
+        let bytes = py
+            .detach(|| inner.accept_batch(zero, one))
             .map_err(crate::invalid)?;
         let result = PyBytes::new(py, &bytes);
         self.inner = Some(inner);

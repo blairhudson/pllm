@@ -102,3 +102,32 @@ def test_streamed_admission_preserves_explicit_budget_and_pressure_gate(full_geo
         blocked = memory.admit_memory(estimate, replace(roomy, pressure=pressure))
         assert not blocked["admitted"]
         assert f"macOS memory pressure is {pressure}" in blocked["candidates"]["native"]["reasons"]
+
+
+@pytest.mark.parametrize("capacity", ["capsule", "decoder"])
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+@pytest.mark.parametrize("margin", [0, 25, 100])
+def test_native_batch_geometry_quote_adds_owners_without_source_loading(capacity, sharing, margin):
+    from tests.test_delegated_decoder import config
+
+    cfg = config()
+    options = {"capacity": capacity, "sharing": sharing}
+    scalar = OpenWeightVerifiableCpu(Model.path("unused-public-source"),
+        linear=OpenWeightVerifiableOutsourcing(**options))
+    batch = OpenWeightVerifiableCpu(Model.path("unused-public-source"),
+        linear=OpenWeightVerifiableOutsourcing(**options, execution="source_stage_batch_v1"))
+    bounds = {"max_input_tokens": 2, "max_output_tokens": 2,
+              "memory_safety_margin_percent": margin}
+    base = memory.estimate_memory(cfg, scalar, **bounds)
+    estimate = memory.estimate_memory(cfg, batch, **bounds)
+    prices = estimate["verification_allocation"]
+    assert prices["batch_python_client_peak_bytes"] > 0
+    assert all(size > 0 for size in prices["batch_python_worker_peak_bytes"].values())
+    assert prices["batch_runtime_backing_delta_bytes"] > 0
+    assert estimate["client_peak_bytes"] > base["client_peak_bytes"]
+    assert all(estimate["provider_peak_bytes"][role] > base["provider_peak_bytes"][role]
+               for role in ("worker_a", "worker_b"))
+    assert estimate["allocation_slack_percent"] == margin
+    required = estimate["native_total_peak_bytes"]
+    assert memory.admit_memory(estimate, host(required))["admitted"]
+    assert not memory.admit_memory(estimate, host(required - 1))["admitted"]

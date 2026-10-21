@@ -361,13 +361,16 @@ def test_inprocess_audit_matches_single_reference_observer(family):
 
 
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
-def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_path, sharing, record_property):
+@pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
+def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_path, sharing, execution,
+                                                                       record_property):
     from pllm import OpenAI
     from pllm.runtime import benchmark_response_audit as audit
     from pllm.runtime.responses import normalize_input, prompt_text
     from test_delegated_sdk import active_sessions, experiment_fixture
 
-    experiment, cfg, _ = experiment_fixture(tmp_path, family="qwen3", tied=False, sharing=sharing)
+    experiment, cfg, _ = experiment_fixture(tmp_path, family="qwen3", tied=False, sharing=sharing,
+                                           execution=execution)
     salt = os.urandom(32)
     observer = SelectionCommitments(salt, max_selections=OUTPUTS)
     captured = []
@@ -398,6 +401,7 @@ def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_pat
         assert records == []
     assert records == [observer.expected_record(source.contract)]
     record_property("sharing", sharing)
+    record_property("execution", execution or "scalar")
     record_property("input_tokens", len(ids))
     record_property("output_tokens", OUTPUTS)
     record_property("checked_selections", len(observer.selections))
@@ -406,9 +410,11 @@ def test_generated_sdk_accepted_result_matches_bounded_checkpoint_reader(tmp_pat
 
 @pytest.mark.slow
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
+@pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
 @pytest.mark.skipif(os.getenv("PLLM_RUN_GKM_CHECKPOINT") != "1",
                     reason="opt-in pinned offline GKM complete checkpoint")
-def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, monkeypatch, record_property, sharing):
+def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, monkeypatch,
+                                                                  record_property, sharing, execution):
     from pllm import Deployment, ExecutionBudget, Experiment, Model, OpenAI
     from pllm.profiles import OpenWeightVerifiableCpu
     from pllm.protocols import OpenWeightVerifiableOutsourcing
@@ -423,7 +429,8 @@ def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, m
     model = Model.hf(MODEL, revision=PIN, local_files_only=True)
     experiment = Experiment(
         "gkm-checkpoint-conformance", OpenWeightVerifiableCpu(model,
-            linear=OpenWeightVerifiableOutsourcing(capacity="decoder", sharing=sharing)),
+            linear=OpenWeightVerifiableOutsourcing(capacity="decoder", sharing=sharing,
+                                                   execution=execution)),
         Deployment.local(root=str(tmp_path / "roles")),
         ExecutionBudget(requests=1, max_input_tokens=8, max_new_tokens=OUTPUTS),
     )
@@ -517,6 +524,7 @@ def test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state(tmp_path, m
         assert all(not status.running for status in topology.statuses)
         assert records == [observer.expected_record(source.contract)]
         record_property("sharing", sharing)
+        record_property("execution", execution or "scalar")
         record_property("source_lock_digest", source.source_lock_digest)
         record_property("checkpoint_digest", source.checkpoint_digest)
         record_property("tokenizer_digest", source.tokenizer_digest)

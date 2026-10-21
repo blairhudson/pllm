@@ -25,8 +25,9 @@ pub use seeded_window::SeededWorker;
 #[path = "wire.rs"]
 pub(super) mod wire;
 pub use wire::{
-    ClientWireWindow, WireBytes, WireResources, WireTentative, WorkerWire, WorkerWireReceipt,
-    WorkerWireWindow, MAX_PROCESS_WIRE_BYTES, MAX_PUBLICATION_WIRE_BYTES, MAX_WIRE_FRAME_BYTES,
+    ClientBatchWireWindow, ClientWireWindow, WireBytes, WireResources, WireTentative,
+    WorkerBatchWireWindow, WorkerWire, WorkerWireReceipt, WorkerWireWindow, MAX_PROCESS_WIRE_BYTES,
+    MAX_PUBLICATION_WIRE_BYTES, MAX_WIRE_FRAME_BYTES,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +42,17 @@ pub enum Worker {
 pub enum Step {
     Lookup,
     Linear([u8; 32]),
+}
+
+impl Step {
+    pub(super) fn canonical_bytes(self) -> [u8; 33] {
+        let mut bytes = [0; 33];
+        if let Self::Linear(id) = self {
+            bytes[0] = 1;
+            bytes[1..].copy_from_slice(&id);
+        }
+        bytes
+    }
 }
 
 /// Public reply binding. It contains no selector token or reconstructed input.
@@ -319,8 +331,36 @@ struct Lease {
     seeded_completed: AtomicU32,
     frames: wire::WireQuota,
     scratch: wire::WireQuota,
+    batch: std::sync::OnceLock<Arc<super::BatchAdmission>>,
 }
 impl Lease {
+    fn batch_admission(&self) -> Result<Option<Arc<super::BatchAdmission>>, Error> {
+        Ok(self.batch.get().map(Arc::clone))
+    }
+
+    fn attach_batch(
+        &self,
+        admission: super::BatchAdmission,
+        plan: &[Step],
+        profile: SharingProfile,
+    ) -> Result<(), Error> {
+        self.ensure_open()?;
+        if admission.publication != self.budget.publication.digest
+            || admission.profile != profile
+            || admission.capacity != self.budget.publication.capacity
+            || self.budget.publication.resources.ownership
+                != super::PublicationOwnership::StreamedSingleWindow
+        {
+            return Err(Error::Binding);
+        }
+        admission.plan.validate_scalar_plan(plan)?;
+        if self.batch.get().is_some() {
+            return Err(Error::Retired);
+        }
+        self.batch
+            .set(Arc::new(admission))
+            .map_err(|_| Error::Retired)
+    }
     fn ensure_open(&self) -> Result<(), Error> {
         if self.poisoned.load(Ordering::Acquire) {
             Err(Error::Retired)
@@ -364,6 +404,7 @@ impl Lease {
             seeded_completed: AtomicU32::new(0),
             frames: wire::WireQuota::new(),
             scratch: wire::WireQuota::new(),
+            batch: std::sync::OnceLock::new(),
         }))
     }
 }
@@ -557,7 +598,11 @@ impl Window {
     }
 
     fn binding(&self, worker: Worker) -> Result<Binding, Error> {
-        let step = *self.plan.get(self.completed).ok_or(Error::Schedule)?;
+        self.binding_at(self.completed, worker)
+    }
+
+    fn binding_at(&self, ordinal: usize, worker: Worker) -> Result<Binding, Error> {
+        let step = *self.plan.get(ordinal).ok_or(Error::Schedule)?;
         let artifact = match step {
             Step::Lookup => self.publication.table_digest,
             Step::Linear(id) => {
@@ -571,7 +616,7 @@ impl Window {
             context: self.context,
             plan: self.plan_digest,
             total: self.plan.len() as u32,
-            ordinal: self.completed as u32,
+            ordinal: u32::try_from(ordinal).map_err(|_| Error::Limit)?,
             step,
             artifact,
             worker,
@@ -596,16 +641,7 @@ impl Window {
         };
         let stage = self.publication.matrix_index(id)?;
         let matrix = &self.publication.matrices[stage];
-        if input.len() != matrix.columns {
-            return Err(Error::Shape);
-        }
-        if input
-            .iter()
-            .zip(matrix.input_bounds.iter())
-            .any(|(&x, &bound)| x.unsigned_abs() > bound)
-        {
-            return Err(Error::Bound);
-        }
+        super::numeric::validate_inputs(input, matrix.columns, &matrix.input_bounds, 1)?;
         let mut bytes = Zeroizing::new(payload::filled(matrix.columns * 8, 0)?);
         let (left, right) = if let Some(streams) = &mut self.streams {
             streams.linear.fill(&mut bytes)?;
@@ -641,6 +677,87 @@ impl Window {
 
     pub fn lookup(self, token: usize) -> Result<PendingLookup, Error> {
         self.lookup_with(token, &mut OsEntropy)
+    }
+
+    // Shared verifier entry points. Callers must first freeze and validate both
+    // complete role replies. Batch callers must do that for the ENTIRE batch,
+    // not just the current row, before calling either helper. These functions
+    // perform the original scalar arithmetic, entropy ordering and row hashing.
+    fn accept_linear_row(
+        &mut self,
+        stage: usize,
+        input: &[i64],
+        zero: &[u64],
+        one: &[u64],
+        rng: &mut impl Entropy,
+    ) -> Result<(), Error> {
+        self._lease.ensure_open()?;
+        let matrix = self.publication.matrices.get(stage).ok_or(Error::Shape)?;
+        if self.plan.get(self.completed) != Some(&Step::Linear(matrix.id)) {
+            return Err(Error::Schedule);
+        }
+        if input.len() != matrix.columns || zero.len() != matrix.rows || one.len() != matrix.rows {
+            return Err(Error::Shape);
+        }
+        let signed = Zeroizing::new(payload::collect(
+            zero.iter()
+                .zip(one.iter())
+                .map(|(&a, &b)| reconstruct_signed(a, b)),
+        )?);
+        if signed
+            .iter()
+            .zip(matrix.output_bounds.iter())
+            .any(|(&y, &bound)| y.unsigned_abs() > bound)
+        {
+            return Err(Error::Bound);
+        }
+        let alpha = Zeroizing::new(sample_scalar(rng, Purpose::ClaimChallenge)?);
+        let accumulator = &mut self.accumulators[stage];
+        for (sum, &x) in accumulator.x.iter_mut().zip(input.iter()) {
+            *sum += *alpha * signed_scalar(x);
+        }
+        for (sum, &y) in accumulator.y.iter_mut().zip(signed.iter()) {
+            *sum += *alpha * signed_scalar(y);
+        }
+        accumulator.calls += 1;
+        self.tentative =
+            Zeroizing::new(payload::collect(signed.iter().map(|&y| rescale_signed(y)))?);
+        self.signed = signed;
+        self.completed += 1;
+        Ok(())
+    }
+
+    fn accept_lookup_row(&mut self, token: usize, zero: &[u8], one: &[u8]) -> Result<(), Error> {
+        self._lease.ensure_open()?;
+        if self.plan.get(self.completed) != Some(&Step::Lookup) {
+            return Err(Error::Schedule);
+        }
+        if token >= self.publication.row_hashes.len()
+            || zero.len() != self.publication.width * 4
+            || one.len() != zero.len()
+        {
+            return Err(Error::Shape);
+        }
+        let bytes = Zeroizing::new(payload::collect(
+            zero.iter().zip(one.iter()).map(|(&a, &b)| a ^ b),
+        )?);
+        let digest: [u8; 32] = Sha256::digest(&bytes).into();
+        if !bool::from(digest.ct_eq(&self.publication.row_hashes[token])) {
+            return Err(Error::Verification);
+        }
+        // Authenticate original bytes before float interpretation, unchanged.
+        let values = Zeroizing::new(payload::collect(
+            bytes
+                .chunks_exact(4)
+                .map(|b| f32::from_le_bytes(b.try_into().unwrap())),
+        )?);
+        if values.iter().any(|v| !v.is_finite()) {
+            return Err(Error::Numeric);
+        }
+        self.tentative = values;
+        self.signed = Zeroizing::new(Vec::new());
+        self.completed += 1;
+        Ok(())
     }
 
     fn lookup_with(mut self, token: usize, rng: &mut impl Entropy) -> Result<PendingLookup, Error> {
@@ -833,34 +950,13 @@ impl HalfLinear {
         // Both buffers are now owned, immutable, exact-shaped and context-bound.
         // No challenge has existed while either response could be replaced.
         let mut pending = self.pending;
-        let matrix = &pending.window.publication.matrices[pending.stage];
-        let signed = Zeroizing::new(payload::collect(
-            self.first
-                .values
-                .iter()
-                .zip(response.values.iter())
-                .map(|(&a, &b)| reconstruct_signed(a, b)),
-        )?);
-        if signed
-            .iter()
-            .zip(matrix.output_bounds.iter())
-            .any(|(&y, &bound)| y.unsigned_abs() > bound)
-        {
-            return Err(Error::Bound);
-        }
-        let alpha = Zeroizing::new(sample_scalar(rng, Purpose::ClaimChallenge)?);
-        let accumulator = &mut pending.window.accumulators[pending.stage];
-        for (sum, &x) in accumulator.x.iter_mut().zip(pending.input.iter()) {
-            *sum += *alpha * signed_scalar(x);
-        }
-        for (sum, &y) in accumulator.y.iter_mut().zip(signed.iter()) {
-            *sum += *alpha * signed_scalar(y);
-        }
-        accumulator.calls += 1;
-        pending.window.tentative =
-            Zeroizing::new(payload::collect(signed.iter().map(|&y| rescale_signed(y)))?);
-        pending.window.signed = signed;
-        pending.window.completed += 1;
+        pending.window.accept_linear_row(
+            pending.stage,
+            &pending.input,
+            &self.first.values,
+            &response.values,
+            rng,
+        )?;
         Ok(pending.window)
     }
 }
@@ -929,29 +1025,9 @@ impl HalfLookup {
         let response = response?;
         self.pending.validate(&response, Worker::One)?;
         let mut pending = self.pending;
-        let bytes = Zeroizing::new(payload::collect(
-            self.first
-                .bytes
-                .iter()
-                .zip(response.bytes.iter())
-                .map(|(&a, &b)| a ^ b),
-        )?);
-        let digest: [u8; 32] = Sha256::digest(&bytes).into();
-        if !bool::from(digest.ct_eq(&pending.window.publication.row_hashes[*pending.token])) {
-            return Err(Error::Verification);
-        }
-        // No float interpretation or local use occurs before the row hash check.
-        let values = Zeroizing::new(payload::collect(
-            bytes
-                .chunks_exact(4)
-                .map(|b| f32::from_le_bytes(b.try_into().unwrap())),
-        )?);
-        if values.iter().any(|v| !v.is_finite()) {
-            return Err(Error::Numeric);
-        }
-        pending.window.tentative = values;
-        pending.window.signed = Zeroizing::new(Vec::new());
-        pending.window.completed += 1;
+        pending
+            .window
+            .accept_lookup_row(*pending.token, &self.first.bytes, &response.bytes)?;
         Ok(pending.window)
     }
 }

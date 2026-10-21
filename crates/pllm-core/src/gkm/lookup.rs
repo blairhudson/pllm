@@ -96,20 +96,64 @@ impl FloatTable {
     /// Dense V-bit selector, least-significant bit first; unused high bits zero.
     /// XORs whole original row bit strings. Intermediates need not be valid floats.
     pub fn xor_rows(&self, selector: &[u8]) -> Result<Zeroizing<Vec<u8>>, Error> {
-        if selector.len() != self.vocabulary.div_ceil(8) {
+        self.validate_selectors(selector, 1)?;
+        let mut output = Zeroizing::new(payload::filled(self.width * 4, 0)?);
+        self.xor_selectors_into(selector, 1, &mut output)?;
+        Ok(output)
+    }
+
+    fn validate_selectors(&self, selectors: &[u8], batch: usize) -> Result<(), Error> {
+        let stride = self.vocabulary.div_ceil(8);
+        if batch == 0 || selectors.len() != batch.checked_mul(stride).ok_or(Error::Limit)? {
             return Err(Error::Shape);
         }
         let used = self.vocabulary % 8;
-        if used != 0 && selector[selector.len() - 1] >> used != 0 {
+        if used != 0
+            && selectors
+                .chunks_exact(stride)
+                .any(|row| row[stride - 1] >> used != 0)
+        {
             return Err(Error::Shape);
         }
-        let mut output = Zeroizing::new(payload::filled(self.width * 4, 0)?);
-        for (row, bytes) in self.bytes.chunks_exact(self.width * 4).enumerate() {
-            let mask = 0u8.wrapping_sub((selector[row / 8] >> (row % 8)) & 1);
-            for (out, &byte) in output.iter_mut().zip(bytes) {
-                *out ^= byte & mask;
+        Ok(())
+    }
+
+    /// Dense token-major selectors and raw outputs. Each table byte is loaded
+    /// once across tokens, including rows with zero selector bits for all tokens.
+    pub fn xor_selectors_into(
+        &self,
+        selectors: &[u8],
+        batch: usize,
+        output: &mut [u8],
+    ) -> Result<(), Error> {
+        self.validate_selectors(selectors, batch)?;
+        let width = self.width.checked_mul(4).ok_or(Error::Limit)?;
+        if output.len() != batch.checked_mul(width).ok_or(Error::Limit)? {
+            return Err(Error::Shape);
+        }
+        #[cfg(test)]
+        LOOKUP_DISPATCHES.with(|count| count.set(count.get() + 1));
+        output.fill(0);
+        let stride = self.vocabulary.div_ceil(8);
+        const TILE: usize = 64;
+        let mut tile = [0u8; TILE];
+        for row in 0..self.vocabulary {
+            for first in (0..width).step_by(TILE) {
+                let count = TILE.min(width - first);
+                tile[..count]
+                    .copy_from_slice(&self.bytes[row * width + first..row * width + first + count]);
+                for (feature, &byte) in tile[..count].iter().enumerate() {
+                    for token in 0..batch {
+                        let mask = 0u8
+                            .wrapping_sub((selectors[token * stride + row / 8] >> (row % 8)) & 1);
+                        output[token * width + first + feature] ^= byte & mask;
+                    }
+                }
             }
         }
-        Ok(output)
+        Ok(())
     }
 }
+
+#[cfg(test)]
+std::thread_local! { pub(super) static LOOKUP_DISPATCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }

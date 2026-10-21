@@ -549,6 +549,7 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
                       memory_safety_margin_percent=25):
     """Price the bounded source/verified-window owners, never an int8 schedule."""
     from .delegated_decoder import decoder_contract
+    from .delegated_protocol import BATCH_EXECUTION, batch_memory_bytes
 
     capacity = pipeline.components["linear"].params.get("capacity", "capsule")
     expanded = capacity == "decoder"
@@ -564,6 +565,29 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
     except (ValueError, TypeError, OverflowError) as exc:
         raise BenchmarkMemoryError("GKM source or workload exceeds native numerical admission") from exc
     source = contract["source_float32_bytes"]
+    batch_prices = {}
+    execution = pipeline.components["linear"].params.get("execution")
+    if execution is not None:
+        from pllm import _native
+        from pllm.configuration import Deployment, ExecutionBudget, Experiment
+        from .delegated_decoder import _encode_config
+
+        if execution != BATCH_EXECUTION:
+            raise BenchmarkMemoryError("GKM unsupported execution selector")
+        try:
+            experiment = Experiment("gkm-memory-estimate", pipeline, Deployment.local(root="."),
+                                    ExecutionBudget(requests=1, max_input_tokens=rows, max_new_tokens=outputs))
+            # Geometry-only quote: nonzero placeholders satisfy native pin syntax.
+            # Neither pin authorizes source loading, role admission or execution.
+            runtime = json.loads(_native.gkm_runtime_contract(experiment.canonical_bytes(),
+                _encode_config(config), rows, outputs, "1" * 64, "2" * 64))
+            if runtime.get("decoder") != contract or "batch_execution" not in runtime:
+                raise ValueError("native batch memory contract differs")
+            batch_prices = batch_memory_bytes(runtime, capacity)
+            if not batch_prices:
+                raise ValueError("native batch memory metadata is missing")
+        except (ValueError, TypeError, OverflowError) as exc:
+            raise BenchmarkMemoryError("GKM batch HTTP/copy admission is unavailable or exceeds capacity") from exc
     # Capsule preserves its complete 64 MiB allowance and legacy source-copy
     # estimate in every role. Decoder uses separate native client/worker bounds
     # for streamed sources, publication, windows, tensors and metadata. Both add
@@ -580,6 +604,16 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
                      memory_safety_margin_percent)
               if expanded else role)
     providers = {name: worker for name in ("worker_a", "worker_b")}
+    if batch_prices:
+        # Keep historical process/source/transport terms and margin unchanged.
+        # Replace only the payload term with the shared native+Python+backing price.
+        base_client = contract["execution_payload_estimate_bytes"]
+        base_worker = contract["decoder_resources"]["worker_payload_bytes"] if expanded else base_client
+        role = _slack(_PROCESS_BYTES + native + transport + source_owners
+                      + batch_prices["client_payload_bytes"] - base_client, memory_safety_margin_percent)
+        providers = {name: _slack(_PROCESS_BYTES + (base_worker if expanded else native)
+                     + transport + source_owners + batch_prices["worker_payload_bytes"][name] - base_worker,
+                     memory_safety_margin_percent) for name in providers}
     return {
         "scope": "conservative allocation estimate; not measured peak RSS",
         "model_plan_digest": None, "model_config_digest": contract["plan"]["config_digest"],
@@ -588,7 +622,7 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         "inventory_rows": 0, "kernel": "cpu", "runtime_kind": "gkm",
         "concurrent_response_bound": 1, "allocation_slack_percent": memory_safety_margin_percent,
         "client_peak_bytes": role, "provider_peak_bytes": providers,
-        "docker_provider_peak_bytes": {}, "native_total_peak_bytes": role + 2 * worker,
+        "docker_provider_peak_bytes": {}, "native_total_peak_bytes": role + sum(providers.values()),
         "preparation_storage": "none", "preparation_kernel": "none",
         "weight_storage": ("streamed native i16 weights and original float32 lookup" if expanded
                            else "source float32 plus exact i16 native snapshots"),
@@ -610,6 +644,8 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
             "publication_window_payload_allowance_bytes": contract["capsule_payload_allowance_bytes"],
             "native_transport_resources": deepcopy(contract["transport_resources"]),
             "transport_and_tokenizer_allowance_per_role_bytes": transport,
+            **({key: value for key, value in batch_prices.items() if key.startswith("batch_")}
+               if batch_prices else {}),
         },
         "components": {"source_float32_bytes": source,
                        "source_import_and_retention_bytes_per_role": source_owners,

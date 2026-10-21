@@ -18,6 +18,9 @@ pub const MAX_WIRE_FRAME_BYTES: usize = 8192;
 static WIRE_BYTES: AtomicUsize = AtomicUsize::new(0);
 static CAPSULE_WIRE_BYTES: AtomicUsize = AtomicUsize::new(0);
 
+#[cfg(test)]
+std::thread_local! { static SCALAR_EVALUATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+
 /// Fixed-size synchronized window/publication accounting. Payload admission is
 /// atomic across both dimensions, including pair preflight; no queue allocation.
 pub(crate) struct WireQuota(Mutex<(usize, usize)>);
@@ -70,12 +73,26 @@ struct FramePermit {
 
 impl FramePermit {
     fn reserve(lease: &Arc<Lease>, lengths: &[usize]) -> Result<(), Error> {
+        Self::reserve_kind(lease, lengths, false)
+    }
+
+    fn reserve_kind(lease: &Arc<Lease>, lengths: &[usize], aggregate: bool) -> Result<(), Error> {
         lease.ensure_open()?;
         let result = (|| {
             let limit = lease.budget.publication.capacity.max_wire_frame_bytes();
+            let admission = lease.batch_admission()?;
+            let length_limit = if aggregate {
+                admission
+                    .as_ref()
+                    .ok_or(Error::Binding)?
+                    .resources()
+                    .max_aggregate_bytes
+            } else {
+                limit
+            };
             let mut bytes = 0usize;
             for &length in lengths {
-                if length > limit {
+                if length > length_limit {
                     return Err(Error::Limit);
                 }
                 bytes = bytes
@@ -87,7 +104,10 @@ impl FramePermit {
                     lengths.len(),
                     bytes,
                     4,
-                    limit.checked_mul(4).ok_or(Error::Limit)?,
+                    match admission {
+                        Some(admission) => admission.resources().retained_frame_bytes,
+                        None => limit.checked_mul(4).ok_or(Error::Limit)?,
+                    },
                 )?;
             }
             Ok(())
@@ -96,6 +116,24 @@ impl FramePermit {
             lease.poisoned.store(true, Ordering::Release);
         }
         result
+    }
+
+    fn aggregate_pair(lease: &Arc<Lease>, lengths: [usize; 2]) -> Result<[Self; 2], Error> {
+        Self::reserve_kind(lease, &lengths, true)?;
+        Ok(lengths.map(|length| Self {
+            lease: Arc::clone(lease),
+            bytes: WireBytes::charge(length).expect("preflighted aggregate"),
+            length,
+        }))
+    }
+
+    fn aggregate(lease: &Arc<Lease>, length: usize) -> Result<Self, Error> {
+        Self::reserve_kind(lease, &[length], true)?;
+        Ok(Self {
+            lease: Arc::clone(lease),
+            bytes: WireBytes::charge(length)?,
+            length,
+        })
     }
 
     fn single(lease: &Arc<Lease>, length: usize) -> Result<Self, Error> {
@@ -170,6 +208,7 @@ impl ScratchPermit {
         if !streamed(lease) {
             return Ok(None);
         }
+        let admission = lease.batch_admission()?;
         let result = lease
             .budget
             .publication
@@ -177,7 +216,16 @@ impl ScratchPermit {
             .max_wire_frame_bytes()
             .checked_mul(4)
             .ok_or(Error::Limit)
-            .and_then(|limit| lease.scratch.reserve(1, bytes, 4, limit));
+            .and_then(|limit| {
+                lease.scratch.reserve(
+                    1,
+                    bytes,
+                    4,
+                    admission.as_ref().map_or(limit, |admission| {
+                        admission.resources().transport_scratch_bytes
+                    }),
+                )
+            });
         if result.is_err() {
             lease.poisoned.store(true, Ordering::Release);
         }
@@ -205,7 +253,7 @@ struct WireScratch<T: zeroize::Zeroize> {
 }
 
 impl<T: zeroize::Zeroize + Copy> WireScratch<T> {
-    fn charge(length: usize) -> Result<usize, Error> {
+    pub(crate) fn charge(length: usize) -> Result<usize, Error> {
         length
             .checked_mul(size_of::<T>())
             .and_then(|n| n.checked_add(size_of::<Self>() + 64))
@@ -315,7 +363,7 @@ pub struct WireBytes {
 }
 
 impl WireBytes {
-    fn charge(length: usize) -> Result<usize, Error> {
+    pub(crate) fn charge(length: usize) -> Result<usize, Error> {
         length
             .checked_add(size_of::<Self>() + 64)
             .ok_or(Error::Limit)
@@ -354,6 +402,52 @@ impl WireBytes {
         })
     }
 
+    fn allocate_leased(
+        length: usize,
+        lease: &Arc<Lease>,
+        permit: FramePermit,
+        aggregate: bool,
+    ) -> Result<Self, Error> {
+        lease.ensure_open()?;
+        if permit.length != length || !Arc::ptr_eq(&permit.lease, lease) {
+            return Err(Error::Binding);
+        }
+        let capacity = lease.budget.publication.capacity;
+        let admission = lease.batch_admission()?;
+        let maximum = if aggregate {
+            admission
+                .as_ref()
+                .ok_or(Error::Binding)?
+                .resources()
+                .max_aggregate_bytes
+        } else {
+            capacity.max_wire_frame_bytes()
+        };
+        if length > maximum {
+            return Err(Error::Limit);
+        }
+        // Selected lease's fixed R+S reservation pays for every operation frame
+        // and scratch owner. General/scalar paths retain original permits.
+        let global = WirePermit::acquire(
+            if admission.is_some() {
+                0
+            } else {
+                Self::charge(length)?
+            },
+            capacity,
+        )?;
+        let bytes = payload::capacity(length)?;
+        if bytes.capacity() != length {
+            return Err(Error::Allocation);
+        }
+        Ok(Self {
+            bytes: Zeroizing::new(bytes),
+            _frame: Some(permit),
+            _publication: None,
+            _permit: global,
+        })
+    }
+
     pub(crate) fn allocate_publication(
         length: usize,
         capacity: Capacity,
@@ -371,6 +465,14 @@ impl WireBytes {
         assert!(value.len() <= self.bytes.capacity() - self.bytes.len());
         self.bytes.extend_from_slice(value);
     }
+}
+
+pub(crate) fn batch_scratch_charge(length: usize) -> Result<usize, Error> {
+    WireScratch::<u8>::charge(length)
+}
+
+pub(crate) fn batch_owner_control_bytes() -> Result<usize, Error> {
+    batch_wire::owner_control_bytes()
 }
 
 pub(crate) struct Cursor<'a> {
@@ -447,12 +549,7 @@ fn artifact(publication: &Publication, step: Step) -> Result<[u8; 32], Error> {
 }
 
 fn step_bytes(step: Step) -> [u8; 33] {
-    let mut bytes = [0; 33];
-    if let Step::Linear(id) = step {
-        bytes[0] = 1;
-        bytes[1..].copy_from_slice(&id);
-    }
-    bytes
+    step.canonical_bytes()
 }
 
 fn read_step(cursor: &mut Cursor<'_>) -> Result<Step, Error> {
@@ -482,8 +579,7 @@ fn encode_frame(
     if permit.length != length || !Arc::ptr_eq(&permit.lease, lease) {
         return Err(Error::Binding);
     }
-    let mut out = WireBytes::allocate(length, capacity)?;
-    out._frame = Some(permit);
+    let mut out = WireBytes::allocate_leased(length, lease, permit, false)?;
     out.extend(MAGIC);
     out.extend(&[
         kind,
@@ -629,12 +725,21 @@ impl Client {
         context: [u8; 32],
         plan: &[Step],
     ) -> Result<ClientWireWindow, Error> {
+        let (window, keys) = self.seeded_wire_parts(context, plan)?;
+        window.into_wire_inner(Some(keys))
+    }
+
+    fn seeded_wire_parts(
+        &self,
+        context: [u8; 32],
+        plan: &[Step],
+    ) -> Result<(Window, WireSeedKeys), Error> {
         let (window, worker) = self.begin_seeded(context, plan)?;
         let keys = WireSeedKeys {
             keys: worker.transfer_keys(&window._lease)?,
             _lease: Arc::clone(&window._lease),
         };
-        window.into_wire_inner(Some(keys))
+        Ok((window, keys))
     }
 
     pub fn begin_wire(&self, context: [u8; 32], plan: &[Step]) -> Result<ClientWireWindow, Error> {
@@ -663,7 +768,11 @@ impl Window {
             .max()
             .unwrap();
         let permit = WirePermit::acquire(
-            size_of::<ClientWireWindow>() + 2 * max_values * 8 + self.plan.len() * 33 + 1024,
+            if self._lease.batch_admission()?.is_some() {
+                0
+            } else {
+                size_of::<ClientWireWindow>() + 2 * max_values * 8 + self.plan.len() * 33 + 1024
+            },
             self.publication.capacity,
         )?;
         Ok(ClientWireWindow {
@@ -1112,7 +1221,7 @@ impl WorkerWire {
         result
     }
 
-    fn begin_inner(&mut self, bytes: &[u8]) -> Result<WorkerWireWindow, Error> {
+    fn validate_start_envelope<'a>(&self, bytes: &'a [u8]) -> Result<Frame<'a>, Error> {
         let source = self.source.as_ref().ok_or(Error::Retired)?;
         if self
             .active
@@ -1121,10 +1230,6 @@ impl WorkerWire {
         {
             return Err(Error::Retired);
         }
-        // Reuse the native process and admission-owner cumulative counters.
-        source.budget.publication.reserve_window()?;
-        reserve(&source.budget.windows, 1, MAX_WINDOWS)?;
-        reserve(&PROCESS_WINDOWS, 1, MAX_PROCESS_WINDOWS)?;
         let publication = &source.budget.publication;
         let frame = Frame::decode(bytes, START, publication)?;
         let binding = frame.binding;
@@ -1149,16 +1254,17 @@ impl WorkerWire {
         {
             return Err(Error::Binding);
         }
-        reserve(
-            &source.budget.steps,
-            binding.total as u64,
-            MAX_RESERVED_STEPS,
-        )?;
-        reserve(
-            &PROCESS_STEPS,
-            binding.total as u64,
-            MAX_PROCESS_RESERVED_STEPS,
-        )?;
+        Ok(frame)
+    }
+
+    fn validate_start_schedule(&self, frame: &Frame<'_>) -> Result<(), Error> {
+        let publication = &self
+            .source
+            .as_ref()
+            .ok_or(Error::Retired)?
+            .budget
+            .publication;
+        let binding = frame.binding;
         let mut hash = Sha256::new();
         hash.update(match binding.profile {
             SharingProfile::FullShares => b"pllm.gkm.window-plan.v1".as_slice(),
@@ -1189,10 +1295,53 @@ impl WorkerWire {
         if digest != binding.plan {
             return Err(Error::Binding);
         }
+        Ok(())
+    }
+
+    fn begin_inner(&mut self, bytes: &[u8]) -> Result<WorkerWireWindow, Error> {
+        self.begin_inner_admitted(bytes, None)
+    }
+
+    fn begin_inner_admitted(
+        &mut self,
+        bytes: &[u8],
+        admission: Option<super::super::BatchAdmission>,
+    ) -> Result<WorkerWireWindow, Error> {
+        let source = self.source.as_ref().ok_or(Error::Retired)?;
+        if self
+            .active
+            .as_ref()
+            .is_some_and(|run| run.status.load(Ordering::Acquire) != FINISHED)
+        {
+            return Err(Error::Retired);
+        }
+        // Preserve scalar cumulative-counter and error ordering. Batch preflight
+        // borrows these same validators before any plan/key/lease allocation.
+        source.budget.publication.reserve_window()?;
+        reserve(&source.budget.windows, 1, MAX_WINDOWS)?;
+        reserve(&PROCESS_WINDOWS, 1, MAX_PROCESS_WINDOWS)?;
+        let frame = self.validate_start_envelope(bytes)?;
+        let binding = frame.binding;
+        let publication = &source.budget.publication;
+        reserve(
+            &source.budget.steps,
+            binding.total as u64,
+            MAX_RESERVED_STEPS,
+        )?;
+        reserve(
+            &PROCESS_STEPS,
+            binding.total as u64,
+            MAX_PROCESS_RESERVED_STEPS,
+        )?;
+        self.validate_start_schedule(&frame)?;
+        let schedule_bytes = binding.total as usize * 33;
         let seeded_one =
             binding.profile == SharingProfile::Aes128WindowV1 && binding.worker == Worker::One;
         let permit = WirePermit::acquire(
-            binding.total as usize * size_of::<Step>()
+            if admission.is_some() {
+                0
+            } else {
+                binding.total as usize * size_of::<Step>()
                 + publication
                     .matrices
                     .iter()
@@ -1211,7 +1360,8 @@ impl WorkerWire {
                 } else {
                     0
                 }
-                + 1024,
+                + 1024
+            },
             publication.capacity,
         )?;
         let lease = Lease::acquire(&source.budget)?;
@@ -1221,6 +1371,9 @@ impl WorkerWire {
             plan.push(read_step(&mut cursor)?);
         }
         let plan = Arc::new(plan);
+        if let Some(admission) = admission {
+            lease.attach_batch(admission, &plan, binding.profile)?;
+        }
         let seeded = if seeded_one {
             let mut keys = Zeroizing::new([[0; 16]; 2]);
             keys[0].copy_from_slice(&frame.body[schedule_bytes..schedule_bytes + 16]);
@@ -1337,6 +1490,40 @@ impl WorkerWireWindow {
             &self.run.lease,
             HEADER.checked_add(reply_body).ok_or(Error::Limit)?,
         )?;
+        self.evaluate_row(frame, |binding, dimensions, body, lease| {
+            encode_frame(REPLY, binding, dimensions, body, lease, reply_permit)
+        })
+    }
+
+    // One model-neutral evaluator used by scalar framing and source-stage
+    // aggregates. The emitter borrows the original native/scratch response;
+    // scalar transport emits after its one primitive completes. Batch transport
+    // dispatches the same shared kernels on complete contiguous token-major data.
+    fn evaluate_row<T>(
+        &mut self,
+        frame: Frame<'_>,
+        emit: impl FnOnce(Binding, (usize, usize), &[u8], &Arc<Lease>) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        #[cfg(test)]
+        SCALAR_EVALUATIONS.with(|count| count.set(count.get() + 1));
+        self.run.lease.ensure_open()?;
+        if self.run.status.load(Ordering::Acquire) != ACTIVE {
+            return Err(Error::Retired);
+        }
+        let publication = &self.source.budget.publication;
+        let step = *self.plan.get(self.completed).ok_or(Error::Schedule)?;
+        let mut expected = self.binding;
+        expected.ordinal = self.completed as u32;
+        expected.step = step;
+        expected.artifact = artifact(publication, step)?;
+        frame.validate(expected, publication)?;
+        let reply_body = match step {
+            Step::Linear(id) => publication.matrices[publication.matrix_index(&id)?]
+                .rows
+                .checked_mul(8),
+            Step::Lookup => publication.width.checked_mul(4),
+        }
+        .ok_or(Error::Limit)?;
         let response = match step {
             Step::Linear(id) => {
                 let matrix = &self.source.matrices[publication.matrix_index(&id)?];
@@ -1389,13 +1576,11 @@ impl WorkerWireWindow {
                 for (out, value) in body.chunks_exact_mut(8).zip(values.iter()) {
                     out.copy_from_slice(&value.to_le_bytes());
                 }
-                encode_frame(
-                    REPLY,
+                emit(
                     expected,
                     frame.dimensions,
                     &body[..matrix.rows * 8],
                     &self.run.lease,
-                    reply_permit,
                 )?
             }
             Step::Lookup => {
@@ -1424,14 +1609,7 @@ impl WorkerWireWindow {
                 } else {
                     self.source.table.xor_rows(frame.body)?
                 };
-                encode_frame(
-                    REPLY,
-                    expected,
-                    frame.dimensions,
-                    &values,
-                    &self.run.lease,
-                    reply_permit,
-                )?
+                emit(expected, frame.dimensions, &values, &self.run.lease)?
             }
         };
         self.completed += 1;
@@ -1487,6 +1665,10 @@ mod tests;
 #[cfg(test)]
 #[path = "seeded_wire_tests.rs"]
 mod seeded_tests;
+
+#[path = "batch_wire.rs"]
+mod batch_wire;
+pub use batch_wire::{ClientBatchWireWindow, WorkerBatchWireWindow};
 
 #[cfg(test)]
 #[path = "wire_quota_tests.rs"]

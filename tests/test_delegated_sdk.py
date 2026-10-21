@@ -23,12 +23,15 @@ from test_delegated_source import write_source_fixture
 
 
 def experiment_fixture(path, *, family="qwen2", tied=True, requests=4,
-                       capacity="capsule", vocabulary=32, rows=8, sharing="full"):
+                       capacity="capsule", vocabulary=32, rows=8, sharing="full", execution=None,
+                       config_overrides=None):
     cfg, _, arrays, _ = write_source_fixture(path / "source", family=family, tied=tied,
-                                           capacity=capacity, vocabulary=vocabulary)
+                                           capacity=capacity, vocabulary=vocabulary,
+                                           config_overrides=config_overrides)
     experiment = Experiment(
         "gkm-sdk", OpenWeightVerifiableCpu(Model.path(str(path / "source")),
-            linear=OpenWeightVerifiableOutsourcing(capacity=capacity, sharing=sharing)),
+            linear=OpenWeightVerifiableOutsourcing(capacity=capacity, sharing=sharing,
+                                                   execution=execution)),
         Deployment.local(root=str(path / "roles")),
         ExecutionBudget(requests=requests, max_input_tokens=rows, max_new_tokens=3),
     )
@@ -44,6 +47,33 @@ def active_sessions(core):
         response.raise_for_status()
         result.append(response.json()["active_sessions"])
     return result
+
+
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_sdk_batch_above_scalar_frame_limit_preserves_complete_state(tmp_path, sharing):
+    experiment, cfg, arrays = experiment_fixture(
+        tmp_path, capacity="decoder", sharing=sharing, rows=72,
+        execution="source_stage_batch_v1",
+        config_overrides={"intermediate_size": 4864, "max_position_embeddings": 128,
+                          "num_hidden_layers": 1},
+    )
+    prompt = " ".join(["hello"] * 64)
+    captured = []
+    with OpenAI(experiment=experiment) as client:
+        client._core._result_hook = captured.append
+        response = client.responses.create(input=prompt, max_output_tokens=2)
+        source = client._core._ensure_source()
+        ids = tuple(source.tokenizer().encode(prompt_text(normalize_input(prompt)), add_bos=False))
+        assert response.usage.input_tokens == len(ids)
+        assert 64 <= len(ids) <= 72  # Includes the ordinary rendered-message boundary.
+        runtime = json.loads(source.runtime_contract(experiment, len(ids), 2))
+        descriptors = runtime["batch_execution"]["descriptors"]
+        assert any(min(item["reply_bytes"]) > 4 << 20 for item in descriptors)
+        result, = captured
+        assert (result.logits, result.kv, result.selected, result.executed, result.position) == clear_oracle(
+            cfg, arrays, ids, 1,
+        )
+        assert active_sessions(client._core) == [0, 0]
 
 
 @pytest.mark.parametrize("tokens", [(7,), (7, 9, 1), [7, 9], (True, 9), (32, 9)])
@@ -65,8 +95,12 @@ def test_quality_continuation_rejects_before_transport_material(tmp_path, monkey
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
 @pytest.mark.parametrize("tied", [False, True])
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
-def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, tied, sharing, record_property):
-    experiment, cfg, arrays = experiment_fixture(tmp_path, family=family, tied=tied, sharing=sharing)
+@pytest.mark.parametrize("capacity", ["capsule", "decoder"])
+@pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
+def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, tied, sharing,
+                                                            capacity, execution, record_property):
+    experiment, cfg, arrays = experiment_fixture(tmp_path, family=family, tied=tied, sharing=sharing,
+                                                capacity=capacity, execution=execution)
     captured = []
     with OpenAI(experiment=experiment) as client:
         topology = client._owned_topology
@@ -98,15 +132,26 @@ def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, 
                      for role in ("worker_a", "worker_b") for direction in ("upload", "download"))
         assert online == audit["inference_upload_bytes"] + audit["inference_download_bytes"]
         assert online == audit["generation_prefill_online_body_bytes"] + audit["generation_decode_online_body_bytes"]
-        assert audit["generation_prefill_online_body_bytes"] > audit["generation_decode_online_body_bytes"] > 0
+        assert audit["generation_prefill_online_body_bytes"] > 0
+        assert audit["generation_decode_online_body_bytes"] > 0
+        if execution is None:
+            assert audit["generation_prefill_online_body_bytes"] > audit["generation_decode_online_body_bytes"]
+        else:
+            runtime = json.loads(source.runtime_contract(experiment, len(ids), 3))
+            descriptors = runtime["batch_execution"]["descriptors"]
+            claims = sum(descriptor["rows"] for descriptor in descriptors)
+            assert audit["inference_stage_calls"] == 2 * len(descriptors)
+            assert audit["online_steps"] == claims
+            assert len(descriptors) < claims  # Multirow prefill was not scalar-dispatched.
         assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
         assert not client._core._transformer_states
     assert all(not item.running for item in topology.statuses)
 
 
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
-def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch, sharing):
-    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing)
+@pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
+def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch, sharing, execution):
+    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing, execution=execution)
     with OpenAI(experiment=experiment) as client:
         load_transport = AdmittedSource.load_transport
         checks = []
@@ -145,8 +190,9 @@ def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch,
 
 @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
-def test_transport_failure_retires_both_real_roles(tmp_path, monkeypatch, failure, sharing):
-    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing)
+@pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
+def test_transport_failure_retires_both_real_roles(tmp_path, monkeypatch, failure, sharing, execution):
+    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing, execution=execution)
     original = transport._Peers.post
     injected = []
 
@@ -180,8 +226,10 @@ def test_transport_failure_retires_both_real_roles(tmp_path, monkeypatch, failur
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["task", "concurrent_stream_close"])
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
-async def test_async_cancellation_drains_real_workers_before_return(tmp_path, monkeypatch, mode, sharing):
-    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing)
+@pytest.mark.parametrize("execution", [None, "source_stage_batch_v1"])
+async def test_async_cancellation_drains_real_workers_before_return(tmp_path, monkeypatch, mode,
+                                                                  sharing, execution):
+    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing, execution=execution)
     entered, release = threading.Event(), threading.Event()
     original = transport._Peers.post
 

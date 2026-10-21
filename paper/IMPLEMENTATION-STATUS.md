@@ -68,6 +68,17 @@ Completed foundations:
   essentially unchanged client RSS. This initial source-present 4+2 ablation
   retains separate privacy assumptions and does not qualify the broader frozen
   publication comparison, batched prefill or task quality.
+- The later explicit `execution="source_stage_batch_v1"` slice adds complete
+  source-stage prefill batching with shared native matrix/table traversal,
+  independent per-row verification and separately admitted aggregate frames,
+  compiler input and Python copies. Scalar execution remains unchanged.
+  Installed SDK/gateway controls and four pinned Qwen 4+2 scalar/batch,
+  full/seeded complete-state comparisons pass with zero observed swap growth.
+  Batch hosting remains bounded loopback HTTP only; TLS and alternate hosting
+  reject. This closes bounded batched execution/correctness, not matched
+  performance, independent deployment or task quality. Contract and experiment:
+  [`gkm-sdk-reference.md`](../docs/research/gkm-sdk-reference.md) and
+  [`gkm_prefill_batch.py`](../examples/benchmarks/gkm_prefill_batch.py).
 - The separate [Maverick batch capsule](../docs/research/maverick-batch-reference.md)
   implements bounded two-claim algebra with complete P/Q/Qaux validation,
   response-fixation barriers and allocation/retirement checks. Code-distance,

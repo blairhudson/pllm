@@ -223,6 +223,8 @@ class OpenWeightVerifiableOutsourcing(ProtocolMethod):
     Native source/workload admission and request-end verification are required.
     Seeded sharing gives worker One fresh, purpose-separated AES window streams;
     worker Zero receives complementary shares. Its privacy assumes the AES PRG.
+    Optional source_stage_batch_v1 execution requires separate native stage,
+    aggregate-frame and outer-copy admission; omission retains scalar execution.
     This declaration does not certify full-size execution or cryptographic security.
     """
 
@@ -243,6 +245,7 @@ class OpenWeightVerifiableOutsourcing(ProtocolMethod):
                 "sharing": {"type": "string", "enum": ["full", "seeded"]},
                 "generation": {"type": "string", "const": "fixed_length_greedy"},
                 "capacity": {"type": "string", "const": "decoder"},
+                "execution": {"type": "string", "const": "source_stage_batch_v1"},
             },
             "required": ["sharing", "generation"],
         },
@@ -256,19 +259,25 @@ class OpenWeightVerifiableOutsourcing(ProtocolMethod):
     )
 
     def __init__(self, *, sharing: Literal["full", "seeded"] = "full",
-                  generation: Literal["fixed_length_greedy"] = "fixed_length_greedy",
-                  capacity: Literal["capsule", "decoder"] = "capsule") -> None:
+                   generation: Literal["fixed_length_greedy"] = "fixed_length_greedy",
+                   capacity: Literal["capsule", "decoder"] = "capsule",
+                   execution: Literal["source_stage_batch_v1"] | None = None) -> None:
         if type(sharing) is not str or sharing not in {"full", "seeded"}:
             raise ConfigurationError("GKM remote sharing must be full or seeded")
         if type(generation) is not str or generation != "fixed_length_greedy":
             raise ConfigurationError("GKM generation must be fixed_length_greedy")
         if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
             raise ConfigurationError("GKM capacity must be capsule or decoder")
+        if execution is not None and (
+                type(execution) is not str or execution != "source_stage_batch_v1"):
+            raise ConfigurationError("GKM execution must be source_stage_batch_v1 or omitted")
         super().__init__(self.descriptor.component, {"sharing": sharing, "generation": generation,
-            **({"capacity": capacity} if capacity != "capsule" else {})})
+            **({"capacity": capacity} if capacity != "capsule" else {}),
+            **({"execution": execution} if execution is not None else {})})
 
     def get_params(self, deep: bool = True) -> dict[str, object]:
-        return {**self.params, "capacity": self.params.get("capacity", "capsule")}
+        return {**self.params, "capacity": self.params.get("capacity", "capsule"),
+            "execution": self.params.get("execution")}
 
     @classmethod
     def describe(cls) -> ComponentDescriptor:

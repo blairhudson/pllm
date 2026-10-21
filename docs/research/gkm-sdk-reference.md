@@ -160,6 +160,54 @@ Confidential transport, non-collusion and the paper's verification assumptions
 retain their separate contracts. This implementation review is not independent
 cryptographic certification.
 
+## Opt-in source-stage batching
+
+`OpenWeightVerifiableOutsourcing(execution="source_stage_batch_v1")` selects
+separate, compiler-bound batch execution. Omitting `execution` preserves scalar
+serialization, source identity and defaults. Both sharing choices and capacity
+profiles retain their existing numerical and final-verification contracts.
+
+One prefill lookup or grouped linear source stage issues all its token rows before
+awaiting either worker's reply. Shared native matrix/table kernels traverse the
+immutable source across those rows; this is not a Python loop over synchronous
+scalar requests. Decode and the last-prefill-row head remain singleton batches.
+Q11 encoding, float32 reconstruction, local operators, complete logits/full KV and
+the original per-row claims are unchanged. Both complete worker replies freeze
+before independent per-row challenges; only final accepted requests release text
+or audit commitments. Seeded expansion preserves continuous purpose streams,
+including odd row tails.
+
+Public phase/stage descriptors bind contiguous scalar-claim coverage and exact
+per-role request/reply lengths. Aggregate frames have a separate namespace;
+scalar frame limits do not increase. Native admission prices batch owners,
+retained frames and scratch before execution. Python admission separately prices
+serialization, fixed collectors, backend buffers and response lifetimes, without
+borrowing native quota or removing the safety margin. A worker operation-response
+slot remains occupied until its body retires. The compiler's encoded-input
+buffer additionally contributes `max(8 * rows * columns)` over linear descriptors
+to client admission only: it overlaps the native input copy, and is not funded
+by Python serialization, graph roots or native frame reservations. Compiler
+float32 output and its Python copy fit the existing eight-byte graph-root
+allowance before replacing those temporaries with graph backing and bias copies.
+Malformed shapes, substituted
+starts, overlapping operations, cancellation and failed verification retire the
+one-use request.
+
+Batch transport currently permits only the admitted loopback HTTP backend.
+HTTPS/TLS and alternate worker hosting reject; scalar HTTPS is
+unchanged. This is not confidential network delivery or independently operated
+deployment. The reusable `examples/benchmarks/gkm_prefill_batch.py` compares
+explicit scalar/batch variants through ordinary response targets; its definition
+does not itself establish checkpoint performance, quality or memory savings.
+The installed slice passes 1,354 Python checks and 151 native checks plus Clippy.
+Generated SDK/gateway and complete-state controls cover both sharing choices and
+capacity profiles; separate two-worker controls accept aggregate replies larger
+than the unchanged 4 MiB scalar ceiling. Four pinned Qwen 4+2 cases additionally
+preserve complete accepted state against the independent oracle across
+scalar/batch and full/seeded execution, with zero observed swap growth.
+These correctness results establish no matched performance or broad quality
+benefit. The ordinary response comparison remains a separate measurement gate.
+
 ## Measurement and remaining gates
 
 First accepted text includes the final verification barrier. Buffered text release

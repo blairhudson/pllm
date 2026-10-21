@@ -860,6 +860,17 @@ Low; explicit tier admission remains separate. The prior partial cohort is not
 pooled. This source-present, no-added-RTT ablation retains the seeded PRG
 assumption and establishes neither broad quality nor the frozen ten-method
 comparison. Reports and replay: `docs/research/gkm-sharing-reference.md`.
+The explicit `execution="source_stage_batch_v1"` additionally issues each complete
+prefill lookup or grouped linear stage through shared native source traversal.
+Original per-row claims, Q11 arithmetic, continuous seeded streams and final-only
+acceptance remain; both complete replies freeze before row challenges. Native
+aggregate frames and Python copies have separate admission, including the
+compiler's overlapping encoded input. Scalar defaults and frame limits remain
+unchanged. The bounded batch backend admits loopback HTTP only and rejects TLS
+or alternate hosting. Installed SDK/gateway controls and all four pinned Qwen
+4+2 scalar/batch, full/seeded independent-state checks pass with zero observed
+swap growth. These correctness checks establish no matched performance or broad
+quality benefit. Contract: `docs/research/gkm-sdk-reference.md`.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The separate direct `pllm.native.PagedGEMM` API owns an authenticated private

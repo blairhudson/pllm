@@ -40,6 +40,7 @@
 //! or an RSS bound; standalone caller-owned primitives/copies and allocator
 //! overhead are outside publication-envelope accounting.
 
+mod batch;
 mod capacity;
 mod lookup;
 mod numeric;
@@ -48,6 +49,10 @@ mod publication;
 mod seeded;
 mod window;
 
+#[cfg(test)]
+mod batch_kernel_tests;
+
+pub use batch::{BatchAdmission, BatchDescriptor, BatchPlan, BatchResources, BatchWireSizes};
 pub use capacity::Capacity;
 pub use lookup::FloatTable;
 pub use numeric::{encode_input, encode_weight, reconstruct_signed, rescale_signed, I16Matrix};
@@ -57,10 +62,11 @@ pub use publication::{
 };
 pub use seeded::{SharingProfile, SEEDED_SHARING_PROFILE};
 pub use window::{
-    AcceptedWindow, Binding, Client, ClientWireWindow, HalfLinear, HalfLookup, LinearResponse,
-    LinearShare, LookupResponse, LookupShare, PendingLinear, PendingLookup, SeededWorker, Step,
-    Window, WireBytes, WireResources, WireTentative, Worker, WorkerWire, WorkerWireReceipt,
-    WorkerWireWindow, MAX_PROCESS_WIRE_BYTES, MAX_PUBLICATION_WIRE_BYTES, MAX_WIRE_FRAME_BYTES,
+    AcceptedWindow, Binding, Client, ClientBatchWireWindow, ClientWireWindow, HalfLinear,
+    HalfLookup, LinearResponse, LinearShare, LookupResponse, LookupShare, PendingLinear,
+    PendingLookup, SeededWorker, Step, Window, WireBytes, WireResources, WireTentative, Worker,
+    WorkerBatchWireWindow, WorkerWire, WorkerWireReceipt, WorkerWireWindow, MAX_PROCESS_WIRE_BYTES,
+    MAX_PUBLICATION_WIRE_BYTES, MAX_WIRE_FRAME_BYTES,
 };
 
 use k256::{elliptic_curve::PrimeField, Scalar};

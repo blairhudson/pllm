@@ -133,6 +133,8 @@ _PRIVACY_FIELDS |= frozenset({
 })
 _PRIVACY_FIELDS |= frozenset({"prepared_stage_rows_" + name for name in
     ("issued", "reserved", "claimed", "burned", "discarded")})
+_BATCH_COUNTER_FIELDS = frozenset({"batch_exchanges", "native_scalar_claims"})
+_PRIVACY_FIELDS |= _BATCH_COUNTER_FIELDS
 _PROCESS_ROLES = _TOPOLOGY_ROLES
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 _SAFE_FAILURE = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,127}$")
@@ -262,6 +264,13 @@ class BenchmarkRun:
             raise ValueError("invalid measured decode body/token window")
         if unknown_privacy:
             raise ValueError(f"unsupported privacy metrics: {sorted(unknown_privacy)}")
+        # Additive JSON fields need no SQLite migration or scalar-row rewrite.
+        # Preserve their transport bounds without changing historical scalar
+        # validation, inventing absent measurements or conflating exchanges
+        # with scalar-equivalent claims/online_steps.
+        if any(type(value) is not int or not 0 <= value < 1 << 63
+               for name, value in self.privacy_delta.items() if name in _BATCH_COUNTER_FIELDS):
+            raise ValueError("batch privacy deltas must be bounded non-negative integers")
         if any(not isinstance(value, int) or value < 0 for value in self.privacy_delta.values()):
             raise ValueError("privacy deltas must be non-negative integers")
         if set(self.process_metrics).difference(_PROCESS_ROLES):

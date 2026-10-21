@@ -54,6 +54,7 @@ def _experiment(deployment: Deployment | None = None) -> Experiment:
 
 @pytest.mark.parametrize("component", [
     OpenWeightVerifiableOutsourcing(), OpenWeightVerifiableOutsourcing(sharing="seeded"),
+    OpenWeightVerifiableOutsourcing(execution="source_stage_batch_v1"),
     PublishedLinearVerify(), TwoOnlineDelegationRoles(),
 ])
 def test_gkm_component_discovery_schema_and_immutable_recreation(component) -> None:
@@ -125,6 +126,28 @@ def test_typed_profile_and_canonical_pipeline_round_trip_preserve_contract() -> 
     assert type(changed) is OpenWeightVerifiableCpu
     assert changed.digest() != pipeline.digest()
     assert pipeline.model.revision == "source-pin"
+
+
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_explicit_source_stage_batch_selector_preserves_scalar_defaults(sharing) -> None:
+    scalar = _pipeline().with_params(linear__sharing=sharing)
+    original = scalar.canonical_bytes()
+    assert "execution" not in scalar.linear.to_spec()["params"]
+    assert scalar.with_params(linear__execution=None).canonical_bytes() == original
+    selected = scalar.with_params(linear__execution="source_stage_batch_v1")
+    assert selected.linear.params["execution"] == "source_stage_batch_v1"
+    assert selected.digest() != scalar.digest()
+    assert selected.linear.NUMERIC_PROFILE == scalar.linear.NUMERIC_PROFILE
+    assert resolve_runtime_composition(selected) is not None
+    restored = Pipeline.from_spec(json.loads(selected.canonical_bytes()))
+    assert restored == selected
+    assert restored.with_params(components__linear__execution=None).canonical_bytes() == original
+
+
+@pytest.mark.parametrize("execution", [False, True, 1, "scalar", "auto", "batch", {}])
+def test_source_stage_batch_rejects_unknown_selector(execution) -> None:
+    with pytest.raises(ConfigurationError, match="GKM execution"):
+        OpenWeightVerifiableOutsourcing(execution=execution)
 
 
 @pytest.mark.parametrize("deployment", [

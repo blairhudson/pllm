@@ -69,7 +69,7 @@ impl PublicationResources {
         )
     }
 
-    fn for_shape_iter_owned(
+    pub(super) fn for_shape_iter_owned(
         shapes: impl ExactSizeIterator<Item = (usize, usize)>,
         vocabulary: usize,
         width: usize,
@@ -263,7 +263,7 @@ pub(super) static PROCESS_PUBLICATIONS: AdmissionPool =
     AdmissionPool::new(Capacity::Decoder.max_process_publication_bytes());
 static CAPSULE_PUBLICATIONS: AdmissionPool = AdmissionPool::new(MAX_PROCESS_PUBLICATION_BYTES);
 
-struct PublicationPermit {
+pub(super) struct PublicationPermit {
     pool: &'static AdmissionPool,
     bytes: usize,
     _capsule: Option<CapsulePublicationPermit>,
@@ -283,7 +283,7 @@ impl Drop for CapsulePublicationPermit {
 }
 
 impl PublicationPermit {
-    fn acquire(
+    pub(super) fn acquire(
         pool: &'static AdmissionPool,
         bytes: usize,
         capacity: Capacity,

@@ -23,11 +23,12 @@ from pllm.runtime.safetensors_store import SafeTensorStore
 from test_delegated_decoder import config as decoder_config, fixture as decoder_fixture
 
 
-def write_source_fixture(path, *, family="qwen2", tied=True, capacity="capsule", vocabulary=32):
+def write_source_fixture(path, *, family="qwen2", tied=True, capacity="capsule", vocabulary=32,
+                         config_overrides=None):
     """Independent GKM tensors plus a genuine complete 32-token WordLevel model."""
     path.mkdir(parents=True, exist_ok=True)
     config = {**decoder_config(family, tied), "bos_token_id": 0, "eos_token_id": 1,
-              "vocab_size": vocabulary}
+              "vocab_size": vocabulary, **(config_overrides or {})}
     contract, arrays, tensors = decoder_fixture(config, capacity=capacity)
     (path / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
     vocab = {"<bos>": 0, "<eos>": 1, "<unk>": 2, "hello": 3, "world": 4}

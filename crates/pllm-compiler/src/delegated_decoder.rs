@@ -14,6 +14,7 @@ use zeroize::Zeroizing;
 
 pub(crate) mod sdk;
 pub use sdk::GkmRuntimeContract;
+mod batch;
 mod transport;
 pub use transport::{GkmTransportClient, GkmTransportWorker};
 mod source_import;
@@ -1009,6 +1010,79 @@ impl GkmDecoderSession {
             let result = float_bytes(window.tentative_values())?;
             self.window = Some(window);
             self.ordinal += 1;
+            Ok(result)
+        })();
+        if result.is_err() {
+            self.abort();
+        }
+        result
+    }
+
+    // Reference-oracle grouping only: this in-process research owner retains its
+    // original arithmetic and one final verifier. The SDK batch transport never
+    // calls these methods and cannot fall back to a scalar wire execution.
+    fn reference_batch_rows(&self, expected: Step) -> Result<usize, String> {
+        let plan = self.contract.batch_plan()?;
+        plan.descriptors()
+            .iter()
+            .find(|descriptor| {
+                descriptor.first_claim as usize == self.ordinal && descriptor.step == expected
+            })
+            .map(|descriptor| descriptor.rows as usize)
+            .ok_or_else(|| reject("reference batch source boundary mismatch"))
+    }
+
+    /// Non-mutating trusted row count before an outer-language token tuple parse.
+    pub fn lookup_batch_rows(&self) -> Result<usize, String> {
+        if self.window.is_none() {
+            return Err(reject("retired"));
+        }
+        self.reference_batch_rows(Step::Lookup)
+    }
+
+    /// Execute one complete source lookup in the local scalar arithmetic oracle.
+    pub fn lookup_batch(&mut self, tokens: &[usize]) -> Result<Vec<u8>, String> {
+        let result = (|| {
+            let rows = self.lookup_batch_rows()?;
+            if tokens.len() != rows {
+                return Err(reject("reference batch lookup shape"));
+            }
+            let mut result = Vec::new();
+            result
+                .try_reserve_exact(rows * self.contract.width * 4)
+                .map_err(|_| reject("allocation"))?;
+            for token in tokens {
+                result.extend(self.lookup(*token)?);
+            }
+            Ok(result)
+        })();
+        if result.is_err() {
+            self.abort();
+        }
+        result
+    }
+
+    /// Return row-major source-stage output from the unchanged local arithmetic
+    /// oracle, with no seed restart and no intermediate externally returned rows.
+    pub fn linear_batch(&mut self, stage: usize, bytes: &[u8]) -> Result<Vec<u8>, String> {
+        let result = (|| {
+            let spec = self
+                .contract
+                .matrices
+                .get(stage)
+                .ok_or_else(|| reject("stage"))?;
+            let rows = self.reference_batch_rows(Step::Linear(stage_id(spec)))?;
+            let stride = spec.columns * 4;
+            if bytes.len() != rows * stride {
+                return Err(reject("reference batch linear shape"));
+            }
+            let mut result = Vec::new();
+            result
+                .try_reserve_exact(rows * spec.rows * 4)
+                .map_err(|_| reject("allocation"))?;
+            for row in bytes.chunks_exact(stride) {
+                result.extend(self.linear(stage, row)?);
+            }
             Ok(result)
         })();
         if result.is_err() {

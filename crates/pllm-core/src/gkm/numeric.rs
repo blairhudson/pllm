@@ -233,15 +233,76 @@ impl I16Matrix {
         if share.len() != self.columns {
             return Err(Error::Shape);
         }
-        Ok(Zeroizing::new(payload::collect(
-            self.weights.chunks_exact(self.columns).map(|row| {
-                row.iter().zip(share).fold(0u64, |sum, (&w, &x)| {
-                    sum.wrapping_add((i64::from(w) as u64).wrapping_mul(x))
-                })
-            }),
-        )?))
+        let mut output = Zeroizing::new(payload::filled(self.rows, 0u64)?);
+        self.multiply_shares_into(share, 1, &mut output)?;
+        Ok(output)
+    }
+
+    /// Token-major [B, columns] -> [B, rows]. Validate before output mutation;
+    /// one dense feature-tiled traversal reads each public coefficient once.
+    pub fn multiply_shares_into(
+        &self,
+        shares: &[u64],
+        batch: usize,
+        output: &mut [u64],
+    ) -> Result<(), Error> {
+        if batch == 0
+            || shares.len() != batch.checked_mul(self.columns).ok_or(Error::Limit)?
+            || output.len() != batch.checked_mul(self.rows).ok_or(Error::Limit)?
+        {
+            return Err(Error::Shape);
+        }
+        #[cfg(test)]
+        LINEAR_DISPATCHES.with(|count| count.set(count.get() + 1));
+        output.fill(0);
+        const TILE: usize = 64;
+        let mut tile = [0i16; TILE];
+        for row in 0..self.rows {
+            for first in (0..self.columns).step_by(TILE) {
+                let count = TILE.min(self.columns - first);
+                tile[..count].copy_from_slice(
+                    &self.weights[row * self.columns + first..row * self.columns + first + count],
+                );
+                for (feature, &weight) in tile[..count].iter().enumerate() {
+                    let weight = i64::from(weight) as u64;
+                    for token in 0..batch {
+                        let index = token * self.rows + row;
+                        output[index] = output[index].wrapping_add(
+                            weight.wrapping_mul(shares[token * self.columns + first + feature]),
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
+
+pub(super) fn validate_inputs(
+    input: &[i64],
+    columns: usize,
+    bounds: &[u64],
+    batch: usize,
+) -> Result<(), Error> {
+    if batch == 0
+        || columns == 0
+        || bounds.len() != columns
+        || input.len() != batch.checked_mul(columns).ok_or(Error::Limit)?
+    {
+        return Err(Error::Shape);
+    }
+    if input.chunks_exact(columns).any(|row| {
+        row.iter()
+            .zip(bounds)
+            .any(|(&value, &bound)| value.unsigned_abs() > bound)
+    }) {
+        return Err(Error::Bound);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+std::thread_local! { pub(super) static LINEAR_DISPATCHES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 
 fn row_bound(row: &[i16], bounds: &[u64]) -> u128 {
     // Decoder geometry limits make this sum <= 2^92, well inside u128.

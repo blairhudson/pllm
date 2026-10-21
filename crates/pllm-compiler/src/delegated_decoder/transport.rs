@@ -46,6 +46,87 @@ fn plan(contract: &GkmRuntimeContract) -> Result<Vec<Step>, String> {
     Ok(calls)
 }
 
+enum ClientWindow {
+    Scalar(ClientWireWindow),
+    Batch(gkm::ClientBatchWireWindow),
+}
+
+impl ClientWindow {
+    fn request_id(&self) -> [u8; 32] {
+        match self {
+            Self::Scalar(w) => w.request_id(),
+            Self::Batch(w) => w.request_id(),
+        }
+    }
+    fn start_frames(&mut self) -> Result<[WireBytes; 2], gkm::Error> {
+        match self {
+            Self::Scalar(w) => w.start_frames(),
+            Self::Batch(w) => w.start_frames(),
+        }
+    }
+    fn lookup(&mut self, tokens: &[usize]) -> Result<[WireBytes; 2], gkm::Error> {
+        match self {
+            Self::Scalar(w) if tokens.len() == 1 => w.lookup(tokens[0]),
+            Self::Scalar(_) => Err(gkm::Error::Shape),
+            Self::Batch(w) => w.lookup(tokens),
+        }
+    }
+    fn linear(&mut self, input: &[i64]) -> Result<[WireBytes; 2], gkm::Error> {
+        match self {
+            Self::Scalar(w) => w.linear(input),
+            Self::Batch(w) => w.linear(input),
+        }
+    }
+    fn accept_replies(
+        &mut self,
+        zero: &[u8],
+        one: &[u8],
+    ) -> Result<gkm::WireTentative<'_>, gkm::Error> {
+        match self {
+            Self::Scalar(w) => w.accept_replies(zero, one),
+            Self::Batch(w) => w.accept_replies(zero, one),
+        }
+    }
+    fn finish(&mut self) -> Result<gkm::AcceptedWindow, gkm::Error> {
+        match self {
+            Self::Scalar(w) => w.finish(),
+            Self::Batch(w) => w.finish(),
+        }
+    }
+}
+
+enum WorkerWindow {
+    Scalar(gkm::WorkerWireWindow),
+    Batch(gkm::WorkerBatchWireWindow),
+}
+
+impl WorkerWindow {
+    fn request_id(&self) -> [u8; 32] {
+        match self {
+            Self::Scalar(w) => w.request_id(),
+            Self::Batch(w) => w.request_id(),
+        }
+    }
+    fn sharing_profile(&self) -> gkm::SharingProfile {
+        match self {
+            Self::Scalar(w) => w.sharing_profile(),
+            Self::Batch(w) => w.sharing_profile(),
+        }
+    }
+    fn execute(&mut self, request: &[u8]) -> Result<WireBytes, gkm::Error> {
+        match self {
+            Self::Scalar(w) => w.execute(request),
+            Self::Batch(w) => w.execute(request),
+        }
+    }
+    fn finish(&mut self) -> Result<gkm::WorkerWireReceipt, gkm::Error> {
+        match self {
+            Self::Scalar(w) => w.finish(),
+            Self::Batch(w) => w.finish(),
+        }
+    }
+}
+
 /// One complete SDK request. External I/O cannot detach the native pending
 /// transaction; all state-changing errors retire the owner even when ignored.
 pub struct GkmTransportClient {
@@ -53,10 +134,12 @@ pub struct GkmTransportClient {
     local: BTreeMap<String, Vec<u8>>,
     publication: Option<Arc<Publication>>,
     publication_exported: bool,
-    window: Option<ClientWireWindow>,
+    window: Option<ClientWindow>,
     calls: Vec<Step>,
     ordinal: usize,
     pending: Option<Step>,
+    pending_rows: usize,
+    batches: Vec<gkm::BatchDescriptor>,
     source: [u8; 32],
     context: [u8; 32],
     publication_digest: [u8; 32],
@@ -111,11 +194,29 @@ impl GkmTransportClient {
         let context = request_context(&contract, source);
         let client = gkm::Client::new(Arc::clone(&publication), publication_digest)
             .map_err(|error| error.to_string())?;
-        let window = match contract.sharing_profile() {
-            gkm::SharingProfile::FullShares => client.begin_wire(context, &calls),
-            gkm::SharingProfile::Aes128WindowV1 => client.begin_seeded_wire(context, &calls),
-        }
-        .map_err(|error| error.to_string())?;
+        let admission = contract.batch_admission(&publication)?;
+        let batches = if admission.is_some() {
+            contract.decoder().batch_plan()?.descriptors().to_vec()
+        } else {
+            Vec::new()
+        };
+        let window = if let Some(admission) = admission {
+            ClientWindow::Batch(
+                client
+                    .begin_batch_wire(context, &calls, admission)
+                    .map_err(|error| error.to_string())?,
+            )
+        } else {
+            ClientWindow::Scalar(
+                match contract.sharing_profile() {
+                    gkm::SharingProfile::FullShares => client.begin_wire(context, &calls),
+                    gkm::SharingProfile::Aes128WindowV1 => {
+                        client.begin_seeded_wire(context, &calls)
+                    }
+                }
+                .map_err(|error| error.to_string())?,
+            )
+        };
         let request = window.request_id();
         Ok(Self {
             contract,
@@ -126,6 +227,8 @@ impl GkmTransportClient {
             calls,
             ordinal: 0,
             pending: None,
+            pending_rows: 0,
+            batches,
             source,
             context,
             publication_digest,
@@ -135,6 +238,10 @@ impl GkmTransportClient {
 
     pub fn contract_bytes(&self) -> Vec<u8> {
         self.contract.canonical_bytes()
+    }
+
+    pub fn execution(&self) -> Option<&'static str> {
+        self.contract.execution()
     }
 
     pub fn decoder_bytes(&self) -> Vec<u8> {
@@ -194,13 +301,56 @@ impl GkmTransportClient {
     }
 
     pub fn lookup(&mut self, token: usize) -> Result<[WireBytes; 2], String> {
+        self.lookup_rows(&[token])
+    }
+
+    /// One complete source-stage token lookup. Never splits or falls back to
+    /// scalar requests; wrong row counts retire the complete transaction.
+    pub fn lookup_batch(&mut self, tokens: &[usize]) -> Result<[WireBytes; 2], String> {
+        if self.contract.execution().is_none() {
+            self.abort();
+            return Err(reject("batch lookup requires source-stage batch execution"));
+        }
+        self.lookup_rows(tokens)
+    }
+
+    /// Non-mutating trusted geometry check before an outer-language tuple parse.
+    /// The bridge must first take ownership so parse errors still burn the owner.
+    pub fn lookup_batch_rows(&self) -> Result<usize, String> {
+        if self.contract.execution().is_none()
+            || self.window.is_none()
+            || self.pending.is_some()
+            || self.calls.get(self.ordinal) != Some(&Step::Lookup)
+        {
+            return Err(reject("transport batch lookup unavailable"));
+        }
+        self.next_rows()
+    }
+
+    fn next_rows(&self) -> Result<usize, String> {
+        if self.contract.execution().is_none() {
+            return Ok(1);
+        }
+        self.batches
+            .iter()
+            .find(|batch| batch.first_claim as usize == self.ordinal)
+            .map(|batch| batch.rows as usize)
+            .ok_or_else(|| reject("transport batch boundary mismatch"))
+    }
+
+    fn lookup_rows(&mut self, tokens: &[usize]) -> Result<[WireBytes; 2], String> {
         let result = (|| {
-            if self.pending.is_some() || self.calls.get(self.ordinal) != Some(&Step::Lookup) {
+            let rows = self.next_rows()?;
+            if self.pending.is_some()
+                || self.calls.get(self.ordinal) != Some(&Step::Lookup)
+                || tokens.len() != rows
+            {
                 return Err(reject("transport lookup order"));
             }
             let window = self.window.as_mut().ok_or_else(|| reject("retired"))?;
-            let requests = window.lookup(token).map_err(|error| error.to_string())?;
+            let requests = window.lookup(tokens).map_err(|error| error.to_string())?;
             self.pending = Some(Step::Lookup);
+            self.pending_rows = rows;
             Ok(requests)
         })();
         if result.is_err() {
@@ -211,8 +361,11 @@ impl GkmTransportClient {
 
     /// The same finite f32 -> f64 -> nearest-even/2048 -> signed-i64 boundary as
     /// the native reference. No bias, clipping, per-row scale or W8A8 conversion.
+    /// Selected batch execution requires all B source rows, row-major, in one
+    /// call; scalar execution continues to require exactly one original row.
     pub fn linear(&mut self, stage: usize, input_f32_le: &[u8]) -> Result<[WireBytes; 2], String> {
         let result = (|| {
+            let rows = self.next_rows()?;
             let spec = self
                 .contract
                 .decoder()
@@ -220,16 +373,31 @@ impl GkmTransportClient {
                 .get(stage)
                 .ok_or_else(|| reject("stage"))?;
             let step = Step::Linear(stage_id(spec));
+            let elements = spec
+                .columns
+                .checked_mul(rows)
+                .ok_or_else(|| reject("batch input shape overflow"))?;
+            let expected_bytes = elements
+                .checked_mul(4)
+                .ok_or_else(|| reject("batch input byte overflow"))?;
             if self.pending.is_some()
                 || self.calls.get(self.ordinal) != Some(&step)
-                || input_f32_le.len() != spec.columns * 4
+                || input_f32_le.len() != expected_bytes
             {
                 return Err(reject("transport linear order or input shape"));
             }
             let window = self.window.as_mut().ok_or_else(|| reject("retired"))?;
+            // Selected batches must reject every malformed numeric value before
+            // allocating their B*C encoded owner. Scalar behavior stays unchanged.
+            if self.contract.execution().is_some() {
+                for bytes in input_f32_le.chunks_exact(4) {
+                    gkm::encode_input(f64::from(f32::from_le_bytes(bytes.try_into().unwrap())))
+                        .map_err(|error| error.to_string())?;
+                }
+            }
             let mut input = Zeroizing::new(Vec::new());
             input
-                .try_reserve_exact(spec.columns)
+                .try_reserve_exact(elements)
                 .map_err(|_| reject("allocation"))?;
             for bytes in input_f32_le.chunks_exact(4) {
                 input.push(
@@ -239,12 +407,27 @@ impl GkmTransportClient {
             }
             let requests = window.linear(&input).map_err(|error| error.to_string())?;
             self.pending = Some(step);
+            self.pending_rows = rows;
             Ok(requests)
         })();
         if result.is_err() {
             self.abort();
         }
         result
+    }
+
+    /// Explicit bridge entry point; a scalar contract cannot silently execute a
+    /// batch request. Errors burn the same complete native transaction.
+    pub fn linear_batch(
+        &mut self,
+        stage: usize,
+        input_f32_le: &[u8],
+    ) -> Result<[WireBytes; 2], String> {
+        if self.contract.execution().is_none() {
+            self.abort();
+            return Err(reject("batch linear requires source-stage batch execution"));
+        }
+        self.linear(stage, input_f32_le)
     }
 
     /// Fix both role replies, use the original native hash/reconstruction and
@@ -264,13 +447,22 @@ impl GkmTransportClient {
                 .accept_replies(zero, one)
                 .map_err(|error| error.to_string())?;
             let bytes = float_bytes(tentative.values)?;
-            self.ordinal += 1;
+            self.ordinal += self.pending_rows;
+            self.pending_rows = 0;
             Ok(bytes)
         })();
         if result.is_err() {
             self.abort();
         }
         result
+    }
+
+    pub fn accept_batch(&mut self, zero: &[u8], one: &[u8]) -> Result<Vec<u8>, String> {
+        if self.contract.execution().is_none() {
+            self.abort();
+            return Err(reject("batch accept requires source-stage batch execution"));
+        }
+        self.accept(zero, one)
     }
 
     pub fn finish(&mut self) -> Result<Vec<u8>, String> {
@@ -313,6 +505,8 @@ impl GkmTransportClient {
         self.window = None;
         self.publication = None;
         self.pending = None;
+        self.pending_rows = 0;
+        self.batches.clear();
         self.local.clear();
     }
 }
@@ -322,7 +516,8 @@ impl GkmTransportClient {
 /// before this constructor returns. No private client input/token is retained.
 pub struct GkmTransportWorker {
     contract: GkmRuntimeContract,
-    window: Option<gkm::WorkerWireWindow>,
+    window: Option<WorkerWindow>,
+    resources: gkm::PublicationResources,
     owner: Option<gkm::WorkerWire>,
     source: [u8; 32],
     context: [u8; 32],
@@ -335,14 +530,14 @@ impl GkmTransportWorker {
     pub fn native_publication_resources(&self) -> Result<gkm::PublicationResources, String> {
         self.window
             .as_ref()
-            .map(gkm::WorkerWireWindow::publication_resources)
+            .map(|_| self.resources)
             .ok_or_else(|| reject("retired"))
     }
 
     pub fn request_id(&self) -> Result<[u8; 32], String> {
         self.window
             .as_ref()
-            .map(gkm::WorkerWireWindow::request_id)
+            .map(WorkerWindow::request_id)
             .ok_or_else(|| reject("retired"))
     }
 
@@ -392,19 +587,32 @@ impl GkmTransportWorker {
             return Err(reject("transport publication source mismatch"));
         }
         let context = request_context(&contract, source);
+        let resources = publication.resources();
+        let admission = contract.batch_admission(&publication)?;
         let ids: Vec<_> = contract.decoder().matrices.iter().map(stage_id).collect();
         let mut owner = gkm::WorkerWire::from_owned(publication, pin, role, &ids, matrices, table)
             .map_err(|error| error.to_string())?;
         drop(local);
-        let window = owner
-            .begin_bound(start, context, &calls)
-            .map_err(|error| error.to_string())?;
+        let window = if let Some(admission) = admission {
+            WorkerWindow::Batch(
+                owner
+                    .begin_batch_bound(start, context, &calls, admission)
+                    .map_err(|error| error.to_string())?,
+            )
+        } else {
+            WorkerWindow::Scalar(
+                owner
+                    .begin_bound(start, context, &calls)
+                    .map_err(|error| error.to_string())?,
+            )
+        };
         if window.sharing_profile() != contract.sharing_profile() {
             return Err(reject("transport sharing profile mismatch"));
         }
         Ok(Self {
             contract,
             window: Some(window),
+            resources,
             owner: Some(owner),
             source,
             context,
@@ -465,7 +673,20 @@ mod tests {
     use serde_json::json;
 
     fn contract(seeded: bool, decoder: bool) -> GkmRuntimeContract {
+        contract_mode(seeded, decoder, false, 1, 1)
+    }
+
+    fn contract_mode(
+        seeded: bool,
+        decoder: bool,
+        batch: bool,
+        rows: usize,
+        tokens: usize,
+    ) -> GkmRuntimeContract {
         let mut linear = json!({"sharing": if seeded { "seeded" } else { "full" }, "generation":"fixed_length_greedy"});
+        if batch {
+            linear["execution"] = json!("source_stage_batch_v1");
+        }
         if decoder {
             linear["capacity"] = json!("decoder");
         }
@@ -478,12 +699,12 @@ mod tests {
                     "topology":{"component":"pllm/two-online-delegation-workers/v1", "params":{}},
                     "state":{"component":"pllm/client-local-kv", "params":{}}
                 }}, "deployment":{"kind":"local", "root":"./seeded-wire"},
-                "budget":{"requests":1, "max_input_tokens":1, "max_new_tokens":1}})),
+                "budget":{"requests":1, "max_input_tokens":rows, "max_new_tokens":tokens}})),
             &canonical_bytes(&json!({"model_type":"qwen2", "hidden_size":8, "intermediate_size":16,
                 "num_hidden_layers":1, "num_attention_heads":2, "num_key_value_heads":1,
                 "vocab_size":16, "max_position_embeddings":16, "hidden_act":"silu",
                 "rms_norm_eps":1e-6, "rope_theta":10000.0, "tie_word_embeddings":true})),
-            1, 1, Digest::from_sha256([1; 32]), Digest::from_sha256([2; 32]),
+            rows, tokens, Digest::from_sha256([1; 32]), Digest::from_sha256([2; 32]),
         ).unwrap()
     }
 
@@ -500,6 +721,341 @@ mod tests {
             importer.push(&name, 0, &bytes).unwrap();
         }
         importer
+    }
+
+    fn mode_importer(
+        seeded: bool,
+        decoder: bool,
+        batch: bool,
+        rows: usize,
+        tokens: usize,
+    ) -> super::super::GkmTransportImport {
+        let contract = contract_mode(seeded, decoder, batch, rows, tokens);
+        let tensors: Vec<_> = contract
+            .decoder()
+            .source_shapes()
+            .iter()
+            .map(|(name, shape)| {
+                let values: Vec<u8> = (0..shape.iter().product::<usize>())
+                    .flat_map(|index| {
+                        let value = if index == 0 {
+                            -0.0f32
+                        } else {
+                            (index as f32 % 11.0 - 5.0) / 32.0
+                        };
+                        value.to_le_bytes()
+                    })
+                    .collect();
+                (name.clone(), values)
+            })
+            .collect();
+        let mut importer = super::super::GkmTransportImport::new(contract).unwrap();
+        for (name, bytes) in tensors {
+            importer.push(&name, 0, &bytes).unwrap();
+        }
+        importer
+    }
+
+    #[test]
+    fn source_stage_transport_matches_scalar_t1_t2_full_seeded_and_decode() {
+        for decoder in [false, true] {
+            for seeded in [false, true] {
+                for rows in [1, 2] {
+                    let mut outputs = Vec::new();
+                    let mut sources = Vec::new();
+                    for batch in [false, true] {
+                        let mut client = mode_importer(seeded, decoder, batch, rows, 2)
+                            .client()
+                            .unwrap();
+                        let source_plan = client.contract.decoder().batch_plan().unwrap();
+                        let batch_metadata: Option<serde_json::Value> = client
+                            .contract
+                            .batch_execution_bytes()
+                            .map(|bytes| serde_json::from_slice(&bytes).unwrap());
+                        assert_eq!(client.contract.execution().is_some(), batch);
+                        assert_eq!(client.contract.max_aggregate_bytes().is_some(), batch);
+                        sources.push(client.source);
+                        let publication = client.publication_bytes().unwrap();
+                        let pin = client.publication_digest();
+                        let starts = client.starts().unwrap();
+                        assert!(starts
+                            .iter()
+                            .all(|start| start.len() <= client.contract.scalar_frame_bytes()));
+                        let mut workers = [Worker::Zero, Worker::One].map(|role| {
+                            mode_importer(seeded, decoder, batch, rows, 2)
+                                .worker(
+                                    publication.as_bytes(),
+                                    pin,
+                                    role,
+                                    starts[if role == Worker::Zero { 0 } else { 1 }].as_bytes(),
+                                )
+                                .unwrap()
+                        });
+                        let mut values = Vec::new();
+                        for (batch_index, descriptor) in
+                            source_plan.descriptors().iter().enumerate()
+                        {
+                            let stage = match descriptor.step {
+                                Step::Lookup => None,
+                                Step::Linear(id) => Some(
+                                    client
+                                        .contract
+                                        .decoder()
+                                        .matrices
+                                        .iter()
+                                        .position(|matrix| stage_id(matrix) == id)
+                                        .unwrap(),
+                                ),
+                            };
+                            let count = descriptor.rows as usize;
+                            let inputs: Vec<u8> = if let Some(stage) = stage {
+                                (0..count * client.contract.decoder().matrices[stage].columns)
+                                    .flat_map(|index| {
+                                        ((index as f32 % 7.0 - 3.0) / 16.0).to_le_bytes()
+                                    })
+                                    .collect()
+                            } else {
+                                Vec::new()
+                            };
+                            for row in 0..if batch { 1 } else { count } {
+                                let requests = if let Some(stage) = stage {
+                                    let stride =
+                                        client.contract.decoder().matrices[stage].columns * 4;
+                                    client
+                                        .linear(
+                                            stage,
+                                            if batch {
+                                                &inputs
+                                            } else {
+                                                &inputs[row * stride..(row + 1) * stride]
+                                            },
+                                        )
+                                        .unwrap()
+                                } else if batch {
+                                    client
+                                        .lookup_batch(
+                                            &(0..count).map(|row| row + 3).collect::<Vec<_>>(),
+                                        )
+                                        .unwrap()
+                                } else {
+                                    client.lookup(row + 3).unwrap()
+                                };
+                                if batch {
+                                    assert_eq!(&requests[0].as_bytes()[..8], b"PLGKMB01");
+                                    let metadata = &batch_metadata.as_ref().unwrap()["descriptors"]
+                                        [batch_index];
+                                    assert_eq!(metadata["batch_index"], batch_index);
+                                    assert_eq!(metadata["first_claim"], descriptor.first_claim);
+                                    assert_eq!(metadata["phase_index"], descriptor.phase_index);
+                                    assert_eq!(
+                                        metadata["operation_index"],
+                                        descriptor.operation_index
+                                    );
+                                    assert_eq!(metadata["rows"], descriptor.rows);
+                                    assert_eq!(metadata["stage"], json!(stage));
+                                    assert_eq!(
+                                        metadata["kind"],
+                                        if stage.is_some() { "linear" } else { "lookup" }
+                                    );
+                                    let (columns, output_width) = stage.map_or(
+                                        (0, client.contract.decoder().width),
+                                        |index| {
+                                            let matrix = &client.contract.decoder().matrices[index];
+                                            (matrix.columns, matrix.rows)
+                                        },
+                                    );
+                                    assert_eq!(metadata["columns"], columns);
+                                    assert_eq!(metadata["output_width"], output_width);
+                                    for role in 0..2 {
+                                        assert_eq!(
+                                            metadata["request_bytes"][role],
+                                            requests[role].len()
+                                        );
+                                    }
+                                }
+                                assert!(requests.iter().all(|request| request.len()
+                                    <= client.contract.max_operation_frame_bytes()));
+                                let zero = workers[0].execute(requests[0].as_bytes()).unwrap();
+                                let one = workers[1].execute(requests[1].as_bytes()).unwrap();
+                                if batch {
+                                    let metadata = &batch_metadata.as_ref().unwrap()["descriptors"]
+                                        [batch_index];
+                                    assert_eq!(metadata["reply_bytes"][0], zero.len());
+                                    assert_eq!(metadata["reply_bytes"][1], one.len());
+                                }
+                                values.extend(
+                                    client.accept(zero.as_bytes(), one.as_bytes()).unwrap(),
+                                );
+                            }
+                        }
+                        let receipt: serde_json::Value =
+                            serde_json::from_slice(&client.finish().unwrap()).unwrap();
+                        assert_eq!(
+                            receipt["steps"],
+                            source_plan
+                                .descriptors()
+                                .iter()
+                                .map(|d| d.rows as usize)
+                                .sum::<usize>()
+                        );
+                        for worker in &mut workers {
+                            worker.finish().unwrap();
+                        }
+                        outputs.push(values);
+                    }
+                    assert_eq!(outputs[0], outputs[1]);
+                    assert_eq!(sources[0], sources[1]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn source_stage_transport_rejects_partial_rows_incomplete_and_tampering() {
+        let mut client = mode_importer(false, false, true, 2, 2).client().unwrap();
+        assert_eq!(client.lookup_batch_rows().unwrap(), 2);
+        assert_eq!(client.lookup_batch_rows().unwrap(), 2); // Getter cannot advance.
+        client.starts().unwrap();
+        assert!(client.lookup(3).is_err()); // Cannot microbatch a two-row lookup.
+        assert!(client.lookup_batch(&[3, 4]).is_err());
+        assert!(client.lookup_batch_rows().is_err());
+        let client = mode_importer(false, false, false, 2, 2).client().unwrap();
+        assert!(client.lookup_batch_rows().is_err());
+        let mut client = mode_importer(false, false, true, 2, 2).client().unwrap();
+        assert!(client.finish().is_err());
+        assert!(client.starts().is_err());
+        for seeded in [false, true] {
+            let mut client = mode_importer(seeded, false, true, 2, 2).client().unwrap();
+            let publication = client.publication_bytes().unwrap();
+            let pin = client.publication_digest();
+            let starts = client.starts().unwrap();
+            // Authenticated source alone is insufficient: SDK execution/context
+            // must match before a scalar worker can consume any selected start.
+            assert!(mode_importer(seeded, false, false, 2, 2)
+                .worker(
+                    publication.as_bytes(),
+                    pin,
+                    Worker::Zero,
+                    starts[0].as_bytes(),
+                )
+                .is_err());
+            let mut workers = [Worker::Zero, Worker::One].map(|role| {
+                mode_importer(seeded, false, true, 2, 2)
+                    .worker(
+                        publication.as_bytes(),
+                        pin,
+                        role,
+                        starts[if role == Worker::Zero { 0 } else { 1 }].as_bytes(),
+                    )
+                    .unwrap()
+            });
+            let requests = client.lookup_batch(&[3, 4]).unwrap();
+            assert!(client.lookup_batch_rows().is_err()); // Pending lookup, getter never consumes it.
+            let zero = workers[0].execute(requests[0].as_bytes()).unwrap();
+            let one = workers[1].execute(requests[1].as_bytes()).unwrap();
+            let mut tampered = one.as_bytes().to_vec();
+            let last = tampered.len() - 1;
+            tampered[last] ^= 1;
+            assert!(client.accept(zero.as_bytes(), &tampered).is_err());
+            assert!(client.finish().is_err());
+        }
+    }
+
+    #[test]
+    fn selected_worker_binds_expected_context_and_complete_schedule_at_native_entry() {
+        for decoder in [false, true] {
+            for seeded in [false, true] {
+                for wrong_schedule in [false, true] {
+                    let mut client = mode_importer(seeded, decoder, true, 2, 2).client().unwrap();
+                    let publication = client.publication_bytes().unwrap();
+                    let pin = client.publication_digest();
+                    // Independent imported publication supplies authenticated,
+                    // native-authored adversarial starts, not edited wire bytes.
+                    let imported = Arc::new(
+                        Publication::import_wire_streamed_single_window(
+                            publication.as_bytes(),
+                            pin,
+                            client.contract.decoder().capacity(),
+                        )
+                        .unwrap(),
+                    );
+                    let mut context = client.context;
+                    let mut calls = client.calls.clone();
+                    let mut descriptors = client.batches.clone();
+                    if wrong_schedule {
+                        let omitted = descriptors.pop().unwrap();
+                        calls.truncate(omitted.first_claim as usize);
+                    } else {
+                        context[0] ^= 1;
+                    }
+                    let plan = gkm::BatchPlan::new(&calls, &descriptors).unwrap();
+                    let admission = gkm::BatchAdmission::new(
+                        &imported,
+                        plan,
+                        client.contract.sharing_profile(),
+                    )
+                    .unwrap();
+                    let native = gkm::Client::new(Arc::clone(&imported), pin).unwrap();
+                    let mut native_window =
+                        native.begin_batch_wire(context, &calls, admission).unwrap();
+                    let starts = native_window.start_frames().unwrap();
+                    for role in [Worker::Zero, Worker::One] {
+                        let error = mode_importer(seeded, decoder, true, 2, 2)
+                            .worker(
+                                publication.as_bytes(),
+                                pin,
+                                role,
+                                starts[usize::from(role == Worker::One)].as_bytes(),
+                            )
+                            .err()
+                            .expect("worker must reject a foreign context or shortened schedule");
+                        assert_eq!(error, gkm::Error::Binding.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn batch_linear_rejects_bad_shape_and_late_nonfinite_encoding_and_burns_owner() {
+        for malformed in [0, 1, 2] {
+            let mut client = mode_importer(false, false, true, 2, 1).client().unwrap();
+            let publication = client.publication_bytes().unwrap();
+            let pin = client.publication_digest();
+            let starts = client.starts().unwrap();
+            let mut workers = [Worker::Zero, Worker::One].map(|role| {
+                mode_importer(false, false, true, 2, 1)
+                    .worker(
+                        publication.as_bytes(),
+                        pin,
+                        role,
+                        starts[if role == Worker::Zero { 0 } else { 1 }].as_bytes(),
+                    )
+                    .unwrap()
+            });
+            let requests = client.lookup_batch(&[3, 4]).unwrap();
+            let zero = workers[0].execute(requests[0].as_bytes()).unwrap();
+            let one = workers[1].execute(requests[1].as_bytes()).unwrap();
+            client
+                .accept_batch(zero.as_bytes(), one.as_bytes())
+                .unwrap();
+            assert!(client.lookup_batch_rows().is_err()); // Next source op is linear.
+            let columns = client.contract.decoder().matrices[0].columns;
+            let mut input = vec![0; columns * 2 * 4];
+            match malformed {
+                0 => input.truncate(columns * 4), // No partial source-stage fallback.
+                1 => {
+                    let n = input.len();
+                    input[n - 4..].copy_from_slice(&f32::INFINITY.to_le_bytes());
+                }
+                _ => {
+                    let n = input.len();
+                    input[n - 4..].copy_from_slice(&f32::MAX.to_le_bytes());
+                }
+            }
+            assert!(client.linear_batch(0, &input).is_err());
+            assert!(client.finish().is_err());
+        }
     }
 
     #[test]

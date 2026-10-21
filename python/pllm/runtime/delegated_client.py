@@ -31,7 +31,7 @@ from .client import (
     _normalized_inference_endpoint, _response_contract_fields,
 )
 from .delegated_decoder import GkmDecoderResult, result_payload_limit
-from .delegated_protocol import clear_failure_frames
+from .delegated_protocol import BATCH_EXECUTION, clear_failure_frames
 from .http_gateway import GatewayError, validate_response_body
 from .prepared_queue import PreparedCancellation, prepared_cancellation
 from .responses import normalize_input, prompt_text
@@ -48,6 +48,7 @@ _TRANSPORT_FIELDS = frozenset({
     "inference_server_ns", "inference_stage_calls", "online_steps",
     "generation_prefill_online_body_bytes", "generation_decode_online_body_bytes",
 })
+_BATCH_TRANSPORT_FIELDS = frozenset({"batch_exchanges", "native_scalar_claims"})
 _ROLE_FIELDS = frozenset(
     f"role_link.{role}.{phase}_{direction}_bytes"
     for role in ("worker_a", "worker_b")
@@ -163,7 +164,7 @@ class _DelegatedAudit(PrivacyAudit):
         self._totals = dict.fromkeys(fields, 0)
 
     def begin_transport(self):
-        for name in _TRANSPORT_FIELDS:
+        for name in _TRANSPORT_FIELDS | (_BATCH_TRANSPORT_FIELDS & self._totals.keys()):
             setattr(self, name, None)
         self.role_link_bodies.clear()
 
@@ -173,7 +174,7 @@ class _DelegatedAudit(PrivacyAudit):
             value = snapshot.get(name)
             total = None if value is None or prior is None else prior + value
             self._totals[name] = total
-            if name in _TRANSPORT_FIELDS:
+            if name in _TRANSPORT_FIELDS | _BATCH_TRANSPORT_FIELDS:
                 setattr(self, name, total)
             elif total is not None and name.startswith("role_link."):
                 _, role, metric = name.split(".", 2)
@@ -187,7 +188,8 @@ class _DelegatedAudit(PrivacyAudit):
             for role, counters in self.role_link_bodies.items():
                 values.update({f"role_link.{role}.{name}": value for name, value in counters.items()})
             values.update({name: value for name, value in self._totals.items()
-                           if name.startswith("peer_link.") and value is not None})
+                            if (name.startswith("peer_link.") or name in _BATCH_TRANSPORT_FIELDS)
+                            and value is not None})
             return values
 
 
@@ -229,6 +231,10 @@ class _Attempt:
                 or any(name not in self.owner.counter_fields or type(value) is not int
                        or not 0 <= value < 1 << 63 for name, value in counters.items())):
             raise ValueError("GKM transport audit must be one bounded nonnegative counter snapshot")
+        if (_BATCH_TRANSPORT_FIELDS <= self.owner.counter_fields
+                and "online_steps" in counters and "native_scalar_claims" in counters
+                and counters["online_steps"] != counters["native_scalar_claims"]):
+            raise ValueError("GKM transport audit scalar-step counters differ")
         self.transport_audit = dict(counters)
 
     def __iter__(self):
@@ -294,6 +300,9 @@ class DelegatedClient:
             raise ValueError("GKM runtime requires the compiled_gkm_v1 profile")
         budget = experiment.budget
         self._capacity = experiment.pipeline.components["linear"].params.get("capacity", "capsule")
+        if (self.runtime_id == "compiled_gkm_v1" and
+                experiment.pipeline.components["linear"].params.get("execution") == BATCH_EXECUTION):
+            self.counter_fields = self.counter_fields | _BATCH_TRANSPORT_FIELDS
         expanded = self._capacity == "decoder"
         if not (1 <= budget.max_input_tokens <= (512 if expanded else 32)
                 and 1 <= budget.max_new_tokens <= (65 if expanded else 9)
@@ -326,7 +335,7 @@ class DelegatedClient:
         self._tokenizer_scopes = set()
         self._result_hook = None
         self.records = OrderedDict()
-        self.audit = _DelegatedAudit(self._lock)
+        self.audit = _DelegatedAudit(self._lock, self.counter_fields)
         self.prepared_inventory_rows = 0
         self.prefill_cache_mode = "off"
         self.prefill_cache_bytes = 0
