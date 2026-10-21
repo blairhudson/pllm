@@ -66,8 +66,8 @@ def _material_delivery(record):
 
 def _online_schedule(record):
     schedule = record.get("online_schedule", "serial")
-    if type(schedule) is not str or schedule not in {"serial", "wavefront-v1"}:
-        raise FssSourceError("FuseFSS online schedule must be serial or wavefront-v1")
+    if type(schedule) is not str or schedule not in {"serial", "wavefront-v1", "tensor-v1"}:
+        raise FssSourceError("FuseFSS online schedule must be serial, wavefront-v1 or tensor-v1")
     return schedule
 
 
@@ -562,7 +562,8 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         if _locked(source.path, source.model, size, source._identities, capacity) != expected_lock:
             raise FssSourceError("FuseFSS source changed during import")
         _cancelled(cancelled)
-        program = builder.seal_wavefront() if _online_schedule(record) == "wavefront-v1" else builder.seal()
+        seal = {"serial": "seal", "wavefront-v1": "seal_wavefront", "tensor-v1": "seal_tensor"}[_online_schedule(record)]
+        program = getattr(builder, seal)()
         manifest_bytes = program.manifest(contract_bytes)
         manifest = _document(manifest_bytes, "program manifest", 1024)
         expected = {"schema": "pllm.fss.channel.program.v1", "contract": hashlib.sha256(contract_bytes).hexdigest(),

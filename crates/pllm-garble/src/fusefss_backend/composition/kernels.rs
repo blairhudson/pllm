@@ -807,6 +807,41 @@ pub fn stable_max(
     Ok((b.finish(&[value, index])?, metadata(2, result_range)))
 }
 
+/// Maximum of two scores and their opaque payloads; ties retain the left pair.
+/// Inputs are [left_score, left_payload, right_score, right_payload]. This does
+/// not compare payloads. An ordered tournament whose left subtree precedes its
+/// right subtree therefore retains the original lowest leaf on equal scores.
+pub fn max_left_on_tie(
+    binding: Binding,
+    ranges: [InputRange; 2],
+    payload_range: InputRange,
+    budget: &Budget,
+) -> Result<(Plan<'_>, Metadata), Error> {
+    checked(payload_range)?;
+    let mut h = hash(binding, b"max-pair-left-on-tie", &ranges)?;
+    h.update(payload_range.min.to_le_bytes());
+    h.update(payload_range.max.to_le_bytes());
+    interval(
+        i128::from(ranges[0].min) - i128::from(ranges[1].max),
+        i128::from(ranges[0].max) - i128::from(ranges[1].min),
+    )?;
+    let _scratch = budget.reserve(SCRATCH)?;
+    let mut b = builder(binding, h, 4, budget)?;
+    let left = b.input(0)?;
+    let lp = b.input(1)?;
+    let right = b.input(2)?;
+    let rp = b.input(3)?;
+    let delta = b.sub(left, right)?;
+    let choose_right = b.lt_signed(delta, 0)?;
+    let value = b.select(choose_right, right, left)?;
+    let payload = b.select(choose_right, rp, lp)?;
+    let result_range = InputRange {
+        min: ranges[0].min.max(ranges[1].min).min(payload_range.min),
+        max: ranges[0].max.max(ranges[1].max).max(payload_range.max),
+    };
+    Ok((b.finish(&[value, payload])?, metadata(2, result_range)))
+}
+
 /// Private additive residual; inputs [left,right], with explicit no-wrap proof.
 pub fn add(
     binding: Binding,

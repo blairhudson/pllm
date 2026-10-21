@@ -161,8 +161,27 @@ at layer 23 SiLU. A separate 1+1 control admits but retains 29,334 sequential pe
 exchanges per holder, roughly 19.6 minutes of waiting at 40 ms RTT before compute.
 Its packet allowance is 5.18 GB per holder, an upper-bound price rather than a
 measured transfer. No private request runs in either qualification control.
-Reduce public schedule duplication and carry wider bounded tensor waves before
-another long trained request; increasing capacity ceilings is not the solution.
+That result motivated compact public schedule ownership and wider bounded tensor
+waves; increasing capacity ceilings is not the solution.
+
+The subsequent explicit `online_schedule="tensor-v1"` shares instruction,
+register-description and dependency-span templates while retaining separate
+private registers and fresh material. Its compiler-owned ordered tree removes
+redundant private index comparisons without changing lowest-original-index ties.
+The composition and decoder suites pass 110 and 118 checks; the installed wheel
+passes 408 focused checks plus four three-process SDK/gateway checks. The
+[new generated WAN pair](../../docs/evidence/fusefss-tensor-wan-pair.json) observes
+35.749/34.732-second wavefront/tensor requests, equal output commitments and zero
+swap growth under the same caps and delay. Its separate cohort is not a trained
+performance result.
+
+Pinned tensor 4+1 qualification still rejects at the output head, with
+35,178,175,330 public-copy bytes against the unchanged 34,359,738,368-byte ceiling.
+The separate 1+1 control admits 19,229 peer exchanges per holder and 7.45 GB of
+complete native material. About 12.8 minutes of RTT waiting at 40 ms remains
+before compute; packet allowances still reach 4.17 GB per holder before HTTP
+metadata. No workers launch in these source-only controls. More dependent-round
+and material reduction remains necessary before another long trained request.
 
 Round reduction alone does not solve cold-request bytes. Reprice and measure the
 complete fresh-material delivery, source/setup scope, online traffic and aggregate

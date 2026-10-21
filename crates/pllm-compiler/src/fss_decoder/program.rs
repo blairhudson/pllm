@@ -11,12 +11,38 @@ pub enum OnlineSchedule {
     #[default]
     Serial,
     WavefrontV1,
+    TensorV1,
 }
 impl OnlineSchedule {
     pub fn name(self) -> &'static str {
         match self {
             Self::Serial => "serial",
             Self::WavefrontV1 => "wavefront-v1",
+            Self::TensorV1 => "tensor-v1",
+        }
+    }
+    pub fn uses_wavefront(self) -> bool {
+        self != Self::Serial
+    }
+    pub(super) fn lane_bound(
+        self,
+        plan: &pllm_garble::fusefss_backend::composition::Plan<'_>,
+    ) -> usize {
+        if self == Self::TensorV1 {
+            plan.tensor_repetition_bound()
+        } else {
+            plan.repetition_bound()
+        }
+    }
+    pub(super) fn repeat(
+        self,
+        plan: pllm_garble::fusefss_backend::composition::Plan<'_>,
+        lanes: usize,
+    ) -> Result<pllm_garble::fusefss_backend::composition::Plan<'_>, Error> {
+        if self == Self::TensorV1 {
+            plan.repeat_tensor(lanes)
+        } else {
+            plan.repeat(lanes)
         }
     }
 }
@@ -1343,6 +1369,9 @@ impl Program {
         if online == OnlineSchedule::WavefrontV1 {
             hash.update(b"online=wavefront-v1;independent-lanes;balanced-stable-selection\0");
         }
+        if online == OnlineSchedule::TensorV1 {
+            hash.update(b"online=tensor-v1;compact-template-lanes;bounded-frontier;balanced-stable-selection\0");
+        }
         hash.update(plan.digest().as_str().as_bytes());
         for n in [initial, selections, sequence, vocabulary] {
             hash.update((n as u64).to_le_bytes());
@@ -1413,7 +1442,7 @@ impl Program {
             + 8 * (sequence + selections)
             + gather_workspace
             + program.nodes.len() * std::mem::size_of::<Option<zeroize::Zeroizing<Vec<u64>>>>();
-        if online == OnlineSchedule::WavefrontV1 {
+        if online.uses_wavefront() {
             // Full tournament frontier plus bounded lane-major gather/output
             // overlap. Public geometry only, allocated before any private use.
             program.resources.live_array_bytes_per_party += 8 * (vocabulary + 1)

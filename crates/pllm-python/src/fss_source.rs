@@ -229,6 +229,22 @@ impl NativeSourceBuilder {
             pid: self.pid,
         })
     }
+
+    fn seal_tensor(&mut self, py: Python<'_>) -> PyResult<NativeProgram> {
+        let owner = self.take()?;
+        let imported = py
+            .detach(|| {
+                owner.seal_with_schedule(pllm_compiler::fss_decoder::OnlineSchedule::TensorV1)
+            })
+            .map_err(native_error)?;
+        Ok(NativeProgram {
+            program: Some(Arc::new(imported.program)),
+            input_digest: imported.input_digest,
+            execution_binding: imported.execution_binding,
+            ownership: imported.ownership,
+            pid: self.pid,
+        })
+    }
 }
 
 /// Immutable public data only. Every protected request receives a separate

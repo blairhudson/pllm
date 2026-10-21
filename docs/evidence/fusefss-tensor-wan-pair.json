@@ -1,0 +1,4424 @@
+{
+  "candidates": [
+    {
+      "configuration_digest": "fc895e099658affb7daf03f0646cdb651172886113cd7081cf901b9c5a370910",
+      "name": "generated-fss-dense-wavefront",
+      "pipeline": {
+        "components": {
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 1
+            }
+          },
+          "linear": {
+            "component": "pllm/fusefss-source-decoder/v1",
+            "params": {
+              "material_delivery": "batch-v1",
+              "numeric_profile": "fusefss.dense-rope-ring50-q12.v1",
+              "online_schedule": "wavefront-v1"
+            }
+          },
+          "state": {
+            "component": "pllm/fixed-count-private-prefix/v1",
+            "params": {}
+          },
+          "topology": {
+            "component": "pllm/trusted-dealer-two-share/v1",
+            "params": {}
+          }
+        },
+        "model": {
+          "local_files_only": true,
+          "source": "target/fusefss-dense-delivery-smoke/source"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "fixed_count_final_ids_delivery": true,
+          "memory_guard_passed": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "passed": true,
+          "sampling_matches_request": true,
+          "three_role_bodies_tracked": true
+        },
+        "client_body_placement": null,
+        "client_process_memory": {
+          "after": {
+            "lifetime_peak_rss_bytes": 113410048,
+            "rss_bytes": 113246208
+          },
+          "before": {
+            "lifetime_peak_rss_bytes": 47480832,
+            "rss_bytes": 47464448
+          },
+          "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+          "scope": "client and in-process dashboard; excludes provider processes and OS file cache"
+        },
+        "communication_per_token": {
+          "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "decode_scope": "online bodies after first output through completion, divided by N-1",
+          "denominator": "authoritative generated output tokens, not input tokens or output cap",
+          "runs": [
+            {
+              "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+              "covered_body_bytes": 14022118,
+              "covered_mb_per_output_token": 7.011059,
+              "decode_online_body_bytes": null,
+              "decode_online_mb_per_output_token": null,
+              "decode_output_tokens": null,
+              "generated_output_tokens": 2,
+              "online_body_bytes": 1716046,
+              "online_mb_per_output_token": 0.858023
+            }
+          ],
+          "schema": "pllm.communication_per_generated_token.v1",
+          "scope": "covered application bodies; no full wire or checkpoint download",
+          "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+          "summary": {
+            "cold_first_response_mb_per_output_token": 7.011059,
+            "covered_mb_per_output_token": 7.011059,
+            "decode_online_mb_per_output_token": null,
+            "generated_output_tokens": 2,
+            "online_mb_per_output_token": 0.858023,
+            "setup_inclusive_mb_per_output_token": 7.011059
+          },
+          "traffic_decomposition": {
+            "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+            "byte_unit": "decimal MB (1000000 bytes)",
+            "cache_state": {
+              "inventory_policy": "none",
+              "prefill_cache_bound_tokens": null,
+              "prefill_cache_mode": "exact"
+            },
+            "cold_first_request": {
+              "attribution_valid": false,
+              "base_all_link_body_bytes": null,
+              "base_all_link_mb_per_request": null,
+              "conservation_checked": true,
+              "generated_output_tokens": 2,
+              "headline_eligible": false,
+              "incremental_all_link_mb_per_generated_output": null,
+              "input_tokens": 1,
+              "known_base_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_body_bytes": 0,
+              "output_allowance": 2,
+              "output_dependent_all_link_body_bytes": null,
+              "schema": "pllm.benchmark_traffic_decomposition.v1",
+              "status": "Unattributed",
+              "total_all_link_body_bytes": 14022118,
+              "unattributed_all_link_body_bytes": 14022118,
+              "unused_output_material_body_bytes": null
+            },
+            "covered_lifecycle": {
+              "attribution_valid": false,
+              "base_all_link_body_bytes": null,
+              "conservation_checked": true,
+              "headline_eligible": false,
+              "known_base_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_body_bytes": 0,
+              "output_dependent_all_link_body_bytes": null,
+              "schema": "pllm.benchmark_traffic_decomposition.v1",
+              "status": "Unattributed",
+              "total_all_link_body_bytes": 14022118,
+              "unattributed_all_link_body_bytes": 14022118,
+              "unused_output_material_body_bytes": null
+            },
+            "law": "total = known base + known output-dependent + unattributed; unused material is included, not added",
+            "lifecycle_scope": "startup charged once to first warmup or first measured request; repeats exclude startup",
+            "packed_boundary_convention": "only whole-cohort serialized payload bytes classified; shared phase-boundary bytes stay residual",
+            "physical_wire_bytes": null,
+            "rate_scope": "workload-specific output-dependent average, not constant next-token marginal cost",
+            "repeat_requests": [],
+            "runs": [
+              {
+                "attribution": {
+                  "attribution_valid": false,
+                  "audit_counters": {
+                    "bundle_network_bytes": 0,
+                    "correction_ack_accounted_push_bytes": 0,
+                    "correction_ack_bytes": 0,
+                    "correction_push_bytes": 0,
+                    "decode_epochs_started": 0,
+                    "generation_attribution_supported_responses": 0,
+                    "generation_completed_responses": 1,
+                    "generation_decode_output_tokens": 1,
+                    "generation_executed_decode_steps": 1,
+                    "generation_output_tokens": 2,
+                    "generation_requested_output_tokens": 2,
+                    "inference_control_download_bytes": 2860,
+                    "inference_control_upload_bytes": 65406,
+                    "inference_download_bytes": 1540,
+                    "inference_upload_bytes": 304,
+                    "inflight_joins": 0,
+                    "inflight_producer_registrations": 0,
+                    "preparation_attributed_body_bytes": 0,
+                    "preparation_control_download_bytes": 0,
+                    "preparation_control_upload_bytes": 0,
+                    "preparation_decode_material_body_bytes": 0,
+                    "preparation_decode_rows_issued": 0,
+                    "preparation_download_bytes": 0,
+                    "preparation_padding_rows_issued": 0,
+                    "preparation_prefill_material_body_bytes": 0,
+                    "preparation_prefill_rows_issued": 0,
+                    "preparation_upload_bytes": 0,
+                    "prepared_stage_rows_burned": 0,
+                    "prepared_stage_rows_claimed": 0,
+                    "prepared_stage_rows_discarded": 0,
+                    "prepared_stage_rows_issued": 0,
+                    "prepared_stage_rows_reserved": 0,
+                    "public_prefix_artifact_local_bytes": 0,
+                    "session_authorization_download_bytes": 0,
+                    "session_authorization_upload_bytes": 0
+                  },
+                  "base_all_link_body_bytes": null,
+                  "components_body_bytes": {},
+                  "conservation_checked": true,
+                  "executed_decode_steps": 1,
+                  "generated_output_tokens": 2,
+                  "headline_eligible": false,
+                  "inventory_rows": {
+                    "burned": 0,
+                    "claimed": 0,
+                    "discarded": 0,
+                    "issued": 0,
+                    "reserved": 0
+                  },
+                  "known_base_all_link_body_bytes": 0,
+                  "known_output_dependent_all_link_body_bytes": 0,
+                  "output_allowance": 2,
+                  "output_dependent_all_link_body_bytes": null,
+                  "prepared_rows": {
+                    "decode": 0,
+                    "padding": 0,
+                    "prefill": 0
+                  },
+                  "reserved_equals_claimed_plus_burned": false,
+                  "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+                  "schema": "pllm.benchmark_traffic_decomposition.v1",
+                  "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+                  "status": "Unattributed",
+                  "total_all_link_body_bytes": 14022118,
+                  "unattributed_all_link_body_bytes": 14022118,
+                  "unknown_reasons": [
+                    "versioned phase/material counters not recorded"
+                  ],
+                  "unused_output_material_body_bytes": null
+                },
+                "attribution_valid": false,
+                "base_all_link_body_bytes": null,
+                "base_all_link_mb_per_request": null,
+                "cold": true,
+                "conservation_checked": true,
+                "generated_output_tokens": 2,
+                "headline_eligible": false,
+                "incremental_all_link_mb_per_generated_output": null,
+                "input_tokens": 1,
+                "known_base_all_link_body_bytes": 0,
+                "known_output_dependent_all_link_body_bytes": 0,
+                "known_output_dependent_all_link_mb_per_generated_output": null,
+                "output_allowance": 2,
+                "output_dependent_all_link_body_bytes": null,
+                "schema": "pllm.benchmark_traffic_decomposition.v1",
+                "status": "Unattributed",
+                "total_all_link_body_bytes": 14022118,
+                "unattributed_all_link_body_bytes": 14022118,
+                "unused_output_material_body_bytes": null
+              }
+            ],
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "scope": "measured directed all-link serialized application bodies; not TCP stream or physical wire",
+            "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+            "startup": {
+              "attribution": null,
+              "attribution_valid": false,
+              "base_all_link_body_bytes": null,
+              "base_all_link_mb_per_request": null,
+              "cold": null,
+              "conservation_checked": true,
+              "generated_output_tokens": null,
+              "headline_eligible": false,
+              "incremental_all_link_mb_per_generated_output": null,
+              "input_tokens": null,
+              "known_base_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_mb_per_generated_output": null,
+              "output_allowance": 2,
+              "output_dependent_all_link_body_bytes": null,
+              "schema": "pllm.benchmark_traffic_decomposition.v1",
+              "status": "Unattributed",
+              "total_all_link_body_bytes": 0,
+              "unattributed_all_link_body_bytes": 0,
+              "unused_output_material_body_bytes": null
+            },
+            "summary": {
+              "base_all_link_mb_per_request": null,
+              "generated_output_tokens": 2,
+              "incremental_all_link_mb_per_generated_output": null,
+              "measured_requests": 1,
+              "scope": "measured run windows only; cold startup and discarded warmups reported separately"
+            },
+            "tcp_stream_bytes": null,
+            "unmeasured": [
+              "HTTP/TLS/transport framing and retries outside audit coverage",
+              "checkpoint distribution and pre-positioned artifacts outside measured links",
+              "exact unused output material bytes unless directly measured"
+            ],
+            "warmups": [],
+            "windows_aligned": true
+          }
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "client_process_isolated": true,
+          "inventory_policy": "none",
+          "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+          "max_output_tokens": 2,
+          "model_id": "source",
+          "output_delivery": "buffered_final_ids",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "preparation_roles": [
+            "dealer"
+          ],
+          "prompt_digest": "a83078b67efa892aacb02554cb399a66f31f287aede7322e7040b8ec986bea9a",
+          "prompt_sequence_digest": null,
+          "provider_backend": "native",
+          "repetitions": 1,
+          "roles": [
+            "client",
+            "dealer",
+            "worker_a",
+            "worker_b"
+          ],
+          "runtime_kind": "fss",
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "639f678ab1b244431827ee95d778ebb85a1358e4e7d5d6f1ddb4541159950ecd",
+          "tiny": false,
+          "wan_emulation": true,
+          "wan_emulation_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "warmup_prompt_digest": "a83078b67efa892aacb02554cb399a66f31f287aede7322e7040b8ec986bea9a",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "fc895e099658affb7daf03f0646cdb651172886113cd7081cf901b9c5a370910",
+          "name": "generated-fss-dense-wavefront",
+          "pipeline_digest": "fcfbccf8ba6ff2790e60c8e4eab719d698328ae496fe4f54c8a1ee603dbfbc1e"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion",
+          "Final-only token disclosure buffers all output; TTFT measures final disclosure and emission/decode TPS is unsupported.",
+          "FuseFSS final-disclosure timing includes source admission and offline preprocessing inside the SDK call; the client online interval is unmeasured. Worker-local phase timings use their separately recorded scopes."
+        ],
+        "memory_guard": {
+          "maximum_host_swap_growth_bytes": 0,
+          "minimum_host_available_bytes": 13573718016,
+          "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+          "tripped": false
+        },
+        "memory_preflight": {
+          "admitted": true,
+          "candidates": {
+            "docker": {
+              "admitted": false,
+              "docker": null,
+              "expected_peak_bytes": 2480865312,
+              "reasons": [
+                "selected runtime requires native role owners; Docker is not admitted",
+                "Docker memory capacity is unavailable"
+              ],
+              "required_disk_bytes": 4294967296,
+              "required_host_bytes": 3101081640,
+              "safety_margin_bytes": 620216328
+            },
+            "native": {
+              "admitted": true,
+              "docker": null,
+              "expected_peak_bytes": 2514419744,
+              "reasons": [],
+              "required_disk_bytes": 4294967296,
+              "required_host_bytes": 3143024680,
+              "safety_margin_bytes": 628604936
+            }
+          },
+          "enforced_wan": true,
+          "estimate": {
+            "allocation_owners": {
+              "client": {
+                "hash_and_source_inspection_scratch": 4194304,
+                "http_control_overlap": 12713984,
+                "metadata_parse_copies": 185352,
+                "native_request_workspace": 8388608,
+                "tokenizer_parse_copies": 33554432
+              },
+              "client_sdk_supervisor_dashboard_processes": 3,
+              "each_role": {
+                "http_native_aead_tape_overlap": 100761600,
+                "material_batch_python_overlap": 11014144,
+                "metadata_parse_copies": 185352,
+                "native_kernel_owner": 67108864,
+                "native_source_program_owner": 67108864,
+                "source_import_scratch": 4653056,
+                "thread_stack_allowance": 8388608
+              },
+              "relay_workspace_bytes": 33554432,
+              "source_metadata_preflight_bytes_per_process": 0
+            },
+            "allocation_slack_percent": 25,
+            "bundle_storage": "no source checkpoint delivery measured",
+            "client_peak_bytes": 1122371850,
+            "compiled_input_bound": 1,
+            "components": {
+              "checkpoint_byte_count_scope": "caller_supplied_or_float32_geometry_upper_bound_not_delivery",
+              "checkpoint_bytes": 184,
+              "fss_cumulative_packets_per_holder_bytes": 268435456,
+              "fss_encrypted_tape_disk_bytes": 2147483648,
+              "fss_guard_disk_bytes": 0,
+              "fss_packet_bound_bytes": 16777216,
+              "fss_source_disk_bytes": 0,
+              "fss_tape_disk_bytes": 2147483648,
+              "fss_tape_disk_scope": "two holder tapes plus two separate native replay guards",
+              "fss_tape_file_per_holder_bytes": 1073741824,
+              "per_engine_compiled_disk_bytes": 0,
+              "raw_client_bundle_bytes": 0,
+              "source_float32_bytes": 184
+            },
+            "concurrent_response_bound": 1,
+            "docker_provider_peak_bytes": {},
+            "fss_admission": {
+              "complete_program_resources": null,
+              "disk_price_scope": "capacity ceilings before native import",
+              "material_batch_memory_scope": "conservative transport envelope before native import",
+              "material_batch_native_in_kernel_owner": true,
+              "material_batch_native_reservation_bytes": null,
+              "material_batch_python_reservation_bytes": 11014144,
+              "material_delivery": "batch-v1",
+              "metadata_only": true,
+              "native_admission": {
+                "complete_live_accounting": null,
+                "domain_admission": null,
+                "geometry": "bounded",
+                "numeric": "not_performed",
+                "program_resources": null,
+                "range_obligations": null,
+                "rotary_f32_payloads": null,
+                "serving_qualified": false,
+                "source_minimum_owner_bytes": 2764,
+                "source_owner_reservation_bytes": null,
+                "source_pin": "caller_verified_required",
+                "tokenizer_pin": "caller_verified_required",
+                "transport_resources": null
+              },
+              "numeric_admission": "not_performed",
+              "serving_qualified": false,
+              "source_pins": {
+                "checkpoint": "c4036c51a309846f4ebafadb3baf1896be8c28d7e2d14922383685d5f4728e6f",
+                "config": "137379bdec5430c65eddfbc3ff05095594762645e4f64995ad9544f253cd11c3",
+                "source_lock": "639f678ab1b244431827ee95d778ebb85a1358e4e7d5d6f1ddb4541159950ecd",
+                "tokenizer": "6830f95c7c3d2e2d2adc25f28425b0c80abeef27fd4b5ada0fba7d950cc44bda"
+              },
+              "source_pins_verified": true,
+              "synthetic_nonzero_pins_used": false,
+              "transport_admission": null
+            },
+            "incremental_owner_bounds": {
+              "client": 67108864,
+              "client_execution": 67108864,
+              "per_role": 279449600,
+              "per_role_execution": 279449600,
+              "source_metadata_preflight": 0
+            },
+            "inventory_rows": 0,
+            "kernel": "cpu",
+            "limitations": [],
+            "mask_storage": "one-use offline tape",
+            "max_input_tokens": 1,
+            "max_output_tokens": 2,
+            "model_config_digest": "3faba80dd204758c1ac44208cfb081f67ed01dcfe34d94eaceee47d992294fe2",
+            "model_plan_digest": null,
+            "native_total_peak_bytes": 3101081640,
+            "pipeline_digest": "fcfbccf8ba6ff2790e60c8e4eab719d698328ae496fe4f54c8a1ee603dbfbc1e",
+            "preparation_kernel": "native_trusted_dealer",
+            "preparation_roles": [
+              "dealer"
+            ],
+            "preparation_storage": "dealer-generated encrypted holder disk tapes",
+            "provider_peak_bytes": {
+              "dealer": 659569930,
+              "worker_a": 659569930,
+              "worker_b": 659569930
+            },
+            "runtime_kind": "fss",
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "tensor_storage": "private complete-prefix recomputation; no persistent KV",
+            "weight_storage": "public original IEEE to exact nearest-even ring50/Q12"
+          },
+          "host": {
+            "admission_budget_bytes": 14303952896,
+            "availability_source": "macos_mach_dispatch_v2",
+            "available": 14303952896,
+            "cached": 4858118144,
+            "disk_free": 53165780992,
+            "free": 2393751552,
+            "pressure": "normal",
+            "purgeable": 172326912,
+            "reserve_bytes": 0,
+            "reusable": 7052083200,
+            "swap_used": 2904686592,
+            "total": 34359738368
+          },
+          "requested_backend": "native",
+          "runtime_floor_bytes": 628604936,
+          "schema": "pllm.benchmark_memory.v1",
+          "selected_backend": "native"
+        },
+        "native_network_accounting": {
+          "samples": {
+            "runs": [
+              {
+                "after": {
+                  "wan_emulation": {
+                    "backend": "native-shared-tcp-pacer",
+                    "burst_bytes": 16384,
+                    "client_stream_bytes": 86571,
+                    "conditions": {
+                      "download_mbps": 100.0,
+                      "parties": [],
+                      "role_parties": [],
+                      "schema": "pllm.wan_conditions.v1",
+                      "upload_mbps": 40.0
+                    },
+                    "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+                    "delay_buffer_bytes": 8388608,
+                    "delay_scope": "per-inter-party-direction propagation after rate admission; no TCP handshake emulation",
+                    "delay_slots": 1024,
+                    "delayed_chunks": 0,
+                    "directed_stream_bytes": {
+                      "client->dealer": 24529,
+                      "client->worker_a": 25017,
+                      "client->worker_b": 25017,
+                      "dealer->client": 3626,
+                      "dealer->worker_a": 6139023,
+                      "dealer->worker_b": 6139023,
+                      "worker_a->client": 4191,
+                      "worker_a->dealer": 10093,
+                      "worker_a->worker_b": 1099797,
+                      "worker_b->client": 4191,
+                      "worker_b->dealer": 10093,
+                      "worker_b->worker_a": 1099797
+                    },
+                    "elapsed_seconds": 39.30670441687107,
+                    "enforced": true,
+                    "excluded": [
+                      "IP/TCP headers, ACKs and retransmissions",
+                      "telemetry",
+                      "checkpoint distribution"
+                    ],
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+                    "max_connections": 32,
+                    "parties": {
+                      "client": {
+                        "download": {
+                          "admitted_bytes": 12008,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 74563,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "dealer": {
+                        "download": {
+                          "admitted_bytes": 44715,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 12281672,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "worker_a": {
+                        "download": {
+                          "admitted_bytes": 7263837,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 1114081,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "worker_b": {
+                        "download": {
+                          "admitted_bytes": 7263837,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 1114081,
+                          "bytes_per_second": 5000000.0
+                        }
+                      }
+                    },
+                    "peak_delayed_chunks": 25,
+                    "read_chunk_bytes": 8192,
+                    "role_parties": {
+                      "client": "client",
+                      "dealer": "dealer",
+                      "worker_a": "worker_a",
+                      "worker_b": "worker_b"
+                    },
+                    "schema": "pllm.native_wan.v1",
+                    "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+                    "total_stream_bytes": 14584397
+                  }
+                },
+                "before": {
+                  "wan_emulation": {
+                    "backend": "native-shared-tcp-pacer",
+                    "burst_bytes": 16384,
+                    "client_stream_bytes": 2811,
+                    "conditions": {
+                      "download_mbps": 100.0,
+                      "parties": [],
+                      "role_parties": [],
+                      "schema": "pllm.wan_conditions.v1",
+                      "upload_mbps": 40.0
+                    },
+                    "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+                    "delay_buffer_bytes": 8388608,
+                    "delay_scope": "per-inter-party-direction propagation after rate admission; no TCP handshake emulation",
+                    "delay_slots": 1024,
+                    "delayed_chunks": 0,
+                    "directed_stream_bytes": {
+                      "client->dealer": 450,
+                      "client->worker_a": 450,
+                      "client->worker_b": 450,
+                      "dealer->client": 483,
+                      "worker_a->client": 489,
+                      "worker_b->client": 489
+                    },
+                    "elapsed_seconds": 2.4756426671519876,
+                    "enforced": true,
+                    "excluded": [
+                      "IP/TCP headers, ACKs and retransmissions",
+                      "telemetry",
+                      "checkpoint distribution"
+                    ],
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+                    "max_connections": 32,
+                    "parties": {
+                      "client": {
+                        "download": {
+                          "admitted_bytes": 1461,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 1350,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "dealer": {
+                        "download": {
+                          "admitted_bytes": 450,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 483,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "worker_a": {
+                        "download": {
+                          "admitted_bytes": 450,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 489,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "worker_b": {
+                        "download": {
+                          "admitted_bytes": 450,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 489,
+                          "bytes_per_second": 5000000.0
+                        }
+                      }
+                    },
+                    "peak_delayed_chunks": 3,
+                    "read_chunk_bytes": 8192,
+                    "role_parties": {
+                      "client": "client",
+                      "dealer": "dealer",
+                      "worker_a": "worker_a",
+                      "worker_b": "worker_b"
+                    },
+                    "schema": "pllm.native_wan.v1",
+                    "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+                    "total_stream_bytes": 2811
+                  }
+                }
+              }
+            ],
+            "startup": {
+              "wan_emulation": {
+                "backend": "native-shared-tcp-pacer",
+                "burst_bytes": 16384,
+                "client_stream_bytes": 2811,
+                "conditions": {
+                  "download_mbps": 100.0,
+                  "parties": [],
+                  "role_parties": [],
+                  "schema": "pllm.wan_conditions.v1",
+                  "upload_mbps": 40.0
+                },
+                "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+                "delay_buffer_bytes": 8388608,
+                "delay_scope": "per-inter-party-direction propagation after rate admission; no TCP handshake emulation",
+                "delay_slots": 1024,
+                "delayed_chunks": 0,
+                "directed_stream_bytes": {
+                  "client->dealer": 450,
+                  "client->worker_a": 450,
+                  "client->worker_b": 450,
+                  "dealer->client": 483,
+                  "worker_a->client": 489,
+                  "worker_b->client": 489
+                },
+                "elapsed_seconds": 2.4753973754122853,
+                "enforced": true,
+                "excluded": [
+                  "IP/TCP headers, ACKs and retransmissions",
+                  "telemetry",
+                  "checkpoint distribution"
+                ],
+                "link_conditions": {
+                  "bytes_per_second": null,
+                  "latency_ms": 20,
+                  "loss_fraction": 0,
+                  "schema": "pllm.link_conditions.v1",
+                  "seed": 42
+                },
+                "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+                "max_connections": 32,
+                "parties": {
+                  "client": {
+                    "download": {
+                      "admitted_bytes": 1461,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 1350,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "dealer": {
+                    "download": {
+                      "admitted_bytes": 450,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 483,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "worker_a": {
+                    "download": {
+                      "admitted_bytes": 450,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 489,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "worker_b": {
+                    "download": {
+                      "admitted_bytes": 450,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 489,
+                      "bytes_per_second": 5000000.0
+                    }
+                  }
+                },
+                "peak_delayed_chunks": 3,
+                "read_chunk_bytes": 8192,
+                "role_parties": {
+                  "client": "client",
+                  "dealer": "dealer",
+                  "worker_a": "worker_a",
+                  "worker_b": "worker_b"
+                },
+                "schema": "pllm.native_wan.v1",
+                "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+                "total_stream_bytes": 2811
+              }
+            },
+            "warmups": []
+          },
+          "schema": "pllm.native_network_accounting.v1",
+          "scope": "native shared TCP-stream caps; kernel headers/retransmissions and telemetry excluded"
+        },
+        "native_process_memory": {
+          "complete": true,
+          "limitations": "sampling can miss short peaks; shared pages may count in more than one process; excludes OS file cache and GPU allocations not charged to process RSS",
+          "maximum_sample_span_seconds": 0.0017209583893418312,
+          "sample_interval_seconds": 0.05,
+          "sampled_total_peak_rss_bytes": 423542784,
+          "samples": 690,
+          "schema": "pllm.native_process_memory.v1",
+          "scope": "same-window sum of client/dashboard and live provider RSS, startup through responses; includes native relay and sampler"
+        },
+        "privacy_admission": {
+          "independent_operators_verified": false,
+          "reason": "loopback workers share one operator and host"
+        },
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 9.76931156,
+          "aggregate_startup_cpu_seconds": 1.541753968,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 1.904177,
+            "dealer": 1.1959389759999999,
+            "worker_a": 3.3474726400000003,
+            "worker_b": 3.3217229440000002
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 0.267474,
+            "dealer": 0.41820988400000003,
+            "worker_a": 0.43189818,
+            "worker_b": 0.424171904
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 1,
+            "durations": {
+              "final_disclosure_seconds": 34.814628917,
+              "full_seconds": 35.7487635,
+              "generation_seconds": null,
+              "online_seconds": null,
+              "preparation_seconds": null,
+              "tokens_per_second": null,
+              "transition_seconds": null,
+              "ttft_seconds": null
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "bdd5dbdcf03ded348607f1b9894b5b624cae972ea0aae6f93774c599f42388d1",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 0,
+              "generated": 0,
+              "required": 0,
+              "reused": 0
+            },
+            "max_output_tokens": 2,
+            "measurement": {
+              "decode_tps_supported": false,
+              "decode_tps_unavailable_reason": "final_only_private_token_disclosure",
+              "output_delivery": "buffered_final_ids",
+              "ttft_scope": "sdk_call_to_final_disclosure_including_preprocessing"
+            },
+            "model_fingerprint": "1829eaa975e5b157d0964af9b7e1841918c15ff921f4ae7b9398eedd19288dfe",
+            "model_id": "source",
+            "network": {
+              "decode_online_body_bytes": null,
+              "decode_output_tokens": null,
+              "decode_scope": "unmeasured"
+            },
+            "phase_timing": {
+              "delivery_callback_seconds": 8.272010873,
+              "excludes": [
+                "source_import",
+                "native_role_bind",
+                "client_input_output_transport",
+                "retirement"
+              ],
+              "includes_failed_calls": true,
+              "online_scope": "maximum_holder_native_run_wall_not_client_online_interval",
+              "online_seconds": 25.298587459,
+              "online_seconds_by_holder": {
+                "worker_a": 25.298587459,
+                "worker_b": 25.254342916
+              },
+              "outside_callbacks_scope": "native_planning_issuance_encoding_and_bridge_not_pure_compute",
+              "preparation_outside_callbacks_seconds": 0.288666669,
+              "preparation_scope": "dealer_native_run_wall_including_serial_delivery_and_seal_callbacks",
+              "preparation_seconds": 8.655986834,
+              "seal_callback_seconds": 0.095309292
+            },
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 0,
+              "bundle_network_bytes": 0,
+              "correction_ack_accounted_push_bytes": 0,
+              "correction_ack_bytes": 0,
+              "correction_push_bytes": 0,
+              "correction_push_ns": 0,
+              "correlation_count": 0,
+              "decode_cache_branch_hits": 0,
+              "decode_cache_fully_warm_responses": 0,
+              "decode_cache_misses": 0,
+              "decode_cache_root_hits": 0,
+              "decode_cache_skipped_decode_steps": 0,
+              "decode_cache_skipped_prefill_tokens": 0,
+              "decode_cache_skipped_remote_rows": 0,
+              "decode_epoch_pause_ns": 0,
+              "decode_epoch_pauses": 0,
+              "decode_epochs_started": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "fss_storage.worker_a.read_bytes": 6229124,
+              "fss_storage.worker_a.write_bytes": 6229124,
+              "fss_storage.worker_b.read_bytes": 6229124,
+              "fss_storage.worker_b.write_bytes": 6229124,
+              "generation_attribution_supported_responses": 0,
+              "generation_completed_responses": 1,
+              "generation_decode_output_tokens": 1,
+              "generation_executed_decode_steps": 1,
+              "generation_output_tokens": 2,
+              "generation_remote_decode_steps": 1,
+              "generation_remote_prefill_tokens": 1,
+              "generation_remote_terminal_prefill_rows": 0,
+              "generation_requested_decode_steps": 1,
+              "generation_requested_output_tokens": 2,
+              "generation_requested_prefill_tokens": 1,
+              "inference_control_download_bytes": 2860,
+              "inference_control_upload_bytes": 65406,
+              "inference_download_bytes": 1540,
+              "inference_upload_bytes": 304,
+              "inflight_active_producers": 0,
+              "inflight_bound_rejections": 0,
+              "inflight_cache_bypasses": 0,
+              "inflight_cancellations": 0,
+              "inflight_cancelled_producers": 0,
+              "inflight_copy_bytes": 0,
+              "inflight_failures": 0,
+              "inflight_joins": 0,
+              "inflight_nodes": 0,
+              "inflight_peak_reserved_bytes": 0,
+              "inflight_pending_nodes": 0,
+              "inflight_prefill_tokens_reused": 0,
+              "inflight_producer_registrations": 0,
+              "inflight_publications": 0,
+              "inflight_requests": 0,
+              "inflight_reserved_bytes": 0,
+              "inflight_retired": 0,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 0,
+              "masked_online_upload_bytes": 0,
+              "nonlinear_chunks": 0,
+              "nonlinear_client_issuance_cpu_ns": 0,
+              "nonlinear_client_issuance_ns": 0,
+              "nonlinear_elements": 0,
+              "nonlinear_party_key_bytes": 0,
+              "nonlinear_peer_frame_bytes": 0,
+              "peer_link.dealer.worker_a.online_bytes": 0,
+              "peer_link.dealer.worker_a.setup_bytes": 6117056,
+              "peer_link.dealer.worker_b.online_bytes": 0,
+              "peer_link.dealer.worker_b.setup_bytes": 6117056,
+              "peer_link.worker_a.dealer.online_bytes": 0,
+              "peer_link.worker_a.dealer.setup_bytes": 1847,
+              "peer_link.worker_a.worker_b.online_bytes": 857101,
+              "peer_link.worker_a.worker_b.setup_bytes": 0,
+              "peer_link.worker_b.dealer.online_bytes": 0,
+              "peer_link.worker_b.dealer.setup_bytes": 1847,
+              "peer_link.worker_b.worker_a.online_bytes": 857101,
+              "peer_link.worker_b.worker_a.setup_bytes": 0,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 0,
+              "preparation_attributed_body_bytes": 0,
+              "preparation_control_download_bytes": 0,
+              "preparation_control_upload_bytes": 0,
+              "preparation_decode_material_body_bytes": 0,
+              "preparation_decode_rows_issued": 0,
+              "preparation_download_bytes": 0,
+              "preparation_failures": 0,
+              "preparation_padding_rows_issued": 0,
+              "preparation_prefill_material_body_bytes": 0,
+              "preparation_prefill_rows_issued": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 0,
+              "preparation_server_ns": 0,
+              "preparation_upload_bytes": 0,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 0,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 0,
+              "prepared_stage_rows_reserved": 0,
+              "private_boundary_body_coverage_failures": 0,
+              "private_boundary_head_calls": 0,
+              "private_boundary_head_download_bytes": 0,
+              "private_boundary_head_upload_bytes": 0,
+              "private_boundary_lookup_download_bytes": 0,
+              "private_boundary_lookup_rows": 0,
+              "private_boundary_lookup_upload_bytes": 0,
+              "public_context_bytes": 0,
+              "public_prefix_artifact_local_bytes": 0,
+              "role_link.dealer.online_download_bytes": 0,
+              "role_link.dealer.online_upload_bytes": 0,
+              "role_link.dealer.setup_download_bytes": 1178,
+              "role_link.dealer.setup_upload_bytes": 21802,
+              "role_link.dealer.teardown_download_bytes": 0,
+              "role_link.dealer.teardown_upload_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 770,
+              "role_link.worker_a.online_upload_bytes": 152,
+              "role_link.worker_a.setup_download_bytes": 841,
+              "role_link.worker_a.setup_upload_bytes": 21802,
+              "role_link.worker_a.teardown_download_bytes": 0,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 770,
+              "role_link.worker_b.online_upload_bytes": 152,
+              "role_link.worker_b.setup_download_bytes": 841,
+              "role_link.worker_b.setup_upload_bytes": 21802,
+              "role_link.worker_b.teardown_download_bytes": 0,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 0,
+              "session_authorization_upload_bytes": 0,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0,
+              "tokenizer_artifact_local_bytes": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 1.510501,
+                "rss_peak_bytes": null
+              },
+              "dealer": {
+                "cpu_seconds": 0.768651,
+                "phase_timing": {
+                  "delivery_callback_ns": 8272010873,
+                  "online_calls": 0,
+                  "online_ns": 0,
+                  "preparation_calls": 1,
+                  "preparation_ns": 8655986834,
+                  "seal_callback_ns": 95309292
+                },
+                "rss_peak_bytes": 109494272
+              },
+              "worker_a": {
+                "cpu_seconds": 2.906784,
+                "phase_timing": {
+                  "delivery_callback_ns": 0,
+                  "online_calls": 1,
+                  "online_ns": 25298587459,
+                  "preparation_calls": 0,
+                  "preparation_ns": 0,
+                  "seal_callback_ns": 0
+                },
+                "rss_peak_bytes": 100302848
+              },
+              "worker_b": {
+                "cpu_seconds": 2.888992,
+                "phase_timing": {
+                  "delivery_callback_ns": 0,
+                  "online_calls": 1,
+                  "online_ns": 25254342916,
+                  "preparation_calls": 0,
+                  "preparation_ns": 0,
+                  "seal_callback_ns": 0
+                },
+                "rss_peak_bytes": 100384768
+              }
+            },
+            "run_id": "bench-c154c3df51e5d526e446a8c411ee6a41",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1792545536384902000,
+              "first_token_at_ns": 1792545536384857000,
+              "last_token_at_ns": 1792545536384857000,
+              "online_started_at_ns": 1792543530495805000,
+              "preparation_finished_at_ns": null,
+              "preparation_started_at_ns": null,
+              "started_at_ns": 1792543529561702000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 1,
+              "output_tokens": 2,
+              "total_tokens": 3
+            },
+            "warm": false
+          }
+        ],
+        "runtime_contract": {
+          "admission_scope": "matching_three_role_native_manifests_and_completed_request",
+          "checkpoint_digest": "c4036c51a309846f4ebafadb3baf1896be8c28d7e2d14922383685d5f4728e6f",
+          "client_runtime": "compiled_fss_v1",
+          "complete_program_admitted": true,
+          "completed_program_geometry": {
+            "input_tokens": 1,
+            "output_tokens": 2
+          },
+          "cross_numeric_rankings_supported": false,
+          "decode_body_scope": "unmeasured",
+          "decode_tps_supported": false,
+          "decode_tps_unavailable_reason": "final_only_private_token_disclosure",
+          "eos_policy": "fixed_count",
+          "execution_payload_estimate_bytes": null,
+          "generation_policy": "fixed_length_greedy",
+          "input_tokens_bound": 1,
+          "kv_reuse": false,
+          "material_delivery": "batch-v1",
+          "matrix_count": 8,
+          "model_config_digest": "3faba80dd204758c1ac44208cfb081f67ed01dcfe34d94eaceee47d992294fe2",
+          "model_fingerprint": "1829eaa975e5b157d0964af9b7e1841918c15ff921f4ae7b9398eedd19288dfe",
+          "native_admission": {
+            "complete_live_accounting": null,
+            "domain_admission": null,
+            "geometry": "bounded",
+            "numeric": "not_performed",
+            "program_resources": null,
+            "range_obligations": null,
+            "rotary_f32_payloads": null,
+            "serving_qualified": false,
+            "source_minimum_owner_bytes": 2764,
+            "source_owner_reservation_bytes": null,
+            "source_pin": "caller_verified_required",
+            "tokenizer_pin": "caller_verified_required",
+            "transport_resources": null
+          },
+          "native_input_digest": "c6cd7d456d2c7dc082e157afd479aa331237379742910dd64394aa6a8d3d86ea",
+          "native_program_digest": "f9936ad56a62cab7918a9bb5d25505c380238953a81f7b4025aca3be8b760622",
+          "native_runtime_contract_digest": "dbd6b1abeeab546eb442e0240ffb64f83c6dec8599d5c5594e4e73e26bc69416",
+          "native_source_digest": "82ed7144dc3d409093914bdab8ba3caf06235f4fd2350d62c33f25a2cbf5f4e4",
+          "numeric": {
+            "external_encoding": "exact_ieee_nearest_even_q12",
+            "fractional_bits": 12,
+            "internal_rescale": "signed_floor",
+            "numeric_profile": "fusefss.dense-rope-ring50-q12.v1",
+            "ring_bits": 50,
+            "state": "private_complete_prefix"
+          },
+          "output_delivery": "buffered_final_ids",
+          "output_tokens_bound": 2,
+          "preparation_inventory": false,
+          "preparation_roles": [
+            "dealer"
+          ],
+          "program_resources": null,
+          "roles": [
+            "worker_a",
+            "worker_b",
+            "dealer"
+          ],
+          "runtime_kind": "fss",
+          "schema": "pllm.fss.benchmark_contract.v1",
+          "sharing": "two_holders_offline_dealer_public_weights",
+          "snapshot_pins": {
+            "checkpoint": "c4036c51a309846f4ebafadb3baf1896be8c28d7e2d14922383685d5f4728e6f",
+            "config": "137379bdec5430c65eddfbc3ff05095594762645e4f64995ad9544f253cd11c3",
+            "source_lock": "639f678ab1b244431827ee95d778ebb85a1358e4e7d5d6f1ddb4541159950ecd",
+            "tokenizer": "6830f95c7c3d2e2d2adc25f28425b0c80abeef27fd4b5ada0fba7d950cc44bda"
+          },
+          "source_checkpoint_delivery_measured": false,
+          "source_contract_bytes_sha256": "dbd6b1abeeab546eb442e0240ffb64f83c6dec8599d5c5594e4e73e26bc69416",
+          "source_float32_bytes": 184,
+          "source_lock_digest": "639f678ab1b244431827ee95d778ebb85a1358e4e7d5d6f1ddb4541159950ecd",
+          "tokenizer_digest": "6830f95c7c3d2e2d2adc25f28425b0c80abeef27fd4b5ada0fba7d950cc44bda",
+          "ttft_scope": "sdk_call_to_final_disclosure_including_preprocessing",
+          "verification_window": null,
+          "vocabulary": 3,
+          "width": 2
+        },
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": 14022118,
+          "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+          "cold_first_response_mb_per_output_token": 7.011059,
+          "completed_runs": 1,
+          "covered_mb_per_output_token": 7.011059,
+          "decode_online_mb_per_output_token": null,
+          "generated_output_tokens": 2,
+          "median_covered_all_link_serialized_body_bytes": 14022118,
+          "median_final_disclosure_seconds": 34.814628917,
+          "median_fss_dealer_preparation_seconds": 8.655986834,
+          "median_fss_delivery_callback_seconds": 8.272010873,
+          "median_fss_max_holder_native_run_seconds": 25.298587459,
+          "median_fss_preparation_outside_callbacks_seconds": 0.288666669,
+          "median_fss_seal_callback_seconds": 0.095309292,
+          "median_full_seconds": 35.7487635,
+          "median_online_all_link_serialized_body_bytes": 1716046,
+          "median_online_seconds": null,
+          "median_tokens_per_second": null,
+          "median_ttft_seconds": null,
+          "online_mb_per_output_token": 0.858023,
+          "setup_inclusive_mb_per_output_token": 7.011059,
+          "total_accounted_benchmark_body_bytes": 14022118,
+          "total_output_tokens": 2,
+          "total_run_covered_all_link_serialized_body_bytes": 14022118,
+          "total_run_full_seconds": 35.7487635,
+          "total_run_online_all_link_serialized_body_bytes": 1716046
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 8.074928,
+              "all_link_serialized_body_bytes": 14022118,
+              "body_bytes_by_edge": [
+                {
+                  "destination": "worker_a",
+                  "phase": "setup",
+                  "serialized_body_bytes": 21802,
+                  "source": "client"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "online",
+                  "serialized_body_bytes": 152,
+                  "source": "client"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 841,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 770,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "setup",
+                  "serialized_body_bytes": 21802,
+                  "source": "client"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "online",
+                  "serialized_body_bytes": 152,
+                  "source": "client"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 841,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 770,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "setup",
+                  "serialized_body_bytes": 21802,
+                  "source": "client"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 1178,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "setup",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "online",
+                  "serialized_body_bytes": 857101,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "setup",
+                  "serialized_body_bytes": 1847,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "setup",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "online",
+                  "serialized_body_bytes": 857101,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "setup",
+                  "serialized_body_bytes": 1847,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "setup",
+                  "serialized_body_bytes": 6117056,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "setup",
+                  "serialized_body_bytes": 6117056,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "dealer"
+                }
+              ],
+              "body_bytes_by_phase": {
+                "online": 1716046,
+                "setup": 12306072,
+                "teardown": 0
+              },
+              "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+              "client_serialized_body_bytes": 70110,
+              "decode_online_body_bytes": null,
+              "decode_output_tokens": null,
+              "excluded_costs": [
+                "HTTP/TLS framing",
+                "uninstrumented retries",
+                "source checkpoint delivery"
+              ],
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 1716046,
+              "online_client_serialized_body_bytes": 1844,
+              "phase_timing": {
+                "delivery_callback_seconds": 8.272010873,
+                "excludes": [
+                  "source_import",
+                  "native_role_bind",
+                  "client_input_output_transport",
+                  "retirement"
+                ],
+                "includes_failed_calls": true,
+                "online_scope": "maximum_holder_native_run_wall_not_client_online_interval",
+                "online_seconds": 25.298587459,
+                "online_seconds_by_holder": {
+                  "worker_a": 25.298587459,
+                  "worker_b": 25.254342916
+                },
+                "outside_callbacks_scope": "native_planning_issuance_encoding_and_bridge_not_pure_compute",
+                "preparation_outside_callbacks_seconds": 0.288666669,
+                "preparation_scope": "dealer_native_run_wall_including_serial_delivery_and_seal_callbacks",
+                "preparation_seconds": 8.655986834,
+                "seal_callback_seconds": 0.095309292
+              },
+              "preparation_inventory": false,
+              "preparation_roles": [
+                "dealer"
+              ],
+              "roles": [
+                "client",
+                "worker_a",
+                "worker_b",
+                "dealer"
+              ],
+              "run_window_cpu_seconds_by_role": {
+                "client": 1.510501,
+                "dealer": 0.768651,
+                "worker_a": 2.906784,
+                "worker_b": 2.888992
+              },
+              "schema": "pllm.fss.topology_body_accounting.v1",
+              "storage_bytes": {
+                "fss_storage.worker_a.read_bytes": 6229124,
+                "fss_storage.worker_a.write_bytes": 6229124,
+                "fss_storage.worker_b.read_bytes": 6229124,
+                "fss_storage.worker_b.write_bytes": 6229124
+              },
+              "storage_in_network_totals": false,
+              "streaming_ttft_supported": false,
+              "total_body_bytes": 14022118,
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true
+            }
+          ],
+          "startup": {
+            "aggregate_run_window_cpu_seconds": null,
+            "all_link_serialized_body_bytes": 0,
+            "body_bytes_by_edge": [
+              {
+                "destination": "worker_a",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "client",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "client",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "dealer",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "dealer",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "dealer",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "client",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "dealer",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "dealer",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "dealer",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "dealer",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              }
+            ],
+            "body_bytes_by_phase": {
+              "online": 0,
+              "setup": 0,
+              "teardown": 0
+            },
+            "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+            "client_serialized_body_bytes": 0,
+            "decode_online_body_bytes": null,
+            "decode_output_tokens": null,
+            "excluded_costs": [
+              "HTTP/TLS framing",
+              "uninstrumented retries",
+              "source checkpoint delivery"
+            ],
+            "full_response_compute_cap_checked": false,
+            "online_all_link_serialized_body_bytes": 0,
+            "online_client_serialized_body_bytes": 0,
+            "phase_timing": {
+              "delivery_callback_seconds": null,
+              "excludes": [
+                "source_import",
+                "native_role_bind",
+                "client_input_output_transport",
+                "retirement"
+              ],
+              "includes_failed_calls": true,
+              "online_scope": "maximum_holder_native_run_wall_not_client_online_interval",
+              "online_seconds": null,
+              "online_seconds_by_holder": {
+                "worker_a": null,
+                "worker_b": null
+              },
+              "outside_callbacks_scope": "native_planning_issuance_encoding_and_bridge_not_pure_compute",
+              "preparation_outside_callbacks_seconds": null,
+              "preparation_scope": "dealer_native_run_wall_including_serial_delivery_and_seal_callbacks",
+              "preparation_seconds": null,
+              "seal_callback_seconds": null
+            },
+            "preparation_inventory": false,
+            "preparation_roles": [
+              "dealer"
+            ],
+            "roles": [
+              "client",
+              "worker_a",
+              "worker_b",
+              "dealer"
+            ],
+            "run_window_cpu_seconds_by_role": null,
+            "schema": "pllm.fss.topology_body_accounting.v1",
+            "storage_bytes": {
+              "fss_storage.worker_a.read_bytes": 0,
+              "fss_storage.worker_a.write_bytes": 0,
+              "fss_storage.worker_b.read_bytes": 0,
+              "fss_storage.worker_b.write_bytes": 0
+            },
+            "storage_in_network_totals": false,
+            "streaming_ttft_supported": false,
+            "total_body_bytes": 0,
+            "total_wire_bytes": null,
+            "tracked_body_counter_set_present": true
+          },
+          "warmups": []
+        },
+        "traffic_decomposition": {
+          "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "cache_state": {
+            "inventory_policy": "none",
+            "prefill_cache_bound_tokens": null,
+            "prefill_cache_mode": "exact"
+          },
+          "cold_first_request": {
+            "attribution_valid": false,
+            "base_all_link_body_bytes": null,
+            "base_all_link_mb_per_request": null,
+            "conservation_checked": true,
+            "generated_output_tokens": 2,
+            "headline_eligible": false,
+            "incremental_all_link_mb_per_generated_output": null,
+            "input_tokens": 1,
+            "known_base_all_link_body_bytes": 0,
+            "known_output_dependent_all_link_body_bytes": 0,
+            "output_allowance": 2,
+            "output_dependent_all_link_body_bytes": null,
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Unattributed",
+            "total_all_link_body_bytes": 14022118,
+            "unattributed_all_link_body_bytes": 14022118,
+            "unused_output_material_body_bytes": null
+          },
+          "covered_lifecycle": {
+            "attribution_valid": false,
+            "base_all_link_body_bytes": null,
+            "conservation_checked": true,
+            "headline_eligible": false,
+            "known_base_all_link_body_bytes": 0,
+            "known_output_dependent_all_link_body_bytes": 0,
+            "output_dependent_all_link_body_bytes": null,
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Unattributed",
+            "total_all_link_body_bytes": 14022118,
+            "unattributed_all_link_body_bytes": 14022118,
+            "unused_output_material_body_bytes": null
+          },
+          "law": "total = known base + known output-dependent + unattributed; unused material is included, not added",
+          "lifecycle_scope": "startup charged once to first warmup or first measured request; repeats exclude startup",
+          "packed_boundary_convention": "only whole-cohort serialized payload bytes classified; shared phase-boundary bytes stay residual",
+          "physical_wire_bytes": null,
+          "rate_scope": "workload-specific output-dependent average, not constant next-token marginal cost",
+          "repeat_requests": [],
+          "runs": [
+            {
+              "attribution": {
+                "attribution_valid": false,
+                "audit_counters": {
+                  "bundle_network_bytes": 0,
+                  "correction_ack_accounted_push_bytes": 0,
+                  "correction_ack_bytes": 0,
+                  "correction_push_bytes": 0,
+                  "decode_epochs_started": 0,
+                  "generation_attribution_supported_responses": 0,
+                  "generation_completed_responses": 1,
+                  "generation_decode_output_tokens": 1,
+                  "generation_executed_decode_steps": 1,
+                  "generation_output_tokens": 2,
+                  "generation_requested_output_tokens": 2,
+                  "inference_control_download_bytes": 2860,
+                  "inference_control_upload_bytes": 65406,
+                  "inference_download_bytes": 1540,
+                  "inference_upload_bytes": 304,
+                  "inflight_joins": 0,
+                  "inflight_producer_registrations": 0,
+                  "preparation_attributed_body_bytes": 0,
+                  "preparation_control_download_bytes": 0,
+                  "preparation_control_upload_bytes": 0,
+                  "preparation_decode_material_body_bytes": 0,
+                  "preparation_decode_rows_issued": 0,
+                  "preparation_download_bytes": 0,
+                  "preparation_padding_rows_issued": 0,
+                  "preparation_prefill_material_body_bytes": 0,
+                  "preparation_prefill_rows_issued": 0,
+                  "preparation_upload_bytes": 0,
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 0,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 0,
+                  "prepared_stage_rows_reserved": 0,
+                  "public_prefix_artifact_local_bytes": 0,
+                  "session_authorization_download_bytes": 0,
+                  "session_authorization_upload_bytes": 0
+                },
+                "base_all_link_body_bytes": null,
+                "components_body_bytes": {},
+                "conservation_checked": true,
+                "executed_decode_steps": 1,
+                "generated_output_tokens": 2,
+                "headline_eligible": false,
+                "inventory_rows": {
+                  "burned": 0,
+                  "claimed": 0,
+                  "discarded": 0,
+                  "issued": 0,
+                  "reserved": 0
+                },
+                "known_base_all_link_body_bytes": 0,
+                "known_output_dependent_all_link_body_bytes": 0,
+                "output_allowance": 2,
+                "output_dependent_all_link_body_bytes": null,
+                "prepared_rows": {
+                  "decode": 0,
+                  "padding": 0,
+                  "prefill": 0
+                },
+                "reserved_equals_claimed_plus_burned": false,
+                "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+                "schema": "pllm.benchmark_traffic_decomposition.v1",
+                "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+                "status": "Unattributed",
+                "total_all_link_body_bytes": 14022118,
+                "unattributed_all_link_body_bytes": 14022118,
+                "unknown_reasons": [
+                  "versioned phase/material counters not recorded"
+                ],
+                "unused_output_material_body_bytes": null
+              },
+              "attribution_valid": false,
+              "base_all_link_body_bytes": null,
+              "base_all_link_mb_per_request": null,
+              "cold": true,
+              "conservation_checked": true,
+              "generated_output_tokens": 2,
+              "headline_eligible": false,
+              "incremental_all_link_mb_per_generated_output": null,
+              "input_tokens": 1,
+              "known_base_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_mb_per_generated_output": null,
+              "output_allowance": 2,
+              "output_dependent_all_link_body_bytes": null,
+              "schema": "pllm.benchmark_traffic_decomposition.v1",
+              "status": "Unattributed",
+              "total_all_link_body_bytes": 14022118,
+              "unattributed_all_link_body_bytes": 14022118,
+              "unused_output_material_body_bytes": null
+            }
+          ],
+          "schema": "pllm.benchmark_traffic_decomposition.v1",
+          "scope": "measured directed all-link serialized application bodies; not TCP stream or physical wire",
+          "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+          "startup": {
+            "attribution": null,
+            "attribution_valid": false,
+            "base_all_link_body_bytes": null,
+            "base_all_link_mb_per_request": null,
+            "cold": null,
+            "conservation_checked": true,
+            "generated_output_tokens": null,
+            "headline_eligible": false,
+            "incremental_all_link_mb_per_generated_output": null,
+            "input_tokens": null,
+            "known_base_all_link_body_bytes": 0,
+            "known_output_dependent_all_link_body_bytes": 0,
+            "known_output_dependent_all_link_mb_per_generated_output": null,
+            "output_allowance": 2,
+            "output_dependent_all_link_body_bytes": null,
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Unattributed",
+            "total_all_link_body_bytes": 0,
+            "unattributed_all_link_body_bytes": 0,
+            "unused_output_material_body_bytes": null
+          },
+          "summary": {
+            "base_all_link_mb_per_request": null,
+            "generated_output_tokens": 2,
+            "incremental_all_link_mb_per_generated_output": null,
+            "measured_requests": 1,
+            "scope": "measured run windows only; cold startup and discarded warmups reported separately"
+          },
+          "tcp_stream_bytes": null,
+          "unmeasured": [
+            "HTTP/TLS/transport framing and retries outside audit coverage",
+            "checkpoint distribution and pre-positioned artifacts outside measured links",
+            "exact unused output material bytes unless directly measured"
+          ],
+          "warmups": [],
+          "windows_aligned": true
+        },
+        "wan_readiness": {
+          "assumptions": [
+            "independent full-duplex upload/download ports",
+            "each party's peers share its access port"
+          ],
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "emulation": {
+            "backend": "native-shared-tcp-pacer",
+            "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+            "decode_scope": "first-to-last output interval with N-1 authoritative outputs",
+            "inter_party_links_present": true,
+            "internet_measurement": false,
+            "kernel_rate_snapshots_checked": false,
+            "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+            "native_delay_snapshots_checked": true,
+            "native_stream_rate_snapshots_checked": true,
+            "request_scope": "demand preparation and request execution; excludes provider startup and warmups",
+            "runs": [
+              {
+                "decode_output_tokens": 1,
+                "decode_seconds": null,
+                "decode_tokens_per_second": null,
+                "end_to_end_tokens_per_second": 0.05594599097112827,
+                "full_seconds": 35.7487635,
+                "generated_output_tokens": 2,
+                "online_seconds": null,
+                "online_tokens_per_second": null
+              }
+            ],
+            "schema": "pllm.measured_wan_throughput.v1",
+            "scope": "measured local inference under enforced shared party access rates and selected inter-party delay",
+            "summary": {
+              "decode_tokens_per_second": null,
+              "end_to_end_tokens_per_second": 0.05594599097112827,
+              "online_tokens_per_second": null
+            }
+          },
+          "internet_ready": null,
+          "measured_wan_latency_seconds": null,
+          "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+          "runs": [
+            {
+              "covered": {
+                "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+                "bottleneck": {
+                  "direction": "upload",
+                  "party_id": "dealer"
+                },
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 2.447058,
+                "parties": {
+                  "client": {
+                    "download_bytes": 4400,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.000352,
+                    "upload_bytes": 65710,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.013142
+                  },
+                  "dealer": {
+                    "download_bytes": 25496,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.00203968,
+                    "upload_bytes": 12235290,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 2.447058
+                  },
+                  "worker_a": {
+                    "download_bytes": 6996111,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.55968888,
+                    "upload_bytes": 860559,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.1721118
+                  },
+                  "worker_b": {
+                    "download_bytes": 6996111,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.55968888,
+                    "upload_bytes": 860559,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.1721118
+                  }
+                },
+                "wan_body_bytes": 14022118
+              },
+              "executed_role_parties": null,
+              "generated_output_tokens": 2,
+              "online": {
+                "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+                "bottleneck": {
+                  "direction": "upload",
+                  "party_id": "worker_a"
+                },
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.1715742,
+                "parties": {
+                  "client": {
+                    "download_bytes": 1540,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.0001232,
+                    "upload_bytes": 304,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 6.08e-05
+                  },
+                  "dealer": {
+                    "download_bytes": 0,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.0,
+                    "upload_bytes": 0,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0
+                  },
+                  "worker_a": {
+                    "download_bytes": 857253,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.06858024,
+                    "upload_bytes": 857871,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.1715742
+                  },
+                  "worker_b": {
+                    "download_bytes": 857253,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.06858024,
+                    "upload_bytes": 857871,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.1715742
+                  }
+                },
+                "wan_body_bytes": 1716046
+              }
+            }
+          ],
+          "schema": "pllm.wan_readiness.v1",
+          "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+          "summary": {
+            "online": {
+              "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "worker_a"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.1715742,
+              "parties": {
+                "client": {
+                  "download_bytes": 1540,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.0001232,
+                  "upload_bytes": 304,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 6.08e-05
+                },
+                "dealer": {
+                  "download_bytes": 0,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.0,
+                  "upload_bytes": 0,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0
+                },
+                "worker_a": {
+                  "download_bytes": 857253,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.06858024,
+                  "upload_bytes": 857871,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.1715742
+                },
+                "worker_b": {
+                  "download_bytes": 857253,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.06858024,
+                  "upload_bytes": 857871,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.1715742
+                }
+              },
+              "wan_body_bytes": 1716046
+            },
+            "online_generated_tokens_per_second_ceiling": 11.656764245440165,
+            "setup_inclusive": {
+              "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "dealer"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 2.447058,
+              "parties": {
+                "client": {
+                  "download_bytes": 4400,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.000352,
+                  "upload_bytes": 65710,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.013142
+                },
+                "dealer": {
+                  "download_bytes": 25496,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00203968,
+                  "upload_bytes": 12235290,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 2.447058
+                },
+                "worker_a": {
+                  "download_bytes": 6996111,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.55968888,
+                  "upload_bytes": 860559,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.1721118
+                },
+                "worker_b": {
+                  "download_bytes": 6996111,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.55968888,
+                  "upload_bytes": 860559,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.1721118
+                }
+              },
+              "wan_body_bytes": 14022118
+            },
+            "setup_inclusive_generated_tokens_per_second_ceiling": 0.8173079673632582
+          },
+          "unmeasured": [
+            "RTT and dependent protocol rounds",
+            "headers/TLS/ACKs, loss and retries",
+            "checkpoint distribution",
+            "WAN compute/queueing latency"
+          ]
+        },
+        "warmup_runs": []
+      }
+    },
+    {
+      "configuration_digest": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+      "name": "generated-fss-dense-tensor",
+      "pipeline": {
+        "components": {
+          "kernels": {
+            "component": "pllm/cpu",
+            "params": {
+              "threads": 1
+            }
+          },
+          "linear": {
+            "component": "pllm/fusefss-source-decoder/v1",
+            "params": {
+              "material_delivery": "batch-v1",
+              "numeric_profile": "fusefss.dense-rope-ring50-q12.v1",
+              "online_schedule": "tensor-v1"
+            }
+          },
+          "state": {
+            "component": "pllm/fixed-count-private-prefix/v1",
+            "params": {}
+          },
+          "topology": {
+            "component": "pllm/trusted-dealer-two-share/v1",
+            "params": {}
+          }
+        },
+        "model": {
+          "local_files_only": true,
+          "source": "target/fusefss-dense-delivery-smoke/source"
+        }
+      },
+      "report": {
+        "checks": {
+          "all_runs_completed": true,
+          "authoritative_token_usage": true,
+          "fixed_count_final_ids_delivery": true,
+          "memory_guard_passed": true,
+          "model_fingerprint_present": true,
+          "no_online_preparation_requests": true,
+          "no_plaintext_prompt_bytes_sent": true,
+          "no_plaintext_token_ids_sent": true,
+          "passed": true,
+          "sampling_matches_request": true,
+          "three_role_bodies_tracked": true
+        },
+        "client_body_placement": null,
+        "client_process_memory": {
+          "after": {
+            "lifetime_peak_rss_bytes": 111804416,
+            "rss_bytes": 111624192
+          },
+          "before": {
+            "lifetime_peak_rss_bytes": 47218688,
+            "rss_bytes": 47202304
+          },
+          "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
+          "scope": "client and in-process dashboard; excludes provider processes and OS file cache"
+        },
+        "communication_per_token": {
+          "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "decode_scope": "online bodies after first output through completion, divided by N-1",
+          "denominator": "authoritative generated output tokens, not input tokens or output cap",
+          "runs": [
+            {
+              "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+              "covered_body_bytes": 13916321,
+              "covered_mb_per_output_token": 6.9581605,
+              "decode_online_body_bytes": null,
+              "decode_online_mb_per_output_token": null,
+              "decode_output_tokens": null,
+              "generated_output_tokens": 2,
+              "online_body_bytes": 1690014,
+              "online_mb_per_output_token": 0.845007
+            }
+          ],
+          "schema": "pllm.communication_per_generated_token.v1",
+          "scope": "covered application bodies; no full wire or checkpoint download",
+          "setup_scope": "startup and discarded warmups charged once to measured-run output tokens",
+          "summary": {
+            "cold_first_response_mb_per_output_token": 6.9581605,
+            "covered_mb_per_output_token": 6.9581605,
+            "decode_online_mb_per_output_token": null,
+            "generated_output_tokens": 2,
+            "online_mb_per_output_token": 0.845007,
+            "setup_inclusive_mb_per_output_token": 6.9581605
+          },
+          "traffic_decomposition": {
+            "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+            "byte_unit": "decimal MB (1000000 bytes)",
+            "cache_state": {
+              "inventory_policy": "none",
+              "prefill_cache_bound_tokens": null,
+              "prefill_cache_mode": "exact"
+            },
+            "cold_first_request": {
+              "attribution_valid": false,
+              "base_all_link_body_bytes": null,
+              "base_all_link_mb_per_request": null,
+              "conservation_checked": true,
+              "generated_output_tokens": 2,
+              "headline_eligible": false,
+              "incremental_all_link_mb_per_generated_output": null,
+              "input_tokens": 1,
+              "known_base_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_body_bytes": 0,
+              "output_allowance": 2,
+              "output_dependent_all_link_body_bytes": null,
+              "schema": "pllm.benchmark_traffic_decomposition.v1",
+              "status": "Unattributed",
+              "total_all_link_body_bytes": 13916321,
+              "unattributed_all_link_body_bytes": 13916321,
+              "unused_output_material_body_bytes": null
+            },
+            "covered_lifecycle": {
+              "attribution_valid": false,
+              "base_all_link_body_bytes": null,
+              "conservation_checked": true,
+              "headline_eligible": false,
+              "known_base_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_body_bytes": 0,
+              "output_dependent_all_link_body_bytes": null,
+              "schema": "pllm.benchmark_traffic_decomposition.v1",
+              "status": "Unattributed",
+              "total_all_link_body_bytes": 13916321,
+              "unattributed_all_link_body_bytes": 13916321,
+              "unused_output_material_body_bytes": null
+            },
+            "law": "total = known base + known output-dependent + unattributed; unused material is included, not added",
+            "lifecycle_scope": "startup charged once to first warmup or first measured request; repeats exclude startup",
+            "packed_boundary_convention": "only whole-cohort serialized payload bytes classified; shared phase-boundary bytes stay residual",
+            "physical_wire_bytes": null,
+            "rate_scope": "workload-specific output-dependent average, not constant next-token marginal cost",
+            "repeat_requests": [],
+            "runs": [
+              {
+                "attribution": {
+                  "attribution_valid": false,
+                  "audit_counters": {
+                    "bundle_network_bytes": 0,
+                    "correction_ack_accounted_push_bytes": 0,
+                    "correction_ack_bytes": 0,
+                    "correction_push_bytes": 0,
+                    "decode_epochs_started": 0,
+                    "generation_attribution_supported_responses": 0,
+                    "generation_completed_responses": 1,
+                    "generation_decode_output_tokens": 1,
+                    "generation_executed_decode_steps": 1,
+                    "generation_output_tokens": 2,
+                    "generation_requested_output_tokens": 2,
+                    "inference_control_download_bytes": 2860,
+                    "inference_control_upload_bytes": 65397,
+                    "inference_download_bytes": 1540,
+                    "inference_upload_bytes": 304,
+                    "inflight_joins": 0,
+                    "inflight_producer_registrations": 0,
+                    "preparation_attributed_body_bytes": 0,
+                    "preparation_control_download_bytes": 0,
+                    "preparation_control_upload_bytes": 0,
+                    "preparation_decode_material_body_bytes": 0,
+                    "preparation_decode_rows_issued": 0,
+                    "preparation_download_bytes": 0,
+                    "preparation_padding_rows_issued": 0,
+                    "preparation_prefill_material_body_bytes": 0,
+                    "preparation_prefill_rows_issued": 0,
+                    "preparation_upload_bytes": 0,
+                    "prepared_stage_rows_burned": 0,
+                    "prepared_stage_rows_claimed": 0,
+                    "prepared_stage_rows_discarded": 0,
+                    "prepared_stage_rows_issued": 0,
+                    "prepared_stage_rows_reserved": 0,
+                    "public_prefix_artifact_local_bytes": 0,
+                    "session_authorization_download_bytes": 0,
+                    "session_authorization_upload_bytes": 0
+                  },
+                  "base_all_link_body_bytes": null,
+                  "components_body_bytes": {},
+                  "conservation_checked": true,
+                  "executed_decode_steps": 1,
+                  "generated_output_tokens": 2,
+                  "headline_eligible": false,
+                  "inventory_rows": {
+                    "burned": 0,
+                    "claimed": 0,
+                    "discarded": 0,
+                    "issued": 0,
+                    "reserved": 0
+                  },
+                  "known_base_all_link_body_bytes": 0,
+                  "known_output_dependent_all_link_body_bytes": 0,
+                  "output_allowance": 2,
+                  "output_dependent_all_link_body_bytes": null,
+                  "prepared_rows": {
+                    "decode": 0,
+                    "padding": 0,
+                    "prefill": 0
+                  },
+                  "reserved_equals_claimed_plus_burned": false,
+                  "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+                  "schema": "pllm.benchmark_traffic_decomposition.v1",
+                  "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+                  "status": "Unattributed",
+                  "total_all_link_body_bytes": 13916321,
+                  "unattributed_all_link_body_bytes": 13916321,
+                  "unknown_reasons": [
+                    "versioned phase/material counters not recorded"
+                  ],
+                  "unused_output_material_body_bytes": null
+                },
+                "attribution_valid": false,
+                "base_all_link_body_bytes": null,
+                "base_all_link_mb_per_request": null,
+                "cold": true,
+                "conservation_checked": true,
+                "generated_output_tokens": 2,
+                "headline_eligible": false,
+                "incremental_all_link_mb_per_generated_output": null,
+                "input_tokens": 1,
+                "known_base_all_link_body_bytes": 0,
+                "known_output_dependent_all_link_body_bytes": 0,
+                "known_output_dependent_all_link_mb_per_generated_output": null,
+                "output_allowance": 2,
+                "output_dependent_all_link_body_bytes": null,
+                "schema": "pllm.benchmark_traffic_decomposition.v1",
+                "status": "Unattributed",
+                "total_all_link_body_bytes": 13916321,
+                "unattributed_all_link_body_bytes": 13916321,
+                "unused_output_material_body_bytes": null
+              }
+            ],
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "scope": "measured directed all-link serialized application bodies; not TCP stream or physical wire",
+            "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+            "startup": {
+              "attribution": null,
+              "attribution_valid": false,
+              "base_all_link_body_bytes": null,
+              "base_all_link_mb_per_request": null,
+              "cold": null,
+              "conservation_checked": true,
+              "generated_output_tokens": null,
+              "headline_eligible": false,
+              "incremental_all_link_mb_per_generated_output": null,
+              "input_tokens": null,
+              "known_base_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_mb_per_generated_output": null,
+              "output_allowance": 2,
+              "output_dependent_all_link_body_bytes": null,
+              "schema": "pllm.benchmark_traffic_decomposition.v1",
+              "status": "Unattributed",
+              "total_all_link_body_bytes": 0,
+              "unattributed_all_link_body_bytes": 0,
+              "unused_output_material_body_bytes": null
+            },
+            "summary": {
+              "base_all_link_mb_per_request": null,
+              "generated_output_tokens": 2,
+              "incremental_all_link_mb_per_generated_output": null,
+              "measured_requests": 1,
+              "scope": "measured run windows only; cold startup and discarded warmups reported separately"
+            },
+            "tcp_stream_bytes": null,
+            "unmeasured": [
+              "HTTP/TLS/transport framing and retries outside audit coverage",
+              "checkpoint distribution and pre-positioned artifacts outside measured links",
+              "exact unused output material bytes unless directly measured"
+            ],
+            "warmups": [],
+            "windows_aligned": true
+          }
+        },
+        "configuration": {
+          "bundle_compression": "none",
+          "capture_output_digest": true,
+          "client_process_isolated": true,
+          "inventory_policy": "none",
+          "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+          "max_output_tokens": 2,
+          "model_id": "source",
+          "output_delivery": "buffered_final_ids",
+          "prefill_cache_bound_tokens": null,
+          "prefill_cache_mib": 0,
+          "prefill_cache_mode": "exact",
+          "preparation_roles": [
+            "dealer"
+          ],
+          "prompt_digest": "a83078b67efa892aacb02554cb399a66f31f287aede7322e7040b8ec986bea9a",
+          "prompt_sequence_digest": null,
+          "provider_backend": "native",
+          "repetitions": 1,
+          "roles": [
+            "client",
+            "dealer",
+            "worker_a",
+            "worker_b"
+          ],
+          "runtime_kind": "fss",
+          "sampling": {
+            "effective_temperature": 0.0,
+            "mode": "greedy",
+            "requested_temperature": 0.0,
+            "top_p": null
+          },
+          "source_lock_digest": "639f678ab1b244431827ee95d778ebb85a1358e4e7d5d6f1ddb4541159950ecd",
+          "tiny": false,
+          "wan_emulation": true,
+          "wan_emulation_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "warmup_prompt_digest": "a83078b67efa892aacb02554cb399a66f31f287aede7322e7040b8ec986bea9a",
+          "warmups": 0
+        },
+        "experiment": {
+          "configuration_digest": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+          "name": "generated-fss-dense-tensor",
+          "pipeline_digest": "c874f50b3fa003f36c898266353c2ab85bb9b0cf8a45013fd393bd8ff45ebbee"
+        },
+        "limitations": [
+          "single host and loopback network",
+          "diagnostic record, not a canonical EvidenceReport",
+          "does not establish model quality, energy, price, adversarial security, or non-collusion",
+          "Final-only token disclosure buffers all output; TTFT measures final disclosure and emission/decode TPS is unsupported.",
+          "FuseFSS final-disclosure timing includes source admission and offline preprocessing inside the SDK call; the client online interval is unmeasured. Worker-local phase timings use their separately recorded scopes."
+        ],
+        "memory_guard": {
+          "maximum_host_swap_growth_bytes": 0,
+          "minimum_host_available_bytes": 13483098112,
+          "scope": "0.25-second host pressure samples; not a peak client-memory measurement",
+          "tripped": false
+        },
+        "memory_preflight": {
+          "admitted": true,
+          "candidates": {
+            "docker": {
+              "admitted": false,
+              "docker": null,
+              "expected_peak_bytes": 2480865216,
+              "reasons": [
+                "selected runtime requires native role owners; Docker is not admitted",
+                "Docker memory capacity is unavailable"
+              ],
+              "required_disk_bytes": 4294967296,
+              "required_host_bytes": 3101081520,
+              "safety_margin_bytes": 620216304
+            },
+            "native": {
+              "admitted": true,
+              "docker": null,
+              "expected_peak_bytes": 2514419648,
+              "reasons": [],
+              "required_disk_bytes": 4294967296,
+              "required_host_bytes": 3143024560,
+              "safety_margin_bytes": 628604912
+            }
+          },
+          "enforced_wan": true,
+          "estimate": {
+            "allocation_owners": {
+              "client": {
+                "hash_and_source_inspection_scratch": 4194304,
+                "http_control_overlap": 12713984,
+                "metadata_parse_copies": 185328,
+                "native_request_workspace": 8388608,
+                "tokenizer_parse_copies": 33554432
+              },
+              "client_sdk_supervisor_dashboard_processes": 3,
+              "each_role": {
+                "http_native_aead_tape_overlap": 100761600,
+                "material_batch_python_overlap": 11014144,
+                "metadata_parse_copies": 185328,
+                "native_kernel_owner": 67108864,
+                "native_source_program_owner": 67108864,
+                "source_import_scratch": 4653056,
+                "thread_stack_allowance": 8388608
+              },
+              "relay_workspace_bytes": 33554432,
+              "source_metadata_preflight_bytes_per_process": 0
+            },
+            "allocation_slack_percent": 25,
+            "bundle_storage": "no source checkpoint delivery measured",
+            "client_peak_bytes": 1122371820,
+            "compiled_input_bound": 1,
+            "components": {
+              "checkpoint_byte_count_scope": "caller_supplied_or_float32_geometry_upper_bound_not_delivery",
+              "checkpoint_bytes": 184,
+              "fss_cumulative_packets_per_holder_bytes": 268435456,
+              "fss_encrypted_tape_disk_bytes": 2147483648,
+              "fss_guard_disk_bytes": 0,
+              "fss_packet_bound_bytes": 16777216,
+              "fss_source_disk_bytes": 0,
+              "fss_tape_disk_bytes": 2147483648,
+              "fss_tape_disk_scope": "two holder tapes plus two separate native replay guards",
+              "fss_tape_file_per_holder_bytes": 1073741824,
+              "per_engine_compiled_disk_bytes": 0,
+              "raw_client_bundle_bytes": 0,
+              "source_float32_bytes": 184
+            },
+            "concurrent_response_bound": 1,
+            "docker_provider_peak_bytes": {},
+            "fss_admission": {
+              "complete_program_resources": null,
+              "disk_price_scope": "capacity ceilings before native import",
+              "material_batch_memory_scope": "conservative transport envelope before native import",
+              "material_batch_native_in_kernel_owner": true,
+              "material_batch_native_reservation_bytes": null,
+              "material_batch_python_reservation_bytes": 11014144,
+              "material_delivery": "batch-v1",
+              "metadata_only": true,
+              "native_admission": {
+                "complete_live_accounting": null,
+                "domain_admission": null,
+                "geometry": "bounded",
+                "numeric": "not_performed",
+                "program_resources": null,
+                "range_obligations": null,
+                "rotary_f32_payloads": null,
+                "serving_qualified": false,
+                "source_minimum_owner_bytes": 2764,
+                "source_owner_reservation_bytes": null,
+                "source_pin": "caller_verified_required",
+                "tokenizer_pin": "caller_verified_required",
+                "transport_resources": null
+              },
+              "numeric_admission": "not_performed",
+              "serving_qualified": false,
+              "source_pins": {
+                "checkpoint": "c4036c51a309846f4ebafadb3baf1896be8c28d7e2d14922383685d5f4728e6f",
+                "config": "137379bdec5430c65eddfbc3ff05095594762645e4f64995ad9544f253cd11c3",
+                "source_lock": "639f678ab1b244431827ee95d778ebb85a1358e4e7d5d6f1ddb4541159950ecd",
+                "tokenizer": "6830f95c7c3d2e2d2adc25f28425b0c80abeef27fd4b5ada0fba7d950cc44bda"
+              },
+              "source_pins_verified": true,
+              "synthetic_nonzero_pins_used": false,
+              "transport_admission": null
+            },
+            "incremental_owner_bounds": {
+              "client": 67108864,
+              "client_execution": 67108864,
+              "per_role": 279449600,
+              "per_role_execution": 279449600,
+              "source_metadata_preflight": 0
+            },
+            "inventory_rows": 0,
+            "kernel": "cpu",
+            "limitations": [],
+            "mask_storage": "one-use offline tape",
+            "max_input_tokens": 1,
+            "max_output_tokens": 2,
+            "model_config_digest": "3faba80dd204758c1ac44208cfb081f67ed01dcfe34d94eaceee47d992294fe2",
+            "model_plan_digest": null,
+            "native_total_peak_bytes": 3101081520,
+            "pipeline_digest": "c874f50b3fa003f36c898266353c2ab85bb9b0cf8a45013fd393bd8ff45ebbee",
+            "preparation_kernel": "native_trusted_dealer",
+            "preparation_roles": [
+              "dealer"
+            ],
+            "preparation_storage": "dealer-generated encrypted holder disk tapes",
+            "provider_peak_bytes": {
+              "dealer": 659569900,
+              "worker_a": 659569900,
+              "worker_b": 659569900
+            },
+            "runtime_kind": "fss",
+            "scope": "conservative allocation estimate; not measured peak RSS",
+            "tensor_storage": "private complete-prefix recomputation; no persistent KV",
+            "weight_storage": "public original IEEE to exact nearest-even ring50/Q12"
+          },
+          "host": {
+            "admission_budget_bytes": 14263549952,
+            "availability_source": "macos_mach_dispatch_v2",
+            "available": 14263549952,
+            "cached": 4972265472,
+            "disk_free": 53165977600,
+            "free": 1435942912,
+            "pressure": "normal",
+            "purgeable": 167673856,
+            "reserve_bytes": 0,
+            "reusable": 7855341568,
+            "swap_used": 2896297984,
+            "total": 34359738368
+          },
+          "requested_backend": "native",
+          "runtime_floor_bytes": 628604912,
+          "schema": "pllm.benchmark_memory.v1",
+          "selected_backend": "native"
+        },
+        "native_network_accounting": {
+          "samples": {
+            "runs": [
+              {
+                "after": {
+                  "wan_emulation": {
+                    "backend": "native-shared-tcp-pacer",
+                    "burst_bytes": 16384,
+                    "client_stream_bytes": 86561,
+                    "conditions": {
+                      "download_mbps": 100.0,
+                      "parties": [],
+                      "role_parties": [],
+                      "schema": "pllm.wan_conditions.v1",
+                      "upload_mbps": 40.0
+                    },
+                    "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+                    "delay_buffer_bytes": 8388608,
+                    "delay_scope": "per-inter-party-direction propagation after rate admission; no TCP handshake emulation",
+                    "delay_slots": 1024,
+                    "delayed_chunks": 0,
+                    "directed_stream_bytes": {
+                      "client->dealer": 24526,
+                      "client->worker_a": 25014,
+                      "client->worker_b": 25014,
+                      "dealer->client": 3625,
+                      "dealer->worker_a": 6099145,
+                      "dealer->worker_b": 6099145,
+                      "worker_a->client": 4191,
+                      "worker_a->dealer": 10093,
+                      "worker_a->worker_b": 1081069,
+                      "worker_b->client": 4191,
+                      "worker_b->dealer": 10093,
+                      "worker_b->worker_a": 1081069
+                    },
+                    "elapsed_seconds": 37.607186208479106,
+                    "enforced": true,
+                    "excluded": [
+                      "IP/TCP headers, ACKs and retransmissions",
+                      "telemetry",
+                      "checkpoint distribution"
+                    ],
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+                    "max_connections": 32,
+                    "parties": {
+                      "client": {
+                        "download": {
+                          "admitted_bytes": 12007,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 74554,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "dealer": {
+                        "download": {
+                          "admitted_bytes": 44712,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 12201915,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "worker_a": {
+                        "download": {
+                          "admitted_bytes": 7205228,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 1095353,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "worker_b": {
+                        "download": {
+                          "admitted_bytes": 7205228,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 1095353,
+                          "bytes_per_second": 5000000.0
+                        }
+                      }
+                    },
+                    "peak_delayed_chunks": 25,
+                    "read_chunk_bytes": 8192,
+                    "role_parties": {
+                      "client": "client",
+                      "dealer": "dealer",
+                      "worker_a": "worker_a",
+                      "worker_b": "worker_b"
+                    },
+                    "schema": "pllm.native_wan.v1",
+                    "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+                    "total_stream_bytes": 14467175
+                  }
+                },
+                "before": {
+                  "wan_emulation": {
+                    "backend": "native-shared-tcp-pacer",
+                    "burst_bytes": 16384,
+                    "client_stream_bytes": 2811,
+                    "conditions": {
+                      "download_mbps": 100.0,
+                      "parties": [],
+                      "role_parties": [],
+                      "schema": "pllm.wan_conditions.v1",
+                      "upload_mbps": 40.0
+                    },
+                    "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+                    "delay_buffer_bytes": 8388608,
+                    "delay_scope": "per-inter-party-direction propagation after rate admission; no TCP handshake emulation",
+                    "delay_slots": 1024,
+                    "delayed_chunks": 0,
+                    "directed_stream_bytes": {
+                      "client->dealer": 450,
+                      "client->worker_a": 450,
+                      "client->worker_b": 450,
+                      "dealer->client": 483,
+                      "worker_a->client": 489,
+                      "worker_b->client": 489
+                    },
+                    "elapsed_seconds": 1.9214902920648456,
+                    "enforced": true,
+                    "excluded": [
+                      "IP/TCP headers, ACKs and retransmissions",
+                      "telemetry",
+                      "checkpoint distribution"
+                    ],
+                    "link_conditions": {
+                      "bytes_per_second": null,
+                      "latency_ms": 20,
+                      "loss_fraction": 0,
+                      "schema": "pllm.link_conditions.v1",
+                      "seed": 42
+                    },
+                    "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+                    "max_connections": 32,
+                    "parties": {
+                      "client": {
+                        "download": {
+                          "admitted_bytes": 1461,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 1350,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "dealer": {
+                        "download": {
+                          "admitted_bytes": 450,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 483,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "worker_a": {
+                        "download": {
+                          "admitted_bytes": 450,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 489,
+                          "bytes_per_second": 5000000.0
+                        }
+                      },
+                      "worker_b": {
+                        "download": {
+                          "admitted_bytes": 450,
+                          "bytes_per_second": 12500000.0
+                        },
+                        "upload": {
+                          "admitted_bytes": 489,
+                          "bytes_per_second": 5000000.0
+                        }
+                      }
+                    },
+                    "peak_delayed_chunks": 4,
+                    "read_chunk_bytes": 8192,
+                    "role_parties": {
+                      "client": "client",
+                      "dealer": "dealer",
+                      "worker_a": "worker_a",
+                      "worker_b": "worker_b"
+                    },
+                    "schema": "pllm.native_wan.v1",
+                    "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+                    "total_stream_bytes": 2811
+                  }
+                }
+              }
+            ],
+            "startup": {
+              "wan_emulation": {
+                "backend": "native-shared-tcp-pacer",
+                "burst_bytes": 16384,
+                "client_stream_bytes": 2811,
+                "conditions": {
+                  "download_mbps": 100.0,
+                  "parties": [],
+                  "role_parties": [],
+                  "schema": "pllm.wan_conditions.v1",
+                  "upload_mbps": 40.0
+                },
+                "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+                "delay_buffer_bytes": 8388608,
+                "delay_scope": "per-inter-party-direction propagation after rate admission; no TCP handshake emulation",
+                "delay_slots": 1024,
+                "delayed_chunks": 0,
+                "directed_stream_bytes": {
+                  "client->dealer": 450,
+                  "client->worker_a": 450,
+                  "client->worker_b": 450,
+                  "dealer->client": 483,
+                  "worker_a->client": 489,
+                  "worker_b->client": 489
+                },
+                "elapsed_seconds": 1.9211774580180645,
+                "enforced": true,
+                "excluded": [
+                  "IP/TCP headers, ACKs and retransmissions",
+                  "telemetry",
+                  "checkpoint distribution"
+                ],
+                "link_conditions": {
+                  "bytes_per_second": null,
+                  "latency_ms": 20,
+                  "loss_fraction": 0,
+                  "schema": "pllm.link_conditions.v1",
+                  "seed": 42
+                },
+                "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+                "max_connections": 32,
+                "parties": {
+                  "client": {
+                    "download": {
+                      "admitted_bytes": 1461,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 1350,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "dealer": {
+                    "download": {
+                      "admitted_bytes": 450,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 483,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "worker_a": {
+                    "download": {
+                      "admitted_bytes": 450,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 489,
+                      "bytes_per_second": 5000000.0
+                    }
+                  },
+                  "worker_b": {
+                    "download": {
+                      "admitted_bytes": 450,
+                      "bytes_per_second": 12500000.0
+                    },
+                    "upload": {
+                      "admitted_bytes": 489,
+                      "bytes_per_second": 5000000.0
+                    }
+                  }
+                },
+                "peak_delayed_chunks": 4,
+                "read_chunk_bytes": 8192,
+                "role_parties": {
+                  "client": "client",
+                  "dealer": "dealer",
+                  "worker_a": "worker_a",
+                  "worker_b": "worker_b"
+                },
+                "schema": "pllm.native_wan.v1",
+                "scope": "rate-admitted TCP payload; HTTP/WebSocket/TLS framing included; each directed stream counted once",
+                "total_stream_bytes": 2811
+              }
+            },
+            "warmups": []
+          },
+          "schema": "pllm.native_network_accounting.v1",
+          "scope": "native shared TCP-stream caps; kernel headers/retransmissions and telemetry excluded"
+        },
+        "native_process_memory": {
+          "complete": true,
+          "limitations": "sampling can miss short peaks; shared pages may count in more than one process; excludes OS file cache and GPU allocations not charged to process RSS",
+          "maximum_sample_span_seconds": 0.0008317911997437477,
+          "sample_interval_seconds": 0.05,
+          "sampled_total_peak_rss_bytes": 416727040,
+          "samples": 657,
+          "schema": "pllm.native_process_memory.v1",
+          "scope": "same-window sum of client/dashboard and live provider RSS, startup through responses; includes native relay and sampler"
+        },
+        "privacy_admission": {
+          "independent_operators_verified": false,
+          "reason": "loopback workers share one operator and host"
+        },
+        "process_cpu_accounting": {
+          "aggregate_cold_first_response_cpu_seconds": 7.310174472,
+          "aggregate_startup_cpu_seconds": 0.991843378,
+          "cold_first_response_cpu_seconds_by_role": {
+            "client": 1.517483,
+            "dealer": 0.93418456,
+            "worker_a": 2.442596848,
+            "worker_b": 2.415910064
+          },
+          "full_response_compute_cap_checked": false,
+          "schema": "pllm.topology_process_cpu.v1",
+          "scope": "dashboard/client CPU from benchmark startup and role CPU from process birth; through the first cold measured response",
+          "startup_cpu_seconds_by_role": {
+            "client": 0.229781,
+            "dealer": 0.325476536,
+            "worker_a": 0.219277504,
+            "worker_b": 0.21730833800000002
+          },
+          "unmeasured": [
+            "source resolution before dashboard startup, if any",
+            "accelerator compute, energy, and CPU after the first response",
+            "HTTP/TLS payload and control bytes outside the serialized-body ledger"
+          ]
+        },
+        "runs": [
+          {
+            "cold": true,
+            "context_tokens": 1,
+            "durations": {
+              "final_disclosure_seconds": 33.754429125,
+              "full_seconds": 34.732445958,
+              "generation_seconds": null,
+              "online_seconds": null,
+              "preparation_seconds": null,
+              "tokens_per_second": null,
+              "transition_seconds": null,
+              "ttft_seconds": null
+            },
+            "failure": null,
+            "generation": {
+              "output_text_digest": "bdd5dbdcf03ded348607f1b9894b5b624cae972ea0aae6f93774c599f42388d1",
+              "response_status": "incomplete"
+            },
+            "inventory": {
+              "burned": 0,
+              "consumed": 0,
+              "generated": 0,
+              "required": 0,
+              "reused": 0
+            },
+            "max_output_tokens": 2,
+            "measurement": {
+              "decode_tps_supported": false,
+              "decode_tps_unavailable_reason": "final_only_private_token_disclosure",
+              "output_delivery": "buffered_final_ids",
+              "ttft_scope": "sdk_call_to_final_disclosure_including_preprocessing"
+            },
+            "model_fingerprint": "1829eaa975e5b157d0964af9b7e1841918c15ff921f4ae7b9398eedd19288dfe",
+            "model_id": "source",
+            "network": {
+              "decode_online_body_bytes": null,
+              "decode_output_tokens": null,
+              "decode_scope": "unmeasured"
+            },
+            "phase_timing": {
+              "delivery_callback_seconds": 8.080565548,
+              "excludes": [
+                "source_import",
+                "native_role_bind",
+                "client_input_output_transport",
+                "retirement"
+              ],
+              "includes_failed_calls": true,
+              "online_scope": "maximum_holder_native_run_wall_not_client_online_interval",
+              "online_seconds": 24.502777917,
+              "online_seconds_by_holder": {
+                "worker_a": 24.502777917,
+                "worker_b": 24.457044291
+              },
+              "outside_callbacks_scope": "native_planning_issuance_encoding_and_bridge_not_pure_compute",
+              "preparation_outside_callbacks_seconds": 0.211258536,
+              "preparation_scope": "dealer_native_run_wall_including_serial_delivery_and_seal_callbacks",
+              "preparation_seconds": 8.386588167,
+              "seal_callback_seconds": 0.094764083
+            },
+            "privacy": {
+              "bundle_cache_corruptions": 0,
+              "bundle_cache_hits": 0,
+              "bundle_cache_misses": 0,
+              "bundle_network_bytes": 0,
+              "correction_ack_accounted_push_bytes": 0,
+              "correction_ack_bytes": 0,
+              "correction_push_bytes": 0,
+              "correction_push_ns": 0,
+              "correlation_count": 0,
+              "decode_cache_branch_hits": 0,
+              "decode_cache_fully_warm_responses": 0,
+              "decode_cache_misses": 0,
+              "decode_cache_root_hits": 0,
+              "decode_cache_skipped_decode_steps": 0,
+              "decode_cache_skipped_prefill_tokens": 0,
+              "decode_cache_skipped_remote_rows": 0,
+              "decode_epoch_pause_ns": 0,
+              "decode_epoch_pauses": 0,
+              "decode_epochs_started": 0,
+              "direct_fhe_download_bytes": 0,
+              "direct_fhe_steps": 0,
+              "direct_fhe_upload_bytes": 0,
+              "encrypted_correlation_download_bytes": 0,
+              "encrypted_correlation_upload_bytes": 0,
+              "fss_storage.worker_a.read_bytes": 6188352,
+              "fss_storage.worker_a.write_bytes": 6188352,
+              "fss_storage.worker_b.read_bytes": 6188352,
+              "fss_storage.worker_b.write_bytes": 6188352,
+              "generation_attribution_supported_responses": 0,
+              "generation_completed_responses": 1,
+              "generation_decode_output_tokens": 1,
+              "generation_executed_decode_steps": 1,
+              "generation_output_tokens": 2,
+              "generation_remote_decode_steps": 1,
+              "generation_remote_prefill_tokens": 1,
+              "generation_remote_terminal_prefill_rows": 0,
+              "generation_requested_decode_steps": 1,
+              "generation_requested_output_tokens": 2,
+              "generation_requested_prefill_tokens": 1,
+              "inference_control_download_bytes": 2860,
+              "inference_control_upload_bytes": 65397,
+              "inference_download_bytes": 1540,
+              "inference_upload_bytes": 304,
+              "inflight_active_producers": 0,
+              "inflight_bound_rejections": 0,
+              "inflight_cache_bypasses": 0,
+              "inflight_cancellations": 0,
+              "inflight_cancelled_producers": 0,
+              "inflight_copy_bytes": 0,
+              "inflight_failures": 0,
+              "inflight_joins": 0,
+              "inflight_nodes": 0,
+              "inflight_peak_reserved_bytes": 0,
+              "inflight_pending_nodes": 0,
+              "inflight_prefill_tokens_reused": 0,
+              "inflight_producer_registrations": 0,
+              "inflight_publications": 0,
+              "inflight_requests": 0,
+              "inflight_reserved_bytes": 0,
+              "inflight_retired": 0,
+              "kv_continuation_batched_hits": 0,
+              "kv_continuation_hits": 0,
+              "kv_continuation_legacy_sequential_hits": 0,
+              "kv_continuation_misses": 0,
+              "masked_online_download_bytes": 0,
+              "masked_online_upload_bytes": 0,
+              "nonlinear_chunks": 0,
+              "nonlinear_client_issuance_cpu_ns": 0,
+              "nonlinear_client_issuance_ns": 0,
+              "nonlinear_elements": 0,
+              "nonlinear_party_key_bytes": 0,
+              "nonlinear_peer_frame_bytes": 0,
+              "peer_link.dealer.worker_a.online_bytes": 0,
+              "peer_link.dealer.worker_a.setup_bytes": 6077178,
+              "peer_link.dealer.worker_b.online_bytes": 0,
+              "peer_link.dealer.worker_b.setup_bytes": 6077178,
+              "peer_link.worker_a.dealer.online_bytes": 0,
+              "peer_link.worker_a.dealer.setup_bytes": 1847,
+              "peer_link.worker_a.worker_b.online_bytes": 844085,
+              "peer_link.worker_a.worker_b.setup_bytes": 0,
+              "peer_link.worker_b.dealer.online_bytes": 0,
+              "peer_link.worker_b.dealer.setup_bytes": 1847,
+              "peer_link.worker_b.worker_a.online_bytes": 844085,
+              "peer_link.worker_b.worker_a.setup_bytes": 0,
+              "plaintext_prompt_bytes_sent": 0,
+              "plaintext_token_ids_sent": 0,
+              "prefill_cache_hits": 0,
+              "prefill_cache_misses": 0,
+              "prefill_prefix_tokens_reused": 0,
+              "preparation_attempts": 0,
+              "preparation_attributed_body_bytes": 0,
+              "preparation_control_download_bytes": 0,
+              "preparation_control_upload_bytes": 0,
+              "preparation_decode_material_body_bytes": 0,
+              "preparation_decode_rows_issued": 0,
+              "preparation_download_bytes": 0,
+              "preparation_failures": 0,
+              "preparation_padding_rows_issued": 0,
+              "preparation_prefill_material_body_bytes": 0,
+              "preparation_prefill_rows_issued": 0,
+              "preparation_requests_during_online": 0,
+              "preparation_rows": 0,
+              "preparation_server_ns": 0,
+              "preparation_upload_bytes": 0,
+              "prepared_stage_rows_burned": 0,
+              "prepared_stage_rows_claimed": 0,
+              "prepared_stage_rows_discarded": 0,
+              "prepared_stage_rows_issued": 0,
+              "prepared_stage_rows_reserved": 0,
+              "private_boundary_body_coverage_failures": 0,
+              "private_boundary_head_calls": 0,
+              "private_boundary_head_download_bytes": 0,
+              "private_boundary_head_upload_bytes": 0,
+              "private_boundary_lookup_download_bytes": 0,
+              "private_boundary_lookup_rows": 0,
+              "private_boundary_lookup_upload_bytes": 0,
+              "public_context_bytes": 0,
+              "public_prefix_artifact_local_bytes": 0,
+              "role_link.dealer.online_download_bytes": 0,
+              "role_link.dealer.online_upload_bytes": 0,
+              "role_link.dealer.setup_download_bytes": 1178,
+              "role_link.dealer.setup_upload_bytes": 21799,
+              "role_link.dealer.teardown_download_bytes": 0,
+              "role_link.dealer.teardown_upload_bytes": 0,
+              "role_link.worker_a.online_download_bytes": 770,
+              "role_link.worker_a.online_upload_bytes": 152,
+              "role_link.worker_a.setup_download_bytes": 841,
+              "role_link.worker_a.setup_upload_bytes": 21799,
+              "role_link.worker_a.teardown_download_bytes": 0,
+              "role_link.worker_a.teardown_upload_bytes": 0,
+              "role_link.worker_b.online_download_bytes": 770,
+              "role_link.worker_b.online_upload_bytes": 152,
+              "role_link.worker_b.setup_download_bytes": 841,
+              "role_link.worker_b.setup_upload_bytes": 21799,
+              "role_link.worker_b.teardown_download_bytes": 0,
+              "role_link.worker_b.teardown_upload_bytes": 0,
+              "session_authorization_download_bytes": 0,
+              "session_authorization_upload_bytes": 0,
+              "token_lookup_cache_hits": 0,
+              "token_lookup_cache_misses": 0,
+              "tokenizer_artifact_local_bytes": 0
+            },
+            "processes": {
+              "client": {
+                "cpu_seconds": 1.177098,
+                "rss_peak_bytes": null
+              },
+              "dealer": {
+                "cpu_seconds": 0.589073,
+                "phase_timing": {
+                  "delivery_callback_ns": 8080565548,
+                  "online_calls": 0,
+                  "online_ns": 0,
+                  "preparation_calls": 1,
+                  "preparation_ns": 8386588167,
+                  "seal_callback_ns": 94764083
+                },
+                "rss_peak_bytes": 104742912
+              },
+              "worker_a": {
+                "cpu_seconds": 2.207773,
+                "phase_timing": {
+                  "delivery_callback_ns": 0,
+                  "online_calls": 1,
+                  "online_ns": 24502777917,
+                  "preparation_calls": 0,
+                  "preparation_ns": 0,
+                  "seal_callback_ns": 0
+                },
+                "rss_peak_bytes": 100122624
+              },
+              "worker_b": {
+                "cpu_seconds": 2.18362,
+                "phase_timing": {
+                  "delivery_callback_ns": 0,
+                  "online_calls": 1,
+                  "online_ns": 24457044291,
+                  "preparation_calls": 0,
+                  "preparation_ns": 0,
+                  "seal_callback_ns": 0
+                },
+                "rss_peak_bytes": 100122624
+              }
+            },
+            "run_id": "bench-d47271241b14ae99233cc8b60e597d09",
+            "sampling": {
+              "effective_temperature": 0.0,
+              "mode": "greedy",
+              "requested_temperature": 0.0,
+              "top_p": null
+            },
+            "schema_version": 3,
+            "status": "completed",
+            "timestamps": {
+              "finished_at_ns": 1792548726240844000,
+              "first_token_at_ns": 1792548726240835000,
+              "last_token_at_ns": 1792548726240835000,
+              "online_started_at_ns": 1792546200398022000,
+              "preparation_finished_at_ns": null,
+              "preparation_started_at_ns": null,
+              "started_at_ns": 1792546199418150000
+            },
+            "tokens": {
+              "authoritative": true,
+              "input_tokens": 1,
+              "output_tokens": 2,
+              "total_tokens": 3
+            },
+            "warm": false
+          }
+        ],
+        "runtime_contract": {
+          "admission_scope": "matching_three_role_native_manifests_and_completed_request",
+          "checkpoint_digest": "c4036c51a309846f4ebafadb3baf1896be8c28d7e2d14922383685d5f4728e6f",
+          "client_runtime": "compiled_fss_v1",
+          "complete_program_admitted": true,
+          "completed_program_geometry": {
+            "input_tokens": 1,
+            "output_tokens": 2
+          },
+          "cross_numeric_rankings_supported": false,
+          "decode_body_scope": "unmeasured",
+          "decode_tps_supported": false,
+          "decode_tps_unavailable_reason": "final_only_private_token_disclosure",
+          "eos_policy": "fixed_count",
+          "execution_payload_estimate_bytes": null,
+          "generation_policy": "fixed_length_greedy",
+          "input_tokens_bound": 1,
+          "kv_reuse": false,
+          "material_delivery": "batch-v1",
+          "matrix_count": 8,
+          "model_config_digest": "3faba80dd204758c1ac44208cfb081f67ed01dcfe34d94eaceee47d992294fe2",
+          "model_fingerprint": "1829eaa975e5b157d0964af9b7e1841918c15ff921f4ae7b9398eedd19288dfe",
+          "native_admission": {
+            "complete_live_accounting": null,
+            "domain_admission": null,
+            "geometry": "bounded",
+            "numeric": "not_performed",
+            "program_resources": null,
+            "range_obligations": null,
+            "rotary_f32_payloads": null,
+            "serving_qualified": false,
+            "source_minimum_owner_bytes": 2764,
+            "source_owner_reservation_bytes": null,
+            "source_pin": "caller_verified_required",
+            "tokenizer_pin": "caller_verified_required",
+            "transport_resources": null
+          },
+          "native_input_digest": "c6cd7d456d2c7dc082e157afd479aa331237379742910dd64394aa6a8d3d86ea",
+          "native_program_digest": "91765b3f488ab55fbba9109807b2249c19d6eaa0dfe9ac1f167d7ffb428c959a",
+          "native_runtime_contract_digest": "96935fcbff56d7bd3fe68b336d27a8b9e6285b4910bae845319b248f16dc195d",
+          "native_source_digest": "82ed7144dc3d409093914bdab8ba3caf06235f4fd2350d62c33f25a2cbf5f4e4",
+          "numeric": {
+            "external_encoding": "exact_ieee_nearest_even_q12",
+            "fractional_bits": 12,
+            "internal_rescale": "signed_floor",
+            "numeric_profile": "fusefss.dense-rope-ring50-q12.v1",
+            "ring_bits": 50,
+            "state": "private_complete_prefix"
+          },
+          "output_delivery": "buffered_final_ids",
+          "output_tokens_bound": 2,
+          "preparation_inventory": false,
+          "preparation_roles": [
+            "dealer"
+          ],
+          "program_resources": null,
+          "roles": [
+            "worker_a",
+            "worker_b",
+            "dealer"
+          ],
+          "runtime_kind": "fss",
+          "schema": "pllm.fss.benchmark_contract.v1",
+          "sharing": "two_holders_offline_dealer_public_weights",
+          "snapshot_pins": {
+            "checkpoint": "c4036c51a309846f4ebafadb3baf1896be8c28d7e2d14922383685d5f4728e6f",
+            "config": "137379bdec5430c65eddfbc3ff05095594762645e4f64995ad9544f253cd11c3",
+            "source_lock": "639f678ab1b244431827ee95d778ebb85a1358e4e7d5d6f1ddb4541159950ecd",
+            "tokenizer": "6830f95c7c3d2e2d2adc25f28425b0c80abeef27fd4b5ada0fba7d950cc44bda"
+          },
+          "source_checkpoint_delivery_measured": false,
+          "source_contract_bytes_sha256": "96935fcbff56d7bd3fe68b336d27a8b9e6285b4910bae845319b248f16dc195d",
+          "source_float32_bytes": 184,
+          "source_lock_digest": "639f678ab1b244431827ee95d778ebb85a1358e4e7d5d6f1ddb4541159950ecd",
+          "tokenizer_digest": "6830f95c7c3d2e2d2adc25f28425b0c80abeef27fd4b5ada0fba7d950cc44bda",
+          "ttft_scope": "sdk_call_to_final_disclosure_including_preprocessing",
+          "verification_window": null,
+          "vocabulary": 3,
+          "width": 2
+        },
+        "schema_version": "pllm.loopback_benchmark.v1",
+        "scope": "single-host-loopback-diagnostic",
+        "summary": {
+          "accounted_setup_through_first_response_body_bytes": 13916321,
+          "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+          "cold_first_response_mb_per_output_token": 6.9581605,
+          "completed_runs": 1,
+          "covered_mb_per_output_token": 6.9581605,
+          "decode_online_mb_per_output_token": null,
+          "generated_output_tokens": 2,
+          "median_covered_all_link_serialized_body_bytes": 13916321,
+          "median_final_disclosure_seconds": 33.754429125,
+          "median_fss_dealer_preparation_seconds": 8.386588167,
+          "median_fss_delivery_callback_seconds": 8.080565548,
+          "median_fss_max_holder_native_run_seconds": 24.502777917,
+          "median_fss_preparation_outside_callbacks_seconds": 0.211258536,
+          "median_fss_seal_callback_seconds": 0.094764083,
+          "median_full_seconds": 34.732445958,
+          "median_online_all_link_serialized_body_bytes": 1690014,
+          "median_online_seconds": null,
+          "median_tokens_per_second": null,
+          "median_ttft_seconds": null,
+          "online_mb_per_output_token": 0.845007,
+          "setup_inclusive_mb_per_output_token": 6.9581605,
+          "total_accounted_benchmark_body_bytes": 13916321,
+          "total_output_tokens": 2,
+          "total_run_covered_all_link_serialized_body_bytes": 13916321,
+          "total_run_full_seconds": 34.732445958,
+          "total_run_online_all_link_serialized_body_bytes": 1690014
+        },
+        "topology_accounting": {
+          "runs": [
+            {
+              "aggregate_run_window_cpu_seconds": 6.157564,
+              "all_link_serialized_body_bytes": 13916321,
+              "body_bytes_by_edge": [
+                {
+                  "destination": "worker_a",
+                  "phase": "setup",
+                  "serialized_body_bytes": 21799,
+                  "source": "client"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "online",
+                  "serialized_body_bytes": 152,
+                  "source": "client"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 841,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 770,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "setup",
+                  "serialized_body_bytes": 21799,
+                  "source": "client"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "online",
+                  "serialized_body_bytes": 152,
+                  "source": "client"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 841,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 770,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "setup",
+                  "serialized_body_bytes": 21799,
+                  "source": "client"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "client"
+                },
+                {
+                  "destination": "client",
+                  "phase": "setup",
+                  "serialized_body_bytes": 1178,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "client",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "client",
+                  "phase": "teardown",
+                  "serialized_body_bytes": 0,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "setup",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "online",
+                  "serialized_body_bytes": 844085,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "setup",
+                  "serialized_body_bytes": 1847,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_a"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "setup",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "online",
+                  "serialized_body_bytes": 844085,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "setup",
+                  "serialized_body_bytes": 1847,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "dealer",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "worker_b"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "setup",
+                  "serialized_body_bytes": 6077178,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "worker_a",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "setup",
+                  "serialized_body_bytes": 6077178,
+                  "source": "dealer"
+                },
+                {
+                  "destination": "worker_b",
+                  "phase": "online",
+                  "serialized_body_bytes": 0,
+                  "source": "dealer"
+                }
+              ],
+              "body_bytes_by_phase": {
+                "online": 1690014,
+                "setup": 12226307,
+                "teardown": 0
+              },
+              "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+              "client_serialized_body_bytes": 70101,
+              "decode_online_body_bytes": null,
+              "decode_output_tokens": null,
+              "excluded_costs": [
+                "HTTP/TLS framing",
+                "uninstrumented retries",
+                "source checkpoint delivery"
+              ],
+              "full_response_compute_cap_checked": false,
+              "online_all_link_serialized_body_bytes": 1690014,
+              "online_client_serialized_body_bytes": 1844,
+              "phase_timing": {
+                "delivery_callback_seconds": 8.080565548,
+                "excludes": [
+                  "source_import",
+                  "native_role_bind",
+                  "client_input_output_transport",
+                  "retirement"
+                ],
+                "includes_failed_calls": true,
+                "online_scope": "maximum_holder_native_run_wall_not_client_online_interval",
+                "online_seconds": 24.502777917,
+                "online_seconds_by_holder": {
+                  "worker_a": 24.502777917,
+                  "worker_b": 24.457044291
+                },
+                "outside_callbacks_scope": "native_planning_issuance_encoding_and_bridge_not_pure_compute",
+                "preparation_outside_callbacks_seconds": 0.211258536,
+                "preparation_scope": "dealer_native_run_wall_including_serial_delivery_and_seal_callbacks",
+                "preparation_seconds": 8.386588167,
+                "seal_callback_seconds": 0.094764083
+              },
+              "preparation_inventory": false,
+              "preparation_roles": [
+                "dealer"
+              ],
+              "roles": [
+                "client",
+                "worker_a",
+                "worker_b",
+                "dealer"
+              ],
+              "run_window_cpu_seconds_by_role": {
+                "client": 1.177098,
+                "dealer": 0.589073,
+                "worker_a": 2.207773,
+                "worker_b": 2.18362
+              },
+              "schema": "pllm.fss.topology_body_accounting.v1",
+              "storage_bytes": {
+                "fss_storage.worker_a.read_bytes": 6188352,
+                "fss_storage.worker_a.write_bytes": 6188352,
+                "fss_storage.worker_b.read_bytes": 6188352,
+                "fss_storage.worker_b.write_bytes": 6188352
+              },
+              "storage_in_network_totals": false,
+              "streaming_ttft_supported": false,
+              "total_body_bytes": 13916321,
+              "total_wire_bytes": null,
+              "tracked_body_counter_set_present": true
+            }
+          ],
+          "startup": {
+            "aggregate_run_window_cpu_seconds": null,
+            "all_link_serialized_body_bytes": 0,
+            "body_bytes_by_edge": [
+              {
+                "destination": "worker_a",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "client",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "client",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "dealer",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "dealer",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "dealer",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "client"
+              },
+              {
+                "destination": "client",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "client",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "client",
+                "phase": "teardown",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "dealer",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "dealer",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_a"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "dealer",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "dealer",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "worker_b"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "worker_a",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "setup",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              },
+              {
+                "destination": "worker_b",
+                "phase": "online",
+                "serialized_body_bytes": 0,
+                "source": "dealer"
+              }
+            ],
+            "body_bytes_by_phase": {
+              "online": 0,
+              "setup": 0,
+              "teardown": 0
+            },
+            "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+            "client_serialized_body_bytes": 0,
+            "decode_online_body_bytes": null,
+            "decode_output_tokens": null,
+            "excluded_costs": [
+              "HTTP/TLS framing",
+              "uninstrumented retries",
+              "source checkpoint delivery"
+            ],
+            "full_response_compute_cap_checked": false,
+            "online_all_link_serialized_body_bytes": 0,
+            "online_client_serialized_body_bytes": 0,
+            "phase_timing": {
+              "delivery_callback_seconds": null,
+              "excludes": [
+                "source_import",
+                "native_role_bind",
+                "client_input_output_transport",
+                "retirement"
+              ],
+              "includes_failed_calls": true,
+              "online_scope": "maximum_holder_native_run_wall_not_client_online_interval",
+              "online_seconds": null,
+              "online_seconds_by_holder": {
+                "worker_a": null,
+                "worker_b": null
+              },
+              "outside_callbacks_scope": "native_planning_issuance_encoding_and_bridge_not_pure_compute",
+              "preparation_outside_callbacks_seconds": null,
+              "preparation_scope": "dealer_native_run_wall_including_serial_delivery_and_seal_callbacks",
+              "preparation_seconds": null,
+              "seal_callback_seconds": null
+            },
+            "preparation_inventory": false,
+            "preparation_roles": [
+              "dealer"
+            ],
+            "roles": [
+              "client",
+              "worker_a",
+              "worker_b",
+              "dealer"
+            ],
+            "run_window_cpu_seconds_by_role": null,
+            "schema": "pllm.fss.topology_body_accounting.v1",
+            "storage_bytes": {
+              "fss_storage.worker_a.read_bytes": 0,
+              "fss_storage.worker_a.write_bytes": 0,
+              "fss_storage.worker_b.read_bytes": 0,
+              "fss_storage.worker_b.write_bytes": 0
+            },
+            "storage_in_network_totals": false,
+            "streaming_ttft_supported": false,
+            "total_body_bytes": 0,
+            "total_wire_bytes": null,
+            "tracked_body_counter_set_present": true
+          },
+          "warmups": []
+        },
+        "traffic_decomposition": {
+          "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+          "byte_unit": "decimal MB (1000000 bytes)",
+          "cache_state": {
+            "inventory_policy": "none",
+            "prefill_cache_bound_tokens": null,
+            "prefill_cache_mode": "exact"
+          },
+          "cold_first_request": {
+            "attribution_valid": false,
+            "base_all_link_body_bytes": null,
+            "base_all_link_mb_per_request": null,
+            "conservation_checked": true,
+            "generated_output_tokens": 2,
+            "headline_eligible": false,
+            "incremental_all_link_mb_per_generated_output": null,
+            "input_tokens": 1,
+            "known_base_all_link_body_bytes": 0,
+            "known_output_dependent_all_link_body_bytes": 0,
+            "output_allowance": 2,
+            "output_dependent_all_link_body_bytes": null,
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Unattributed",
+            "total_all_link_body_bytes": 13916321,
+            "unattributed_all_link_body_bytes": 13916321,
+            "unused_output_material_body_bytes": null
+          },
+          "covered_lifecycle": {
+            "attribution_valid": false,
+            "base_all_link_body_bytes": null,
+            "conservation_checked": true,
+            "headline_eligible": false,
+            "known_base_all_link_body_bytes": 0,
+            "known_output_dependent_all_link_body_bytes": 0,
+            "output_dependent_all_link_body_bytes": null,
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Unattributed",
+            "total_all_link_body_bytes": 13916321,
+            "unattributed_all_link_body_bytes": 13916321,
+            "unused_output_material_body_bytes": null
+          },
+          "law": "total = known base + known output-dependent + unattributed; unused material is included, not added",
+          "lifecycle_scope": "startup charged once to first warmup or first measured request; repeats exclude startup",
+          "packed_boundary_convention": "only whole-cohort serialized payload bytes classified; shared phase-boundary bytes stay residual",
+          "physical_wire_bytes": null,
+          "rate_scope": "workload-specific output-dependent average, not constant next-token marginal cost",
+          "repeat_requests": [],
+          "runs": [
+            {
+              "attribution": {
+                "attribution_valid": false,
+                "audit_counters": {
+                  "bundle_network_bytes": 0,
+                  "correction_ack_accounted_push_bytes": 0,
+                  "correction_ack_bytes": 0,
+                  "correction_push_bytes": 0,
+                  "decode_epochs_started": 0,
+                  "generation_attribution_supported_responses": 0,
+                  "generation_completed_responses": 1,
+                  "generation_decode_output_tokens": 1,
+                  "generation_executed_decode_steps": 1,
+                  "generation_output_tokens": 2,
+                  "generation_requested_output_tokens": 2,
+                  "inference_control_download_bytes": 2860,
+                  "inference_control_upload_bytes": 65397,
+                  "inference_download_bytes": 1540,
+                  "inference_upload_bytes": 304,
+                  "inflight_joins": 0,
+                  "inflight_producer_registrations": 0,
+                  "preparation_attributed_body_bytes": 0,
+                  "preparation_control_download_bytes": 0,
+                  "preparation_control_upload_bytes": 0,
+                  "preparation_decode_material_body_bytes": 0,
+                  "preparation_decode_rows_issued": 0,
+                  "preparation_download_bytes": 0,
+                  "preparation_padding_rows_issued": 0,
+                  "preparation_prefill_material_body_bytes": 0,
+                  "preparation_prefill_rows_issued": 0,
+                  "preparation_upload_bytes": 0,
+                  "prepared_stage_rows_burned": 0,
+                  "prepared_stage_rows_claimed": 0,
+                  "prepared_stage_rows_discarded": 0,
+                  "prepared_stage_rows_issued": 0,
+                  "prepared_stage_rows_reserved": 0,
+                  "public_prefix_artifact_local_bytes": 0,
+                  "session_authorization_download_bytes": 0,
+                  "session_authorization_upload_bytes": 0
+                },
+                "base_all_link_body_bytes": null,
+                "components_body_bytes": {},
+                "conservation_checked": true,
+                "executed_decode_steps": 1,
+                "generated_output_tokens": 2,
+                "headline_eligible": false,
+                "inventory_rows": {
+                  "burned": 0,
+                  "claimed": 0,
+                  "discarded": 0,
+                  "issued": 0,
+                  "reserved": 0
+                },
+                "known_base_all_link_body_bytes": 0,
+                "known_output_dependent_all_link_body_bytes": 0,
+                "output_allowance": 2,
+                "output_dependent_all_link_body_bytes": null,
+                "prepared_rows": {
+                  "decode": 0,
+                  "padding": 0,
+                  "prefill": 0
+                },
+                "reserved_equals_claimed_plus_burned": false,
+                "residual_scope": "mixed preparation envelopes, padding, shared packed phase-boundary bytes, correction acknowledgements, lifecycle controls and unclassified phases",
+                "schema": "pllm.benchmark_traffic_decomposition.v1",
+                "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+                "status": "Unattributed",
+                "total_all_link_body_bytes": 13916321,
+                "unattributed_all_link_body_bytes": 13916321,
+                "unknown_reasons": [
+                  "versioned phase/material counters not recorded"
+                ],
+                "unused_output_material_body_bytes": null
+              },
+              "attribution_valid": false,
+              "base_all_link_body_bytes": null,
+              "base_all_link_mb_per_request": null,
+              "cold": true,
+              "conservation_checked": true,
+              "generated_output_tokens": 2,
+              "headline_eligible": false,
+              "incremental_all_link_mb_per_generated_output": null,
+              "input_tokens": 1,
+              "known_base_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_body_bytes": 0,
+              "known_output_dependent_all_link_mb_per_generated_output": null,
+              "output_allowance": 2,
+              "output_dependent_all_link_body_bytes": null,
+              "schema": "pllm.benchmark_traffic_decomposition.v1",
+              "status": "Unattributed",
+              "total_all_link_body_bytes": 13916321,
+              "unattributed_all_link_body_bytes": 13916321,
+              "unused_output_material_body_bytes": null
+            }
+          ],
+          "schema": "pllm.benchmark_traffic_decomposition.v1",
+          "scope": "measured directed all-link serialized application bodies; not TCP stream or physical wire",
+          "source": "sdk_audit_phase_and_prepared_row_payload_counters_v1",
+          "startup": {
+            "attribution": null,
+            "attribution_valid": false,
+            "base_all_link_body_bytes": null,
+            "base_all_link_mb_per_request": null,
+            "cold": null,
+            "conservation_checked": true,
+            "generated_output_tokens": null,
+            "headline_eligible": false,
+            "incremental_all_link_mb_per_generated_output": null,
+            "input_tokens": null,
+            "known_base_all_link_body_bytes": 0,
+            "known_output_dependent_all_link_body_bytes": 0,
+            "known_output_dependent_all_link_mb_per_generated_output": null,
+            "output_allowance": 2,
+            "output_dependent_all_link_body_bytes": null,
+            "schema": "pllm.benchmark_traffic_decomposition.v1",
+            "status": "Unattributed",
+            "total_all_link_body_bytes": 0,
+            "unattributed_all_link_body_bytes": 0,
+            "unused_output_material_body_bytes": null
+          },
+          "summary": {
+            "base_all_link_mb_per_request": null,
+            "generated_output_tokens": 2,
+            "incremental_all_link_mb_per_generated_output": null,
+            "measured_requests": 1,
+            "scope": "measured run windows only; cold startup and discarded warmups reported separately"
+          },
+          "tcp_stream_bytes": null,
+          "unmeasured": [
+            "HTTP/TLS/transport framing and retries outside audit coverage",
+            "checkpoint distribution and pre-positioned artifacts outside measured links",
+            "exact unused output material bytes unless directly measured"
+          ],
+          "warmups": [],
+          "windows_aligned": true
+        },
+        "wan_readiness": {
+          "assumptions": [
+            "independent full-duplex upload/download ports",
+            "each party's peers share its access port"
+          ],
+          "conditions": {
+            "download_mbps": 100.0,
+            "parties": [],
+            "role_parties": [],
+            "schema": "pllm.wan_conditions.v1",
+            "upload_mbps": 40.0
+          },
+          "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+          "emulation": {
+            "backend": "native-shared-tcp-pacer",
+            "conditions_digest": "a176039fdafccebecdf05b665d08b3b63fc0600df91aa6c155354c2474f74cdb",
+            "decode_scope": "first-to-last output interval with N-1 authoritative outputs",
+            "inter_party_links_present": true,
+            "internet_measurement": false,
+            "kernel_rate_snapshots_checked": false,
+            "link_conditions_digest": "364d0582350ccdb6d09d26a1c334a5500f3947d782dcbfb5fc82e5ea5e722a3d",
+            "native_delay_snapshots_checked": true,
+            "native_stream_rate_snapshots_checked": true,
+            "request_scope": "demand preparation and request execution; excludes provider startup and warmups",
+            "runs": [
+              {
+                "decode_output_tokens": 1,
+                "decode_seconds": null,
+                "decode_tokens_per_second": null,
+                "end_to_end_tokens_per_second": 0.057583045041471825,
+                "full_seconds": 34.732445958,
+                "generated_output_tokens": 2,
+                "online_seconds": null,
+                "online_tokens_per_second": null
+              }
+            ],
+            "schema": "pllm.measured_wan_throughput.v1",
+            "scope": "measured local inference under enforced shared party access rates and selected inter-party delay",
+            "summary": {
+              "decode_tokens_per_second": null,
+              "end_to_end_tokens_per_second": 0.057583045041471825,
+              "online_tokens_per_second": null
+            }
+          },
+          "internet_ready": null,
+          "measured_wan_latency_seconds": null,
+          "rate_unit": "Mbps = 1000000 bits/second; 8 bits/byte",
+          "runs": [
+            {
+              "covered": {
+                "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+                "bottleneck": {
+                  "direction": "upload",
+                  "party_id": "dealer"
+                },
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 2.4311068,
+                "parties": {
+                  "client": {
+                    "download_bytes": 4400,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.000352,
+                    "upload_bytes": 65701,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0131402
+                  },
+                  "dealer": {
+                    "download_bytes": 25493,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.00203944,
+                    "upload_bytes": 12155534,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 2.4311068
+                  },
+                  "worker_a": {
+                    "download_bytes": 6943214,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.55545712,
+                    "upload_bytes": 847543,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.1695086
+                  },
+                  "worker_b": {
+                    "download_bytes": 6943214,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.55545712,
+                    "upload_bytes": 847543,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.1695086
+                  }
+                },
+                "wan_body_bytes": 13916321
+              },
+              "executed_role_parties": null,
+              "generated_output_tokens": 2,
+              "online": {
+                "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+                "bottleneck": {
+                  "direction": "upload",
+                  "party_id": "worker_a"
+                },
+                "intra_party_body_bytes": 0,
+                "minimum_transfer_seconds": 0.168971,
+                "parties": {
+                  "client": {
+                    "download_bytes": 1540,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.0001232,
+                    "upload_bytes": 304,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 6.08e-05
+                  },
+                  "dealer": {
+                    "download_bytes": 0,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.0,
+                    "upload_bytes": 0,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.0
+                  },
+                  "worker_a": {
+                    "download_bytes": 844237,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.06753896,
+                    "upload_bytes": 844855,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.168971
+                  },
+                  "worker_b": {
+                    "download_bytes": 844237,
+                    "download_mbps": 100.0,
+                    "download_seconds": 0.06753896,
+                    "upload_bytes": 844855,
+                    "upload_mbps": 40.0,
+                    "upload_seconds": 0.168971
+                  }
+                },
+                "wan_body_bytes": 1690014
+              }
+            }
+          ],
+          "schema": "pllm.wan_readiness.v1",
+          "scope": "analytic access-capacity floor on covered application bodies; not measured WAN latency",
+          "summary": {
+            "online": {
+              "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "worker_a"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 0.168971,
+              "parties": {
+                "client": {
+                  "download_bytes": 1540,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.0001232,
+                  "upload_bytes": 304,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 6.08e-05
+                },
+                "dealer": {
+                  "download_bytes": 0,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.0,
+                  "upload_bytes": 0,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0
+                },
+                "worker_a": {
+                  "download_bytes": 844237,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.06753896,
+                  "upload_bytes": 844855,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.168971
+                },
+                "worker_b": {
+                  "download_bytes": 844237,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.06753896,
+                  "upload_bytes": 844855,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.168971
+                }
+              },
+              "wan_body_bytes": 1690014
+            },
+            "online_generated_tokens_per_second_ceiling": 11.836350616377958,
+            "setup_inclusive": {
+              "body_counter_coverage": "fss_client_controls_dealer_packets_acks_direct_peer_v1",
+              "bottleneck": {
+                "direction": "upload",
+                "party_id": "dealer"
+              },
+              "intra_party_body_bytes": 0,
+              "minimum_transfer_seconds": 2.4311068,
+              "parties": {
+                "client": {
+                  "download_bytes": 4400,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.000352,
+                  "upload_bytes": 65701,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.0131402
+                },
+                "dealer": {
+                  "download_bytes": 25493,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.00203944,
+                  "upload_bytes": 12155534,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 2.4311068
+                },
+                "worker_a": {
+                  "download_bytes": 6943214,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.55545712,
+                  "upload_bytes": 847543,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.1695086
+                },
+                "worker_b": {
+                  "download_bytes": 6943214,
+                  "download_mbps": 100.0,
+                  "download_seconds": 0.55545712,
+                  "upload_bytes": 847543,
+                  "upload_mbps": 40.0,
+                  "upload_seconds": 0.1695086
+                }
+              },
+              "wan_body_bytes": 13916321
+            },
+            "setup_inclusive_generated_tokens_per_second_ceiling": 0.8226705630538321
+          },
+          "unmeasured": [
+            "RTT and dependent protocol rounds",
+            "headers/TLS/ACKs, loss and retries",
+            "checkpoint distribution",
+            "WAN compute/queueing latency"
+          ]
+        },
+        "warmup_runs": []
+      }
+    }
+  ],
+  "checks": {
+    "all_candidates_passed": true,
+    "matched_body_coverage": true,
+    "matched_kernel_backend": true,
+    "matched_numeric_contract": true,
+    "matched_verification": true,
+    "matched_workload": true,
+    "passed": true,
+    "unique_configurations": true
+  },
+  "comparison_key": {
+    "effective_sampling": {
+      "mode": "greedy",
+      "temperature": 0.0,
+      "top_p": null
+    },
+    "input_tokens": 1,
+    "max_output_tokens": 2,
+    "model_fingerprint": "1829eaa975e5b157d0964af9b7e1841918c15ff921f4ae7b9398eedd19288dfe",
+    "output_tokens": 2,
+    "prompt_digest": "a83078b67efa892aacb02554cb399a66f31f287aede7322e7040b8ec986bea9a",
+    "warm": false,
+    "warmup_prompt_digest": "a83078b67efa892aacb02554cb399a66f31f287aede7322e7040b8ec986bea9a"
+  },
+  "compute_cap_diagnostic": null,
+  "kernel_comparison": {
+    "backends": [
+      "pllm/cpu"
+    ],
+    "matched_backend": true,
+    "mode": "matched-backend"
+  },
+  "limitations": [
+    "single host and loopback network",
+    "diagnostic comparison, not a canonical EvidenceReport",
+    "rankings require exact matched measured workloads and the declared kernel comparison policy",
+    "rankings require matching verifier contracts; mixed-assurance observations remain available without a winner",
+    "application-body rankings additionally require identical counter coverage; CPU and latency retain their own matched workload windows",
+    "cross-kernel composition rankings require source, numeric and captured output identity; they are not CPU-only speedups",
+    "does not establish model quality, energy, price, adversarial security, or non-collusion"
+  ],
+  "rankings": {
+    "accounted_setup_through_first_response_body_bytes": [
+      {
+        "configuration_digest": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+        "name": "generated-fss-dense-tensor",
+        "rank": 1,
+        "value": 13916321.0
+      },
+      {
+        "configuration_digest": "fc895e099658affb7daf03f0646cdb651172886113cd7081cf901b9c5a370910",
+        "name": "generated-fss-dense-wavefront",
+        "rank": 2,
+        "value": 14022118.0
+      }
+    ],
+    "covered_all_link_serialized_body_bytes": [
+      {
+        "configuration_digest": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+        "name": "generated-fss-dense-tensor",
+        "rank": 1,
+        "value": 13916321.0
+      },
+      {
+        "configuration_digest": "fc895e099658affb7daf03f0646cdb651172886113cd7081cf901b9c5a370910",
+        "name": "generated-fss-dense-wavefront",
+        "rank": 2,
+        "value": 14022118.0
+      }
+    ],
+    "full_seconds": [
+      {
+        "configuration_digest": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+        "name": "generated-fss-dense-tensor",
+        "rank": 1,
+        "value": 34.732445958
+      },
+      {
+        "configuration_digest": "fc895e099658affb7daf03f0646cdb651172886113cd7081cf901b9c5a370910",
+        "name": "generated-fss-dense-wavefront",
+        "rank": 2,
+        "value": 35.7487635
+      }
+    ],
+    "online_all_link_serialized_body_bytes": [
+      {
+        "configuration_digest": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+        "name": "generated-fss-dense-tensor",
+        "rank": 1,
+        "value": 1690014.0
+      },
+      {
+        "configuration_digest": "fc895e099658affb7daf03f0646cdb651172886113cd7081cf901b9c5a370910",
+        "name": "generated-fss-dense-wavefront",
+        "rank": 2,
+        "value": 1716046.0
+      }
+    ],
+    "online_seconds": [],
+    "tokens_per_second": [],
+    "total_accounted_benchmark_body_bytes": [
+      {
+        "configuration_digest": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+        "name": "generated-fss-dense-tensor",
+        "rank": 1,
+        "value": 13916321.0
+      },
+      {
+        "configuration_digest": "fc895e099658affb7daf03f0646cdb651172886113cd7081cf901b9c5a370910",
+        "name": "generated-fss-dense-wavefront",
+        "rank": 2,
+        "value": 14022118.0
+      }
+    ],
+    "ttft_seconds": []
+  },
+  "schema_version": "pllm.loopback_benchmark_comparison.v1",
+  "scope": "single-host-loopback-diagnostic-comparison",
+  "winners": {
+    "accounted_setup_through_first_response_body_bytes": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+    "covered_all_link_serialized_body_bytes": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+    "full_seconds": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+    "online_all_link_serialized_body_bytes": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+    "online_seconds": null,
+    "tokens_per_second": null,
+    "total_accounted_benchmark_body_bytes": "0d8ed949ed3209ae607d7825f07b45d5d2f06a60de94467fb080c13c83dc57c7",
+    "ttft_seconds": null
+  }
+}

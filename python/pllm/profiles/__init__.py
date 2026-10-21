@@ -459,7 +459,7 @@ class FuseFssSourceCpu(_TypedPipeline):
                                             "fusefss.dense-rope-checked-ranges-ring50-q12.v1"] | None = None,
                   capacity: Literal["capsule", "decoder"] = "capsule",
                   material_delivery: Literal["single", "batch-v1"] = "single",
-                  online_schedule: Literal["serial", "wavefront-v1"] = "serial",
+                  online_schedule: Literal["serial", "wavefront-v1", "tensor-v1"] = "serial",
                  topology: RoleTopology = TrustedDealerTwoShareRoles(),
                  state: StateProtocol = FixedCountPrivatePrefix(),
                  kernels: KernelBackend = _DEFAULT_KERNELS) -> None:
@@ -472,7 +472,7 @@ class FuseFssSourceCpu(_TypedPipeline):
         if linear is not None and online_schedule != "serial":
             raise ConfigurationError("FuseFSS online_schedule belongs in linear or profile keywords, not both")
         if type(online_schedule) is not str or online_schedule not in FuseFssSourceDecoder.ONLINE_SCHEDULES:
-            raise ConfigurationError("FuseFSS online_schedule must be serial or wavefront-v1")
+            raise ConfigurationError("FuseFSS online_schedule must be serial, wavefront-v1 or tensor-v1")
         if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
             raise ConfigurationError("FuseFSS capacity must be capsule or decoder")
         if type(material_delivery) is not str or material_delivery not in FuseFssSourceDecoder.MATERIAL_DELIVERIES:

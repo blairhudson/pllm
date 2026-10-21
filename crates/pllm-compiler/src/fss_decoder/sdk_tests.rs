@@ -64,6 +64,26 @@ fn wavefront_online_schedule_is_checked_policy_and_preserves_numeric_source_cont
             .unwrap()
             .remove("online_schedule");
         assert_eq!(contract(&experiment, &config, 3, 2).unwrap(), serial);
+        experiment["pipeline"]["components"]["linear"]["params"]["online_schedule"] =
+            json!("tensor-v1");
+        let tensor = contract(&experiment, &config, 3, 2).unwrap();
+        assert_eq!(
+            contract_online_schedule(&tensor).unwrap(),
+            super::super::OnlineSchedule::TensorV1
+        );
+        assert_ne!(
+            binding.checked_contract_digest(&tensor).unwrap(),
+            binding.checked_contract_digest(&wave).unwrap()
+        );
+        let tensor: Value = serde_json::from_slice(&tensor).unwrap();
+        for field in [
+            "plan",
+            "source_shapes",
+            "numeric_profile",
+            "source_q12_value_bytes",
+        ] {
+            assert_eq!(tensor[field], original[field]);
+        }
     }
 }
 

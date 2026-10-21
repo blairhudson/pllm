@@ -45,3 +45,9 @@ def qwen_checked_wavefront_smoke():
     """Same checked source and request with bounded dependency-aware online rounds."""
     return qwen_checked_batch_smoke().with_params(
         name="fusefss-checked-ranges-wavefront", pipeline__linear__online_schedule="wavefront-v1")
+
+
+def qwen_checked_tensor_smoke():
+    """Same checked Q12 request with compact templates and bounded tensor waves."""
+    return qwen_checked_batch_smoke().with_params(
+        name="fusefss-checked-ranges-tensor", pipeline__linear__online_schedule="tensor-v1")

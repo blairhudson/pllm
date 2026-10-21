@@ -384,6 +384,14 @@ material. Stable selection compares adjacent ordered subtrees, including odd
 tails. Its logical tree depth does not imply one network exchange per level:
 public frame, live-material and tile bounds may split each level into many batches.
 
+The subsequent `online_schedule="tensor-v1"` implements compact public templates
+and larger ready sets under the same byte ceilings. It retains separate private
+lane registers and fresh material. Within the compiler's ordered tree, a strict
+score comparison and left-on-tie movement replace redundant private index
+comparisons: every left subtree precedes every right subtree in original leaf
+order. This relies on compiler-owned tree provenance, not a claim about arbitrary
+private index inputs. Numeric acceptance and final disclosure remain unchanged.
+
 Schedule construction, live frontiers, framing, material and complete setup
 remain charged under the existing ceilings. The original serial default keeps
 its identity. This authorizes an execution adaptation, not changed method

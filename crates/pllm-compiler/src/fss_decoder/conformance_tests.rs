@@ -3,6 +3,16 @@ use super::*;
 #[test]
 #[ignore = "fresh-material wavefront full-decoder regression; explicit focused run"]
 fn wavefront_preserves_every_frozen_semantic_tensor_and_private_feedback() {
+    frozen_semantic_tensors_with_schedule(OnlineSchedule::WavefrontV1);
+}
+
+#[test]
+#[ignore = "fresh-material compact tensor full-decoder regression; explicit focused run"]
+fn tensor_preserves_every_frozen_semantic_tensor_and_private_feedback() {
+    frozen_semantic_tensors_with_schedule(OnlineSchedule::TensorV1);
+}
+
+fn frozen_semantic_tensors_with_schedule(online: OnlineSchedule) {
     let inputs = read_json(fixture_dir().join("inputs.json"));
     let graphs = read_json(fixture_dir().join("semantic-graphs.json"));
     let expected = read_json(fixture_dir().join("semantic-expected.json"));
@@ -27,7 +37,7 @@ fn wavefront_preserves_every_frozen_semantic_tensor_and_private_feedback() {
                 source,
                 number(case, "generation_count"),
                 limits,
-                OnlineSchedule::WavefrontV1,
+                online,
             )
             .unwrap_or_else(|e| panic!("{} decoder={decoder}: {e:?}", case["id"]));
             let (tokens, trace, actual) = execute(&program, case, index);
@@ -47,6 +57,12 @@ fn wavefront_preserves_every_frozen_semantic_tensor_and_private_feedback() {
 #[ignore = "fresh-material wavefront D14 regression; explicit focused run"]
 fn wavefront_checked_profile_preserves_frozen_generated_qwen() {
     frozen_generated_qwen_with_schedule(true, OnlineSchedule::WavefrontV1);
+}
+
+#[test]
+#[ignore = "fresh-material compact tensor D14 regression; explicit focused run"]
+fn tensor_checked_profile_preserves_frozen_generated_qwen() {
+    frozen_generated_qwen_with_schedule(true, OnlineSchedule::TensorV1);
 }
 
 /// Ordinary regression: every physical node and private feedback step is checked

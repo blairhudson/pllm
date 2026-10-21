@@ -63,6 +63,7 @@ def checked_experiment(path):
 @pytest.mark.slow
 @pytest.mark.parametrize(("material_delivery", "online_schedule"), [
     ("single", "serial"), ("batch-v1", "serial"), ("batch-v1", "wavefront-v1"),
+    ("batch-v1", "tensor-v1"),
 ])
 def test_checked_feedback_rejects_all_tokens_and_fresh_request_recovers(
         tmp_path, monkeypatch, material_delivery, online_schedule):

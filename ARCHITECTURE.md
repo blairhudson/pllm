@@ -1048,6 +1048,13 @@ The separately explicit `online_schedule="wavefront-v1"` groups public dependenc
 frontiers of the original consuming primitives and bounded independent tensor
 lanes. Stable adjacent-pair selection retains lowest-index ties and odd tails;
 public group limits still split logical tree levels into multiple exchanges.
+The explicit `online_schedule="tensor-v1"` retains one public instruction,
+register-description and dependency-span template per tile, with separate private
+lane registers and fresh material. Virtual lane/PC indexing preserves the expanded
+dependency order. Up to 4,096 ready primitives share the existing frame and live
+byte ceilings; construction and lookup work remain charged. Its compiler-owned
+ordered tree uses strict score comparison and left-on-tie movement, avoiding
+redundant private index comparisons while preserving the lowest original index.
 Original Q12 floors, private feedback, sticky checked validity and final-only
 acceptance remain. Schedule, frontier, frame and construction costs precede
 execution under the unchanged live ceiling. Five generated semantic controls and
@@ -1071,6 +1078,16 @@ while dealer preparation remains about 8.5 seconds. This generated 1+2 workload
 establishes a bounded scheduling gain, not trained-model WAN practicality.
 Source distribution, independent operators and full-Qwen acceptance remain open.
 Evidence: `docs/evidence/fusefss-wavefront-wan-pair.json`.
+A separate generated wavefront/tensor pair at the same caps and delay preserves
+outputs with zero observed swap growth. Full requests take 35.749/34.732 seconds
+and covered all-link bodies 14.022/13.916 MB. This single pair does not establish
+trained performance or a causal memory gain. Pinned tensor 1+1 source-only pricing
+admits 19,229 peer exchanges per holder and 7.45 GB of native material, still about
+12.8 minutes of RTT waiting at 40 ms before compute. Tensor 4+1 rejects at the
+output head's cumulative public-copy ceiling. Neither qualification launches
+workers; trained acceptance and WAN practicality remain open. Evidence:
+`docs/evidence/fusefss-tensor-wan-pair.json` and
+`docs/research/fusefss-sdk-reference.md`.
 
 The complete bounded shared Q7 gated block composes four exact rescalings and
 two fresh Beaver multiplications in a 24-bit ring. Twelve fresh native cases

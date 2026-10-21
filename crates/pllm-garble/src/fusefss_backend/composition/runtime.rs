@@ -143,22 +143,19 @@ impl<'a> Plan<'a> {
     /// Immutable public issuance order. Local instructions consume no dealer
     /// material; callers must not infer that distinction from execution errors.
     pub fn material_steps(&self) -> impl Iterator<Item = usize> + '_ {
-        self.code
-            .iter()
-            .enumerate()
-            .filter_map(|(pc, instruction)| {
-                matches!(
-                    instruction,
-                    Instruction::Convert(..)
-                        | Instruction::Multiply(..)
-                        | Instruction::Select(..)
-                        | Instruction::Predicate(..)
-                        | Instruction::Lookup(..)
-                        | Instruction::Gelu(..)
-                        | Instruction::CompactTokenOneHot(..)
-                )
-                .then_some(pc)
-            })
+        (0..self.resources.instructions).filter_map(|pc| {
+            matches!(
+                self.instruction(pc).ok()?,
+                Instruction::Convert(..)
+                    | Instruction::Multiply(..)
+                    | Instruction::Select(..)
+                    | Instruction::Predicate(..)
+                    | Instruction::Lookup(..)
+                    | Instruction::Gelu(..)
+                    | Instruction::CompactTokenOneHot(..)
+            )
+            .then_some(pc)
+        })
     }
 
     /// Move the immutable plan into a shared owner. The Plan reservation already
@@ -183,7 +180,7 @@ impl<'a> Plan<'a> {
     /// step. Both returned owners use fresh native primitive issuance. Runtime
     /// has no path to this helper. No automatic transport or persistence implied.
     pub fn issue_step(&self, pc: usize, context: Context) -> Result<[Material<'a>; 2], Error> {
-        let instruction = *self.code.get(pc).ok_or(Error::Domain)?;
+        let instruction = self.instruction(pc)?;
         let context = self.step_context(context, pc);
         let budget = self.lease.budget;
         let pair = match instruction {
@@ -194,7 +191,7 @@ impl<'a> Plan<'a> {
             Instruction::Predicate(value, signed, threshold) => {
                 budget.allocation()?;
                 let descriptor =
-                    Descriptor::simple_comparison(self.registers[value].bits, signed, threshold)
+                    Descriptor::simple_comparison(self.register(value)?.bits, signed, threshold)
                         .map_err(descriptor_error)?;
                 predicates::issue(&descriptor, self.source, context, budget)?
                     .map(Primitive::Predicate)
@@ -262,9 +259,9 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
             .lease
             .budget
             .reserve(plan.resources.register_owner_bytes_per_party)?;
-        let mut values = Zeroizing::new(allocate(plan.registers.len(), plan.lease.budget)?);
+        let mut values = Zeroizing::new(allocate(plan.resources.registers, plan.lease.budget)?);
         values.extend_from_slice(inputs);
-        values.resize(plan.registers.len(), 0);
+        values.resize(plan.resources.registers, 0);
         Ok(Self {
             plan,
             context,
@@ -305,12 +302,12 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
             self.state = Some(execution);
             return Ok(Event::NeedMaterial { pc: 0 });
         }
-        while execution.pc < self.plan.code.len() {
+        while execution.pc < self.plan.resources.instructions {
             let pc = execution.pc;
             let dest = self.plan.inputs.len() + pc;
-            let m = mask(self.plan.registers[dest].bits);
+            let m = mask(self.plan.register(dest)?.bits);
             let result = Zeroizing::new(
-                match local_value(self.plan.code[pc], self.role, &execution.values) {
+                match local_value(self.plan.instruction(pc)?, self.role, &execution.values) {
                     Some(value) => value,
                     None => {
                         self.state = Some(execution);
@@ -321,14 +318,14 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
             execution.values[dest] = *result & m;
             execution.pc += 1;
         }
-        let mut values = Zeroizing::new(allocate(self.plan.outputs.len(), self.lease.budget)?);
-        for &index in &self.plan.outputs {
-            values.push(execution.values[index]);
+        let mut values = Zeroizing::new(allocate(self.plan.output_count(), self.lease.budget)?);
+        for index in 0..self.plan.output_count() {
+            values.push(execution.values[self.plan.output_index(index)?]);
         }
         // Native Output declaration erases values before its split lease refunds.
         Ok(Event::Output(Output {
             values,
-            _lease: self.lease.split(8 * self.plan.outputs.len())?,
+            _lease: self.lease.split(8 * self.plan.output_count())?,
         }))
     }
 
@@ -344,7 +341,7 @@ impl<'a, P: Deref<Target = Plan<'a>>> Engine<'a, P> {
         {
             return Err(Error::Context);
         }
-        let instruction = *self.plan.code.get(execution.pc).ok_or(Error::Context)?;
+        let instruction = self.plan.instruction(execution.pc)?;
         let mut primitive = material.primitive;
         let operands = operands(instruction, &execution.values)?;
         let frame = primitive.start(instruction, &operands)?;

@@ -394,7 +394,7 @@ fn native_pair(
             count
         });
         use super::transport::Execution;
-        let wave = if online == OnlineSchedule::WavefrontV1 && !plan.is_atomic_vector() {
+        let wave = if online.uses_wavefront() && !plan.is_atomic_vector() {
             Some(pllm_garble::fusefss_backend::composition::wavefront::Schedule::new(plan)?)
         } else {
             None

@@ -466,8 +466,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             return Err(Error::Domain);
         }
         let r = plan.resources();
-        let wave = if self.program.online == OnlineSchedule::WavefrontV1 && !plan.is_atomic_vector()
-        {
+        let wave = if self.program.online.uses_wavefront() && !plan.is_atomic_vector() {
             let schedule = wavefront::Schedule::new(plan)?;
             self.hash.update(schedule.digest());
             Some(schedule.resources())
@@ -481,6 +480,14 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             self.resources.work,
             r.cumulative_work.checked_mul(2).ok_or(Error::Resource)?,
         )?;
+        if r.template_copy_bytes != 0 {
+            let copies = r
+                .template_copy_bytes
+                .checked_mul(3)
+                .ok_or(Error::Resource)?;
+            self.public_copy(copies)?;
+            self.resources.work = checked_add(self.resources.work, copies)?;
+        }
         if let Some(wave) = wave {
             // Each of three roles builds a schedule for the public obligation
             // walk and again for its concrete material/runtime owner. These
@@ -595,6 +602,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                         .checked_mul(2)
                         .ok_or(Error::Resource)?,
                 )
+                .map(|n| n.max(3 * r.template_construction_bytes))
                 .and_then(|n| {
                     n.checked_add(
                         tables
@@ -672,6 +680,14 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         F: for<'kernel> FnOnce(&'kernel Budget) -> Result<Plan<'kernel>, Error>,
     {
         let plan = build(self.tables.budget())?;
+        let plan = if self.program.online == OnlineSchedule::TensorV1
+            && !plan.is_atomic_vector()
+            && !plan.is_tensor()
+        {
+            plan.repeat_tensor(1)?
+        } else {
+            plan
+        };
         self.run(&plan, input, outputs, false)
     }
     fn cached_kernel<F>(
@@ -684,6 +700,14 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         F: FnOnce(&SourceTableCache<'b>) -> Result<Plan<'b>, Error>,
     {
         let plan = build(self.tables)?;
+        let plan = if self.program.online == OnlineSchedule::TensorV1
+            && !plan.is_atomic_vector()
+            && !plan.is_tensor()
+        {
+            plan.repeat_tensor(1)?
+        } else {
+            plan
+        };
         self.run(&plan, input, outputs, true)
     }
 
@@ -706,12 +730,12 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             let inputs = template.input_bits().len();
             let outputs = template.output_count();
             let lanes = (count - start)
-                .min(template.repetition_bound())
+                .min(self.program.online.lane_bound(&template))
                 .min(MAX_VALUES / outputs);
             if lanes == 0 {
                 return Err(Error::Resource);
             }
-            let plan = template.repeat(lanes)?;
+            let plan = self.program.online.repeat(template, lanes)?;
             let mut values = Zeroizing::new(vector(inputs * lanes)?);
             for lane in 0..lanes {
                 gather(start + lane, &mut values)?;
@@ -730,12 +754,18 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
 
     fn floor_values(&mut self, values: &mut [u64], range: Range) -> Result<(), Error> {
         let binding = self.binding();
-        for chunk in values.chunks_mut(wavefront::MAX_ACTIVE) {
+        let online = self.program.online;
+        let chunk_size = if online == OnlineSchedule::TensorV1 {
+            wavefront::MAX_TENSOR_ACTIVE
+        } else {
+            wavefront::MAX_ACTIVE
+        };
+        for chunk in values.chunks_mut(chunk_size) {
             let mut inputs = Zeroizing::new(vector(chunk.len())?);
             inputs.extend(chunk.iter().map(|&v| v & MASK));
             let n = chunk.len();
             let output = self.kernel(&inputs, n, |b| {
-                kernels::floor(binding, range.gate(), 12, b)?.0.repeat(n)
+                online.repeat(kernels::floor(binding, range.gate(), 12, b)?.0, n)
             })?;
             chunk.copy_from_slice(&output);
         }
@@ -795,10 +825,19 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         let ids = Range::new(0, values.len() as i128 - 1)?.gate();
         let mut frontier = Zeroizing::new(zeros(2 * values.len().div_ceil(2))?);
         let role = self.role;
+        // Leaves begin in original vocabulary order. Every level merges
+        // adjacent subtrees and carries an odd tail without reordering it.
+        // Thus every left leaf precedes every right leaf, making left-on-tie
+        // exact without comparing private index payloads again.
+        let select = if self.program.online == OnlineSchedule::TensorV1 {
+            kernels::max_left_on_tie
+        } else {
+            kernels::stable_max
+        };
         self.lanes(
             values.len() / 2,
             false,
-            |t| Ok(kernels::stable_max(binding, [range.gate(); 2], ids, t.budget())?.0),
+            |t| Ok(select(binding, [range.gate(); 2], ids, t.budget())?.0),
             |i, v| {
                 v.extend_from_slice(&[
                     values[2 * i],
@@ -823,10 +862,9 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             let nodes = frontier.len() / 2;
             let mut pair = 0;
             while pair < nodes / 2 {
-                let template =
-                    kernels::stable_max(binding, [range.gate(); 2], ids, self.tables.budget())?.0;
-                let count = (nodes / 2 - pair).min(template.repetition_bound());
-                let plan = template.repeat(count)?;
+                let template = select(binding, [range.gate(); 2], ids, self.tables.budget())?.0;
+                let count = (nodes / 2 - pair).min(self.program.online.lane_bound(&template));
+                let plan = self.program.online.repeat(template, count)?;
                 let input = Zeroizing::new(copied(&frontier[4 * pair..4 * (pair + count)])?);
                 let output = self.run(&plan, &input, 2 * count, false)?;
                 frontier[2 * pair..2 * (pair + count)].copy_from_slice(&output);
@@ -1098,7 +1136,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let w = &p.source.tensors[weight];
                 let inner = *p.nodes[input].shape.last().unwrap();
                 let columns = *node.shape.last().unwrap();
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     let mut raw_range: Option<Range> = None;
                     if let Some(file) = w.fixed_file() {
                         if input_output {
@@ -1271,7 +1309,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 };
                 let source = p.source.digest();
                 let input_energy = p.norm_row_energy(self.node)?;
-                if p.online == OnlineSchedule::WavefrontV1 && !p.checked_ranges() {
+                if p.online.uses_wavefront() && !p.checked_ranges() {
                     let spec = norm::Spec {
                         kind: if layer {
                             norm::Kind::Layer
@@ -1310,7 +1348,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                         let rs = ranges(width, original_range)?;
                         let values =
                             self.kernel(&x[row * width..(row + 1) * width], width + 1, |budget| {
-                                let check = if p.online == OnlineSchedule::WavefrontV1 {
+                                let check = if p.online.uses_wavefront() {
                                     kernels::checked_range_balanced
                                 } else {
                                     kernels::checked_range_with_fallback
@@ -1373,7 +1411,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             Product(a, b) => {
                 let x = get(a)?;
                 let y = get(b)?;
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     self.dot_lanes(
                         out.len(),
                         1,
@@ -1403,7 +1441,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let x = get(input)?;
                 let range = p.nodes[input].range.gate();
                 let binding = self.binding();
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     self.lanes(
                         x.len(),
                         silu,
@@ -1477,7 +1515,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let r = &p.source.rotary[descriptor];
                 let original = p.nodes[input].range;
                 let binding = self.binding();
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     let pairs = x.len() / 2;
                     for start in (0..pairs).step_by(wavefront::MAX_ACTIVE / 4) {
                         let count = (pairs - start).min(wavefront::MAX_ACTIVE / 4);
@@ -1548,7 +1586,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let b = get(right)?;
                 let d = p.nodes[left].shape[3];
                 let heads = node.shape[1];
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     self.dot_lanes(
                         out.len(),
                         d,
@@ -1588,7 +1626,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             }
             Scale { input, coefficient } => {
                 let x = get(input)?;
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     let binding = self.binding();
                     let r = gates::InputRange {
                         min: coefficient,
@@ -1628,7 +1666,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let heads = node.shape[1];
                 let rs = ranges(t, p.nodes[input].range)?;
                 let mut active = vector(t)?;
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     for q in 0..t {
                         active.clear();
                         active.extend((0..t).map(|k| k <= q && k < prefix));
@@ -1667,7 +1705,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                 let b = get(right)?;
                 let heads = node.shape[1];
                 let d = node.shape[3];
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     self.dot_lanes(
                         out.len(),
                         t,
@@ -1715,7 +1753,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             }
             Argmax(input) => {
                 let x = get(input)?;
-                if p.online == OnlineSchedule::WavefrontV1 {
+                if p.online.uses_wavefront() {
                     out[0] = self.tree_argmax(x, p.nodes[input].range)?;
                     return Ok(out);
                 }

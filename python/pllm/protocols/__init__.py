@@ -447,7 +447,7 @@ class FuseFssSourceDecoder(ProtocolMethod):
     DENSE_ROPE_CHECKED_NUMERIC_PROFILE = "fusefss.dense-rope-checked-ranges-ring50-q12.v1"
     NUMERIC_PROFILES = (GPT2_NUMERIC_PROFILE, DENSE_ROPE_NUMERIC_PROFILE, DENSE_ROPE_CHECKED_NUMERIC_PROFILE)
     MATERIAL_DELIVERIES = ("single", "batch-v1")
-    ONLINE_SCHEDULES = ("serial", "wavefront-v1")
+    ONLINE_SCHEDULES = ("serial", "wavefront-v1", "tensor-v1")
     RING_BITS = 50
     FRACTIONAL_BITS = 12
     descriptor = ComponentDescriptor(
@@ -460,7 +460,7 @@ class FuseFssSourceDecoder(ProtocolMethod):
                  "weights": {"type": "string", "const": "public"},
                  "capacity": {"type": "string", "enum": ["decoder"]},
                   "material_delivery": {"type": "string", "enum": ["batch-v1"]},
-                  "online_schedule": {"type": "string", "enum": ["wavefront-v1"]}}},
+                  "online_schedule": {"type": "string", "enum": ["wavefront-v1", "tensor-v1"]}}},
         capabilities=("public-weight-source-decoder", "ring50-q12", "external-nearest-even",
                       "internal-signed-floor", "protected-full-prefix-recomputation",
                        "private-greedy-feedback", "final-only-token-ids", "opt-in-checked-range-whole-request-outcome"),
@@ -474,7 +474,7 @@ class FuseFssSourceDecoder(ProtocolMethod):
             "fusefss.dense-rope-checked-ranges-ring50-q12.v1"],
              weights: Literal["public"] = "public", capacity: Literal["capsule", "decoder"] = "capsule",
               material_delivery: Literal["single", "batch-v1"] = "single",
-              online_schedule: Literal["serial", "wavefront-v1"] = "serial") -> None:
+              online_schedule: Literal["serial", "wavefront-v1", "tensor-v1"] = "serial") -> None:
         if type(numeric_profile) is not str or numeric_profile not in self.NUMERIC_PROFILES:
             raise ConfigurationError("FuseFSS numeric_profile must explicitly select a complete-decoder identity")
         if type(weights) is not str or weights != "public":
@@ -484,7 +484,7 @@ class FuseFssSourceDecoder(ProtocolMethod):
         if type(material_delivery) is not str or material_delivery not in self.MATERIAL_DELIVERIES:
             raise ConfigurationError("FuseFSS material_delivery must be single or batch-v1")
         if type(online_schedule) is not str or online_schedule not in self.ONLINE_SCHEDULES:
-            raise ConfigurationError("FuseFSS online_schedule must be serial or wavefront-v1")
+            raise ConfigurationError("FuseFSS online_schedule must be serial, wavefront-v1 or tensor-v1")
         params = {"numeric_profile": numeric_profile}
         if capacity != "capsule":
             params["capacity"] = capacity

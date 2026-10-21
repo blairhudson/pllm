@@ -367,6 +367,44 @@ fn stable_max_uses_lowest_arbitrary_index_on_equal_scores() {
 }
 
 #[test]
+fn ordered_pair_keeps_left_payload_on_ties_and_reduces_fresh_material() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let (pair, _) =
+        max_left_on_tie(binding(), [range(-19, 19); 2], range(0, 4096), &budget).unwrap();
+    let (general, _) = stable_max(binding(), [range(-19, 19); 2], range(0, 4096), &budget).unwrap();
+    assert_ne!(pair.digest(), general.digest());
+    assert!(
+        pair.resources().private_material_bytes_total
+            < general.resources().private_material_bytes_total
+    );
+    assert!(pair.resources().frames_per_party < general.resources().frames_per_party);
+    for left in [-19, -1, 0, 1, 19] {
+        for right in [-19, -1, 0, 1, 19] {
+            // Payloads intentionally run opposite to index order: this kernel
+            // promises stable positional order, never minimum private payload.
+            let result = run(&pair, &[left, 4096, right, 1]);
+            assert_eq!(
+                result,
+                if right > left {
+                    vec![right, 1]
+                } else {
+                    vec![left, 4096]
+                }
+            );
+        }
+    }
+    assert!(max_left_on_tie(
+        binding(),
+        [range(-(1 << 49), (1 << 49) - 1); 2],
+        range(0, 1),
+        &budget
+    )
+    .is_err());
+    drop((pair, general));
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
 fn frozen_gelu_actual_fresh_protected_outputs_and_partition_bounds() {
     let vectors: serde_json::Value = serde_json::from_str(include_str!(
         "../../../../../paper/reproduction-contracts/fusefss/vectors.json"

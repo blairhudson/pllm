@@ -170,6 +170,7 @@ def assert_retired(core):
 @pytest.mark.parametrize(("capacity", "material_delivery", "online_schedule"), [
     ("capsule", "single", "serial"), ("decoder", "single", "serial"), ("decoder", "batch-v1", "serial"),
     ("decoder", "batch-v1", "wavefront-v1"),
+    ("decoder", "batch-v1", "tensor-v1"),
 ])
 def test_qwen2_three_child_sdk_final_oracle_and_large_tape(
         control, monkeypatch, capacity, material_delivery, online_schedule):

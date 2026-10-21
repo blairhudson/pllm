@@ -106,6 +106,23 @@ execution remains the default. Full dense conformance fixtures use Decoder's
 existing cumulative-work envelope; the new construction work can exceed Capsule
 even when its live payload fits.
 
+`online_schedule="tensor-v1"` additionally retains one immutable instruction and
+register-description template per tile. Lane-specific private registers, keys and
+wire contexts remain independent; logical instruction, register and work limits
+still apply. Public dependency spans also retain one template; bounded virtual
+lane/PC lookup reconstructs the same expanded dependency order without allocating
+one ready-work record per lane. Sorting, address lookup and hashing remain charged.
+A ready set may contain up to 4,096 primitives, constrained by the
+same 2 MiB decoded-material, 1 MiB frame and 64 MiB aggregate bounds. Construction
+prices the overlap between old and compact metadata before releasing either
+owner, and whole-topology admission charges all three construction owners.
+The ordered selection tree uses strict score comparison with left-on-tie payload
+movement. Its compiler-owned ascending leaves and adjacent-subtree reductions
+prove lowest-original-index ties, including odd tails, without privately comparing
+index payloads again. The general arbitrary-index selector remains separate.
+This selector and compact templates have a distinct Program/schedule identity;
+the original Q12 numeric source contract remains unchanged.
+
 `capacity="decoder"` streams Q12 coefficients and row statistics into shared-core
 immutable files. Public contractions reuse `pllm_core::streamed_matrix`; the
 complete product still precedes the original FuseFSS floor. Complete vocabulary
@@ -302,7 +319,7 @@ uv run --no-sync pllm benchmark run \
   --output target/fusefss-wavefront-wan-pair.json
 ```
 
-### Trained-source scheduling gate
+### Trained-source scheduling gate: wavefront
 
 Source-only qualification of the pinned checked Qwen candidate at 4+1 completes
 range construction but rejects the kernel walk at layer 23 SiLU: cumulative public
@@ -321,9 +338,79 @@ observes zero swap growth, without launching workers or executing private input.
 At 40 ms RTT, the current sequential HTTP exchange schedule alone implies about
 1,173 seconds (19.6 minutes) of latency waits for that 1+1 control. The logical
 selection tree therefore does not make the bounded tiled schedule WAN-practical.
-Reducing repeated public schedule ownership and enabling wider bounded tensor
-waves remain execution gates; fresh preprocessing delivery remains a separate
-cost gate. These estimates do not qualify trained acceptance, quality or serving.
+This motivated compact public schedule ownership and wider bounded tensor waves;
+the subsequent qualification below measures that implementation separately.
+Fresh preprocessing delivery remains a separate cost gate. These estimates do
+not qualify trained acceptance, quality or serving.
+
+### Compact tensor schedule: generated WAN pair
+
+A new fresh-client pair compares `dense_wavefront_smoke` with
+`dense_tensor_smoke` under one private cohort, the same generated 1+2 workload,
+shared 100/40 Mbps caps and 20 ms propagation per direction. Output commitments
+match, every report check passes, and both memory guards observe zero swap growth.
+
+| Measured scope, one sample per arm | Wavefront | Tensor |
+| --- | ---: | ---: |
+| Full request, including offline preparation | 35.749 s | 34.732 s |
+| Maximum holder native-run elapsed | 25.299 s | 24.503 s |
+| Dealer preparation elapsed | 8.656 s | 8.387 s |
+| Aggregate startup-through-first-response CPU | 9.769 s | 7.310 s |
+| Covered all-link application bodies | 14,022,118 B | 13,916,321 B |
+| Covered online application bodies | 1,716,046 B | 1,690,014 B |
+| Startup-through-response TCP streams | 14,584,397 B | 14,467,175 B |
+| Client lifetime peak RSS | 113,410,048 B | 111,804,416 B |
+
+This separate pair observes a 2.84% request-time reduction. It does not isolate
+template sharing from ordered-selection changes or establish a causal memory
+gain. Its tiny generated geometry supplies no trained-model speed projection;
+checkpoint distribution, physical TCP/IP overhead, Internet measurements and
+independent operators remain outside scope. Buffered disclosure supplies neither
+streaming TTFT nor decode throughput. The ordinary report is
+[`fusefss-tensor-wan-pair.json`](../evidence/fusefss-tensor-wan-pair.json).
+
+```sh
+uv run --no-sync pllm benchmark run \
+  --experiment examples/papers/fusefss_smoke.py:dense_wavefront_smoke \
+  --experiment examples/papers/fusefss_smoke.py:dense_tensor_smoke \
+  --factory --trust-python --backend native --wan \
+  --link-conditions examples/benchmarks/wan_20ms.json \
+  --prompt hello --max-output-tokens 2 --timeout 600 \
+  --capture-output-digest --isolate-candidates \
+  --output target/fusefss-tensor-wan-pair.json
+```
+
+The native composition suite passes 110 checks, including compact-versus-expanded
+dependency order, 1,024-lane execution, fresh issuance and allocation-failure
+retirement. The 118 decoder checks include all five frozen semantic fixtures,
+checked-range rejection and stable ordered selection. The rebuilt installed wheel
+passes 408 focused Python checks plus four three-process SDK/gateway checks.
+
+### Trained-source scheduling gate: tensor
+
+The pinned `examples/papers/fusefss.py:qwen_checked_tensor_smoke` 4+1 source
+qualification completes public range construction but rejects the kernel walk at
+the output head: cumulative public copies reach 35,178,175,330 bytes against the
+unchanged 34,359,738,368-byte ceiling. This is a resource rejection before worker
+launch, not a checked private-input rejection or accepted request.
+
+A separate source/pricing control selects the same factory with
+`budget__max_input_tokens=1`. Source pins, numeric profile, vocabulary and selection
+count match the earlier wavefront control. Tensor pricing admits 19,229 peer
+exchanges per holder (34.45% fewer), 3,081,399 fresh primitive records per holder
+and a 61,851,153-byte combined native transport reservation. Complete native
+material is still 7,451,946,472 bytes. The per-holder packet allowance is
+4,168,085,820 bytes, excluding HTTP metadata; it is an upper-bound price, not a
+measured transfer or traffic lower bound. Two encrypted tapes plus replay guards
+require 9,136,331,688 bytes, with source-file ownership charged separately.
+Qualification retires its source owner and observes zero swap growth; it runs no
+private input and launches no workers.
+
+At 40 ms RTT, sequential peer exchanges still imply about 769 seconds (12.8
+minutes) of waiting before compute. Compact templates and the ordered tree do
+not make this trained workload WAN-practical. Further round and fresh-material
+reductions, four-input resource admission, trained acceptance and quality remain
+open; the capacity ceilings have not changed.
 
 The ordinary [generated response report](../evidence/fusefss-generated-wan.json)
 records two final outputs in 222.124 seconds, with 7.766 seconds of dealer

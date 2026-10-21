@@ -84,7 +84,7 @@ impl<'a> Plan<'a> {
     /// Public per-step geometry, without issuance or private compilation. Local
     /// arithmetic steps cannot receive material and return Domain.
     pub fn step_transport_resources(&self, pc: usize) -> Result<StepTransportResources, Error> {
-        match *self.code.get(pc).ok_or(Error::Domain)? {
+        match self.instruction(pc)? {
             Instruction::Convert(..) | Instruction::Multiply(..) | Instruction::Select(..) => {
                 let r = conversions::resources(self.conversion_spec(pc)?)?;
                 step_cost(
@@ -97,7 +97,7 @@ impl<'a> Plan<'a> {
                 let _scratch = self.lease.budget.reserve(DESCRIPTOR_SCRATCH)?;
                 self.lease.budget.allocation()?;
                 let descriptor =
-                    Descriptor::simple_comparison(self.registers[value].bits, signed, threshold)
+                    Descriptor::simple_comparison(self.register(value)?.bits, signed, threshold)
                         .map_err(descriptor_error)?;
                 let r = predicates::resources(&descriptor)?;
                 step_cost(
@@ -214,7 +214,8 @@ impl<'a> Plan<'a> {
         let mut largest_import = 0;
         let mut largest_export = 0;
         let mut cumulative = 0;
-        for (pc, instruction) in self.code.iter().enumerate() {
+        for pc in 0..self.resources.instructions {
+            let instruction = self.instruction(pc)?;
             if matches!(
                 instruction,
                 Instruction::Constant(_)
@@ -300,7 +301,7 @@ impl<'a> Plan<'a> {
                 .first_tensor_index
                 .checked_add(1)
                 .ok_or(Error::Domain)?;
-            let instruction = *self.code.get(pc).ok_or(Error::Domain)?;
+            let instruction = self.instruction(pc)?;
             let context = self.step_context(context, pc);
             let budget = self.lease.budget;
             let primitive = match instruction {
@@ -315,7 +316,7 @@ impl<'a> Plan<'a> {
                     let _scratch = budget.reserve(DESCRIPTOR_SCRATCH)?;
                     budget.allocation()?;
                     let descriptor = Descriptor::simple_comparison(
-                        self.registers[value].bits,
+                        self.register(value)?.bits,
                         signed,
                         threshold,
                     )

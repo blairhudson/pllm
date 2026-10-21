@@ -94,6 +94,10 @@ pub struct Resources {
     /// additionally charges its full-domain PRG blocks and derivative row work.
     pub cumulative_work: usize,
     pub plan_reservation_bytes: usize,
+    /// Optional compact-template construction peak, including old/new overlap.
+    pub template_construction_bytes: usize,
+    /// Public metadata actually copied when replacing the expanded arrays.
+    pub template_copy_bytes: usize,
     /// Included in plan_reservation_bytes, held by independent Table leases.
     pub public_table_reservation_bytes: usize,
     pub register_owner_bytes_per_party: usize,
@@ -151,6 +155,8 @@ pub struct Plan<'a> {
     registers: Vec<Register>,
     outputs: Vec<Value>,
     tables: Vec<TableOwner<'a>>,
+    // A compact tensor retains one template, addressed by virtual lane/PC IDs.
+    lanes: usize,
     resources: Resources,
     lease: Lease<'a>,
 }
@@ -723,6 +729,7 @@ impl<'a> Builder<'a> {
             registers: self.registers,
             outputs: self.outputs,
             tables: self.tables,
+            lanes: 0,
             resources: self.resources,
             lease: self.lease,
         })
@@ -794,7 +801,10 @@ impl<'a> Plan<'a> {
             registers,
             outputs: Vec::new(),
             tables: Vec::new(),
+            lanes: 0,
             resources: Resources {
+                template_construction_bytes: 0,
+                template_copy_bytes: 0,
                 instructions: 1,
                 registers: 1,
                 secret_steps: 1,
@@ -856,26 +866,21 @@ impl<'a> Plan<'a> {
     /// Exact output count. Only the explicit compact one-hot plan can exceed the
     /// ordinary scalar register cap; its native output is independently priced.
     pub fn output_count(&self) -> usize {
-        self.compact_vocabulary().unwrap_or(self.outputs.len())
+        self.compact_vocabulary()
+            .unwrap_or(self.outputs.len() * self.lanes.max(1))
     }
     pub fn output_bits(&self, index: usize) -> Result<u8, Error> {
         if let Some(vocabulary) = self.compact_vocabulary() {
             return (index < vocabulary).then_some(50).ok_or(Error::Domain);
         }
-        self.outputs
-            .get(index)
-            .map(|&v| self.registers[v].bits)
-            .ok_or(Error::Domain)
+        Ok(self.register(self.output_index(index)?)?.bits)
     }
     /// True denotes a native XOR-shared output; all other outputs are additive.
     pub fn output_is_xor(&self, index: usize) -> Result<bool, Error> {
         if let Some(vocabulary) = self.compact_vocabulary() {
             return (index < vocabulary).then_some(false).ok_or(Error::Domain);
         }
-        self.outputs
-            .get(index)
-            .map(|&v| self.registers[v].domain == Domain::Xor)
-            .ok_or(Error::Domain)
+        Ok(self.register(self.output_index(index)?)?.domain == Domain::Xor)
     }
     fn step_context(&self, context: Context, pc: usize) -> Context {
         let operation = Sha256::new()
@@ -895,8 +900,8 @@ impl<'a> Plan<'a> {
         }
     }
     fn conversion_spec(&self, pc: usize) -> Result<conversions::Spec, Error> {
-        let instruction = *self.code.get(pc).ok_or(Error::Domain)?;
-        let output = self.registers[self.inputs.len() + pc].bits;
+        let instruction = self.instruction(pc)?;
+        let output = self.register(self.inputs.len() + pc)?.bits;
         let (value, operation) = match instruction {
             Instruction::Convert(v, op) => (v, op),
             Instruction::Multiply(v, _) => (v, conversions::Operation::Multiply),
@@ -910,7 +915,7 @@ impl<'a> Plan<'a> {
             _ => return Err(Error::Domain),
         };
         Ok(conversions::Spec {
-            input_bits: self.registers[value].bits,
+            input_bits: self.register(value)?.bits,
             output_bits: output,
             lanes: 1,
             operation,

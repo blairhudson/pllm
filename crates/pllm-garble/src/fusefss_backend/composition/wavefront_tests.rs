@@ -1,4 +1,243 @@
 use super::*;
+
+#[test]
+fn compact_tensor_keeps_one_template_with_exact_large_lane_outputs() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let binding = kernels::Binding {
+        source_digest: [21; 32],
+        contract_digest: [22; 32],
+    };
+    let base = || {
+        kernels::floor(
+            binding,
+            gates::InputRange {
+                min: -100_000,
+                max: 100_000,
+            },
+            12,
+            &budget,
+        )
+        .unwrap()
+        .0
+    };
+    let expanded = base().repeat(256).unwrap();
+    let template = base().repeat_tensor(1024).unwrap();
+    assert!(template.is_tensor());
+    assert_eq!(template.code.len(), base().code.len());
+    assert_eq!(template.input_bits().len(), 1024);
+    assert_eq!(template.output_count(), 1024);
+    assert!(
+        template.resources().plan_reservation_bytes
+            < expanded.resources().plan_reservation_bytes / 8
+    );
+    assert_eq!(
+        template.resources().secret_steps,
+        4 * expanded.resources().secret_steps
+    );
+    let values: Vec<i64> = (0..1024).map(|i| (i * 193 % 200_001) - 100_000).collect();
+    let input: Vec<_> = values.iter().map(|&v| v as u64 & mask(50)).collect();
+    let expected: Vec<_> = values
+        .iter()
+        .map(|&v| (v >> 12) as u64 & mask(50))
+        .collect();
+    assert_eq!(
+        evaluate(&Schedule::new(&template).unwrap(), &input)
+            .unwrap()
+            .0,
+        expected
+    );
+    let wave = Schedule::new(&template).unwrap();
+    let single = base().repeat_tensor(1).unwrap();
+    let single_wave = Schedule::new(&single).unwrap();
+    assert_eq!(
+        wave.resources().metadata_bytes,
+        single_wave.resources().metadata_bytes
+    );
+    assert!(wave.resources().runtime_owner_bytes > single_wave.resources().runtime_owner_bytes);
+    assert_eq!(wave.steps.len(), single_wave.steps.len());
+    assert_eq!(wave.spans.len(), single_wave.spans.len());
+    assert!(wave.step(template.resources().instructions).is_none());
+    drop(single_wave);
+    drop(single);
+    assert!(wave.resources().rounds <= 4 * Schedule::new(&expanded).unwrap().resources().rounds);
+    assert!(wave.resources().retained_party_bytes <= MAX_RETAINED_PARTY_BYTES);
+    assert!(wave.resources().largest_frame_bytes <= MAX_FRAME_BYTES);
+    assert!(template.instruction(1024).is_err());
+    assert!(template.output_bits(1024).is_err());
+    drop(wave);
+    drop(template);
+    drop(expanded);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn compact_tensor_preserves_mixed_domains_multi_outputs_and_ties() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let binding = kernels::Binding {
+        source_digest: [23; 32],
+        contract_digest: [24; 32],
+    };
+    let base = || {
+        kernels::stable_max(
+            binding,
+            [gates::InputRange {
+                min: -100,
+                max: 100,
+            }; 2],
+            gates::InputRange { min: 0, max: 1023 },
+            &budget,
+        )
+        .unwrap()
+        .0
+    };
+    let expanded = base().repeat(17).unwrap();
+    let tensor = base().repeat_tensor(17).unwrap();
+    let expanded_wave = Schedule::new(&expanded).unwrap();
+    let tensor_wave = Schedule::new(&tensor).unwrap();
+    let projected: Vec<_> = (0..tensor.resources().instructions)
+        .map(|i| tensor_wave.step(i).unwrap())
+        .collect();
+    assert_eq!(projected, expanded_wave.steps);
+    assert_eq!(
+        tensor_wave.resources().rounds,
+        expanded_wave.resources().rounds
+    );
+    assert_eq!(
+        tensor_wave.resources().frame_bytes_per_party,
+        expanded_wave.resources().frame_bytes_per_party
+    );
+    assert_eq!(
+        tensor_wave.material_steps().collect::<Vec<_>>(),
+        expanded_wave.material_steps().collect::<Vec<_>>()
+    );
+    assert!(tensor_wave.resources().metadata_bytes < expanded_wave.resources().metadata_bytes);
+    drop(expanded_wave);
+    drop(tensor_wave);
+    let mut input = Vec::new();
+    let mut expected = Vec::new();
+    for i in 0..17i64 {
+        let a = i - 8;
+        let b = if i % 3 == 0 { a } else { 8 - i };
+        input.extend([
+            a as u64 & mask(50),
+            (2 * i) as u64,
+            b as u64 & mask(50),
+            (2 * i + 1) as u64,
+        ]);
+        let (value, index) = if a >= b { (a, 2 * i) } else { (b, 2 * i + 1) };
+        expected.extend([value as u64 & mask(50), index as u64]);
+    }
+    assert_eq!(
+        evaluate(&Schedule::new(&expanded).unwrap(), &input)
+            .unwrap()
+            .0,
+        expected
+    );
+    assert_eq!(
+        evaluate(&Schedule::new(&tensor).unwrap(), &input)
+            .unwrap()
+            .0,
+        expected
+    );
+    assert_ne!(expanded.digest(), tensor.digest());
+    assert_eq!(
+        expanded.resources().private_material_bytes_total,
+        tensor.resources().private_material_bytes_total
+    );
+    for pc in 0..expanded.resources().instructions {
+        assert_eq!(
+            format!("{:?}", expanded.instruction(pc).unwrap()),
+            format!("{:?}", tensor.instruction(pc).unwrap())
+        );
+    }
+    for i in 0..expected.len() {
+        assert_eq!(
+            expanded.output_bits(i).unwrap(),
+            tensor.output_bits(i).unwrap()
+        );
+        assert_eq!(
+            expanded.output_is_xor(i).unwrap(),
+            tensor.output_is_xor(i).unwrap()
+        );
+    }
+    drop(expanded);
+    drop(tensor);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn compact_template_failure_sweep_retires_old_and_new_allocations() {
+    use std::sync::atomic::Ordering;
+    for failure in 0..=5 {
+        let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let binding = kernels::Binding {
+            source_digest: [25; 32],
+            contract_digest: [26; 32],
+        };
+        let plan = kernels::floor(
+            binding,
+            gates::InputRange {
+                min: -100,
+                max: 100,
+            },
+            3,
+            &budget,
+        )
+        .unwrap()
+        .0;
+        budget.fail_after.store(failure, Ordering::SeqCst);
+        let plan = plan.repeat_tensor(1024);
+        if failure < 5 {
+            assert!(matches!(plan, Err(Error::Allocation)));
+        } else {
+            assert!(plan.is_ok());
+        }
+        drop(plan);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn compact_schedule_failure_sweep_retires_depth_steps_and_spans() {
+    use std::sync::atomic::Ordering;
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let binding = kernels::Binding {
+        source_digest: [27; 32],
+        contract_digest: [28; 32],
+    };
+    let plan = kernels::stable_max(
+        binding,
+        [gates::InputRange {
+            min: -100,
+            max: 100,
+        }; 2],
+        gates::InputRange { min: 0, max: 1023 },
+        &budget,
+    )
+    .unwrap()
+    .0
+    .repeat_tensor(17)
+    .unwrap();
+    let baseline = budget.used_bytes();
+    let mut passed = false;
+    for count in 0..128 {
+        budget.fail_after.store(count, Ordering::SeqCst);
+        let result = Schedule::new(&plan);
+        budget.fail_after.store(-1, Ordering::SeqCst);
+        passed = result.is_ok();
+        if !passed {
+            assert!(matches!(result, Err(Error::Allocation)));
+        }
+        drop(result);
+        assert_eq!(budget.used_bytes(), baseline, "allocation {count}");
+        if passed {
+            break;
+        }
+    }
+    assert!(passed);
+    drop(plan);
+    assert_eq!(budget.used_bytes(), 0);
+}
 use crate::fusefss_backend::wire::ImportGuard;
 
 const MASK: u64 = (1 << 50) - 1;
@@ -221,6 +460,9 @@ fn repeated_templates_keep_lane_domains_tables_and_fresh_material() {
             let plan = make().unwrap().repeat(lanes).unwrap();
             assert_eq!(plan.resources().secret_steps, primitive_count * lanes);
             let schedule = Schedule::new(&plan).unwrap();
+            assert_eq!(evaluate(&schedule, &inputs).unwrap().0, expected);
+            let tensor = make().unwrap().repeat_tensor(lanes).unwrap();
+            let schedule = Schedule::new(&tensor).unwrap();
             assert_eq!(evaluate(&schedule, &inputs).unwrap().0, expected);
         }
         assert!(matches!(

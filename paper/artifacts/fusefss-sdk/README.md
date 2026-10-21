@@ -98,5 +98,9 @@ The checkpoint retains `status="failed"`, `complete=false` and `report=null`.
 There is no accepted token, final numeric verdict, completed resource report or
 quality/performance result. A three-second live stack sample was also taken
 during this attempt; it is a narrow diagnostic, not whole-request attribution.
-Online peer exchanges remain unbatched. Calibrate dependency-safe online batching
-and callback/transport costs before another long trained-model attempt.
+Online peer exchanges in that historical attempt were unbatched. Subsequent
+generated [wavefront](../../../docs/evidence/fusefss-wavefront-wan-pair.json) and
+[compact-tensor](../../../docs/evidence/fusefss-tensor-wan-pair.json) matched WAN
+pairs use ordinary benchmark outputs and reusable factories. Their exact scope,
+commands and still-blocked trained-source qualification are recorded in the
+[SDK reference](../../../docs/research/fusefss-sdk-reference.md).

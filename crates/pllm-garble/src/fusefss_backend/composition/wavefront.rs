@@ -9,6 +9,7 @@ use crate::fusefss_backend::{Frame, Output};
 use zeroize::Zeroizing;
 
 pub const MAX_ACTIVE: usize = 256;
+pub const MAX_TENSOR_ACTIVE: usize = 4096;
 pub const MAX_FRAME_BYTES: usize = 1 << 20;
 const MAX_RETAINED_PARTY_BYTES: usize = 2 << 20;
 const HEADER: usize = 20;
@@ -30,7 +31,7 @@ pub struct Resources {
     pub additional_reservation_bytes: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Step {
     pc: usize,
     depth: usize,
@@ -39,11 +40,22 @@ struct Step {
     party_bytes: usize,
 }
 
+// One public (depth, local/secret) span of the template. Within that span the
+// virtual order is lane-major, exactly matching expanded (depth, secret, PC)
+// sorting. Private registers, primitives and one-use PCs are never shared.
+struct Span {
+    start: usize,
+    end: usize,
+    logical_end: usize,
+}
+
 pub struct Schedule<'p, 'a> {
     plan: &'p Plan<'a>,
     steps: Vec<Step>,
+    spans: Vec<Span>,
     resources: Resources,
     digest: [u8; 32],
+    active_capacity: usize,
     _lease: Lease<'a>,
 }
 
@@ -71,7 +83,7 @@ fn inputs(instruction: Instruction) -> [Option<Value>; 3] {
 }
 
 fn online_cost(plan: &Plan<'_>, pc: usize) -> Result<(usize, usize), Error> {
-    Ok(match plan.code[pc] {
+    Ok(match plan.instruction(pc)? {
         Instruction::Constant(_)
         | Instruction::Add(..)
         | Instruction::Sub(..)
@@ -84,7 +96,7 @@ fn online_cost(plan: &Plan<'_>, pc: usize) -> Result<(usize, usize), Error> {
         Instruction::Predicate(v, signed, threshold) => {
             let _scratch = plan.lease.budget.reserve(DESCRIPTOR_SCRATCH)?;
             plan.lease.budget.allocation()?;
-            let d = Descriptor::simple_comparison(plan.registers[v].bits, signed, threshold)
+            let d = Descriptor::simple_comparison(plan.register(v)?.bits, signed, threshold)
                 .map_err(descriptor_error)?;
             let r = predicates::resources(&d)?;
             (r.frames_per_party, r.total_peer_frame_bytes / 2)
@@ -110,17 +122,30 @@ impl<'p, 'a> Schedule<'p, 'a> {
             return Err(Error::Unsupported);
         }
         let budget = plan.lease.budget;
+        let instructions = plan.code.len();
+        let registers = plan.registers.len();
+        let span_capacity = if plan.is_tensor() { instructions } else { 0 };
         let metadata = add(
             add(size_of::<Self>(), 4096)?,
-            mul(plan.code.len(), size_of::<Step>())?,
+            add(
+                mul(instructions, size_of::<Step>())?,
+                mul(span_capacity, size_of::<Span>())?,
+            )?,
         )?;
         let lease = budget.reserve(metadata)?;
-        let _scratch = budget.reserve(mul(plan.registers.len(), size_of::<usize>())?)?;
-        let mut depths = allocate(plan.registers.len(), budget)?;
-        depths.resize(plan.registers.len(), 0usize);
-        let mut steps = allocate(plan.code.len(), budget)?;
-        for (pc, &instruction) in plan.code.iter().enumerate() {
-            let dest = plan.inputs.len() + pc;
+        let _scratch = budget.reserve(mul(registers, size_of::<usize>())?)?;
+        let mut depths = allocate(registers, budget)?;
+        depths.resize(registers, 0usize);
+        let mut steps = allocate(instructions, budget)?;
+        let mut spans = allocate(span_capacity, budget)?;
+        let template_inputs = if plan.is_tensor() {
+            plan.inputs.len() / plan.lanes
+        } else {
+            plan.inputs.len()
+        };
+        for pc in 0..instructions {
+            let instruction = plan.code[pc];
+            let dest = template_inputs + pc;
             let mut depth = 0;
             for input in inputs(instruction).into_iter().flatten() {
                 if input >= dest {
@@ -146,11 +171,37 @@ impl<'p, 'a> Schedule<'p, 'a> {
         }
         // Same-depth locals preserve SSA order and precede that depth's secrets.
         steps.sort_unstable_by_key(|s| (s.depth, s.rounds != 0, s.pc));
+        if plan.is_tensor() {
+            let mut start = 0;
+            let mut logical_end = 0;
+            while start < steps.len() {
+                let first = steps[start];
+                let mut end = start + 1;
+                while end < steps.len()
+                    && steps[end].depth == first.depth
+                    && (steps[end].rounds != 0) == (first.rounds != 0)
+                {
+                    end += 1;
+                }
+                logical_end = add(logical_end, mul(end - start, plan.lanes)?)?;
+                spans.push(Span {
+                    start,
+                    end,
+                    logical_end,
+                });
+                start = end;
+            }
+            if logical_end != plan.resources.instructions {
+                return Err(Error::Context);
+            }
+        }
         let mut result = Self {
             plan,
             steps,
+            spans,
             resources: Resources::default(),
             digest: [0; 32],
+            active_capacity: if plan.is_tensor() { 0 } else { MAX_ACTIVE },
             _lease: lease,
         };
         let mut r = Resources {
@@ -158,23 +209,38 @@ impl<'p, 'a> Schedule<'p, 'a> {
             ..Resources::default()
         };
         r.construction_work = add(
-            add(metadata, mul(plan.registers.len(), size_of::<usize>())?)?,
+            add(metadata, mul(registers, size_of::<usize>())?)?,
             mul(
-                mul(plan.code.len(), 64)?,
-                (plan.code.len().max(1).ilog2() as usize) + 2,
+                mul(instructions, 64)?,
+                (instructions.max(1).ilog2() as usize) + 2,
             )?,
         )?;
+        if plan.is_tensor() {
+            // Price virtual address lookup, grouping and hashing separately from
+            // the compact template's depth construction and sort.
+            r.construction_work = add(
+                r.construction_work,
+                mul(
+                    mul(plan.resources.instructions, 64)?,
+                    (result.spans.len().max(1).ilog2() as usize) + 2,
+                )?,
+            )?;
+        }
         let mut offset = 0;
         let mut hash = Sha256::new()
             .chain_update(b"pllm.fss.public-wavefront.v1\0")
             .chain_update(plan.digest);
-        while offset < result.steps.len() {
+        if plan.is_tensor() {
+            hash.update(b"compact-tensor-frontier.v1\0");
+        }
+        while offset < plan.resources.instructions {
             let end = result.group_end(offset)?;
             hash.update(((end - offset) as u64).to_le_bytes());
             let mut rounds = 0;
             let mut bytes = HEADER;
             let mut parties = 0;
-            for s in &result.steps[offset..end] {
+            for index in offset..end {
+                let s = result.step(index).ok_or(Error::Context)?;
                 hash.update((s.pc as u64).to_le_bytes());
                 hash.update((s.rounds as u64).to_le_bytes());
                 rounds = rounds.max(s.rounds);
@@ -187,6 +253,7 @@ impl<'p, 'a> Schedule<'p, 'a> {
                 parties = add(parties, s.party_bytes)?;
             }
             if rounds != 0 {
+                result.active_capacity = result.active_capacity.max(end - offset);
                 r.rounds = add(r.rounds, rounds)?;
                 r.frame_bytes_per_party = add(r.frame_bytes_per_party, mul(HEADER, rounds)?)?;
                 r.largest_frame_bytes = r.largest_frame_bytes.max(bytes);
@@ -200,15 +267,12 @@ impl<'p, 'a> Schedule<'p, 'a> {
         r.runtime_owner_bytes = add(
             add(
                 size_of::<Runtime<'_, '_, '_>>() + size_of::<State<'_>>() + 4096,
-                mul(MAX_ACTIVE, size_of::<Slot<'_>>())?,
+                mul(result.active_capacity, size_of::<Slot<'_>>())?,
             )?,
-            mul(8, plan.registers.len() + plan.outputs.len())?,
+            mul(8, plan.resources.registers + plan.output_count())?,
         )?;
         r.additional_reservation_bytes = add(
-            mul(
-                3,
-                add(metadata, mul(plan.registers.len(), size_of::<usize>())?)?,
-            )?,
+            mul(3, add(metadata, mul(registers, size_of::<usize>())?)?)?,
             mul(
                 2,
                 add(
@@ -229,16 +293,36 @@ impl<'p, 'a> Schedule<'p, 'a> {
         Ok(result)
     }
 
+    fn step(&self, index: usize) -> Option<Step> {
+        if !self.plan.is_tensor() {
+            return self.steps.get(index).copied();
+        }
+        let span = self
+            .spans
+            .get(self.spans.partition_point(|s| s.logical_end <= index))?;
+        let width = span.end - span.start;
+        let offset = index.checked_sub(span.logical_end - width * self.plan.lanes)?;
+        let mut step = *self.steps.get(span.start + offset % width)?;
+        step.pc += (offset / width) * self.plan.code.len();
+        Some(step)
+    }
+
     fn group_end(&self, start: usize) -> Result<usize, Error> {
-        let first = self.steps.get(start).ok_or(Error::Context)?;
+        let first = self.step(start).ok_or(Error::Context)?;
         let secret = first.rounds != 0;
         let mut end = start;
         let mut bytes = HEADER;
         let mut parties = 0;
-        while let Some(s) = self.steps.get(end) {
+        while let Some(s) = self.step(end) {
             if s.depth != first.depth
                 || (s.rounds != 0) != secret
-                || (secret && end - start == MAX_ACTIVE)
+                || (secret
+                    && end - start
+                        == if self.plan.is_tensor() {
+                            MAX_TENSOR_ACTIVE
+                        } else {
+                            MAX_ACTIVE
+                        })
             {
                 break;
             }
@@ -264,7 +348,10 @@ impl<'p, 'a> Schedule<'p, 'a> {
         self.digest
     }
     pub fn material_steps(&self) -> impl Iterator<Item = usize> + '_ {
-        self.steps.iter().filter(|s| s.rounds != 0).map(|s| s.pc)
+        (0..self.plan.resources.instructions)
+            .filter_map(|index| self.step(index))
+            .filter(|s| s.rounds != 0)
+            .map(|s| s.pc)
     }
     pub fn runtime<'s>(
         &'s self,
@@ -287,10 +374,10 @@ impl<'p, 'a> Schedule<'p, 'a> {
             .ok_or(Error::Domain)?;
         let budget = self.plan.lease.budget;
         let lease = budget.reserve(self.resources.runtime_owner_bytes)?;
-        let mut values = Zeroizing::new(allocate(self.plan.registers.len(), budget)?);
+        let mut values = Zeroizing::new(allocate(self.plan.resources.registers, budget)?);
         values.extend_from_slice(inputs);
-        values.resize(self.plan.registers.len(), 0);
-        let slots = allocate(MAX_ACTIVE, budget)?;
+        values.resize(self.plan.resources.registers, 0);
+        let slots = allocate(self.active_capacity, budget)?;
         Ok(Runtime {
             schedule: self,
             role,
@@ -346,33 +433,35 @@ impl<'a> Runtime<'_, '_, 'a> {
     }
     fn local(&mut self, mut state: State<'a>) -> Result<Event<'a>, Error> {
         let plan = self.schedule.plan;
-        while state.offset < self.schedule.steps.len() {
+        while state.offset < plan.resources.instructions {
             state.end = self.schedule.group_end(state.offset)?;
-            if self.schedule.steps[state.offset].rounds != 0 {
-                let pc = self.schedule.steps[state.offset].pc;
+            let first = self.schedule.step(state.offset).ok_or(Error::Context)?;
+            if first.rounds != 0 {
+                let pc = first.pc;
                 self.state = Some(state);
                 return Ok(Event::NeedMaterial { pc });
             }
-            for step in &self.schedule.steps[state.offset..state.end] {
+            for index in state.offset..state.end {
+                let step = self.schedule.step(index).ok_or(Error::Context)?;
                 let dest = plan.inputs.len() + step.pc;
                 let value = Zeroizing::new(
-                    runtime::local_value(plan.code[step.pc], self.role, &state.values)
+                    runtime::local_value(plan.instruction(step.pc)?, self.role, &state.values)
                         .ok_or(Error::Context)?,
                 );
-                state.values[dest] = *value & mask(plan.registers[dest].bits);
+                state.values[dest] = *value & mask(plan.register(dest)?.bits);
             }
             state.offset = state.end;
         }
         if state.round != self.schedule.resources.rounds {
             return Err(Error::Context);
         }
-        let mut values = Zeroizing::new(allocate(plan.outputs.len(), self.lease.budget)?);
-        for &index in &plan.outputs {
-            values.push(state.values[index]);
+        let mut values = Zeroizing::new(allocate(plan.output_count(), self.lease.budget)?);
+        for index in 0..plan.output_count() {
+            values.push(state.values[plan.output_index(index)?]);
         }
         Ok(Event::Output(Output {
             values,
-            _lease: self.lease.split(8 * plan.outputs.len())?,
+            _lease: self.lease.split(8 * plan.output_count())?,
         }))
     }
     pub fn feed_result(
@@ -394,7 +483,7 @@ impl<'a> Runtime<'_, '_, 'a> {
         if state.waiting || index >= state.end {
             return Err(Error::Context);
         }
-        let step = self.schedule.steps[index];
+        let step = self.schedule.step(index).ok_or(Error::Context)?;
         if material.pc != step.pc
             || material.role != self.role
             || material.plan != plan.digest
@@ -403,8 +492,9 @@ impl<'a> Runtime<'_, '_, 'a> {
             return Err(Error::Context);
         }
         let mut primitive = material.primitive;
-        let values = runtime::operands(plan.code[step.pc], &state.values)?;
-        let frame = primitive.start(plan.code[step.pc], &values)?;
+        let instruction = plan.instruction(step.pc)?;
+        let values = runtime::operands(instruction, &state.values)?;
+        let frame = primitive.start(instruction, &values)?;
         state.slots.push(Slot {
             pc: step.pc,
             remaining: step.rounds,
@@ -412,7 +502,7 @@ impl<'a> Runtime<'_, '_, 'a> {
             frame: Some(frame),
         });
         if index + 1 < state.end {
-            let pc = self.schedule.steps[index + 1].pc;
+            let pc = self.schedule.step(index + 1).ok_or(Error::Context)?.pc;
             self.state = Some(state);
             Ok(Event::NeedMaterial { pc })
         } else {
@@ -506,7 +596,7 @@ impl<'a> Runtime<'_, '_, 'a> {
                         return Err(Error::Context);
                     }
                     let dest = plan.inputs.len() + slot.pc;
-                    if output.shares()[0] > mask(plan.registers[dest].bits) {
+                    if output.shares()[0] > mask(plan.register(dest)?.bits) {
                         return Err(Error::Context);
                     }
                     state.values[dest] = output.shares()[0];
@@ -514,7 +604,7 @@ impl<'a> Runtime<'_, '_, 'a> {
                 }
                 PrimitiveEvent::Scalar(value) => {
                     let dest = plan.inputs.len() + slot.pc;
-                    if slot.remaining != 0 || *value > mask(plan.registers[dest].bits) {
+                    if slot.remaining != 0 || *value > mask(plan.register(dest)?.bits) {
                         return Err(Error::Context);
                     }
                     state.values[dest] = *value;

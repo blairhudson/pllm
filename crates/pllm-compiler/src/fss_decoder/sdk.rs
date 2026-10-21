@@ -329,8 +329,9 @@ fn online_field(value: Option<&Value>) -> Result<super::OnlineSchedule, String> 
     match value {
         None => Ok(super::OnlineSchedule::Serial),
         Some(Value::String(s)) if s == "wavefront-v1" => Ok(super::OnlineSchedule::WavefrontV1),
+        Some(Value::String(s)) if s == "tensor-v1" => Ok(super::OnlineSchedule::TensorV1),
         _ => Err(reject(
-            "online_schedule must be omitted for serial or explicitly wavefront-v1",
+            "online_schedule must be omitted for serial or explicitly wavefront-v1 or tensor-v1",
         )),
     }
 }
@@ -413,7 +414,7 @@ pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     if delivery == MaterialDelivery::BatchV1 {
         linear["material_delivery"] = json!(delivery.name());
     }
-    if online == super::OnlineSchedule::WavefrontV1 {
+    if online.uses_wavefront() {
         linear["online_schedule"] = json!(online.name());
     }
     let expected = [
@@ -1566,7 +1567,7 @@ impl Serialize for ContractView<'_> {
         if self.material_delivery == MaterialDelivery::BatchV1 {
             entry!("material_delivery", self.material_delivery.name());
         }
-        if self.online_schedule == super::OnlineSchedule::WavefrontV1 {
+        if self.online_schedule.uses_wavefront() {
             entry!("online_schedule", self.online_schedule.name());
         }
         if a.capacity == Capacity::Decoder {

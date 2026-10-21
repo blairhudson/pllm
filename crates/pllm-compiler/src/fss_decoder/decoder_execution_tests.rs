@@ -36,6 +36,14 @@ fn execute_open(program: &Program, prefix: &[u64]) -> (Vec<i64>, OpenTrace) {
 }
 
 fn tiny(capacity: Capacity, tied_maxima: bool) -> (DecoderPlan, Source, ImportedProgram) {
+    tiny_with_schedule(capacity, tied_maxima, OnlineSchedule::Serial)
+}
+
+fn tiny_with_schedule(
+    capacity: Capacity,
+    tied_maxima: bool,
+    online: OnlineSchedule,
+) -> (DecoderPlan, Source, ImportedProgram) {
     let (config, semantic, original) = dense_fixture();
     let mut builder = SourceBuilder::new_with_capacity(
         &serde_json::to_vec(&config).unwrap(),
@@ -92,7 +100,7 @@ fn tiny(capacity: Capacity, tied_maxima: bool) -> (DecoderPlan, Source, Imported
             )
             .unwrap();
     }
-    let imported = builder.seal().unwrap();
+    let imported = builder.seal_with_schedule(online).unwrap();
     assert_eq!(imported.program.capacity(), capacity);
     for tensor in imported.program.source.tensors() {
         assert_eq!(
@@ -256,6 +264,21 @@ fn tiny_qwen2_tied_head_keeps_lowest_nonzero_maximum_index() {
         assert_eq!(head[1], head[2]);
         assert!(head[1] > head[0]);
         assert_eq!(node(&semantic, &actual.1, step, "token_feedback"), [1]);
+    }
+}
+
+#[test]
+fn tensor_tournament_keeps_original_nonzero_index_across_an_odd_tail_tie() {
+    let (semantic, _, serial) = tiny(Capacity::Decoder, true);
+    let (_, _, tensor) = tiny_with_schedule(Capacity::Decoder, true, OnlineSchedule::TensorV1);
+    let expected = execute_open(&serial.program, &[1]);
+    let actual = execute_open(&tensor.program, &[1]);
+    assert_eq!(actual, expected);
+    assert_eq!(actual.0, [1, 1]);
+    for step in 0..2 {
+        let head = node(&semantic, &actual.1, step, "output_head");
+        assert_eq!(head[1], head[2]);
+        assert!(head[1] > head[0]);
     }
 }
 

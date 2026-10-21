@@ -285,12 +285,11 @@ pub fn admit_with_delivery(
                 ordinal: self.kernels,
             };
             hash_kernel(&mut self.hash, k);
-            let wave =
-                if self.online == super::OnlineSchedule::WavefrontV1 && !plan.is_atomic_vector() {
-                    Some(wavefront::Schedule::new(plan)?)
-                } else {
-                    None
-                };
+            let wave = if self.online.uses_wavefront() && !plan.is_atomic_vector() {
+                Some(wavefront::Schedule::new(plan)?)
+            } else {
+                None
+            };
             if let Some(w) = &wave {
                 self.hash.update(w.digest());
             }
@@ -465,9 +464,7 @@ impl<T: DealerTransport> MaterialVisitor for Dealer<'_, '_, T> {
             ordinal: self.kernels,
         };
         hash_kernel(&mut self.hash, k);
-        let wave = if self.admission.online == super::OnlineSchedule::WavefrontV1
-            && !plan.is_atomic_vector()
-        {
+        let wave = if self.admission.online.uses_wavefront() && !plan.is_atomic_vector() {
             Some(wavefront::Schedule::new(plan)?)
         } else {
             None
@@ -661,9 +658,7 @@ impl<T: WorkerTransport> Driver for Role<'_, '_, T> {
             ordinal: self.kernels,
         };
         hash_kernel(&mut self.hash, k);
-        let wave = if self.admission.online == super::OnlineSchedule::WavefrontV1
-            && !plan.is_atomic_vector()
-        {
+        let wave = if self.admission.online.uses_wavefront() && !plan.is_atomic_vector() {
             Some(wavefront::Schedule::new(plan)?)
         } else {
             None

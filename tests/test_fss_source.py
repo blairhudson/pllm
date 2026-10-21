@@ -202,6 +202,10 @@ def bridge(monkeypatch):
             self.online_schedule = "wavefront-v1"
             return self.seal()
 
+        def seal_tensor(self):
+            self.online_schedule = "tensor-v1"
+            return self.seal()
+
     def contract(encoded, config, rows, outputs, sourcepin, tokenizerpin):
         Bridge.events.append("pinned_contract")
         exp, config = Bridge.experiment, json.loads(config)
@@ -234,8 +238,8 @@ def bridge(monkeypatch):
                          source_resident_bound_bytes=65536 + 4096*len(shapes))
         if exp.pipeline.components["linear"].params.get("material_delivery") == "batch-v1":
             data["material_delivery"] = "batch-v1"
-        if exp.pipeline.components["linear"].params.get("online_schedule") == "wavefront-v1":
-            data["online_schedule"] = "wavefront-v1"
+        if exp.pipeline.components["linear"].params.get("online_schedule") in {"wavefront-v1", "tensor-v1"}:
+            data["online_schedule"] = exp.pipeline.components["linear"].params["online_schedule"]
         if Bridge.contract_mutation:
             Bridge.contract_mutation(data)
         return canonical(data)
