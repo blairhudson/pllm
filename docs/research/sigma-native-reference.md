@@ -4,10 +4,12 @@ Source arithmetic: [SIGMA](https://petsymposium.org/popets/2024/popets-2024-0107
 §3.2.1 masked multiplication and §4.1.1 matrix multiplication. The reference
 independently implements these equations; upstream code is not a dependency.
 
-The matrix reference is a **single-process, coupled two-share harness**, not a
-SIGMA decoder, independently hosted party implementation, SDK component or
-security qualification. The approved GPU-derived DPF port is a separate primitive
-under decision D16; it is not used by this matrix product.
+The original matrix reference is a **single-process, coupled two-share harness**.
+The separate `matrix::party` API now owns each party's material independently,
+reusing the same equations and bounded contraction core. Neither API supplies a
+SIGMA decoder, independently hosted implementation, SDK component or security
+qualification. The approved GPU-derived DPF port is a separate primitive under
+decision D16; it is not used by this matrix product.
 
 ## Arithmetic and reuse
 
@@ -58,8 +60,69 @@ the masks from its caller: **it does not sample them or certify that the caller
 has not reused them**. There is no authenticated transport, replay persistence or
 malicious-output verification. Both materials reside in one operation owner;
 the evaluator API is not an isolated worker security boundary. Production
-integration needs separately owned party material, context-bound import/export,
-fresh wire-mask ownership and complete transport/failure lifecycle.
+integration still needs context-bound import/export, fresh wire-mask ownership
+and complete transport/failure lifecycle.
+
+### Separate party-local matrix owners
+
+`matrix::party::issue_local` returns two non-cloneable owners. Each holds only
+its own A/B/C material; neither accesses a sibling or a coupled secret owner.
+`begin` consumes fresh material and emits one output-share frame. `finish`
+validates the complete peer frame before reconstructing the common masked output
+in its existing local allocation. Context, fresh issuance, operand digest, sender,
+phase, exact count and canonical residues are bound. Failure consumes only the
+local party; the coordinator must cancel its sibling explicitly.
+
+Frames and masked outputs independently retain split logical reservations and
+the shared single-live-operation guard until erasure and deallocation. The
+original coupled adapter and its allocation quote remain unchanged. Both APIs
+share the same process-wide gate: a retained frame or output blocks new issuance.
+
+For `P=8*(a+b+c)` and `F=76+8*c`, each party reserves
+`P+8*c+F+owner_metadata+5*64+8192` bytes. The dealer additionally reserves
+`8*c+dealer_metadata+64+16384` bytes and refunds this scratch only after its
+buffers retire. `resources()` reports the combined peak and each component.
+Caller-owned masks, common operands, retained clear values and excess backing
+capacities remain additional outer owners. These are logical bounds, not RSS.
+
+The local dealer still accepts caller-supplied masks: separate owners do not
+certify freshness. There is no material codec, authentication, malicious-output
+verification, independent hosting or persistent replay ledger. Public-API tests
+chain both matrix layouts into the existing TR/GapARS/DReLU owners against
+independent ring and signed-floor equations; that untyped fixture is not graph
+provenance or a production composition.
+
+### Bounded typed local composition
+
+`masked_wire_reference::typed` wraps the original matrix and arithmetic owners;
+it does not translate FuseFSS shares or change their arithmetic. Shared
+`pllm_core::edge_contract` descriptors bind source, shape, numeric representation
+and weight visibility. Descriptors are public declarations, not executable
+capabilities, authenticated source identities or range proofs.
+
+The local trusted dealer owns fresh root masks and returns separate, non-cloneable
+ring capabilities for each party. Consumer, role, source/plan/session, edge,
+numeric and mask identities bind each consuming operation. Outputs retain their
+original native backing, logical leases and matrix singleton guards. Ring and
+XOR-masked predicate outputs have distinct Rust types. A failed party consumes
+its local state; the caller must still cancel its sibling.
+
+`BoundRange<LocalAssumption>` records a developer premise checked by the local
+root encoder, **not a compiler-derived or checkpoint-certified proof**. Checked
+interval multiplication and complete-dot accumulation can retain signed no-wrap
+provenance; explicit `MatrixRange::RingOnly` discards it. TR reduces the ring and
+fractional width while preserving signed-floor interpretation. GapARS accepts
+only a derived unwrapped interval inside the required quarter-ring domain;
+ring-only provenance cannot qualify it. DReLU returns a typed predicate, not a
+ring operand.
+
+Aggregate logical admission prices root masks, encoded owners, metadata and
+native operation overlap before issuance. Caller-owned clear buffers and excess
+capacities remain separate. This single-consumer adapter supplies no fanout,
+remasking, imports, codec, authenticated transport, compiler schedule, decoder or
+SDK activation. Its local matrix → TR/qualified GapARS → DReLU controls establish
+bounded ownership and arithmetic composition only, not composed security,
+checkpoint ranges or trained-model execution.
 
 ## Separate GPU-derived DPF primitive
 
@@ -152,10 +215,12 @@ allocation/randomness failures and reservation retention. Replay with:
 
 ```sh
 cargo test --release --offline -j 1 -p pllm-core --lib streamed_matrix::tests:: -- --test-threads=1
+cargo test --release --offline -j 1 -p pllm-core --lib edge_contract::
 cargo test --release --offline -j 1 -p pllm-garble --lib masked_wire_reference:: -- --test-threads=1
 cargo test --release --offline -j 1 -p pllm-garble --lib fusefss_backend:: -- --test-threads=1
 cargo test --release --offline -j 1 -p pllm-garble --lib compact_dpf:: -- --test-threads=1
 cargo test --release --offline -j 1 -p pllm-garble --test sigma_masked_floor_chain
+cargo test --release --offline -j 1 -p pllm-garble --test sigma_matrix_party
 ```
 
 The FuseFSS run checks the extracted shared logical allocator's existing users.
@@ -163,15 +228,21 @@ The DPF run adds independent AES wordwise/NIST/frozen OpenSSL vectors, complete
 width-8/9 point and strict-less tables under both root phases, wide endpoints,
 bounded expansion/work counters, canonical parsing and erasure/failure controls.
 The complete `cargo test --release --offline -j 1 -p pllm-garble` run passes
-413 unit tests and two external integration tests; eight opt-in exporters or
+433 unit tests, three external integration tests and seven doctests; eight opt-in exporters or
 measurements remain ignored. Its fourteen arithmetic tests cover every legal
 small-ring shift/input/mask, exact RNG requests and measured AES block counts,
 64-bit boundaries, all-gate entropy/allocation failures and retained-owner leases.
 The external chain passes common masked outputs and dealer-only masks through
 TR, GapARS and DReLU without opening intermediates to either evaluator, against
-independent signed floor equations. It does not enforce general graph provenance
-or establish matrix-chain execution. Shared-core traversal's eight tests and
-280 independent source-terminal/arithmetic-mask negative controls also pass.
+independent signed floor equations. The separate matrix-party external fixture
+and typed local controls additionally cover matrix chaining, full-dot interval
+overflow, role/consumer/source/mask mismatches, consuming failure and retained
+budget/singleton lifetimes. Compile-fail controls reject cloning, metadata-built
+capabilities and predicate-mask use as ring material. Unit tests share a test-only
+matrix mutex; the production singleton is unchanged and ordinary parallel test
+execution passes. Shared edge metadata's eleven tests, shared-core traversal's
+eight tests and 280 independent source-terminal/arithmetic-mask negative controls
+also pass. These do not establish general compiler graph provenance.
 Filtered native reruns overlap the complete suite, not additional distinct checks.
 Primitive parity supplies no trained-checkpoint, quality, WAN, performance or
 whole-client memory result. Complete source-specific truncation, nonlinear

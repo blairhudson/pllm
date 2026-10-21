@@ -1205,9 +1205,19 @@ all legal small-ring shifts/inputs/masks, signed floors, exact RNG/AES/frame
 counts and failure/retirement controls. An external caller chains TR, GapARS
 and DReLU against independent floor equations without evaluator access to masks.
 The complete garbling suite passes 413 unit and two external tests with eight
-opt-in skips; 280 source-leakage controls also pass. General wire provenance,
-party-local matrix composition, SDK integration, a runnable SIGMA decoder and
+opt-in skips; 280 source-leakage controls also pass. Compiler-proven graph provenance,
+authenticated party-local matrix composition, SDK integration, a runnable SIGMA decoder and
 composed security remain open.
+The separate party-local matrix API now retains independent material, frame and
+output owners over the same contraction core. A bounded typed local bridge binds
+source, role, consumer, mask, geometry and numeric declarations while moving the
+original native owners intact. Checked complete-dot intervals and local developer
+range assumptions can qualify GapARS; they are not compiler/checkpoint proofs.
+Ring-only provenance cannot qualify it, and predicate masks have a separate type.
+The complete garbling suite passes 433 unit, three external and seven doc tests,
+with eight opt-in skips; 280 source-leakage controls pass. This single-consumer
+local adapter adds no material codec, authenticated transport, compiler schedule,
+decoder, SDK availability or composed-security qualification.
 The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private
 4,096-row lookup with exact half-gates rescaling and multiplication through opaque
 labels. Its Q18-to-Q9 numeric profile matches uncompressed Curl; the existing

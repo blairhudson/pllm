@@ -4,29 +4,37 @@
 //! Dealer issuance takes only masks and public shape; each evaluator uses one
 //! A/B/C share and the common masked operands, but both materials remain in the
 //! same operation owner. Outputs reconstruct XW+RY in Z/(2^n), with no truncation,
-//! clipping, scalar difference openings, or transport claim. Separate party-owned
-//! material, authenticated import/export and transport lifecycle are not provided.
+//! clipping, scalar difference openings, or transport claim. The `party` module
+//! provides separate party-owned material using the same arithmetic core;
+//! authenticated import/export and transport lifecycle are not provided.
 //! Caller owns operation control on one thread. Borrowed handles keep its full
 //! reservation alive, including through exported-output erase/deallocation.
 use super::product;
-use crate::shared_allocation::{allocate, Lease, MAX_ALLOCATION_BYTES};
 pub use crate::shared_allocation::{Budget, Error};
+use crate::shared_allocation::{Lease, MAX_ALLOCATION_BYTES};
 pub use pllm_core::streamed_matrix::MatrixLayout;
-use pllm_core::streamed_matrix::{accumulate_resident, MatrixGeometry};
+mod core;
+pub mod party;
+use self::core::{mask, validate, zeros, Material};
 use sha2::{Digest, Sha256};
 use std::{
     cell::{Cell, RefCell},
     marker::PhantomData,
     mem::size_of,
     rc::Rc,
-    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
 };
 use zeroize::Zeroizing;
 
 pub const MAX_ELEMENTS: usize = 256;
 pub const MAX_COMPLETE_MACS: usize = 1 << 20;
 static LIVE: AtomicBool = AtomicBool::new(false);
+static LIVE_HANDLES: AtomicUsize = AtomicUsize::new(0);
 static ISSUANCE: AtomicU64 = AtomicU64::new(0);
+
+// All native and typed matrix unit tests share the process-wide singleton.
+#[cfg(test)]
+pub(super) static TEST_SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Spec {
@@ -84,24 +92,8 @@ pub struct Resources {
 }
 
 pub fn resources(spec: Spec) -> Result<Resources, Error> {
-    if !(1..=64).contains(&spec.bits) {
-        return Err(Error::Domain);
-    }
-    let a = spec.rows.checked_mul(spec.inner).ok_or(Error::Resource)?;
-    let b = spec
-        .inner
-        .checked_mul(spec.columns)
-        .ok_or(Error::Resource)?;
-    let c = spec.rows.checked_mul(spec.columns).ok_or(Error::Resource)?;
-    if [a, b, c].iter().any(|n| !(1..=MAX_ELEMENTS).contains(n)) {
-        return Err(Error::Resource);
-    }
-    let d = a.checked_mul(spec.columns).ok_or(Error::Resource)?;
-    let complete = d.checked_mul(6).ok_or(Error::Resource)?;
-    if complete > MAX_COMPLETE_MACS {
-        return Err(Error::Resource);
-    }
-    geometry(spec)?;
+    let (a, b, c, d) = core::dimensions(spec)?;
+    let complete = 6 * d;
     let payload = 8 * (6 * a + 6 * b + 7 * c);
     let metadata = size_of::<Operation<'static>>()
         + 2 * size_of::<Party<'static, 'static>>()
@@ -131,24 +123,6 @@ pub fn resources(spec: Spec) -> Result<Resources, Error> {
     })
 }
 
-fn geometry(spec: Spec) -> Result<MatrixGeometry, Error> {
-    MatrixGeometry::new(spec.rows, spec.inner, spec.columns, spec.layout)
-        .map_err(|_| Error::Resource)
-}
-fn mask(bits: u8) -> u64 {
-    u64::MAX >> (64 - bits)
-}
-fn validate(values: &[u64], len: usize, bits: u8) -> Result<(), Error> {
-    if values.len() != len || values.iter().any(|v| v & !mask(bits) != 0) {
-        return Err(Error::Domain);
-    }
-    Ok(())
-}
-fn zeros(len: usize, budget: &Budget) -> Result<Zeroizing<Vec<u64>>, Error> {
-    let mut v = allocate(len, budget)?;
-    v.resize(len, 0);
-    Ok(Zeroizing::new(v))
-}
 fn random(bytes: &mut [u8]) -> Result<(), Error> {
     getrandom::fill(bytes).map_err(|_| Error::Randomness)
 }
@@ -163,23 +137,28 @@ fn split(
     Ok([left, value.wrapping_sub(left) & mask(bits)])
 }
 
-struct Live;
+// Zero-sized thread marker preserves the existing one-thread native profile and
+// legacy metadata quote; static counting adds no heap control allocation.
+struct Live(PhantomData<Rc<()>>);
 impl Live {
     fn acquire() -> Result<Self, Error> {
         LIVE.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map_err(|_| Error::Resource)?;
-        Ok(Self)
+        LIVE_HANDLES.store(1, Ordering::SeqCst);
+        Ok(Self(PhantomData))
+    }
+    // Only existing owners may fork; no secret or sibling access is shared.
+    fn fork(&self) -> Self {
+        LIVE_HANDLES.fetch_add(1, Ordering::SeqCst);
+        Self(PhantomData)
     }
 }
 impl Drop for Live {
     fn drop(&mut self) {
-        LIVE.store(false, Ordering::SeqCst);
+        if LIVE_HANDLES.fetch_sub(1, Ordering::SeqCst) == 1 {
+            LIVE.store(false, Ordering::SeqCst);
+        }
     }
-}
-struct Material {
-    a: Zeroizing<Vec<u64>>,
-    b: Zeroizing<Vec<u64>>,
-    c: Zeroizing<Vec<u64>>,
 }
 
 /// Dealer-only entry point. No online handle retains RX/RW/RY.
@@ -243,43 +222,7 @@ impl Dealer {
         let mut nonce = [0; 32];
         fill(&mut nonce)?;
         let binding = binding(context, spec, issuance, &nonce);
-        let mut materials = [
-            Material {
-                a: zeros(cost.input_elements, budget)?,
-                b: zeros(cost.weight_elements, budget)?,
-                c: zeros(cost.output_elements, budget)?,
-            },
-            Material {
-                a: zeros(cost.input_elements, budget)?,
-                b: zeros(cost.weight_elements, budget)?,
-                c: zeros(cost.output_elements, budget)?,
-            },
-        ];
-        let mut c = zeros(cost.output_elements, budget)?;
-        c.copy_from_slice(ry);
-        accumulate_resident(rw, &[rx], &mut [&mut c], geometry(spec)?, cancelled)
-            .map_err(|_| Error::Consumed)?;
-        for (kind, values) in [(0, rx), (1, rw), (2, &*c)] {
-            for (i, &value) in values.iter().enumerate() {
-                if cancelled() {
-                    return Err(Error::Consumed);
-                }
-                let value = if kind < 2 {
-                    product::negative_mask(value)
-                } else {
-                    value
-                };
-                let shares = Zeroizing::new(split(value, spec.bits, fill)?);
-                for (party, material) in materials.iter_mut().enumerate() {
-                    let output = match kind {
-                        0 => &mut material.a,
-                        1 => &mut material.b,
-                        _ => &mut material.c,
-                    };
-                    output[i] = shares[party];
-                }
-            }
-        }
+        let materials = core::deal(spec, [rx, rw, ry], budget, fill, cancelled)?;
         Ok(Operation {
             context,
             spec,
@@ -431,50 +374,10 @@ impl<'o, 'b> Party<'o, 'b> {
         let material = op.materials.borrow_mut()[usize::from(self.role)]
             .take()
             .ok_or(Error::Consumed)?;
-        let cost = resources(op.spec)?;
-        // Revalidate every length/residue before allocating or mutating output.
-        validate(&input.x, cost.input_elements, op.spec.bits)?;
-        validate(&input.w, cost.weight_elements, op.spec.bits)?;
-        validate(&material.a, cost.input_elements, op.spec.bits)?;
-        validate(&material.b, cost.weight_elements, op.spec.bits)?;
-        validate(&material.c, cost.output_elements, op.spec.bits)?;
-        let mut output = zeros(cost.output_elements, op.budget)?;
-        output.copy_from_slice(&material.c);
         let mut stop = || op.retired.get() || cancelled();
-        let geometry = geometry(op.spec)?;
-        // Exactly 2d or 3d MACs; complete ring contraction, no termwise floor.
-        accumulate_resident(
-            &input.w,
-            &[&material.a],
-            &mut [&mut output],
-            geometry,
-            &mut stop,
-        )
-        .map_err(|_| Error::Consumed)?;
-        accumulate_resident(
-            &material.b,
-            &[&input.x],
-            &mut [&mut output],
-            geometry,
-            &mut stop,
-        )
-        .map_err(|_| Error::Consumed)?;
-        if self.role == 1 {
-            accumulate_resident(
-                &input.w,
-                &[&input.x],
-                &mut [&mut output],
-                geometry,
-                &mut stop,
-            )
-            .map_err(|_| Error::Consumed)?;
-        }
-        for value in output.iter_mut() {
-            *value &= mask(op.spec.bits);
-        }
-        if stop() {
-            return Err(Error::Consumed);
-        }
+        let output = core::evaluate(
+            op.spec, self.role, &material, &input.x, &input.w, op.budget, &mut stop,
+        )?;
         self.active = false;
         Ok(OutputShare {
             values: output,

@@ -1,8 +1,410 @@
+use super::TEST_SERIAL as TEST;
 use super::*;
-use std::sync::Mutex;
 
-// Native profile intentionally admits one live operation process-wide.
-static TEST: Mutex<()> = Mutex::new(());
+#[test]
+fn local_party_exact_admission_failures_and_retained_singleton() {
+    let _guard = TEST.lock().unwrap();
+    let s = scalar(8);
+    let cost = party::resources(s).unwrap();
+    let short = Budget::new(cost.reservation_bytes - 1).unwrap();
+    let mut draws = 0;
+    assert!(matches!(
+        party::issue_with(
+            s,
+            context(),
+            [&[2], &[3], &[4]],
+            &short,
+            &mut |_| {
+                draws += 1;
+                Ok(())
+            },
+            &mut || false
+        ),
+        Err(Error::Resource)
+    ));
+    assert_eq!(draws, 0);
+    assert_eq!(short.used_bytes(), 0);
+    // Initial cancellation must not ask for entropy; every failed random draw
+    // must unwind material, scratch, singleton and reservation.
+    let b = Budget::new(cost.reservation_bytes).unwrap();
+    assert!(matches!(
+        party::issue_with(
+            s,
+            context(),
+            [&[2], &[3], &[4]],
+            &b,
+            &mut |_| {
+                draws += 1;
+                Ok(())
+            },
+            &mut || true,
+        ),
+        Err(Error::Consumed)
+    ));
+    assert_eq!(draws, 0);
+    assert_eq!(b.used_bytes(), 0);
+    for fail in 0..4 {
+        let mut draws = 0;
+        assert!(matches!(
+            party::issue_with(
+                s,
+                context(),
+                [&[2], &[3], &[4]],
+                &b,
+                &mut |bytes| {
+                    if draws == fail {
+                        return Err(Error::Randomness);
+                    }
+                    draws += 1;
+                    bytes.fill(0);
+                    Ok(())
+                },
+                &mut || false,
+            ),
+            Err(Error::Randomness)
+        ));
+        assert_eq!(b.used_bytes(), 0);
+        assert!(!LIVE.load(Ordering::SeqCst));
+    }
+    // Every material/scratch allocation failure erases and refunds.
+    for fail in 0..7 {
+        let b = Budget::new(cost.reservation_bytes).unwrap();
+        b.fail_after.store(fail, Ordering::SeqCst);
+        assert!(matches!(
+            party::issue_local(s, context(), &[2], &[3], &[4], &b),
+            Err(Error::Allocation)
+        ));
+        assert_eq!(b.used_bytes(), 0);
+        assert!(!LIVE.load(Ordering::SeqCst));
+    }
+    // Output/frame allocation failures consume only this party. Coordinator
+    // cancels sibling explicitly; no hidden coupled owner exists.
+    for fail in 0..2 {
+        let b = Budget::new(cost.reservation_bytes).unwrap();
+        let [mut left, mut right] = party::issue_local(s, context(), &[2], &[3], &[4], &b).unwrap();
+        b.fail_after.store(fail, Ordering::SeqCst);
+        assert!(matches!(
+            left.begin(&[7], &[10], &mut || false),
+            Err(Error::Allocation)
+        ));
+        assert!(matches!(
+            left.begin(&[7], &[10], &mut || false),
+            Err(Error::Consumed)
+        ));
+        right.cancel();
+        assert_eq!(b.used_bytes(), 0);
+        assert!(!LIVE.load(Ordering::SeqCst));
+    }
+    let b = Budget::new(cost.reservation_bytes).unwrap();
+    let [mut left, mut right] = party::issue_local(s, context(), &[2], &[3], &[4], &b).unwrap();
+    let lf = left.begin(&[7], &[10], &mut || false).unwrap();
+    let rf = right.begin(&[7], &[10], &mut || false).unwrap();
+    let lo = left.finish(rf.as_bytes()).unwrap();
+    let ro = right.finish(lf.as_bytes()).unwrap();
+    assert_eq!(lo.values(), &[39]); // (7-2)*(10-3)+4
+    assert_eq!(ro.values(), lo.values());
+    drop(left);
+    drop(right);
+    drop(ro);
+    drop(rf);
+    assert!(matches!(
+        Dealer::issue(context(), s, &[2], &[3], &[4], &budget()),
+        Err(Error::Resource)
+    ));
+    drop(lo);
+    // A retained frame alone still prevents old AND new issuance.
+    assert!(b.used_bytes() > 0);
+    assert!(matches!(
+        party::issue_local(s, context(), &[2], &[3], &[4], &budget()),
+        Err(Error::Resource)
+    ));
+    drop(lf);
+    assert_eq!(b.used_bytes(), 0);
+    let op = Dealer::issue(context(), s, &[2], &[3], &[4], &b).unwrap();
+    assert!(matches!(
+        party::issue_local(s, context(), &[2], &[3], &[4], &budget()),
+        Err(Error::Resource)
+    ));
+    drop(op);
+}
+
+#[test]
+fn local_party_parity_canonical_frames_and_cancellation() {
+    let _guard = TEST.lock().unwrap();
+    for bits in 1..=64 {
+        for layout in [MatrixLayout::InputOutput, MatrixLayout::OutputInput] {
+            let s = spec(bits, layout);
+            let cost = party::resources(s).unwrap();
+            let b = Budget::new(cost.reservation_bytes).unwrap();
+            let rx = vec![1; cost.input_elements];
+            let rw = vec![1; cost.weight_elements];
+            let ry = vec![1; cost.output_elements];
+            let x: Vec<_> = (0..rx.len()).map(|i| i as u64 & mask(bits)).collect();
+            let w: Vec<_> = (0..rw.len()).map(|i| (i as u64 * 3) & mask(bits)).collect();
+            let [mut left, mut right] =
+                party::issue_local(s, context(), &rx, &rw, &ry, &b).unwrap();
+            let lf = left
+                .begin(&masked(&x, &rx, bits), &masked(&w, &rw, bits), &mut || {
+                    false
+                })
+                .unwrap();
+            let rf = right
+                .begin(&masked(&x, &rx, bits), &masked(&w, &rw, bits), &mut || {
+                    false
+                })
+                .unwrap();
+            assert_eq!(lf.as_bytes().len(), cost.frame_bytes);
+            let lo = left.finish(rf.as_bytes()).unwrap();
+            let ro = right.finish(lf.as_bytes()).unwrap();
+            assert_eq!(lo.values(), oracle(s, &x, &w, &ry));
+            assert_eq!(ro.values(), lo.values());
+            assert!(matches!(left.finish(rf.as_bytes()), Err(Error::Consumed)));
+        }
+    }
+    let s = scalar(3);
+    let b = budget();
+    let [mut left, mut right] = party::issue_local(s, context(), &[1], &[2], &[3], &b).unwrap();
+    assert!(matches!(
+        left.begin(&[1], &[2], &mut || true),
+        Err(Error::Consumed)
+    ));
+    // Sibling remains locally usable, until outer coordinator cancels it.
+    let rf = right.begin(&[1], &[2], &mut || false).unwrap();
+    right.cancel();
+    drop(rf);
+    assert_eq!(b.used_bytes(), 0);
+    let [mut left, mut right] = party::issue_local(s, context(), &[1], &[2], &[3], &b).unwrap();
+    let lf = left.begin(&[1], &[2], &mut || false).unwrap();
+    let rf = right.begin(&[1], &[2], &mut || false).unwrap();
+    let mut bad = rf.as_bytes().to_vec();
+    bad[76] |= 8; // Noncanonical residue, not merely a binding mismatch.
+    assert!(matches!(left.finish(&bad), Err(Error::Domain)));
+    assert!(matches!(left.finish(rf.as_bytes()), Err(Error::Consumed)));
+    right.cancel();
+    drop(lf);
+    drop(rf);
+    assert_eq!(b.used_bytes(), 0);
+}
+
+#[test]
+fn local_party_invalid_preflight_never_draws_or_allocates() {
+    let _guard = TEST.lock().unwrap();
+    let s = scalar(3);
+    let b = budget();
+    b.fail_after.store(0, Ordering::SeqCst);
+    let mut draws = 0;
+    let mut fill = |_: &mut [u8]| {
+        draws += 1;
+        Err(Error::Randomness)
+    };
+    let mut reject = |spec, ctx, masks, expected| {
+        assert_eq!(
+            party::issue_with(spec, ctx, masks, &b, &mut fill, &mut || false).err(),
+            Some(expected)
+        );
+        assert_eq!(b.used_bytes(), 0);
+        assert!(!LIVE.load(Ordering::SeqCst));
+        assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 0);
+    };
+    for (bad, expected) in [
+        (Spec { bits: 0, ..s }, Error::Domain),
+        (Spec { bits: 65, ..s }, Error::Domain),
+        (Spec { rows: 0, ..s }, Error::Resource),
+        (Spec { inner: 0, ..s }, Error::Resource),
+        (Spec { columns: 0, ..s }, Error::Resource),
+        (
+            Spec {
+                rows: usize::MAX,
+                inner: 2,
+                ..s
+            },
+            Error::Resource,
+        ),
+        (Spec { rows: 257, ..s }, Error::Resource),
+    ] {
+        reject(bad, context(), [&[1][..]; 3], expected);
+    }
+    for bad in [
+        Context {
+            weight_wire: context().input_wire,
+            ..context()
+        },
+        Context {
+            output_wire: context().input_wire,
+            ..context()
+        },
+        Context {
+            output_wire: context().weight_wire,
+            ..context()
+        },
+    ] {
+        reject(s, bad, [&[1][..]; 3], Error::Context);
+    }
+    for index in 0..3 {
+        for bad in [&[][..], &[1, 2][..], &[8][..]] {
+            let mut masks = [&[1][..]; 3];
+            masks[index] = bad;
+            reject(s, context(), masks, Error::Domain);
+        }
+    }
+    // A valid preflight reaches entropy despite allocation failure injection.
+    reject(s, context(), [&[1][..]; 3], Error::Randomness);
+    assert_eq!(draws, 1);
+    assert_eq!(b.fail_after.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn local_party_invalid_online_operands_consume_only_local_owner() {
+    let _guard = TEST.lock().unwrap();
+    let s = scalar(3);
+    let cost = party::resources(s).unwrap();
+    let b = Budget::new(cost.reservation_bytes).unwrap();
+    for role in 0..2 {
+        for index in 0..2 {
+            for bad in [&[][..], &[1, 2][..], &[8][..]] {
+                let mut parties = party::issue_local(s, context(), &[1], &[2], &[3], &b).unwrap();
+                let [left, right] = &mut parties;
+                let (local, sibling) = if role == 0 {
+                    (left, right)
+                } else {
+                    (right, left)
+                };
+                let mut operands = [&[1][..], &[2][..]];
+                operands[index] = bad;
+                // Domain validation must precede the first output allocation.
+                b.fail_after.store(0, Ordering::SeqCst);
+                assert!(matches!(
+                    local.begin(operands[0], operands[1], &mut || false),
+                    Err(Error::Domain)
+                ));
+                assert!(matches!(
+                    local.begin(&[1], &[2], &mut || false),
+                    Err(Error::Consumed)
+                ));
+                assert_eq!(b.used_bytes(), cost.party_reservation_bytes);
+                assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 1);
+                b.fail_after.store(-1, Ordering::SeqCst);
+                let frame = sibling.begin(&[1], &[2], &mut || false).unwrap();
+                sibling.cancel();
+                assert!(b.used_bytes() > 0);
+                assert!(LIVE.load(Ordering::SeqCst));
+                assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 1);
+                drop(frame);
+                drop(parties);
+                assert_eq!(b.used_bytes(), 0);
+                assert!(!LIVE.load(Ordering::SeqCst));
+                assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn local_party_identical_nonce_reissuance_changes_binding_and_rejects_stale_frame() {
+    let _guard = TEST.lock().unwrap();
+    let s = scalar(3);
+    let b = Budget::new(party::resources(s).unwrap().reservation_bytes).unwrap();
+    let mut draws = 0;
+    let mut fill = |bytes: &mut [u8]| {
+        draws += 1;
+        bytes.fill(0x5a);
+        Ok(())
+    };
+    // Copied bytes are a caller-owned replay fixture, not a retained Frame lease.
+    let stale = {
+        let [mut left, mut right] =
+            party::issue_with(s, context(), [&[1], &[2], &[3]], &b, &mut fill, &mut || {
+                false
+            })
+            .unwrap();
+        let frame = right.begin(&[1], &[2], &mut || false).unwrap();
+        let bytes = frame.as_bytes().to_vec();
+        left.cancel();
+        right.cancel();
+        drop(frame);
+        bytes
+    };
+    assert_eq!(b.used_bytes(), 0);
+    assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 0);
+    let [mut left, mut right] =
+        party::issue_with(s, context(), [&[1], &[2], &[3]], &b, &mut fill, &mut || {
+            false
+        })
+        .unwrap();
+    let lf = left.begin(&[1], &[2], &mut || false).unwrap();
+    let rf = right.begin(&[1], &[2], &mut || false).unwrap();
+    assert_eq!(draws, 8); // Two identical nonces and six identical split draws.
+    assert_ne!(&stale[8..40], &rf.as_bytes()[8..40]);
+    assert_eq!(&stale[..8], &rf.as_bytes()[..8]);
+    assert_eq!(&stale[40..], &rf.as_bytes()[40..]);
+    assert!(matches!(left.finish(&stale), Err(Error::Context)));
+    assert!(matches!(left.finish(rf.as_bytes()), Err(Error::Consumed)));
+    let output = right.finish(lf.as_bytes()).unwrap();
+    assert_eq!(output.values(), &[3]);
+    drop((left, right, lf, rf));
+    assert!(b.used_bytes() > 0);
+    assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 1);
+    drop(output);
+    assert_eq!(b.used_bytes(), 0);
+    assert!(!LIVE.load(Ordering::SeqCst));
+    assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn local_party_each_frame_field_and_payload_word_failure_consumes_only_local_owner() {
+    let _guard = TEST.lock().unwrap();
+    let s = spec(3, MatrixLayout::InputOutput);
+    let cost = party::resources(s).unwrap();
+    let b = Budget::new(cost.reservation_bytes).unwrap();
+    let rx = vec![1; cost.input_elements];
+    let rw = vec![2; cost.weight_elements];
+    let ry = vec![3; cost.output_elements];
+    // Mutate every header byte separately: magic [0,8), source/issuance binding
+    // [8,40), operand digest [40,72), sender 72, phase 73, count [74,76).
+    // Then make each output word noncanonical while all other words stay valid.
+    const HEADER: usize = 76;
+    for role in 0..2 {
+        for mutation in 0..HEADER + cost.output_elements {
+            let mut parties = party::issue_local(s, context(), &rx, &rw, &ry, &b).unwrap();
+            let [left, right] = &mut parties;
+            let (local, sibling) = if role == 0 {
+                (left, right)
+            } else {
+                (right, left)
+            };
+            let lf = local.begin(&rx, &rw, &mut || false).unwrap();
+            let rf = sibling.begin(&rx, &rw, &mut || false).unwrap();
+            let mut bad = rf.as_bytes().to_vec();
+            let expected = if mutation < HEADER {
+                bad[mutation] ^= 1;
+                Error::Context
+            } else {
+                bad[HEADER + 8 * (mutation - HEADER)] |= 8;
+                Error::Domain
+            };
+            b.fail_after.store(0, Ordering::SeqCst);
+            assert_eq!(
+                local.finish(&bad).err(),
+                Some(expected),
+                "role {role}, mutation {mutation}"
+            );
+            assert!(matches!(local.finish(rf.as_bytes()), Err(Error::Consumed)));
+            // Sibling can still finish with the original valid frame, without
+            // allocating; rejected local frame must not retire sibling material.
+            let output = sibling.finish(lf.as_bytes()).unwrap();
+            assert_eq!(output.values(), ry.as_slice());
+            drop(parties);
+            drop(output);
+            assert!(b.used_bytes() > 0);
+            assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 2);
+            drop((lf, rf));
+            assert_eq!(b.used_bytes(), 0);
+            assert!(!LIVE.load(Ordering::SeqCst));
+            assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 0);
+            b.fail_after.store(-1, Ordering::SeqCst);
+        }
+    }
+}
 
 fn context() -> Context {
     Context {

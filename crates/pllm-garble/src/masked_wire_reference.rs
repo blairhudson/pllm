@@ -24,6 +24,7 @@ mod product;
 mod rescale;
 mod seeded_codec;
 pub mod transport;
+pub mod typed;
 use coins::Coins;
 pub use coins::MaterialEncoding;
 

@@ -86,8 +86,9 @@ Completed foundations:
 - The [bounded SIGMA foundations](../docs/research/sigma-native-reference.md)
   add the D16 GPU-derived DPF CPU port and an untruncated masked-matrix
   contraction over shared resident ring kernels. Independent integer/AES and
-  failure-retirement tests pass; the matrix harness couples both shares in one
-  process, not isolated workers. Existing DPF defaults remain unchanged. CPU
+  failure-retirement tests pass; the original matrix harness couples both shares
+  in one process. A separate party-local API reuses the same contraction core;
+  it does not establish isolated hosting. Existing DPF defaults remain unchanged. CPU
   terminal leakage and one-bit arithmetic-output masks remain prohibited; D17 now
   approves full-output-ring masks. Bounded TR/GapARS/DReLU execution uses the
   distinct GPU127/full-ring profile, separate party-local owners from a local
@@ -98,11 +99,16 @@ Completed foundations:
   the reference. No authenticated material delivery, material codec or peer
   transport is supplied. Fourteen native arithmetic tests and an external
   masked-floor chain pass, including integer oracles, exact cost counters and
-  failure/lifetime controls. The complete garbling suite passes 413 unit and two
-  external tests, with eight opt-in skips; 280 source-leakage controls also pass.
+  failure/lifetime controls. A bounded typed local bridge retains the original
+  matrix/arithmetic owners and binds source, role, consumer, mask, shape and numeric
+  declarations. Local developer range assumptions and checked full-dot intervals
+  qualify GapARS only within its quarter-ring domain; they are not compiler proofs.
+  The complete garbling suite passes 433 unit, three external and seven doc tests,
+  with eight opt-in skips; 280 source-leakage controls also pass.
   No runnable SIGMA, trained decoder, SDK availability or composed security proof
-  follows from these primitives. Typed wire provenance and party-local matrix
-  composition are the next integration gates.
+  follows from these primitives. Compiler-proven graph ranges, consuming material
+  codecs, authenticated party transport and complete nonlinear/decoder composition
+  remain integration gates.
 - The [PUMA truncation/PRSS reference](../docs/research/puma-truncation-reference.md)
   checks the source AES schedule and replicated arithmetic. Its live payload
   ledger now retains exported-buffer charges through erasure and deallocation.
