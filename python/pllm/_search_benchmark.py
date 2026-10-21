@@ -25,6 +25,15 @@ def _digest(value):
     return hashlib.sha256(_canonical(value)).hexdigest()
 
 
+def _sharing_privacy(pipeline):
+    """Bind the extra PRG assumption without changing legacy full-share cohorts."""
+    linear = pipeline.components.get("linear")
+    if (linear is not None and linear.component == "pllm/open-weight-verifiable-outsourcing/v1"
+            and linear.params.get("sharing") == "seeded"):
+        return {"input_sharing": "gkm.seeded.aes128.duplicate-le64.two-purpose.window.v1"}
+    return {}
+
+
 def _boundary(experiment):
     from pllm.schedulers import _numeric_component
 
@@ -41,6 +50,7 @@ def _boundary(experiment):
             "graph": resolved.role_graph.to_spec(),
             "verification": resolved.verification_component,
             "failure_bits": resolved.verification_target_failure_bits,
+            **_sharing_privacy(experiment.pipeline),
         },
     }
 

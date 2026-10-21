@@ -21,6 +21,12 @@ matched complete-system comparison remain open. The qualified ten-method count
 remains zero. The documentary status below must not erase this later progress
 or promote it to a serving rank.
 
+The later explicit GKM seeded profile also runs ordinary two-worker SDK/gateway
+requests and accepted-only response-state auditing. Generated source/oracle checks
+cover both sharing choices. Its first six-cell pinned-Qwen comparison is
+[host-memory blocked](../docs/evidence/gkm-sharing-qwen-blocked.json), so this
+integration does not qualify checkpoint parity or a serving rank.
+
 PUMA subsequently gained the bounded ordinary `PumaThreePartyCpu` composition:
 native semantic compilation, three authenticated worker processes, private
 full-prefix feedback, SDK/gateway execution and standard response benchmarks.

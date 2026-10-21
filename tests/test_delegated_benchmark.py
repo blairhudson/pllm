@@ -130,6 +130,19 @@ def test_native_metadata_pins_full_envelope_and_numeric_identity(experiment, nat
     assert not any(key in json.dumps(metadata) for key in ("weight_bits", "activation_bits"))
 
 
+def test_seeded_benchmark_keeps_numeric_identity_and_reports_actual_sharing(experiment, native_contract):
+    full, _ = delegated.inspect_runtime(experiment)
+    seeded = experiment.with_params(pipeline__linear__sharing="seeded")
+    native_contract.source.runtime_contract_digest = "7" * 64
+    changed, _ = delegated.inspect_runtime(seeded)
+    assert changed["sharing"] == "seeded" and full["sharing"] == "full"
+    assert changed["numeric"] == full["numeric"]
+    assert changed["model_fingerprint"] == full["model_fingerprint"]
+    assert changed["native_runtime_contract_digest"] != full["native_runtime_contract_digest"]
+    assert changed["verification_window"] == full["verification_window"] == "request_end"
+    assert changed["decode_tps_supported"] is False
+
+
 @pytest.mark.parametrize("options", [
     {"backend": "docker"}, {"backend": "auto"}, {"docker": True},
     {"docker_image": "image"}, {"docker_network": object()}, {"cache_bytes": 1},
@@ -210,7 +223,7 @@ def test_native_geometry_target_never_enters_ordinary_lowering(experiment, nativ
         model_context(BenchmarkTarget.geometry(experiment).to_spec()["parameters"], m)
 
 
-@pytest.mark.parametrize("extra", [{"concurrent_requests": 2}, {"state_audit": True},
+@pytest.mark.parametrize("extra", [{"concurrent_requests": 2},
                                   {"client_metadata": True}, {"client_mlp": {"enabled": True}}])
 def test_response_target_rejects_non_native_extensions_before_memory(experiment, monkeypatch, tmp_path, extra):
     monkeypatch.setattr("pllm.metrics.benchmark_memory", lambda *_a, **_k: pytest.fail("memory/source touched"))
@@ -392,7 +405,7 @@ def test_ordinary_loopback_benchmark_uses_native_no_inventory_contract(experimen
     assert result["configuration"]["sampling"]["effective_temperature"] == 0
     assert result["runtime_contract"]["output_delivery"] == delegated.DELIVERY
     assert result["runs"][0]["measurement"]["decode_tps_supported"] is False
-    assert roles.options == [{"timeout": 300}]
+    assert roles.options == [{"timeout": 300 if through_target else 10}]
     assert roles.topology.closed and roles.client.closed
 
 

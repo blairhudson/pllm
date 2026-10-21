@@ -84,7 +84,7 @@ class OpenWeightVerifiableOutsourcing(ProtocolMethod):
     NUMERIC_PROFILE: str
     LOCAL_NUMERIC_PROFILE: str
     descriptor: ComponentDescriptor
-    def __init__(self, *, sharing: Literal["full"] = "full",
+    def __init__(self, *, sharing: Literal["full", "seeded"] = "full",
                  generation: Literal["fixed_length_greedy"] = "fixed_length_greedy",
                  capacity: Literal["capsule", "decoder"] = "capsule") -> None: ...
     def get_params(self, deep: bool = True) -> dict[str, object]: ...

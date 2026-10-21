@@ -1,4 +1,4 @@
-"""Bounded outer framing for native, full-share verified delegation."""
+"""Bounded outer framing for native verified delegation."""
 
 import re
 import json

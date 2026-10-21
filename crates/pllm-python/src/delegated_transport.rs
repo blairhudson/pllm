@@ -302,6 +302,8 @@ impl PyClient {
     }
 
     #[pyo3(signature = (*args, **kwargs))]
+    /// Export starts once. Seeded One's frame contains purpose keys and requires
+    /// confidential authenticated delivery to One, never Zero.
     fn starts<'py>(
         &mut self,
         py: Python<'py>,

@@ -46,6 +46,17 @@ Completed foundations:
   agreement, with complete-state equality, broader quality and matched serving
   costs still open. Replay uses the standard command in
   [the factory README](../examples/papers/README.md#completed-quality-smoke).
+- The explicit GKM `sharing="seeded"` profile now transfers independent linear and
+  lookup AES keys only to Worker One through the ordinary two-worker SDK. Original
+  request-end verification and complete source/schedule commitments remain.
+  Generated full/seeded execution matches independent complete-state and
+  per-selection oracles; the response benchmark publishes accepted-only state
+  commitments under equal audit admission. The reusable
+  [`gkm_sharing.py`](../examples/benchmarks/gkm_sharing.py) comparison has six
+  [host-memory-blocked cells](../docs/evidence/gkm-sharing-qwen-blocked.json):
+  10.82 GiB required against 8.48–9.87 GiB available. The separate two-profile
+  pinned-checkpoint oracle also rejects before value loading. Seeded full-checkpoint
+  equality, broader quality and measured sharing-profile costs remain open.
 - The separate [Maverick batch capsule](../docs/research/maverick-batch-reference.md)
   implements bounded two-claim algebra with complete P/Q/Qaux validation,
   response-fixation barriers and allocation/retirement checks. Code-distance,

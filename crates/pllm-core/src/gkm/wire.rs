@@ -1,4 +1,5 @@
-//! Full-share, party-local transport owners. See `wire-api.md` for the adapter
+//! Party-local full-share and explicitly selected seeded transport owners.
+//! See `wire-api.md` for the original full-share adapter
 //! contract. Bytes are framing, not authentication or encryption. In particular,
 //! the authenticated start frame and publication pin must come from the configured
 //! client/owner channels, never from an unauthenticated peer's self-description.
@@ -235,9 +236,6 @@ fn encode_frame(
     lease: &Arc<Lease>,
 ) -> Result<WireBytes, Error> {
     lease.ensure_open()?;
-    if binding.profile != SharingProfile::FullShares {
-        return Err(Error::Binding);
-    }
     let length = HEADER.checked_add(body.len()).ok_or(Error::Limit)?;
     let capacity = lease.budget.publication.capacity;
     if length > capacity.max_wire_frame_bytes() {
@@ -246,7 +244,14 @@ fn encode_frame(
     let mut out = WireBytes::allocate(length, capacity)?;
     out._lease = Some(Arc::clone(lease));
     out.extend(MAGIC);
-    out.extend(&[kind, 0]); // Version 1 admits full shares only, never seed frames.
+    out.extend(&[
+        kind,
+        if binding.profile == SharingProfile::FullShares {
+            0
+        } else {
+            1
+        },
+    ]);
     out.extend(&Sha256::digest(NUMERIC_PROFILE));
     out.extend(&binding.publication);
     out.extend(&binding.session);
@@ -278,9 +283,14 @@ impl<'a> Frame<'a> {
             return Err(Error::Limit);
         }
         let mut cursor = Cursor::new(bytes);
-        if cursor.take(8)? != MAGIC || cursor.byte()? != kind || cursor.byte()? != 0 {
+        if cursor.take(8)? != MAGIC || cursor.byte()? != kind {
             return Err(Error::Binding);
         }
+        let profile = match cursor.byte()? {
+            0 => SharingProfile::FullShares,
+            1 => SharingProfile::Aes128WindowV1,
+            _ => return Err(Error::Binding),
+        };
         if cursor.take(32)? != Sha256::digest(NUMERIC_PROFILE).as_slice() {
             return Err(Error::Binding);
         }
@@ -309,7 +319,7 @@ impl<'a> Frame<'a> {
             step,
             artifact,
             worker,
-            profile: SharingProfile::FullShares,
+            profile,
         };
         if total == 0
             || total as usize > owner.capacity.max_window_steps()
@@ -351,10 +361,16 @@ enum ClientState {
 /// Every fallible state transition takes the old state first: ignored errors,
 /// duplicate issue/import/start/finish, and cancellation cannot permit retries.
 pub struct ClientWireWindow {
+    seed_keys: Option<WireSeedKeys>,
     state: Option<ClientState>,
     started: bool,
     request: [u8; 32],
     _permit: WirePermit,
+}
+
+struct WireSeedKeys {
+    keys: Zeroizing<[[u8; 16]; 2]>,
+    _lease: Arc<Lease>,
 }
 
 /// Borrowed, unaccepted values for trusted client-local dependent execution.
@@ -365,17 +381,37 @@ pub struct WireTentative<'a> {
 }
 
 impl Client {
+    /// Fresh window keys travel only in worker One's confidential authenticated
+    /// start channel. Neither this owner nor returned frames support retries.
+    pub fn begin_seeded_wire(
+        &self,
+        context: [u8; 32],
+        plan: &[Step],
+    ) -> Result<ClientWireWindow, Error> {
+        let (window, worker) = self.begin_seeded(context, plan)?;
+        let keys = WireSeedKeys {
+            keys: worker.transfer_keys(&window._lease)?,
+            _lease: Arc::clone(&window._lease),
+        };
+        window.into_wire_inner(Some(keys))
+    }
+
     pub fn begin_wire(&self, context: [u8; 32], plan: &[Step]) -> Result<ClientWireWindow, Error> {
         self.begin(context, plan)?.into_wire()
     }
 }
 
 impl Window {
-    /// Seeded windows reject and retire. Existing native full/seeded APIs remain
-    /// available; network profile admission is deliberately narrower.
+    /// Convert an untouched full-share window. Unpaired seeded windows reject
+    /// and retire: use `Client::begin_seeded_wire` for consuming seed transfer.
     pub fn into_wire(self) -> Result<ClientWireWindow, Error> {
+        self.into_wire_inner(None)
+    }
+
+    fn into_wire_inner(self, keys: Option<WireSeedKeys>) -> Result<ClientWireWindow, Error> {
         self._lease.ensure_open()?;
-        if self.profile != SharingProfile::FullShares || self.completed != 0 {
+        if (self.profile == SharingProfile::Aes128WindowV1) != keys.is_some() || self.completed != 0
+        {
             return Err(Error::Binding);
         }
         let max_values = self
@@ -392,6 +428,7 @@ impl Window {
         Ok(ClientWireWindow {
             request: self.request_id(),
             state: Some(ClientState::Ready(self)),
+            seed_keys: keys,
             started: false,
             _permit: permit,
         })
@@ -403,9 +440,12 @@ impl ClientWireWindow {
         self.request
     }
 
-    /// Public, role-specific schedules for separately authenticated worker
-    /// channels. Export exactly once, before issuing any private share.
+    /// Role-specific starts, exported exactly once before private shares.
+    /// Seeded worker One's start contains both purpose keys: its channel MUST
+    /// provide confidentiality and authentication. Zero receives only schedule.
     pub fn start_frames(&mut self) -> Result<[WireBytes; 2], Error> {
+        // Take even on malformed state: seed material must not survive a failed export.
+        let keys = self.seed_keys.take();
         let state = self.state.take().ok_or(Error::Retired)?;
         let ClientState::Ready(window) = state else {
             return Err(Error::Schedule);
@@ -413,8 +453,15 @@ impl ClientWireWindow {
         if self.started {
             return Err(Error::Retired);
         }
-        let mut body = payload::filled(window.plan.len() * 33, 0u8)?;
-        for (bytes, &step) in body.chunks_exact_mut(33).zip(window.plan.iter()) {
+        let schedule_bytes = window.plan.len() * 33;
+        let mut body = Zeroizing::new(payload::filled(
+            schedule_bytes + if keys.is_some() { 32 } else { 0 },
+            0u8,
+        )?);
+        for (bytes, &step) in body[..schedule_bytes]
+            .chunks_exact_mut(33)
+            .zip(window.plan.iter())
+        {
             bytes.copy_from_slice(&step_bytes(step));
         }
         let first = window.binding(Worker::Zero)?;
@@ -426,11 +473,15 @@ impl ClientWireWindow {
             &body[..window.plan.len() * 33],
             &window._lease,
         )?;
+        if let Some(keys) = keys {
+            body[schedule_bytes..schedule_bytes + 16].copy_from_slice(&keys.keys[0]);
+            body[schedule_bytes + 16..].copy_from_slice(&keys.keys[1]);
+        }
         let right = encode_frame(
             START,
             window.binding(Worker::One)?,
             dimensions,
-            &body[..window.plan.len() * 33],
+            &body,
             &window._lease,
         )?;
         self.started = true;
@@ -453,7 +504,7 @@ impl ClientWireWindow {
         let pending = self.take_ready()?.linear(input)?;
         let encode = |worker| {
             let share = pending.share(worker);
-            let values = share.values().ok_or(Error::Binding)?;
+            let values = share.values().unwrap_or(&[]);
             let mut bytes = Zeroizing::new(payload::filled(values.len() * 8, 0u8)?);
             for (out, value) in bytes.chunks_exact_mut(8).zip(values) {
                 out.copy_from_slice(&value.to_le_bytes());
@@ -461,7 +512,7 @@ impl ClientWireWindow {
             encode_frame(
                 REQUEST,
                 share.binding(),
-                (share.rows, values.len()),
+                shape(&pending.window.publication, share.binding().step)?,
                 &bytes[..values.len() * 8],
                 share.lease,
             )
@@ -480,7 +531,7 @@ impl ClientWireWindow {
                 REQUEST,
                 share.binding(),
                 shape(&pending.window.publication, Step::Lookup)?,
-                share.selector().ok_or(Error::Binding)?,
+                share.selector().unwrap_or(&[]),
                 share.lease,
             )
         };
@@ -509,6 +560,7 @@ impl ClientWireWindow {
                 };
                 let left = decode(Worker::Zero, zero)?;
                 let right = decode(Worker::One, one)?;
+                acknowledge_seeded_reply(&pending.window);
                 pending.freeze_first(Ok(left))?.freeze_second(Ok(right))?
             }
             ClientState::Lookup(pending) => {
@@ -520,6 +572,7 @@ impl ClientWireWindow {
                 };
                 let left = decode(Worker::Zero, zero)?;
                 let right = decode(Worker::One, one)?;
+                acknowledge_seeded_reply(&pending.window);
                 pending.freeze_first(Ok(left))?.freeze_second(Ok(right))?
             }
             ClientState::Ready(_) => return Err(Error::Schedule),
@@ -540,6 +593,19 @@ impl ClientWireWindow {
 
     pub fn abort(&mut self) {
         self.state = None;
+        self.seed_keys = None;
+    }
+}
+
+// Remote expansion cannot share an in-process lease. A bound, fixed reply marks
+// transport progress, NOT trust in worker computation. Original full-window
+// numeric/authentication verification remains mandatory in Window::finish.
+fn acknowledge_seeded_reply(window: &Window) {
+    if window.profile == SharingProfile::Aes128WindowV1 {
+        window
+            ._lease
+            .seeded_completed
+            .store(window.completed as u32 + 1, Ordering::Release);
     }
 }
 
@@ -755,7 +821,8 @@ impl WorkerWire {
         expected_plan: &[Step],
     ) -> Result<WorkerWireWindow, Error> {
         let result = self.begin(authenticated_start).and_then(|window| {
-            if window.binding.context != expected_context || window.plan != expected_plan {
+            if window.binding.context != expected_context || window.plan.as_slice() != expected_plan
+            {
                 return Err(Error::Binding);
             }
             Ok(window)
@@ -790,7 +857,15 @@ impl WorkerWire {
                 .is_some_and(|last| binding.sequence <= last)
             || binding.artifact != artifact(publication, binding.step)?
             || frame.dimensions != shape(publication, binding.step)?
-            || frame.body.len() != binding.total as usize * 33
+            || frame.body.len()
+                != binding.total as usize * 33
+                    + if binding.profile == SharingProfile::Aes128WindowV1
+                        && binding.worker == Worker::One
+                    {
+                        32
+                    } else {
+                        0
+                    }
         {
             return Err(Error::Binding);
         }
@@ -805,11 +880,15 @@ impl WorkerWire {
             MAX_PROCESS_RESERVED_STEPS,
         )?;
         let mut hash = Sha256::new();
-        hash.update(b"pllm.gkm.window-plan.v1");
+        hash.update(match binding.profile {
+            SharingProfile::FullShares => b"pllm.gkm.window-plan.v1".as_slice(),
+            SharingProfile::Aes128WindowV1 => super::super::SEEDED_SHARING_PROFILE.as_bytes(),
+        });
         hash.update(publication.digest);
         hash.update(binding.context);
         hash.update((binding.total as u64).to_le_bytes());
-        let mut cursor = Cursor::new(frame.body);
+        let schedule_bytes = binding.total as usize * 33;
+        let mut cursor = Cursor::new(&frame.body[..schedule_bytes]);
         // Validate the entire authenticated schedule without allocating.
         for ordinal in 0..binding.total {
             let step = read_step(&mut cursor)?;
@@ -830,6 +909,8 @@ impl WorkerWire {
         if digest != binding.plan {
             return Err(Error::Binding);
         }
+        let seeded_one =
+            binding.profile == SharingProfile::Aes128WindowV1 && binding.worker == Worker::One;
         let permit = WirePermit::acquire(
             binding.total as usize * size_of::<Step>()
                 + publication
@@ -840,15 +921,39 @@ impl WorkerWire {
                     .unwrap()
                     .max(publication.width * 4)
                 + size_of::<WorkerWireWindow>()
+                // Explicit full/Zero evaluation uses the original linear input,
+                // output and encoding scratch above. Only One expands selectors
+                // and owns seeded stream/control state. The complete inline
+                // window (including its inactive Option<SeededWorker>) is always
+                // charged separately, regardless of profile or role.
+                + if seeded_one {
+                    publication.resources.seeded_window_extra_bytes
+                } else {
+                    0
+                }
                 + 1024,
             publication.capacity,
         )?;
         let lease = Lease::acquire(&source.budget)?;
         let mut plan = payload::capacity(binding.total as usize)?;
-        let mut cursor = Cursor::new(frame.body);
+        let mut cursor = Cursor::new(&frame.body[..schedule_bytes]);
         for _ in 0..binding.total {
             plan.push(read_step(&mut cursor)?);
         }
+        let plan = Arc::new(plan);
+        let seeded = if seeded_one {
+            let mut keys = Zeroizing::new([[0; 16]; 2]);
+            keys[0].copy_from_slice(&frame.body[schedule_bytes..schedule_bytes + 16]);
+            keys[1].copy_from_slice(&frame.body[schedule_bytes + 16..]);
+            Some(SeededWorker::from_wire(
+                &keys,
+                Arc::clone(&plan),
+                binding,
+                Arc::clone(&lease),
+            )?)
+        } else {
+            None
+        };
         let run = Arc::new(WorkerRun {
             status: AtomicU8::new(ACTIVE),
             lease,
@@ -858,6 +963,7 @@ impl WorkerWire {
         self.active = Some(Arc::clone(&run));
         Ok(WorkerWireWindow {
             source: Arc::clone(source),
+            seeded,
             plan,
             binding,
             completed: 0,
@@ -885,12 +991,13 @@ impl Drop for WorkerWire {
     }
 }
 
-/// Monotonic one-use role-local request. It can evaluate only the next full
-/// share in its authenticated public plan. Every failure is sticky, including
+/// Monotonic one-use role-local request. It can evaluate only the next explicit
+/// or locally expanded share in its authenticated public plan. Every failure is sticky, including
 /// duplicate execute/finish calls, even when callers ignore the error.
 pub struct WorkerWireWindow {
     source: Arc<WorkerSource>,
-    plan: Vec<Step>,
+    seeded: Option<SeededWorker>,
+    plan: Arc<Vec<Step>>,
     binding: Binding,
     completed: usize,
     run: Arc<WorkerRun>,
@@ -906,6 +1013,10 @@ pub struct WorkerWireReceipt {
 }
 
 impl WorkerWireWindow {
+    pub fn sharing_profile(&self) -> SharingProfile {
+        self.binding.profile
+    }
+
     /// Public native request identity, for binding an authenticated outer ledger.
     pub fn request_id(&self) -> [u8; 32] {
         request_id(&self.binding)
@@ -935,14 +1046,36 @@ impl WorkerWireWindow {
         let response = match step {
             Step::Linear(id) => {
                 let matrix = &self.source.matrices[publication.matrix_index(&id)?];
-                if frame.body.len() != matrix.columns * 8 {
+                if frame.body.len()
+                    != if self.seeded.is_some() {
+                        0
+                    } else {
+                        matrix.columns * 8
+                    }
+                {
                     return Err(Error::Shape);
                 }
-                let mut input = Zeroizing::new(payload::filled(matrix.columns, 0u64)?);
-                for (out, word) in input.iter_mut().zip(frame.body.chunks_exact(8)) {
-                    *out = u64::from_le_bytes(word.try_into().unwrap());
-                }
-                let values = matrix.multiply_share(&input[..matrix.columns])?;
+                let values = if let Some(worker) = &mut self.seeded {
+                    let slot = ResponseSlot::new();
+                    worker
+                        .evaluate_linear(
+                            matrix,
+                            &LinearShare {
+                                binding: expected,
+                                values: None,
+                                rows: matrix.rows,
+                                slot: &slot,
+                                lease: &self.run.lease,
+                            },
+                        )?
+                        .values
+                } else {
+                    let mut input = Zeroizing::new(payload::filled(matrix.columns, 0u64)?);
+                    for (out, word) in input.iter_mut().zip(frame.body.chunks_exact(8)) {
+                        *out = u64::from_le_bytes(word.try_into().unwrap());
+                    }
+                    matrix.multiply_share(&input[..matrix.columns])?
+                };
                 let mut body = Zeroizing::new(payload::filled(matrix.rows * 8, 0u8)?);
                 for (out, value) in body.chunks_exact_mut(8).zip(values.iter()) {
                     out.copy_from_slice(&value.to_le_bytes());
@@ -956,7 +1089,26 @@ impl WorkerWireWindow {
                 )?
             }
             Step::Lookup => {
-                let values = self.source.table.xor_rows(frame.body)?;
+                let values = if let Some(worker) = &mut self.seeded {
+                    if !frame.body.is_empty() {
+                        return Err(Error::Shape);
+                    }
+                    let slot = ResponseSlot::new();
+                    worker
+                        .evaluate_lookup(
+                            &self.source.table,
+                            &LookupShare {
+                                binding: expected,
+                                selector: None,
+                                bytes: publication.width * 4,
+                                slot: &slot,
+                                lease: &self.run.lease,
+                            },
+                        )?
+                        .bytes
+                } else {
+                    self.source.table.xor_rows(frame.body)?
+                };
                 encode_frame(REPLY, expected, frame.dimensions, &values, &self.run.lease)?
             }
         };
@@ -971,6 +1123,12 @@ impl WorkerWireWindow {
                 return Err(Error::Retired);
             }
             if self.completed != self.plan.len() {
+                return Err(Error::Incomplete);
+            }
+            if self.seeded.is_some()
+                && self.run.lease.seeded_completed.load(Ordering::Acquire) as usize
+                    != self.plan.len()
+            {
                 return Err(Error::Incomplete);
             }
             self.run.status.store(FINISHED, Ordering::Release);
@@ -1003,3 +1161,7 @@ impl Drop for WorkerWireWindow {
 #[cfg(test)]
 #[path = "wire_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "seeded_wire_tests.rs"]
+mod seeded_tests;

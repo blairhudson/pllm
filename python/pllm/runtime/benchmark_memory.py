@@ -592,7 +592,11 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         "weight_storage": ("streamed native i16 weights and original float32 lookup" if expanded
                            else "source float32 plus exact i16 native snapshots"),
         "bundle_storage": "trusted client-owned publication; bounded source loading",
-        "mask_storage": "one pending explicit-share pair per verified window",
+        "mask_storage": (
+            "one pending complementary share and fresh client/worker AES window streams"
+            if pipeline.components["linear"].params.get("sharing") == "seeded"
+            else "one pending explicit-share pair per verified window"
+        ),
         "tensor_storage": "complete client-local float32 logits and full KV",
         "verification_allocation": {
             "native_allowance_per_role_bytes": native,

@@ -53,6 +53,11 @@ fn worker(
 #[test]
 fn asymmetric_wire_requests_roundtrip_and_reconstruct_exact_signed_outputs() {
     let _serial = SERIAL.lock().unwrap();
+    asymmetric_roundtrip(false);
+    asymmetric_roundtrip(true);
+}
+
+fn asymmetric_roundtrip(seeded: bool) {
     let out = matrix(1031, 3);
     let input = matrix(2, 1033);
     let table = table(9, 2053);
@@ -91,7 +96,12 @@ fn asymmetric_wire_requests_roundtrip_and_reconstruct_exact_signed_outputs() {
     let mut zero = worker(&public, Worker::Zero, &stages, &table);
     let mut one = worker(&public, Worker::One, &stages, &table);
     let plan = [Step::Lookup, Step::Linear(OUT), Step::Linear(IN)];
-    let mut window = client.begin_wire(CONTEXT, &plan).unwrap();
+    let mut window = if seeded {
+        client.begin_seeded_wire(CONTEXT, &plan)
+    } else {
+        client.begin_wire(CONTEXT, &plan)
+    }
+    .unwrap();
     let start = window.start_frames().unwrap();
     let mut left = zero
         .begin_bound(start[0].as_bytes(), CONTEXT, &plan)
@@ -114,6 +124,7 @@ fn asymmetric_wire_requests_roundtrip_and_reconstruct_exact_signed_outputs() {
         let x: Vec<_> = (0..columns).map(|i| (i % 9) as i64 - 4).collect();
         let request = window.linear(&x).unwrap();
         assert_eq!(request[0].len(), 296 + columns * 8);
+        assert_eq!(request[1].len(), 296 + if seeded { 0 } else { columns * 8 });
         let a = left.execute(request[0].as_bytes()).unwrap();
         let b = right.execute(request[1].as_bytes()).unwrap();
         assert_eq!(a.len(), 296 + rows * 8);
@@ -198,10 +209,20 @@ fn decoder_stage_and_schedule_limits_and_large_vocabulary_use_owner_geometry() {
         client.begin(CONTEXT, &too_long),
         Err(Error::Limit)
     ));
-    assert!(matches!(
-        client.begin_seeded(CONTEXT, &[Step::Lookup]),
-        Err(Error::Limit)
-    ));
+    let (window, mut seeded) = client.begin_seeded(CONTEXT, &[Step::Lookup]).unwrap();
+    let pending = window.lookup(4096).unwrap();
+    let a = table.evaluate(&pending.share(Worker::Zero)).unwrap();
+    let b = seeded
+        .evaluate_lookup(&table, &pending.share(Worker::One))
+        .unwrap();
+    let accepted = pending
+        .freeze_first(Ok(a))
+        .unwrap()
+        .freeze_second(Ok(b))
+        .unwrap()
+        .finish()
+        .unwrap();
+    assert_eq!(accepted.sharing_profile(), SharingProfile::Aes128WindowV1);
     let mut too_many = stages;
     too_many.push(Stage {
         id: [255; 32],

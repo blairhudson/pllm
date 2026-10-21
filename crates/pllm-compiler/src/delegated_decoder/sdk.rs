@@ -50,6 +50,9 @@ pub(crate) fn validate_pipeline(pipeline: &ExperimentPipeline) -> Result<(), Str
             .ok_or_else(|| reject("incomplete SDK composition"))?;
         let mut actual = serde_json::to_value(&component.params).unwrap();
         if slot == "linear" {
+            if actual.get("sharing").and_then(serde_json::Value::as_str) == Some("seeded") {
+                actual["sharing"] = serde_json::json!("full");
+            }
             if let Some(capacity) = actual.as_object_mut().unwrap().remove("capacity") {
                 if capacity != "decoder" {
                     return Err(reject("unsupported SDK capacity"));
@@ -103,6 +106,8 @@ pub struct GkmRuntimeContract {
     source_lock: Digest,
     tokenizer: Digest,
     decoder: GkmDecoderContract,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sharing_profile: Option<&'static str>,
 }
 
 impl GkmRuntimeContract {
@@ -166,6 +171,12 @@ impl GkmRuntimeContract {
             source_lock,
             tokenizer,
             decoder,
+            sharing_profile: (document.pipeline.components["linear"]
+                .params
+                .get("sharing")
+                .and_then(serde_json::Value::as_str)
+                == Some("seeded"))
+            .then_some(pllm_core::gkm::SEEDED_SHARING_PROFILE),
         })
     }
 
@@ -177,5 +188,13 @@ impl GkmRuntimeContract {
     }
     pub fn decoder(&self) -> &GkmDecoderContract {
         &self.decoder
+    }
+
+    pub fn sharing_profile(&self) -> pllm_core::gkm::SharingProfile {
+        if self.sharing_profile.is_some() {
+            pllm_core::gkm::SharingProfile::Aes128WindowV1
+        } else {
+            pllm_core::gkm::SharingProfile::FullShares
+        }
     }
 }

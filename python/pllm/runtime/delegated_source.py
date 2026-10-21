@@ -828,6 +828,8 @@ def _bind_runtime(experiment, experiment_bytes, config_bytes, decoder_bytes,
         "composition": experiment.pipeline.digest(), "source_lock": source_lock_digest,
         "tokenizer": tokenizer_digest,
     }
+    if experiment.pipeline.components["linear"].params["sharing"] == "seeded":
+        expected["sharing_profile"] = "gkm.seeded.aes128.duplicate-le64.two-purpose.window.v1"
     if (set(bound) != {*expected, "decoder"}
             or any(bound[key] != value for key, value in expected.items())
             or bound["decoder"] != decoder):

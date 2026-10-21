@@ -340,7 +340,7 @@ fn worker_replay_wrong_source_schedule_and_cancellation_are_sticky() {
 }
 
 #[test]
-fn seeded_network_rejected_and_native_seeded_path_remains_available() {
+fn unpaired_seeded_conversion_rejected_and_native_seeded_path_remains_available() {
     let _serial = SERIAL.lock().unwrap();
     let (matrix, table, _) = source();
     let public = publication(&matrix, &table);

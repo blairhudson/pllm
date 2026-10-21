@@ -96,7 +96,7 @@ fn full_qwen_geometry_is_admitted_without_importing_or_allocating_model_payloads
     assert_eq!(shapes.iter().map(|s| s.1).sum::<usize>(), 182_144);
     assert!(resources.max_window_payload_bytes < Capacity::Decoder.max_window_bytes());
     assert!(resources.admitted_payload_bytes < Capacity::Decoder.max_publication_bytes());
-    assert_eq!(resources.seeded_window_extra_bytes, 0);
+    assert!(resources.seeded_window_extra_bytes >= 4864 * 8 + 151_936usize.div_ceil(8));
     assert!(matches!(
         PublicationResources::for_shapes(&shapes, 151_936, 896),
         Err(Error::Limit)
@@ -220,10 +220,7 @@ fn decoder_publication_failures_refund_envelope_and_retained_responses_hold_it()
                 let bytes = publication.resources().admitted_payload_bytes;
                 let publication = Arc::new(publication);
                 let client = Client::new(Arc::clone(&publication), publication.digest()).unwrap();
-                assert!(matches!(
-                    client.begin_seeded([8; 32], &[Step::Lookup]),
-                    Err(Error::Limit)
-                ));
+                drop(client.begin_seeded([8; 32], &[Step::Lookup]).unwrap());
                 let pending = client
                     .begin([8; 32], &[Step::Linear([1; 32])])
                     .unwrap()

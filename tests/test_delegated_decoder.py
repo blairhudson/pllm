@@ -62,7 +62,8 @@ def fixture(cfg, rows=3, decode=2, *, capacity="capsule"):
     return contract, arrays, {key: value.tobytes() for key, value in arrays.items()}
 
 
-def clear_oracle(cfg, tensors, tokens, decode_steps, *, decode_tokens=None):
+def clear_oracle(cfg, tensors, tokens, decode_steps, *, decode_tokens=None,
+                 linear_reference=None, selection_observer=None):
     def linear(value, weight, bias=None):
         encoded = [[round(float(w) * 2048) for w in row] for row in tensors[weight]]
         output = np.empty((len(value), len(encoded)), dtype=np.float32)
@@ -90,15 +91,23 @@ def clear_oracle(cfg, tensors, tokens, decode_steps, *, decode_tokens=None):
         half = width // 2
         return value * cos + np.concatenate([-value[..., half:], value[..., :half]], axis=-1) * sin
 
+    if linear_reference is not None:
+        linear = linear_reference
+
     caches = [None] * cfg["num_hidden_layers"]
     logits, selections, executed = [], [], list(tokens)
     position = 0
     ids = tokens
     heads, kv_heads = cfg["num_attention_heads"], cfg["num_key_value_heads"]
-    width, group = cfg["hidden_size"] // heads, heads // kv_heads
+    width, group = cfg.get("head_dim", cfg["hidden_size"] // heads), heads // kv_heads
     for step in range(decode_steps + 1):
         positions = np.arange(position, position + len(ids), dtype=np.int64)
-        hidden = tensors["model.embed_tokens.weight"][list(ids)].copy()
+        if hasattr(tensors, "read_rows"):
+            hidden = np.concatenate([
+                tensors.read_rows("model.embed_tokens.weight", token, token + 1) for token in ids
+            ])
+        else:
+            hidden = tensors["model.embed_tokens.weight"][list(ids)].copy()
         for layer in range(cfg["num_hidden_layers"]):
             prefix = f"model.layers.{layer}."
             residual = hidden
@@ -160,6 +169,10 @@ def clear_oracle(cfg, tensors, tokens, decode_steps, *, decode_tokens=None):
         token = int(np.argmax(final))
         selections.append(token)
         position += len(ids)
+        if selection_observer is not None:
+            # Borrow active arrays only for this call; observers must not mutate
+            # or retain them. No per-selection tensor snapshot is accumulated.
+            selection_observer(logits[-1], caches, token, tuple(executed), position)
         if step < decode_steps:
             ids = (token if decode_tokens is None else decode_tokens[step],)
             executed.append(ids[0])

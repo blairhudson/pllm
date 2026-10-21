@@ -77,9 +77,17 @@ fn worker_process_fixture() {
     )
     .unwrap();
     let start = read_packet(&mut input, MAX_WIRE_FRAME_BYTES);
+    let seeded = start[9] == 1;
+    assert_eq!(
+        start.len(),
+        296 + 2 * 33 + if seeded && role == Worker::One { 32 } else { 0 }
+    );
     let mut window = worker.begin(&start).unwrap();
     for _ in 0..2 {
         let request = read_packet(&mut input, MAX_WIRE_FRAME_BYTES);
+        if seeded && role == Worker::One {
+            assert_eq!(request.len(), 296);
+        }
         let reply = window.execute(&request).unwrap();
         println!("WIRE_REPLY={}", hex(reply.as_bytes()));
         std::io::stdout().flush().unwrap();
@@ -153,6 +161,15 @@ impl Drop for Process {
 
 #[test]
 fn independent_party_processes_import_publication_and_only_their_own_share() {
+    independent_process_roundtrip(false);
+}
+
+#[test]
+fn independent_seeded_party_processes_deliver_keys_only_to_one_and_verify_complete_window() {
+    independent_process_roundtrip(true);
+}
+
+fn independent_process_roundtrip(seeded: bool) {
     let (matrix, table) = sources();
     let public = Arc::new(
         Publication::publish(
@@ -167,9 +184,12 @@ fn independent_party_processes_import_publication_and_only_their_own_share() {
     );
     let packet = public.export_wire().unwrap();
     let client = Client::new(Arc::clone(&public), public.digest()).unwrap();
-    let mut window = client
-        .begin_wire([43; 32], &[Step::Lookup, Step::Linear(ID)])
-        .unwrap();
+    let mut window = if seeded {
+        client.begin_seeded_wire([43; 32], &[Step::Lookup, Step::Linear(ID)])
+    } else {
+        client.begin_wire([43; 32], &[Step::Lookup, Step::Linear(ID)])
+    }
+    .unwrap();
     let starts = window.start_frames().unwrap();
     let mut zero = Process::start("0", &public, &packet, &starts[0]);
     let mut one = Process::start("1", &public, &packet, &starts[1]);
@@ -197,5 +217,14 @@ fn independent_party_processes_import_publication_and_only_their_own_share() {
     );
     assert!(zero.child.wait().unwrap().success());
     assert!(one.child.wait().unwrap().success());
-    assert_eq!(window.finish().unwrap().signed_linear_output(), &[9216]);
+    let accepted = window.finish().unwrap();
+    assert_eq!(accepted.signed_linear_output(), &[9216]);
+    assert_eq!(
+        accepted.sharing_profile(),
+        if seeded {
+            SharingProfile::Aes128WindowV1
+        } else {
+            SharingProfile::FullShares
+        }
+    );
 }

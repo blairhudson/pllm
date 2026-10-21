@@ -4,7 +4,8 @@ use super::*;
 impl Client {
     /// Admit a complete computational-privacy AES window. Deliver only the
     /// returned worker owner to worker One; worker Zero uses explicit shares.
-    /// This is bounded/in-process ownership, not a transport or seed-export API.
+    /// This returns bounded in-process ownership. `begin_seeded_wire` performs
+    /// the separately bound, consuming pre-expansion transport transfer.
     /// Both purpose keys are fresh OS draws once per window. Verifier challenges
     /// continue to use independent OS field-scalar draws after response freeze.
     pub fn begin_seeded(
@@ -51,6 +52,7 @@ impl Client {
         )?);
         let worker = SeededWorker {
             streams: Streams::new(&linear_key, &lookup_key, linear_bytes, lookup_bytes)?,
+            export_keys: Some(Zeroizing::new([*linear_key, *lookup_key])),
             plan: Arc::clone(&window.plan),
             base: window.binding(Worker::One)?,
             ordinal: 0,
@@ -71,6 +73,8 @@ impl Client {
 /// ```
 pub struct SeededWorker {
     streams: Streams,
+    // One consuming, pre-expansion transfer only. Never exposed by a reusable getter.
+    export_keys: Option<Zeroizing<[[u8; 16]; 2]>>,
     plan: Arc<Vec<Step>>,
     base: Binding,
     ordinal: usize,
@@ -79,6 +83,58 @@ pub struct SeededWorker {
 }
 
 impl SeededWorker {
+    pub(super) fn transfer_keys(
+        mut self,
+        lease: &Arc<Lease>,
+    ) -> Result<Zeroizing<[[u8; 16]; 2]>, Error> {
+        self.check(self.base, lease)?;
+        if self.ordinal != 0 {
+            return Err(Error::Retired);
+        }
+        let keys = self.export_keys.take().ok_or(Error::Retired)?;
+        // Transfer retires this owner, not the destination transaction.
+        self.ordinal = self.plan.len();
+        Ok(keys)
+    }
+
+    pub(super) fn from_wire(
+        keys: &[[u8; 16]; 2],
+        plan: Arc<Vec<Step>>,
+        base: Binding,
+        lease: Arc<Lease>,
+    ) -> Result<Self, Error> {
+        if base.worker != Worker::One || base.profile != SharingProfile::Aes128WindowV1 {
+            return Err(Error::Binding);
+        }
+        let publication = &lease.budget.publication;
+        let mut linear = 0usize;
+        let mut lookup = 0usize;
+        for step in plan.iter() {
+            match step {
+                Step::Lookup => {
+                    lookup = lookup
+                        .checked_add(publication.row_hashes.len().div_ceil(8))
+                        .ok_or(Error::Limit)?
+                }
+                Step::Linear(id) => {
+                    linear = linear
+                        .checked_add(
+                            publication.matrices[publication.matrix_index(id)?].columns * 8,
+                        )
+                        .ok_or(Error::Limit)?
+                }
+            }
+        }
+        Ok(Self {
+            streams: Streams::new(&keys[0], &keys[1], linear, lookup)?,
+            export_keys: None,
+            plan,
+            base,
+            ordinal: 0,
+            _lease: lease,
+        })
+    }
+
     fn check(&self, binding: Binding, lease: &Arc<Lease>) -> Result<(), Error> {
         self._lease.ensure_open()?;
         if !Arc::ptr_eq(lease, &self._lease) {
@@ -103,6 +159,7 @@ impl SeededWorker {
     }
 
     fn complete_step(&mut self) -> Result<(), Error> {
+        self.export_keys = None;
         self.ordinal += 1;
         if self.ordinal == self.plan.len() && !self.streams.complete() {
             return Err(Error::Incomplete);

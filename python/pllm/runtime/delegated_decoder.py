@@ -325,7 +325,38 @@ def _validate_decode_tokens(tokens, steps, vocabulary):
 
 
 def _execute_verified_window(native, contract, token_ids, *, cancelled=None,
-                             decode_tokens=None) -> GkmDecoderResult:
+                              decode_tokens=None) -> GkmDecoderResult:
+    # No callback can expose tentative tensors. The internal benchmark owner
+    # hashes live state in place and publishes only after this complete lifecycle.
+    from .benchmark_response_audit import _begin_gkm_request_audit
+
+    audit = result = None
+    execution_entered = False
+    try:
+        audit = _begin_gkm_request_audit(contract, token_ids, decode_tokens)
+        execution_entered = True
+        result = _execute_verified_window_inner(
+            native, contract, token_ids, cancelled=cancelled,
+            decode_tokens=decode_tokens, _audit=audit,
+        )
+        if audit is not None and cancelled is not None and cancelled():
+            raise RuntimeError("GKM request cancelled")
+        if audit is not None:
+            audit.accept(result)
+        return result
+    except BaseException as error:
+        if not execution_entered:
+            native.abort()
+        clear_failure_frames(error)
+        raise
+    finally:
+        if audit is not None:
+            audit.close()
+        result = None
+
+
+def _execute_verified_window_inner(native, contract, token_ids, *, cancelled=None,
+                                   decode_tokens=None, _audit=None) -> GkmDecoderResult:
     """Shared local semantics; native finish gates all returned state and tokens.
 
     The local reference and the role-separated runtime supply distinct native
@@ -352,6 +383,8 @@ def _execute_verified_window(native, contract, token_ids, *, cancelled=None,
             if cancelled is not None and cancelled():
                 raise RuntimeError("GKM request cancelled")
             vector, token = request.phase(current)
+            if _audit is not None:
+                _audit.selection(request, vector, token, executed)
             logits.append(vector)
             selected.append(token)
             if step < decode_steps:

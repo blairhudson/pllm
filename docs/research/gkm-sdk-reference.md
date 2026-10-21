@@ -12,8 +12,10 @@ Capsule vocabulary ceiling. Pinned Qwen metadata fits those native bounds, but
 its original full-checkpoint attempt is host-memory blocked before execution. A
 later [source-present response](../../paper/artifacts/gkm-sdk/qwen-response.md)
 passes fresh admission and completes four input tokens plus two verified outputs
-through both workers, with zero observed swap growth. Independent full-checkpoint
-quality and matched comparison remain open. See the
+through both workers, with zero observed swap growth. Broader full-checkpoint
+quality and matched comparison remain open. A separate three-prompt
+[quality smoke](../../paper/artifacts/gkm-sdk/quality-smoke.json) already records
+bounded FP32-reference agreement; it is not complete-state equality. See the
 [Decoder contract](gkm-decoder-capacity.md) and
 [original preflight](../../paper/artifacts/gkm-sdk/decoder-capacity-v1/qwen-smoke-v2/preflight.json).
 
@@ -21,7 +23,7 @@ quality and matched comparison remain open. See the
 
 `pllm.profiles.OpenWeightVerifiableCpu` selects these immutable components:
 
-- `OpenWeightVerifiableOutsourcing(sharing="full", generation="fixed_length_greedy")`;
+- `OpenWeightVerifiableOutsourcing(sharing="full" | "seeded", generation="fixed_length_greedy")`;
 - `PublishedLinearVerify(acceptance="request")`;
 - `TwoOnlineDelegationRoles()`;
 - one-thread CPU kernels and `ClientLocalKv()`.
@@ -32,10 +34,11 @@ supervisor, `OpenAI`/`AsyncOpenAI`, local gateway, CLI benchmark and
 The native compiler validates the entire saved request envelope before graph
 construction. A smaller actual request cannot conceal an oversized saved budget.
 
-Sources must be complete local Hugging Face-layout or Safetensors directories,
-including a genuine `tokenizer.json`. Vocabulary is at most 256; tensor, graph,
+Sources must resolve to complete local Hugging Face-layout or Safetensors snapshots,
+including a genuine `tokenizer.json`. Cached Hub sources retain their pinned revision.
+Default Capsule vocabulary is at most 256; tensor, graph,
 publication and window limits also apply. Default `Model.tiny()` has 258 entries
-and rejects without modification. Remote source resolution is not admitted.
+and rejects without modification. Remote source discovery is not admitted.
 Source F32/F16/BF16 values become original finite little-endian float32 values;
 lookup preserves their bits, including signed zero. The loader bounds metadata,
 tokenizer padding and encoded input before tensor execution.
@@ -58,6 +61,33 @@ complete head and full client-local KV. The common semantic local executor runs
 attention and nonlinear operations. It does not substitute W8A8 source weights.
 See [decoder reference](gkm-decoder-reference.md) and
 [delegation capsule](gkm-delegation-capsule.md).
+
+### Explicit seeded transport
+
+`sharing="seeded"` selects the existing
+`gkm.seeded.aes128.duplicate-le64.two-purpose.window.v1` native profile through the
+same SDK and both capacity envelopes. Each fresh request window owns independent
+linear and lookup AES-128 keys. Only Worker One receives those keys, once during
+authenticated admission, and expands its own shares from header-only operation
+frames. Worker Zero receives complete complementary shares. Counter packing,
+continuous stream tails and purpose separation retain the original seeded
+reference contract. No private seed or cursor becomes an Experiment parameter.
+
+Request, source, complete schedule, role and sharing commitments precede expansion.
+Malformed frames, changed profiles, replay, cancellation and incomplete stream
+consumption retire the native window. Complete request-end verification remains
+the acceptance barrier. Both input profiles preserve the same numerical graph;
+the seeded profile adds its explicit AES PRG assumption to benchmark privacy
+identity. Ordinary comparisons retain measured costs but do not rank full and
+seeded cells as identical privacy contracts.
+
+Key delivery to Worker One requires confidentiality as well as authentication;
+the existing external HTTPS and trusted loopback boundaries remain. Native stream,
+key, scratch and frame owners remain admitted before allocation. Python frame
+copies retain their outer allowance; native zeroization cannot erase caller-owned
+copies. Owner/process-local replay enforcement does not provide durable restart
+accounting. Seeded transport is separate from batched prefill and accelerated
+verification, neither of which is supplied by this selection.
 
 ## Ownership and acceptance
 
@@ -111,9 +141,56 @@ tests and 120 native checks, including complete SDK
 execution after ownership transfer. All 362 installed package files match that
 wheel. These checks establish correctness and bounded ownership, not RSS savings.
 
-Seeded network frames, stochastic or early-EOS generation, conversation
+`BenchmarkTarget.response(..., state_audit=True)` additionally records salted
+commitments for every selection's complete logits, active full KV, executed
+history, positions/cache lengths and selected/pending token. The GKM-specific
+`pllm.response_state_audit.gkm.v1` schema records fixed-count argmax with **no
+sampler RNG**. Tentative hashes remain internal until final native acceptance,
+request cleanup and successful benchmark checks; failed targets publish no state
+commitments. Full and seeded arms each price the same 32 MiB audit allowance, and
+cryptographic randomness remains fresh. The schema and measurement identity stay
+distinct from prepared-response audits.
+
+The independent test oracle in `tests/gkm_decoder_oracle.py` reads at most 128
+source rows at once, uses separate Q11 weight and activation domains, and performs
+exact float64 integer chunks followed by checked int64 accumulation. It preserves
+the single integer-to-float32-before-division boundary. Ordinary tests compare
+complete generated Qwen2/Qwen3/Llama logits, active KV, history and selections,
+including independent per-selection salted commitments and both sharing choices.
+The optional pinned-Qwen test adds a separately admitted 512 MiB reference owner.
+
+The installed seeded-transport/audit slice passes 792 Python and 100 focused native
+checks, with the two optional Python checkpoint cases deselected. Generated
+two-process SDK, gateway and benchmark checks cover both sharing profiles.
+Release Clippy, formatting, API
+coverage and the 43 documentation checks pass. These checks do not supply a
+full-checkpoint equality or performance result.
+
+The reusable `examples/benchmarks/gkm_sharing.py` uses ordinary response targets,
+three balanced fresh clients per sharing choice, complete accepted-state audits
+and native shared 100/40 Mbps access caps. It retains fixed-count greedy output,
+source-present workers and no added RTT; setup/loading and all directed response
+bodies remain charged. Full and seeded privacy identities stay separate.
+
+The first pinned-Qwen attempt has six **blocked** cells in the ordinary
+[report](../evidence/gkm-sharing-qwen-blocked.json): whole-topology admission needs
+10.82 GiB against 8.48–9.87 GiB available. No provider launches, request outputs,
+state checks or response timings result. The separate two-profile checkpoint
+oracle attempt likewise rejects before value loading: 11.25 GiB required versus
+9.41–9.53 GiB available. These are host-admission outcomes, not source-model failures
+or measured peak memory. Standard replay:
+
+```sh
+uv run --no-sync python -m examples.benchmarks.gkm_sharing \
+  --output target/gkm-sharing-qwen.json
+PLLM_RUN_GKM_CHECKPOINT=1 uv run --no-sync python -m pytest -o pythonpath=. \
+  tests/test_gkm_checkpoint_conformance.py::test_pinned_qwen_checkpoint_two_role_sdk_complete_accepted_state \
+  --basetemp=target/gkm-checkpoint -q
+```
+
+Stochastic or early-EOS generation, conversation
 continuation, remote source discovery and automatic network planning remain
 unsupported. Source/publication loading and retained weights remain charged;
-this slice makes no thin-client memory claim. Full-width publication, activation
-bounds, original-model and common-Qwen quality, matched performance, memory-tier
+this slice makes no thin-client memory claim. Broader activation/state qualification,
+original-model and held-out common-Qwen quality, matched performance, memory-tier
 eligibility and the ten-method publication comparison remain open.

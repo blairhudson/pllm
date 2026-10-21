@@ -834,6 +834,20 @@ at most 256, fixed-count greedy generation and explicit full shares bound this
 slice. Full-size checkpoint admission, source-model quality, seeded transport,
 matched performance and independent operators remain open. Contract and replay:
 `docs/research/gkm-sdk-reference.md`.
+The explicit `sharing="seeded"` SDK follow-up reuses the existing per-window AES
+profile. Only Worker One receives fresh independent linear and lookup keys;
+Worker Zero retains complementary full shares. Complete source/schedule/context
+bindings, bounded stream consumption and final request verification precede text
+release. The distinct privacy identity records the computational PRG assumption.
+Generated two-process SDK/gateway controls and independent complete-state oracles
+preserve logits, active KV, history and selections. Optional response auditing
+publishes salted per-selection commitments only after acceptance and cleanup,
+with a separate 32 MiB owner and no fictitious sampler RNG. A six-cell pinned-Qwen
+sharing comparison rejects host admission at 10.82 GiB required against
+8.48–9.87 GiB available; its separate complete-state oracle is also memory-blocked.
+These outcomes establish no trained seeded parity or serving improvement.
+Reusable experiment and ordinary blocked report:
+`examples/benchmarks/gkm_sharing.py` and `docs/evidence/gkm-sharing-qwen-blocked.json`.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The separate direct `pllm.native.PagedGEMM` API owns an authenticated private

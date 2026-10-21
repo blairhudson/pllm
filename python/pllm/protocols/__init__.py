@@ -214,13 +214,15 @@ class EncryptedSparseVectorCompression(PendingMethod):
 
 
 class OpenWeightVerifiableOutsourcing(ProtocolMethod):
-    """Bounded experimental GKM delegation with source arithmetic and full shares.
+    """Bounded experimental GKM delegation with source arithmetic.
 
     Linear weights use nearest-even i16/Q11 encoding and ring64 products;
     encoded inputs have absolute bound 2**31. Private lookup returns the
     original float32 token row. Greedy execution
     has a fixed request length, including EOS, with full client-owned KV.
     Native source/workload admission and request-end verification are required.
+    Seeded sharing gives worker One fresh, purpose-separated AES window streams;
+    worker Zero receives complementary shares. Its privacy assumes the AES PRG.
     This declaration does not certify full-size execution or cryptographic security.
     """
 
@@ -238,7 +240,7 @@ class OpenWeightVerifiableOutsourcing(ProtocolMethod):
         parameter_schema={
             "type": "object", "additionalProperties": False,
             "properties": {
-                "sharing": {"type": "string", "const": "full"},
+                "sharing": {"type": "string", "enum": ["full", "seeded"]},
                 "generation": {"type": "string", "const": "fixed_length_greedy"},
                 "capacity": {"type": "string", "const": "decoder"},
             },
@@ -247,17 +249,17 @@ class OpenWeightVerifiableOutsourcing(ProtocolMethod):
         capabilities=(
             "bounded-experimental-gkm", "source-i16-q11-ring64",
             "private-original-float32-lookup", "full-client-kv",
-            "fixed-length-greedy", "full-input-shares",
+            "fixed-length-greedy", "full-input-shares", "seeded-input-shares",
         ),
         required_host_features=("native-gkm-decoder", "authenticated-confidential-channels"),
         role_eligibility=("client", "worker_a", "worker_b"),
     )
 
-    def __init__(self, *, sharing: Literal["full"] = "full",
+    def __init__(self, *, sharing: Literal["full", "seeded"] = "full",
                   generation: Literal["fixed_length_greedy"] = "fixed_length_greedy",
                   capacity: Literal["capsule", "decoder"] = "capsule") -> None:
-        if type(sharing) is not str or sharing != "full":
-            raise ConfigurationError("GKM remote sharing must be full; seeded transport is not admitted")
+        if type(sharing) is not str or sharing not in {"full", "seeded"}:
+            raise ConfigurationError("GKM remote sharing must be full or seeded")
         if type(generation) is not str or generation != "fixed_length_greedy":
             raise ConfigurationError("GKM generation must be fixed_length_greedy")
         if type(capacity) is not str or capacity not in {"capsule", "decoder"}:

@@ -1,4 +1,4 @@
-"""Bounded full-share GKM HTTP execution, with request-end native acceptance.
+"""Bounded GKM HTTP execution, with request-end native acceptance.
 
 Each authenticated channel receives only its role's frames. Local HTTP is for
 co-located development; other IP-literal origins require verified HTTPS. HTTP

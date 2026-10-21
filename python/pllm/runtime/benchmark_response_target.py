@@ -228,7 +228,8 @@ def execute_response(p, m):
     runtime_kind = "fss" if is_fss(experiment) else "replicated" if is_replicated(experiment) else "gkm"
     if delegated:
         if (p.get("concurrent_requests", 1) != 1 or any(p.get(key) for key in (
-                "client_stage", "client_mlp", "client_metadata", "client_attention", "state_audit"))):
+                "client_stage", "client_mlp", "client_metadata", "client_attention"))
+                or p.get("state_audit") and runtime_kind != "gkm"):
             raise TargetUnavailable(f"{runtime_kind}_response_options_unsupported")
         try:
             admit_options(experiment, backend=p["backend"], output_tokens=scenario.max_output_tokens,
@@ -286,7 +287,7 @@ def execute_response(p, m):
         stage_scope = client_attention_execution(attention, m.salt)
     if p.get("state_audit"):
         from .benchmark_response_audit import response_state_audit
-        stage_scope = response_state_audit(m.salt)
+        stage_scope = response_state_audit(m.salt, runtime_kind="gkm" if delegated else None)
     with stage_scope as stage_records:
         report, = m.run(execute)
     if runtime_kind == "fss" and report.get("memory_preflight") is not None:
@@ -371,18 +372,29 @@ def execute_response(p, m):
         head_accounting = stage_records[0].pop("private_boundary_head", None)
         if head_accounting is not None:
             m.details["private_boundary_head"] = head_accounting
-        m.details["response_state_audit"] = {"schema": "pllm.response_state_audit.v1", "bindings": stage_records,
+        from .benchmark_response_audit import GKM_AUDIT_SCHEMA
+        gkm_audit = delegated and runtime_kind == "gkm"
+        audit_schema = GKM_AUDIT_SCHEMA if gkm_audit else "pllm.response_state_audit.v1"
+        m.details["response_state_audit"] = {"schema": audit_schema, "bindings": stage_records,
             "scope": "every sampled full logit vector, active full KV, position, selection and greedy RNG",
             "terminal_eos_selection_may_exceed_emitted_count": True,
             "client_memory_owners": ["sdk", "dashboard", "native_wan_relay", "audit", "role_supervision"],
             "client_process_isolation": "one fresh process owns all client work; idle suite launcher excluded"}
         m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],
-            "state_audit": "pllm.response_state_audit.v1"})
+            "state_audit": audit_schema})
         m.comparison["output_digest"] = digest({"output": m.comparison["output_digest"], "state": stage_records})
-        m.oracle = {"kind": "salted_full_logit_kv_sampler_commitments", "outcome": "passed",
+        m.oracle = {"kind": "salted_full_logit_kv_history_commitments" if gkm_audit else "salted_full_logit_kv_sampler_commitments", "outcome": "passed",
             "checked_values": sum(row["checked_values"] for row in stage_records[0]["selections"])}
+        if gkm_audit:
+            m.details["response_state_audit"].update(
+                scope="every selection's full logits, active full KV, executed history, position and pending greedy token; final native acceptance gated",
+                terminal_eos_selection_may_exceed_emitted_count=False,
+                sampler_kind="deterministic_argmax_no_rng", generation_policy="fixed_length_greedy",
+                publication="commitments_only_after_verified_request_and_successful_benchmark",
+            )
         m.limitations += ["Every arm pays full-state hashing; exact equality requires matched cohort commitments.",
-            "Public greedy sampler seed is a benchmark fixture; cryptographic random sources remain fresh."]
+            ("Fixed-count greedy argmax has no sampler RNG; cryptographic random sources remain fresh."
+             if gkm_audit else "Public greedy sampler seed is a benchmark fixture; cryptographic random sources remain fresh.")]
     if attention is not None:
         phases = [row["phases"] for row in stage_records]
         m.comparison["measurement_digest"] = digest({"response": m.comparison["measurement_digest"],

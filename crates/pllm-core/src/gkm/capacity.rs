@@ -2,7 +2,7 @@
 use super::*;
 
 /// Explicit resource profile. Existing constructors always select `Capsule`.
-/// `Decoder` admits larger full-share geometry; it does not enable seeded windows.
+/// `Decoder` admits larger geometry with separately priced seeded stream/scratch owners.
 /// Capacity is local policy, never a claim accepted from an untrusted wire frame.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Capacity {

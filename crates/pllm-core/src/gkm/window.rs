@@ -421,11 +421,7 @@ impl Client {
         // Attempts are charged before validating caller-controlled shape/order.
         let sequence = reserve(&self.budget.windows, 1, MAX_WINDOWS)?;
         reserve(&PROCESS_WINDOWS, 1, MAX_PROCESS_WINDOWS)?;
-        if plan.is_empty()
-            || plan.len() > self.publication.capacity.max_window_steps()
-            || (self.publication.capacity == Capacity::Decoder
-                && profile != SharingProfile::FullShares)
-        {
+        if plan.is_empty() || plan.len() > self.publication.capacity.max_window_steps() {
             return Err(Error::Limit);
         }
         reserve(&self.budget.steps, plan.len() as u64, MAX_RESERVED_STEPS)?;

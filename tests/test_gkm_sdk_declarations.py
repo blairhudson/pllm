@@ -53,7 +53,8 @@ def _experiment(deployment: Deployment | None = None) -> Experiment:
 
 
 @pytest.mark.parametrize("component", [
-    OpenWeightVerifiableOutsourcing(), PublishedLinearVerify(), TwoOnlineDelegationRoles(),
+    OpenWeightVerifiableOutsourcing(), OpenWeightVerifiableOutsourcing(sharing="seeded"),
+    PublishedLinearVerify(), TwoOnlineDelegationRoles(),
 ])
 def test_gkm_component_discovery_schema_and_immutable_recreation(component) -> None:
     descriptor = type(component).describe()
@@ -168,6 +169,23 @@ def test_resolver_describes_source_numerics_and_final_acceptance_without_profile
     assert resolve_runtime_composition(relabeled) == contract
 
 
+@pytest.mark.parametrize("capacity", ["capsule", "decoder"])
+def test_seeded_selection_round_trips_and_binds_distinct_execution(capacity) -> None:
+    full = _pipeline().with_params(linear__capacity=capacity)
+    seeded = full.with_params(linear__sharing="seeded")
+    restored = Pipeline.from_spec(json.loads(seeded.canonical_bytes()))
+    assert restored == seeded
+    assert restored.digest() != full.digest()
+    selected = resolve_runtime_composition(restored)
+    control = resolve_runtime_composition(full)
+    assert selected.sharing == "seeded" and control.sharing == "full"
+    assert selected.delegation_capacity == capacity
+    assert selected.numeric_profile == control.numeric_profile
+    assert selected.local_numeric_profile == control.local_numeric_profile
+    assert selected.verification_window == control.verification_window == "request_end"
+    assert graph_for_runtime(selected) == graph_for_runtime(control)
+
+
 def test_registry_declaration_cannot_bypass_native_execution_admission(monkeypatch) -> None:
     from pllm import _native
 
@@ -185,7 +203,7 @@ def test_registry_declaration_cannot_bypass_native_execution_admission(monkeypat
 
 
 @pytest.mark.parametrize("factory,params,match", [
-    (OpenWeightVerifiableOutsourcing, {"sharing": "seeded"}, "sharing"),
+    (OpenWeightVerifiableOutsourcing, {"sharing": "reused_seed"}, "sharing"),
     (OpenWeightVerifiableOutsourcing, {"sharing": True}, "sharing"),
     (OpenWeightVerifiableOutsourcing, {"generation": "greedy_until_eos"}, "fixed_length_greedy"),
     (OpenWeightVerifiableOutsourcing, {"generation": "sampling"}, "fixed_length_greedy"),
@@ -201,7 +219,7 @@ def test_unsupported_sharing_generation_and_verification_reject(factory, params,
 
 
 @pytest.mark.parametrize("slot,params,match", [
-    ("linear", {"sharing": "seeded", "generation": "fixed_length_greedy"}, "sharing"),
+    ("linear", {"sharing": "reused_seed", "generation": "fixed_length_greedy"}, "sharing"),
     ("linear", {"generation": "fixed_length_greedy"}, "missing fields"),
     ("linear", {"sharing": "full", "generation": "fixed_length_greedy", "seed": "secret"}, "unknown fields"),
     ("verification", {"acceptance": "streaming"}, "acceptance must be request"),

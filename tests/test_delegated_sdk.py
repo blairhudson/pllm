@@ -1,4 +1,4 @@
-"""Installed full-share GKM: real worker processes and complete decoder oracles."""
+"""Installed GKM: real worker processes and complete decoder oracles."""
 
 import asyncio
 import json
@@ -23,12 +23,12 @@ from test_delegated_source import write_source_fixture
 
 
 def experiment_fixture(path, *, family="qwen2", tied=True, requests=4,
-                       capacity="capsule", vocabulary=32, rows=8):
+                       capacity="capsule", vocabulary=32, rows=8, sharing="full"):
     cfg, _, arrays, _ = write_source_fixture(path / "source", family=family, tied=tied,
                                            capacity=capacity, vocabulary=vocabulary)
     experiment = Experiment(
         "gkm-sdk", OpenWeightVerifiableCpu(Model.path(str(path / "source")),
-            linear=OpenWeightVerifiableOutsourcing(capacity=capacity)),
+            linear=OpenWeightVerifiableOutsourcing(capacity=capacity, sharing=sharing)),
         Deployment.local(root=str(path / "roles")),
         ExecutionBudget(requests=requests, max_input_tokens=rows, max_new_tokens=3),
     )
@@ -64,8 +64,9 @@ def test_quality_continuation_rejects_before_transport_material(tmp_path, monkey
 
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])
 @pytest.mark.parametrize("tied", [False, True])
-def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, tied, record_property):
-    experiment, cfg, arrays = experiment_fixture(tmp_path, family=family, tied=tied)
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, tied, sharing, record_property):
+    experiment, cfg, arrays = experiment_fixture(tmp_path, family=family, tied=tied, sharing=sharing)
     captured = []
     with OpenAI(experiment=experiment) as client:
         topology = client._owned_topology
@@ -78,6 +79,7 @@ def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, 
         record_property("native", str(Path(_native.__file__).resolve()))
         response = client.responses.create(input="hello world", max_output_tokens=3)
         source = client._core._ensure_source()
+        assert client._core.list_models()["data"][0]["runtime"]["sharing"] == sharing
         ids = source.tokenizer().encode(prompt_text(normalize_input("hello world")), add_bos=False)
         assert response.usage.input_tokens == len(ids)
         assert response.usage.output_tokens == 3
@@ -102,8 +104,9 @@ def test_sdk_two_workers_complete_state_oracle_and_retirement(tmp_path, family, 
     assert all(not item.running for item in topology.statuses)
 
 
-def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch):
-    experiment, _, _ = experiment_fixture(tmp_path)
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch, sharing):
+    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing)
     with OpenAI(experiment=experiment) as client:
         load_transport = AdmittedSource.load_transport
         checks = []
@@ -141,8 +144,9 @@ def test_stream_and_failed_final_barrier_expose_no_events(tmp_path, monkeypatch)
 
 
 @pytest.mark.parametrize("failure", ["cancel", "malformed", "replay", "partial_admission"])
-def test_transport_failure_retires_both_real_roles(tmp_path, monkeypatch, failure):
-    experiment, _, _ = experiment_fixture(tmp_path)
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_transport_failure_retires_both_real_roles(tmp_path, monkeypatch, failure, sharing):
+    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing)
     original = transport._Peers.post
     injected = []
 
@@ -175,8 +179,9 @@ def test_transport_failure_retires_both_real_roles(tmp_path, monkeypatch, failur
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["task", "concurrent_stream_close"])
-async def test_async_cancellation_drains_real_workers_before_return(tmp_path, monkeypatch, mode):
-    experiment, _, _ = experiment_fixture(tmp_path)
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+async def test_async_cancellation_drains_real_workers_before_return(tmp_path, monkeypatch, mode, sharing):
+    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing)
     entered, release = threading.Event(), threading.Event()
     original = transport._Peers.post
 

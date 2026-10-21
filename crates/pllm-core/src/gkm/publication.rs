@@ -122,7 +122,11 @@ impl PublicationResources {
         let seeded_window_extra_bytes = if capacity == Capacity::Capsule {
             super::seeded::WINDOW_EXTRA_BYTES
         } else {
-            0
+            2 * size_of::<super::seeded::Streams>()
+                + max_columns * 8
+                + vocabulary.div_ceil(8)
+                + 32
+                + 512
         };
         let window_accumulator_bytes = bytes(dimensions as u128 * size_of::<Scalar>() as u128)?;
         // Capsule admission is unchanged. Decoder prices separate input/output

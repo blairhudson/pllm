@@ -1,4 +1,4 @@
-"""Run the bounded full-share GKM composition through ordinary PLLM APIs.
+"""Run the bounded GKM composition through ordinary PLLM APIs.
 
 Requires a complete local Safetensors source with tokenizer.json. Default capsule
 capacity admits at most 256 vocabulary entries; explicit decoder capacity uses
@@ -22,10 +22,10 @@ from pllm.protocols import OpenWeightVerifiableOutsourcing
 
 
 def experiment(model_dir, *, root=".pllm/delegated", max_input_tokens=8, max_new_tokens=3,
-               capacity="capsule"):
+               capacity="capsule", sharing="full"):
     return Experiment(
         "bounded-delegated", OpenWeightVerifiableCpu(Model.path(str(Path(model_dir).resolve())),
-            linear=OpenWeightVerifiableOutsourcing(capacity=capacity)),
+            linear=OpenWeightVerifiableOutsourcing(capacity=capacity, sharing=sharing)),
         Deployment.local(root=str(root)),
         ExecutionBudget(requests=4, max_input_tokens=max_input_tokens, max_new_tokens=max_new_tokens),
     )
@@ -39,13 +39,15 @@ def main(argv=None):
     parser.add_argument("--max-input-tokens", type=int, default=8)
     parser.add_argument("--max-output-tokens", type=int, default=3)
     parser.add_argument("--capacity", choices=("capsule", "decoder"), default="capsule")
+    parser.add_argument("--sharing", choices=("full", "seeded"), default="full")
     parser.add_argument("--timeout-seconds", type=float, default=90)
     parser.add_argument("--memory-bytes", type=int, default=2 << 30)
     parser.add_argument("--write-experiment", type=Path)
     parser.add_argument("--benchmark-output", type=Path)
     args = parser.parse_args(argv)
     selected = experiment(args.model_dir, root=args.root, max_input_tokens=args.max_input_tokens,
-                          max_new_tokens=args.max_output_tokens, capacity=args.capacity)
+                          max_new_tokens=args.max_output_tokens, capacity=args.capacity,
+                          sharing=args.sharing)
     if args.write_experiment:
         with args.write_experiment.open("xb") as output:
             output.write(selected.canonical_bytes())

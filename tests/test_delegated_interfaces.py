@@ -23,8 +23,8 @@ from pllm.runtime.sidecar import create_sidecar_app
 from test_delegated_sdk import active_sessions, experiment_fixture
 
 
-def saved_experiment(tmp_path):
-    experiment, _, _ = experiment_fixture(tmp_path)
+def saved_experiment(tmp_path, *, sharing="full"):
+    experiment, _, _ = experiment_fixture(tmp_path, sharing=sharing)
     path = tmp_path / "experiment.json"
     path.write_bytes(experiment.canonical_bytes())
     return experiment, path
@@ -81,12 +81,14 @@ def gateway(path, tmp_path):
             assert not alive, "gateway failed to retire its provider children"
 
 
-def test_cli_gateway_responses_stream_and_chat(tmp_path):
-    experiment, path = saved_experiment(tmp_path)
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_cli_gateway_responses_stream_and_chat(tmp_path, sharing):
+    experiment, path = saved_experiment(tmp_path, sharing=sharing)
     with gateway(path, tmp_path) as client:
         models = client.get("/v1/models")
         assert models.status_code == 200
         model_id = models.json()["data"][0]["id"]
+        assert models.json()["data"][0]["runtime"]["sharing"] == sharing
         assert model_id == (experiment.pipeline.model.model_id or Path(experiment.pipeline.model.source).name)
         response = client.post("/v1/responses", json={"model": model_id, "input": "hello world",
             "max_output_tokens": 2, "temperature": 0})
@@ -109,22 +111,25 @@ def test_cli_gateway_responses_stream_and_chat(tmp_path):
         assert chat.json()["usage"]["completion_tokens"] == 2
 
 
-def test_cli_benchmark_uses_serialized_experiment_and_buffered_metrics(tmp_path):
-    _, path = saved_experiment(tmp_path)
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_cli_benchmark_uses_serialized_experiment_and_buffered_metrics(tmp_path, sharing):
+    _, path = saved_experiment(tmp_path, sharing=sharing)
     output = run_cli("benchmark", "run", "--experiment", path, "--prompt", "hello world",
                      "--max-output-tokens", "2", "--warmups", "0", "--repetitions", "1",
                      "--backend", "native", "--format", "json")
     result = json.loads(output)["data"]["report"]
     assert result["checks"]["passed"], result
     assert result["runtime_contract"]["output_delivery"] == "buffered_until_verified"
+    assert result["runtime_contract"]["sharing"] == sharing
     assert result["summary"]["median_tokens_per_second"] is None
     assert result["runs"][0]["tokens"]["output_tokens"] == 2
     assert set(result["process_cpu_accounting"]["cold_first_response_cpu_seconds_by_role"]) == {
         "client", "worker_a", "worker_b"}
 
 
-def test_ordinary_response_target_owns_workers_and_keeps_decode_rate_unknown(tmp_path):
-    experiment, _ = saved_experiment(tmp_path)
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_ordinary_response_target_owns_workers_and_keeps_decode_rate_unknown(tmp_path, sharing):
+    experiment, _ = saved_experiment(tmp_path, sharing=sharing)
     target = BenchmarkTarget.response(experiment, scenario=Scenario.cold(max_output_tokens=2),
                                       backend="native")
     suite = BenchmarkSuite([BenchmarkCase("delegated-response", target)],
@@ -143,10 +148,11 @@ def test_ordinary_response_target_owns_workers_and_keeps_decode_rate_unknown(tmp
 
 
 @pytest.mark.parametrize("stream", [False, True])
-def test_gateway_verification_failure_exposes_only_error(tmp_path, monkeypatch, stream):
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_gateway_verification_failure_exposes_only_error(tmp_path, monkeypatch, stream, sharing):
     from pllm.runtime.delegated_source import AdmittedSource
 
-    experiment, _ = saved_experiment(tmp_path)
+    experiment, _ = saved_experiment(tmp_path, sharing=sharing)
     original = AdmittedSource.load_transport
 
     class Rejected:
@@ -179,16 +185,18 @@ def test_gateway_verification_failure_exposes_only_error(tmp_path, monkeypatch, 
 
 
 @pytest.mark.parametrize("benchmark", [False, True])
-def test_published_example_uses_installed_sdk(tmp_path, benchmark):
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_published_example_uses_installed_sdk(tmp_path, benchmark, sharing):
     source_experiment, _ = saved_experiment(tmp_path)
     example = Path(__file__).resolve().parents[1] / "examples/delegated_sdk.py"
     saved = tmp_path / "published-experiment.json"
     command = [sys.executable, "-I", "-B", str(example), "--model-dir",
                source_experiment.pipeline.model.source, "--root", str(tmp_path / "example-roles"),
-               "--max-output-tokens", "2", "--write-experiment", str(saved)]
+               "--max-output-tokens", "2", "--sharing", sharing, "--write-experiment", str(saved)]
     if benchmark:
         command += ["--benchmark-output", str(tmp_path / "example-benchmark.json")]
     result = subprocess.run(command, capture_output=True, text=True, timeout=90)
     assert result.returncode == 0, result.stdout + result.stderr
     assert saved.is_file()
+    assert json.loads(saved.read_text())["pipeline"]["components"]["linear"]["params"]["sharing"] == sharing
     assert "completed" in result.stdout if benchmark else "'output_tokens': 2" in result.stdout

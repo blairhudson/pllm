@@ -73,7 +73,7 @@ fn incompatible_and_incomplete_compositions_never_select_int8_runtime() {
         assert!(resolve_experiment(&canonical_bytes(&e)).is_err(), "{slot}");
     }
     for (slot, key, value) in [
-        ("linear", "sharing", json!("seeded")),
+        ("linear", "sharing", json!("unknown")),
         ("linear", "generation", json!("sampled")),
         ("verification", "acceptance", json!("token")),
         ("kernels", "threads", json!(2)),
@@ -147,7 +147,7 @@ fn explicit_decoder_capacity_preserves_default_and_admits_full_source_geometry()
 }
 
 #[test]
-fn decoder_capacity_must_be_explicit_and_stays_full_share() {
+fn decoder_capacity_must_be_explicit_and_seeded_sharing_is_separately_bound() {
     for capacity in [json!("capsule"), json!("unknown"), json!(false), json!(1)] {
         let mut e = experiment();
         e["pipeline"]["components"]["linear"]["params"]["capacity"] = capacity;
@@ -156,5 +156,20 @@ fn decoder_capacity_must_be_explicit_and_stays_full_share() {
     let mut e = experiment();
     e["pipeline"]["components"]["linear"]["params"]["capacity"] = json!("decoder");
     e["pipeline"]["components"]["linear"]["params"]["sharing"] = json!("seeded");
-    assert!(resolve_experiment(&canonical_bytes(&e)).is_err());
+    assert!(resolve_experiment(&canonical_bytes(&e)).is_ok());
+    let seeded = compile(&e, &config(), 2, 2).unwrap();
+    assert_eq!(
+        seeded.sharing_profile(),
+        pllm_core::gkm::SharingProfile::Aes128WindowV1
+    );
+    let value: Value = serde_json::from_slice(&seeded.canonical_bytes()).unwrap();
+    assert_eq!(
+        value["sharing_profile"],
+        pllm_core::gkm::SEEDED_SHARING_PROFILE
+    );
+    e["pipeline"]["components"]["linear"]["params"]["sharing"] = json!("full");
+    let full = compile(&e, &config(), 2, 2).unwrap();
+    assert_ne!(full.digest(), seeded.digest());
+    let value: Value = serde_json::from_slice(&full.canonical_bytes()).unwrap();
+    assert!(value.get("sharing_profile").is_none());
 }

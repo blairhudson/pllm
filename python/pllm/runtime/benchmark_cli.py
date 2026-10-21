@@ -642,6 +642,7 @@ def build_comparison_report(
 ) -> dict[str, Any]:
     """Build one matched report over independently executed Experiment pipelines."""
     from pllm.schedulers import _numeric_component
+    from pllm._search_benchmark import _sharing_privacy
     if len(candidates) < 2:
         raise ValueError("comparison requires at least two Experiment pipelines")
     records = [
@@ -672,6 +673,8 @@ def build_comparison_report(
         json.dumps(experiment.pipeline.to_spec()["components"].get("verification"), sort_keys=True)
         for experiment, _ in candidates
     }) == 1
+    sharing_contracts = [_sharing_privacy(experiment.pipeline) for experiment, _ in candidates]
+    matched_sharing = len({json.dumps(value, sort_keys=True) for value in sharing_contracts}) == 1
     numeric_contracts = []
     for experiment, candidate_report in candidates:
         components = experiment.pipeline.to_spec()["components"]
@@ -724,6 +727,7 @@ def build_comparison_report(
         comparable
         and kernel_admitted
         and matched_verification
+        and matched_sharing
         and matched_numeric
         and all(report.get("checks", {}).get("passed") is True for _, report in candidates)
     ):
@@ -762,6 +766,7 @@ def build_comparison_report(
         "matched_workload": comparable,
         "matched_body_coverage": matched_coverage,
         "matched_verification": matched_verification,
+        **({"matched_sharing_contract": matched_sharing} if any(sharing_contracts) else {}),
         "matched_numeric_contract": matched_numeric,
         ("matched_kernel_composition" if compare_kernels else "matched_kernel_backend"): kernel_admitted,
     }
@@ -796,6 +801,7 @@ def build_comparison_report(
         comparable
         and matched_backend
         and matched_numeric
+        and matched_sharing
         and checks["all_candidates_passed"]
         and len(offset_references) == 1
     ):

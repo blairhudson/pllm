@@ -19,6 +19,56 @@ fn fixture() -> (I16Matrix, FloatTable, Arc<Publication>, Client) {
 }
 
 #[test]
+fn worker_window_permit_preserves_original_full_requirement_and_prices_only_seeded_one_extra() {
+    for capacity in [Capacity::Capsule, Capacity::Decoder] {
+        let matrix = I16Matrix::from_encoded(11, 13, &[3; 11 * 13], &[100; 13]).unwrap();
+        let table = FloatTable::from_le_bytes(17, 7, &[0; 17 * 7 * 4]).unwrap();
+        let stages = [Stage {
+            id: [1; 32],
+            matrix: &matrix,
+        }];
+        let publication = Arc::new(
+            Publication::publish_with_capacity([4; 32], &stages, &table, capacity).unwrap(),
+        );
+        let client = Client::new(Arc::clone(&publication), publication.digest()).unwrap();
+        let plan = [Step::Linear([1; 32]), Step::Lookup];
+        // Original wire admission formula, retaining the actual current inline
+        // owner size for every role/profile. No seeded endpoint allowance here.
+        let original = plan.len() * size_of::<Step>()
+            + (13usize * 8 + 11 * 16).max(7 * 4)
+            + size_of::<WorkerWireWindow>()
+            + 1024;
+        for seeded in [false, true] {
+            let mut window = if seeded {
+                client.begin_seeded_wire([5; 32], &plan)
+            } else {
+                client.begin_wire([5; 32], &plan)
+            }
+            .unwrap();
+            let starts = window.start_frames().unwrap();
+            for (index, role) in [Worker::Zero, Worker::One].into_iter().enumerate() {
+                let mut owner = WorkerWire::new(
+                    Arc::clone(&publication),
+                    publication.digest(),
+                    role,
+                    &stages,
+                    &table,
+                )
+                .unwrap();
+                let worker = owner.begin(starts[index].as_bytes()).unwrap();
+                let extra = if seeded && role == Worker::One {
+                    publication.resources.seeded_window_extra_bytes
+                } else {
+                    0
+                };
+                assert_eq!(worker._permit.bytes, original + extra);
+                assert_eq!(worker.seeded.is_some(), seeded && role == Worker::One);
+            }
+        }
+    }
+}
+
+#[test]
 fn worker_uses_native_cumulative_window_step_and_shared_live_admission() {
     let (matrix, table, publication, client) = fixture();
     for exhausted_steps in [false, true] {

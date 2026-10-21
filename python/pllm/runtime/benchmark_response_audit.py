@@ -17,6 +17,8 @@ from pllm._benchmark_contract import TargetUnavailable
 _LOCK = threading.Lock()
 MAX_SELECTIONS = 64
 SAMPLER_SEED = 42
+GKM_AUDIT_SCHEMA = "pllm.response_state_audit.gkm.v1"
+_GKM_OWNER = None
 
 
 def state_audit_admission(report, memory_bytes, *, enforced_wan):
@@ -45,8 +47,140 @@ def _array(digest, array):
         digest.update(chunk.tobytes())
 
 
+class _GkmRequestAudit:
+    """Trusted, consuming request instrumentation; retains commitments only."""
+
+    def __init__(self, owner, contract, tokens):
+        self.owner = owner
+        self.initial_count = len(tokens)
+        self.initial_commit = _commit(owner.salt, tokens)
+        self.count = contract["decode_steps"] + 1
+        self.vocabulary = contract["vocabulary"]
+        numeric = {key: contract[key] for key in ("numeric_profile", "local_numeric_profile")}
+        numeric["config_digest"] = contract["plan"]["config_digest"]
+        self.record = {
+            "numeric_body_fingerprint": hashlib.sha256(json.dumps(
+                numeric, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+            "temperature": 0, "sampler_kind": "deterministic_argmax_no_rng",
+            "generation_policy": "fixed_length_greedy", "eos_policy": "fixed_count",
+            "cryptographic_randomness_frozen": False, "selections": [], "failed": False,
+        }
+
+    def selection(self, request, vector, token, executed):
+        # This method is called only by the trusted decoder, never a user callback.
+        with self.owner.lock:
+            if self.owner.closed or self.record is None:
+                raise TargetUnavailable("response_state_audit_retired")
+            rows = self.record["selections"]
+            position = self.initial_count + len(rows)
+            if (len(rows) >= self.count or request.position != position
+                    or len(executed) != position
+                    or _commit(self.owner.salt, executed[:self.initial_count]) != self.initial_commit
+                    or not request.caches or type(vector) is not bytes
+                    or len(vector) != self.vocabulary * 4 or type(token) is not int):
+                raise TargetUnavailable("response_state_audit_incomplete", status="failed")
+            logits = np.frombuffer(vector, dtype="<f4")
+            if not np.isfinite(logits).all() or token != int(np.argmax(logits)):
+                raise TargetUnavailable("state_audit_requires_bounded_greedy_full_kv")
+            digest = hmac.new(self.owner.salt, b"pllm.response-gkm-full-state.v1\0", hashlib.sha256)
+            _array(digest, logits)
+            checked, lengths = logits.size, []
+            for cache in request.caches:
+                if cache.length != position:
+                    raise TargetUnavailable("response_state_audit_incomplete", status="failed")
+                lengths.append(cache.length)
+                for array in (cache.key[:cache.length], cache.value[:cache.length]):
+                    if array.dtype != np.dtype("<f4") or array.shape[0] != position:
+                        raise TargetUnavailable("state_audit_requires_bounded_greedy_full_kv")
+                    _array(digest, array)
+                    checked += array.size
+            selected = _commit(self.owner.salt, token)
+            rows.append({"position": position, "cache_lengths": lengths,
+                "checked_values": checked, "logits_and_active_kv": digest.hexdigest(),
+                "executed_history": _commit(self.owner.salt, executed),
+                "executed_token_count": position, "selected_token": selected,
+                "pending_selected_token": selected})
+
+    def accept(self, result):
+        with self.owner.lock:
+            if self.owner.closed or self.record is None:
+                raise TargetUnavailable("response_state_audit_retired")
+            rows = self.record["selections"]
+            if (len(rows) != self.count or type(result.acceptance) is not bytes
+                    or not 0 < len(result.acceptance) <= 16 << 10
+                    or len(result.selected) != self.count
+                    or result.position != self.initial_count + self.count - 1
+                    or len(result.executed) != result.position
+                    or _commit(self.owner.salt, result.executed[:self.initial_count]) != self.initial_commit
+                    or result.executed[self.initial_count:] != result.selected[:-1]
+                    or any(row["selected_token"] != _commit(self.owner.salt, token)
+                           for row, token in zip(rows, result.selected, strict=True))):
+                raise TargetUnavailable("response_state_audit_incomplete", status="failed")
+            self.owner.accepted = self.record
+            self.record = None
+
+    def close(self):
+        with self.owner.lock:
+            if self.record is not None:
+                self.record["selections"].clear()
+                self.record = None
+
+
+class _GkmAuditOwner:
+    def __init__(self, salt):
+        self.salt, self.lock = salt, threading.Lock()
+        self.closed = self.claimed = False
+        self.accepted = None
+
+    def begin(self, contract, tokens, decode_tokens):
+        with self.lock:
+            if self.closed or self.claimed:
+                self.accepted = None
+                raise TargetUnavailable("state_audit_requires_one_response_runtime")
+            self.claimed = True
+            if (decode_tokens is not None or not 1 <= contract["decode_steps"] + 1 <= MAX_SELECTIONS
+                    or type(tokens) is not tuple or not 1 <= len(tokens) <= 512
+                    or any(type(token) is not int or not 0 <= token < contract["vocabulary"] for token in tokens)):
+                raise TargetUnavailable("state_audit_requires_bounded_greedy_full_kv")
+            return _GkmRequestAudit(self, contract, tokens)
+
+
+def _begin_gkm_request_audit(contract, tokens, decode_tokens):
+    """Internal decoder seam. Disabled execution allocates no audit owner/state."""
+    owner = _GKM_OWNER
+    return None if owner is None else owner.begin(contract, tokens, decode_tokens)
+
+
 @contextmanager
-def response_state_audit(salt):
+def _gkm_response_state_audit(salt):
+    # Process-wide like the prepared instrumentation: dashboard executes on a
+    # different thread. The shared lock excludes overlapping audit scopes.
+    global _GKM_OWNER
+    if type(salt) is not bytes or len(salt) != 32:
+        raise ValueError("state audit requires a private cohort salt")
+    if not _LOCK.acquire(blocking=False):
+        raise TargetUnavailable("concurrent_response_state_audit")
+    owner, records = _GkmAuditOwner(salt), []
+    _GKM_OWNER = owner
+    try:
+        yield records
+        with owner.lock:
+            if owner.accepted is not None:
+                records.append(owner.accepted)
+    finally:
+        with owner.lock:
+            owner.closed = True
+            owner.accepted = None
+        _GKM_OWNER = None
+        _LOCK.release()
+
+
+@contextmanager
+def response_state_audit(salt, *, runtime_kind=None):
+    if runtime_kind == "gkm":
+        with _gkm_response_state_audit(salt) as records:
+            yield records
+        return
     from .semantic_executor import SemanticDecoderRuntime
     from .transformer_client import LayerCache, MaskedTransformerClientRuntime
 

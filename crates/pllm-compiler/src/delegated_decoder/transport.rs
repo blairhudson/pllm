@@ -1,4 +1,4 @@
-//! Source- and Experiment-bound adapters for the bounded full-share wire owners.
+//! Source- and Experiment-bound adapters for full-share or seeded wire owners.
 //!
 //! The client publishes locally, retires its imported matrix/table owners, and
 //! retains only public local coefficients plus its native private transaction.
@@ -110,9 +110,11 @@ impl GkmTransportClient {
         let context = request_context(&contract, source);
         let client = gkm::Client::new(Arc::clone(&publication), publication_digest)
             .map_err(|error| error.to_string())?;
-        let window = client
-            .begin_wire(context, &calls)
-            .map_err(|error| error.to_string())?;
+        let window = match contract.sharing_profile() {
+            gkm::SharingProfile::FullShares => client.begin_wire(context, &calls),
+            gkm::SharingProfile::Aes128WindowV1 => client.begin_seeded_wire(context, &calls),
+        }
+        .map_err(|error| error.to_string())?;
         let request = window.request_id();
         Ok(Self {
             contract,
@@ -161,7 +163,8 @@ impl GkmTransportClient {
         result
     }
 
-    /// Role-specific public start frames, once, before any input issuance.
+    /// Role-specific start frames, once, before input issuance. In seeded mode
+    /// One's frame is secret key material requiring confidential authenticated delivery.
     pub fn starts(&mut self) -> Result<[WireBytes; 2], String> {
         let result = self
             .window
@@ -261,7 +264,7 @@ impl GkmTransportClient {
                 return Err(reject("transport incomplete request"));
             }
             let accepted = window.finish().map_err(|error| error.to_string())?;
-            if accepted.sharing_profile() != gkm::SharingProfile::FullShares
+            if accepted.sharing_profile() != self.contract.sharing_profile()
                 || accepted.request_id() != self.request
                 || accepted.publication() != self.publication_digest
                 || accepted.context() != self.context
@@ -281,7 +284,9 @@ impl GkmTransportClient {
                 "request": Digest::from_sha256(accepted.request_id()),
                 "window": Digest::from_sha256(accepted.plan_digest()),
                 "context": Digest::from_sha256(self.context),
-                "steps": accepted.steps(), "sharing": "full", "seeded": false,
+                "steps": accepted.steps(),
+                "sharing": if accepted.sharing_profile() == gkm::SharingProfile::FullShares { "full" } else { "seeded" },
+                "seeded": accepted.sharing_profile() == gkm::SharingProfile::Aes128WindowV1,
             })))
         })();
         self.abort();
@@ -363,6 +368,9 @@ impl GkmTransportWorker {
         let window = owner
             .begin_bound(start, context, &calls)
             .map_err(|error| error.to_string())?;
+        if window.sharing_profile() != contract.sharing_profile() {
+            return Err(reject("transport sharing profile mismatch"));
+        }
         Ok(Self {
             contract,
             window: Some(window),
@@ -406,7 +414,7 @@ impl GkmTransportWorker {
                 "request": Digest::from_sha256(receipt.request_id),
                 "steps": receipt.steps,
                 "worker": if self.role == Worker::Zero { 0 } else { 1 },
-                "sharing": "full",
+                "sharing": if self.contract.sharing_profile() == gkm::SharingProfile::FullShares { "full" } else { "seeded" },
             })))
         })();
         self.abort();
@@ -416,5 +424,115 @@ impl GkmTransportWorker {
     pub fn abort(&mut self) {
         self.window = None;
         self.owner = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pllm_types::canonical_bytes;
+    use serde_json::json;
+
+    fn contract(seeded: bool, decoder: bool) -> GkmRuntimeContract {
+        let mut linear = json!({"sharing": if seeded { "seeded" } else { "full" }, "generation":"fixed_length_greedy"});
+        if decoder {
+            linear["capacity"] = json!("decoder");
+        }
+        GkmRuntimeContract::compile(
+            &canonical_bytes(&json!({"schema":"pllm.experiment.v2", "name":"seeded-wire",
+                "pipeline":{"model":{"source":"fixture", "kind":"safetensors"}, "components":{
+                    "kernels":{"component":"pllm/cpu", "params":{"threads":1}},
+                    "linear":{"component":"pllm/open-weight-verifiable-outsourcing/v1", "params":linear},
+                    "verification":{"component":"pllm/published-linear-verify/v1", "params":{"acceptance":"request"}},
+                    "topology":{"component":"pllm/two-online-delegation-workers/v1", "params":{}},
+                    "state":{"component":"pllm/client-local-kv", "params":{}}
+                }}, "deployment":{"kind":"local", "root":"./seeded-wire"},
+                "budget":{"requests":1, "max_input_tokens":1, "max_new_tokens":1}})),
+            &canonical_bytes(&json!({"model_type":"qwen2", "hidden_size":8, "intermediate_size":16,
+                "num_hidden_layers":1, "num_attention_heads":2, "num_key_value_heads":1,
+                "vocab_size":16, "max_position_embeddings":16, "hidden_act":"silu",
+                "rms_norm_eps":1e-6, "rope_theta":10000.0, "tie_word_embeddings":true})),
+            1, 1, Digest::from_sha256([1; 32]), Digest::from_sha256([2; 32]),
+        ).unwrap()
+    }
+
+    fn importer(seeded: bool, decoder: bool) -> super::super::GkmTransportImport {
+        let contract = contract(seeded, decoder);
+        let tensors: Vec<_> = contract
+            .decoder()
+            .source_shapes()
+            .iter()
+            .map(|(name, shape)| (name.clone(), vec![0u8; shape.iter().product::<usize>() * 4]))
+            .collect();
+        let mut importer = super::super::GkmTransportImport::new(contract).unwrap();
+        for (name, bytes) in tensors {
+            importer.push(&name, 0, &bytes).unwrap();
+        }
+        importer
+    }
+
+    #[test]
+    fn seeded_sdk_selector_streamed_transport_and_final_acceptance_both_capacities() {
+        for decoder in [false, true] {
+            let mut outputs = Vec::new();
+            let mut sources = Vec::new();
+            for seeded in [false, true] {
+                let mut client = importer(seeded, decoder).client().unwrap();
+                let publication = client.publication_bytes().unwrap();
+                let pin = client.publication_digest();
+                // Owner publication contains fresh commitment randomness, so its
+                // digest may differ. Actual-source binding must remain identical.
+                sources.push(client.source);
+                let starts = client.starts().unwrap();
+                assert_eq!(
+                    starts[1].len(),
+                    starts[0].len() + if seeded { 32 } else { 0 }
+                );
+                let mut workers = [Worker::Zero, Worker::One].map(|role| {
+                    importer(seeded, decoder)
+                        .worker(
+                            publication.as_bytes(),
+                            pin,
+                            role,
+                            starts[if role == Worker::Zero { 0 } else { 1 }].as_bytes(),
+                        )
+                        .unwrap()
+                });
+                let mut result = Vec::new();
+                for step in client.calls.clone() {
+                    let requests = match step {
+                        Step::Lookup => client.lookup(3).unwrap(),
+                        Step::Linear(id) => {
+                            let stage = client
+                                .contract
+                                .decoder()
+                                .matrices
+                                .iter()
+                                .position(|matrix| stage_id(matrix) == id)
+                                .unwrap();
+                            let input =
+                                vec![0; client.contract.decoder().matrices[stage].columns * 4];
+                            client.linear(stage, &input).unwrap()
+                        }
+                    };
+                    let zero = workers[0].execute(requests[0].as_bytes()).unwrap();
+                    let one = workers[1].execute(requests[1].as_bytes()).unwrap();
+                    result.push(client.accept(zero.as_bytes(), one.as_bytes()).unwrap());
+                }
+                let receipt: serde_json::Value =
+                    serde_json::from_slice(&client.finish().unwrap()).unwrap();
+                assert_eq!(receipt["sharing"], if seeded { "seeded" } else { "full" });
+                assert_eq!(receipt["seeded"], seeded);
+                assert!(client.finish().is_err());
+                for worker in &mut workers {
+                    let receipt: serde_json::Value =
+                        serde_json::from_slice(&worker.finish().unwrap()).unwrap();
+                    assert_eq!(receipt["sharing"], if seeded { "seeded" } else { "full" });
+                }
+                outputs.push(result);
+            }
+            assert_eq!(outputs[0], outputs[1]);
+            assert_eq!(sources[0], sources[1]);
+        }
     }
 }

@@ -331,6 +331,83 @@ fn preallocation_rejection_real_null_failures_and_maximum_source_copy_accounting
     drop((packet, public, table, raw));
     maximum_full_window_peak();
     decoder_capacity_peak_failures_and_process_admission();
+    seeded_wire_real_null_failures_keep_expansion_admission();
+}
+
+fn seeded_wire_real_null_failures_keep_expansion_admission() {
+    for capacity in [Capacity::Capsule, Capacity::Decoder] {
+        let matrix = I16Matrix::from_encoded_owned_with_capacity(
+            11,
+            13,
+            vec![3; 11 * 13],
+            vec![100; 13],
+            capacity,
+        )
+        .unwrap();
+        let table =
+            FloatTable::from_le_bytes_owned_with_capacity(17, 7, vec![0; 17 * 7 * 4], capacity)
+                .unwrap();
+        let stages = [Stage {
+            id: [1; 32],
+            matrix: &matrix,
+        }];
+        let publication = Arc::new(
+            Publication::publish_with_capacity([2; 32], &stages, &table, capacity).unwrap(),
+        );
+        let client = Client::new(Arc::clone(&publication), publication.digest()).unwrap();
+        let live = || WireResources::current_with_capacity(capacity).process_live_bytes;
+        for (linear, fail) in [
+            (true, 104),
+            (true, 88),
+            (true, 384),
+            (false, 3),
+            (false, 28),
+            (false, 324),
+        ] {
+            let step = if linear {
+                Step::Linear([1; 32])
+            } else {
+                Step::Lookup
+            };
+            let mut window = client.begin_seeded_wire([3; 32], &[step]).unwrap();
+            let starts = window.start_frames().unwrap();
+            let mut owner = WorkerWire::new(
+                Arc::clone(&publication),
+                publication.digest(),
+                Worker::One,
+                &stages,
+                &table,
+            )
+            .unwrap();
+            let mut worker = owner.begin(starts[1].as_bytes()).unwrap();
+            let request = if linear {
+                window.linear(&[1; 13])
+            } else {
+                window.lookup(2)
+            }
+            .unwrap();
+            assert_eq!(request[1].len(), 296);
+            let admitted = live();
+            let (result, released) = releases(capacity, [104, 88, 3, 28, 0], || {
+                trace(fail, || worker.execute(request[1].as_bytes()))
+            });
+            failed(result);
+            if released.count > 0 {
+                assert!(released.minimum_wire_bytes >= admitted);
+            }
+            assert!(matches!(
+                worker.execute(request[1].as_bytes()),
+                Err(Error::Retired)
+            ));
+            window.abort();
+            drop((starts, request, window));
+            // Failed key-bearing worker and its run keep live native admission.
+            assert_eq!(publication.live_windows(), 1);
+            drop((worker, owner));
+            assert_eq!(publication.live_windows(), 0);
+            assert_eq!(live(), 0);
+        }
+    }
 }
 
 fn worker_constructor_admission_survives_actual_payload_deallocation() {

@@ -1,9 +1,9 @@
 # GKM AES seeded shares: source-derived bounded profile
 
-Status: **implemented and bounded native checks passed**. Sections 1–2 were
-frozen before implementation. This document covers the native, in-process
-capsule only. It does not admit a model, network deployment, SDK, or performance
-result. The full-share profile remains distinct.
+Status: **implemented; source profile reused by explicit seeded SDK transport**.
+Sections 1–5 retain the original native capsule contract and evidence. Section 6
+describes the later one-use wire binding; the [SDK reference](gkm-sdk-reference.md)
+owns complete decoder qualification. The full-share profile remains distinct.
 
 ## 1. Documentary qualification
 
@@ -72,7 +72,7 @@ Profile identifier: `gkm.seeded.aes128.duplicate-le64.two-purpose.window.v1`.
    actual admitted window caps are much smaller: at most 262,144 linear bytes
    or 65,536 lookup bytes under the 128-step/256-dimension/4096-row limits.
    The theoretical counter-domain endpoint is not an enlarged usage admission.
-6. **Restart:** production offers no seed/cursor import, clone, rewind, retry,
+6. **Restart:** the original capsule offers no seed/cursor import, clone, rewind, retry,
    or resumption API. A new window draws fresh keys. Replay or any failed
    expansion retires the existing window; it never resamples a replacement key.
    Process restarts need fresh OS entropy; durable deployment replay accounting
@@ -283,21 +283,56 @@ binary tests (including two fresh child processes), and eight compile-fail
 checks passed**. Clippy passed with the existing range-loop lint suppression.
 No unexpected production bug was found; no cap adjustment or commit was made.
 
-## 6. Remaining gates
+## 6. Consuming seeded transport
 
-The separate [bounded decoder reference](gkm-decoder-reference.md) now composes
-this profile with generated semantic prefill/decode and final-window acceptance.
-Its installed binding and small conformance envelope do not admit real-checkpoint
-geometry or close the native slice's deployment and performance gates below.
+The explicit `OpenWeightVerifiableOutsourcing(sharing="seeded")` composes this
+profile with the existing authenticated SDK transport, for both Capsule and
+Decoder capacities. `Client::begin_seeded_wire` transfers the two fresh keys
+only in Worker One's consuming start frame. Worker Zero's start contains the
+complete public schedule without keys; its operations retain complementary
+explicit shares. Worker One's subsequent operations are header-only. This is a
+bound request-start operation, not a general cursor import or restart API.
+
+The existing frame namespace binds source publication, sharing profile, complete
+plan, request/session, role and monotonic ordinal. The worker verifies exact
+stream exhaustion before completion; malformed starts, substitution, replay and
+cancellation retire its owner. Confidentiality and authentication are both
+required for key delivery. Trusted loopback and verified HTTPS have their existing
+deployment contracts; co-located children do not establish operator independence.
+
+The in-process progress rule in section 4 cannot prove a remote worker's actual
+AES computation. The wire client records a bound reply acknowledgement only as
+transport progress. Original response fixation and complete-window numeric
+verification remain authoritative; acknowledgements cannot accept outputs on
+their own. Worker-local stream checks do not become a malicious-worker proof.
+
+Native key/stream, scratch, frame and schedule owners retain payload leases until
+retirement. Wire admission charges seeded-only expansion scratch to Worker One;
+all roles still price their actual inline owners. Decoder publication estimates
+include its larger maximum-width scratch and remain separate from the historical
+Capsule bounds above. Outer SDK admission covers Python frame copies; native
+zeroization cannot erase caller-owned immutable bytes. Durable replay state remains
+external. Arithmetic and source matrix/table commitments are unchanged; seeded
+sharing adds an explicit computational-privacy assumption and distinct binding.
+
+## 7. Remaining gates
+
+The [bounded decoder reference](gkm-decoder-reference.md) and later
+[SDK transport](gkm-sdk-reference.md) compose this profile with generated semantic
+prefill/decode and final-window acceptance. Decoder capacity admits larger source
+geometry separately; the original Capsule evidence cannot supply its checkpoint
+or performance results.
 
 - Bounded native source/ownership audits passed. Independent cryptographic review
   and complete composed-protocol security remain open.
-- No seed wire codec, confidential/authenticated delivery, separate-worker process
-  admission, transport retry/reconnect, or durable crash-resumption/replay budget.
-  Fresh-process tests establish fresh initialization, not restart persistence.
-- No batched prefill, real-checkpoint range/state/quality admission, stochastic
-  sampler integration, or enlarged resource envelope.
-- No SIMD/GPU/performance qualification, measured communication saving, serving
-  benchmark, distributed SDK, or complete source-performance comparator claim.
+- Seeded wire, authenticated role admission and separate-worker execution are now
+  implemented. Independent deployment, transport retry/reconnect and durable
+  crash-resumption/replay accounting remain open. Fresh-process tests establish
+  fresh initialization, not restart persistence.
+- Batched prefill, seeded full-checkpoint state/quality qualification and stochastic
+  sampler integration remain open. Broader source-model quality is separate from
+  the historical full-share Qwen quality smoke.
+- SIMD/GPU and complete source-performance qualification remain open; generated
+  tests do not supply measured full-checkpoint communication savings.
 - Any different seed scope, counter packing, purpose schedule, numeric graph or
   acceptance window remains a separate versioned review/approval decision.

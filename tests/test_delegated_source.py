@@ -416,14 +416,42 @@ def test_native_sdk_binding_mismatch_rejects_before_tokenizer_construction(
 
 
 @pytest.mark.skipif(not hasattr(_native, "gkm_runtime_contract"), reason="v3 core predates SDK binding")
-def test_optional_real_native_sdk_contract(tmp_path):
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+def test_optional_real_native_sdk_contract(tmp_path, sharing):
     write_source_fixture(tmp_path)
-    experiment = sdk_experiment(tmp_path)
+    experiment = sdk_experiment(tmp_path).with_params(pipeline__components__linear__sharing=sharing)
     admitted = source.admit_source(experiment)
     assert admitted.runtime_contract(experiment, 1, 1) == _native.gkm_runtime_contract(
         experiment.canonical_bytes(), admitted.config_bytes, 1, 1,
         admitted.source_lock_digest, admitted.tokenizer_digest,
     )
+
+
+@pytest.mark.parametrize("sharing", ["full", "seeded"])
+@pytest.mark.parametrize("change", ["missing", "substituted", "extra"])
+def test_runtime_sharing_binding_rejects_substitution(tmp_path, monkeypatch, sharing, change):
+    write_source_fixture(tmp_path)
+    experiment = sdk_experiment(tmp_path).with_params(pipeline__components__linear__sharing=sharing)
+    original = _native.gkm_runtime_contract
+
+    def altered(*args):
+        document = json.loads(original(*args))
+        if change == "missing":
+            if sharing == "seeded":
+                document.pop("sharing_profile")
+            else:
+                document["sharing_profile"] = "gkm.seeded.aes128.duplicate-le64.two-purpose.window.v1"
+        elif change == "substituted":
+            document["sharing_profile"] = "unrecognized-sharing-profile"
+        else:
+            document["unbound_sharing"] = sharing
+        return source._canonical(document)
+
+    monkeypatch.setattr(_native, "gkm_runtime_contract", altered)
+    monkeypatch.setattr(source, "_tokenizer", forbidden)
+    forbid_values(monkeypatch)
+    with pytest.raises(ValueError, match="differs from its source or Experiment"):
+        source.admit_source(experiment)
 
 
 @pytest.mark.parametrize("change", ["file_bytes", "encoded_bytes", "layers", "vocabulary", "depth"])

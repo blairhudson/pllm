@@ -85,8 +85,17 @@ complete for that workload. Independent full-logit/KV and quality evidence remai
 open.
 
 Broader activation coverage, original-model and common-Qwen
-quality and matched resource/performance evidence remain open. Seeded network
-frames, stochastic or early-EOS generation, continuation and automatic network
+quality and matched resource/performance evidence remain open. Explicit seeded
+network frames now reuse the native per-window AES profile through both SDK
+capacity choices; only Worker One receives its independent purpose keys. Source
+numerics and complete final verification remain. The ordinary response target
+also admits a separate GKM full-state audit schema, including per-selection KV
+and executed history, with publication gated on verification and successful
+cleanup. Fixed-count argmax has no sampler RNG, and every arm pays the same audit
+allowance. Batched prefill and accelerated multi-exponentiation remain separate
+source-performance gates.
+
+Stochastic or early-EOS generation, continuation and automatic network
 planning remain unsupported. Hub checkpoint resolution now uses the shared SDK
 resolver while preserving the original model specification and source lock.
 
@@ -112,7 +121,7 @@ client and worker operations and drains outstanding calls.
 The existing reference uses fixed-length greedy execution; EOS does not shorten
 its window. The first public composition must identify and enforce that policy.
 Ordinary sampling defaults must not silently substitute another policy. Early
-termination, stochastic sampling, continuation and seeded transport require their
+termination, stochastic sampling and continuation require their
 own admitted contracts and tests before being advertised.
 
 Benchmark first accepted output includes final verification. Releasing buffered
