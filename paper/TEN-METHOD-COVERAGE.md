@@ -16,7 +16,7 @@ passes fresh admission and completes four input tokens plus two verified outputs
 A later [ordinary CLI quality smoke](artifacts/gkm-sdk/quality-smoke.json) matches
 3/3 Qwen prefill and 9/9 same-token decode reference selections through both GKM
 workers. These close several primitive, decoder, serving-integration and bounded
-numerical-check gaps. Broader quality, independent complete-state equality and
+numerical-check gaps. Broader quality, workload/state qualification and
 matched complete-system comparison remain open. The qualified ten-method count
 remains zero. The documentary status below must not erase this later progress
 or promote it to a serving rank.
@@ -26,6 +26,13 @@ requests and accepted-only response-state auditing. Generated source/oracle chec
 cover both sharing choices. Its first six-cell pinned-Qwen comparison is
 [host-memory blocked](../docs/evidence/gkm-sharing-qwen-blocked.json), so this
 integration does not qualify checkpoint parity or a serving rank.
+
+A subsequent streamed single-window ownership retry passes independent complete
+pinned-Qwen state checks in both sharing profiles at four input tokens plus two
+outputs, with zero observed swap growth. Complete logits, active KV, history and
+selections agree; see the [SDK reference](../docs/research/gkm-sdk-reference.md).
+This bounded parity result does not supply broader quality, source-style prefill
+batching, matched serving costs or a qualified ten-method comparison row.
 
 PUMA subsequently gained the bounded ordinary `PumaThreePartyCpu` composition:
 native semantic compilation, three authenticated worker processes, private

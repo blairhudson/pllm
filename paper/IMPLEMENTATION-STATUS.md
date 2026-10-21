@@ -55,8 +55,13 @@ Completed foundations:
   [`gkm_sharing.py`](../examples/benchmarks/gkm_sharing.py) comparison has six
   [host-memory-blocked cells](../docs/evidence/gkm-sharing-qwen-blocked.json):
   10.82 GiB required against 8.48–9.87 GiB available. The separate two-profile
-  pinned-checkpoint oracle also rejects before value loading. Seeded full-checkpoint
-  equality, broader quality and measured sharing-profile costs remain open.
+  first pinned-checkpoint oracle also rejects before value loading. A later
+  streamed single-window ownership retry passes both full and seeded pinned-Qwen
+  complete-state checks at four inputs plus two outputs: each compares 334,592
+  final-result float32 values and per-selection commitments covering 359,168
+  logit/KV positions, with overlapping final values counted separately. History,
+  positions and selections agree, with zero observed swap growth. This closes the
+  bounded checkpoint-equality gate, not broader quality or measured profile costs.
 - The separate [Maverick batch capsule](../docs/research/maverick-batch-reference.md)
   implements bounded two-claim algebra with complete P/Q/Qaux validation,
   response-fixation barriers and allocation/retirement checks. Code-distance,
@@ -201,8 +206,8 @@ Completed foundations:
 
 Remaining critical path:
 
-1. Extend GKM's first admitted full-checkpoint response with independent complete
-   numeric/state oracles, broader activation coverage and source-model quality.
+1. Extend GKM's admitted full/seeded four-input/two-output complete-state oracle
+   checks to broader activation/workload coverage and source-model quality.
    Qualify original-model and common-Qwen workloads under their frozen contracts.
    Preserve source arithmetic, final-window acceptance and failure retirement.
    Seeded transport and broader generation policies retain separate contracts.

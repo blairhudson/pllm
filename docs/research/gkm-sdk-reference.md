@@ -222,7 +222,19 @@ The first pinned-Qwen attempt has six **blocked** cells in the ordinary
 state checks or response timings result. The separate two-profile checkpoint
 oracle attempt likewise rejects before value loading: 11.25 GiB required versus
 9.41–9.53 GiB available. These are host-admission outcomes, not source-model failures
-or measured peak memory. Standard replay:
+or measured peak memory.
+
+A subsequent streamed-ownership retry passes both pinned-Qwen full and seeded
+two-worker tests at four input tokens and two fixed-count outputs. In each arm,
+334,592 final-result float32 values compare bitwise with the independent oracle;
+per-selection commitments additionally cover 359,168 logit/KV positions, including
+overlapping final values. History, positions and selected/pending tokens agree.
+Both watchdogs observe zero swap growth. This closes complete-state equality for
+this bounded Q11 workload, not broad source-model quality, batching or matched
+serving performance. Ordinary output is in `target/gkm-streamed-checkpoint.log`
+and its standard pytest XML; the earlier admission failures remain separate.
+
+Standard replay:
 
 ```sh
 uv run --no-sync python -m examples.benchmarks.gkm_sharing \

@@ -11,7 +11,9 @@ Both policies use the original signed-i16/Q11 source mapping, checked ring64
 products, original float32 lookup rows, client-local float32 operators, full head
 and full KV. Each worker receives only its own shares. The client withholds all
 model-derived output until the final native verification accepts the request.
-The larger policy permits only full shares; seeded transport remains unavailable.
+The original slice used full shares. The separately explicit `sharing="seeded"`
+SDK profile now supports both capacities under the same numerical contract; see
+the [SDK reference](gkm-sdk-reference.md).
 
 Native limits precede source value reads and allocations:
 
@@ -85,7 +87,7 @@ weights.
 | Maximum window envelope | 37,008,608 |
 | Encoded-publication upper bound | 21,334,232 |
 
-One complete publication reservation is 2,161,008,640 bytes under the inspected
+One generic eager/eight-window reference reservation is 2,161,008,640 bytes under the inspected
 64-bit release layout, or 2,169,026,560 bytes under debug. Two complete publication
 reservations exceed the 4 GiB publication pool. Importing an exported publication
 while retaining another complete publication therefore rejects. The SDK client
@@ -93,6 +95,12 @@ publishes once and retains that owner; each separate worker imports its own
 authenticated publication and transfers its streamed source owners without a
 second complete source copy. An in-process reference that constructs both
 workers has a different ownership overlap.
+
+The SDK now uses separately admitted streamed single-window ownership, retaining
+all source bytes but replacing whole-matrix import scratch and unused window
+allowances. Generic reference pricing remains unchanged. Its bounded frame quotas
+and host/resource propagation are described in the
+[SDK ownership contract](gkm-sdk-reference.md#streamed-single-window-admission).
 
 ## Verification status
 
@@ -126,6 +134,13 @@ their before/after receipts. Independent complete-logit/KV comparison, source-mo
 quality, broader workloads and matched performance remain open. Buffered final
 acceptance supplies no decode-throughput measurement. Exact costs, scope and replay:
 [First Qwen response](../../paper/artifacts/gkm-sdk/qwen-response.md).
+
+A later streamed-ownership retry checks complete pinned-Qwen logits, active KV,
+history and selections against the independent oracle in both full and seeded
+two-worker SDK execution at four input tokens plus two outputs. Both pass with
+zero observed swap growth. This closes that bounded complete-state check; broader
+quality, workload and matched-performance gates remain open. Counts and standard
+pytest replay are retained in the [SDK reference](gkm-sdk-reference.md).
 
 Native APIs and focused replay commands:
 [`wire-api.md`](../../crates/pllm-core/src/gkm/wire-api.md).
