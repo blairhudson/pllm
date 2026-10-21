@@ -24,7 +24,7 @@
 //! Charges are logical capacities, not RSS bounds. Borrowed caller clear input
 //! memory is never retained and remains the caller's responsibility.
 
-use super::{arithmetic, matrix};
+use super::{arithmetic, matrix, selection};
 pub use crate::shared_allocation::{Budget, Error};
 use crate::{
     compact_dpf::gpu127::Profile,
@@ -38,10 +38,12 @@ use std::{marker::PhantomData, mem::size_of};
 use zeroize::Zeroizing;
 
 mod material;
+mod selection_bridge;
 pub use material::{
     matrix_material_resources, MatrixHandoff, MatrixImportPermit, MatrixMaterialDescriptor,
     MatrixMaterialPacket, MatrixMaterialProvenance, MatrixMaterialResources,
 };
+pub use selection_bridge::SelectionParty;
 
 const ALLOCATOR: usize = 64;
 
@@ -159,6 +161,7 @@ enum CommonBacking<'b> {
     Root(Zeroizing<Vec<u64>>),
     Arithmetic(arithmetic::MaskedOutput<'b>),
     Matrix(matrix::party::MaskedOutput<'b>),
+    Selection(selection::MaskedOutput<'b>),
 }
 impl CommonBacking<'_> {
     fn values(&self) -> &[u64] {
@@ -166,18 +169,21 @@ impl CommonBacking<'_> {
             Self::Root(v) => v,
             Self::Arithmetic(v) => v.values(),
             Self::Matrix(v) => v.values(),
+            Self::Selection(v) => v.values(),
         }
     }
 }
 enum MaskBacking<'b> {
     Fresh(Zeroizing<Vec<u64>>),
     Arithmetic(arithmetic::OutputMasks<'b>),
+    Selection(selection::OutputMasks<'b>),
 }
 impl MaskBacking<'_> {
     fn values(&self) -> &[u64] {
         match self {
             Self::Fresh(v) => v,
             Self::Arithmetic(v) => v.values(),
+            Self::Selection(v) => v.values(),
         }
     }
 }

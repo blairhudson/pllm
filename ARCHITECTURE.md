@@ -1214,7 +1214,7 @@ source, role, consumer, mask, geometry and numeric declarations while moving the
 original native owners intact. Checked complete-dot intervals and local developer
 range assumptions can qualify GapARS; they are not compiler/checkpoint proofs.
 Ring-only provenance cannot qualify it, and predicate masks have a separate type.
-The complete garbling suite passes 454 unit, four external and ten doc tests,
+The complete garbling suite passes 471 unit, five external and twelve doc tests,
 with eight opt-in skips; 280 source-leakage controls pass. This single-consumer
 local adapter adds no authenticated transport, compiler schedule, decoder, SDK
 availability or composed-security qualification.
@@ -1226,6 +1226,15 @@ singleton until retirement; imported owners cannot re-export. Shared envelope
 mechanics preserve historical FuseFSS bytes and paths. This is process-local
 ownership continuity, not confidential/authenticated delivery or remote replay
 protection; arithmetic codecs and decoder integration remain open.
+The separate bounded five-word Select consumes a common XOR-masked predicate
+and independently masked ring input, retaining the source selection algebra and
+fresh full-ring output masks. Native and typed party owners preserve one-use
+failure retirement, input/output bindings and retained-frame reservations under
+the existing 256-lane/64 MiB limits. Predicate masks never become arithmetic
+shares. This local primitive supplies neither activation fanout nor a complete
+GELU/SiLU schedule, authenticated transport, decoder or SDK component; activation
+region ownership remains separately approval-gated. Contract:
+`docs/research/sigma-native-reference.md`.
 The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private
 4,096-row lookup with exact half-gates rescaling and multiplication through opaque
 labels. Its Q18-to-Q9 numeric profile matches uncompressed Curl; the existing

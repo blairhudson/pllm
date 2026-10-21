@@ -173,8 +173,9 @@ Arithmetic-material serialization and remote import remain later gates.
 ### Remaining decoder gates
 
 The typed chain is not a complete masked-wire algebra. DReLU produces a common
-XOR-masked predicate, not an arithmetic bit. Protected predicate conversion,
-selection and source table lookup must preserve that distinction; FuseFSS
+XOR-masked predicate, not an arithmetic bit. The direct Select below preserves
+that distinction without a predicate conversion. Source table lookup and full
+nonlinear composition still need executable implementations; FuseFSS
 additive-share operations are not substitutes. Source CPU activation performs
 the early floor before absolute value and clamping, as specified in
 `paper/reproduction-contracts/shared-profile-resolution.md`.
@@ -185,6 +186,61 @@ ranges. Existing single-consumer and matrix-singleton constraints cannot be
 silently relaxed for residual fanout or subsequent matrix operations. The approved
 full-prefix, fixed-count, final-only disclosure policy does not authorize
 persistent KV, streaming token disclosure or a new Qwen numeric mapping.
+
+## Bounded direct five-word Select
+
+`masked_wire_reference::selection` implements the pinned source's five-word
+selection under `pllm.sigma.five-word-select.v1`. It accepts a common XOR-masked
+predicate `bhat = b XOR beta` and an independently masked ring input
+`xhat = x + rx`, returning the common masked ring result `b*x + rz`. The trusted
+local dealer samples fresh full-ring `rz` and separately shares these five words:
+
+```text
+beta, rx, beta*rx + rz, 2*beta, -2*beta*rx
+```
+
+For each party, the local contribution is
+`k2 - k0*xhat - k1*bhat + [bhat=0]*(k3*xhat+k4)`; party One additionally adds
+`bhat*xhat`. One peer exchange reconstructs only the masked result. In particular,
+the evaluator never treats the XOR-masked predicate as an arithmetic share.
+All equations wrap in the declared `2^n` ring; no truncation is supplied here.
+
+Input widths remain `3..64`, lanes `1..256`, under the existing combined 64 MiB
+logical ceiling. Geometry, three distinct wire identities, canonical bits and
+residues precede allocation and entropy. Frames bind both complete input views,
+role, phase, plan/session/operation, wire identities, index and a fresh nonce.
+Malformed inputs, repeated calls, bad replies and cancellation consume local
+state; the caller explicitly cancels its sibling. Retained frames and outputs
+keep independent leases through erasure and deallocation. There is no material
+codec, authenticated delivery, malicious-output check or durable replay ledger.
+
+With `L` lanes and `S(T)=size_of::<T>()`, native reservation is:
+
+```text
+F = 76 + 8L + S(Frame) + 64
+O = 8L + S(MaskedOutput) + 64
+P = S(Party) + 64L + 128 + F + O + 8192
+D = S(OutputMasks) + 24L + 64
+combined = 2P + D
+```
+
+The party's `64L` includes `40L` private words, `8L` local output and `16L`
+borrowed inputs; the dealer's `24L` includes output masks and borrowed masks.
+Each party receives `5*n*L` logical key bits. Issuance uses one 32-byte nonce draw
+and six 8-byte draws per lane (`32+48L` bytes), no AES/DPF work, and five dynamic
+allocations. Begin allocates one frame; finish allocates none. These logical
+charges are not wire serialization, process RSS or whole-model costs.
+
+`typed::LocalDealer::select` consumes one predicate-mask capability and one ring
+mask; `SelectionParty::begin` consumes the corresponding two evaluator
+capabilities. Source, session, namespace, role, consumer and full bindings remain
+checked. Output width and Q scaling equal the ring input's; its signed interval
+is the conditional zero/input hull, while absent provenance stays absent.
+Original native owners move intact; wrapper and native peak charges coexist with
+borrowed input owners. Separate roots establish no predicate/input relation and
+do not implement activation fanout. A fixed-template activation-region ownership
+proposal remains subject to separate approval; this primitive is not GELU/SiLU,
+a decoder or an SDK component.
 
 ## Separate GPU-derived DPF primitive
 
@@ -284,6 +340,7 @@ cargo test --release --offline -j 1 -p pllm-garble --lib compact_dpf:: -- --test
 cargo test --release --offline -j 1 -p pllm-garble --test sigma_masked_floor_chain
 cargo test --release --offline -j 1 -p pllm-garble --test sigma_matrix_party
 cargo test --release --offline -j 1 -p pllm-garble --test sigma_material_handoff
+cargo test --release --offline -j 1 -p pllm-garble
 ```
 
 The FuseFSS run checks the extracted shared logical allocator's existing users.
@@ -291,7 +348,7 @@ The DPF run adds independent AES wordwise/NIST/frozen OpenSSL vectors, complete
 width-8/9 point and strict-less tables under both root phases, wide endpoints,
 bounded expansion/work counters, canonical parsing and erasure/failure controls.
 The complete `cargo test --release --offline -j 1 -p pllm-garble` run passes
-454 unit tests, four external integration tests and ten doctests; eight opt-in exporters or
+471 unit tests, five external integration tests and twelve doctests; eight opt-in exporters or
 measurements remain ignored. Its fourteen arithmetic tests cover every legal
 small-ring shift/input/mask, exact RNG requests and measured AES block counts,
 64-bit boundaries, all-gate entropy/allocation failures and retained-owner leases.
@@ -311,6 +368,13 @@ retains its absent interval and cannot qualify GapARS. Golden-envelope checks
 preserve historical FuseFSS bytes. Shared edge metadata's eleven tests, shared-core traversal's
 eight tests and 280 independent source-terminal/arithmetic-mask negative controls
 also pass. These do not establish general compiler graph provenance.
+Direct Select controls additionally check exhaustive small-ring equations,
+ring64 endpoints, exact native charges, independent DReLU/input roots,
+typed hull provenance, bad bindings, out-of-order calls, malformed frames,
+allocation/cancellation failures and retained frame/output leases. The typed
+finish-before-begin path returns `Context` and consumes the owner; retries return
+`Consumed`. The library Clippy checks for core/garble and compiler library check
+also pass with release/offline single-job execution and warnings denied for Clippy.
 Filtered native reruns overlap the complete suite, not additional distinct checks.
 Primitive parity supplies no trained-checkpoint, quality, WAN, performance or
 whole-client memory result. Complete source-specific truncation, nonlinear

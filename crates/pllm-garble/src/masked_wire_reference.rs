@@ -23,6 +23,7 @@ pub mod matrix;
 mod product;
 mod rescale;
 mod seeded_codec;
+pub mod selection;
 pub mod transport;
 pub mod typed;
 use coins::Coins;

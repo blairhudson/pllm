@@ -103,14 +103,19 @@ Completed foundations:
   matrix/arithmetic owners and binds source, role, consumer, mask, shape and numeric
   declarations. Local developer range assumptions and checked full-dot intervals
   qualify GapARS only within its quarter-ring domain; they are not compiler proofs.
-  The complete garbling suite passes 454 unit, four external and ten doc tests,
+   The complete garbling suite passes 471 unit, five external and twelve doc tests,
   with eight opt-in skips; 280 source-leakage controls also pass.
   A separate bounded consuming matrix-material handoff retains full typed bindings,
   range provenance and native reservations. A non-cloneable process-local permit
   authorizes one import attempt; metadata and bytes cannot mint owners. Packet and
-  permit independently retain budget and singleton guards. This does not supply
-  confidential/authenticated delivery or remote replay protection.
-  No runnable SIGMA, trained decoder, SDK availability or composed security proof
+   permit independently retain budget and singleton guards. This does not supply
+   confidential/authenticated delivery or remote replay protection.
+   Bounded five-word Select separately consumes a common XOR-masked predicate
+   and ring input through native and typed party owners, preserving full-ring
+   output masks and the source selection equations. Independently masked roots
+   do not establish activation branching or a complete GELU/SiLU schedule;
+   activation-region ownership still requires separate approval.
+   No runnable SIGMA, trained decoder, SDK availability or composed security proof
   follows from these primitives. Compiler-proven graph ranges, arithmetic material
   codecs, authenticated party transport and complete nonlinear/decoder composition
   remain integration gates.

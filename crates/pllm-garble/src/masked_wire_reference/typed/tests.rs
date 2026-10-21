@@ -95,6 +95,364 @@ fn unmask_predicate(
         .collect()
 }
 
+fn run_select<'b>(
+    mut parties: [SelectionParty<'b>; 2],
+    predicate: [CommonMasked<'b, Predicate>; 2],
+    input: [CommonMasked<'b, Ring>; 2],
+) -> [CommonMasked<'b, Ring>; 2] {
+    let [p0, p1] = predicate;
+    let [x0, x1] = input;
+    let [left, right] = &mut parties;
+    let l = left.begin(p0, x0).unwrap();
+    let r = right.begin(p1, x1).unwrap();
+    [
+        left.finish(r.as_bytes()).unwrap(),
+        right.finish(l.as_bytes()).unwrap(),
+    ]
+}
+
+#[test]
+fn independent_roots_drelu_select_preserves_signed_ring_and_fractional_bits() {
+    for bits in [8, 16, 64] {
+        let budget = Budget::new(64 << 20).unwrap();
+        {
+            let mut d = dealer(&budget);
+            // Independent roots: no clone or implicit fanout of a capability.
+            let (predicate_mask, predicate_caps) = root(
+                &mut d,
+                edge(3, &[5], 8, 0, false),
+                (-1, 2),
+                4,
+                &[-1, 0, 1, -1, 0],
+            );
+            let (predicate_mask, predicate_parties) = d
+                .drelu([4; 32], predicate_mask, predicate(5, &[5]), [8; 32])
+                .unwrap();
+            let predicate_caps = run(predicate_parties, predicate_caps);
+            let (input_mask, input_caps) = root(
+                &mut d,
+                edge(6, &[5], bits, 3, false),
+                (-4, 4),
+                8,
+                &[-4, -1, 0, 1, 3],
+            );
+            let output = edge(9, &[5], bits, 3, false);
+            let (output_mask, parties) = d
+                .select([8; 32], predicate_mask, input_mask, output, [10; 32])
+                .unwrap();
+            assert_eq!(
+                output_mask.binding.interval,
+                Some(Interval {
+                    lower: -4,
+                    upper: 4
+                })
+            );
+            let outputs = run_select(parties, predicate_caps, input_caps);
+            for cap in &outputs {
+                assert_eq!(cap.descriptor(), output);
+                assert_eq!(unmask_ring(&output_mask, cap), [0, -1, 0, 0, 3]);
+                assert!(matches!(cap.backing, CommonBacking::Selection(_)));
+            }
+            // The selected ring result remains an ordinary consuming arithmetic input.
+            let (mask, parties) = d
+                .tr(
+                    [10; 32],
+                    output_mask,
+                    1,
+                    edge(11, &[5], bits - 1, 2, false),
+                    [12; 32],
+                )
+                .unwrap();
+            let outputs = run(parties, outputs);
+            assert_eq!(unmask_ring(&mask, &outputs[0]), [0, -1, 0, 0, 1]);
+            assert_eq!(unmask_ring(&mask, &outputs[1]), [0, -1, 0, 0, 1]);
+        }
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn selection_binding_failures_consume_both_supplied_capabilities_and_local_party() {
+    for attack in 0..8 {
+        let budget = Budget::new(64 << 20).unwrap();
+        {
+            let mut d = dealer(&budget);
+            let (pm, pc) = root(&mut d, edge(3, &[1], 8, 0, false), (-1, 2), 4, &[1]);
+            let (pm, pp) = d.drelu([4; 32], pm, predicate(5, &[1]), [8; 32]).unwrap();
+            let [mut p0, p1] = run(pp, pc);
+            let (xm, [mut x0, x1]) = root(&mut d, edge(6, &[1], 8, 2, false), (-2, 3), 8, &[-2]);
+            let (_mask, [mut left, mut right]) = d
+                .select([8; 32], pm, xm, edge(9, &[1], 8, 2, false), [10; 32])
+                .unwrap();
+            match attack {
+                0 => p0.binding.mask_id[0] ^= 1,
+                1 => p0.role = 1,
+                2 => p0.binding.session[0] ^= 1,
+                3 => p0.binding.consumer[0] ^= 1,
+                4 => x0.binding.mask_id[0] ^= 1,
+                5 => x0.role = 1,
+                6 => x0.binding.namespace[0] ^= 1,
+                7 => x0.binding.descriptor = edge(6, &[1], 8, 1, false),
+                _ => unreachable!(),
+            }
+            assert_eq!(left.begin(p0, x0).err(), Some(Error::Context));
+            assert_eq!(left.finish(&[]).err(), Some(Error::Consumed));
+            // A consuming local failure does not secretly mutate the sibling.
+            let frame = right.begin(p1, x1).unwrap();
+            right.cancel();
+            assert_eq!(right.finish(frame.as_bytes()).err(), Some(Error::Consumed));
+        }
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn selection_public_preflight_rejects_before_allocation_and_refunds_inputs() {
+    for attack in 0..10 {
+        let budget = Budget::new(64 << 20).unwrap();
+        let mut d = dealer(&budget);
+        let baseline = budget.used_bytes();
+        let (pm, pc) = root(&mut d, edge(3, &[1], 8, 0, false), (-1, 2), 4, &[1]);
+        let (mut pm, pp) = d.drelu([4; 32], pm, predicate(5, &[1]), [8; 32]).unwrap();
+        let pc = run(pp, pc);
+        let (mut xm, xc) = root(&mut d, edge(6, &[1], 8, 2, false), (-2, 3), 8, &[-2]);
+        let mut output = edge(9, &[1], 8, 2, false);
+        let expected = match attack {
+            0 => {
+                output = edge(5, &[1], 8, 2, false);
+                Error::Context
+            }
+            1 => {
+                output = edge(6, &[1], 8, 2, false);
+                Error::Context
+            }
+            2 => {
+                output = edge(9, &[1, 1], 8, 2, false);
+                Error::Context
+            }
+            3 => {
+                output = edge(9, &[1], 7, 2, false);
+                Error::Domain
+            }
+            4 => {
+                output = edge(9, &[1], 8, 3, false);
+                Error::Domain
+            }
+            5 => {
+                pm.binding.consumer[0] ^= 1;
+                Error::Context
+            }
+            6 => {
+                pm.binding.namespace[0] ^= 1;
+                Error::Context
+            }
+            7 => {
+                xm.binding.consumer[0] ^= 1;
+                Error::Context
+            }
+            8 => {
+                pm.binding.descriptor = predicate(5, &[1, 1]);
+                Error::Context
+            }
+            9 => {
+                output = EdgeDescriptor::new(
+                    EdgeIdentity::new(
+                        SourceIdentity::new([99; 32], [12; 32], approved_implementation()),
+                        [1; 32],
+                        [73; 32],
+                        [9; 32],
+                        0,
+                    ),
+                    output.shape(),
+                    output.numeric(),
+                    output.representation(),
+                    None,
+                )
+                .unwrap();
+                Error::Context
+            }
+            _ => unreachable!(),
+        };
+        budget.fail_after.store(0, Ordering::SeqCst);
+        assert_eq!(
+            d.select([8; 32], pm, xm, output, [10; 32]).err(),
+            Some(expected)
+        );
+        budget.fail_after.store(-1, Ordering::SeqCst);
+        drop((pc, xc));
+        assert_eq!(budget.used_bytes(), baseline);
+        drop(d);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn selection_preserves_conditional_interval_hull_and_never_recovers_lost_provenance() {
+    for declared in [Some((3, 6)), Some((-5, -2)), Some((-5, 6)), None] {
+        let budget = Budget::new(64 << 20).unwrap();
+        let mut d = dealer(&budget);
+        let (pm, pc) = root(&mut d, edge(3, &[1], 8, 0, false), (-1, 2), 4, &[0]);
+        let (pm, pp) = d.drelu([4; 32], pm, predicate(5, &[1]), [8; 32]).unwrap();
+        let pc = run(pp, pc);
+        let range = declared.unwrap_or((-5, 6));
+        let (mut xm, mut xc) = root(
+            &mut d,
+            edge(6, &[1], 8, 2, false),
+            range,
+            8,
+            &[range.0 as i64],
+        );
+        if declared.is_none() {
+            // Model the absence already produced by MatrixRange::RingOnly.
+            xm.binding.interval = None;
+            for cap in &mut xc {
+                cap.binding.interval = None;
+            }
+        }
+        let (mask, parties) = d
+            .select([8; 32], pm, xm, edge(9, &[1], 8, 2, false), [10; 32])
+            .unwrap();
+        let expected = declared.map(|(lower, upper)| Interval {
+            lower: lower.min(0),
+            upper: upper.max(1),
+        });
+        assert_eq!(mask.binding.interval, expected);
+        let output = run_select(parties, pc, xc);
+        for cap in &output {
+            assert_eq!(cap.binding.interval, expected);
+        }
+        drop((mask, output, d));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn selection_allocation_failures_and_dealer_first_retirement_keep_owned_charges() {
+    let mut successes = 0;
+    for failure in 0..6 {
+        let budget = Budget::new(64 << 20).unwrap();
+        let mut d = dealer(&budget);
+        let baseline = budget.used_bytes();
+        let (pm, pc) = root(&mut d, edge(3, &[1], 8, 0, false), (-1, 2), 4, &[0]);
+        let (pm, pp) = d.drelu([4; 32], pm, predicate(5, &[1]), [8; 32]).unwrap();
+        let pc = run(pp, pc);
+        let (xm, xc) = root(&mut d, edge(6, &[1], 8, 2, false), (-2, 3), 8, &[-2]);
+        budget.fail_after.store(failure, Ordering::SeqCst);
+        let result = d.select([8; 32], pm, xm, edge(9, &[1], 8, 2, false), [10; 32]);
+        budget.fail_after.store(-1, Ordering::SeqCst);
+        match result {
+            Err(e) => {
+                assert_eq!(e, Error::Allocation);
+                drop((pc, xc));
+            }
+            Ok((mask, parties)) => {
+                successes += 1;
+                let [left, right] = run_select(parties, pc, xc);
+                let all = budget.used_bytes();
+                drop(d);
+                assert_eq!(budget.used_bytes(), all - baseline);
+                let before = budget.used_bytes();
+                drop(left);
+                let one_output = before - budget.used_bytes();
+                assert!(one_output > common_charge());
+                let before = budget.used_bytes();
+                drop(right);
+                assert_eq!(before - budget.used_bytes(), one_output);
+                assert!(budget.used_bytes() > mask_charge());
+                drop(mask);
+                assert_eq!(budget.used_bytes(), 0);
+                continue;
+            }
+        }
+        assert_eq!(budget.used_bytes(), baseline);
+        drop(d);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+    assert_eq!(successes, 1, "all five native issuance allocations swept");
+}
+
+#[test]
+fn selection_aggregate_admission_accepts_exact_boundary_and_rejects_one_byte_short() {
+    for short in [0, 1] {
+        let budget = Budget::new(64 << 20).unwrap();
+        let mut d = dealer(&budget);
+        let baseline = budget.used_bytes();
+        let (pm, pc) = root(&mut d, edge(3, &[1], 8, 0, false), (-1, 2), 4, &[0]);
+        let (pm, pp) = d.drelu([4; 32], pm, predicate(5, &[1]), [8; 32]).unwrap();
+        let pc = run(pp, pc);
+        let (xm, xc) = root(&mut d, edge(6, &[1], 8, 2, false), (-2, 3), 8, &[-2]);
+        let quote = selection::resources(selection::Spec { bits: 8, lanes: 1 })
+            .unwrap()
+            .combined_reservation_bytes
+            + 2 * (size_of::<SelectionParty<'static>>() + common_charge())
+            + mask_charge();
+        let filler = budget
+            .reserve((64 << 20) - budget.used_bytes() - quote + short)
+            .unwrap();
+        if short != 0 {
+            budget.fail_after.store(0, Ordering::SeqCst);
+        }
+        let result = d.select([8; 32], pm, xm, edge(9, &[1], 8, 2, false), [10; 32]);
+        budget.fail_after.store(-1, Ordering::SeqCst);
+        if short == 0 {
+            let (mask, parties) = result.unwrap();
+            let output = run_select(parties, pc, xc);
+            assert_eq!(unmask_ring(&mask, &output[0]), [-2]);
+            drop((mask, output));
+        } else {
+            assert_eq!(result.err(), Some(Error::Resource));
+            drop((pc, xc));
+        }
+        drop(filler);
+        assert_eq!(budget.used_bytes(), baseline);
+        drop(d);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn selection_malformed_finish_and_cancellation_retain_only_live_frame_charges() {
+    for attack in 0..3 {
+        let budget = Budget::new(64 << 20).unwrap();
+        let mut d = dealer(&budget);
+        let baseline = budget.used_bytes();
+        let (pm, pc) = root(&mut d, edge(3, &[1], 8, 0, false), (-1, 2), 4, &[0]);
+        let (pm, pp) = d.drelu([4; 32], pm, predicate(5, &[1]), [8; 32]).unwrap();
+        let [p0, p1] = run(pp, pc);
+        let (xm, [x0, x1]) = root(&mut d, edge(6, &[1], 8, 2, false), (-2, 3), 8, &[-2]);
+        let (mask, [mut left, mut right]) = d
+            .select([8; 32], pm, xm, edge(9, &[1], 8, 2, false), [10; 32])
+            .unwrap();
+        if attack == 0 {
+            // Wrong phase reports Context once, then permanently burns the party.
+            assert_eq!(left.finish(&[]).err(), Some(Error::Context));
+            assert_eq!(left.finish(&[]).err(), Some(Error::Consumed));
+            assert_eq!(left.begin(p0, x0).err(), Some(Error::Consumed));
+            right.cancel();
+            drop((p1, x1, mask, left, right));
+        } else {
+            let l = left.begin(p0, x0).unwrap();
+            let r = right.begin(p1, x1).unwrap();
+            if attack == 1 {
+                assert_eq!(left.finish(&[]).err(), Some(Error::Context));
+            } else {
+                left.cancel();
+            }
+            assert_eq!(left.finish(r.as_bytes()).err(), Some(Error::Consumed));
+            right.cancel();
+            drop((mask, left, right));
+            let frame_bytes = budget.used_bytes() - baseline;
+            assert!(frame_bytes > 0);
+            drop(l);
+            assert_eq!(budget.used_bytes() - baseline, frame_bytes / 2);
+            drop(r);
+        }
+        assert_eq!(budget.used_bytes(), baseline);
+        drop(d);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
 #[test]
 fn root_tr_drelu_exact_floor_endpoints_and_zero_true() {
     for bits in [8, 16, 64] {
