@@ -96,17 +96,22 @@ Completed foundations:
   is conditional on an unenforced quarter-ring input promise; comparisons below
   eight bits publicly zero-extend into the DPF domain. Complete output-mask sampling,
   logical keys, RNG/AES work, physical owners and peer-frame sizes are priced in
-  the reference. No authenticated material delivery, material codec or peer
-  transport is supplied. Fourteen native arithmetic tests and an external
-  masked-floor chain pass, including integer oracles, exact cost counters and
+  the reference. No authenticated material delivery or peer transport is supplied;
+  arithmetic material still has no codec. Fourteen native arithmetic tests and
+  an external masked-floor chain pass, including integer oracles, exact cost counters and
   failure/lifetime controls. A bounded typed local bridge retains the original
   matrix/arithmetic owners and binds source, role, consumer, mask, shape and numeric
   declarations. Local developer range assumptions and checked full-dot intervals
   qualify GapARS only within its quarter-ring domain; they are not compiler proofs.
-  The complete garbling suite passes 433 unit, three external and seven doc tests,
+  The complete garbling suite passes 454 unit, four external and ten doc tests,
   with eight opt-in skips; 280 source-leakage controls also pass.
+  A separate bounded consuming matrix-material handoff retains full typed bindings,
+  range provenance and native reservations. A non-cloneable process-local permit
+  authorizes one import attempt; metadata and bytes cannot mint owners. Packet and
+  permit independently retain budget and singleton guards. This does not supply
+  confidential/authenticated delivery or remote replay protection.
   No runnable SIGMA, trained decoder, SDK availability or composed security proof
-  follows from these primitives. Compiler-proven graph ranges, consuming material
+  follows from these primitives. Compiler-proven graph ranges, arithmetic material
   codecs, authenticated party transport and complete nonlinear/decoder composition
   remain integration gates.
 - The [PUMA truncation/PRSS reference](../docs/research/puma-truncation-reference.md)

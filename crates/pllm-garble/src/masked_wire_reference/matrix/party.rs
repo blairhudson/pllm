@@ -9,6 +9,8 @@ use sha2::{Digest, Sha256};
 use std::{mem::size_of, sync::atomic::Ordering};
 use zeroize::Zeroizing;
 
+pub(crate) mod material;
+
 const MAGIC: &[u8; 8] = b"PLLMMX01";
 const HEADER: usize = 8 + 32 + 32 + 1 + 1 + 2;
 const ALLOCATOR: usize = 64;

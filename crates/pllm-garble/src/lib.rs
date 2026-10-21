@@ -18,6 +18,7 @@ mod interval_fss;
 pub mod logrow;
 pub mod logrow_product;
 pub mod masked_wire_reference;
+pub(crate) mod material_wire;
 pub mod mixed_gated;
 pub mod packed_embedding;
 mod point_fss;

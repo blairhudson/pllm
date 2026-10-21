@@ -5,7 +5,14 @@
 //! by the trusted local root encoder; it is not a compiler-admitted proof.
 //! Only the approved GPU127/D17 profile is accepted here. Legacy profiles and
 //! their identities are untouched. No FuseFSS, public coefficients, additive
-//! shares, imports, decoder, codec, transport, or independent security claim.
+//! shares, general imports, decoder, transport, or independent security claim.
+//!
+//! Fresh matrix material alone supports one consuming, same-budget local handoff.
+//! Its opaque packet can only be restored by its original nonserializable permit;
+//! descriptors are inspectable declarations, never owners or authorization. This
+//! preserves local issuance continuity, not authentication, durable replay
+//! protection, checkpoint loading, or external authorization. Original typed
+//! input capabilities remain necessary; metadata never reconstructs them.
 //!
 //! Single-consumer slice: each root supplies exactly one capability per party;
 //! begin consumes those capabilities. No cloning, fanout or remasking API exists.
@@ -29,6 +36,12 @@ use pllm_core::edge_contract::{
 use sha2::{Digest, Sha256};
 use std::{marker::PhantomData, mem::size_of};
 use zeroize::Zeroizing;
+
+mod material;
+pub use material::{
+    matrix_material_resources, MatrixHandoff, MatrixImportPermit, MatrixMaterialDescriptor,
+    MatrixMaterialPacket, MatrixMaterialProvenance, MatrixMaterialResources,
+};
 
 const ALLOCATOR: usize = 64;
 
@@ -493,8 +506,12 @@ pub struct MatrixParty<'b> {
     native: Option<matrix::party::Party<'b>>,
     inputs: [Binding; 2],
     output: Binding,
+    operation: [u8; 32],
     role: u8,
+    imported: bool,
     lease: Option<Lease<'b>>,
+    // Additional handoff metadata charge follows native secrets and original lease.
+    material_lease: Option<Lease<'b>>,
 }
 
 fn matrix_interval(x: Interval, w: Interval, inner: usize, bits: u8) -> Result<Interval, Error> {
@@ -628,15 +645,21 @@ impl<'b> LocalDealer<'b> {
                     native: Some(left),
                     inputs,
                     output: binding,
+                    operation,
                     role: 0,
+                    imported: false,
                     lease: Some(left_lease),
+                    material_lease: None,
                 },
                 MatrixParty {
                     native: Some(right),
                     inputs,
                     output: binding,
+                    operation,
                     role: 1,
+                    imported: false,
                     lease: Some(right_lease),
+                    material_lease: None,
                 },
             ],
         ))
@@ -647,6 +670,7 @@ impl<'b> MatrixParty<'b> {
     pub fn cancel(&mut self) {
         self.native = None;
         self.lease = None;
+        self.material_lease = None;
     }
     /// Consumes both evaluator capabilities, even on wrong role/mask/context.
     pub fn begin(
@@ -679,6 +703,7 @@ impl<'b> MatrixParty<'b> {
             let output = self.native.as_mut().ok_or(Error::Consumed)?.finish(peer)?;
             let lease = self.lease.take().ok_or(Error::Consumed)?;
             self.native = None;
+            self.material_lease = None;
             Ok(CommonMasked {
                 backing: CommonBacking::Matrix(output),
                 binding: self.output,

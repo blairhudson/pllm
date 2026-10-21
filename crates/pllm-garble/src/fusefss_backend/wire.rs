@@ -16,6 +16,7 @@
 //! fixed-count Boolean triples. Their public descriptor bounds and validates VM
 //! stack geometry before allocation. Public tables never travel in this packet.
 use super::{allocate, Budget, Error, Lease, MAX_ALLOCATION_BYTES};
+pub use crate::material_wire::{MaterialPacket, ENVELOPE_BYTES};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
@@ -24,41 +25,6 @@ mod file;
 pub use file::{IndexedFileResources, MAX_INDEXED_FILE_DISK_BYTES};
 
 const MAGIC: &[u8; 8] = b"PLLMFW01";
-const HEADER: usize = 88;
-/// Fixed namespace/type/recipient/binding/issuance/length header plus checksum.
-pub const ENVELOPE_BYTES: usize = HEADER + 32;
-const OVERHEAD: usize = ENVELOPE_BYTES;
-
-/// Secret packet; backing capacity remains charged until bytes are erased.
-/// Copies made by external transports require their own accounting and erasure.
-pub struct MaterialPacket<'a> {
-    bytes: Zeroizing<Vec<u8>>,
-    _lease: Lease<'a>,
-}
-impl<'a> MaterialPacket<'a> {
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-    /// Bounded copy at the authenticated transport boundary. No parsing or RNG.
-    pub fn from_bytes(bytes: &[u8], budget: &'a Budget) -> Result<Self, Error> {
-        if !(OVERHEAD..=MAX_ALLOCATION_BYTES).contains(&bytes.len()) {
-            return Err(Error::Resource);
-        }
-        let lease = budget.reserve(bytes.len())?;
-        let mut copy = Zeroizing::new(allocate(bytes.len(), budget)?);
-        copy.extend_from_slice(bytes);
-        Ok(Self {
-            bytes: copy,
-            _lease: lease,
-        })
-    }
-    pub fn nonce(&self) -> [u8; 32] {
-        self.bytes[48..80].try_into().unwrap()
-    }
-    pub(crate) fn body_len(&self) -> usize {
-        self.bytes.len() - OVERHEAD
-    }
-}
 
 /// Validated, allocation-free replay storage geometry. Private fields prevent
 /// callers from underpricing a guard. The historical small ledger and the
@@ -295,27 +261,7 @@ pub(crate) fn packet(
     budget: &Budget,
     write: impl FnOnce(&mut Vec<u8>) -> Result<(), Error>,
 ) -> Result<MaterialPacket<'_>, Error> {
-    let len = body
-        .checked_add(OVERHEAD)
-        .filter(|n| *n <= MAX_ALLOCATION_BYTES)
-        .ok_or(Error::Resource)?;
-    let lease = budget.reserve(len)?;
-    let mut bytes = Zeroizing::new(allocate(len, budget)?);
-    bytes.extend_from_slice(MAGIC);
-    bytes.extend_from_slice(&[kind, role, 0, 0, 0, 0, 0, 0]);
-    bytes.extend_from_slice(&binding);
-    bytes.extend_from_slice(&nonce);
-    bytes.extend_from_slice(&(body as u64).to_le_bytes());
-    write(&mut bytes)?;
-    if bytes.len() != len - 32 || bytes.capacity() != len {
-        return Err(Error::Resource);
-    }
-    let digest = Sha256::digest(&*bytes);
-    bytes.extend_from_slice(&digest);
-    Ok(MaterialPacket {
-        bytes,
-        _lease: lease,
-    })
+    crate::material_wire::packet(MAGIC, kind, role, binding, nonce, body, budget, write)
 }
 
 pub(crate) fn open<'a>(
@@ -326,21 +272,9 @@ pub(crate) fn open<'a>(
     nonce: [u8; 32],
     body: usize,
 ) -> Result<Reader<'a>, Error> {
-    let bytes = packet.as_bytes();
-    if bytes.len() != body.checked_add(OVERHEAD).ok_or(Error::Resource)?
-        || &bytes[..8] != MAGIC
-        || bytes[8..16] != [kind, role, 0, 0, 0, 0, 0, 0]
-        || bytes[16..48] != binding
-        || bytes[48..80] != nonce
-        || bytes[80..88] != (body as u64).to_le_bytes()
-        || bytes[bytes.len() - 32..] != Sha256::digest(&bytes[..bytes.len() - 32])[..]
-    {
-        return Err(Error::Context);
-    }
-    Ok(Reader {
-        bytes: &bytes[HEADER..bytes.len() - 32],
-        offset: 0,
-    })
+    Ok(Reader::new(crate::material_wire::open(
+        packet, MAGIC, kind, role, binding, nonce, body,
+    )?))
 }
 
 pub(crate) fn word(out: &mut Vec<u8>, value: u64) {

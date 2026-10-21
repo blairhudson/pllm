@@ -86,8 +86,9 @@ Caller-owned masks, common operands, retained clear values and excess backing
 capacities remain additional outer owners. These are logical bounds, not RSS.
 
 The local dealer still accepts caller-supplied masks: separate owners do not
-certify freshness. There is no material codec, authentication, malicious-output
-verification, independent hosting or persistent replay ledger. Public-API tests
+certify freshness. This raw API has no material importer, authentication,
+malicious-output verification, independent hosting or persistent replay ledger.
+The typed consuming handoff below retains additional provenance. Public-API tests
 chain both matrix layouts into the existing TR/GapARS/DReLU owners against
 independent ring and signed-floor equations; that untyped fixture is not graph
 provenance or a production composition.
@@ -119,10 +120,71 @@ ring operand.
 Aggregate logical admission prices root masks, encoded owners, metadata and
 native operation overlap before issuance. Caller-owned clear buffers and excess
 capacities remain separate. This single-consumer adapter supplies no fanout,
-remasking, imports, codec, authenticated transport, compiler schedule, decoder or
-SDK activation. Its local matrix → TR/qualified GapARS → DReLU controls establish
+remasking, unrestricted byte imports, authenticated transport, compiler schedule,
+decoder or SDK activation. Its local matrix → TR/qualified GapARS → DReLU controls establish
 bounded ownership and arithmetic composition only, not composed security,
 checkpoint ranges or trained-model execution.
+
+### Consuming local matrix-material handoff
+
+The bounded handoff retains typed provenance rather than adding a public
+raw `Party::import(bytes, metadata)` constructor. `MatrixParty::export_material`
+consumes a fresh owner and returns a handoff whose parts are a non-cloneable,
+nonserializable import permit and a zeroizing secret packet. Import consumes both
+on success or failure; imported owners cannot be exported again. Original typed
+input capabilities remain required for execution.
+
+The descriptor binds both complete input bindings, the output binding, approved
+implementation, role, matrix geometry/layout, interval provenance and native
+issuance. The `PLLMSM01` envelope carries that descriptor digest, native issuance,
+exact body length, and canonical u64 little-endian A/B/C arrays, followed by a
+SHA-256 checksum. Its fixed overhead is 120 bytes. The permit additionally retains
+the complete original packet digest, so rewriting material and recomputing the
+checksum cannot authorize replacement material.
+
+This is same-budget, process-local ownership continuity, **not authenticated
+delivery or cross-process/restart replay prevention**. Bytes and public descriptors
+cannot mint permits. A future remote importer must authenticate issuer, recipient,
+issuance and descriptor and preserve receiving-endpoint replay state. Secret
+material also requires confidential delivery.
+
+Native execution reservations and typed output reservations transfer without a
+refund/re-reserve gap. Packet and permit independently retain the original matrix
+singleton guard; no drop-and-reacquire admission occurs. Additional handoff
+admission charges packet backing, owner metadata, allocator and bounded codec
+workspace before encoding, including material/packet export overlap and
+packet/restored-material import overlap. Caller-created byte copies remain
+separate owners. These are logical capacity charges, not process-RSS bounds.
+
+With `P=8*(a+b+c)`, the packet backing is `120+P` bytes. The native incremental
+quote adds both native owner sizes, a 64-byte allocator allowance and 8 KiB
+workspace. The typed quote adds permit/handoff/descriptor metadata, the packet
+wrapper and another 8 KiB workspace; `matrix_material_resources` exposes each
+component. Original native material and typed wrapper/output reservations remain
+additional live charges throughout. Exact-charge tests independently retain the
+packet or permit, preventing admission credit from moving to the shorter-lived
+owner.
+
+Packet storage and envelope mechanics reuse `material_wire`; FuseFSS keeps its
+original public paths, `PLLMFW01` bytes, budgets, replay ledger and width-50 body
+reader. SIGMA's body validator separately handles canonical widths through 64.
+Arithmetic-material serialization and remote import remain later gates.
+
+### Remaining decoder gates
+
+The typed chain is not a complete masked-wire algebra. DReLU produces a common
+XOR-masked predicate, not an arithmetic bit. Protected predicate conversion,
+selection and source table lookup must preserve that distinction; FuseFSS
+additive-share operations are not substitutes. Source CPU activation performs
+the early floor before absolute value and clamping, as specified in
+`paper/reproduction-contracts/shared-profile-resolution.md`.
+
+Complete source nonlinear rows, private-weight embedding/head, stable selection
+and private feedback still need executable composition and compiler-derived
+ranges. Existing single-consumer and matrix-singleton constraints cannot be
+silently relaxed for residual fanout or subsequent matrix operations. The approved
+full-prefix, fixed-count, final-only disclosure policy does not authorize
+persistent KV, streaming token disclosure or a new Qwen numeric mapping.
 
 ## Separate GPU-derived DPF primitive
 
@@ -221,6 +283,7 @@ cargo test --release --offline -j 1 -p pllm-garble --lib fusefss_backend:: -- --
 cargo test --release --offline -j 1 -p pllm-garble --lib compact_dpf:: -- --test-threads=1
 cargo test --release --offline -j 1 -p pllm-garble --test sigma_masked_floor_chain
 cargo test --release --offline -j 1 -p pllm-garble --test sigma_matrix_party
+cargo test --release --offline -j 1 -p pllm-garble --test sigma_material_handoff
 ```
 
 The FuseFSS run checks the extracted shared logical allocator's existing users.
@@ -228,7 +291,7 @@ The DPF run adds independent AES wordwise/NIST/frozen OpenSSL vectors, complete
 width-8/9 point and strict-less tables under both root phases, wide endpoints,
 bounded expansion/work counters, canonical parsing and erasure/failure controls.
 The complete `cargo test --release --offline -j 1 -p pllm-garble` run passes
-433 unit tests, three external integration tests and seven doctests; eight opt-in exporters or
+454 unit tests, four external integration tests and ten doctests; eight opt-in exporters or
 measurements remain ignored. Its fourteen arithmetic tests cover every legal
 small-ring shift/input/mask, exact RNG requests and measured AES block counts,
 64-bit boundaries, all-gate entropy/allocation failures and retained-owner leases.
@@ -240,7 +303,12 @@ overflow, role/consumer/source/mask mismatches, consuming failure and retained
 budget/singleton lifetimes. Compile-fail controls reject cloning, metadata-built
 capabilities and predicate-mask use as ring material. Unit tests share a test-only
 matrix mutex; the production singleton is unchanged and ordinary parallel test
-execution passes. Shared edge metadata's eleven tests, shared-core traversal's
+execution passes. Material-handoff controls additionally cover original inputs,
+both matrix layouts, width-64 canonical residues, descriptor/packet substitution,
+imported-party input rejection, single-use/re-export rejection, all allocation
+failures and exact independent retained charges. A restored ring-only output
+retains its absent interval and cannot qualify GapARS. Golden-envelope checks
+preserve historical FuseFSS bytes. Shared edge metadata's eleven tests, shared-core traversal's
 eight tests and 280 independent source-terminal/arithmetic-mask negative controls
 also pass. These do not establish general compiler graph provenance.
 Filtered native reruns overlap the complete suite, not additional distinct checks.
