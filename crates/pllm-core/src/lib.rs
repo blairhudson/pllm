@@ -16,6 +16,7 @@ pub mod coefficient_repacking;
 pub mod compact;
 pub mod compact_product;
 pub mod digit_gemm;
+pub mod edge_contract;
 pub mod fixed_file;
 pub mod fixed_point;
 mod freivalds;
