@@ -31,8 +31,11 @@ A subsequent streamed single-window ownership retry passes independent complete
 pinned-Qwen state checks in both sharing profiles at four input tokens plus two
 outputs, with zero observed swap growth. Complete logits, active KV, history and
 selections agree; see the [SDK reference](../docs/research/gkm-sdk-reference.md).
-This bounded parity result does not supply broader quality, source-style prefill
-batching, matched serving costs or a qualified ten-method comparison row.
+The separate [six-client sharing screen](../docs/research/gkm-sharing-reference.md)
+preserves accepted state and observes zero swap growth. Seeded TCP streams fall
+8.39%, with essentially unchanged client RSS. This initial 4+2 ablation supplies
+bounded profile costs, not broader quality, source-style prefill batching or a
+qualified ten-method comparison row.
 
 PUMA subsequently gained the bounded ordinary `PumaThreePartyCpu` composition:
 native semantic compilation, three authenticated worker processes, private

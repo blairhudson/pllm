@@ -234,6 +234,16 @@ this bounded Q11 workload, not broad source-model quality, batching or matched
 serving performance. Ordinary output is in `target/gkm-streamed-checkpoint.log`
 and its standard pytest XML; the earlier admission failures remain separate.
 
+A separate six-client 4+2 full/seeded sharing screen completes through the ordinary
+benchmark with agreeing commitments covering 2,155,008 logit/KV values and zero
+observed swap growth. Seeded execution reduces median all-link TCP streams 8.39%
+and complete request time 0.95%; client RSS is essentially unchanged. Largest
+complete-client peaks fit observed Medium, not Low; explicit tier admission stays
+separate. This initial source-present, no-added-RTT ablation retains the seeded
+PRG assumption and is not the broader publication comparison. The prior partial
+cohort is retained without pooling. Results, ordinary reports and scope:
+[GKM sharing screen](gkm-sharing-reference.md).
+
 Standard replay:
 
 ```sh
@@ -248,5 +258,5 @@ Stochastic or early-EOS generation, conversation
 continuation, remote source discovery and automatic network planning remain
 unsupported. Source/publication loading and retained weights remain charged;
 this slice makes no thin-client memory claim. Broader activation/state qualification,
-original-model and held-out common-Qwen quality, matched performance, memory-tier
-eligibility and the ten-method publication comparison remain open.
+original-model and held-out common-Qwen quality, broader matched performance,
+explicit memory-tier admission and the ten-method publication comparison remain open.

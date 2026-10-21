@@ -61,7 +61,13 @@ Completed foundations:
   final-result float32 values and per-selection commitments covering 359,168
   logit/KV positions, with overlapping final values counted separately. History,
   positions and selections agree, with zero observed swap growth. This closes the
-  bounded checkpoint-equality gate, not broader quality or measured profile costs.
+  bounded checkpoint-equality gate, not broader quality. A subsequent
+  [six-client full/seeded screen](../docs/research/gkm-sharing-reference.md)
+  preserves 2,155,008 committed logit/KV values with zero observed swap growth.
+  Seeded execution reduces median TCP streams 8.39% and request time 0.95%, with
+  essentially unchanged client RSS. This initial source-present 4+2 ablation
+  retains separate privacy assumptions and does not qualify the broader frozen
+  publication comparison, batched prefill or task quality.
 - The separate [Maverick batch capsule](../docs/research/maverick-batch-reference.md)
   implements bounded two-claim algebra with complete P/Q/Qaux validation,
   response-fixation barriers and allocation/retirement checks. Code-distance,

@@ -848,6 +848,18 @@ sharing comparison rejects host admission at 10.82 GiB required against
 These outcomes establish no trained seeded parity or serving improvement.
 Reusable experiment and ordinary blocked report:
 `examples/benchmarks/gkm_sharing.py` and `docs/evidence/gkm-sharing-qwen-blocked.json`.
+A subsequent streamed single-window ownership correction retains complete source
+owners but prices bounded import scratch and one lifetime window attempt, with
+retained-frame quotas and pre-decode shallow admission validation. Both pinned
+Qwen full/seeded 4+2 tests match complete accepted state against an independent
+oracle. A separate six-client ordinary benchmark preserves commitments covering
+2,155,008 logit/KV values with zero observed swap growth under shared native
+100/40 caps. Seeded TCP streams fall 8.39% and request time 0.95%; client RSS is
+essentially unchanged. Largest complete-client peaks fit observed Medium, not
+Low; explicit tier admission remains separate. The prior partial cohort is not
+pooled. This source-present, no-added-RTT ablation retains the seeded PRG
+assumption and establishes neither broad quality nor the frozen ten-method
+comparison. Reports and replay: `docs/research/gkm-sharing-reference.md`.
 Matrices own their validated weights. Their dimensions and contents cannot be
 mutated through the public Rust API. An executor owns a persistent Rayon pool.
 The separate direct `pllm.native.PagedGEMM` API owns an authenticated private

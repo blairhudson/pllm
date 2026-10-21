@@ -329,10 +329,14 @@ or performance results.
   implemented. Independent deployment, transport retry/reconnect and durable
   crash-resumption/replay accounting remain open. Fresh-process tests establish
   fresh initialization, not restart persistence.
-- Batched prefill, seeded full-checkpoint state/quality qualification and stochastic
-  sampler integration remain open. Broader source-model quality is separate from
-  the historical full-share Qwen quality smoke.
+- Both sharing profiles now pass independent complete-state checks on pinned
+  Qwen 4+2. The separate [six-client sharing screen](gkm-sharing-reference.md)
+  preserves accepted state and observes zero swap growth; seeded execution lowers
+  median TCP streams 8.39%, with essentially unchanged client RSS. Broader quality,
+  source-style batched prefill and stochastic sampler integration remain open.
+  The historical full-share quality smoke retains its separate narrow scope.
 - SIMD/GPU and complete source-performance qualification remain open; generated
-  tests do not supply measured full-checkpoint communication savings.
+  tests cannot inherit the bounded real-checkpoint screen's measurements. Longer
+  workloads, original-model performance and independent confirmation remain open.
 - Any different seed scope, counter packing, purpose schedule, numeric graph or
   acceptance window remains a separate versioned review/approval decision.
