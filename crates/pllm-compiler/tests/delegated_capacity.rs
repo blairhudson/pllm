@@ -550,6 +550,13 @@ fn streamed_wide_head_exact_integer_transcript_acceptance_and_failure_retirement
         let contract = make();
         let sdk_pin = contract.digest();
         let decoder_pin = contract.decoder().digest();
+        let source_decoder_pin = contract.decoder().source_binding_digest();
+        assert_eq!(
+            source_decoder_pin,
+            GkmDecoderContract::compile_with_capacity(&config, 2, 1, Capacity::Decoder)
+                .unwrap()
+                .digest()
+        );
         let doc = document(&contract.decoder().canonical_bytes());
         assert_eq!(doc["matrices"][4]["rows"], 257);
         let source = small_source(&contract);
@@ -569,7 +576,7 @@ fn streamed_wide_head_exact_integer_transcript_acceptance_and_failure_retirement
         });
         let mut source_hash = Sha256::new();
         source_hash.update(b"pllm.gkm.decoder-source.v1");
-        source_hash.update(decoder_pin.as_str());
+        source_hash.update(source_decoder_pin.as_str());
         for (name, bytes) in &source {
             source_hash.update((name.len() as u64).to_le_bytes());
             source_hash.update(name);

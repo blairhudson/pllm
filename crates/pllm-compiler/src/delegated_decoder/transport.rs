@@ -52,6 +52,7 @@ pub struct GkmTransportClient {
     contract: GkmRuntimeContract,
     local: BTreeMap<String, Vec<u8>>,
     publication: Option<Arc<Publication>>,
+    publication_exported: bool,
     window: Option<ClientWireWindow>,
     calls: Vec<Step>,
     ordinal: usize,
@@ -95,7 +96,7 @@ impl GkmTransportClient {
         // Preserve the legacy actual-source digest and publication source context.
         // Runtime/Experiment identity additionally binds the request context below.
         let publication = Arc::new(
-            Publication::publish_with_capacity(
+            Publication::publish_streamed_single_window(
                 source,
                 &stages,
                 &table,
@@ -120,6 +121,7 @@ impl GkmTransportClient {
             contract,
             local,
             publication: Some(publication),
+            publication_exported: false,
             window: Some(window),
             calls,
             ordinal: 0,
@@ -147,16 +149,30 @@ impl GkmTransportClient {
         self.publication_digest
     }
 
+    pub fn native_publication_resources(&self) -> Result<gkm::PublicationResources, String> {
+        self.publication
+            .as_ref()
+            .map(|publication| publication.resources())
+            .ok_or_else(|| reject("retired"))
+    }
+
     pub fn request_id(&self) -> [u8; 32] {
         self.request
     }
 
     pub fn publication_bytes(&mut self) -> Result<WireBytes, String> {
-        let result = self
-            .publication
-            .as_ref()
-            .ok_or_else(|| reject("retired"))
-            .and_then(|publication| publication.export_wire().map_err(|error| error.to_string()));
+        // One immutable public export, shared with both worker channels. The SDK
+        // cannot mint unbounded publication snapshots under its fixed frame price.
+        let result = if std::mem::replace(&mut self.publication_exported, true) {
+            Err(reject("publication already exported"))
+        } else {
+            self.publication
+                .as_ref()
+                .ok_or_else(|| reject("retired"))
+                .and_then(|publication| {
+                    publication.export_wire().map_err(|error| error.to_string())
+                })
+        };
         if result.is_err() {
             self.abort();
         }
@@ -316,6 +332,13 @@ pub struct GkmTransportWorker {
 }
 
 impl GkmTransportWorker {
+    pub fn native_publication_resources(&self) -> Result<gkm::PublicationResources, String> {
+        self.window
+            .as_ref()
+            .map(gkm::WorkerWireWindow::publication_resources)
+            .ok_or_else(|| reject("retired"))
+    }
+
     pub fn request_id(&self) -> Result<[u8; 32], String> {
         self.window
             .as_ref()
@@ -332,8 +355,12 @@ impl GkmTransportWorker {
         start: &[u8],
     ) -> Result<Self, String> {
         // Check the pin and publication envelope before importing caller values.
-        Publication::import_wire_with_capacity(publication, pin, contract.decoder().capacity())
-            .map_err(|error| error.to_string())?;
+        Publication::import_wire_streamed_single_window(
+            publication,
+            pin,
+            contract.decoder().capacity(),
+        )
+        .map_err(|error| error.to_string())?;
         let source = bind_source(contract.decoder(), tensors)?;
         Self::from_source(contract, source, publication, pin, role, start)
     }
@@ -347,8 +374,12 @@ impl GkmTransportWorker {
         start: &[u8],
     ) -> Result<Self, String> {
         let publication = Arc::new(
-            Publication::import_wire_with_capacity(publication, pin, contract.decoder().capacity())
-                .map_err(|error| error.to_string())?,
+            Publication::import_wire_streamed_single_window(
+                publication,
+                pin,
+                contract.decoder().capacity(),
+            )
+            .map_err(|error| error.to_string())?,
         );
         let calls = plan(&contract)?;
         let BoundSource {
@@ -472,12 +503,115 @@ mod tests {
     }
 
     #[test]
+    fn streamed_sdk_does_not_expose_repeat_publication_snapshots() {
+        for decoder in [false, true] {
+            for seeded in [false, true] {
+                let mut client = importer(seeded, decoder).client().unwrap();
+                let frame = client.publication_bytes().unwrap();
+                assert!(!frame.is_empty());
+                assert!(client.publication_bytes().is_err());
+                assert!(client.starts().is_err());
+                assert!(client.native_publication_resources().is_err());
+            }
+        }
+    }
+
+    #[test]
     fn seeded_sdk_selector_streamed_transport_and_final_acceptance_both_capacities() {
         for decoder in [false, true] {
             let mut outputs = Vec::new();
             let mut sources = Vec::new();
             for seeded in [false, true] {
                 let mut client = importer(seeded, decoder).client().unwrap();
+                let priced = client
+                    .contract
+                    .decoder()
+                    .native_publication_resources()
+                    .unwrap();
+                let runtime = client.native_publication_resources().unwrap();
+                assert_eq!(
+                    runtime.ownership,
+                    gkm::PublicationOwnership::StreamedSingleWindow
+                );
+                assert_eq!(
+                    runtime.admitted_payload_bytes,
+                    priced.admitted_payload_bytes
+                );
+                let metadata: serde_json::Value =
+                    serde_json::from_slice(&client.decoder_bytes()).unwrap();
+                let transport = &metadata["transport_resources"];
+                let reference = super::super::GkmDecoderContract::compile_with_capacity(
+                    &canonical_bytes(
+                        &json!({"model_type":"qwen2", "hidden_size":8, "intermediate_size":16,
+                        "num_hidden_layers":1, "num_attention_heads":2, "num_key_value_heads":1,
+                        "vocab_size":16, "max_position_embeddings":16, "hidden_act":"silu",
+                        "rms_norm_eps":1e-6, "rope_theta":10000.0, "tie_word_embeddings":true}),
+                    ),
+                    1,
+                    0,
+                    if decoder {
+                        gkm::Capacity::Decoder
+                    } else {
+                        gkm::Capacity::Capsule
+                    },
+                )
+                .unwrap();
+                let generic = reference.native_publication_resources().unwrap();
+                let reference_metadata: serde_json::Value =
+                    serde_json::from_slice(&reference.canonical_bytes()).unwrap();
+                assert!(reference_metadata.get("transport_resources").is_none());
+                assert_eq!(
+                    client.contract.decoder().source_binding_digest(),
+                    reference.digest()
+                );
+                assert_eq!(metadata["source_binding_digest"], json!(reference.digest()));
+                assert_eq!(generic.ownership, gkm::PublicationOwnership::General);
+                assert_eq!(
+                    transport["generic_native_admitted_payload_bytes"],
+                    generic.admitted_payload_bytes
+                );
+                assert_eq!(
+                    generic.admitted_payload_bytes + gkm::STREAMED_IMPORT_WORKSPACE_BYTES,
+                    runtime.admitted_payload_bytes
+                        + generic.max_import_workspace_bytes
+                        + 7 * generic.max_window_payload_bytes
+                );
+                assert_eq!(transport["reserved_windows"], 1);
+                assert_eq!(
+                    transport["native_admitted_payload_bytes"],
+                    runtime.admitted_payload_bytes
+                );
+                assert_eq!(
+                    transport["import_workspace_bytes"],
+                    gkm::STREAMED_IMPORT_WORKSPACE_BYTES
+                );
+                assert_eq!(
+                    transport["native_admitted_payload_bytes"].as_u64().unwrap(),
+                    [
+                        "source_payload_bytes",
+                        "import_workspace_bytes",
+                        "publication_payload_bytes",
+                        "publisher_workspace_bytes",
+                        "window_payload_bytes"
+                    ]
+                    .iter()
+                    .map(|key| transport[key].as_u64().unwrap())
+                    .sum::<u64>()
+                );
+                if decoder {
+                    let resources = &metadata["decoder_resources"];
+                    assert_eq!(
+                        resources["worker_payload_bytes"].as_u64().unwrap(),
+                        runtime.admitted_payload_bytes as u64
+                            + resources["outer_transport_bytes"].as_u64().unwrap()
+                            + resources["local_coefficient_copy_bytes"].as_u64().unwrap()
+                    );
+                    assert_eq!(
+                        resources["client_payload_bytes"].as_u64().unwrap(),
+                        resources["worker_payload_bytes"].as_u64().unwrap()
+                            + resources["client_tensor_bytes"].as_u64().unwrap()
+                    );
+                }
                 let publication = client.publication_bytes().unwrap();
                 let pin = client.publication_digest();
                 // Owner publication contains fresh commitment randomness, so its
@@ -499,6 +633,15 @@ mod tests {
                         .unwrap()
                 });
                 let mut result = Vec::new();
+                for worker in &workers {
+                    assert_eq!(
+                        worker
+                            .native_publication_resources()
+                            .unwrap()
+                            .admitted_payload_bytes,
+                        priced.admitted_payload_bytes
+                    );
+                }
                 for step in client.calls.clone() {
                     let requests = match step {
                         Step::Lookup => client.lookup(3).unwrap(),

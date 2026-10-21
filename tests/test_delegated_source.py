@@ -175,7 +175,23 @@ def sdk_experiment(path, *, rows=3, outputs=3):
 @pytest.fixture
 def native_sdk_double(monkeypatch):
     """Exercise the new bridge without implying a rebuilt SDK-capable wheel."""
-    calls = {"resolve": [], "runtime": [], "bytes": []}
+    calls = {"resolve": [], "runtime": [], "bytes": [], "decoder": []}
+    original_decoder = _native.gkm_decoder_contract
+
+    def compile_decoder(config, rows, steps, *, capacity="capsule", streamed=False):
+        calls["decoder"].append((rows, steps, capacity, streamed))
+        raw = original_decoder(config, rows, steps, capacity=capacity)
+        if not streamed:
+            return raw
+        # Explicit admission-only double for wheels predating streamed=. Keep
+        # numeric/source fields and native float spelling, but make SDK records
+        # distinct so a generic-vs-streamed comparison cannot silently pass.
+        binding = hashlib.sha256(source._DECODER_SCHEMA.encode() + b"\0" + raw).hexdigest()
+        extra = source._canonical({
+            "source_binding_digest": binding,
+            "transport_resources": {"profile": "pllm.gkm.streamed-single-window.v1"},
+        })
+        return raw[:-1] + b"," + extra[1:]
 
     def resolve(encoded):
         calls["resolve"].append(encoded)
@@ -186,7 +202,9 @@ def native_sdk_double(monkeypatch):
         args = (experiment_bytes, config_bytes, rows, outputs, source_lock, tokenizer)
         calls["runtime"].append(args)
         document = json.loads(experiment_bytes)
-        decoder = _native.gkm_decoder_contract(config_bytes, rows, outputs - 1)
+        capacity = document["pipeline"]["components"]["linear"]["params"].get("capacity", "capsule")
+        decoder = _native.gkm_decoder_contract(config_bytes, rows, outputs - 1,
+                                               capacity=capacity, streamed=True)
         fields = {
             "schema_version": source._RUNTIME_SCHEMA,
             "configuration": hashlib.sha256(b"pllm.configuration.v1\0" + experiment_bytes).hexdigest(),
@@ -195,6 +213,8 @@ def native_sdk_double(monkeypatch):
             ).hexdigest(),
             "source_lock": source_lock, "tokenizer": tokenizer, "decoder": None,
         }
+        if document["pipeline"]["components"]["linear"]["params"]["sharing"] == "seeded":
+            fields["sharing_profile"] = "gkm.seeded.aes128.duplicate-le64.two-purpose.window.v1"
         # Keep the real decoder's canonical float spelling; no Python roundtrip.
         result = b"{" + b",".join(
             source._canonical(key) + b":" + (decoder if key == "decoder" else source._canonical(fields[key]))
@@ -203,6 +223,7 @@ def native_sdk_double(monkeypatch):
         calls["bytes"].append(result)
         return result
 
+    monkeypatch.setattr(_native, "gkm_decoder_contract", compile_decoder)
     monkeypatch.setattr(_native, "resolve_experiment", resolve)
     monkeypatch.setattr(_native, "gkm_runtime_contract", runtime, raising=False)
     return calls
@@ -281,6 +302,11 @@ def test_experiment_budget_admits_complete_window_before_values(tmp_path, monkey
     assert native_sdk_double["resolve"] == [experiment.canonical_bytes()]
     assert admitted.experiment_bytes == experiment.canonical_bytes()
     assert admitted.runtime_contract_bytes is native_sdk_double["bytes"][0]
+    generic = admit(root)
+    assert admitted.contract != generic.contract
+    assert admitted.contract["source_binding_digest"] == generic.contract_digest
+    for key in ("plan", "source_shapes", "source_float32_bytes", "numeric_profile", "local_numeric_profile"):
+        assert admitted.contract[key] == generic.contract[key]
     assert native_sdk_double["runtime"] == [(
         experiment.canonical_bytes(), admitted.config_bytes, 3, 3,
         admitted.source_lock_digest, admitted.tokenizer_digest,
@@ -331,10 +357,11 @@ def test_sdk_runtime_bytes_and_native_decoder_digest_preserve_float_spelling(
     tmp_path, monkeypatch, native_sdk_double,
 ):
     write_source_fixture(tmp_path)
+    native_sdk_double["decoder"].clear()
     original = _native.gkm_decoder_contract
 
-    def native_spelling(*args):
-        raw = original(*args)
+    def native_spelling(*args, **kwargs):
+        raw = original(*args, **kwargs)
         # V3 stores epsilon as a string. Add a numeric metadata probe to this
         # native test double so exponent re-encoding cannot pass unnoticed.
         # Real v3 lowering still supplies every geometry/semantic field.
@@ -345,7 +372,7 @@ def test_sdk_runtime_bytes_and_native_decoder_digest_preserve_float_spelling(
     monkeypatch.setattr(_native, "gkm_decoder_contract", native_spelling)
     experiment = sdk_experiment(tmp_path)
     admitted = source.admit_source(experiment)
-    native_bytes = _native.gkm_decoder_contract(admitted.config_bytes, 3, 2)
+    native_bytes = _native.gkm_decoder_contract(admitted.config_bytes, 3, 2, streamed=True)
     assert admitted.contract_bytes == native_bytes
     # This bridge must preserve native bytes even when JSON equality hides a change.
     assert source._canonical(json.loads(native_bytes)) != native_bytes
@@ -356,13 +383,14 @@ def test_sdk_runtime_bytes_and_native_decoder_digest_preserve_float_spelling(
     raw = admitted.runtime_contract(experiment, 1, 1)
     assert raw is native_sdk_double["bytes"][-1]
     assert json.loads(raw)["decoder"] == json.loads(
-        _native.gkm_decoder_contract(admitted.config_bytes, 1, 0)
+        _native.gkm_decoder_contract(admitted.config_bytes, 1, 0, streamed=True)
     )
     assert native_sdk_double["runtime"][-1] == (
         experiment.canonical_bytes(), admitted.config_bytes, 1, 1,
         admitted.source_lock_digest, admitted.tokenizer_digest,
     )
     assert admitted.contract_bytes == native_bytes  # Owner retains full-budget pricing.
+    assert all(call[3] for call in native_sdk_double["decoder"])
     assert admitted.configuration_digest == experiment.configuration_digest()
     assert admitted.composition_digest == experiment.pipeline.digest()
 
@@ -415,6 +443,22 @@ def test_native_sdk_binding_mismatch_rejects_before_tokenizer_construction(
         source.admit_source(sdk_experiment(tmp_path))
 
 
+def test_sdk_binding_rejects_generic_decoder_substitution(tmp_path, monkeypatch, native_sdk_double):
+    write_source_fixture(tmp_path)
+    original = _native.gkm_runtime_contract
+
+    def generic_decoder(experiment, config, rows, outputs, *digests):
+        document = json.loads(original(experiment, config, rows, outputs, *digests))
+        document["decoder"] = json.loads(_native.gkm_decoder_contract(config, rows, outputs - 1))
+        return source._canonical(document)
+
+    monkeypatch.setattr(_native, "gkm_runtime_contract", generic_decoder)
+    monkeypatch.setattr(source, "_tokenizer", forbidden)
+    forbid_values(monkeypatch)
+    with pytest.raises(ValueError, match="differs from its source or Experiment"):
+        source.admit_source(sdk_experiment(tmp_path))
+
+
 @pytest.mark.skipif(not hasattr(_native, "gkm_runtime_contract"), reason="v3 core predates SDK binding")
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
 def test_optional_real_native_sdk_contract(tmp_path, sharing):
@@ -429,7 +473,9 @@ def test_optional_real_native_sdk_contract(tmp_path, sharing):
 
 @pytest.mark.parametrize("sharing", ["full", "seeded"])
 @pytest.mark.parametrize("change", ["missing", "substituted", "extra"])
-def test_runtime_sharing_binding_rejects_substitution(tmp_path, monkeypatch, sharing, change):
+def test_runtime_sharing_binding_rejects_substitution(
+    tmp_path, monkeypatch, native_sdk_double, sharing, change,
+):
     write_source_fixture(tmp_path)
     experiment = sdk_experiment(tmp_path).with_params(pipeline__components__linear__sharing=sharing)
     original = _native.gkm_runtime_contract

@@ -69,21 +69,27 @@ envelope, 4 GiB process wire pool, 32 MiB encoded publication and 4 MiB frames.
 Admission also checks a conservative encoded-publication upper bound. Numeric
 profiles, stage/matrix/table/publication digests and canonical wire bytes do not
 include capacity. An identical small artifact has identical identities under
-both policies. Native seeded Decoder requests return `Error::Limit`.
+both policies. Both policies also admit the explicit seeded sharing profile.
 
 Send array index 0 only to Worker Zero, index 1 only to Worker One. Each worker
 is bound to one authenticated client session and monotonically increasing window
 sequences. Complete/finish the worker request before beginning its next window.
 Worker receipt means schedule completion, never client result acceptance.
 Client outputs remain tentative until its original native final verifier passes.
-Seeded windows/frames reject; native full/seeded defaults and identities remain.
+Full sharing remains the default. Explicit seeded windows use the existing
+complete-window AES profile: only Worker One receives independent linear/lookup
+keys, and its per-operation requests carry no expanded shares. Worker Zero
+receives complementary explicit shares and no keys. Stream consumption follows
+the complete scalar claim schedule without reseeding or rewinding.
 
 Worker source arguments are **public**, immutable, publication-ordered weights
 and the original finite float32 byte table. The owner makes explicitly charged
 copies. Exact matrix identities/bounds and table identity/row hashes must match
 the trusted publication. No token, reconstructed input, complementary share or
-publisher scalar enters a worker owner. Public start frames contain only schedule
-and framing, and bind publication, session, sequence, request/window, context,
+publisher scalar enters a worker owner. Full-share start frames contain only
+schedule and framing; seeded Worker One's start additionally carries secret keys
+and therefore requires confidential authenticated delivery. Starts bind
+publication, session, sequence, request/window, context,
 plan/count, ordinal, role, stage/artifact, geometry and numerical/sharing profile.
 
 The caller must authenticate public pins and start schedules and provide separate
@@ -118,6 +124,22 @@ calls when cancellation closes the native client transaction.
   a publication, 64 admission handles, existing per-owner and process cumulative
   attempt/step limits and process live-window cap. Co-located client plus two
   workers consume three live leases. Retained request/reply frames retain leases.
+- Streamed SDK publications instead select explicit single-window ownership:
+  complete source, publication and publisher scratch remain charged, while import
+  scratch is bounded to 131072 bytes and one complete window is reserved. The
+  publication allows one lifetime window attempt and one SDK publication export;
+  repeat export retires the client. Generic eager/eight-window owners and all
+  per-profile/process ceilings remain unchanged. Exported frames retain leases
+  independently of request cancellation or owner retirement.
+- Streamed operation frames share a lifetime-window quota: at most four retained
+  START/REQUEST/REPLY handles and `4 * max_wire_frame_bytes` charged bytes, plus
+  four temporary scratch guards within another `4 * max_wire_frame_bytes`.
+  Capacity and bounded owner/control overhead both count. Quota exhaustion
+  poisons the window; refunds follow buffer zeroization and deallocation, not
+  cancellation. Public artifact exports have a separate publication-owned
+  one-live-handle cap of `max_publication_wire_bytes`. Generic wire behavior is
+  unchanged. These quotas fit the existing SDK frame/publication allowances;
+  they do not cover caller-owned Python copies or arbitrary ASGI hosting.
 - Borrowed inbound bytes, caller-made copies, source import buffers, allocator
   overhead and transport/interpreter buffers require outer admission. Fixed-size
   `Arc::new` retains native abort-on-OOM exception. These are payload limits, not
@@ -135,7 +157,7 @@ Focused checks cover byte-exact original rows (including negative zero), widened
 integer oracles, every frame-binding field, all publication truncation positions,
 canonical identity/invalid points, duplicate stages, source substitution, row
 hashes, final linear corruption, partial replies, repeated/ignored errors,
-replay/cancellation, seeded-frame rejection, and every new payload-allocation
+replay/cancellation, sharing-profile substitution, and every new payload-allocation
 failure seam. Existing native numeric identities and seeded/reference tests pass.
 
 The independent allocator binary verifies zero-allocation malformed import and

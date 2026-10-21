@@ -51,7 +51,10 @@ mod window;
 pub use capacity::Capacity;
 pub use lookup::FloatTable;
 pub use numeric::{encode_input, encode_weight, reconstruct_signed, rescale_signed, I16Matrix};
-pub use publication::{Publication, PublicationResources, Stage};
+pub use publication::{
+    Publication, PublicationOwnership, PublicationResources, Stage,
+    STREAMED_IMPORT_WORKSPACE_BYTES, STREAMED_SOURCE_CHUNK_BYTES,
+};
 pub use seeded::{SharingProfile, SEEDED_SHARING_PROFILE};
 pub use window::{
     AcceptedWindow, Binding, Client, ClientWireWindow, HalfLinear, HalfLookup, LinearResponse,

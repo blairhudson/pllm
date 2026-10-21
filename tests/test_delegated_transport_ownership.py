@@ -7,6 +7,8 @@ import socket
 import ssl
 import threading
 import time
+from types import SimpleNamespace
+import weakref
 
 import pytest
 
@@ -232,3 +234,79 @@ def test_partial_client_construction_failure_joins_io_owner(monkeypatch):
     assert clients[0].is_closed
     assert len(owners) == 1 and not owners[0].thread.is_alive()
     assert owners[0].loop.is_closed() and not asyncio.all_tasks(owners[0].loop)
+
+
+@pytest.mark.parametrize("mode", ["single-byte", "empty", "exact", "overflow", "cancel", "error", "status"])
+def test_fixed_response_collector_retires_buffers_and_conserves_counts(monkeypatch, mode):
+    """Retain failures while checking allocation retirement without GC."""
+    buffers, allocations, closed = [], [], []
+
+    class Buffer(bytearray):
+        pass
+
+    def allocate(size):
+        value = Buffer(size)
+        buffers.append(weakref.ref(value))
+        allocations.append(size)
+        return value
+
+    monkeypatch.setattr(transport, "bytearray", allocate, raising=False)
+    pieces = {"single-byte": [b"a", b"", b"b", b"c"], "empty": [b"", b""],
+              "exact": [b"abc"], "overflow": [b"ab", b"cd"],
+              "cancel": [b"a"], "error": [b"a"], "status": [b"abc"]}[mode]
+
+    class Response:
+        headers = {"x-pllm-server-ns": "123"}
+        status_code = 400 if mode == "status" else 200
+        request = SimpleNamespace(content=b"frame")
+
+        async def aiter_raw(self):
+            try:
+                for piece in pieces:
+                    yield piece
+                if mode == "cancel":
+                    raise asyncio.CancelledError("collector cancelled")
+                if mode == "error":
+                    raise ValueError("collector failed")
+            finally:
+                closed.append(True)
+
+    class Stream:
+        async def __aenter__(self):
+            return Response()
+
+        async def __aexit__(self, *args):
+            return False
+
+    peers = object.__new__(transport._Peers)
+    peers.roles, peers.namespace, peers.request_id = ("worker_a", "worker_b"), "delegation", "a" * 64
+    peers.clients = [SimpleNamespace(stream=lambda *a, **k: Stream())]
+    peers.counts = {f"role_link.worker_a.online_{direction}_bytes": 0 for direction in ("upload", "download")}
+    peers.phase, peers.phase_bytes = "prefill", {"prefill": 0, "decode": 0}
+    peers.unknown = set()
+    peers.calls = peers.server_ns = 0
+    peers.server_known = True
+
+    async def run():
+        if mode in {"overflow", "cancel", "error", "status"}:
+            error = asyncio.CancelledError if mode == "cancel" else ValueError if mode == "error" else ProtocolError
+            with pytest.raises(error) as caught:
+                await peers._post(0, "step", b"frame", phase="online", limit=3, timeout=1)
+            assert caught.value.__traceback__ is not None
+            trace = caught.value.__traceback__
+            while trace.tb_frame.f_code.co_name != "_post":
+                trace = trace.tb_next
+            assert all(trace.tb_frame.f_locals[name] is None
+                       for name in ("buffer", "view", "prefix_view", "chunk", "payload"))
+        else:
+            assert await peers._post(0, "step", b"frame", phase="online", limit=3, timeout=1) == b"".join(pieces)
+        assert all(ref() is None for ref in buffers)
+
+    asyncio.run(run())
+    downloaded = sum(map(len, pieces))
+    assert allocations == [3] and closed == [True]
+    assert peers.counts == {"role_link.worker_a.online_upload_bytes": 5,
+                            "role_link.worker_a.online_download_bytes": downloaded}
+    assert peers.phase_bytes == {"prefill": 5 + downloaded, "decode": 0}
+    assert not peers.unknown
+    assert peers.calls == (0 if mode in {"overflow", "cancel", "error", "status"} else 1)

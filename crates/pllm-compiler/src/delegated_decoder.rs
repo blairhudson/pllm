@@ -48,6 +48,23 @@ struct DecoderResources {
     client_payload_bytes: usize,
     worker_payload_bytes: usize,
     request_linear_macs_per_worker: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    outer_transport_bytes: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    local_coefficient_copy_bytes: Option<usize>,
+}
+
+#[derive(Serialize)]
+struct TransportResources {
+    profile: &'static str,
+    reserved_windows: usize,
+    source_payload_bytes: usize,
+    import_workspace_bytes: usize,
+    publication_payload_bytes: usize,
+    publisher_workspace_bytes: usize,
+    window_payload_bytes: usize,
+    native_admitted_payload_bytes: usize,
+    generic_native_admitted_payload_bytes: usize,
 }
 
 #[derive(Serialize)]
@@ -92,6 +109,10 @@ pub struct GkmDecoderContract {
     window_steps: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     decoder_resources: Option<DecoderResources>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transport_resources: Option<TransportResources>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_binding_digest: Option<Digest>,
 }
 
 fn reject(message: &str) -> String {
@@ -257,6 +278,25 @@ impl GkmDecoderContract {
         input_rows: usize,
         decode_steps: usize,
         capacity: gkm::Capacity,
+    ) -> Result<Self, String> {
+        Self::compile_owned(config, input_rows, decode_steps, capacity, false)
+    }
+
+    pub fn compile_streamed_with_capacity(
+        config: &[u8],
+        input_rows: usize,
+        decode_steps: usize,
+        capacity: gkm::Capacity,
+    ) -> Result<Self, String> {
+        Self::compile_owned(config, input_rows, decode_steps, capacity, true)
+    }
+
+    fn compile_owned(
+        config: &[u8],
+        input_rows: usize,
+        decode_steps: usize,
+        capacity: gkm::Capacity,
+        streamed: bool,
     ) -> Result<Self, String> {
         let expanded = capacity == gkm::Capacity::Decoder;
         let max_elements = if expanded { 1 << 24 } else { MAX_ELEMENTS };
@@ -478,10 +518,38 @@ impl GkmDecoderContract {
             return Err(reject("complete request exceeds linear work capacity"));
         }
         let shapes: Vec<_> = matrices.iter().map(|m| (m.rows, m.columns)).collect();
-        let resources = gkm::PublicationResources::for_shapes_with_capacity(
+        let generic_resources = gkm::PublicationResources::for_shapes_with_capacity(
             &shapes, vocabulary, width, capacity,
         )
         .map_err(|e| e.to_string())?;
+        let specialized = if streamed {
+            gkm::PublicationResources::for_streamed_single_window(
+                &shapes, vocabulary, width, capacity,
+            )
+            .map_err(|e| e.to_string())?
+        } else {
+            generic_resources
+        };
+        let resources = generic_resources;
+        let transport_resources = if streamed {
+            Some(TransportResources {
+                profile: "pllm.gkm.streamed-single-window.v1",
+                reserved_windows: 1,
+                source_payload_bytes: owner_sum([
+                    specialized.source_weight_bytes,
+                    specialized.source_bound_bytes,
+                    specialized.source_table_bytes,
+                ])?,
+                import_workspace_bytes: specialized.max_import_workspace_bytes,
+                publication_payload_bytes: specialized.native_publication_payload_bytes,
+                publisher_workspace_bytes: specialized.owner_scalar_workspace_bytes,
+                window_payload_bytes: specialized.max_window_payload_bytes,
+                native_admitted_payload_bytes: specialized.admitted_payload_bytes,
+                generic_native_admitted_payload_bytes: generic_resources.admitted_payload_bytes,
+            })
+        } else {
+            None
+        };
         let source_float32_bytes = source_shapes
             .values()
             .try_fold(0usize, |sum, shape| {
@@ -530,7 +598,9 @@ impl GkmDecoderContract {
             ])?;
             // The streamed importer transfers its final owners. It has no whole
             // float32 dictionary or duplicate encoded weights. Core admission
-            // already includes source, publication, scratch and eight windows.
+            // includes source, publication and publisher scratch. Streamed SDK
+            // contracts reserve one complete window and bounded import scratch;
+            // general reference contracts retain eager/eight-window pricing.
             // Outer frames coexist with native export/import plus HTTP/msgpack
             // copies. Tokenizer metadata/indexes and graph metadata are separate.
             let outer = 4 * capacity.max_publication_wire_bytes()
@@ -557,6 +627,8 @@ impl GkmDecoderContract {
                     client_payload_bytes: client_bytes,
                     worker_payload_bytes: worker_bytes,
                     request_linear_macs_per_worker: linear_macs,
+                    outer_transport_bytes: None,
+                    local_coefficient_copy_bytes: None,
                 }),
             )
         } else {
@@ -579,7 +651,14 @@ impl GkmDecoderContract {
                 None,
             )
         };
-        if execution_payload_estimate_bytes
+        let specialize_total = |bytes: usize| {
+            bytes
+                .checked_sub(generic_resources.admitted_payload_bytes)
+                .and_then(|n| n.checked_add(specialized.admitted_payload_bytes))
+                .ok_or_else(|| reject("streamed owner allowance overflow"))
+        };
+        let admitted_execution_bytes = specialize_total(execution_payload_estimate_bytes)?;
+        if admitted_execution_bytes
             > if expanded {
                 GKM_DECODER_EXECUTION_BYTES
             } else {
@@ -592,10 +671,10 @@ impl GkmDecoderContract {
                 "complete reference payload estimate exceeds 64 MiB"
             }));
         }
-        // Native capsule already reserves source owners, eight live windows,
-        // commitment work and import scratch. Source float buffers, Python state,
-        // metadata and conversions are additional owners, never a process-RSS cap.
-        Ok(Self {
+        // Construct the unchanged general source-binding contract first. Streamed
+        // SDK ownership is substituted below; caller/Python copies remain in the
+        // outer envelope, never a claim of a process-RSS bound.
+        let mut result = Self {
             schema_version: SCHEMA,
             numeric_profile: gkm::NUMERIC_PROFILE,
             local_numeric_profile: "semantic.float32.dense-full-kv.client-bias-after-div22.v1",
@@ -617,7 +696,39 @@ impl GkmDecoderContract {
             execution_payload_estimate_bytes,
             window_steps,
             decoder_resources,
-        })
+            transport_resources: None,
+            source_binding_digest: None,
+        };
+        if streamed {
+            // Source/artifact identity remains bound to the unchanged general
+            // numeric decoder contract. Ownership admission is additionally bound
+            // by the SDK contract/request context, not folded into source bytes.
+            result.source_binding_digest = Some(result.digest());
+            result.capsule_payload_allowance_bytes = specialized.admitted_payload_bytes;
+            result.execution_payload_estimate_bytes = admitted_execution_bytes;
+            if let Some(resources) = &mut result.decoder_resources {
+                let outer = owner_sum([
+                    owner_product(&[4, capacity.max_publication_wire_bytes()])?,
+                    owner_product(&[8, capacity.max_wire_frame_bytes()])?,
+                    384 << 20,
+                ])?;
+                let local_copies = resources
+                    .worker_payload_bytes
+                    .checked_sub(generic_resources.admitted_payload_bytes)
+                    .and_then(|n| n.checked_sub(outer))
+                    .ok_or_else(|| reject("streamed local allowance overflow"))?;
+                resources.source_import_bytes = owner_sum([
+                    resources.source_import_bytes,
+                    specialized.max_import_workspace_bytes,
+                ])?;
+                resources.worker_payload_bytes = specialize_total(resources.worker_payload_bytes)?;
+                resources.client_payload_bytes = specialize_total(resources.client_payload_bytes)?;
+                resources.outer_transport_bytes = Some(outer);
+                resources.local_coefficient_copy_bytes = Some(local_copies);
+            }
+            result.transport_resources = transport_resources;
+        }
+        Ok(result)
     }
 
     pub fn canonical_bytes(&self) -> Vec<u8> {
@@ -625,6 +736,14 @@ impl GkmDecoderContract {
     }
     pub fn digest(&self) -> Digest {
         canonical_digest(SCHEMA, self)
+    }
+    /// Source identity excludes this SDK's reduced ownership overlap. The
+    /// serialized digest pins the unchanged general numeric decoder contract;
+    /// the SDK/request digest independently binds transport admission metadata.
+    pub fn source_binding_digest(&self) -> Digest {
+        self.source_binding_digest
+            .clone()
+            .unwrap_or_else(|| self.digest())
     }
     pub fn source_shapes(&self) -> &BTreeMap<String, Vec<usize>> {
         &self.source_shapes
@@ -636,6 +755,30 @@ impl GkmDecoderContract {
         } else {
             gkm::Capacity::Capsule
         }
+    }
+
+    pub fn native_publication_resources(&self) -> Result<gkm::PublicationResources, String> {
+        let shapes: Vec<_> = self
+            .matrices
+            .iter()
+            .map(|matrix| (matrix.rows, matrix.columns))
+            .collect();
+        if self.transport_resources.is_some() {
+            gkm::PublicationResources::for_streamed_single_window(
+                &shapes,
+                self.vocabulary,
+                self.width,
+                self.capacity(),
+            )
+        } else {
+            gkm::PublicationResources::for_shapes_with_capacity(
+                &shapes,
+                self.vocabulary,
+                self.width,
+                self.capacity(),
+            )
+        }
+        .map_err(|error| error.to_string())
     }
 
     fn window_plan(&self) -> Vec<Step> {
@@ -696,7 +839,7 @@ fn bind_source(
     }
     let mut hash = Sha256::new();
     hash.update(b"pllm.gkm.decoder-source.v1");
-    hash.update(contract.digest().as_str().as_bytes());
+    hash.update(contract.source_binding_digest().as_str().as_bytes());
     for (name, shape) in &contract.source_shapes {
         let bytes = tensors
             .get(name)

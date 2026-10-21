@@ -538,7 +538,7 @@ class AdmittedSource:
                 or not 1 <= outputs <= experiment.budget.max_new_tokens):
             raise DelegatedSourceError("GKM actual request exceeds the admitted Experiment budget")
         decoder_bytes = decoder_contract(self.config, input_rows=rows, decode_steps=outputs - 1,
-                                         capacity=self.capacity)
+                                         capacity=self.capacity, streamed=True)
         return _bind_runtime(experiment, encoded, self.config_bytes, decoder_bytes,
                              self.source_lock_digest, self.tokenizer_digest)
 
@@ -863,7 +863,8 @@ def _admit_source(
     if model.kind == "tiny":
         from pllm.sources import _tiny_model_config
 
-        decoder_contract(_tiny_model_config(), input_rows=input_rows, decode_steps=decode_steps)
+        decoder_contract(_tiny_model_config(), input_rows=input_rows, decode_steps=decode_steps,
+                         streamed=experiment is not None)
         raise DelegatedSourceError("GKM Model.tiny() full vocabulary is unsupported")
     if model.kind not in {"huggingface", "safetensors"}:
         raise DelegatedSourceError("GKM source requires an HF/Safetensors Model")
@@ -889,7 +890,8 @@ def _admit_source(
             raise DelegatedSourceError("GKM requires original unquantized floating-point tensors")
     # Full-envelope geometry precedes hashing, header readers and tokenizers.
     capacity = "capsule" if experiment is None else experiment.pipeline.components["linear"].params.get("capacity", "capsule")
-    envelope_bytes = decoder_contract(raw_config, input_rows=input_rows, decode_steps=decode_steps, capacity=capacity)
+    envelope_bytes = decoder_contract(raw_config, input_rows=input_rows, decode_steps=decode_steps,
+                                      capacity=capacity, streamed=experiment is not None)
     envelope = _json(envelope_bytes, "native envelope contract")
     source_bytes = _validate_contract(envelope)
     if _capacity(envelope) != capacity:

@@ -12,7 +12,7 @@ use super::{
     reject, BoundSource, GkmRuntimeContract, GkmTransportClient, GkmTransportWorker, INPUT_BOUND,
 };
 
-pub const GKM_SOURCE_CHUNK_BYTES: usize = 64 << 10;
+pub const GKM_SOURCE_CHUNK_BYTES: usize = gkm::STREAMED_SOURCE_CHUNK_BYTES;
 const MAX_LIVE_IMPORT_BYTES: usize = 16 << 20;
 static LIVE_IMPORT_BYTES: AtomicUsize = AtomicUsize::new(0);
 
@@ -75,13 +75,7 @@ impl GkmTransportImport {
             .iter()
             .map(|m| (m.rows, m.columns))
             .collect();
-        let resources = gkm::PublicationResources::for_shapes_with_capacity(
-            &shapes,
-            decoder.vocabulary,
-            decoder.width,
-            decoder.capacity(),
-        )
-        .map_err(|e| e.to_string())?;
+        let resources = decoder.native_publication_resources()?;
         let local_bytes = decoder
             .local_tensors
             .iter()
@@ -90,10 +84,13 @@ impl GkmTransportImport {
         // All geometry was bounded by the immutable decoder contract. Charge
         // final row/input bounds too: they coexist during ownership conversion.
         let permit = ImportPermit::acquire(
-            resources.source_weight_bytes
-                + resources.source_bound_bytes
-                + resources.source_table_bytes
-                + local_bytes,
+            super::owner_sum([
+                resources.source_weight_bytes,
+                resources.source_bound_bytes,
+                resources.source_table_bytes,
+                resources.max_import_workspace_bytes,
+                local_bytes,
+            ])?,
             decoder.capacity(),
         )?;
         let mut weights = Vec::new();
@@ -113,7 +110,7 @@ impl GkmTransportImport {
         }
         let mut hash = Sha256::new();
         hash.update(b"pllm.gkm.decoder-source.v1");
-        hash.update(decoder.digest().as_str().as_bytes());
+        hash.update(decoder.source_binding_digest().as_str().as_bytes());
         Ok(Self {
             contract,
             buffers: Some(Buffers {
@@ -266,12 +263,20 @@ mod tests {
     use serde_json::json;
 
     fn contract() -> GkmRuntimeContract {
+        contract_with(false, false)
+    }
+
+    fn contract_with(expanded: bool, seeded: bool) -> GkmRuntimeContract {
+        let mut linear = json!({"sharing": if seeded {"seeded"} else {"full"}, "generation":"fixed_length_greedy"});
+        if expanded {
+            linear["capacity"] = json!("decoder");
+        }
         GkmRuntimeContract::compile(
             &canonical_bytes(&json!({"schema":"pllm.experiment.v2", "name":"source-owner",
                 "pipeline":{"model":{"source":"fixture", "kind":"safetensors"}, "components":{
                     "kernels":{"component":"pllm/cpu", "params":{"threads":1}},
                     "linear":{"component":"pllm/open-weight-verifiable-outsourcing/v1",
-                        "params":{"sharing":"full", "generation":"fixed_length_greedy"}},
+                        "params":linear},
                     "verification":{"component":"pllm/published-linear-verify/v1", "params":{"acceptance":"request"}},
                     "topology":{"component":"pllm/two-online-delegation-workers/v1", "params":{}},
                     "state":{"component":"pllm/client-local-kv", "params":{}}
@@ -283,6 +288,37 @@ mod tests {
                 "rms_norm_eps":1e-6, "rope_theta":10000.0, "tie_word_embeddings":true})),
             1, 1, Digest::from_sha256([1; 32]), Digest::from_sha256([2; 32]),
         ).unwrap()
+    }
+
+    #[test]
+    fn streamed_import_reserves_final_owners_and_bounded_conversion_workspace() {
+        for expanded in [false, true] {
+            for seeded in [false, true] {
+                let contract = contract_with(expanded, seeded);
+                let decoder = contract.decoder();
+                let resources = decoder.native_publication_resources().unwrap();
+                let local: usize = decoder
+                    .local_tensors
+                    .iter()
+                    .map(|name| decoder.source_shapes[name].iter().product::<usize>() * 4)
+                    .sum();
+                let expected = resources.source_weight_bytes
+                    + resources.source_bound_bytes
+                    + resources.source_table_bytes
+                    + local
+                    + gkm::STREAMED_IMPORT_WORKSPACE_BYTES;
+                if expanded {
+                    let metadata: serde_json::Value =
+                        serde_json::from_slice(&decoder.canonical_bytes()).unwrap();
+                    assert_eq!(
+                        metadata["decoder_resources"]["source_import_bytes"],
+                        expected
+                    );
+                }
+                let importer = GkmTransportImport::new(contract).unwrap();
+                assert_eq!(importer.buffers.as_ref().unwrap()._permit.0, expected);
+            }
+        }
     }
 
     #[test]

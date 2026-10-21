@@ -145,7 +145,7 @@ impl GkmRuntimeContract {
         // Admit the complete declared envelope before lowering the actual query.
         // A small request must never disguise an oversized saved configuration.
         let capacity = capacity(&document.pipeline);
-        let envelope = GkmDecoderContract::compile_with_capacity(
+        let envelope = GkmDecoderContract::compile_streamed_with_capacity(
             config,
             document.budget.max_input_tokens as usize,
             document.budget.max_new_tokens as usize - 1,
@@ -157,7 +157,7 @@ impl GkmRuntimeContract {
             envelope
         } else {
             drop(envelope);
-            GkmDecoderContract::compile_with_capacity(
+            GkmDecoderContract::compile_streamed_with_capacity(
                 config,
                 input_rows,
                 output_tokens - 1,

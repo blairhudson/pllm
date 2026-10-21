@@ -1,6 +1,7 @@
 use k256::{elliptic_curve::sec1::ToEncodedPoint, ProjectivePoint, Scalar};
 use sha2::{Digest, Sha256};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
+use std::sync::Arc;
 use zeroize::Zeroizing;
 
 #[path = "publication_wire.rs"]
@@ -19,18 +20,31 @@ pub struct Stage<'a> {
     pub matrix: &'a I16Matrix,
 }
 
+/// Local ownership/admission policy, never supplied by an untrusted frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PublicationOwnership {
+    General,
+    StreamedSingleWindow,
+}
+
+pub const STREAMED_SOURCE_CHUNK_BYTES: usize = 64 << 10;
+/// One inbound float32 frame plus bounded conversion/transfer scratch. Final
+/// encoded source buffers and bounds are charged independently, in every role.
+pub const STREAMED_IMPORT_WORKSPACE_BYTES: usize = 2 * STREAMED_SOURCE_CHUNK_BYTES;
+
 /// Geometry-only payload admission, not an allocator/RSS or performance claim.
 #[derive(Debug, Clone, Copy)]
 pub struct PublicationResources {
     pub capacity: Capacity,
+    pub ownership: PublicationOwnership,
     pub source_weight_bytes: usize,
     pub source_bound_bytes: usize,
     pub source_table_bytes: usize,
     pub max_import_workspace_bytes: usize,
     pub native_publication_payload_bytes: usize,
     pub owner_scalar_workspace_bytes: usize,
-    /// Additional client/worker AES state and expanded scratch, reserved even
-    /// for Capsule full-share windows. Decoder rejects seeded requests.
+    /// Additional client/worker AES state and expanded scratch, conservatively
+    /// reserved for either sharing profile and either capacity.
     pub seeded_window_extra_bytes: usize,
     pub window_accumulator_bytes: usize,
     pub max_window_payload_bytes: usize,
@@ -40,6 +54,47 @@ pub struct PublicationResources {
 }
 
 impl PublicationResources {
+    pub fn for_streamed_single_window(
+        shapes: &[(usize, usize)],
+        vocabulary: usize,
+        width: usize,
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        Self::for_shape_iter_owned(
+            shapes.iter().copied(),
+            vocabulary,
+            width,
+            capacity,
+            PublicationOwnership::StreamedSingleWindow,
+        )
+    }
+
+    fn for_shape_iter_owned(
+        shapes: impl ExactSizeIterator<Item = (usize, usize)>,
+        vocabulary: usize,
+        width: usize,
+        capacity: Capacity,
+        ownership: PublicationOwnership,
+    ) -> Result<Self, Error> {
+        // Preserve all original geometry eligibility and ceilings. Specialization
+        // changes owned overlap, not which geometry the generic core admits.
+        let mut resources = Self::for_shape_iter(shapes, vocabulary, width, capacity)?;
+        if ownership == PublicationOwnership::StreamedSingleWindow {
+            resources.admitted_payload_bytes = resources
+                .admitted_payload_bytes
+                .checked_sub(resources.max_import_workspace_bytes)
+                .and_then(|n| n.checked_sub(resources.max_live_window_payload_bytes))
+                .and_then(|n| n.checked_add(STREAMED_IMPORT_WORKSPACE_BYTES))
+                .and_then(|n| n.checked_add(resources.max_window_payload_bytes))
+                .filter(|&n| n <= capacity.max_publication_bytes())
+                .ok_or(Error::Limit)?;
+            resources.ownership = ownership;
+            resources.max_import_workspace_bytes = STREAMED_IMPORT_WORKSPACE_BYTES;
+            resources.max_live_window_payload_bytes = resources.max_window_payload_bytes;
+        }
+        Ok(resources)
+    }
+
     /// Run before importing source weights/table when their public geometry is
     /// known. Includes native point storage, not just 33-byte encoded points.
     pub fn for_shapes(
@@ -170,6 +225,7 @@ impl PublicationResources {
         }
         Ok(Self {
             capacity,
+            ownership: PublicationOwnership::General,
             source_weight_bytes,
             source_bound_bytes,
             source_table_bytes,
@@ -291,10 +347,37 @@ pub struct Publication {
     pub(super) digest: [u8; 32],
     pub(super) live: AtomicU32,
     pub(super) clients: AtomicU32,
+    window_started: AtomicBool,
+    pub(super) export_quota: Option<Arc<super::window::wire::WireQuota>>,
     _admission: PublicationPermit,
 }
 
 impl Publication {
+    fn new_export_quota(
+        ownership: PublicationOwnership,
+    ) -> Option<Arc<super::window::wire::WireQuota>> {
+        (ownership == PublicationOwnership::StreamedSingleWindow)
+            .then(|| Arc::new(super::window::wire::WireQuota::new()))
+    }
+    /// Final encoded source owners must already be admitted. This path performs
+    /// no eager from_f64 staging and permits one lifetime window attempt only.
+    pub fn publish_streamed_single_window(
+        context: [u8; 32],
+        stages: &[Stage<'_>],
+        table: &FloatTable,
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        Self::publish_owned_in_pool(
+            context,
+            stages,
+            table,
+            &mut OsEntropy,
+            &PROCESS_PUBLICATIONS,
+            capacity,
+            PublicationOwnership::StreamedSingleWindow,
+        )
+    }
+
     pub fn publish(
         context: [u8; 32],
         stages: &[Stage<'_>],
@@ -348,6 +431,27 @@ impl Publication {
         pool: &'static AdmissionPool,
         capacity: Capacity,
     ) -> Result<Self, Error> {
+        Self::publish_owned_in_pool(
+            context,
+            stages,
+            table,
+            rng,
+            pool,
+            capacity,
+            PublicationOwnership::General,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn publish_owned_in_pool(
+        context: [u8; 32],
+        stages: &[Stage<'_>],
+        table: &FloatTable,
+        rng: &mut impl Entropy,
+        pool: &'static AdmissionPool,
+        capacity: Capacity,
+        ownership: PublicationOwnership,
+    ) -> Result<Self, Error> {
         if stages.is_empty() || stages.len() > capacity.max_stages() {
             return Err(Error::Limit);
         }
@@ -356,11 +460,12 @@ impl Publication {
                 return Err(Error::Binding);
             }
         }
-        let resources = PublicationResources::for_shape_iter(
+        let resources = PublicationResources::for_shape_iter_owned(
             stages.iter().map(|stage| stage.matrix.shape()),
             table.vocabulary,
             table.width,
             capacity,
+            ownership,
         )?;
         let admission =
             PublicationPermit::acquire(pool, resources.admitted_payload_bytes, capacity)?;
@@ -412,6 +517,8 @@ impl Publication {
             digest: [0; 32],
             live: AtomicU32::new(0),
             clients: AtomicU32::new(0),
+            window_started: AtomicBool::new(false),
+            export_quota: Self::new_export_quota(ownership),
             _admission: admission,
         };
         publication.digest = publication.compute_digest();
@@ -433,6 +540,15 @@ impl Publication {
 
     pub fn capacity(&self) -> Capacity {
         self.capacity
+    }
+
+    pub(super) fn reserve_window(&self) -> Result<(), Error> {
+        if self.resources.ownership == PublicationOwnership::StreamedSingleWindow {
+            self.window_started
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .map_err(|_| Error::Retired)?;
+        }
+        Ok(())
     }
 
     /// Shared across all clients; includes retained responses and accepted output
@@ -491,3 +607,7 @@ fn hash_point(hash: &mut Sha256, point: &ProjectivePoint) {
     hash.update([encoded.as_bytes().len() as u8]);
     hash.update(encoded.as_bytes());
 }
+
+#[cfg(test)]
+#[path = "streamed_resources_tests.rs"]
+mod streamed_tests;

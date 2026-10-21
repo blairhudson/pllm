@@ -5,6 +5,7 @@
 //! client/owner channels, never from an unauthenticated peer's self-description.
 
 use std::sync::atomic::{AtomicU8, AtomicUsize};
+use std::sync::Mutex;
 
 use super::super::{Stage, NUMERIC_PROFILE};
 use super::*;
@@ -16,6 +17,227 @@ pub const MAX_WIRE_FRAME_BYTES: usize = 8192;
 
 static WIRE_BYTES: AtomicUsize = AtomicUsize::new(0);
 static CAPSULE_WIRE_BYTES: AtomicUsize = AtomicUsize::new(0);
+
+/// Fixed-size synchronized window/publication accounting. Payload admission is
+/// atomic across both dimensions, including pair preflight; no queue allocation.
+pub(crate) struct WireQuota(Mutex<(usize, usize)>);
+
+impl WireQuota {
+    pub(crate) fn new() -> Self {
+        Self(Mutex::new((0, 0)))
+    }
+
+    fn reserve(
+        &self,
+        count: usize,
+        bytes: usize,
+        max_count: usize,
+        max_bytes: usize,
+    ) -> Result<(), Error> {
+        let mut used = self.0.lock().map_err(|_| Error::Retired)?;
+        let next_count = used
+            .0
+            .checked_add(count)
+            .filter(|&n| n <= max_count)
+            .ok_or(Error::Limit)?;
+        let next_bytes = used
+            .1
+            .checked_add(bytes)
+            .filter(|&n| n <= max_bytes)
+            .ok_or(Error::Limit)?;
+        *used = (next_count, next_bytes);
+        Ok(())
+    }
+
+    fn release(&self, bytes: usize) {
+        // Destruction must refund even if an unrelated panic poisoned the mutex.
+        let mut used = self.0.lock().unwrap_or_else(|error| error.into_inner());
+        used.0 -= 1;
+        used.1 -= bytes;
+    }
+}
+
+fn streamed(lease: &Lease) -> bool {
+    lease.budget.publication.resources.ownership
+        == super::super::PublicationOwnership::StreamedSingleWindow
+}
+
+struct FramePermit {
+    lease: Arc<Lease>,
+    bytes: usize,
+    length: usize,
+}
+
+impl FramePermit {
+    fn reserve(lease: &Arc<Lease>, lengths: &[usize]) -> Result<(), Error> {
+        lease.ensure_open()?;
+        let result = (|| {
+            let limit = lease.budget.publication.capacity.max_wire_frame_bytes();
+            let mut bytes = 0usize;
+            for &length in lengths {
+                if length > limit {
+                    return Err(Error::Limit);
+                }
+                bytes = bytes
+                    .checked_add(WireBytes::charge(length)?)
+                    .ok_or(Error::Limit)?;
+            }
+            if streamed(lease) {
+                lease.frames.reserve(
+                    lengths.len(),
+                    bytes,
+                    4,
+                    limit.checked_mul(4).ok_or(Error::Limit)?,
+                )?;
+            }
+            Ok(())
+        })();
+        if result.is_err() {
+            lease.poisoned.store(true, Ordering::Release);
+        }
+        result
+    }
+
+    fn single(lease: &Arc<Lease>, length: usize) -> Result<Self, Error> {
+        Self::reserve(lease, &[length])?;
+        Ok(Self {
+            lease: Arc::clone(lease),
+            bytes: if streamed(lease) {
+                WireBytes::charge(length)?
+            } else {
+                0
+            },
+            length,
+        })
+    }
+
+    fn pair(lease: &Arc<Lease>, lengths: [usize; 2]) -> Result<[Self; 2], Error> {
+        Self::reserve(lease, &lengths)?;
+        Ok(lengths.map(|length| Self {
+            lease: Arc::clone(lease),
+            bytes: if streamed(lease) {
+                WireBytes::charge(length).expect("preflighted charge")
+            } else {
+                0
+            },
+            length,
+        }))
+    }
+}
+
+impl Drop for FramePermit {
+    fn drop(&mut self) {
+        if self.bytes != 0 {
+            self.lease.frames.release(self.bytes);
+        }
+    }
+}
+
+pub(crate) struct PublicationFramePermit {
+    quota: Arc<WireQuota>,
+    bytes: usize,
+}
+
+impl PublicationFramePermit {
+    pub(crate) fn acquire(
+        quota: &Arc<WireQuota>,
+        length: usize,
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        let bytes = WireBytes::charge(length)?;
+        quota.reserve(1, bytes, 1, capacity.max_publication_wire_bytes())?;
+        Ok(Self {
+            quota: Arc::clone(quota),
+            bytes,
+        })
+    }
+}
+
+impl Drop for PublicationFramePermit {
+    fn drop(&mut self) {
+        self.quota.release(self.bytes);
+    }
+}
+
+struct ScratchPermit {
+    lease: Arc<Lease>,
+    bytes: usize,
+}
+
+impl ScratchPermit {
+    fn acquire(lease: &Arc<Lease>, bytes: usize) -> Result<Option<Self>, Error> {
+        lease.ensure_open()?;
+        if !streamed(lease) {
+            return Ok(None);
+        }
+        let result = lease
+            .budget
+            .publication
+            .capacity
+            .max_wire_frame_bytes()
+            .checked_mul(4)
+            .ok_or(Error::Limit)
+            .and_then(|limit| lease.scratch.reserve(1, bytes, 4, limit));
+        if result.is_err() {
+            lease.poisoned.store(true, Ordering::Release);
+        }
+        result?;
+        Ok(Some(Self {
+            lease: Arc::clone(lease),
+            bytes,
+        }))
+    }
+}
+
+impl Drop for ScratchPermit {
+    fn drop(&mut self) {
+        self.lease.scratch.release(self.bytes);
+    }
+}
+
+/// Transport-only duplicate/serialization buffers. Native pending masks,
+/// response owners, accumulators, worker schedule and SeededWorker expansion
+/// already belong to the complete native window envelope and are NOT charged
+/// again here. Borrowed inbound frames require caller admission, not a copy.
+struct WireScratch<T: zeroize::Zeroize> {
+    values: Zeroizing<Vec<T>>,
+    _quota: Option<ScratchPermit>,
+}
+
+impl<T: zeroize::Zeroize + Copy> WireScratch<T> {
+    fn charge(length: usize) -> Result<usize, Error> {
+        length
+            .checked_mul(size_of::<T>())
+            .and_then(|n| n.checked_add(size_of::<Self>() + 64))
+            .ok_or(Error::Limit)
+    }
+    fn filled(lease: &Arc<Lease>, length: usize, value: T) -> Result<Self, Error> {
+        let bytes = Self::charge(length).inspect_err(|_| {
+            lease.poisoned.store(true, Ordering::Release);
+        })?;
+        let quota = ScratchPermit::acquire(lease, bytes)?;
+        let values = Zeroizing::new(payload::filled(length, value)?);
+        if values.capacity() != length {
+            return Err(Error::Allocation);
+        }
+        Ok(Self {
+            values,
+            _quota: quota,
+        })
+    }
+}
+
+impl<T: zeroize::Zeroize> std::ops::Deref for WireScratch<T> {
+    type Target = Vec<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+impl<T: zeroize::Zeroize> std::ops::DerefMut for WireScratch<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.values
+    }
+}
 
 /// Logical payload accounting, not RSS. Includes wire-owned public source
 /// copies, schedules, control/scratch allowances, and every retained output frame.
@@ -87,11 +309,17 @@ impl Drop for WirePermit {
 /// lease even after cancellation. Caller-made copies require caller admission.
 pub struct WireBytes {
     bytes: Zeroizing<Vec<u8>>,
-    _lease: Option<Arc<Lease>>,
+    _frame: Option<FramePermit>,
+    _publication: Option<PublicationFramePermit>,
     _permit: WirePermit,
 }
 
 impl WireBytes {
+    fn charge(length: usize) -> Result<usize, Error> {
+        length
+            .checked_add(size_of::<Self>() + 64)
+            .ok_or(Error::Limit)
+    }
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
@@ -108,16 +336,11 @@ impl WireBytes {
         self._permit.capacity
     }
 
-    pub(crate) fn allocate(length: usize, capacity: Capacity) -> Result<Self, Error> {
+    fn allocate(length: usize, capacity: Capacity) -> Result<Self, Error> {
         if length > capacity.max_publication_wire_bytes() {
             return Err(Error::Limit);
         }
-        let permit = WirePermit::acquire(
-            length
-                .checked_add(size_of::<Self>() + 64)
-                .ok_or(Error::Limit)?,
-            capacity,
-        )?;
+        let permit = WirePermit::acquire(Self::charge(length)?, capacity)?;
         let bytes = payload::capacity(length)?;
         // Never grow a buffer beyond the capacity admitted before allocation.
         if bytes.capacity() != length {
@@ -125,9 +348,23 @@ impl WireBytes {
         }
         Ok(Self {
             bytes: Zeroizing::new(bytes),
-            _lease: None,
+            _frame: None,
+            _publication: None,
             _permit: permit,
         })
+    }
+
+    pub(crate) fn allocate_publication(
+        length: usize,
+        capacity: Capacity,
+        quota: Option<&Arc<WireQuota>>,
+    ) -> Result<Self, Error> {
+        let reservation = quota
+            .map(|quota| PublicationFramePermit::acquire(quota, length, capacity))
+            .transpose()?;
+        let mut out = Self::allocate(length, capacity)?;
+        out._publication = reservation;
+        Ok(out)
     }
 
     pub(crate) fn extend(&mut self, value: &[u8]) {
@@ -234,6 +471,7 @@ fn encode_frame(
     dimensions: (usize, usize),
     body: &[u8],
     lease: &Arc<Lease>,
+    permit: FramePermit,
 ) -> Result<WireBytes, Error> {
     lease.ensure_open()?;
     let length = HEADER.checked_add(body.len()).ok_or(Error::Limit)?;
@@ -241,8 +479,11 @@ fn encode_frame(
     if length > capacity.max_wire_frame_bytes() {
         return Err(Error::Limit);
     }
+    if permit.length != length || !Arc::ptr_eq(&permit.lease, lease) {
+        return Err(Error::Binding);
+    }
     let mut out = WireBytes::allocate(length, capacity)?;
-    out._lease = Some(Arc::clone(lease));
+    out._frame = Some(permit);
     out.extend(MAGIC);
     out.extend(&[
         kind,
@@ -453,11 +694,18 @@ impl ClientWireWindow {
         if self.started {
             return Err(Error::Retired);
         }
-        let schedule_bytes = window.plan.len() * 33;
-        let mut body = Zeroizing::new(payload::filled(
-            schedule_bytes + if keys.is_some() { 32 } else { 0 },
-            0u8,
-        )?);
+        let schedule_bytes = window.plan.len().checked_mul(33).ok_or(Error::Limit)?;
+        let body_length = schedule_bytes
+            .checked_add(if keys.is_some() { 32 } else { 0 })
+            .ok_or(Error::Limit)?;
+        let [left_permit, right_permit] = FramePermit::pair(
+            &window._lease,
+            [
+                HEADER.checked_add(schedule_bytes).ok_or(Error::Limit)?,
+                HEADER.checked_add(body_length).ok_or(Error::Limit)?,
+            ],
+        )?;
+        let mut body = WireScratch::filled(&window._lease, body_length, 0u8)?;
         for (bytes, &step) in body[..schedule_bytes]
             .chunks_exact_mut(33)
             .zip(window.plan.iter())
@@ -472,6 +720,7 @@ impl ClientWireWindow {
             dimensions,
             &body[..window.plan.len() * 33],
             &window._lease,
+            left_permit,
         )?;
         if let Some(keys) = keys {
             body[schedule_bytes..schedule_bytes + 16].copy_from_slice(&keys.keys[0]);
@@ -483,6 +732,7 @@ impl ClientWireWindow {
             dimensions,
             &body,
             &window._lease,
+            right_permit,
         )?;
         self.started = true;
         self.state = Some(ClientState::Ready(window));
@@ -502,10 +752,28 @@ impl ClientWireWindow {
 
     pub fn linear(&mut self, input: &[i64]) -> Result<[WireBytes; 2], Error> {
         let pending = self.take_ready()?.linear(input)?;
-        let encode = |worker| {
+        let length = |worker| {
+            pending
+                .share(worker)
+                .values()
+                .unwrap_or(&[])
+                .len()
+                .checked_mul(8)
+                .and_then(|n| n.checked_add(HEADER))
+                .ok_or(Error::Limit)
+        };
+        let [left_permit, right_permit] = FramePermit::pair(
+            &pending.window._lease,
+            [length(Worker::Zero)?, length(Worker::One)?],
+        )?;
+        let encode = |worker, permit| {
             let share = pending.share(worker);
             let values = share.values().unwrap_or(&[]);
-            let mut bytes = Zeroizing::new(payload::filled(values.len() * 8, 0u8)?);
+            let mut bytes = WireScratch::filled(
+                share.lease,
+                values.len().checked_mul(8).ok_or(Error::Limit)?,
+                0u8,
+            )?;
             for (out, value) in bytes.chunks_exact_mut(8).zip(values) {
                 out.copy_from_slice(&value.to_le_bytes());
             }
@@ -515,17 +783,27 @@ impl ClientWireWindow {
                 shape(&pending.window.publication, share.binding().step)?,
                 &bytes[..values.len() * 8],
                 share.lease,
+                permit,
             )
         };
-        let left = encode(Worker::Zero)?;
-        let right = encode(Worker::One)?;
+        let left = encode(Worker::Zero, left_permit)?;
+        let right = encode(Worker::One, right_permit)?;
         self.state = Some(ClientState::Linear(pending));
         Ok([left, right])
     }
 
     pub fn lookup(&mut self, token: usize) -> Result<[WireBytes; 2], Error> {
         let pending = self.take_ready()?.lookup(token)?;
-        let encode = |worker| {
+        let length = |worker| {
+            HEADER
+                .checked_add(pending.share(worker).selector().unwrap_or(&[]).len())
+                .ok_or(Error::Limit)
+        };
+        let [left_permit, right_permit] = FramePermit::pair(
+            &pending.window._lease,
+            [length(Worker::Zero)?, length(Worker::One)?],
+        )?;
+        let encode = |worker, permit| {
             let share = pending.share(worker);
             encode_frame(
                 REQUEST,
@@ -533,10 +811,11 @@ impl ClientWireWindow {
                 shape(&pending.window.publication, Step::Lookup)?,
                 share.selector().unwrap_or(&[]),
                 share.lease,
+                permit,
             )
         };
-        let left = encode(Worker::Zero)?;
-        let right = encode(Worker::One)?;
+        let left = encode(Worker::Zero, left_permit)?;
+        let right = encode(Worker::One, right_permit)?;
         self.state = Some(ClientState::Lookup(pending));
         Ok([left, right])
     }
@@ -552,7 +831,7 @@ impl ClientWireWindow {
                     if frame.body.len() != share.rows * 8 {
                         return Err(Error::Shape);
                     }
-                    let mut values = Zeroizing::new(payload::filled(share.rows, 0u64)?);
+                    let mut values = WireScratch::filled(share.lease, share.rows, 0u64)?;
                     for (out, bytes) in values.iter_mut().zip(frame.body.chunks_exact(8)) {
                         *out = u64::from_le_bytes(bytes.try_into().unwrap());
                     }
@@ -843,6 +1122,7 @@ impl WorkerWire {
             return Err(Error::Retired);
         }
         // Reuse the native process and admission-owner cumulative counters.
+        source.budget.publication.reserve_window()?;
         reserve(&source.budget.windows, 1, MAX_WINDOWS)?;
         reserve(&PROCESS_WINDOWS, 1, MAX_PROCESS_WINDOWS)?;
         let publication = &source.budget.publication;
@@ -1013,6 +1293,9 @@ pub struct WorkerWireReceipt {
 }
 
 impl WorkerWireWindow {
+    pub fn publication_resources(&self) -> super::super::PublicationResources {
+        self.source.budget.publication.resources()
+    }
     pub fn sharing_profile(&self) -> SharingProfile {
         self.binding.profile
     }
@@ -1043,6 +1326,17 @@ impl WorkerWireWindow {
         expected.artifact = artifact(publication, step)?;
         let frame = Frame::decode(bytes, REQUEST, publication)?;
         frame.validate(expected, publication)?;
+        let reply_body = match step {
+            Step::Linear(id) => publication.matrices[publication.matrix_index(&id)?]
+                .rows
+                .checked_mul(8),
+            Step::Lookup => publication.width.checked_mul(4),
+        }
+        .ok_or(Error::Limit)?;
+        let reply_permit = FramePermit::single(
+            &self.run.lease,
+            HEADER.checked_add(reply_body).ok_or(Error::Limit)?,
+        )?;
         let response = match step {
             Step::Linear(id) => {
                 let matrix = &self.source.matrices[publication.matrix_index(&id)?];
@@ -1055,6 +1349,17 @@ impl WorkerWireWindow {
                 {
                     return Err(Error::Shape);
                 }
+                // Explicit wire workers have no native pending/response owner;
+                // reserve their primitive output before allocation. Seeded
+                // responses already own native-priced output/expansion storage.
+                let _output_quota = if self.seeded.is_none() {
+                    ScratchPermit::acquire(
+                        &self.run.lease,
+                        WireScratch::<u64>::charge(matrix.rows)?,
+                    )?
+                } else {
+                    None
+                };
                 let values = if let Some(worker) = &mut self.seeded {
                     let slot = ResponseSlot::new();
                     worker
@@ -1070,13 +1375,17 @@ impl WorkerWireWindow {
                         )?
                         .values
                 } else {
-                    let mut input = Zeroizing::new(payload::filled(matrix.columns, 0u64)?);
+                    let mut input = WireScratch::filled(&self.run.lease, matrix.columns, 0u64)?;
                     for (out, word) in input.iter_mut().zip(frame.body.chunks_exact(8)) {
                         *out = u64::from_le_bytes(word.try_into().unwrap());
                     }
                     matrix.multiply_share(&input[..matrix.columns])?
                 };
-                let mut body = Zeroizing::new(payload::filled(matrix.rows * 8, 0u8)?);
+                let mut body = WireScratch::filled(
+                    &self.run.lease,
+                    matrix.rows.checked_mul(8).ok_or(Error::Limit)?,
+                    0u8,
+                )?;
                 for (out, value) in body.chunks_exact_mut(8).zip(values.iter()) {
                     out.copy_from_slice(&value.to_le_bytes());
                 }
@@ -1086,9 +1395,15 @@ impl WorkerWireWindow {
                     frame.dimensions,
                     &body[..matrix.rows * 8],
                     &self.run.lease,
+                    reply_permit,
                 )?
             }
             Step::Lookup => {
+                let _output_quota = if self.seeded.is_none() {
+                    ScratchPermit::acquire(&self.run.lease, WireScratch::<u8>::charge(reply_body)?)?
+                } else {
+                    None
+                };
                 let values = if let Some(worker) = &mut self.seeded {
                     if !frame.body.is_empty() {
                         return Err(Error::Shape);
@@ -1109,7 +1424,14 @@ impl WorkerWireWindow {
                 } else {
                     self.source.table.xor_rows(frame.body)?
                 };
-                encode_frame(REPLY, expected, frame.dimensions, &values, &self.run.lease)?
+                encode_frame(
+                    REPLY,
+                    expected,
+                    frame.dimensions,
+                    &values,
+                    &self.run.lease,
+                    reply_permit,
+                )?
             }
         };
         self.completed += 1;
@@ -1165,3 +1487,7 @@ mod tests;
 #[cfg(test)]
 #[path = "seeded_wire_tests.rs"]
 mod seeded_tests;
+
+#[cfg(test)]
+#[path = "wire_quota_tests.rs"]
+mod quota_tests;

@@ -557,8 +557,9 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
         raise BenchmarkMemoryError("GKM requires a bounded full-KV response without cache reuse")
     try:
         raw_contract = (decoder_contract(config, input_rows=rows, decode_steps=outputs - 1,
-                                        capacity=capacity) if expanded else
-                        decoder_contract(config, input_rows=rows, decode_steps=outputs - 1))
+                                        capacity=capacity, streamed=True) if expanded else
+                        decoder_contract(config, input_rows=rows, decode_steps=outputs - 1,
+                                         streamed=True))
         contract = json.loads(raw_contract)
     except (ValueError, TypeError, OverflowError) as exc:
         raise BenchmarkMemoryError("GKM source or workload exceeds native numerical admission") from exc
@@ -607,6 +608,7 @@ def _delegated_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound,
             },
             "contract_execution_payload_estimate_bytes": contract["execution_payload_estimate_bytes"],
             "publication_window_payload_allowance_bytes": contract["capsule_payload_allowance_bytes"],
+            "native_transport_resources": deepcopy(contract["transport_resources"]),
             "transport_and_tokenizer_allowance_per_role_bytes": transport,
         },
         "components": {"source_float32_bytes": source,

@@ -8,13 +8,14 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBool, PyBytes, PyDict};
 
 #[pyfunction]
-#[pyo3(signature = (config, input_rows, decode_steps, *, capacity="capsule"))]
+#[pyo3(signature = (config, input_rows, decode_steps, *, capacity="capsule", streamed=false))]
 fn gkm_decoder_contract<'py>(
     py: Python<'py>,
     config: &Bound<'_, PyBytes>,
     input_rows: usize,
     decode_steps: usize,
     capacity: &str,
+    streamed: bool,
 ) -> PyResult<Bound<'py, PyBytes>> {
     let config = config.as_bytes();
     let capacity = match capacity {
@@ -24,7 +25,21 @@ fn gkm_decoder_contract<'py>(
     };
     let contract = py
         .detach(|| {
-            GkmDecoderContract::compile_with_capacity(config, input_rows, decode_steps, capacity)
+            if streamed {
+                GkmDecoderContract::compile_streamed_with_capacity(
+                    config,
+                    input_rows,
+                    decode_steps,
+                    capacity,
+                )
+            } else {
+                GkmDecoderContract::compile_with_capacity(
+                    config,
+                    input_rows,
+                    decode_steps,
+                    capacity,
+                )
+            }
         })
         .map_err(crate::invalid)?;
     Ok(PyBytes::new(py, &contract.canonical_bytes()))

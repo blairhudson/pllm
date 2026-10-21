@@ -257,6 +257,7 @@ class _Peers:
         prefix = f"role_link.{self.roles[role]}.{phase}_"
         observed = 0
         response_seen = False
+        buffer = view = prefix_view = chunk = None
         try:
             path = (f"/v1/{self.namespace}/{action}" if action in {"manifest", "admit"}
                     else f"/v1/{self.namespace}/{self.request_id}/{action}")
@@ -271,7 +272,7 @@ class _Peers:
                     self.phase_bytes[self.phase] += len(response.request.content)
                 if response.headers.get("content-encoding", "identity") != "identity":
                     raise ProtocolError("GKM worker changed response encoding")
-                chunks = []
+                buffer = bytearray(limit)
                 async for chunk in response.aiter_raw():
                     observed += len(chunk)
                     self.counts[prefix + "download_bytes"] += len(chunk)
@@ -279,7 +280,7 @@ class _Peers:
                         self.phase_bytes[self.phase] += len(chunk)
                     if observed > limit:
                         raise ProtocolError("GKM worker response exceeds its bound")
-                    chunks.append(chunk)
+                    buffer[observed - len(chunk):observed] = chunk
                 if response.status_code != 200:
                     raise ProtocolError("GKM worker rejected its one-use request", response.status_code)
                 if phase == "online":
@@ -289,13 +290,21 @@ class _Peers:
                         self.server_known = False
                     else:
                         self.server_ns += int(elapsed)
-                return b"".join(chunks)
+                view = memoryview(buffer)
+                prefix_view = view[:observed]
+                return bytes(prefix_view)
         except BaseException:
             # A failed connection can have sent bytes before receiving headers.
             # Never manufacture a zero total for that unknown direction/window.
             if not response_seen:
                 self.unknown.update((prefix + "upload_bytes", prefix + "download_bytes"))
             raise
+        finally:
+            if prefix_view is not None:
+                prefix_view.release()
+            if view is not None:
+                view.release()
+            buffer = view = prefix_view = chunk = payload = None
 
     def admit(self, contract, publication, pin, starts, experiment, source, request_id, rows, outputs):
         self.request_id = digest(request_id.hex())

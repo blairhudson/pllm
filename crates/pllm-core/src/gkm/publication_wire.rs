@@ -39,17 +39,33 @@ impl Publication {
     pub fn export_wire(&self) -> Result<WireBytes, Error> {
         let point_length =
             |p: &ProjectivePoint| 1 + p.to_affine().to_encoded_point(true).as_bytes().len();
-        let mut length = 8 + 32 + 32 + 8 + 8 + 32 + 8 + 8 + self.row_hashes.len() * 32;
+        let mut length = self
+            .row_hashes
+            .len()
+            .checked_mul(32)
+            .and_then(|n| n.checked_add(136))
+            .ok_or(Error::Limit)?;
         for point in &self.r {
-            length += point_length(point);
+            length = length
+                .checked_add(point_length(point))
+                .ok_or(Error::Limit)?;
         }
         for matrix in &self.matrices {
-            length += 32 + 32 + 8 + 8 + (matrix.rows + matrix.columns) * 8;
+            length = matrix
+                .rows
+                .checked_add(matrix.columns)
+                .and_then(|n| n.checked_mul(8))
+                .and_then(|n| n.checked_add(80))
+                .and_then(|n| n.checked_add(length))
+                .ok_or(Error::Limit)?;
             for point in &matrix.s {
-                length += point_length(point);
+                length = length
+                    .checked_add(point_length(point))
+                    .ok_or(Error::Limit)?;
             }
         }
-        let mut out = WireBytes::allocate(length, self.capacity)?;
+        let mut out =
+            WireBytes::allocate_publication(length, self.capacity, self.export_quota.as_ref())?;
         out.extend(MAGIC);
         out.extend(&self.digest);
         out.extend(&self.context);
@@ -97,6 +113,33 @@ impl Publication {
         bytes: &[u8],
         authenticated_owner_digest: [u8; 32],
         capacity: Capacity,
+    ) -> Result<Self, Error> {
+        Self::import_wire_owned(
+            bytes,
+            authenticated_owner_digest,
+            capacity,
+            PublicationOwnership::General,
+        )
+    }
+
+    pub fn import_wire_streamed_single_window(
+        bytes: &[u8],
+        authenticated_owner_digest: [u8; 32],
+        capacity: Capacity,
+    ) -> Result<Self, Error> {
+        Self::import_wire_owned(
+            bytes,
+            authenticated_owner_digest,
+            capacity,
+            PublicationOwnership::StreamedSingleWindow,
+        )
+    }
+
+    fn import_wire_owned(
+        bytes: &[u8],
+        authenticated_owner_digest: [u8; 32],
+        capacity: Capacity,
+        ownership: PublicationOwnership,
     ) -> Result<Self, Error> {
         if bytes.len() > capacity.max_publication_wire_bytes() {
             return Err(Error::Limit);
@@ -162,7 +205,9 @@ impl Publication {
             let columns = u64::from_le_bytes(bytes[at + 72..at + 80].try_into().unwrap()) as usize;
             (rows, columns)
         });
-        let resources = PublicationResources::for_shape_iter(shapes, vocabulary, width, capacity)?;
+        let resources = PublicationResources::for_shape_iter_owned(
+            shapes, vocabulary, width, capacity, ownership,
+        )?;
         let admission = PublicationPermit::acquire(
             &PROCESS_PUBLICATIONS,
             resources.admitted_payload_bytes,
@@ -223,6 +268,8 @@ impl Publication {
             digest: authenticated_owner_digest,
             live: AtomicU32::new(0),
             clients: AtomicU32::new(0),
+            window_started: AtomicBool::new(false),
+            export_quota: Self::new_export_quota(ownership),
             _admission: admission,
         })
     }

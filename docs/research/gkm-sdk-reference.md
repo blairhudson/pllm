@@ -119,6 +119,42 @@ transport disallows executor work. Its owner and stack are included in the
 existing 64 MiB outer transport allowance. Native logical caps, caller buffers,
 process RSS and conservative host admission remain distinct accounting scopes.
 
+Worker admission preflights the complete shallow MessagePack schema before
+general decoding. Nested containers, unknown/duplicate fields and oversized
+binary spans reject without expanding a decoded object tree; opaque native
+frames and existing legal header encodings stay unchanged. Fixed receive buffers
+bound collector-owned storage rather than accumulating one Python object per
+network chunk. Authentication, busy-session isolation and directed byte counters
+retain their existing contracts. The stock worker launcher caps concurrent HTTP
+requests at four; externally hosted ASGI apps must enforce the corresponding
+request-through-response lifetime bound separately.
+
+### Streamed single-window admission
+
+The SDK binds `pllm.gkm.streamed-single-window.v1` ownership separately from the
+unchanged source/numerical identity. Native publication permits and host admission
+price the same complete source, publication, publisher scratch, 131072-byte import
+workspace and one complete window. The generic eager/reference API still reserves
+whole-matrix staging and eight windows. Specialized publications permit one
+lifetime window attempt; publication export is one-shot. Retained frames keep
+their reservations after cancellation and owner retirement.
+
+Operation frames additionally share a whole-window limit of four retained
+handles and four maximum-frame widths of charged storage. Temporary wire scratch
+has its own four-guard/four-width quota; publication export has a separate
+one-live-handle publication-width cap. Actual capacity and bounded control
+overhead count before allocation. Exhaustion poisons the window, and refunds
+follow zeroization and deallocation. Generic owners bypass these specialized
+quotas; the existing outer allowance is not increased.
+
+Decoder host admission additionally retains outer publication/frame copies,
+local coefficients, full client tensors, process and transport allowances and
+the ordinary safety margin. No role's source owner is removed based on expected
+startup sequencing, and no measured historical RSS is credited. The native
+transport-resource components are included in the memory estimate. This is an
+ownership-estimate correction, not a measured process-memory reduction or a
+full-checkpoint admission result.
+
 Co-located children demonstrate role separation, not operator independence.
 Confidential transport, non-collusion and the paper's verification assumptions
 retain their separate contracts. This implementation review is not independent
@@ -165,6 +201,14 @@ two-process SDK, gateway and benchmark checks cover both sharing profiles.
 Release Clippy, formatting, API
 coverage and the 43 documentation checks pass. These checks do not supply a
 full-checkpoint equality or performance result.
+
+The streamed single-window admission and parser follow-up passes 906 installed
+Python checks across the broad run and a sequential rerun, plus 95 native checks.
+The final-wheel broad run passed 866 checks while 40 SDK/gateway checks encountered
+host memory-pressure guards; all 40 passed when rerun without compilation overlap.
+Release Clippy, formatting, lint and the 43 documentation checks pass. These
+results establish generated functionality and bounded ownership, not checkpoint
+quality, measured memory savings or a successful publication benchmark.
 
 The reusable `examples/benchmarks/gkm_sharing.py` uses ordinary response targets,
 three balanced fresh clients per sharing choice, complete accepted-state audits

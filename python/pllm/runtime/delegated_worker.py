@@ -20,7 +20,7 @@ from pllm import _native
 from pllm.configuration import Experiment
 from pllm.deployment.resources import reserve_incremental_memory
 
-from .delegated_protocol import ROLES, digest, limits, pack, unpack
+from .delegated_protocol import ROLES, digest, limits, pack, unpack, unpack_admission
 from .delegated_protocol import clear_failure_frames as _clear_failure_frames
 from .delegated_source import admit_source
 from .delegated_transport import request_memory_bytes
@@ -33,17 +33,19 @@ async def _body(request, limit):
             or request.headers.get("content-encoding", "identity") != "identity"):
         raise ValueError("GKM invalid bounded body declaration")
     expected = int(lengths[0])
-    raw = bytearray()
+    raw = bytearray(expected)
+    cursor = 0
     block = None
     try:
         # A rejected block can still be held by the suspended stream generator.
         # Close it before returning control to the reservation owner.
         async with aclosing(request.stream()) as stream:
             async for block in stream:
-                if len(raw) + len(block) > expected:
+                if len(block) > expected - cursor:
                     raise ValueError("GKM body exceeds declared length")
-                raw.extend(block)
-        if len(raw) != expected:
+                raw[cursor:cursor + len(block)] = block
+                cursor += len(block)
+        if cursor != expected:
             raise ValueError("GKM body length mismatch")
         return bytes(raw)
     finally:
@@ -258,7 +260,7 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                     reservation.__enter__()
                     body_reservation = reservation
                 raw = await asyncio.wait_for(_body(request, owner.admission_limit), timeout=owner.ttl)
-                value = unpack(raw, limit=owner.admission_limit)
+                value = unpack_admission(raw, getattr(owner.source, "capacity", "capsule"))
                 if set(value) != {"schema", "request", "epoch", "configuration", "source_lock",
                                   "tokenizer", "input_rows", "output_tokens", "publication", "pin", "start"}:
                     raise ValueError("GKM invalid admission fields")

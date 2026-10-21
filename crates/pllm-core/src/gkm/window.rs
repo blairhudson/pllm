@@ -286,7 +286,14 @@ impl Budget {
         publication
             .clients
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
-                (n < MAX_CLIENTS_PER_PUBLICATION).then_some(n + 1)
+                let cap = if publication.resources.ownership
+                    == super::PublicationOwnership::StreamedSingleWindow
+                {
+                    1
+                } else {
+                    MAX_CLIENTS_PER_PUBLICATION
+                };
+                (n < cap).then_some(n + 1)
             })
             .map_err(|_| Error::Limit)?;
         Ok(Arc::new(Self {
@@ -310,6 +317,8 @@ struct Lease {
     budget: Arc<Budget>,
     poisoned: AtomicBool,
     seeded_completed: AtomicU32,
+    frames: wire::WireQuota,
+    scratch: wire::WireQuota,
 }
 impl Lease {
     fn ensure_open(&self) -> Result<(), Error> {
@@ -353,6 +362,8 @@ impl Lease {
             budget: Arc::clone(budget),
             poisoned: AtomicBool::new(false),
             seeded_completed: AtomicU32::new(0),
+            frames: wire::WireQuota::new(),
+            scratch: wire::WireQuota::new(),
         }))
     }
 }
@@ -418,6 +429,7 @@ impl Client {
         plan: &[Step],
         profile: SharingProfile,
     ) -> Result<Window, Error> {
+        self.publication.reserve_window()?;
         // Attempts are charged before validating caller-controlled shape/order.
         let sequence = reserve(&self.budget.windows, 1, MAX_WINDOWS)?;
         reserve(&PROCESS_WINDOWS, 1, MAX_PROCESS_WINDOWS)?;

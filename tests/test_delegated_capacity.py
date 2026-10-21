@@ -171,7 +171,7 @@ def test_worker_admission_retires_decoded_body_before_temporary_reservation(tmp_
     app = delegated_worker.create_delegated_worker_app(experiment, "worker_a", "a" * 32)
     owner = app.state.delegated_owner
     decoded_refs, released = [], []
-    original_unpack = delegated_worker.unpack
+    original_unpack = delegated_worker.unpack_admission
 
     class Decoded(dict):
         pass
@@ -217,7 +217,7 @@ def test_worker_admission_retires_decoded_body_before_temporary_reservation(tmp_
         assert held is not None
         raise ValueError("controlled nested import rejection")
 
-    monkeypatch.setattr(delegated_worker, "unpack", unpack)
+    monkeypatch.setattr(delegated_worker, "unpack_admission", unpack)
     monkeypatch.setattr(delegated_worker, "reserve_incremental_memory", reserve)
     owner.source = SimpleNamespace(capacity="decoder",
         source_lock_digest=owner.source.source_lock_digest,

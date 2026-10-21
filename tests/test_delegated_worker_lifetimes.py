@@ -606,3 +606,74 @@ def test_http_admission_delivery_and_retirement_preserve_existing_behavior(admis
     assert h.owner.active is None and h.owner.reservation is None
     assert h.ledger["used"] == 0 and not h.payloads.live()
     assert sorted(h.refunds) == sorted([h.root_bytes, h.body_bytes])
+
+
+@pytest.mark.parametrize("blocks", [[b"a", b"", b"b", b"c"], [b"abc"], [b"", b""]])
+def test_body_fixed_allocation_and_exact_length(monkeypatch, blocks):
+    allocations = []
+    expected = sum(map(len, blocks))
+
+    def allocate(size):
+        allocations.append(size)
+        return bytearray(size)
+
+    monkeypatch.setattr(worker, "bytearray", allocate, raising=False)
+
+    async def run():
+        iterator = iter(enumerate(blocks))
+
+        async def receive():
+            index, block = next(iterator)
+            return {"type": "http.request", "body": block, "more_body": index < len(blocks) - 1}
+
+        assert await worker._body(_request(receive, length=expected), 64) == b"".join(blocks)
+
+    asyncio.run(run())
+    assert allocations == [expected]
+
+
+@pytest.mark.parametrize("authorized,busy,status", [(False, False, 401), (True, True, 409), (True, False, 400)])
+def test_admission_preflight_preserves_auth_busy_and_native_load_order(admission, monkeypatch, authorized, busy, status):
+    h = admission
+    raw = b"\x8b\xabpublication\xdc\x00\x20"
+    reads = []
+
+    async def receive():
+        reads.append(True)
+        return {"type": "http.request", "body": raw, "more_body": False}
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid admission reached native or msgpack value loading")
+
+    monkeypatch.setattr(worker, "unpack", forbidden)
+    monkeypatch.setattr(worker.unpack_admission.__globals__["msgpack"], "unpackb", forbidden)
+    monkeypatch.setattr(h.source, "load_transport", forbidden)
+    sentinel = object()
+    if busy:
+        h.owner.active = sentinel
+        h.owner.deadline = worker.time.monotonic() + 60
+    try:
+        response = asyncio.run(h.endpoint(_request(receive, action="admit", length=len(raw), authorized=authorized)))
+        assert response.status_code == status
+        assert bool(reads) == (status == 400)
+        assert not h.loads and h.owner.seen == set()
+        assert h.ledger["used"] == 0
+        assert h.refunds == ([h.body_bytes] if status == 400 else [])
+        assert h.owner.active is (sentinel if busy else None)
+    finally:
+        h.owner.active = None
+
+
+def test_admission_replay_still_burns_only_valid_request(admission):
+    h = admission
+
+    async def run():
+        response = await h.endpoint(h.request())
+        assert response.status_code == 200
+        response.close()
+        h.owner.retire()
+        assert (await h.endpoint(h.request())).status_code == 400
+        assert len(h.loads) == 1 and h.owner.seen == {"a" * 64}
+        assert h.ledger["used"] == 0
+
+    asyncio.run(run())

@@ -165,13 +165,18 @@ class GkmDecoderResult:
 
 
 def decoder_contract(config: Mapping[str, Any], *, input_rows: int, decode_steps: int,
-                     capacity: str = "capsule") -> bytes:
-    """Check public geometry before the caller reads or converts any tensors."""
+                     capacity: str = "capsule", streamed: bool = False) -> bytes:
+    """Check geometry before tensor access; streamed selects SDK ownership admission."""
     if type(input_rows) is not int or type(decode_steps) is not int:
         raise ValueError("GKM workload sizes must be integers")
     encoded = _encode_config(config)
     if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
         raise ValueError("GKM capacity must be capsule or decoder")
+    if type(streamed) is not bool:
+        raise ValueError("GKM streamed must be a boolean")
+    if streamed:
+        return _native.gkm_decoder_contract(encoded, input_rows, decode_steps,
+                                            capacity=capacity, streamed=True)
     if capacity != "capsule":
         return _native.gkm_decoder_contract(encoded, input_rows, decode_steps, capacity=capacity)
     return _native.gkm_decoder_contract(encoded, input_rows, decode_steps)
