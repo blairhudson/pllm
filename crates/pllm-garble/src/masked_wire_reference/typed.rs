@@ -16,6 +16,8 @@
 //!
 //! Single-consumer slice: each root supplies exactly one capability per party;
 //! begin consumes those capabilities. No cloning, fanout or remasking API exists.
+//! The fixed [`ActivationPrefixParty`] alone retains original backing for its
+//! precommitted TR6/DReLU/Select uses; no intermediate capability is exported.
 //! Every two-element owner array is ordered `[party0, party1]`. Consumer tags
 //! identify the predeclared consumer operation/edge; issuing that operation
 //! additionally binds its complete input and output descriptor digests.
@@ -38,11 +40,13 @@ use std::{marker::PhantomData, mem::size_of};
 use zeroize::Zeroizing;
 
 mod material;
+mod region;
 mod selection_bridge;
 pub use material::{
     matrix_material_resources, MatrixHandoff, MatrixImportPermit, MatrixMaterialDescriptor,
     MatrixMaterialPacket, MatrixMaterialProvenance, MatrixMaterialResources,
 };
+pub use region::{ActivationPrefixParty, PrefixFrame, PrefixSpec, PrefixStep};
 pub use selection_bridge::SelectionParty;
 
 const ALLOCATOR: usize = 64;

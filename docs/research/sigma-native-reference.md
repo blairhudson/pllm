@@ -238,9 +238,55 @@ checked. Output width and Q scaling equal the ring input's; its signed interval
 is the conditional zero/input hull, while absent provenance stays absent.
 Original native owners move intact; wrapper and native peak charges coexist with
 borrowed input owners. Separate roots establish no predicate/input relation and
-do not implement activation fanout. A fixed-template activation-region ownership
-proposal remains subject to separate approval; this primitive is not GELU/SiLU,
+do not implement activation fanout. The separately approved fixed prefix below
+supplies only its precommitted internal uses; this primitive is not GELU/SiLU,
 a decoder or an SDK component.
+
+## Fixed owning activation prefix
+
+`typed::LocalDealer::activation_prefix` consumes a Q12 input-mask capability and
+issues separate party-local owners for exactly `Y=TR6(X)`, `D=[Y>=0]`,
+`R=Select(D,Y)`. Input widths are 12–64, lanes 1–256; Y/R use the reduced
+(n−6)-bit Q6 ring. Existing Q12 metadata rejects widths 9–11. Signed floors,
+zero's nonnegative predicate and D16/D17 masks remain unchanged. This prefix
+selects Y, not the original X selected later in complete source activations.
+
+`PrefixSpec` binds complete input/intermediate/output descriptors and the next
+consumer. Shared core `ConsumerUse` metadata declares each operand position and
+ordinal but grants no authority. A private four-slot ledger additionally binds
+actual source/session/namespace/issuance/mask/role capabilities: X/TR, Y/DReLU,
+D/Select, Y/Select. Each party consumes its external X once and retains the same
+original Y backing for both internal reads. No intermediate capability escapes;
+there is no exported fanout, cloning, remasking or arbitrary graph execution.
+
+All three native issuances and their wrappers/workspace are admitted together
+before randomness. The incremental peak is the sum of the unchanged TR6,
+DReLU and Select combined reservations, two party-wrapper reservations, a final
+mask-wrapper reservation and issuance workspace. Each party wrapper prices its
+inline owner, final common-output wrapper, four retained frame/step wrappers and
+8 KiB transition allowance. Issuance additionally prices two inline party owners,
+the spec, four bindings, three native contexts, final mask wrapper and 16 KiB
+workspace. Existing input/backing reservations remain independently live.
+Native leases move intact; cancellation erases/drops local state before wrapper
+refund, and externally retained frames keep their own native/wrapper leases.
+Matrix-backed X retains its original singleton until that backing retires; final
+arithmetic R does not acquire a synthetic matrix guard.
+
+Execution has four peer exchanges: two TR phases, DReLU, Select. Eight directed
+frames cost exactly `8*(76+8*lanes)` bytes, excluding downstream consumption.
+Failures burn every remaining local stage; the caller must cancel its sibling.
+Outputs remain opaque common-masked capabilities usable by existing consuming
+typed operations. This supplies local ownership composition, not authenticated
+transport, compiler/checkpoint ranges, security qualification or a runnable SDK
+decoder. Numerical and public-API contracts/tests:
+[`sigma-activation-prefix-contract.md`](sigma-activation-prefix-contract.md).
+
+Lookup remains unimplemented and separately approval-gated. The pinned source
+opens a masked value **and** masked sign correction, then derives final mask
+`rho=2*u-r`, uniform marginally but parity-correlated with internal r. Reconstructed
+and deferred-share output boundaries are distinct; neither silently replaces the
+other in full GELU/SiLU. See the unapproved next-gate audit in
+[`../plans/sigma-source-lookup.md`](../plans/sigma-source-lookup.md).
 
 ## Separate GPU-derived DPF primitive
 
@@ -348,7 +394,7 @@ The DPF run adds independent AES wordwise/NIST/frozen OpenSSL vectors, complete
 width-8/9 point and strict-less tables under both root phases, wide endpoints,
 bounded expansion/work counters, canonical parsing and erasure/failure controls.
 The complete `cargo test --release --offline -j 1 -p pllm-garble` run passes
-471 unit tests, five external integration tests and twelve doctests; eight opt-in exporters or
+490 unit tests, fifteen external/oracle checks and seventeen doctests; eight opt-in exporters or
 measurements remain ignored. Its fourteen arithmetic tests cover every legal
 small-ring shift/input/mask, exact RNG requests and measured AES block counts,
 64-bit boundaries, all-gate entropy/allocation failures and retained-owner leases.
@@ -365,9 +411,10 @@ both matrix layouts, width-64 canonical residues, descriptor/packet substitution
 imported-party input rejection, single-use/re-export rejection, all allocation
 failures and exact independent retained charges. A restored ring-only output
 retains its absent interval and cannot qualify GapARS. Golden-envelope checks
-preserve historical FuseFSS bytes. Shared edge metadata's eleven tests, shared-core traversal's
-eight tests and 280 independent source-terminal/arithmetic-mask negative controls
-also pass. These do not establish general compiler graph provenance.
+preserve historical FuseFSS bytes. All 458 shared-core library tests pass in a
+serial run, including fifteen edge-metadata and eight traversal checks; 280
+independent source-terminal/arithmetic-mask negative controls also pass. These
+do not establish general compiler graph provenance.
 Direct Select controls additionally check exhaustive small-ring equations,
 ring64 endpoints, exact native charges, independent DReLU/input roots,
 typed hull provenance, bad bindings, out-of-order calls, malformed frames,
@@ -375,6 +422,17 @@ allocation/cancellation failures and retained frame/output leases. The typed
 finish-before-begin path returns `Context` and consumes the owner; retries return
 `Consumed`. The library Clippy checks for core/garble and compiler library check
 also pass with release/offline single-job execution and warnings denied for Clippy.
+Fixed-prefix controls additionally cover independent signed-floor/selection oracles,
+all three issuances' entropy failures, allocation failures, zero-draw preflight,
+late DReLU/Select frame substitution, private-use binding and original Y
+address/lease continuity. Exact-budget controls retain all eight directed frames
+and reconcile each drop's refund. Matrix guards remain with their actual input
+backing; compile-fail checks reject intermediate escape. Public tests follow the
+complete four-exchange schedule without exposing hidden intermediate values.
+An independent native-predicate check observes D before final selection: X=-1
+is negative after TR6, while every X=0..63 gives Y=0 and a true predicate, with
+both Boolean masks and both roles. Compile-fail checks additionally reject
+post-begin input reuse and public access to final payload/dealer-mask backing.
 Filtered native reruns overlap the complete suite, not additional distinct checks.
 Primitive parity supplies no trained-checkpoint, quality, WAN, performance or
 whole-client memory result. Complete source-specific truncation, nonlinear

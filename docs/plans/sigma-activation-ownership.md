@@ -1,6 +1,10 @@
 # SIGMA bounded activation ownership proposal
 
-Status: **NOT APPROVED**. Native/typed five-word Select validation passes:
+Status: **APPROVED for the fixed TR6 → DReLU → Select owning region only**.
+The fixed region is implemented and its bounded local qualification passes:
+490 native unit, 15 external/oracle and 17 doc checks (eight opt-in skips),
+458 shared core checks (including 15 metadata checks) and 280 leakage controls. Library Clippy and the
+compiler library check pass. Native/typed five-word Select's earlier validation passed:
 471 unit, five external and twelve doc tests (eight opt-in skips), 280 leakage
 controls, library Clippy and compiler check. Matrix handoff baseline: `920c48c1`.
 This is a working plan, not
@@ -9,7 +13,7 @@ Parent owns all integration and documentation outside this file.
 
 ## Smallest next executable gate
 
-After approval and successful Select validation, implement exactly:
+Under the user's explicit approval and successful Select validation, implement exactly:
 
 ```text
 Y = TR(X, 6)       # signed floor represented in the reduced ring
@@ -18,9 +22,14 @@ R = Select(D, Y)   # common additive-masked D*Y
 ```
 
 For Q12 input, Y/R are Q6; input width n becomes n-6. Admit only widths
-supported by every constituent primitive (n >= 9, n <= 64), 1–256 lanes,
+supported by every constituent primitive and existing Q12 metadata (n >= 12,
+n <= 64), 1–256 lanes,
 and the existing aggregate 64 MiB logical ceiling. This prefix is not GELU/SiLU.
 Use existing D16 GPU127 and D17 fresh full-output-ring masks; no numeric variant.
+Q12 widths 9–11 remain invalid because fractional precision cannot exceed ring
+width. Four ordered operand uses are authorization events, not exchange phases.
+Native execution independently requires four exchanges (TR two, DReLU one,
+Select one), not three. The eight directed frames total `8*(76+8*lanes)` bytes.
 
 ## Ownership, uses, and leases
 
@@ -71,6 +80,10 @@ Before implementation freeze GPU127 sign-correction mapping and reconstruction
 boundary. Changed correction protocol, terminals, exchanges or numerics need
 explicit approval. FuseFSS additive-share lookup is not a common-wire substitute.
 
+The completed source audit is in [sigma-source-lookup.md](sigma-source-lookup.md).
+It identifies the masked-sign opening, reconstructed versus deferred boundaries,
+and derived final-mask dependency. Lookup implementation remains unapproved.
+
 ## Parallel Sol slices after approval
 
 - Metadata Sol: `crates/pllm-core/src/edge_contract.rs`; bounded consumer-use
@@ -96,10 +109,12 @@ explicit approval. FuseFSS additive-share lookup is not a common-wire substitute
 - 1/256 lanes, checked overflow/over-budget admission, entropy/allocation failures,
   exact retained frame/output charges, erase-before-refund, matrix guard retention.
 
-## Next approval question
+## Approval boundary
 
-Approve fixed-template owning regions with single external consumption, retained
-original backings/leases and bounded precommitted internal-use ledgers, initially
-only TR6 -> DReLU -> Select? External single-consumer APIs, D16/D17, numeric
-semantics, role separation, matrix singleton and failure-burn contracts stay;
-exported fanout, cloning, remasking and arbitrary graph execution remain excluded.
+The user approved fixed-template owning regions with single external consumption,
+retained original backings/leases and bounded precommitted internal-use ledgers,
+initially only TR6 -> DReLU -> Select. External single-consumer APIs, D16/D17,
+numeric semantics, role separation, matrix singleton and failure-burn contracts
+stay unchanged. Exported fanout, cloning, remasking and arbitrary graph execution
+remain excluded. Full GELU/SiLU and lookup correction/reconstruction changes
+require separate approval; this approval is not region implementation evidence.

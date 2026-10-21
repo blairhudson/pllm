@@ -218,7 +218,7 @@ fn validate_inputs(spec: Spec, predicate: &[u64], input: &[u64]) -> Result<(), E
     Ok(())
 }
 
-fn issue_with<'a>(
+pub(super) fn issue_with<'a>(
     spec: Spec,
     context: Context,
     predicate_masks: &[u64],

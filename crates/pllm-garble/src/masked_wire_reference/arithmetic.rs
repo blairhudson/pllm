@@ -262,7 +262,7 @@ pub fn issue<'a>(
     })
 }
 
-fn issue_with<'a>(
+pub(super) fn issue_with<'a>(
     spec: Spec,
     context: Context,
     input_masks: &[u64],

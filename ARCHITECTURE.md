@@ -1232,8 +1232,15 @@ fresh full-ring output masks. Native and typed party owners preserve one-use
 failure retirement, input/output bindings and retained-frame reservations under
 the existing 256-lane/64 MiB limits. Predicate masks never become arithmetic
 shares. This local primitive supplies neither activation fanout nor a complete
-GELU/SiLU schedule, authenticated transport, decoder or SDK component; activation
-region ownership remains separately approval-gated. Contract:
+GELU/SiLU schedule, authenticated transport, decoder or SDK component. The separately
+approved fixed TR6 → DReLU → Select owning region consumes each external input
+once and retains original intermediates for four privately authorized operand
+uses. Method-neutral consumer metadata declares slots without granting execution
+authority. Q12 widths 12–64 retain reduced-ring Q6 outputs and four peer exchanges;
+all native stages and retained-owner overlap are admitted before issuance.
+No exported fanout, cloning, remasking or arbitrary graph execution is supplied.
+Lookup and complete activation reconstruction remain separately approval-gated.
+Contract:
 `docs/research/sigma-native-reference.md`.
 The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private
 4,096-row lookup with exact half-gates rescaling and multiplication through opaque

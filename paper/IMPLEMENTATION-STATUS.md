@@ -114,7 +114,15 @@ Completed foundations:
    and ring input through native and typed party owners, preserving full-ring
    output masks and the source selection equations. Independently masked roots
    do not establish activation branching or a complete GELU/SiLU schedule;
-   activation-region ownership still requires separate approval.
+   the separately approved fixed-template TR6 → DReLU → Select region now retains
+   original backing for four precommitted internal operand uses. Shared consumer
+   metadata does not grant authorization. Widths 12–64 preserve Q12→Q6 and four
+   exchanges; no exported fanout, cloning, remasking or full activation follows.
+   Bounded local validation passes 490 unit, fifteen external/oracle and seventeen
+   doc checks, plus 458 shared core checks and 280 leakage controls;
+   library Clippy and the compiler check pass. Source lookup remains separately
+   approval-gated for masked-sign correction, final-mask dependency and deferred
+   versus reconstructed output boundaries.
    No runnable SIGMA, trained decoder, SDK availability or composed security proof
   follows from these primitives. Compiler-proven graph ranges, arithmetic material
   codecs, authenticated party transport and complete nonlinear/decoder composition

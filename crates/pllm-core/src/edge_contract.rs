@@ -307,6 +307,67 @@ impl EdgeDescriptor {
     }
 }
 
+/// Allocation-free, unauthenticated declaration of one consumer operand use.
+///
+/// This is public metadata, not a capability or executable permission. Copying
+/// it grants no ownership, fanout, or authorization. All-zero identities and
+/// zero ordinals are valid declarations; no method-specific limits are imposed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ConsumerUse {
+    edge: EdgeDescriptor,
+    consumer: [u8; 32],
+    operand_position: u16,
+    ordinal: u32,
+}
+
+impl ConsumerUse {
+    pub fn new(
+        edge: EdgeDescriptor,
+        consumer: [u8; 32],
+        operand_position: u16,
+        ordinal: u32,
+    ) -> Self {
+        Self {
+            edge,
+            consumer,
+            operand_position,
+            ordinal,
+        }
+    }
+
+    pub fn edge(&self) -> EdgeDescriptor {
+        self.edge
+    }
+
+    pub fn consumer(&self) -> [u8; 32] {
+        self.consumer
+    }
+
+    pub fn operand_position(&self) -> u16 {
+        self.operand_position
+    }
+
+    pub fn ordinal(&self) -> u32 {
+        self.ordinal
+    }
+
+    /// SHA-256 of the canonical v1 use declaration, not proof of authorization.
+    ///
+    /// Exact byte order: domain `pllm.consumer-use\0v1\0`, the full 32-byte
+    /// [`EdgeDescriptor::digest`], the 32 consumer bytes in array order, u16 LE
+    /// operand position, then u32 LE ordinal. No length prefixes or padding are
+    /// added. The embedded edge digest retains its existing v1 encoding.
+    pub fn digest(&self) -> [u8; 32] {
+        let mut digest = Sha256::new();
+        digest.update(b"pllm.consumer-use\0v1\0");
+        digest.update(self.edge.digest());
+        digest.update(self.consumer);
+        digest.update(self.operand_position.to_le_bytes());
+        digest.update(self.ordinal.to_le_bytes());
+        digest.finalize().into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,6 +391,173 @@ mod tests {
             None,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn consumer_use_preserves_declarations_and_has_no_method_specific_caps() {
+        fn check<T: Clone + Copy + Eq + core::fmt::Debug>(_: T) {}
+        let zero = EdgeIdentity::new(
+            SourceIdentity::new([0; 32], [0; 32], [0; 32]),
+            [0; 32],
+            [0; 32],
+            [0; 32],
+            0,
+        );
+        for visibility in [
+            None,
+            Some(WeightVisibility::Private),
+            Some(WeightVisibility::Public),
+        ] {
+            let edge = EdgeDescriptor::new(
+                zero,
+                Shape::new(&[1024, 1024]).unwrap(),
+                Numeric::new(64, 64, Interpretation::Unsigned).unwrap(),
+                Representation::CommonAdditiveMasked,
+                visibility,
+            )
+            .unwrap();
+            for (consumer, position, ordinal) in [([0; 32], 0, 0), ([255; 32], u16::MAX, u32::MAX)]
+            {
+                let usage = ConsumerUse::new(edge, consumer, position, ordinal);
+                check(usage);
+                assert_eq!(usage.edge(), edge);
+                assert_eq!(usage.consumer(), consumer);
+                assert_eq!(usage.operand_position(), position);
+                assert_eq!(usage.ordinal(), ordinal);
+                assert_eq!(usage, ConsumerUse::new(edge, consumer, position, ordinal));
+            }
+        }
+    }
+
+    #[test]
+    fn consumer_use_canonical_v1_bytes_and_digest_are_frozen() {
+        // Frozen independently with Python hashlib.sha256 and struct.pack.
+        let edge_digest = [
+            0x73, 0x31, 0x5a, 0x69, 0xa2, 0x01, 0x77, 0x21, 0x96, 0xa8, 0x05, 0x5f, 0x86, 0xec,
+            0xea, 0x9b, 0x0d, 0xd1, 0x7a, 0xf0, 0x75, 0x65, 0xa9, 0x99, 0x41, 0x53, 0x15, 0xfc,
+            0xb1, 0xf1, 0x90, 0x59,
+        ];
+        let edge = descriptor();
+        assert_eq!(edge.digest(), edge_digest);
+        let consumer = core::array::from_fn(|index| index as u8);
+        let usage = ConsumerUse::new(edge, consumer, 0x1234, 0x89ab_cdef);
+        // Literal reference bytes: no production digest or integer encoders.
+        let mut bytes = b"pllm.consumer-use\0v1\0".to_vec();
+        bytes.extend_from_slice(&edge_digest);
+        bytes.extend_from_slice(&[
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            24, 25, 26, 27, 28, 29, 30, 31, 0x34, 0x12, 0xef, 0xcd, 0xab, 0x89,
+        ]);
+        let expected = [
+            0x33, 0x3f, 0xf4, 0xe9, 0xe9, 0x3c, 0xb6, 0x80, 0x12, 0x8a, 0x39, 0xae, 0x68, 0x0c,
+            0x04, 0x85, 0xfa, 0x98, 0xb2, 0xc1, 0x6d, 0xbe, 0x0e, 0xdc, 0x35, 0x1f, 0x3d, 0x70,
+            0x94, 0x8d, 0x64, 0xa9,
+        ];
+        let reference: [u8; 32] = Sha256::digest(&bytes).into();
+        assert_eq!(reference, expected);
+        assert_eq!(usage.digest(), expected);
+        assert_ne!(usage.digest(), edge_digest);
+        assert_eq!(edge.digest(), edge_digest);
+    }
+
+    #[test]
+    fn consumer_use_every_consumer_operand_and_ordinal_bit_affects_digest() {
+        let base = ConsumerUse::new(descriptor(), [0; 32], 0, 0);
+        for byte in 0..32 {
+            for bit in 0..8 {
+                let mut changed = base;
+                changed.consumer[byte] ^= 1 << bit;
+                assert_ne!(changed.digest(), base.digest());
+            }
+        }
+        for bit in 0..16 {
+            let changed = ConsumerUse::new(base.edge(), base.consumer(), 1u16 << bit, 0);
+            assert_ne!(changed.digest(), base.digest());
+        }
+        for bit in 0..32 {
+            let changed = ConsumerUse::new(base.edge(), base.consumer(), 0, 1u32 << bit);
+            assert_ne!(changed.digest(), base.digest());
+        }
+    }
+
+    #[test]
+    fn consumer_use_binds_full_edge_digest_and_preserves_historical_edge_behavior() {
+        let base = descriptor();
+        let usage = ConsumerUse::new(base, [0; 32], 0, 0);
+        let check = |edge: EdgeDescriptor| {
+            let historical = edge.digest();
+            assert_ne!(historical, base.digest());
+            let changed = ConsumerUse::new(edge, usage.consumer(), 0, 0);
+            assert_ne!(changed.digest(), usage.digest());
+            assert_eq!(changed.edge(), edge);
+            assert_eq!(changed.edge().digest(), historical);
+        };
+        for field in 0..6 {
+            for byte in 0..32 {
+                for bit in 0..8 {
+                    let mut fields = [[1; 32], [2; 32], [3; 32], [4; 32], [5; 32], [6; 32]];
+                    fields[field][byte] ^= 1 << bit;
+                    let mut edge = base;
+                    edge.identity = EdgeIdentity::new(
+                        SourceIdentity::new(fields[0], fields[1], fields[2]),
+                        fields[3],
+                        fields[4],
+                        fields[5],
+                        7,
+                    );
+                    check(edge);
+                }
+            }
+        }
+        for bit in 0..64 {
+            let mut edge = base;
+            edge.identity = identity(7 ^ (1u64 << bit));
+            check(edge);
+        }
+        for dimensions in [
+            &[6][..],
+            &[3, 2],
+            &[1, 2, 3],
+            &[2, 1, 3],
+            &[2, 3, 1],
+            &[1, 1, 2, 3],
+            &[4, 3],
+            &[2, 4],
+            &[2, 3, 4, 5],
+        ] {
+            let mut edge = base;
+            edge.shape = Shape::new(dimensions).unwrap();
+            check(edge);
+        }
+        for numeric in [
+            Numeric::new(64, 8, Interpretation::Signed).unwrap(),
+            Numeric::new(32, 9, Interpretation::Signed).unwrap(),
+            Numeric::new(32, 8, Interpretation::Unsigned).unwrap(),
+            Numeric::new(1, 0, Interpretation::Predicate).unwrap(),
+        ] {
+            let mut edge = base;
+            edge.numeric = numeric;
+            check(edge);
+        }
+        for representation in [
+            Representation::AdditiveShare,
+            Representation::CommonAdditiveMasked,
+        ] {
+            let mut edge = base;
+            edge.representation = representation;
+            check(edge);
+        }
+        for representation in [Representation::XorShare, Representation::CommonXorMasked] {
+            let mut edge = base;
+            edge.numeric = Numeric::new(1, 0, Interpretation::Predicate).unwrap();
+            edge.representation = representation;
+            check(edge);
+        }
+        for visibility in [WeightVisibility::Private, WeightVisibility::Public] {
+            let mut edge = base;
+            edge.weight_visibility = Some(visibility);
+            check(edge);
+        }
     }
 
     #[test]
