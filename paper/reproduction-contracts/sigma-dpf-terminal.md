@@ -3,7 +3,10 @@
 Status: **source-profile admission blocked**. This is a primitive-level finding
 in one inspected source snapshot, not a demonstrated attack on every SIGMA
 implementation or an executed model. No upstream code was built or executed.
-No replacement construction or source-profile implementation is approved here.
+The leaking CPU encoding remains prohibited. Decision D16 in
+`paper/methods/DECISIONS.md` separately approves a distinct CPU port of the GPU
+primitive, with full AES-expanded terminal words and actual key/PRG accounting.
+That approval does not qualify an implementation or provide security review.
 
 ## Inspected identity and equations
 

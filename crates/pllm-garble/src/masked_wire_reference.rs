@@ -18,6 +18,8 @@ use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
 mod coins;
+pub mod matrix;
+mod product;
 mod seeded_codec;
 pub mod transport;
 use coins::Coins;
@@ -439,21 +441,15 @@ impl Multiply {
         Self::issue_with(rx, ry, rout, &mut Coins::default())
     }
     fn issue_with(rx: u64, ry: u64, rout: u64, coins: &mut Coins) -> Result<[Self; 2], Error> {
-        let a = coins.share(rx.wrapping_neg(), N)?;
-        let b = coins.share(ry.wrapping_neg(), N)?;
-        let c = coins.share(rx.wrapping_mul(ry).wrapping_add(rout), N)?;
+        let a = coins.share(product::negative_mask(rx), N)?;
+        let b = coins.share(product::negative_mask(ry), N)?;
+        let c = coins.share(product::correlation(rx, ry, rout), N)?;
         Ok([0, 1].map(|i| Self {
             coefficients: Zeroizing::new([a[i], b[i], c[i]]),
         }))
     }
     fn eval(&self, party: u8, x: u64, y: u64) -> u64 {
-        u64::from(party)
-            .wrapping_mul(x)
-            .wrapping_mul(y)
-            .wrapping_add(self.coefficients[0].wrapping_mul(y))
-            .wrapping_add(self.coefficients[1].wrapping_mul(x))
-            .wrapping_add(self.coefficients[2])
-            & mask(N)
+        product::evaluate(party, x, y, &self.coefficients) & mask(N)
     }
     fn encode(&self, out: &mut impl BitSink) {
         for x in *self.coefficients {

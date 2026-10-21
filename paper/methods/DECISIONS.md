@@ -399,6 +399,46 @@ arithmetic, preprocessing reuse or an automatic performance claim. Generated
 integer/SDK parity and matched rate-plus-delay measurements precede practical
 WAN claims; trained checkpoint acceptance, setup volume and quality remain gates.
 
+## D16. Distinct CPU port of SIGMA's GPU-source DPF
+
+**Explicitly approved by the user:** use a distinct CPU port of the GPU DPF
+primitive at EzPC commit `aa0f2f860266fb79901405ef5e9965b8c9fe2e88`.
+This narrowly supersedes D1's CPU-source choice for that primitive only. Preserve
+the CPU numeric rules and existing default DPF profiles. The inspected leaking
+CPU DPFET terminal remains prohibited; it is not repaired by dropping its low bit.
+Source evidence and the attack's limited scope remain in
+`paper/reproduction-contracts/sigma-dpf-terminal.md`.
+
+The port retains randomized complementary root controls, the GPU source's AES
+tags and byte mapping, and two complete AES-expanded terminal correction words.
+For `d = n - 7`, its actual logical per-party key is `129*d + 255` bits, not the
+paper's `129*d + 254`; framing, padding, live capacities and PRG work are additional
+costs. CPU issuance may share identical public work across the two keys, but must
+charge its actual AES expansions and never reuse secret material across queries.
+
+This approves a source-profile adaptation, not byte-identical CPU-source fidelity,
+GPU performance, an independent security proof or complete SIGMA availability.
+Independent AES/point/comparison oracles, canonical malformed-input checks,
+bounded allocation and erasure, native/compiler/SDK integration, trained-checkpoint
+execution and quality remain separate gates. No trained-source or numeric-range
+approval is implied.
+
+## D17. SIGMA arithmetic-output mask width
+
+**Approval required:** the pinned CPU `SlothLRSfromWrap` and `SlothTRfromWrap`
+sample literal one-bit output masks before reconstructing multi-bit arithmetic
+outputs. Under the intended masked floor contract, results zero and two have
+disjoint observable sets. Source trace and independent negative controls:
+`paper/reproduction-contracts/sigma-arithmetic-masks.md`.
+
+Do not adopt that output-mask choice. The proposed disposition samples fresh
+uniform masks over the complete output ring (`n-s` bits for TR, `n` bits for
+same-ring shifts), retaining the original integer floor equations and charging
+randomness, material, physical owners and delivery. Boolean masks remain one bit.
+This source-view adaptation is separate from D16 and remains unimplemented until
+explicit approval. Primitive parity would not qualify composed security or SDK
+execution.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -418,6 +458,8 @@ WAN claims; trained checkpoint acceptance, setup volume and quality remain gates
 | D13 | Approved: FuseFSS complete GPT-2 and common-Qwen arithmetic | Complete-dot floor, separate attention-scale floor, source-table RMSNorm and per-term Q12 RoPE floors bind distinct decoder numeric identities; exact execution and checkpoint quality remain unqualified. |
 | D14 | Approved: opt-in FuseFSS checked ranges | Original Q12 arithmetic on accepted requests; secret safe fallback, sticky validity, final whole-request acceptance and complete work/quality qualification required. |
 | D15 | Approved: explicit FuseFSS online wavefront and stable tree selection | Exact Q12 arithmetic and fresh material; bounded execution/resource identity, complete setup and measured bandwidth-plus-delay qualification required. |
+| D16 | Approved: distinct CPU port of SIGMA GPU-source DPF | CPU numeric rules unchanged; randomized controls, full AES-expanded terminal, actual key/PRG costs and independent qualification required; leaking CPU terminal remains blocked. |
+| D17 | Required: full-ring SIGMA arithmetic-output masks | Literal one-bit CPU TR/LRS masks remain prohibited; proposed fresh output-ring masking needs explicit approval beyond D16. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

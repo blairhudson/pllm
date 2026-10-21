@@ -35,33 +35,25 @@ pub mod wire;
 pub use compiled::{CompiledGelu, CompiledResources};
 
 use crate::shared_affine_lookup_reference::{issue_ring, RingParty, RingTable};
+pub(crate) use crate::shared_allocation::allocate;
+#[cfg(test)]
+use crate::shared_allocation::exact_capacity;
+use crate::shared_allocation::Lease;
+pub use crate::shared_allocation::{Budget, Error, MAX_ALLOCATION_BYTES};
 use crate::shared_rescale_reference::Context;
 use crate::shared_wide_product::ring;
 use sha2::{Digest, Sha256};
-use std::{
-    mem::size_of,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::mem::size_of;
+#[cfg(test)]
+use std::sync::atomic::Ordering;
 use zeroize::Zeroizing;
 
-pub const MAX_ALLOCATION_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_LANES: usize = 4;
 pub const HEADER_BYTES: usize = 80;
 // Frozen clear-instance ceiling plus canonical descriptor ceiling. Callback
 // must include all live compiler owners/scratch within this combined allowance.
 const COMPILER_OVERLAP_BYTES: usize = 1024 * 1024 + 256 * 1024;
 const MAGIC: &[u8; 8] = b"PLLMFS01";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Error {
-    Domain,
-    Unsupported,
-    Resource,
-    Allocation,
-    Randomness,
-    Context,
-    Consumed,
-}
 
 pub(crate) fn primitive_error(error: crate::shared_rescale_reference::Error) -> Error {
     use crate::shared_rescale_reference::Error as Primitive;
@@ -74,88 +66,6 @@ pub(crate) fn primitive_error(error: crate::shared_rescale_reference::Error) -> 
     }
 }
 
-/// Shared logical-allocation envelope. Borrowing prevents budget destruction
-/// before exported parties/frames/outputs. No global allocator/RSS claim.
-pub struct Budget {
-    limit: usize,
-    used: AtomicUsize,
-    #[cfg(test)]
-    fail_after: std::sync::atomic::AtomicIsize,
-}
-impl Budget {
-    pub fn new(limit: usize) -> Result<Self, Error> {
-        if limit == 0 || limit > MAX_ALLOCATION_BYTES {
-            return Err(Error::Resource);
-        }
-        Ok(Self {
-            limit,
-            used: AtomicUsize::new(0),
-            #[cfg(test)]
-            fail_after: std::sync::atomic::AtomicIsize::new(-1),
-        })
-    }
-    pub fn used_bytes(&self) -> usize {
-        self.used.load(Ordering::SeqCst)
-    }
-    fn reserve(&self, bytes: usize) -> Result<Lease<'_>, Error> {
-        self.used
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |used| {
-                used.checked_add(bytes).filter(|next| *next <= self.limit)
-            })
-            .map_err(|_| Error::Resource)?;
-        Ok(Lease {
-            budget: self,
-            bytes,
-        })
-    }
-    pub(crate) fn allocation(&self) -> Result<(), Error> {
-        #[cfg(test)]
-        {
-            let n = self.fail_after.load(Ordering::SeqCst);
-            if n == 0 {
-                return Err(Error::Allocation);
-            }
-            if n > 0 {
-                self.fail_after.fetch_sub(1, Ordering::SeqCst);
-            }
-        }
-        Ok(())
-    }
-}
-struct Lease<'a> {
-    budget: &'a Budget,
-    bytes: usize,
-}
-impl<'a> Lease<'a> {
-    fn split(&mut self, bytes: usize) -> Result<Lease<'a>, Error> {
-        self.bytes = self.bytes.checked_sub(bytes).ok_or(Error::Resource)?;
-        Ok(Lease {
-            budget: self.budget,
-            bytes,
-        })
-    }
-}
-impl Drop for Lease<'_> {
-    fn drop(&mut self) {
-        self.budget.used.fetch_sub(self.bytes, Ordering::SeqCst);
-    }
-}
-pub(crate) fn allocate<T>(capacity: usize, budget: &Budget) -> Result<Vec<T>, Error> {
-    budget.allocation()?;
-    let mut values = Vec::new();
-    values
-        .try_reserve_exact(capacity)
-        .map_err(|_| Error::Allocation)?;
-    exact_capacity(values, capacity)
-}
-// Exported frames/outputs may outlive all party slack. Their leases charge the
-// backing capacity, so reject allocator over-grants before secret data is filled.
-fn exact_capacity<T>(values: Vec<T>, capacity: usize) -> Result<Vec<T>, Error> {
-    if values.capacity() != capacity {
-        return Err(Error::Resource);
-    }
-    Ok(values)
-}
 fn random() -> Result<u64, Error> {
     let mut bytes = Zeroizing::new([0; 8]);
     getrandom::fill(&mut *bytes).map_err(|_| Error::Randomness)?;

@@ -91,11 +91,77 @@ impl MatrixGeometry {
         self.output_elements
     }
 
+    pub fn coefficient_elements(self) -> usize {
+        (self.file_bytes / 8) as usize
+    }
+
+    fn coefficient_coordinates(self, index: usize) -> (usize, usize) {
+        match self.layout {
+            MatrixLayout::InputOutput => (index / self.columns, index % self.columns),
+            MatrixLayout::OutputInput => (index % self.inner, index / self.inner),
+        }
+    }
+
+    // Shared full-ring MAC traversal for public streamed and private resident
+    // sources. No allocation, transpose, rounding, or intermediate product.
+    fn accumulate_coefficient(
+        self,
+        index: usize,
+        weight: u64,
+        inputs: &[&[u64]],
+        outputs: &mut [&mut [u64]],
+    ) {
+        let (k, c) = self.coefficient_coordinates(index);
+        for row in 0..self.rows {
+            let x = row * self.inner + k;
+            let y = row * self.columns + c;
+            for (input, output) in inputs.iter().zip(outputs.iter_mut()) {
+                output[y] = output[y].wrapping_add(input[x].wrapping_mul(weight));
+            }
+        }
+    }
+
     /// Optional preflight before a caller allocates outputs. `multiply` repeats
     /// this check, then validates every output before zeroing or accumulating.
     pub fn validate_inputs(self, file: &PublicFile, inputs: &[&[u64]]) -> Result<(), Error> {
         check_inputs(file, self.file_bytes, inputs, self.input_elements)
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ResidentError {
+    Bounds,
+    Cancelled,
+}
+
+/// Add complete ring64 resident contraction to caller-owned accumulators.
+/// Private coefficients never enter `PublicFile`. All lengths checked before
+/// mutation. Cancellation checked before each coefficient (at most `rows` MACs
+/// per component between checks), erasing every output on cancellation.
+pub fn accumulate_resident(
+    coefficients: &[u64],
+    inputs: &[&[u64]],
+    outputs: &mut [&mut [u64]],
+    geometry: MatrixGeometry,
+    cancelled: &mut impl FnMut() -> bool,
+) -> Result<(), ResidentError> {
+    if coefficients.len() != geometry.coefficient_elements()
+        || !(1..=MAX_COMPONENTS).contains(&inputs.len())
+        || inputs.iter().any(|x| x.len() != geometry.input_elements)
+        || check_outputs(inputs, outputs, geometry.output_elements).is_err()
+    {
+        return Err(ResidentError::Bounds);
+    }
+    for (index, &weight) in coefficients.iter().enumerate() {
+        if cancelled() {
+            for output in outputs.iter_mut() {
+                output.zeroize();
+            }
+            return Err(ResidentError::Cancelled);
+        }
+        geometry.accumulate_coefficient(index, weight, inputs, outputs);
+    }
+    Ok(())
 }
 
 /// Checked public contiguous row selection. Selectors are [rows, count], the
@@ -221,18 +287,8 @@ fn accumulate(
         }
         for (i, raw) in buffer[..n].chunks_exact(8).enumerate() {
             let index = ((offset - start) / 8) as usize + i;
-            let (k, c) = match geometry.layout {
-                MatrixLayout::InputOutput => (index / geometry.columns, index % geometry.columns),
-                MatrixLayout::OutputInput => (index % geometry.inner, index / geometry.inner),
-            };
             let weight = u64::from_le_bytes(raw.try_into().unwrap());
-            for row in 0..geometry.rows {
-                let x = row * geometry.inner + k;
-                let y = row * geometry.columns + c;
-                for (input, output) in inputs.iter().zip(outputs.iter_mut()) {
-                    output[y] = output[y].wrapping_add(input[x].wrapping_mul(weight));
-                }
-            }
+            geometry.accumulate_coefficient(index, weight, inputs, outputs);
         }
         offset += n as u64;
     }
@@ -297,6 +353,97 @@ mod tests {
                 ring(sum)
             })
             .collect()
+    }
+
+    #[test]
+    fn resident_private_coefficients_share_complete_ring_traversal_and_oracle() {
+        let (rows, inner, columns) = (2, 5, 3);
+        let weights = coefficients(inner * columns);
+        let inputs = [component(rows * inner, 0), component(rows * inner, 1)];
+        for layout in [MatrixLayout::OutputInput, MatrixLayout::InputOutput] {
+            let stored: Vec<u64> = (0..inner * columns)
+                .map(|i| match layout {
+                    MatrixLayout::OutputInput => weights[i] as u64,
+                    MatrixLayout::InputOutput => {
+                        weights[(i % columns) * inner + i / columns] as u64
+                    }
+                })
+                .collect();
+            let geometry = MatrixGeometry::new(rows, inner, columns, layout).unwrap();
+            let mut outputs = [vec![19; rows * columns], vec![23; rows * columns]];
+            let [left, right] = &mut outputs;
+            accumulate_resident(
+                &stored,
+                &[&inputs[0], &inputs[1]],
+                &mut [left, right],
+                geometry,
+                &mut || false,
+            )
+            .unwrap();
+            for (index, (input, output)) in inputs.iter().zip(&outputs).enumerate() {
+                let expected: Vec<_> = reference(input, &weights, rows, inner, columns)
+                    .into_iter()
+                    .map(|v| v.wrapping_add([19, 23][index]))
+                    .collect();
+                assert_eq!(*output, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn resident_bounds_leave_all_outputs_unchanged_cancel_erases_all() {
+        let geometry = MatrixGeometry::new(2, 3, 2, MatrixLayout::InputOutput).unwrap();
+        for (weights, inputs, mut outputs) in [
+            (vec![1; 5], vec![vec![1; 6]], vec![vec![9; 4]]),
+            (vec![1; 6], vec![vec![1; 5]], vec![vec![9; 4]]),
+            (
+                vec![1; 6],
+                vec![vec![1; 6]; 2],
+                vec![vec![9; 4], vec![9; 3]],
+            ),
+            (vec![1; 6], vec![vec![1; 6]; 3], vec![vec![9; 4]; 3]),
+            (vec![1; 6], vec![], vec![]),
+        ] {
+            let original = outputs.clone();
+            let mut checks = 0;
+            assert_eq!(
+                accumulate_resident(
+                    &weights,
+                    &inputs.iter().map(Vec::as_slice).collect::<Vec<_>>(),
+                    &mut outputs
+                        .iter_mut()
+                        .map(Vec::as_mut_slice)
+                        .collect::<Vec<_>>(),
+                    geometry,
+                    &mut || {
+                        checks += 1;
+                        false
+                    }
+                ),
+                Err(ResidentError::Bounds)
+            );
+            assert_eq!(outputs, original);
+            assert_eq!(checks, 0);
+        }
+        for fail in 0..6 {
+            let mut outputs = [vec![9; 4], vec![9; 4]];
+            let [left, right] = &mut outputs;
+            let mut checks = 0;
+            assert_eq!(
+                accumulate_resident(
+                    &[1; 6],
+                    &[&[1; 6], &[1; 6]],
+                    &mut [left, right],
+                    geometry,
+                    &mut || {
+                        checks += 1;
+                        checks == fail + 1
+                    }
+                ),
+                Err(ResidentError::Cancelled)
+            );
+            assert_eq!(outputs, [vec![0; 4], vec![0; 4]]);
+        }
     }
 
     #[test]

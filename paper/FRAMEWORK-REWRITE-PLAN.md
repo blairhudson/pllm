@@ -17,6 +17,14 @@ identify common-Qwen extensions separately. Prefer an existing native Rust HE
 backend with the required primitives; another-language backend needs a decision.
 See the [recorded implementation decisions](methods/DECISIONS.md).
 
+Implementation priority is runnable coverage across all ten methods before deeper
+qualification or optimization of any one method. A runnable milestone requires a
+complete trained-checkpoint request through the ordinary SDK, gateway and
+benchmark path under the declared source, numeric, role and resource contracts.
+Generated fixtures and isolated operators do not close that milestone. Defer
+broader GKM publication qualification while completing missing methods; basic
+correctness and safe admission remain mandatory throughout.
+
 [`TEN-METHOD-COVERAGE.md`](TEN-METHOD-COVERAGE.md) records the starting coverage.
 Six methods have component adaptations, but none currently qualifies as a complete
 reimplementation for the proposed comparison. This is an implementation gap, not

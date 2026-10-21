@@ -1179,6 +1179,13 @@ peer frames. Client mask/boundary estimates and public tables stay separate;
 full wire and peak memory remain unknown. No reusable secret handles escape.
 SDK operator availability, paper coverage and whole-model execution are independent
 claims. SIGMA GPU execution and FuseFSS general fusion remain unimplemented.
+The separate bounded native masked-matrix harness extends the same negative-mask
+algebra to complete ring products, sharing resident/streamed contraction traversal
+and logical allocation budgets. Both shares remain in one coupled, non-Send
+operation; borrowed outputs retain its reservation through retirement. It supplies
+no truncation, isolated party transport or decoder selection. Caller-supplied mask
+freshness and excess backing capacities remain caller obligations. Contract and
+normal correctness tests: `docs/research/sigma-native-reference.md`.
 The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private
 4,096-row lookup with exact half-gates rescaling and multiplication through opaque
 labels. Its Q18-to-Q9 numeric profile matches uncompressed Curl; the existing

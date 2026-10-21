@@ -3,6 +3,11 @@
 //! Seeds retain 128 secret bits; control bits are separate (SIGMA uses 127).
 //! Internal reusable key algebra, never a public reusable protocol handle.
 
+// Explicit opt-in source-GPU profile; the legacy Key below is unchanged.
+// Kept private and unselected until source gate/runtime integration is admitted.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) mod gpu127;
+
 use aes::cipher::{BlockEncrypt, KeyInit};
 use aes::Aes128;
 use zeroize::{Zeroize, Zeroizing};

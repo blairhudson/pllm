@@ -27,6 +27,7 @@ pub mod projected_reshare;
 pub mod retained_selection;
 pub mod secret_replication;
 pub mod shared_affine_lookup_reference;
+pub mod shared_allocation;
 pub mod shared_arithmetic_reference;
 pub mod shared_circuit;
 pub mod shared_gated_block_reference;

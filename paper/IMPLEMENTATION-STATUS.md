@@ -83,6 +83,14 @@ Completed foundations:
   implements bounded two-claim algebra with complete P/Q/Qaux validation,
   response-fixation barriers and allocation/retirement checks. Code-distance,
   dual-LPN, model numerics and complete SDK qualification remain open.
+- The [bounded SIGMA foundations](../docs/research/sigma-native-reference.md)
+  add the D16 GPU-derived DPF CPU port and an untruncated masked-matrix
+  contraction over shared resident ring kernels. Independent integer/AES and
+  failure-retirement tests pass; the matrix harness couples both shares in one
+  process, not isolated workers. Existing DPF defaults remain unchanged. CPU
+  terminal leakage and one-bit arithmetic-output masks remain prohibited; D17's
+  full-output-ring masking proposal awaits approval. No trained decoder or SDK
+  availability follows from these primitives.
 - The [PUMA truncation/PRSS reference](../docs/research/puma-truncation-reference.md)
   checks the source AES schedule and replicated arithmetic. Its live payload
   ledger now retains exported-buffer charges through erasure and deallocation.
@@ -223,22 +231,27 @@ Completed foundations:
 
 Remaining critical path:
 
-1. Extend GKM's admitted full/seeded four-input/two-output complete-state oracle
-   checks to broader activation/workload coverage and source-model quality.
-   Qualify original-model and common-Qwen workloads under their frozen contracts.
-   Preserve source arithmetic, final-window acceptance and failure retirement.
-   Seeded transport and broader generation policies retain separate contracts.
-   The shared gate is [methods/sdk-integration.md](methods/sdk-integration.md).
-2. Complete the other nine source-faithful methods. Resolve source ambiguities,
-   protected-state and token-feedback contracts, and HE refresh/backend admission.
-   Existing adaptations do not substitute for complete implementations.
+1. Prioritize runnable coverage across all ten source-faithful methods before
+   further qualification or optimization of any one method. GKM's bounded trained
+   execution is established; defer broader GKM publication qualification while
+   completing missing methods. An already-running pilot may finish, but does not
+   change this priority. The shared gate is
+   [methods/sdk-integration.md](methods/sdk-integration.md).
+2. Close each remaining complete-decoder and ordinary SDK/gateway/benchmark path,
+   including trained-checkpoint admission, protected state, token feedback and
+   failure retirement. Generated fixtures and component operators are milestones,
+   not complete trained execution. Resolve shared HE refresh/backend admission
+   early because four methods depend on it. Preserve source arithmetic, security
+   contracts and resource ceilings; unresolved adaptations require approval.
 3. Freeze the publication workloads, quality criteria, cache lifecycles, provider
    resource conditions and network profile. Measure client and all-link traffic
    by phase, role instance counts/peaks, simultaneous provider/host memory, prefill,
    accepted first output, decode and complete lifecycle costs under the declared
    100/40 Mbps conditions. Keep unsupported and resource-blocked cells explicit.
-4. Execute matched fresh-process campaigns and independent confirmation. Audit
-   numeric/state fidelity, ownership, resource limits, exclusions and replay.
+4. After runnable coverage, complete broader source-model quality and workload
+   qualification, then execute matched fresh-process campaigns and independent
+   confirmation. Basic numeric/state correctness, ownership and resource checks
+   remain prerequisites for every runnable slice, not deferred campaign work.
 5. Replace the main manuscript with the focused rewrite and accepted results;
    complete scientific/author review, current-source review, release/CI evidence,
    PDF inspection and standalone arXiv replay.
