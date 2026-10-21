@@ -1239,7 +1239,15 @@ uses. Method-neutral consumer metadata declares slots without granting execution
 authority. Q12 widths 12–64 retain reduced-ring Q6 outputs and four peer exchanges;
 all native stages and retained-owner overlap are admitted before issuance.
 No exported fanout, cloning, remasking or arbitrary graph execution is supplied.
-Lookup and complete activation reconstruction remain separately approval-gated.
+The separately approved D19 native source lookup preserves the masked arithmetic
+and sign correction, ascending GPU127 scan and dependent final mask `rho=2u-r`.
+Reconstructed and consuming deferred-share boundaries remain distinct. Exact
+8/10-bit indices, 3–64-bit outputs and 1–256 lanes share aggregate pre-reserved
+leases covering table copies, padded keys, frames and transition overlap. The
+garbling suite passes 513 unit, 25 external/oracle and 17 documentation checks,
+with eight opt-in skips. This is local trusted-dealer execution, not authenticated
+transport, typed lookup or a runnable decoder. Full GELU/SiLU owning composition
+and final activation reconstruction remain separately approval-gated.
 Contract:
 `docs/research/sigma-native-reference.md`.
 The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private

@@ -677,3 +677,533 @@ fn cancellation_retains_exact_charges_and_failures_preserve_existing_budget_owne
     drop(baseline);
     assert_eq!(budget.used_bytes(), 0);
 }
+
+fn issue_boundary<'a>(
+    spec: Spec,
+    boundary: Boundary,
+    budget: &'a Budget,
+    fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
+    let cost = resources_for(spec, boundary)?;
+    issue_reserved_with(
+        spec,
+        context(),
+        &vec![1; spec.lanes],
+        &vec![7 & mask(spec.bits); spec.lanes],
+        boundary,
+        budget.reserve(cost.combined_reservation_bytes)?,
+        fill,
+    )
+}
+
+#[test]
+fn deferred_all_small_inputs_and_ring64_edges_use_own_shares_without_allocation() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    for bits in [3, 64] {
+        let values: Vec<u64> = if bits == 3 {
+            (0..8).collect()
+        } else {
+            vec![0, 1, (1 << 63) - 1, 1 << 63, u64::MAX - 1, u64::MAX]
+        };
+        let spec = Spec {
+            bits,
+            lanes: values.len(),
+        };
+        for beta in 0..=1 {
+            for b in 0..=1 {
+                for &rx in &values {
+                    budget.fail_after.store(-1, Ordering::SeqCst);
+                    let (masks, [a, c]) = issue_deferred(
+                        spec,
+                        context(),
+                        &vec![beta; spec.lanes],
+                        &vec![rx; spec.lanes],
+                        &budget,
+                    )
+                    .unwrap();
+                    let predicate = vec![beta ^ b; spec.lanes];
+                    let input: Vec<_> = values
+                        .iter()
+                        .map(|x| x.wrapping_add(rx) & mask(bits))
+                        .collect();
+                    // Issuance already allocated both local outputs; conversion
+                    // must work even when the next allocation is forbidden.
+                    budget.fail_after.store(0, Ordering::SeqCst);
+                    let left = a.into_deferred(&predicate, &input).unwrap();
+                    let right = c.into_deferred(&predicate, &input).unwrap();
+                    assert_eq!((left.role(), right.role()), (0, 1));
+                    assert_eq!(left.binding(), right.binding());
+                    assert_eq!((left.bits(), left.lanes()), (bits, spec.lanes));
+                    for (i, &x) in values.iter().enumerate() {
+                        assert_eq!(
+                            left.values()[i].wrapping_add(right.values()[i]) & mask(bits),
+                            oracle(bits, b, x, masks.values()[i])
+                        );
+                    }
+                    drop(masks);
+                    assert_eq!(budget.used_bytes(), 2 * deferred_charge(spec));
+                    drop(left);
+                    assert_eq!(budget.used_bytes(), deferred_charge(spec));
+                    drop(right);
+                    assert_eq!(budget.used_bytes(), 0);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn deferred_fresh_mode_order_cancel_and_consuming_failure() {
+    let spec = spec();
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    for role in 0..2 {
+        // Ordinary methods must consume deferred state even on wrong mode.
+        for finish in [false, true] {
+            let (masks, mut parties) =
+                issue_deferred(spec, context(), &[1; 2], &[7; 2], &budget).unwrap();
+            if finish {
+                assert!(matches!(parties[role].finish(&[]), Err(Error::Domain)));
+            } else {
+                assert!(matches!(
+                    parties[role].begin(&[0; 2], &[6; 2]),
+                    Err(Error::Domain)
+                ));
+            }
+            assert!(parties[role].state.is_none());
+            assert!(matches!(parties[role].finish(&[]), Err(Error::Consumed)));
+            parties[1 - role].cancel();
+            let [a, b] = parties;
+            assert!(matches!(
+                a.into_deferred(&[0; 2], &[6; 2]),
+                Err(Error::Consumed)
+            ));
+            assert!(matches!(
+                b.into_deferred(&[0; 2], &[6; 2]),
+                Err(Error::Consumed)
+            ));
+            drop(masks);
+            assert_eq!(budget.used_bytes(), 0);
+        }
+        for begun in [false, true] {
+            let (masks, mut parties) = issue(spec, context(), &[1; 2], &[7; 2], &budget).unwrap();
+            let frame = begun.then(|| parties[role].begin(&[0; 2], &[6; 2]).unwrap());
+            let [a, b] = parties;
+            assert!(matches!(
+                a.into_deferred(&[0; 2], &[6; 2]),
+                Err(Error::Domain)
+            ));
+            assert!(matches!(
+                b.into_deferred(&[0; 2], &[6; 2]),
+                Err(Error::Domain)
+            ));
+            drop((masks, frame));
+            assert_eq!(budget.used_bytes(), 0);
+        }
+        // No partial outputs on malformed complete views, including late lanes.
+        for (predicate, input) in [
+            (&[][..], &[6; 2][..]),
+            (&[0][..], &[6; 2][..]),
+            (&[0; 3][..], &[6; 2][..]),
+            (&[0, 2][..], &[6; 2][..]),
+            (&[0; 2][..], &[][..]),
+            (&[0; 2][..], &[6][..]),
+            (&[0; 2][..], &[6; 3][..]),
+            (&[0; 2][..], &[6, 256][..]),
+        ] {
+            let (masks, [a, b]) =
+                issue_deferred(spec, context(), &[1; 2], &[7; 2], &budget).unwrap();
+            let (party, mut sibling) = if role == 0 { (a, b) } else { (b, a) };
+            drop(masks); // Dealer-first drop cannot release evaluator capacity.
+            let cost = resources_for(spec, Boundary::Deferred).unwrap();
+            assert_eq!(budget.used_bytes(), 2 * cost.party_reservation_bytes);
+            assert!(matches!(
+                party.into_deferred(predicate, input),
+                Err(Error::Domain)
+            ));
+            assert_eq!(budget.used_bytes(), cost.party_reservation_bytes);
+            sibling.cancel();
+            sibling.cancel();
+            assert_eq!(budget.used_bytes(), cost.party_reservation_bytes);
+            drop(sibling);
+            assert_eq!(budget.used_bytes(), 0);
+        }
+    }
+    // Even an internally already-begun deferred owner must fail closed.
+    let (masks, [mut a, mut b]) =
+        issue_deferred(spec, context(), &[1; 2], &[7; 2], &budget).unwrap();
+    a.state.as_mut().unwrap().begun = true;
+    assert!(matches!(
+        a.into_deferred(&[0; 2], &[6; 2]),
+        Err(Error::Domain)
+    ));
+    b.cancel();
+    drop((masks, b));
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn deferred_resources_exact_admission_retained_sibling_and_dealer_first_drop() {
+    let spec = Spec {
+        bits: 64,
+        lanes: MAX_LANES,
+    };
+    let cost = resources_for(spec, Boundary::Deferred).unwrap();
+    assert_eq!(cost.frames_per_party, 0);
+    assert_eq!(cost.frame_bytes, 0);
+    assert_eq!(cost.total_peer_frame_bytes, 0);
+    assert_eq!(
+        cost.party_reservation_bytes,
+        size_of::<Party<'static>>() + 64 * spec.lanes + 128 + deferred_charge(spec) + WORKSPACE
+    );
+    assert_eq!(
+        deferred_charge(spec),
+        8 * spec.lanes + size_of::<DeferredShare<'static>>() + ALLOCATOR
+    );
+    assert_eq!(
+        cost.combined_reservation_bytes,
+        2 * cost.party_reservation_bytes + cost.dealer_reservation_bytes
+    );
+    assert_eq!(
+        resources(spec).unwrap(),
+        resources_for(spec, Boundary::Reconstructed).unwrap()
+    );
+    let small = Budget::new(cost.combined_reservation_bytes - 1).unwrap();
+    small.fail_after.store(0, Ordering::SeqCst);
+    assert!(matches!(
+        issue_deferred(spec, context(), &[1; MAX_LANES], &[7; MAX_LANES], &small),
+        Err(Error::Resource)
+    ));
+    assert_eq!(small.used_bytes(), 0);
+    let budget = Budget::new(cost.combined_reservation_bytes).unwrap();
+    let mut requests = Vec::new();
+    let (masks, [a, mut b]) = issue_boundary(spec, Boundary::Deferred, &budget, |bytes| {
+        requests.push(bytes.len());
+        bytes.fill(0x39);
+        Ok(())
+    })
+    .unwrap();
+    assert_eq!(requests[0], 32);
+    assert_eq!(requests.len(), 1 + 6 * spec.lanes);
+    assert!(requests[1..].iter().all(|&n| n == 8));
+    assert_eq!(requests.iter().sum::<usize>(), cost.random_bytes);
+    assert_eq!(budget.used_bytes(), cost.combined_reservation_bytes);
+    drop(masks);
+    let share = a.into_deferred(&[0; MAX_LANES], &[6; MAX_LANES]).unwrap();
+    b.cancel();
+    assert_eq!(
+        budget.used_bytes(),
+        cost.party_reservation_bytes + deferred_charge(spec)
+    );
+    drop(b);
+    assert_eq!(budget.used_bytes(), deferred_charge(spec));
+    drop(share);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn reserved_preflight_exact_length_original_budget_and_failure_sweeps() {
+    let spec = spec();
+    for boundary in [Boundary::Reconstructed, Boundary::Deferred] {
+        let cost = resources_for(spec, boundary).unwrap();
+        let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let baseline = budget.reserve(123).unwrap();
+        budget.fail_after.store(0, Ordering::SeqCst);
+        for length in [
+            0,
+            cost.combined_reservation_bytes - 1,
+            cost.combined_reservation_bytes + 1,
+        ] {
+            assert!(matches!(
+                issue_reserved_with(
+                    spec,
+                    context(),
+                    &[1; 2],
+                    &[7; 2],
+                    boundary,
+                    budget.reserve(length).unwrap(),
+                    |_| panic!("entropy before exact reservation")
+                ),
+                Err(Error::Resource)
+            ));
+            assert_eq!(budget.used_bytes(), 123);
+        }
+        for invalid in [
+            Spec { bits: 2, ..spec },
+            Spec {
+                lanes: usize::MAX,
+                ..spec
+            },
+        ] {
+            assert!(matches!(
+                issue_reserved_with(
+                    invalid,
+                    context(),
+                    &[],
+                    &[],
+                    boundary,
+                    budget.reserve(cost.combined_reservation_bytes).unwrap(),
+                    |_| panic!("entropy before geometry")
+                ),
+                Err(Error::Domain)
+            ));
+        }
+        let mut bad = context();
+        bad.input_wire = bad.output_wire;
+        assert!(matches!(
+            issue_reserved_with(
+                spec,
+                bad,
+                &[1; 2],
+                &[7; 2],
+                boundary,
+                budget.reserve(cost.combined_reservation_bytes).unwrap(),
+                |_| panic!("entropy before context")
+            ),
+            Err(Error::Context)
+        ));
+        for (predicate, input) in [
+            (&[1, 2][..], &[7; 2][..]),
+            (&[1; 2][..], &[7, 256][..]),
+            (&[][..], &[7; 2][..]),
+        ] {
+            assert!(matches!(
+                issue_reserved_with(
+                    spec,
+                    context(),
+                    predicate,
+                    input,
+                    boundary,
+                    budget.reserve(cost.combined_reservation_bytes).unwrap(),
+                    |_| panic!("entropy before masks")
+                ),
+                Err(Error::Domain)
+            ));
+        }
+        // Allocation injection belongs to the original lease's Budget.
+        for allowed in 0..=5 {
+            budget.fail_after.store(allowed, Ordering::SeqCst);
+            let mut calls = 0;
+            let result = issue_boundary(spec, boundary, &budget, |bytes| {
+                calls += 1;
+                bytes.fill(0x55);
+                Ok(())
+            });
+            if allowed < 5 {
+                assert!(matches!(result, Err(Error::Allocation)));
+                assert_eq!(calls, 0);
+            } else {
+                assert!(result.is_ok());
+                assert_eq!(calls, 13);
+            }
+            drop(result);
+            assert_eq!(budget.used_bytes(), 123);
+        }
+        budget.fail_after.store(-1, Ordering::SeqCst);
+        for failure in 0..=13 {
+            let mut calls = 0;
+            let result = issue_boundary(spec, boundary, &budget, |bytes| {
+                bytes.fill(0x37);
+                let current = calls;
+                calls += 1;
+                if current == failure {
+                    Err(Error::Randomness)
+                } else {
+                    Ok(())
+                }
+            });
+            if failure == 13 {
+                assert!(result.is_ok());
+            } else {
+                assert!(matches!(result, Err(Error::Randomness)));
+            }
+            assert_eq!(calls, (failure + 1).min(13));
+            drop(result);
+            assert_eq!(budget.used_bytes(), 123);
+        }
+        drop(baseline);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn reserved_reconstructed_bytes_identity_and_deferred_domain_separation() {
+    let spec = spec();
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let fill = |bytes: &mut [u8]| {
+        bytes.fill(0x65);
+        Ok(())
+    };
+    let (masks, mut original) =
+        issue_with(spec, context(), &[1; 2], &[7; 2], &budget, fill).unwrap();
+    let (reserved_masks, mut reserved) =
+        issue_boundary(spec, Boundary::Reconstructed, &budget, fill).unwrap();
+    let (deferred_masks, [a, b]) = issue_boundary(spec, Boundary::Deferred, &budget, fill).unwrap();
+    assert_eq!(masks.values(), reserved_masks.values());
+    assert_eq!(masks.values(), deferred_masks.values());
+    // Independent legacy binding order; deferred mode must not alter this hash.
+    let ctx = context();
+    let mut hash = Sha256::new();
+    hash.update(b"pllm.sigma.five-word-select.v1");
+    hash.update([spec.bits]);
+    hash.update((spec.lanes as u64).to_le_bytes());
+    for part in [
+        ctx.plan,
+        ctx.session,
+        ctx.operation,
+        ctx.predicate_wire,
+        ctx.input_wire,
+        ctx.output_wire,
+        [0x65; 32],
+    ] {
+        hash.update(part);
+    }
+    hash.update(ctx.first_tensor_index.to_le_bytes());
+    let expected: [u8; 32] = hash.finalize().into();
+    let left = a.into_deferred(&[0, 1], &[6, 7]).unwrap();
+    let right = b.into_deferred(&[0, 1], &[6, 7]).unwrap();
+    assert_ne!(left.binding(), &expected);
+    assert_eq!(left.binding(), right.binding());
+    // Frozen historical codec goldens, independently assembled from the
+    // pre-deferred implementation retrieved with git show HEAD:.../selection.rs.
+    // Public fixture: context() above, bits=8, lanes=2, masks=[1,1]/[7,7],
+    // every entropy byte=0x65, predicate=[0,1], input=[6,7]. Legacy five-word
+    // arithmetic gives role-0 payload [202,61], role-1 payload [154,40].
+    // Hashes cover all 92 bytes: PLLMSL01, legacy binding, input digest,
+    // role, phase=1, LE lane count, and both LE u64 payload words. Constants
+    // were generated from that independently assembled framing, not this
+    // refactored implementation or its binding/evaluate/frame helpers.
+    const HISTORICAL_FRAME_SHA256: [&str; 2] = [
+        "5fee96dfc3d95ed7183510795c15dc6d6621cd96d05078ecaf30a6d6cec35ec8",
+        "85743ed5d28f092030e6237496308bfdbe09168c8aee7a6178c83d125be1aeea",
+    ];
+    for role in 0..2 {
+        let old = original[role].begin(&[0, 1], &[6, 7]).unwrap();
+        let new = reserved[role].begin(&[0, 1], &[6, 7]).unwrap();
+        assert_eq!(old.as_bytes().len(), 92);
+        assert_eq!(
+            format!("{:x}", Sha256::digest(old.as_bytes())),
+            HISTORICAL_FRAME_SHA256[role]
+        );
+        assert_eq!(&old.as_bytes()[8..40], &expected);
+        assert_eq!(old.as_bytes(), new.as_bytes());
+        let local = if role == 0 {
+            left.values()
+        } else {
+            right.values()
+        };
+        for (word, value) in old.as_bytes()[HEADER..].chunks_exact(8).zip(local) {
+            assert_eq!(u64::from_le_bytes(word.try_into().unwrap()), *value);
+        }
+    }
+    drop((
+        masks,
+        original,
+        reserved_masks,
+        reserved,
+        deferred_masks,
+        left,
+        right,
+    ));
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn deferred_ring64_forced_output_mask_edges_role_oracle_and_retained_leases() {
+    // Every scalar below is a public deterministic test fixture, including
+    // nonce, masks and additive material. No sampled secret copies are retained.
+    const RZ: [u64; 4] = [0, 1, 1 << 63, u64::MAX];
+    const LEFT_WORDS: [u64; 5] = [3, 5, 7, 11, 13];
+    const EDGES: [u64; 4] = [0, 1, 1 << 63, u64::MAX];
+    let spec = Spec { bits: 64, lanes: 4 };
+    let cost = resources_for(spec, Boundary::Deferred).unwrap();
+    let budget = Budget::new(cost.combined_reservation_bytes).unwrap();
+    for beta in 0..=1u64 {
+        for b in 0..=1u64 {
+            for rx in EDGES {
+                for x in EDGES {
+                    budget.fail_after.store(-1, Ordering::SeqCst);
+                    let mut calls = 0;
+                    let (masks, [a, c]) = issue_reserved_with(
+                        spec,
+                        context(),
+                        &[beta; 4],
+                        &[rx; 4],
+                        Boundary::Deferred,
+                        budget.reserve(cost.combined_reservation_bytes).unwrap(),
+                        |bytes| {
+                            // Preserve reconstructed entropy order: 32-byte
+                            // nonce, then rz and five share draws per lane.
+                            if calls == 0 {
+                                assert_eq!(bytes.len(), 32);
+                                bytes.fill(0x65);
+                            } else {
+                                assert_eq!(bytes.len(), 8);
+                                let lane = (calls - 1) / 6;
+                                let word = (calls - 1) % 6;
+                                let fixture = if word == 0 {
+                                    RZ[lane]
+                                } else {
+                                    LEFT_WORDS[word - 1]
+                                };
+                                bytes.copy_from_slice(&fixture.to_le_bytes());
+                            }
+                            calls += 1;
+                            Ok(())
+                        },
+                    )
+                    .unwrap();
+                    assert_eq!(calls, 25);
+                    assert_eq!(masks.values(), &RZ);
+                    assert_eq!(budget.used_bytes(), cost.combined_reservation_bytes);
+                    let bhat = beta ^ b;
+                    let xhat = ((u128::from(x) + u128::from(rx)) % (1u128 << 64)) as u64;
+                    budget.fail_after.store(0, Ordering::SeqCst);
+                    let left = a.into_deferred(&[bhat; 4], &[xhat; 4]).unwrap();
+                    assert_eq!(
+                        budget.used_bytes(),
+                        cost.dealer_reservation_bytes
+                            + cost.party_reservation_bytes
+                            + deferred_charge(spec)
+                    );
+                    drop(masks);
+                    assert_eq!(
+                        budget.used_bytes(),
+                        cost.party_reservation_bytes + deferred_charge(spec)
+                    );
+                    let right = c.into_deferred(&[bhat; 4], &[xhat; 4]).unwrap();
+                    assert_eq!(budget.used_bytes(), 2 * deferred_charge(spec));
+                    assert_eq!((left.role(), right.role()), (0, 1));
+                    assert_eq!(left.binding(), right.binding());
+                    assert_eq!((left.bits(), left.lanes()), (64, 4));
+                    assert_eq!((right.bits(), right.lanes()), (64, 4));
+                    // Independent signed wide arithmetic for known role-0
+                    // material, not evaluate() or native wrapping operations.
+                    let local = 7i128 - 3 * i128::from(xhat) - 5 * i128::from(bhat)
+                        + if bhat == 0 {
+                            11 * i128::from(xhat) + 13
+                        } else {
+                            0
+                        };
+                    let expected_left = local.rem_euclid(1i128 << 64) as u64;
+                    for (lane, rz) in RZ.into_iter().enumerate() {
+                        let total =
+                            (u128::from(b) * u128::from(x) + u128::from(rz)) % (1u128 << 64);
+                        let expected_right =
+                            (total + (1u128 << 64) - u128::from(expected_left)) % (1u128 << 64);
+                        assert_eq!(left.values()[lane], expected_left);
+                        assert_eq!(right.values()[lane], expected_right as u64);
+                        assert_eq!(
+                            (u128::from(left.values()[lane]) + u128::from(right.values()[lane]))
+                                % (1u128 << 64),
+                            total
+                        );
+                    }
+                    drop(right);
+                    assert_eq!(budget.used_bytes(), deferred_charge(spec));
+                    drop(left);
+                    assert_eq!(budget.used_bytes(), 0);
+                }
+            }
+        }
+    }
+}

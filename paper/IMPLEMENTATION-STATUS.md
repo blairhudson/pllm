@@ -103,8 +103,8 @@ Completed foundations:
   matrix/arithmetic owners and binds source, role, consumer, mask, shape and numeric
   declarations. Local developer range assumptions and checked full-dot intervals
   qualify GapARS only within its quarter-ring domain; they are not compiler proofs.
-   The complete garbling suite passes 471 unit, five external and twelve doc tests,
-  with eight opt-in skips; 280 source-leakage controls also pass.
+    Earlier Select validation passed 471 unit, five external and twelve doc tests,
+   with eight opt-in skips; 280 source-leakage controls also passed.
   A separate bounded consuming matrix-material handoff retains full typed bindings,
   range provenance and native reservations. A non-cloneable process-local permit
   authorizes one import attempt; metadata and bytes cannot mint owners. Packet and
@@ -120,9 +120,15 @@ Completed foundations:
    exchanges; no exported fanout, cloning, remasking or full activation follows.
    Bounded local validation passes 490 unit, fifteen external/oracle and seventeen
    doc checks, plus 458 shared core checks and 280 leakage controls;
-   library Clippy and the compiler check pass. Source lookup remains separately
-   approval-gated for masked-sign correction, final-mask dependency and deferred
-   versus reconstructed output boundaries.
+    library Clippy and the compiler check pass. D19 separately approves bounded
+     source lookup with both reconstructed/deferred boundaries, the audited masked
+     sign correction and dependent final mask. Its native executor and consuming
+     deferred Select extension pass the complete suite: 513 unit, 25 external/oracle
+     and seventeen doc checks, with eight opt-in skips. Independent inventory,
+     caller-mutation isolation, AES counters and fault sweeps cover the bounded
+     local ownership contract, not security qualification. Full GELU/SiLU ownership
+     and composition remain separate unapproved gates; the proposed 38/50-bit
+     contract is frozen in `docs/plans/sigma-full-activation.md`.
    No runnable SIGMA, trained decoder, SDK availability or composed security proof
   follows from these primitives. Compiler-proven graph ranges, arithmetic material
   codecs, authenticated party transport and complete nonlinear/decoder composition

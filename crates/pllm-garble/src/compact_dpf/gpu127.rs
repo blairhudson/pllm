@@ -370,6 +370,24 @@ impl GpuKey {
         allocation_limit: usize,
         mut before_reserve: impl FnMut(usize) -> Result<(), Error>,
     ) -> Result<Zeroizing<Vec<u8>>, Error> {
+        self.all_with_allocator(allocation_limit, |count| {
+            before_reserve(count)?;
+            let mut out = Vec::new();
+            out.try_reserve_exact(count)
+                .map_err(|_| Error::Allocation)?;
+            Ok(out)
+        })
+    }
+
+    /// Enclosing consuming owners supply their already-priced allocator and
+    /// allocation-failure hook. The callback does not transfer a budget lease;
+    /// the caller must keep its scratch reservation live through buffer erasure.
+    /// Reject nonempty or excess-capacity buffers before secret expansion.
+    pub(crate) fn all_with_allocator(
+        &self,
+        allocation_limit: usize,
+        mut allocate: impl FnMut(usize) -> Result<Vec<u8>, Error>,
+    ) -> Result<Zeroizing<Vec<u8>>, Error> {
         let count = self
             .profile
             .resources()
@@ -378,10 +396,10 @@ impl GpuKey {
         if count > allocation_limit {
             return Err(Error::Resource);
         }
-        before_reserve(count)?;
-        let mut out = Zeroizing::new(Vec::new());
-        out.try_reserve_exact(count)
-            .map_err(|_| Error::Allocation)?;
+        let mut out = Zeroizing::new(allocate(count)?);
+        if !out.is_empty() || out.capacity() != count {
+            return Err(Error::Resource);
+        }
         self.walk(0, *self.root, &mut out);
         debug_assert_eq!(out.len(), count);
         Ok(out)

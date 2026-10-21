@@ -465,6 +465,58 @@ fn preflight_entropy_failure_allocation_hooks_and_consumed_owner_erasure() {
 }
 
 #[test]
+fn full_scan_allocator_checks_geometry_capacity_and_failure_before_aes() {
+    let profile = Profile::new(10).unwrap();
+    let [left, right] = fixture(profile, 1023, 1, 3);
+    AES_BLOCKS.with(|count| count.set(0));
+    assert!(matches!(
+        left.all_with_allocator(1023, |_| panic!("unadmitted allocation")),
+        Err(Error::Resource)
+    ));
+    assert!(matches!(
+        left.all_with_allocator(1024, |count| {
+            assert_eq!(count, 1024);
+            Err(Error::Allocation)
+        }),
+        Err(Error::Allocation)
+    ));
+    for capacity in [0, 1023, 1025] {
+        assert!(matches!(
+            left.all_with_allocator(1024, |_| Ok(Vec::with_capacity(capacity))),
+            Err(Error::Resource)
+        ));
+    }
+    assert!(matches!(
+        left.all_with_allocator(1024, |_| Ok(vec![1; 1024])),
+        Err(Error::Resource)
+    ));
+    assert_eq!(AES_BLOCKS.with(|count| count.get()), 0);
+    let mut calls = 0;
+    let output = left
+        .all_with_allocator(1024, |count| {
+            calls += 1;
+            Ok(Vec::with_capacity(count))
+        })
+        .unwrap();
+    assert_eq!(calls, 1);
+    assert_eq!(output.len(), 1024);
+    assert_eq!(output.capacity(), 1024);
+    assert_eq!(
+        AES_BLOCKS.with(|count| count.get()),
+        profile.resources().full_expansion_aes_blocks.unwrap()
+    );
+    let other = right.all(1024).unwrap();
+    for (index, (&a, &b)) in output.iter().zip(other.iter()).enumerate() {
+        assert_eq!(a ^ b, u8::from(index == 1023));
+    }
+    let [wide, _] = fixture(Profile::new(11).unwrap(), 0, 0, 0);
+    assert!(matches!(
+        wide.all_with_allocator(usize::MAX, |_| panic!("wide allocation")),
+        Err(Error::Resource)
+    ));
+}
+
+#[test]
 fn fresh_os_material_and_negative_terminal_bit_witness_not_a_privacy_proof() {
     let p = Profile::new(8).unwrap();
     let a = GpuKey::issue(p, 127).unwrap();

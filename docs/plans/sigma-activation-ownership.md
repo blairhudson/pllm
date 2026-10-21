@@ -82,7 +82,9 @@ explicit approval. FuseFSS additive-share lookup is not a common-wire substitute
 
 The completed source audit is in [sigma-source-lookup.md](sigma-source-lookup.md).
 It identifies the masked-sign opening, reconstructed versus deferred boundaries,
-and derived final-mask dependency. Lookup implementation remains unapproved.
+and derived final-mask dependency. The user subsequently approved both bounded
+native lookup boundaries, deferred Select, specified framing and aggregate
+admission under D19; full activation composition remains outside that approval.
 
 ## Parallel Sol slices after approval
 

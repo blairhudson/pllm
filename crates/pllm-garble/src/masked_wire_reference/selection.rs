@@ -2,7 +2,8 @@
 //! EzPC aa0f2f860266fb79901405ef5e9965b8c9fe2e88 select.cpp's numeric contract.
 //!
 //! Common inputs are `b_hat = b XOR beta` and `x_hat = x + r_x`.
-//! One exchange opens only `b*x + r_z`, with a fresh full-ring output mask.
+//! Reconstructed mode opens only `b*x + r_z` in one exchange, with a fresh
+//! full-ring output mask. Deferred mode retains distinct local additive shares.
 //! Caller owns input-mask freshness. Local research only: frames bind views,
 //! roles and invocation, but are unauthenticated, not malicious-output verified,
 //! and provide neither persistent replay protection nor a crypto-review claim.
@@ -21,6 +22,12 @@ const HEADER: usize = 76;
 const OUTPUT_PHASE: u8 = 1;
 const ALLOCATOR: usize = 64;
 const WORKSPACE: usize = 8 << 10;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Boundary {
+    Reconstructed,
+    Deferred,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Spec {
@@ -89,6 +96,15 @@ fn frame_charge(spec: Spec) -> usize {
 fn output_charge(spec: Spec) -> usize {
     8 * spec.lanes + size_of::<MaskedOutput<'static>>() + ALLOCATOR
 }
+fn deferred_charge(spec: Spec) -> usize {
+    8 * spec.lanes + size_of::<DeferredShare<'static>>() + ALLOCATOR
+}
+
+fn checked_sum(parts: &[usize]) -> Result<usize, Error> {
+    parts.iter().try_fold(0usize, |sum, part| {
+        sum.checked_add(*part).ok_or(Error::Resource)
+    })
+}
 
 /// Public admission only. Checked bounded geometry makes all subsequent size
 /// arithmetic safe. Logical capacity bound, not an allocator/RSS guarantee.
@@ -96,16 +112,34 @@ fn output_charge(spec: Spec) -> usize {
 /// allowances, retained frame/output overlap, inline metadata and 8 KiB scratch.
 /// Dealer prices 8L output masks + 16L borrowed input masks and one allowance.
 pub fn resources(spec: Spec) -> Result<Resources, Error> {
+    resources_for(spec, Boundary::Reconstructed)
+}
+
+/// Deferred mode emits no frames. It retains the original party charge while
+/// moving local backing into a separately charged share owner. Both metadata
+/// owners and backing overlap are conservatively priced until the party drops.
+pub fn resources_for(spec: Spec, boundary: Boundary) -> Result<Resources, Error> {
     spec.validate()?;
+    // Spec bounds all lane products and individual owner charges before these
+    // calculations; aggregate sums and multiplication remain checked.
     let material = 40 * spec.lanes;
-    let party = size_of::<Party<'static>>()
-        + 64 * spec.lanes
-        + 2 * ALLOCATOR
-        + frame_charge(spec)
-        + output_charge(spec)
-        + WORKSPACE;
-    let dealer = size_of::<OutputMasks<'static>>() + 24 * spec.lanes + ALLOCATOR;
-    let combined = 2 * party + dealer;
+    let overlap = match boundary {
+        Boundary::Reconstructed => checked_sum(&[frame_charge(spec), output_charge(spec)])?,
+        Boundary::Deferred => deferred_charge(spec),
+    };
+    let party = checked_sum(&[
+        size_of::<Party<'static>>(),
+        64 * spec.lanes,
+        2 * ALLOCATOR,
+        overlap,
+        WORKSPACE,
+    ])?;
+    let dealer = checked_sum(&[
+        size_of::<OutputMasks<'static>>(),
+        24 * spec.lanes,
+        ALLOCATOR,
+    ])?;
+    let combined = checked_sum(&[party.checked_mul(2).ok_or(Error::Resource)?, dealer])?;
     if combined > MAX_ALLOCATION_BYTES {
         return Err(Error::Resource);
     }
@@ -116,9 +150,17 @@ pub fn resources(spec: Spec) -> Result<Resources, Error> {
         output_mask_entropy_bits: usize::from(spec.bits) * spec.lanes,
         paired_issue_aes_blocks: 0,
         evaluation_aes_blocks_per_party: 0,
-        frames_per_party: 1,
-        frame_bytes: HEADER + 8 * spec.lanes,
-        total_peer_frame_bytes: 2 * (HEADER + 8 * spec.lanes),
+        frames_per_party: usize::from(boundary == Boundary::Reconstructed),
+        frame_bytes: if boundary == Boundary::Reconstructed {
+            HEADER + 8 * spec.lanes
+        } else {
+            0
+        },
+        total_peer_frame_bytes: if boundary == Boundary::Reconstructed {
+            2 * (HEADER + 8 * spec.lanes)
+        } else {
+            0
+        },
         party_material_payload_bytes: material,
         borrowed_input_mask_bytes: 16 * spec.lanes,
         borrowed_masked_input_bytes: 32 * spec.lanes,
@@ -150,10 +192,11 @@ struct Execution {
     begun: bool,
 }
 
-/// Non-cloneable party-local material. Every failed begin/finish burns state.
+/// Non-cloneable party-local material. Every failed execution burns state.
 /// Explicitly cancel the sibling on failure. Cancel keeps its lease until drop.
 pub struct Party<'a> {
     id: u8,
+    boundary: Boundary,
     spec: Spec,
     binding: [u8; 32],
     state: Option<Execution>,
@@ -190,6 +233,35 @@ impl MaskedOutput<'_> {
     }
 }
 
+/// One party's additive share of b*x + r_z, not a reconstructed masked value.
+/// No constructor, cloning, frame conversion or peer-share access is provided.
+pub struct DeferredShare<'a> {
+    role: u8,
+    binding: [u8; 32],
+    spec: Spec,
+    values: Zeroizing<Vec<u64>>,
+    // Erase/deallocate the backing before refunding its original budget lease.
+    _lease: Lease<'a>,
+}
+impl DeferredShare<'_> {
+    pub fn role(&self) -> u8 {
+        self.role
+    }
+    pub fn binding(&self) -> &[u8; 32] {
+        &self.binding
+    }
+    pub fn bits(&self) -> u8 {
+        self.spec.bits
+    }
+    pub fn lanes(&self) -> usize {
+        self.spec.lanes
+    }
+    /// Low-level own-share getter; never a common masked output.
+    pub fn values(&self) -> &[u64] {
+        &self.values
+    }
+}
+
 pub fn issue<'a>(
     spec: Spec,
     context: Context,
@@ -203,6 +275,28 @@ pub fn issue<'a>(
         predicate_masks,
         input_masks,
         budget,
+        |bytes| getrandom::fill(bytes).map_err(|_| Error::Randomness),
+    )
+}
+
+pub fn issue_deferred<'a>(
+    spec: Spec,
+    context: Context,
+    predicate_masks: &[u64],
+    input_masks: &[u64],
+    budget: &'a Budget,
+) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
+    let cost = resources_for(spec, Boundary::Deferred)?;
+    context.validate(spec.lanes)?;
+    validate_inputs(spec, predicate_masks, input_masks)?;
+    let reservation = budget.reserve(cost.combined_reservation_bytes)?;
+    issue_reserved_with(
+        spec,
+        context,
+        predicate_masks,
+        input_masks,
+        Boundary::Deferred,
+        reservation,
         |bytes| getrandom::fill(bytes).map_err(|_| Error::Randomness),
     )
 }
@@ -224,12 +318,41 @@ pub(super) fn issue_with<'a>(
     predicate_masks: &[u64],
     input_masks: &[u64],
     budget: &'a Budget,
-    mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
 ) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
     let cost = resources(spec)?;
     context.validate(spec.lanes)?;
     validate_inputs(spec, predicate_masks, input_masks)?;
-    let mut reservation = budget.reserve(cost.combined_reservation_bytes)?;
+    let reservation = budget.reserve(cost.combined_reservation_bytes)?;
+    issue_reserved_with(
+        spec,
+        context,
+        predicate_masks,
+        input_masks,
+        Boundary::Reconstructed,
+        reservation,
+        fill,
+    )
+}
+
+/// Aggregate admission entry: split an exact reservation from the original
+/// budget, never reacquire capacity inside an already admitted parent.
+pub(super) fn issue_reserved_with<'a>(
+    spec: Spec,
+    context: Context,
+    predicate_masks: &[u64],
+    input_masks: &[u64],
+    boundary: Boundary,
+    mut reservation: Lease<'a>,
+    mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
+    let cost = resources_for(spec, boundary)?;
+    context.validate(spec.lanes)?;
+    validate_inputs(spec, predicate_masks, input_masks)?;
+    if reservation.bytes != cost.combined_reservation_bytes {
+        return Err(Error::Resource);
+    }
+    let budget = reservation.budget;
     // All leases precede secret owners, including on allocation/RNG unwind.
     let a = reservation.split(cost.party_reservation_bytes)?;
     let b = reservation.split(cost.party_reservation_bytes)?;
@@ -246,7 +369,15 @@ pub(super) fn issue_with<'a>(
     let mut right = new_execution()?;
     let mut nonce = [0; 32];
     fill(&mut nonce)?;
-    let binding = binding(spec, context, nonce);
+    let binding = match boundary {
+        Boundary::Reconstructed => binding(spec, context, nonce),
+        Boundary::Deferred => {
+            let mut hash = Sha256::new();
+            hash.update(b"pllm.sigma.five-word-select.deferred.v1");
+            hash.update(binding(spec, context, nonce));
+            hash.finalize().into()
+        }
+    };
     for (i, (&beta, &rx)) in predicate_masks.iter().zip(input_masks).enumerate() {
         let beta = Zeroizing::new(beta);
         let rx = Zeroizing::new(rx);
@@ -275,6 +406,7 @@ pub(super) fn issue_with<'a>(
         [
             Party {
                 id: 0,
+                boundary,
                 spec,
                 binding,
                 state: Some(left),
@@ -282,6 +414,7 @@ pub(super) fn issue_with<'a>(
             },
             Party {
                 id: 1,
+                boundary,
                 spec,
                 binding,
                 state: Some(right),
@@ -333,7 +466,7 @@ impl<'a> Party<'a> {
 
     pub fn begin(&mut self, predicate: &[u64], input: &[u64]) -> Result<Frame<'a>, Error> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
-        if state.begun {
+        if self.boundary != Boundary::Reconstructed || state.begun {
             return Err(Error::Domain);
         }
         // Preflight BOTH complete arrays before writing any working value.
@@ -357,6 +490,9 @@ impl<'a> Party<'a> {
     /// performs no allocation. Success and failure both retire local material.
     pub fn finish(&mut self, peer: &[u8]) -> Result<MaskedOutput<'a>, Error> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
+        if self.boundary != Boundary::Reconstructed {
+            return Err(Error::Domain);
+        }
         self.validate_peer(&state, peer)?;
         for (i, word) in peer[HEADER..].chunks_exact(8).enumerate() {
             state.local[i] = state.local[i]
@@ -365,6 +501,33 @@ impl<'a> Party<'a> {
         }
         let lease = self.lease.split(output_charge(self.spec))?;
         Ok(MaskedOutput {
+            values: state.local,
+            _lease: lease,
+        })
+    }
+
+    /// Fresh-only consuming evaluation. Moves preallocated local backing into
+    /// a distinct own-share capability, without any allocation or wire frame.
+    /// Every failure burns this owner; explicitly cancel its sibling if needed.
+    pub fn into_deferred(
+        mut self,
+        predicate: &[u64],
+        input: &[u64],
+    ) -> Result<DeferredShare<'a>, Error> {
+        let mut state = self.state.take().ok_or(Error::Consumed)?;
+        if self.boundary != Boundary::Deferred || state.begun {
+            return Err(Error::Domain);
+        }
+        validate_inputs(self.spec, predicate, input)?;
+        for (i, (&bhat, &xhat)) in predicate.iter().zip(input).enumerate() {
+            state.local[i] = evaluate(self.id, self.spec.bits, bhat, xhat, &state.material[i]);
+        }
+        let lease = self.lease.split(deferred_charge(self.spec))?;
+        drop(state.material);
+        Ok(DeferredShare {
+            role: self.id,
+            binding: self.binding,
+            spec: self.spec,
             values: state.local,
             _lease: lease,
         })

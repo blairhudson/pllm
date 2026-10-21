@@ -1,9 +1,20 @@
 # SIGMA source lookup: audited next gate
 
-Status: **NOT APPROVED FOR IMPLEMENTATION**. The approved owning region remains
-TR6 → DReLU → Select only. This source audit supplies a later lookup decision;
-it is not executed protocol evidence, an activation implementation, or a security
-qualification. No upstream code is built, linked, vendored, or executed.
+Status: **APPROVED FOR BOUNDED NATIVE IMPLEMENTATION**, both reconstructed and
+deferred boundaries, including consuming deferred Select, the proposed physical
+framing and aggregate pre-reserved accounting. User explicitly selected both
+boundaries after review. This is separate from the approved TR6 → DReLU → Select
+owning region. Full GELU/SiLU and decoder integration remain separate gates.
+Approval is not executed protocol evidence or security qualification. No upstream
+code is built, linked, vendored, or executed.
+
+Bounded implementation validation now passes 513 garbling unit tests (eight
+opt-in skips), 25 external/oracle tests and 17 documentation tests. Library
+Clippy, the compiler library check, formatting and 280 source-leakage controls
+also pass. Commands and scope are in
+[sigma-native-reference.md](../research/sigma-native-reference.md). These checks
+do not authorize the separate
+[full activation proposal](sigma-full-activation.md).
 
 ## Source and independent implementation boundary
 
@@ -35,7 +46,7 @@ enumerates ascending indices with LSB-first terminal offsets. Consume those
 indexed outputs directly: do not transplant CPU MSB-first bit extraction or
 reverse table indices. Both possible target signs must work.
 
-## Frozen algebra to approve before implementation
+## Approved algebra
 
 Let `N=2^n`, `M=2^m`, common masked index `Xhat=x+rin mod N`, DPF target
 `alpha=-rin mod N`, and Boolean DPF outputs `b0 XOR b1=[i=alpha]`.
@@ -82,15 +93,15 @@ Remasking, widening, added corrections or exchanges require separate approval.
 
 These require distinct enforceable output capabilities. Deferred shares cannot
 be called a common masked value. Reconstructed standalone lookup cannot silently
-replace full activation's deferred schedule. Current prefix approval authorizes
-neither lookup boundary nor full activation composition.
+replace full activation's deferred schedule. Lookup approval authorizes both
+bounded native boundaries, not full activation composition.
 
 Existing native Select exposes `begin → Frame → finish → MaskedOutput`, with
 only the reconstructed output capability. Deferred lookup therefore additionally
-needs an approved consuming Select extension with its own output type, lifecycle
+needs the approved consuming Select extension with its own output type, lifecycle
 and accounting. Transport payload bytes cannot become an output capability, and
 `MaskedOutput` must not be relabeled as a deferred share. Both boundaries are
-part of the proposal, not already implemented support.
+approved implementation scope, not already validated support.
 
 ## Bounded candidate and costs
 
@@ -107,18 +118,17 @@ material is `K+6m+1` bits per party/lane, excluding metadata and physical paddin
 
 Reconstructed mode sends `L*(m+1)` logical bits per direction in the first phase
 and `L*m` in the second. Deferred mode sends the first phase inside lookup but
-must charge later reconstruction. **No physical lookup frame codec is frozen.**
-Packed correction bits versus u64 correction words have different actual sizes.
-Freeze encoding before using exact byte prices or claiming upstream wire parity.
+must charge later reconstruction. The approved physical codec below uses u64
+correction words, not packed bits. No upstream wire-parity claim follows.
 
 Admission must price actual inline keys, masks, Select material, immutable table
 owners, retained inputs/frames/outputs, scan workspace, metadata, and transition
 overlap before randomness/allocation. Encoded-key length is not owner size.
 
-### Proposed physical framing and ownership, still unapproved
+### Approved physical framing and ownership
 
-The read-only follow-up recommends u64 correction words rather than packed bits.
-This is a proposed PLLM codec, not frozen implementation or upstream wire parity:
+The approved follow-up uses u64 correction words rather than packed bits.
+This is a PLLM codec contract, not validated implementation or upstream wire parity:
 
 | Offset | Bytes | Field |
 | --- | --- | --- |
@@ -162,7 +172,7 @@ non-cloneable share owner, with no frame emission or fake reconstructed finish.
 It must bind role/context/ring/lanes, burn on failure, retain its lease through
 consuming lookup transformation, and reject use after ordinary begin. Concrete
 layout totals, admission boundaries and failure sweeps remain implementation
-gates after approval. Full activation ownership is not authorized by this plan.
+gates. Full activation ownership is not authorized by this plan.
 
 ## Independent acceptance gates
 

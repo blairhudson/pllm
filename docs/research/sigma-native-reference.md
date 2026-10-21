@@ -174,9 +174,10 @@ Arithmetic-material serialization and remote import remain later gates.
 
 The typed chain is not a complete masked-wire algebra. DReLU produces a common
 XOR-masked predicate, not an arithmetic bit. The direct Select below preserves
-that distinction without a predicate conversion. Source table lookup and full
-nonlinear composition still need executable implementations; FuseFSS
-additive-share operations are not substitutes. Source CPU activation performs
+that distinction without a predicate conversion. D19's bounded source lookup
+below has its own validated bounded native executor; complete nonlinear composition
+and typed lookup integration remain absent. FuseFSS additive-share operations
+are not substitutes. Source CPU activation performs
 the early floor before absolute value and clamping, as specified in
 `paper/reproduction-contracts/shared-profile-resolution.md`.
 
@@ -242,6 +243,89 @@ do not implement activation fanout. The separately approved fixed prefix below
 supplies only its precommitted internal uses; this primitive is not GELU/SiLU,
 a decoder or an SDK component.
 
+### Distinct consuming deferred Select
+
+`selection::issue_deferred` binds a distinct boundary and returns the same
+five-word correlations, not a reconstructed-output owner. Fresh-only
+`Party::into_deferred` consumes its party and returns that party's additive share
+of `b*x+rz`. It moves preallocated backing without a frame or allocation. Wrong
+mode, bad inputs and repeated execution consume local material; the caller still
+retires its sibling. The share exposes only its own low-level values and
+role/binding/geometry, never a peer share. This boundary alone does not enforce
+matching common input views; enclosing lookup validates those views first.
+
+`resources_for` retains the reconstructed formula above. Deferred mode replaces
+`F+O` with `8L+S(DeferredShare)+64`, and reports zero emitted frames. Both original
+party and returned share metadata are priced through transition overlap. Share
+backing erases and deallocates before its split reservation refunds. No transport
+payload can construct a share capability or relabel a `MaskedOutput` as a share.
+
+## Bounded source lookup — D19
+
+`masked_wire_reference::source_lookup` independently implements the approved
+`LUT_dfpet` correction with D16's ascending GPU127 expansion. The pinned source,
+approved algebra and physical frame contract are in
+`docs/plans/sigma-source-lookup.md`; D19 records approval in
+`paper/methods/DECISIONS.md`. The complete garbling suite passes 513 unit tests
+(eight opt-in skips), 25 external/oracle tests and 17 documentation tests.
+These are bounded local correctness and ownership checks, not security review.
+
+Geometry is exactly 8- or 10-bit indices, 3–64-bit outputs and 1–256 lanes.
+Caller-supplied tables contain exactly 256 or 1024 canonical ring residues.
+The primitive neither generates source-libm activation tables nor certifies
+their approximation quality. Full shape, canonical masks/table, distinct wires
+and index-overflow checks precede aggregate reservation, allocation and entropy.
+
+For common `Xhat=x+rin`, the DPF target is `-rin`. Both parties scan the complete
+ascending expansion against `T[(i+Xhat) mod N]`, without private-indexed table
+gathers or reversed terminal offsets. Signed full-population counts, not assumed
+local ±1 counts, supply the modulo-four sign correction. The first exchange
+opens both `R=σ*T[x]+r` and `C=B XOR q`, where `B=(σ+1)/2`.
+Fresh full-ring `r,u` and Boolean `q` retain the source's mask dependency:
+
+```text
+Select output: S = B*(σ*T[x]) + u
+final mask:    rho = 2*u-r
+reconstructed: 2*S-R = T[x]+rho
+deferred:      2*z0-R, 2*z1, with z0+z1=S
+```
+
+Only party Zero subtracts common R in deferred mode. Derived rho is marginally
+uniform, with `rho mod 2 = r mod 2`; no independent remask is implied. Deferred
+shares have distinct consuming owners, not reconstructed outputs or decoded frame
+payloads. Later reconstruction remains an additional operation and cost.
+
+The first `PLLMLU01` frame is `80+16L` bytes: complete invocation/input digests,
+role, phase, lane count, widths/boundary and lane-major u64 arithmetic/correction
+words. Canonical correction words are exactly 0/1. Reconstructed mode then uses
+Select's unchanged `76+8L` frame. Both-direction totals are `312+48L` bytes for
+reconstructed and `160+32L` lookup-local bytes for deferred. Neither is upstream
+wire parity, authenticated transport or complete decoder traffic.
+
+`resources` prices actual inline GPU127 lane owners, both immutable table copies,
+mask/working vectors, original nested Select owners, frame/output metadata,
+borrowed receive/input/table allowances and transition overlap. One lane-serial
+N-byte full expansion uses the admitted exact-capacity allocator; nonempty or
+wrong-capacity scratch rejects before traversal. Aggregate admission reserves
+once under 64 MiB and splits original leases into Select rather than releasing
+and reacquiring capacity. Retained frames and outputs keep their own charges
+after cancellation or dealer-first drop. These are logical local-owner bounds,
+not measured process RSS or guarantees for arbitrary caller/transport copies.
+
+Regression tests independently inventory padded owners across every admitted
+geometry, check exact/one-byte-short admission, isolate caller table/mask mutation,
+measure issuance/expansion AES counts, and inject entropy/allocation failures.
+Moderate n10 lanes sweep all allocation callbacks; maximum lanes cover issuance,
+scan boundaries and all frame/Select transitions. Both lookup boundaries retain
+their original leases through drop permutations.
+
+Full table/numeric identity, source pin, geometry, boundary, plan/session/operation,
+every wire, index and fresh issuance bind execution. Complete received frames
+are validated before mutation. Failure burns all remaining local stages; the
+caller cancels its sibling. No arithmetic-material codec, authenticated delivery,
+persistent replay protection, typed lookup, full activation, decoder/SDK selection
+or independent security qualification is supplied.
+
 ## Fixed owning activation prefix
 
 `typed::LocalDealer::activation_prefix` consumes a Q12 input-mask capability and
@@ -281,12 +365,11 @@ transport, compiler/checkpoint ranges, security qualification or a runnable SDK
 decoder. Numerical and public-API contracts/tests:
 [`sigma-activation-prefix-contract.md`](sigma-activation-prefix-contract.md).
 
-Lookup remains unimplemented and separately approval-gated. The pinned source
-opens a masked value **and** masked sign correction, then derives final mask
-`rho=2*u-r`, uniform marginally but parity-correlated with internal r. Reconstructed
-and deferred-share output boundaries are distinct; neither silently replaces the
-other in full GELU/SiLU. See the unapproved next-gate audit in
-[`../plans/sigma-source-lookup.md`](../plans/sigma-source-lookup.md).
+D19 separately supplies the native lookup above, not an extension of this region.
+Full GELU/SiLU ownership and reconstruction remain unapproved. The proposed fixed
+38/50-bit range, private affine/projection uses, deferred combination and final
+reconstruction require explicit authorization:
+[`../plans/sigma-full-activation.md`](../plans/sigma-full-activation.md).
 
 ## Separate GPU-derived DPF primitive
 

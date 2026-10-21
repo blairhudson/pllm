@@ -441,6 +441,45 @@ This source-view adaptation is separate from D16. Preserve existing default
 profiles and bind the adaptation to a distinct source/numeric identity. Approval
 does not establish implementation, composed security or SDK execution.
 
+## D18. Bounded SIGMA owning activation prefix
+
+**Explicitly approved by the user:** a fixed owning region, initially only
+`TR6 → DReLU → Select`. Consume external capabilities once, retaining original
+backing, masks and leases for four precommitted internal operand uses under a
+private consuming ledger. Keep separate party owners, D16/D17 numeric contracts,
+the matrix singleton and failure retirement. No capability cloning, exported
+fanout, remasking or arbitrary graph execution is authorized.
+
+The qualified local prefix and its tests are described in
+`docs/research/sigma-activation-prefix-contract.md`. This decision does not
+authorize full GELU/SiLU ownership, decoder integration or security claims.
+
+## D19. Bounded SIGMA source lookup and reconstruction boundaries
+
+**Explicitly approved by the user:** both reconstructed and deferred native
+lookup boundaries in `docs/plans/sigma-source-lookup.md`, including consuming
+deferred Select ownership, the specified u64-correction frame and aggregate
+pre-reserved admission. Index widths are exactly 8 or 10, output widths 3–64,
+lanes 1–256 and the existing logical live ceiling is 64 MiB.
+
+Retain the audited source correction: open both the masked arithmetic result
+`R=σT[x]+r` and masked sign `C=B XOR q`, then evaluate the original five-word
+Select. Sample independent full-ring `r,u` and Boolean `q`; final mask is
+`ρ=2u−r`, marginally uniform but parity-dependent on internal `r`. No independent
+remask, division or widening is implied. D16 GPU127 mapping remains unchanged.
+
+Reconstructed lookup opens Select's `S` and returns `2S−R`. Deferred lookup
+retains distinct consuming party-share capabilities and returns `2z0−R, 2z1`;
+later reconstruction remains separately admitted and charged. Frame bytes cannot
+mint share owners, and reconstructed outputs cannot be relabeled as shares.
+Reserve complete actual-owner overlap before issuance; retained frames/outputs
+keep their leases through erasure/deallocation. Concrete accounting and numerical,
+failure and independent-oracle checks remain implementation acceptance gates.
+
+This approves bounded local protocol work, not full GELU/SiLU, typed lookup
+composition, decoder/SDK activation, authenticated delivery, durable replay
+protection or independent security qualification.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -462,6 +501,8 @@ does not establish implementation, composed security or SDK execution.
 | D15 | Approved: explicit FuseFSS online wavefront and stable tree selection | Exact Q12 arithmetic and fresh material; bounded execution/resource identity, complete setup and measured bandwidth-plus-delay qualification required. |
 | D16 | Approved: distinct CPU port of SIGMA GPU-source DPF | CPU numeric rules unchanged; randomized controls, full AES-expanded terminal, actual key/PRG costs and independent qualification required; leaking CPU terminal remains blocked. |
 | D17 | Approved: full-ring SIGMA arithmetic-output masks | Literal one-bit CPU TR/LRS masks remain prohibited; fresh complete-output-ring masks preserve floor arithmetic and charge randomness, material, owners and delivery under a distinct identity. |
+| D18 | Approved: bounded SIGMA owning activation prefix | TR6 → DReLU → Select only; original backing/leases and fixed internal-use ledger, without fanout, cloning or remasking. |
+| D19 | Approved: both bounded SIGMA source lookup boundaries | Audited correction and dependent mask, consuming deferred Select, specified framing and aggregate admission; full activation and decoder remain separate gates. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
