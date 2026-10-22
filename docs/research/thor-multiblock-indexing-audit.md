@@ -407,7 +407,7 @@ its bound state (`softmax.py:122–160`); it does not merely execute Appendix C'
 printed literal factor sequence. Full softmax scale/denominator reconciliation
 is outside the small polynomial experiment below.
 
-### Ordered HE-prime source: partial recovery, exact missing material
+### Ordered HE-prime source: recovered artifact cache, evaluated binding missing
 
 Notebook cell 7 declares `logN=16`, `scale_bits=41`, four special primes and
 `quantum="pre_quantum"`. Readable
@@ -433,16 +433,116 @@ p3 = 1152921504595968001
 p4 = 1152921504592822273
 ```
 
-**Exact unresolved source:** the pinned tree lacks `scale_primes.pkl`, and
+**Initial recovery boundary:** the pinned tree lacks `scale_primes.pkl`, and
 `context/generate_primes.py:252–279`'s default generation enumerates scale bits
 `20,25,30,35,40,45,50,59`, **not 41**. A cache hit at
 `ckks_context.py:183–194` can instead restore the entire context and return
 before this construction. The README-mentioned external `resources.tar.gz`
 was not among the four visible top-level Drive archives at inspection time;
-absence from that listing does not prove the data is nowhere public. No new
-general search or replacement prime generation was performed. Recover the
-actual ordered cache/context or obtain an author-issued exact chain; do not
-fill this gap with convenient primes or treat the partial block as admission.
+absence from that listing did not establish that the data was unavailable.
+The follow-up below recovers the complete linked artifact-cache chain, not
+proof of the context used for the paper's evaluated run. No replacement primes
+were generated.
+
+#### Bounded follow-up source recovery, 22 October 2026
+
+Immutable source links establish the intended resource location and consumer:
+
+- [`README.md:17–18`](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/README.md#L17-L18)
+  links external resources in the same Drive folder and names the cache directory.
+- [`encode.py:12–19`](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/encode.py#L12-L19)
+  declares `logN=16`, `scale_bits=41`, four special primes and
+  `quantum="pre_quantum"`, then selects the MRPC safetensors path.
+- [`context/ckks_context.py:175–194`](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/liberate/src/liberate/fhe/context/ckks_context.py#L175-L194)
+  derives the cache filename from the generation string and restores cached
+  fields before returning. Its
+  [lines 248–266](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/liberate/src/liberate/fhe/context/ckks_context.py#L248-L266)
+  distinguish `r` ordinary scale primes from the stored `num_scales=r+15`.
+- [`ckks_engine.py:61–63`](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/liberate/src/liberate/fhe/ckks_engine.py#L61-L63)
+  defines the context hash as SHA-256 of UTF-8
+  `generation_string + "_" + ",".join(str(qi) for qi in q)`.
+
+The follow-up Drive listing exposed **`resources.tar`**, not the README's
+`resources.tar.gz`, with file ID `1LPQex129MuFclJp5F4sJN9fIrMVYLgXH`:
+[resource download locator](https://drive.usercontent.google.com/download?id=1LPQex129MuFclJp5F4sJN9fIrMVYLgXH&export=download&confirm=t).
+**This Drive URL/file ID is mutable, not an immutable version or content pin.**
+The immutable source links establish author linkage, not the identity of future
+Drive responses. Retrieved HTTP `206` responses reported archive length
+**14,766,817,280 bytes**. All offsets below are zero-based; ranges are inclusive.
+
+| Inspected object | Archive position and scope |
+| --- | --- |
+| Matching tar member header | Bytes `9414646272–9414646783` (512 bytes); names `resources/62_41_16_None_4_128_pre_quantum_uniform.pkl`; declares member payload length **301,993,736 bytes**. |
+| Member payload | Starts at `9414646784`; full member was **not** downloaded or hashed. |
+| Initial bounded payload read | Bytes `9414646784–9414679551` (32,768 bytes); inspected as static pickle opcodes only. |
+| Independently reread metadata prefix | Bytes `9414646784–9414647682` (899 bytes); contains the generation string, scalar declarations, full ordered `q` list and `total_qbits`. |
+
+SHA-256 identities bind only the indicated retrieved bytes:
+
+```text
+tar header (512 bytes):
+ed03d690c3eb33845ed5fa7a6fd3cbb50ce33842f6afa4e0fae47dc4d519d97f
+metadata prefix (899 bytes):
+d12a221ecfc22a220639ad1f2b960b88c3c1a6d6cb0be9d6ffcb17d7bd65cfa7
+```
+
+Neither digest is a full archive, member, checkpoint or evaluated-run hash.
+Inspection used standard-library `pickletools.genops`, **not** `pickle.load`
+or `pickle.loads`. No upstream module was imported or executed; global/reduce
+opcodes were not invoked. Parsing stopped at an array-byte opcode whose declared
+payload exceeded the bounded prefix; no array reconstruction was attempted.
+No checkpoint/tensor payload was read for this follow-up, and no source archive
+collection or copied source tree was created. The inspection existed only as
+inline commands; no saved inspection experiment was found to extend safely, so
+this update adds documentation only, not a new experiment or test.
+
+The inspected cache declares the following values; these are **artifact
+configuration fields**, not independently verified security or runtime claims:
+
+```text
+generation_string = 62_41_16_None_4_128_pre_quantum_uniform
+buffer_bit_length = 62; N = 65536; logN = 16; scale_bits = 41
+message_bits = 60; num_special_primes = 4
+security_bits = 128; quantum = pre_quantum; distribution = uniform
+sigma = 3.2; uniform_tenary_secret = True
+num_scales = 29; max_qbits = 1760; total_qbits = 1759
+```
+
+Its complete stored `q` list is ordered below. Group breaks identify the first
+15 bootstrap primes, the next **14** ordinary scale primes (`r=14`), and the
+message/four-special-prime block; breaks are not entries or reorderings.
+
+```text
+576460752308273153, 576460752289923073, 576460752315482113,
+576460752289529857, 576460752319021057, 576460752289005569,
+576460752319414273, 576460752279306241, 576460752321642497,
+576460752273801217, 576460752328327169, 576460752272228353,
+576460752364240897, 576460752267509761, 576460752371187713,
+
+2199028891649, 2199010148353, 2199030071297, 2199007789057,
+2199043571713, 2199006216193, 2199053008897, 2199006085121,
+2199056416769, 2198996647937, 2199056547841, 2198958899201,
+2199057203201, 2198955753473,
+
+1152921504606584833, 1152921504598720513, 1152921504597016577,
+1152921504595968001, 1152921504592822273
+```
+
+Applying the cited source hash formula to this generation string and all 34
+ordered integers, independently of upstream execution, gives:
+
+```text
+bfdd988a99a05a594adcef5e82685e24cfc6dcccf778149a4bdeb590eb61298d
+```
+
+This is a **source-defined context identifier calculated from recovered metadata**,
+not a hash of the complete serialized cache or an observed evaluated-run ID.
+The final five integers agree with the committed message/special block above.
+Recovery removes the missing-public-artifact-chain obstacle, but supplies no
+author record binding this cache to Tables 6–7, loaded keys, an exact MRPC
+checkpoint or base-model revision. No numerical profile is adopted; CKKS
+security, bootstrap correctness/precision and encrypted execution readiness
+remain unqualified. No decoder or full-logit boundary is approved.
 
 Readable non-bootstrap key topology is not wholly unspecified:
 `liberate/src/liberate/fhe/ckks_engine.py:2114–2131` gives `evk: s^2 -> s`,
@@ -458,7 +558,8 @@ owned elsewhere; no backend implementation is proposed here.
 
 **Faithful derivations already available:** evaluator coefficient semantics;
 artifact's caller formulas and half/double cancellation under the ideal-payload
-caveat; metadata byte identities; partial prime ordering and readable key graph.
+caveat; metadata byte identities; complete linked artifact-cache prime ordering
+and readable key graph. Evaluated-paper context/checkpoint binding remains missing.
 These may inform implementation contracts without claiming an adopted profile.
 
 **Targeted author/source questions:**
@@ -471,9 +572,12 @@ These may inform implementation contracts without claiming an adopted profile.
 2. Identify the exact evaluated MRPC checkpoint/base-model revision, embedding
    custody/freeze policy, effective LayerNorm epsilon and layer-wise nonlinear
    profiles. Tie them to the evaluated run rather than the output-free notebook.
-3. Supply the exact evaluated ordered context/cache (`B59`, `S41`, `r`, full
-   `q`) or an immutable public location. Do not regenerate it from defaults
-   that omit scale 41. Public key-topology facts do not substitute for this.
+3. Did Tables 6–7 use context hash
+   `bfdd988a99a05a594adcef5e82685e24cfc6dcccf778149a4bdeb590eb61298d`?
+   Supply an immutable evaluated MRPC checkpoint SHA-256, base-model revision
+   and run record binding that checkpoint to this context; if different, publish
+   the actual evaluated ordered chain/cache. The recovered linked cache is not
+   that binding. Do not regenerate primes from defaults that omit scale 41.
 
 **User choice after source resolution:** approve one explicitly named native
 BERT numerical identity, with its source departures enumerated, or authorize
