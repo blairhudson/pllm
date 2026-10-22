@@ -15,6 +15,10 @@ mod linear_tests;
 mod graph_tests;
 
 #[cfg(test)]
+#[path = "program_prepared_tensor_tests.rs"]
+mod prepared_tensor_tests;
+
+#[cfg(test)]
 #[path = "body_tests.rs"]
 mod body_tests;
 
@@ -876,7 +880,79 @@ impl Builder {
         } else {
             Some(intern(make(lanes % width)?))
         };
-        if program.lanes() != width || tail.as_ref().is_some_and(|p| p.lanes() != lanes % width) {
+        self.publish_tensor_loop(input, lanes, program, tail)
+    }
+
+    /// Borrow a closed local-domain capability without replacing its original
+    /// template owners. The caller may subsequently move it into the body sink.
+    /// This staged seam is not used by default graph lowering.
+    #[allow(dead_code)]
+    fn prepared_tensor_map(
+        &mut self,
+        input: usize,
+        prepared: &super::prepared_tensor_map::PreparedTensorMap,
+    ) -> Result<usize, Error> {
+        prepared.validate()?;
+        let owner = self.nodes.get(input).ok_or(Error::Binding)?;
+        if owner.lanes != prepared.lanes() {
+            return Err(Error::Shape);
+        }
+        if !prepared.accepts(owner.lanes, owner.bounds) {
+            return Err(Error::Binding);
+        }
+        // The existing census charges one backing per digest. It cannot account
+        // for a second allocation, even if the immutable programs hash equally.
+        for program in prepared.programs() {
+            if self
+                .tensors
+                .get(&program.digest())
+                .is_some_and(|existing| !Arc::ptr_eq(existing, program))
+                || prepared
+                    .programs()
+                    .any(|other| other.digest() == program.digest() && !Arc::ptr_eq(other, program))
+            {
+                return Err(Error::Binding);
+            }
+        }
+        let program = prepared.program_at(0)?.clone();
+        let remainder = prepared.lanes() % program.lanes();
+        let tail = if remainder == 0 {
+            None
+        } else {
+            Some(prepared.program_at(prepared.lanes() - remainder)?.clone())
+        };
+        // push can fail reserving the node after charging bytes. Restore those
+        // publication counters on failure; diagnostics may describe the attempt.
+        // TensorLoop changes neither workspace nor interner before that reserve.
+        let allocated = self.allocated;
+        let value_payload_bytes = self.value_payload_bytes;
+        let result =
+            self.publish_tensor_loop(LoopInput::Slice(input), prepared.lanes(), program, tail);
+        if result.is_err() {
+            self.allocated = allocated;
+            self.value_payload_bytes = value_payload_bytes;
+        }
+        result
+    }
+
+    // Shared post-factory publication only. Closure construction/interning above
+    // intentionally retains its original order and owner selection.
+    fn publish_tensor_loop(
+        &mut self,
+        input: LoopInput,
+        lanes: usize,
+        program: Arc<tensor::Program>,
+        tail: Option<Arc<tensor::Program>>,
+    ) -> Result<usize, Error> {
+        if lanes == 0 || lanes > MAX_VALUES {
+            return Err(Error::Bounds);
+        }
+        let width = lanes.min(128);
+        let remainder = lanes % width;
+        if program.lanes() != width
+            || tail.is_some() != (remainder != 0)
+            || tail.as_ref().is_some_and(|p| p.lanes() != remainder)
+        {
             return Err(Error::Shape);
         }
         let mut bounds = program.output_bounds();

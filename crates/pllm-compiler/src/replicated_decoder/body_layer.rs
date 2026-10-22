@@ -892,3 +892,7 @@ impl Plan {
 
 #[cfg(test)]
 pub(in crate::replicated_decoder) use machine::{from_worker, try_from_worker};
+
+#[cfg(test)]
+#[path = "prepared_tensor_map_tests.rs"]
+mod prepared_tensor_map_tests;

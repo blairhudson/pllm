@@ -6,6 +6,9 @@ mod checked_row_energy;
 pub mod cost;
 mod norm_bounds;
 mod policy;
+// Closed factories/publication remain compiler-private; no default route.
+#[cfg_attr(not(test), allow(dead_code))]
+mod prepared_tensor_map;
 mod program;
 mod public_source;
 mod runtime;
