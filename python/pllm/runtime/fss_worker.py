@@ -36,6 +36,7 @@ from .delegated_transport import _connections
 from .delegated_worker import _Reservation, _PayloadResponse, _body
 from .replicated_worker import native_call
 from .fss_source import resolve_client_source, load_role_source
+from .fss_child_status import StatusWriter, source_status_scope
 from .fss_tape import MaterialTape
 from .fss_transport import price_transport, timeout_limit, transport_capacity, transport_material_delivery
 from .benchmark_delegated import FSS_PHASE_COUNTERS
@@ -227,8 +228,8 @@ class _Attempt:
 
 
 def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
-                          peer_credentials, source_pins=None, ttl=300,
-                          tape_directory=None):
+                           peer_credentials, source_pins=None, ttl=300,
+                           tape_directory=None, source_status=None):
     """One independent dealer or holder; no reusable requests/reconnects/retries.
 
     Source disk is reserved from the locally recomputed native source contract
@@ -250,7 +251,8 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
     outgoing, incoming = _channels(role, api_key, peer_connections, peer_credentials)
     if not callable(getattr(_native, "FssRoleRequest", None)):
         raise ValueError("installed native core lacks FssRoleRequest; rebuild required")
-    source = resolve_client_source(experiment, expected_pins=source_pins)
+    with source_status_scope(source_status) as status:
+        source = resolve_client_source(experiment, expected_pins=source_pins, **status.callbacks)
     capacity = transport_capacity(source.contract)
     delivery = transport_material_delivery(source.contract)
     if capacity != configured_capacity or delivery != configured_delivery:
@@ -674,27 +676,30 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             raise ValueError("FuseFSS request geometry/contract differs")
         attempt.epochs, attempt.contract = epochs, value["contract"]
         def load():
-            source_lease = None
-            if attempt.cancelled():
-                raise ValueError("FuseFSS source admission retired")
-            local_contract = source.runtime_contract(experiment, rows, outputs)
-            if (local_contract != attempt.contract or transport_capacity(local_contract) != capacity
-                    or transport_material_delivery(local_contract) != delivery):
-                raise ValueError("FuseFSS source runtime contract differs")
-            if capacity == "decoder":
-                source_disk = _integer(json.loads(local_contract).get("source_disk_bytes"), 2 * _DECODER_SOURCE_BYTES)
-                source_lease = attempt.reserve_disk(source_disk, native_directory)
-                attempt.source_disk_lease = source_lease
-            if attempt.cancelled():
-                raise ValueError("FuseFSS source admission retired")
-            attempt.loaded = load_role_source(experiment, expected_pins=source.snapshot_pins,
-                input_rows=rows, outputs=outputs, cancelled=attempt.cancelled, source=source)
-            if attempt.loaded.contract_bytes != attempt.contract:
-                raise ValueError("FuseFSS loaded source contract differs")
-            if source_lease is not None and hasattr(attempt.loaded.native_program, "disk_backing"):
-                # Only the locally imported native owner can establish backing.
-                # Older cores without this API retain the full pending charge.
-                source_lease.bind_backing(attempt.loaded.native_program.disk_backing)
+            with source_status_scope(source_status, signal=attempt.signal) as status:
+                source_lease = None
+                if attempt.cancelled():
+                    raise ValueError("FuseFSS source admission retired")
+                status.phase("source_contract")
+                local_contract = source.runtime_contract(experiment, rows, outputs)
+                if (local_contract != attempt.contract or transport_capacity(local_contract) != capacity
+                        or transport_material_delivery(local_contract) != delivery):
+                    raise ValueError("FuseFSS source runtime contract differs")
+                if capacity == "decoder":
+                    source_disk = _integer(json.loads(local_contract).get("source_disk_bytes"), 2 * _DECODER_SOURCE_BYTES)
+                    source_lease = attempt.reserve_disk(source_disk, native_directory)
+                    attempt.source_disk_lease = source_lease
+                if attempt.cancelled():
+                    raise ValueError("FuseFSS source admission retired")
+                attempt.loaded = load_role_source(experiment, expected_pins=source.snapshot_pins,
+                    input_rows=rows, outputs=outputs, cancelled=attempt.cancelled, source=source,
+                    **status.callbacks)
+                if attempt.loaded.contract_bytes != attempt.contract:
+                    raise ValueError("FuseFSS loaded source contract differs")
+                if source_lease is not None and hasattr(attempt.loaded.native_program, "disk_backing"):
+                    # Only the locally imported native owner can establish backing.
+                    # Older cores without this API retain the full pending charge.
+                    source_lease.bind_backing(attempt.loaded.native_program.disk_backing)
         # Admission's outer timeout bounds the unread body by the configured
         # maximum. Its authenticated, possibly shorter budget must also cover
         # import; the idle expiry timer is installed only after this job drains.
@@ -1039,15 +1044,22 @@ def main():
         parser.error("valid role and port required")
     experiment = Experiment.from_spec(json.loads(os.environ["PLLM_ROLE_EXPERIMENT_JSON"]))
     capacity = experiment.pipeline.components["linear"].params.get("capacity", "capsule")
-    app = create_fss_worker_app(experiment, args.role, os.environ["PLLM_FSS_API_KEY"],
-        peer_connections=json.loads(os.environ["PLLM_FSS_PEERS_JSON"]),
-        peer_credentials=json.loads(os.environ["PLLM_FSS_PEER_CREDENTIALS_JSON"]),
-        source_pins=json.loads(os.environ["PLLM_FSS_SOURCE_PINS_JSON"]) if "PLLM_FSS_SOURCE_PINS_JSON" in os.environ else None,
-        ttl=timeout_limit(capacity) if capacity == "decoder" else 300)
-    import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False, log_level="warning",
-                limit_concurrency=8, h11_max_incomplete_event_size=16 << 10,
-                timeout_keep_alive=5, proxy_headers=False)
+    status = StatusWriter.from_environment()
+    try:
+        app = create_fss_worker_app(experiment, args.role, os.environ["PLLM_FSS_API_KEY"],
+            peer_connections=json.loads(os.environ["PLLM_FSS_PEERS_JSON"]),
+            peer_credentials=json.loads(os.environ["PLLM_FSS_PEER_CREDENTIALS_JSON"]),
+            source_pins=json.loads(os.environ["PLLM_FSS_SOURCE_PINS_JSON"])
+                if "PLLM_FSS_SOURCE_PINS_JSON" in os.environ else None,
+            ttl=timeout_limit(capacity) if capacity == "decoder" else 300,
+            source_status=status)
+        import uvicorn
+        uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False, log_level="warning",
+                    limit_concurrency=8, h11_max_incomplete_event_size=16 << 10,
+                    timeout_keep_alive=5, proxy_headers=False)
+    finally:
+        if status is not None:
+            status.close()
 
 
 if __name__ == "__main__":

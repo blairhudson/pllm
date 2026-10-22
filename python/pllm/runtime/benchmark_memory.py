@@ -361,6 +361,7 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
     from . import delegated_source as source_io
     from .fss_source import _FRAME, _material_delivery
     from .tokenizer_admission import DECODER_METADATA_MEMORY_BYTES
+    from .fss_child_status import SUPERVISOR_MEMORY_BYTES, WORKER_MEMORY_BYTES
     from pllm.configuration import Deployment, ExecutionBudget, Experiment
     _validate_workload(rows, outputs, 1, cache_bytes, cache_bound)
     if cache_bytes or cache_bound is not None or outputs > 4 or rows + outputs - 1 > 16:
@@ -455,9 +456,9 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
     metadata_preflight = DECODER_METADATA_MEMORY_BYTES if expanded else 0
     client_work, role_work = max(client_work, metadata_preflight), max(role_work, metadata_preflight)
     margin = memory_safety_margin_percent
-    providers = {role: _slack(_PROCESS_BYTES + role_work, margin) for role in ROLES}
+    providers = {role: _slack(_PROCESS_BYTES + role_work + WORKER_MEMORY_BYTES, margin) for role in ROLES}
     # SDK, supervisor, dashboard and relay can overlap, plus three role processes.
-    client = _slack(3 * _PROCESS_BYTES + client_work + 32 * MiB, margin)
+    client = _slack(3 * _PROCESS_BYTES + client_work + 32 * MiB + SUPERVISOR_MEMORY_BYTES, margin)
     return {"scope": "conservative allocation estimate; not measured peak RSS",
         "runtime_kind": "fss", "model_plan_digest": None,
         "model_config_digest": contract["plan"]["config_digest"], "pipeline_digest": pipeline.digest(),
@@ -484,6 +485,9 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
             "per_role": max(role_bound, metadata_preflight), "client_execution": client_bound,
             "per_role_execution": role_bound, "source_metadata_preflight": metadata_preflight},
         "allocation_owners": {"client": client_parts, "each_role": role_parts,
+            "local_source_status": {"supervisor_bytes": SUPERVISOR_MEMORY_BYTES,
+                "per_role_bytes": WORKER_MEMORY_BYTES,
+                "scope": "separate process overhead; no native/client cap or relay credit"},
             "source_metadata_preflight_bytes_per_process": metadata_preflight,
             "client_sdk_supervisor_dashboard_processes": 3, "relay_workspace_bytes": 32 * MiB},
         "components": {"checkpoint_bytes": checkpoint_bytes, "source_float32_bytes": source,

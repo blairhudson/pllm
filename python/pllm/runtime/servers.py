@@ -127,6 +127,7 @@ def _spawn_role_process(
     stdout: Any = None,
     stderr: Any = None,
     discard_output: bool = False,
+    pass_fds: tuple[int, ...] = (),
 ) -> subprocess.Popen[Any]:
     """All local role children share one process-group and credential boundary."""
     if discard_output:
@@ -140,6 +141,7 @@ def _spawn_role_process(
         stdout=stdout,
         stderr=stderr,
         start_new_session=True,
+        **({"pass_fds": pass_fds} if pass_fds else {}),
     )
 
 
@@ -232,6 +234,7 @@ class LocalTopology:
         "_startup_timeout",
         "_startup_breadcrumbs",
         "_failure_observer",
+        "_child_source_status",
         "_stopping",
         "_telemetry_endpoint",
         "_telemetry_token",
@@ -309,6 +312,7 @@ class LocalTopology:
         self._memory_admission = None
         self._source_qualification = None
         self._failure_observer = None
+        self._child_source_status = {}
         self._startup_breadcrumbs = {"phase": "memory_preflight", "role": None,
                                     "spawned_roles": [], "ready_roles": []}
         self._capacity_reservations = None
@@ -360,7 +364,18 @@ class LocalTopology:
         if not self._process_lock.acquire(blocking=False):
             return {"phase": "unknown"}
         try:
-            return deepcopy(self._startup_breadcrumbs)
+            value = deepcopy(self._startup_breadcrumbs)
+            # Memory-only snapshots of inherited diagnostic channels. Never read
+            # sockets, query children or sample RSS while observing a failure.
+            records = [record for reader in getattr(self, "_child_source_status", {}).values()
+                       if (record := reader.snapshot()) is not None and record["active"]]
+            failures = [record for record in records if record.get("failed") is True]
+            records = failures or records
+            if len(records) == 1:
+                value["source_import"] = records[0]
+            elif len(records) > 1:
+                value.pop("source_import", None)  # Ambiguous attribution stays unknown.
+            return value
         finally:
             self._process_lock.release()
 
@@ -881,12 +896,36 @@ class LocalTopology:
                 self._logs[role] = log
                 stdout = log
                 stderr = subprocess.STDOUT
-            process = _spawn_role_process(
-                command,
-                environment=self._environment(role),
-                stdout=stdout,
-                stderr=stderr,
-            )
+            environment = self._environment(role)
+            reader = None
+            options = {}
+            if os.name == "posix" and getattr(self, "_privacy_mode", None) == "fss_public":
+                from .fss_child_status import ENV, ROLES as FSS_ROLES, StatusReader
+
+                if role in FSS_ROLES:
+                    try:
+                        reader = StatusReader(role, self.request_stop, self._observe_failure)
+                        environment[ENV] = str(reader.child.fileno())
+                        options["pass_fds"] = (reader.child.fileno(),)
+                        self._child_source_status[role] = reader
+                        reader.start()
+                    except (OSError, RuntimeError):
+                        if reader is not None:
+                            reader.close()
+                            self._child_source_status.pop(role, None)
+                        reader = None
+                        environment.pop(ENV, None)
+                        options.clear()  # Diagnostics unavailable, never weaker guards.
+            try:
+                process = _spawn_role_process(command, environment=environment,
+                                              stdout=stdout, stderr=stderr, **options)
+            except BaseException:
+                if reader is not None:
+                    reader.close()
+                    self._child_source_status.pop(role, None)
+                raise
+            if reader is not None:
+                reader.spawned()
             self._processes[role] = process
             from .benchmark_failure import ROLES
             if role in ROLES and role not in self._startup_breadcrumbs["spawned_roles"]:
@@ -1382,6 +1421,11 @@ class LocalTopology:
             try:
                 self._stop_all(processes[role] for role in reversed(self._role_ids) if role in processes)
             finally:
+                with self._process_lock:
+                    readers = tuple(getattr(self, "_child_source_status", {}).values())
+                    getattr(self, "_child_source_status", {}).clear()
+                for reader in readers:
+                    reader.close()
                 for log in self._logs.values():
                     if not log.closed:
                         log.close()

@@ -5,12 +5,15 @@ this module. test_fss_sdk.py covers generated-source actual role children.
 """
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
+import socket
 from types import SimpleNamespace
 
 import pytest
 
 from pllm import Model
 from pllm.runtime import servers
+from pllm.runtime import fss_child_status as status
 from pllm.runtime.fss_protocol import ROLES, HOLDERS
 
 
@@ -34,11 +37,16 @@ def topology(tmp_path):
 
 
 class Process:
-    def __init__(self, pid):
+    def __init__(self, pid, status_writer=None):
         self.pid, self.returncode = pid, None
+        self.status_writer = status_writer
 
     def poll(self):
         return self.returncode
+
+    def close_status(self):
+        if self.status_writer is not None:
+            self.status_writer.close()
 
 
 @pytest.fixture
@@ -46,7 +54,7 @@ def launch(tmp_path, monkeypatch):
     from pllm.runtime import fss_source, benchmark_memory
     value = topology(tmp_path)
     state = SimpleNamespace(topology=value, events=[], children=[], environments={}, commands={},
-                            stopped=[], failure=None, public_secrets=[])
+                            stopped=[], failure=None, public_secrets=[], readers={}, inherited={})
 
     def admit(experiment):
         assert experiment is value._experiment
@@ -59,16 +67,42 @@ def launch(tmp_path, monkeypatch):
         state.events.append("price")
         return object()
 
-    def spawn(command, *, environment, stdout, stderr):
+    def spawn(command, *, environment, stdout, stderr, pass_fds=()):
         role = command[command.index("--role") + 1]
         assert state.events[:2] == ["pins", "price"]
         assert value._source_pins == PINS
         assert json.loads(environment["PLLM_FSS_SOURCE_PINS_JSON"]) == PINS
+        assert type(pass_fds) is tuple and len(pass_fds) <= 1
+        if pass_fds:
+            descriptor, = pass_fds
+            assert type(descriptor) is int and 3 <= descriptor <= (1 << 31) - 1
+            assert environment[status.ENV] == str(descriptor)
+            reader = value._child_source_status[role]
+            state.readers[role] = reader
+            assert reader.role == role and reader.child.fileno() == descriptor
+            assert reader.channel.fileno() not in pass_fds
+            assert all(child.status_writer is None
+                       or child.status_writer.channel.fileno() not in pass_fds
+                       for child in state.children)
+            assert len(value._child_source_status) <= len(status.ROLES)
+        else:
+            assert status.ENV not in environment
         state.events.append("spawn:" + role)
         if state.failure == "spawn" and role == "worker_b":
             raise OSError("injected spawn failure")
         state.environments[role], state.commands[role] = environment, command
-        child = Process(1_000_000 + len(state.children))
+        writer = None
+        if pass_fds:
+            # Model only the endpoint inherited by exec. Parent retains no fake
+            # child copy after retirement; no paths, pins or credentials sent.
+            endpoint = socket.socket(fileno=os.dup(pass_fds[0]))
+            writer = status.StatusWriter(endpoint)
+            assert endpoint.family == socket.AF_UNIX and endpoint.type == socket.SOCK_STREAM
+            assert not endpoint.get_inheritable() and not endpoint.getblocking()
+            for option in (socket.SO_SNDBUF, socket.SO_RCVBUF):
+                assert endpoint.getsockopt(socket.SOL_SOCKET, option) <= status._SOCKET_BUFFER_MAX_BYTES
+        state.inherited[role] = pass_fds
+        child = Process(1_000_000 + len(state.children), writer)
         state.children.append(child)
         if stdout is not None:
             stdout.write(("ready " + role + "\n").encode())
@@ -78,6 +112,9 @@ def launch(tmp_path, monkeypatch):
     def wait(self, role, expected_role, url):
         assert expected_role == role  # FSS health is actual role, not generic worker.
         assert self._role_urls[role] == url
+        reader = state.readers.get(role)
+        if reader is not None:
+            assert reader.child.fileno() == -1  # Parent relinquished exec endpoint.
         if state.failure == "health" and role == "worker_b":
             raise servers.TopologyError("injected unhealthy role")
 
@@ -85,6 +122,7 @@ def launch(tmp_path, monkeypatch):
         children = list(processes)
         state.stopped.append(children)
         for child in children:
+            child.close_status()
             child.returncode = 0
 
     monkeypatch.setattr(fss_source, "admit_source", admit)
@@ -94,8 +132,16 @@ def launch(tmp_path, monkeypatch):
     monkeypatch.setattr(servers, "_spawn_role_process", spawn)
     monkeypatch.setattr(servers.LocalTopology, "_wait", wait)
     monkeypatch.setattr(servers.LocalTopology, "_stop_all", staticmethod(stop))
-    yield state
-    value.close()
+    try:
+        yield state
+    finally:
+        value.close()
+        assert not value._child_source_status
+        assert all(child.status_writer is None or child.status_writer.closed for child in state.children)
+        for reader in state.readers.values():
+            assert reader.closed and reader.child.fileno() == reader.channel.fileno() == -1
+            assert reader.thread is None or not reader.thread.is_alive()
+            assert reader.stop is reader.failure is None
 
 
 def test_exact_pins_before_spawn_and_only_appropriate_directed_credentials(launch, monkeypatch):
@@ -103,7 +149,11 @@ def test_exact_pins_before_spawn_and_only_appropriate_directed_credentials(launc
     monkeypatch.setenv("PLLM_FSS_PEERS_JSON", '{"dealer":["https://evil.invalid","operator-peer-secret"]}')
     monkeypatch.setenv("PYTHONPATH", "/operator/injection")
     monkeypatch.setenv("DYLD_LIBRARY_PATH", "/operator/injection")
+    monkeypatch.setenv(status.ENV, "operator-status-capability-must-not-inherit")
     t = launch.topology.start()
+    if os.name == "posix":
+        assert set(launch.readers) == set(ROLES)
+        assert all(reader.count == 0 and reader.snapshot() is None for reader in launch.readers.values())
     all_keys = {*t._role_credentials.values(), *t._peer_credentials.values()}
     for role in ROLES:
         env, command = launch.environments[role], launch.commands[role]
@@ -128,6 +178,12 @@ def test_exact_pins_before_spawn_and_only_appropriate_directed_credentials(launc
         assert "PYTHONPATH" not in env and "DYLD_LIBRARY_PATH" not in env
         assert "operator-secret" not in encoded and "operator-peer-secret" not in encoded
         assert env["PLLM_ROLE_EXPERIMENT_JSON"].encode() == t._experiment.canonical_bytes()
+        inherited = launch.inherited[role]
+        if inherited:
+            assert env[status.ENV] == str(inherited[0])
+        else:
+            assert status.ENV not in env
+        assert "operator-status-capability" not in encoded
         assert not any(key in " ".join(command) for key in all_keys)
     public = repr(t.statuses) + "".join(path.read_text() for path in t._log_dir.glob("*.log"))
     assert all(secret not in public for secret in all_keys)
@@ -136,6 +192,7 @@ def test_exact_pins_before_spawn_and_only_appropriate_directed_credentials(launc
     assert t.closed and all(not s.running for s in t.statuses)
     assert not t._role_credentials and not t._peer_credentials and t._source_pins is None
     assert all(log.closed for log in t._logs.values())
+    assert not t._child_source_status
 
 
 @pytest.mark.parametrize("failure", ["pins", "memory", "spawn", "health"])
