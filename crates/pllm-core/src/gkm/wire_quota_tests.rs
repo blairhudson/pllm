@@ -60,6 +60,7 @@ fn used(quota: &WireQuota) -> (usize, usize) {
 
 #[test]
 fn streamed_four_handles_fifth_sticky_and_count_byte_caps_are_independent() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             let (publication, mut window, _, _) = fixture(capacity, true, seeded, 8);
@@ -102,6 +103,7 @@ fn streamed_four_handles_fifth_sticky_and_count_byte_caps_are_independent() {
 
 #[test]
 fn streamed_starts_requests_pair_preflight_and_allocation_rollback() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             let (_, mut window, _, _) = fixture(capacity, true, seeded, 8);
@@ -146,6 +148,7 @@ fn streamed_starts_requests_pair_preflight_and_allocation_rollback() {
 
 #[test]
 fn streamed_scratch_preallocation_byte_count_overflow_and_refund() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             let (_, window, _, _) = fixture(capacity, true, seeded, 1);
@@ -217,6 +220,7 @@ fn streamed_scratch_preallocation_byte_count_overflow_and_refund() {
 
 #[test]
 fn streamed_linear_lookup_linear_transport_scratch_and_acceptance_both_roles() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             let plan = [Step::Linear([1; 32]), Step::Lookup, Step::Linear([1; 32])];
@@ -281,6 +285,7 @@ fn streamed_linear_lookup_linear_transport_scratch_and_acceptance_both_roles() {
 
 #[test]
 fn streamed_parallel_reservations_are_atomic_and_refund_after_abort() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         let (_, mut window, _, _) = fixture(capacity, true, true, 8);
         let lease = get_lease(&window);
@@ -320,6 +325,7 @@ fn streamed_parallel_reservations_are_atomic_and_refund_after_abort() {
 
 #[test]
 fn streamed_historical_worker_replies_exhaust_across_steps_and_never_revive() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             let (publication, mut client, matrix, table) = fixture(capacity, true, seeded, 8);
@@ -381,6 +387,7 @@ fn streamed_historical_worker_replies_exhaust_across_steps_and_never_revive() {
 
 #[test]
 fn streamed_publication_one_live_handle_byte_cap_and_generic_bypass() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         let (publication, _, _, _) = fixture(capacity, true, false, 1);
         let quota = Arc::clone(publication.export_quota.as_ref().unwrap());

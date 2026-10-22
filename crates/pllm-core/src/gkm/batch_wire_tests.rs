@@ -12,6 +12,7 @@ struct Fixture {
 
 #[test]
 fn each_worker_operation_dispatches_one_shared_primitive_and_no_scalar_evaluator() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             for batch in [1, 2, 5] {
@@ -99,6 +100,7 @@ fn each_worker_operation_dispatches_one_shared_primitive_and_no_scalar_evaluator
 
 #[test]
 fn malformed_complete_client_operation_precedes_allocation_and_retires_without_entropy() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             for case in 0..6 {
@@ -147,6 +149,7 @@ fn malformed_complete_client_operation_precedes_allocation_and_retires_without_e
 
 #[test]
 fn worker_source_profile_and_schedule_binding_preflight_has_no_plan_key_or_lease_allocation() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for profile in [SharingProfile::FullShares, SharingProfile::Aes128WindowV1] {
             for role in [Worker::Zero, Worker::One] {
@@ -345,6 +348,7 @@ fn fixture_stages(capacity: Capacity, seeded: bool, rows: usize, steps: &[Step])
 
 #[test]
 fn four_retained_aggregate_replies_fifth_fails_before_allocation_and_is_sticky() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             let mut fixture = fixture_stages(capacity, seeded, 2, &[Step::Lookup; 8]);
@@ -379,6 +383,7 @@ fn four_retained_aggregate_replies_fifth_fails_before_allocation_and_is_sticky()
 
 #[test]
 fn aggregate_retained_after_abort_keeps_exact_credit_until_bytes_destroyed() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             let before = WireResources::current_with_capacity(capacity).process_live_bytes;
@@ -411,6 +416,7 @@ fn aggregate_retained_after_abort_keeps_exact_credit_until_bytes_destroyed() {
 
 #[test]
 fn every_batch_issue_and_freeze_payload_allocation_failure_burns_owner() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             for freeze in [false, true] {
@@ -456,6 +462,7 @@ fn every_batch_issue_and_freeze_payload_allocation_failure_burns_owner() {
 
 #[test]
 fn batch_lookup_authentication_and_final_linear_verification_remain_authoritative() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             for corrupt_lookup in [false, true] {
@@ -491,6 +498,7 @@ fn batch_lookup_authentication_and_final_linear_verification_remain_authoritativ
 
 #[test]
 fn aggregate_b1_b2_odd_aes_tails_and_exact_complete_acceptance_both_capacities_profiles() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             for rows in [1, 2, 5] {
@@ -558,6 +566,7 @@ fn aggregate_b1_b2_odd_aes_tails_and_exact_complete_acceptance_both_capacities_p
 
 #[test]
 fn aggregate_header_lengths_profile_role_plan_and_replay_substitutions_are_sticky() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             for offset in [
@@ -631,6 +640,7 @@ fn metadata_admits_aggregate_above_four_mib_without_raising_scalar_row_limit() {
 
 #[test]
 fn both_complete_role_packets_stay_frozen_before_every_independent_row_challenge() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     struct Observe {
         lease: Arc<Lease>,
         calls: usize,
@@ -675,6 +685,7 @@ fn both_complete_role_packets_stay_frozen_before_every_independent_row_challenge
 
 #[test]
 fn actual_lookup_aggregate_above_scalar_four_mib_limit_uses_only_batch_admission() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let capacity = Capacity::Decoder;
     let width = 16_384;
     let rows = 65;
@@ -771,6 +782,7 @@ fn actual_lookup_aggregate_above_scalar_four_mib_limit_uses_only_batch_admission
 
 #[test]
 fn partial_role_reply_and_valid_previous_batch_replay_retire_without_retry() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             for partial in [false, true] {
@@ -807,6 +819,7 @@ fn partial_role_reply_and_valid_previous_batch_replay_retire_without_retry() {
 
 #[test]
 fn every_aggregate_worker_output_allocation_failure_refunds_frames_and_scratch_but_retires() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for seeded in [false, true] {
             let mut failures = 0;

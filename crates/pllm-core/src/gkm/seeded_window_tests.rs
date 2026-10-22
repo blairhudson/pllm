@@ -57,6 +57,7 @@ fn lookup(window: Window, worker: &mut SeededWorker, table: &FloatTable) -> Wind
 
 #[test]
 fn matched_full_and_seeded_transcripts_match_independent_aes_integer_and_byte_oracles() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let plan = [
@@ -253,6 +254,7 @@ fn binding_mutations() -> [fn(&mut Binding); 11] {
 
 #[test]
 fn every_binding_field_role_artifact_and_profile_is_enforced_before_expansion() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     for mutate in binding_mutations() {
@@ -297,6 +299,7 @@ fn every_binding_field_role_artifact_and_profile_is_enforced_before_expansion() 
 
 #[test]
 fn lookup_binding_roles_same_shape_table_substitution_and_none_evaluator_retire() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     for mutate in binding_mutations() {
@@ -378,6 +381,7 @@ fn lookup_binding_roles_same_shape_table_substitution_and_none_evaluator_retire(
 
 #[test]
 fn lookup_replay_cross_window_worker_and_response_substitution_keep_sticky_leases() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let plan = [Step::Lookup];
@@ -463,6 +467,7 @@ fn lookup_replay_cross_window_worker_and_response_substitution_keep_sticky_lease
 
 #[test]
 fn authentic_unexpanded_lookup_response_still_cannot_mint_an_accepted_window() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let (window, worker) = client
@@ -509,6 +514,7 @@ fn authentic_unexpanded_lookup_response_still_cannot_mint_an_accepted_window() {
 
 #[test]
 fn replay_cross_window_substitution_cancellation_and_ignored_errors_retire_all_owners() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let plan = [Step::Linear(A)];
@@ -574,6 +580,7 @@ fn replay_cross_window_substitution_cancellation_and_ignored_errors_retire_all_o
 
 #[test]
 fn unexpanded_or_incomplete_seeded_schedule_cannot_mint_accepted_output() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let (window, worker) = client
@@ -609,6 +616,7 @@ fn unexpanded_or_incomplete_seeded_schedule_cannot_mint_accepted_output() {
 
 #[test]
 fn seeded_corruption_preserves_row_authentication_and_final_window_checks() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     for role in 0..2 {
@@ -648,6 +656,7 @@ fn seeded_corruption_preserves_row_authentication_and_final_window_checks() {
 
 #[test]
 fn seed_entropy_and_every_seeded_payload_failure_roll_back_without_resampling() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     for purpose in [Purpose::LinearSeed, Purpose::LookupSeed] {
@@ -730,6 +739,7 @@ fn seed_entropy_and_every_seeded_payload_failure_roll_back_without_resampling() 
 
 #[test]
 fn seeded_workers_share_admission_with_all_clients_and_keep_full_plan_reservations() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let publication = Arc::new(publication(&a, &b, &table));
     let resources = publication.resources();
@@ -776,6 +786,7 @@ fn seeded_workers_share_admission_with_all_clients_and_keep_full_plan_reservatio
 
 #[test]
 fn seeded_verifier_entropy_stays_post_freeze_and_never_falls_back_to_shared_streams() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     for failure in [Purpose::ClaimChallenge, Purpose::MatrixChallenge] {

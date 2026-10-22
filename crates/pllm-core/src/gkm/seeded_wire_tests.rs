@@ -112,6 +112,7 @@ fn run(seeded: bool) -> (Vec<Vec<u8>>, usize) {
 
 #[test]
 fn full_seeded_wire_exact_parity_and_seed_only_byte_accounting() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let full = run(false);
     let seeded = run(true);
     assert_eq!(full.0, seeded.0);
@@ -121,6 +122,7 @@ fn full_seeded_wire_exact_parity_and_seed_only_byte_accounting() {
 
 #[test]
 fn seeded_wire_rejects_role_profile_ordinal_source_and_frame_substitutions() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     // All public binding fields plus numeric domain, role, request identity,
     // geometry/body framing. Every ignored failure remains retired.
     for offset in [
@@ -154,6 +156,7 @@ fn seeded_wire_rejects_role_profile_ordinal_source_and_frame_substitutions() {
 
 #[test]
 fn seeded_wire_replay_cancellation_and_retained_frame_leases() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (publication, client, mut owners) = fixture();
     let mut window = client.begin_seeded_wire([5; 32], &PLAN).unwrap();
     let starts = window.start_frames().unwrap();
@@ -180,6 +183,7 @@ fn seeded_wire_replay_cancellation_and_retained_frame_leases() {
 
 #[test]
 fn seeded_wire_start_and_expansion_allocation_failures_are_sticky() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for phase in 0..3 {
         let mut success = false;
         for index in 0..24 {
@@ -234,6 +238,7 @@ fn seeded_wire_start_and_expansion_allocation_failures_are_sticky() {
 
 #[test]
 fn seeded_wire_corruption_still_requires_original_full_window_verification() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for linear in [false, true] {
         let (_, client, mut owners) = fixture();
         let plan = [if linear {
@@ -271,6 +276,7 @@ fn seeded_wire_corruption_still_requires_original_full_window_verification() {
 
 #[test]
 fn seeded_wire_fresh_purpose_keys_one_use_export_partial_admission_and_wrong_reply() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (_, client, mut owners) = fixture();
     let mut first = client.begin_seeded_wire([5; 32], &PLAN).unwrap();
     let a = first.start_frames().unwrap();
@@ -321,6 +327,7 @@ fn seeded_wire_fresh_purpose_keys_one_use_export_partial_admission_and_wrong_rep
 
 #[test]
 fn substituted_seed_material_cannot_bypass_reconstruction_or_final_verification() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (_, client, mut owners) = fixture();
     let mut window = client
         .begin_seeded_wire([5; 32], &[Step::Linear([1; 32])])

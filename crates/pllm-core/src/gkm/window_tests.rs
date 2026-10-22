@@ -70,6 +70,7 @@ fn error<T>(result: Result<T, Error>, expected: Error) {
 
 #[test]
 fn lookup_repeated_matrix_and_different_width_stage_accept_only_complete_window() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let plan = [
@@ -132,6 +133,7 @@ fn lookup_repeated_matrix_and_different_width_stage_accept_only_complete_window(
 
 #[test]
 fn individual_wrapped_worker_relations_fail_but_reconstructed_signed_check_passes() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let window = client.begin(CONTEXT, &[Step::Linear(A)]).unwrap();
@@ -167,6 +169,7 @@ fn individual_wrapped_worker_relations_fail_but_reconstructed_signed_check_passe
 
 #[test]
 fn every_output_coordinate_and_either_or_both_workers_reject_corruption() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     for (id, matrix) in [(A, &a), (B, &b)] {
@@ -210,6 +213,7 @@ fn every_output_coordinate_and_either_or_both_workers_reject_corruption() {
 
 #[test]
 fn fresh_per_claim_coefficients_catch_coefficient_one_cancellation() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let mut window = client
@@ -242,6 +246,7 @@ fn fresh_per_claim_coefficients_catch_coefficient_one_cancellation() {
 
 #[test]
 fn final_fresh_coefficients_catch_errors_cancelling_across_different_matrices() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let mut window = client
@@ -272,6 +277,7 @@ fn final_fresh_coefficients_catch_errors_cancelling_across_different_matrices() 
 
 #[test]
 fn accumulation_is_mod_scalar_order_and_matches_independent_big_integer_oracle() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let mut window = client
@@ -310,6 +316,7 @@ fn accumulation_is_mod_scalar_order_and_matches_independent_big_integer_oracle()
 
 #[test]
 fn malformed_role_shape_context_stage_count_and_replay_retire_the_owner() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let plan = [Step::Linear(A)];
@@ -388,6 +395,7 @@ fn malformed_role_shape_context_stage_count_and_replay_retire_the_owner() {
 
 #[test]
 fn cross_session_and_same_shape_wrong_matrix_artifacts_fail_closed() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let publication = Arc::new(publication(&a, &b, &table));
     let one = Client::new(Arc::clone(&publication), publication.digest()).unwrap();
@@ -419,6 +427,7 @@ fn cross_session_and_same_shape_wrong_matrix_artifacts_fail_closed() {
 
 #[test]
 fn lookup_checks_all_row_bytes_before_use_and_retires_partial_or_bad_responses() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     for offset in 0..12 {
@@ -501,6 +510,7 @@ fn lookup_checks_all_row_bytes_before_use_and_retires_partial_or_bad_responses()
 
 #[test]
 fn publication_pins_cover_points_row_hashes_context_numeric_matrix_and_bounds() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     for tamper in 0..7 {
         let mut publication = publication(&a, &b, &table);
@@ -550,6 +560,7 @@ fn publication_pins_cover_points_row_hashes_context_numeric_matrix_and_bounds() 
 
 #[test]
 fn freeze_barrier_precedes_entropy_and_all_entropy_failure_phases_retire() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let pending = client
@@ -630,6 +641,7 @@ fn freeze_barrier_precedes_entropy_and_all_entropy_failure_phases_retire() {
 
 #[test]
 fn schedules_omitted_claims_input_bounds_and_cancellation_fail_without_receipt() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let plan = [Step::Lookup, Step::Linear(A), Step::Linear(B)];
@@ -706,6 +718,7 @@ fn schedules_omitted_claims_input_bounds_and_cancellation_fail_without_receipt()
 
 #[test]
 fn fresh_private_views_and_live_cumulative_caps_survive_drop_and_bad_attempts() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let client = client(publication(&a, &b, &table));
     let plan = [Step::Linear(A)];

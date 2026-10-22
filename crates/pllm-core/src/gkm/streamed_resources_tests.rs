@@ -95,6 +95,7 @@ fn streamed_components_preserve_generic_pricing_and_exact_owned_overlap_differen
 
 #[test]
 fn streamed_reservation_is_exact_one_lifetime_window_with_retained_frame_leases() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     static POOL: AdmissionPool = AdmissionPool::new(16 << 20);
     let (matrix, table) = fixture();
     let stages = [Stage {
@@ -208,6 +209,7 @@ fn streamed_reservation_is_exact_one_lifetime_window_with_retained_frame_leases(
 
 #[test]
 fn streamed_publication_failures_refund_actual_price_and_import_checks_metadata() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     static POOL: AdmissionPool = AdmissionPool::new(16 << 20);
     let (matrix, table) = fixture();
     let stages = [Stage {

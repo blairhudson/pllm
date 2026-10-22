@@ -124,6 +124,7 @@ fn publication_with_context(capacity: Capacity, context: [u8; 32]) -> Arc<Public
 
 #[test]
 fn client_admission_binding_precedes_scalar_allocation_and_burns_malformed_attempt() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for profile in [SharingProfile::FullShares, SharingProfile::Aes128WindowV1] {
             for wrong_source in [false, true] {
@@ -177,6 +178,7 @@ fn client_admission_binding_precedes_scalar_allocation_and_burns_malformed_attem
 
 #[test]
 fn worker_concrete_layout_peaks_and_each_allocation_failure_refund_exclusive_owner() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     assert_eq!(
         WorkerBatchPayloadLayout::new(&descriptor(0, 3, Step::Linear([1; 32])), 5, 7)
             .unwrap()
@@ -303,6 +305,7 @@ fn descriptor_wire_sizes_are_role_exact_include_headers_and_share_common_checked
 
 #[test]
 fn metadata_recipe_matches_real_native_and_wire_reservations_and_exclusive_payload_owner() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for profile in [SharingProfile::FullShares, SharingProfile::Aes128WindowV1] {
             let public = publication(capacity);
@@ -372,6 +375,7 @@ fn metadata_recipe_matches_real_native_and_wire_reservations_and_exclusive_paylo
 
 #[test]
 fn every_flat_owner_allocation_failure_refunds_exclusive_slot_and_keeps_reservation() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         for profile in [SharingProfile::FullShares, SharingProfile::Aes128WindowV1] {
             let public = publication(capacity);
@@ -414,6 +418,7 @@ fn every_flat_owner_allocation_failure_refunds_exclusive_slot_and_keeps_reservat
 
 #[test]
 fn artifact_identity_does_not_allow_batch_admission_capacity_or_generic_policy_substitution() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let public = publication(Capacity::Capsule);
     let frame = public.export_wire().unwrap();
     let pin = public.digest();
@@ -441,6 +446,7 @@ fn artifact_identity_does_not_allow_batch_admission_capacity_or_generic_policy_s
 
 #[test]
 fn batch_wire_admission_failure_refunds_native_and_destroys_plan_without_buffer_allocation() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         let public = publication(capacity);
         let plan = BatchPlan::new(&[Step::Lookup], &[descriptor(0, 1, Step::Lookup)]).unwrap();

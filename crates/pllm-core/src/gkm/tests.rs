@@ -6,6 +6,17 @@ use sha2::{Digest, Sha256};
 
 use super::*;
 
+/// Isolate tests that reserve process-wide publication, window, or wire credit.
+/// Acquire before creating any owners and keep the guard until all owners drop;
+/// guarding only counter assertions cannot exclude allocations in other tests.
+/// Child threads within a test remain concurrent and must not reacquire this lock.
+pub(super) fn process_accounting_guard() -> std::sync::MutexGuard<'static, ()> {
+    static PROCESS_ACCOUNTING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    PROCESS_ACCOUNTING
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
+
 pub(super) struct ScriptEntropy {
     pub scalars: VecDeque<[u8; 32]>,
     pub calls: Vec<Purpose>,
@@ -212,6 +223,7 @@ fn immutable_i16_ring64_matches_big_integer_oracle_including_wrapped_shares() {
 
 #[test]
 fn public_bounds_and_preallocation_shape_caps_are_conservative() {
+    let _accounting = process_accounting_guard();
     assert!(matches!(
         I16Matrix::from_encoded(usize::MAX, 2, &[], &[]),
         Err(Error::Limit)
@@ -425,6 +437,7 @@ fn group_oracle(value: i128) -> Vec<u8> {
 
 #[test]
 fn owner_commitments_match_independent_affine_group_and_exact_signed_relation() {
+    let _accounting = process_accounting_guard();
     let matrix = I16Matrix::from_encoded(2, 2, &[257, -1, -129, 32767], &[100; 2]).unwrap();
     let other = I16Matrix::from_encoded(1, 2, &[-1, 0], &[100; 2]).unwrap();
     let table = FloatTable::from_le_bytes(1, 1, &[0; 4]).unwrap();

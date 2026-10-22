@@ -5,6 +5,7 @@ use std::sync::{atomic::Ordering, Arc};
 
 #[test]
 fn capacity_is_admission_policy_not_a_new_artifact_identity() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let weights = vec![257, -1, -129, 32767];
     let bounds = vec![100; 2];
     let matrix = I16Matrix::from_encoded(2, 2, &weights, &bounds).unwrap();
@@ -114,6 +115,7 @@ fn full_qwen_geometry_is_admitted_without_importing_or_allocating_model_payloads
 
 #[test]
 fn decoder_caps_and_overflow_reject_before_payload_allocation() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let cap = Capacity::Decoder;
     let _fail = payload::failure::after(0);
     for shape in [
@@ -187,6 +189,7 @@ fn decoder_caps_and_overflow_reject_before_payload_allocation() {
 
 #[test]
 fn decoder_publication_failures_refund_envelope_and_retained_responses_hold_it() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     static POOL: AdmissionPool = AdmissionPool::new(128 << 20);
     let matrix = I16Matrix::from_encoded_owned_with_capacity(
         257,

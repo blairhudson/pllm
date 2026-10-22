@@ -32,6 +32,7 @@ fn fail_each<T>(mut operation: impl FnMut(usize) -> Result<T, Error>, retired: i
 
 #[test]
 fn all_clients_share_publication_window_admission_including_concurrent_attempts() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let publication = Arc::new(publication(&a, &b, &table));
     let clients = (0..9)
@@ -93,6 +94,7 @@ fn all_clients_share_publication_window_admission_including_concurrent_attempts(
 
 #[test]
 fn publication_envelopes_share_aggregate_admission_and_release_after_last_response() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     static POOL: std::sync::OnceLock<AdmissionPool> = std::sync::OnceLock::new();
     let (a, b, table) = artifacts();
     // Exactly two complete envelopes, including target-specific AES key state.
@@ -173,6 +175,7 @@ fn publication_envelopes_share_aggregate_admission_and_release_after_last_respon
 
 #[test]
 fn pending_role_slots_bound_response_handles_and_cancellation_keeps_their_leases() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let weights = [0; MAX_DIMENSION];
     let matrix = I16Matrix::from_encoded(MAX_DIMENSION, 1, &weights, &[1]).unwrap();
     let table = FloatTable::from_le_bytes(1, 1, &[0; 4]).unwrap();
@@ -241,6 +244,7 @@ fn pending_role_slots_bound_response_handles_and_cancellation_keeps_their_leases
 
 #[test]
 fn ignored_constructor_or_evaluator_errors_cannot_resurrect_transactions() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let owner = client(publication(&a, &b, &table));
     for kind in 0..4 {
@@ -280,6 +284,7 @@ fn ignored_constructor_or_evaluator_errors_cannot_resurrect_transactions() {
 
 #[test]
 fn simultaneous_evaluations_of_one_role_get_one_buffer_and_poison_acceptance() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let owner = client(publication(&a, &b, &table));
     let pending = owner
@@ -364,6 +369,7 @@ fn every_import_publication_and_kernel_payload_allocation_is_fallible() {
 
 #[test]
 fn every_window_payload_failure_retires_and_retained_response_capacity_is_not_refunded() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (a, b, table) = artifacts();
     let owner = client(publication(&a, &b, &table));
     let retired = || assert_eq!(owner.publication.live_windows(), 0);

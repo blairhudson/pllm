@@ -20,6 +20,7 @@ fn fixture() -> (I16Matrix, FloatTable, Arc<Publication>, Client) {
 
 #[test]
 fn worker_window_permit_preserves_original_full_requirement_and_prices_only_seeded_one_extra() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         let matrix = I16Matrix::from_encoded(11, 13, &[3; 11 * 13], &[100; 13]).unwrap();
         let table = FloatTable::from_le_bytes(17, 7, &[0; 17 * 7 * 4]).unwrap();
@@ -70,6 +71,7 @@ fn worker_window_permit_preserves_original_full_requirement_and_prices_only_seed
 
 #[test]
 fn worker_uses_native_cumulative_window_step_and_shared_live_admission() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (matrix, table, publication, client) = fixture();
     for exhausted_steps in [false, true] {
         let mut worker = WorkerWire::new(
@@ -133,6 +135,7 @@ fn worker_uses_native_cumulative_window_step_and_shared_live_admission() {
 
 #[test]
 fn every_new_payload_allocation_failure_is_fallible_and_retires_its_owner() {
+    let _accounting = crate::gkm::tests::process_accounting_guard();
     let (matrix, table, publication, client) = fixture();
     let artifact = publication.export_wire().unwrap();
     // Import owns no live windows. A failed staged allocation must return its
