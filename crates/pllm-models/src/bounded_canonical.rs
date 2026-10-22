@@ -7,14 +7,25 @@
 //! Writer errors during replay can leave partial output.
 //!
 //! The resource quote describes logical owned Rust state, not total native stack,
-//! allocator usage, RSS, or private dependency scratch. Borrowed model capacity
-//! and external writer storage are excluded. Compiled call frames and numeric
-//! library scratch remain explicitly unpriced in `Resources`; this module is not
+//! allocator usage, RSS, or private dependency scratch. Borrowed model/JSON/string
+//! payload capacity and external writer backing are excluded. Compiled call frames
+//! and numeric library scratch remain explicitly unpriced in `Resources`; this module is not
 //! an execution gate, authority decision, or certification of a machine bound.
 //! Typed schema calls have fixed nesting and never recurse. Their reusable
 //! collection cursors live in `Cursors`; attribute nesting uses only the supplied
 //! `StreamFrame` slice. Resource categories quote actual `size_of` types, not an
 //! estimated allowance per model node; they are not a machine peak-stack total.
+//!
+//! Logical slots follow ownership, not ABI temporaries: moving an argument,
+//! constructor output, or consumed receiver transfers its slot. A Result includes
+//! its payload; it is not added to that payload again. Sequential representations
+//! reuse a logical slot (their maximum size), even if compiled stack slots do not.
+//! Copy arguments follow the same transfer convention unless the caller retains
+//! a separately stored copy. Admission retains its limits and counters; adjusted
+//! pass limits transfer into Session's meter. Borrowed aliases and scalar
+//! evaluation locals are not owned workspace. JSON numbers are traversed by
+//! reference, never copied into an owned Number. Dependency/native call stacks
+//! are outside this logical quote, not an unknown component of its total.
 
 use crate::{
     AppliedMethod, DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator,
@@ -81,22 +92,170 @@ pub struct ResourceQuote {
     pub admission_state_bytes: usize,
     /// Actual length/rank admission accumulator and collection cursors.
     pub collection_state_bytes: usize,
-    /// Actual per-pass adjusted copy of stream limits.
+    /// Adjusted stream-limit type size (transfers into Session, not added again).
     pub pass_limits_bytes: usize,
     /// Completed counters returned by the current pass, alongside admission.
     pub pass_usage_bytes: usize,
+    /// Complete write phases, each including admission exactly once.
+    pub phases: ResourcePhases,
+    /// Hash-only phases after admission; shared admission phases are in `phases`.
+    pub hash_phases: HashResourcePhases,
+    /// Entire supplied frame capacity plus the maximum write phase.
+    pub write_workspace_bytes: usize,
+    /// Entire supplied frame capacity plus the maximum hash phase (not write replay).
+    pub hash_workspace_bytes: usize,
+}
+
+/// Full phase slots excluding supplied frame capacity. Collection and sink are
+/// sequential; replay retains admission, not the earlier sink session.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ResourcePhases {
+    pub admission_construction_bytes: usize,
+    pub collection_bytes: usize,
+    pub sink_pass_bytes: usize,
+    pub replay_bytes: usize,
+    pub finish_return_bytes: usize,
+}
+
+/// Full hash-only phase slots excluding frames, each retaining admission once.
+/// Construction transfers DomainHash's output slot; finish consumes that slot
+/// before returning its Result (the larger representation is charged).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct HashResourcePhases {
+    pub construction_bytes: usize,
+    pub replay_bytes: usize,
+    pub finish_return_bytes: usize,
+}
+
+fn sum(parts: &[usize]) -> Result<usize, Error> {
+    parts.iter().try_fold(0usize, |total, part| {
+        total
+            .checked_add(*part)
+            .ok_or(Error::Canonical(StreamError::StackLimit))
+    })
+}
+
+fn peak(parts: &[usize]) -> usize {
+    parts.iter().copied().max().unwrap_or(0)
+}
+
+// These are actual pass slots, not allowances for unspecified call frames.
+struct PassConstruction<'a, 'w, W> {
+    session: Result<Session<'a, 'w, W>, StreamError>,
+}
+
+struct PassWorkspace<'a, 'w, W> {
+    stream: Session<'a, 'w, W>,
+    cursors: Cursors,
+    result: Result<(), StreamError>,
+}
+
+struct PassFinish {
+    result: Result<StreamUsage, StreamError>,
+}
+
+struct CollectionWorkspace {
+    counts: Collections,
+    result: Result<usize, Error>,
+}
+
+struct HashConstruction {
+    output: DomainHash,
+}
+
+struct HashFinish {
+    result: Result<[u8; 32], Error>,
+}
+
+fn pass_workspace_bytes<W: io::Write>() -> Result<usize, Error> {
+    let stream = Session::<W>::resources_for_slots(0)?;
+    // String escape and numeric formatting are sequential. No owned Number:
+    // stream.numeric_value_bytes is a diagnostic type size, not live storage.
+    let formatting = peak(&[
+        stream.escape_buffer_bytes,
+        sum(&[
+            stream.format_arguments_bytes,
+            stream.compact_formatter_bytes,
+        ])?,
+    ]);
+    Ok(peak(&[
+        size_of::<PassConstruction<'_, '_, W>>(),
+        sum(&[
+            size_of::<PassWorkspace<'_, '_, W>>(),
+            stream.emitter_bytes,
+            formatting,
+        ])?,
+        size_of::<Session<'_, '_, W>>(),
+        size_of::<PassFinish>(),
+        size_of::<Result<StreamUsage, Error>>(),
+    ]))
 }
 
 /// Quotes supplied stack capacity, even unused slots. Writer-owned allocations
 /// and machine call frames are not included. No allocation is performed.
+/// Legacy category fields are diagnostics, not quantities to sum: `stream`
+/// includes type sizes (notably Number and hash) that need not be live in a pass.
+/// Overflow of either composed total is `Canonical(StackLimit)`.
+///
+/// Write = frames + max(admission construction, collection, sink, replay, return).
+/// Hash = frames + max(admission construction, collection, sink, hash construction,
+/// hash replay, hash finish/return). No hash exists during admission. Constructor
+/// output Results include their payload slots; successful moves reuse those slots.
 pub fn resources<W: io::Write>(slots: usize) -> Result<ResourceQuote, Error> {
+    let stream = Session::<W>::resources_for_slots(slots)?;
+    let admission = size_of::<Admission<'_>>();
+    let phases = ResourcePhases {
+        admission_construction_bytes: size_of::<Result<Admission<'_>, Error>>(),
+        collection_bytes: sum(&[admission, size_of::<CollectionWorkspace>()])?,
+        sink_pass_bytes: sum(&[admission, pass_workspace_bytes::<io::Sink>()?])?,
+        replay_bytes: sum(&[admission, pass_workspace_bytes::<W>()?])?,
+        finish_return_bytes: sum(&[admission, size_of::<Result<StreamUsage, Error>>()])?,
+    };
+    let hash_phases = HashResourcePhases {
+        construction_bytes: sum(&[admission, size_of::<HashConstruction>()])?,
+        replay_bytes: sum(&[
+            admission,
+            size_of::<DomainHash>(),
+            pass_workspace_bytes::<DomainHash>()?,
+        ])?,
+        finish_return_bytes: sum(&[
+            admission,
+            peak(&[size_of::<DomainHash>(), size_of::<HashFinish>()]),
+        ])?,
+    };
+    let admission_peak = peak(&[
+        phases.admission_construction_bytes,
+        phases.collection_bytes,
+        phases.sink_pass_bytes,
+    ]);
+    let write_workspace_bytes = sum(&[
+        stream.stack_bytes,
+        peak(&[
+            admission_peak,
+            phases.replay_bytes,
+            phases.finish_return_bytes,
+        ]),
+    ])?;
+    let hash_workspace_bytes = sum(&[
+        stream.stack_bytes,
+        peak(&[
+            admission_peak,
+            hash_phases.construction_bytes,
+            hash_phases.replay_bytes,
+            hash_phases.finish_return_bytes,
+        ]),
+    ])?;
     Ok(ResourceQuote {
-        stream: Session::<W>::resources_for_slots(slots)?,
+        stream,
         schema_cursor_bytes: size_of::<Cursors>(),
         admission_state_bytes: size_of::<Admission<'_>>(),
         collection_state_bytes: size_of::<Collections>(),
         pass_limits_bytes: size_of::<StreamLimits>(),
         pass_usage_bytes: size_of::<StreamUsage>(),
+        phases,
+        hash_phases,
+        write_workspace_bytes,
+        hash_workspace_bytes,
     })
 }
 
@@ -125,7 +284,17 @@ impl<'a> Admission<'a> {
             collection_work: 0,
             usage: StreamUsage::default(),
         };
-        admission.collection_work = schema.check(&admission.limits)?;
+        admission.collection_work = {
+            let mut collection = CollectionWorkspace {
+                counts: Collections::default(),
+                result: Ok(0),
+            };
+            collection.result = admission
+                .schema
+                .check(&admission.limits, &mut collection.counts);
+            collection.result?
+        };
+        // Collection and sink pass do not overlap, even as logical slots.
         admission.usage = pass(&admission, stack, &mut io::sink())?;
         Ok(admission)
     }
@@ -169,11 +338,10 @@ fn add(current: &mut usize, amount: usize, limit: usize, error: Error) -> Result
 
 impl Schema<'_> {
     /// Inspect lengths before any attribute traversal. No strings or JSON scanned.
-    fn check(self, limits: &Limits) -> Result<usize, Error> {
-        let mut counts = Collections::default();
+    fn check(&self, limits: &Limits, counts: &mut Collections) -> Result<usize, Error> {
         match self {
             Self::Operation(operation) => {
-                check_operation(operation, limits, &mut counts)?;
+                check_operation(operation, limits, counts)?;
             }
             Self::Plan(plan) => {
                 if plan.transformations.len() > limits.max_transformations {
@@ -216,11 +384,7 @@ impl Schema<'_> {
                     };
                     counts.item = 0;
                     while counts.item < graph.operations.len() {
-                        check_operation_fields(
-                            &graph.operations[counts.item],
-                            limits,
-                            &mut counts,
-                        )?;
+                        check_operation_fields(&graph.operations[counts.item], limits, counts)?;
                         counts.item += 1;
                     }
                     counts.side = 0;
@@ -285,15 +449,31 @@ fn pass<'a, W: io::Write>(
     stack: &mut [StreamFrame<'a>],
     output: &mut W,
 ) -> Result<StreamUsage, Error> {
-    let mut canonical = admission.limits.canonical;
-    canonical.max_work -= admission.collection_work; // Collection admission checked this bound.
-    let mut stream = Session::new(output, stack, canonical)?;
-    let mut cursors = Cursors::default();
-    match admission.schema {
-        Schema::Plan(plan) => emit_plan(&mut stream, plan, &mut cursors)?,
-        Schema::Operation(operation) => emit_operation(&mut stream, operation, &mut cursors)?,
-    }
-    let mut usage = stream.finish()?;
+    let session = {
+        let mut canonical = admission.limits.canonical;
+        canonical.max_work -= admission.collection_work; // Already admitted.
+        let construction = PassConstruction {
+            session: Session::new(output, stack, canonical),
+        };
+        construction.session
+    };
+    let mut workspace = PassWorkspace {
+        stream: session?,
+        cursors: Cursors::default(),
+        result: Ok(()),
+    };
+    workspace.result = match admission.schema {
+        Schema::Plan(plan) => emit_plan(&mut workspace.stream, plan, &mut workspace.cursors),
+        Schema::Operation(operation) => {
+            emit_operation(&mut workspace.stream, operation, &mut workspace.cursors)
+        }
+    };
+    let PassWorkspace { stream, result, .. } = workspace;
+    result?;
+    let finish = PassFinish {
+        result: stream.finish(),
+    };
+    let mut usage = finish.result?;
     usage.work += admission.collection_work; // Cannot overflow: stream used the remainder.
     Ok(usage)
 }
@@ -319,9 +499,14 @@ fn hash<'a>(
         return Err(Error::Domain);
     }
     let admission = Admission::new(schema, limits, stack)?;
-    let mut output = DomainHash::new(domain);
-    pass(&admission, stack, &mut output)?;
-    Ok(output.finish())
+    let mut construction = HashConstruction {
+        output: DomainHash::new(domain),
+    };
+    pass(&admission, stack, &mut construction.output)?;
+    let finish = HashFinish {
+        result: Ok(construction.output.finish()),
+    };
+    finish.result
 }
 
 pub fn bounded_plan_digest<'a>(

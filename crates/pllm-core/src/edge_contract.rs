@@ -7,6 +7,203 @@
 
 use sha2::{Digest, Sha256};
 
+/// Fixed, reusable storage for canonical edge and consumer-use hashing.
+///
+/// Both hash states coexist during a use digest. Encoding buffers and hash
+/// outputs are owned here; dimensions and identity bytes are only borrowed.
+/// This is logical storage, not a promise about optimized stack usage or RSS.
+pub struct EdgeContractWorkspace {
+    edge_hash: Sha256,
+    use_hash: Sha256,
+    encoding: [u8; 8],
+    tags: [u8; 5],
+    edge_result: sha2::digest::Output<Sha256>,
+    use_result: sha2::digest::Output<Sha256>,
+}
+
+impl Default for EdgeContractWorkspace {
+    fn default() -> Self {
+        Self {
+            edge_hash: Sha256::new(),
+            use_hash: Sha256::new(),
+            encoding: [0; 8],
+            tags: [0; 5],
+            edge_result: Default::default(),
+            use_result: Default::default(),
+        }
+    }
+}
+
+impl EdgeContractWorkspace {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn logical_bytes() -> usize {
+        core::mem::size_of::<Self>()
+    }
+
+    fn edge_identity_field(&mut self, field: &[u8; 32]) {
+        self.edge_u64(32);
+        self.edge_hash.update(field);
+    }
+
+    fn edge_u64(&mut self, value: u64) {
+        self.encoding = value.to_le_bytes();
+        self.edge_hash.update(self.encoding.as_slice());
+    }
+
+    fn hash_edge(&mut self, edge: &EdgeDescriptor) {
+        Digest::reset(&mut self.edge_hash);
+        self.edge_hash.update(b"pllm.edge-contract\0v1\0");
+        // No identity array or IntoIter owning six copied digests.
+        self.edge_identity_field(&edge.identity.source.checkpoint);
+        self.edge_identity_field(&edge.identity.source.numeric_profile);
+        self.edge_identity_field(&edge.identity.source.implementation);
+        self.edge_identity_field(&edge.identity.plan);
+        self.edge_identity_field(&edge.identity.producer);
+        self.edge_identity_field(&edge.identity.wire);
+        self.edge_u64(edge.identity.first_tensor_index);
+        self.tags[0] = edge.shape.rank;
+        self.edge_hash.update(&self.tags[..1]);
+        for &dimension in edge.shape.dimensions() {
+            // Shape construction checked canonical u64 range.
+            self.edge_u64(dimension as u64);
+        }
+        self.edge_u64(edge.shape.elements as u64);
+        self.tags = [
+            edge.numeric.ring_bits,
+            edge.numeric.fractional_bits,
+            match edge.numeric.interpretation {
+                Interpretation::Signed => 0,
+                Interpretation::Unsigned => 1,
+                Interpretation::Predicate => 2,
+            },
+            match edge.representation {
+                Representation::Public => 0,
+                Representation::AdditiveShare => 1,
+                Representation::XorShare => 2,
+                Representation::CommonAdditiveMasked => 3,
+                Representation::CommonXorMasked => 4,
+            },
+            match edge.weight_visibility {
+                None => 0,
+                Some(WeightVisibility::Private) => 1,
+                Some(WeightVisibility::Public) => 2,
+            },
+        ];
+        self.edge_hash.update(self.tags.as_slice());
+        self.edge_hash.finalize_into_reset(&mut self.edge_result);
+    }
+}
+
+// Named constructor input slots are also the paths used by legacy constructors.
+// The quote reserves each input slot plus its output/Result slot even when a
+// compiler can reuse their storage. Moved inputs have no second owner slot.
+struct SourceIdentityConstructionPhase([u8; 32], [u8; 32], [u8; 32]);
+struct EdgeIdentityConstructionPhase(SourceIdentity, [u8; 32], [u8; 32], [u8; 32], u64);
+struct ShapeConstructionPhase {
+    dimensions: [usize; 4],
+    elements: usize,
+}
+struct NumericConstructionPhase(u8, u8, Interpretation);
+struct EdgeDescriptorConstructionPhase(
+    EdgeIdentity,
+    Shape,
+    Numeric,
+    Representation,
+    Option<WeightVisibility>,
+);
+struct ConsumerUseConstructionPhase(EdgeDescriptor, [u8; 32], u16, u32);
+
+/// Owner-defined logical reservations for serial construction and hashing.
+///
+/// Constructor phases reserve concrete input/state and output slots (including
+/// Result discriminants/padding). Shape input dimensions are borrowed: backing
+/// storage, references, loop/control scalars, ABI temporaries, and SHA internals
+/// beyond its concrete state are not part of this logical-slot convention.
+/// Digest phases include the resident declaration, whole reusable workspace,
+/// and returned 32-byte digest. Caller-retained copies and other live objects
+/// must be added by the caller with checked arithmetic. These are exact logical
+/// reservations, not physical stack bounds, allocation limits, or authority.
+/// Prerequisite peaks assume staged inputs: source identity is moved into edge
+/// identity; identity remains while shape and numeric are constructed; all
+/// three move into the descriptor; consumer fields arrive at use construction.
+/// If a digest workspace already exists during construction, its reservation
+/// must also be added to the construction peak rather than using the serial
+/// construction/digest maximum unchanged.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EdgeContractResourceQuote {
+    pub source_identity_construction_bytes: usize,
+    pub edge_identity_construction_bytes: usize,
+    pub shape_construction_bytes: usize,
+    pub numeric_construction_bytes: usize,
+    pub edge_descriptor_construction_bytes: usize,
+    pub consumer_use_construction_bytes: usize,
+    /// Peak constructing prerequisites in order: source, identity, shape,
+    /// numeric, descriptor. Completed prerequisites coexist with later phases.
+    pub descriptor_construction_peak_bytes: usize,
+    pub use_construction_peak_bytes: usize,
+    pub descriptor_digest_bytes: usize,
+    pub use_digest_bytes: usize,
+    /// Construction workspace is released before digest workspace is reserved.
+    pub descriptor_construction_digest_peak_bytes: usize,
+    pub use_construction_digest_peak_bytes: usize,
+}
+
+impl EdgeContractResourceQuote {
+    pub fn checked() -> Result<Self, Error> {
+        use core::mem::size_of;
+        fn sum(a: usize, b: usize) -> Result<usize, Error> {
+            a.checked_add(b).ok_or(Error::Overflow)
+        }
+        fn phase<I, O>() -> Result<usize, Error> {
+            sum(core::mem::size_of::<I>(), core::mem::size_of::<O>())
+        }
+        let source_identity_construction_bytes =
+            phase::<SourceIdentityConstructionPhase, SourceIdentity>()?;
+        let edge_identity_construction_bytes =
+            phase::<EdgeIdentityConstructionPhase, EdgeIdentity>()?;
+        let shape_construction_bytes = phase::<ShapeConstructionPhase, Result<Shape, Error>>()?;
+        let numeric_construction_bytes =
+            phase::<NumericConstructionPhase, Result<Numeric, Error>>()?;
+        let edge_descriptor_construction_bytes =
+            phase::<EdgeDescriptorConstructionPhase, Result<EdgeDescriptor, Error>>()?;
+        let consumer_use_construction_bytes = phase::<ConsumerUseConstructionPhase, ConsumerUse>()?;
+        let descriptor_construction_peak_bytes = source_identity_construction_bytes
+            .max(edge_identity_construction_bytes)
+            .max(sum(size_of::<EdgeIdentity>(), shape_construction_bytes)?)
+            .max(sum(
+                sum(size_of::<EdgeIdentity>(), size_of::<Shape>())?,
+                numeric_construction_bytes,
+            )?)
+            .max(edge_descriptor_construction_bytes);
+        let use_construction_peak_bytes =
+            descriptor_construction_peak_bytes.max(consumer_use_construction_bytes);
+        let digest_slots = sum(
+            EdgeContractWorkspace::logical_bytes(),
+            size_of::<[u8; 32]>(),
+        )?;
+        let descriptor_digest_bytes = sum(size_of::<EdgeDescriptor>(), digest_slots)?;
+        let use_digest_bytes = sum(size_of::<ConsumerUse>(), digest_slots)?;
+        Ok(Self {
+            source_identity_construction_bytes,
+            edge_identity_construction_bytes,
+            shape_construction_bytes,
+            numeric_construction_bytes,
+            edge_descriptor_construction_bytes,
+            consumer_use_construction_bytes,
+            descriptor_construction_peak_bytes,
+            use_construction_peak_bytes,
+            descriptor_digest_bytes,
+            use_digest_bytes,
+            descriptor_construction_digest_peak_bytes: descriptor_construction_peak_bytes
+                .max(descriptor_digest_bytes),
+            use_construction_digest_peak_bytes: use_construction_peak_bytes.max(use_digest_bytes),
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     Domain,
@@ -45,6 +242,15 @@ pub struct SourceIdentity {
 
 impl SourceIdentity {
     pub fn new(checkpoint: [u8; 32], numeric_profile: [u8; 32], implementation: [u8; 32]) -> Self {
+        Self::from_phase(SourceIdentityConstructionPhase(
+            checkpoint,
+            numeric_profile,
+            implementation,
+        ))
+    }
+
+    fn from_phase(phase: SourceIdentityConstructionPhase) -> Self {
+        let SourceIdentityConstructionPhase(checkpoint, numeric_profile, implementation) = phase;
         Self {
             checkpoint,
             numeric_profile,
@@ -78,19 +284,24 @@ impl Shape {
         if dimensions.is_empty() || dimensions.len() > 4 || dimensions.contains(&0) {
             return Err(Error::Domain);
         }
-        let mut elements = 1usize;
-        let mut inline = [0; 4];
+        let mut phase = ShapeConstructionPhase {
+            dimensions: [0; 4],
+            elements: 1,
+        };
         for (index, &dimension) in dimensions.iter().enumerate() {
             // Canonical dimensions and counts use u64 even on other hosts.
             u64::try_from(dimension).map_err(|_| Error::Overflow)?;
-            elements = elements.checked_mul(dimension).ok_or(Error::Overflow)?;
-            inline[index] = dimension;
+            phase.elements = phase
+                .elements
+                .checked_mul(dimension)
+                .ok_or(Error::Overflow)?;
+            phase.dimensions[index] = dimension;
         }
-        u64::try_from(elements).map_err(|_| Error::Overflow)?;
+        u64::try_from(phase.elements).map_err(|_| Error::Overflow)?;
         Ok(Self {
-            dimensions: inline,
+            dimensions: phase.dimensions,
             rank: dimensions.len() as u8,
-            elements,
+            elements: phase.elements,
         })
     }
 
@@ -116,6 +327,15 @@ impl Numeric {
         fractional_bits: u8,
         interpretation: Interpretation,
     ) -> Result<Self, Error> {
+        Self::from_phase(NumericConstructionPhase(
+            ring_bits,
+            fractional_bits,
+            interpretation,
+        ))
+    }
+
+    fn from_phase(phase: NumericConstructionPhase) -> Result<Self, Error> {
+        let NumericConstructionPhase(ring_bits, fractional_bits, interpretation) = phase;
         if !(1..=64).contains(&ring_bits)
             || fractional_bits > ring_bits
             || (interpretation == Interpretation::Predicate
@@ -160,6 +380,17 @@ impl EdgeIdentity {
         wire: [u8; 32],
         first_tensor_index: u64,
     ) -> Self {
+        Self::from_phase(EdgeIdentityConstructionPhase(
+            source,
+            plan,
+            producer,
+            wire,
+            first_tensor_index,
+        ))
+    }
+
+    fn from_phase(phase: EdgeIdentityConstructionPhase) -> Self {
+        let EdgeIdentityConstructionPhase(source, plan, producer, wire, first_tensor_index) = phase;
         Self {
             source,
             plan,
@@ -207,6 +438,23 @@ impl EdgeDescriptor {
         representation: Representation,
         weight_visibility: Option<WeightVisibility>,
     ) -> Result<Self, Error> {
+        Self::from_phase(EdgeDescriptorConstructionPhase(
+            identity,
+            shape,
+            numeric,
+            representation,
+            weight_visibility,
+        ))
+    }
+
+    fn from_phase(phase: EdgeDescriptorConstructionPhase) -> Result<Self, Error> {
+        let EdgeDescriptorConstructionPhase(
+            identity,
+            shape,
+            numeric,
+            representation,
+            weight_visibility,
+        ) = phase;
         let predicate = numeric.interpretation == Interpretation::Predicate;
         let compatible = match representation {
             Representation::Public => true,
@@ -262,48 +510,13 @@ impl EdgeDescriptor {
     /// common-xor-masked=4. Visibility tags are none=0, some-private=1,
     /// some-public=2. Tags never depend on Rust enum layout or native word size.
     pub fn digest(&self) -> [u8; 32] {
-        let mut digest = Sha256::new();
-        digest.update(b"pllm.edge-contract\0v1\0");
-        for field in [
-            self.identity.source.checkpoint,
-            self.identity.source.numeric_profile,
-            self.identity.source.implementation,
-            self.identity.plan,
-            self.identity.producer,
-            self.identity.wire,
-        ] {
-            digest.update(32u64.to_le_bytes());
-            digest.update(field);
-        }
-        digest.update(self.identity.first_tensor_index.to_le_bytes());
-        digest.update([self.shape.rank]);
-        for &dimension in self.shape.dimensions() {
-            // Shape construction checked that dimensions and counts fit u64.
-            digest.update((dimension as u64).to_le_bytes());
-        }
-        digest.update((self.shape.elements as u64).to_le_bytes());
-        digest.update([
-            self.numeric.ring_bits,
-            self.numeric.fractional_bits,
-            match self.numeric.interpretation {
-                Interpretation::Signed => 0,
-                Interpretation::Unsigned => 1,
-                Interpretation::Predicate => 2,
-            },
-            match self.representation {
-                Representation::Public => 0,
-                Representation::AdditiveShare => 1,
-                Representation::XorShare => 2,
-                Representation::CommonAdditiveMasked => 3,
-                Representation::CommonXorMasked => 4,
-            },
-            match self.weight_visibility {
-                None => 0,
-                Some(WeightVisibility::Private) => 1,
-                Some(WeightVisibility::Public) => 2,
-            },
-        ]);
-        digest.finalize().into()
+        self.digest_with_workspace(&mut EdgeContractWorkspace::new())
+    }
+
+    /// Same v1 digest using caller-owned fixed storage, without allocation.
+    pub fn digest_with_workspace(&self, workspace: &mut EdgeContractWorkspace) -> [u8; 32] {
+        workspace.hash_edge(self);
+        workspace.edge_result.into()
     }
 }
 
@@ -327,6 +540,16 @@ impl ConsumerUse {
         operand_position: u16,
         ordinal: u32,
     ) -> Self {
+        Self::from_phase(ConsumerUseConstructionPhase(
+            edge,
+            consumer,
+            operand_position,
+            ordinal,
+        ))
+    }
+
+    fn from_phase(phase: ConsumerUseConstructionPhase) -> Self {
+        let ConsumerUseConstructionPhase(edge, consumer, operand_position, ordinal) = phase;
         Self {
             edge,
             consumer,
@@ -358,19 +581,217 @@ impl ConsumerUse {
     /// operand position, then u32 LE ordinal. No length prefixes or padding are
     /// added. The embedded edge digest retains its existing v1 encoding.
     pub fn digest(&self) -> [u8; 32] {
-        let mut digest = Sha256::new();
-        digest.update(b"pllm.consumer-use\0v1\0");
-        digest.update(self.edge.digest());
-        digest.update(self.consumer);
-        digest.update(self.operand_position.to_le_bytes());
-        digest.update(self.ordinal.to_le_bytes());
-        digest.finalize().into()
+        self.digest_with_workspace(&mut EdgeContractWorkspace::new())
+    }
+
+    /// Same v1 digest using caller-owned fixed storage, without allocation.
+    /// The outer use hash remains live while the nested edge hash runs.
+    pub fn digest_with_workspace(&self, workspace: &mut EdgeContractWorkspace) -> [u8; 32] {
+        Digest::reset(&mut workspace.use_hash);
+        workspace.use_hash.update(b"pllm.consumer-use\0v1\0");
+        workspace.hash_edge(&self.edge);
+        workspace.use_hash.update(&workspace.edge_result[..]);
+        workspace.use_hash.update(self.consumer.as_slice());
+        workspace.encoding = u64::from(self.operand_position).to_le_bytes();
+        workspace.use_hash.update(&workspace.encoding[..2]);
+        workspace.encoding = u64::from(self.ordinal).to_le_bytes();
+        workspace.use_hash.update(&workspace.encoding[..4]);
+        workspace
+            .use_hash
+            .finalize_into_reset(&mut workspace.use_result);
+        workspace.use_result.into()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn workspace_reuse_matches_independent_canonical_bytes() {
+        let mut workspace = EdgeContractWorkspace::new();
+        for rank in 1..=4 {
+            for (interpretation, interpretation_tag) in [
+                (Interpretation::Signed, 0),
+                (Interpretation::Unsigned, 1),
+                (Interpretation::Predicate, 2),
+            ] {
+                for (representation, representation_tag) in [
+                    (Representation::Public, 0),
+                    (Representation::AdditiveShare, 1),
+                    (Representation::XorShare, 2),
+                    (Representation::CommonAdditiveMasked, 3),
+                    (Representation::CommonXorMasked, 4),
+                ] {
+                    for (visibility, visibility_tag) in [
+                        (None, 0),
+                        (Some(WeightVisibility::Private), 1),
+                        (Some(WeightVisibility::Public), 2),
+                    ] {
+                        let dims = [2, 3, 4, 5];
+                        let edge = EdgeDescriptor::new(
+                            identity(7),
+                            Shape::new(&dims[..rank]).unwrap(),
+                            Numeric::new(1, 0, interpretation).unwrap(),
+                            representation,
+                            visibility,
+                        );
+                        let compatible = match representation_tag {
+                            0 => true,
+                            1 | 3 => interpretation_tag != 2,
+                            _ => interpretation_tag == 2,
+                        };
+                        if !compatible {
+                            assert_eq!(edge, Err(Error::Domain));
+                            continue;
+                        }
+                        let edge = edge.unwrap();
+                        // Independent buffered encoder: no workspace helpers,
+                        // native enum layout, or production digest calls.
+                        let mut bytes = b"pllm.edge-contract\0v1\0".to_vec();
+                        for byte in 1..=6 {
+                            bytes.extend_from_slice(&[32, 0, 0, 0, 0, 0, 0, 0]);
+                            bytes.extend_from_slice(&[byte; 32]);
+                        }
+                        bytes.extend_from_slice(&[7, 0, 0, 0, 0, 0, 0, 0]);
+                        bytes.push(rank as u8);
+                        for &dimension in &dims[..rank] {
+                            bytes.extend_from_slice(&(dimension as u64).to_le_bytes());
+                        }
+                        let count: usize = dims[..rank].iter().product();
+                        bytes.extend_from_slice(&(count as u64).to_le_bytes());
+                        bytes.extend_from_slice(&[
+                            1,
+                            0,
+                            interpretation_tag,
+                            representation_tag,
+                            visibility_tag,
+                        ]);
+                        let expected_edge: [u8; 32] = Sha256::digest(&bytes).into();
+                        assert_eq!(edge.digest_with_workspace(&mut workspace), expected_edge);
+                        assert_eq!(edge.digest(), expected_edge);
+                        let usage = ConsumerUse::new(edge, [255; 32], u16::MAX, u32::MAX);
+                        let mut use_bytes = b"pllm.consumer-use\0v1\0".to_vec();
+                        use_bytes.extend_from_slice(&expected_edge);
+                        use_bytes.extend_from_slice(&[255; 32]);
+                        use_bytes.extend_from_slice(&[255; 6]);
+                        let expected_use: [u8; 32] = Sha256::digest(&use_bytes).into();
+                        // Poison state and buffers to prove each invocation
+                        // resets hashes and overwrites every consumed byte.
+                        workspace.use_hash.update(b"stale outer state");
+                        workspace.edge_hash.update(b"stale inner state");
+                        workspace.encoding.fill(123);
+                        workspace.tags.fill(123);
+                        assert_eq!(usage.digest_with_workspace(&mut workspace), expected_use);
+                        assert_eq!(usage.digest(), expected_use);
+                        assert_eq!(edge.digest_with_workspace(&mut workspace), expected_edge);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn logical_resource_quotes_follow_concrete_slots_and_coexistence() {
+        use core::mem::size_of;
+        let quote = EdgeContractResourceQuote::checked().unwrap();
+        assert_eq!(
+            EdgeContractWorkspace::logical_bytes(),
+            size_of::<EdgeContractWorkspace>()
+        );
+        // Whole concrete storage includes both coexisting hashes, encoding,
+        // tags, both outputs, and any Rust layout padding. No hidden rank
+        // buffer, copied identity array, or owning identity iterator exists.
+        assert!(
+            EdgeContractWorkspace::logical_bytes()
+                >= size_of::<Sha256>()
+                    + size_of::<Sha256>()
+                    + size_of::<[u8; 8]>()
+                    + size_of::<[u8; 5]>()
+                    + size_of::<sha2::digest::Output<Sha256>>()
+                    + size_of::<sha2::digest::Output<Sha256>>()
+        );
+        assert_eq!(
+            quote.source_identity_construction_bytes,
+            size_of::<SourceIdentityConstructionPhase>() + size_of::<SourceIdentity>()
+        );
+        assert_eq!(
+            quote.edge_identity_construction_bytes,
+            size_of::<EdgeIdentityConstructionPhase>() + size_of::<EdgeIdentity>()
+        );
+        assert_eq!(
+            quote.shape_construction_bytes,
+            size_of::<ShapeConstructionPhase>() + size_of::<Result<Shape, Error>>()
+        );
+        assert_eq!(
+            quote.numeric_construction_bytes,
+            size_of::<NumericConstructionPhase>() + size_of::<Result<Numeric, Error>>()
+        );
+        assert_eq!(
+            quote.edge_descriptor_construction_bytes,
+            size_of::<EdgeDescriptorConstructionPhase>()
+                + size_of::<Result<EdgeDescriptor, Error>>()
+        );
+        assert_eq!(
+            quote.consumer_use_construction_bytes,
+            size_of::<ConsumerUseConstructionPhase>() + size_of::<ConsumerUse>()
+        );
+        let construction = [
+            quote.source_identity_construction_bytes,
+            quote.edge_identity_construction_bytes,
+            size_of::<EdgeIdentity>() + quote.shape_construction_bytes,
+            size_of::<EdgeIdentity>() + size_of::<Shape>() + quote.numeric_construction_bytes,
+            quote.edge_descriptor_construction_bytes,
+        ]
+        .into_iter()
+        .max()
+        .unwrap();
+        assert_eq!(quote.descriptor_construction_peak_bytes, construction);
+        assert_eq!(
+            quote.use_construction_peak_bytes,
+            construction.max(quote.consumer_use_construction_bytes)
+        );
+        assert_eq!(
+            quote.descriptor_digest_bytes,
+            size_of::<EdgeDescriptor>()
+                + size_of::<EdgeContractWorkspace>()
+                + size_of::<[u8; 32]>()
+        );
+        assert_eq!(
+            quote.use_digest_bytes,
+            size_of::<ConsumerUse>() + size_of::<EdgeContractWorkspace>() + size_of::<[u8; 32]>()
+        );
+        assert_eq!(
+            quote.descriptor_construction_digest_peak_bytes,
+            construction.max(quote.descriptor_digest_bytes)
+        );
+        assert_eq!(
+            quote.use_construction_digest_peak_bytes,
+            quote
+                .use_construction_peak_bytes
+                .max(quote.use_digest_bytes)
+        );
+        // Resource declarations do not depend on shape rank, successful
+        // validation, or metadata values. Rejections still use bounded slots.
+        for dimensions in [&[][..], &[0], &[1, 2, 3, 4, 5], &[usize::MAX, 2]] {
+            assert!(Shape::new(dimensions).is_err());
+            assert_eq!(EdgeContractResourceQuote::checked().unwrap(), quote);
+        }
+        assert_eq!(
+            Numeric::new(0, 0, Interpretation::Signed),
+            Err(Error::Domain)
+        );
+        assert_eq!(
+            EdgeDescriptor::new(
+                identity(u64::MAX),
+                Shape::new(&[1]).unwrap(),
+                Numeric::new(1, 0, Interpretation::Signed).unwrap(),
+                Representation::Public,
+                None
+            ),
+            Err(Error::Overflow)
+        );
+    }
 
     fn identity(first_tensor_index: u64) -> EdgeIdentity {
         EdgeIdentity::new(

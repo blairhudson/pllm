@@ -508,6 +508,150 @@ fn quote_uses_concrete_state_and_full_supplied_stack() {
     assert!(resources::<DomainHash>(usize::MAX).is_err());
 }
 
+// Independent composition: do not call the implementation's sum/peak helpers.
+fn independent_pass_bytes<W: io::Write>() -> usize {
+    let sizes = Session::<W>::resources_for_slots(0).unwrap();
+    let formatting = sizes
+        .escape_buffer_bytes
+        .max(sizes.format_arguments_bytes + sizes.compact_formatter_bytes);
+    [
+        size_of::<PassConstruction<'_, '_, W>>(),
+        size_of::<PassWorkspace<'_, '_, W>>() + sizes.emitter_bytes + formatting,
+        size_of::<Session<'_, '_, W>>(),
+        size_of::<PassFinish>(),
+        size_of::<Result<StreamUsage, Error>>(),
+    ]
+    .into_iter()
+    .max()
+    .unwrap()
+}
+
+#[test]
+fn quote_composes_sequential_phases_and_retains_admission_once() {
+    for slots in [0, 1, 64, 1024] {
+        let quote = resources::<Vec<u8>>(slots).unwrap();
+        let admission = size_of::<Admission<'_>>();
+        let p = quote.phases;
+        let h = quote.hash_phases;
+        assert_eq!(
+            p.admission_construction_bytes,
+            size_of::<Result<Admission<'_>, Error>>()
+        );
+        assert_eq!(
+            p.collection_bytes,
+            admission + size_of::<CollectionWorkspace>()
+        );
+        assert_eq!(
+            p.sink_pass_bytes,
+            admission + independent_pass_bytes::<io::Sink>()
+        );
+        assert_eq!(
+            p.replay_bytes,
+            admission + independent_pass_bytes::<Vec<u8>>()
+        );
+        assert_eq!(
+            p.finish_return_bytes,
+            admission + size_of::<Result<StreamUsage, Error>>()
+        );
+        assert_eq!(
+            h.construction_bytes,
+            admission + size_of::<HashConstruction>()
+        );
+        assert_eq!(
+            h.replay_bytes,
+            admission + size_of::<DomainHash>() + independent_pass_bytes::<DomainHash>()
+        );
+        assert_eq!(
+            h.finish_return_bytes,
+            admission + size_of::<DomainHash>().max(size_of::<HashFinish>())
+        );
+        let admission_peak = p
+            .admission_construction_bytes
+            .max(p.collection_bytes)
+            .max(p.sink_pass_bytes);
+        let frames = slots * size_of::<StreamFrame<'_>>();
+        assert_eq!(
+            quote.write_workspace_bytes,
+            frames
+                + admission_peak
+                    .max(p.replay_bytes)
+                    .max(p.finish_return_bytes)
+        );
+        assert_eq!(
+            quote.hash_workspace_bytes,
+            frames
+                + admission_peak
+                    .max(h.construction_bytes)
+                    .max(h.replay_bytes)
+                    .max(h.finish_return_bytes)
+        );
+        // In particular, not two sessions for admission/replay, and not an
+        // extra Transient or an owned Number on top of the concrete pass type.
+        assert!(quote.write_workspace_bytes < frames + p.sink_pass_bytes + p.replay_bytes);
+    }
+}
+
+#[test]
+fn quote_excludes_borrowed_writer_backing_and_checks_composition_overflow() {
+    struct Backing([u8; 8192]);
+    impl io::Write for Backing {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0[..bytes.len().min(8192)].copy_from_slice(&bytes[..bytes.len().min(8192)]);
+            Ok(bytes.len().min(8192))
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+    let borrowed = resources::<Backing>(64).unwrap();
+    let sink = resources::<io::Sink>(64).unwrap();
+    assert_eq!(borrowed.phases, sink.phases);
+    assert_eq!(borrowed.hash_phases, sink.hash_phases);
+    assert_eq!(borrowed.write_workspace_bytes, sink.write_workspace_bytes);
+    assert_eq!(borrowed.hash_workspace_bytes, sink.hash_workspace_bytes);
+    // Frame multiplication itself fits; adding owned phase storage does not.
+    let slots = usize::MAX / size_of::<StreamFrame<'_>>();
+    assert!(Session::<io::Sink>::resources_for_slots(slots).is_ok());
+    assert!(matches!(
+        resources::<io::Sink>(slots),
+        Err(Error::Canonical(StreamError::StackLimit))
+    ));
+    assert!(matches!(
+        sum(&[usize::MAX, 1]),
+        Err(Error::Canonical(StreamError::StackLimit))
+    ));
+}
+
+#[test]
+fn quoted_frame_capacity_exact_and_one_short_preserve_legacy_bytes_and_digest() {
+    let op = operation();
+    let mut stack = [StreamFrame::empty(); 64];
+    let quote = resources::<Vec<u8>>(stack.len()).unwrap();
+    let mut exact = limits();
+    exact.canonical.max_stack_bytes = quote.stream.stack_bytes;
+    let mut bytes = Vec::new();
+    bounded_model_operation_write(&op, exact, &mut stack, &mut bytes).unwrap();
+    assert_eq!(bytes, canonical_bytes(&op));
+    let digest = bounded_model_operation_digest(&op, "workspace", exact, &mut stack).unwrap();
+    assert_eq!(
+        Digest::from_sha256(digest),
+        canonical_digest("workspace", &op)
+    );
+    exact.canonical.max_stack_bytes -= 1;
+    let mut output = Untouched::default();
+    assert!(matches!(
+        bounded_model_operation_write(&op, exact, &mut stack, &mut output),
+        Err(Error::Canonical(StreamError::StackLimit))
+    ));
+    assert_eq!(output.0, 0);
+    assert!(matches!(
+        bounded_model_operation_digest(&op, "workspace", exact, &mut stack),
+        Err(Error::Canonical(StreamError::StackLimit))
+    ));
+    // No aggregate workspace-budget argument exists: composed totals are quotes,
+    // not a new admission limit or facade-enabling policy.
+}
+
 #[test]
 fn every_control_escape_and_exact_raw_string_key_caps() {
     let mut op = operation();
