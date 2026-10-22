@@ -648,6 +648,27 @@ negative certificate mappings before another installed publisher retry. Approval
 does not establish source admission, complete-checkpoint execution, quality,
 serving performance, security qualification or SDK availability.
 
+## D27. Bounded SIGMA D22 consuming role split
+
+**Explicitly approved by the user:** consume a fresh D22 run into two distinct
+party-local handles, with native role owners and compiler wrappers. Preserve the
+complete ring50/Q24 dot, exact GapARS12, unchanged ring50/Q12 D20 activation and
+identical eleven-exchange transcript. The existing coupled API stays unchanged.
+
+Move original roots, ordered-use ledger, native material, singleton backing and
+leases rather than reconstructing them. Compiler wrappers retain the original
+pinned-source owner and continuous external charge. Each evaluator receives only
+its own role; the new coordinator must burn both siblings on failure. Any new
+wrapper, coordination or transition owner must be admitted before allocation,
+without releasing and reacquiring an existing reservation.
+
+Acceptance requires transcript parity; wrong-role, session and replay burns;
+original source/backing identity; exact-fit and one-short admission; retained-frame
+and singleton lifetime; cancellation/drop ordering; compile-fail clone, reuse and
+escape checks; and unchanged SDK-negative tests. No raw-native extraction,
+serialization authority, new numeric composition, post-D22 Multiply,
+authenticated transport, SDK availability or security qualification is approved.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -678,6 +699,7 @@ serving performance, security qualification or SDK availability.
 | D24 | Approved: bounded NEXUS GELU numerical decision experiment | Fixed source-derived polynomial/selector candidate, separate endpoint oracle, research-only domain and honest sampled/enclosed error; no executable CKKS/profile adoption or automatic repair. |
 | D25 | Approved: bounded THOR multi-block frame-routing correction | Modular full-block routes, unchanged line-7 rotations and single-frame behavior; independent oracle and original counterexamples required, no HE/profile/decoder adoption. |
 | D26 | Approved: opt-in compact PUMA semantic outer representation | Stored-descriptor counting and audited whole-program peak ownership retain 65,536/64 MiB ceilings; same runtime/PRSS and complete-request work, certificate mapping and automatic semantic dispatch need validation; changed schedules/framing need separately approved identity. |
+| D27 | Approved: bounded SIGMA D22 consuming role split | Distinct native/compiler role owners move original material, source backing and continuous reservations; unchanged coupled API, equations and eleven-exchange transcript; coordinator burns both siblings on failure; no Multiply, transport or SDK promotion. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
