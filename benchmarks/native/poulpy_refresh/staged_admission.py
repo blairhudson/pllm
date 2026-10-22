@@ -7,7 +7,7 @@ See paper/methods/poulpy-lifetime-admission.md for the source derivation.
 """
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import argparse
 import hashlib
 import json
@@ -105,11 +105,44 @@ def matrix_query_certificate():
 
 
 @dataclass
+class OwnerLifetime:
+    """Shared serial owner/view state; ending views never grants release credit.
+
+    This checks modelled event ordering only, not actual upstream Rust borrows.
+    Both retention and mapped-allocation ledgers use the same lifetime contract.
+    """
+
+    retired: bool = False
+    borrows: int = 0
+
+    def require_live(self):
+        if self.retired:
+            raise ValueError("owner was retired")
+
+    def require_unborrowed(self):
+        self.require_live()
+        if self.borrows:
+            raise ValueError("outstanding key views")
+
+    @contextmanager
+    def borrow(self):
+        self.require_live()
+        self.borrows += 1
+        try:
+            yield
+        finally:
+            self.borrows -= 1
+
+    def retire(self):
+        self.require_unborrowed()
+        self.retired = True
+
+
+@dataclass
 class _Slot:
     role: str
     size: int
-    live: bool = True
-    borrows: int = 0
+    lifetime: OwnerLifetime = field(default_factory=OwnerLifetime)
 
 
 class RetentionLedger:
@@ -138,31 +171,21 @@ class RetentionLedger:
 
     def _live(self, name):
         slot = self._slots[name]
-        if not slot.live:
-            raise ValueError("owner was retired")
+        slot.lifetime.require_live()
         return slot
 
-    @contextmanager
     def borrow(self, name):
-        slot = self._live(name)
-        slot.borrows += 1
-        try:
-            yield
-        finally:
-            slot.borrows -= 1
+        return self._live(name).lifetime.borrow()
 
     def refill(self, name, role, size):
         slot = self._live(name)
-        if slot.borrows:
-            raise ValueError("outstanding key views")
+        slot.lifetime.require_unborrowed()
         if role != slot.role or type(size) is not int or size != slot.size:
             raise ValueError("no public same-shape, same-role refill proof")
 
     def retire(self, name):
         slot = self._live(name)
-        if slot.borrows:
-            raise ValueError("outstanding key views")
-        slot.live = False
+        slot.lifetime.retire()
         self.live_bytes -= slot.size
         # Rust drop is not a proved physical-memory credit.
 

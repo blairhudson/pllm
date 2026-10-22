@@ -1,7 +1,7 @@
 """Fixed-parameter mapped-allocation plan. Budgets are not completion proofs."""
 
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import runpy
 
@@ -18,6 +18,7 @@ CHARGE_CEILING = CAP - GUARD - RUNTIME - PAGE_TABLES
 ISIZE_MAX = (1 << 63) - 1
 USIZE_MAX = (1 << 64) - 1
 MAX_MAPPINGS = 4096
+OwnerLifetime = S["OwnerLifetime"]
 
 
 def allocation_geometry(size, alignment, *, page=PAGE, ticket=TICKET):
@@ -49,8 +50,12 @@ class _Mapping:
     alignment: int
     mapped: int
     charge: int
-    retired: bool = False
     unmap_failed: bool = False
+    lifetime: OwnerLifetime = field(default_factory=OwnerLifetime)
+
+    @property
+    def retired(self):
+        return self.lifetime.retired
 
 
 class MappingLedger:
@@ -59,6 +64,8 @@ class MappingLedger:
     Capacity means original allocation Layout.size(), never Vec length or an
     AlignedBuf's truncated logical size. Retire ends the modelled owner only;
     release credit requires a separately supplied successful-unmap outcome.
+    Scoped views block retirement and every realloc, even same-size identity.
+    These are modelled views, not proof of actual typed upstream lifetimes.
     No payload memory or real mapping is allocated here.
     """
 
@@ -83,11 +90,11 @@ class MappingLedger:
         self.charged += g["charge_bytes"]
         self.peak_charged = max(self.peak_charged, self.charged)
 
+    def borrow(self, name):
+        return self.mappings[name].lifetime.borrow()
+
     def retire(self, name):
-        mapping = self.mappings[name]
-        if mapping.retired:
-            raise ValueError("owner already retired")
-        mapping.retired = True
+        self.mappings[name].lifetime.retire()
 
     def unmap_result(self, name, *, succeeded):
         if type(succeeded) is not bool:
@@ -110,6 +117,7 @@ class MappingLedger:
             raise ValueError("explicit unmap outcome required")
         if mapping.retired or self.poisoned:
             raise ValueError("allocation rejected")
+        mapping.lifetime.require_unborrowed()
         allocation_geometry(capacity, mapping.alignment)
         if capacity == mapping.capacity:
             return old
