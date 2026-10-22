@@ -804,66 +804,82 @@ impl ActivationResourceCalculationResources {
         resource_metadata_sum(&[retained, self.peak_bytes])
     }
 }
-fn frame_wrapper_charge() -> usize {
-    size_of::<ActivationFrame<'static>>() + size_of::<ActivationStep<'static>>()
+fn frame_wrapper_charge<B: AllocationContext>() -> usize {
+    size_of::<ActivationFrameFor<B>>() + size_of::<ActivationStepFor<B>>()
 }
-fn party_charge(lanes: usize) -> usize {
-    size_of::<ActivationParty<'static>>() + common_charge()
-        + 8 * frame_wrapper_charge() + 6 * (8 * lanes + ALLOCATOR)
+fn party_charge<B: AllocationContext>(lanes: usize) -> usize {
+    size_of::<ActivationPartyFor<B>>() + common_charge_for::<B>()
+        + 8 * frame_wrapper_charge::<B>() + 6 * (8 * lanes + ALLOCATOR)
         + 3 * (HEADER + 8 * lanes + ALLOCATOR) // final send, receive, output overlap
         + (16 << 10)
 }
-fn dealer_charge(lanes: usize) -> usize {
-    mask_charge() + 8 * lanes + ALLOCATOR
+fn dealer_charge<B: AllocationContext>(lanes: usize) -> usize {
+    mask_charge_for::<B>() + 8 * lanes + ALLOCATOR
 }
-fn workspace_charge(lanes: usize) -> usize {
-    2 * size_of::<ActivationParty<'static>>()
+fn workspace_charge<B: AllocationContext>(lanes: usize) -> usize {
+    2 * size_of::<ActivationPartyFor<B>>()
         + 2 * size_of::<UseLedger<USES>>()
         + WIRES * size_of::<Binding>()
         + 4 * (8 * lanes + ALLOCATOR)
         + (32 << 10)
 }
-fn native_costs(spec: &ActivationSpec) -> Result<[usize; 7], Error> {
+fn native_costs<B: AllocationContext>(spec: &ActivationSpec) -> Result<[usize; 7], Error> {
     let mut costs = [0; 7];
-    costs[0] = arithmetic::resources(spec.arithmetic(38, arithmetic::Gate::Tr { shift: 6 }))?
+    costs[0] = arithmetic::resources_for_context::<B>(
+        spec.arithmetic(38, arithmetic::Gate::Tr { shift: 6 }),
+    )?
+    .combined_reservation_bytes;
+    costs[1] =
+        arithmetic::resources_for_context::<B>(spec.arithmetic(32, arithmetic::Gate::Drelu))?
+            .combined_reservation_bytes;
+    costs[2] = selection::resources_reconstructed_for_context::<B>(spec.select(32))?
         .combined_reservation_bytes;
-    costs[1] = arithmetic::resources(spec.arithmetic(32, arithmetic::Gate::Drelu))?
-        .combined_reservation_bytes;
-    costs[2] = selection::resources(spec.select(32))?.combined_reservation_bytes;
-    costs[3] = arithmetic::resources(spec.arithmetic(32, arithmetic::Gate::Drelu))?
-        .combined_reservation_bytes;
+    costs[3] =
+        arithmetic::resources_for_context::<B>(spec.arithmetic(32, arithmetic::Gate::Drelu))?
+            .combined_reservation_bytes;
     costs[4] =
-        selection::resources(spec.select(spec.kind.index_bits()))?.combined_reservation_bytes;
-    costs[5] = source_lookup::resources(spec.lookup())?.combined_reservation_bytes;
-    costs[6] = selection::resources_for(spec.select(50), selection::Boundary::Deferred)?
-        .combined_reservation_bytes;
+        selection::resources_reconstructed_for_context::<B>(spec.select(spec.kind.index_bits()))?
+            .combined_reservation_bytes;
+    costs[5] = source_lookup::resources_for_context::<B>(spec.lookup())?.combined_reservation_bytes;
+    costs[6] =
+        selection::resources_for_context::<B>(spec.select(50), selection::Boundary::Deferred)?
+            .combined_reservation_bytes;
     Ok(costs)
 }
 pub fn activation_resources(spec: ActivationSpec) -> Result<ActivationResources, Error> {
+    activation_resources_for::<&Budget>(spec)
+}
+pub fn activation_resources_for<B: AllocationContext>(
+    spec: ActivationSpec,
+) -> Result<ActivationResources, Error> {
     spec.validate()?;
     let lanes = spec.input.shape().elements();
-    let costs = native_costs(&spec)?;
+    let costs = native_costs::<B>(&spec)?;
     let native = costs
         .iter()
         .try_fold(0usize, |n, &v| n.checked_add(v))
         .ok_or(Error::Resource)?;
-    let wrappers = 2 * party_charge(lanes) + dealer_charge(lanes) + workspace_charge(lanes);
+    let wrappers =
+        2 * party_charge::<B>(lanes) + dealer_charge::<B>(lanes) + workspace_charge::<B>(lanes);
     let combined = native.checked_add(wrappers).ok_or(Error::Resource)?;
-    let root = 2 * (8 * lanes + ALLOCATOR + common_charge())
+    let root = 2 * (8 * lanes + ALLOCATOR + common_charge_for::<B>())
         + 8 * lanes
         + ALLOCATOR
-        + mask_charge()
-        + size_of::<RootInput<'static>>();
+        + mask_charge_for::<B>()
+        + size_of::<RootInputFor<B>>();
     let clear_input = combined.checked_add(root).ok_or(Error::Resource)?;
     if clear_input > crate::shared_allocation::MAX_ALLOCATION_BYTES {
         return Err(Error::Resource);
     }
-    let t = arithmetic::resources(spec.arithmetic(38, arithmetic::Gate::Tr { shift: 6 }))?;
-    let d = arithmetic::resources(spec.arithmetic(32, arithmetic::Gate::Drelu))?;
-    let p = selection::resources(spec.select(32))?;
-    let v = selection::resources(spec.select(spec.kind.index_bits()))?;
-    let l = source_lookup::resources(spec.lookup())?;
-    let f = selection::resources_for(spec.select(50), selection::Boundary::Deferred)?;
+    let t = arithmetic::resources_for_context::<B>(
+        spec.arithmetic(38, arithmetic::Gate::Tr { shift: 6 }),
+    )?;
+    let d = arithmetic::resources_for_context::<B>(spec.arithmetic(32, arithmetic::Gate::Drelu))?;
+    let p = selection::resources_reconstructed_for_context::<B>(spec.select(32))?;
+    let v =
+        selection::resources_reconstructed_for_context::<B>(spec.select(spec.kind.index_bits()))?;
+    let l = source_lookup::resources_for_context::<B>(spec.lookup())?;
+    let f = selection::resources_for_context::<B>(spec.select(50), selection::Boundary::Deferred)?;
     let resources = ActivationResources {
         lanes,
         exchanges: 8,
@@ -924,17 +940,17 @@ enum Phase {
 ///     let _ = p.begin(s);
 /// }
 /// ```
-pub struct ActivationParty<'b> {
-    tr: Option<arithmetic::Party<'b>>,
-    drelu: Option<arithmetic::Party<'b>>,
-    prefix: Option<selection::Party<'b>>,
-    clip_drelu: Option<arithmetic::Party<'b>>,
-    clip_select: Option<selection::Party<'b>>,
-    lookup: Option<source_lookup::Party<'b>>,
-    final_select: Option<selection::Party<'b>>,
-    x: Option<CommonMasked<'b, Ring>>,
-    y: Option<arithmetic::MaskedOutput<'b>>,
-    d: Option<arithmetic::MaskedOutput<'b>>,
+pub struct ActivationPartyFor<B: AllocationContext> {
+    tr: Option<arithmetic::PartyFor<B>>,
+    drelu: Option<arithmetic::PartyFor<B>>,
+    prefix: Option<selection::PartyFor<B>>,
+    clip_drelu: Option<arithmetic::PartyFor<B>>,
+    clip_select: Option<selection::PartyFor<B>>,
+    lookup: Option<source_lookup::PartyFor<B>>,
+    final_select: Option<selection::PartyFor<B>>,
+    x: Option<CommonMaskedFor<B, Ring>>,
+    y: Option<arithmetic::MaskedOutputFor<B>>,
+    d: Option<arithmetic::MaskedOutputFor<B>>,
     // All private work backing is preallocated under original aggregate lease.
     projection: Zeroizing<Vec<u64>>,
     affine: Zeroizing<Vec<u64>>,
@@ -954,32 +970,32 @@ pub struct ActivationParty<'b> {
     phase: Phase,
     spec: ActivationSpec,
     // Payload and original native guards drop before wrapper capacity refunds.
-    lease: Option<Lease<'b>>,
+    lease: Option<LeaseFor<B>>,
 }
-enum FrameBody<'b> {
-    Arithmetic(arithmetic::Frame<'b>),
-    Selection(selection::Frame<'b>),
-    Lookup(source_lookup::Frame<'b>),
+enum FrameBodyFor<B: AllocationContext> {
+    Arithmetic(arithmetic::FrameFor<B>),
+    Selection(selection::FrameFor<B>),
+    Lookup(source_lookup::FrameFor<B>),
     Final(Zeroizing<Vec<u8>>),
 }
-pub struct ActivationFrame<'b> {
-    body: FrameBody<'b>,
-    _lease: Lease<'b>,
+pub struct ActivationFrameFor<B: AllocationContext> {
+    body: FrameBodyFor<B>,
+    _lease: LeaseFor<B>,
 }
-impl ActivationFrame<'_> {
+impl<B: AllocationContext> ActivationFrameFor<B> {
     pub fn as_bytes(&self) -> &[u8] {
         match &self.body {
-            FrameBody::Arithmetic(f) => f.as_bytes(),
-            FrameBody::Selection(f) => f.as_bytes(),
-            FrameBody::Lookup(f) => f.as_bytes(),
-            FrameBody::Final(f) => f,
+            FrameBodyFor::Arithmetic(f) => f.as_bytes(),
+            FrameBodyFor::Selection(f) => f.as_bytes(),
+            FrameBodyFor::Lookup(f) => f.as_bytes(),
+            FrameBodyFor::Final(f) => f,
         }
     }
 }
 #[allow(clippy::large_enum_variant)]
-pub enum ActivationStep<'b> {
-    Frame(ActivationFrame<'b>),
-    Output(CommonMasked<'b, Ring>),
+pub enum ActivationStepFor<B: AllocationContext> {
+    Frame(ActivationFrameFor<B>),
+    Output(CommonMaskedFor<B, Ring>),
 }
 
 fn slot_bindings(input: Binding, wires: &[Binding; WIRES]) -> [Binding; USES] {
@@ -997,14 +1013,16 @@ fn ledger_digest(ledger: &UseLedger<USES>) -> [u8; 32] {
     )
 }
 
+type ActivationPartiesFor<B> = (DealerMaskFor<B, Ring>, [ActivationPartyFor<B>; 2]);
+
 /// Complete operation issuance, retaining opaque input capabilities for begin.
-pub type ActivationIssued<'b> = (
-    DealerMask<'b, Ring>,
-    [ActivationParty<'b>; 2],
-    [CommonMasked<'b, Ring>; 2],
+pub type ActivationIssuedFor<B> = (
+    DealerMaskFor<B, Ring>,
+    [ActivationPartyFor<B>; 2],
+    [CommonMaskedFor<B, Ring>; 2],
 );
 
-impl<'b> LocalDealer<'b> {
+impl<B: AllocationContext> LocalDealerFor<B> {
     /// Complete clear-input operation boundary. Validate every encoded integer,
     /// declaration and aggregate capacity before allocating or drawing root
     /// material. Dealer namespace creation is outside this operation boundary.
@@ -1013,7 +1031,7 @@ impl<'b> LocalDealer<'b> {
         &mut self,
         spec: ActivationSpec,
         values: &[i64],
-    ) -> Result<ActivationIssued<'b>, Error> {
+    ) -> Result<ActivationIssuedFor<B>, Error> {
         self.activation_from_values_with(spec, values, |bytes| {
             getrandom::fill(bytes).map_err(|_| Error::Randomness)
         })
@@ -1024,8 +1042,8 @@ impl<'b> LocalDealer<'b> {
         spec: ActivationSpec,
         values: &[i64],
         mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<ActivationIssued<'b>, Error> {
-        let cost = activation_resources(spec)?;
+    ) -> Result<ActivationIssuedFor<B>, Error> {
+        let cost = activation_resources_for::<B>(spec)?;
         self.validate(spec.input, false)?;
         self.validate(spec.output, false)?;
         if values.len() != cost.lanes
@@ -1044,7 +1062,7 @@ impl<'b> LocalDealer<'b> {
             .combined_reservation_bytes
             .checked_add(root_bytes)
             .ok_or(Error::Resource)?;
-        let mut aggregate = self.budget.reserve(total)?;
+        let mut aggregate = LeaseFor::reserve(&self.budget, total)?;
         let region_lease = aggregate.split(cost.combined_reservation_bytes)?;
         let prepared = self.prepare_root_reserved_with(
             spec.input,
@@ -1062,8 +1080,8 @@ impl<'b> LocalDealer<'b> {
     pub fn activation(
         &mut self,
         spec: ActivationSpec,
-        input: DealerMask<'b, Ring>,
-    ) -> Result<(DealerMask<'b, Ring>, [ActivationParty<'b>; 2]), Error> {
+        input: DealerMaskFor<B, Ring>,
+    ) -> Result<ActivationPartiesFor<B>, Error> {
         self.activation_with(spec, input, |bytes| {
             getrandom::fill(bytes).map_err(|_| Error::Randomness)
         })
@@ -1072,21 +1090,21 @@ impl<'b> LocalDealer<'b> {
     fn activation_with(
         &mut self,
         spec: ActivationSpec,
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<B, Ring>,
         mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, [ActivationParty<'b>; 2]), Error> {
-        let cost = activation_resources(spec)?;
+    ) -> Result<ActivationPartiesFor<B>, Error> {
+        let cost = activation_resources_for::<B>(spec)?;
         self.activation_input_range(spec, &input)?;
         // Existing roots/matrix outputs stay continuously charged separately.
         // Complete input checks precede aggregate admission and operation draws.
-        let reservation = self.budget.reserve(cost.combined_reservation_bytes)?;
+        let reservation = LeaseFor::reserve(&self.budget, cost.combined_reservation_bytes)?;
         self.activation_reserved_with(spec, input, reservation, &mut fill)
     }
 
     fn activation_input_range(
         &self,
         spec: ActivationSpec,
-        input: &DealerMask<'b, Ring>,
+        input: &DealerMaskFor<B, Ring>,
     ) -> Result<Interval, Error> {
         self.input(input.binding, spec.operation)?;
         if input.binding.descriptor != spec.input {
@@ -1114,25 +1132,25 @@ impl<'b> LocalDealer<'b> {
     pub(super) fn activation_reserved_with(
         &mut self,
         spec: ActivationSpec,
-        input: DealerMask<'b, Ring>,
-        mut reservation: Lease<'b>,
+        input: DealerMaskFor<B, Ring>,
+        mut reservation: LeaseFor<B>,
         mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, [ActivationParty<'b>; 2]), Error> {
-        let cost = activation_resources(spec)?;
+    ) -> Result<ActivationPartiesFor<B>, Error> {
+        let cost = activation_resources_for::<B>(spec)?;
         if reservation.bytes != cost.combined_reservation_bytes
-            || !std::ptr::eq(reservation.budget, self.budget)
+            || !std::ptr::eq(reservation.budget.budget(), self.budget.budget())
         {
             return Err(Error::Resource);
         }
         let range = self.activation_input_range(spec, &input)?;
         let descriptors = spec.wires()?;
-        let native = native_costs(&spec)?;
+        let native = native_costs::<B>(&spec)?;
         let n = cost.lanes;
         // All descriptor/table/range/geometry checks precede capacity, allocation
         // and entropy. Every native receives a split of this original aggregate.
-        let left_lease = reservation.split(party_charge(n))?;
-        let right_lease = reservation.split(party_charge(n))?;
-        let mask_lease = reservation.split(dealer_charge(n))?;
+        let left_lease = reservation.split(party_charge::<B>(n))?;
+        let right_lease = reservation.split(party_charge::<B>(n))?;
+        let mask_lease = reservation.split(dealer_charge::<B>(n))?;
         let mut wires = [input.binding; WIRES];
         for (i, edge) in descriptors.iter().enumerate() {
             let interval = match i {
@@ -1191,10 +1209,10 @@ impl<'b> LocalDealer<'b> {
             ledger.burn(slot as u8, slot_bindings(input.binding, &wires)[slot], 2)
         };
         // Declare backing after leases: partial failures erase before refund.
-        let mut projection = zeros(n, self.budget)?;
-        let mut affine = zeros(n, self.budget)?;
-        let mut operand = zeros(n, self.budget)?;
-        let mut final_masks = zeros(n, self.budget)?;
+        let mut projection = zeros(n, self.budget.budget())?;
+        let mut affine = zeros(n, self.budget.budget())?;
+        let mut operand = zeros(n, self.budget.budget())?;
+        let mut final_masks = zeros(n, self.budget.budget())?;
         burn(&mut dealer_ledger, 0)?;
         for (out, &mask) in projection.iter_mut().zip(input.backing.values()) {
             *out = mask & super::super::mask(38);
@@ -1301,12 +1319,12 @@ impl<'b> LocalDealer<'b> {
                      prefix,
                      clip_drelu,
                      clip_select,
-                     lookup: source_lookup::Party<'b>,
-                     final_select: selection::Party<'b>,
+                     lookup: source_lookup::PartyFor<B>,
+                     final_select: selection::PartyFor<B>,
                      role,
                      lease|
-         -> Result<ActivationParty<'b>, Error> {
-            Ok(ActivationParty {
+         -> Result<ActivationPartyFor<B>, Error> {
+            Ok(ActivationPartyFor {
                 lookup_binding: lookup.internal_binding(),
                 select_binding: final_select.internal_binding(),
                 tr: Some(tr),
@@ -1319,12 +1337,12 @@ impl<'b> LocalDealer<'b> {
                 x: None,
                 y: None,
                 d: None,
-                projection: zeros(n, self.budget)?,
-                affine: zeros(n, self.budget)?,
-                complement: zeros(n, self.budget)?,
-                operand: zeros(n, self.budget)?,
-                index: zeros(n, self.budget)?,
-                local: zeros(n, self.budget)?,
+                projection: zeros(n, self.budget.budget())?,
+                affine: zeros(n, self.budget.budget())?,
+                complement: zeros(n, self.budget.budget())?,
+                operand: zeros(n, self.budget.budget())?,
+                index: zeros(n, self.budget.budget())?,
+                local: zeros(n, self.budget.budget())?,
                 input: input.binding,
                 wires,
                 output,
@@ -1345,8 +1363,8 @@ impl<'b> LocalDealer<'b> {
             projection, affine, operand, ym, dm, pm, hm, vm, lm, fm, input,
         ));
         Ok((
-            DealerMask {
-                backing: MaskBacking::Fresh(final_masks),
+            DealerMaskFor {
+                backing: MaskBackingFor::Fresh(final_masks),
                 binding: output,
                 _kind: PhantomData,
                 _lease: mask_lease,
@@ -1360,7 +1378,7 @@ fn affine_mask(p: u64, y: u64) -> u64 {
     p.wrapping_mul(2).wrapping_sub(y) & super::super::mask(32)
 }
 
-impl<'b> ActivationParty<'b> {
+impl<B: AllocationContext> ActivationPartyFor<B> {
     pub fn spec(&self) -> ActivationSpec {
         self.spec
     }
@@ -1387,7 +1405,7 @@ impl<'b> ActivationParty<'b> {
         // The cancelled/completed wrapper remains caller-owned. Keep its
         // original metadata reservation until Drop; only retired workspace
         // may be refunded here. Repeated cancellation keeps the same lease.
-        super::retain_wrapper_metadata(&mut self.lease, size_of::<ActivationParty<'static>>());
+        super::retain_wrapper_metadata(&mut self.lease, size_of::<ActivationPartyFor<B>>());
     }
     fn burn(&mut self, slot: usize) -> Result<(), Error> {
         self.ledger.burn(
@@ -1396,22 +1414,25 @@ impl<'b> ActivationParty<'b> {
             self.role,
         )
     }
-    fn frame(&mut self, body: FrameBody<'b>) -> Result<ActivationFrame<'b>, Error> {
-        let extra = if matches!(&body, FrameBody::Final(_)) {
+    fn frame(&mut self, body: FrameBodyFor<B>) -> Result<ActivationFrameFor<B>, Error> {
+        let extra = if matches!(&body, FrameBodyFor::Final(_)) {
             HEADER + 8 * self.spec.input.shape().elements() + ALLOCATOR
         } else {
             0
         };
-        Ok(ActivationFrame {
+        Ok(ActivationFrameFor {
             body,
             _lease: self
                 .lease
                 .as_mut()
                 .ok_or(Error::Consumed)?
-                .split(frame_wrapper_charge() + extra)?,
+                .split(frame_wrapper_charge::<B>() + extra)?,
         })
     }
-    pub fn begin(&mut self, input: CommonMasked<'b, Ring>) -> Result<ActivationFrame<'b>, Error> {
+    pub fn begin(
+        &mut self,
+        input: CommonMaskedFor<B, Ring>,
+    ) -> Result<ActivationFrameFor<B>, Error> {
         let result = (|| {
             // Burn actual binding/role, not caller-independent expected metadata.
             self.ledger.burn(0, input.binding, input.role)?;
@@ -1442,25 +1463,25 @@ impl<'b> ActivationParty<'b> {
                 .ok_or(Error::Consumed)?
                 .begin(&self.projection)?;
             self.phase = Phase::Tr;
-            self.frame(FrameBody::Arithmetic(f))
+            self.frame(FrameBodyFor::Arithmetic(f))
         })();
         if result.is_err() {
             self.cancel();
         }
         result
     }
-    pub fn advance(&mut self, peer: &[u8]) -> Result<ActivationStep<'b>, Error> {
+    pub fn advance(&mut self, peer: &[u8]) -> Result<ActivationStepFor<B>, Error> {
         let result = self.advance_inner(peer);
         if result.is_err() {
             self.cancel();
         }
         result
     }
-    fn advance_inner(&mut self, peer: &[u8]) -> Result<ActivationStep<'b>, Error> {
+    fn advance_inner(&mut self, peer: &[u8]) -> Result<ActivationStepFor<B>, Error> {
         let body = match self.phase {
             Phase::Tr => match self.tr.as_mut().ok_or(Error::Consumed)?.advance(peer)? {
-                arithmetic::Step::Frame(f) => FrameBody::Arithmetic(f),
-                arithmetic::Step::Output(y) => {
+                arithmetic::StepFor::Frame(f) => FrameBodyFor::Arithmetic(f),
+                arithmetic::StepFor::Output(y) => {
                     self.y = Some(y);
                     self.tr = None;
                     self.burn(2)?;
@@ -1470,12 +1491,12 @@ impl<'b> ActivationParty<'b> {
                         .ok_or(Error::Consumed)?
                         .begin(self.y.as_ref().ok_or(Error::Consumed)?.values())?;
                     self.phase = Phase::Drelu;
-                    FrameBody::Arithmetic(f)
+                    FrameBodyFor::Arithmetic(f)
                 }
             },
             Phase::Drelu => match self.drelu.as_mut().ok_or(Error::Consumed)?.advance(peer)? {
-                arithmetic::Step::Frame(_) => return Err(Error::Context),
-                arithmetic::Step::Output(d) => {
+                arithmetic::StepFor::Frame(_) => return Err(Error::Context),
+                arithmetic::StepFor::Output(d) => {
                     self.d = Some(d);
                     self.drelu = None;
                     self.burn(3)?;
@@ -1485,7 +1506,7 @@ impl<'b> ActivationParty<'b> {
                         self.y.as_ref().ok_or(Error::Consumed)?.values(),
                     )?;
                     self.phase = Phase::Prefix;
-                    FrameBody::Selection(f)
+                    FrameBodyFor::Selection(f)
                 }
             },
             Phase::Prefix => {
@@ -1510,7 +1531,7 @@ impl<'b> ActivationParty<'b> {
                 self.prefix = None;
                 self.y = None;
                 self.phase = Phase::ClipDrelu;
-                FrameBody::Arithmetic(f)
+                FrameBodyFor::Arithmetic(f)
             }
             Phase::ClipDrelu => match self
                 .clip_drelu
@@ -1518,8 +1539,8 @@ impl<'b> ActivationParty<'b> {
                 .ok_or(Error::Consumed)?
                 .advance(peer)?
             {
-                arithmetic::Step::Frame(_) => return Err(Error::Context),
-                arithmetic::Step::Output(h) => {
+                arithmetic::StepFor::Frame(_) => return Err(Error::Context),
+                arithmetic::StepFor::Output(h) => {
                     self.burn(9)?;
                     for (out, &value) in self.complement.iter_mut().zip(h.values()) {
                         *out = value ^ 1;
@@ -1538,7 +1559,7 @@ impl<'b> ActivationParty<'b> {
                         .begin(&self.complement, &self.operand)?;
                     self.clip_drelu = None;
                     self.phase = Phase::ClipSelect;
-                    FrameBody::Selection(f)
+                    FrameBodyFor::Selection(f)
                 }
             },
             Phase::ClipSelect => {
@@ -1560,11 +1581,11 @@ impl<'b> ActivationParty<'b> {
                     .begin(&self.index)?;
                 self.clip_select = None;
                 self.phase = Phase::Lookup;
-                FrameBody::Lookup(f)
+                FrameBodyFor::Lookup(f)
             }
             Phase::Lookup => {
                 let l = match self.lookup.as_mut().ok_or(Error::Consumed)?.advance(peer)? {
-                    source_lookup::Step::Deferred(l) => l,
+                    source_lookup::StepFor::Deferred(l) => l,
                     _ => return Err(Error::Context),
                 };
                 self.burn(15)?;
@@ -1603,7 +1624,7 @@ impl<'b> ActivationParty<'b> {
                 self.burn(19)?;
                 let bytes = self.final_bytes()?;
                 self.phase = Phase::Final;
-                FrameBody::Final(bytes)
+                FrameBodyFor::Final(bytes)
             }
             Phase::Final => {
                 self.validate_final(peer)?; // Full frame before any mutation.
@@ -1616,23 +1637,23 @@ impl<'b> ActivationParty<'b> {
                     .lease
                     .as_mut()
                     .ok_or(Error::Consumed)?
-                    .split(common_charge() + 8 * values.len() + ALLOCATOR)?;
-                let output = CommonMasked {
-                    backing: CommonBacking::Root(values),
+                    .split(common_charge_for::<B>() + 8 * values.len() + ALLOCATOR)?;
+                let output = CommonMaskedFor {
+                    backing: CommonBackingFor::Root(values),
                     binding: self.output,
                     role: self.role,
                     _kind: PhantomData,
                     _lease: lease,
                 };
                 self.cancel();
-                return Ok(ActivationStep::Output(output));
+                return Ok(ActivationStepFor::Output(output));
             }
             Phase::Fresh | Phase::Dead => return Err(Error::Consumed),
         };
-        Ok(ActivationStep::Frame(self.frame(body)?))
+        Ok(ActivationStepFor::Frame(self.frame(body)?))
     }
     fn final_bytes(&self) -> Result<Zeroizing<Vec<u8>>, Error> {
-        let budget = self.lease.as_ref().ok_or(Error::Consumed)?.budget;
+        let budget = self.lease.as_ref().ok_or(Error::Consumed)?.budget.budget();
         let mut bytes = Zeroizing::new(allocate(HEADER + 8 * self.local.len(), budget)?);
         bytes.extend_from_slice(MAGIC);
         bytes.extend_from_slice(&self.binding);
@@ -1664,6 +1685,11 @@ impl<'b> ActivationParty<'b> {
         Ok(())
     }
 }
+
+pub type ActivationParty<'b> = ActivationPartyFor<&'b Budget>;
+pub type ActivationFrame<'b> = ActivationFrameFor<&'b Budget>;
+pub type ActivationStep<'b> = ActivationStepFor<&'b Budget>;
+pub type ActivationIssued<'b> = ActivationIssuedFor<&'b Budget>;
 
 #[cfg(test)]
 mod tests;

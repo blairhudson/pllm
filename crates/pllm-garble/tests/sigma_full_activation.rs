@@ -272,7 +272,10 @@ fn projection_affine_and_boolean_masks_preserve_endpoint_equations() {
                 let p_hat = i128::from(residue(p + rp, 32));
                 let a_hat = i128::from(residue(2 * p_hat - y_hat, 32));
                 let ra = i128::from(residue(2 * rp - ry, 32));
-                assert_eq!(residue(a_hat - ra, 32), y.abs() as u64);
+                assert_eq!(
+                    residue(a_hat - ra, 32),
+                    u64::try_from(y.unsigned_abs()).unwrap()
+                );
             }
         }
         for bit_mask in [0i128, 1] {

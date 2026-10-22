@@ -695,10 +695,10 @@ fn deferred_exact_own_share_equations_and_dependent_output_mask() {
             .unwrap();
         let ao = must_deferred(a.advance(bf.as_bytes()).unwrap());
         let bo = must_deferred(b.advance(af.as_bytes()).unwrap());
-        for i in 0..2 {
+        for (i, &r) in opened_r.iter().enumerate() {
             assert_eq!(
                 ao.values()[i],
-                z0.values()[i].wrapping_mul(2).wrapping_sub(opened_r[i]) & mask(m)
+                z0.values()[i].wrapping_mul(2).wrapping_sub(r) & mask(m)
             );
             assert_eq!(bo.values()[i], z1.values()[i].wrapping_mul(2) & mask(m));
         }

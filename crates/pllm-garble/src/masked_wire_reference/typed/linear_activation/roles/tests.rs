@@ -10,7 +10,11 @@ thread_local! {
 
 // Armed only by the locked-work regression on its own worker thread. This runs
 // before unwind, never from a caller callback or a Drop implementation.
-pub(super) fn panic_after_locked_output(role: u8, state: &RoleState<'_>, control: &SplitControl) {
+pub(super) fn panic_after_locked_output<B: AllocationContext>(
+    role: u8,
+    state: &RoleStateFor<B>,
+    control: &SplitControl,
+) {
     LOCKED_OUTPUT_PANIC_ROLE.with(|armed| {
         if armed.get() == Some(role) {
             armed.set(None);
@@ -44,9 +48,9 @@ fn assert_burned(shared: &Coordination<'_>) {
     }
 }
 
-fn complete<'b>(
-    [left, right]: &mut [LinearActivationRole<'b>; 2],
-) -> Vec<[LinearActivationRoleFrame<'b>; 2]> {
+fn complete<B: AllocationContext>(
+    [left, right]: &mut [LinearActivationRoleFor<B>; 2],
+) -> Vec<[LinearActivationRoleFrameFor<B>; 2]> {
     let mut frames = [
         left.begin(&mut || false).unwrap(),
         right.begin(&mut || false).unwrap(),
@@ -61,11 +65,11 @@ fn complete<'b>(
             .unwrap();
         retained.push(frames);
         match (a, b) {
-            (LinearActivationRoleStep::Frame(a), LinearActivationRoleStep::Frame(b)) => {
+            (LinearActivationRoleStepFor::Frame(a), LinearActivationRoleStepFor::Frame(b)) => {
                 assert!(round < EXCHANGES - 1);
                 frames = [a, b];
             }
-            (LinearActivationRoleStep::Ready, LinearActivationRoleStep::Ready) => {
+            (LinearActivationRoleStepFor::Ready, LinearActivationRoleStepFor::Ready) => {
                 assert_eq!(round, EXCHANGES - 1);
                 return retained;
             }
@@ -73,6 +77,166 @@ fn complete<'b>(
         }
     }
     panic!("missing ready boundary")
+}
+
+fn owned_issue(
+    kind: ActivationKind,
+) -> (
+    OwnedDealerMask<Ring>,
+    LinearActivationRunFor<OwnedBudgetContext>,
+    OwnedExternalCharge,
+) {
+    let s = spec(1, 1, 1, kind);
+    let root = OwnedBudget::new(64 << 20).unwrap();
+    let mut d =
+        OwnedLocalDealer::new(s.edges[0].identity().source(), [1; 32], [2; 32], &root).unwrap();
+    let native = linear_activation_resources_for::<OwnedBudgetContext>(s)
+        .unwrap()
+        .reservation_bytes;
+    let split = role_split_resources_for::<OwnedBudgetContext>()
+        .unwrap()
+        .reservation_bytes;
+    let mut charge = root.charge_external(native + split).unwrap();
+    let (mask, run) = d
+        .linear_activation_from_reserved_values_with(s, &[-1], &[4096], &mut charge, &mut |bytes| {
+            bytes.fill(173);
+            Ok(())
+        })
+        .unwrap();
+    (mask, run, charge)
+}
+
+#[test]
+fn owned_d27_concrete_inventory_and_independent_original_lifetimes() {
+    let _serial = matrix::TEST_SERIAL.lock().unwrap();
+    let q = role_split_resources_for::<OwnedBudgetContext>().unwrap();
+    assert_eq!(
+        q.role_backing_bytes,
+        arc_bytes::<RoleSlotFor<OwnedBudgetContext>>().unwrap()
+    );
+    assert_eq!(
+        q.coordination_backing_bytes,
+        arc_bytes::<CoordinationFor<OwnedBudgetContext>>().unwrap()
+    );
+    assert_eq!(
+        q.reservation_bytes,
+        2 * q.role_backing_bytes
+            + q.coordination_backing_bytes
+            + q.wrapper_population_bytes
+            + q.transition_bytes
+    );
+    let (mask, run, mut charge) = owned_issue(ActivationKind::Silu);
+    assert!(run.is_budget(mask._lease.budget.budget()));
+    let (coordinator, mut roles) = run.into_roles_from_reserved(&mut charge).unwrap();
+    assert_eq!(charge.payload_bytes(), 0);
+    drop(charge); // Original root, dealer and all source-guard handles are gone.
+    let frames = complete(&mut roles);
+    assert_eq!(frames.len(), EXCHANGES);
+    let [left, right] = roles;
+    let outputs = [left.finish().unwrap(), right.finish().unwrap()];
+    for output in &outputs {
+        assert_eq!(output.descriptor().unwrap(), mask.binding.descriptor);
+        let state = output.slot.state.lock().unwrap();
+        let native = state.output.as_ref().unwrap();
+        assert!(std::ptr::eq(
+            native._lease.budget.budget(),
+            mask._lease.budget.budget()
+        ));
+        assert_eq!(
+            unmask(&mask, native),
+            oracle(spec(1, 1, 1, ActivationKind::Silu), &[-1], &[4096])
+        );
+    }
+    drop(coordinator);
+    assert!(outputs.iter().all(|output| output.descriptor().is_err()));
+    assert!(frames
+        .iter()
+        .flatten()
+        .all(|frame| frame.as_bytes().is_err()));
+    assert!(matches!(
+        matrix::party::IssuanceTicket::acquire(),
+        Err(Error::Resource)
+    ));
+    drop((outputs, frames));
+    drop(matrix::party::IssuanceTicket::acquire().unwrap());
+    let quote = OwnedBudget::resources().unwrap();
+    assert_eq!(
+        mask._lease.budget.budget().used_bytes(),
+        quote.initial_reserved_bytes - quote.owner_metadata_bytes + mask._lease.bytes
+    );
+}
+
+#[test]
+fn owned_d27_short_foreign_and_each_allocation_failure_burn_without_migration() {
+    let _serial = matrix::TEST_SERIAL.lock().unwrap();
+    let q = role_split_resources_for::<OwnedBudgetContext>().unwrap();
+    for case in 0..5 {
+        let (mask, run, mut charge) = owned_issue(ActivationKind::Gelu);
+        let root_view = mask._lease.budget.budget();
+        let foreign = OwnedBudget::new(64 << 20).unwrap();
+        let mut foreign_charge = foreign.charge_external(q.reservation_bytes).unwrap();
+        if case == 0 {
+            charge.resize_payload(q.reservation_bytes - 1).unwrap();
+        }
+        if case >= 2 {
+            root_view.fail_after.store(case - 2, Ordering::SeqCst);
+        }
+        let result = if case == 1 {
+            run.into_roles_from_reserved(&mut foreign_charge)
+        } else {
+            run.into_roles_from_reserved(&mut charge)
+        };
+        if case < 2 {
+            assert!(matches!(result, Err(Error::Resource)));
+        } else {
+            assert!(matches!(result, Err(Error::Allocation)));
+            assert_eq!(charge.payload_bytes(), 0);
+        }
+        root_view.fail_after.store(-1, Ordering::SeqCst);
+        assert_eq!(foreign_charge.payload_bytes(), q.reservation_bytes);
+        drop((charge, foreign_charge));
+        let quote = OwnedBudget::resources().unwrap();
+        assert_eq!(
+            root_view.used_bytes(),
+            quote.initial_reserved_bytes - quote.owner_metadata_bytes + mask._lease.bytes
+        );
+        drop(matrix::party::IssuanceTicket::acquire().unwrap());
+    }
+}
+
+#[test]
+fn owned_d27_early_finish_and_reentrant_cancel_preserve_both_role_burn() {
+    let _serial = matrix::TEST_SERIAL.lock().unwrap();
+    for case in 0..3 {
+        let (mask, run, mut charge) = owned_issue(ActivationKind::Gelu);
+        let (mut coordinator, [mut left, right]) =
+            run.into_roles_from_reserved(&mut charge).unwrap();
+        if case == 0 {
+            assert!(left.finish().is_err());
+        } else if case == 1 {
+            assert!(left
+                .begin(&mut || {
+                    coordinator.cancel();
+                    false
+                })
+                .is_err());
+            drop(left);
+        } else {
+            assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let _ = left.begin(&mut || panic!("owning callback unwind"));
+            }))
+            .is_err());
+            drop(left);
+        }
+        assert!(coordinator.is_aborted());
+        assert!(right.finish().is_err());
+        drop((coordinator, charge));
+        let quote = OwnedBudget::resources().unwrap();
+        assert_eq!(
+            mask._lease.budget.budget().used_bytes(),
+            quote.initial_reserved_bytes - quote.owner_metadata_bytes + mask._lease.bytes
+        );
+    }
 }
 
 #[test]

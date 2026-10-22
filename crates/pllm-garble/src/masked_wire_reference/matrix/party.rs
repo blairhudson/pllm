@@ -4,7 +4,10 @@
 //! The coordinator must cancel the sibling on any failure.
 use super::{binding, core, random, Context, Live, Spec, ISSUANCE};
 pub use super::{Budget, Error};
-use crate::shared_allocation::{allocate, Lease, MAX_ALLOCATION_BYTES};
+use crate::shared_allocation::{
+    allocate, AllocationContext, Lease, LeaseFor, OwnedBudget, OwnedBudgetContext,
+    OwnedExternalCharge, MAX_ALLOCATION_BYTES,
+};
 use sha2::{Digest, Sha256};
 use std::{mem::size_of, sync::atomic::Ordering};
 use zeroize::Zeroizing;
@@ -47,17 +50,25 @@ pub struct Resources {
 }
 
 pub fn resources(spec: Spec) -> Result<Resources, Error> {
+    resources_for_context::<&Budget>(spec)
+}
+
+/// Same numeric/work inventory with actual owning-container layouts.
+pub fn owned_resources(spec: Spec) -> Result<Resources, Error> {
+    resources_for_context::<OwnedBudgetContext>(spec)
+}
+
+pub(crate) fn resources_for_context<C: AllocationContext>(spec: Spec) -> Result<Resources, Error> {
     let (a, b, c, d) = core::dimensions(spec)?;
     let material = 8 * (a + b + c);
     let frame = HEADER + 8 * c;
-    let party_metadata = size_of::<Party<'static>>()
-        + size_of::<Frame<'static>>()
-        + size_of::<MaskedOutput<'static>>();
+    let party_metadata =
+        size_of::<PartyFor<C>>() + size_of::<FrameFor<C>>() + size_of::<MaskedOutputFor<C>>();
     // No heap control block: Live is a non-secret, statically counted guard.
     // Party: three material allocations, one local output and one frame.
     let party = material + 8 * c + frame + party_metadata + 5 * ALLOCATOR + (8 << 10);
     // Dealer scratch allocation and bounded issuance / SHA / arithmetic stack.
-    let dealer_metadata = size_of::<Lease<'static>>() + size_of::<Live>();
+    let dealer_metadata = size_of::<LeaseFor<C>>() + size_of::<Live>() + C::TRANSIENT_LINK_BYTES;
     let dealer = 8 * c + dealer_metadata + ALLOCATOR + (16 << 10);
     let reservation = 2 * party + dealer;
     if reservation > MAX_ALLOCATION_BYTES {
@@ -98,31 +109,37 @@ enum State {
 
 /// Owns only this party's material, public binding, phase and reservation.
 /// No sibling reference or shared secret/reconstruction owner. Failures consume.
-pub struct Party<'b> {
+pub type Party<'b> = PartyFor<&'b Budget>;
+pub type OwnedParty = PartyFor<OwnedBudgetContext>;
+pub struct PartyFor<C: AllocationContext> {
     id: u8,
     spec: Spec,
     binding: [u8; 32],
     state: Option<State>,
     // Secret owners must erase/deallocate before refund or singleton release.
-    lease: Option<Lease<'b>>,
+    lease: Option<LeaseFor<C>>,
     live: Option<Live>,
 }
-pub struct Frame<'b> {
+pub type Frame<'b> = FrameFor<&'b Budget>;
+pub type OwnedFrame = FrameFor<OwnedBudgetContext>;
+pub struct FrameFor<C: AllocationContext> {
     bytes: Zeroizing<Vec<u8>>,
-    _lease: Lease<'b>,
+    _lease: LeaseFor<C>,
     _live: Live,
 }
-impl Frame<'_> {
+impl<C: AllocationContext> FrameFor<C> {
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
 }
-pub struct MaskedOutput<'b> {
+pub type MaskedOutput<'b> = MaskedOutputFor<&'b Budget>;
+pub type OwnedMaskedOutput = MaskedOutputFor<OwnedBudgetContext>;
+pub struct MaskedOutputFor<C: AllocationContext> {
     values: Zeroizing<Vec<u64>>,
-    _lease: Lease<'b>,
+    _lease: LeaseFor<C>,
     _live: Live,
 }
-impl MaskedOutput<'_> {
+impl<C: AllocationContext> MaskedOutputFor<C> {
     pub fn values(&self) -> &[u64] {
         &self.values
     }
@@ -151,6 +168,40 @@ pub fn issue_local_cancellable<'b>(
     issue_with(spec, context, [rx, rw, ry], budget, &mut random, cancelled)
 }
 
+/// Same process-local material issuance from a preadmitted owning counter.
+/// No borrowed owner is upgraded, no material codec is enabled, and Live keeps
+/// the original one-thread profile. Exact native capacity transfers once.
+#[allow(clippy::too_many_arguments)]
+pub fn issue_owned_from_reserved(
+    spec: Spec,
+    context: Context,
+    masks: [&[u64]; 3],
+    budget: &OwnedBudget,
+    charge: &mut OwnedExternalCharge,
+    cancelled: &mut impl FnMut() -> bool,
+) -> Result<[OwnedParty; 2], Error> {
+    issue_owned_from_reserved_with(spec, context, masks, budget, charge, &mut random, cancelled)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn issue_owned_from_reserved_with(
+    spec: Spec,
+    context: Context,
+    [rx, rw, ry]: [&[u64]; 3],
+    budget: &OwnedBudget,
+    charge: &mut OwnedExternalCharge,
+    fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    cancelled: &mut impl FnMut() -> bool,
+) -> Result<[OwnedParty; 2], Error> {
+    let cost = owned_resources(spec)?;
+    context.validate()?;
+    core::validate(rx, cost.input_elements, spec.bits)?;
+    core::validate(rw, cost.weight_elements, spec.bits)?;
+    core::validate(ry, cost.output_elements, spec.bits)?;
+    let lease = charge.split_native(budget.budget(), cost.reservation_bytes)?;
+    issue_reserved_with(spec, context, [rx, rw, ry], lease, fill, cancelled)
+}
+
 pub(super) fn issue_with<'b>(
     spec: Spec,
     context: Context,
@@ -171,15 +222,15 @@ pub(super) fn issue_with<'b>(
 
 /// Consume exactly `resources(spec)?.reservation_bytes` from original admission.
 /// Geometry, canonical masks and exact capacity are checked before entropy.
-pub(crate) fn issue_reserved_with<'b>(
+pub(crate) fn issue_reserved_with<C: AllocationContext>(
     spec: Spec,
     context: Context,
     [rx, rw, ry]: [&[u64]; 3],
-    lease: Lease<'b>,
+    lease: LeaseFor<C>,
     fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
     cancelled: &mut impl FnMut() -> bool,
-) -> Result<[Party<'b>; 2], Error> {
-    let cost = resources(spec)?;
+) -> Result<[PartyFor<C>; 2], Error> {
+    let cost = resources_for_context::<C>(spec)?;
     context.validate()?;
     core::validate(rx, cost.input_elements, spec.bits)?;
     core::validate(rw, cost.weight_elements, spec.bits)?;
@@ -214,16 +265,16 @@ impl IssuanceTicket {
 /// Same native issuance, with control admitted before enclosing root entropy.
 /// All checks remain here as well: a ticket authorizes no geometry or masks.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn issue_reserved_ticket_with<'b>(
+pub(crate) fn issue_reserved_ticket_with<C: AllocationContext>(
     spec: Spec,
     context: Context,
     [rx, rw, ry]: [&[u64]; 3],
-    mut lease: Lease<'b>,
+    mut lease: LeaseFor<C>,
     ticket: IssuanceTicket,
     fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
     cancelled: &mut impl FnMut() -> bool,
-) -> Result<[Party<'b>; 2], Error> {
-    let cost = resources(spec)?;
+) -> Result<[PartyFor<C>; 2], Error> {
+    let cost = resources_for_context::<C>(spec)?;
     context.validate()?;
     core::validate(rx, cost.input_elements, spec.bits)?;
     core::validate(rw, cost.weight_elements, spec.bits)?;
@@ -231,7 +282,8 @@ pub(crate) fn issue_reserved_ticket_with<'b>(
     if lease.bytes != cost.reservation_bytes {
         return Err(Error::Resource);
     }
-    let budget = lease.budget;
+    let allocation = lease.budget.share();
+    let budget = allocation.budget();
     let IssuanceTicket { live, issuance } = ticket;
     if cancelled() {
         return Err(Error::Consumed);
@@ -249,7 +301,7 @@ pub(crate) fn issue_reserved_ticket_with<'b>(
     let other_live = live.fork();
     // Dealer scratch already erased/deallocated by core::deal before its refund.
     Ok([
-        Party {
+        PartyFor {
             id: 0,
             spec,
             binding,
@@ -257,7 +309,7 @@ pub(crate) fn issue_reserved_ticket_with<'b>(
             lease: Some(left_lease),
             live: Some(live),
         },
-        Party {
+        PartyFor {
             id: 1,
             spec,
             binding,
@@ -293,20 +345,20 @@ fn operands(xhat: &[u64], what: &[u64]) -> [u8; 32] {
     hash.finalize().into()
 }
 
-impl<'b> Party<'b> {
+impl<C: AllocationContext> PartyFor<C> {
     pub fn begin(
         &mut self,
         xhat: &[u64],
         what: &[u64],
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<Frame<'b>, Error> {
+    ) -> Result<FrameFor<C>, Error> {
         let result = (|| {
             // Take before validation: a wrong phase or any error consumes.
             let state = self.state.take().ok_or(Error::Consumed)?;
             let State::Fresh(material) = state else {
                 return Err(Error::Consumed);
             };
-            let cost = resources(self.spec)?;
+            let cost = resources_for_context::<C>(self.spec)?;
             let lease = self.lease.as_mut().ok_or(Error::Consumed)?;
             let local = core::evaluate(
                 self.spec,
@@ -314,11 +366,11 @@ impl<'b> Party<'b> {
                 &material,
                 xhat,
                 what,
-                lease.budget,
+                lease.budget.budget(),
                 cancelled,
             )?;
             let operand_digest = operands(xhat, what);
-            let mut bytes = Zeroizing::new(allocate(cost.frame_bytes, lease.budget)?);
+            let mut bytes = Zeroizing::new(allocate(cost.frame_bytes, lease.budget.budget())?);
             bytes.extend_from_slice(MAGIC);
             bytes.extend_from_slice(&self.binding);
             bytes.extend_from_slice(&operand_digest);
@@ -329,13 +381,13 @@ impl<'b> Party<'b> {
                 bytes.extend_from_slice(&value.to_le_bytes());
             }
             let frame_lease =
-                lease.split(cost.frame_bytes + size_of::<Frame<'static>>() + ALLOCATOR)?;
+                lease.split(cost.frame_bytes + size_of::<FrameFor<C>>() + ALLOCATOR)?;
             let live = self.live.as_ref().ok_or(Error::Consumed)?.fork();
             self.state = Some(State::Pending {
                 local,
                 operand_digest,
             });
-            Ok(Frame {
+            Ok(FrameFor {
                 bytes,
                 _lease: frame_lease,
                 _live: live,
@@ -347,7 +399,7 @@ impl<'b> Party<'b> {
         result
     }
 
-    pub fn finish(&mut self, peer: &[u8]) -> Result<MaskedOutput<'b>, Error> {
+    pub fn finish(&mut self, peer: &[u8]) -> Result<MaskedOutputFor<C>, Error> {
         let result = (|| {
             let state = self.state.take().ok_or(Error::Consumed)?;
             let State::Pending {
@@ -357,7 +409,7 @@ impl<'b> Party<'b> {
             else {
                 return Err(Error::Consumed);
             };
-            let cost = resources(self.spec)?;
+            let cost = resources_for_context::<C>(self.spec)?;
             if peer.len() != cost.frame_bytes {
                 return Err(Error::Domain);
             }
@@ -383,7 +435,7 @@ impl<'b> Party<'b> {
             }
             // Same local allocation becomes common masked output; reservation
             // transfers only after every validation succeeds.
-            Ok(MaskedOutput {
+            Ok(MaskedOutputFor {
                 values: local,
                 _lease: {
                     let lease = self.lease.as_mut().ok_or(Error::Consumed)?;
@@ -407,5 +459,386 @@ impl<'b> Party<'b> {
             drop(lease.split(refund));
         }
         self.live = None;
+    }
+}
+
+#[cfg(test)]
+mod owned_tests {
+    use super::*;
+    use std::cell::Cell;
+
+    fn spec() -> Spec {
+        Spec {
+            bits: 50,
+            rows: 1,
+            inner: 1,
+            columns: 1,
+            layout: super::super::MatrixLayout::OutputInput,
+        }
+    }
+
+    fn context() -> Context {
+        Context {
+            plan: [1; 32],
+            session: [2; 32],
+            operation: [3; 32],
+            input_wire: [4; 32],
+            weight_wire: [5; 32],
+            output_wire: [6; 32],
+        }
+    }
+
+    // Test-only deterministic injection into the unchanged native issuance seam.
+    // Production entry points still use the original random() implementation.
+    fn fill(bytes: &mut [u8]) -> Result<(), Error> {
+        bytes.fill(19);
+        Ok(())
+    }
+
+    #[test]
+    fn owned_native_owners_preserve_one_thread_profile() {
+        // Same safe ambiguity pattern as the public source-lookup Clone check:
+        // gaining either auto trait makes the corresponding marker ambiguous.
+        trait AmbiguousIfSend<Marker> {
+            fn check() {}
+        }
+        impl<T: ?Sized> AmbiguousIfSend<()> for T {}
+        impl<T: ?Sized + Send> AmbiguousIfSend<u8> for T {}
+        trait AmbiguousIfSync<Marker> {
+            fn check() {}
+        }
+        impl<T: ?Sized> AmbiguousIfSync<()> for T {}
+        impl<T: ?Sized + Sync> AmbiguousIfSync<u8> for T {}
+
+        let _ = <OwnedParty as AmbiguousIfSend<_>>::check;
+        let _ = <OwnedParty as AmbiguousIfSync<_>>::check;
+        let _ = <OwnedFrame as AmbiguousIfSend<_>>::check;
+        let _ = <OwnedFrame as AmbiguousIfSync<_>>::check;
+        let _ = <OwnedMaskedOutput as AmbiguousIfSend<_>>::check;
+        let _ = <OwnedMaskedOutput as AmbiguousIfSync<_>>::check;
+    }
+
+    #[test]
+    fn borrowed_layout_and_work_inventory_remain_unchanged() {
+        assert_eq!(size_of::<Lease<'_>>(), 2 * size_of::<usize>());
+        let borrowed = resources(spec()).unwrap();
+        let owned = owned_resources(spec()).unwrap();
+        assert_eq!(owned.party_key_bits, borrowed.party_key_bits);
+        assert_eq!(owned.dealer_macs, borrowed.dealer_macs);
+        assert_eq!(owned.party_macs, borrowed.party_macs);
+        assert_eq!(owned.random_bytes, borrowed.random_bytes);
+        assert_eq!(owned.frame_bytes, borrowed.frame_bytes);
+        assert_eq!(
+            owned.party_reservation_bytes,
+            borrowed.party_reservation_bytes
+        );
+        assert_eq!(
+            owned.reservation_bytes,
+            borrowed.reservation_bytes + OwnedBudgetContext::TRANSIENT_LINK_BYTES
+        );
+        assert_eq!(size_of::<OwnedParty>(), size_of::<Party<'_>>());
+        assert_eq!(size_of::<OwnedFrame>(), size_of::<Frame<'_>>());
+        assert_eq!(
+            size_of::<OwnedMaskedOutput>(),
+            size_of::<MaskedOutput<'_>>()
+        );
+    }
+
+    #[test]
+    fn owned_exact_short_and_foreign_counter_reject_before_entropy() {
+        let _serial = super::super::TEST_SERIAL.lock().unwrap();
+        let bootstrap = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let quote = owned_resources(spec()).unwrap();
+        for short in [true, false] {
+            let payload = quote.reservation_bytes - usize::from(short);
+            let limit = bootstrap + size_of::<OwnedExternalCharge>() + payload;
+            let budget = OwnedBudget::new(limit).unwrap();
+            let foreign = OwnedBudget::new(limit).unwrap();
+            let mut charge = budget.charge_external(payload).unwrap();
+            let draws = Cell::new(0usize);
+            let mut observed_fill = |bytes: &mut [u8]| {
+                draws.set(draws.get() + bytes.len());
+                assert_eq!(budget.budget().used_bytes(), limit);
+                fill(bytes)
+            };
+            assert!(matches!(
+                issue_owned_from_reserved_with(
+                    spec(),
+                    context(),
+                    [&[5], &[7], &[11]],
+                    &foreign,
+                    &mut charge,
+                    &mut observed_fill,
+                    &mut || false,
+                ),
+                Err(Error::Resource)
+            ));
+            assert_eq!(draws.get(), 0);
+            assert_eq!(charge.payload_bytes(), payload);
+            assert_eq!(foreign.budget().used_bytes(), bootstrap);
+            let result = issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &budget,
+                &mut charge,
+                &mut observed_fill,
+                &mut || false,
+            );
+            if short {
+                assert!(matches!(result, Err(Error::Resource)));
+                assert_eq!(draws.get(), 0);
+                assert_eq!(charge.payload_bytes(), payload);
+            } else {
+                let parties = result.unwrap();
+                assert_eq!(draws.get(), quote.random_bytes);
+                assert_eq!(charge.payload_bytes(), 0);
+                drop(parties);
+            }
+            drop(charge);
+            assert_eq!(budget.budget().used_bytes(), bootstrap);
+        }
+    }
+
+    #[test]
+    fn owned_original_material_outputs_and_frames_outlive_root_without_upgrade() {
+        let _serial = super::super::TEST_SERIAL.lock().unwrap();
+        let [mut left, mut right] = {
+            let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let mut charge = budget
+                .charge_external(owned_resources(spec()).unwrap().reservation_bytes)
+                .unwrap();
+            issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &budget,
+                &mut charge,
+                &mut fill,
+                &mut || false,
+            )
+            .unwrap()
+        }; // Both original root handle and remaining external guard have retired.
+        let a = left.begin(&[7], &[10], &mut || false).unwrap();
+        let b = right.begin(&[7], &[10], &mut || false).unwrap();
+        let x = left.finish(b.as_bytes()).unwrap();
+        let y = right.finish(a.as_bytes()).unwrap();
+        assert_eq!(x.values(), &[17]); // 2*3 + original output mask 11.
+        assert_eq!(x.values(), y.values());
+        assert!(std::ptr::eq(
+            a._lease.budget.budget(),
+            x._lease.budget.budget()
+        ));
+        assert!(std::ptr::eq(
+            b._lease.budget.budget(),
+            y._lease.budget.budget()
+        ));
+        drop((left, right, b, x, y));
+
+        // One retained original frame alone still owns the real singleton. A
+        // different owning counter cannot manufacture replacement authority.
+        let retry = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut charge = retry
+            .charge_external(owned_resources(spec()).unwrap().reservation_bytes)
+            .unwrap();
+        let draws = Cell::new(0);
+        assert!(matches!(
+            issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &retry,
+                &mut charge,
+                &mut |bytes| {
+                    draws.set(draws.get() + bytes.len());
+                    fill(bytes)
+                },
+                &mut || false,
+            ),
+            Err(Error::Resource)
+        ));
+        assert_eq!(draws.get(), 0);
+        drop(a);
+        // The failed native attempt consumed its transferred slice. Reserve a
+        // fresh slice only for this separate test issuance after full retirement.
+        charge
+            .resize_payload(owned_resources(spec()).unwrap().reservation_bytes)
+            .unwrap();
+        drop(
+            issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &retry,
+                &mut charge,
+                &mut fill,
+                &mut || false,
+            )
+            .unwrap(),
+        );
+    }
+
+    #[test]
+    fn owned_output_alone_retains_original_counter_and_singleton_after_root_drop() {
+        let _serial = super::super::TEST_SERIAL.lock().unwrap();
+        let bootstrap = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let quote = owned_resources(spec()).unwrap();
+        let output = {
+            let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let mut charge = budget.charge_external(quote.reservation_bytes).unwrap();
+            let [mut left, mut right] = issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &budget,
+                &mut charge,
+                &mut fill,
+                &mut || false,
+            )
+            .unwrap();
+            assert_eq!(charge.payload_bytes(), 0);
+            let a = left.begin(&[7], &[10], &mut || false).unwrap();
+            let b = right.begin(&[7], &[10], &mut || false).unwrap();
+            let x = left.finish(b.as_bytes()).unwrap();
+            let y = right.finish(a.as_bytes()).unwrap();
+            assert_eq!(x.values(), &[17]);
+            assert_eq!(x.values(), y.values());
+            assert!(std::ptr::eq(x._lease.budget.budget(), budget.budget()));
+            drop((charge, budget, left, right, a, b, y));
+            assert_eq!(
+                x._lease.budget.budget().used_bytes(),
+                bootstrap - size_of::<OwnedBudget>() + x._lease.bytes
+            );
+            x
+        };
+
+        // No root, external guard, party, frame or sibling output survives.
+        // A separately funded counter must fail on Live, not lack of capacity.
+        let retained_bytes = output._lease.budget.budget().used_bytes();
+        let foreign = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut charge = foreign.charge_external(quote.reservation_bytes).unwrap();
+        let draws = Cell::new(0);
+        let mut observed_fill = |bytes: &mut [u8]| {
+            draws.set(draws.get() + bytes.len());
+            fill(bytes)
+        };
+        assert!(matches!(
+            issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &foreign,
+                &mut charge,
+                &mut observed_fill,
+                &mut || false,
+            ),
+            Err(Error::Resource)
+        ));
+        assert_eq!(draws.get(), 0);
+        assert_eq!(charge.payload_bytes(), 0);
+        assert_eq!(
+            foreign.budget().used_bytes(),
+            bootstrap + charge.charged_bytes()
+        );
+        assert_eq!(output.values(), &[17]);
+        assert_eq!(output._lease.budget.budget().used_bytes(), retained_bytes);
+
+        drop(output);
+        charge.resize_payload(quote.reservation_bytes).unwrap();
+        let parties = issue_owned_from_reserved_with(
+            spec(),
+            context(),
+            [&[5], &[7], &[11]],
+            &foreign,
+            &mut charge,
+            &mut observed_fill,
+            &mut || false,
+        )
+        .unwrap();
+        assert_eq!(draws.get(), quote.random_bytes);
+        drop((parties, charge));
+        assert_eq!(foreign.budget().used_bytes(), bootstrap);
+    }
+
+    #[test]
+    fn owned_allocation_and_cancellation_failures_retire_original_material() {
+        let _serial = super::super::TEST_SERIAL.lock().unwrap();
+        let bootstrap = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        // Six material allocations followed by dealer correction scratch. The
+        // final failure must retire both already-allocated material sets.
+        for fail_after in 0..=6 {
+            let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let mut charge = budget
+                .charge_external(owned_resources(spec()).unwrap().reservation_bytes)
+                .unwrap();
+            budget
+                .budget()
+                .fail_after
+                .store(fail_after, Ordering::SeqCst);
+            let result = issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &budget,
+                &mut charge,
+                &mut fill,
+                &mut || false,
+            );
+            assert!(
+                matches!(result, Err(Error::Allocation)),
+                "fail_after={fail_after}"
+            );
+            assert_eq!(charge.payload_bytes(), 0);
+            assert!(charge.is_for(budget.budget()));
+            assert_eq!(
+                budget.budget().used_bytes(),
+                bootstrap + charge.charged_bytes()
+            );
+            drop(charge);
+            assert_eq!(budget.budget().used_bytes(), bootstrap);
+
+            // Successful issuance on the same original counter also proves
+            // that the failed attempt released the process-wide singleton.
+            budget.budget().fail_after.store(-1, Ordering::SeqCst);
+            let mut retry_charge = budget
+                .charge_external(owned_resources(spec()).unwrap().reservation_bytes)
+                .unwrap();
+            let parties = issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &budget,
+                &mut retry_charge,
+                &mut fill,
+                &mut || false,
+            )
+            .unwrap();
+            assert_eq!(retry_charge.payload_bytes(), 0);
+            drop((parties, retry_charge));
+            assert_eq!(budget.budget().used_bytes(), bootstrap);
+        }
+        let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut charge = budget
+            .charge_external(owned_resources(spec()).unwrap().reservation_bytes)
+            .unwrap();
+        let draws = Cell::new(0);
+        assert!(matches!(
+            issue_owned_from_reserved_with(
+                spec(),
+                context(),
+                [&[5], &[7], &[11]],
+                &budget,
+                &mut charge,
+                &mut |bytes| {
+                    draws.set(draws.get() + bytes.len());
+                    fill(bytes)
+                },
+                &mut || true,
+            ),
+            Err(Error::Consumed)
+        ));
+        assert_eq!(draws.get(), 0);
+        drop(charge);
+        assert_eq!(budget.budget().used_bytes(), bootstrap);
     }
 }

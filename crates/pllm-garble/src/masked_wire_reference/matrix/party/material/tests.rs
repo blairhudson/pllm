@@ -20,7 +20,7 @@ fn context() -> Context {
         output_wire: [6; 32],
     }
 }
-fn issue<'b>(s: Spec, budget: &'b Budget) -> [Party<'b>; 2] {
+fn issue(s: Spec, budget: &Budget) -> [Party<'_>; 2] {
     // Deterministic issuance only; transfer cannot call this entropy callback.
     super::super::issue_with(
         s,

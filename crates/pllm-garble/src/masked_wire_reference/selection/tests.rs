@@ -703,12 +703,12 @@ fn cancellation_retains_exact_charges_and_failures_preserve_existing_budget_owne
     assert_eq!(budget.used_bytes(), 0);
 }
 
-fn issue_boundary<'a>(
+fn issue_boundary(
     spec: Spec,
     boundary: Boundary,
-    budget: &'a Budget,
+    budget: &Budget,
     fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
-) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
+) -> Result<(OutputMasks<'_>, [Party<'_>; 2]), Error> {
     let cost = resources_for(spec, boundary)?;
     issue_reserved_with(
         spec,

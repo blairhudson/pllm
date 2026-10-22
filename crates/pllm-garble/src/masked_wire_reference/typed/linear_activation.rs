@@ -10,7 +10,7 @@
 
 use super::internal_use::Ledger;
 use super::*;
-use crate::shared_allocation::ExternalCharge;
+use crate::shared_allocation::{ExternalCharge, OwnedExternalCharge};
 use pllm_core::edge_contract::{ConsumerUse, EdgeContractResourceQuote};
 
 const USES: usize = 4;
@@ -18,9 +18,11 @@ const EXCHANGES: usize = 11; // matrix, two GapARS rounds, unchanged eight D20 r
 
 mod roles;
 pub use roles::{
-    role_split_resources, LinearActivationRole, LinearActivationRoleCoordinator,
-    LinearActivationRoleFrame, LinearActivationRoleOutput, LinearActivationRoleSplitResources,
-    LinearActivationRoleStep,
+    role_split_resources, role_split_resources_for, LinearActivationRole,
+    LinearActivationRoleCoordinator, LinearActivationRoleCoordinatorFor, LinearActivationRoleFor,
+    LinearActivationRoleFrame, LinearActivationRoleFrameFor, LinearActivationRoleOutput,
+    LinearActivationRoleOutputFor, LinearActivationRoleSplitResources, LinearActivationRoleStep,
+    LinearActivationRoleStepFor,
 };
 
 /// Local declaration of checked geometry and conditional domains, never source
@@ -479,52 +481,52 @@ impl LinearActivationResourceCalculationResources {
     }
 }
 
-fn root_bytes(lanes: usize) -> usize {
-    2 * (8 * lanes + ALLOCATOR + common_charge())
+fn root_bytes_for<B: AllocationContext>(lanes: usize) -> usize {
+    2 * (8 * lanes + ALLOCATOR + common_charge_for::<B>())
         + 8 * lanes
         + ALLOCATOR
-        + mask_charge()
-        + size_of::<RootInput<'static>>()
+        + mask_charge_for::<B>()
+        + size_of::<RootInputFor<B>>()
 }
-fn frame_charge(body: &FrameBody<'_>) -> usize {
+fn frame_charge<B: AllocationContext>(body: &FrameBodyFor<B>) -> usize {
     // Inner frame metadata already belongs to its original native quote.
     let inner = match body {
-        FrameBody::Matrix(_) => size_of::<matrix::party::Frame<'static>>(),
-        FrameBody::Arithmetic(_) => size_of::<arithmetic::Frame<'static>>(),
-        FrameBody::Activation(_) => size_of::<ActivationFrame<'static>>(),
+        FrameBodyFor::Matrix(_) => size_of::<matrix::party::FrameFor<B>>(),
+        FrameBodyFor::Arithmetic(_) => size_of::<arithmetic::FrameFor<B>>(),
+        FrameBodyFor::Activation(_) => size_of::<ActivationFrameFor<B>>(),
     };
-    size_of::<LinearActivationFrame<'static>>() - inner
+    size_of::<LinearActivationFrameFor<B>>() - inner
 }
-fn party_metadata_bytes() -> usize {
+fn party_metadata_bytes_for<B: AllocationContext>() -> usize {
     // Existing quotes own inline matrix/rescale/D20 wrappers, two root common
     // wrappers and the retained dot wrapper. Count only new container/ledger
     // metadata, including Option tags/padding and this party's lease.
-    size_of::<LinearParty<'static>>()
-        - size_of::<MatrixParty<'static>>()
-        - size_of::<ArithmeticParty<'static, Ring>>()
-        - size_of::<ActivationParty<'static>>()
-        - 3 * common_charge()
+    size_of::<LinearPartyFor<B>>()
+        - size_of::<MatrixPartyFor<B>>()
+        - size_of::<ArithmeticPartyFor<B, Ring>>()
+        - size_of::<ActivationPartyFor<B>>()
+        - 3 * common_charge_for::<B>()
 }
-fn party_frame_bytes() -> usize {
-    let outer = size_of::<LinearActivationFrame<'static>>();
-    (outer - size_of::<matrix::party::Frame<'static>>())
-        + 2 * (outer - size_of::<arithmetic::Frame<'static>>())
-        + 8 * (outer - size_of::<ActivationFrame<'static>>())
+fn party_frame_bytes_for<B: AllocationContext>() -> usize {
+    let outer = size_of::<LinearActivationFrameFor<B>>();
+    (outer - size_of::<matrix::party::FrameFor<B>>())
+        + 2 * (outer - size_of::<arithmetic::FrameFor<B>>())
+        + 8 * (outer - size_of::<ActivationFrameFor<B>>())
 }
-fn step_charge(output: bool) -> usize {
+fn step_charge_for<B: AllocationContext>(output: bool) -> usize {
     // Exactly one pair container per returned step; inner owners are already
     // charged, not two complete Step enums charged again on each frame.
-    size_of::<LinearActivationStep<'static>>()
+    size_of::<LinearActivationStepFor<B>>()
         - if output {
-            2 * common_charge()
+            2 * common_charge_for::<B>()
         } else {
-            2 * size_of::<LinearActivationFrame<'static>>()
+            2 * size_of::<LinearActivationFrameFor<B>>()
         }
 }
-fn party_charge() -> usize {
-    party_metadata_bytes() + party_frame_bytes()
+fn party_charge<B: AllocationContext>() -> usize {
+    party_metadata_bytes_for::<B>() + party_frame_bytes_for::<B>()
 }
-fn transition_workspace_bytes() -> usize {
+fn transition_workspace_bytes_for<B: AllocationContext>() -> usize {
     // Explicit bounded issuance/transition scratch: declarations, bindings,
     // ticket and at most twelve simultaneously live split-lease temporaries.
     // No copied payloads, extra tables, output backing or heap allocations.
@@ -532,9 +534,9 @@ fn transition_workspace_bytes() -> usize {
         + size_of::<LinearActivationResources>()
         + 4 * size_of::<Binding>()
         + size_of::<matrix::party::IssuanceTicket>()
-        + 12 * size_of::<Lease<'static>>()
-        + 2 * (size_of::<PartyStep<'static>>()
-            - size_of::<LinearActivationFrame<'static>>().min(common_charge()))
+        + 12 * size_of::<LeaseFor<B>>()
+        + 2 * (size_of::<PartyStepFor<B>>()
+            - size_of::<LinearActivationFrameFor<B>>().min(common_charge_for::<B>()))
 }
 
 /// Quote the local conditional primitive. No allocation, entropy, source
@@ -542,22 +544,28 @@ fn transition_workspace_bytes() -> usize {
 pub fn linear_activation_resources(
     spec: LinearActivationSpec,
 ) -> Result<LinearActivationResources, Error> {
+    linear_activation_resources_for::<&Budget>(spec)
+}
+pub fn linear_activation_resources_for<B: AllocationContext>(
+    spec: LinearActivationSpec,
+) -> Result<LinearActivationResources, Error> {
     let root_bytes = [
-        root_bytes(spec.edges[0].shape().elements()),
-        root_bytes(spec.edges[1].shape().elements()),
+        root_bytes_for::<B>(spec.edges[0].shape().elements()),
+        root_bytes_for::<B>(spec.edges[1].shape().elements()),
     ];
-    let matrix_bytes = matrix_reservation_bytes(spec.matrix)?;
-    let rescale_bytes = arithmetic_reservation_bytes::<Ring>(spec.arithmetic())?;
+    let matrix_bytes = matrix_reservation_bytes_for::<B>(spec.matrix)?;
+    let rescale_bytes = arithmetic_reservation_bytes_for::<B, Ring>(spec.arithmetic())?;
     let activation_bytes = {
-        let activation = activation_resources(spec.activation)?;
+        let activation = activation_resources_for::<B>(spec.activation)?;
         activation.combined_reservation_bytes
     };
     let run_metadata_bytes =
-        size_of::<LinearActivationRun<'static>>() - 2 * size_of::<LinearParty<'static>>();
-    let party_metadata_bytes = 2 * party_metadata_bytes();
-    let frame_wrapper_bytes = 2 * party_frame_bytes();
-    let step_wrapper_bytes = (EXCHANGES - 1) * step_charge(false) + step_charge(true);
-    let transition_workspace_bytes = transition_workspace_bytes();
+        size_of::<LinearActivationRunFor<B>>() - 2 * size_of::<LinearPartyFor<B>>();
+    let party_metadata_bytes = 2 * party_metadata_bytes_for::<B>();
+    let frame_wrapper_bytes = 2 * party_frame_bytes_for::<B>();
+    let step_wrapper_bytes =
+        (EXCHANGES - 1) * step_charge_for::<B>(false) + step_charge_for::<B>(true);
+    let transition_workspace_bytes = transition_workspace_bytes_for::<B>();
     let wrapper_bytes = run_metadata_bytes
         + party_metadata_bytes
         + frame_wrapper_bytes
@@ -603,68 +611,68 @@ enum Phase {
 }
 
 /// Separate party-local owners; only orchestration owns both and handles faults.
-struct LinearParty<'b> {
-    matrix: MatrixParty<'b>,
-    rescale: ArithmeticParty<'b, Ring>,
-    activation: ActivationParty<'b>,
-    roots: Option<[CommonMasked<'b, Ring>; 2]>,
+struct LinearPartyFor<B: AllocationContext> {
+    matrix: MatrixPartyFor<B>,
+    rescale: ArithmeticPartyFor<B, Ring>,
+    activation: ActivationPartyFor<B>,
+    roots: Option<[CommonMaskedFor<B, Ring>; 2]>,
     // Actual original matrix output, including its native singleton guard.
-    dot: Option<CommonMasked<'b, Ring>>,
+    dot: Option<CommonMaskedFor<B, Ring>>,
     ledger: Ledger<USES>,
     phase: Phase,
     // Original root/dot inline metadata charges move here at issuance. Their
     // payload leases/backing stay intact; vacated Option storage remains charged
     // until this containing struct drops, even after begin/cancel/completion.
-    _slot_metadata: [Lease<'b>; 3],
-    lease: Option<Lease<'b>>,
+    _slot_metadata: [LeaseFor<B>; 3],
+    lease: Option<LeaseFor<B>>,
 }
 
-enum FrameBody<'b> {
-    Matrix(matrix::party::Frame<'b>),
-    Arithmetic(arithmetic::Frame<'b>),
-    Activation(ActivationFrame<'b>),
+enum FrameBodyFor<B: AllocationContext> {
+    Matrix(matrix::party::FrameFor<B>),
+    Arithmetic(arithmetic::FrameFor<B>),
+    Activation(ActivationFrameFor<B>),
 }
 /// Opaque unauthenticated local peer frame. May outlive the run; original native
 /// backing/metadata charges and any actual matrix singleton guard remain owned.
-pub struct LinearActivationFrame<'b> {
-    body: FrameBody<'b>,
-    _lease: Lease<'b>,
+pub struct LinearActivationFrameFor<B: AllocationContext> {
+    body: FrameBodyFor<B>,
+    _lease: LeaseFor<B>,
 }
-impl LinearActivationFrame<'_> {
+impl<B: AllocationContext> LinearActivationFrameFor<B> {
     pub fn as_bytes(&self) -> &[u8] {
         match &self.body {
-            FrameBody::Matrix(f) => f.as_bytes(),
-            FrameBody::Arithmetic(f) => f.as_bytes(),
-            FrameBody::Activation(f) => f.as_bytes(),
+            FrameBodyFor::Matrix(f) => f.as_bytes(),
+            FrameBodyFor::Arithmetic(f) => f.as_bytes(),
+            FrameBodyFor::Activation(f) => f.as_bytes(),
         }
     }
 }
 #[allow(clippy::large_enum_variant)]
-enum StepBody<'b> {
-    Frames([LinearActivationFrame<'b>; 2], StepMetadata<'b>),
-    Output([CommonMasked<'b, Ring>; 2], StepMetadata<'b>),
+enum StepBodyFor<B: AllocationContext> {
+    Frames([LinearActivationFrameFor<B>; 2], StepMetadataFor<B>),
+    Output([CommonMaskedFor<B, Ring>; 2], StepMetadataFor<B>),
 }
 /// Opaque local transition result, either a pair of peer frames or final typed
 /// masked outputs. No intermediate values, masks, reservation or proof escape.
-pub struct LinearActivationStep<'b> {
-    body: StepBody<'b>,
+pub struct LinearActivationStepFor<B: AllocationContext> {
+    body: StepBodyFor<B>,
 }
-impl<'b> LinearActivationStep<'b> {
+impl<B: AllocationContext> LinearActivationStepFor<B> {
     /// Borrow outgoing frames ordered [party0, party1], without copying payloads.
-    pub fn frames(&self) -> Option<&[LinearActivationFrame<'b>; 2]> {
+    pub fn frames(&self) -> Option<&[LinearActivationFrameFor<B>; 2]> {
         match &self.body {
-            StepBody::Frames(frames, _) => Some(frames),
-            StepBody::Output(_, _) => None,
+            StepBodyFor::Frames(frames, _) => Some(frames),
+            StepBodyFor::Output(_, _) => None,
         }
     }
 
     /// Consume a frame step. Returns the original opaque step if output-ready.
     // Preserve the admitted inline owner; boxing would add a fallible allocation.
     #[allow(clippy::result_large_err)]
-    pub fn into_frames(self) -> Result<[LinearActivationFrame<'b>; 2], Self> {
+    pub fn into_frames(self) -> Result<[LinearActivationFrameFor<B>; 2], Self> {
         match self.body {
-            StepBody::Frames(frames, _metadata) => Ok(frames),
-            body @ StepBody::Output(_, _) => Err(Self { body }),
+            StepBodyFor::Frames(frames, _metadata) => Ok(frames),
+            body @ StepBodyFor::Output(_, _) => Err(Self { body }),
         }
     }
 
@@ -673,27 +681,43 @@ impl<'b> LinearActivationStep<'b> {
     /// Returns the original step if more peer exchanges are required.
     // Preserve the admitted inline owner; boxing would add a fallible allocation.
     #[allow(clippy::result_large_err)]
-    pub fn into_output(self) -> Result<[CommonMasked<'b, Ring>; 2], Self> {
+    pub fn into_output(self) -> Result<[CommonMaskedFor<B, Ring>; 2], Self> {
         match self.body {
-            StepBody::Output(output, _metadata) => Ok(output),
-            body @ StepBody::Frames(_, _) => Err(Self { body }),
+            StepBodyFor::Output(output, _metadata) => Ok(output),
+            body @ StepBodyFor::Frames(_, _) => Err(Self { body }),
         }
     }
 }
 /// Opaque charge for the pair container, not a reservation minting interface.
-struct StepMetadata<'b> {
-    _lease: Lease<'b>,
+struct StepMetadataFor<B: AllocationContext> {
+    _lease: LeaseFor<B>,
 }
 
 /// Local conditional consuming run, never source authentication, a compiler
 /// certificate, decoder or transport. No party escape hatch: every returned
 /// error/cancellation burns both owned peers. Final outputs remain masked.
-pub struct LinearActivationRun<'b> {
-    parties: [LinearParty<'b>; 2],
-    lease: Option<Lease<'b>>,
+///
+/// Accounting specialization cannot upgrade existing borrowed material:
+/// ```compile_fail
+/// use pllm_garble::{masked_wire_reference::typed::{LocalLinearActivationRun,
+///     LocalLinearActivationRunFor}, shared_allocation::OwnedBudgetContext};
+/// fn upgrade(run: LocalLinearActivationRun<'_>) -> LocalLinearActivationRunFor<OwnedBudgetContext> {
+///     run
+/// }
+/// ```
+/// Owning storage does not remove the original native one-thread restriction:
+/// ```compile_fail
+/// use pllm_garble::{masked_wire_reference::typed::LocalLinearActivationRunFor,
+///     shared_allocation::OwnedBudgetContext};
+/// fn needs_send<T: Send>() {}
+/// needs_send::<LocalLinearActivationRunFor<OwnedBudgetContext>>();
+/// ```
+pub struct LinearActivationRunFor<B: AllocationContext> {
+    parties: [LinearPartyFor<B>; 2],
+    lease: Option<LeaseFor<B>>,
 }
 
-impl<'b> LocalDealer<'b> {
+impl<B: AllocationContext> LocalDealerFor<B> {
     /// Execute the explicitly LOCAL conditional D22 primitive. Source labels and
     /// intervals are declarations, not checkpoint authentication or compiler-
     /// certified native provenance. A compiler facade must perform its own
@@ -708,12 +732,13 @@ impl<'b> LocalDealer<'b> {
         spec: LinearActivationSpec,
         x: &[i64],
         w: &[i64],
-    ) -> Result<(DealerMask<'b, Ring>, LinearActivationRun<'b>), Error> {
+    ) -> Result<(DealerMaskFor<B, Ring>, LinearActivationRunFor<B>), Error> {
         self.linear_activation_from_values_with(spec, x, w, &mut |bytes| {
             getrandom::fill(bytes).map_err(|_| Error::Randomness)
         })
     }
-
+}
+impl<'b> LocalDealer<'b> {
     /// Execute the same LOCAL ASSUMPTION primitive using already-charged native
     /// capacity. This grants no compiler/source authority. `charge` must belong
     /// to this exact Budget and contain the full native quote as payload, beyond
@@ -734,11 +759,12 @@ impl<'b> LocalDealer<'b> {
             getrandom::fill(bytes).map_err(|_| Error::Randomness)
         })
     }
-
+}
+impl<B: AllocationContext> LocalDealerFor<B> {
     /// Test only whether this dealer uses that exact Budget object. This is not
     /// an admission, reservation, source check or issuance capability.
     pub fn is_budget(&self, budget: &Budget) -> bool {
-        std::ptr::eq(self.budget, budget)
+        std::ptr::eq(self.budget.budget(), budget)
     }
 
     #[cfg(test)]
@@ -747,7 +773,7 @@ impl<'b> LocalDealer<'b> {
         spec: LinearActivationSpec,
         x: &[i64],
         w: &[i64],
-    ) -> Result<(DealerMask<'b, Ring>, LinearActivationRun<'b>), Error> {
+    ) -> Result<(DealerMaskFor<B, Ring>, LinearActivationRunFor<B>), Error> {
         self.local_linear_activation_from_values(spec, x, w)
     }
 
@@ -757,13 +783,14 @@ impl<'b> LocalDealer<'b> {
         x: &[i64],
         w: &[i64],
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, LinearActivationRun<'b>), Error> {
+    ) -> Result<(DealerMaskFor<B, Ring>, LinearActivationRunFor<B>), Error> {
         let cost = self.linear_activation_preflight(spec, x, w)?;
-        let aggregate = self.budget.reserve(cost.reservation_bytes)?;
+        let aggregate = LeaseFor::reserve(&self.budget, cost.reservation_bytes)?;
         let ticket = matrix::party::IssuanceTicket::acquire()?;
         self.linear_activation_reserved_with(spec, x, w, cost, aggregate, ticket, fill)
     }
-
+}
+impl<'b> LocalDealer<'b> {
     fn linear_activation_from_reserved_values_with(
         &mut self,
         spec: LinearActivationSpec,
@@ -780,14 +807,15 @@ impl<'b> LocalDealer<'b> {
         let aggregate = charge.split_payload(self.budget, cost.reservation_bytes)?;
         self.linear_activation_reserved_with(spec, x, w, cost, aggregate, ticket, fill)
     }
-
+}
+impl<B: AllocationContext> LocalDealerFor<B> {
     fn linear_activation_preflight(
         &self,
         spec: LinearActivationSpec,
         x: &[i64],
         w: &[i64],
     ) -> Result<LinearActivationResources, Error> {
-        let cost = linear_activation_resources(spec)?;
+        let cost = linear_activation_resources_for::<B>(spec)?;
         for edge in spec.edges {
             self.validate(edge, false)?;
         }
@@ -813,16 +841,16 @@ impl<'b> LocalDealer<'b> {
         x: &[i64],
         w: &[i64],
         cost: LinearActivationResources,
-        mut aggregate: Lease<'b>,
+        mut aggregate: LeaseFor<B>,
         ticket: matrix::party::IssuanceTicket,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, LinearActivationRun<'b>), Error> {
+    ) -> Result<(DealerMaskFor<B, Ring>, LinearActivationRunFor<B>), Error> {
         // Own real singleton plus issuance number before ANY root/output mask
         // entropy. Error Drop releases this same guard; native issuance consumes
         // it continuously instead of checking metadata then racing to reacquire.
         let mut wrapper = aggregate.split(cost.wrapper_bytes)?;
-        let left_lease = wrapper.split(party_charge())?;
-        let right_lease = wrapper.split(party_charge())?;
+        let left_lease = wrapper.split(party_charge::<B>())?;
+        let right_lease = wrapper.split(party_charge::<B>())?;
         let mut roots = |index: usize, values: &[i64]| {
             let interval = spec.operands[index];
             self.prepare_root_reserved_with(
@@ -875,23 +903,23 @@ impl<'b> LocalDealer<'b> {
         if aggregate.bytes != 0 {
             return Err(Error::Resource);
         }
-        let make = |mut matrix: MatrixParty<'b>,
+        let make = |mut matrix: MatrixPartyFor<B>,
                     rescale,
                     activation,
-                    mut roots: [CommonMasked<'b, Ring>; 2],
+                    mut roots: [CommonMaskedFor<B, Ring>; 2],
                     role,
                     lease|
-         -> Result<LinearParty<'b>, Error> {
+         -> Result<LinearPartyFor<B>, Error> {
             let slot_metadata = [
-                roots[0]._lease.split(common_charge())?,
-                roots[1]._lease.split(common_charge())?,
+                roots[0]._lease.split(common_charge_for::<B>())?,
+                roots[1]._lease.split(common_charge_for::<B>())?,
                 matrix
                     .lease
                     .as_mut()
                     .ok_or(Error::Consumed)?
-                    .split(common_charge())?,
+                    .split(common_charge_for::<B>())?,
             ];
-            Ok(LinearParty {
+            Ok(LinearPartyFor {
                 matrix,
                 rescale,
                 activation,
@@ -910,7 +938,7 @@ impl<'b> LocalDealer<'b> {
         };
         Ok((
             output,
-            LinearActivationRun {
+            LinearActivationRunFor {
                 parties: [
                     make(m0, r0, a0, [x0, w0], 0, left_lease)?,
                     make(m1, r1, a1, [x1, w1], 1, right_lease)?,
@@ -921,7 +949,7 @@ impl<'b> LocalDealer<'b> {
     }
 }
 
-impl<'b> LinearParty<'b> {
+impl<B: AllocationContext> LinearPartyFor<B> {
     fn cancel(&mut self) {
         self.phase = Phase::Dead;
         self.ledger.next = USES as u8;
@@ -931,11 +959,11 @@ impl<'b> LinearParty<'b> {
         self.matrix.cancel();
         self.rescale.cancel();
         self.activation.cancel();
-        retain_wrapper_metadata(&mut self.lease, party_metadata_bytes());
+        retain_wrapper_metadata(&mut self.lease, party_metadata_bytes_for::<B>());
     }
-    fn frame(&mut self, body: FrameBody<'b>) -> Result<LinearActivationFrame<'b>, Error> {
+    fn frame(&mut self, body: FrameBodyFor<B>) -> Result<LinearActivationFrameFor<B>, Error> {
         let bytes = frame_charge(&body);
-        Ok(LinearActivationFrame {
+        Ok(LinearActivationFrameFor {
             body,
             _lease: self.lease.as_mut().ok_or(Error::Consumed)?.split(bytes)?,
         })
@@ -943,7 +971,7 @@ impl<'b> LinearParty<'b> {
     fn begin(
         &mut self,
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<LinearActivationFrame<'b>, Error> {
+    ) -> Result<LinearActivationFrameFor<B>, Error> {
         if self.phase != Phase::Fresh {
             return Err(Error::Consumed);
         }
@@ -952,9 +980,9 @@ impl<'b> LinearParty<'b> {
         self.ledger.burn(1, w.binding, w.role)?;
         let frame = self.matrix.begin(x, w, cancelled)?;
         self.phase = Phase::Matrix;
-        self.frame(FrameBody::Matrix(frame))
+        self.frame(FrameBodyFor::Matrix(frame))
     }
-    fn advance(&mut self, peer: &[u8]) -> Result<PartyStep<'b>, Error> {
+    fn advance(&mut self, peer: &[u8]) -> Result<PartyStepFor<B>, Error> {
         let body = match self.phase {
             Phase::Matrix => {
                 let dot = self.matrix.finish(peer)?;
@@ -972,39 +1000,39 @@ impl<'b> LinearParty<'b> {
                     .ok_or(Error::Consumed)?
                     .begin(self.dot.as_ref().ok_or(Error::Consumed)?.backing.values())?;
                 self.phase = Phase::Rescale;
-                FrameBody::Arithmetic(frame)
+                FrameBodyFor::Arithmetic(frame)
             }
             Phase::Rescale => match self.rescale.advance(peer)? {
-                Step::Frame(frame) => FrameBody::Arithmetic(frame),
-                Step::Output(z) => {
+                StepFor::Frame(frame) => FrameBodyFor::Arithmetic(frame),
+                StepFor::Output(z) => {
                     self.ledger.burn(3, z.binding, z.role)?;
                     let frame = self.activation.begin(z)?;
                     self.dot = None; // Last matrix-backed use has completed.
                     self.matrix.cancel();
                     self.rescale.cancel();
                     self.phase = Phase::Activation;
-                    FrameBody::Activation(frame)
+                    FrameBodyFor::Activation(frame)
                 }
             },
             Phase::Activation => match self.activation.advance(peer)? {
-                ActivationStep::Frame(frame) => FrameBody::Activation(frame),
-                ActivationStep::Output(output) => {
+                ActivationStepFor::Frame(frame) => FrameBodyFor::Activation(frame),
+                ActivationStepFor::Output(output) => {
                     self.cancel();
-                    return Ok(PartyStep::Output(output));
+                    return Ok(PartyStepFor::Output(output));
                 }
             },
             Phase::Fresh | Phase::Dead => return Err(Error::Consumed),
         };
-        Ok(PartyStep::Frame(self.frame(body)?))
+        Ok(PartyStepFor::Frame(self.frame(body)?))
     }
 }
 #[allow(clippy::large_enum_variant)]
-enum PartyStep<'b> {
-    Frame(LinearActivationFrame<'b>),
-    Output(CommonMasked<'b, Ring>),
+enum PartyStepFor<B: AllocationContext> {
+    Frame(LinearActivationFrameFor<B>),
+    Output(CommonMaskedFor<B, Ring>),
 }
 
-impl<'b> LinearActivationRun<'b> {
+impl<B: AllocationContext> LinearActivationRunFor<B> {
     /// Burn both owned peers. Retained external frames keep their own charges
     /// and native guards; cancelled wrapper metadata remains charged until drop.
     pub fn cancel(&mut self) {
@@ -1013,7 +1041,7 @@ impl<'b> LinearActivationRun<'b> {
         }
         retain_wrapper_metadata(
             &mut self.lease,
-            size_of::<Self>() - 2 * size_of::<LinearParty<'static>>(),
+            size_of::<Self>() - 2 * size_of::<LinearPartyFor<B>>(),
         );
     }
     /// Begin both party-local evaluators. Returned frames are [party0, party1].
@@ -1021,7 +1049,7 @@ impl<'b> LinearActivationRun<'b> {
     pub fn begin(
         &mut self,
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<[LinearActivationFrame<'b>; 2], Error> {
+    ) -> Result<[LinearActivationFrameFor<B>; 2], Error> {
         let result = (|| {
             if cancelled() {
                 return Err(Error::Consumed);
@@ -1041,7 +1069,7 @@ impl<'b> LinearActivationRun<'b> {
         &mut self,
         peers: [&[u8]; 2],
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<LinearActivationStep<'b>, Error> {
+    ) -> Result<LinearActivationStepFor<B>, Error> {
         let result = (|| {
             if cancelled() {
                 return Err(Error::Consumed);
@@ -1052,29 +1080,29 @@ impl<'b> LinearActivationRun<'b> {
             }
             let right = self.parties[1].advance(peers[1])?;
             match (left, right) {
-                (PartyStep::Frame(a), PartyStep::Frame(b)) => {
-                    let metadata = StepMetadata {
+                (PartyStepFor::Frame(a), PartyStepFor::Frame(b)) => {
+                    let metadata = StepMetadataFor {
                         _lease: self
                             .lease
                             .as_mut()
                             .ok_or(Error::Consumed)?
-                            .split(step_charge(false))?,
+                            .split(step_charge_for::<B>(false))?,
                     };
-                    Ok(LinearActivationStep {
-                        body: StepBody::Frames([a, b], metadata),
+                    Ok(LinearActivationStepFor {
+                        body: StepBodyFor::Frames([a, b], metadata),
                     })
                 }
-                (PartyStep::Output(a), PartyStep::Output(b)) => {
-                    let metadata = StepMetadata {
+                (PartyStepFor::Output(a), PartyStepFor::Output(b)) => {
+                    let metadata = StepMetadataFor {
                         _lease: self
                             .lease
                             .as_mut()
                             .ok_or(Error::Consumed)?
-                            .split(step_charge(true))?,
+                            .split(step_charge_for::<B>(true))?,
                     };
                     self.cancel();
-                    Ok(LinearActivationStep {
-                        body: StepBody::Output([a, b], metadata),
+                    Ok(LinearActivationStepFor {
+                        body: StepBodyFor::Output([a, b], metadata),
                     })
                 }
                 _ => Err(Error::Context),
@@ -1085,6 +1113,78 @@ impl<'b> LinearActivationRun<'b> {
         }
         result
     }
+}
+
+pub type LinearActivationRun<'b> = LinearActivationRunFor<&'b Budget>;
+pub type LinearActivationFrame<'b> = LinearActivationFrameFor<&'b Budget>;
+pub type LinearActivationStep<'b> = LinearActivationStepFor<&'b Budget>;
+
+impl OwnedLocalDealer {
+    /// Same conditional primitive and original issuance, using an owning charge.
+    pub fn local_linear_activation_from_reserved_values(
+        &mut self,
+        spec: LinearActivationSpec,
+        x: &[i64],
+        w: &[i64],
+        charge: &mut OwnedExternalCharge,
+    ) -> Result<
+        (
+            OwnedDealerMask<Ring>,
+            LinearActivationRunFor<OwnedBudgetContext>,
+        ),
+        Error,
+    > {
+        self.linear_activation_from_reserved_values_with(spec, x, w, charge, &mut |bytes| {
+            getrandom::fill(bytes).map_err(|_| Error::Randomness)
+        })
+    }
+    fn linear_activation_from_reserved_values_with(
+        &mut self,
+        spec: LinearActivationSpec,
+        x: &[i64],
+        w: &[i64],
+        charge: &mut OwnedExternalCharge,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<
+        (
+            OwnedDealerMask<Ring>,
+            LinearActivationRunFor<OwnedBudgetContext>,
+        ),
+        Error,
+    > {
+        let cost = self.linear_activation_preflight(spec, x, w)?;
+        if !charge.is_for(self.budget.budget()) || charge.payload_bytes() < cost.reservation_bytes {
+            return Err(Error::Resource);
+        }
+        let ticket = matrix::party::IssuanceTicket::acquire()?;
+        let aggregate = charge.split_native(self.budget.budget(), cost.reservation_bytes)?;
+        self.linear_activation_reserved_with(spec, x, w, cost, aggregate, ticket, fill)
+    }
+}
+
+#[cfg(test)]
+type LinearParty<'b> = LinearPartyFor<&'b Budget>;
+#[cfg(test)]
+type StepBody<'b> = StepBodyFor<&'b Budget>;
+#[cfg(test)]
+fn root_bytes(lanes: usize) -> usize {
+    root_bytes_for::<&Budget>(lanes)
+}
+#[cfg(test)]
+fn party_metadata_bytes() -> usize {
+    party_metadata_bytes_for::<&Budget>()
+}
+#[cfg(test)]
+fn party_frame_bytes() -> usize {
+    party_frame_bytes_for::<&Budget>()
+}
+#[cfg(test)]
+fn step_charge(output: bool) -> usize {
+    step_charge_for::<&Budget>(output)
+}
+#[cfg(test)]
+fn transition_workspace_bytes() -> usize {
+    transition_workspace_bytes_for::<&Budget>()
 }
 
 #[cfg(test)]

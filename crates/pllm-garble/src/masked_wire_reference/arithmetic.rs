@@ -13,7 +13,9 @@ use super::{mask, rescale};
 pub use crate::shared_allocation::{Budget, Error};
 use crate::{
     compact_dpf::gpu127::{self, GpuKey, Profile},
-    shared_allocation::{allocate, Lease, MAX_ALLOCATION_BYTES},
+    shared_allocation::{
+        allocate, AllocationContext, LeaseFor, OwnedBudgetContext, MAX_ALLOCATION_BYTES,
+    },
 };
 use sha2::{Digest, Sha256};
 use std::mem::size_of;
@@ -105,17 +107,29 @@ pub struct Resources {
     pub combined_reservation_bytes: usize,
 }
 
+#[cfg(test)]
 fn frame_charge(spec: Spec) -> usize {
-    HEADER + 8 * spec.lanes + size_of::<Frame<'static>>() + ALLOCATOR
+    frame_charge_for::<&Budget>(spec)
 }
+fn frame_charge_for<C: AllocationContext>(spec: Spec) -> usize {
+    HEADER + 8 * spec.lanes + size_of::<FrameFor<C>>() + ALLOCATOR
+}
+#[cfg(test)]
 fn output_charge(spec: Spec) -> usize {
-    8 * spec.lanes + size_of::<MaskedOutput<'static>>() + ALLOCATOR
+    output_charge_for::<&Budget>(spec)
+}
+fn output_charge_for<C: AllocationContext>(spec: Spec) -> usize {
+    8 * spec.lanes + size_of::<MaskedOutputFor<C>>() + ALLOCATOR
 }
 
 /// Public-only checked admission, before allocation or randomness. Prices fixed
 /// inline DPF keys, all lane vectors, retained frames and output owners, masks,
 /// and a 16 KiB logical stack/AES allowance. Not an allocator/RSS guarantee.
 pub fn resources(spec: Spec) -> Result<Resources, Error> {
+    resources_for_context::<&Budget>(spec)
+}
+
+pub(crate) fn resources_for_context<C: AllocationContext>(spec: Spec) -> Result<Resources, Error> {
     let (profile, output_bits, frames) = spec.geometry()?;
     let key = profile.resources();
     let constants = match spec.gate {
@@ -129,14 +143,15 @@ pub fn resources(spec: Spec) -> Result<Resources, Error> {
         Gate::Drelu => 48,
     };
     let material = spec.lanes * size_of::<Lane>();
-    let party = size_of::<Party<'static>>()
+    let party = size_of::<PartyFor<C>>()
         + material
         + 24 * spec.lanes
         + 3 * ALLOCATOR
-        + frames * frame_charge(spec)
-        + output_charge(spec)
+        + frames * frame_charge_for::<C>(spec)
+        + output_charge_for::<C>(spec)
         + (8 << 10);
-    let dealer = size_of::<OutputMasks<'static>>() + 16 * spec.lanes + ALLOCATOR;
+    let dealer =
+        size_of::<OutputMasksFor<C>>() + 16 * spec.lanes + ALLOCATOR + C::TRANSIENT_LINK_BYTES;
     let combined = 2 * party + dealer;
     if combined > MAX_ALLOCATION_BYTES {
         return Err(Error::Resource);
@@ -210,45 +225,51 @@ struct Execution {
 
 /// No Clone/Debug/clear-mask getters. One party's material only. Failed calls
 /// consume it; enclosing orchestration must also retire the other party.
-pub struct Party<'a> {
+pub type Party<'a> = PartyFor<&'a Budget>;
+pub type OwnedParty = PartyFor<OwnedBudgetContext>;
+pub struct PartyFor<C: AllocationContext> {
     id: u8,
     spec: Spec,
     binding: [u8; 32],
     state: Option<Execution>,
-    lease: Lease<'a>,
+    lease: LeaseFor<C>,
 }
-pub struct OutputMasks<'a> {
+pub type OutputMasks<'a> = OutputMasksFor<&'a Budget>;
+pub struct OutputMasksFor<C: AllocationContext> {
     values: Zeroizing<Vec<u64>>,
-    _lease: Lease<'a>,
+    _lease: LeaseFor<C>,
 }
-impl OutputMasks<'_> {
+impl<C: AllocationContext> OutputMasksFor<C> {
     /// Trusted dealer/composition boundary only. Never supplied to an evaluator.
     pub fn values(&self) -> &[u64] {
         &self.values
     }
 }
-pub struct Frame<'a> {
+pub type Frame<'a> = FrameFor<&'a Budget>;
+pub struct FrameFor<C: AllocationContext> {
     bytes: Zeroizing<Vec<u8>>,
-    _lease: Lease<'a>,
+    _lease: LeaseFor<C>,
 }
-impl Frame<'_> {
+impl<C: AllocationContext> FrameFor<C> {
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
 }
-pub struct MaskedOutput<'a> {
+pub type MaskedOutput<'a> = MaskedOutputFor<&'a Budget>;
+pub struct MaskedOutputFor<C: AllocationContext> {
     values: Zeroizing<Vec<u64>>,
-    _lease: Lease<'a>,
+    _lease: LeaseFor<C>,
 }
-impl MaskedOutput<'_> {
+impl<C: AllocationContext> MaskedOutputFor<C> {
     /// Common output + full-ring mask, or DReLU XOR its independent bit mask.
     pub fn values(&self) -> &[u64] {
         &self.values
     }
 }
-pub enum Step<'a> {
-    Frame(Frame<'a>),
-    Output(MaskedOutput<'a>),
+pub type Step<'a> = StepFor<&'a Budget>;
+pub enum StepFor<C: AllocationContext> {
+    Frame(FrameFor<C>),
+    Output(MaskedOutputFor<C>),
 }
 
 pub fn issue<'a>(
@@ -279,14 +300,14 @@ pub(super) fn issue_with<'a>(
 }
 
 /// Consume an exact slice of aggregate admission; never refund and reacquire.
-pub(crate) fn issue_reserved_with<'a>(
+pub(crate) fn issue_reserved_with<C: AllocationContext>(
     spec: Spec,
     context: Context,
     input_masks: &[u64],
-    mut reservation: Lease<'a>,
+    mut reservation: LeaseFor<C>,
     mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
-) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
-    let cost = resources(spec)?;
+) -> Result<(OutputMasksFor<C>, [PartyFor<C>; 2]), Error> {
+    let cost = resources_for_context::<C>(spec)?;
     context.validate(spec.lanes)?;
     if input_masks.len() != spec.lanes || input_masks.iter().any(|v| v & !mask(spec.bits) != 0) {
         return Err(Error::Domain);
@@ -294,7 +315,8 @@ pub(crate) fn issue_reserved_with<'a>(
     if reservation.bytes != cost.combined_reservation_bytes {
         return Err(Error::Resource);
     }
-    let budget = reservation.budget;
+    let allocation = reservation.budget.share();
+    let budget = allocation.budget();
     // Declare every lease before secret owners: failure unwinding must erase
     // material before returning any of its capacity to the shared budget.
     // Split errors also occur before allocation or randomness.
@@ -378,19 +400,19 @@ pub(crate) fn issue_reserved_with<'a>(
         });
     }
     Ok((
-        OutputMasks {
+        OutputMasksFor {
             values: masks,
             _lease: reservation,
         },
         [
-            Party {
+            PartyFor {
                 id: 0,
                 spec,
                 binding,
                 state: Some(left),
                 lease: a,
             },
-            Party {
+            PartyFor {
                 id: 1,
                 spec,
                 binding,
@@ -426,12 +448,12 @@ fn binding(spec: Spec, context: Context, nonce: [u8; 32]) -> [u8; 32] {
     hash.finalize().into()
 }
 
-impl<'a> Party<'a> {
+impl<C: AllocationContext> PartyFor<C> {
     pub fn cancel(&mut self) {
         self.state = None;
     }
 
-    pub fn begin(&mut self, masked: &[u64]) -> Result<Frame<'a>, Error> {
+    pub fn begin(&mut self, masked: &[u64]) -> Result<FrameFor<C>, Error> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
         if state.phase != Phase::Fresh
             || masked.len() != self.spec.lanes
@@ -476,7 +498,7 @@ impl<'a> Party<'a> {
         Ok(frame)
     }
 
-    pub fn advance(&mut self, peer: &[u8]) -> Result<Step<'a>, Error> {
+    pub fn advance(&mut self, peer: &[u8]) -> Result<StepFor<C>, Error> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
         self.validate_peer(&state, peer)?;
         if state.phase == Phase::Carry {
@@ -500,7 +522,7 @@ impl<'a> Party<'a> {
             state.phase = Phase::Output;
             let frame = self.frame(&state)?;
             self.state = Some(state);
-            Ok(Step::Frame(frame))
+            Ok(StepFor::Frame(frame))
         } else {
             let output_bits = self.spec.geometry()?.1;
             for (index, word) in peer[HEADER..].chunks_exact(8).enumerate() {
@@ -511,16 +533,19 @@ impl<'a> Party<'a> {
                     state.local[index].wrapping_add(other) & mask(output_bits)
                 };
             }
-            let lease = self.lease.split(output_charge(self.spec))?;
-            Ok(Step::Output(MaskedOutput {
+            let lease = self.lease.split(output_charge_for::<C>(self.spec))?;
+            Ok(StepFor::Output(MaskedOutputFor {
                 values: state.local,
                 _lease: lease,
             }))
         }
     }
 
-    fn frame(&mut self, state: &Execution) -> Result<Frame<'a>, Error> {
-        let mut bytes = Zeroizing::new(allocate(HEADER + 8 * self.spec.lanes, self.lease.budget)?);
+    fn frame(&mut self, state: &Execution) -> Result<FrameFor<C>, Error> {
+        let mut bytes = Zeroizing::new(allocate(
+            HEADER + 8 * self.spec.lanes,
+            self.lease.budget.budget(),
+        )?);
         bytes.extend_from_slice(MAGIC);
         bytes.extend_from_slice(&self.binding);
         bytes.extend_from_slice(&state.input_digest);
@@ -529,8 +554,8 @@ impl<'a> Party<'a> {
         for value in &*state.local {
             bytes.extend_from_slice(&value.to_le_bytes());
         }
-        let lease = self.lease.split(frame_charge(self.spec))?;
-        Ok(Frame {
+        let lease = self.lease.split(frame_charge_for::<C>(self.spec))?;
+        Ok(FrameFor {
             bytes,
             _lease: lease,
         })

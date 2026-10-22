@@ -165,12 +165,10 @@ fn descriptor_commits_full_bindings_source_spec_and_provenance() {
     );
     assert_eq!(base.output_binding_digest(), mask.binding.digest());
     let hash = base.digest();
-    for index in 0..3 {
-        let original = if index == 2 {
-            mask.binding
-        } else {
-            original_inputs[index]
-        };
+    for (index, original) in [original_inputs[0], original_inputs[1], mask.binding]
+        .into_iter()
+        .enumerate()
+    {
         for field in 0..9 {
             let mut binding = original;
             match field {

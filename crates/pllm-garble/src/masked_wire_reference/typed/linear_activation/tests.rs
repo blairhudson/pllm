@@ -71,7 +71,10 @@ pub(super) fn oracle(spec: LinearActivationSpec, x: &[i64], w: &[i64]) -> Vec<i1
     }
     values
 }
-pub(super) fn unmask(mask: &DealerMask<'_, Ring>, output: &CommonMasked<'_, Ring>) -> Vec<i128> {
+pub(super) fn unmask<B: AllocationContext>(
+    mask: &DealerMaskFor<B, Ring>,
+    output: &CommonMaskedFor<B, Ring>,
+) -> Vec<i128> {
     assert_eq!(mask.binding, output.binding);
     output
         .backing
@@ -108,6 +111,148 @@ fn finish<'b>(
         }
     }
     panic!("missing complete output")
+}
+
+#[test]
+fn owned_d22_reserved_exact_short_foreign_and_borrowed_layout_compatibility() {
+    let _serial = matrix::TEST_SERIAL.lock().unwrap();
+    let s = spec(1, 1, 1, ActivationKind::Gelu);
+    let owned = linear_activation_resources_for::<OwnedBudgetContext>(s).unwrap();
+    let borrowed = linear_activation_resources(s).unwrap();
+    assert_eq!(size_of::<OwnedLocalDealer>(), size_of::<LocalDealer<'_>>());
+    assert_eq!(
+        size_of::<LinearActivationRunFor<OwnedBudgetContext>>(),
+        size_of::<LinearActivationRun<'_>>()
+    );
+    assert_eq!(
+        size_of::<ActivationPartyFor<OwnedBudgetContext>>(),
+        size_of::<ActivationParty<'_>>()
+    );
+    assert_eq!(
+        size_of::<CommonMaskedFor<OwnedBudgetContext, Ring>>(),
+        common_charge()
+    );
+    assert_eq!(owned.root_bytes, borrowed.root_bytes);
+    assert!(owned.reservation_bytes >= borrowed.reservation_bytes);
+    for case in 0..3 {
+        let budget = OwnedBudget::new(64 << 20).unwrap();
+        let foreign = OwnedBudget::new(64 << 20).unwrap();
+        let mut d = OwnedLocalDealer::new(source(), [1; 32], [2; 32], &budget).unwrap();
+        let baseline = budget.budget().used_bytes();
+        let amount = owned.reservation_bytes - usize::from(case == 0);
+        let owner = if case == 1 { &foreign } else { &budget };
+        let mut charge = owner.charge_external(amount).unwrap();
+        let admitted = owner.budget().used_bytes();
+        // Fill remaining capacity on the exact-fit case. Native admission must
+        // move the existing slice rather than reserving a second native peak.
+        let blocker = if case == 2 {
+            Some(
+                budget
+                    .charge_external(
+                        (64 << 20)
+                            - budget.budget().used_bytes()
+                            - size_of::<OwnedExternalCharge>(),
+                    )
+                    .unwrap(),
+            )
+        } else {
+            None
+        };
+        let mut draws = 0;
+        let result = d.linear_activation_from_reserved_values_with(
+            s,
+            &[1],
+            &[4096],
+            &mut charge,
+            &mut |bytes| {
+                draws += bytes.len();
+                bytes.fill(173);
+                Ok(())
+            },
+        );
+        if case < 2 {
+            assert!(matches!(result, Err(Error::Resource)));
+            assert_eq!(draws, 0);
+            assert_eq!(charge.payload_bytes(), amount);
+            assert_eq!(owner.budget().used_bytes(), admitted);
+        } else {
+            let (mask, run) = result.unwrap();
+            assert!(draws > 0);
+            assert_eq!(charge.payload_bytes(), 0);
+            assert!(run.is_budget(budget.budget()));
+            assert!(std::ptr::eq(mask._lease.budget.budget(), budget.budget()));
+            drop((mask, run));
+        }
+        drop((blocker, charge));
+        assert_eq!(budget.budget().used_bytes(), baseline);
+    }
+}
+
+#[test]
+fn owned_d22_original_run_frames_and_outputs_outlive_root_and_dealer() {
+    let _serial = matrix::TEST_SERIAL.lock().unwrap();
+    let s = spec(1, 1, 1, ActivationKind::Gelu);
+    let (mask, mut run) = {
+        let root = OwnedBudget::new(64 << 20).unwrap();
+        let mut d = OwnedLocalDealer::new(source(), [1; 32], [2; 32], &root).unwrap();
+        let mut charge = root
+            .charge_external(
+                linear_activation_resources_for::<OwnedBudgetContext>(s)
+                    .unwrap()
+                    .reservation_bytes,
+            )
+            .unwrap();
+        d.linear_activation_from_reserved_values_with(
+            s,
+            &[-1],
+            &[4096],
+            &mut charge,
+            &mut |bytes| {
+                bytes.fill(173);
+                Ok(())
+            },
+        )
+        .unwrap()
+    };
+    assert!(run.is_budget(mask._lease.budget.budget()));
+    let initial = run.begin(&mut || false).unwrap();
+    let mut result = run
+        .advance([initial[1].as_bytes(), initial[0].as_bytes()], &mut || {
+            false
+        })
+        .unwrap();
+    let output = loop {
+        match result.body {
+            StepBodyFor::Frames(next, _metadata) => {
+                result = run
+                    .advance([next[1].as_bytes(), next[0].as_bytes()], &mut || false)
+                    .unwrap();
+            }
+            StepBodyFor::Output(output, _metadata) => break output,
+        }
+    };
+    drop(run);
+    for value in &output {
+        assert_eq!(unmask(&mask, value), oracle(s, &[-1], &[4096]));
+        assert!(std::ptr::eq(
+            mask._lease.budget.budget(),
+            value._lease.budget.budget()
+        ));
+    }
+    // Initial original matrix frames still retain the real singleton even after
+    // completion and destruction of the issuing run, dealer and root handle.
+    assert!(matches!(
+        matrix::party::IssuanceTicket::acquire(),
+        Err(Error::Resource)
+    ));
+    drop(initial);
+    drop(matrix::party::IssuanceTicket::acquire().unwrap());
+    drop(output);
+    let quote = OwnedBudget::resources().unwrap();
+    assert_eq!(
+        mask._lease.budget.budget().used_bytes(),
+        quote.initial_reserved_bytes - quote.owner_metadata_bytes + mask._lease.bytes
+    );
 }
 
 #[test]
@@ -945,7 +1090,7 @@ fn incremental_inventory_counts_each_existing_inline_owner_once() {
         + 4 * size_of::<Binding>()
         + size_of::<matrix::party::IssuanceTicket>()
         + 12 * size_of::<Lease<'static>>()
-        + 2 * (size_of::<PartyStep<'static>>()
+        + 2 * (size_of::<PartyStepFor<&'static Budget>>()
             - size_of::<LinearActivationFrame<'static>>()
                 .min(size_of::<CommonMasked<'static, Ring>>()));
     assert_eq!(c.run_metadata_bytes + c.party_metadata_bytes, new_inline);

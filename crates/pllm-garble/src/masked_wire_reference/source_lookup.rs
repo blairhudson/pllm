@@ -8,7 +8,7 @@
 
 use super::{mask, selection};
 use crate::compact_dpf::gpu127::{self, GpuKey, Profile};
-use crate::shared_allocation::{allocate, Lease, MAX_ALLOCATION_BYTES};
+use crate::shared_allocation::{allocate, AllocationContext, LeaseFor, MAX_ALLOCATION_BYTES};
 pub use crate::shared_allocation::{Budget, Error};
 pub use selection::Boundary;
 use sha2::{Digest, Sha256};
@@ -120,13 +120,21 @@ fn mul(a: usize, b: usize) -> Result<usize, Error> {
 fn first_frame_bytes(spec: Spec) -> usize {
     HEADER + 16 * spec.lanes
 }
+#[cfg(test)]
 fn frame_charge(spec: Spec) -> usize {
-    first_frame_bytes(spec) + size_of::<Frame<'static>>() + ALLOCATOR
+    frame_charge_for::<&Budget>(spec)
 }
+#[cfg(test)]
 fn output_charge(spec: Spec) -> usize {
+    output_charge_for::<&Budget>(spec)
+}
+fn frame_charge_for<C: AllocationContext>(spec: Spec) -> usize {
+    first_frame_bytes(spec) + size_of::<FrameFor<C>>() + ALLOCATOR
+}
+fn output_charge_for<C: AllocationContext>(spec: Spec) -> usize {
     // Charge the larger capability even in reconstructed mode.
     8 * spec.lanes
-        + size_of::<DeferredOutput<'static>>().max(size_of::<MaskedOutput<'static>>())
+        + size_of::<DeferredOutputFor<C>>().max(size_of::<MaskedOutputFor<C>>())
         + ALLOCATOR
 }
 
@@ -136,11 +144,15 @@ fn output_charge(spec: Spec) -> usize {
 /// Eight KiB per owner covers bounded hash/AES/stack work; dealer additionally
 /// prices the transient paired inline keys during issuance.
 pub fn resources(spec: Spec) -> Result<Resources, Error> {
+    resources_for_context::<&Budget>(spec)
+}
+
+pub(crate) fn resources_for_context<C: AllocationContext>(spec: Spec) -> Result<Resources, Error> {
     spec.validate()?;
     let gpu = Profile::new(spec.index_bits)
         .map_err(gpu_error)?
         .resources();
-    let select = selection::resources_for(spec.select(), spec.boundary)?;
+    let select = selection::resources_for_context::<C>(spec.select(), spec.boundary)?;
     let table = mul(8, spec.entries())?;
     let lane = mul(size_of::<LookupLane>(), spec.lanes)?;
     let select_frame = if spec.boundary == Boundary::Reconstructed {
@@ -149,7 +161,7 @@ pub fn resources(spec: Spec) -> Result<Resources, Error> {
         0
     };
     let own_party = add(&[
-        size_of::<Party<'static>>(),
+        size_of::<PartyFor<C>>(),
         lane,
         table,
         mul(16, spec.lanes)?, // local R/C backing, later output/C
@@ -157,19 +169,20 @@ pub fn resources(spec: Spec) -> Result<Resources, Error> {
         4 * ALLOCATOR,        // lane, table, R, C vectors
         spec.entries(),       // one lane-serial complete expansion
         size_of::<Zeroizing<Vec<u8>>>() + ALLOCATOR,
-        first_frame_bytes(spec), // borrowed peer first frame
-        select_frame,            // borrowed peer Select frame
-        frame_charge(spec),      // retained first send frame
+        first_frame_bytes(spec),     // borrowed peer first frame
+        select_frame,                // borrowed peer Select frame
+        frame_charge_for::<C>(spec), // retained first send frame
         if select_frame != 0 {
-            size_of::<Frame<'static>>() // retained Select wrapper
+            size_of::<FrameFor<C>>() // retained Select wrapper
         } else {
             0
         },
-        output_charge(spec), // final output overlaps nested Select output
+        output_charge_for::<C>(spec), // final output overlaps nested Select output
         WORKSPACE,
     ])?;
     let own_dealer = add(&[
-        size_of::<OutputMasks<'static>>(),
+        size_of::<OutputMasksFor<C>>(),
+        C::TRANSIENT_LINK_BYTES,
         mul(8, spec.lanes)?,  // derived output masks
         mul(8, spec.lanes)?,  // borrowed input masks
         table,                // borrowed complete public table
@@ -263,37 +276,40 @@ struct Execution {
     digest: [u8; 32],
     phase: u8,
 }
-pub struct Party<'a> {
+pub type Party<'a> = PartyFor<&'a Budget>;
+pub struct PartyFor<C: AllocationContext> {
     role: u8,
     spec: Spec,
     binding: [u8; 32],
     state: Option<Execution>,
     // Keep this owner outside execution: cancellation burns its state without
     // refunding retained Select metadata/material reservation before Party drop.
-    select: Option<selection::Party<'a>>,
+    select: Option<selection::PartyFor<C>>,
     // Secret owners must drop before leases, including on error paths.
-    lease: Lease<'a>,
+    lease: LeaseFor<C>,
 }
-pub struct OutputMasks<'a> {
+pub type OutputMasks<'a> = OutputMasksFor<&'a Budget>;
+pub struct OutputMasksFor<C: AllocationContext> {
     values: Zeroizing<Vec<u64>>,
-    _select_masks: selection::OutputMasks<'a>,
-    _lease: Lease<'a>,
+    _select_masks: selection::OutputMasksFor<C>,
+    _lease: LeaseFor<C>,
 }
-impl OutputMasks<'_> {
+impl<C: AllocationContext> OutputMasksFor<C> {
     /// Low-level trusted dealer view only. rho=2u-r, hence rho mod 2=r mod 2.
     pub fn values(&self) -> &[u64] {
         &self.values
     }
 }
-enum FrameBody<'a> {
+enum FrameBody<C: AllocationContext> {
     Lookup(Zeroizing<Vec<u8>>),
-    Select(selection::Frame<'a>),
+    Select(selection::FrameFor<C>),
 }
-pub struct Frame<'a> {
-    body: FrameBody<'a>,
-    _lease: Lease<'a>,
+pub type Frame<'a> = FrameFor<&'a Budget>;
+pub struct FrameFor<C: AllocationContext> {
+    body: FrameBody<C>,
+    _lease: LeaseFor<C>,
 }
-impl Frame<'_> {
+impl<C: AllocationContext> FrameFor<C> {
     pub fn as_bytes(&self) -> &[u8] {
         match &self.body {
             FrameBody::Lookup(bytes) => bytes,
@@ -301,13 +317,14 @@ impl Frame<'_> {
         }
     }
 }
-pub struct MaskedOutput<'a> {
+pub type MaskedOutput<'a> = MaskedOutputFor<&'a Budget>;
+pub struct MaskedOutputFor<C: AllocationContext> {
     values: Zeroizing<Vec<u64>>,
     binding: [u8; 32],
     bits: u8,
-    _lease: Lease<'a>,
+    _lease: LeaseFor<C>,
 }
-impl MaskedOutput<'_> {
+impl<C: AllocationContext> MaskedOutputFor<C> {
     /// Common masked value T[x]+rho, not clear T[x].
     pub fn values(&self) -> &[u64] {
         &self.values
@@ -322,14 +339,15 @@ impl MaskedOutput<'_> {
         self.values.len()
     }
 }
-pub struct DeferredOutput<'a> {
+pub type DeferredOutput<'a> = DeferredOutputFor<&'a Budget>;
+pub struct DeferredOutputFor<C: AllocationContext> {
     values: Zeroizing<Vec<u64>>,
     role: u8,
     binding: [u8; 32],
     bits: u8,
-    _lease: Lease<'a>,
+    _lease: LeaseFor<C>,
 }
-impl DeferredOutput<'_> {
+impl<C: AllocationContext> DeferredOutputFor<C> {
     /// Own additive share, never a reconstructed/common masked value.
     pub fn values(&self) -> &[u64] {
         &self.values
@@ -347,10 +365,11 @@ impl DeferredOutput<'_> {
         self.values.len()
     }
 }
-pub enum Step<'a> {
-    Frame(Frame<'a>),
-    Reconstructed(MaskedOutput<'a>),
-    Deferred(DeferredOutput<'a>),
+pub type Step<'a> = StepFor<&'a Budget>;
+pub enum StepFor<C: AllocationContext> {
+    Frame(FrameFor<C>),
+    Reconstructed(MaskedOutputFor<C>),
+    Deferred(DeferredOutputFor<C>),
 }
 
 pub fn issue<'a>(
@@ -392,25 +411,26 @@ fn validate_inputs(spec: Spec, table: &[u64], input_masks: &[u64]) -> Result<(),
 }
 
 /// Consume original aggregate admission, including the nested Select lease.
-pub(super) fn issue_reserved_with<'a>(
+pub(super) fn issue_reserved_with<C: AllocationContext>(
     spec: Spec,
     context: Context,
     table: &[u64],
     input_masks: &[u64],
-    mut reservation: Lease<'a>,
+    mut reservation: LeaseFor<C>,
     mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
-) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
-    let cost = resources(spec)?;
+) -> Result<(OutputMasksFor<C>, [PartyFor<C>; 2]), Error> {
+    let cost = resources_for_context::<C>(spec)?;
     context.validate(spec.lanes)?;
     validate_inputs(spec, table, input_masks)?;
     if reservation.bytes != cost.combined_reservation_bytes {
         return Err(Error::Resource);
     }
-    let budget = reservation.budget;
+    let allocation = reservation.budget.share();
+    let budget = allocation.budget();
     // Entire public and canonical input preflight precedes admission, entropy,
     // and allocation. Identity hashes full canonical bytes, not a caller label.
     let identity = table_identity(spec, context.numeric_contract, table);
-    let select_cost = selection::resources_for(spec.select(), spec.boundary)?;
+    let select_cost = selection::resources_for_context::<C>(spec.select(), spec.boundary)?;
     let select_reservation = reservation.split(select_cost.combined_reservation_bytes)?;
     let a =
         reservation.split(cost.party_reservation_bytes - select_cost.party_reservation_bytes)?;
@@ -478,13 +498,13 @@ pub(super) fn issue_reserved_with<'a>(
             & mask(spec.output_bits);
     }
     Ok((
-        OutputMasks {
+        OutputMasksFor {
             values: masks,
             _select_masks: select_masks,
             _lease: reservation,
         },
         [
-            Party {
+            PartyFor {
                 role: 0,
                 spec,
                 binding,
@@ -492,7 +512,7 @@ pub(super) fn issue_reserved_with<'a>(
                 select: Some(select0),
                 lease: a,
             },
-            Party {
+            PartyFor {
                 role: 1,
                 spec,
                 binding,
@@ -574,7 +594,7 @@ fn correction(role: u8, signed_count: i64) -> u64 {
     }
 }
 
-impl<'a> Party<'a> {
+impl<C: AllocationContext> PartyFor<C> {
     /// Private invocation identity for owning-region deferred-output checks.
     pub(super) fn internal_binding(&self) -> [u8; 32] {
         self.binding
@@ -589,14 +609,14 @@ impl<'a> Party<'a> {
         }
     }
 
-    pub fn begin(&mut self, masked_indices: &[u64]) -> Result<Frame<'a>, Error> {
+    pub fn begin(&mut self, masked_indices: &[u64]) -> Result<FrameFor<C>, Error> {
         let result = self.begin_inner(masked_indices);
         if result.is_err() {
             self.cancel();
         }
         result
     }
-    fn begin_inner(&mut self, masked_indices: &[u64]) -> Result<Frame<'a>, Error> {
+    fn begin_inner(&mut self, masked_indices: &[u64]) -> Result<FrameFor<C>, Error> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
         if state.phase != 0 {
             return Err(Error::Consumed);
@@ -620,7 +640,7 @@ impl<'a> Party<'a> {
             let expanded = material
                 .key
                 .all_with_allocator(self.spec.entries(), |n| {
-                    allocate(n, self.lease.budget).map_err(allocation_error)
+                    allocate(n, self.lease.budget.budget()).map_err(allocation_error)
                 })
                 .map_err(gpu_error)?;
             let mut sum = Zeroizing::new(0u64);
@@ -648,14 +668,14 @@ impl<'a> Party<'a> {
         Ok(frame)
     }
 
-    pub fn advance(&mut self, peer: &[u8]) -> Result<Step<'a>, Error> {
+    pub fn advance(&mut self, peer: &[u8]) -> Result<StepFor<C>, Error> {
         let result = self.advance_inner(peer);
         if result.is_err() {
             self.cancel();
         }
         result
     }
-    fn advance_inner(&mut self, peer: &[u8]) -> Result<Step<'a>, Error> {
+    fn advance_inner(&mut self, peer: &[u8]) -> Result<StepFor<C>, Error> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
         match state.phase {
             1 => {
@@ -685,8 +705,8 @@ impl<'a> Party<'a> {
                                 })
                                 & mask(self.spec.output_bits);
                     }
-                    let lease = self.lease.split(output_charge(self.spec))?;
-                    Ok(Step::Deferred(DeferredOutput {
+                    let lease = self.lease.split(output_charge_for::<C>(self.spec))?;
+                    Ok(StepFor::Deferred(DeferredOutputFor {
                         values: state.arithmetic,
                         role: self.role,
                         binding: self.binding,
@@ -699,10 +719,10 @@ impl<'a> Party<'a> {
                         .as_mut()
                         .ok_or(Error::Consumed)?
                         .begin(&state.correction, &state.arithmetic)?;
-                    let lease = self.lease.split(size_of::<Frame<'static>>())?;
+                    let lease = self.lease.split(size_of::<FrameFor<C>>())?;
                     state.phase = 2;
                     self.state = Some(state);
-                    Ok(Step::Frame(Frame {
+                    Ok(StepFor::Frame(FrameFor {
                         body: FrameBody::Select(frame),
                         _lease: lease,
                     }))
@@ -716,8 +736,8 @@ impl<'a> Party<'a> {
                         .wrapping_sub(state.arithmetic[i])
                         & mask(self.spec.output_bits);
                 }
-                let lease = self.lease.split(output_charge(self.spec))?;
-                Ok(Step::Reconstructed(MaskedOutput {
+                let lease = self.lease.split(output_charge_for::<C>(self.spec))?;
+                Ok(StepFor::Reconstructed(MaskedOutputFor {
                     values: state.arithmetic,
                     binding: self.binding,
                     bits: self.spec.output_bits,
@@ -727,8 +747,11 @@ impl<'a> Party<'a> {
             _ => Err(Error::Consumed),
         }
     }
-    fn first_frame(&mut self, state: &Execution) -> Result<Frame<'a>, Error> {
-        let mut bytes = Zeroizing::new(allocate(first_frame_bytes(self.spec), self.lease.budget)?);
+    fn first_frame(&mut self, state: &Execution) -> Result<FrameFor<C>, Error> {
+        let mut bytes = Zeroizing::new(allocate(
+            first_frame_bytes(self.spec),
+            self.lease.budget.budget(),
+        )?);
         bytes.extend_from_slice(MAGIC);
         bytes.extend_from_slice(&self.binding);
         bytes.extend_from_slice(&state.digest);
@@ -744,8 +767,8 @@ impl<'a> Party<'a> {
             bytes.extend_from_slice(&r.to_le_bytes());
             bytes.extend_from_slice(&c.to_le_bytes());
         }
-        let lease = self.lease.split(frame_charge(self.spec))?;
-        Ok(Frame {
+        let lease = self.lease.split(frame_charge_for::<C>(self.spec))?;
+        Ok(FrameFor {
             body: FrameBody::Lookup(bytes),
             _lease: lease,
         })

@@ -540,10 +540,10 @@ fn run<'b>(
         b"PLLMLU01",
         b"PLLMAC01",
     ];
-    for phase in 0..8 {
+    for (phase, &magic) in expected_magic.iter().enumerate() {
         for frame in &frames {
             let bytes = frame.as_bytes();
-            assert_eq!(&bytes[..8], expected_magic[phase]);
+            assert_eq!(&bytes[..8], magic);
             assert_eq!(
                 bytes.len(),
                 if phase == 6 { 80 + 16 * n } else { 76 + 8 * n }

@@ -1,5 +1,12 @@
 //! Shared logical capacity budget; not an allocator/RSS bound.
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{
+    alloc::Layout,
+    mem::size_of,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 
 pub const MAX_ALLOCATION_BYTES: usize = 64 * 1024 * 1024;
 
@@ -55,6 +62,13 @@ impl Budget {
         })
     }
     pub(crate) fn reserve(&self, bytes: usize) -> Result<Lease<'_>, Error> {
+        self.reserve_bytes(bytes)?;
+        Ok(Lease {
+            budget: self,
+            bytes,
+        })
+    }
+    fn reserve_bytes(&self, bytes: usize) -> Result<(), Error> {
         self.used
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |used| {
                 used.checked_add(bytes).filter(|next| *next <= self.limit)
@@ -62,10 +76,12 @@ impl Budget {
             .map_err(|_| Error::Resource)?;
         #[cfg(test)]
         self.accounting_updates.fetch_add(1, Ordering::SeqCst);
-        Ok(Lease {
-            budget: self,
-            bytes,
-        })
+        Ok(())
+    }
+    fn release_bytes(&self, bytes: usize) {
+        #[cfg(test)]
+        self.accounting_updates.fetch_add(1, Ordering::SeqCst);
+        self.used.fetch_sub(bytes, Ordering::SeqCst);
     }
     pub(crate) fn allocation(&self) -> Result<(), Error> {
         #[cfg(test)]
@@ -156,28 +172,363 @@ impl<'a> ExternalCharge<'a> {
     }
 }
 
-pub(crate) struct Lease<'a> {
-    pub(crate) budget: &'a Budget,
+mod context_seal {
+    pub trait Sealed {}
+}
+
+/// Allocation ownership only, never numeric, source, material or transport
+/// authority. Implementations are sealed to the original borrowed counter and
+/// its owning strong link. Native containers price these links in their layout.
+#[doc(hidden)]
+pub trait AllocationContext: context_seal::Sealed + Sized {
+    /// A named temporary strong link used during reserved construction. Ordinary
+    /// borrowed views remain excluded from logical owned-storage inventories.
+    const TRANSIENT_LINK_BYTES: usize;
+    fn budget(&self) -> &Budget;
+    #[doc(hidden)]
+    fn share(&self) -> Self;
+}
+
+impl context_seal::Sealed for &Budget {}
+impl AllocationContext for &Budget {
+    const TRANSIENT_LINK_BYTES: usize = 0;
+    fn budget(&self) -> &Budget {
+        self
+    }
+    fn share(&self) -> Self {
+        self
+    }
+}
+
+/// An owning accounting link inside an already-admitted native container. Not
+/// publicly constructible/cloneable and not a replacement native lifetime tag.
+#[doc(hidden)]
+pub struct OwnedBudgetContext {
+    budget: Arc<Budget>,
+}
+impl context_seal::Sealed for OwnedBudgetContext {}
+impl AllocationContext for OwnedBudgetContext {
+    const TRANSIENT_LINK_BYTES: usize = size_of::<Self>();
+    fn budget(&self) -> &Budget {
+        &self.budget
+    }
+    fn share(&self) -> Self {
+        Self {
+            budget: Arc::clone(&self.budget),
+        }
+    }
+}
+
+// The borrowed specialization retains both its field type and two-word layout.
+// Unrelated native users may continue to use `.budget: &Budget` unchanged.
+pub(crate) type Lease<'a> = LeaseFor<&'a Budget>;
+pub(crate) struct LeaseFor<C: AllocationContext> {
+    pub(crate) budget: C,
     pub(crate) bytes: usize,
 }
-impl<'a> Lease<'a> {
-    pub(crate) fn split(&mut self, bytes: usize) -> Result<Lease<'a>, Error> {
+impl<C: AllocationContext> LeaseFor<C> {
+    pub(crate) fn reserve(context: &C, bytes: usize) -> Result<Self, Error> {
+        context.budget().reserve_bytes(bytes)?;
+        Ok(Self {
+            budget: context.share(),
+            bytes,
+        })
+    }
+    pub(crate) fn split(&mut self, bytes: usize) -> Result<Self, Error> {
         self.bytes = self.bytes.checked_sub(bytes).ok_or(Error::Resource)?;
-        Ok(Lease {
-            budget: self.budget,
+        Ok(Self {
+            budget: self.budget.share(),
             bytes,
         })
     }
 }
-impl Drop for Lease<'_> {
+impl<C: AllocationContext> Drop for LeaseFor<C> {
     fn drop(&mut self) {
-        #[cfg(test)]
-        self.budget
-            .accounting_updates
-            .fetch_add(1, Ordering::SeqCst);
-        self.budget.used.fetch_sub(self.bytes, Ordering::SeqCst);
+        self.budget.budget().release_bytes(self.bytes);
     }
 }
+
+/// Logical bootstrap inventory, checked before allocating the owning counter.
+/// The original inline Budget and named construction slots are conservatively
+/// retained in the fixed charge until the last strong owner retires. Arc backing
+/// includes both counters and alignment padding, not allocator headers or RSS.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OwnedBudgetResources {
+    pub arc_backing_bytes: usize,
+    pub bootstrap_transition_bytes: usize,
+    pub owner_metadata_bytes: usize,
+    pub initial_reserved_bytes: usize,
+}
+
+/// Lifetime-independent accounting root, not a native lifetime bridge.
+///
+/// Only a NEW budget can be created here. No existing Budget, borrowed lease or
+/// native owner is migrated, cloned or assigned a different accounting identity.
+/// All handles and charges borrow the same stable original Budget through Arc.
+/// Native owners obtained from `budget()` still cannot outlive that borrow.
+/// Ownership-parametric native constructors instead consume an already-admitted
+/// strong context; they never upgrade an existing borrowed owner.
+///
+/// Construction checks the complete bootstrap quote against the limit before
+/// Arc allocation. Standard Arc allocation can abort on allocator OOM on stable
+/// Rust; this Result is logical admission, not recoverable allocator admission.
+pub struct OwnedBudget {
+    budget: Arc<Budget>,
+}
+
+impl OwnedBudget {
+    pub(crate) fn reserve_native(
+        &self,
+        bytes: usize,
+    ) -> Result<LeaseFor<OwnedBudgetContext>, Error> {
+        self.budget.reserve_bytes(bytes)?;
+        Ok(LeaseFor {
+            budget: OwnedBudgetContext {
+                budget: Arc::clone(&self.budget),
+            },
+            bytes,
+        })
+    }
+    pub fn resources() -> Result<OwnedBudgetResources, Error> {
+        let arc_backing_bytes = Layout::new::<[AtomicUsize; 2]>()
+            .extend(Layout::new::<Budget>())
+            .map_err(|_| Error::Resource)?
+            .0
+            .pad_to_align()
+            .size();
+        // Explicit origin Budget as well as its destination in Arc backing.
+        // These are named logical slots, not an ABI-stack measurement.
+        let bootstrap_transition_bytes = [
+            size_of::<Budget>(),
+            size_of::<Result<Budget, Error>>(),
+            size_of::<OwnedBudgetResources>(),
+            size_of::<Result<OwnedBudgetResources, Error>>(),
+            size_of::<Result<OwnedBudget, Error>>(),
+            size_of::<Arc<Budget>>(),
+            size_of::<Result<(), Error>>(),
+        ]
+        .into_iter()
+        .try_fold(0usize, |sum, bytes| sum.checked_add(bytes))
+        .ok_or(Error::Resource)?;
+        let owner_metadata_bytes = size_of::<Self>();
+        let initial_reserved_bytes = arc_backing_bytes
+            .checked_add(bootstrap_transition_bytes)
+            .and_then(|bytes| bytes.checked_add(owner_metadata_bytes))
+            .ok_or(Error::Resource)?;
+        Ok(OwnedBudgetResources {
+            arc_backing_bytes,
+            bootstrap_transition_bytes,
+            owner_metadata_bytes,
+            initial_reserved_bytes,
+        })
+    }
+
+    pub fn new(limit: usize) -> Result<Self, Error> {
+        Self::from_fresh_budget(Budget::new(limit)?)
+    }
+
+    fn from_fresh_budget(budget: Budget) -> Result<Self, Error> {
+        let quote = Self::resources()?;
+        if budget.used_bytes() != 0 {
+            return Err(Error::Resource);
+        }
+        // No borrowed guard is detached or refunded. The counter and its fixed
+        // bootstrap reservation move together into their admitted stable backing.
+        budget.reserve_bytes(quote.initial_reserved_bytes)?;
+        budget.allocation()?;
+        Ok(Self {
+            budget: Arc::new(budget),
+        })
+    }
+
+    pub fn budget(&self) -> &Budget {
+        &self.budget
+    }
+
+    /// Each additional root handle pays for its inline Arc pointer before clone.
+    /// Arc's existing control/backing charge stays resident, without a new heap
+    /// allocation, counter replacement, refund or reacquisition.
+    pub fn try_clone(&self) -> Result<Self, Error> {
+        self.budget.reserve_bytes(size_of::<Self>())?;
+        Ok(Self {
+            budget: Arc::clone(&self.budget),
+        })
+    }
+
+    pub fn charge_external(&self, payload_bytes: usize) -> Result<OwnedExternalCharge, Error> {
+        let bytes = payload_bytes
+            .checked_add(size_of::<OwnedExternalCharge>())
+            .ok_or(Error::Resource)?;
+        self.budget.reserve_bytes(bytes)?;
+        Ok(OwnedExternalCharge {
+            budget: Arc::clone(&self.budget),
+            bytes,
+        })
+    }
+}
+
+impl Drop for OwnedBudget {
+    fn drop(&mut self) {
+        // Fixed backing/bootstrap remains charged even if only charges survive.
+        self.budget.release_bytes(size_of::<Self>());
+    }
+}
+
+/// Non-cloneable owned logical reservation, including its inline Arc/byte count.
+/// The original counter/backing remains alive even after all root handles drop.
+/// This guard neither owns nor erases external payload. Keep it until that actual
+/// payload retires, or use `try_build` to enforce direct payload-before-guard drop.
+/// No raw Arc/Weak handle or budget adoption/migration API is exposed.
+///
+/// ```compile_fail
+/// use pllm_garble::shared_allocation::OwnedBudget;
+/// let budget = OwnedBudget::new(4096).unwrap();
+/// let charge = budget.charge_external(8).unwrap();
+/// let duplicate = charge.clone();
+/// ```
+pub struct OwnedExternalCharge {
+    budget: Arc<Budget>,
+    bytes: usize,
+}
+
+impl OwnedExternalCharge {
+    pub fn budget(&self) -> &Budget {
+        &self.budget
+    }
+
+    pub fn payload_bytes(&self) -> usize {
+        self.bytes - size_of::<Self>()
+    }
+
+    pub fn charged_bytes(&self) -> usize {
+        self.bytes
+    }
+
+    pub fn is_for(&self, budget: &Budget) -> bool {
+        std::ptr::eq(self.budget(), budget)
+    }
+
+    /// Transfer an exact native inventory, including its already-quoted lease
+    /// metadata, from admitted payload. Retain this guard's own metadata. Neither
+    /// the counter nor material is recreated; zero-sized residual leases remain
+    /// valid. Only native container implementations may consume this seam.
+    pub(crate) fn split_native(
+        &mut self,
+        budget: &Budget,
+        bytes: usize,
+    ) -> Result<LeaseFor<OwnedBudgetContext>, Error> {
+        if !self.is_for(budget) || bytes > self.payload_bytes() {
+            return Err(Error::Resource);
+        }
+        let lease = LeaseFor {
+            budget: OwnedBudgetContext {
+                budget: Arc::clone(&self.budget),
+            },
+            bytes,
+        };
+        self.bytes -= bytes;
+        Ok(lease)
+    }
+
+    /// Growth reserves only the positive increment before changing this guard.
+    /// Shrink only after retiring the corresponding external payload storage.
+    pub fn resize_payload(&mut self, payload_bytes: usize) -> Result<(), Error> {
+        let bytes = payload_bytes
+            .checked_add(size_of::<Self>())
+            .ok_or(Error::Resource)?;
+        if bytes > self.bytes {
+            self.budget.reserve_bytes(bytes - self.bytes)?;
+        } else {
+            self.budget.release_bytes(self.bytes - bytes);
+        }
+        self.bytes = bytes;
+        Ok(())
+    }
+
+    /// Carve a child and its metadata from already-reserved payload. No counter
+    /// update or allocation occurs; both independent guards retain one identity.
+    pub fn split_owned(&mut self, payload_bytes: usize) -> Result<Self, Error> {
+        let bytes = payload_bytes
+            .checked_add(size_of::<Self>())
+            .filter(|bytes| *bytes <= self.payload_bytes())
+            .ok_or(Error::Resource)?;
+        let child = Self {
+            budget: Arc::clone(&self.budget),
+            bytes,
+        };
+        self.bytes -= bytes;
+        Ok(child)
+    }
+
+    /// Scoped handoff to the unchanged borrowed API, including destination guard
+    /// metadata in the transferred payload. Source metadata stays charged. The
+    /// result cannot escape its original owning counter's borrow.
+    pub fn split_external(&mut self, payload_bytes: usize) -> Result<ExternalCharge<'_>, Error> {
+        let bytes = payload_bytes
+            .checked_add(size_of::<ExternalCharge<'_>>())
+            .filter(|bytes| *bytes <= self.payload_bytes())
+            .ok_or(Error::Resource)?;
+        self.bytes -= bytes;
+        Ok(ExternalCharge {
+            lease: Lease {
+                budget: &self.budget,
+                bytes,
+            },
+        })
+    }
+
+    /// Admit inline payload storage/padding BEFORE invoking the allocating
+    /// builder. The original payload reservation covers external backing; the
+    /// returned wrapper additionally owns T inline. Errors/unwind drop builder
+    /// locals before this guard. This does not enable self-referential returns.
+    pub fn try_build<T>(
+        mut self,
+        build: impl FnOnce(&Budget) -> Result<T, Error>,
+    ) -> Result<OwnedCharged<T>, Error> {
+        let inline_bytes = size_of::<OwnedCharged<T>>()
+            .checked_sub(size_of::<Self>())
+            .ok_or(Error::Resource)?;
+        let payload_bytes = self
+            .payload_bytes()
+            .checked_add(inline_bytes)
+            .ok_or(Error::Resource)?;
+        self.resize_payload(payload_bytes)?;
+        let payload = build(self.budget())?;
+        Ok(OwnedCharged {
+            payload,
+            charge: self,
+        })
+    }
+}
+
+impl Drop for OwnedExternalCharge {
+    fn drop(&mut self) {
+        self.budget.release_bytes(self.bytes);
+    }
+}
+
+/// Private field order enforces direct payload destruction before its charge.
+/// No extraction, mutable replacement, Clone or charge-detachment API exists.
+pub struct OwnedCharged<T> {
+    payload: T,
+    charge: OwnedExternalCharge,
+}
+
+impl<T> OwnedCharged<T> {
+    pub fn payload(&self) -> &T {
+        &self.payload
+    }
+
+    pub fn budget(&self) -> &Budget {
+        self.charge.budget()
+    }
+
+    /// Includes inline T/padding admitted by try_build as well as external backing.
+    pub fn charged_bytes(&self) -> usize {
+        self.charge.charged_bytes()
+    }
+}
+
 pub(crate) fn allocate<T>(capacity: usize, budget: &Budget) -> Result<Vec<T>, Error> {
     budget.allocation()?;
     let mut values = Vec::new();
@@ -196,6 +547,322 @@ pub(crate) fn exact_capacity<T>(values: Vec<T>, capacity: usize) -> Result<Vec<T
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
+
+    #[test]
+    fn borrowed_lease_alias_preserves_fields_layout_and_identity() {
+        let budget = Budget::new(1024).unwrap();
+        let mut lease: Lease<'_> = budget.reserve(31).unwrap();
+        let original: &Budget = lease.budget;
+        assert!(std::ptr::eq(original, &budget));
+        assert_eq!(size_of::<Lease<'_>>(), size_of::<(&Budget, usize)>());
+        assert_eq!(
+            std::mem::align_of::<Lease<'_>>(),
+            std::mem::align_of::<(&Budget, usize)>()
+        );
+        let child = lease.split(7).unwrap();
+        assert!(std::ptr::eq(child.budget, original));
+        assert_eq!(budget.used_bytes(), 31);
+        drop(child);
+        drop(lease);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+
+    #[test]
+    fn owned_native_transfer_keeps_full_original_counter_without_updates() {
+        let baseline = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let metadata = size_of::<OwnedExternalCharge>();
+        let owned = OwnedBudget::new(baseline + metadata + 31).unwrap();
+        let foreign = Budget::new(baseline + metadata + 31).unwrap();
+        let mut source = owned.charge_external(31).unwrap();
+        let updates = owned.budget().accounting_updates.load(Ordering::SeqCst);
+        for (target, bytes) in [(&foreign, 0), (&foreign, 1), (owned.budget(), 32)] {
+            assert!(source.split_native(target, bytes).is_err());
+            assert_eq!(source.payload_bytes(), 31);
+        }
+        let mut native = source.split_native(owned.budget(), 31).unwrap();
+        let zero = native.split(0).unwrap();
+        let child = native.split(31).unwrap();
+        assert_eq!(source.payload_bytes(), 0);
+        assert_eq!(native.bytes, 0);
+        assert!(std::ptr::eq(child.budget.budget(), owned.budget()));
+        assert_eq!(
+            owned.budget().accounting_updates.load(Ordering::SeqCst),
+            updates
+        );
+        assert_eq!(owned.budget().used_bytes(), baseline + metadata + 31);
+        assert!(owned.budget().reserve(1).is_err());
+        drop((zero, native, source));
+        assert_eq!(child.budget.budget().used_bytes(), baseline + 31);
+        drop(owned);
+        assert_eq!(
+            child.budget.budget().used_bytes(),
+            baseline - size_of::<OwnedBudget>() + 31
+        );
+        drop(child);
+    }
+
+    #[test]
+    fn owned_bootstrap_quotes_original_budget_and_checks_before_allocation() {
+        let quote = OwnedBudget::resources().unwrap();
+        assert_eq!(
+            quote.initial_reserved_bytes,
+            quote.arc_backing_bytes + quote.bootstrap_transition_bytes + quote.owner_metadata_bytes
+        );
+        assert!(quote.arc_backing_bytes >= size_of::<Budget>() + 2 * size_of::<AtomicUsize>());
+        assert!(quote.bootstrap_transition_bytes >= size_of::<Budget>());
+        assert_eq!(quote.owner_metadata_bytes, size_of::<OwnedBudget>());
+        for limit in [
+            0,
+            quote.initial_reserved_bytes - 1,
+            MAX_ALLOCATION_BYTES + 1,
+            usize::MAX,
+        ] {
+            assert!(matches!(OwnedBudget::new(limit), Err(Error::Resource)));
+        }
+        for short in [true, false] {
+            let budget = Budget::new(quote.initial_reserved_bytes - usize::from(short)).unwrap();
+            budget.fail_after.store(0, Ordering::SeqCst);
+            // An insufficient limit rejects BEFORE the allocation hook. Exact
+            // fit reaches that hook, which rejects before any Arc is allocated.
+            let expected = if short {
+                Error::Resource
+            } else {
+                Error::Allocation
+            };
+            assert!(matches!(
+                OwnedBudget::from_fresh_budget(budget),
+                Err(error) if error == expected
+            ));
+        }
+        let owned = OwnedBudget::new(quote.initial_reserved_bytes).unwrap();
+        assert_eq!(owned.budget().used_bytes(), quote.initial_reserved_bytes);
+        assert!(owned.try_clone().is_err());
+        assert!(owned.charge_external(0).is_err());
+        assert!(owned.budget().charge_external(0).is_err());
+    }
+
+    #[test]
+    fn owned_and_borrowed_handles_share_original_identity_and_accounting() {
+        let quote = OwnedBudget::resources().unwrap();
+        let limit = quote.initial_reserved_bytes
+            + size_of::<OwnedBudget>()
+            + size_of::<OwnedExternalCharge>()
+            + 7
+            + size_of::<ExternalCharge<'_>>()
+            + 3;
+        let owned = OwnedBudget::new(limit).unwrap();
+        let sibling = owned.try_clone().unwrap();
+        let charge = owned.charge_external(7).unwrap();
+        assert!(std::ptr::eq(owned.budget(), sibling.budget()));
+        assert!(charge.is_for(owned.budget()));
+        let foreign = Budget::new(limit).unwrap();
+        assert!(!charge.is_for(&foreign));
+        let borrowed = sibling.budget().charge_external(3).unwrap();
+        assert!(borrowed.is_for(charge.budget()));
+        assert_eq!(owned.budget().used_bytes(), limit);
+        assert!(sibling.try_clone().is_err());
+        drop(owned);
+        assert_eq!(
+            charge.budget().used_bytes(),
+            limit - size_of::<OwnedBudget>()
+        );
+        drop(borrowed);
+        drop(sibling);
+        // The owned charge alone keeps the original Budget and fixed backing
+        // charged. Original root-wrapper metadata is no longer resident.
+        let fixed = quote.initial_reserved_bytes - quote.owner_metadata_bytes;
+        assert_eq!(charge.budget().used_bytes(), fixed + charge.charged_bytes());
+        let borrowed = charge.budget().charge_external(0).unwrap();
+        assert!(borrowed.is_for(charge.budget()));
+        drop(borrowed);
+        drop(charge);
+    }
+
+    #[test]
+    fn owned_growth_reserves_only_positive_increment_and_failure_is_atomic() {
+        let baseline = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let metadata = size_of::<OwnedExternalCharge>();
+        let owned = OwnedBudget::new(baseline + metadata + 20).unwrap();
+        let mut charge = owned.charge_external(4).unwrap();
+        let updates = owned.budget().accounting_updates.load(Ordering::SeqCst);
+        charge.resize_payload(20).unwrap();
+        assert_eq!(owned.budget().used_bytes(), baseline + metadata + 20);
+        assert_eq!(
+            owned.budget().accounting_updates.load(Ordering::SeqCst),
+            updates + 1
+        );
+        let updates = owned.budget().accounting_updates.load(Ordering::SeqCst);
+        for payload in [21, usize::MAX] {
+            assert!(charge.resize_payload(payload).is_err());
+            assert!(owned.charge_external(payload).is_err());
+            assert_eq!(charge.payload_bytes(), 20);
+            assert_eq!(owned.budget().used_bytes(), baseline + metadata + 20);
+            assert_eq!(
+                owned.budget().accounting_updates.load(Ordering::SeqCst),
+                updates
+            );
+        }
+        charge.resize_payload(3).unwrap();
+        assert_eq!(owned.budget().used_bytes(), baseline + metadata + 3);
+        drop(charge);
+        assert_eq!(owned.budget().used_bytes(), baseline);
+    }
+
+    #[test]
+    fn owned_splits_transfer_metadata_without_any_accounting_update() {
+        let baseline = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let metadata = size_of::<OwnedExternalCharge>();
+        for payload in [0, 1, 31] {
+            for source_first in [false, true] {
+                let limit = baseline + 2 * metadata + payload;
+                let owned = OwnedBudget::new(limit).unwrap();
+                let mut source = owned.charge_external(metadata + payload).unwrap();
+                let updates = owned.budget().accounting_updates.load(Ordering::SeqCst);
+                assert!(source.split_owned(usize::MAX).is_err());
+                assert!(source.split_owned(payload + 1).is_err());
+                let child = source.split_owned(payload).unwrap();
+                assert_eq!(
+                    owned.budget().accounting_updates.load(Ordering::SeqCst),
+                    updates
+                );
+                assert_eq!(owned.budget().used_bytes(), limit);
+                assert_eq!(source.payload_bytes(), 0);
+                assert_eq!(child.payload_bytes(), payload);
+                assert!(child.is_for(source.budget()));
+                assert!(owned.budget().reserve(1).is_err());
+                assert!(source.split_owned(0).is_err());
+                if source_first {
+                    drop(source);
+                    assert_eq!(
+                        owned.budget().used_bytes(),
+                        baseline + child.charged_bytes()
+                    );
+                    drop(child);
+                } else {
+                    drop(child);
+                    assert_eq!(owned.budget().used_bytes(), baseline + metadata);
+                    drop(source);
+                }
+                assert_eq!(owned.budget().used_bytes(), baseline);
+            }
+        }
+    }
+
+    #[test]
+    fn owned_reservation_hands_off_to_unchanged_borrowed_leases_without_refund() {
+        let baseline = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let owned_metadata = size_of::<OwnedExternalCharge>();
+        let borrowed_metadata = size_of::<ExternalCharge<'_>>();
+        let limit = baseline + owned_metadata + borrowed_metadata + 31;
+        let owned = OwnedBudget::new(limit).unwrap();
+        let mut source = owned.charge_external(borrowed_metadata + 31).unwrap();
+        let updates = owned.budget().accounting_updates.load(Ordering::SeqCst);
+        assert!(source.split_external(usize::MAX).is_err());
+        assert!(source.split_external(32).is_err());
+        let mut borrowed = source.split_external(31).unwrap();
+        assert!(borrowed.is_for(owned.budget()));
+        let lease = borrowed.split_payload(owned.budget(), 31).unwrap();
+        assert_eq!(
+            owned.budget().accounting_updates.load(Ordering::SeqCst),
+            updates
+        );
+        assert_eq!(owned.budget().used_bytes(), limit);
+        assert!(owned.budget().reserve(1).is_err());
+        drop(borrowed);
+        assert_eq!(owned.budget().used_bytes(), baseline + owned_metadata + 31);
+        drop(lease);
+        assert_eq!(source.payload_bytes(), 0);
+        drop(source);
+        assert_eq!(owned.budget().used_bytes(), baseline);
+    }
+
+    #[test]
+    fn owned_builder_admits_backing_and_inline_storage_before_allocation() {
+        let baseline = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let metadata = size_of::<OwnedExternalCharge>();
+        let inline = size_of::<OwnedCharged<Vec<u8>>>() - metadata;
+        for short in [true, false] {
+            let limit = baseline + metadata + 17 + inline - usize::from(short);
+            let owned = OwnedBudget::new(limit).unwrap();
+            let charge = owned.charge_external(17).unwrap();
+            let called = Cell::new(false);
+            let result = charge.try_build(|budget| {
+                called.set(true);
+                assert_eq!(budget.used_bytes(), limit);
+                assert!(std::ptr::eq(budget, owned.budget()));
+                allocate::<u8>(17, budget)
+            });
+            assert_eq!(called.get(), !short);
+            if short {
+                assert!(matches!(result, Err(Error::Resource)));
+            } else {
+                let payload = result.unwrap();
+                assert_eq!(payload.payload().capacity(), 17);
+                assert_eq!(payload.charged_bytes(), metadata + 17 + inline);
+                assert!(std::ptr::eq(payload.budget(), owned.budget()));
+                drop(payload);
+            }
+            assert_eq!(owned.budget().used_bytes(), baseline);
+        }
+    }
+
+    struct ObserveDrop<'a> {
+        budget: &'a Budget,
+        observed: &'a Cell<usize>,
+    }
+    impl Drop for ObserveDrop<'_> {
+        fn drop(&mut self) {
+            self.observed.set(self.budget.used_bytes());
+        }
+    }
+
+    #[test]
+    fn owned_payload_drops_before_charge_on_success_error_and_unwind() {
+        let baseline = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let metadata = size_of::<OwnedExternalCharge>();
+        let inline = size_of::<OwnedCharged<ObserveDrop<'_>>>() - metadata;
+        let limit = baseline + metadata + inline;
+        for case in 0..3 {
+            let owned = OwnedBudget::new(limit).unwrap();
+            let observed = Cell::new(0);
+            let charge = owned.charge_external(0).unwrap();
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let payload = charge.try_build(|_| {
+                    let payload = ObserveDrop {
+                        budget: owned.budget(),
+                        observed: &observed,
+                    };
+                    match case {
+                        1 => Err(Error::Allocation),
+                        2 => panic!("owned builder unwind"),
+                        _ => Ok(payload),
+                    }
+                });
+                match case {
+                    0 => drop(payload.unwrap()),
+                    1 => assert!(matches!(payload, Err(Error::Allocation))),
+                    _ => unreachable!(),
+                }
+            }));
+            assert_eq!(result.is_err(), case == 2);
+            assert_eq!(observed.get(), limit);
+            assert_eq!(owned.budget().used_bytes(), baseline);
+        }
+    }
+
+    #[test]
+    fn owned_builder_allocation_rejection_retires_the_consumed_charge() {
+        let baseline = OwnedBudget::resources().unwrap().initial_reserved_bytes;
+        let owned = OwnedBudget::new(baseline + 1024).unwrap();
+        let charge = owned.charge_external(17).unwrap();
+        owned.budget().fail_after.store(0, Ordering::SeqCst);
+        assert!(matches!(
+            charge.try_build(|budget| allocate::<u8>(17, budget)),
+            Err(Error::Allocation)
+        ));
+        assert_eq!(owned.budget().used_bytes(), baseline);
+    }
 
     #[test]
     fn payload_transfer_keeps_exact_full_budget_and_inline_guard() {

@@ -25,43 +25,49 @@ fn arc_bytes<T>() -> Result<usize, Error> {
 }
 
 pub fn role_split_resources() -> Result<LinearActivationRoleSplitResources, Error> {
-    let role_backing_bytes = arc_bytes::<RoleSlot<'static>>()?;
-    let coordination_backing_bytes = arc_bytes::<Coordination<'static>>()?;
+    role_split_resources_for::<&Budget>()
+}
+pub fn role_split_resources_for<B: AllocationContext>(
+) -> Result<LinearActivationRoleSplitResources, Error> {
+    let role_backing_bytes = arc_bytes::<RoleSlotFor<B>>()?;
+    let coordination_backing_bytes = arc_bytes::<CoordinationFor<B>>()?;
     let wrapper_population_bytes = metadata_sum(&[
-        size_of::<LinearActivationRoleCoordinator<'static>>(),
-        2 * size_of::<LinearActivationRole<'static>>(),
-        2 * EXCHANGES * size_of::<LinearActivationRoleFrame<'static>>(),
-        2 * EXCHANGES * size_of::<LinearActivationRoleStep<'static>>(),
-        2 * size_of::<LinearActivationRoleOutput<'static>>(),
+        size_of::<LinearActivationRoleCoordinatorFor<B>>(),
+        2 * size_of::<LinearActivationRoleFor<B>>(),
+        2 * EXCHANGES * size_of::<LinearActivationRoleFrameFor<B>>(),
+        2 * EXCHANGES * size_of::<LinearActivationRoleStepFor<B>>(),
+        2 * size_of::<LinearActivationRoleOutputFor<B>>(),
     ])?;
     // Full origin/destination slots, conservatively including original native
     // fields already quoted by D22. No guessed spare bytes or per-node allowance.
     let transition_bytes = metadata_sum(&[
         size_of::<LinearActivationRoleSplitResources>(),
         size_of::<Result<LinearActivationRoleSplitResources, Error>>(),
-        size_of::<LinearActivationRun<'static>>(),
-        2 * size_of::<RoleSlot<'static>>(),
-        size_of::<Coordination<'static>>(),
+        size_of::<LinearActivationRunFor<B>>(),
+        2 * size_of::<RoleSlotFor<B>>(),
+        size_of::<CoordinationFor<B>>(),
         size_of::<SplitControl>(),
-        size_of::<[Arc<RoleSlot<'static>>; 2]>(),
-        size_of::<[LinearActivationRole<'static>; 2]>(),
-        size_of::<RoleSplitResult<'static>>(),
-        size_of::<Result<RoleSplitResult<'static>, Error>>(),
-        size_of::<Operation<'static, 'static>>(),
-        size_of::<CallbackPoll<'static, 'static>>(),
-        size_of::<MutexGuard<'static, RoleState<'static>>>(),
-        size_of::<PartyStep<'static>>(),
-        size_of::<Result<PartyStep<'static>, Error>>(),
-        size_of::<Result<LinearActivationFrame<'static>, Error>>(),
-        size_of::<Result<LinearActivationRoleFrame<'static>, Error>>(),
-        size_of::<Result<LinearActivationRoleStep<'static>, Error>>(),
-        size_of::<Result<LinearActivationRoleOutput<'static>, Error>>(),
+        size_of::<[Arc<RoleSlotFor<B>>; 2]>(),
+        size_of::<[LinearActivationRoleFor<B>; 2]>(),
+        size_of::<RoleSplitResultFor<B>>(),
+        size_of::<Result<RoleSplitResultFor<B>, Error>>(),
+        size_of::<OperationFor<'_, B>>(),
+        size_of::<CallbackPollFor<'_, B>>(),
+        size_of::<MutexGuard<'_, RoleStateFor<B>>>(),
+        size_of::<PartyStepFor<B>>(),
+        size_of::<Result<PartyStepFor<B>, Error>>(),
+        size_of::<Result<LinearActivationFrameFor<B>, Error>>(),
+        size_of::<Result<LinearActivationRoleFrameFor<B>, Error>>(),
+        size_of::<Result<LinearActivationRoleStepFor<B>, Error>>(),
+        size_of::<Result<LinearActivationRoleOutputFor<B>, Error>>(),
         size_of::<Result<EdgeDescriptor, Error>>(),
         size_of::<Result<&'static [u8], Error>>(),
         size_of::<Result<(), Error>>(),
-        4 * size_of::<Arc<Coordination<'static>>>(),
-        3 * size_of::<Lease<'static>>(),
-        size_of::<Option<Lease<'static>>>(),
+        4 * size_of::<Arc<CoordinationFor<B>>>(),
+        3 * size_of::<LeaseFor<B>>(),
+        size_of::<Option<LeaseFor<B>>>(),
+        // Continuity returned by preflight and named construction context.
+        2 * B::TRANSIENT_LINK_BYTES,
     ])?;
     let reservation_bytes = metadata_sum(&[
         role_backing_bytes,
@@ -79,14 +85,14 @@ pub fn role_split_resources() -> Result<LinearActivationRoleSplitResources, Erro
     })
 }
 
-struct RoleState<'b> {
+struct RoleStateFor<B: AllocationContext> {
     // Keep the original cancelled inline native wrappers charged until drop.
-    party: LinearParty<'b>,
-    output: Option<CommonMasked<'b, Ring>>,
+    party: LinearPartyFor<B>,
+    output: Option<CommonMaskedFor<B, Ring>>,
 }
-struct RoleSlot<'b> {
-    state: Mutex<RoleState<'b>>,
-    _lease: Lease<'b>,
+struct RoleSlotFor<B: AllocationContext> {
+    state: Mutex<RoleStateFor<B>>,
+    _lease: LeaseFor<B>,
 }
 #[derive(Default)]
 struct SplitControl {
@@ -97,14 +103,14 @@ struct SplitControl {
 /// Cancellation-only registry. Private strong links retain allocation accounting
 /// until the registry drops (Weak links would retain uncharged Arc allocations).
 /// No public method can evaluate, borrow, extract or import a sibling's state.
-struct Coordination<'b> {
+struct CoordinationFor<B: AllocationContext> {
     control: Mutex<SplitControl>,
-    slots: [Arc<RoleSlot<'b>>; 2],
-    _original_run: Option<Lease<'b>>,
-    _additional: Lease<'b>,
+    slots: [Arc<RoleSlotFor<B>>; 2],
+    _original_run: Option<LeaseFor<B>>,
+    _additional: LeaseFor<B>,
 }
 
-impl Coordination<'_> {
+impl<B: AllocationContext> CoordinationFor<B> {
     fn abort_locked(&self, control: &mut SplitControl) {
         control.aborted = true;
         for slot in &self.slots {
@@ -139,7 +145,7 @@ impl Coordination<'_> {
         if aborted {
             return Err(Error::Consumed);
         }
-        let mut poll = CallbackPoll {
+        let mut poll = CallbackPollFor {
             coordination: self,
             armed: true,
         };
@@ -157,7 +163,7 @@ impl Coordination<'_> {
         &self,
         f: impl FnOnce(&mut SplitControl) -> Result<T, Error>,
     ) -> Result<T, Error> {
-        let mut operation = Operation {
+        let mut operation = OperationFor {
             coordination: self,
             control: self.control(),
             armed: true,
@@ -178,24 +184,24 @@ impl Coordination<'_> {
 // If locked native work panics, the role-state lock unwinds first; this guard
 // then burns BOTH continuations before releasing the coordination lock. Caller
 // callbacks use CallbackPoll instead and never execute under either mutex.
-struct Operation<'a, 'b> {
-    coordination: &'a Coordination<'b>,
+struct OperationFor<'a, B: AllocationContext> {
+    coordination: &'a CoordinationFor<B>,
     control: MutexGuard<'a, SplitControl>,
     armed: bool,
 }
 
-struct CallbackPoll<'a, 'b> {
-    coordination: &'a Coordination<'b>,
+struct CallbackPollFor<'a, B: AllocationContext> {
+    coordination: &'a CoordinationFor<B>,
     armed: bool,
 }
-impl Drop for CallbackPoll<'_, '_> {
+impl<B: AllocationContext> Drop for CallbackPollFor<'_, B> {
     fn drop(&mut self) {
         if self.armed {
             self.coordination.abort();
         }
     }
 }
-impl Drop for Operation<'_, '_> {
+impl<B: AllocationContext> Drop for OperationFor<'_, B> {
     fn drop(&mut self) {
         if self.armed {
             self.coordination.abort_locked(&mut self.control);
@@ -205,10 +211,10 @@ impl Drop for Operation<'_, '_> {
 
 /// Local coordinator, with cancellation authority only. Dropping it aborts both
 /// roles, including unclaimed/completed outputs. Keep it through output use.
-pub struct LinearActivationRoleCoordinator<'b> {
-    shared: Arc<Coordination<'b>>,
+pub struct LinearActivationRoleCoordinatorFor<B: AllocationContext> {
+    shared: Arc<CoordinationFor<B>>,
 }
-impl LinearActivationRoleCoordinator<'_> {
+impl<B: AllocationContext> LinearActivationRoleCoordinatorFor<B> {
     pub fn cancel(&mut self) {
         self.shared.abort();
     }
@@ -216,7 +222,7 @@ impl LinearActivationRoleCoordinator<'_> {
         self.shared.control().aborted
     }
 }
-impl Drop for LinearActivationRoleCoordinator<'_> {
+impl<B: AllocationContext> Drop for LinearActivationRoleCoordinatorFor<B> {
     fn drop(&mut self) {
         self.shared.abort();
     }
@@ -236,9 +242,9 @@ impl Drop for LinearActivationRoleCoordinator<'_> {
 /// use pllm_garble::masked_wire_reference::typed::LocalLinearActivationRole;
 /// fn escape(role: LocalLinearActivationRole<'_>) { let _ = role.slot; }
 /// ```
-pub struct LinearActivationRole<'b> {
-    slot: Arc<RoleSlot<'b>>,
-    shared: Arc<Coordination<'b>>,
+pub struct LinearActivationRoleFor<B: AllocationContext> {
+    slot: Arc<RoleSlotFor<B>>,
+    shared: Arc<CoordinationFor<B>>,
     role: u8,
     handed_off: bool,
 }
@@ -246,19 +252,19 @@ pub struct LinearActivationRole<'b> {
 /// Retained outgoing frame. After abort, fresh byte access fails closed; slices
 /// borrowed before cancellation cannot be revoked. Original guards/leases stay
 /// in the native frame until drop. No material serialization authority.
-pub struct LinearActivationRoleFrame<'b> {
-    native: LinearActivationFrame<'b>,
-    shared: Arc<Coordination<'b>>,
+pub struct LinearActivationRoleFrameFor<B: AllocationContext> {
+    native: LinearActivationFrameFor<B>,
+    shared: Arc<CoordinationFor<B>>,
 }
-impl LinearActivationRoleFrame<'_> {
+impl<B: AllocationContext> LinearActivationRoleFrameFor<B> {
     pub fn as_bytes(&self) -> Result<&[u8], Error> {
         self.shared.operation(|_| Ok(self.native.as_bytes()))
     }
 }
 
 #[allow(clippy::large_enum_variant)]
-pub enum LinearActivationRoleStep<'b> {
-    Frame(LinearActivationRoleFrame<'b>),
+pub enum LinearActivationRoleStepFor<B: AllocationContext> {
+    Frame(LinearActivationRoleFrameFor<B>),
     /// Local computation complete, not permission to extract an output. Both
     /// peers must be Ready before either handle may be consumed by finish.
     Ready,
@@ -277,12 +283,12 @@ pub enum LinearActivationRoleStep<'b> {
 /// use pllm_garble::masked_wire_reference::typed::LocalLinearActivationRoleOutput;
 /// fn duplicate(output: LocalLinearActivationRoleOutput<'_>) { let _ = output.clone(); }
 /// ```
-pub struct LinearActivationRoleOutput<'b> {
-    slot: Arc<RoleSlot<'b>>,
-    shared: Arc<Coordination<'b>>,
+pub struct LinearActivationRoleOutputFor<B: AllocationContext> {
+    slot: Arc<RoleSlotFor<B>>,
+    shared: Arc<CoordinationFor<B>>,
     role: u8,
 }
-impl LinearActivationRoleOutput<'_> {
+impl<B: AllocationContext> LinearActivationRoleOutputFor<B> {
     pub fn descriptor(&self) -> Result<EdgeDescriptor, Error> {
         self.shared.operation(|_| {
             self.slot
@@ -291,7 +297,7 @@ impl LinearActivationRoleOutput<'_> {
                 .map_err(|_| Error::Consumed)?
                 .output
                 .as_ref()
-                .map(CommonMasked::descriptor)
+                .map(CommonMaskedFor::descriptor)
                 .ok_or(Error::Consumed)
         })
     }
@@ -299,7 +305,7 @@ impl LinearActivationRoleOutput<'_> {
         self.role
     }
 }
-impl Drop for LinearActivationRoleOutput<'_> {
+impl<B: AllocationContext> Drop for LinearActivationRoleOutputFor<B> {
     fn drop(&mut self) {
         // Serialize output retirement with abort/evaluation. No accounting guard
         // is detached; the allocation and original metadata remain retained.
@@ -312,7 +318,7 @@ impl Drop for LinearActivationRoleOutput<'_> {
     }
 }
 
-impl<'b> LinearActivationRole<'b> {
+impl<B: AllocationContext> LinearActivationRoleFor<B> {
     pub fn role(&self) -> u8 {
         self.role
     }
@@ -322,7 +328,7 @@ impl<'b> LinearActivationRole<'b> {
     pub fn begin(
         &mut self,
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<LinearActivationRoleFrame<'b>, Error> {
+    ) -> Result<LinearActivationRoleFrameFor<B>, Error> {
         self.shared.poll_cancelled(cancelled)?;
         self.shared.operation(|control| {
             let native = self
@@ -334,7 +340,7 @@ impl<'b> LinearActivationRole<'b> {
                 // Native matrix cancellation polls only local coordinator
                 // state, never arbitrary caller code while locks are held.
                 .begin(&mut || control.aborted)?;
-            Ok(LinearActivationRoleFrame {
+            Ok(LinearActivationRoleFrameFor {
                 native,
                 shared: Arc::clone(&self.shared),
             })
@@ -344,23 +350,23 @@ impl<'b> LinearActivationRole<'b> {
         &mut self,
         peer: &[u8],
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<LinearActivationRoleStep<'b>, Error> {
+    ) -> Result<LinearActivationRoleStepFor<B>, Error> {
         self.shared.poll_cancelled(cancelled)?;
         self.shared.operation(|control| {
             let mut state = self.slot.state.lock().map_err(|_| Error::Consumed)?;
             match state.party.advance(peer)? {
-                PartyStep::Frame(native) => {
-                    Ok(LinearActivationRoleStep::Frame(LinearActivationRoleFrame {
+                PartyStepFor::Frame(native) => Ok(LinearActivationRoleStepFor::Frame(
+                    LinearActivationRoleFrameFor {
                         native,
                         shared: Arc::clone(&self.shared),
-                    }))
-                }
-                PartyStep::Output(output) => {
+                    },
+                )),
+                PartyStepFor::Output(output) => {
                     state.output = Some(output);
                     control.ready[usize::from(self.role)] = true;
                     #[cfg(test)]
                     tests::panic_after_locked_output(self.role, &state, control);
-                    Ok(LinearActivationRoleStep::Ready)
+                    Ok(LinearActivationRoleStepFor::Ready)
                 }
             }
         })
@@ -376,7 +382,7 @@ impl<'b> LinearActivationRole<'b> {
     ///     let _ = role.finish();
     /// }
     /// ```
-    pub fn finish(mut self) -> Result<LinearActivationRoleOutput<'b>, Error> {
+    pub fn finish(mut self) -> Result<LinearActivationRoleOutputFor<B>, Error> {
         let output = self.shared.operation(|control| {
             if control.ready != [true; 2] {
                 return Err(Error::Consumed);
@@ -391,7 +397,7 @@ impl<'b> LinearActivationRole<'b> {
             {
                 return Err(Error::Consumed);
             }
-            Ok(LinearActivationRoleOutput {
+            Ok(LinearActivationRoleOutputFor {
                 slot: Arc::clone(&self.slot),
                 shared: Arc::clone(&self.shared),
                 role: self.role,
@@ -401,7 +407,7 @@ impl<'b> LinearActivationRole<'b> {
         output
     }
 }
-impl Drop for LinearActivationRole<'_> {
+impl<B: AllocationContext> Drop for LinearActivationRoleFor<B> {
     fn drop(&mut self) {
         if !self.handed_off {
             self.shared.abort();
@@ -409,26 +415,32 @@ impl Drop for LinearActivationRole<'_> {
     }
 }
 
-type RoleSplitResult<'b> = (
-    LinearActivationRoleCoordinator<'b>,
-    [LinearActivationRole<'b>; 2],
+type RoleSplitResultFor<B> = (
+    LinearActivationRoleCoordinatorFor<B>,
+    [LinearActivationRoleFor<B>; 2],
 );
 
-impl<'b> LinearActivationRun<'b> {
+impl<B: AllocationContext> LinearActivationRunFor<B> {
     /// Budget object identity only; not admission or execution authority.
     pub fn is_budget(&self, budget: &Budget) -> bool {
         self.lease
             .as_ref()
-            .is_some_and(|lease| std::ptr::eq(lease.budget, budget))
+            .is_some_and(|lease| std::ptr::eq(lease.budget.budget(), budget))
     }
 
-    fn role_split_preflight(&self) -> Result<&'b Budget, Error> {
+    fn role_split_context(&self) -> Result<&B, Error> {
         if self.parties.iter().any(|party| {
             party.phase != Phase::Fresh || party.ledger.next != 0 || party.roots.is_none()
         }) {
             return Err(Error::Consumed);
         }
-        Ok(self.lease.as_ref().ok_or(Error::Consumed)?.budget)
+        Ok(&self.lease.as_ref().ok_or(Error::Consumed)?.budget)
+    }
+
+    // Only preadmitted callers materialize a strong continuity slot here. The
+    // returned value owns its context; no borrow from the consumed run escapes.
+    fn role_split_preflight(&self) -> Result<B, Error> {
+        Ok(self.role_split_context()?.share())
     }
 
     /// Consume a FRESH local run into distinct party-local evaluators. The
@@ -443,13 +455,15 @@ impl<'b> LinearActivationRun<'b> {
     ///     let _ = run.into_roles();
     /// }
     /// ```
-    pub fn into_roles(self) -> Result<RoleSplitResult<'b>, Error> {
-        let cost = role_split_resources()?;
-        let budget = self.role_split_preflight()?;
-        let additional = budget.reserve(cost.reservation_bytes)?;
+    pub fn into_roles(self) -> Result<RoleSplitResultFor<B>, Error> {
+        let cost = role_split_resources_for::<B>()?;
+        // Reserve on a short view of the still-live original run before making
+        // any additional strong context link or allocating role backing.
+        let additional = LeaseFor::reserve(self.role_split_context()?, cost.reservation_bytes)?;
         self.split_roles_reserved(cost, additional)
     }
-
+}
+impl<'b> LinearActivationRun<'b> {
     /// Same split, transferring its exact incremental slice from a preadmitted
     /// guard on the ORIGINAL budget. No refund/reacquire, imported authority or
     /// caller-specified allowance. Original native/source charges stay intact.
@@ -462,13 +476,21 @@ impl<'b> LinearActivationRun<'b> {
         let additional = charge.split_payload(budget, cost.reservation_bytes)?;
         self.split_roles_reserved(cost, additional)
     }
-
+}
+impl<B: AllocationContext> LinearActivationRunFor<B> {
+    // Deliberately preserve the qualified Arc/Mutex custody graph and its exact
+    // preadmitted backing/control census. Arc supplies shared destruction here,
+    // not thread permission: the original native Live marker still makes every
+    // role non-Send/non-Sync. Replacing this graph with Rc/RefCell would also
+    // change the established poison/abort and accounting paths unnecessarily.
+    #[allow(clippy::arc_with_non_send_sync)]
     fn split_roles_reserved(
         self,
         cost: LinearActivationRoleSplitResources,
-        mut additional: Lease<'b>,
-    ) -> Result<RoleSplitResult<'b>, Error> {
-        let budget = additional.budget;
+        mut additional: LeaseFor<B>,
+    ) -> Result<RoleSplitResultFor<B>, Error> {
+        let allocation = additional.budget.share();
+        let budget = allocation.budget();
         let left_lease = additional.split(cost.role_backing_bytes)?;
         let right_lease = additional.split(cost.role_backing_bytes)?;
         let Self {
@@ -476,40 +498,40 @@ impl<'b> LinearActivationRun<'b> {
             lease,
         } = self;
         budget.allocation()?;
-        let left = Arc::new(RoleSlot {
-            state: Mutex::new(RoleState {
+        let left = Arc::new(RoleSlotFor {
+            state: Mutex::new(RoleStateFor {
                 party: left,
                 output: None,
             }),
             _lease: left_lease,
         });
         budget.allocation()?;
-        let right = Arc::new(RoleSlot {
-            state: Mutex::new(RoleState {
+        let right = Arc::new(RoleSlotFor {
+            state: Mutex::new(RoleStateFor {
                 party: right,
                 output: None,
             }),
             _lease: right_lease,
         });
         budget.allocation()?;
-        let shared = Arc::new(Coordination {
+        let shared = Arc::new(CoordinationFor {
             control: Mutex::new(SplitControl::default()),
             slots: [Arc::clone(&left), Arc::clone(&right)],
             _original_run: lease,
             _additional: additional,
         });
         Ok((
-            LinearActivationRoleCoordinator {
+            LinearActivationRoleCoordinatorFor {
                 shared: Arc::clone(&shared),
             },
             [
-                LinearActivationRole {
+                LinearActivationRoleFor {
                     slot: left,
                     shared: Arc::clone(&shared),
                     role: 0,
                     handed_off: false,
                 },
-                LinearActivationRole {
+                LinearActivationRoleFor {
                     slot: right,
                     shared,
                     role: 1,
@@ -519,6 +541,30 @@ impl<'b> LinearActivationRun<'b> {
         ))
     }
 }
+
+pub type LinearActivationRoleCoordinator<'b> = LinearActivationRoleCoordinatorFor<&'b Budget>;
+pub type LinearActivationRole<'b> = LinearActivationRoleFor<&'b Budget>;
+pub type LinearActivationRoleFrame<'b> = LinearActivationRoleFrameFor<&'b Budget>;
+pub type LinearActivationRoleOutput<'b> = LinearActivationRoleOutputFor<&'b Budget>;
+pub type LinearActivationRoleStep<'b> = LinearActivationRoleStepFor<&'b Budget>;
+type RoleSplitResult<'b> = RoleSplitResultFor<&'b Budget>;
+
+impl LinearActivationRunFor<OwnedBudgetContext> {
+    pub fn into_roles_from_reserved(
+        self,
+        charge: &mut OwnedExternalCharge,
+    ) -> Result<RoleSplitResultFor<OwnedBudgetContext>, Error> {
+        let cost = role_split_resources_for::<OwnedBudgetContext>()?;
+        let continuity = self.role_split_preflight()?;
+        let additional = charge.split_native(continuity.budget(), cost.reservation_bytes)?;
+        self.split_roles_reserved(cost, additional)
+    }
+}
+
+#[cfg(test)]
+type RoleSlot<'b> = RoleSlotFor<&'b Budget>;
+#[cfg(test)]
+type Coordination<'b> = CoordinationFor<&'b Budget>;
 
 #[cfg(test)]
 mod tests;

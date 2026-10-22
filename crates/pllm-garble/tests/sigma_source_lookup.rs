@@ -58,7 +58,7 @@ fn deferred_output_has_no_clone_capability() {
         fn check() {}
     }
     impl<T: ?Sized> AmbiguousIfClone<()> for T {}
-    impl<T: ?Sized + Clone> AmbiguousIfClone<u8> for T {}
+    impl<T: Clone> AmbiguousIfClone<u8> for T {}
     let _ = <lookup::DeferredOutput<'static> as AmbiguousIfClone<_>>::check;
 }
 
@@ -237,12 +237,13 @@ fn endpoint_target_index_grid_matches_direct_table_oracle_at_both_boundaries() {
                             assert_eq!(y0.values(), expected);
                             assert_eq!(y1.values(), expected);
                             // The output equals 2*S-R directly from wire words.
-                            for i in 0..s.lanes {
+                            assert_eq!(opened_r.len(), s.lanes);
+                            for (i, &opened) in opened_r.iter().enumerate() {
                                 let selected = i128::from(word(g0.as_bytes(), 76 + 8 * i))
                                     + i128::from(word(g1.as_bytes(), 76 + 8 * i));
                                 assert_eq!(
                                     y0.values()[i],
-                                    residue(2 * selected - i128::from(opened_r[i]), output_bits)
+                                    residue(2 * selected - i128::from(opened), output_bits)
                                 );
                             }
                             assert!(matches!(p0.advance(g1.as_bytes()), Err(Error::Consumed)));

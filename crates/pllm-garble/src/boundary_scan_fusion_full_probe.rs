@@ -114,7 +114,7 @@ fn run(rows: usize, columns: usize, repetitions: usize, guarded: bool) -> serde_
         .checked_mul(2 * repetitions * 12 + 8)
         .unwrap();
     assert!(work_bound <= ROWS * COLS * (2 * 16 * 12 + 8));
-    assert!(ALLOCATION_BOUND < 384 * 1024 * 1024);
+    const { assert!(ALLOCATION_BOUND < 384 * 1024 * 1024) };
     let initial = if guarded { Some(host_guard()) } else { None };
     let setup = Instant::now();
     let weights: Vec<u8> = (0..rows * columns)

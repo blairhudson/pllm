@@ -30,7 +30,9 @@ use super::{arithmetic, matrix, selection};
 pub use crate::shared_allocation::{Budget, Error};
 use crate::{
     compact_dpf::gpu127::Profile,
-    shared_allocation::{allocate, Lease},
+    shared_allocation::{
+        allocate, AllocationContext, Lease, LeaseFor, OwnedBudget, OwnedBudgetContext,
+    },
 };
 use pllm_core::edge_contract::{
     EdgeDescriptor, Interpretation, Numeric, Representation, SourceIdentity, WeightVisibility,
@@ -46,26 +48,38 @@ mod material;
 mod region;
 mod selection_bridge;
 pub use activation::{
-    activation_resources, ActivationFrame, ActivationIssued, ActivationKind,
-    ActivationMetadataResources, ActivationMetadataWorkspace, ActivationParty,
+    activation_resources, activation_resources_for, ActivationFrame, ActivationFrameFor,
+    ActivationIssued, ActivationIssuedFor, ActivationKind, ActivationMetadataResources,
+    ActivationMetadataWorkspace, ActivationParty, ActivationPartyFor,
     ActivationResourceCalculationResources, ActivationResources, ActivationSpec, ActivationStep,
+    ActivationStepFor,
 };
 pub use linear_activation::{
     linear_activation_resources as local_linear_activation_resources,
+    linear_activation_resources_for as local_linear_activation_resources_for,
     role_split_resources as local_linear_activation_role_split_resources,
+    role_split_resources_for as local_linear_activation_role_split_resources_for,
     LinearActivationFrame as LocalLinearActivationFrame,
+    LinearActivationFrameFor as LocalLinearActivationFrameFor,
     LinearActivationMetadataResources as LocalLinearActivationMetadataResources,
     LinearActivationResourceCalculationResources as LocalLinearActivationResourceCalculationResources,
     LinearActivationResources as LocalLinearActivationResources,
     LinearActivationRole as LocalLinearActivationRole,
     LinearActivationRoleCoordinator as LocalLinearActivationRoleCoordinator,
+    LinearActivationRoleCoordinatorFor as LocalLinearActivationRoleCoordinatorFor,
+    LinearActivationRoleFor as LocalLinearActivationRoleFor,
     LinearActivationRoleFrame as LocalLinearActivationRoleFrame,
+    LinearActivationRoleFrameFor as LocalLinearActivationRoleFrameFor,
     LinearActivationRoleOutput as LocalLinearActivationRoleOutput,
+    LinearActivationRoleOutputFor as LocalLinearActivationRoleOutputFor,
     LinearActivationRoleSplitResources as LocalLinearActivationRoleSplitResources,
     LinearActivationRoleStep as LocalLinearActivationRoleStep,
+    LinearActivationRoleStepFor as LocalLinearActivationRoleStepFor,
     LinearActivationRun as LocalLinearActivationRun,
+    LinearActivationRunFor as LocalLinearActivationRunFor,
     LinearActivationSpec as LocalLinearActivationSpec,
     LinearActivationStep as LocalLinearActivationStep,
+    LinearActivationStepFor as LocalLinearActivationStepFor,
 };
 pub use material::{
     matrix_material_resources, MatrixHandoff, MatrixImportPermit, MatrixMaterialDescriptor,
@@ -78,7 +92,7 @@ const ALLOCATOR: usize = 64;
 
 /// Retirement erases dynamic state, but not a caller-retained inline wrapper.
 /// Preserve its original charge until Drop; never refund and reacquire it.
-fn retain_wrapper_metadata(lease: &mut Option<Lease<'_>>, bytes: usize) {
+fn retain_wrapper_metadata<C: AllocationContext>(lease: &mut Option<LeaseFor<C>>, bytes: usize) {
     if let Some(lease) = lease.as_mut() {
         let refund = lease.bytes.saturating_sub(bytes);
         drop(lease.split(refund));
@@ -195,13 +209,13 @@ impl Binding {
 
 // Complete native backing owners are moved into these variants. Never detach
 // their leases/guards, reconstruct a Vec from their slices, or copy their payload.
-enum CommonBacking<'b> {
+enum CommonBackingFor<C: AllocationContext> {
     Root(Zeroizing<Vec<u64>>),
-    Arithmetic(arithmetic::MaskedOutput<'b>),
-    Matrix(matrix::party::MaskedOutput<'b>),
-    Selection(selection::MaskedOutput<'b>),
+    Arithmetic(arithmetic::MaskedOutputFor<C>),
+    Matrix(matrix::party::MaskedOutputFor<C>),
+    Selection(selection::MaskedOutputFor<C>),
 }
-impl CommonBacking<'_> {
+impl<C: AllocationContext> CommonBackingFor<C> {
     fn values(&self) -> &[u64] {
         match self {
             Self::Root(v) => v,
@@ -211,12 +225,12 @@ impl CommonBacking<'_> {
         }
     }
 }
-enum MaskBacking<'b> {
+enum MaskBackingFor<C: AllocationContext> {
     Fresh(Zeroizing<Vec<u64>>),
-    Arithmetic(arithmetic::OutputMasks<'b>),
-    Selection(selection::OutputMasks<'b>),
+    Arithmetic(arithmetic::OutputMasksFor<C>),
+    Selection(selection::OutputMasksFor<C>),
 }
-impl MaskBacking<'_> {
+impl<C: AllocationContext> MaskBackingFor<C> {
     fn values(&self) -> &[u64] {
         match self {
             Self::Fresh(v) => v,
@@ -252,16 +266,15 @@ impl MaskBacking<'_> {
 ///     descriptor.into()
 /// }
 /// ```
-pub struct CommonMasked<'b, K> {
-    backing: CommonBacking<'b>,
+pub struct CommonMaskedFor<C: AllocationContext, K> {
+    backing: CommonBackingFor<C>,
     binding: Binding,
     role: u8,
     _kind: PhantomData<K>,
     // Always last: payload zeroizes and deallocates before budget refund.
-    _lease: Lease<'b>,
+    _lease: LeaseFor<C>,
 }
-pub type CommonXorMasked<'b, K> = CommonMasked<'b, K>;
-impl<K> CommonMasked<'_, K> {
+impl<C: AllocationContext, K> CommonMaskedFor<C, K> {
     pub fn descriptor(&self) -> EdgeDescriptor {
         self.binding.descriptor
     }
@@ -294,11 +307,11 @@ impl<K> CommonMasked<'_, K> {
 ///     dealer.tr([1; 32], mask, 1, output, [2; 32]);
 /// }
 /// ```
-pub struct DealerMask<'b, K> {
-    backing: MaskBacking<'b>,
+pub struct DealerMaskFor<C: AllocationContext, K> {
+    backing: MaskBackingFor<C>,
     binding: Binding,
     _kind: PhantomData<K>,
-    _lease: Lease<'b>,
+    _lease: LeaseFor<C>,
 }
 
 /// Trusted local dealer. A source identity is a developer declaration, not
@@ -336,21 +349,21 @@ pub struct DealerMask<'b, K> {
 /// # Ok(()) }
 /// # example().unwrap();
 /// ```
-pub struct LocalDealer<'b> {
+pub struct LocalDealerFor<C: AllocationContext> {
     source: SourceIdentity,
     plan: [u8; 32],
     session: [u8; 32],
     namespace: [u8; 32],
     counter: u64,
-    budget: &'b Budget,
-    _lease: Lease<'b>,
+    budget: C,
+    _lease: LeaseFor<C>,
 }
 
 /// Prepared source-bound promise and fresh masks, created before receiving
 /// private values. Failure in encode burns all three owners.
-pub struct RootInput<'b> {
-    dealer: DealerMask<'b, Ring>,
-    common: [CommonMasked<'b, Ring>; 2],
+pub struct RootInputFor<C: AllocationContext> {
+    dealer: DealerMaskFor<C, Ring>,
+    common: [CommonMaskedFor<C, Ring>; 2],
 }
 
 fn zeros(lanes: usize, budget: &Budget) -> Result<Zeroizing<Vec<u64>>, Error> {
@@ -370,37 +383,14 @@ fn fill_masks_with(
     }
     Ok(())
 }
-fn common_charge() -> usize {
-    size_of::<CommonMasked<'static, Ring>>()
+fn common_charge_for<C: AllocationContext>() -> usize {
+    size_of::<CommonMaskedFor<C, Ring>>()
 }
-fn mask_charge() -> usize {
-    size_of::<DealerMask<'static, Ring>>()
+fn mask_charge_for<C: AllocationContext>() -> usize {
+    size_of::<DealerMaskFor<C, Ring>>()
 }
 
-impl<'b> LocalDealer<'b> {
-    pub fn new(
-        source: SourceIdentity,
-        plan: [u8; 32],
-        session: [u8; 32],
-        budget: &'b Budget,
-    ) -> Result<Self, Error> {
-        if source.implementation() != approved_implementation() {
-            return Err(Error::Unsupported);
-        }
-        let lease = budget.reserve(size_of::<Self>() + (4 << 10))?;
-        let mut namespace = [0; 32];
-        getrandom::fill(&mut namespace).map_err(|_| Error::Randomness)?;
-        Ok(Self {
-            source,
-            plan,
-            session,
-            namespace,
-            counter: 0,
-            budget,
-            _lease: lease,
-        })
-    }
-
+impl<C: AllocationContext> LocalDealerFor<C> {
     fn validate(&self, descriptor: EdgeDescriptor, predicate: bool) -> Result<(), Error> {
         if descriptor.identity().source() != self.source
             || descriptor.identity().plan() != self.plan
@@ -471,9 +461,9 @@ impl<'b> LocalDealer<'b> {
         descriptor: EdgeDescriptor,
         promise: BoundRange<LocalAssumption>,
         consumer: [u8; 32],
-    ) -> Result<RootInput<'b>, Error> {
+    ) -> Result<RootInputFor<C>, Error> {
         let bytes = self.root_reservation_bytes(descriptor, &promise)?;
-        let reservation = self.budget.reserve(bytes)?;
+        let reservation = LeaseFor::reserve(&self.budget, bytes)?;
         self.prepare_root_reserved_with(descriptor, promise, consumer, reservation, |bytes| {
             getrandom::fill(bytes).map_err(|_| Error::Randomness)
         })
@@ -494,8 +484,9 @@ impl<'b> LocalDealer<'b> {
             return Err(Error::Domain);
         }
         let lanes = descriptor.shape().elements();
-        let common_bytes = 8 * lanes + ALLOCATOR + common_charge();
-        let dealer_bytes = 8 * lanes + ALLOCATOR + mask_charge() + size_of::<RootInput<'static>>();
+        let common_bytes = 8 * lanes + ALLOCATOR + common_charge_for::<C>();
+        let dealer_bytes =
+            8 * lanes + ALLOCATOR + mask_charge_for::<C>() + size_of::<RootInputFor<C>>();
         Ok(2 * common_bytes + dealer_bytes)
     }
 
@@ -506,11 +497,11 @@ impl<'b> LocalDealer<'b> {
         descriptor: EdgeDescriptor,
         promise: BoundRange<LocalAssumption>,
         consumer: [u8; 32],
-        mut lease: Lease<'b>,
+        mut lease: LeaseFor<C>,
         fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<RootInput<'b>, Error> {
+    ) -> Result<RootInputFor<C>, Error> {
         let bytes = self.root_reservation_bytes(descriptor, &promise)?;
-        if lease.bytes != bytes || !std::ptr::eq(lease.budget, self.budget) {
+        if lease.bytes != bytes || !std::ptr::eq(lease.budget.budget(), self.budget.budget()) {
             return Err(Error::Resource);
         }
         let interval = Interval {
@@ -518,31 +509,31 @@ impl<'b> LocalDealer<'b> {
             upper: promise.upper,
         };
         let lanes = descriptor.shape().elements();
-        let common_bytes = 8 * lanes + ALLOCATOR + common_charge();
+        let common_bytes = 8 * lanes + ALLOCATOR + common_charge_for::<C>();
         let left_lease = lease.split(common_bytes)?;
         let right_lease = lease.split(common_bytes)?;
         let binding = self.binding(descriptor, consumer, Some(interval))?;
-        let mut masks = zeros(lanes, self.budget)?;
-        let left = zeros(lanes, self.budget)?;
-        let right = zeros(lanes, self.budget)?;
+        let mut masks = zeros(lanes, self.budget.budget())?;
+        let left = zeros(lanes, self.budget.budget())?;
+        let right = zeros(lanes, self.budget.budget())?;
         fill_masks_with(&mut masks, descriptor.numeric().ring_bits(), fill)?;
-        Ok(RootInput {
-            dealer: DealerMask {
-                backing: MaskBacking::Fresh(masks),
+        Ok(RootInputFor {
+            dealer: DealerMaskFor {
+                backing: MaskBackingFor::Fresh(masks),
                 binding,
                 _kind: PhantomData,
                 _lease: lease,
             },
             common: [
-                CommonMasked {
-                    backing: CommonBacking::Root(left),
+                CommonMaskedFor {
+                    backing: CommonBackingFor::Root(left),
                     binding,
                     role: 0,
                     _kind: PhantomData,
                     _lease: left_lease,
                 },
-                CommonMasked {
-                    backing: CommonBacking::Root(right),
+                CommonMaskedFor {
+                    backing: CommonBackingFor::Root(right),
                     binding,
                     role: 1,
                     _kind: PhantomData,
@@ -553,13 +544,17 @@ impl<'b> LocalDealer<'b> {
     }
 }
 
-impl<'b> RootInput<'b> {
+type EncodedRootFor<C> = (DealerMaskFor<C, Ring>, [CommonMaskedFor<C, Ring>; 2]);
+type MatrixIssuedFor<C> = (DealerMaskFor<C, Ring>, [MatrixPartyFor<C>; 2]);
+type ArithmeticIssuedFor<C, K> = (DealerMaskFor<C, K>, [ArithmeticPartyFor<C, K>; 2]);
+
+impl<C: AllocationContext> RootInputFor<C> {
     /// Validate against the predeclared interval, never derive public metadata
     /// from values. Input is borrowed transiently, not copied or retained clear.
     pub fn encode(
         mut self,
         values: &[i64],
-    ) -> Result<(DealerMask<'b, Ring>, [CommonMasked<'b, Ring>; 2]), Error> {
+    ) -> Result<EncodedRootFor<C>, Error> {
         let binding = self.dealer.binding;
         let interval = binding.interval.ok_or(Error::Domain)?;
         if values.len() != binding.descriptor.shape().elements()
@@ -571,7 +566,7 @@ impl<'b> RootInput<'b> {
         }
         let bits = binding.descriptor.numeric().ring_bits();
         for common in &mut self.common {
-            let CommonBacking::Root(out) = &mut common.backing else {
+            let CommonBackingFor::Root(out) = &mut common.backing else {
                 return Err(Error::Domain);
             };
             for ((out, &value), &mask) in
@@ -585,16 +580,25 @@ impl<'b> RootInput<'b> {
 }
 
 /// Party-local matrix owner. Each instance contains only its own native keys.
-pub struct MatrixParty<'b> {
-    native: Option<matrix::party::Party<'b>>,
+/// Owning accounting does not authorize the borrowed local material codec.
+///
+/// ```compile_fail
+/// use pllm_garble::{masked_wire_reference::typed::MatrixPartyFor,
+///     shared_allocation::OwnedBudgetContext};
+/// fn no_owned_codec(party: MatrixPartyFor<OwnedBudgetContext>) {
+///     let _ = party.export_material();
+/// }
+/// ```
+pub struct MatrixPartyFor<C: AllocationContext> {
+    native: Option<matrix::party::PartyFor<C>>,
     inputs: [Binding; 2],
     output: Binding,
     operation: [u8; 32],
     role: u8,
     imported: bool,
-    lease: Option<Lease<'b>>,
+    lease: Option<LeaseFor<C>>,
     // Additional handoff metadata charge follows native secrets and original lease.
-    material_lease: Option<Lease<'b>>,
+    material_lease: Option<LeaseFor<C>>,
 }
 
 fn matrix_interval(x: Interval, w: Interval, inner: usize, bits: u8) -> Result<Interval, Error> {
@@ -622,23 +626,29 @@ fn matrix_interval(x: Interval, w: Interval, inner: usize, bits: u8) -> Result<I
 }
 
 /// Exact incremental admission; input backing and dealer remain separate owners.
-pub(crate) fn matrix_reservation_bytes(spec: matrix::Spec) -> Result<usize, Error> {
-    let native = matrix::party::resources(spec)?;
+pub(crate) fn matrix_reservation_bytes_for<C: AllocationContext>(
+    spec: matrix::Spec,
+) -> Result<usize, Error> {
+    let native = matrix::party::resources_for_context::<C>(spec)?;
     Ok(native.reservation_bytes
-        + 2 * (size_of::<MatrixParty<'static>>() + common_charge())
+        + 2 * (size_of::<MatrixPartyFor<C>>() + common_charge_for::<C>())
         + 8 * native.output_elements
         + ALLOCATOR
-        + mask_charge())
+        + mask_charge_for::<C>())
 }
 
 /// Exact incremental admission for typed arithmetic, excluding original input.
-pub(crate) fn arithmetic_reservation_bytes<K>(spec: arithmetic::Spec) -> Result<usize, Error> {
-    Ok(arithmetic::resources(spec)?.combined_reservation_bytes
-        + 2 * (size_of::<ArithmeticParty<'static, K>>() + common_charge())
-        + mask_charge())
+pub(crate) fn arithmetic_reservation_bytes_for<C: AllocationContext, K>(
+    spec: arithmetic::Spec,
+) -> Result<usize, Error> {
+    Ok(
+        arithmetic::resources_for_context::<C>(spec)?.combined_reservation_bytes
+            + 2 * (size_of::<ArithmeticPartyFor<C, K>>() + common_charge_for::<C>())
+            + mask_charge_for::<C>(),
+    )
 }
 
-impl<'b> LocalDealer<'b> {
+impl<C: AllocationContext> LocalDealerFor<C> {
     /// Private-weight matrix only. `output` Q must equal fx+fw exactly. Native
     /// singleton/256-element/2^20 complete-MAC admission is preserved unchanged.
     // Keep operation, operands, result edge and range policy explicit at issuance.
@@ -647,12 +657,12 @@ impl<'b> LocalDealer<'b> {
         &mut self,
         operation: [u8; 32],
         spec: matrix::Spec,
-        x: DealerMask<'b, Ring>,
-        w: DealerMask<'b, Ring>,
+        x: DealerMaskFor<C, Ring>,
+        w: DealerMaskFor<C, Ring>,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         range: MatrixRange,
-    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+    ) -> Result<MatrixIssuedFor<C>, Error> {
         self.matrix_with(
             operation,
             spec,
@@ -674,14 +684,14 @@ impl<'b> LocalDealer<'b> {
         &mut self,
         operation: [u8; 32],
         spec: matrix::Spec,
-        x: DealerMask<'b, Ring>,
-        w: DealerMask<'b, Ring>,
+        x: DealerMaskFor<C, Ring>,
+        w: DealerMaskFor<C, Ring>,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         range: MatrixRange,
-        reservation: Lease<'b>,
+        reservation: LeaseFor<C>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+    ) -> Result<MatrixIssuedFor<C>, Error> {
         self.matrix_with(
             operation,
             spec,
@@ -700,14 +710,14 @@ impl<'b> LocalDealer<'b> {
         &mut self,
         operation: [u8; 32],
         spec: matrix::Spec,
-        x: DealerMask<'b, Ring>,
-        w: DealerMask<'b, Ring>,
+        x: DealerMaskFor<C, Ring>,
+        w: DealerMaskFor<C, Ring>,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         range: MatrixRange,
-        reservation: Option<Lease<'b>>,
+        reservation: Option<LeaseFor<C>>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+    ) -> Result<MatrixIssuedFor<C>, Error> {
         self.matrix_with_ticket(
             operation,
             spec,
@@ -729,15 +739,15 @@ impl<'b> LocalDealer<'b> {
         &mut self,
         operation: [u8; 32],
         spec: matrix::Spec,
-        x: DealerMask<'b, Ring>,
-        w: DealerMask<'b, Ring>,
+        x: DealerMaskFor<C, Ring>,
+        w: DealerMaskFor<C, Ring>,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         range: MatrixRange,
-        reservation: Lease<'b>,
+        reservation: LeaseFor<C>,
         ticket: matrix::party::IssuanceTicket,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+    ) -> Result<MatrixIssuedFor<C>, Error> {
         self.matrix_with_ticket(
             operation,
             spec,
@@ -757,15 +767,15 @@ impl<'b> LocalDealer<'b> {
         &mut self,
         operation: [u8; 32],
         spec: matrix::Spec,
-        x: DealerMask<'b, Ring>,
-        w: DealerMask<'b, Ring>,
+        x: DealerMaskFor<C, Ring>,
+        w: DealerMaskFor<C, Ring>,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         range: MatrixRange,
-        reservation: Option<Lease<'b>>,
+        reservation: Option<LeaseFor<C>>,
         ticket: Option<matrix::party::IssuanceTicket>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+    ) -> Result<MatrixIssuedFor<C>, Error> {
         self.input(x.binding, operation)?;
         self.input(w.binding, operation)?;
         self.validate(output, false)?;
@@ -774,7 +784,7 @@ impl<'b> LocalDealer<'b> {
         if wd.weight_visibility() != Some(WeightVisibility::Private) {
             return Err(Error::Unsupported);
         }
-        let native_cost = matrix::party::resources(spec)?;
+        let native_cost = matrix::party::resources_for_context::<C>(spec)?;
         let weight_dimensions = match spec.layout {
             matrix::MatrixLayout::InputOutput => [spec.inner, spec.columns],
             matrix::MatrixLayout::OutputInput => [spec.columns, spec.inner],
@@ -808,19 +818,24 @@ impl<'b> LocalDealer<'b> {
                 spec.bits,
             )?),
         };
-        let party_bytes = size_of::<MatrixParty<'static>>() + common_charge();
-        let mask_bytes = 8 * native_cost.output_elements + ALLOCATOR + mask_charge();
-        let bytes = matrix_reservation_bytes(spec)?;
+        let party_bytes = size_of::<MatrixPartyFor<C>>() + common_charge_for::<C>();
+        let mask_bytes = 8 * native_cost.output_elements + ALLOCATOR + mask_charge_for::<C>();
+        let bytes = matrix_reservation_bytes_for::<C>(spec)?;
         let mut reservation = match reservation {
-            Some(lease) if lease.bytes == bytes && std::ptr::eq(lease.budget, self.budget) => lease,
+            Some(lease)
+                if lease.bytes == bytes
+                    && std::ptr::eq(lease.budget.budget(), self.budget.budget()) =>
+            {
+                lease
+            }
             Some(_) => return Err(Error::Resource),
-            None => self.budget.reserve(bytes)?,
+            None => LeaseFor::reserve(&self.budget, bytes)?,
         };
         let left_lease = reservation.split(party_bytes)?;
         let right_lease = reservation.split(party_bytes)?;
         let mask_lease = reservation.split(mask_bytes)?;
         let binding = self.binding(output, next_consumer, interval)?;
-        let mut masks = zeros(native_cost.output_elements, self.budget)?;
+        let mut masks = zeros(native_cost.output_elements, self.budget.budget())?;
         fill_masks_with(&mut masks, spec.bits, &mut *fill)?;
         let op = digest(&[
             b"pllm.sigma.typed.matrix.v1\0",
@@ -859,14 +874,14 @@ impl<'b> LocalDealer<'b> {
         }?;
         let inputs = [x.binding, w.binding];
         Ok((
-            DealerMask {
-                backing: MaskBacking::Fresh(masks),
+            DealerMaskFor {
+                backing: MaskBackingFor::Fresh(masks),
                 binding,
                 _kind: PhantomData,
                 _lease: mask_lease,
             },
             [
-                MatrixParty {
+                MatrixPartyFor {
                     native: Some(left),
                     inputs,
                     output: binding,
@@ -876,7 +891,7 @@ impl<'b> LocalDealer<'b> {
                     lease: Some(left_lease),
                     material_lease: None,
                 },
-                MatrixParty {
+                MatrixPartyFor {
                     native: Some(right),
                     inputs,
                     output: binding,
@@ -891,7 +906,7 @@ impl<'b> LocalDealer<'b> {
     }
 }
 
-impl<'b> MatrixParty<'b> {
+impl<C: AllocationContext> MatrixPartyFor<C> {
     pub fn cancel(&mut self) {
         self.native = None;
         retain_wrapper_metadata(&mut self.lease, size_of::<Self>());
@@ -900,10 +915,10 @@ impl<'b> MatrixParty<'b> {
     /// Consumes both evaluator capabilities, even on wrong role/mask/context.
     pub fn begin(
         &mut self,
-        x: CommonMasked<'b, Ring>,
-        w: CommonMasked<'b, Ring>,
+        x: CommonMaskedFor<C, Ring>,
+        w: CommonMaskedFor<C, Ring>,
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<matrix::party::Frame<'b>, Error> {
+    ) -> Result<matrix::party::FrameFor<C>, Error> {
         let result = (|| {
             if x.binding != self.inputs[0]
                 || w.binding != self.inputs[1]
@@ -923,15 +938,15 @@ impl<'b> MatrixParty<'b> {
         }
         result
     }
-    pub fn finish(&mut self, peer: &[u8]) -> Result<CommonMasked<'b, Ring>, Error> {
+    pub fn finish(&mut self, peer: &[u8]) -> Result<CommonMaskedFor<C, Ring>, Error> {
         let result = (|| {
             let output = self.native.as_mut().ok_or(Error::Consumed)?.finish(peer)?;
             let lease = self.lease.as_mut().ok_or(Error::Consumed)?;
             let lease = lease.split(lease.bytes - size_of::<Self>())?;
             // Native completed owner retains its own inline metadata charge.
             self.material_lease = None;
-            Ok(CommonMasked {
-                backing: CommonBacking::Matrix(output),
+            Ok(CommonMaskedFor {
+                backing: CommonBackingFor::Matrix(output),
                 binding: self.output,
                 role: self.role,
                 _kind: PhantomData,
@@ -945,30 +960,30 @@ impl<'b> MatrixParty<'b> {
     }
 }
 
-pub struct ArithmeticParty<'b, K> {
-    native: Option<arithmetic::Party<'b>>,
+pub struct ArithmeticPartyFor<C: AllocationContext, K> {
+    native: Option<arithmetic::PartyFor<C>>,
     input: Binding,
     output: Binding,
     role: u8,
     _kind: PhantomData<K>,
-    lease: Option<Lease<'b>>,
+    lease: Option<LeaseFor<C>>,
 }
 // Keep native output ownership inline: boxing adds an unpriced, infallible allocation.
 #[allow(clippy::large_enum_variant)]
-pub enum Step<'b, K> {
-    Frame(arithmetic::Frame<'b>),
-    Output(CommonMasked<'b, K>),
+pub enum StepFor<C: AllocationContext, K> {
+    Frame(arithmetic::FrameFor<C>),
+    Output(CommonMaskedFor<C, K>),
 }
 
-impl<'b> LocalDealer<'b> {
+impl<C: AllocationContext> LocalDealerFor<C> {
     pub fn tr(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         shift: u8,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
-    ) -> Result<(DealerMask<'b, Ring>, [ArithmeticParty<'b, Ring>; 2]), Error> {
+    ) -> Result<ArithmeticIssuedFor<C, Ring>, Error> {
         self.arithmetic(
             operation,
             input,
@@ -981,11 +996,11 @@ impl<'b> LocalDealer<'b> {
     pub fn gap_ars(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         shift: u8,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
-    ) -> Result<(DealerMask<'b, Ring>, [ArithmeticParty<'b, Ring>; 2]), Error> {
+    ) -> Result<ArithmeticIssuedFor<C, Ring>, Error> {
         self.arithmetic(
             operation,
             input,
@@ -1000,16 +1015,10 @@ impl<'b> LocalDealer<'b> {
     pub fn drelu(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
-    ) -> Result<
-        (
-            DealerMask<'b, Predicate>,
-            [ArithmeticParty<'b, Predicate>; 2],
-        ),
-        Error,
-    > {
+    ) -> Result<ArithmeticIssuedFor<C, Predicate>, Error> {
         self.arithmetic(
             operation,
             input,
@@ -1023,12 +1032,12 @@ impl<'b> LocalDealer<'b> {
     fn arithmetic<K>(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         gate: arithmetic::Gate,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         predicate: bool,
-    ) -> Result<(DealerMask<'b, K>, [ArithmeticParty<'b, K>; 2]), Error> {
+    ) -> Result<ArithmeticIssuedFor<C, K>, Error> {
         self.arithmetic_with(
             operation,
             input,
@@ -1047,13 +1056,13 @@ impl<'b> LocalDealer<'b> {
     pub(crate) fn gap_ars_reserved_with(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         shift: u8,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
-        reservation: Lease<'b>,
+        reservation: LeaseFor<C>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, [ArithmeticParty<'b, Ring>; 2]), Error> {
+    ) -> Result<ArithmeticIssuedFor<C, Ring>, Error> {
         self.arithmetic_reserved_with(
             operation,
             input,
@@ -1074,13 +1083,13 @@ impl<'b> LocalDealer<'b> {
     pub(crate) fn tr_reserved_with(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         shift: u8,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
-        reservation: Lease<'b>,
+        reservation: LeaseFor<C>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, Ring>, [ArithmeticParty<'b, Ring>; 2]), Error> {
+    ) -> Result<ArithmeticIssuedFor<C, Ring>, Error> {
         self.arithmetic_reserved_with(
             operation,
             input,
@@ -1101,18 +1110,12 @@ impl<'b> LocalDealer<'b> {
     pub(crate) fn drelu_reserved_with(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
-        reservation: Lease<'b>,
+        reservation: LeaseFor<C>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<
-        (
-            DealerMask<'b, Predicate>,
-            [ArithmeticParty<'b, Predicate>; 2],
-        ),
-        Error,
-    > {
+    ) -> Result<ArithmeticIssuedFor<C, Predicate>, Error> {
         self.arithmetic_reserved_with(
             operation,
             input,
@@ -1129,14 +1132,14 @@ impl<'b> LocalDealer<'b> {
     fn arithmetic_reserved_with<K>(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         gate: arithmetic::Gate,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         predicate: bool,
-        reservation: Lease<'b>,
+        reservation: LeaseFor<C>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, K>, [ArithmeticParty<'b, K>; 2]), Error> {
+    ) -> Result<ArithmeticIssuedFor<C, K>, Error> {
         self.arithmetic_with(
             operation,
             input,
@@ -1153,14 +1156,14 @@ impl<'b> LocalDealer<'b> {
     fn arithmetic_with<K>(
         &mut self,
         operation: [u8; 32],
-        input: DealerMask<'b, Ring>,
+        input: DealerMaskFor<C, Ring>,
         gate: arithmetic::Gate,
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         predicate: bool,
-        reservation: Option<Lease<'b>>,
+        reservation: Option<LeaseFor<C>>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
-    ) -> Result<(DealerMask<'b, K>, [ArithmeticParty<'b, K>; 2]), Error> {
+    ) -> Result<ArithmeticIssuedFor<C, K>, Error> {
         self.input(input.binding, operation)?;
         self.validate(output, predicate)?;
         let descriptor = input.binding.descriptor;
@@ -1176,7 +1179,7 @@ impl<'b> LocalDealer<'b> {
             lanes: descriptor.shape().elements(),
             gate,
         };
-        arithmetic::resources(spec)?;
+        arithmetic::resources_for_context::<C>(spec)?;
         let (expected, interval) = match gate {
             arithmetic::Gate::Tr { shift } => {
                 let f = numeric
@@ -1214,16 +1217,21 @@ impl<'b> LocalDealer<'b> {
         if output.numeric() != expected {
             return Err(Error::Domain);
         }
-        let party_bytes = size_of::<ArithmeticParty<'static, K>>() + common_charge();
-        let bytes = arithmetic_reservation_bytes::<K>(spec)?;
+        let party_bytes = size_of::<ArithmeticPartyFor<C, K>>() + common_charge_for::<C>();
+        let bytes = arithmetic_reservation_bytes_for::<C, K>(spec)?;
         let mut reservation = match reservation {
-            Some(lease) if lease.bytes == bytes && std::ptr::eq(lease.budget, self.budget) => lease,
+            Some(lease)
+                if lease.bytes == bytes
+                    && std::ptr::eq(lease.budget.budget(), self.budget.budget()) =>
+            {
+                lease
+            }
             Some(_) => return Err(Error::Resource),
-            None => self.budget.reserve(bytes)?,
+            None => LeaseFor::reserve(&self.budget, bytes)?,
         };
         let left_lease = reservation.split(party_bytes)?;
         let right_lease = reservation.split(party_bytes)?;
-        let mask_lease = reservation.split(mask_charge())?;
+        let mask_lease = reservation.split(mask_charge_for::<C>())?;
         let binding = self.binding(output, next_consumer, interval)?;
         let op = digest(&[
             b"pllm.sigma.typed.arithmetic.v1\0",
@@ -1247,14 +1255,14 @@ impl<'b> LocalDealer<'b> {
             fill,
         )?;
         Ok((
-            DealerMask {
-                backing: MaskBacking::Arithmetic(masks),
+            DealerMaskFor {
+                backing: MaskBackingFor::Arithmetic(masks),
                 binding,
                 _kind: PhantomData,
                 _lease: mask_lease,
             },
             [
-                ArithmeticParty {
+                ArithmeticPartyFor {
                     native: Some(left),
                     input: input.binding,
                     output: binding,
@@ -1262,7 +1270,7 @@ impl<'b> LocalDealer<'b> {
                     _kind: PhantomData,
                     lease: Some(left_lease),
                 },
-                ArithmeticParty {
+                ArithmeticPartyFor {
                     native: Some(right),
                     input: input.binding,
                     output: binding,
@@ -1275,12 +1283,15 @@ impl<'b> LocalDealer<'b> {
     }
 }
 
-impl<'b, K> ArithmeticParty<'b, K> {
+impl<C: AllocationContext, K> ArithmeticPartyFor<C, K> {
     pub fn cancel(&mut self) {
         self.native = None;
         retain_wrapper_metadata(&mut self.lease, size_of::<Self>());
     }
-    pub fn begin(&mut self, input: CommonMasked<'b, Ring>) -> Result<arithmetic::Frame<'b>, Error> {
+    pub fn begin(
+        &mut self,
+        input: CommonMaskedFor<C, Ring>,
+    ) -> Result<arithmetic::FrameFor<C>, Error> {
         let result = (|| {
             if input.binding != self.input || input.role != self.role {
                 return Err(Error::Context);
@@ -1295,15 +1306,15 @@ impl<'b, K> ArithmeticParty<'b, K> {
         }
         result
     }
-    pub fn advance(&mut self, peer: &[u8]) -> Result<Step<'b, K>, Error> {
+    pub fn advance(&mut self, peer: &[u8]) -> Result<StepFor<C, K>, Error> {
         let result = (|| match self.native.as_mut().ok_or(Error::Consumed)?.advance(peer)? {
-            arithmetic::Step::Frame(frame) => Ok(Step::Frame(frame)),
-            arithmetic::Step::Output(output) => {
+            arithmetic::StepFor::Frame(frame) => Ok(StepFor::Frame(frame)),
+            arithmetic::StepFor::Output(output) => {
                 let lease = self.lease.as_mut().ok_or(Error::Consumed)?;
                 let lease = lease.split(lease.bytes - size_of::<Self>())?;
                 // Keep completed native owner charged until wrapper Drop.
-                Ok(Step::Output(CommonMasked {
-                    backing: CommonBacking::Arithmetic(output),
+                Ok(StepFor::Output(CommonMaskedFor {
+                    backing: CommonBackingFor::Arithmetic(output),
                     binding: self.output,
                     role: self.role,
                     _kind: PhantomData,
@@ -1315,6 +1326,92 @@ impl<'b, K> ArithmeticParty<'b, K> {
             self.cancel();
         }
         result
+    }
+}
+
+type CommonBacking<'b> = CommonBackingFor<&'b Budget>;
+type MaskBacking<'b> = MaskBackingFor<&'b Budget>;
+pub type CommonMasked<'b, K> = CommonMaskedFor<&'b Budget, K>;
+pub type CommonXorMasked<'b, K> = CommonMasked<'b, K>;
+pub type DealerMask<'b, K> = DealerMaskFor<&'b Budget, K>;
+pub type LocalDealer<'b> = LocalDealerFor<&'b Budget>;
+pub type RootInput<'b> = RootInputFor<&'b Budget>;
+pub type MatrixParty<'b> = MatrixPartyFor<&'b Budget>;
+pub type ArithmeticParty<'b, K> = ArithmeticPartyFor<&'b Budget, K>;
+pub type Step<'b, K> = StepFor<&'b Budget, K>;
+pub type OwnedLocalDealer = LocalDealerFor<OwnedBudgetContext>;
+pub type OwnedDealerMask<K> = DealerMaskFor<OwnedBudgetContext, K>;
+pub type OwnedCommonMasked<K> = CommonMaskedFor<OwnedBudgetContext, K>;
+
+fn common_charge() -> usize {
+    common_charge_for::<&Budget>()
+}
+fn mask_charge() -> usize {
+    mask_charge_for::<&Budget>()
+}
+#[cfg(test)]
+pub(crate) fn matrix_reservation_bytes(spec: matrix::Spec) -> Result<usize, Error> {
+    matrix_reservation_bytes_for::<&Budget>(spec)
+}
+#[cfg(test)]
+pub(crate) fn arithmetic_reservation_bytes<K>(spec: arithmetic::Spec) -> Result<usize, Error> {
+    arithmetic_reservation_bytes_for::<&Budget, K>(spec)
+}
+
+impl<'b> LocalDealer<'b> {
+    pub fn new(
+        source: SourceIdentity,
+        plan: [u8; 32],
+        session: [u8; 32],
+        budget: &'b Budget,
+    ) -> Result<Self, Error> {
+        if source.implementation() != approved_implementation() {
+            return Err(Error::Unsupported);
+        }
+        Self::from_reserved_namespace(
+            source,
+            plan,
+            session,
+            budget.reserve(size_of::<Self>() + (4 << 10))?,
+        )
+    }
+}
+impl OwnedLocalDealer {
+    pub fn new(
+        source: SourceIdentity,
+        plan: [u8; 32],
+        session: [u8; 32],
+        budget: &OwnedBudget,
+    ) -> Result<Self, Error> {
+        if source.implementation() != approved_implementation() {
+            return Err(Error::Unsupported);
+        }
+        Self::from_reserved_namespace(
+            source,
+            plan,
+            session,
+            budget.reserve_native(size_of::<Self>() + (4 << 10))?,
+        )
+    }
+}
+impl<C: AllocationContext> LocalDealerFor<C> {
+    fn from_reserved_namespace(
+        source: SourceIdentity,
+        plan: [u8; 32],
+        session: [u8; 32],
+        lease: LeaseFor<C>,
+    ) -> Result<Self, Error> {
+        let mut namespace = [0; 32];
+        getrandom::fill(&mut namespace).map_err(|_| Error::Randomness)?;
+        Ok(Self {
+            source,
+            plan,
+            session,
+            namespace,
+            counter: 0,
+            budget: lease.budget.share(),
+            _lease: lease,
+        })
     }
 }
 
