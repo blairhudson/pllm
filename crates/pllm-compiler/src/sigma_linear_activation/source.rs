@@ -36,6 +36,114 @@ pub struct ExpectedSigmaSourcePin {
     selection: CheckpointTensorSelection,
 }
 impl ExpectedSigmaSourcePin {
+    /// Allocation-free quote for the separately admitted metadata constructor.
+    /// Inputs already exist: include their actual backing capacities, including
+    /// the consumed artifact digest and the two borrowed expected digest owners.
+    /// `retained_baseline_bytes` covers OTHER live state, not these inputs. This
+    /// does not admit parsing, Python, plan construction, source import or native
+    /// execution. Registration still requires those independent complete bounds.
+    ///
+    /// Only existing geometry/digest validation runs here. Shared selected-source
+    /// validation remains authoritative after the exact-capacity tuple is built;
+    /// this quote is neither a validated pin nor a new source trust authority.
+    pub fn checked_construction_quote(
+        artifact: &NamedDigest,
+        selection: &CheckpointTensorSelection,
+        expected_config: &Digest,
+        expected_semantic_plan: &Digest,
+        retained_baseline_bytes: usize,
+    ) -> Result<SigmaSourceConstructionResources, &'static str> {
+        // Keep the existing identity error order, including digest mismatch
+        // before config/plan identity and shared revision/offset validation.
+        geometry(selection)?;
+        if checked_digest_identity(&artifact.digest)? != selection.content_sha256 {
+            return Err("inconsistent expected source digest");
+        }
+        checked_digest_identity(expected_config)?;
+        checked_digest_identity(expected_semantic_plan)?;
+        let selection_backing_bytes = selection.checked_metadata_backing_bytes()?;
+        let tuple_copy_backing_bytes = checked_sum_bytes([
+            selection.checkpoint.len(),
+            selection.immutable_revision.len(),
+            selection.tensor.len(),
+            checked_coordinate_copy_bytes(selection.output_coordinates.len())?,
+            checked_coordinate_copy_bytes(selection.inner_coordinates.len())?,
+        ])?;
+        SigmaSourceConstructionResources::checked_new(
+            retained_baseline_bytes,
+            selection_backing_bytes,
+            artifact.id.capacity(),
+            checked_sum_bytes([
+                artifact.digest.backing_capacity_bytes(),
+                expected_config.backing_capacity_bytes(),
+                expected_semantic_plan.backing_capacity_bytes(),
+            ])?,
+            tuple_copy_backing_bytes,
+        )
+    }
+
+    /// Opt-in metadata admission, with static allocation-free errors. The cap
+    /// must already be reserved by the caller and held for this entire operation
+    /// (and the returned owner); a numeric cap is not a budget reservation token.
+    /// Requote these same immutable inputs inside the boundary before any copy.
+    /// Legacy `from_trusted_publisher` deliberately keeps its existing behavior.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_trusted_publisher_admitted(
+        artifact: NamedDigest,
+        selected_bytes: usize,
+        selection: CheckpointTensorSelection,
+        dtype: SourceDtype,
+        endian: SourceEndian,
+        tensor_offset: u64,
+        expected_config: &Digest,
+        expected_semantic_plan: &Digest,
+        retained_baseline_bytes: usize,
+        cap: usize,
+    ) -> Result<Self, &'static str> {
+        Self::checked_construction_quote(
+            &artifact,
+            &selection,
+            expected_config,
+            expected_semantic_plan,
+            retained_baseline_bytes,
+        )?
+        .admit(cap)?;
+        // Freeze the same parsed identities as the legacy tuple initializer,
+        // before allocation and before shared selected-source validation.
+        let expected_config = checked_digest_identity(expected_config)?;
+        let expected_semantic_plan = checked_digest_identity(expected_semantic_plan)?;
+        let tuple = SelectedSourceTuple {
+            checkpoint: checked_exact_source_string(&selection.checkpoint)?,
+            immutable_revision: checked_exact_source_string(&selection.immutable_revision)?,
+            tensor: checked_exact_source_string(&selection.tensor)?,
+            original_shape: selection.original_weight_shape,
+            output_coordinates: checked_exact_source_coordinates(&selection.output_coordinates)?,
+            inner_coordinates: checked_exact_source_coordinates(&selection.inner_coordinates)?,
+            output_input_row_major: selection.weight_layout == "output_input_row_major",
+            dtype,
+            endian,
+            tensor_offset,
+            expected_config,
+            expected_semantic_plan,
+        };
+        let result = Self {
+            selected: ExpectedSelectedSource::checked_from_trusted_publisher(
+                artifact,
+                tuple,
+                selected_bytes,
+            )?,
+            selection,
+        };
+        // Same shared authority, selected-byte/geometry rules and final combined
+        // metadata cap as legacy. Reuse the import's scalar metadata policy, not
+        // its workspace/resource inventory: none of that state is live here.
+        checked_source_metadata_bytes(
+            result.selection.checked_metadata_backing_bytes()?,
+            result.selected.checked_metadata_backing_bytes()?,
+        )?;
+        Ok(result)
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn from_trusted_publisher(
         artifact: NamedDigest,
@@ -60,8 +168,8 @@ impl ExpectedSigmaSourcePin {
         .map_err(String::from)
     }
 
-    // Expected metadata construction predates the admitted boundary. It clones
-    // declaration metadata, never source bytes; failures still use static text.
+    // Legacy expected metadata construction predates the admitted boundary. It
+    // clones declaration metadata, never source bytes; keep its API unchanged.
     #[allow(clippy::too_many_arguments)]
     fn checked_from_trusted_publisher(
         artifact: NamedDigest,
@@ -146,6 +254,151 @@ impl ExpectedSigmaSourcePin {
             request.selection.checked_metadata_backing_bytes()?,
         )
     }
+}
+
+/// Logical metadata-only construction census. Backings are counted once across
+/// moves, while named inline origin/argument/result slots are charged separately.
+/// No allocator headers, physical allocator capacity, RSS or ABI-stack claim.
+/// Source bytes, coefficients and import workspaces are not live yet and are NOT
+/// charged here. A later import needs its own live-overlap quote/reservation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SigmaSourceConstructionResources {
+    pub retained_baseline_bytes: usize,
+    pub input_metadata_backing_bytes: usize,
+    pub tuple_copy_backing_bytes: usize,
+    pub retained_pin_bytes: usize,
+    pub construction_scratch_bytes: usize,
+    pub construction_overlap_bytes: usize,
+    pub peak_bytes: usize,
+}
+
+impl SigmaSourceConstructionResources {
+    fn checked_new(
+        retained_baseline_bytes: usize,
+        selection_backing_bytes: usize,
+        artifact_name_backing_bytes: usize,
+        input_digest_backing_bytes: usize,
+        tuple_copy_backing_bytes: usize,
+    ) -> Result<Self, &'static str> {
+        let retained_metadata_backing_bytes = checked_sum_bytes([
+            selection_backing_bytes,
+            artifact_name_backing_bytes,
+            tuple_copy_backing_bytes,
+        ])?;
+        let input_metadata_backing_bytes = checked_sum_bytes([
+            selection_backing_bytes,
+            artifact_name_backing_bytes,
+            input_digest_backing_bytes,
+        ])?;
+        let retained_pin_bytes = checked_sum_bytes([
+            size_of::<ExpectedSigmaSourcePin>(),
+            retained_metadata_backing_bytes,
+        ])?;
+        // Explicit logical slots, not an allowance per clone or source element.
+        // Sum named transition slots conservatively; never sum fictitious source
+        // buffers or a workspace that will only be constructed during import.
+        let construction_scratch_bytes = checked_sum_bytes([
+            // Caller origins and consuming constructor arguments. Destination
+            // pin's inline selection/artifact metadata is already retained above.
+            size_of::<NamedDigest>(),
+            size_of::<CheckpointTensorSelection>(),
+            size_of::<NamedDigest>(),
+            size_of::<CheckpointTensorSelection>(),
+            size_of::<Digest>(),
+            size_of::<Digest>(),
+            // Local tuple and shared constructor's incoming tuple; shared local
+            // expected owner and its result, then local pin and caller result.
+            size_of::<SelectedSourceTuple>(),
+            size_of::<SelectedSourceTuple>(),
+            size_of::<ExpectedSelectedSource>(),
+            size_of::<Result<ExpectedSelectedSource, &'static str>>(),
+            size_of::<ExpectedSigmaSourcePin>(),
+            size_of::<Result<ExpectedSigmaSourcePin, &'static str>>(),
+            // One exact copy helper runs at a time. Box -> Vec/String moves
+            // without a second backing allocation; partial tuple fields live
+            // in the tuple slot already counted above.
+            checked_sum_bytes([
+                size_of::<Box<str>>(),
+                size_of::<String>(),
+                size_of::<Result<String, &'static str>>(),
+            ])?
+            .max(checked_sum_bytes([
+                size_of::<Box<[usize]>>(),
+                size_of::<Vec<usize>>(),
+                size_of::<Result<Vec<usize>, &'static str>>(),
+            ])?),
+            // Two parsed expected identities; digest decoder's local and result,
+            // plus artifact comparison result. All fixed arrays, no digest clone.
+            size_of::<[[u8; 32]; 2]>(),
+            size_of::<[u8; 32]>(),
+            size_of::<Result<[u8; 32], &'static str>>(),
+            size_of::<[u8; 32]>(),
+            // Allocation-free geometry result and construction quote. No import
+            // quote records or workspace are constructed in this operation.
+            size_of::<Result<([usize; 3], FixtureScope), &'static str>>(),
+            size_of::<SigmaSourceConstructionResources>(),
+            size_of::<Result<SigmaSourceConstructionResources, &'static str>>(),
+        ])?;
+        let construction_overlap_bytes = checked_sum_bytes([
+            retained_pin_bytes,
+            input_digest_backing_bytes,
+            construction_scratch_bytes,
+        ])?;
+        Ok(Self {
+            retained_baseline_bytes,
+            input_metadata_backing_bytes,
+            tuple_copy_backing_bytes,
+            retained_pin_bytes,
+            construction_scratch_bytes,
+            construction_overlap_bytes,
+            peak_bytes: checked_sum_bytes([retained_baseline_bytes, construction_overlap_bytes])?,
+        })
+    }
+
+    fn admit(self, cap: usize) -> Result<(), &'static str> {
+        if self.peak_bytes > cap {
+            return Err("expected source construction capacity limit exceeded");
+        }
+        Ok(())
+    }
+}
+
+fn checked_coordinate_copy_bytes(len: usize) -> Result<usize, &'static str> {
+    len.checked_mul(size_of::<usize>())
+        .ok_or("vector backing overflow")
+}
+
+// Do not use String/Vec::clone or try_reserve_exact: neither is our contract for
+// a prequoted capacity. Boxed str/slices have exact logical lengths; conversion
+// into String/Vec transfers that backing without copying or reallocating. The
+// checks also make any incompatible capacity contract fail closed. Physical
+// allocator rounding is explicitly outside this logical-capacity accounting.
+fn checked_exact_source_string(value: &str) -> Result<String, &'static str> {
+    #[cfg(test)]
+    SOURCE_METADATA_COPY_FACTORIES.with(|n| n.set(n.get() + 1));
+    let boxed = Box::<str>::from(value);
+    let result = boxed.into_string();
+    if result.capacity() != value.len() {
+        return Err("non-exact source metadata copy capacity");
+    }
+    Ok(result)
+}
+
+fn checked_exact_source_coordinates(value: &[usize]) -> Result<Vec<usize>, &'static str> {
+    checked_coordinate_copy_bytes(value.len())?;
+    #[cfg(test)]
+    SOURCE_METADATA_COPY_FACTORIES.with(|n| n.set(n.get() + 1));
+    let boxed = Box::<[usize]>::from(value);
+    let result = boxed.into_vec();
+    if result.capacity() != value.len() {
+        return Err("non-exact source metadata copy capacity");
+    }
+    Ok(result)
+}
+
+#[cfg(test)]
+thread_local! {
+    static SOURCE_METADATA_COPY_FACTORIES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 pub struct SigmaSourceBytes<'a> {
@@ -576,3 +829,7 @@ fn certify_source_checked_with_context_and_workspace(
 #[cfg(test)]
 #[path = "source_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "source_construction_tests.rs"]
+mod construction_tests;

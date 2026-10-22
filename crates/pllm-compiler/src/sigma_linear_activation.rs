@@ -36,16 +36,24 @@ mod source;
 #[path = "sigma_linear_activation/execution.rs"]
 mod execution;
 pub use execution::{
-    execute_sigma_linear_activation, sigma_execution_compiler_preflight,
-    sigma_execution_role_split_resources, SigmaExecutionError, SigmaExecutionFrame,
-    SigmaExecutionMask, SigmaExecutionOutput, SigmaExecutionProvenance, SigmaExecutionRole,
-    SigmaExecutionRoleCoordinator, SigmaExecutionRoleFrame, SigmaExecutionRoleOutput,
-    SigmaExecutionRoleSplitResources, SigmaExecutionRoleStep, SigmaExecutionRun,
-    SigmaExecutionStep,
+    execute_owned_sigma_linear_activation, execute_sigma_linear_activation,
+    owned_sigma_execution_compiler_preflight, owned_sigma_execution_role_split_resources,
+    sigma_execution_compiler_preflight, sigma_execution_role_split_resources,
+    OwnedSigmaExecutionFrame, OwnedSigmaExecutionMask, OwnedSigmaExecutionOutput,
+    OwnedSigmaExecutionRole, OwnedSigmaExecutionRoleCoordinator, OwnedSigmaExecutionRoleFrame,
+    OwnedSigmaExecutionRoleOutput, OwnedSigmaExecutionRoleStep, OwnedSigmaExecutionRun,
+    OwnedSigmaExecutionStep, SigmaExecutionContext, SigmaExecutionError, SigmaExecutionFrame,
+    SigmaExecutionFrameFor, SigmaExecutionMask, SigmaExecutionMaskFor, SigmaExecutionOutput,
+    SigmaExecutionOutputFor, SigmaExecutionProvenance, SigmaExecutionRole,
+    SigmaExecutionRoleCoordinator, SigmaExecutionRoleCoordinatorFor, SigmaExecutionRoleFor,
+    SigmaExecutionRoleFrame, SigmaExecutionRoleFrameFor, SigmaExecutionRoleOutput,
+    SigmaExecutionRoleOutputFor, SigmaExecutionRoleSplitResources, SigmaExecutionRoleStep,
+    SigmaExecutionRoleStepFor, SigmaExecutionRun, SigmaExecutionRunFor, SigmaExecutionStep,
+    SigmaExecutionStepFor,
 };
 pub use source::{
     certify_source_checked_sigma_linear_activation, import_sigma_source_bytes, CheckedSigmaSource,
-    ExpectedSigmaSourcePin, SigmaSourceBytes, SigmaSourceResources,
+    ExpectedSigmaSourcePin, SigmaSourceBytes, SigmaSourceConstructionResources, SigmaSourceResources,
     SourceCheckedSigmaLinearActivation, SourceDtype, SourceEndian,
 };
 

@@ -7,7 +7,9 @@
 
 use super::*;
 use pllm_garble::masked_wire_reference::{matrix, typed};
-use pllm_garble::shared_allocation::{Budget, ExternalCharge};
+use pllm_garble::shared_allocation::{
+    AllocationContext, Budget, ExternalCharge, OwnedBudget, OwnedBudgetContext, OwnedExternalCharge,
+};
 use std::alloc::Layout;
 use std::sync::{atomic::AtomicUsize, Arc};
 
@@ -25,13 +27,168 @@ fn execution_sum(parts: impl IntoIterator<Item = usize>) -> Result<usize, SigmaE
     })
 }
 
+mod storage_seal {
+    pub trait Sealed {}
+    impl Sealed for &super::Budget {}
+    impl Sealed for super::OwnedBudgetContext {}
+}
+
+/// Storage specialization only. No source, issuance, numeric or transport authority.
+/// Sealed to the original borrowed counter and the native owning context.
+#[doc(hidden)]
+pub trait SigmaExecutionContext: AllocationContext + storage_seal::Sealed {
+    const OWNED: bool;
+    type Root;
+    type Charge;
+    type Step;
+    type RoleStep;
+    fn frames_step(frames: [SigmaExecutionFrameFor<Self>; 2]) -> Self::Step;
+    fn output_step(outputs: [SigmaExecutionOutputFor<Self>; 2]) -> Self::Step;
+    fn role_frame_step(frame: roles::SigmaExecutionRoleFrameFor<Self>) -> Self::RoleStep;
+    fn role_ready_step() -> Self::RoleStep;
+    fn root_budget(root: &Self::Root) -> &Budget;
+    fn reserve(root: &Self::Root, bytes: usize) -> Result<Self::Charge, typed::Error>;
+    fn charge_is_for(charge: &Self::Charge, budget: &Budget) -> bool;
+    fn payload(charge: &Self::Charge) -> usize;
+    fn grow(charge: &mut Self::Charge, bytes: usize) -> Result<(), typed::Error>;
+    fn issue(
+        dealer: &mut typed::LocalDealerFor<Self>,
+        spec: typed::LocalLinearActivationSpec,
+        input: &[i64],
+        coefficients: &[i64],
+        charge: &mut Self::Charge,
+    ) -> Result<
+        (
+            typed::DealerMaskFor<Self, typed::Ring>,
+            typed::LocalLinearActivationRunFor<Self>,
+        ),
+        typed::Error,
+    >;
+    fn split(
+        run: typed::LocalLinearActivationRunFor<Self>,
+        charge: &mut Self::Charge,
+    ) -> Result<roles::NativeRolesFor<Self>, typed::Error>;
+}
+
+impl<'b> SigmaExecutionContext for &'b Budget {
+    const OWNED: bool = false;
+    type Root = &'b Budget;
+    type Charge = ExternalCharge<'b>;
+    type Step = SigmaExecutionStep<'b>;
+    type RoleStep = roles::SigmaExecutionRoleStep<'b>;
+    fn frames_step(frames: [SigmaExecutionFrameFor<Self>; 2]) -> Self::Step {
+        SigmaExecutionStep::Frames(frames)
+    }
+    fn output_step(outputs: [SigmaExecutionOutputFor<Self>; 2]) -> Self::Step {
+        SigmaExecutionStep::Output(outputs)
+    }
+    fn role_frame_step(frame: roles::SigmaExecutionRoleFrameFor<Self>) -> Self::RoleStep {
+        roles::SigmaExecutionRoleStep::Frame(frame)
+    }
+    fn role_ready_step() -> Self::RoleStep {
+        roles::SigmaExecutionRoleStep::Ready
+    }
+    fn root_budget(root: &Self::Root) -> &Budget {
+        root
+    }
+    fn reserve(root: &Self::Root, bytes: usize) -> Result<Self::Charge, typed::Error> {
+        (*root).charge_external(bytes)
+    }
+    fn charge_is_for(charge: &Self::Charge, budget: &Budget) -> bool {
+        charge.is_for(budget)
+    }
+    fn payload(charge: &Self::Charge) -> usize {
+        charge.payload_bytes()
+    }
+    fn grow(charge: &mut Self::Charge, bytes: usize) -> Result<(), typed::Error> {
+        charge.resize_payload(bytes)
+    }
+    fn issue(
+        dealer: &mut typed::LocalDealerFor<Self>,
+        spec: typed::LocalLinearActivationSpec,
+        input: &[i64],
+        coefficients: &[i64],
+        charge: &mut Self::Charge,
+    ) -> Result<
+        (
+            typed::DealerMaskFor<Self, typed::Ring>,
+            typed::LocalLinearActivationRunFor<Self>,
+        ),
+        typed::Error,
+    > {
+        dealer.local_linear_activation_from_reserved_values(spec, input, coefficients, charge)
+    }
+    fn split(
+        run: typed::LocalLinearActivationRunFor<Self>,
+        charge: &mut Self::Charge,
+    ) -> Result<roles::NativeRolesFor<Self>, typed::Error> {
+        run.into_roles_from_reserved(charge)
+    }
+}
+
+impl SigmaExecutionContext for OwnedBudgetContext {
+    const OWNED: bool = true;
+    type Root = OwnedBudget;
+    type Charge = OwnedExternalCharge;
+    type Step = OwnedSigmaExecutionStep;
+    type RoleStep = roles::OwnedSigmaExecutionRoleStep;
+    fn frames_step(frames: [SigmaExecutionFrameFor<Self>; 2]) -> Self::Step {
+        SigmaExecutionStepFor::Frames(frames)
+    }
+    fn output_step(outputs: [SigmaExecutionOutputFor<Self>; 2]) -> Self::Step {
+        SigmaExecutionStepFor::Output(outputs)
+    }
+    fn role_frame_step(frame: roles::SigmaExecutionRoleFrameFor<Self>) -> Self::RoleStep {
+        roles::SigmaExecutionRoleStepFor::Frame(frame)
+    }
+    fn role_ready_step() -> Self::RoleStep {
+        roles::SigmaExecutionRoleStepFor::Ready
+    }
+    fn root_budget(root: &Self::Root) -> &Budget {
+        root.budget()
+    }
+    fn reserve(root: &Self::Root, bytes: usize) -> Result<Self::Charge, typed::Error> {
+        root.charge_external(bytes)
+    }
+    fn charge_is_for(charge: &Self::Charge, budget: &Budget) -> bool {
+        charge.is_for(budget)
+    }
+    fn payload(charge: &Self::Charge) -> usize {
+        charge.payload_bytes()
+    }
+    fn grow(charge: &mut Self::Charge, bytes: usize) -> Result<(), typed::Error> {
+        charge.resize_payload(bytes)
+    }
+    fn issue(
+        dealer: &mut typed::LocalDealerFor<Self>,
+        spec: typed::LocalLinearActivationSpec,
+        input: &[i64],
+        coefficients: &[i64],
+        charge: &mut Self::Charge,
+    ) -> Result<
+        (
+            typed::DealerMaskFor<Self, typed::Ring>,
+            typed::LocalLinearActivationRunFor<Self>,
+        ),
+        typed::Error,
+    > {
+        dealer.local_linear_activation_from_reserved_values(spec, input, coefficients, charge)
+    }
+    fn split(
+        run: typed::LocalLinearActivationRunFor<Self>,
+        charge: &mut Self::Charge,
+    ) -> Result<roles::NativeRolesFor<Self>, typed::Error> {
+        run.into_roles_from_reserved(charge)
+    }
+}
+
 /// Original transferred inputs drop before workspace and guard on every error.
 /// No plan/inventory/borrowed buffer is cloned or retained by the returned owner.
-struct SigmaCompilerAdmission<'a, 'b> {
+struct SigmaCompilerAdmissionFor<'a, C: SigmaExecutionContext> {
     request: Option<SigmaLinearActivationRequest<'a>>,
     expected: Option<ExpectedSigmaSourcePin>,
     workspace: source::SigmaSourceWorkspace,
-    charge: Option<ExternalCharge<'b>>,
+    charge: Option<C::Charge>,
 }
 
 /// Full concrete inline populations and nested owner quotes. Sequential phases
@@ -51,6 +208,10 @@ struct SigmaCompilerPhases {
 
 impl SigmaCompilerPhases {
     fn checked() -> Result<Self, SigmaExecutionError> {
+        Self::checked_for::<&Budget>()
+    }
+
+    fn checked_for<C: SigmaExecutionContext>() -> Result<Self, SigmaExecutionError> {
         use pllm_core::edge_contract::EdgeContractResourceQuote;
         use pllm_types::bounded_canonical::{StreamError, StreamUsage};
         let model = model_canonical::resources::<DomainHash>(SIGMA_STREAM_DEPTH)
@@ -100,7 +261,7 @@ impl SigmaCompilerPhases {
             size_of::<[u8; 32]>(),
         ])?;
         let boundary_bytes = execution_sum([
-            size_of::<SigmaCompilerAdmission<'static, 'static>>(),
+            size_of::<SigmaCompilerAdmissionFor<'static, C>>(),
             size_of::<SigmaSourceBytes<'static>>(),
             // Taken request and pin move into helpers while their Option slots
             // remain in admission; no backing duplicates at these moves.
@@ -108,6 +269,60 @@ impl SigmaCompilerPhases {
             size_of::<ExpectedSigmaSourcePin>(),
             quote_records,
         ])?;
+        let boundary_bytes = if C::OWNED {
+            execution_sum([
+                boundary_bytes,
+                // Owned specialization additionally retains every guard constructor,
+                // mapped Result and native issuance return slot. All are concrete
+                // types, admitted before import, Arc allocation or issuance. Borrowed
+                // compatibility keeps its original logical inventory unchanged.
+                execution_sum([
+                    size_of::<C::Charge>(),
+                    size_of::<Result<C::Charge, typed::Error>>(),
+                    size_of::<Result<C::Charge, SigmaExecutionError>>(),
+                    size_of::<(SourceCheckedSigmaLinearActivation, C::Charge)>(),
+                    size_of::<Result<(), typed::Error>>(),
+                    size_of::<Result<(), SigmaExecutionError>>(),
+                    size_of::<
+                        Result<
+                            (
+                                typed::DealerMaskFor<C, typed::Ring>,
+                                typed::LocalLinearActivationRunFor<C>,
+                            ),
+                            typed::Error,
+                        >,
+                    >(),
+                    size_of::<
+                        Result<
+                            (
+                                typed::DealerMaskFor<C, typed::Ring>,
+                                typed::LocalLinearActivationRunFor<C>,
+                            ),
+                            SigmaExecutionError,
+                        >,
+                    >(),
+                    size_of::<
+                        Result<
+                            (SigmaExecutionMaskFor<C>, SigmaExecutionRunFor<C>),
+                            SigmaExecutionError,
+                        >,
+                    >(),
+                    size_of::<Result<[typed::LocalLinearActivationFrameFor<C>; 2], typed::Error>>(),
+                    size_of::<
+                        Result<[typed::LocalLinearActivationFrameFor<C>; 2], SigmaExecutionError>,
+                    >(),
+                    size_of::<Result<[SigmaExecutionFrameFor<C>; 2], SigmaExecutionError>>(),
+                    size_of::<Result<typed::LocalLinearActivationStepFor<C>, typed::Error>>(),
+                    size_of::<Result<typed::LocalLinearActivationStepFor<C>, SigmaExecutionError>>(
+                    ),
+                    size_of::<Result<C::Step, SigmaExecutionError>>(),
+                    size_of::<std::array::IntoIter<usize, 16>>(),
+                ])?,
+                size_of::<std::array::IntoIter<usize, 3>>(),
+            ])?
+        } else {
+            boundary_bytes
+        };
         // Shared source commitment owns these explicit reference-array iterators
         // (not their borrowed pointees). They are sequential; summing them is a
         // conservative addition to the source owner's initialization/move quote.
@@ -206,10 +421,7 @@ impl SigmaCompilerPhases {
             size_of::<std::array::IntoIter<usize, 6>>(),
             size_of::<std::array::IntoIter<usize, 2>>(),
             size_of::<
-                Result<
-                    (SigmaExecutionMask<'static>, SigmaExecutionRun<'static>),
-                    SigmaExecutionError,
-                >,
+                Result<(SigmaExecutionMaskFor<C>, SigmaExecutionRunFor<C>), SigmaExecutionError>,
             >(),
         ])?;
         Ok(Self {
@@ -246,7 +458,23 @@ pub fn sigma_execution_compiler_preflight(
     SigmaCompilerPhases::checked()?.peak_bytes()
 }
 
+/// Owned storage census; same compiler algorithm and borrowed caller baseline.
+pub fn owned_sigma_execution_compiler_preflight(
+    _plan: &DecoderPlan,
+    _inventory: &DecoderMatrixInventory,
+) -> Result<usize, SigmaExecutionError> {
+    SigmaCompilerPhases::checked_for::<OwnedBudgetContext>()?.peak_bytes()
+}
+
+#[cfg(test)]
 fn execution_payload_quote(
+    expected: &ExpectedSigmaSourcePin,
+    request: &SigmaLinearActivationRequest<'_>,
+) -> Result<usize, SigmaExecutionError> {
+    execution_payload_quote_for::<&Budget>(expected, request)
+}
+
+fn execution_payload_quote_for<C: SigmaExecutionContext>(
     expected: &ExpectedSigmaSourcePin,
     request: &SigmaLinearActivationRequest<'_>,
 ) -> Result<usize, SigmaExecutionError> {
@@ -256,13 +484,14 @@ fn execution_payload_quote(
     let source = expected
         .checked_certification_retained_quote(request)
         .map_err(SigmaExecutionError::Source)?;
-    let retained = retained_resource_inventory_from_source_bytes(source)?.payload_bytes()?;
+    let retained =
+        retained_resource_inventory_from_source_bytes_for::<C>(source)?.payload_bytes()?;
     execution_sum([
         // Final retained backings include pin and request selection capacities;
         // import owns only a subset, with no cloned source/coefficient backing.
         retained.max(import.retained_bytes),
         import.import_encoding_scratch_bytes,
-        SigmaCompilerPhases::checked()?.peak_bytes()?,
+        SigmaCompilerPhases::checked_for::<C>()?.peak_bytes()?,
     ])
 }
 
@@ -279,15 +508,46 @@ pub fn execute_sigma_linear_activation<'b>(
     dealer: &mut typed::LocalDealer<'b>,
     input: &[i64],
 ) -> Result<(SigmaExecutionMask<'b>, SigmaExecutionRun<'b>), SigmaExecutionError> {
+    execute_with_context::<&'b Budget>(
+        expected, supplied, request, inventory, &budget, dealer, input,
+    )
+}
+
+/// Owned specialization of the same admitted pinned-source facade. No borrowed
+/// owner is upgraded; every native owner starts in the original owning context.
+#[allow(clippy::too_many_arguments)]
+pub fn execute_owned_sigma_linear_activation(
+    expected: ExpectedSigmaSourcePin,
+    supplied: SigmaSourceBytes<'_>,
+    request: SigmaLinearActivationRequest<'_>,
+    inventory: &DecoderMatrixInventory,
+    budget: &OwnedBudget,
+    dealer: &mut typed::OwnedLocalDealer,
+    input: &[i64],
+) -> Result<(OwnedSigmaExecutionMask, OwnedSigmaExecutionRun), SigmaExecutionError> {
+    execute_with_context::<OwnedBudgetContext>(
+        expected, supplied, request, inventory, budget, dealer, input,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_with_context<C: SigmaExecutionContext>(
+    expected: ExpectedSigmaSourcePin,
+    supplied: SigmaSourceBytes<'_>,
+    request: SigmaLinearActivationRequest<'_>,
+    inventory: &DecoderMatrixInventory,
+    root: &C::Root,
+    dealer: &mut typed::LocalDealerFor<C>,
+    input: &[i64],
+) -> Result<(SigmaExecutionMaskFor<C>, SigmaExecutionRunFor<C>), SigmaExecutionError> {
+    let budget = C::root_budget(root);
     if !dealer.is_budget(budget) {
         return Err(SigmaExecutionError::BudgetIdentity);
     }
-    let payload = execution_payload_quote(&expected, &request)?;
-    let charge = budget
-        .charge_external(payload)
-        .map_err(SigmaExecutionError::Native)?;
+    let payload = execution_payload_quote_for::<C>(&expected, &request)?;
+    let charge = C::reserve(root, payload).map_err(SigmaExecutionError::Native)?;
     let (checked, charge) = {
-        let mut admitted = SigmaCompilerAdmission {
+        let mut admitted = SigmaCompilerAdmissionFor::<C> {
             request: Some(request),
             expected: Some(expected),
             workspace: source::SigmaSourceWorkspace::new(),
@@ -321,7 +581,7 @@ pub fn execute_sigma_linear_activation<'b>(
         // phase quote, not by the native reservation value they calculate.
         let native = {
             let spec = local_spec(&checked)?;
-            typed::local_linear_activation_resources(spec)
+            typed::local_linear_activation_resources_for::<C>(spec)
                 .map_err(SigmaExecutionError::Native)?
                 .reservation_bytes()
         };
@@ -331,9 +591,7 @@ pub fn execute_sigma_linear_activation<'b>(
             .ok_or(SigmaExecutionError::Resource)?;
         // Growth is atomic and only positive. Failure leaves original guard
         // intact; checked/source drop before it. No source or scratch refund.
-        charge
-            .resize_payload(execution_sum([payload, native])?)
-            .map_err(SigmaExecutionError::Native)?;
+        C::grow(charge, execution_sum([payload, native])?).map_err(SigmaExecutionError::Native)?;
         (
             checked,
             admitted
@@ -343,15 +601,17 @@ pub fn execute_sigma_linear_activation<'b>(
         )
         // Admission's workspace and vacated input fields retire before transfer.
     };
-    consume_checked_local_from_reserved(checked, budget, dealer, input, charge)
+    consume_checked_local_from_reserved_for::<C>(checked, budget, dealer, input, charge)
 }
 
 /// Source and coefficients erase before the last accounting guard refunds.
 /// No public Arc/Weak, source owner, guard, native owner or lease escape exists.
-struct RetainedSource<'b> {
+struct RetainedSourceFor<C: SigmaExecutionContext> {
     checked: SourceCheckedSigmaLinearActivation,
-    _charge: ExternalCharge<'b>,
+    _charge: C::Charge,
 }
+#[cfg(test)]
+type RetainedSource<'b> = RetainedSourceFor<&'b Budget>;
 
 /// Explicitly local conditional execution, even when source bytes were checked.
 /// This describes the bridge's provenance, not a native proof relabeling.
@@ -366,25 +626,37 @@ pub enum SigmaExecutionProvenance {
 /// use pllm_compiler::sigma_linear_activation::SigmaExecutionRun;
 /// fn duplicate(run: SigmaExecutionRun<'_>) { let _ = run.clone(); }
 /// ```
-pub struct SigmaExecutionRun<'b> {
-    native: Option<typed::LocalLinearActivationRun<'b>>,
-    retained: Arc<RetainedSource<'b>>,
+pub struct SigmaExecutionRunFor<C: SigmaExecutionContext> {
+    native: Option<typed::LocalLinearActivationRunFor<C>>,
+    retained: Arc<RetainedSourceFor<C>>,
 }
 
 #[path = "execution_roles.rs"]
 mod roles;
 pub use roles::{
-    sigma_execution_role_split_resources, SigmaExecutionRole, SigmaExecutionRoleCoordinator,
-    SigmaExecutionRoleFrame, SigmaExecutionRoleOutput, SigmaExecutionRoleSplitResources,
-    SigmaExecutionRoleStep,
+    owned_sigma_execution_role_split_resources, sigma_execution_role_split_resources,
+    OwnedSigmaExecutionRole, OwnedSigmaExecutionRoleCoordinator, OwnedSigmaExecutionRoleFrame,
+    OwnedSigmaExecutionRoleOutput, OwnedSigmaExecutionRoleStep, SigmaExecutionRole,
+    SigmaExecutionRoleCoordinator, SigmaExecutionRoleCoordinatorFor, SigmaExecutionRoleFor,
+    SigmaExecutionRoleFrame, SigmaExecutionRoleFrameFor, SigmaExecutionRoleOutput,
+    SigmaExecutionRoleOutputFor, SigmaExecutionRoleSplitResources, SigmaExecutionRoleStep,
+    SigmaExecutionRoleStepFor,
 };
 
-pub struct SigmaExecutionFrame<'b> {
-    native: typed::LocalLinearActivationFrame<'b>,
-    _retained: Arc<RetainedSource<'b>>,
+pub struct SigmaExecutionFrameFor<C: SigmaExecutionContext> {
+    native: typed::LocalLinearActivationFrameFor<C>,
+    _retained: Arc<RetainedSourceFor<C>>,
 }
 
 // Keep issued owners inline; boxing would introduce an unpriced allocation.
+#[allow(clippy::large_enum_variant)]
+pub enum SigmaExecutionStepFor<C: SigmaExecutionContext> {
+    Frames([SigmaExecutionFrameFor<C>; 2]),
+    Output([SigmaExecutionOutputFor<C>; 2]),
+}
+
+// Preserve the borrowed enum namespace, including variant imports. Storage
+// dispatch constructs wrappers directly, without an intermediate step owner.
 #[allow(clippy::large_enum_variant)]
 pub enum SigmaExecutionStep<'b> {
     Frames([SigmaExecutionFrame<'b>; 2]),
@@ -398,9 +670,9 @@ pub enum SigmaExecutionStep<'b> {
 /// use pllm_compiler::sigma_linear_activation::SigmaExecutionOutput;
 /// fn extract_native(output: SigmaExecutionOutput<'_>) { let _ = output.native; }
 /// ```
-pub struct SigmaExecutionOutput<'b> {
-    native: typed::CommonMasked<'b, typed::Ring>,
-    _retained: Arc<RetainedSource<'b>>,
+pub struct SigmaExecutionOutputFor<C: SigmaExecutionContext> {
+    native: typed::CommonMaskedFor<C, typed::Ring>,
+    _retained: Arc<RetainedSourceFor<C>>,
 }
 
 /// Dealer output mask also retains the original source owner until retirement.
@@ -410,18 +682,156 @@ pub struct SigmaExecutionOutput<'b> {
 /// use pllm_compiler::sigma_linear_activation::SigmaExecutionMask;
 /// fn duplicate(mask: SigmaExecutionMask<'_>) { let _ = mask.clone(); }
 /// ```
-pub struct SigmaExecutionMask<'b> {
-    _native: typed::DealerMask<'b, typed::Ring>,
-    _retained: Arc<RetainedSource<'b>>,
+pub struct SigmaExecutionMaskFor<C: SigmaExecutionContext> {
+    _native: typed::DealerMaskFor<C, typed::Ring>,
+    _retained: Arc<RetainedSourceFor<C>>,
 }
 
-impl SigmaExecutionFrame<'_> {
+pub type SigmaExecutionRun<'b> = SigmaExecutionRunFor<&'b Budget>;
+pub type SigmaExecutionFrame<'b> = SigmaExecutionFrameFor<&'b Budget>;
+pub type SigmaExecutionOutput<'b> = SigmaExecutionOutputFor<&'b Budget>;
+pub type SigmaExecutionMask<'b> = SigmaExecutionMaskFor<&'b Budget>;
+/// New owned execution only; borrowed native or compiler owners cannot upgrade.
+///
+/// ```compile_fail
+/// use pllm_compiler::sigma_linear_activation::{SigmaExecutionRun, OwnedSigmaExecutionRun};
+/// fn upgrade(run: SigmaExecutionRun<'_>) -> OwnedSigmaExecutionRun { run }
+/// ```
+///
+/// ```compile_fail
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionRun;
+/// fn extract(run: OwnedSigmaExecutionRun) { let _ = run.native; }
+/// ```
+///
+/// The original source reservation is private too; no guard can be detached.
+///
+/// ```compile_fail,E0616
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionRun;
+/// fn extract_guard(run: OwnedSigmaExecutionRun) { let _ = run.retained._charge; }
+/// ```
+///
+/// ```compile_fail,E0599
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionRun;
+/// fn duplicate(run: OwnedSigmaExecutionRun) { let _ = run.clone(); }
+/// ```
+///
+/// ```compile_fail
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionRun;
+/// fn needs_send<T: Send>() {}
+/// needs_send::<OwnedSigmaExecutionRun>();
+/// ```
+///
+/// ```compile_fail,E0277
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionRun;
+/// fn needs_sync<T: Sync>() {}
+/// needs_sync::<OwnedSigmaExecutionRun>();
+/// ```
+pub type OwnedSigmaExecutionRun = SigmaExecutionRunFor<OwnedBudgetContext>;
+/// Source-retaining owned frame, neither cloneable nor transferable across threads.
+///
+/// ```compile_fail,E0599
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionFrame;
+/// fn duplicate(frame: OwnedSigmaExecutionFrame) { let _ = frame.clone(); }
+/// ```
+///
+/// ```compile_fail,E0616
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionFrame;
+/// fn extract(frame: OwnedSigmaExecutionFrame) { let _ = frame.native; }
+/// ```
+///
+/// ```compile_fail,E0277
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionFrame;
+/// fn needs_send<T: Send>() {}
+/// needs_send::<OwnedSigmaExecutionFrame>();
+/// ```
+///
+/// ```compile_fail,E0277
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionFrame;
+/// fn needs_sync<T: Sync>() {}
+/// needs_sync::<OwnedSigmaExecutionFrame>();
+/// ```
+///
+/// ```compile_fail,E0308
+/// use pllm_compiler::sigma_linear_activation::{SigmaExecutionFrame, OwnedSigmaExecutionFrame};
+/// fn upgrade(frame: SigmaExecutionFrame<'_>) -> OwnedSigmaExecutionFrame { frame }
+/// ```
+pub type OwnedSigmaExecutionFrame = SigmaExecutionFrameFor<OwnedBudgetContext>;
+pub type OwnedSigmaExecutionStep = SigmaExecutionStepFor<OwnedBudgetContext>;
+/// Opaque output retains its original source, coefficients and counter.
+///
+/// ```compile_fail
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionOutput;
+/// fn extract(output: OwnedSigmaExecutionOutput) { let _ = output.native; }
+/// ```
+///
+/// ```compile_fail,E0599
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionOutput;
+/// fn duplicate(output: OwnedSigmaExecutionOutput) { let _ = output.clone(); }
+/// ```
+///
+/// ```compile_fail,E0616
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionOutput;
+/// fn extract_guard(output: OwnedSigmaExecutionOutput) { let _ = output._retained._charge; }
+/// ```
+///
+/// ```compile_fail,E0277
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionOutput;
+/// fn needs_send<T: Send>() {}
+/// needs_send::<OwnedSigmaExecutionOutput>();
+/// ```
+///
+/// ```compile_fail,E0277
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionOutput;
+/// fn needs_sync<T: Sync>() {}
+/// needs_sync::<OwnedSigmaExecutionOutput>();
+/// ```
+///
+/// ```compile_fail,E0308
+/// use pllm_compiler::sigma_linear_activation::{SigmaExecutionOutput, OwnedSigmaExecutionOutput};
+/// fn upgrade(output: SigmaExecutionOutput<'_>) -> OwnedSigmaExecutionOutput { output }
+/// ```
+pub type OwnedSigmaExecutionOutput = SigmaExecutionOutputFor<OwnedBudgetContext>;
+/// Single owning dealer mask; neither native mask nor source guard is extractable.
+///
+/// ```compile_fail,E0599
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionMask;
+/// fn duplicate(mask: OwnedSigmaExecutionMask) { let _ = mask.clone(); }
+/// ```
+///
+/// ```compile_fail,E0616
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionMask;
+/// fn extract(mask: OwnedSigmaExecutionMask) { let _ = mask._native; }
+/// ```
+///
+/// ```compile_fail,E0616
+/// use pllm_compiler::sigma_linear_activation::OwnedSigmaExecutionMask;
+/// fn extract_guard(mask: OwnedSigmaExecutionMask) { let _ = mask._retained._charge; }
+/// ```
+///
+/// Dealer-only masks retain their native auto-traits: unlike execution handles,
+/// they contain no matrix singleton or party continuation. The private local
+/// binding independently enforces process/thread affinity on its envelope.
+///
+/// ```
+/// use pllm_compiler::sigma_linear_activation::{OwnedSigmaExecutionMask, SigmaExecutionMask};
+/// fn needs_thread_safe<T: Send + Sync>() {}
+/// needs_thread_safe::<OwnedSigmaExecutionMask>();
+/// fn borrowed_mask<'b>() { needs_thread_safe::<SigmaExecutionMask<'b>>(); }
+/// ```
+///
+/// ```compile_fail,E0308
+/// use pllm_compiler::sigma_linear_activation::{SigmaExecutionMask, OwnedSigmaExecutionMask};
+/// fn upgrade(mask: SigmaExecutionMask<'_>) -> OwnedSigmaExecutionMask { mask }
+/// ```
+pub type OwnedSigmaExecutionMask = SigmaExecutionMaskFor<OwnedBudgetContext>;
+
+impl<C: SigmaExecutionContext> SigmaExecutionFrameFor<C> {
     pub fn as_bytes(&self) -> &[u8] {
         self.native.as_bytes()
     }
 }
 
-impl SigmaExecutionOutput<'_> {
+impl<C: SigmaExecutionContext> SigmaExecutionOutputFor<C> {
     pub fn descriptor(&self) -> EdgeDescriptor {
         self.native.descriptor()
     }
@@ -430,7 +840,7 @@ impl SigmaExecutionOutput<'_> {
     }
 }
 
-impl<'b> SigmaExecutionRun<'b> {
+impl<C: SigmaExecutionContext> SigmaExecutionRunFor<C> {
     pub fn provenance(&self) -> SigmaExecutionProvenance {
         SigmaExecutionProvenance::PinnedSourceBytesWithLocalConditionalExecution
     }
@@ -445,7 +855,7 @@ impl<'b> SigmaExecutionRun<'b> {
     pub fn begin(
         &mut self,
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<[SigmaExecutionFrame<'b>; 2], SigmaExecutionError> {
+    ) -> Result<[SigmaExecutionFrameFor<C>; 2], SigmaExecutionError> {
         let [left, right] = self
             .native
             .as_mut()
@@ -461,7 +871,7 @@ impl<'b> SigmaExecutionRun<'b> {
         &mut self,
         peers: [&[u8]; 2],
         cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<SigmaExecutionStep<'b>, SigmaExecutionError> {
+    ) -> Result<C::Step, SigmaExecutionError> {
         let step = self
             .native
             .as_mut()
@@ -469,17 +879,14 @@ impl<'b> SigmaExecutionRun<'b> {
             .advance(peers, cancelled)
             .map_err(SigmaExecutionError::Native)?;
         match step.into_frames() {
-            Ok([left, right]) => Ok(SigmaExecutionStep::Frames([
-                self.frame(left),
-                self.frame(right),
-            ])),
+            Ok([left, right]) => Ok(C::frames_step([self.frame(left), self.frame(right)])),
             Err(step) => match step.into_output() {
-                Ok([left, right]) => Ok(SigmaExecutionStep::Output([
-                    SigmaExecutionOutput {
+                Ok([left, right]) => Ok(C::output_step([
+                    SigmaExecutionOutputFor {
                         native: left,
                         _retained: Arc::clone(&self.retained),
                     },
-                    SigmaExecutionOutput {
+                    SigmaExecutionOutputFor {
                         native: right,
                         _retained: Arc::clone(&self.retained),
                     },
@@ -492,15 +899,15 @@ impl<'b> SigmaExecutionRun<'b> {
         }
     }
 
-    fn frame(&self, native: typed::LocalLinearActivationFrame<'b>) -> SigmaExecutionFrame<'b> {
-        SigmaExecutionFrame {
+    fn frame(&self, native: typed::LocalLinearActivationFrameFor<C>) -> SigmaExecutionFrameFor<C> {
+        SigmaExecutionFrameFor {
             native,
             _retained: Arc::clone(&self.retained),
         }
     }
 }
 
-impl Drop for SigmaExecutionRun<'_> {
+impl<C: SigmaExecutionContext> Drop for SigmaExecutionRunFor<C> {
     fn drop(&mut self) {
         self.cancel();
     }
@@ -556,9 +963,9 @@ fn local_spec(
 }
 
 /// Logical Arc backing including both reference counters and alignment padding.
-fn arc_backing_bytes() -> Result<usize, SigmaExecutionError> {
+fn arc_backing_bytes_for<C: SigmaExecutionContext>() -> Result<usize, SigmaExecutionError> {
     Layout::new::<[AtomicUsize; 2]>()
-        .extend(Layout::new::<RetainedSource<'static>>())
+        .extend(Layout::new::<RetainedSourceFor<C>>())
         .map(|(layout, _)| layout.pad_to_align().size())
         .map_err(|_| SigmaExecutionError::Resource)
 }
@@ -593,29 +1000,43 @@ impl SigmaRetainedResourceInventory {
     }
 }
 
+#[cfg(test)]
 fn retained_resource_inventory(
+    checked: &SourceCheckedSigmaLinearActivation,
+) -> Result<SigmaRetainedResourceInventory, SigmaExecutionError> {
+    retained_resource_inventory_for::<&Budget>(checked)
+}
+
+fn retained_resource_inventory_for<C: SigmaExecutionContext>(
     checked: &SourceCheckedSigmaLinearActivation,
 ) -> Result<SigmaRetainedResourceInventory, SigmaExecutionError> {
     let source = checked
         .checked_retained_resource_bytes()
         .map_err(|_| SigmaExecutionError::Resource)?;
-    retained_resource_inventory_from_source_bytes(source)
+    retained_resource_inventory_from_source_bytes_for::<C>(source)
 }
 
 /// Same conservative retained inventory from the source owner's PRE-import
 /// certification-retained quote. No source/spec construction is needed. This
 /// helper alone does not price compiler phases or native quote computation and
 /// cannot authorize/reserve pre-import execution.
+#[cfg(test)]
 fn retained_resource_inventory_from_source_bytes(
     source: usize,
 ) -> Result<SigmaRetainedResourceInventory, SigmaExecutionError> {
-    let arc = arc_backing_bytes()?;
+    retained_resource_inventory_from_source_bytes_for::<&Budget>(source)
+}
+
+fn retained_resource_inventory_from_source_bytes_for<C: SigmaExecutionContext>(
+    source: usize,
+) -> Result<SigmaRetainedResourceInventory, SigmaExecutionError> {
+    let arc = arc_backing_bytes_for::<C>()?;
     let wrapper_population_bytes = [
-        size_of::<SigmaExecutionRun<'static>>(),
-        size_of::<SigmaExecutionMask<'static>>(),
-        22 * size_of::<SigmaExecutionFrame<'static>>(),
-        11 * size_of::<SigmaExecutionStep<'static>>(),
-        2 * size_of::<SigmaExecutionOutput<'static>>(),
+        size_of::<SigmaExecutionRunFor<C>>(),
+        size_of::<SigmaExecutionMaskFor<C>>(),
+        22 * size_of::<SigmaExecutionFrameFor<C>>(),
+        11 * size_of::<C::Step>(),
+        2 * size_of::<SigmaExecutionOutputFor<C>>(),
     ]
     .into_iter()
     .try_fold(0usize, |total, bytes| {
@@ -625,29 +1046,29 @@ fn retained_resource_inventory_from_source_bytes(
     })?;
     let issuance_transition_bytes = [
         // Stack owner while moving into Arc backing (counted separately above).
-        size_of::<RetainedSource<'static>>(),
+        size_of::<RetainedSourceFor<C>>(),
         size_of::<typed::LocalLinearActivationSpec>(),
         size_of::<typed::LocalLinearActivationResources>(),
         size_of::<(
-            typed::DealerMask<'static, typed::Ring>,
-            typed::LocalLinearActivationRun<'static>,
+            typed::DealerMaskFor<C, typed::Ring>,
+            typed::LocalLinearActivationRunFor<C>,
         )>(),
-        size_of::<typed::LocalLinearActivationStep<'static>>(),
+        size_of::<typed::LocalLinearActivationStepFor<C>>(),
         size_of::<
             Result<
-                [typed::LocalLinearActivationFrame<'static>; 2],
-                typed::LocalLinearActivationStep<'static>,
+                [typed::LocalLinearActivationFrameFor<C>; 2],
+                typed::LocalLinearActivationStepFor<C>,
             >,
         >(),
         size_of::<
             Result<
-                [typed::CommonMasked<'static, typed::Ring>; 2],
-                typed::LocalLinearActivationStep<'static>,
+                [typed::CommonMaskedFor<C, typed::Ring>; 2],
+                typed::LocalLinearActivationStepFor<C>,
             >,
         >(),
-        2 * size_of::<typed::LocalLinearActivationFrame<'static>>(),
-        2 * size_of::<typed::CommonMasked<'static, typed::Ring>>(),
-        3 * size_of::<Arc<RetainedSource<'static>>>(),
+        2 * size_of::<typed::LocalLinearActivationFrameFor<C>>(),
+        2 * size_of::<typed::CommonMaskedFor<C, typed::Ring>>(),
+        3 * size_of::<Arc<RetainedSourceFor<C>>>(),
     ]
     .into_iter()
     .try_fold(0usize, |total, bytes| {
@@ -660,16 +1081,14 @@ fn retained_resource_inventory_from_source_bytes(
     Ok(SigmaRetainedResourceInventory {
         source_owner_and_backing_bytes: source,
         arc_control_and_padding_bytes: arc
-            .checked_sub(
-                size_of::<SourceCheckedSigmaLinearActivation>()
-                    + size_of::<ExternalCharge<'static>>(),
-            )
+            .checked_sub(size_of::<SourceCheckedSigmaLinearActivation>() + size_of::<C::Charge>())
             .ok_or(SigmaExecutionError::Resource)?,
         wrapper_population_bytes,
         issuance_transition_bytes,
     })
 }
 
+#[cfg(test)]
 fn retained_payload_bytes(
     checked: &SourceCheckedSigmaLinearActivation,
 ) -> Result<usize, SigmaExecutionError> {
@@ -708,6 +1127,7 @@ fn consume_checked_local<'b>(
 /// or reacquire occurs: native transfers its slice, source retains all remainder
 /// (including conservatively retained compiler scratch capacity) until final drop.
 /// Raw facade supplies its compiler/import charge plus exact native reservation.
+#[cfg(test)]
 fn consume_checked_local_from_reserved<'b>(
     checked: SourceCheckedSigmaLinearActivation,
     budget: &'b Budget,
@@ -715,24 +1135,34 @@ fn consume_checked_local_from_reserved<'b>(
     input: &[i64],
     charge: ExternalCharge<'b>,
 ) -> Result<(SigmaExecutionMask<'b>, SigmaExecutionRun<'b>), SigmaExecutionError> {
+    consume_checked_local_from_reserved_for::<&'b Budget>(checked, budget, dealer, input, charge)
+}
+
+fn consume_checked_local_from_reserved_for<C: SigmaExecutionContext>(
+    checked: SourceCheckedSigmaLinearActivation,
+    budget: &Budget,
+    dealer: &mut typed::LocalDealerFor<C>,
+    input: &[i64],
+    charge: C::Charge,
+) -> Result<(SigmaExecutionMaskFor<C>, SigmaExecutionRunFor<C>), SigmaExecutionError> {
     // A stack owner enforces source-erasure-before-refund on EVERY error path,
     // including wrong-budget/shape rejection before allocating Arc backing.
-    let owner = RetainedSource {
+    let owner = RetainedSourceFor::<C> {
         checked,
         _charge: charge,
     };
-    if !dealer.is_budget(budget) || !owner._charge.is_for(budget) {
+    if !dealer.is_budget(budget) || !C::charge_is_for(&owner._charge, budget) {
         return Err(SigmaExecutionError::BudgetIdentity);
     }
     let spec = local_spec(&owner.checked)?;
-    let payload = retained_payload_bytes(&owner.checked)?;
-    let native_bytes = typed::local_linear_activation_resources(spec)
+    let payload = retained_resource_inventory_for::<C>(&owner.checked)?.payload_bytes()?;
+    let native_bytes = typed::local_linear_activation_resources_for::<C>(spec)
         .map_err(SigmaExecutionError::Native)?
         .reservation_bytes();
     if payload
         .checked_add(native_bytes)
         .ok_or(SigmaExecutionError::Resource)?
-        > owner._charge.payload_bytes()
+        > C::payload(&owner._charge)
     {
         return Err(SigmaExecutionError::Resource);
     }
@@ -759,20 +1189,20 @@ fn consume_checked_local_from_reserved<'b>(
     // Transfer the exact native slice from the original aggregate charge. No
     // decrement/reacquire window permits another operation to steal admission.
     let owned = Arc::get_mut(&mut retained).ok_or(SigmaExecutionError::Resource)?;
-    let (mask, native) = dealer
-        .local_linear_activation_from_reserved_values(
-            spec,
-            input,
-            owned.checked.certificate().encoded_private_coefficients(),
-            &mut owned._charge,
-        )
-        .map_err(SigmaExecutionError::Native)?;
+    let (mask, native) = C::issue(
+        dealer,
+        spec,
+        input,
+        owned.checked.certificate().encoded_private_coefficients(),
+        &mut owned._charge,
+    )
+    .map_err(SigmaExecutionError::Native)?;
     Ok((
-        SigmaExecutionMask {
+        SigmaExecutionMaskFor {
             _native: mask,
             _retained: Arc::clone(&retained),
         },
-        SigmaExecutionRun {
+        SigmaExecutionRunFor {
             native: Some(native),
             retained,
         },
@@ -785,3 +1215,11 @@ static TEST_SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 #[cfg(test)]
 #[path = "execution_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "execution_owned_tests.rs"]
+mod owned_tests;
+
+#[cfg(test)]
+#[path = "execution_owned_audit_tests.rs"]
+mod owned_audit_tests;
