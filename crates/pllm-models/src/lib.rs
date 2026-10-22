@@ -355,6 +355,245 @@ pub struct AppliedMethod {
     pub configuration_digest: Digest,
 }
 
+/// Allocation-free logical heap-owner census, not RSS or request admission.
+///
+/// Exposed Vec/String capacities are charged in full. JSON objects use a shared
+/// conservative B-tree policy because serde_json exposes no node capacities.
+/// Inline owner slots, allocator overhead, external configuration/input buffers,
+/// tensor contents and borrowed aliases are excluded. No serialization, cloning,
+/// semantic validation, or source-owner inference occurs here.
+pub mod owned_backing {
+    use super::{AppliedMethod, DecoderGraph, DecoderPlan, ModelOperation, StateTensor};
+    use serde_json::Value;
+    use std::{fmt, mem::size_of};
+
+    /// Root JSON value has depth zero; values at depth 16 are accepted, 17 reject.
+    pub const MAX_JSON_DEPTH: usize = 16;
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum Error {
+        Overflow,
+        ByteLimit,
+        JsonDepth,
+    }
+
+    impl fmt::Display for Error {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(match self {
+                Self::Overflow => "owned backing byte arithmetic overflow",
+                Self::ByteLimit => "owned backing byte limit exceeded",
+                Self::JsonDepth => "owned backing JSON depth limit exceeded",
+            })
+        }
+    }
+
+    impl std::error::Error for Error {}
+
+    pub fn checked_array_bytes<T>(capacity: usize) -> Result<usize, Error> {
+        capacity.checked_mul(size_of::<T>()).ok_or(Error::Overflow)
+    }
+
+    /// Full node allowance PER entry: 16 key/value slots, child edges and 128
+    /// bookkeeping bytes. Current native std B-trees use at most 11 slots/12
+    /// edges. This deliberately overcounts, not an allocator layout observation.
+    /// Callers must charge at least one node for an existing empty object, whose
+    /// root may remain allocated after removal of its final entry.
+    pub fn checked_tree_node_bytes<T>() -> Result<usize, Error> {
+        size_of::<T>()
+            .checked_add(size_of::<usize>())
+            .and_then(|n| n.checked_mul(16))
+            .and_then(|n| n.checked_add(128))
+            .ok_or(Error::Overflow)
+    }
+
+    struct Census {
+        bytes: usize,
+        max_bytes: usize,
+    }
+
+    impl Census {
+        fn new(max_bytes: usize) -> Self {
+            Self {
+                bytes: 0,
+                max_bytes,
+            }
+        }
+
+        fn add(&mut self, bytes: usize) -> Result<(), Error> {
+            let total = self.bytes.checked_add(bytes).ok_or(Error::Overflow)?;
+            if total > self.max_bytes {
+                return Err(Error::ByteLimit);
+            }
+            self.bytes = total;
+            Ok(())
+        }
+
+        fn array<T>(&mut self, capacity: usize) -> Result<(), Error> {
+            self.add(checked_array_bytes::<T>(capacity)?)
+        }
+
+        fn json(&mut self, value: &Value, depth: usize) -> Result<(), Error> {
+            if depth > MAX_JSON_DEPTH {
+                return Err(Error::JsonDepth);
+            }
+            match value {
+                Value::String(text) => self.add(text.capacity())?,
+                Value::Array(values) => {
+                    self.array::<Value>(values.capacity())?;
+                    for value in values {
+                        self.json(value, depth + 1)?;
+                    }
+                }
+                Value::Object(values) => {
+                    let nodes = values
+                        .len()
+                        .max(1)
+                        .checked_mul(checked_tree_node_bytes::<(String, Value)>()?)
+                        .ok_or(Error::Overflow)?;
+                    self.add(nodes)?;
+                    for (key, value) in values {
+                        self.add(key.capacity())?;
+                        self.json(value, depth + 1)?;
+                    }
+                }
+                // Workspace serde_json uses its default scalar Number and
+                // BTreeMap object representation (no arbitrary_precision or
+                // preserve_order features).
+                Value::Null | Value::Bool(_) | Value::Number(_) => {}
+            }
+            Ok(())
+        }
+
+        fn graph(&mut self, graph: &DecoderGraph) -> Result<(), Error> {
+            let DecoderGraph {
+                mode: _,
+                batch: _,
+                query_sequence: _,
+                maximum_key_sequence: _,
+                operations,
+                state_inputs,
+                state_outputs,
+                output,
+            } = graph;
+            self.add(output.capacity())?;
+            self.array::<ModelOperation>(operations.capacity())?;
+            for operation in operations {
+                let ModelOperation {
+                    id,
+                    operator: _,
+                    layer: _,
+                    state_kind: _,
+                    inputs,
+                    output_shape,
+                    attributes,
+                } = operation;
+                self.add(id.capacity())?;
+                self.array::<String>(inputs.capacity())?;
+                for input in inputs {
+                    self.add(input.capacity())?;
+                }
+                self.array::<u64>(output_shape.capacity())?;
+                self.json(attributes, 0)?;
+            }
+            for states in [state_inputs, state_outputs] {
+                self.array::<StateTensor>(states.capacity())?;
+                for state in states {
+                    let StateTensor {
+                        id,
+                        layer: _,
+                        kind: _,
+                        shape,
+                        maximum_sequence: _,
+                    } = state;
+                    self.add(id.capacity())?;
+                    self.array::<u64>(shape.capacity())?;
+                }
+            }
+            Ok(())
+        }
+    }
+
+    /// Heap backing only; excludes the root Value's inline slot. Checks the cap
+    /// before descending into each container. Empty objects carry one node even
+    /// when freshly constructed; arrays/strings retain their actual capacities.
+    pub fn checked_json_backing_bytes(value: &Value, max_bytes: usize) -> Result<usize, Error> {
+        let mut census = Census::new(max_bytes);
+        census.json(value, 0)?;
+        Ok(census.bytes)
+    }
+
+    impl DecoderGraph {
+        /// Existing owned backing only; add size_of::<DecoderGraph>() separately
+        /// when this graph is a standalone owner, not a field of another owner.
+        pub fn checked_owned_backing_bytes(&self, max_bytes: usize) -> Result<usize, Error> {
+            let mut census = Census::new(max_bytes);
+            census.graph(self)?;
+            Ok(census.bytes)
+        }
+    }
+
+    impl DecoderPlan {
+        /// All plan-owned heap backing, both graphs included exactly once.
+        /// Add size_of::<DecoderPlan>() once for its inline owner; graph slots
+        /// already reside there. External tokens/config/source owners stay with
+        /// their callers, regardless of aliases into this plan. No new owner is
+        /// created by borrowing this plan or either graph for the census.
+        pub fn checked_owned_backing_bytes(&self, max_bytes: usize) -> Result<usize, Error> {
+            let Self {
+                schema_version,
+                model_family,
+                adapter,
+                config_digest,
+                transformations,
+                prefill,
+                decode,
+                token_feedback: _,
+            } = self;
+            let mut census = Census::new(max_bytes);
+            for text in [schema_version, model_family, adapter] {
+                census.add(text.capacity())?;
+            }
+            census.add(config_digest.backing_capacity_bytes())?;
+            census.array::<AppliedMethod>(transformations.capacity())?;
+            for method in transformations {
+                let AppliedMethod {
+                    component,
+                    implementation,
+                    method_id,
+                    input_digest,
+                    configuration_digest,
+                } = method;
+                for text in [component, implementation, method_id] {
+                    census.add(text.capacity())?;
+                }
+                census.add(input_digest.backing_capacity_bytes())?;
+                census.add(configuration_digest.backing_capacity_bytes())?;
+            }
+            census.graph(prefill)?;
+            census.graph(decode)?;
+            Ok(census.bytes)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn accumulation_overflow_and_limit_fail_without_updating_total() {
+            let mut census = Census::new(usize::MAX);
+            census.add(usize::MAX).unwrap();
+            assert_eq!(census.add(1), Err(Error::Overflow));
+            assert_eq!(census.bytes, usize::MAX);
+            let mut census = Census::new(10);
+            census.add(9).unwrap();
+            assert_eq!(census.add(2), Err(Error::ByteLimit));
+            assert_eq!(census.bytes, 9);
+            census.add(1).unwrap();
+        }
+    }
+}
+
 impl DecoderPlan {
     pub fn digest(&self) -> Digest {
         canonical_digest("pllm.decoder_plan.v1", self)
