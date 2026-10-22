@@ -217,7 +217,10 @@ impl ExactSizeIterator for RemoteMemberIter<'_, '_> {}
 /// String clones, per-group allocation, tree nodes or growing buffers.
 #[derive(Debug)]
 pub(crate) struct RemoteGroups<'a> {
+    // Retain original ID-query owner/layout; production dispatch uses cached rows.
+    #[allow(dead_code)]
     graph: &'a DecoderGraph,
+    #[allow(dead_code)]
     by_id: Box<[usize]>,
     rows: Box<[GroupRow]>,
     members: Box<[RemoteMember<'a>]>,
@@ -249,6 +252,9 @@ impl<'a> RemoteGroups<'a> {
             .get(index)
             .is_some_and(|row| row.remote_id_position.is_some())
     }
+    // Legacy ID query remains available and tested; do not alter quoted storage
+    // or construction work just because current production callers use at().
+    #[allow(dead_code)]
     pub(crate) fn get(&self, id: &str) -> Option<RemoteGroup<'_, 'a>> {
         // Lower bound also preserves legacy behavior for a nonremote ID that
         // shadows a remote leader. Duplicate remote IDs never reach this owner.

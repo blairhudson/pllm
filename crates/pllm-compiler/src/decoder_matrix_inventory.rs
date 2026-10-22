@@ -28,21 +28,35 @@
 //! No tensor storage is allocated or read. Table and matrix artifact ownership
 //! is keyed by (artifact_kind, weight_id), even when their source IDs are tied.
 
-use crate::decoder_runtime_schedule::classify_remote_groups;
+use crate::decoder_runtime_schedule::{RemoteGroupingError, RemoteGroupingQuote};
+use pllm_models::bounded_canonical as model_canonical;
 use pllm_models::{DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator};
-use pllm_types::{canonical_bytes, digest_bytes, Digest};
+use pllm_types::bounded_canonical::{DomainHash, Session, StreamError, StreamFrame, StreamLimits};
+#[cfg(test)]
+use pllm_types::digest_bytes;
+use pllm_types::Digest;
 use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fmt;
 use std::io::{self, Write};
+use std::mem::{size_of, MaybeUninit};
+
+#[path = "decoder_matrix_inventory_construction.rs"]
+#[allow(
+    dead_code,
+    reason = "guarded constructor stays private pending independent admission audit"
+)]
+mod construction;
 
 pub const DECODER_MATRIX_INVENTORY_SCHEMA_VERSION: &str = "pllm.decoder_matrix_inventory.v1";
 pub const DECODER_MATRIX_INVENTORY_MAX_PLAN_BYTES: usize = 8 << 20;
 const MAX_OUTPUT_BYTES: usize = 8 << 20;
 const MAX_OPERATIONS: usize = 4096;
 const MAX_STATES: usize = 1024;
+const MAX_INPUTS: usize = 16;
+const MAX_OBJECT_FIELDS: usize = 64;
 const MAX_STRING_BYTES: usize = 1024;
 const MAX_TOTAL_STRING_BYTES: usize = 1 << 20;
 const MAX_NODES: usize = 131072;
@@ -50,8 +64,102 @@ const MAX_DEPTH: usize = 24;
 const MAX_DIMENSION: u64 = 1 << 20;
 const MAX_ELEMENTS: u64 = 1 << 40;
 const MAX_TOTAL_ELEMENTS: u64 = 1 << 48;
+const CANONICAL_SLOTS: usize = MAX_DEPTH + 1;
+
+/// Inventory diagnostics use static/borrowed strings, formatted only at the
+/// legacy String boundary. Shared canonical/stream errors remain unchanged; their
+/// potential I/O owner/result slots still belong in the aggregate error proof.
+#[derive(Debug)]
+enum InventoryFailure<'a> {
+    Static(&'static str),
+    Artifact(&'static str),
+    DeclaredShape(&'static str),
+    Attribute(&'a str),
+    Grouping(RemoteGroupingError<'a>),
+    Canonical(model_canonical::Error),
+    Stream(StreamError),
+    Index(crate::bounded_index::Error),
+    Json(pllm_types::bounded_canonical::borrowed::Error),
+    Census(pllm_models::owned_backing::bounded::Error),
+    Native(pllm_garble::shared_allocation::Error),
+}
+
+impl From<&'static str> for InventoryFailure<'_> {
+    fn from(value: &'static str) -> Self {
+        Self::Static(value)
+    }
+}
+
+impl fmt::Display for InventoryFailure<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Static(error) => f.write_str(error),
+            Self::Artifact(field) => write!(f, "matrix inventory malformed {field} artifact ID"),
+            Self::DeclaredShape(field) => {
+                write!(f, "matrix inventory malformed or mismatched {field}")
+            }
+            Self::Attribute(key) => write!(
+                f,
+                "matrix inventory unsupported or malformed matrix attribute {key}"
+            ),
+            Self::Grouping(error) => fmt::Display::fmt(error, f),
+            Self::Canonical(error) => fmt::Display::fmt(error, f),
+            Self::Stream(error) => fmt::Display::fmt(error, f),
+            Self::Index(error) => write!(f, "matrix inventory bounded index: {error:?}"),
+            Self::Json(error) => fmt::Display::fmt(error, f),
+            Self::Census(error) => fmt::Display::fmt(error, f),
+            Self::Native(error) => write!(f, "matrix inventory original reservation: {error:?}"),
+        }
+    }
+}
+
+impl std::error::Error for InventoryFailure<'_> {}
+impl serde::ser::Error for InventoryFailure<'static> {
+    fn custom<T: fmt::Display>(_: T) -> Self {
+        Self::Static("matrix inventory unsupported metadata enum serialization")
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static METADATA_FACTORIES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+fn plan_canonical_limits(max_work: usize) -> model_canonical::Limits {
+    model_canonical::Limits {
+        canonical: StreamLimits {
+            max_nodes: MAX_NODES,
+            max_depth: CANONICAL_SLOTS,
+            max_bytes: DECODER_MATRIX_INVENTORY_MAX_PLAN_BYTES,
+            max_string_bytes: MAX_STRING_BYTES,
+            max_key_bytes: MAX_STRING_BYTES,
+            max_total_string_bytes: MAX_TOTAL_STRING_BYTES,
+            max_work,
+            max_stack_bytes: std::mem::size_of::<[StreamFrame<'_>; CANONICAL_SLOTS]>(),
+        },
+        max_operations: MAX_OPERATIONS * 2,
+        max_states: MAX_STATES * 4,
+        max_inputs: MAX_OPERATIONS * 2 * MAX_INPUTS,
+        max_rank: 5,
+        max_transformations: 0,
+        max_domain_bytes: pllm_models::DECODER_PLAN_SCHEMA_VERSION.len(),
+    }
+}
 
 /// Immutable canonical metadata snapshot; no deserializer or mutation API.
+/// Guarded construction remains compiler-private, not an SDK admission route:
+/// This checks privacy only, not the original-owner lifetime proof.
+/// ```compile_fail
+/// use pllm_compiler::decoder_matrix_inventory::construction::ConstructionQuote;
+/// ```
+/// The original charged input exposes no mutable payload/capacity replacement:
+/// ```compile_fail
+/// use pllm_garble::shared_allocation::OwnedCharged;
+/// use pllm_models::DecoderPlan;
+/// fn replace_capacity(input: &OwnedCharged<DecoderPlan>) {
+///     input.payload().prefill.operations.reserve(1);
+/// }
+/// ```
 #[derive(Debug)]
 pub struct DecoderMatrixInventory {
     bytes: Vec<u8>,
@@ -90,21 +198,60 @@ impl DecoderMatrixInventory {
 }
 
 #[derive(Serialize)]
-struct Inventory {
+struct Inventory<'a> {
     schema_version: &'static str,
-    model_plan_digest: Digest,
-    model_config_digest: Digest,
-    prefill: Phase,
-    decode: Phase,
+    model_plan_digest: HexDigest,
+    model_config_digest: &'a Digest,
+    prefill: Phase<'a>,
+    decode: Phase<'a>,
+}
+
+/// Fixed-size encoding of the shared canonical SHA-256 result, not a second
+/// hashing algorithm. Its length and lowercase ASCII invariant are structural.
+struct HexDigest {
+    raw: [u8; 32],
+    text: [u8; 64],
+}
+
+impl HexDigest {
+    fn new(raw: [u8; 32]) -> Self {
+        const HEX: &[u8; 16] = b"0123456789abcdef";
+        let mut text = [0; 64];
+        for (i, byte) in raw.into_iter().enumerate() {
+            text[2 * i] = HEX[(byte >> 4) as usize];
+            text[2 * i + 1] = HEX[(byte & 15) as usize];
+        }
+        Self { raw, text }
+    }
+    fn as_str(&self) -> &str {
+        // All constructors select ASCII exclusively from HEX above.
+        std::str::from_utf8(&self.text).expect("fixed lowercase hexadecimal")
+    }
+    fn into_digest(self) -> Digest {
+        let text: Box<[u8]> = Box::new(self.text);
+        let text = String::from_utf8(text.into_vec()).expect("fixed lowercase hexadecimal");
+        // StringDeserializer transfers this exact 64-byte owner through the
+        // existing Digest validator. No parse scratch or clone/normalization.
+        serde::Deserialize::deserialize(serde::de::value::StringDeserializer::<
+            serde::de::value::Error,
+        >::new(text))
+        .expect("fixed validated SHA-256 encoding")
+    }
+}
+
+impl Serialize for HexDigest {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
 }
 
 #[derive(Serialize)]
-struct Phase {
+struct Phase<'a> {
     mode: DecoderMode,
     batch: u64,
     query_sequence: u64,
     maximum_key_sequence: u64,
-    groups: Vec<Group>,
+    groups: Box<[Group<'a>]>,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Serialize)]
@@ -122,40 +269,84 @@ enum Orientation {
 }
 
 #[derive(Serialize)]
-struct Group {
+struct Group<'a> {
     /// Dense inventory order, following the first member's graph position.
     order: u64,
     operator: ModelOperator,
     layer: Option<u64>,
-    input_id: String,
-    input_shape: Vec<u64>,
+    input_id: &'a str,
+    input_shape: InputShape<'a>,
     artifact_kind: ArtifactKind,
     orientation: Orientation,
     /// Logical concatenation only; each member retains its own source artifact.
     logical_shape: [u64; 2],
-    members: Vec<Member>,
+    members: Box<[Member<'a>]>,
+}
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(untagged)]
+enum InputShape<'a> {
+    Tokens([u64; 2]),
+    Produced(&'a [u64]),
+}
+
+impl std::ops::Deref for InputShape<'_> {
+    type Target = [u64];
+    fn deref(&self) -> &[u64] {
+        match self {
+            Self::Tokens(shape) => shape,
+            Self::Produced(shape) => shape,
+        }
+    }
 }
 
 #[derive(Serialize)]
-struct Member {
-    operation_id: String,
-    weight_id: String,
-    bias_id: Option<String>,
+struct Member<'a> {
+    operation_id: &'a str,
+    weight_id: &'a str,
+    bias_id: Option<&'a str>,
     source_shape: [u64; 2],
     bias_shape: Option<[u64; 1]>,
-    output_shape: Vec<u64>,
+    output_shape: &'a [u64],
     output_offset: u64,
     output_width: u64,
 }
 
-#[derive(Default)]
 struct MetadataBudget {
     nodes: usize,
     strings: usize,
+    work: u128,
+    work_limit: u128,
+    settled_work: u128,
+}
+
+impl Default for MetadataBudget {
+    fn default() -> Self {
+        Self {
+            nodes: 0,
+            strings: 0,
+            work: 0,
+            work_limit: u128::MAX,
+            settled_work: 0,
+        }
+    }
 }
 
 impl MetadataBudget {
-    fn node(&mut self, depth: usize) -> Result<(), String> {
+    fn admit_work(&mut self, units: u128) -> Result<(), InventoryFailure<'static>> {
+        let next = self
+            .work
+            .checked_add(units)
+            .ok_or("metadata work overflow")?;
+        if next > self.work_limit {
+            return Err("matrix inventory aggregate work limit exceeded".into());
+        }
+        self.work = next;
+        Ok(())
+    }
+
+    fn node(&mut self, depth: usize) -> Result<(), InventoryFailure<'static>> {
+        self.admit_work(1)?;
         self.nodes = self.nodes.checked_add(1).ok_or("metadata node overflow")?;
         if depth > MAX_DEPTH || self.nodes > MAX_NODES {
             return Err("matrix inventory metadata depth or node limit exceeded".into());
@@ -163,7 +354,8 @@ impl MetadataBudget {
         Ok(())
     }
 
-    fn string(&mut self, value: &str) -> Result<(), String> {
+    fn string(&mut self, value: &str) -> Result<(), InventoryFailure<'static>> {
+        self.admit_work(value.len() as u128 + 1)?;
         self.strings = self
             .strings
             .checked_add(value.len())
@@ -174,12 +366,12 @@ impl MetadataBudget {
         Ok(())
     }
 
-    fn string_value(&mut self, value: &str, depth: usize) -> Result<(), String> {
+    fn string_value(&mut self, value: &str, depth: usize) -> Result<(), InventoryFailure<'static>> {
         self.node(depth)?;
         self.string(value)
     }
 
-    fn object(&mut self, fields: &[&str], depth: usize) -> Result<(), String> {
+    fn object(&mut self, fields: &[&str], depth: usize) -> Result<(), InventoryFailure<'static>> {
         self.node(depth)?;
         for key in fields {
             self.string(key)?;
@@ -187,7 +379,7 @@ impl MetadataBudget {
         Ok(())
     }
 
-    fn dimensions(&mut self, shape: &[u64], depth: usize) -> Result<(), String> {
+    fn dimensions(&mut self, shape: &[u64], depth: usize) -> Result<(), InventoryFailure<'static>> {
         self.node(depth)?;
         for _ in shape {
             self.node(depth + 1)?;
@@ -195,7 +387,15 @@ impl MetadataBudget {
         Ok(())
     }
 
-    fn value(&mut self, value: &Value, depth: usize) -> Result<(), String> {
+    fn checked_shape(&mut self, shape: &[u64]) -> Result<u64, InventoryFailure<'static>> {
+        // shape_elements first checks rank, then makes product/range passes.
+        if !shape.is_empty() && shape.len() <= 5 {
+            self.admit_work(shape.len() as u128 + shape.len() as u128)?;
+        }
+        shape_elements(shape)
+    }
+
+    fn value(&mut self, value: &Value, depth: usize) -> Result<(), InventoryFailure<'static>> {
         self.node(depth)?;
         match value {
             Value::String(value) => self.string(value)?,
@@ -208,7 +408,7 @@ impl MetadataBudget {
                 }
             }
             Value::Object(fields) => {
-                if fields.len() > 64 {
+                if fields.len() > MAX_OBJECT_FIELDS {
                     return Err("matrix inventory metadata object limit exceeded".into());
                 }
                 for (key, value) in fields {
@@ -220,6 +420,128 @@ impl MetadataBudget {
         }
         Ok(())
     }
+
+    fn enumeration<T: Serialize>(
+        &mut self,
+        value: &T,
+        depth: usize,
+    ) -> Result<(), InventoryFailure<'static>> {
+        value.serialize(MetadataEnum {
+            budget: self,
+            depth,
+        })
+    }
+}
+
+/// Count serde's *actual* enum spelling/null contract without a temporary Value,
+/// String, formatting buffer, or a second handwritten enum-name table.
+struct MetadataEnum<'a> {
+    budget: &'a mut MetadataBudget,
+    depth: usize,
+}
+
+macro_rules! unsupported_enum_scalar {
+    ($($method:ident($argument:ty)),* $(,)?) => {$(
+        fn $method(self, _: $argument) -> Result<(), Self::Error> {
+            Err("matrix inventory unsupported metadata enum serialization".into())
+        }
+    )*};
+}
+
+impl serde::Serializer for MetadataEnum<'_> {
+    type Ok = ();
+    type Error = InventoryFailure<'static>;
+    type SerializeSeq = serde::ser::Impossible<(), Self::Error>;
+    type SerializeTuple = serde::ser::Impossible<(), Self::Error>;
+    type SerializeTupleStruct = serde::ser::Impossible<(), Self::Error>;
+    type SerializeTupleVariant = serde::ser::Impossible<(), Self::Error>;
+    type SerializeMap = serde::ser::Impossible<(), Self::Error>;
+    type SerializeStruct = serde::ser::Impossible<(), Self::Error>;
+    type SerializeStructVariant = serde::ser::Impossible<(), Self::Error>;
+    fn serialize_str(self, value: &str) -> Result<(), Self::Error> {
+        self.budget.string_value(value, self.depth)
+    }
+    fn serialize_none(self) -> Result<(), Self::Error> {
+        self.budget.node(self.depth)
+    }
+    fn serialize_unit(self) -> Result<(), Self::Error> {
+        self.budget.node(self.depth)
+    }
+    fn serialize_some<T: ?Sized + Serialize>(self, value: &T) -> Result<(), Self::Error> {
+        value.serialize(self)
+    }
+    fn serialize_unit_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        variant: &'static str,
+    ) -> Result<(), Self::Error> {
+        self.serialize_str(variant)
+    }
+    fn serialize_unit_struct(self, _: &'static str) -> Result<(), Self::Error> {
+        self.serialize_unit()
+    }
+    fn serialize_newtype_struct<T: ?Sized + Serialize>(
+        self,
+        _: &'static str,
+        _: &T,
+    ) -> Result<(), Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn serialize_newtype_variant<T: ?Sized + Serialize>(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: &T,
+    ) -> Result<(), Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple, Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn serialize_tuple_struct(
+        self,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn serialize_tuple_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn serialize_map(self, _: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn serialize_struct(
+        self,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeStruct, Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn serialize_struct_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeStructVariant, Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    fn collect_str<T: ?Sized + fmt::Display>(self, _: &T) -> Result<(), Self::Error> {
+        Err("matrix inventory unsupported metadata enum serialization".into())
+    }
+    unsupported_enum_scalar! { serialize_bool(bool), serialize_i8(i8), serialize_i16(i16), serialize_i32(i32), serialize_i64(i64), serialize_u8(u8), serialize_u16(u16), serialize_u32(u32), serialize_u64(u64), serialize_f32(f32), serialize_f64(f64), serialize_char(char), serialize_bytes(&[u8]) }
 }
 
 // Streaming admission precedes construction of DecoderPlan/Value. Besides
@@ -290,7 +612,7 @@ impl<'de> Visitor<'de> for JsonPreflight<'_> {
         let mut keys = BTreeSet::new();
         while let Some(key) = map.next_key::<String>()? {
             self.budget.string(&key).map_err(serde::de::Error::custom)?;
-            if keys.len() == 64 || !keys.insert(key) {
+            if keys.len() == MAX_OBJECT_FIELDS || !keys.insert(key) {
                 return Err(serde::de::Error::custom(
                     "matrix inventory duplicate JSON key or object limit exceeded",
                 ));
@@ -302,26 +624,6 @@ impl<'de> Visitor<'de> for JsonPreflight<'_> {
         }
         Ok(())
     }
-}
-
-struct ByteBudget(usize);
-
-impl Write for ByteBudget {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        self.0 = self
-            .0
-            .checked_sub(bytes.len())
-            .ok_or_else(|| io::Error::other("metadata byte limit exceeded"))?;
-        Ok(bytes.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-fn serialized_bound(value: &impl Serialize, maximum: usize) -> Result<(), String> {
-    serde_json::to_writer(ByteBudget(maximum), value).map_err(|error| error.to_string())
 }
 
 /// Bounded JSON entry point, shared with the internal Python binding.
@@ -362,7 +664,7 @@ pub fn decoder_matrix_inventory_bytes(bytes: &[u8]) -> Result<DecoderMatrixInven
     lower_decoder_matrix_inventory(&plan)
 }
 
-fn shape_elements(shape: &[u64]) -> Result<u64, String> {
+fn shape_elements(shape: &[u64]) -> Result<u64, InventoryFailure<'static>> {
     if shape.is_empty() || shape.len() > 5 {
         return Err("matrix inventory unsupported shape rank".into());
     }
@@ -387,7 +689,22 @@ fn remote(operator: ModelOperator) -> bool {
     )
 }
 
-fn preflight(plan: &DecoderPlan) -> Result<(), String> {
+fn preflight(plan: &DecoderPlan) -> Result<(), InventoryFailure<'static>> {
+    preflight_with_work(plan, usize::MAX)
+}
+
+fn preflight_with_work(
+    plan: &DecoderPlan,
+    max_canonical_work: usize,
+) -> Result<(), InventoryFailure<'static>> {
+    preflight_inner(plan, max_canonical_work, None)
+}
+
+fn preflight_inner<'a>(
+    plan: &'a DecoderPlan,
+    max_canonical_work: usize,
+    mut context: Option<&mut construction::Context<'a>>,
+) -> Result<(), InventoryFailure<'static>> {
     if plan.schema_version != pllm_models::DECODER_PLAN_SCHEMA_VERSION
         || !plan.transformations.is_empty()
     {
@@ -403,10 +720,13 @@ fn preflight(plan: &DecoderPlan) -> Result<(), String> {
         return Err("matrix inventory invalid decoder phase or feedback contract".into());
     }
     let mut budget = MetadataBudget::default();
+    if let Some(context) = context.as_deref_mut() {
+        budget.work_limit = context.remaining();
+    }
     // Walk the serialized schema in place: root 0, phase 1, operations 2,
     // operation 3, attributes 4. Count keys and every value node just as the
     // streaming JSON visitor does, without serializing/allocating the plan.
-    // Only fixed-size enums below are converted to their serde string/null form.
+    // Fixed-size enums are counted through their serde string/null events.
     budget.object(
         &[
             "schema_version",
@@ -462,10 +782,7 @@ fn preflight(plan: &DecoderPlan) -> Result<(), String> {
             ],
             1,
         )?;
-        budget.value(
-            &serde_json::to_value(graph.mode).map_err(|error| error.to_string())?,
-            2,
-        )?;
+        budget.enumeration(&graph.mode, 2)?;
         for _ in 0..3 {
             budget.node(2)?;
         } // batch and sequence bounds
@@ -476,12 +793,9 @@ fn preflight(plan: &DecoderPlan) -> Result<(), String> {
                 budget.object(&["id", "layer", "kind", "shape", "maximum_sequence"], 3)?;
                 budget.string_value(&state.id, 4)?;
                 budget.node(4)?; // layer (integer or null)
-                budget.value(
-                    &serde_json::to_value(state.kind).map_err(|error| error.to_string())?,
-                    4,
-                )?;
+                budget.enumeration(&state.kind, 4)?;
                 budget.node(4)?; // maximum_sequence
-                shape_elements(&state.shape)?;
+                budget.checked_shape(&state.shape)?;
                 budget.dimensions(&state.shape, 4)?;
                 if state.shape[0] != graph.batch
                     || state.maximum_sequence == 0
@@ -506,29 +820,28 @@ fn preflight(plan: &DecoderPlan) -> Result<(), String> {
                 3,
             )?;
             budget.string_value(&op.id, 4)?;
-            budget.value(
-                &serde_json::to_value(op.operator).map_err(|error| error.to_string())?,
-                4,
-            )?;
+            budget.enumeration(&op.operator, 4)?;
             budget.node(4)?; // layer (integer or null)
-            budget.value(
-                &serde_json::to_value(op.state_kind).map_err(|error| error.to_string())?,
-                4,
-            )?;
-            if op.inputs.len() > 16 {
+            budget.enumeration(&op.state_kind, 4)?;
+            if op.inputs.len() > MAX_INPUTS {
                 return Err("matrix inventory input count limit exceeded".into());
             }
             budget.node(4)?; // inputs array
             for input in &op.inputs {
                 budget.string_value(input, 5)?;
             }
-            shape_elements(&op.output_shape)?;
+            budget.checked_shape(&op.output_shape)?;
             budget.dimensions(&op.output_shape, 4)?;
             if !op.attributes.is_object() {
                 return Err("matrix inventory attributes must be an object".into());
             }
-            budget.value(&op.attributes, 4)?;
+            if let Some(context) = context.as_deref_mut() {
+                context.metadata(&mut budget, &op.attributes, 4)?;
+            } else {
+                budget.value(&op.attributes, 4)?;
+            }
             if remote(op.operator) {
+                budget.admit_work(op.inputs.len() as u128 + 2)?;
                 // More than the fixed fields, five-dimensional shapes, and all
                 // possible JSON-escaped IDs emitted for a member and its group.
                 let id_bytes = op.id.len()
@@ -547,7 +860,25 @@ fn preflight(plan: &DecoderPlan) -> Result<(), String> {
             }
         }
     }
-    serialized_bound(plan, DECODER_MATRIX_INVENTORY_MAX_PLAN_BYTES)
+    // Preflight above already applied the exact legacy schema/node/string caps.
+    // Canonical and serde JSON have identical encoded lengths. Do not involve
+    // serde_json's allocating Error/Io error construction in this typed path.
+    if let Some(context) = context {
+        context.settle_schema(&mut budget)?;
+        return context.preflight_bytes(plan);
+    }
+    let mut frames = [StreamFrame::empty(); CANONICAL_SLOTS];
+    let mut limits = plan_canonical_limits(max_canonical_work);
+    limits.canonical.max_nodes = usize::MAX;
+    limits.canonical.max_total_string_bytes = usize::MAX;
+    model_canonical::bounded_plan_write(plan, limits, &mut frames, &mut io::sink())
+        .map(|_| ())
+        .map_err(|error| match error {
+            model_canonical::Error::Canonical(StreamError::ByteLimit) => {
+                InventoryFailure::Static("metadata byte limit exceeded")
+            }
+            other => InventoryFailure::Canonical(other),
+        })
 }
 
 const PUBLIC_INPUTS: [&str; 4] = [
@@ -558,43 +889,43 @@ const PUBLIC_INPUTS: [&str; 4] = [
 ];
 
 /// Validate reference uniqueness/topological binding without family name rules.
-fn validate_references(graph: &DecoderGraph) -> Result<(), String> {
-    let mut available: BTreeMap<&str, Option<&[u64]>> =
-        PUBLIC_INPUTS.into_iter().map(|id| (id, None)).collect();
-    let mut input_slots = BTreeSet::new();
-    for state in &graph.state_inputs {
+#[cfg(test)]
+fn validate_references(graph: &DecoderGraph) -> Result<(), InventoryFailure<'static>> {
+    for (index, state) in graph.state_inputs.iter().enumerate() {
         if state.id.is_empty()
-            || available.insert(&state.id, Some(&state.shape)).is_some()
-            || !input_slots.insert((state.layer, state.kind))
+            || PUBLIC_INPUTS.contains(&state.id.as_str())
+            || graph.state_inputs[..index].iter().any(|previous| {
+                previous.id == state.id
+                    || (previous.layer, previous.kind) == (state.layer, state.kind)
+            })
         {
             return Err("matrix inventory duplicate or empty state input ID/slot".into());
         }
     }
-    for op in &graph.operations {
-        if op.id.is_empty() || available.contains_key(op.id.as_str()) {
+    for (index, op) in graph.operations.iter().enumerate() {
+        let available = |id: &str| {
+            PUBLIC_INPUTS.contains(&id)
+                || graph.state_inputs.iter().any(|state| state.id == id)
+                || graph.operations[..index]
+                    .iter()
+                    .any(|previous| previous.id == id)
+        };
+        if op.id.is_empty() || available(&op.id) {
             return Err("matrix inventory duplicate or empty operation ID".into());
         }
-        if op
-            .inputs
-            .iter()
-            .any(|id| !available.contains_key(id.as_str()))
-        {
+        if op.inputs.iter().any(|id| !available(id)) {
             return Err("matrix inventory unbound operation input ID".into());
         }
-        available.insert(&op.id, Some(&op.output_shape));
     }
-    let mut output_slots = BTreeSet::new();
-    let mut output_ids = BTreeSet::new();
-    for state in &graph.state_outputs {
+    for (index, state) in graph.state_outputs.iter().enumerate() {
         let producer = graph.operations.iter().find(|op| op.id == state.id);
-        if !output_slots.insert((state.layer, state.kind))
-            || !output_ids.insert(&state.id)
-            || producer.is_none_or(|op| {
-                op.output_shape != state.shape
-                    || op.layer != state.layer
-                    || op.state_kind != Some(state.kind)
-            })
-        {
+        if graph.state_outputs[..index].iter().any(|previous| {
+            (previous.layer, previous.kind) == (state.layer, state.kind) || previous.id == state.id
+        }) || producer.is_none_or(|op| {
+            op.output_shape != state.shape
+                || op.layer != state.layer
+                || op.state_kind != Some(state.kind)
+        }) {
             return Err("matrix inventory duplicate or unbound state output metadata".into());
         }
     }
@@ -610,21 +941,21 @@ fn validate_references(graph: &DecoderGraph) -> Result<(), String> {
 
 fn artifact_id<'a>(
     op: &'a ModelOperation,
-    field: &str,
+    field: &'static str,
     optional: bool,
-) -> Result<Option<&'a str>, String> {
+) -> Result<Option<&'a str>, InventoryFailure<'a>> {
     match op.attributes.get(field) {
         None | Some(Value::Null) if optional => Ok(None),
         Some(Value::String(value)) if !value.is_empty() => Ok(Some(value)),
-        _ => Err(format!("matrix inventory malformed {field} artifact ID")),
+        _ => Err(InventoryFailure::Artifact(field)),
     }
 }
 
 fn declared_shape(
     op: &ModelOperation,
-    field: &str,
+    field: &'static str,
     expected: Option<&[u64]>,
-) -> Result<(), String> {
+) -> Result<(), InventoryFailure<'static>> {
     if let Some(value) = op.attributes.get(field) {
         if value
             .as_array()
@@ -637,13 +968,13 @@ fn declared_shape(
                         .any(|(v, e)| v.as_u64() != Some(*e))
             })
         {
-            return Err(format!("matrix inventory malformed or mismatched {field}"));
+            return Err(InventoryFailure::DeclaredShape(field));
         }
     }
     Ok(())
 }
 
-fn validate_attributes(op: &ModelOperation) -> Result<(), String> {
+fn validate_attributes(op: &ModelOperation) -> Result<(), InventoryFailure<'_>> {
     for (key, value) in op.attributes.as_object().expect("preflight checked object") {
         let valid = match key.as_str() {
             "weight" | "bias" | "weight_shape" | "bias_shape" => true, // Checked against derived geometry below.
@@ -666,84 +997,70 @@ fn validate_attributes(op: &ModelOperation) -> Result<(), String> {
             _ => false,
         };
         if !valid {
-            return Err(format!(
-                "matrix inventory unsupported or malformed matrix attribute {key}"
-            ));
+            return Err(InventoryFailure::Attribute(key));
         }
     }
     Ok(())
 }
 
-#[derive(Default)]
-struct Sources<'a> {
-    shapes: BTreeMap<&'a str, Vec<u64>>,
-    elements: u64,
-}
-
-impl<'a> Sources<'a> {
-    fn bind(&mut self, id: &'a str, shape: &[u64], graph: &DecoderGraph) -> Result<(), String> {
-        if PUBLIC_INPUTS.contains(&id)
-            || graph.operations.iter().any(|op| op.id == id)
-            || graph
-                .state_inputs
-                .iter()
-                .chain(&graph.state_outputs)
-                .any(|state| state.id == id)
-        {
-            return Err("matrix inventory source artifact ID aliases a graph value".into());
-        }
-        self.elements = self
-            .elements
-            .checked_add(shape_elements(shape)?)
-            .ok_or("matrix inventory source size sum overflow")?;
-        if self.elements > MAX_TOTAL_ELEMENTS {
-            return Err("matrix inventory source size sum exceeds limit".into());
-        }
-        if let Some(previous) = self.shapes.get(id) {
-            if previous != shape {
-                return Err("matrix inventory inconsistent source artifact shape".into());
+fn lower_phase<'a>(
+    graph: &'a DecoderGraph,
+    sources: &mut impl construction::Bindings<'a>,
+    lookup: &construction::PhaseLookup<'_, 'a>,
+    context: &mut construction::Context<'a>,
+) -> Result<Phase<'a>, InventoryFailure<'a>> {
+    lookup.validate(graph, context)?;
+    context.charge(graph.operations.len() as u128)?;
+    let mut head = None;
+    let mut head_count = 0;
+    for operation in &graph.operations {
+        if operation.operator == ModelOperator::OutputHead {
+            head_count += 1;
+            if head.is_none() {
+                head = Some(operation);
             }
-        } else {
-            self.shapes.insert(id, shape.to_vec());
         }
-        Ok(())
     }
-}
-
-fn lower_phase<'a>(graph: &'a DecoderGraph, sources: &mut Sources<'a>) -> Result<Phase, String> {
-    validate_references(graph)?;
-    let heads: Vec<_> = graph
-        .operations
-        .iter()
-        .filter(|op| op.operator == ModelOperator::OutputHead)
-        .collect();
-    if heads.len() != 1
-        || heads[0].output_shape.len() != 2
-        || heads[0].output_shape[0] != graph.batch
+    if head.is_none_or(|head| head.output_shape.len() != 2 || head.output_shape[0] != graph.batch)
+        || head_count != 1
     {
         return Err("matrix inventory requires one rank-two output head".into());
     }
-    let vocabulary = heads[0].output_shape[1];
-    if let Some(tied) = heads[0].attributes.get("tied").and_then(Value::as_bool) {
-        let shares_table = graph.operations.iter().any(|op| {
-            op.operator == ModelOperator::TokenLookup
-                && op.attributes.get("weight") == heads[0].attributes.get("weight")
-        });
+    let head = head.expect("checked exactly one head");
+    let vocabulary = head.output_shape[1];
+    if let Some(tied) = head.attributes.get("tied").and_then(Value::as_bool) {
+        let mut shares_table = false;
+        for op in &graph.operations {
+            context.step()?;
+            if op.operator == ModelOperator::TokenLookup
+                && context.equal(op.attributes.get("weight"), head.attributes.get("weight"))?
+            {
+                shares_table = true;
+                break;
+            }
+        }
         if tied != shares_table {
             return Err(
                 "matrix inventory head tied declaration differs from source ownership".into(),
             );
         }
     }
-    let shapes: BTreeMap<_, _> = graph
-        .operations
-        .iter()
-        .map(|op| (op.id.as_str(), op.output_shape.as_slice()))
-        .collect();
-    let leaders = classify_remote_groups(graph)?;
-    let mut groups = Vec::with_capacity(leaders.len());
-    for op in &graph.operations {
-        let Some(group) = leaders.get(op.id.as_str()) else {
+    context.charge(graph.operations.len() as u128)?;
+    for operation in &graph.operations {
+        context.charge(operation.inputs.len() as u128)?;
+    }
+    let quote = RemoteGroupingQuote::checked(graph).map_err(InventoryFailure::Grouping)?;
+    let resources = quote.resources();
+    context.charge(resources.work_bound)?;
+    context.factory()?;
+    let leaders = quote
+        .construct(resources.workspace_bytes, resources.work_bound)
+        .map_err(InventoryFailure::Grouping)?;
+    let mut groups = context.buffer(leaders.len())?;
+    let mut group_count = 0;
+    for (operation_index, op) in graph.operations.iter().enumerate() {
+        context.step()?;
+        let Some(group) = leaders.at(operation_index) else {
             continue;
         };
         let token = op.operator == ModelOperator::TokenLookup;
@@ -757,16 +1074,34 @@ fn lower_phase<'a>(graph: &'a DecoderGraph, sources: &mut Sources<'a>) -> Result
             if op.inputs[0] != "input.tokens" {
                 return Err("matrix inventory token lookup requires local input.tokens".into());
             }
-            vec![graph.batch, graph.query_sequence]
+            InputShape::Tokens([graph.batch, graph.query_sequence])
         } else {
-            shapes
-                .get(op.inputs[0].as_str())
-                .ok_or("matrix inventory linear input has no operation source shape")?
-                .to_vec()
+            InputShape::Produced(
+                &lookup
+                    .operation(&op.inputs[0], false, context)?
+                    .ok_or("matrix inventory linear input has no operation source shape")?
+                    .output_shape,
+            )
         };
         let mut offset = 0_u64;
-        let mut members = Vec::with_capacity(group.operations.len());
+        let mut members = context.buffer(group.operations.len())?;
         for member in group.operations.iter() {
+            context.step()?;
+            context.charge(
+                member
+                    .attributes
+                    .as_object()
+                    .map_or(0, |fields| fields.len()) as u128,
+            )?;
+            if let Some(fields) = member.attributes.as_object() {
+                for (key, value) in fields {
+                    context
+                        .charge(key.len() as u128 + value.as_str().map_or(0, str::len) as u128)?;
+                }
+            }
+            for (a, b) in member.inputs.iter().zip(&op.inputs) {
+                context.charge((a.len().min(b.len()) + 1) as u128)?;
+            }
             validate_attributes(member)?;
             if member.inputs != op.inputs
                 || member.operator != op.operator
@@ -776,11 +1111,12 @@ fn lower_phase<'a>(graph: &'a DecoderGraph, sources: &mut Sources<'a>) -> Result
                 return Err("matrix inventory group semantic inputs/layer/operator differ".into());
             }
             let output = &member.output_shape;
+            context.charge((input_shape.len() + output.len()) as u128)?;
             let width = *output
                 .last()
                 .ok_or("matrix inventory missing output width")?;
             let source_shape = if token {
-                if output.len() != 3 || output[..2] != input_shape {
+                if output.len() != 3 || output[..2] != *input_shape {
                     return Err("matrix inventory token lookup prefix dimensions differ".into());
                 }
                 [vocabulary, width]
@@ -803,27 +1139,38 @@ fn lower_phase<'a>(graph: &'a DecoderGraph, sources: &mut Sources<'a>) -> Result
             if token && bias_id.is_some() {
                 return Err("matrix inventory token table cannot have bias".into());
             }
+            context.charge(source_shape.len() as u128)?;
             declared_shape(member, "weight_shape", Some(&source_shape))?;
             let bias_shape = bias_id.map(|_| [width]);
+            context.charge(bias_shape.map_or(0, |shape| shape.len()) as u128)?;
             declared_shape(
                 member,
                 "bias_shape",
                 bias_shape.as_ref().map(|shape| shape.as_slice()),
             )?;
-            sources.bind(weight_id, &source_shape, graph)?;
+            construction::Bindings::bind(
+                sources,
+                weight_id,
+                &source_shape,
+                graph,
+                lookup,
+                context,
+            )?;
             if let Some(bias_id) = bias_id {
-                sources.bind(bias_id, &[width], graph)?;
+                construction::Bindings::bind(sources, bias_id, &[width], graph, lookup, context)?;
             }
-            members.push(Member {
-                operation_id: member.id.clone(),
-                weight_id: weight_id.to_owned(),
-                bias_id: bias_id.map(str::to_owned),
-                source_shape,
-                bias_shape,
-                output_shape: output.clone(),
-                output_offset: offset,
-                output_width: width,
-            });
+            members
+                .push(Member {
+                    operation_id: &member.id,
+                    weight_id,
+                    bias_id,
+                    source_shape,
+                    bias_shape,
+                    output_shape: output,
+                    output_offset: offset,
+                    output_width: width,
+                })
+                .map_err(InventoryFailure::Index)?;
             offset = offset
                 .checked_add(width)
                 .ok_or("matrix inventory group width sum overflow")?;
@@ -836,57 +1183,65 @@ fn lower_phase<'a>(graph: &'a DecoderGraph, sources: &mut Sources<'a>) -> Result
         } else {
             [offset, input_shape[input_shape.len() - 1]]
         };
+        context.charge(logical_shape.len() as u128 + logical_shape.len() as u128)?;
         shape_elements(&logical_shape)?;
-        groups.push(Group {
-            order: groups.len() as u64,
-            operator: op.operator,
-            layer: op.layer,
-            input_id: op.inputs[0].clone(),
-            input_shape,
-            artifact_kind: if token {
-                ArtifactKind::TokenTable
-            } else {
-                ArtifactKind::Matrix
-            },
-            orientation: if token {
-                Orientation::VocabularyFeature
-            } else {
-                Orientation::OutputInput
-            },
-            logical_shape,
-            members,
-        });
+        groups
+            .push(Group {
+                order: group_count,
+                operator: op.operator,
+                layer: op.layer,
+                input_id: &op.inputs[0],
+                input_shape,
+                artifact_kind: if token {
+                    ArtifactKind::TokenTable
+                } else {
+                    ArtifactKind::Matrix
+                },
+                orientation: if token {
+                    Orientation::VocabularyFeature
+                } else {
+                    Orientation::OutputInput
+                },
+                logical_shape,
+                members: members.finish().map_err(InventoryFailure::Index)?,
+            })
+            .map_err(InventoryFailure::Index)?;
+        group_count += 1;
     }
     Ok(Phase {
         mode: graph.mode,
         batch: graph.batch,
         query_sequence: graph.query_sequence,
         maximum_key_sequence: graph.maximum_key_sequence,
-        groups,
+        groups: groups.finish().map_err(InventoryFailure::Index)?,
     })
 }
 
-fn compatible(prefill: &Phase, decode: &Phase, plan: &DecoderPlan) -> Result<(), String> {
+fn compatible<'a>(
+    prefill: &Phase<'_>,
+    decode: &Phase<'_>,
+    plan: &'a DecoderPlan,
+    lookup: &construction::PhaseLookup<'_, 'a>,
+    context: &mut construction::Context<'a>,
+) -> Result<(), InventoryFailure<'a>> {
     if prefill.groups.len() != decode.groups.len() {
         return Err("matrix inventory incompatible phase groups".into());
     }
-    let attrs: BTreeMap<_, _> = plan
-        .decode
-        .operations
-        .iter()
-        .filter(|op| remote(op.operator))
-        .map(|op| (op.id.as_str(), &op.attributes))
-        .collect();
-    if plan
-        .prefill
-        .operations
-        .iter()
-        .filter(|op| remote(op.operator))
-        .any(|op| attrs.get(op.id.as_str()) != Some(&&op.attributes))
-    {
-        return Err("matrix inventory incompatible phase matrix attributes".into());
+    for op in &plan.prefill.operations {
+        context.step()?;
+        if remote(op.operator) {
+            let other = lookup.operation(&op.id, true, context)?;
+            if other.is_none()
+                || !context.equal(Some(&op.attributes), other.map(|other| &other.attributes))?
+            {
+                return Err("matrix inventory incompatible phase matrix attributes".into());
+            }
+        }
     }
-    for (a, b) in prefill.groups.iter().zip(&decode.groups) {
+    for (a, b) in prefill.groups.iter().zip(decode.groups.iter()) {
+        context.step()?;
+        context.charge(a.logical_shape.len() as u128)?;
+        context.charge((a.input_id.len().min(b.input_id.len()) + 1) as u128)?;
         if a.operator != b.operator
             || a.layer != b.layer
             || a.input_id != b.input_id
@@ -898,7 +1253,19 @@ fn compatible(prefill: &Phase, decode: &Phase, plan: &DecoderPlan) -> Result<(),
         {
             return Err("matrix inventory incompatible phase groups".into());
         }
-        for (a, b) in a.members.iter().zip(&b.members) {
+        for (a, b) in a.members.iter().zip(b.members.iter()) {
+            context.step()?;
+            context.charge(
+                (a.source_shape.len() + a.bias_shape.map_or(0, |shape| shape.len())) as u128,
+            )?;
+            context.charge(
+                (a.operation_id.len().min(b.operation_id.len())
+                    + a.weight_id.len().min(b.weight_id.len())
+                    + 2) as u128,
+            )?;
+            if let (Some(a), Some(b)) = (a.bias_id, b.bias_id) {
+                context.charge((a.len().min(b.len()) + 1) as u128)?;
+            }
             if a.operation_id != b.operation_id
                 || a.weight_id != b.weight_id
                 || a.bias_id != b.bias_id
@@ -915,30 +1282,232 @@ fn compatible(prefill: &Phase, decode: &Phase, plan: &DecoderPlan) -> Result<(),
     Ok(())
 }
 
+fn lower_inventory(plan: &DecoderPlan) -> Result<Inventory<'_>, InventoryFailure<'_>> {
+    preflight(plan)?;
+    construction::metadata(plan, &mut construction::Context::new(false, u128::MAX)?)
+}
+
+fn inventory_stream_limits() -> StreamLimits {
+    StreamLimits {
+        // Legacy byte admission remains authoritative. Every value/string is
+        // at least one encoded byte; the inventory schema has fixed depth.
+        max_nodes: MAX_OUTPUT_BYTES,
+        max_depth: CANONICAL_SLOTS,
+        max_bytes: MAX_OUTPUT_BYTES,
+        max_string_bytes: MAX_OUTPUT_BYTES,
+        max_key_bytes: MAX_OUTPUT_BYTES,
+        max_total_string_bytes: MAX_OUTPUT_BYTES,
+        max_work: usize::MAX,
+        max_stack_bytes: std::mem::size_of::<[StreamFrame<'_>; CANONICAL_SLOTS]>(),
+    }
+}
+
+struct InventoryCursors<'a> {
+    groups: std::slice::Iter<'a, Group<'a>>,
+    members: std::slice::Iter<'a, Member<'a>>,
+    dimensions: std::slice::Iter<'a, u64>,
+}
+
+impl InventoryCursors<'_> {
+    fn empty() -> Self {
+        Self {
+            groups: [].iter(),
+            members: [].iter(),
+            dimensions: [].iter(),
+        }
+    }
+}
+
+fn emit_shape<'a, W: Write>(
+    s: &mut Session<'_, '_, W>,
+    shape: &'a [u64],
+    cursors: &mut InventoryCursors<'a>,
+) -> Result<(), StreamError> {
+    s.begin_array()?;
+    cursors.dimensions = shape.iter();
+    for dimension in cursors.dimensions.by_ref() {
+        s.u64(*dimension)?;
+    }
+    s.end_array()
+}
+
+fn emit_layer<W: Write>(s: &mut Session<'_, '_, W>, layer: Option<u64>) -> Result<(), StreamError> {
+    match layer {
+        Some(value) => s.u64(value),
+        None => s.null(),
+    }
+}
+
+fn emit_inventory_phase<'a, W: Write>(
+    s: &mut Session<'_, '_, W>,
+    phase: &'a Phase,
+    cursors: &mut InventoryCursors<'a>,
+) -> Result<(), StreamError> {
+    s.begin_object()?;
+    s.key("batch")?;
+    s.u64(phase.batch)?;
+    s.key("groups")?;
+    s.begin_array()?;
+    cursors.groups = phase.groups.iter();
+    while let Some(group) = cursors.groups.next() {
+        s.begin_object()?;
+        s.key("artifact_kind")?;
+        s.string(match group.artifact_kind {
+            ArtifactKind::TokenTable => "token_table",
+            ArtifactKind::Matrix => "matrix",
+        })?;
+        s.key("input_id")?;
+        s.string(group.input_id)?;
+        s.key("input_shape")?;
+        emit_shape(s, &group.input_shape, cursors)?;
+        s.key("layer")?;
+        emit_layer(s, group.layer)?;
+        s.key("logical_shape")?;
+        emit_shape(s, &group.logical_shape, cursors)?;
+        s.key("members")?;
+        s.begin_array()?;
+        cursors.members = group.members.iter();
+        while let Some(member) = cursors.members.next() {
+            s.begin_object()?;
+            s.key("bias_id")?;
+            match &member.bias_id {
+                Some(id) => s.string(id)?,
+                None => s.null()?,
+            }
+            s.key("bias_shape")?;
+            match &member.bias_shape {
+                Some(shape) => emit_shape(s, shape, cursors)?,
+                None => s.null()?,
+            }
+            s.key("operation_id")?;
+            s.string(member.operation_id)?;
+            s.key("output_offset")?;
+            s.u64(member.output_offset)?;
+            s.key("output_shape")?;
+            emit_shape(s, member.output_shape, cursors)?;
+            s.key("output_width")?;
+            s.u64(member.output_width)?;
+            s.key("source_shape")?;
+            emit_shape(s, &member.source_shape, cursors)?;
+            s.key("weight_id")?;
+            s.string(member.weight_id)?;
+            s.end_object()?;
+        }
+        s.end_array()?;
+        s.key("operator")?;
+        s.string(match group.operator {
+            ModelOperator::TokenLookup => "token_lookup",
+            ModelOperator::Linear => "linear",
+            ModelOperator::OutputHead => "output_head",
+            _ => unreachable!("validated remote operator"),
+        })?;
+        s.key("order")?;
+        s.u64(group.order)?;
+        s.key("orientation")?;
+        s.string(match group.orientation {
+            Orientation::VocabularyFeature => "vocabulary_feature",
+            Orientation::OutputInput => "output_input",
+        })?;
+        s.end_object()?;
+    }
+    s.end_array()?;
+    s.key("maximum_key_sequence")?;
+    s.u64(phase.maximum_key_sequence)?;
+    s.key("mode")?;
+    s.string(match phase.mode {
+        DecoderMode::Prefill => "prefill",
+        DecoderMode::Decode => "decode",
+    })?;
+    s.key("query_sequence")?;
+    s.u64(phase.query_sequence)?;
+    s.end_object()
+}
+
+fn emit_inventory<'a, W: Write>(
+    s: &mut Session<'_, '_, W>,
+    inventory: &'a Inventory,
+    cursors: &mut InventoryCursors<'a>,
+) -> Result<(), StreamError> {
+    s.begin_object()?;
+    s.key("decode")?;
+    emit_inventory_phase(s, &inventory.decode, cursors)?;
+    s.key("model_config_digest")?;
+    s.string(inventory.model_config_digest.as_str())?;
+    s.key("model_plan_digest")?;
+    s.string(inventory.model_plan_digest.as_str())?;
+    s.key("prefill")?;
+    emit_inventory_phase(s, &inventory.prefill, cursors)?;
+    s.key("schema_version")?;
+    s.string(inventory.schema_version)?;
+    s.end_object()
+}
+
+fn inventory_pass<W: Write>(
+    inventory: &Inventory,
+    frames: &mut [StreamFrame<'_>],
+    output: &mut W,
+) -> Result<pllm_types::bounded_canonical::StreamUsage, StreamError> {
+    inventory_pass_with_limits(inventory, frames, output, inventory_stream_limits())
+}
+
+fn inventory_pass_with_limits<W: Write>(
+    inventory: &Inventory,
+    frames: &mut [StreamFrame<'_>],
+    output: &mut W,
+    limits: StreamLimits,
+) -> Result<pllm_types::bounded_canonical::StreamUsage, StreamError> {
+    let mut session = Session::new(output, frames, limits)?;
+    let mut cursors = InventoryCursors::empty();
+    emit_inventory(&mut session, inventory, &mut cursors)?;
+    session.finish()
+}
+
+/// Exact-capacity final backing; sink admission precedes the only output factory.
+/// No temporary JSON tree, key-sort vector, escaped String or growing writer.
+fn inventory_canonical_bytes(
+    inventory: &Inventory<'_>,
+) -> Result<Vec<u8>, InventoryFailure<'static>> {
+    let mut frames = [StreamFrame::empty(); CANONICAL_SLOTS];
+    let usage =
+        inventory_pass(inventory, &mut frames, &mut io::sink()).map_err(|error| match error {
+            StreamError::ByteLimit => InventoryFailure::Static("metadata byte limit exceeded"),
+            other => InventoryFailure::Stream(other),
+        })?;
+    // A boxed slice has an exact logical length, independent of allocator
+    // rounding or Vec growth policy. Initialize in place; no temporary Vec.
+    let mut storage = Box::<[u8]>::new_uninit_slice(usage.bytes);
+    for byte in storage.iter_mut() {
+        byte.write(0);
+    }
+    // SAFETY: every slot above was initialized, including the empty-slice case.
+    let mut bytes = unsafe { storage.assume_init() };
+    let mut output = io::Cursor::new(bytes.as_mut());
+    inventory_pass(inventory, &mut frames, &mut output).map_err(InventoryFailure::Stream)?;
+    if output.position() != usage.bytes as u64 {
+        return Err("matrix inventory canonical replay length mismatch".into());
+    }
+    // Transfers the exact-length backing; no copy/reallocation.
+    Ok(bytes.into_vec())
+}
+
 /// Derive a canonical, plan/config-bound snapshot without an executable composition.
 /// Only this constructor can create an inventory; all validation precedes hashing.
 pub fn lower_decoder_matrix_inventory(
     plan: &DecoderPlan,
 ) -> Result<DecoderMatrixInventory, String> {
-    preflight(plan)?;
-    let mut sources = Sources::default();
-    let prefill = lower_phase(&plan.prefill, &mut sources)?;
-    let decode = lower_phase(&plan.decode, &mut sources)?;
-    compatible(&prefill, &decode, plan)?;
-    let inventory = Inventory {
-        schema_version: DECODER_MATRIX_INVENTORY_SCHEMA_VERSION,
-        model_plan_digest: plan.digest(),
-        model_config_digest: plan.config_digest.clone(),
-        prefill,
-        decode,
-    };
-    serialized_bound(&inventory, MAX_OUTPUT_BYTES)?;
-    let bytes = canonical_bytes(&inventory);
-    let digest = digest_bytes(DECODER_MATRIX_INVENTORY_SCHEMA_VERSION, &bytes);
+    let inventory = lower_inventory(plan).map_err(|error| error.to_string())?;
+    let bytes = inventory_canonical_bytes(&inventory).map_err(|error| error.to_string())?;
+    let mut hash = DomainHash::new(DECODER_MATRIX_INVENTORY_SCHEMA_VERSION);
+    hash.write_all(&bytes).expect("infallible shared hash sink");
+    let digest = HexDigest::new(hash.finish()).into_digest();
     Ok(DecoderMatrixInventory {
         bytes,
         digest,
-        semantic_plan_identity: inventory.model_plan_digest.as_sha256(),
+        semantic_plan_identity: inventory.model_plan_digest.raw,
         config_identity: inventory.model_config_digest.as_sha256(),
     })
 }
+
+#[cfg(test)]
+#[path = "decoder_matrix_inventory_preconstruction_tests.rs"]
+mod preconstruction_tests;
