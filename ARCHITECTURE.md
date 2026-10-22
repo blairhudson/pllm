@@ -2741,6 +2741,17 @@ private decoder state, SDK methods or performance evidence. Unsupported THOR
 multi-block source indexing remains an explicit rejection; BumbleBee B-N1 stays
 open.
 
+`pllm-types::bounded_canonical` provides borrowed canonical JSON traversal and
+ordered schema sessions with explicit node, depth, encoded-byte and work limits.
+`pllm-models::bounded_canonical` streams semantic plan and operation identities
+without constructing intermediate JSON trees, preserving existing canonical bytes
+and hash domains. Admission precedes external output; replay failures can leave
+partial output, and failed sessions cannot resume. Resource quotes cover declared
+logical Rust state, not dependency call stacks, allocator overhead or process RSS.
+Borrowed source/inventory ownership and complete compiler overlap still require
+separate admission; these hashing primitives do not enable SIGMA certification or
+decoder execution.
+
 Hugging Face sources use the standard shared Hub snapshot cache for both online
 and offline resolution, with immutable snapshot commits recorded in source locks.
 Streamed integer stage weights use a separate regenerable compiled cache whose

@@ -5,6 +5,8 @@ use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::fmt;
 
+pub mod bounded_canonical;
+mod digest_storage;
 pub mod network;
 
 pub const LOGICAL_PLAN_SCHEMA_VERSION: &str = "pllm.logical_plan.v2";

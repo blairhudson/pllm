@@ -1,5 +1,6 @@
 //! Model configuration validation and model-aware semantic lowering.
 
+pub mod bounded_canonical;
 pub mod cache;
 
 use pllm_types::{canonical_digest, Digest};
