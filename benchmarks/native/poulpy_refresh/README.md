@@ -1,8 +1,9 @@
 # Poulpy refresh qualification: blocked before allocation
 
-**No encrypted qualification ran. Native compilation/tests remain blocked by the
-missing pinned nightly and insufficient host memory; the standalone consumer
-dependency lock now exists.** Python guard/oracle and frozen-identity tests pass;
+**No encrypted qualification ran. The pinned nightly is installed; native
+compilation/tests remain unrun and gated by conservative free/speculative host
+memory. The standalone consumer dependency lock exists.** Python guard/oracle and
+frozen-identity tests pass;
 this is an admission-only implementation, not a completed two-refresh evaluator.
 
 User approved a distinct torus qualification profile, Poulpy v0.9.0 generic
@@ -91,25 +92,20 @@ swapout counters, deadline, bounded logs and observation gaps. Free/speculative
 pages alone count toward conservative memory admission; inactive pages and
 existing swap are not treated as capacity. Additional swap invalidates an
 attempt. Process groups are terminated and remaining descendants killed on
-failure, including a leader that has already exited. Each attempt retains an
-immutable freeze, command and result; launched commands also retain stdout,
-stderr and bounded resource samples. Sampling is not a proof of missed peaks;
-it cannot replace a complete preallocation bound for HE.
+failure, including a leader that has already exited. Use ordinary Cargo commands
+and tests; keep temporary logs and resource observations in ignored `target/`.
+Git history and the existing dependency lock supply source/version history. No
+receipt collection, source copy, archive or replay verifier is a completion gate.
+Sampling is not a proof of missed peaks and cannot replace a complete
+preallocation bound for HE.
 
-Initial receipts (preserved, no child launched):
-
-* `receipts/20261017T121458-resolve-2b6f9ccd/`: conservative available physical
-  memory 93,601,792 bytes (89.27 MiB), less than 1 GiB + 4 GiB reserve.
-* `receipts/20261017T121523-build-041be5c7/`: dependency lock missing after blocked
-  resolution. Compiler not launched and dated nightly not installed.
-* `receipts/20261017T122803-qualify-57963441/`: parent replay of the refusal, with
-  no child or key allocation.
-* `receipts/20261017T123127-qualify-f7cd5fac/`: same refusal after native-source
-  formatting, with unchanged byte bounds and current input hashes.
-
-These freezes are historical inputs. The current contract clarifies that native
-comparison is pending, not compiled; receipt statuses always report prelaunch
-blockage. There are no timings from cryptographic work and no performance claim.
+Historical 2026-10-17 attempts stopped before any child or key allocation:
+93,601,792 bytes (89.27 MiB) of conservative available physical memory was below
+the 1-GiB setup allowance plus 4-GiB reserve, and the dependency lock and pinned
+nightly were then missing. Later refusal checks and source formatting did not
+change the byte bounds. The lock and toolchain are now present; those historical
+refusals are not current dependency-state evidence. No cryptographic timing or
+performance claim follows from them.
 
 Focused tests (stdlib, no upstream/native crypto execution):
 
@@ -124,9 +120,8 @@ swap use, deadline enforcement after the final observation, and timeout cleanup
 of a real lightweight parent/grandchild pair.
 These are harness/contract tests, not backend illegal-key/entry/layout tests.
 
-Parent may record the already-proven refusal using `python3
-scripts/qualify_rust_ckks_refresh.py qualify`; that phase launches no child.
-Do not launch an upstream preset benchmark as a workaround: its convenience
+The lower bound already establishes refusal; no additional receipt/replay step is
+required. Do not launch an upstream preset benchmark as a workaround: its convenience
 setup itself bootstraps once and its eager keys exceed the envelope.
 
 ## What must change before encrypted execution
