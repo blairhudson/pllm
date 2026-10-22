@@ -4,6 +4,7 @@ use pllm_models::{
 use pllm_types::{canonical_digest, pipeline_digest_bytes, Digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::fmt;
 
 pub const DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION: &str = "pllm.decoder_runtime_schedule.v2";
 const DECODER_RUNTIME_SCHEDULE_DIGEST_DOMAIN: &str = "pllm.decoder_runtime_schedule.v2";
@@ -143,16 +144,240 @@ impl DecoderRuntimeSchedule {
     }
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct RemoteGroupKey {
-    operator: ModelOperator,
-    layer: Option<u64>,
-    inputs: Vec<String>,
-    singleton: Option<String>,
+#[derive(Clone, Copy, Debug)]
+struct RemoteMember<'a> {
+    operation: &'a ModelOperation,
+    index: usize,
 }
 
-pub(crate) struct RemoteGroup<'a> {
-    pub(crate) operations: Vec<&'a ModelOperation>,
+#[derive(Clone, Copy, Debug, Default)]
+struct GroupRow {
+    last_id_position: usize,
+    remote_id_position: Option<usize>,
+    start: usize,
+    len: usize,
+    leader: bool,
+    repeated_remote_id: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RemoteGroup<'g, 'a> {
+    pub(crate) operations: RemoteMembers<'g, 'a>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RemoteMembers<'g, 'a> {
+    members: &'g [RemoteMember<'a>],
+}
+
+impl<'g, 'a> RemoteMembers<'g, 'a> {
+    pub(crate) fn iter(&self) -> RemoteMemberIter<'g, 'a> {
+        RemoteMemberIter {
+            remaining: self.members.iter(),
+        }
+    }
+    pub(crate) fn len(&self) -> usize {
+        self.members.len()
+    }
+    pub(crate) fn first(&self) -> &'a ModelOperation {
+        self.members[0].operation
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct RemoteMemberIter<'g, 'a> {
+    remaining: std::slice::Iter<'g, RemoteMember<'a>>,
+}
+
+impl<'a> Iterator for RemoteMemberIter<'_, 'a> {
+    type Item = &'a ModelOperation;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.remaining.next().map(|member| {
+            #[cfg(test)]
+            GROUPING_ACCESS.with(|counts| {
+                let mut c = counts.get();
+                c.member_visits += 1;
+                counts.set(c);
+            });
+            member.operation
+        })
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.remaining.size_hint()
+    }
+}
+impl ExactSizeIterator for RemoteMemberIter<'_, '_> {}
+
+/// One indexed owner, shared by ordinary runtime and inventory. No owned keys,
+/// String clones, per-group allocation, tree nodes or growing buffers.
+#[derive(Debug)]
+pub(crate) struct RemoteGroups<'a> {
+    graph: &'a DecoderGraph,
+    by_id: Box<[usize]>,
+    rows: Box<[GroupRow]>,
+    members: Box<[RemoteMember<'a>]>,
+    groups: usize,
+    #[cfg(test)]
+    usage: GroupingUsage,
+}
+
+impl<'a> RemoteGroups<'a> {
+    /// Original ID-based leader lookup at a graph position, including local
+    /// operations shadowing remote IDs. The ID-run prepass cached this alias;
+    /// neither membership nor dispatch needs another search or allocation.
+    pub(crate) fn at(&self, index: usize) -> Option<RemoteGroup<'_, 'a>> {
+        #[cfg(test)]
+        GROUPING_ACCESS.with(|counts| {
+            let mut c = counts.get();
+            c.positional_probes += 1;
+            counts.set(c);
+        });
+        let row = &self.rows[self.rows.get(index)?.remote_id_position?];
+        row.leader.then(|| RemoteGroup {
+            operations: RemoteMembers {
+                members: &self.members[row.start..row.start + row.len],
+            },
+        })
+    }
+    pub(crate) fn is_remote(&self, index: usize) -> bool {
+        self.rows
+            .get(index)
+            .is_some_and(|row| row.remote_id_position.is_some())
+    }
+    pub(crate) fn get(&self, id: &str) -> Option<RemoteGroup<'_, 'a>> {
+        // Lower bound also preserves legacy behavior for a nonremote ID that
+        // shadows a remote leader. Duplicate remote IDs never reach this owner.
+        let (mut lo, mut hi) = (0, self.by_id.len());
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            #[cfg(test)]
+            GROUPING_ACCESS.with(|counts| {
+                let mut c = counts.get();
+                c.id_probes += 1;
+                counts.set(c);
+            });
+            if self.graph.operations[self.by_id[mid]].id.as_str() < id {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        let &index = self.by_id.get(lo)?;
+        if self.graph.operations[index].id != id {
+            return None;
+        }
+        self.at(index)
+    }
+    pub(crate) fn len(&self) -> usize {
+        self.groups
+    }
+    #[cfg(test)]
+    pub(crate) fn usage(&self) -> GroupingUsage {
+        self.usage
+    }
+    #[cfg(test)]
+    pub(crate) fn retained_index_bytes(&self) -> usize {
+        std::mem::size_of_val(self.by_id.as_ref())
+            + std::mem::size_of_val(self.rows.as_ref())
+            + std::mem::size_of_val(self.members.as_ref())
+    }
+}
+
+/// Allocation-free diagnostics. Legacy wrappers alone allocate error Strings.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RemoteGroupingError<'a> {
+    Layers,
+    Weight(&'a str),
+    LookupHead,
+    Duplicate(&'a str),
+    Overflow,
+    Capacity,
+    WorkLimit,
+}
+
+/// Logical grouping workspace only. Inputs, callers and downstream lowering are
+/// not included. All keys and members are aliases into the immutable graph.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct RemoteGroupingResources {
+    pub(crate) workspace_bytes: usize,
+    pub(crate) heap_bytes: usize,
+    pub(crate) work_bound: u128,
+    pub(crate) comparison_bound: u128,
+}
+
+/// Construction work units: explicit loop-item visits, scalar key comparisons,
+/// conservatively charged string spans (min byte length + termination), heap
+/// comparator calls/swaps and weight accesses. Not dependency/allocator CPU or
+/// native instructions. String ordering itself reuses optimized standard Ord.
+/// `comparisons` counts heap comparator calls only, not charged key byte spans.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct GroupingUsage {
+    pub(crate) work: u128,
+    pub(crate) comparisons: u128,
+}
+impl GroupingUsage {
+    fn step(&mut self) {
+        self.work += 1;
+    }
+}
+
+#[derive(Default)]
+struct GroupingSortState {
+    root: usize,
+    child: usize,
+    end: usize,
+}
+
+#[derive(Default)]
+struct GroupingBuildState {
+    usage: GroupingUsage,
+    start: usize,
+    end: usize,
+    first_remote: Option<usize>,
+    groups: usize,
+    token_lookups: usize,
+    output_heads: usize,
+    cursor: usize,
+    previous_layer: Option<u64>,
+    layers: u64,
+}
+
+#[derive(Debug)]
+pub(crate) struct RemoteGroupingQuote<'a> {
+    graph: &'a DecoderGraph,
+    remote_count: usize,
+    resources: RemoteGroupingResources,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Default)]
+pub(crate) struct GroupingAccess {
+    pub(crate) positional_probes: usize,
+    pub(crate) id_probes: usize,
+    pub(crate) member_visits: usize,
+}
+#[cfg(test)]
+thread_local! { pub(crate) static GROUPING_ACCESS: std::cell::Cell<GroupingAccess> = const { std::cell::Cell::new(GroupingAccess { positional_probes: 0, id_probes: 0, member_visits: 0 }) }; }
+#[cfg(test)]
+thread_local! { pub(crate) static GROUPING_ALLOCATIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+
+impl fmt::Display for RemoteGroupingError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Layers => f.write_str("decoder runtime layers must be contiguous from zero"),
+            Self::Weight(id) => write!(
+                f,
+                "remote operation {id} requires one declared weight artifact"
+            ),
+            Self::LookupHead => {
+                f.write_str("decoder runtime requires token lookup and one output head")
+            }
+            Self::Duplicate(id) => write!(f, "operation {id} belongs to multiple runtime stages"),
+            Self::Overflow => f.write_str("decoder grouping resource arithmetic overflow"),
+            Self::Capacity => f.write_str("decoder grouping workspace capacity limit exceeded"),
+            Self::WorkLimit => f.write_str("decoder grouping work limit exceeded"),
+        }
+    }
 }
 
 fn remote_operator(operator: ModelOperator) -> bool {
@@ -1244,85 +1469,462 @@ fn last_width(operation: &ModelOperation) -> Result<u64, String> {
         .ok_or_else(|| format!("operation {} has no output width", operation.id))
 }
 
-pub(crate) fn classify_remote_groups(
-    graph: &DecoderGraph,
-) -> Result<(BTreeMap<&str, RemoteGroup<'_>>, BTreeSet<&str>), String> {
-    let layers: BTreeSet<_> = graph
-        .operations
-        .iter()
-        .filter_map(|operation| operation.layer)
-        .collect();
-    if layers.is_empty()
-        || layers
-            .iter()
-            .copied()
-            .ne(0..u64::try_from(layers.len()).map_err(|_| "layer count exceeds u64")?)
-    {
-        return Err("decoder runtime layers must be contiguous from zero".into());
-    }
+fn grouping_add(a: u128, b: u128) -> Result<u128, RemoteGroupingError<'static>> {
+    a.checked_add(b).ok_or(RemoteGroupingError::Overflow)
+}
+fn grouping_mul(a: u128, b: u128) -> Result<u128, RemoteGroupingError<'static>> {
+    a.checked_mul(b).ok_or(RemoteGroupingError::Overflow)
+}
 
-    let mut grouped = BTreeMap::<RemoteGroupKey, Vec<&ModelOperation>>::new();
-    for operation in &graph.operations {
-        if remote_operator(operation.operator) {
-            weight_id(operation)?;
-            grouped
-                .entry(RemoteGroupKey {
-                    operator: operation.operator,
-                    layer: operation.layer,
-                    inputs: operation.inputs.clone(),
-                    // Token tables with the same input belong to one lookup
-                    // stage, preserving each table as an ordered artifact.
-                    singleton: (operation.operator == ModelOperator::OutputHead)
-                        .then(|| operation.id.clone()),
-                })
-                .or_default()
-                .push(operation);
+fn grouping_layout<T>(count: usize) -> Result<usize, RemoteGroupingError<'static>> {
+    std::alloc::Layout::array::<T>(count)
+        .map(|layout| layout.size())
+        .map_err(|_| RemoteGroupingError::Overflow)
+}
+
+struct IndexAllocation<T> {
+    slots: Box<[std::mem::MaybeUninit<T>]>,
+    initialized: usize,
+}
+fn grouping_box<T: Copy>(
+    count: usize,
+    mut make: impl FnMut(usize) -> T,
+) -> Result<Box<[T]>, RemoteGroupingError<'static>> {
+    grouping_layout::<T>(count)?;
+    #[cfg(test)]
+    GROUPING_ALLOCATIONS.with(|count| count.set(count.get() + 1));
+    let mut allocation = IndexAllocation {
+        slots: Box::<[T]>::new_uninit_slice(count),
+        initialized: 0,
+    };
+    while allocation.initialized < count {
+        allocation.slots[allocation.initialized].write(make(allocation.initialized));
+        allocation.initialized += 1;
+    }
+    // SAFETY: the entire exact-length slice was initialized. T: Copy has no
+    // destructor, so an initializer panic cannot strand an owned element.
+    Ok(unsafe { allocation.slots.assume_init() })
+}
+
+#[derive(Default)]
+struct KeyCompareState {
+    input: usize,
+}
+
+fn grouping_bytes_cmp(a: &str, b: &str, usage: &mut GroupingUsage) -> std::cmp::Ordering {
+    usage.work += a.len().min(b.len()) as u128 + 1;
+    a.cmp(b)
+}
+
+/// Exactly the original RemoteGroupKey ordering, over original borrowed strings.
+fn remote_key_cmp(
+    a: &ModelOperation,
+    b: &ModelOperation,
+    usage: &mut GroupingUsage,
+) -> std::cmp::Ordering {
+    usage.step();
+    let order = a.operator.cmp(&b.operator);
+    if !order.is_eq() {
+        return order;
+    }
+    usage.step();
+    let order = a.layer.cmp(&b.layer);
+    if !order.is_eq() {
+        return order;
+    }
+    let mut cursor = KeyCompareState::default();
+    while cursor.input < a.inputs.len().min(b.inputs.len()) {
+        let order = grouping_bytes_cmp(&a.inputs[cursor.input], &b.inputs[cursor.input], usage);
+        if !order.is_eq() {
+            return order;
+        }
+        cursor.input += 1;
+    }
+    usage.step();
+    let order = a.inputs.len().cmp(&b.inputs.len());
+    if !order.is_eq() {
+        return order;
+    }
+    usage.step();
+    if a.operator == ModelOperator::OutputHead {
+        grouping_bytes_cmp(&a.id, &b.id, usage)
+    } else {
+        std::cmp::Ordering::Equal
+    }
+}
+
+/// In-place heapsort: no dependency sort scratch or undocumented comparison
+/// constant. At most 2 comparisons per sift level; no recursion or heap growth.
+fn grouping_sort<T>(
+    items: &mut [T],
+    usage: &mut GroupingUsage,
+    mut compare: impl FnMut(&T, &T, &mut GroupingUsage) -> std::cmp::Ordering,
+) {
+    fn sift<T>(
+        items: &mut [T],
+        state: &mut GroupingSortState,
+        usage: &mut GroupingUsage,
+        compare: &mut impl FnMut(&T, &T, &mut GroupingUsage) -> std::cmp::Ordering,
+    ) {
+        while state.root < state.end / 2 {
+            state.child = 2 * state.root + 1;
+            if state.child + 1 < state.end {
+                usage.comparisons += 1;
+                usage.step();
+                if compare(&items[state.child], &items[state.child + 1], usage).is_lt() {
+                    state.child += 1;
+                }
+            }
+            usage.comparisons += 1;
+            usage.step();
+            if !compare(&items[state.root], &items[state.child], usage).is_lt() {
+                break;
+            }
+            items.swap(state.root, state.child);
+            usage.step();
+            state.root = state.child;
         }
     }
-
-    let token_lookups = graph
-        .operations
-        .iter()
-        .filter(|operation| operation.operator == ModelOperator::TokenLookup)
-        .count();
-    let output_heads = graph
-        .operations
-        .iter()
-        .filter(|operation| operation.operator == ModelOperator::OutputHead)
-        .count();
-    if token_lookups == 0 || output_heads != 1 {
-        return Err("decoder runtime requires token lookup and one output head".into());
+    let mut state = GroupingSortState {
+        root: items.len() / 2,
+        child: 0,
+        end: items.len(),
+    };
+    while state.root > 0 {
+        let root = state.root - 1;
+        state.root = root;
+        sift(items, &mut state, usage, &mut compare);
+        state.root = root;
     }
+    while state.end > 1 {
+        state.end -= 1;
+        items.swap(0, state.end);
+        usage.step();
+        state.root = 0;
+        sift(items, &mut state, usage, &mut compare);
+    }
+}
 
-    let positions: BTreeMap<_, _> = graph
-        .operations
-        .iter()
-        .enumerate()
-        .map(|(index, operation)| (operation.id.as_str(), index))
-        .collect();
-    let mut leaders = BTreeMap::new();
-    let mut members = BTreeSet::new();
-    for operations in grouped.into_values() {
-        let mut operations = operations;
-        operations.sort_by_key(|operation| positions[operation.id.as_str()]);
-        let leader = operations
-            .first()
-            .ok_or("remote runtime group has no operations")?
-            .id
-            .as_str();
-        for operation in &operations {
-            if !members.insert(operation.id.as_str()) {
-                return Err(format!(
-                    "operation {} belongs to multiple runtime stages",
-                    operation.id
-                ));
+fn grouping_sort_comparisons(n: usize) -> Result<u128, RemoteGroupingError<'static>> {
+    if n < 2 {
+        return Ok(0);
+    }
+    let sifts = grouping_add((n / 2) as u128, (n - 1) as u128)?;
+    grouping_mul(
+        grouping_mul(2, sifts)?,
+        (usize::BITS - n.leading_zeros()) as u128,
+    )
+}
+
+impl<'a> RemoteGroupingQuote<'a> {
+    /// Allocation-free O(operations + input references) metadata prepass. No key
+    /// contents compared, opaque owner nodes priced, or legacy graph caps added.
+    pub(crate) fn checked(graph: &'a DecoderGraph) -> Result<Self, RemoteGroupingError<'static>> {
+        let n = graph.operations.len();
+        let mut remote_count = 0;
+        let mut max_id = 0u128;
+        let mut key_units = 0u128;
+        for op in &graph.operations {
+            max_id = max_id.max(op.id.len() as u128);
+            if remote_operator(op.operator) {
+                remote_count += 1;
+                let mut units = 4u128; // operator, layer, input length, singleton
+                for id in &op.inputs {
+                    units = grouping_add(units, grouping_add(id.len() as u128, 1)?)?;
+                }
+                if op.operator == ModelOperator::OutputHead {
+                    units = grouping_add(units, grouping_add(op.id.len() as u128, 1)?)?;
+                }
+                key_units = key_units.max(units);
             }
         }
-        if leaders.insert(leader, RemoteGroup { operations }).is_some() {
-            return Err(format!("duplicate runtime stage leader {leader}"));
+        let n128 = n as u128;
+        let r128 = remote_count as u128;
+        let c = grouping_sort_comparisons(n)?;
+        let rc = grouping_sort_comparisons(remote_count)?;
+        let comparison_bound = grouping_add(grouping_mul(c, 2)?, rc)?;
+        let mut work_bound = 0;
+        // Heap comparisons include their call unit; each sift swap is bounded
+        // by a comparison, plus exactly len-1 extraction swaps per sort.
+        for bound in [
+            grouping_add(grouping_mul(c, 3)?, n.saturating_sub(1) as u128)?,
+            grouping_add(
+                grouping_mul(c, grouping_add(max_id, 4)?)?,
+                n.saturating_sub(1) as u128,
+            )?,
+            grouping_add(
+                grouping_mul(rc, grouping_add(key_units, 4)?)?,
+                remote_count.saturating_sub(1) as u128,
+            )?,
+            n128,
+            n128,
+            n128, // row / ID / member initialization
+            n128,
+            n128,
+            r128, // layers / weight-head scan / weight accessors
+            grouping_mul(n128, grouping_add(max_id, 1)?)?, // ID-run boundaries
+            n128,
+            grouping_mul(r128, grouping_add(key_units, 1)?)?, // ID-run minimum remote key
+            n128,
+            r128, // ID metadata / duplicate error scan
+            grouping_mul(r128, key_units)?,
+            r128, // group boundaries / row fill
+        ] {
+            work_bound = grouping_add(work_bound, bound)?;
         }
+        let heap = grouping_add(
+            grouping_layout::<usize>(n)? as u128,
+            grouping_add(
+                grouping_layout::<GroupRow>(n)? as u128,
+                grouping_layout::<RemoteMember<'_>>(remote_count)? as u128,
+            )?,
+        )?;
+        let heap_bytes = usize::try_from(heap).map_err(|_| RemoteGroupingError::Overflow)?;
+        // Concrete logical owner/scratch/result slots. Borrowed pointees,
+        // native/dependency stacks, allocator overhead and RSS are excluded.
+        let mut workspace_bytes = heap_bytes;
+        for bytes in [
+            std::mem::size_of::<Self>(),
+            std::mem::size_of::<RemoteGroups<'_>>(),
+            std::mem::size_of::<GroupingBuildState>(),
+            std::mem::size_of::<GroupingSortState>(),
+            std::mem::size_of::<KeyCompareState>(),
+            std::mem::size_of::<IndexAllocation<RemoteMember<'_>>>(),
+            std::mem::size_of::<Result<Box<[RemoteMember<'_>]>, RemoteGroupingError<'_>>>(),
+            std::mem::size_of::<Result<RemoteGroups<'_>, RemoteGroupingError<'_>>>(),
+            std::mem::size_of::<Result<Self, RemoteGroupingError<'_>>>(),
+            std::mem::size_of::<std::alloc::Layout>(),
+            std::mem::size_of::<Result<std::alloc::Layout, std::alloc::LayoutError>>(),
+            std::mem::size_of::<RemoteGroup<'_, '_>>(),
+            std::mem::size_of::<RemoteMemberIter<'_, '_>>(),
+            std::mem::size_of::<std::slice::Iter<'_, ModelOperation>>()
+                .max(std::mem::size_of::<std::slice::Iter<'_, usize>>())
+                .max(std::mem::size_of::<std::slice::Iter<'_, RemoteMember<'_>>>()),
+            std::mem::size_of::<std::slice::Iter<'_, String>>(),
+        ] {
+            workspace_bytes = workspace_bytes
+                .checked_add(bytes)
+                .ok_or(RemoteGroupingError::Overflow)?;
+        }
+        Ok(Self {
+            graph,
+            remote_count,
+            resources: RemoteGroupingResources {
+                workspace_bytes,
+                heap_bytes,
+                work_bound,
+                comparison_bound,
+            },
+        })
     }
-    Ok((leaders, members))
+    pub(crate) fn resources(&self) -> RemoteGroupingResources {
+        self.resources
+    }
+
+    /// Caller-held original reservation is required when used for admission;
+    /// these numerical ceilings do NOT create a Budget guard. Legacy callers
+    /// use the identical exact allocation policy without claiming authority.
+    pub(crate) fn construct(
+        self,
+        workspace_capacity: usize,
+        max_work: u128,
+    ) -> Result<RemoteGroups<'a>, RemoteGroupingError<'a>> {
+        if workspace_capacity < self.resources.workspace_bytes {
+            return Err(RemoteGroupingError::Capacity);
+        }
+        if max_work < self.resources.work_bound {
+            return Err(RemoteGroupingError::WorkLimit);
+        }
+        let graph = self.graph;
+        let n = graph.operations.len();
+        let mut state = GroupingBuildState::default();
+        let mut rows = grouping_box(n, |index| {
+            state.usage.step();
+            GroupRow {
+                last_id_position: index,
+                ..GroupRow::default()
+            }
+        })?;
+        let mut by_id = grouping_box(n, |index| {
+            state.usage.step();
+            index
+        })?;
+        grouping_sort(&mut by_id, &mut state.usage, |a, b, usage| {
+            usage.step();
+            graph.operations[*a].layer.cmp(&graph.operations[*b].layer)
+        });
+        for &index in by_id.iter() {
+            state.usage.step();
+            if let Some(layer) = graph.operations[index].layer {
+                if state.previous_layer != Some(layer) {
+                    if layer != state.layers {
+                        return Err(RemoteGroupingError::Layers);
+                    }
+                    state.layers = state
+                        .layers
+                        .checked_add(1)
+                        .ok_or(RemoteGroupingError::Layers)?;
+                    state.previous_layer = Some(layer);
+                }
+            }
+        }
+        if state.layers == 0 {
+            return Err(RemoteGroupingError::Layers);
+        }
+        for op in &graph.operations {
+            state.usage.step();
+            if remote_operator(op.operator) {
+                state.usage.step();
+                if op
+                    .attributes
+                    .get("weight")
+                    .and_then(serde_json::Value::as_str)
+                    .is_none_or(str::is_empty)
+                {
+                    return Err(RemoteGroupingError::Weight(&op.id));
+                }
+            }
+            state.token_lookups += usize::from(op.operator == ModelOperator::TokenLookup);
+            state.output_heads += usize::from(op.operator == ModelOperator::OutputHead);
+        }
+        if state.token_lookups == 0 || state.output_heads != 1 {
+            return Err(RemoteGroupingError::LookupHead);
+        }
+        grouping_sort(&mut by_id, &mut state.usage, |a, b, usage| {
+            let order =
+                grouping_bytes_cmp(&graph.operations[*a].id, &graph.operations[*b].id, usage);
+            if !order.is_eq() {
+                return order;
+            }
+            usage.step();
+            a.cmp(b)
+        });
+        while state.start < n {
+            state.end = state.start + 1;
+            while state.end < n
+                && grouping_bytes_cmp(
+                    &graph.operations[by_id[state.start]].id,
+                    &graph.operations[by_id[state.end]].id,
+                    &mut state.usage,
+                )
+                .is_eq()
+            {
+                state.end += 1;
+            }
+            state.first_remote = None;
+            for &index in &by_id[state.start..state.end] {
+                state.usage.step();
+                if remote_operator(graph.operations[index].operator) {
+                    let earlier = state.first_remote.is_none_or(|first| {
+                        let order = remote_key_cmp(
+                            &graph.operations[index],
+                            &graph.operations[first],
+                            &mut state.usage,
+                        );
+                        if !order.is_eq() {
+                            order.is_lt()
+                        } else {
+                            state.usage.step();
+                            index < first
+                        }
+                    });
+                    if earlier {
+                        state.first_remote = Some(index);
+                    }
+                }
+            }
+            for &index in &by_id[state.start..state.end] {
+                state.usage.step();
+                rows[index].last_id_position = by_id[state.end - 1];
+                rows[index].remote_id_position = state.first_remote;
+                rows[index].repeated_remote_id = remote_operator(graph.operations[index].operator)
+                    && state.first_remote != Some(index);
+            }
+            state.start = state.end;
+        }
+        let mut members = grouping_box(self.remote_count, |_| {
+            while !remote_operator(graph.operations[state.cursor].operator) {
+                state.usage.step();
+                state.cursor += 1;
+            }
+            state.usage.step();
+            let index = state.cursor;
+            state.cursor += 1;
+            RemoteMember {
+                index,
+                operation: &graph.operations[index],
+            }
+        })?;
+        grouping_sort(&mut members, &mut state.usage, |a, b, usage| {
+            let order = remote_key_cmp(a.operation, b.operation, usage);
+            if !order.is_eq() {
+                return order;
+            }
+            usage.step();
+            let order = rows[a.index]
+                .last_id_position
+                .cmp(&rows[b.index].last_id_position);
+            if !order.is_eq() {
+                return order;
+            }
+            usage.step();
+            a.index.cmp(&b.index)
+        });
+        for member in members.iter() {
+            state.usage.step();
+            if rows[member.index].repeated_remote_id {
+                return Err(RemoteGroupingError::Duplicate(&member.operation.id));
+            }
+        }
+        state.start = 0;
+        while state.start < members.len() {
+            state.end = state.start + 1;
+            while state.end < members.len()
+                && remote_key_cmp(
+                    members[state.start].operation,
+                    members[state.end].operation,
+                    &mut state.usage,
+                )
+                .is_eq()
+            {
+                state.end += 1;
+            }
+            for member in &members[state.start..state.end] {
+                state.usage.step();
+                rows[member.index].start = state.start;
+                rows[member.index].len = state.end - state.start;
+                rows[member.index].leader = member.index == members[state.start].index;
+            }
+            state.groups += 1;
+            state.start = state.end;
+        }
+        if state.usage.work > self.resources.work_bound
+            || state.usage.comparisons > self.resources.comparison_bound
+        {
+            return Err(RemoteGroupingError::WorkLimit);
+        }
+        Ok(RemoteGroups {
+            graph,
+            by_id,
+            rows,
+            members,
+            groups: state.groups,
+            #[cfg(test)]
+            usage: state.usage,
+        })
+    }
+}
+
+pub(crate) fn checked_remote_groups(
+    graph: &DecoderGraph,
+) -> Result<RemoteGroups<'_>, RemoteGroupingError<'_>> {
+    let quote = RemoteGroupingQuote::checked(graph)?;
+    let resources = quote.resources();
+    quote.construct(resources.workspace_bytes, resources.work_bound)
+}
+
+pub(crate) fn classify_remote_groups(graph: &DecoderGraph) -> Result<RemoteGroups<'_>, String> {
+    checked_remote_groups(graph).map_err(|error| error.to_string())
 }
 
 fn graph_reaches(graph: &DecoderGraph, start: &str, target: ModelOperator, reverse: bool) -> bool {
@@ -1366,7 +1968,7 @@ fn graph_reaches(graph: &DecoderGraph, start: &str, target: ModelOperator, rever
     false
 }
 
-fn linear_role(graph: &DecoderGraph, group: &RemoteGroup<'_>) -> Option<&'static str> {
+fn linear_role(graph: &DecoderGraph, group: &RemoteGroup<'_, '_>) -> Option<&'static str> {
     let ops = &group.operations;
     if !ops.iter().all(|op| op.operator == ModelOperator::Linear) {
         return None;
@@ -1398,7 +2000,7 @@ fn linear_role(graph: &DecoderGraph, group: &RemoteGroup<'_>) -> Option<&'static
     if ops.len() != 1 {
         return None;
     }
-    let source = ops[0].inputs.first()?;
+    let source = ops.first().inputs.first()?;
     if graph_reaches(graph, source, ModelOperator::AttentionValues, true) {
         return Some("attention_output");
     }
@@ -1433,19 +2035,19 @@ pub(crate) fn lower_phase(
     client_linear_roles: &BTreeSet<&str>,
     client_linear_layer_roles: &BTreeSet<(u64, &str)>,
 ) -> Result<DecoderRuntimePhaseSchedule, String> {
-    let (leaders, remote_members) = classify_remote_groups(graph)?;
+    let leaders = classify_remote_groups(graph)?;
     let mut selected_roles = BTreeSet::new();
     let mut selected_layer_roles = BTreeSet::new();
     let mut scheduled = BTreeSet::new();
     let mut steps = Vec::new();
-    for operation in &graph.operations {
-        if remote_members.contains(operation.id.as_str()) {
-            let Some(group) = leaders.get(operation.id.as_str()) else {
+    for (operation_index, operation) in graph.operations.iter().enumerate() {
+        if leaders.is_remote(operation_index) {
+            let Some(group) = leaders.at(operation_index) else {
                 continue;
             };
-            let input_ids = group.operations[0].inputs.clone();
-            let layer = group.operations[0].layer;
-            let role = linear_role(graph, group);
+            let input_ids = group.operations.first().inputs.clone();
+            let layer = group.operations.first().layer;
+            let role = linear_role(graph, &group);
             let selected = role.filter(|role| client_linear_roles.contains(role));
             if let Some(role) = selected {
                 selected_roles.insert(role);
@@ -1466,7 +2068,7 @@ pub(crate) fn lower_phase(
             let mut offset = 0_u64;
             let mut outputs = Vec::new();
             let mut weight_ids = Vec::new();
-            for member in &group.operations {
+            for member in group.operations.iter() {
                 let width = last_width(member)?;
                 outputs.push(DecoderRuntimeOutput {
                     operation_id: member.id.clone(),
@@ -1929,6 +2531,18 @@ pub fn lower_decoder_runtime_schedule(
 #[cfg(test)]
 mod numeric_contract_tests {
     use super::*;
+    use crate::decoder_matrix_inventory::{
+        lower_decoder_matrix_inventory, DECODER_MATRIX_INVENTORY_SCHEMA_VERSION,
+    };
+    use serde_json::{json, Value};
+    #[test]
+    fn grouping_workspace_layout_and_work_arithmetic_fail_before_allocation() {
+        GROUPING_ALLOCATIONS.with(|count| count.set(0));
+        assert!(grouping_layout::<usize>(usize::MAX).is_err());
+        assert!(grouping_add(u128::MAX, 1).is_err());
+        assert!(grouping_mul(u128::MAX, 2).is_err());
+        GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 0));
+    }
     use pllm_models::{lower_model_json, DecoderWorkload};
     use pllm_types::canonical_bytes;
 
@@ -2108,11 +2722,12 @@ mod numeric_contract_tests {
             },
         )
         .unwrap();
-        let (groups, _) = classify_remote_groups(&plan.prefill).unwrap();
-        assert_eq!(groups["main_embedding"].operations.len(), 2);
+        let groups = classify_remote_groups(&plan.prefill).unwrap();
+        let group = groups.get("main_embedding").unwrap();
+        assert_eq!(group.operations.len(), 2);
         assert_ne!(
-            weight_id(groups["main_embedding"].operations[0]).unwrap(),
-            weight_id(groups["main_embedding"].operations[1]).unwrap()
+            weight_id(group.operations.first()).unwrap(),
+            weight_id(group.operations.iter().nth(1).unwrap()).unwrap()
         );
         bind_bfloat16_graph(&plan.prefill).unwrap();
         bind_bfloat16_graph(&plan.decode).unwrap();
@@ -2229,5 +2844,754 @@ mod numeric_contract_tests {
             .clone();
         forged.attributes["factor"]["factor_rounding_dtype"] = serde_json::json!("float16");
         assert!(!local_operator(&forged));
+    }
+
+    fn grouping_regression_plan(family: &str, tied: bool) -> DecoderPlan {
+        let mut config = json!({
+            "model_type": family, "hidden_size": 8, "intermediate_size": 16,
+            "num_hidden_layers": 2, "num_attention_heads": 2, "num_key_value_heads": 1,
+            "vocab_size": 32, "max_position_embeddings": 32, "hidden_act": "silu",
+            "rms_norm_eps": 1e-6, "rope_theta": 10000.0, "tie_word_embeddings": tied
+        });
+        if family == "qwen3" {
+            for (key, value) in [
+                ("head_dim", json!(4)),
+                ("attention_bias", json!(false)),
+                ("attention_dropout", json!(0.0)),
+                ("rope_scaling", Value::Null),
+                ("sliding_window", Value::Null),
+                ("use_sliding_window", json!(false)),
+                ("use_cache", json!(true)),
+                ("max_window_layers", json!(2)),
+                ("layer_types", json!(["full_attention", "full_attention"])),
+            ] {
+                config[key] = value;
+            }
+        }
+        lower_model_json(
+            &canonical_bytes(&config),
+            DecoderWorkload {
+                batch: 1,
+                max_input_tokens: 3,
+                max_new_tokens: 2,
+            },
+        )
+        .unwrap()
+    }
+
+    // Independent reference for the old B-tree grouping, including original owned
+    // keys, position sort and error precedence. Test-only, never an alternate path.
+    fn legacy_groups(graph: &DecoderGraph) -> Result<BTreeMap<&str, Vec<&ModelOperation>>, String> {
+        let layers: BTreeSet<_> = graph.operations.iter().filter_map(|op| op.layer).collect();
+        if layers.is_empty() || layers.iter().copied().ne(0..layers.len() as u64) {
+            return Err("decoder runtime layers must be contiguous from zero".into());
+        }
+        let mut grouped = BTreeMap::new();
+        for op in &graph.operations {
+            if remote_operator(op.operator) {
+                if op
+                    .attributes
+                    .get("weight")
+                    .and_then(Value::as_str)
+                    .is_none_or(str::is_empty)
+                {
+                    return Err(format!(
+                        "remote operation {} requires one declared weight artifact",
+                        op.id
+                    ));
+                }
+                grouped
+                    .entry((
+                        op.operator,
+                        op.layer,
+                        op.inputs.clone(),
+                        (op.operator == ModelOperator::OutputHead).then(|| op.id.clone()),
+                    ))
+                    .or_insert_with(Vec::new)
+                    .push(op);
+            }
+        }
+        if !graph
+            .operations
+            .iter()
+            .any(|op| op.operator == ModelOperator::TokenLookup)
+            || graph
+                .operations
+                .iter()
+                .filter(|op| op.operator == ModelOperator::OutputHead)
+                .count()
+                != 1
+        {
+            return Err("decoder runtime requires token lookup and one output head".into());
+        }
+        let positions: BTreeMap<_, _> = graph
+            .operations
+            .iter()
+            .enumerate()
+            .map(|(i, op)| (op.id.as_str(), i))
+            .collect();
+        let mut result = BTreeMap::new();
+        let mut members = BTreeSet::new();
+        for mut group in grouped.into_values() {
+            group.sort_by_key(|op| positions[op.id.as_str()]);
+            for op in &group {
+                if !members.insert(op.id.as_str()) {
+                    return Err(format!(
+                        "operation {} belongs to multiple runtime stages",
+                        op.id
+                    ));
+                }
+            }
+            let leader = group[0].id.as_str();
+            assert!(result.insert(leader, group).is_none());
+        }
+        Ok(result)
+    }
+
+    // Valid-input oracle, independent of new borrowed structs, lowering and stream
+    // emitter. Recreates the original owned JSON schema and original B-tree order.
+    fn legacy_inventory_json(model: &DecoderPlan) -> Value {
+        let phase = |graph: &DecoderGraph| {
+            let vocabulary = graph
+                .operations
+                .iter()
+                .find(|op| op.operator == ModelOperator::OutputHead)
+                .unwrap()
+                .output_shape[1];
+            let reference = legacy_groups(graph).unwrap();
+            let mut groups = Vec::new();
+            for op in &graph.operations {
+                let Some(members) = reference.get(op.id.as_str()) else {
+                    continue;
+                };
+                let token = op.operator == ModelOperator::TokenLookup;
+                let input_shape = if token {
+                    vec![graph.batch, graph.query_sequence]
+                } else {
+                    graph
+                        .operations
+                        .iter()
+                        .find(|producer| producer.id == op.inputs[0])
+                        .unwrap()
+                        .output_shape
+                        .clone()
+                };
+                let mut offset = 0;
+                let members: Vec<_> = members.iter().map(|member| {
+                    let width = *member.output_shape.last().unwrap();
+                    let bias = member.attributes.get("bias").and_then(Value::as_str);
+                    let value = json!({
+                        "operation_id": member.id, "weight_id": member.attributes["weight"],
+                        "bias_id": bias, "source_shape": if token { [vocabulary, width] } else { [width, *input_shape.last().unwrap()] },
+                        "bias_shape": bias.map(|_| [width]), "output_shape": member.output_shape,
+                        "output_offset": offset, "output_width": width,
+                    });
+                    offset += width;
+                    value
+                }).collect();
+                groups.push(json!({
+                    "order": groups.len(), "operator": op.operator, "layer": op.layer,
+                    "input_id": op.inputs[0], "input_shape": input_shape,
+                    "artifact_kind": if token { "token_table" } else { "matrix" },
+                    "orientation": if token { "vocabulary_feature" } else { "output_input" },
+                    "logical_shape": if token { [vocabulary, offset] } else { [offset, *input_shape.last().unwrap()] },
+                    "members": members,
+                }));
+            }
+            json!({ "mode": graph.mode, "batch": graph.batch, "query_sequence": graph.query_sequence,
+                "maximum_key_sequence": graph.maximum_key_sequence, "groups": groups })
+        };
+        json!({ "schema_version": DECODER_MATRIX_INVENTORY_SCHEMA_VERSION,
+            "model_plan_digest": model.digest(), "model_config_digest": model.config_digest,
+            "prefill": phase(&model.prefill), "decode": phase(&model.decode) })
+    }
+
+    #[test]
+    fn borrowed_groups_match_original_algorithm_and_original_owners() {
+        for family in ["llama", "qwen2", "qwen3"] {
+            let mut model = grouping_regression_plan(family, true);
+            for graph in [&mut model.prefill, &mut model.decode] {
+                let mut table = graph.operations[0].clone();
+                table.id = "nonadjacent-table".into();
+                graph.operations.insert(2, table);
+                let expected = legacy_groups(graph).unwrap();
+                let actual = checked_remote_groups(graph).unwrap();
+                assert_eq!(actual.len(), expected.len());
+                for (index, op) in graph.operations.iter().enumerate() {
+                    assert_eq!(actual.is_remote(index), remote_operator(op.operator));
+                    match (actual.get(&op.id), expected.get(op.id.as_str())) {
+                        (Some(actual), Some(expected)) => {
+                            assert_eq!(actual.operations.len(), expected.len());
+                            for (a, b) in actual.operations.iter().zip(expected) {
+                                assert!(std::ptr::eq(a, *b));
+                            }
+                        }
+                        (None, None) => (),
+                        _ => panic!("leader mismatch: {}", op.id),
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn malformed_grouping_preserves_original_error_winner_without_error_allocation() {
+        for case in 0..8 {
+            let mut model = grouping_regression_plan("qwen2", true);
+            let graph = &mut model.prefill;
+            match case {
+                0 => graph.operations.iter_mut().for_each(|op| op.layer = None),
+                1 => graph
+                    .operations
+                    .iter_mut()
+                    .filter(|op| op.layer == Some(1))
+                    .for_each(|op| op.layer = Some(3)),
+                2 => graph.operations[0].attributes["weight"] = Value::Null,
+                3 => graph
+                    .operations
+                    .retain(|op| op.operator != ModelOperator::TokenLookup),
+                4 => {
+                    let head = graph
+                        .operations
+                        .iter()
+                        .find(|op| op.operator == ModelOperator::OutputHead)
+                        .unwrap()
+                        .clone();
+                    graph.operations.push(head);
+                }
+                5..=7 => {
+                    let indices: Vec<_> = graph
+                        .operations
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, op)| op.operator == ModelOperator::Linear)
+                        .map(|(i, _)| i)
+                        .collect();
+                    graph.operations[indices[1]].id = graph.operations[indices[0]].id.clone();
+                    if case >= 6 {
+                        graph.operations[indices[4]].id = graph.operations[indices[3]].id.clone();
+                    }
+                    if case == 7 {
+                        graph.operations[indices[1]].inputs = vec!["different-input".into()];
+                    }
+                }
+                _ => unreachable!(),
+            }
+            assert_eq!(
+                checked_remote_groups(graph).unwrap_err().to_string(),
+                legacy_groups(graph).unwrap_err()
+            );
+        }
+    }
+
+    fn grouping_scale_graph(count: usize, shared_key: bool) -> DecoderGraph {
+        let model = grouping_regression_plan("llama", true);
+        let mut graph = model.prefill;
+        let table = graph
+            .operations
+            .iter()
+            .find(|op| op.operator == ModelOperator::TokenLookup)
+            .unwrap()
+            .clone();
+        let linear = graph
+            .operations
+            .iter()
+            .find(|op| op.operator == ModelOperator::Linear)
+            .unwrap()
+            .clone();
+        let head = graph
+            .operations
+            .iter()
+            .find(|op| op.operator == ModelOperator::OutputHead)
+            .unwrap()
+            .clone();
+        graph.operations = vec![table];
+        for index in 0..count {
+            let mut op = linear.clone();
+            op.id = format!("matrix.{index:08}");
+            op.layer = Some(if shared_key { 0 } else { index as u64 });
+            op.inputs = vec!["shared.semantic.input".into()];
+            graph.operations.push(op);
+        }
+        graph.operations[1..].reverse();
+        graph.operations.push(head);
+        graph
+    }
+
+    #[test]
+    fn indexed_grouping_work_and_accesses_scale_n_log_n_not_pairs() {
+        for shared_key in [false, true] {
+            let mut previous_bound = None;
+            for count in [32, 64, 128, 256, 512, 1024, 2048] {
+                let graph = grouping_scale_graph(count, shared_key);
+                let quote = RemoteGroupingQuote::checked(&graph).unwrap();
+                let resources = quote.resources();
+                let groups = quote
+                    .construct(resources.workspace_bytes, resources.work_bound)
+                    .unwrap();
+                assert_eq!(groups.retained_index_bytes(), resources.heap_bytes);
+                assert!(groups.usage().work <= resources.work_bound);
+                assert!(groups.usage().comparisons <= resources.comparison_bound);
+                if count >= 128 {
+                    assert!(groups.usage().comparisons < (count as u128) * (count as u128));
+                }
+                if let Some(previous) = previous_bound {
+                    // IDs/input lengths fixed; doubling n grows the explicit
+                    // heapsort + linear reserve by <3x, never a quadratic 4x.
+                    assert!(resources.work_bound < 3 * previous);
+                }
+                previous_bound = Some(resources.work_bound);
+                assert_eq!(groups.len(), if shared_key { 3 } else { count + 2 });
+                GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+                for index in 0..graph.operations.len() {
+                    if groups.is_remote(index) {
+                        if let Some(group) = groups.at(index) {
+                            let cached = group.operations.len();
+                            assert_eq!(group.operations.iter().count(), cached);
+                        }
+                    }
+                }
+                GROUPING_ACCESS.with(|counts| {
+                    let counts = counts.get();
+                    assert_eq!(counts.positional_probes, graph.operations.len());
+                    assert_eq!(counts.id_probes, 0);
+                    assert_eq!(counts.member_visits, graph.operations.len());
+                });
+                GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+                for op in &graph.operations {
+                    let _ = groups.get(&op.id);
+                }
+                GROUPING_ACCESS.with(|counts| {
+                    assert!(
+                        counts.get().id_probes
+                            <= graph.operations.len()
+                                * (usize::BITS - graph.operations.len().leading_zeros()) as usize
+                    )
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn indexed_grouping_workspace_and_work_one_short_precede_all_three_factories() {
+        let graph = grouping_scale_graph(128, true);
+        GROUPING_ALLOCATIONS.with(|count| count.set(0));
+        let quote = RemoteGroupingQuote::checked(&graph).unwrap();
+        let resources = quote.resources();
+        assert!(matches!(
+            quote.construct(resources.workspace_bytes - 1, resources.work_bound),
+            Err(RemoteGroupingError::Capacity)
+        ));
+        GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 0));
+        let quote = RemoteGroupingQuote::checked(&graph).unwrap();
+        assert!(matches!(
+            quote.construct(resources.workspace_bytes, resources.work_bound - 1),
+            Err(RemoteGroupingError::WorkLimit)
+        ));
+        GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 0));
+        let groups = RemoteGroupingQuote::checked(&graph)
+            .unwrap()
+            .construct(resources.workspace_bytes, resources.work_bound)
+            .unwrap();
+        GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 3));
+        assert_eq!(groups.retained_index_bytes(), resources.heap_bytes);
+        let expected = legacy_groups(&graph).unwrap();
+        for op in &graph.operations {
+            let actual = groups.get(&op.id).map(|group| {
+                group
+                    .operations
+                    .iter()
+                    .map(|op| op.id.as_str())
+                    .collect::<Vec<_>>()
+            });
+            let expected = expected
+                .get(op.id.as_str())
+                .map(|members| members.iter().map(|op| op.id.as_str()).collect::<Vec<_>>());
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn indexed_grouping_preserves_shadowed_ids_empty_ids_and_error_precedence() {
+        for case in 0..5 {
+            let mut model = grouping_regression_plan("qwen2", true);
+            let graph = &mut model.prefill;
+            match case {
+                0 => {
+                    let mut local = graph
+                        .operations
+                        .iter()
+                        .find(|op| !remote_operator(op.operator))
+                        .unwrap()
+                        .clone();
+                    local.id = graph
+                        .operations
+                        .iter()
+                        .find(|op| op.operator == ModelOperator::Linear)
+                        .unwrap()
+                        .id
+                        .clone();
+                    graph.operations.push(local);
+                }
+                1 => graph
+                    .operations
+                    .iter_mut()
+                    .find(|op| op.operator == ModelOperator::Linear)
+                    .unwrap()
+                    .id
+                    .clear(),
+                2 => {
+                    graph.operations[0].attributes["weight"] = Value::Null;
+                    graph.operations.iter_mut().for_each(|op| op.layer = None);
+                }
+                3 => {
+                    graph.operations[0].attributes["weight"] = Value::Null;
+                    graph
+                        .operations
+                        .retain(|op| op.operator != ModelOperator::OutputHead);
+                }
+                4 => {
+                    let indices: Vec<_> = graph
+                        .operations
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, op)| op.operator == ModelOperator::Linear)
+                        .map(|(index, _)| index)
+                        .collect();
+                    for &index in &indices {
+                        graph.operations[index].id = "duplicate.remote".into();
+                    }
+                }
+                _ => unreachable!(),
+            }
+            match (checked_remote_groups(graph), legacy_groups(graph)) {
+                (Err(actual), Err(expected)) => assert_eq!(actual.to_string(), expected),
+                (Ok(actual), Ok(expected)) => {
+                    assert_eq!(actual.len(), expected.len());
+                    for op in &graph.operations {
+                        let actual = actual.get(&op.id).map(|group| {
+                            group
+                                .operations
+                                .iter()
+                                .map(|op| op.id.as_str())
+                                .collect::<Vec<_>>()
+                        });
+                        let expected = expected.get(op.id.as_str()).map(|members| {
+                            members.iter().map(|op| op.id.as_str()).collect::<Vec<_>>()
+                        });
+                        assert_eq!(actual, expected);
+                    }
+                }
+                (actual, expected) => panic!("oracle mismatch: {actual:?} / {expected:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn indexed_grouping_retains_existing_legacy_schedule_golden_digest() {
+        // Same fixture/domain/composition and known digest as the pre-existing
+        // delegation_publication_inventory legacy schedule regression; not rebaselined.
+        let model = grouping_regression_plan("qwen2", true);
+        let composition = canonical_bytes(&json!({
+            "components": {
+                "inference": {"component": "pllm/inference", "params": {}},
+                "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+                "linear": {"component": "pllm/masked-linear", "params": {}},
+                "preparation": {"component": "pllm/model-aware-corrections", "params": {}}
+            },
+            "model": {"source": "model.fixture"}
+        }));
+        GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+        let schedule =
+            crate::decoder_runtime_schedule::lower_decoder_runtime_schedule(&model, &composition)
+                .unwrap();
+        GROUPING_ACCESS.with(|counts| assert_eq!(counts.get().id_probes, 0));
+        assert_eq!(
+            schedule.digest().as_str(),
+            "9b2f3bed2dff2d83598bebff5cabf5a22f0ed30f470d8b7d35215d1aaa57719d"
+        );
+        assert_eq!(
+            lower_decoder_matrix_inventory(&model)
+                .unwrap()
+                .canonical_bytes(),
+            canonical_bytes(&legacy_inventory_json(&model))
+        );
+    }
+
+    #[test]
+    fn indexed_id_lookup_does_not_walk_duplicate_nonremote_id_runs() {
+        let mut graph = grouping_scale_graph(32, false);
+        let id = graph.operations[1].id.clone();
+        let mut local = graph.operations[1].clone();
+        local.operator = ModelOperator::RmsNorm;
+        local.layer = None;
+        graph.operations.extend((0..1024).map(|_| local.clone()));
+        let groups = checked_remote_groups(&graph).unwrap();
+        let original = legacy_groups(&graph).unwrap();
+        GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+        for _ in 0..256 {
+            let actual = groups.get(&id).unwrap();
+            assert!(std::ptr::eq(
+                actual.operations.first(),
+                original[id.as_str()][0]
+            ));
+        }
+        GROUPING_ACCESS.with(|counts| {
+            assert!(
+                counts.get().id_probes
+                    <= 256 * (usize::BITS - graph.operations.len().leading_zeros()) as usize
+            )
+        });
+    }
+
+    // Original lower_phase's ID-membership dispatch and duplicate-error order,
+    // independent of the indexed rows. Fixtures otherwise use valid operators.
+    fn legacy_dispatch_ids(graph: &DecoderGraph) -> Result<Vec<Vec<&str>>, String> {
+        let leaders = legacy_groups(graph)?;
+        let remote_members: BTreeSet<_> = leaders
+            .values()
+            .flat_map(|group| group.iter().map(|op| op.id.as_str()))
+            .collect();
+        let mut scheduled = BTreeSet::new();
+        let mut steps = Vec::new();
+        for op in &graph.operations {
+            let ids = if remote_members.contains(op.id.as_str()) {
+                let Some(group) = leaders.get(op.id.as_str()) else {
+                    continue;
+                };
+                group.iter().map(|op| op.id.as_str()).collect::<Vec<_>>()
+            } else {
+                vec![op.id.as_str()]
+            };
+            for id in &ids {
+                if !scheduled.insert(*id) {
+                    return Err(format!("operation {id} was scheduled twice"));
+                }
+            }
+            steps.push(ids);
+        }
+        Ok(steps)
+    }
+
+    #[test]
+    fn indexed_lower_phase_matches_legacy_id_dispatch_for_local_shadows() {
+        let model = grouping_regression_plan("qwen2", true);
+        for original in [&model.prefill, &model.decode] {
+            let baseline = lower_phase(
+                original,
+                DecoderRuntimeExecutor::RemoteStage,
+                0,
+                &BTreeSet::new(),
+                &BTreeSet::new(),
+            )
+            .unwrap();
+            let reference = legacy_groups(original).unwrap();
+            let multi = reference
+                .values()
+                .find(|group| group.len() > 1 && group[0].operator == ModelOperator::Linear)
+                .unwrap();
+            for leader in [false, true] {
+                let target = if leader {
+                    multi[0]
+                } else {
+                    multi[multi.len() - 1]
+                };
+                for after in [false, true] {
+                    let mut graph = original.clone();
+                    let mut local = graph
+                        .operations
+                        .iter()
+                        .find(|op| op.operator == ModelOperator::RmsNorm)
+                        .unwrap()
+                        .clone();
+                    local.id = target.id.clone();
+                    assert!(local_operator(&local));
+                    let remote_position = graph
+                        .operations
+                        .iter()
+                        .position(|op| op.id == target.id)
+                        .unwrap();
+                    // A leader's adjacent shadow leaves it first in the remote
+                    // group. Nonleader shadows exercise both graph extremes,
+                    // including the reviewer's appended-local reproduction.
+                    let position = if leader {
+                        remote_position + usize::from(after)
+                    } else if after {
+                        graph.operations.len()
+                    } else {
+                        0
+                    };
+                    graph.operations.insert(position, local);
+                    assert_eq!(
+                        legacy_groups(&graph)
+                            .unwrap()
+                            .contains_key(target.id.as_str()),
+                        leader
+                    );
+                    let expected = legacy_dispatch_ids(&graph);
+                    GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+                    let actual = lower_phase(
+                        &graph,
+                        DecoderRuntimeExecutor::RemoteStage,
+                        0,
+                        &BTreeSet::new(),
+                        &BTreeSet::new(),
+                    );
+                    GROUPING_ACCESS.with(|counts| assert_eq!(counts.get().id_probes, 0));
+                    match (actual, expected) {
+                        (Err(actual), Err(expected)) => {
+                            assert!(leader);
+                            assert_eq!(
+                                expected,
+                                format!("operation {} was scheduled twice", target.id)
+                            );
+                            assert_eq!(actual, expected);
+                        }
+                        (Ok(actual), Ok(expected)) => {
+                            assert!(!leader);
+                            let ids: Vec<Vec<_>> = actual
+                                .steps
+                                .iter()
+                                .map(|step| step.operation_ids.iter().map(String::as_str).collect())
+                                .collect();
+                            assert_eq!(ids, expected);
+                            assert_eq!(canonical_bytes(&actual), canonical_bytes(&baseline));
+                        }
+                        (actual, expected) => {
+                            panic!("shadow dispatch mismatch: {actual:?} / {expected:?}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn indexed_grouping_orders_multi_input_prefix_empty_and_utf8_keys() {
+        let mut graph = grouping_regression_plan("llama", true).prefill;
+        let table = graph
+            .operations
+            .iter()
+            .find(|op| op.operator == ModelOperator::TokenLookup)
+            .unwrap()
+            .clone();
+        let head = graph
+            .operations
+            .iter()
+            .find(|op| op.operator == ModelOperator::OutputHead)
+            .unwrap()
+            .clone();
+        let linear = graph
+            .operations
+            .iter()
+            .find(|op| op.operator == ModelOperator::Linear)
+            .unwrap()
+            .clone();
+        let prefix = "shared-prefix-".repeat(128);
+        let cases: Vec<Vec<String>> = vec![
+            vec![],
+            vec!["".into()],
+            vec!["a".into()],
+            vec!["a".into(), "".into()],
+            vec!["a".into(), "b".into()],
+            vec!["b".into(), "a".into()],
+            vec!["a".into(), "b".into(), "".into()],
+            vec!["ab".into()],
+            vec!["ab".into(), "".into()],
+            vec!["\0".into()],
+            vec!["é".into(), "λ".into()],
+            vec!["λ".into(), "é".into()],
+            vec![format!("{prefix}a")],
+            vec![format!("{prefix}b")],
+            vec![format!("{prefix}a"), "é".into()],
+            vec!["a".into(), "b".into()],
+        ];
+        graph.operations = vec![table];
+        for (index, inputs) in cases.into_iter().enumerate() {
+            let mut op = linear.clone();
+            op.id = format!("key.{index}");
+            op.layer = Some(0);
+            op.inputs = inputs;
+            graph.operations.push(op);
+        }
+        graph.operations[1..].reverse();
+        graph.operations.push(head);
+        for a in &graph.operations {
+            for b in &graph.operations {
+                let original_key = |op: &ModelOperation| {
+                    (
+                        op.operator,
+                        op.layer,
+                        op.inputs.clone(),
+                        (op.operator == ModelOperator::OutputHead).then(|| op.id.clone()),
+                    )
+                };
+                let mut usage = GroupingUsage::default();
+                assert_eq!(
+                    remote_key_cmp(a, b, &mut usage),
+                    original_key(a).cmp(&original_key(b))
+                );
+            }
+        }
+        let expected = legacy_groups(&graph).unwrap();
+        let quote = RemoteGroupingQuote::checked(&graph).unwrap();
+        let resources = quote.resources();
+        let actual = quote
+            .construct(resources.workspace_bytes, resources.work_bound)
+            .unwrap();
+        assert!(actual.usage().work <= resources.work_bound);
+        assert!(actual.usage().comparisons <= resources.comparison_bound);
+        assert_eq!(actual.len(), expected.len());
+        for op in &graph.operations {
+            let actual = actual.get(&op.id).map(|group| {
+                group
+                    .operations
+                    .iter()
+                    .map(|member| member.id.as_str())
+                    .collect::<Vec<_>>()
+            });
+            let expected = expected.get(op.id.as_str()).map(|group| {
+                group
+                    .iter()
+                    .map(|member| member.id.as_str())
+                    .collect::<Vec<_>>()
+            });
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn indexed_grouping_heapsort_boundary_lengths_obey_meter_bounds() {
+        for len in [
+            0_usize, 1, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129,
+            255, 256, 257, 1023, 1024, 1025,
+        ] {
+            for pattern in 0..3 {
+                let mut values: Vec<_> = (0..len)
+                    .map(|i| match pattern {
+                        0 => len - i,
+                        1 => 0,
+                        _ => (i * 37) % len.max(1),
+                    })
+                    .collect();
+                let mut expected = values.clone();
+                expected.sort_unstable();
+                let mut usage = GroupingUsage::default();
+                grouping_sort(&mut values, &mut usage, |a, b, usage| {
+                    usage.step();
+                    a.cmp(b)
+                });
+                let comparisons = grouping_sort_comparisons(len).unwrap();
+                assert_eq!(values, expected);
+                assert!(
+                    usage.comparisons <= comparisons,
+                    "len={len}, pattern={pattern}"
+                );
+                assert!(
+                    usage.work <= 3 * comparisons + len.saturating_sub(1) as u128,
+                    "len={len}, pattern={pattern}"
+                );
+            }
+        }
     }
 }

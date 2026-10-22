@@ -740,7 +740,7 @@ fn lower_phase<'a>(graph: &'a DecoderGraph, sources: &mut Sources<'a>) -> Result
         .iter()
         .map(|op| (op.id.as_str(), op.output_shape.as_slice()))
         .collect();
-    let (leaders, _) = classify_remote_groups(graph)?;
+    let leaders = classify_remote_groups(graph)?;
     let mut groups = Vec::with_capacity(leaders.len());
     for op in &graph.operations {
         let Some(group) = leaders.get(op.id.as_str()) else {
@@ -766,7 +766,7 @@ fn lower_phase<'a>(graph: &'a DecoderGraph, sources: &mut Sources<'a>) -> Result
         };
         let mut offset = 0_u64;
         let mut members = Vec::with_capacity(group.operations.len());
-        for member in &group.operations {
+        for member in group.operations.iter() {
             validate_attributes(member)?;
             if member.inputs != op.inputs
                 || member.operator != op.operator
