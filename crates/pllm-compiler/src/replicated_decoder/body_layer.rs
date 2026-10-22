@@ -17,7 +17,7 @@ pub const MAX_COORDINATOR_ADVANCES: u64 = 1 << 20;
 
 #[path = "body_layout.rs"]
 mod layout;
-pub use layout::Layout;
+pub use layout::{Layout, LayoutQuote};
 #[path = "body_machine.rs"]
 mod machine;
 pub use machine::{Executor, Values};
