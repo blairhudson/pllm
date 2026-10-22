@@ -27,6 +27,9 @@ const MAGIC: &[u8; 8] = b"PLLMFO01";
 const WIRE_KIND: u8 = 5;
 // Covers fixed DFS stack (19 nodes), crypto scratch and owner/alignment staging.
 const FIXED_BYTES: usize = 8192;
+// First/previous leaf retained by the derivative fold, plus the visitor's current
+// zeroizing scalar leaf. This is additional to the unchanged DFS/crypto bound.
+const FOLD_BYTES: usize = size_of::<[u64; 3]>();
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Spec {
@@ -92,6 +95,7 @@ pub struct Resources {
     pub private_material_bytes_total: usize,
     pub material_packet_bytes_per_party: usize,
     pub public_table_bytes_per_party: usize,
+    /// Fixed first/previous/current leaf storage; no full-domain scalar Vec.
     pub scalar_scratch_bytes_per_party: usize,
     pub output_bytes_per_party: usize,
     pub frames_per_party: usize,
@@ -111,13 +115,13 @@ pub fn resources(spec: Spec) -> Result<Resources, Error> {
     };
     let private = cost.map_or(0, |r| r.encoded_key_bytes + 8);
     let packet = wire::ENVELOPE_BYTES + private;
-    let raw = if b == 0 { 0 } else { 8 * n };
+    let fold = if b == 0 { 0 } else { FOLD_BYTES };
     let output = 8 * spec.vocabulary;
     let frame = HEADER_BYTES + 8;
     let party = size_of::<Party<'_>>()
         + size_of::<State>()
         + FIXED_BYTES
-        + raw
+        + fold
         + output
         + frame
         + cost.map_or(0, |r| r.key_capacity_bytes);
@@ -139,7 +143,7 @@ pub fn resources(spec: Spec) -> Result<Resources, Error> {
         private_material_bytes_total: 2 * private,
         material_packet_bytes_per_party: packet,
         public_table_bytes_per_party: 0,
-        scalar_scratch_bytes_per_party: raw,
+        scalar_scratch_bytes_per_party: fold,
         output_bytes_per_party: output,
         frames_per_party: 1,
         frame_bytes_per_party: frame,
@@ -154,18 +158,15 @@ struct Secret {
     mask: Zeroizing<u64>,
 }
 struct Work {
-    raw: Zeroizing<Vec<u64>>,
     output: Zeroizing<Vec<u64>>,
     frame: Zeroizing<Vec<u8>>,
 }
 impl Work {
     fn new(r: Resources, budget: &Budget) -> Result<Self, Error> {
-        let mut raw = Zeroizing::new(allocate(r.scalar_scratch_bytes_per_party / 8, budget)?);
-        raw.resize(r.scalar_scratch_bytes_per_party / 8, 0);
         let mut output = Zeroizing::new(allocate(r.vocabulary, budget)?);
         output.resize(r.vocabulary, 0);
         let frame = Zeroizing::new(allocate(r.frame_bytes_per_party, budget)?);
-        Ok(Self { raw, output, frame })
+        Ok(Self { output, frame })
     }
 }
 enum State {
@@ -305,14 +306,34 @@ impl<'a> Party<'a> {
             return Err(Error::Context);
         }
         let t = own.wrapping_add(other) & mask;
+        if work.output.len() != self.resources.vocabulary
+            || work.output.capacity() != self.resources.vocabulary
+        {
+            return Err(Error::Resource);
+        }
         if let Some(key) = secret.key {
-            key.eval_all_into(self.id, &mut work.raw)
-                .map_err(primitive_error)?;
-            for (i, out) in work.output.iter_mut().enumerate() {
-                let z = t.wrapping_sub(i as u64) & mask;
-                *out = work.raw[(z.wrapping_sub(1) & mask) as usize]
-                    .wrapping_sub(work.raw[z as usize])
-                    .wrapping_add(u64::from(self.id == 0 && z == 0))
+            let mut endpoints = Zeroizing::new([0u64; 2]); // first, previous
+            key.eval_all_visit(self.id, |z, value| {
+                if z == 0 {
+                    endpoints[0] = value;
+                } else {
+                    // The opening t and every index are public. Every DCF leaf
+                    // is still evaluated, including the padded vocabulary tail.
+                    let i = (t.wrapping_sub(z as u64) & mask) as usize;
+                    if i < work.output.len() {
+                        work.output[i] = endpoints[1].wrapping_sub(value) & A50_MASK;
+                    }
+                }
+                endpoints[1] = value;
+            })
+            .map_err(primitive_error)?;
+            // The cyclic z=0 derivative needs the final and first leaves. Its
+            // output index is t; retain the original role-zero correction even
+            // when the public opening wraps or lies outside the vocabulary.
+            if (t as usize) < work.output.len() {
+                work.output[t as usize] = endpoints[1]
+                    .wrapping_sub(endpoints[0])
+                    .wrapping_add(u64::from(self.id == 0))
                     & A50_MASK;
             }
         } else {

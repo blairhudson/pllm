@@ -228,6 +228,23 @@ fn compact_one_hot_qwen_geometry_prices_native_owners_without_vector_plan_metada
             r.dcf_evaluations_per_party,
             native.dcf_evaluations_per_party
         );
+        assert_eq!(
+            native.scalar_scratch_bytes_per_party,
+            if vocabulary == 1 {
+                0
+            } else {
+                size_of::<[u64; 3]>()
+            }
+        );
+        // Allocation removal does not prune leaves or discount existing work.
+        assert_eq!(
+            r.cumulative_work,
+            native.dcf_evaluations_per_party * usize::from(native.input_bits)
+                + native.prg_blocks_per_party
+                + 8 * native.derivative_rows_per_party
+                + 1
+        );
+        assert!(native.party_reservation_bytes < native.output_bytes_per_party + 64 * 1024);
         assert_eq!(r.triples_total, 0);
         assert_eq!(r.frames_total, 2);
         assert_eq!(r.frame_bytes_total, native.frame_bytes_total);
@@ -253,6 +270,21 @@ fn compact_one_hot_qwen_geometry_prices_native_owners_without_vector_plan_metada
         let storage = wire::ImportGuard::indexed_file_resources(3_530_000).unwrap();
         assert_eq!(file.secret_steps, 1);
         assert_eq!(file.guard_reservation_bytes, storage.resident_bytes);
+        assert_eq!(
+            file.combined_worker_reservation_bytes,
+            r.plan_reservation_bytes
+                + r.register_owner_bytes_per_party
+                + step.import_overlap_bytes
+                + step.packet_bytes_bound
+                + r.retained_frame_overlap_bytes / 2
+                + storage.resident_bytes
+        );
+        assert_eq!(
+            file.combined_dealer_export_reservation_bytes,
+            r.plan_reservation_bytes
+                + native.combined_reservation_bytes
+                + 3 * step.packet_bytes_bound
+        );
         assert_eq!(
             file.cumulative_packet_bytes_per_party_bound,
             step.packet_bytes_bound

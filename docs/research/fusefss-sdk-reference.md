@@ -139,6 +139,15 @@ storage reuse, not fewer protected operations, rounds or fresh private material.
 Historical trained-source rejection and WAN results below retain their original
 builds; they do not establish admission or speed for this ownership change.
 
+Complete-vocabulary one-hot evaluation folds the DCF's natural-order leaves
+directly into the existing output instead of retaining a second full-domain
+array. Every padded leaf, PRG expansion, correction and logical work charge is
+preserved. First/previous/current leaf storage costs 24 logical bytes per party;
+at vocabulary 151,936, the removed heap array was 2,097,152 bytes per party.
+Independent scalar-point tests compare every leaf and each party's output bytes,
+not only reconstruction. This does not by itself prove a smaller complete-topology
+reservation: transport pricing takes the maximum across all kernel families.
+
 `capacity="decoder"` streams Q12 coefficients and row statistics into shared-core
 immutable files. Public contractions reuse `pllm_core::streamed_matrix`; the
 complete product still precedes the original FuseFSS floor. Complete vocabulary

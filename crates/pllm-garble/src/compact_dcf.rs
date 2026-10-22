@@ -434,8 +434,24 @@ impl RingComparison {
     /// Fixed natural-order scalar traversal. At most 19 live DFS nodes, no heap
     /// allocation, pruning, new PRG, or changed point-evaluation arithmetic.
     /// Deliberately bounded to the one-hot operator's 18-bit public domain.
+    #[cfg_attr(not(test), allow(dead_code))] // Compatibility buffer sink.
     pub(crate) fn eval_all_into(&self, party: u8, output: &mut [u64]) -> Result<(), Error> {
         if party > 1 || self.input_bits > 18 || output.len() != 1usize << self.input_bits {
+            return Err(Error::Domain);
+        }
+        self.eval_all_visit(party, |index, value| output[index] = value)
+    }
+
+    /// Visit EVERY leaf in unsigned/MSB order using the same fixed DFS as the
+    /// buffer sink. Validation precedes the first callback; an infallible visitor
+    /// cannot stop, prune or turn a partial traversal into a successful result.
+    /// The enclosing owner prices its visitor state separately from DFS scratch.
+    pub(crate) fn eval_all_visit(
+        &self,
+        party: u8,
+        mut visit: impl FnMut(usize, u64),
+    ) -> Result<(), Error> {
+        if party > 1 || self.input_bits > 18 {
             return Err(Error::Domain);
         }
         type Node = ([u8; 16], u8, u64, usize, usize);
@@ -449,7 +465,7 @@ impl RingComparison {
             stack[len].zeroize();
             let (seed, control, sum, depth, prefix) = &*node;
             if *depth == usize::from(self.input_bits) {
-                output[*prefix] = sum.add(
+                let value = Zeroizing::new(sum.add(
                     signed(
                         convert::<u64>(seed, mask)
                             .add(self.key.final_word.scale(u64::from(*control), mask), mask),
@@ -457,7 +473,8 @@ impl RingComparison {
                         mask,
                     ),
                     mask,
-                );
+                ));
+                visit(*prefix, *value);
                 continue;
             }
             let word = &self.key.words[*depth];
@@ -606,6 +623,16 @@ mod full_domain_tests {
                     keys[role]
                         .eval_all_into(role as u8, &mut full[role])
                         .unwrap();
+                    let mut visited = 0;
+                    keys[role]
+                        .eval_all_visit(role as u8, |index, value| {
+                            assert_eq!(index, visited);
+                            assert_eq!(value, full[role][index]);
+                            assert_eq!(value, keys[role].eval(role as u8, index as u64).unwrap());
+                            visited += 1;
+                        })
+                        .unwrap();
+                    assert_eq!(visited, n);
                     let mut encoded = Zeroizing::new(Vec::new());
                     keys[role].write_material(&mut encoded);
                     let imported =
@@ -615,6 +642,16 @@ mod full_domain_tests {
                         .eval_all_into(role as u8, &mut decoded_full)
                         .unwrap();
                     assert_eq!(decoded_full, full[role]);
+                    let mut visited = 0;
+                    imported
+                        .eval_all_visit(role as u8, |index, value| {
+                            assert_eq!(index, visited);
+                            assert_eq!(value, decoded_full[index]);
+                            assert_eq!(value, imported.eval(role as u8, index as u64).unwrap());
+                            visited += 1;
+                        })
+                        .unwrap();
+                    assert_eq!(visited, n);
                     for x in 0..n {
                         assert_eq!(
                             full[role][x],
@@ -624,6 +661,67 @@ mod full_domain_tests {
                 }
                 for x in 0..n {
                     assert_eq!(full[0][x].wrapping_add(full[1][x]) & mask, u64::from(x < r));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn visitor_matches_buffer_every_leaf_at_width_and_full_domain_boundaries() {
+        use crate::fusefss_backend::MAX_ALLOCATION_BYTES;
+        for (bits, output_bits) in [(1, 1), (2, 32), (7, 50), (18, 50)] {
+            let n = 1usize << bits;
+            let keys = RingComparison::issue(
+                bits,
+                output_bits,
+                n as u64 - 1,
+                (1u64 << output_bits) - 1,
+                MAX_ALLOCATION_BYTES,
+            )
+            .unwrap();
+            for (role, key) in keys.iter().enumerate() {
+                let mut full = Zeroizing::new(vec![0; n]);
+                key.eval_all_into(role as u8, &mut full).unwrap();
+                let mut visited = 0;
+                key.eval_all_visit(role as u8, |index, value| {
+                    assert_eq!(index, visited);
+                    assert_eq!(value, full[index]);
+                    // Independent scalar path at the natural point coordinate,
+                    // not just another invocation of the shared visitor sink.
+                    assert_eq!(value, key.eval(role as u8, index as u64).unwrap());
+                    visited += 1;
+                })
+                .unwrap();
+                assert_eq!(visited, n);
+                for index in [0, 1, n / 2, n - 1] {
+                    assert_eq!(full[index], key.eval(role as u8, index as u64).unwrap());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_sink_geometry_and_roles_have_no_partial_writes_or_visits() {
+        use crate::fusefss_backend::MAX_ALLOCATION_BYTES;
+        for bits in [1, 18, 19] {
+            let [key, _] = RingComparison::issue(bits, 50, 0, 1, MAX_ALLOCATION_BYTES).unwrap();
+            let n = 1usize << bits;
+            for role in [0, 1, 2, u8::MAX] {
+                for len in [0, n - 1, n, n + 1] {
+                    if role < 2 && bits <= 18 && len == n {
+                        continue;
+                    }
+                    let mut output = Zeroizing::new(vec![u64::MAX; len]);
+                    assert_eq!(key.eval_all_into(role, &mut output), Err(Error::Domain));
+                    assert!(output.iter().all(|&value| value == u64::MAX));
+                }
+                if role > 1 || bits > 18 {
+                    let mut called = false;
+                    assert_eq!(
+                        key.eval_all_visit(role, |_, _| called = true),
+                        Err(Error::Domain)
+                    );
+                    assert!(!called);
                 }
             }
         }

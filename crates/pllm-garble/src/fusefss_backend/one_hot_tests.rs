@@ -55,6 +55,35 @@ fn parity(p: &Party<'_>, exhaustive: bool) {
         assert!(key.eval_all_into(p.id, &mut all[..n - 1]).is_err());
     }
 }
+
+// Test-only legacy materialization on the SAME private key, before finish consumes
+// it. Every raw leaf comes from the independent scalar point evaluator, never the
+// new DFS visitor/buffer wrapper. Then apply the original difference/index law.
+// This checks each party's exact shares, not just their reconstructed sum.
+fn materialized_derivative(party: &Party<'_>, t: u64) -> Zeroizing<Vec<u64>> {
+    let secret = match party.state.as_ref().unwrap() {
+        State::Ready(secret, _) | State::Opened(secret, _, _) => secret,
+    };
+    let mut expected = Zeroizing::new(vec![0; party.resources.vocabulary]);
+    if let Some(key) = &secret.key {
+        let mut raw = Zeroizing::new(vec![0; party.resources.domain_entries]);
+        for (z, value) in raw.iter_mut().enumerate() {
+            *value = key.eval(party.id, z as u64).unwrap();
+        }
+        let mask = party.resources.domain_entries as u64 - 1;
+        for (i, value) in expected.iter_mut().enumerate() {
+            let z = t.wrapping_sub(i as u64) & mask;
+            *value = raw[(z.wrapping_sub(1) & mask) as usize]
+                .wrapping_sub(raw[z as usize])
+                .wrapping_add(u64::from(party.id == 0 && z == 0))
+                & A50_MASK;
+        }
+    } else {
+        expected[0] = u64::from(party.id == 0);
+    }
+    expected
+}
+
 fn execute(mut parties: [Party<'_>; 2], x: u64, share: u64) -> ([Output<'_>; 2], u64) {
     let [a, b] = &mut parties;
     let af = a.start(share).unwrap();
@@ -62,8 +91,17 @@ fn execute(mut parties: [Party<'_>; 2], x: u64, share: u64) -> ([Output<'_>; 2],
     let t = (u64::from_le_bytes(af.as_bytes()[80..].try_into().unwrap())
         + u64::from_le_bytes(bf.as_bytes()[80..].try_into().unwrap()))
         & ((1u64 << a.resources.input_bits) - 1);
+    let expected = [materialized_derivative(a, t), materialized_derivative(b, t)];
     let ao = a.finish(bf.as_bytes()).unwrap();
     let bo = b.finish(af.as_bytes()).unwrap();
+    for (actual, expected) in [&ao, &bo].into_iter().zip(&expected) {
+        assert_eq!(actual.shares(), expected.as_slice());
+        assert!(actual
+            .shares()
+            .iter()
+            .flat_map(|word| word.to_le_bytes())
+            .eq(expected.iter().flat_map(|word| word.to_le_bytes())));
+    }
     assert!(a.is_consumed() && b.is_consumed());
     assert!(matches!(a.start(0), Err(Error::Consumed)));
     ([ao, bo], t)
@@ -89,7 +127,7 @@ fn check(outputs: &[Output<'_>; 2], x: u64, v: usize) {
 #[test]
 fn every_small_vocab_threshold_token_including_zero_wrap_and_padding() {
     let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
-    for v in 2usize..=16 {
+    for v in 1usize..=16 {
         let s = spec(v);
         let n = v.next_power_of_two();
         for r in 0..n {
@@ -168,6 +206,118 @@ fn explicit_vocabulary_one_public_constant_and_large_endpoint_controls() {
         }
         drop(out);
         assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn individual_party_fold_matches_materialization_at_large_public_wrap_and_padding() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    for (v, r, x) in [
+        (151_936, 0, 0),
+        (151_936, 1, MAX_VOCABULARY - 1), // t=0, padded token
+        (151_936, MAX_VOCABULARY - 1, 1), // t=0, valid token
+        (MAX_VOCABULARY, 0, MAX_VOCABULARY - 1),
+        (MAX_VOCABULARY, MAX_VOCABULARY - 1, 1),
+    ] {
+        let pair = forced(spec(v), r as u64, A50_MASK, &budget);
+        let (out, t) = execute(pair, x as u64, A50_MASK - 7);
+        assert_eq!(t, (x as u64 + r as u64) & (v.next_power_of_two() as u64 - 1));
+        check(&out, x as u64, v);
+        drop(out);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn fixed_fold_state_is_charged_and_finish_allocates_no_full_domain_buffer() {
+    assert_eq!(FOLD_BYTES, size_of::<[u64; 3]>());
+    assert_eq!(FOLD_BYTES, 24);
+    // The root work owner has only the original output and frame allocations.
+    assert_eq!(size_of::<Work>(), size_of::<Vec<u64>>() + size_of::<Vec<u8>>());
+    for v in [1, 5, 151_936, MAX_VOCABULARY] {
+        let cost = resources(spec(v)).unwrap();
+        let fold = if v == 1 { 0 } else { FOLD_BYTES };
+        assert_eq!(cost.scalar_scratch_bytes_per_party, fold);
+        let key = if v == 1 {
+            None
+        } else {
+            Some(RingComparison::resources(cost.input_bits, 50).unwrap())
+        };
+        assert_eq!(
+            cost.party_reservation_bytes,
+            size_of::<Party<'_>>()
+                + size_of::<State>()
+                + FIXED_BYTES
+                + fold
+                + cost.output_bytes_per_party
+                + cost.frame_bytes_per_party
+                + key.map_or(0, |r| r.key_capacity_bytes)
+        );
+        assert_eq!(
+            cost.combined_reservation_bytes,
+            2 * cost.party_reservation_bytes
+                + key.map_or(0, |r| r.issuance_scratch_bytes)
+                + 2 * cost.material_packet_bytes_per_party
+        );
+        let budget = Budget::new(cost.combined_reservation_bytes).unwrap();
+        let [mut a, mut b] = issue(spec(v), context(), &budget).unwrap();
+        assert_eq!(budget.used_bytes(), 2 * cost.party_reservation_bytes);
+        for party in [&a, &b] {
+            let State::Ready(_, work) = party.state.as_ref().unwrap() else {
+                panic!()
+            };
+            let Work { output, frame } = work;
+            assert_eq!(output.len(), v);
+            assert_eq!(output.capacity(), v);
+            assert_eq!(frame.len(), 0);
+            assert_eq!(frame.capacity(), cost.frame_bytes_per_party);
+        }
+        let af = a.start(A50_MASK).unwrap();
+        let bf = b.start(1).unwrap();
+        assert_eq!(budget.used_bytes(), 2 * cost.party_reservation_bytes);
+        budget.fail_after.store(0, Ordering::SeqCst);
+        let ao = a.finish(bf.as_bytes()).unwrap();
+        let bo = b.finish(af.as_bytes()).unwrap();
+        assert_eq!(ao.shares().len(), v);
+        assert_eq!(bo.shares().len(), v);
+        assert_eq!(budget.used_bytes(), 2 * cost.party_reservation_bytes);
+        drop((a, b));
+        assert_eq!(
+            budget.used_bytes(),
+            2 * cost.output_bytes_per_party + cost.frame_bytes_total
+        );
+        drop((ao, bo, af, bf));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn malformed_internal_output_owners_burn_before_folding() {
+    for v in [1, 5] {
+        for damage in 0..4 {
+            let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let [mut a, mut b] = issue(spec(v), context(), &budget).unwrap();
+            let State::Ready(_, work) = a.state.as_mut().unwrap() else {
+                panic!()
+            };
+            match damage {
+                0 => work.output.clear(),
+                1 => work.output.truncate(v - 1),
+                2 => work.output.push(0),
+                _ => {
+                    let mut oversized = Vec::with_capacity(v + 1);
+                    oversized.resize(v, 0);
+                    work.output = Zeroizing::new(oversized);
+                }
+            }
+            let af = a.start(0).unwrap();
+            let bf = b.start(0).unwrap();
+            assert!(matches!(a.finish(bf.as_bytes()), Err(Error::Resource)));
+            assert!(a.is_consumed());
+            assert!(matches!(a.finish(bf.as_bytes()), Err(Error::Consumed)));
+            drop((a, b, af, bf));
+            assert_eq!(budget.used_bytes(), 0);
+        }
     }
 }
 
@@ -303,7 +453,7 @@ fn all_allocations_admitted_before_entropy_and_export_lifetimes() {
         assert!(matches!(result, Err(Error::Randomness)));
         assert_eq!(budget.used_bytes(), 0);
     }
-    for v in [1, 5] {
+    for v in [1, 5, 151_936] {
         let mut success = false;
         for fail in 0..16 {
             let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
@@ -374,6 +524,7 @@ fn fixed_costs_bound_large_vocab_without_legacy_cap_changes() {
         assert_eq!(r.dcf_keys_per_party, 1);
         assert_eq!(r.public_table_bytes_per_party, 0);
         assert_eq!(r.triples_per_party, 0);
+        assert_eq!(r.scalar_scratch_bytes_per_party, FOLD_BYTES);
         assert_eq!(r.tree_expansions_per_party, (1 << b) - 1);
         assert!(r.tree_expansions_per_party < v * b as usize);
         assert!(r.combined_reservation_bytes < MAX_ALLOCATION_BYTES);
