@@ -84,6 +84,12 @@ pub fn challenge(length: usize, weight: usize, tag: usize) -> Vec<u32> {
         .collect()
 }
 
+impl Default for Fixture {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Fixture {
     pub fn new() -> Self {
         let matrix: Vec<u32> = (0..64 * 64)
@@ -210,12 +216,14 @@ pub fn begin_fixed(
     })
 }
 
+pub type FixedBatchTrace = [[u32; 2]; 4];
+
 pub fn finish_batch_fixed(
     client: &mut Client,
     batch: ChallengedBatch,
     response: AuxiliaryReplyView<'_>,
     pairs: [&[u32]; 2],
-) -> Result<(AcceptedBatch, [[u32; 2]; 4], [[u32; 2]; 4])> {
+) -> Result<(AcceptedBatch, FixedBatchTrace, FixedBatchTrace)> {
     client
         .finish_batch_with(batch, response, |memory| {
             Ok([
