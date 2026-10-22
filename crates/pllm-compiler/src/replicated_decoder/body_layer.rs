@@ -1,5 +1,6 @@
 //! Semantic public-body plan. No model/source admission override lives here.
 use super::{Register, Resources, RETAINED, TILE, UNUSED};
+use crate::replicated_decoder::prepared_tensor_map::PreparedTensorMap;
 use crate::replicated_decoder::{
     multiply, puma, tensor, vec_zero, Error, InputBounds, Interval, PublicSource, Secret,
     WeightMode, WorkBudget, MAX_NODES, MAX_PROGRAM_BYTES, MAX_VALUES, ONE,
@@ -163,6 +164,10 @@ enum Op {
         stride: usize,
         programs: Box<[Arc<tensor::Program>]>,
     },
+    PreparedTensorMap {
+        input: Layout,
+        prepared: PreparedTensorMap,
+    },
     Matrix {
         rows: Box<[MatrixRow]>,
         rescale: bool,
@@ -212,6 +217,7 @@ impl Op {
                 Ok(())
             }
             Self::Tensor { input, .. }
+            | Self::PreparedTensorMap { input, .. }
             | Self::PublicMatrix { input, .. }
             | Self::Bias { input, .. } => input.validate(registers),
         }
@@ -221,6 +227,7 @@ impl Op {
             Self::Binary { left, .. } => Some(left),
             Self::Matrix { rows, .. } => rows.first().map(|r| &r.left),
             Self::Tensor { input, .. }
+            | Self::PreparedTensorMap { input, .. }
             | Self::PublicMatrix { input, .. }
             | Self::Bias { input, .. }
             | Self::Check { input, .. } => Some(input),
@@ -230,6 +237,7 @@ impl Op {
         match self {
             Self::Binary { left, right, .. } => vec![left, right],
             Self::Tensor { input, .. }
+            | Self::PreparedTensorMap { input, .. }
             | Self::PublicMatrix { input, .. }
             | Self::Bias { input, .. } => vec![input],
             Self::Matrix { rows, .. } => rows.iter().flat_map(|r| [&r.left, &r.right]).collect(),
@@ -387,6 +395,118 @@ impl Builder {
             hi = hi.max(range.upper());
         }
         Interval::new(lo, hi)
+    }
+    /// Closed native preparation. The input's actual local-domain contract is
+    /// captured; this neither certifies checkpoint inputs nor issues row proofs.
+    /// caller_baseline prices independently retained owners, not in this Builder.
+    pub(in crate::replicated_decoder) fn prepare_rescale_map(
+        &mut self,
+        input: &Layout,
+        shift: u8,
+        caller_baseline: usize,
+    ) -> Result<PreparedTensorMap, Error> {
+        self.prepare_map(input, Some(shift), caller_baseline)
+    }
+    pub(in crate::replicated_decoder) fn prepare_guarded_silu_map(
+        &mut self,
+        input: &Layout,
+        caller_baseline: usize,
+    ) -> Result<PreparedTensorMap, Error> {
+        self.prepare_map(input, None, caller_baseline)
+    }
+    fn prepare_map(
+        &mut self,
+        input: &Layout,
+        shift: Option<u8>,
+        caller_baseline: usize,
+    ) -> Result<PreparedTensorMap, Error> {
+        let result = (|| {
+            let bounds = self.bounds(input)?;
+            let backing = input.backing_bytes()?;
+            let baseline = caller_baseline
+                .checked_add(size_of::<Layout>())
+                .and_then(|n| n.checked_add(backing))
+                .ok_or(Error::Bounds)?;
+            if let Some(shift) = shift {
+                PreparedTensorMap::rescale(input.len(), bounds, shift, baseline, |extra| {
+                    self.proof_preflight(extra)
+                })
+            } else {
+                PreparedTensorMap::guarded_silu(input.len(), bounds, baseline, |extra| {
+                    self.proof_preflight(extra)
+                })
+            }
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
+        }
+        result
+    }
+    /// Consume the capability and its ORIGINAL full/tail Arcs. No interner lookup
+    /// substitutes another same-digest allocation, and no per-tile list exists.
+    /// Existing interner owners remain in proof_preflight's live census. Caller
+    /// input/layout/baseline owners coexist with incoming Op and push conversion.
+    pub(in crate::replicated_decoder) fn prepared_tensor_map(
+        &mut self,
+        input: &Layout,
+        prepared: PreparedTensorMap,
+        caller_baseline: usize,
+    ) -> Result<Layout, Error> {
+        let result = (|| {
+            self.proof_admission_live()?;
+            prepared.validate()?;
+            if !prepared.accepts(input.len(), self.bounds(input)?) {
+                return Err(Error::Binding);
+            }
+            let work = prepared.work_budget()?;
+            self.work.checked_add(work)?.limits()?;
+            let advances = prepared.advances()?;
+            if self
+                .advances
+                .checked_add(advances)
+                .is_none_or(|n| n > MAX_COORDINATOR_ADVANCES)
+            {
+                return Err(Error::Bounds);
+            }
+            let backing = input.backing_bytes()?;
+            let temporary = caller_baseline
+                .checked_add(prepared.baseline_bytes()?)
+                .and_then(|n| n.checked_add(size_of::<Op>()))
+                .and_then(|n| n.checked_add(size_of::<Vec<Region>>()))
+                .and_then(|n| n.checked_add(size_of::<Layout>()))
+                .and_then(|n| n.checked_add(backing))
+                .ok_or(Error::Bounds)?;
+            // Quote output layout before ANY new map-owned backing is allocated.
+            let output = Layout::quote_contiguous(self.registers.len(), input.len())?;
+            self.proof_preflight(
+                temporary
+                    .checked_add(output.construction_peak_bytes)
+                    .ok_or(Error::Bounds)?,
+            )?;
+            let mut regions = self.region_buffer(1, temporary)?;
+            regions.push(Region {
+                offset: 0,
+                len: input.len(),
+                // Original TensorLoop publishes one full/tail HULL, not newly
+                // inferred per-tile output domains or producer certificates.
+                bounds: prepared.output_bounds()?,
+            });
+            self.push_with_temporary(
+                Op::PreparedTensorMap {
+                    input: input.clone(),
+                    prepared,
+                },
+                input.len(),
+                regions,
+                work,
+                advances,
+                temporary,
+            )
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
+        }
+        result
     }
     #[cfg(test)]
     fn intern(&mut self, program: tensor::Program) -> Result<Arc<tensor::Program>, Error> {
@@ -646,6 +766,19 @@ impl Plan {
                         scratch = scratch.max(p.resources()?.shared_admitted_bytes);
                     }
                 }
+                Op::PreparedTensorMap { input, prepared } => {
+                    // Storage identity only. NOT a canonical expanded graph or
+                    // a claim that a full decoder shares this execution context.
+                    hash.update([6]);
+                    input.hash(&mut hash);
+                    prepared.hash(&mut hash);
+                    op_bytes = op_bytes
+                        .checked_add(prepared.template_bytes()?)
+                        .ok_or(Error::Bounds)?;
+                    for p in prepared.programs() {
+                        scratch = scratch.max(p.resources()?.shared_admitted_bytes);
+                    }
+                }
                 Op::Matrix { rows, rescale } => {
                     hash.update([2, u8::from(*rescale)]);
                     hash.update((rows.len() as u64).to_le_bytes());
@@ -861,6 +994,11 @@ impl Plan {
                 s.tensor_instructions += p.instructions() as u64;
             }
             match op {
+                Op::PreparedTensorMap { prepared, .. } => {
+                    s.tensor_invocations += prepared.invocations();
+                    // Same one advance per original tensor instruction.
+                    s.tensor_instructions += prepared.advances().expect("admitted map work");
+                }
                 Op::Matrix { rows, .. } => {
                     s.matrix_products += rows
                         .iter()

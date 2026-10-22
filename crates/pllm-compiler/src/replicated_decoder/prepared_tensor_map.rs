@@ -4,6 +4,7 @@
 //! The captured interval is a local compiler-declaration subset contract, not
 //! external proof or checkpoint/source authority.
 use super::{puma, tensor, Error, Interval, WorkBudget, MAX_VALUES};
+use sha2::{Digest, Sha256};
 use std::{mem::size_of, sync::Arc};
 
 #[cfg(test)]
@@ -430,5 +431,16 @@ impl PreparedTensorMap {
 
     pub(super) fn invocations(&self) -> u64 {
         self.lanes.div_ceil(self.full.lanes()) as u64
+    }
+
+    pub(super) fn hash(&self, hash: &mut Sha256) {
+        hash.update((self.lanes as u64).to_le_bytes());
+        hash.update(self.input.lower().to_le_bytes());
+        hash.update(self.input.upper().to_le_bytes());
+        hash.update(self.full.digest());
+        hash.update([u8::from(self.tail.is_some())]);
+        if let Some(tail) = &self.tail {
+            hash.update(tail.digest());
+        }
     }
 }

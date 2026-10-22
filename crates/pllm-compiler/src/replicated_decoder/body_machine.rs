@@ -21,6 +21,7 @@ enum ProductTarget {
 }
 enum TensorTarget {
     Row { row: usize },
+    Map { offset: usize },
     Checked,
     AllValid,
 }
@@ -395,6 +396,24 @@ impl Executor {
                         }
                         runtime
                     }
+                    TensorTarget::Map { offset } => {
+                        let (runtime, value) = executor.finish()?;
+                        let Op::PreparedTensorMap { prepared, .. } = &self.plan.ops[self.step]
+                        else {
+                            return Err(Error::Binding);
+                        };
+                        let lanes = prepared.lanes();
+                        let len = prepared.program_at(offset)?.lanes();
+                        if value.first().len() != len || value.second().len() != len {
+                            return Err(Error::Shape);
+                        }
+                        self.store(offset, &value)?;
+                        self.cursor = offset.checked_add(len).ok_or(Error::Bounds)?;
+                        if self.cursor == lanes {
+                            self.next();
+                        }
+                        runtime
+                    }
                     TensorTarget::Checked => {
                         let (runtime, safe, valid) = executor.finish_checked()?;
                         self.store(self.cursor, &safe)?;
@@ -483,6 +502,20 @@ impl Executor {
                     let mut executor = tensor::Executor::new_shared(runtime, program, input)?;
                     let frames = executor.start_step()?;
                     self.active = Active::Tensor(executor, TensorTarget::Row { row: self.cursor });
+                    return tensor_frames(frames);
+                }
+                Op::PreparedTensorMap { input, prepared } => {
+                    let program = prepared.program_at(self.cursor)?.clone();
+                    let value = self.gather(input, self.cursor, program.lanes())?;
+                    let input = Self::share(&runtime, &value)?;
+                    let mut executor = tensor::Executor::new_shared(runtime, program, input)?;
+                    let frames = executor.start_step()?;
+                    self.active = Active::Tensor(
+                        executor,
+                        TensorTarget::Map {
+                            offset: self.cursor,
+                        },
+                    );
                     return tensor_frames(frames);
                 }
                 Op::Matrix { rows, rescale } => {

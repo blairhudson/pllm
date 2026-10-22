@@ -323,6 +323,9 @@ impl Builder {
         let source = |s: &Source| add(add(size_of::<Source>(), s.key.capacity())?, 192);
         match op {
             Op::Binary { left, right, .. } => add(layout_bytes(left)?, layout_bytes(right)?),
+            Op::PreparedTensorMap { input, prepared } => {
+                add(layout_bytes(input)?, prepared.template_bytes()?)
+            }
             Op::Tensor {
                 input, programs, ..
             } => add(
