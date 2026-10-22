@@ -61,4 +61,31 @@ fn production_export_imports_and_roundtrips_both_complete_protocols() {
     }
     assert!(!client.has_live_window());
     assert_eq!(client.attempts_issued(), 2);
+
+    // Real exported dependent owners, OS entropy only; reference is independent
+    // integer arithmetic on the public fixture, not an internal callback.
+    let first = fixture.direct(0);
+    let second: Vec<u32> = fixture.matrices[1]
+        .chunks_exact(64)
+        .map(|row| {
+            (row.iter()
+                .zip(&first)
+                .map(|(&a, &b)| u128::from(a) * u128::from(b))
+                .sum::<u128>()
+                % u128::from(FIELD)) as u32
+        })
+        .collect();
+    let (owner, request) = client.issue_dependent(&fixture.inputs[0]).unwrap();
+    let reply = server.evaluate(request.view()).unwrap();
+    let (owner, request) = client.continue_dependent(owner, reply.view()).unwrap();
+    let reply = server.evaluate(request.view()).unwrap();
+    let (fixed, primary) = client
+        .begin_dependent_verification(owner, reply.view())
+        .unwrap();
+    let auxiliary = server.project(primary.view()).unwrap();
+    let accepted = client.finish_batch(fixed, auxiliary.view()).unwrap();
+    assert_eq!(accepted.outputs()[0].values(), first);
+    assert_eq!(accepted.outputs()[1].values(), second);
+    assert!(!client.has_live_window());
+    assert_eq!(client.attempts_issued(), 3);
 }

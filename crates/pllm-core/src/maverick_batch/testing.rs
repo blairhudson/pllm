@@ -6,6 +6,153 @@ use super::code::{Code, Sparse};
 use super::memory::Words;
 use super::*;
 
+std::thread_local! {
+    static LIVE_LEASE: std::cell::Cell<Option<*const std::sync::atomic::AtomicBool>> = const {
+        std::cell::Cell::new(None)
+    };
+}
+
+pub(super) struct LeaseScope<'a> {
+    previous: Option<*const std::sync::atomic::AtomicBool>,
+    _flag: &'a std::sync::atomic::AtomicBool,
+}
+
+impl<'a> LeaseScope<'a> {
+    pub(super) fn new(flag: &'a std::sync::atomic::AtomicBool) -> Self {
+        Self {
+            previous: LIVE_LEASE.with(|slot| slot.replace(Some(flag))),
+            _flag: flag,
+        }
+    }
+}
+
+impl Drop for LeaseScope<'_> {
+    fn drop(&mut self) {
+        LIVE_LEASE.with(|slot| slot.set(self.previous));
+    }
+}
+
+/// Only allocator callbacks during the scoped consuming operation may inspect
+/// this flag. Client::observe_live_lease keeps the original Control Arc alive.
+pub fn observed_lease_is_live() -> Option<bool> {
+    LIVE_LEASE
+        .try_with(|slot| {
+            slot.get().map(|flag| {
+                // SAFETY: the synchronous scope is nested inside the retained Control
+                // owner's lifetime; callbacks and TLS access execute on the same thread.
+                unsafe { &*flag }.load(std::sync::atomic::Ordering::Acquire)
+            })
+        })
+        .ok()
+        .flatten()
+}
+
+pub fn with_live_lease<T>(client: &mut Client, operation: impl FnOnce(&mut Client) -> T) -> T {
+    client.observe_live_lease(operation)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FixationEvent {
+    FirstOriginalFixed,
+    DependentNoise,
+    OriginalsFixed,
+    PrimaryDraw,
+    AuxiliaryFixed,
+    SecondaryDraw,
+}
+
+std::thread_local! {
+    static EVENTS: std::cell::RefCell<Option<Vec<FixationEvent>>> = const {
+        std::cell::RefCell::new(None)
+    };
+}
+
+pub(super) fn record(event: FixationEvent) {
+    EVENTS.with(|events| {
+        if let Some(events) = events.borrow_mut().as_mut() {
+            events.push(event);
+        }
+    });
+}
+
+pub fn begin_fixation_trace() {
+    EVENTS.with(|events| *events.borrow_mut() = Some(Vec::with_capacity(8)));
+}
+
+pub fn take_fixation_trace() -> Vec<FixationEvent> {
+    EVENTS.with(|events| events.borrow_mut().take().unwrap())
+}
+
+pub fn issue_dependent_fixed(
+    client: &mut Client,
+    input: &[u32],
+    pairs: &[u32],
+) -> Result<(DependentRequest, Request)> {
+    client.issue_dependent_with(input, |memory| {
+        Sparse::from_pairs(memory, LENGTH, PRIVACY_WEIGHT, pairs)
+    })
+}
+
+pub fn continue_dependent_fixed(
+    client: &mut Client,
+    owner: DependentRequest,
+    response: ReplyView<'_>,
+    pairs: &[u32],
+) -> Result<(DependentBatch, Request)> {
+    client.continue_dependent_with(owner, response, |memory| {
+        record(FixationEvent::DependentNoise);
+        Sparse::from_pairs(memory, LENGTH, PRIVACY_WEIGHT, pairs)
+    })
+}
+
+pub fn begin_dependent_fixed(
+    client: &mut Client,
+    owner: DependentBatch,
+    response: ReplyView<'_>,
+    pairs: [&[u32]; 2],
+) -> Result<(ChallengedBatch, PrimaryChallenge)> {
+    client.begin_dependent_with(owner, response, |memory| {
+        record(FixationEvent::PrimaryDraw);
+        Ok([
+            Sparse::from_pairs(memory, LENGTH, CHECK_WEIGHT, pairs[0])?,
+            Sparse::from_pairs(memory, LENGTH, CHECK_WEIGHT, pairs[1])?,
+        ])
+    })
+}
+
+/// Fail first privacy entropy without a new production seam.
+pub fn issue_dependent_rng_failure(
+    client: &mut Client,
+    input: &[u32],
+) -> Result<(DependentRequest, Request)> {
+    client.issue_dependent_with(input, |memory| {
+        Sparse::sample(memory, &mut FailedRandom, LENGTH, PRIVACY_WEIGHT)
+    })
+}
+
+pub fn continue_dependent_rng_failure(
+    client: &mut Client,
+    owner: DependentRequest,
+    response: ReplyView<'_>,
+) -> Result<(DependentBatch, Request)> {
+    client.continue_dependent_with(owner, response, |memory| {
+        Sparse::sample(memory, &mut FailedRandom, LENGTH, PRIVACY_WEIGHT)
+    })
+}
+
+pub fn begin_dependent_rng_failure(
+    client: &mut Client,
+    owner: DependentBatch,
+    response: ReplyView<'_>,
+) -> Result<(ChallengedBatch, PrimaryChallenge)> {
+    client.begin_dependent_with(owner, response, |memory| {
+        Ok([
+            Sparse::sample(memory, &mut FailedRandom, LENGTH, CHECK_WEIGHT)?,
+            Sparse::sample(memory, &mut FailedRandom, LENGTH, CHECK_WEIGHT)?,
+        ])
+    })
+}
+
 pub struct FixtureCode {
     pub dimension: usize,
     pub pi1: Vec<u32>,
@@ -226,6 +373,7 @@ pub fn finish_batch_fixed(
 ) -> Result<(AcceptedBatch, FixedBatchTrace, FixedBatchTrace)> {
     client
         .finish_batch_with(batch, response, |memory| {
+            record(FixationEvent::SecondaryDraw);
             Ok([
                 Sparse::from_pairs(memory, SECONDARY_LENGTH, CHECK_WEIGHT, pairs[0])?,
                 Sparse::from_pairs(memory, SECONDARY_LENGTH, CHECK_WEIGHT, pairs[1])?,
@@ -239,6 +387,105 @@ impl RandomWords for FailedRandom {
     fn word(&mut self) -> Result<u32> {
         Err(Error::Randomness)
     }
+}
+
+/// Deterministic test entropy only. Zeros cause no rejection draws, so exactly
+/// two successful words fill each sparse pair. The failing word itself receives
+/// a partial fill through the same zeroizing byte-scratch helper as OsRandom.
+struct FailAfter {
+    remaining: usize,
+    calls: usize,
+}
+
+impl RandomWords for FailAfter {
+    fn word(&mut self) -> Result<u32> {
+        self.calls += 1;
+        if self.remaining == 0 {
+            super::arithmetic::word_from_fill(|bytes| {
+                bytes[..2].copy_from_slice(&[0x97, 0x42]);
+                Err(Error::Randomness)
+            })
+        } else {
+            self.remaining -= 1;
+            Ok(0)
+        }
+    }
+}
+
+fn failing_noise(memory: &super::memory::Memory, successful_words: usize) -> Result<Sparse> {
+    assert!(successful_words < 2 * PRIVACY_WEIGHT);
+    let mut rng = FailAfter {
+        remaining: successful_words,
+        calls: 0,
+    };
+    let result = Sparse::sample(memory, &mut rng, LENGTH, PRIVACY_WEIGHT);
+    assert_eq!(rng.calls, successful_words + 1);
+    assert_eq!(result.as_ref().err(), Some(&Error::Randomness));
+    result
+}
+
+fn failing_checks(
+    memory: &super::memory::Memory,
+    length: usize,
+    successful_words: usize,
+) -> Result<[Sparse; 2]> {
+    assert!(successful_words < 4 * CHECK_WEIGHT);
+    let mut rng = FailAfter {
+        remaining: successful_words,
+        calls: 0,
+    };
+    let result = (|| {
+        Ok([
+            Sparse::sample(memory, &mut rng, length, CHECK_WEIGHT)?,
+            Sparse::sample(memory, &mut rng, length, CHECK_WEIGHT)?,
+        ])
+    })();
+    assert_eq!(rng.calls, successful_words + 1);
+    assert_eq!(result.as_ref().err(), Some(&Error::Randomness));
+    result
+}
+
+pub fn issue_dependent_rng_failure_after(
+    client: &mut Client,
+    input: &[u32],
+    successful_words: usize,
+) -> Result<(DependentRequest, Request)> {
+    client.issue_dependent_with(input, |memory| failing_noise(memory, successful_words))
+}
+
+pub fn continue_dependent_rng_failure_after(
+    client: &mut Client,
+    owner: DependentRequest,
+    response: ReplyView<'_>,
+    successful_words: usize,
+) -> Result<(DependentBatch, Request)> {
+    client.continue_dependent_with(owner, response, |memory| {
+        failing_noise(memory, successful_words)
+    })
+}
+
+pub fn begin_dependent_rng_failure_after(
+    client: &mut Client,
+    owner: DependentBatch,
+    response: ReplyView<'_>,
+    successful_words: usize,
+) -> Result<(ChallengedBatch, PrimaryChallenge)> {
+    client.begin_dependent_with(owner, response, |memory| {
+        failing_checks(memory, LENGTH, successful_words)
+    })
+}
+
+pub fn finish_batch_rng_failure_after(
+    client: &mut Client,
+    owner: ChallengedBatch,
+    response: AuxiliaryReplyView<'_>,
+    successful_words: usize,
+) -> Result<AcceptedBatch> {
+    client
+        .finish_batch_with(owner, response, |memory| {
+            failing_checks(memory, SECONDARY_LENGTH, successful_words)
+        })
+        .map(|v| v.0)
 }
 
 pub fn issue_rng_failure(client: &mut Client, input: &[u32]) -> Result<(Query, Request)> {

@@ -12,6 +12,10 @@ use super::{
     REPETITIONS, SECONDARY_DIMENSION, SECONDARY_LENGTH,
 };
 
+#[path = "dependent.rs"]
+mod dependent;
+pub use dependent::{DependentBatch, DependentRequest};
+
 const BATCH_SLOT: u8 = u8::MAX;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -274,6 +278,15 @@ impl ValidatedPublication {
 }
 
 impl Client {
+    #[cfg(test)]
+    pub(super) fn observe_live_lease<T>(&mut self, operation: impl FnOnce(&mut Self) -> T) -> T {
+        // Keep the real control alive while an allocator callback observes its
+        // flag. No extra lease, flag copy, or production lifetime change.
+        let control = Arc::clone(&self.control);
+        let _scope = super::testing::LeaseScope::new(&control.live);
+        operation(self)
+    }
+
     pub fn memory_stats(&self) -> MemoryStats {
         self.material.memory.stats()
     }
@@ -478,11 +491,25 @@ impl Client {
             Words::copy(&m.memory, responses[0].values)?,
             Words::copy(&m.memory, responses[1].values)?,
         ];
+        self.begin_fixed_outputs(batch, outputs, challenges)
+    }
+
+    // Both callers validate and own every original before entering this shared
+    // Protocol-2 path. Dependent requests move their already-fixed first reply.
+    fn begin_fixed_outputs(
+        &mut self,
+        batch: Batch,
+        outputs: [Words; BATCH_SIZE],
+        challenges: impl FnOnce(&Memory) -> Result<[Sparse; REPETITIONS]>,
+    ) -> Result<(ChallengedBatch, PrimaryChallenge)> {
+        let m = &self.material;
         let encoded = [
             m.gy.encode(&m.memory, outputs[0].as_slice())?,
             m.gy.encode(&m.memory, outputs[1].as_slice())?,
         ];
         // Only after both copies and code encodings are fixed.
+        #[cfg(test)]
+        super::testing::record(super::testing::FixationEvent::OriginalsFixed);
         let primary = challenges(&m.memory)?;
         let mut header = batch.claims[0].header;
         header.slot = BATCH_SLOT;
@@ -524,6 +551,8 @@ impl Client {
         canonical(auxiliary.values, REPETITIONS * SECONDARY_DIMENSION)?;
         let m = &self.material;
         let fixed = Words::copy(&m.memory, auxiliary.values)?;
+        #[cfg(test)]
+        super::testing::record(super::testing::FixationEvent::AuxiliaryFixed);
         let secondary = challenges(&m.memory)?;
         let mut mismatch = 0;
         let mut trace = BatchTrace {
@@ -591,14 +620,19 @@ fn checks(memory: &Memory, length: usize) -> Result<[Sparse; REPETITIONS]> {
 }
 
 fn decrypt(memory: &Memory, claim: &Claim, fixed: &[u32]) -> Result<AcceptedOutput> {
+    Ok(AcceptedOutput {
+        header: claim.header,
+        values: demask_values(memory, claim, fixed)?,
+    })
+}
+
+// No accepted owner is constructed for speculative dependent computation.
+fn demask_values(memory: &Memory, claim: &Claim, fixed: &[u32]) -> Result<Words> {
     let mut values = Words::zeros(memory, DIMENSION)?;
     for (i, out) in values.as_mut().iter_mut().enumerate() {
         *out = sub(fixed[i], claim.correction.as_slice()[i]);
     }
-    Ok(AcceptedOutput {
-        header: claim.header,
-        values,
-    })
+    Ok(values)
 }
 
 fn project(matrix: &Words, e: &Sparse, result: &mut [u32]) {

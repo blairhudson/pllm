@@ -33,6 +33,7 @@ const EMPTY: Entry = Entry {
 static LIVE: Mutex<[Entry; 128]> = Mutex::new([EMPTY; 128]);
 static BAD: AtomicBool = AtomicBool::new(false);
 static DESTRUCTIONS: AtomicUsize = AtomicUsize::new(0);
+static LEASE_DESTRUCTIONS: AtomicUsize = AtomicUsize::new(0);
 static ACTIVE: AtomicBool = AtomicBool::new(false);
 static FAIL_AT: AtomicUsize = AtomicUsize::new(usize::MAX);
 static INDEX: AtomicUsize = AtomicUsize::new(0);
@@ -124,6 +125,12 @@ unsafe impl GlobalAlloc for FailingAllocator {
                 if bytes.iter().any(|&byte| byte != 0) {
                     BAD.store(true, Ordering::Relaxed);
                 }
+                if let Some(live) = testing::observed_lease_is_live() {
+                    if !live {
+                        BAD.store(true, Ordering::Relaxed);
+                    }
+                    LEASE_DESTRUCTIONS.fetch_add(1, Ordering::Relaxed);
+                }
                 DESTRUCTIONS.fetch_add(1, Ordering::Relaxed);
                 live[index] = EMPTY;
             }
@@ -191,6 +198,22 @@ fn retired(watch: &MemoryWatch) {
     assert!(!BAD.load(Ordering::Acquire));
 }
 
+fn inject_client<T>(
+    index: usize,
+    client: &mut Client,
+    operation: impl FnOnce(&mut Client) -> Result<T>,
+) -> (Result<T>, usize) {
+    let had_owner = client.has_live_window();
+    let before = LEASE_DESTRUCTIONS.load(Ordering::Acquire);
+    let result = inject(index, || testing::with_live_lease(client, operation));
+    // An issuance failure at allocation zero has no successful buffer to free.
+    // Every other consuming phase must actually exercise the live-flag probe.
+    if had_owner || index != 0 {
+        assert!(LEASE_DESTRUCTIONS.load(Ordering::Acquire) > before);
+    }
+    result
+}
+
 fn sweep(name: &str, mut run: impl FnMut(usize) -> usize) -> usize {
     let count = run(usize::MAX);
     assert!(count > 0);
@@ -210,6 +233,86 @@ enum Online {
     Begin,
     Project,
     FinishBatch,
+    IssueDependent,
+    EvaluateDependentFirst,
+    ContinueDependent,
+    EvaluateDependentSecond,
+    BeginDependent,
+    ProjectDependent,
+    FinishDependent,
+}
+
+fn dependent_case(
+    client: &mut Client,
+    server: &mut Server,
+    fixture: &Fixture,
+    phase: Online,
+    fail: usize,
+) -> usize {
+    if matches!(phase, Online::IssueDependent) {
+        let (result, count) = inject_client(fail, client, |client| {
+            client.issue_dependent(&fixture.inputs[0])
+        });
+        if let Ok((owner, request)) = result {
+            testing::with_live_lease(client, |_| drop(owner));
+            drop(request);
+        }
+        return count;
+    }
+    let (owner, r0) = client.issue_dependent(&fixture.inputs[0]).unwrap();
+    if matches!(phase, Online::EvaluateDependentFirst) {
+        let (result, count) = inject(fail, || server.evaluate(r0.view()));
+        drop(result);
+        assert_eq!(server.evaluate(r0.view()).err(), Some(Error::Replay));
+        testing::with_live_lease(client, |_| drop(owner)); // Transport cancellation.
+        return count;
+    }
+    let y0 = server.evaluate(r0.view()).unwrap();
+    if matches!(phase, Online::ContinueDependent) {
+        let (result, count) = inject_client(fail, client, |client| {
+            client.continue_dependent(owner, y0.view())
+        });
+        if let Ok((owner, request)) = result {
+            testing::with_live_lease(client, |_| drop(owner));
+            drop(request);
+        }
+        return count;
+    }
+    let (owner, r1) = client.continue_dependent(owner, y0.view()).unwrap();
+    if matches!(phase, Online::EvaluateDependentSecond) {
+        let (result, count) = inject(fail, || server.evaluate(r1.view()));
+        drop(result);
+        assert_eq!(server.evaluate(r1.view()).err(), Some(Error::Replay));
+        testing::with_live_lease(client, |_| drop(owner));
+        return count;
+    }
+    let y1 = server.evaluate(r1.view()).unwrap();
+    if matches!(phase, Online::BeginDependent) {
+        let (result, count) = inject_client(fail, client, |client| {
+            client.begin_dependent_verification(owner, y1.view())
+        });
+        if let Ok((owner, primary)) = result {
+            testing::with_live_lease(client, |_| drop(owner));
+            drop(primary);
+        }
+        return count;
+    }
+    let (fixed, primary) = client
+        .begin_dependent_verification(owner, y1.view())
+        .unwrap();
+    if matches!(phase, Online::ProjectDependent) {
+        let (result, count) = inject(fail, || server.project(primary.view()));
+        drop(result);
+        assert_eq!(server.project(primary.view()).err(), Some(Error::Replay));
+        testing::with_live_lease(client, |_| drop(fixed));
+        return count;
+    }
+    let auxiliary = server.project(primary.view()).unwrap();
+    let (result, count) = inject_client(fail, client, |client| {
+        client.finish_batch(fixed, auxiliary.view())
+    });
+    drop(result);
+    count
 }
 
 fn online_case(
@@ -227,21 +330,32 @@ fn online_case(
     let idle = client.memory_stats().charged_live_bytes;
     let count;
     match phase {
+        Online::IssueDependent
+        | Online::EvaluateDependentFirst
+        | Online::ContinueDependent
+        | Online::EvaluateDependentSecond
+        | Online::BeginDependent
+        | Online::ProjectDependent
+        | Online::FinishDependent => {
+            count = dependent_case(&mut client, &mut server, fixture, phase, fail);
+        }
         Online::IssueQuery => {
-            let (result, calls) = inject(fail, || client.issue_query(0, &fixture.inputs[0]));
+            let (result, calls) = inject_client(fail, &mut client, |client| {
+                client.issue_query(0, &fixture.inputs[0])
+            });
             if let Ok((query, request)) = result {
-                drop(query);
+                testing::with_live_lease(&mut client, |_| drop(query));
                 assert_eq!(watch.stats().charged_live_bytes, idle + VECTOR);
                 drop(request);
             }
             count = calls;
         }
         Online::IssueBatch => {
-            let (result, calls) = inject(fail, || {
+            let (result, calls) = inject_client(fail, &mut client, |client| {
                 client.issue_batch([&fixture.inputs[0], &fixture.inputs[1]])
             });
             if let Ok((batch, requests)) = result {
-                drop(batch);
+                testing::with_live_lease(&mut client, |_| drop(batch));
                 assert_eq!(watch.stats().charged_live_bytes, idle + 2 * VECTOR);
                 drop(requests);
             }
@@ -253,12 +367,14 @@ fn online_case(
                 let (result, calls) = inject(fail, || server.evaluate(request.view()));
                 drop(result);
                 assert_eq!(server.evaluate(request.view()).err(), Some(Error::Replay));
-                drop(query); // Client-side cancellation after server transport failure.
+                testing::with_live_lease(&mut client, |_| drop(query));
                 assert_eq!(watch.stats().charged_live_bytes, idle + VECTOR);
                 count = calls;
             } else {
                 let response = server.evaluate(request.view()).unwrap();
-                let (result, calls) = inject(fail, || client.finish_query(query, response.view()));
+                let (result, calls) = inject_client(fail, &mut client, |client| {
+                    client.finish_query(query, response.view())
+                });
                 drop(result);
                 assert_eq!(watch.stats().charged_live_bytes, idle + 2 * VECTOR);
                 drop(response);
@@ -275,11 +391,11 @@ fn online_case(
                 server.evaluate(requests[1].view()).unwrap(),
             ];
             if matches!(phase, Online::Begin) {
-                let (result, calls) = inject(fail, || {
+                let (result, calls) = inject_client(fail, &mut client, |client| {
                     client.begin_verification(batch, &[replies[0].view(), replies[1].view()])
                 });
                 if let Ok((fixed, primary)) = result {
-                    drop(fixed);
+                    testing::with_live_lease(&mut client, |_| drop(fixed));
                     assert_eq!(
                         watch.stats().charged_live_bytes,
                         idle + 4 * VECTOR + PRIMARY
@@ -295,12 +411,13 @@ fn online_case(
                     let (result, calls) = inject(fail, || server.project(primary.view()));
                     drop(result);
                     assert_eq!(server.project(primary.view()).err(), Some(Error::Replay));
-                    drop(fixed); // The client owns and cancels the failed window.
+                    testing::with_live_lease(&mut client, |_| drop(fixed));
                     count = calls;
                 } else {
                     let auxiliary = server.project(primary.view()).unwrap();
-                    let (result, calls) =
-                        inject(fail, || client.finish_batch(fixed, auxiliary.view()));
+                    let (result, calls) = inject_client(fail, &mut client, |client| {
+                        client.finish_batch(fixed, auxiliary.view())
+                    });
                     drop(result);
                     assert_eq!(
                         watch.stats().charged_live_bytes,
@@ -326,13 +443,157 @@ fn online_case(
     // A failed attempt is retired, not a stuck lease; the next owner has a new ID.
     let (next, request) = client.issue_query(0, &fixture.inputs[0]).unwrap();
     assert_eq!(request.view().header.attempt, 1);
-    drop(next);
+    testing::with_live_lease(&mut client, |_| drop(next));
     drop(request);
     assert!(!client.has_live_window());
     drop(client);
     drop(server);
     retired(&watch);
     count
+}
+
+// Same allocator/erasure/reservation probe as the allocation-index sweep. These
+// cases additionally inspect the real live-window flag, not a mirrored counter.
+fn cancellation_rejection_and_partial_entropy_keep_lease_until_free(
+    fixture: &Fixture,
+    parts: PublicationParts<'_>,
+) {
+    testing::capture_next_memory();
+    let draft =
+        UnvalidatedPublication::import(AllocationPlan::bounded().unwrap(), fixture.source(), parts)
+            .unwrap();
+    let watch = testing::take_memory_watch();
+    let (mut client, mut server) = draft.validate(fixture.source()).unwrap().split().unwrap();
+    let idle = client.memory_stats().charged_live_bytes;
+    let partial_privacy = 2 * PRIVACY_WEIGHT - 1; // 164 pairs + last position.
+    let second_check = 4 * CHECK_WEIGHT - 1; // First 31 pairs, then 30 + position.
+    let before = LEASE_DESTRUCTIONS.load(Ordering::Acquire);
+    let failed = testing::with_live_lease(&mut client, |client| {
+        testing::issue_dependent_rng_failure_after(client, &fixture.inputs[0], partial_privacy)
+    });
+    assert_eq!(failed.err(), Some(Error::Randomness));
+    assert!(LEASE_DESTRUCTIONS.load(Ordering::Acquire) > before);
+    assert!(!client.has_live_window());
+    assert_eq!(client.attempts_issued(), 1);
+    assert_eq!(watch.stats().charged_live_bytes, idle);
+
+    for case in 0..8 {
+        let before = LEASE_DESTRUCTIONS.load(Ordering::Acquire);
+        {
+            let (owner, r0) =
+                testing::issue_dependent_fixed(&mut client, &fixture.inputs[0], &fixture.noise[0])
+                    .unwrap();
+            if case == 0 {
+                testing::with_live_lease(&mut client, |_| drop(owner));
+            } else {
+                let y0 = server.evaluate(r0.view()).unwrap();
+                let mut original = y0.view().values.to_vec();
+                if case == 6 {
+                    original[0] = (original[0] + 1) % FIELD;
+                }
+                let first = ReplyView {
+                    header: y0.view().header,
+                    values: &original,
+                };
+                if case == 1 {
+                    let failed = testing::with_live_lease(&mut client, |client| {
+                        testing::continue_dependent_rng_failure_after(
+                            client,
+                            owner,
+                            first,
+                            partial_privacy,
+                        )
+                    });
+                    assert_eq!(failed.err(), Some(Error::Randomness));
+                } else {
+                    let (owner, r1) = testing::continue_dependent_fixed(
+                        &mut client,
+                        owner,
+                        first,
+                        &fixture.noise[1],
+                    )
+                    .unwrap();
+                    let y1 = server.evaluate(r1.view()).unwrap();
+                    if case == 2 {
+                        testing::with_live_lease(&mut client, |_| drop(owner));
+                    } else if case == 3 {
+                        let failed = testing::with_live_lease(&mut client, |client| {
+                            testing::begin_dependent_rng_failure_after(
+                                client,
+                                owner,
+                                y1.view(),
+                                second_check,
+                            )
+                        });
+                        assert_eq!(failed.err(), Some(Error::Randomness));
+                    } else {
+                        let (fixed, primary) = testing::begin_dependent_fixed(
+                            &mut client,
+                            owner,
+                            y1.view(),
+                            [
+                                &fixture.primary_challenges[0],
+                                &fixture.primary_challenges[1],
+                            ],
+                        )
+                        .unwrap();
+                        if case == 4 {
+                            testing::with_live_lease(&mut client, |_| drop(fixed));
+                        } else {
+                            let auxiliary = server.project(primary.view()).unwrap();
+                            if case == 5 {
+                                let failed = testing::with_live_lease(&mut client, |client| {
+                                    testing::finish_batch_rng_failure_after(
+                                        client,
+                                        fixed,
+                                        auxiliary.view(),
+                                        second_check,
+                                    )
+                                });
+                                assert_eq!(failed.err(), Some(Error::Randomness));
+                            } else {
+                                let mut values = auxiliary.view().values.to_vec();
+                                if case == 7 {
+                                    values[0] = (values[0] + 1) % FIELD;
+                                }
+                                let failed = testing::with_live_lease(&mut client, |client| {
+                                    testing::finish_batch_fixed(
+                                        client,
+                                        fixed,
+                                        AuxiliaryReplyView {
+                                            header: auxiliary.view().header,
+                                            values: &values,
+                                        },
+                                        [
+                                            &fixture.secondary_challenges[0],
+                                            &fixture.secondary_challenges[1],
+                                        ],
+                                    )
+                                });
+                                assert_eq!(failed.err(), Some(Error::Rejected));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            LEASE_DESTRUCTIONS.load(Ordering::Acquire) > before,
+            "case {case} observed no owner destruction"
+        );
+        assert!(!client.has_live_window());
+        assert_eq!(client.attempts_issued(), case + 2);
+        assert_eq!(watch.stats().charged_live_bytes, idle);
+        assert!(!BAD.load(Ordering::Acquire));
+    }
+    let (owner, request) = client.issue_dependent(&fixture.inputs[0]).unwrap();
+    assert_eq!(request.view().header.attempt, 9); // No failed attempt got recycled.
+    testing::with_live_lease(&mut client, |_| drop(owner));
+    drop(request);
+    assert_eq!(watch.stats().charged_live_bytes, idle);
+    drop(client);
+    drop(server);
+    retired(&watch);
 }
 
 #[test]
@@ -381,14 +642,32 @@ fn every_dynamic_allocation_index_fails_closed_with_exact_refunds_and_erasure() 
             "auxiliary fixation / Protocol 2 verification",
             Online::FinishBatch,
         ),
+        ("dependent issuance", Online::IssueDependent),
+        ("dependent first evaluation", Online::EvaluateDependentFirst),
+        (
+            "dependent first fixation / private handoff",
+            Online::ContinueDependent,
+        ),
+        (
+            "dependent second evaluation",
+            Online::EvaluateDependentSecond,
+        ),
+        (
+            "dependent second fixation / primary reveal",
+            Online::BeginDependent,
+        ),
+        ("dependent auxiliary response", Online::ProjectDependent),
+        ("dependent final verification", Online::FinishDependent),
     ] {
         total += sweep(name, |index| online_case(&fixture, parts, phase, index));
     }
+    cancellation_rejection_and_partial_entropy_keep_lease_until_free(&fixture, parts);
     drop(master);
     assert!(LIVE.lock().unwrap().iter().all(|entry| entry.pointer == 0));
     assert!(!BAD.load(Ordering::Acquire));
+    assert!(LEASE_DESTRUCTIONS.load(Ordering::Acquire) > 0);
     println!(
-        "{total} injected failures; {} buffers checked erased-before-free and refund-after-free",
-        DESTRUCTIONS.load(Ordering::Acquire)
+        "{total} injected failures; {} buffers checked erased-before-free and refund-after-free; {} frees checked with original live lease",
+        DESTRUCTIONS.load(Ordering::Acquire), LEASE_DESTRUCTIONS.load(Ordering::Acquire)
     );
 }
