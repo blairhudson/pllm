@@ -244,6 +244,49 @@ The publisher PDF is an ignored 1,039,467-byte source-inspection input at
 `https://link.springer.com/content/pdf/10.1007/978-3-030-64834-3_8.pdf`.
 It is not vendored, linked, executed or required by a runtime.
 
+## Approved bounded GELU numerical experiment
+
+D24 approves this research experiment only, not a NEXUS numeric profile or CKKS
+adoption. The reusable experiment is
+`examples/benchmarks/nexus_gelu_numerics.py`; its ordinary output is
+`docs/evidence/nexus-gelu-numerics.json`. With optional `mpmath==1.3.0` installed,
+the executed command is:
+
+```sh
+uv run --no-sync python examples/benchmarks/nexus_gelu_numerics.py --output docs/evidence/nexus-gelu-numerics.json
+```
+
+The frozen candidate uses exact-rational PUMA printed coefficients, NEXUS's
+thresholds and endpoint oracle, and `f4(f4(g4(g4(z))))`. The public research domain
+is `[-8,8]`, not a measured model-layer domain. Threshold-difference normalizers
+are `12,199/20,11`; normalized separation `2^-20` therefore has distinct
+original-unit widths. No refit, clipping, extra repetitions, acceptance tolerance,
+encrypted arithmetic or source-model execution is introduced.
+
+At 80 decimal digits, the finite samples find:
+
+| Diagnostic | Sampled maximum absolute error |
+| --- | ---: |
+| Blended output versus exact piecewise polynomial | 0.00793177 |
+| Blended output versus tanh GELU | 0.01180188 |
+| Blended output versus `x*Phi(x)` | 0.01221802 |
+| Full versus shorter printed coefficient precision | 5.47e-15 |
+
+These are sampled estimates, not uniform error bounds. At normalized distance
+`2^-20`, the sign composition's error is approximately **0.99981150** on both
+sides of every threshold. The fixed repetition count therefore does not provide
+an accurate sign estimate at that separation. Exact thresholds produce comparator
+`1/2` and blend adjacent branches, not the endpoint oracle's hard branch.
+
+Directed-rounding interval evaluation covers the entire research domain, but
+reaches the 128-cell cap with all 128 stage-domain enclosures unresolved. Its
+loose bounds supply neither a useful uniform error certificate nor evidence that
+actual values leave the stage domain. No error tolerance has been approved.
+Independent signed-point rational compositions and all printed coefficient
+literals are covered by the 27 passing normal regression tests. The outcome is a
+bounded negative selector diagnostic; executable NEXUS and its open numerical,
+backend and decoder contracts remain unqualified.
+
 ## Missing HE, publication and complete-request contracts
 
 Paper pp.9–12 specifies degree `65536`, slots `32768`, 1763-bit modulus,
