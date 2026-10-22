@@ -533,6 +533,22 @@ private-response acceptance or a performance measurement. The report and CLI
 output are `target/fusefss-qwen-3-plus-1-sdk.{json,log}`. Pressure guards remain
 enabled; a fresh capacity/pressure check is required before retrying.
 
+Future ordinary failed benchmark JSON can include optional
+`failure.diagnostics` (`pllm.benchmark_failure_diagnostics.v1`). This fixed,
+allowlisted record is capped at 4 KiB and captures the first failure before cleanup: observed lifecycle
+phase and role, elapsed time, live qualification priced/completed/retired flags,
+spawned/ready roles, the triggering watchdog observation, and cached owned-process
+RSS samples/peaks when available. Unknown observations stay null; no prompt,
+payload, credentials, source paths or event history are included. Capture adds no
+process scan and does not change admission or pressure guards. Cancellation is
+published before diagnostic reads; contended diagnostic locks yield unknown
+observations rather than delaying shutdown. Request failures are observed before
+request cleanup; final-check failures use a separate pre-teardown fallback that
+cannot overwrite an earlier failure. Sampled RSS is not
+an allocation census, can miss peaks/count shared pages, and excludes OS file
+cache. Phase breadcrumbs do not identify the cause of pressure or prove private
+execution. These diagnostics cannot retrospectively locate the older failed run.
+
 Program-pricing admission now has a typed diagnostic path sharing the original
 admission walk and limits. Its bounded public record identifies the enclosing
 stage, error category and, only when known, kernel ordinal, observed bound and
