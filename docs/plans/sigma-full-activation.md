@@ -1,9 +1,11 @@
 # SIGMA bounded full activation owning region
 
-Status: **NOT APPROVED — planning only**. Proposed next local gate after D19
-validation and final commit; parent will request explicit user approval.
+Status: **APPROVED FOR BOUNDED LOCAL IMPLEMENTATION (D20)**. User explicitly
+approved this complete region contract after D19 validation and commit
+`0b489df3`. The bounded local region is implemented, with native, public integer-
+oracle, lifetime and fault tests passing. This is not decoder/SDK qualification.
 [D16–D19](../../paper/methods/DECISIONS.md#d16-distinct-cpu-port-of-sigmas-gpu-source-dpf)
-authorize constituent work, not this composition. D18 covers only
+authorize constituent work; D20 separately authorizes this composition. D18 covers only
 [TR6 → DReLU → Select](sigma-activation-ownership.md); D19 covers the two
 [native lookup boundaries](sigma-source-lookup.md).
 
@@ -95,7 +97,7 @@ These are frozen paper-equation tables, not author compiler/libm byte identity.
 Extract reusable method-neutral immutable table data/provenance from existing
 owners where appropriate; do not copy or relabel FuseFSS execution/capabilities.
 
-## New ownership authorization required
+## Approved ownership authorization
 
 - Consume each external capability once into separate dealer and role-local
   owners. Retain original wide X, mask backing, leases and matrix singleton guard
@@ -141,7 +143,7 @@ aggregate and split original leases into every native/nested owner. Extend reser
 entry points where needed; do not inherit prefix reserve/drop/reacquire behavior.
 Backings erase/deallocate before lease refunds, including partial failures.
 
-## Acceptance and approval boundary
+## Acceptance and scope boundary
 
 - Independent wide-integer oracle: `D*X-T[min(abs(floor(X/64)),K-1)]`.
 - Signed endpoints including minimum Y; negative bin boundaries; K-1/K/K+1;
@@ -153,9 +155,9 @@ Backings erase/deallocate before lease refunds, including partial failures.
 - L=1/256, exact-budget success and one-byte-short rejection, zero-draw preflight,
   allocation/entropy fault sweeps, retained-owner drop orders and guard retention.
 
-Approval must explicitly cover the full use ledger, fixed 38/50 range contract,
+User approval explicitly covers the full use ledger, fixed 38/50 range contract,
 affine/projection ownership, deferred combination, final reconstruction codec and
-continuous preadmitted leases. Existing approval does not imply any of these.
+continuous preadmitted leases. Approval is not implementation or validation evidence.
 This gate supplies bounded local activation only: not runnable decoder/SDK support,
 authenticated delivery, durable replay protection, compiler/checkpoint range proof
 or composed security qualification.

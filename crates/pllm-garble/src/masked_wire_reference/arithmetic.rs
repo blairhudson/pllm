@@ -267,6 +267,23 @@ pub(super) fn issue_with<'a>(
     context: Context,
     input_masks: &[u64],
     budget: &'a Budget,
+    fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
+    let cost = resources(spec)?;
+    context.validate(spec.lanes)?;
+    if input_masks.len() != spec.lanes || input_masks.iter().any(|v| v & !mask(spec.bits) != 0) {
+        return Err(Error::Domain);
+    }
+    let reservation = budget.reserve(cost.combined_reservation_bytes)?;
+    issue_reserved_with(spec, context, input_masks, reservation, fill)
+}
+
+/// Consume an exact slice of aggregate admission; never refund and reacquire.
+pub(super) fn issue_reserved_with<'a>(
+    spec: Spec,
+    context: Context,
+    input_masks: &[u64],
+    mut reservation: Lease<'a>,
     mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
 ) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
     let cost = resources(spec)?;
@@ -274,7 +291,10 @@ pub(super) fn issue_with<'a>(
     if input_masks.len() != spec.lanes || input_masks.iter().any(|v| v & !mask(spec.bits) != 0) {
         return Err(Error::Domain);
     }
-    let mut reservation = budget.reserve(cost.combined_reservation_bytes)?;
+    if reservation.bytes != cost.combined_reservation_bytes {
+        return Err(Error::Resource);
+    }
+    let budget = reservation.budget;
     // Declare every lease before secret owners: failure unwinding must erase
     // material before returning any of its capacity to the shared budget.
     // Split errors also occur before allocation or randomness.

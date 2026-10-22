@@ -1,6 +1,31 @@
 use super::*;
 use std::sync::atomic::Ordering;
 
+#[test]
+fn deferred_owner_move_preserves_original_backing_and_live_lease() {
+    let spec = spec();
+    let cost = resources_for(spec, Boundary::Deferred)
+        .unwrap()
+        .combined_reservation_bytes;
+    let budget = Budget::new(cost).unwrap();
+    let (masks, [a, b]) = issue_deferred(spec, context(), &[0, 1], &[17, 33], &budget).unwrap();
+    let binding = a.internal_binding();
+    assert_eq!(binding, b.internal_binding());
+    let output = a.into_deferred(&[1, 1], &[100, 200]).unwrap();
+    let pointer = output.values().as_ptr();
+    let used = budget.used_bytes();
+    let moved = output;
+    assert_eq!(
+        (moved.role(), *moved.binding(), moved.bits(), moved.lanes()),
+        (0, binding, spec.bits, spec.lanes)
+    );
+    assert_eq!(pointer, moved.values().as_ptr());
+    assert_eq!(budget.used_bytes(), used);
+    drop(moved);
+    drop((masks, b));
+    assert_eq!(budget.used_bytes(), 0);
+}
+
 fn context() -> Context {
     Context {
         plan: [1; 32],

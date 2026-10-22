@@ -1,6 +1,76 @@
 use super::*;
 use std::sync::atomic::Ordering;
 
+#[test]
+fn reserved_issuance_matches_standalone_and_moves_output_without_refund() {
+    for gate in [
+        Gate::Tr { shift: 6 },
+        Gate::GapArs { shift: 6 },
+        Gate::Drelu,
+    ] {
+        let spec = Spec {
+            bits: 38,
+            lanes: 2,
+            gate,
+        };
+        let cost = resources(spec).unwrap().combined_reservation_bytes;
+        let budget = Budget::new(cost + 97).unwrap();
+        let guard = budget.reserve(97).unwrap();
+        let reservation = budget.reserve(cost).unwrap();
+        let mut calls = 0usize;
+        let (masks, mut parties) =
+            issue_reserved_with(spec, context(), &[0, 1], reservation, |bytes| {
+                assert_eq!(budget.used_bytes(), cost + 97);
+                calls += 1;
+                bytes.fill(calls as u8);
+                Ok(())
+            })
+            .unwrap();
+        let reference_budget = Budget::new(cost).unwrap();
+        let mut reference_calls = 0usize;
+        let (reference_masks, mut reference_parties) =
+            issue_with(spec, context(), &[0, 1], &reference_budget, |bytes| {
+                reference_calls += 1;
+                bytes.fill(reference_calls as u8);
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(calls, reference_calls);
+        assert_eq!(masks.values(), reference_masks.values());
+        let [left, right] = execute(spec, &mut parties, &[64, 0]).unwrap();
+        let reference = execute(spec, &mut reference_parties, &[64, 0]).unwrap();
+        assert_eq!(left.values(), reference[0].values());
+        assert_eq!(right.values(), reference[1].values());
+        let pointer = left.values().as_ptr();
+        let used = budget.used_bytes();
+        let moved = left;
+        assert_eq!(moved.values().as_ptr(), pointer);
+        assert_eq!(budget.used_bytes(), used);
+        drop(moved);
+        drop((right, masks, parties, guard));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn reserved_issuance_rejects_nonexact_lease_before_entropy() {
+    let spec = Spec {
+        bits: 38,
+        lanes: 1,
+        gate: Gate::Tr { shift: 6 },
+    };
+    let cost = resources(spec).unwrap().combined_reservation_bytes;
+    for bytes in [cost - 1, cost + 1] {
+        let budget = Budget::new(cost + 1).unwrap();
+        let reservation = budget.reserve(bytes).unwrap();
+        let result = issue_reserved_with(spec, context(), &[0], reservation, |_| {
+            panic!("nonexact admission must not draw randomness")
+        });
+        assert!(matches!(result, Err(Error::Resource)));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
 fn context() -> Context {
     Context {
         plan: [1; 32],

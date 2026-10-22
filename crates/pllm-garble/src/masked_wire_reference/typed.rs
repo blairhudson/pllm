@@ -39,9 +39,15 @@ use sha2::{Digest, Sha256};
 use std::{marker::PhantomData, mem::size_of};
 use zeroize::Zeroizing;
 
+mod activation;
+mod internal_use;
 mod material;
 mod region;
 mod selection_bridge;
+pub use activation::{
+    activation_resources, ActivationFrame, ActivationIssued, ActivationKind, ActivationParty,
+    ActivationResources, ActivationSpec, ActivationStep,
+};
 pub use material::{
     matrix_material_resources, MatrixHandoff, MatrixImportPermit, MatrixMaterialDescriptor,
     MatrixMaterialPacket, MatrixMaterialProvenance, MatrixMaterialResources,
@@ -50,6 +56,15 @@ pub use region::{ActivationPrefixParty, PrefixFrame, PrefixSpec, PrefixStep};
 pub use selection_bridge::SelectionParty;
 
 const ALLOCATOR: usize = 64;
+
+/// Retirement erases dynamic state, but not a caller-retained inline wrapper.
+/// Preserve its original charge until Drop; never refund and reacquire it.
+fn retain_wrapper_metadata(lease: &mut Option<Lease<'_>>, bytes: usize) {
+    if let Some(lease) = lease.as_mut() {
+        let refund = lease.bytes.saturating_sub(bytes);
+        drop(lease.split(refund));
+    }
+}
 
 /// Arithmetic and predicate owners deliberately have different Rust types.
 pub enum Ring {}
@@ -325,9 +340,18 @@ fn zeros(lanes: usize, budget: &Budget) -> Result<Zeroizing<Vec<u64>>, Error> {
     Ok(v)
 }
 fn fill_masks(values: &mut [u64], bits: u8) -> Result<(), Error> {
+    fill_masks_with(values, bits, |bytes| {
+        getrandom::fill(bytes).map_err(|_| Error::Randomness)
+    })
+}
+fn fill_masks_with(
+    values: &mut [u64],
+    bits: u8,
+    mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> Result<(), Error> {
     for value in values {
         let mut bytes = Zeroizing::new([0; 8]);
-        getrandom::fill(&mut *bytes).map_err(|_| Error::Randomness)?;
+        fill(&mut *bytes)?;
         *value = u64::from_le_bytes(*bytes) & super::mask(bits);
     }
     Ok(())
@@ -434,6 +458,19 @@ impl<'b> LocalDealer<'b> {
         promise: BoundRange<LocalAssumption>,
         consumer: [u8; 32],
     ) -> Result<RootInput<'b>, Error> {
+        let bytes = self.root_reservation_bytes(descriptor, &promise)?;
+        let reservation = self.budget.reserve(bytes)?;
+        self.prepare_root_reserved_with(descriptor, promise, consumer, reservation, |bytes| {
+            getrandom::fill(bytes).map_err(|_| Error::Randomness)
+        })
+    }
+
+    /// Public-only accounting for composition. No allocation or entropy occurs.
+    fn root_reservation_bytes(
+        &self,
+        descriptor: EdgeDescriptor,
+        promise: &BoundRange<LocalAssumption>,
+    ) -> Result<usize, Error> {
         self.validate(descriptor, false)?;
         let interval = Interval {
             lower: promise.lower,
@@ -445,14 +482,36 @@ impl<'b> LocalDealer<'b> {
         let lanes = descriptor.shape().elements();
         let common_bytes = 8 * lanes + ALLOCATOR + common_charge();
         let dealer_bytes = 8 * lanes + ALLOCATOR + mask_charge() + size_of::<RootInput<'static>>();
-        let mut lease = self.budget.reserve(2 * common_bytes + dealer_bytes)?;
+        Ok(2 * common_bytes + dealer_bytes)
+    }
+
+    /// Consume an exact original aggregate slice, without refund/reacquire.
+    /// Callers accepting clear inputs validate them before invoking this helper.
+    fn prepare_root_reserved_with(
+        &mut self,
+        descriptor: EdgeDescriptor,
+        promise: BoundRange<LocalAssumption>,
+        consumer: [u8; 32],
+        mut lease: Lease<'b>,
+        fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<RootInput<'b>, Error> {
+        let bytes = self.root_reservation_bytes(descriptor, &promise)?;
+        if lease.bytes != bytes || !std::ptr::eq(lease.budget, self.budget) {
+            return Err(Error::Resource);
+        }
+        let interval = Interval {
+            lower: promise.lower,
+            upper: promise.upper,
+        };
+        let lanes = descriptor.shape().elements();
+        let common_bytes = 8 * lanes + ALLOCATOR + common_charge();
         let left_lease = lease.split(common_bytes)?;
         let right_lease = lease.split(common_bytes)?;
         let binding = self.binding(descriptor, consumer, Some(interval))?;
         let mut masks = zeros(lanes, self.budget)?;
         let left = zeros(lanes, self.budget)?;
         let right = zeros(lanes, self.budget)?;
-        fill_masks(&mut masks, descriptor.numeric().ring_bits())?;
+        fill_masks_with(&mut masks, descriptor.numeric().ring_bits(), fill)?;
         Ok(RootInput {
             dealer: DealerMask {
                 backing: MaskBacking::Fresh(masks),

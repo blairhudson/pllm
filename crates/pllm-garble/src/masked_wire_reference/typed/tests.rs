@@ -81,6 +81,104 @@ fn unmask_ring(mask: &DealerMask<'_, Ring>, output: &CommonMasked<'_, Ring>) -> 
         .map(|(&x, &r)| super::super::signed(x.wrapping_sub(r) & super::super::mask(bits), bits))
         .collect()
 }
+
+#[test]
+fn preadmitted_root_keeps_original_lease_and_rejects_wrong_budget_before_entropy() {
+    let budget = Budget::new(64 << 20).unwrap();
+    let foreign = Budget::new(64 << 20).unwrap();
+    let mut d = dealer(&budget);
+    let baseline = budget.used_bytes();
+    let e = edge(10, &[3], 16, 4, false);
+    let promise = || BoundRange::new(-128, 128).unwrap();
+    let cost = d.root_reservation_bytes(e, &promise()).unwrap();
+    for (owner_budget, bytes) in [(&budget, cost - 1), (&foreign, cost)] {
+        let lease = owner_budget.reserve(bytes).unwrap();
+        let mut draws = 0;
+        assert!(matches!(
+            d.prepare_root_reserved_with(e, promise(), [11; 32], lease, |_| {
+                draws += 1;
+                Ok(())
+            }),
+            Err(Error::Resource)
+        ));
+        assert_eq!(draws, 0);
+        assert_eq!(budget.used_bytes(), baseline);
+        assert_eq!(foreign.used_bytes(), 0);
+    }
+    let lease = budget.reserve(cost).unwrap();
+    let mut draws = 0;
+    let prepared = d
+        .prepare_root_reserved_with(e, promise(), [11; 32], lease, |bytes| {
+            assert_eq!(bytes.len(), 8);
+            draws += 1;
+            bytes.copy_from_slice(&u64::MAX.to_le_bytes());
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(draws, 3);
+    assert_eq!(budget.used_bytes(), baseline + cost);
+    let (mask, inputs) = prepared.encode(&[-128, 0, 127]).unwrap();
+    assert_eq!(unmask_ring(&mask, &inputs[0]), [-128, 0, 127]);
+    assert_eq!(unmask_ring(&mask, &inputs[1]), [-128, 0, 127]);
+    drop(mask);
+    assert!(budget.used_bytes() > baseline);
+    drop(inputs);
+    assert_eq!(budget.used_bytes(), baseline);
+    drop(d);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn preadmitted_root_rejects_invalid_interval_or_entropy_failure_without_leak() {
+    let budget = Budget::new(64 << 20).unwrap();
+    let mut d = dealer(&budget);
+    let baseline = budget.used_bytes();
+    let e = edge(10, &[2], 16, 4, false);
+    let cost = d
+        .root_reservation_bytes(e, &BoundRange::new(-1, 2).unwrap())
+        .unwrap();
+    let mut draws = 0;
+    let lease = budget.reserve(cost).unwrap();
+    assert!(matches!(
+        d.prepare_root_reserved_with(
+            e,
+            BoundRange::new(-1, (1 << 15) + 1).unwrap(),
+            [11; 32],
+            lease,
+            |_| {
+                draws += 1;
+                Ok(())
+            }
+        ),
+        Err(Error::Domain)
+    ));
+    assert_eq!(draws, 0);
+    assert_eq!(budget.used_bytes(), baseline);
+    for failure in 0..2 {
+        let lease = budget.reserve(cost).unwrap();
+        let mut draws = 0;
+        assert!(matches!(
+            d.prepare_root_reserved_with(
+                e,
+                BoundRange::new(-1, 2).unwrap(),
+                [11; 32],
+                lease,
+                |bytes| {
+                    let current = draws;
+                    draws += 1;
+                    if current == failure {
+                        return Err(Error::Randomness);
+                    }
+                    bytes.fill(1);
+                    Ok(())
+                }
+            ),
+            Err(Error::Randomness)
+        ));
+        assert_eq!(draws, failure + 1);
+        assert_eq!(budget.used_bytes(), baseline);
+    }
+}
 fn unmask_predicate(
     mask: &DealerMask<'_, Predicate>,
     output: &CommonMasked<'_, Predicate>,

@@ -20,7 +20,7 @@ encoding. 80/96-digit table generations agree. New independent rational positive
 Taylor enclosures certify every SiLU/E0/E1 floor: omitted exponential tail is
 bounded by its next term divided by `1-x/(n+2)` once this ratio is below one.
 Both resulting rational floor endpoints must agree. No host-libm rounding guess.
-GELU is not regenerated here or changed; its original descriptor digest and
+GELU equations are not regenerated here or changed; its original descriptor digest and
 identity Phi are regression-checked.
 
 Frozen `fixtures.json`: **579,821 bytes**, including newline; SHA-256
@@ -69,8 +69,29 @@ track or activate the full 275-case protected-gate claim.
 The later [native composition archive](../../../artifacts/fusefss-composition/local-v1/README.md)
 separately executes all 275 cases through protected owners, except for the six
 explicitly local external encodings. The unchanged full checker verifies that
-output. `generate-native-tables.py` reproduces the 1,536 frozen activation/exp
-constants as Rust data, and separately records `source-tables-supplement.json` for
+output. `generate-native-tables.py` encodes the frozen public constants as Rust
+data: shared GELU/SiLU (256/1,024 entries) in
+`crates/pllm-garble/src/fixed_activation_table_values.rs`, and unchanged exp0/exp1
+(256 entries each) in
+`crates/pllm-garble/src/fusefss_backend/composition/source_table_values.rs`.
+GELU comes from the existing `../gelu-table.json` fixture (SHA-256
+`4d91281c274275d8b17f6711eb3f454ad25865a197570115fdede8b2db7db69b`);
+SiLU/exp retain the `fixtures.json` provenance above. Both fixtures and all four
+u64LE table digests are pinned before encoding; no floating-point generation or
+upstream code executes. Shared data ownership does not share method execution or
+change source locks. Current native composition source bindings include both
+shared activation module/value files; historical evidence remains unchanged.
+
+Read-only validation (default) checks both Rust data files and the norm supplement:
+
+```sh
+python3 -B paper/reproduction-contracts/fusefss/gate-set/generate-native-tables.py
+```
+
+The existing `--write` option deterministically regenerates those same three
+files; `generate()` continues returning bytes for its existing `OUTPUT` path
+(now exp-only). This is static public numeric data maintenance, not a new evidence
+gate. The generator separately records `source-tables-supplement.json` for
 the original width-two norm case. Its 8,192 `rsqrt-k2` entries use the exact integer
 formula below; no original fixture or lock is replaced. These finite compositions
 retain caller range promises and native capacity limits, with complete models,

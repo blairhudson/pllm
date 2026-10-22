@@ -175,9 +175,10 @@ Arithmetic-material serialization and remote import remain later gates.
 The typed chain is not a complete masked-wire algebra. DReLU produces a common
 XOR-masked predicate, not an arithmetic bit. The direct Select below preserves
 that distinction without a predicate conversion. D19's bounded source lookup
-below has its own validated bounded native executor; complete nonlinear composition
-and typed lookup integration remain absent. FuseFSS additive-share operations
-are not substitutes. Source CPU activation performs
+below has its own bounded native executor. D20's fixed GELU/SiLU region below
+composes that lookup internally; general typed lookup and complete nonlinear-row
+coverage remain absent. FuseFSS additive-share operations are not substitutes.
+Source CPU activation performs
 the early floor before absolute value and clamping, as specified in
 `paper/reproduction-contracts/shared-profile-resolution.md`.
 
@@ -323,7 +324,7 @@ Full table/numeric identity, source pin, geometry, boundary, plan/session/operat
 every wire, index and fresh issuance bind execution. Complete received frames
 are validated before mutation. Failure burns all remaining local stages; the
 caller cancels its sibling. No arithmetic-material codec, authenticated delivery,
-persistent replay protection, typed lookup, full activation, decoder/SDK selection
+persistent replay protection, standalone typed lookup, decoder/SDK selection
 or independent security qualification is supplied.
 
 ## Fixed owning activation prefix
@@ -351,8 +352,9 @@ inline owner, final common-output wrapper, four retained frame/step wrappers and
 8 KiB transition allowance. Issuance additionally prices two inline party owners,
 the spec, four bindings, three native contexts, final mask wrapper and 16 KiB
 workspace. Existing input/backing reservations remain independently live.
-Native leases move intact; cancellation erases/drops local state before wrapper
-refund, and externally retained frames keep their own native/wrapper leases.
+Native leases move intact; cancellation erases/drops local state before refunding
+workspace. A retained cancelled or completed party keeps its inline metadata
+charge until drop; externally retained frames keep their native/wrapper leases.
 Matrix-backed X retains its original singleton until that backing retires; final
 arithmetic R does not acquire a synthetic matrix guard.
 
@@ -366,10 +368,48 @@ decoder. Numerical and public-API contracts/tests:
 [`sigma-activation-prefix-contract.md`](sigma-activation-prefix-contract.md).
 
 D19 separately supplies the native lookup above, not an extension of this region.
-Full GELU/SiLU ownership and reconstruction remain unapproved. The proposed fixed
-38/50-bit range, private affine/projection uses, deferred combination and final
-reconstruction require explicit authorization:
+D20 separately approves the full owning region below:
 [`../plans/sigma-full-activation.md`](../plans/sigma-full-activation.md).
+
+## Fixed full GELU/SiLU owning region
+
+`typed::ActivationSpec` selects only GELU or SiLU under the approved D20
+ring50/Q12 input/output contract. Encoded input must lie in `[-2^37, 2^37)`.
+`LocalDealer::activation_from_values` validates the complete clear input, geometry,
+table/template identity and aggregate capacity before root allocation or entropy.
+`LocalDealer::activation` consumes an existing mask owner with the same bound;
+that inherited local developer premise is not a compiler or checkpoint proof.
+
+The fixed schedule projects input and mask privately into ring38, takes TR6 to
+ring32/Q6, and computes `D=[Y>=0]`, `P=D*Y`, and unsigned `A=2P-Y`.
+Clipping uses `K=256` for GELU or `1024` for SiLU and a narrow Select operand;
+the original wide input stays live for the final deferred `D*X` selection.
+The source lookup retains its masked arithmetic/sign correction and correlated
+mask `rho=2u-r`. Matching-role deferred owners combine as `D*X-T[J]` in ring50,
+with final mask `rF-rho`, no extra rounding, and no final shift.
+
+Eight exchanges emit sixteen directional frames, exactly `1224+144*lanes`
+bytes. The final `PLLMAC01` frame namespace is distinct from native primitive
+frames. Complete frame validation precedes mutation; malformed inputs, replay,
+out-of-order calls and cancellation burn every remaining local stage. The caller
+must retire its sibling. Final results remain opaque typed common-masked owners.
+
+A private fixed-use ledger binds actual source, mask, role, invocation and operand
+slots. No intermediate escapes and no external capability is cloned. Original
+backing and leases survive until last use; the original matrix singleton guards X
+until final selection consumes that backing, not the unrelated activation result.
+Aggregate reservation precedes all stage issuance and splits into the existing
+native owners without refund/reacquire. It prices both parties, both table copies,
+all retained/received/emitted frames, transition workspace and final owners.
+Cancellation and completion retain party metadata charges until party drop.
+
+Immutable equation tables are shared with FuseFSS through method-neutral table
+accessors, not shared protocols or numeric identities. Normal native, external
+integer-oracle and lifetime/fault tests cover this bounded region. The integrated
+garbling suite passes 554 unit checks, 35 external/oracle checks and 20 doctests
+(eight opt-in tests skipped). It does not supply protected float
+conversion, authenticated material/peer transport, compiler ranges, a complete
+decoder, SDK selection, or independent security qualification.
 
 ## Separate GPU-derived DPF primitive
 

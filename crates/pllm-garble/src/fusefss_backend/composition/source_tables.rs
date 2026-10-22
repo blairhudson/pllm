@@ -26,7 +26,7 @@ pub(crate) fn source_lock_bytes() -> usize {
 }
 
 pub(crate) fn silu() -> &'static [u64] {
-    &values::SILU
+    crate::fixed_activation_tables::silu_q12()
 }
 pub(crate) fn exp0() -> &'static [u64] {
     &values::EXP0

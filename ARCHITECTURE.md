@@ -1246,8 +1246,15 @@ Reconstructed and consuming deferred-share boundaries remain distinct. Exact
 leases covering table copies, padded keys, frames and transition overlap. The
 garbling suite passes 513 unit, 25 external/oracle and 17 documentation checks,
 with eight opt-in skips. This is local trusted-dealer execution, not authenticated
-transport, typed lookup or a runnable decoder. Full GELU/SiLU owning composition
-and final activation reconstruction remain separately approval-gated.
+transport, standalone typed lookup or a runnable decoder. The separate D20 fixed
+GELU/SiLU owning region now composes private ring38-to-ring32 floor projection,
+clipping, deferred lookup/Select combination and final ring50/Q12 reconstruction.
+Clear-root range and complete aggregate admission precede entropy; imported roots
+retain local range assumptions rather than compiler proofs. Original backing,
+fixed internal-use ledgers and continuous leases cover all eight exchanges.
+Cancelled/completed parties retain metadata charges until drop. The integrated
+garbling suite passes 554 unit, 35 external/oracle and 20 documentation checks,
+with eight opt-in skips; decoder/SDK and transport gates remain.
 Contract:
 `docs/research/sigma-native-reference.md`.
 The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private

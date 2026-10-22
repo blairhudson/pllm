@@ -153,45 +153,13 @@ impl PrefixSpec {
     }
 }
 
-struct Ledger {
-    uses: [ConsumerUse; 4],
-    bindings: [Binding; 4],
-    role: u8,
-    next: u8,
-}
-impl Ledger {
+type Ledger = super::internal_use::Ledger<4>;
+impl super::internal_use::Ledger<4> {
     fn digest(&self) -> [u8; 32] {
-        let slots: [[u8; 32]; 4] = std::array::from_fn(|index| {
-            digest(&[
-                b"pllm.sigma.typed.prefix-private-use.v1\0",
-                &self.uses[index].digest(),
-                &self.bindings[index].digest(),
-                &[self.role],
-            ])
-        });
-        digest(&[
+        self.digest_with_domains(
+            b"pllm.sigma.typed.prefix-private-use.v1\0",
             b"pllm.sigma.typed.prefix-private-ledger.v1\0",
-            &slots[0],
-            &slots[1],
-            &slots[2],
-            &slots[3],
-        ])
-    }
-
-    // Burn before checking: neither metadata nor a failed attempt grants retry.
-    fn burn(&mut self, expected: u8, binding: Binding, role: u8) -> Result<(), Error> {
-        let slot = self.next;
-        self.next = self.next.saturating_add(1);
-        if slot != expected || slot >= 4 {
-            return Err(Error::Consumed);
-        }
-        if self.bindings[usize::from(slot)] != binding
-            || self.role != role
-            || self.uses[usize::from(slot)].edge() != binding.descriptor
-        {
-            return Err(Error::Context);
-        }
-        Ok(())
+        )
     }
 }
 
@@ -482,7 +450,10 @@ impl<'b> ActivationPrefixParty<'b> {
         self.x = None;
         self.y = None;
         self.d = None;
-        self.lease = None;
+        super::retain_wrapper_metadata(
+            &mut self.lease,
+            size_of::<ActivationPrefixParty<'static>>(),
+        );
     }
 
     fn frame(&mut self, native: NativeFrame<'b>) -> Result<PrefixFrame<'b>, Error> {
@@ -567,7 +538,11 @@ impl<'b> ActivationPrefixParty<'b> {
             },
             Phase::Select => {
                 let output = self.select.as_mut().ok_or(Error::Consumed)?.finish(peer)?;
-                let lease = self.lease.take().ok_or(Error::Consumed)?;
+                let lease = self
+                    .lease
+                    .as_mut()
+                    .ok_or(Error::Consumed)?
+                    .split(common_charge())?;
                 let binding = self.output;
                 let role = self.role;
                 self.cancel();

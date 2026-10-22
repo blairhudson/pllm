@@ -1,6 +1,77 @@
 use super::*;
 use std::sync::atomic::Ordering;
 
+#[test]
+fn reserved_deferred_issuance_keeps_admission_draw_order_and_original_backing() {
+    let spec = spec(Boundary::Deferred);
+    let table: Vec<u64> = (0..256).map(|i| i & mask(spec.output_bits)).collect();
+    let cost = resources(spec).unwrap().combined_reservation_bytes;
+    let budget = Budget::new(cost + 97).unwrap();
+    let guard = budget.reserve(97).unwrap();
+    let reservation = budget.reserve(cost).unwrap();
+    let mut fill = rng(7919);
+    let (masks, [mut a, mut b]) =
+        issue_reserved_with(spec, context(), &table, &[0, 1], reservation, |bytes| {
+            assert_eq!(budget.used_bytes(), cost + 97);
+            fill(bytes)
+        })
+        .unwrap();
+    let reference_budget = Budget::new(cost).unwrap();
+    let (reference_masks, [mut ra, mut rb]) = issue_with(
+        spec,
+        context(),
+        &table,
+        &[0, 1],
+        &reference_budget,
+        rng(7919),
+    )
+    .unwrap();
+    assert_eq!(masks.values(), reference_masks.values());
+    let binding = a.internal_binding();
+    assert_eq!(binding, b.internal_binding());
+    let af = a.begin(&[64, 0]).unwrap();
+    let bf = b.begin(&[64, 0]).unwrap();
+    let raf = ra.begin(&[64, 0]).unwrap();
+    let rbf = rb.begin(&[64, 0]).unwrap();
+    assert_eq!(af.as_bytes(), raf.as_bytes());
+    assert_eq!(bf.as_bytes(), rbf.as_bytes());
+    let output = must_deferred(a.advance(bf.as_bytes()).unwrap());
+    let reference = must_deferred(ra.advance(rbf.as_bytes()).unwrap());
+    assert_eq!(output.values(), reference.values());
+    let pointer = output.values().as_ptr();
+    let used = budget.used_bytes();
+    let moved = output;
+    assert_eq!(
+        (moved.role(), *moved.binding(), moved.bits(), moved.lanes()),
+        (0, binding, spec.output_bits, spec.lanes)
+    );
+    assert_eq!(pointer, moved.values().as_ptr());
+    assert_eq!(budget.used_bytes(), used);
+    drop(moved);
+    drop((af, bf, masks, a, b, guard));
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn reserved_lookup_rejects_nonexact_lease_before_entropy() {
+    let spec = spec(Boundary::Deferred);
+    let table = [0; 256];
+    let cost = resources(spec).unwrap().combined_reservation_bytes;
+    for bytes in [cost - 1, cost + 1] {
+        let budget = Budget::new(cost + 1).unwrap();
+        let result = issue_reserved_with(
+            spec,
+            context(),
+            &table,
+            &[0, 1],
+            budget.reserve(bytes).unwrap(),
+            |_| panic!("nonexact admission must not draw randomness"),
+        );
+        assert!(matches!(result, Err(Error::Resource)));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
 fn context() -> Context {
     Context {
         plan: [1; 32],

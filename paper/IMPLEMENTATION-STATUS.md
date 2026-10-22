@@ -127,8 +127,13 @@ Completed foundations:
      and seventeen doc checks, with eight opt-in skips. Independent inventory,
      caller-mutation isolation, AES counters and fault sweeps cover the bounded
      local ownership contract, not security qualification. Full GELU/SiLU ownership
-     and composition remain separate unapproved gates; the proposed 38/50-bit
-     contract is frozen in `docs/plans/sigma-full-activation.md`.
+     and composition have separate D20 approval; the fixed 38/50-bit contract is
+     frozen in `docs/plans/sigma-full-activation.md`. Its bounded native owning
+     region is implemented: complete clear-root admission precedes randomness,
+     deferred source stages preserve the original eight-exchange schedule, and
+     retained parties/frames/outputs keep their original reservations. Integrated
+     validation passes 554 unit, 35 external/oracle and 20 documentation checks,
+     with eight opt-in skips, without decoder/SDK coverage.
    No runnable SIGMA, trained decoder, SDK availability or composed security proof
   follows from these primitives. Compiler-proven graph ranges, arithmetic material
   codecs, authenticated party transport and complete nonlinear/decoder composition

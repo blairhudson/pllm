@@ -371,10 +371,16 @@ fn issue_with<'a>(
     table: &[u64],
     input_masks: &[u64],
     budget: &'a Budget,
-    mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
 ) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
     let cost = resources(spec)?;
     context.validate(spec.lanes)?;
+    validate_inputs(spec, table, input_masks)?;
+    let reservation = budget.reserve(cost.combined_reservation_bytes)?;
+    issue_reserved_with(spec, context, table, input_masks, reservation, fill)
+}
+
+fn validate_inputs(spec: Spec, table: &[u64], input_masks: &[u64]) -> Result<(), Error> {
     if table.len() != spec.entries()
         || input_masks.len() != spec.lanes
         || table.iter().any(|&v| v & !mask(spec.output_bits) != 0)
@@ -382,11 +388,29 @@ fn issue_with<'a>(
     {
         return Err(Error::Domain);
     }
+    Ok(())
+}
+
+/// Consume original aggregate admission, including the nested Select lease.
+pub(super) fn issue_reserved_with<'a>(
+    spec: Spec,
+    context: Context,
+    table: &[u64],
+    input_masks: &[u64],
+    mut reservation: Lease<'a>,
+    mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> Result<(OutputMasks<'a>, [Party<'a>; 2]), Error> {
+    let cost = resources(spec)?;
+    context.validate(spec.lanes)?;
+    validate_inputs(spec, table, input_masks)?;
+    if reservation.bytes != cost.combined_reservation_bytes {
+        return Err(Error::Resource);
+    }
+    let budget = reservation.budget;
     // Entire public and canonical input preflight precedes admission, entropy,
     // and allocation. Identity hashes full canonical bytes, not a caller label.
     let identity = table_identity(spec, context.numeric_contract, table);
     let select_cost = selection::resources_for(spec.select(), spec.boundary)?;
-    let mut reservation = budget.reserve(cost.combined_reservation_bytes)?;
     let select_reservation = reservation.split(select_cost.combined_reservation_bytes)?;
     let a =
         reservation.split(cost.party_reservation_bytes - select_cost.party_reservation_bytes)?;
@@ -551,6 +575,11 @@ fn correction(role: u8, signed_count: i64) -> u64 {
 }
 
 impl<'a> Party<'a> {
+    /// Private invocation identity for owning-region deferred-output checks.
+    pub(super) fn internal_binding(&self) -> [u8; 32] {
+        self.binding
+    }
+
     /// Burns execution; retained owners and their outstanding leases remain
     /// charged until drop. Sibling cancellation is caller's responsibility.
     pub fn cancel(&mut self) {

@@ -480,6 +480,47 @@ This approves bounded local protocol work, not full GELU/SiLU, typed lookup
 composition, decoder/SDK activation, authenticated delivery, durable replay
 protection or independent security qualification.
 
+## D20. Bounded SIGMA full activation owning region
+
+**Explicitly approved by the user:** the complete fixed GELU/SiLU region in
+`docs/plans/sigma-full-activation.md`, including its private operand-use ledger,
+38/50-bit range contract, affine/projection ownership, deferred combination,
+final `PLLMAC01` reconstruction frame and continuous aggregate admission.
+
+External input/output remain ring50/Q12; admitted encoded input is
+`-2^37 <= X < 2^37`, declared as a local assumption rather than compiler or
+checkpoint proof. Private ring38 TR6 produces ring32/Q6. Retain the fixed
+absolute-value/clipping, D19 deferred lookup, deferred Select on original X,
+role-local subtraction and final reconstruction, with no final shift or rounding.
+The source-supported mode1 realization does not establish historical benchmark
+settings. Original backing, masks, leases and guarded source owners survive their
+last authorized uses; no exported fanout, capability cloning or remasking.
+
+This approves bounded local implementation and its acceptance tests, not arbitrary
+graphs, compiler/checkpoint ranges, decoder/SDK activation, authenticated transport,
+durable replay protection or independent security qualification.
+
+## D21: paper-derived BumbleBee packing-index corrections
+
+The user explicitly approved these corrections for bounded pure OLT and
+ParseMat algebra, after independent rectangular counterexamples exposed
+inconsistent printed formulas in the locked final paper:
+
+- Equation (1): encode a left row with stride `nw*mw`, not `kw*mw`.
+  Figure 3's row starts and Proposition 1 support this interpretation.
+- Algorithm 1: select the right block `V[β,γ]`, not `V[β,α]`.
+- Figure 8: for group start `i` and lane `j`, use global block `t=i+j`,
+  `(row_block,column_block)=divmod(t,n_prime)`, and skip padded blocks.
+  Read coefficient `(r*nw+c)*mw+j`, without a group-dependent lane rotation.
+- A final group is incomplete when `mw` does not divide `k_prime*n_prime`.
+
+Document these as approved paper-derived corrections, not verified author errata
+or verbatim reproduction of every printed expression. Reuse bounded negacyclic
+coefficient primitives; check rectangular products, signs, partial windows and
+padding against independent dense modular oracles. This decision authorizes no
+HE backend, H2A/OT implementation, noise bound, final-paper numeric manifest,
+decoder, SDK or security claim. B-N1 remains open.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -503,6 +544,8 @@ protection or independent security qualification.
 | D17 | Approved: full-ring SIGMA arithmetic-output masks | Literal one-bit CPU TR/LRS masks remain prohibited; fresh complete-output-ring masks preserve floor arithmetic and charge randomness, material, owners and delivery under a distinct identity. |
 | D18 | Approved: bounded SIGMA owning activation prefix | TR6 → DReLU → Select only; original backing/leases and fixed internal-use ledger, without fanout, cloning or remasking. |
 | D19 | Approved: both bounded SIGMA source lookup boundaries | Audited correction and dependent mask, consuming deferred Select, specified framing and aggregate admission; full activation and decoder remain separate gates. |
+| D20 | Approved: bounded SIGMA full GELU/SiLU owning region | Fixed ring50/Q12 and local encoded range, private ring38/32 path, original backing/use ledger, deferred combination, PLLMAC01 final frame and continuous aggregate leases; no decoder/SDK qualification. |
+| D21 | Approved: paper-derived BumbleBee OLT/ParseMat indexing corrections | Rectangular stride, right-block index and global unrotated parsing corrected explicitly; pure algebra only, with B-N1 and HE/decoder qualification open. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

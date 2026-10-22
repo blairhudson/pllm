@@ -53,6 +53,14 @@ fn root<'b>(
         .encode(values)
         .unwrap()
 }
+fn assert_retained_party_metadata(party: &ActivationPrefixParty<'_>) {
+    assert!(party.x.is_none() && party.y.is_none() && party.d.is_none());
+    assert!(party.tr.is_none() && party.drelu.is_none() && party.select.is_none());
+    assert_eq!(
+        party.lease.as_ref().unwrap().bytes,
+        size_of::<ActivationPrefixParty<'static>>()
+    );
+}
 fn run<'b>(
     mut parties: [ActivationPrefixParty<'b>; 2],
     inputs: [CommonMasked<'b, Ring>; 2],
@@ -77,6 +85,10 @@ fn run<'b>(
                 assert_eq!(left.ledger.next, 4);
                 assert_eq!(right.ledger.next, 4);
                 assert!(left.x.is_none() && left.y.is_none() && left.d.is_none());
+                assert_retained_party_metadata(left);
+                assert_retained_party_metadata(right);
+                assert_eq!(a._lease.bytes, common_charge());
+                assert_eq!(b._lease.bytes, common_charge());
                 assert_eq!(left.advance(&[]).err(), Some(Error::Consumed));
                 return [a, b];
             }
@@ -392,6 +404,25 @@ fn private_ledger_burns_wrong_order_and_never_accepts_public_redeclaration() {
         next: 0,
     };
     let bound_digest = ledger.digest();
+    // Extraction must preserve historical slot/ledger domains and exact bytes.
+    let slots: [[u8; 32]; 4] = std::array::from_fn(|i| {
+        digest(&[
+            b"pllm.sigma.typed.prefix-private-use.v1\0",
+            &ledger.uses[i].digest(),
+            &ledger.bindings[i].digest(),
+            &[ledger.role],
+        ])
+    });
+    assert_eq!(
+        bound_digest,
+        digest(&[
+            b"pllm.sigma.typed.prefix-private-ledger.v1\0",
+            &slots[0],
+            &slots[1],
+            &slots[2],
+            &slots[3],
+        ])
+    );
     ledger.role = 1;
     assert_ne!(ledger.digest(), bound_digest);
     ledger.role = 0;
@@ -453,7 +484,7 @@ fn wrong_role_binding_duplicate_begin_and_advance_before_begin_burn_region() {
                 }
                 _ => unreachable!(),
             }
-            assert!(a.x.is_none() && a.y.is_none() && a.d.is_none() && a.lease.is_none());
+            assert_retained_party_metadata(&a);
             assert_eq!(a.advance(&[]).err(), Some(Error::Consumed));
             b.cancel();
             drop((mask, x1));
@@ -595,12 +626,77 @@ fn retained_final_output_keeps_continuous_wrapper_and_native_leases() {
     let [out0, out1] = run(parties, inputs);
     drop((mask, out1));
     let native_output = 8 + size_of::<selection::MaskedOutput<'static>>() + ALLOCATOR;
-    let wrapper = party_wrapper_charge() - 4 * frame_wrapper_charge();
+    let wrapper = common_charge();
+    assert_eq!(out0._lease.bytes, wrapper);
     assert_eq!(budget.used_bytes(), baseline + native_output + wrapper);
     drop(out0);
     assert_eq!(budget.used_bytes(), baseline);
     drop(d);
     assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn retained_cancelled_and_completed_prefix_parties_keep_metadata_until_each_drop() {
+    for lanes in [1, 256] {
+        // Cancel at each live exchange, or complete successfully at exchange four.
+        for retire_after in 0..=4 {
+            let budget = Budget::new(64 << 20).unwrap();
+            let mut d = dealer(&budget);
+            let baseline = budget.used_bytes();
+            let s = spec(16, &[lanes]);
+            let (mask, [x0, x1]) = root(&mut d, s, &vec![64; lanes]);
+            let (mask, mut parties) = d.activation_prefix(s, mask).unwrap();
+            let mut frames = [parties[0].begin(x0).unwrap(), parties[1].begin(x1).unwrap()];
+            for _ in 0..retire_after.min(3) {
+                frames = next_frames(&mut parties, &frames);
+            }
+            if retire_after == 4 {
+                let PrefixStep::Output(out0) = parties[0].advance(frames[1].as_bytes()).unwrap()
+                else {
+                    panic!("expected R")
+                };
+                let PrefixStep::Output(out1) = parties[1].advance(frames[0].as_bytes()).unwrap()
+                else {
+                    panic!("expected R")
+                };
+                for out in [&out0, &out1] {
+                    assert_eq!(out._lease.bytes, common_charge());
+                    assert_eq!(unmask(&mask, out), vec![1; lanes]);
+                }
+                // Native output backing and its original lease remain distinct
+                // from the common wrapper split and the retained party metadata.
+                let native_output =
+                    8 * lanes + size_of::<selection::MaskedOutput<'static>>() + ALLOCATOR;
+                let output_charge = native_output + common_charge();
+                let before = budget.used_bytes();
+                drop(out0);
+                assert_eq!(budget.used_bytes(), before - output_charge);
+                drop(out1);
+                assert_eq!(budget.used_bytes(), before - 2 * output_charge);
+            } else {
+                parties[0].cancel();
+                parties[1].cancel();
+            }
+            drop((mask, frames));
+            let metadata = size_of::<ActivationPrefixParty<'static>>();
+            assert_eq!(budget.used_bytes(), baseline + 2 * metadata);
+            for party in &mut parties {
+                assert_retained_party_metadata(party);
+                party.cancel();
+                party.cancel();
+                assert_retained_party_metadata(party);
+                assert_eq!(party.advance(&[]).err(), Some(Error::Consumed));
+                assert_eq!(budget.used_bytes(), baseline + 2 * metadata);
+            }
+            let [a, b] = parties;
+            drop(a);
+            assert_eq!(budget.used_bytes(), baseline + metadata);
+            drop(b);
+            assert_eq!(budget.used_bytes(), baseline);
+            drop(d);
+            assert_eq!(budget.used_bytes(), 0);
+        }
+    }
 }
 
 fn matrix_probe(budget: &Budget) -> Result<[matrix::party::Party<'_>; 2], Error> {
@@ -742,7 +838,7 @@ fn execution_allocation_failure_after_retaining_y_burns_local_only() {
         // next DReLU begin frame allocation fails after Y has been retained.
         budget.fail_after.store(0, Ordering::SeqCst);
         assert_eq!(a.advance(r2.as_bytes()).err(), Some(Error::Allocation));
-        assert!(a.x.is_none() && a.y.is_none() && a.d.is_none() && a.lease.is_none());
+        assert_retained_party_metadata(&a);
         assert!(b.x.is_some()); // coordinator, not local failure, cancels sibling
         b.cancel();
         drop((mask, l, r, l2, r2));
@@ -932,7 +1028,7 @@ fn late_drelu_and_select_peer_errors_consume_region_and_require_sibling_cancel()
             let a = &mut parties[0];
             assert!(a.x.is_none() && a.y.is_none() && a.d.is_none());
             assert!(a.tr.is_none() && a.drelu.is_none() && a.select.is_none());
-            assert!(a.lease.is_none());
+            assert_retained_party_metadata(a);
             assert_eq!(a.ledger.next, 4);
             assert_eq!(a.advance(frames[1].as_bytes()).err(), Some(Error::Consumed));
             assert!(parties[1].y.is_some() && parties[1].lease.is_some());
@@ -1067,8 +1163,10 @@ fn drelu_then_select_borrow_same_original_y_owner_with_binding_and_lease_continu
         panic!("expected R")
     };
     for party in &parties {
-        assert!(party.y.is_none() && party.d.is_none() && party.lease.is_none());
+        assert_retained_party_metadata(party);
     }
+    assert_eq!(out0._lease.bytes, common_charge());
+    assert_eq!(out1._lease.bytes, common_charge());
     drop((mask, parties, frames, out0, out1, d));
     assert_eq!(budget.used_bytes(), 0);
 }

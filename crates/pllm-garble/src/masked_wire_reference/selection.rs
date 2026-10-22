@@ -232,7 +232,6 @@ impl MaskedOutput<'_> {
         &self.values
     }
 }
-
 /// One party's additive share of b*x + r_z, not a reconstructed masked value.
 /// No constructor, cloning, frame conversion or peer-share access is provided.
 pub struct DeferredShare<'a> {
@@ -261,7 +260,6 @@ impl DeferredShare<'_> {
         &self.values
     }
 }
-
 pub fn issue<'a>(
     spec: Spec,
     context: Context,
@@ -460,6 +458,11 @@ fn evaluate(id: u8, bits: u8, bhat: u64, xhat: u64, words: &[u64; 5]) -> u64 {
 }
 
 impl<'a> Party<'a> {
+    /// Private invocation identity for owning-region deferred-output checks.
+    pub(super) fn internal_binding(&self) -> [u8; 32] {
+        self.binding
+    }
+
     pub fn cancel(&mut self) {
         self.state = None;
     }
