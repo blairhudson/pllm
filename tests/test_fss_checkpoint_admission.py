@@ -61,7 +61,8 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
         budget__max_input_tokens=initial_rows,
     )
     model = experiment.pipeline.model
-    assert model.model_id == "Qwen/Qwen2.5-0.5B-Instruct"
+    assert model.kind == "huggingface"
+    assert model.source == "Qwen/Qwen2.5-0.5B-Instruct"
     assert model.revision == "7ae557604adf67be50417f59c2c2f167def9a775"
     assert model.local_files_only is True
     assert experiment.budget.requests == experiment.budget.max_new_tokens == 1
