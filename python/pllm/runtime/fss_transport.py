@@ -229,22 +229,43 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
     deadline = time.monotonic() + timeout
     peers = native = manifests = frame = frames = raw = value = storage = None
     with reserve_incremental_memory(client_memory_bytes(capacity)):
+        def boundary(role, action, status):
+            try:
+                record = getattr(attempt, "record_control_boundary", None)
+                if record is not None:
+                    record(role, action, status)
+            except BaseException:
+                pass
+
+        def failure():
+            try:
+                observe = getattr(attempt, "fail_control_boundary", None)
+                if observe is not None:
+                    observe()
+            except BaseException:
+                pass
+
         try:
             if attempt():
                 raise ProtocolError("FuseFSS request cancelled", 499)
+            boundary("client", "contract", "entered")
             contract = source.runtime_contract(experiment, len(ids), outputs)
             if transport_capacity(contract) != capacity or transport_material_delivery(contract) != delivery:
                 raise ValueError("FuseFSS runtime capacity differs from source")
+            boundary("client", "contract", "validated")
             receipt_options = {} if capacity == "capsule" else {"capacity": capacity}
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise ProtocolError("FuseFSS request timed out", 499)
+            boundary("client", "channels", "entered")
             peers = _Peers(connections, remaining, attempt, roles=ROLES, namespace="fss")
             # Channel construction also spends the original request budget.
             peers.deadline = min(peers.deadline, deadline)
             peers.request_id = secrets.token_hex(32)
+            boundary("client", "channels", "validated")
             epochs = {}
             for index, role in enumerate(ROLES):
+                boundary(role, "manifest", "entered")
                 value = unpack(peers.post(index, "manifest", phase="setup", limit=CONTROL_LIMIT),
                                limit=CONTROL_LIMIT)
                 expected = {"schema": "pllm.fss.worker.v1", "role": role,
@@ -255,6 +276,7 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
                         or any(value[key] != expected[key] for key in expected)):
                     raise ProtocolError("FuseFSS worker source or transport differs")
                 epochs[role] = digest(value["epoch"])
+                boundary(role, "manifest", "validated")
             manifests = []
             for index, role in enumerate(ROLES):
                 # Lost or malformed acknowledgements still require retirement.
@@ -271,30 +293,47 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
                     # monotonic timestamp or a renewable peer-traffic lease.
                     admission["remaining_seconds"] = remaining
                 payload = pack(admission, limit=ADMISSION_LIMIT)
+                boundary(role, "admit", "entered")
                 value = unpack(peers.post(index, "admit", payload, phase="setup", limit=CONTROL_LIMIT),
                                limit=CONTROL_LIMIT)
                 if (type(value) is not dict or set(value) != {"manifest"}
                         or type(value["manifest"]) is not bytes or not 0 < len(value["manifest"]) <= 1024):
                     raise ProtocolError("FuseFSS native manifest differs")
                 manifests.append(value["manifest"])
+                boundary(role, "admit", "validated")
+            boundary("client", "client_request", "entered")
             native = _native.FssClientRequest(contract, bytes.fromhex(peers.request_id), tuple(manifests), ids)
             payload = pack({"request_frame": native.request_bytes()}, limit=CONTROL_LIMIT)
+            boundary("client", "client_request", "validated")
             for index in range(3):
+                boundary(ROLES[index], "bind", "entered")
                 _ack(peers, index, "bind", {"accepted": True}, payload)
+                boundary(ROLES[index], "bind", "validated")
+            boundary("dealer", "prepare", "entered")
             _ack(peers, 2, "prepare", {"prepared": True})
+            boundary("dealer", "prepare", "validated")
             # Dealer retires before input release; final-only token shares never
             # flow through it. Its direct setup counters remain charged.
+            boundary("dealer", "finish", "entered")
             raw = peers.post(2, "finish", phase="setup", limit=CONTROL_LIMIT)
             _, peer_counts, _ = _receipt(raw, "dealer", **receipt_options)
             peers.live[2] = False
+            boundary("dealer", "finish", "validated")
             for index in range(2):
+                boundary("client", "input_share", "entered")
                 frame = native.take_input(index)
+                boundary("client", "input_share", "validated")
+                boundary(ROLES[index], "input", "entered")
                 _ack(peers, index, "input", {"accepted": True}, frame, phase="online")
+                boundary(ROLES[index], "input", "validated")
                 frame = None
             for index in range(2):
+                boundary(ROLES[index], "start", "entered")
                 _ack(peers, index, "start", {"started": True}, phase="online")
+                boundary(ROLES[index], "start", "validated")
             frames = []
             for index, role in enumerate(HOLDERS):
+                boundary(role, "finish", "entered")
                 raw = peers.post(index, "finish", phase="online", limit=CONTROL_LIMIT)
                 frame, counts, storage = _receipt(raw, role, **receipt_options)
                 frames.append(frame)
@@ -303,9 +342,12 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
                 peers.counts[f"fss_storage.{role}.write_bytes"] = storage["encrypted_file_bytes_written"]
                 peers.counts[f"fss_storage.{role}.read_bytes"] = storage["encrypted_file_bytes_read"]
                 peers.live[index] = False
+                boundary(role, "finish", "validated")
+            boundary("client", "reconstruct", "entered")
             selected = tuple(native.finish(*frames))
             if len(selected) != outputs:
                 raise ProtocolError("FuseFSS incomplete final token result")
+            boundary("client", "reconstruct", "validated")
             peers.counts.update(peer_counts)
             peers.check()
             if completed_program is not None:
@@ -314,28 +356,40 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
                 completed_program(manifests[0])
             return FssResult(selected)
         except BaseException as error:
+            failure()
             frame = frames = raw = value = storage = None
             clear_failure_frames(error)
             raise
         finally:
+            # A failed attempt's frozen marker cannot be overwritten by cleanup.
+            boundary("client", "retire", "entered")
             frame = frames = raw = value = storage = manifests = None
             try:
                 if native is not None:
                     native.close()
+            except BaseException:
+                # Observe before the existing finally continues peer cleanup.
+                failure()
+                raise
             finally:
-                if peers is not None:
-                    peers.close()
-                    audit = peers.audit()
-                    for key in ("generation_prefill_online_body_bytes", "generation_decode_online_body_bytes",
-                                "prefill_remote_linear_calls", "decode_remote_linear_calls",
-                                "prefill_remote_linear_server_seconds", "decode_remote_linear_server_seconds",
-                                "online_steps", "inference_stage_calls", "inference_server_ns"):
-                        audit.pop(key, None)
-                    # Missing directed receipts do not become zero-cost links.
-                    if not all(key in peers.counts for key in PEER_COUNTERS):
-                        for key in PEER_COUNTERS:
+                try:
+                    if peers is not None:
+                        peers.close()
+                        audit = peers.audit()
+                        for key in ("generation_prefill_online_body_bytes", "generation_decode_online_body_bytes",
+                                    "prefill_remote_linear_calls", "decode_remote_linear_calls",
+                                    "prefill_remote_linear_server_seconds", "decode_remote_linear_server_seconds",
+                                    "online_steps", "inference_stage_calls", "inference_server_ns"):
                             audit.pop(key, None)
-                    record = getattr(attempt, "record_audit", None)
-                    if record is not None:
-                        record(audit)
-                native = peers = None
+                        # Missing directed receipts do not become zero-cost links.
+                        if not all(key in peers.counts for key in PEER_COUNTERS):
+                            for key in PEER_COUNTERS:
+                                audit.pop(key, None)
+                        record = getattr(attempt, "record_audit", None)
+                        if record is not None:
+                            record(audit)
+                    native = peers = None
+                except BaseException:
+                    failure()
+                    raise
+            boundary("client", "retire", "validated")

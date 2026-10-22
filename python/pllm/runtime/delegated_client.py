@@ -21,6 +21,7 @@ from contextvars import ContextVar
 import json
 import math
 import threading
+import time
 from types import MappingProxyType
 from typing import Any
 
@@ -213,6 +214,55 @@ class _Attempt:
         self.closed = False
         self.running_thread = None
         self.transport_audit = None
+        self._fss_control_boundary = self._fss_control_origin = None
+        self._fss_control_failed = False
+
+    def record_control_boundary(self, role, action, status):
+        """Best-effort one-slot diagnostic, relative to first control boundary."""
+        try:
+            if (self.owner.runtime_id != "compiled_fss_v1" or self.closed
+                    or self.owner._active is not self or self._fss_control_failed):
+                return
+            from .benchmark_failure import sanitize_fss_control_boundary
+            if sanitize_fss_control_boundary((role, action, status, 0.0)) is None:
+                self._fss_control_boundary = None
+                return
+            now = time.monotonic()
+            if type(now) not in (int, float) or not math.isfinite(now):
+                self._fss_control_boundary = None
+                return
+            origin = now if self._fss_control_origin is None else self._fss_control_origin
+            marker = (role, action, status, now - origin)
+            if sanitize_fss_control_boundary(marker) is not None:
+                self._fss_control_origin = origin
+                self._fss_control_boundary = marker
+            else:
+                self._fss_control_boundary = None
+        except BaseException:
+            self._fss_control_boundary = None
+            pass  # Neither diagnostic clocks nor callbacks are execution authority.
+
+    def fail_control_boundary(self):
+        """Freeze/pass immutable data BEFORE native/HTTP cleanup, never owners."""
+        try:
+            if (self.owner.runtime_id != "compiled_fss_v1" or self.closed
+                    or self.owner._active is not self or self._fss_control_failed):
+                return
+            marker = self._fss_control_boundary
+            if marker is not None:
+                # Time remains that of the last boundary, not cleanup/failure age.
+                role, action, status, elapsed = marker
+                # A failure BETWEEN calls cannot relabel a validated call as a
+                # failure inside that operation (e.g. the final deadline check).
+                if status == "entered":
+                    marker = (role, action, "failed", elapsed)
+                self._fss_control_boundary = marker
+            self._fss_control_failed = True
+            observer = getattr(self.owner, "_fss_failure_observer", None)
+            if observer is not None:
+                observer(marker)
+        except BaseException:
+            pass  # Preserve original source/transport exception, even on unwind.
 
     def __call__(self):
         return self.cancelled.is_set() or self.cancellation.event.is_set()
@@ -255,6 +305,10 @@ class _Attempt:
                     self._retire(delivered=True)
                 return event
             except BaseException:
+                try:
+                    self.fail_control_boundary()  # Also covers errors from retirement.
+                except BaseException:
+                    pass
                 self._retire(delivered=False)
                 raise
             finally:
@@ -264,6 +318,7 @@ class _Attempt:
         if self.closed:
             return
         self.closed = True
+        self._fss_control_boundary = self._fss_control_origin = None
         self.body = self.buffer = self.transport_audit = None
         self.cancellation.unregister(self)
         with self.owner._lock:
@@ -331,6 +386,7 @@ class DelegatedClient:
         self._lock = threading.RLock()
         self._closing = False
         self._active = None
+        self._fss_failure_observer = None
         self._tokenizer_owner = ContextVar("pllm_gkm_tokenizer_owner", default=None)
         self._tokenizer_scopes = set()
         self._result_hook = None
@@ -348,6 +404,16 @@ class DelegatedClient:
     def _check_open(self):
         if self._closing:
             raise ProtocolError("GKM client is closed", 409)
+
+    def _fss_control_snapshot(self):
+        if not self._lock.acquire(blocking=False):
+            return None
+        try:
+            attempt = self._active
+            return (attempt._fss_control_boundary
+                    if type(attempt) is _Attempt and not attempt.closed else None)
+        finally:
+            self._lock.release()
 
     def _model(self, model):
         self._check_open()
@@ -639,6 +705,7 @@ class DelegatedClient:
     def close(self):
         with self._lock:
             self._closing = True
+            self._fss_failure_observer = None
             active = self._active
             if active is not None:
                 active.cancel()

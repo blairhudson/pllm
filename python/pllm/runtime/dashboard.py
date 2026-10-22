@@ -915,6 +915,13 @@ class DashboardRuntime:
             if hasattr(self._topology, "_startup_step"):
                 self._topology._startup_step("client_startup", "client")
             self._client = self._topology.client(**client_options)
+            if self._fss:
+                collector = getattr(self, "_benchmark_failure_diagnostics", None)
+                if collector is not None:
+                    try:
+                        collector.bind_fss_client(self._client._core)
+                    except BaseException:
+                        pass  # Optional local diagnostics never gate startup.
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
             endpoints = {status.role: status.url for status in self._topology.statuses}

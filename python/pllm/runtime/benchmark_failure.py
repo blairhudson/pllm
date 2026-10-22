@@ -5,6 +5,7 @@ from copy import deepcopy
 import math
 import threading
 import time
+import weakref
 
 
 SCHEMA = "pllm.benchmark_failure_diagnostics.v1"
@@ -21,6 +22,42 @@ PHASES = ("unknown", "dashboard_startup", "memory_preflight", "source_inspection
           "graph_admission", "role_startup", "client_startup",
           "ready", "request", *SOURCE_IMPORT_PHASES)
 _OBSERVE = object()
+# One immutable tuple, not an event history. Intended charging is the existing
+# client HTTP control overlap (8 * 16 KiB control slots beyond admission bodies)
+# and supervisor's 1 MiB reader/cache/control allowance. These are coarse shared
+# allowances, not a proved aggregate Python/allocator/RSS peak or free credits.
+# Transport creates markers inside its existing client lease; no body, thread
+# or queue is added. Neither object-size tests nor the serialization bound grant
+# native Budget authority, relay credit, a new reservation or a changed cap.
+FSS_CONTROL_ACTIONS = {
+    "client": ("contract", "channels", "client_request", "input_share", "reconstruct", "retire"),
+    "worker_a": ("manifest", "admit", "bind", "input", "start", "finish"),
+    "worker_b": ("manifest", "admit", "bind", "input", "start", "finish"),
+    "dealer": ("manifest", "admit", "bind", "prepare", "finish"),
+}
+FSS_CONTROL_STATUSES = ("entered", "validated", "failed")
+_FSS_CONTROL_FIELDS = ("role", "action", "status", "elapsed_seconds")
+
+
+def sanitize_fss_control_boundary(value):
+    """Bounded exact builtins only; never stringify or compare hostile tags."""
+    if type(value) is tuple and len(value) == 4:
+        role, action, status, elapsed = value
+    elif type(value) is dict and len(value) == 4:
+        # Validate four keys before lookup: a colliding custom key must not get
+        # an opportunity to execute __eq__ during dict.get().
+        if any(type(key) is not str or len(key) > 15 or key not in _FSS_CONTROL_FIELDS
+               for key in value):
+            return None
+        role, action, status, elapsed = (value.get(key) for key in _FSS_CONTROL_FIELDS)
+    else:
+        return None
+    if (type(role) is not str or len(role) > 8 or role not in FSS_CONTROL_ACTIONS
+            or type(action) is not str or len(action) > 14 or action not in FSS_CONTROL_ACTIONS[role]
+            or type(status) is not str or len(status) > 9 or status not in FSS_CONTROL_STATUSES
+            or _seconds(elapsed) is None):
+        return None
+    return {"role": role, "action": action, "status": status, "elapsed_seconds": elapsed}
 
 
 def _count(value):
@@ -61,7 +98,7 @@ def sanitize_failure_diagnostics(value):
         if type(record) is dict:
             role_rss[role] = {key: _count(record.get(key)) for key in
                               ("latest_bytes", "peak_bytes")}
-    return {
+    result = {
         "schema_version": SCHEMA,
         "phase": _tag(value.get("phase"), PHASES, "unknown"),
         "role": _tag(value.get("role"), ROLES),
@@ -81,6 +118,10 @@ def sanitize_failure_diagnostics(value):
             "roles": role_rss,
         },
     }
+    boundary = sanitize_fss_control_boundary(value.get("fss_control_boundary"))
+    if boundary is not None:
+        result["fss_control_boundary"] = boundary
+    return result
 
 
 class FailureDiagnostics:
@@ -92,7 +133,20 @@ class FailureDiagnostics:
         self._lock = threading.Lock()
         self._snapshot = None
 
-    def observe(self, *, phase=None):
+    def bind_fss_client(self, core):
+        """Post-construction optional hook; do not make client own this runtime."""
+        if getattr(core, "runtime_id", None) != "compiled_fss_v1":
+            return
+        reference = weakref.ref(self)
+
+        def failure(marker):
+            collector = reference()
+            if collector is not None:
+                collector.capture(phase="request", control_boundary=marker)
+
+        core._fss_failure_observer = failure
+
+    def observe(self, *, phase=None, control_boundary=_OBSERVE):
         """Nonblocking, unfrozen observation for a possible final-check failure.
 
         Contended state is unavailable, not evidence that no roles were launched.
@@ -111,11 +165,15 @@ class FailureDiagnostics:
                      and type(source_import.get("role")) is str
                      and source_import.get("role") in ("client", "worker_a", "worker_b", "dealer"))
         current_role = breadcrumb.get("role")
+        active_request = False
+        client = None
         if not runtime._lock.acquire(blocking=False):
             current_phase = "unknown"
         else:
             try:
                 state = runtime._state
+                active_request = runtime._active_run is not None
+                client = getattr(runtime, "_client", None)
                 if importing:
                     current_phase = source_import["phase"]
                     current_role = source_import["role"]
@@ -135,6 +193,17 @@ class FailureDiagnostics:
                 runtime._lock.release()
         if phase in PHASES:
             current_phase = phase
+        if control_boundary is _OBSERVE:
+            control_boundary = None
+            if active_request:
+                # Runtime lock is already released. Never acquire the iterator's
+                # execution lock, which is held across the whole request.
+                try:
+                    core = getattr(client, "_core", None)
+                    if getattr(core, "runtime_id", None) == "compiled_fss_v1":
+                        control_boundary = core._fss_control_snapshot()
+                except BaseException:
+                    pass  # Optional cached observation cannot change failure.
         guard = runtime._memory_guard
         return sanitize_failure_diagnostics({
             "schema_version": SCHEMA, "phase": current_phase,
@@ -145,15 +214,17 @@ class FailureDiagnostics:
             "ready_roles": breadcrumb.get("ready_roles", []),
             "host": getattr(guard, "failure_observation", None),
             "process_rss": self.sampler.failure_snapshot() if self.sampler is not None else None,
+            "fss_control_boundary": control_boundary,
         })
 
-    def capture(self, *, phase=None, observation=_OBSERVE):
+    def capture(self, *, phase=None, observation=_OBSERVE, control_boundary=_OBSERVE):
         # A concurrent capture must not delay cancellation or cleanup either.
         if not self._lock.acquire(blocking=False):
             return deepcopy(self._snapshot)
         try:
             if self._snapshot is None:
-                self._snapshot = (self.observe(phase=phase) if observation is _OBSERVE
+                self._snapshot = (self.observe(phase=phase, control_boundary=control_boundary)
+                                  if observation is _OBSERVE
                                   else sanitize_failure_diagnostics(observation))
             return deepcopy(self._snapshot)
         finally:
