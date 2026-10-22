@@ -1178,6 +1178,145 @@ Separate approximation, protected evaluation and scheduling. Separate correlatio
 
 **Original evidence boundary:** Reported Llama3-8B GPU next-token latency is about 1.61 minutes, not interactive near-native speed. Encrypted memory is substantial.
 
+##### CacheMir source recovery and implementation decision sheet
+
+This subsection is the CacheMir research audit, not a changed method approval or
+runtime-availability claim. Public release metadata below predates the
+21 October 2026 cutoff. Static source/archive inspection and bounded public-scalar
+arithmetic only: no upstream execution, builds, checkpoint/tensor downloads or
+encrypted measurements. Archives were inspected in memory, not copied into PLLM.
+
+**Immutable sources.** Governing source remains
+[`papers/cachemir.pdf`](../../papers/cachemir.pdf), arXiv:2602.11470v1,
+SHA-256 `67db77545b62a4ec0f6906706b947492e6d1bcd9a37b84e5afc32445b41c98e7`.
+The [author publication page](https://mengli.me/publication/sp-2027-cachemir/)
+identifies the paper/authors/venue. The anonymous Appendix A endpoint did not
+yield source; its API returned 401 and was not retried. That is not artifact
+absence: the following public Zenodo versions contain `Cachemir_ae.zip`.
+
+| Immutable release DOI | Version / publication date | Bytes | Archive SHA-256 |
+| --- | --- | ---: | --- |
+| [10.5281/zenodo.22844188](https://zenodo.org/records/22844188) | `v0.1-ae`, 2026-09-19 | 3,261,037 | `15afe42bca5a2f29baddc754c5f4d2489d6cae92571d66639f8a019da3d0b295` |
+| [10.5281/zenodo.23189548](https://zenodo.org/records/23189548) | `v0.1.1-ae`, 2026-10-06 | 67,458 | `3457613fddd4b78a34f765f391a5a4d7b489741f5f99af1d396d978f309be006` |
+| [10.5281/zenodo.23377151](https://zenodo.org/records/23377151) | `v0.1.2-ae`, 2026-10-14 | 63,073 | `4462530bb49ba7b4cbdbf13d7d64f7304ccabf401e3f05b8f7f75cf92846d451` |
+
+Downloaded MD5s match each record's public file metadata. The concept DOI
+`10.5281/zenodo.22844187` follows versions; it is not the immutable release pin.
+The first archive's HEAD is commit
+`0d5695869730427c1a5dc4320d3bd375e727d2b5`, tree
+`f646b8e4197d5babbc292b2320dcf4206f5b9388`; its tracked archived files match that
+tree and the inspected Git objects hash correctly. Annotated tag `v0.1.0-ae`
+is object `57f56adbc318f8c2c552778e338a8747b19b8c60`, targeting the **different**
+commit `dcbb3645b15f8ffde3d08ab5a1fa09dd53386779`. The latest archive has no Git
+metadata; no latest commit or public author-linked Git remote was established.
+
+Zenodo describes acceptance at S&P 2027 and dates the future meeting
+17–20 May 2027. The author page also names S&P. These are publication/venue
+metadata, **not** an already held conference, evaluated runtime, or independent
+performance result. No proceedings-final byte identity was verified. The first
+archive includes a different 19-page manuscript, `FHE_transformer_CCS (3).pdf`,
+SHA-256 `67e7ebbf4c4a65d4e24ca53247274757c75ebc83ce189284329229b6a3183d18`;
+it does not supersede the pinned PDF. The
+[arXiv v1 source](https://arxiv.org/src/2602.11470v1) contains TeX/figures, not
+an additional evaluated numeric/configuration manifest.
+
+**Recovered numeric graph; not an adopted profile.** Paths/lines below are
+inside `Cachemir_ae/` in `v0.1.2-ae`, unless explicitly qualified.
+
+| Operation | Exact recovered source | Fidelity boundary |
+| --- | --- | --- |
+| Exponential | `nonlinear_thor.go:40–81`: complete 16-entry binary64 monomial arrays `thorExp1Coeffs` / `thorExp2Coeffs`, degree 15, declared ranges `[-27.2493,21.72692]` / `[-70,70]`. Small fit subtracts midpoint `(-27.2493+21.72692)/64` at `:160–165`. | Fixed THOR-labelled fits, not recovered per-layer CacheMir calibration. |
+| Softmax | `SoftmaxThor:1125–1206`: pre-scale raw QK scores by `1/(8*sqrt(head_dim))`; call `cExp8xSmallOn(x,0,tokenSlots)`; reduce per head over valid positions; bootstrap denominator to 13; invert; multiply exponential by inverse. | Zero exponential squarings in this call. Valid-slot masking is substantive: exponentiating padded zero scores would corrupt normalization. No full-model denominator-domain proof supplied. |
+| Reciprocal | `Inv:620–806`: adaptive `k=2/(e+1)`, bound recurrence `e <- k*e*(2-k*e)`; softmax supplies `e0=2^-11`, `alpha=.001`; cap 15. Initial `a=1,b=u` update gives `a'=k^2*(2/k-b)`, `b'=b*a'`; later updates multiply both accumulators by the same correction. | Public-scalar recurrence yields **8 total iterations**, not a measured HE result or standard-Goldschmidt schedule. Below two remaining levels, refresh both accumulators; `:707–724,765–770` scales the reciprocal accumulator by epsilon when a level remains and restores gain later. |
+| Inverse square root | `InvSqrt:337–592`: solve `(1-e^3)k^3+(6e^2-6)k^2+(9-9e)k=0`; select smaller real root `>1+1e-6`, fallback 3; bound update `e <- k*e*(3-k*e)^2/4`; cap 10. Accumulator updates use factors `(k^(3/2)/2)*(3/k-a)` and `(k^3/4)*(3/k-a)^2`. | `GetDefaultLayerNormConfigForLlama:871–899` supplies variance ranges `.15–10`, `.2–150`, `.75–2500`, epsilon `1e-5`. With `e0=min/max`, `alpha=.001`, scalar equations yield **5/6/7 iterations**. No CKKS error/convergence certificate follows. |
+| Normalization | `normThor:920–957,1068–1093`: generated gamma=1/beta=0; centered variance; input multiplier `1/sqrt((maxVar*1.05+1e-5)*N^2)`; scaled epsilon added before inverse square root. | Three fixed THOR ranges, not checkpoint/layer fits or Llama RMSNorm. `DecoderThor:68,78` uses post-residual normalization with type argument 0 at both sites; 5/6/7 above describe configuration variants, not three evaluated model layers. |
+| SiLU | `nonlinear_moai.go:13–35`: one Chebyshev approximation of `x/(1+exp(-x))` on `[-20,20]`, interval precision 128, literal `Nodes:1023`, mapped only to expanded active slots. | Not the paper's specified composite-polynomial/per-layer calibrated schedule. Exact generated coefficient/evaluation bytes still require freezing before independent execution. |
+
+**Paper/artifact contradiction, confirmed across all three releases.** Pinned
+PDF Appendix E p.16 and its TeX `docs/Appendix.tex:169–173` explicitly choose
+**standard Goldschmidt rather than aSOR** and recalibrate larger-model ranges.
+The bundled later manuscript p.18 repeats that choice. All three archives instead
+implement adaptive reciprocal inversion: first/middle `nonlinear_thor.go:619–639`,
+latest `:624–644`. First/middle file SHA-256 is
+`2ec321a6f62f37a87d44b28a2541bd64ee4be0b412bf953d88f8d76453c337db`;
+latest is `3e73def49eb51a84a1ec52c50c24b55b900b95a87579fa3604df87a9c27698f8`.
+The latest source's normalization and SiLU choices also cannot establish
+the evaluated source-model graph. Neither release recency nor a successful module
+test would resolve those differences.
+
+**HE literals/defaults recovered.** Latest `main.go:30–47` sets
+`LogQ=[53,41 x 13]`, `LogP=[61 x 4]`, default scale `2^41`, ternary secret
+weight 192, and bootstrap `LogMessageRatio=11`. This last override is version
+specific, not evidence of a frozen configuration shared by all releases.
+`LogN` is a CLI input: `main.go:15–22` defaults to `logN=8`, hidden dimension 32,
+two heads and synthetic sequence length 29; README `:43–50` separately labels
+`logN=16,hidDim=4096` the paper-sized configuration. Neither the tiny defaults
+nor the example command establishes the evaluated full configuration or security.
+`go.mod:3–5` pins Go 1.24.2 and Lattigo v6.1.1; the dependency tag resolves to
+commit `37a34b4676e987795949a795f0ce9d0893763c96`. Static inspection of its
+[`circuits/ckks/bootstrapping/parameters_literal.go`](https://github.com/tuneinsight/lattigo/blob/37a34b4676e987795949a795f0ce9d0893763c96/circuits/ckks/bootstrapping/parameters_literal.go)
+recovers inherited defaults: CtS/StC depths 4/3, EvalMod depth 8 / log-scale 60,
+ephemeral encapsulation weight 32, modular polynomial degree 30, three double
+angles, one bootstrap iteration. File SHA-256:
+`5d47229908c264afb4d8395f407e9a8b60d766cf3b48d51b92c9e27739821027`.
+These are source-library facts, not a new PLLM parameter selection or security
+approval. Instantiated ordered primes, complete key/error manifest and evaluated
+precision were not obtained by executing the library. `util.go:238–271` places
+decryptor and evaluator in one test harness, not separated service roles.
+
+**State and evaluated-model boundary.** `util.go:521–541` generates random
+weights; `:646–658` generates random cache entries and explicitly says actual
+cache should come from prefill. `readCache:661–754` supplies real encrypted
+packing and BSGS-oriented V placement, not encrypted prefill. `PrepareCache:627–629`
+rejects `seqLen+1 > S/H`. `linear.go:237–278` appends at fixed `size.seqLen`,
+mutates K before V, and has no position increment, regenerated masks or rollback.
+`QK_T:289–392` / `AttnV:404–496` form new product ciphertexts from retained
+parents; they do not specify a retained-cache refresh/error policy. `Model` in
+`llama.go:113–122` repeats blocks on the same owner, not a token-feedback loop.
+`DecoderThor:49–78` hardcodes activation refresh targets 9/7/13/7; it does not
+consume placement-search output. README `:145–151` excludes real-model weights
+and datasets. The bundled manuscript p.19/Table 12 claims three-token error
+propagation, but matching trained-model driver/calibration files were not found
+in the released tree. No checkpoint/tokenizer revision, GQA mapping, calibrated
+real-model identity or complete private head/lookup/token loop was recovered.
+
+**Minimal decision sheet; no approval recorded here.**
+
+| Work / decision | Sufficient existing contract; exact remaining boundary |
+| --- | --- |
+| Reuse now, unchanged | `crates/pllm-core/src/interleaved_kv_layout.rs`: distinct K/V addresses, allocation deltas, masks, append and immutable-read integer oracle. Do not add another layout oracle. Rectangular VMM, physical RoPE, GQA/checkpoint mapping and real ciphertext kernels remain separate. Artifact BSGS V placement needs an explicit equivalent transform, not relabeling the oracle. |
+| Reuse compiler contracts | `crates/pllm-compiler/src/encrypted_level_schedule.rs`: serial complete-feasible-DAG solver plus `PublicCiphertextState`, `PublicCiphertextGraph`, `PublicCiphertextCapability`, `validate_public_ciphertext_trace`. Composite trace checks immutable retained parents, typed joins, error-assumption identities and full backing/scratch/recovery ownership. It neither optimizes arbitrary graphs nor proves kernels, source lowering or error bounds. Supply source-bound capabilities; do not duplicate this IR. |
+| Reuse ownership/lifecycle, not arithmetic | `python/pllm/runtime/ckks_reference.py` separates client decryptor/public evaluator but uses bounded SEAL arithmetic without real refresh. `transformer_client.py`'s `SnapshotStateBasis` and response-owner checks, plus `client.py` accept/rollback/abort, provide lifecycle patterns. `DecodeCache` uses AES-GCM at rest and restores clear arrays; it is not homomorphic KV. `EncryptedKvState` remains pending. |
+| Implement source-compatible encrypted block after admission | Use source projection placement, immutable derived read copies and staged paired K/V updates; charge old/new backing overlap through the shared trace contract. Missing: source-mapped real-refresh backend, encrypted prefill, actual projection/attention/nonlinear kernels, graph lowering and response-owned ciphertext transaction. Backend worker owns backend qualification; D4 torus qualification does not adopt CacheMir parameters or Lattigo. No registration-only or clear-cache completion. |
+| Numerical choice requiring clarification/approval | Preserve pinned-paper **standard-Goldschmidt** target. Do not adopt released aSOR, fixed THOR ranges or single Chebyshev SiLU by convenience. Obtain evaluated standard-Goldschmidt/configuration source; otherwise an independently calibrated source-derived numerical completion requires explicit approval, including corpus/model revision, ranges, coefficients, evaluation order, precision/error and admission policy. No constants selected here. |
+| Retained state requiring explicit completion | Propose request-local immutable retained ciphertext parents; derive level-aligned temporary copies; stage K/V together and publish only after successful step. Approval/source clarification must bind retained append levels, refresh/error recurrence and capacity transitions beyond `S/H`. Cancellation poisons staged work; no eviction, compression or cross-request continuation is implied. |
+| Token loop requiring separate approval | Recover private lookup/head/selection/re-embedding and approximate-score tie/error contract. Paper §§2.1–2.3 pp.3–4 gives boundary-only client operations but no executable completion. D9 names four shared-computation methods, not CacheMir. Do not substitute client logits/argmax, per-token decryption or another disclosure boundary. |
+
+**Bounded standard-Goldschmidt proposal, not chosen defaults.** For an externally
+certified denominator interval `0 < a <= x <= b`, let `u=x/b`, `e0=1-u`, `r0=1`;
+perform exactly `m` public iterations `r <- r*(1+e); e <- e*e`, return `r/b`.
+In exact arithmetic, relative residual is `(1-u)^(2^m)` and is at most
+`(1-a/b)^(2^m)`. This supplies the standard, unrelaxed algebra; **not** a
+paper-specified seed/count or CKKS error certificate. Select no `a,b,m` until
+source clarification or approval supplies per-node denominator bounds and error
+budget, with CKKS/refresh propagation included. The paper's open interval `(0,1)`
+alone gives no finite uniform iteration count; Table 6's RMSE bits do not supply
+the missing uniform bound. Regenerated fits or bounds are an explicit completion,
+not recovery of evaluated coefficients.
+
+**Exact next source question / decision.** Ask authors for the immutable source
+and numeric/configuration files producing pinned Table 7 and Appendix E's standard
+Goldschmidt results, and the later Table 12 trained-model multi-token driver:
+checkpoint/tokenizer revisions, calibration corpus/ranges, polynomial bytes,
+ordered reciprocal/rsqrt schedule, retained-versus-temporary level/refresh policy,
+per-layer ownership and position/mask advancement. Identify which paper statement
+or release is authoritative where they conflict. If unavailable, the next user
+decision is specifically whether to approve an **independently calibrated,
+paper-aligned standard-Goldschmidt completion** with the above explicit bounds
+and request-local retained-state contract. Released aSOR is not the default
+fallback. Output/feedback disclosure and backend adoption remain separate
+decisions; this sheet grants neither.
+
 #### [MPCache: MPC-Friendly KV Cache Eviction for Efficient Private Large Language Model Inference](https://arxiv.org/html/2501.06807v2) (2025)
 
 **Paper ID:** `mpcache` · **Track:** `component_candidate` · **Source evidence:** `key_sections_reviewed`

@@ -256,3 +256,269 @@ cargo clippy --release --offline -j 1 -p pllm-core --lib -- -D warnings
 The full core suite passes **507 tests**; library Clippy passes. This validates
 clear full-frame algebra only. The physical-slot, HE, numerical and decoder gates
 above remain open; no encrypted execution or performance benefit is established.
+
+## Native BERT source/numeric audit
+
+This section records a separate, read-only source investigation. It does not
+extend D25, change the approved routing, adopt a numerical profile, or authorize
+an experiment. No upstream code, tensor payload, encrypted evaluator or bootstrap
+was executed. Source inspection and bounded HTTP metadata reads are not model
+evaluation. Native BERT remains the gate; no decoder extension is proposed here.
+
+### Provenance and citation convention
+
+The governing paper is the locked PDF/hash above: §5.2 p.10, §6.2 pp.10–11,
+§7 pp.11–13 and Appendix C p.15. The author artifact is
+[`crypto-starlab/THOR@b513c06aaabccc04b560721e35e9a98008428c25`](https://github.com/crypto-starlab/THOR/tree/b513c06aaabccc04b560721e35e9a98008428c25).
+All artifact paths and line numbers below refer to that immutable Git commit;
+not to a moving branch or an installed runtime. Existing artifact provenance
+also lives in `paper/reproduction-contracts/encrypted-inference.md`. Source is an
+oracle/provenance input, never a runtime dependency.
+
+### Polynomial order and complete caller formulas
+
+`src/thor/nonlinear/polynomial.py:4–64`,
+`evaluate_polynomial_stockmeyer`, accepts increasing-order coefficients:
+`P(p,u) = sum(p[i] * u**i)`. Lines 17–31 form consecutive baby blocks;
+lines 33–64 combine them with `u**4`, `u**8`, `u**16`. There is no internal
+coefficient reversal or input renormalization. For the actual list lengths
+16, 28 and 32, these statements give the ordinary polynomial algebra, before
+CKKS rounding and level/scale effects.
+
+Both `gelu.py:48–53` and `tanh.py:29–36` reverse their literal lists first.
+For a literal tuple `L=(L[0],...,L[d])`, their effective polynomial is therefore
+`D_L(u) = sum(L[j] * u**(d-j))`. Paper Appendix C instead labels its tuples
+through `f1_i*x**i`, `f2_i*x**i`, `g1_i*x**i`, `g2_i*x**i`. Paper §5.2 describes
+GELU as direct `f2(f1(x))`. Do not silently equate these descriptions.
+
+Let `F1,F2` be the descending-list polynomials from **all** original literal
+values in `src/thor/nonlinear/gelu.py:32–47`, before line 51's factor `0.5`.
+Statements in lines 18–25 and 48–55 establish:
+
+```text
+gelu.he_tanh_single(u) = F2(F1(u)) / 2
+he_gelu(u) = 64*u * (1/2 + F2(F1(u))/2)
+           = 32*u * [1 + F2(F1(u))]
+```
+
+This helper is not the identically named pooler helper in `nonlinear/tanh.py`.
+The GELU docstring at lines 9–10 ("Input is 2*x" / "Output is gelu(x)/2") is
+not a substitute for the explicit caller/encoder derivation:
+
+| Boundary | Source statements and ideal payload consequence |
+| --- | --- |
+| FF1 weights | `model_encoder.py:66–85,178–226`: `gelu_scale=1/64`; `_encode_w_ff` stores complex lanes `scale*(W_a-i*W_b)/2`, i.e. `(W_a-i*W_b)/128`. |
+| FF1 bias | `_encode_b:290–325`, especially line 320, stores `scale*b/2`, i.e. `b/128` for FF1. |
+| FF1 extraction | `bert.py:696–713` adds encoded bias, then `ct+conj(ct)`. Under the intended real-lane matrix mapping, the complexification half cancels, giving `u=Z/64` for affine result `Z=W*h+b`. |
+| Pre-GELU bootstrap | `bert.py:667–676` merges `u0+i*u1`, multiplies by `1/2`, bootstraps, then extracts with `temp+conj(temp)` and `i*(conj(temp)-temp)`. With an identity-on-payload bootstrap, the result is `u0,u1`, not another halving. |
+| GELU result | Substitution gives `Z/2 * [1 + F2(F1(Z/64))]`. This is an algebraic artifact-call formula, not a proof of GELU accuracy or source-checkpoint equivalence. |
+| FF2 and next residual | Default FF2 encoder scale is 1; complex weight/bias halves cancel at `bert.py:715–741`'s final conjugate sum. The subsequent residual merge/bootstrap at lines 680–688 has **no** preceding half, so ideal real extraction doubles that residual payload. |
+
+`forward.ipynb`, zero-based cell 28, repeats this FF path. Cell 32's
+`plot_variables` multiplies displayed GELU input by 64 and divides displayed
+`ln2_in` by 2, independently documenting these caller conventions. There is no
+`encode_matrix` symbol in this pinned encoder; the actual owners are
+`ThorModelEncoder._encode_w_ff`, `_encode_b`, `_encode_w_pooler`, `_encode_b_pooler`.
+
+All formulas here assume the stated real-lane mapping, linear operations and
+an identity-on-payload bootstrap. They do not reconstruct actual encoded
+coefficient rounding, bootstrap gain/error, physical-slot qualification or a
+complete numerical DAG. In particular, do not infer that changing only a
+polynomial order or constant preserves the implementation's accuracy.
+
+For pooler Tanh, define `G1,G2` from the complete descending literal tuples in
+`nonlinear/tanh.py:21–28`. `_encode_w_pooler` at `model_encoder.py:229–254`
+stores `(W_a-i*W_b)/2`; `_encode_b_pooler:328–359` stores `b/2`.
+`bert.py:772–807` adds bias and the conjugate sum, recovering intended affine
+payload `A`; `forward:761–769` explicitly divides it by 40. Thus the ideal
+artifact call is `G2(G1(A/40))`. `tanh.py:34–37` bootstraps before and after
+the composition. Its `min_x`, `max_x`, `scale` parameters are passed through but
+unused in helper arithmetic; the caller, not those parameters, supplies `/40`.
+
+Two literal discrepancies must remain visible:
+
+- Tanh second tuple, zero-based position 10: paper `2.7497e-1`; artifact
+  `tanh.py:27` `2.74974898e+0`. With artifact reversal this is the coefficient of
+  the inner result's **fifth power**. Caller `/40` does not compensate one
+  isolated coefficient. In printed increasing order that tuple position would
+  instead label the tenth power; order and literal value are separate conflicts.
+- GELU first tuple, position 23: paper `1.2738e+3`; artifact `gelu.py:37`
+  `1.27394360e+3`. These do not agree at the displayed paper rounding precision.
+
+Neither discrepancy is corrected here. Nor are ordinary rounded paper tuples
+silently replaced with the artifact's longer decimals.
+
+### Recovered public MRPC metadata, not an evaluated-run identity
+
+The README-linked [public Drive folder](https://drive.google.com/drive/folders/1mWBkNdsu3JCQPrSuedyeN_3WJD7h-6RO)
+exposes `finetuned_models.tar`, Drive file ID
+`1gC6-C2bCf-bEALhQtzk2s3MGSuHpcGAh`. Retrieved HTTP `206` byte-range
+responses reported archive length **437,964,800 bytes**. Only tar headers,
+configuration and safetensors metadata were inspected, not weight payloads:
+
+| Object | Range/identity |
+| --- | --- |
+| `finetuned_models/mrpc/config.json` | Tar header at offset 512; 710-byte payload at inclusive archive bytes `1024–1733`; SHA-256 `29e736907be556ae889df44abd765ca3999ed72314b8d79dbcb30139e346fa5a`. |
+| `finetuned_models/mrpc/model.safetensors` metadata | Tar header at 2048; file starts 2560; little-endian header-length bytes `2560–2567` specify 23,544 bytes; JSON header at `2568–26111`; header-only SHA-256 `3a4906d2ff5a91e61a30572c646eaa9ca9d43c6599d75cc1e2c26964e29fef4b`. This is **not** a checkpoint/tensor hash. |
+
+Drive IDs/URLs are locators, not immutable versions; the above hashes bind only
+the retrieved metadata bytes. They do not pin the rest of the mutable archive
+or connect it to the paper's evaluated checkpoint. No copied archive is needed.
+
+Recovered config: `BertForNextSentencePrediction`, `hidden_act="gelu"`,
+`layer_norm_eps=1e-12`, 12 layers, 12 heads, width 768, FFN width 3072,
+absolute positions/512 maximum positions, vocabulary 30,522, F32 and
+`transformers_version="4.43.3"`. Safetensors metadata describes 201 tensors,
+including embeddings `[30522,768]`, positions `[512,768]`, first intermediate
+weight `[3072,768]` and `cls.seq_relationship.weight` `[2,768]`.
+
+Remaining identity issues are specific, not an absent-config claim:
+
+1. HE `nonlinear/layernorm.py:5–12` defaults to `var_e=1e-5`; recovered config
+   says `1e-12`. Native HE callers (`bert.py:113,643–647`) use these helpers
+   without a `var_e` override.
+   This does not alone establish effective epsilon after all numerator/variance
+   scaling; that needs the full LayerNorm algebra. It is not permission to
+   replace either literal.
+2. `utils/model.py:4–12` does **not** consume archived config. It constructs an
+   unrevisioned `bert-base-uncased` model and loads the fine-tuned state dict.
+   The recovered config therefore cannot establish that loader's exact runtime.
+3. `forward.ipynb`, cell 15, obtains client embeddings independently from
+   unrevisioned `bert-base-uncased`; cell 21's plaintext oracle loads the
+   fine-tuned state. Equality of base and fine-tuned embedding tensors is
+   **unverified**. No assumption of freezing/equality is licensed.
+4. Notebook cells 13/18 choose MRPC sample 0 and encrypted-input level 20;
+   its source has null execution counts and no saved outputs. It is not proof
+   of which checkpoint, cache, key set or profile generated Tables 6–7.
+
+The readable artifact does recover a layer-wise **declared helper profile**:
+`bert.py:112–113` chooses `he_softmax2` only at zero-based layer 2 and
+`he_layernorm1` for attention normalization; `bert.py:643–647` chooses
+`he_layernorm3` for FF normalization at zero-based layers 9 and 10, otherwise
+`he_layernorm2`. Their literal variance intervals are `[0.15,10]`, `[0.2,150]`,
+`[0.75,2500]` (`layernorm.py:5–12`). `nonlinear/softmax.py:7–10` declares
+`he_softmax1` bounds `[-27.2493,21.72692]`, `(n,l)=(2,2)`, inverse epsilon
+`2^-11`, and `he_softmax2` bounds `[-70,70]`, `(n,l)=(2,4)`, inverse epsilon
+`2^-18`; both use `output_alpha=0.01`. These are source function arguments,
+not evidence of actual checkpoint coverage. They are not silently identified
+with paper §7.2.2 p.12's MRPC microbenchmark range `[-44.19,50.25]` and
+`(delta0,delta1,delta2)=(11.805,2,4)`. Source `he_inv` computes relaxation from
+its bound state (`softmax.py:122–160`); it does not merely execute Appendix C's
+printed literal factor sequence. Full softmax scale/denominator reconciliation
+is outside the small polynomial experiment below.
+
+### Ordered HE-prime source: partial recovery, exact missing material
+
+Notebook cell 7 declares `logN=16`, `scale_bits=41`, four special primes and
+`quantum="pre_quantum"`. Readable
+`liberate/src/liberate/fhe/context/ckks_context.py:225–266` constructs, in order:
+
+```text
+q = B59[:15] ++ S41[:r] ++ [q0,p1,p2,p3,p4]
+```
+
+Here `B59` and `S41` are ordered cache lists indexed by `(59,65536)` and
+`(41,65536)`; `r` is the source's `num_scales` selected by lines 248–263, not an
+approved local parameter. Comments at lines 240–242 specify rescaling drops
+from the left and special/key-switch primes from the right. Static pickle-opcode
+inspection, without unpickling/executing upstream data, recovered the final
+block from the immutable committed
+`liberate/src/liberate/fhe/cache/resources/message_special_primes.pkl`:
+
+```text
+q0 = 1152921504606584833
+p1 = 1152921504598720513
+p2 = 1152921504597016577
+p3 = 1152921504595968001
+p4 = 1152921504592822273
+```
+
+**Exact unresolved source:** the pinned tree lacks `scale_primes.pkl`, and
+`context/generate_primes.py:252–279`'s default generation enumerates scale bits
+`20,25,30,35,40,45,50,59`, **not 41**. A cache hit at
+`ckks_context.py:183–194` can instead restore the entire context and return
+before this construction. The README-mentioned external `resources.tar.gz`
+was not among the four visible top-level Drive archives at inspection time;
+absence from that listing does not prove the data is nowhere public. No new
+general search or replacement prime generation was performed. Recover the
+actual ordered cache/context or obtain an author-issued exact chain; do not
+fill this gap with convenient primes or treat the partial block as admission.
+
+Readable non-bootstrap key topology is not wholly unspecified:
+`liberate/src/liberate/fhe/ckks_engine.py:2114–2131` gives `evk: s^2 -> s`,
+lines 2258–2279 give rotation-key switching, and lines 2893–2915 give
+conjugation-key switching. The Galois bundle uses powers-of-two rotations
+(lines 81, 2326); notebook cells 9–10 contain the literal additional rotation
+lists and load `pk`, `evk`, `gk`, `conjk`, then supply bootstrap rotation keys.
+This recovers source topology, not actual loaded-key provenance, distributions,
+security or protected-bootstrap precision. Shared backend qualification remains
+owned elsewhere; no backend implementation is proposed here.
+
+### Minimal native-BERT decision packet
+
+**Faithful derivations already available:** evaluator coefficient semantics;
+artifact's caller formulas and half/double cancellation under the ideal-payload
+caveat; metadata byte identities; partial prime ordering and readable key graph.
+These may inform implementation contracts without claiming an adopted profile.
+
+**Targeted author/source questions:**
+
+1. Confirm intended coefficient order and full GELU variable/output scaling;
+   issue the complete authoritative tuples, resolving both literal discrepancies
+   above. Is the paper's direct-composition description or the artifact caller
+   the intended numerical function? An order-only explanation does not resolve
+   the additional GELU product/caller envelope.
+2. Identify the exact evaluated MRPC checkpoint/base-model revision, embedding
+   custody/freeze policy, effective LayerNorm epsilon and layer-wise nonlinear
+   profiles. Tie them to the evaluated run rather than the output-free notebook.
+3. Supply the exact evaluated ordered context/cache (`B59`, `S41`, `r`, full
+   `q`) or an immutable public location. Do not regenerate it from defaults
+   that omit scale 41. Public key-topology facts do not substitute for this.
+
+**User choice after source resolution:** approve one explicitly named native
+BERT numerical identity, with its source departures enumerated, or authorize
+only the bounded reconciliation study below. No request here adopts a profile.
+Reversing printed tuples, adding artifact caller envelopes to them, swapping
+epsilon, refitting, widening domains, clipping, replacing primes/bootstrap or
+combining selected constants are **unadopted reinterpretations/adaptations**,
+not silent source reproduction. Governing paper remains authority; contradictory
+artifact paths remain separately labeled oracle candidates.
+
+### Proposed next bounded experiment — approval still required
+
+Smallest useful request: one reusable, source-independent Python reconciliation
+experiment and ordinary output; no copied source tree, evidence archive,
+tensor/checkpoint download, upstream import/execution, network, HE/native call,
+build, installation or profile change. No code or numerical study was run for
+this proposal.
+
+- **P (printed-literal candidate):** transcribe the complete Appendix C tuples
+  at displayed precision, use their printed increasing order and the literal
+  direct compositions `f2(f1(Z))`, `g2(g1(A))`. Missing fit domains/scaling remain
+  explicit; this is a literal reading, not a claimed valid approximation.
+- **A (artifact-call candidate):** use all original pinned literal decimals,
+  descending order and exactly `Z/2*[1+F2(F1(Z/64))]`, `G2(G1(A/40))` above.
+  No constant replacement, rounding-to-paper or omitted caller factors.
+- **No hybrid candidate.** Explain the Tanh discrepancy symbolically at tuple
+  position 10; do not splice its printed coefficient into A and label the
+  result source reproduction. A later order-only or literal-only experiment
+  would require separately named diagnostic variants/approval.
+- **Inputs:** GELU `Z=k/16`, Tanh `A=5*k/16`, integers `-128<=k<=128`, plus
+  `+/-2^-10` and `+/-2^-20` for each: 261 points/function. GELU `[-8,8]` is
+  a declared diagnostic window, **not** a recovered fit/activation domain;
+  Tanh `[-40,40]` is the helper's declared parameter interval, not proof of
+  checkpoint coverage. No data-dependent range search.
+- **Arithmetic/output:** local scalar evaluation with Decimal 80/160-digit
+  checks and a separate binary64 diagnostic. For A, retain the readable
+  Stockmeyer grouping in the binary64 diagnostic; do not equate real algebra
+  with CKKS execution. Report nonfinite values and precision sensitivity rather
+  than clipping or suppressing them. `math.erf`-based exact-GELU formula and
+  `math.tanh` are binary64 comparison baselines only, not certified oracles.
+- **Hard budget:** one CPU process, at most 5,000 complete candidate-point
+  evaluations, 30 seconds wall time, 64 MiB working memory and 1 MiB ordinary
+  output; stop on any exceeded bound. No dependency installation. If this
+  budget cannot support the checks, report the limit, not a larger run.
+- **Cannot infer:** intended author variant, full-model accuracy, actual
+  activation domains, fine-tuned/base embedding equality, effective epsilon,
+  CKKS error/security, bootstrap correctness, exact primes, encrypted latency
+  or admission. Observing one better curve does not authorize adopting it.
