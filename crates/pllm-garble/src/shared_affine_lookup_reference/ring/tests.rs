@@ -34,6 +34,46 @@ fn check(table: &RingTable, r: u64, x: u64) -> RingResources {
 }
 
 #[test]
+fn shared_original_partition_has_identical_arithmetic_and_distinct_private_material() {
+    use std::sync::Arc;
+    let boundaries = vec![0, 1, 4, 8];
+    let coefficients = vec![[7, 3], [2, 6], [5, 0]];
+    let b_ptr = boundaries.as_ptr();
+    let c_ptr = coefficients.as_ptr();
+    let table = Arc::new(RingTable::from_owned(3, boundaries, coefficients, usize::MAX).unwrap());
+    assert_eq!(table.boundaries.as_ptr(), b_ptr);
+    assert_eq!(table.coefficients.as_ptr(), c_ptr);
+    for mask in 0..8 {
+        for x in 0..8 {
+            let ([a, b], resources) = table.issue_shared(mask, usize::MAX).unwrap();
+            assert!(Arc::ptr_eq(&a.table, &table));
+            assert!(Arc::ptr_eq(&b.table, &table));
+            assert_eq!(resources.party_table_capacity_bytes, [0; 2]);
+            let expected = oracle(&table, x);
+            let a = a.evaluate((x + mask) & 7).unwrap();
+            let b = b.evaluate((x + mask) & 7).unwrap();
+            assert_eq!([(a[0] + b[0]) & 7, (a[1] + b[1]) & 7], expected);
+        }
+    }
+    let ([a, b], _) = table.issue_shared(3, usize::MAX).unwrap();
+    let ([c, d], _) = table.issue_shared(3, usize::MAX).unwrap();
+    let encode = |p: &RingParty<Arc<RingTable>>| {
+        let mut bytes = Vec::new();
+        p.write_material(&mut bytes);
+        zeroize::Zeroizing::new(bytes)
+    };
+    assert_ne!(encode(&a).as_slice(), encode(&c).as_slice());
+    assert_ne!(encode(&b).as_slice(), encode(&d).as_slice());
+    a.cancel();
+    b.cancel();
+    c.cancel();
+    d.cancel();
+    assert_eq!(Arc::strong_count(&table), 1);
+    assert!(RingTable::from_owned(3, vec![0, 8], vec![[8, 0]], usize::MAX).is_err());
+    assert!(RingTable::from_owned(3, vec![0, 8], vec![[1, 0]], 1).is_err());
+}
+
+#[test]
 fn exhaustive_small_ring_partitions_masks_inputs_arbitrary_coefficients() {
     for bits in 1..=3 {
         let n = 1u64 << bits;

@@ -3,7 +3,7 @@
 //! framing, mask shares, PRG, products or transport live in this module. A private
 //! native codec seam supports the enclosing consuming party transport owner.
 use crate::{compact_dcf, interval_fss, shared_rescale_reference::Error};
-use std::mem::size_of;
+use std::{borrow::Borrow, mem::size_of, sync::Arc};
 use zeroize::Zeroizing;
 
 pub(crate) const MAX_INTERVALS: usize = 513;
@@ -26,6 +26,11 @@ impl RingTable {
         coefficients: &[[u64; 2]],
         allocation_limit: usize,
     ) -> Result<Self, Error> {
+        Self::validate(bits, boundaries, coefficients)?;
+        copy_public(bits, boundaries, coefficients, allocation_limit)
+    }
+
+    fn validate(bits: u8, boundaries: &[u64], coefficients: &[[u64; 2]]) -> Result<(), Error> {
         if !(1..=50).contains(&bits) {
             return Err(Error::Domain);
         }
@@ -42,7 +47,27 @@ impl RingTable {
         {
             return Err(Error::Domain);
         }
-        copy_public(bits, boundaries, coefficients, allocation_limit)
+        Ok(())
+    }
+
+    /// Consume already charged public construction buffers without another copy.
+    /// Validation is identical to the ordinary borrowed constructor.
+    pub(crate) fn from_owned(
+        bits: u8,
+        boundaries: Vec<u64>,
+        coefficients: Vec<[u64; 2]>,
+        allocation_limit: usize,
+    ) -> Result<Self, Error> {
+        Self::validate(bits, &boundaries, &coefficients)?;
+        let table = Self {
+            bits,
+            boundaries,
+            coefficients,
+        };
+        if size_of::<Self>() + table.capacity_bytes() > allocation_limit {
+            return Err(Error::Resource);
+        }
+        Ok(table)
     }
 
     pub(crate) fn bits(&self) -> u8 {
@@ -61,6 +86,14 @@ impl RingTable {
     pub(crate) fn resources(&self) -> Result<RingResources, Error> {
         let dcf = interval_fss::RingComparison::resources(self.bits, self.bits)?;
         Ok(account(self, [self.payload_bytes(); 2], [dcf; 2]))
+    }
+
+    pub(crate) fn issue_shared(
+        self: &Arc<Self>,
+        input_mask: u64,
+        allocation_limit: usize,
+    ) -> Result<SharedRingIssuance, Error> {
+        issue_ring_shared(self, input_mask, allocation_limit)
     }
 
     fn payload_bytes(&self) -> usize {
@@ -173,14 +206,17 @@ fn account(
 /// Private one-evaluation owner: only original PUBLIC table, own DCF and own
 /// randomized base. No input mask, translated order/boundaries or clear dealer
 /// correction survives issuance. Dropping/cancelling erases the private owners.
-pub(crate) struct RingParty {
+pub(crate) struct RingParty<T = RingTable> {
     party: u8,
-    table: RingTable,
+    table: T,
     comparison: interval_fss::RingComparison,
     base: Zeroizing<[u64; 2]>,
 }
 
-impl RingParty {
+/// Fresh paired private material sharing only immutable public table storage.
+pub(crate) type SharedRingIssuance = ([RingParty<Arc<RingTable>>; 2], RingResources);
+
+impl<T: Borrow<RingTable>> RingParty<T> {
     /// Public table is supplied independently by receiving compiled owner. Only
     /// randomized base and this party's universal DCF cross private transport.
     pub(crate) fn write_material(&self, out: &mut Vec<u8>) {
@@ -189,26 +225,17 @@ impl RingParty {
         }
         self.comparison.write_material(out);
     }
+}
+
+impl RingParty {
     pub(crate) fn read_material(
         input: &mut crate::fusefss_backend::wire::Reader<'_>,
         party: u8,
         table: &RingTable,
         budget: &crate::fusefss_backend::Budget,
     ) -> Result<Self, crate::fusefss_backend::Error> {
-        use crate::fusefss_backend::{allocate, primitive_error, Error as E};
-        if party > 1 {
-            return Err(E::Domain);
-        }
-        let base = Zeroizing::new([input.word(table.bits)?, input.word(table.bits)?]);
-        let bytes = interval_fss::RingComparison::resources(table.bits, table.bits)
-            .map_err(primitive_error)?
-            .encoded_key_bytes;
-        let comparison = interval_fss::RingComparison::read_material(
-            input.take(bytes)?,
-            table.bits,
-            table.bits,
-            budget,
-        )?;
+        use crate::fusefss_backend::allocate;
+        let (base, comparison) = read_private(input, party, table, budget)?;
         let mut boundaries = allocate(table.boundaries.len(), budget)?;
         let mut coefficients = allocate(table.coefficients.len(), budget)?;
         boundaries.extend_from_slice(&table.boundaries);
@@ -224,18 +251,64 @@ impl RingParty {
             base,
         })
     }
+}
+
+impl RingParty<Arc<RingTable>> {
+    /// Import private material against the receiving process's canonical public
+    /// owner. No dealer pointer, translated boundary, or private base is shared.
+    pub(crate) fn read_shared_material(
+        input: &mut crate::fusefss_backend::wire::Reader<'_>,
+        party: u8,
+        table: Arc<RingTable>,
+        budget: &crate::fusefss_backend::Budget,
+    ) -> Result<Self, crate::fusefss_backend::Error> {
+        let (base, comparison) = read_private(input, party, &table, budget)?;
+        Ok(Self {
+            party,
+            table,
+            comparison,
+            base,
+        })
+    }
+}
+
+fn read_private(
+    input: &mut crate::fusefss_backend::wire::Reader<'_>,
+    party: u8,
+    table: &RingTable,
+    budget: &crate::fusefss_backend::Budget,
+) -> Result<(Zeroizing<[u64; 2]>, interval_fss::RingComparison), crate::fusefss_backend::Error> {
+    use crate::fusefss_backend::{primitive_error, Error as E};
+    if party > 1 {
+        return Err(E::Domain);
+    }
+    let base = Zeroizing::new([input.word(table.bits)?, input.word(table.bits)?]);
+    let bytes = interval_fss::RingComparison::resources(table.bits, table.bits)
+        .map_err(primitive_error)?
+        .encoded_key_bytes;
+    let comparison = interval_fss::RingComparison::read_material(
+        input.take(bytes)?,
+        table.bits,
+        table.bits,
+        budget,
+    )?;
+    Ok((base, comparison))
+}
+
+impl<T: Borrow<RingTable>> RingParty<T> {
     pub(crate) fn evaluate(self, opened: u64) -> Result<Zeroizing<[u64; 2]>, Error> {
-        let n = 1u64 << self.table.bits;
+        let table = self.table.borrow();
+        let n = 1u64 << table.bits;
         if opened >= n {
             return Err(Error::Domain);
         }
         let mask = n - 1;
         let zero = Zeroizing::new(self.comparison.eval(self.party, opened, 0)?);
         let mut result = Zeroizing::new(*self.base);
-        for (j, pair) in self.table.coefficients.windows(2).enumerate() {
+        for (j, pair) in table.coefficients.windows(2).enumerate() {
             let indicator = Zeroizing::new(
                 self.comparison
-                    .eval(self.party, opened, self.table.boundaries[j + 1])?
+                    .eval(self.party, opened, table.boundaries[j + 1])?
                     .wrapping_sub(*zero)
                     & mask,
             );
@@ -276,8 +349,59 @@ fn issue_inner(
     input_mask: u64,
     allocation_limit: usize,
     issue_dcf: impl FnOnce(u8, u8, u64, usize) -> Result<[interval_fss::RingComparison; 2], Error>,
-    mut random: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    random: impl FnMut(&mut [u8]) -> Result<(), Error>,
 ) -> Result<([RingParty; 2], RingResources), Error> {
+    issue_with_tables(
+        table,
+        input_mask,
+        allocation_limit,
+        || {
+            let a = copy_public(
+                table.bits,
+                &table.boundaries,
+                &table.coefficients,
+                allocation_limit,
+            )?;
+            let b = copy_public(
+                table.bits,
+                &table.boundaries,
+                &table.coefficients,
+                allocation_limit,
+            )?;
+            let copies = [a.capacity_bytes(), b.capacity_bytes()];
+            Ok(([a, b], copies))
+        },
+        issue_dcf,
+        random,
+    )
+}
+
+/// Opt-in public ownership only. The caller retains and charges the canonical
+/// Arc backing independently through the last evaluator. Private issuance is
+/// the same algorithm and deliberately keeps the legacy conservative envelope.
+pub(crate) fn issue_ring_shared(
+    table: &Arc<RingTable>,
+    input_mask: u64,
+    allocation_limit: usize,
+) -> Result<SharedRingIssuance, Error> {
+    issue_with_tables(
+        table,
+        input_mask,
+        allocation_limit,
+        || Ok(([Arc::clone(table), Arc::clone(table)], [0; 2])),
+        interval_fss::RingComparison::issue,
+        |bytes| getrandom::fill(bytes).map_err(|_| Error::Randomness),
+    )
+}
+
+fn issue_with_tables<T: Borrow<RingTable>>(
+    table: &RingTable,
+    input_mask: u64,
+    allocation_limit: usize,
+    tables: impl FnOnce() -> Result<([T; 2], [usize; 2]), Error>,
+    issue_dcf: impl FnOnce(u8, u8, u64, usize) -> Result<[interval_fss::RingComparison; 2], Error>,
+    mut random: impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> Result<([RingParty<T>; 2], RingResources), Error> {
     let input_mask = Zeroizing::new(input_mask);
     let n = 1u64 << table.bits;
     if *input_mask >= n {
@@ -288,23 +412,11 @@ fn issue_inner(
         return Err(Error::Resource);
     }
 
-    // Both public copies are allocated and bounded BEFORE entering DCF issuance;
-    // the shared DCF fallibly reserves its two correction owners before its RNG.
+    // Public copies (or clones of the already charged immutable Arc) are
+    // acquired BEFORE DCF issuance. DCF reserves both correction owners before RNG.
     // No dynamic allocation follows that first entropy request in this module.
-    let a_table = copy_public(
-        table.bits,
-        &table.boundaries,
-        &table.coefficients,
-        allocation_limit,
-    )?;
-    let b_table = copy_public(
-        table.bits,
-        &table.boundaries,
-        &table.coefficients,
-        allocation_limit,
-    )?;
+    let ([a_table, b_table], copies) = tables()?;
     let dcf_cost = interval_fss::RingComparison::resources(table.bits, table.bits)?;
-    let copies = [a_table.capacity_bytes(), b_table.capacity_bytes()];
     let actual_tables = account(table, copies, [dcf_cost; 2]);
     if actual_tables.peak_logical_allocation_bytes > allocation_limit {
         return Err(Error::Resource);

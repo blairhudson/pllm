@@ -86,8 +86,9 @@ pub struct Resources {
     pub frame_bytes_total: usize,
     /// Logical native private payload across both roles, not serialized wire.
     pub private_material_bytes_total: usize,
-    /// Cumulative public payload copied into the two native lookup parties.
-    /// Original immutable tables remain separate live plan owners.
+    /// Cumulative public ownership copies into both native lookup parties:
+    /// payload for local tables, Arc handles for cached lowered chunks.
+    /// Immutable backing remains a separate charged live owner.
     pub public_table_copy_bytes_total: usize,
     /// Conservative bit-level work: DCF evaluations times input width, plus
     /// local instructions and primitive triples/VM instructions. Compact one-hot

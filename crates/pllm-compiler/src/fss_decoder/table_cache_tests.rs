@@ -55,6 +55,68 @@ fn context(p: &Program) -> Context {
 }
 
 #[test]
+fn cached_kernel_charges_lowered_construction_metadata_per_process_once() {
+    let program = fixture();
+    let budget = request_budget(&program).unwrap();
+    let tables = request_tables(&program, &budget).unwrap();
+    let mut state = Schedule::new(&program, context(&program), 0, None, &tables).unwrap();
+    let mut party_handles = 0;
+    let before = state.resources.public_copy_bytes;
+    drop(
+        state
+            .cached_kernel(&[0], 1, |tables| {
+                let plan = gates::silu_cached(
+                    gates::InputRange {
+                        min: -4096,
+                        max: 4096,
+                    },
+                    tables,
+                )?
+                .0;
+                party_handles = plan.resources().public_table_copy_bytes_total;
+                Ok(plan)
+            })
+            .unwrap(),
+    );
+    let first = tables.stats();
+    assert_eq!(
+        state.resources.public_copy_bytes - before,
+        3 * first.table_payload_copy_bytes
+            + 3 * first.lowered_construction_metadata_bytes
+            + 24 * first.references
+            + 512 * first.misses
+            + 3 * std::mem::size_of::<cache::Stats>()
+            + 2 * party_handles
+    );
+    let before = state.resources.public_copy_bytes;
+    drop(
+        state
+            .cached_kernel(&[0], 1, |tables| {
+                Ok(gates::silu_cached(
+                    gates::InputRange {
+                        min: -4096,
+                        max: 4096,
+                    },
+                    tables,
+                )?
+                .0)
+            })
+            .unwrap(),
+    );
+    assert_eq!(
+        tables.stats().lowered_construction_metadata_bytes,
+        first.lowered_construction_metadata_bytes
+    );
+    assert_eq!(
+        state.resources.public_copy_bytes - before,
+        24 + 3 * std::mem::size_of::<cache::Stats>() + 2 * party_handles
+    );
+    drop(state);
+    drop(tables);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
 fn complete_schedule_reuses_real_tables_and_charges_only_real_misses() {
     let program = fixture();
     let budget = request_budget(&program).unwrap();
@@ -73,7 +135,12 @@ fn complete_schedule_reuses_real_tables_and_charges_only_real_misses() {
         (5, 5, 5)
     );
     assert_eq!(stats.generated_words, 8192 + 128 + 256);
-    assert_eq!(stats.table_payload_copy_bytes, 65536 + 4096 + 3072);
+    assert_eq!(
+        stats.table_payload_copy_bytes,
+        65536 + 4096 + 3072 + stats.lowered_payload_bytes
+    );
+    assert!(stats.lowered_chunk_constructions > stats.retained_entries);
+    assert!(stats.lowered_retained_bytes > stats.lowered_payload_bytes);
     let a = state.resources;
     let b = program.resources();
     assert_eq!(

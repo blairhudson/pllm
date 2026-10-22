@@ -509,6 +509,12 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             tables.table_payload_copy_bytes,
             self.accounted_tables.table_payload_copy_bytes,
         )?;
+        let lowered_metadata = delta(
+            tables.lowered_construction_metadata_bytes,
+            self.accounted_tables.lowered_construction_metadata_bytes,
+        )?
+        .checked_mul(3)
+        .ok_or(Error::Resource)?;
         if !cached_tables && references != 0 {
             return Err(Error::Context);
         }
@@ -518,8 +524,9 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         // Only actual newly constructed owners receive generation/validation/
         // content-hash cost. Cached references still charge bounded structural
         // identity checks, Arc/metadata copies, Plan digest updates, and resource
-        // geometry walks on both workers and dealer. Actual primitive work and
-        // per-party lookup copies remain unchanged above/below this accounting.
+        // geometry walks on both workers and dealer. Actual primitive work is
+        // unchanged; lookup resources distinguish copied payload from shared
+        // public handles, whose independently leased backing is in the cache.
         let table_lowering = if cached_tables {
             let chunks = r.public_table_reservation_bytes.div_ceil(256 * 8);
             let per_reference = 4096usize
@@ -543,14 +550,19 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         let lowering = table_lowering
             .checked_add(plan.input_bits().len() * 32)
             .and_then(|n| n.checked_add(r.instructions * 4))
-            // Cache stats snapshot/deltas and ten counter commitments are also
+            // Cache stats snapshot/deltas and counter commitments are also
             // performed on kernels with no table references; never free work.
             .and_then(|n| n.checked_add(1024))
             .ok_or(Error::Resource)?;
         self.resources.work = checked_add(self.resources.work, lowering)?;
+        self.resources.work = checked_add(self.resources.work, lowered_metadata)?;
+        // Fixed miss allowance covers raw Table/cache identity metadata only.
+        // Lowered chunk headers/counters/handles scale with actual construction,
+        // independently of retained backing and per-issuance/import handles.
         let metadata_copies = references
             .checked_mul(24)
             .and_then(|n| n.checked_add(misses.checked_mul(512)?))
+            .and_then(|n| n.checked_add(lowered_metadata))
             .and_then(|n| n.checked_add(3 * std::mem::size_of::<cache::Stats>()))
             .ok_or(Error::Resource)?;
         self.resources.public_copy_bytes = checked_add(
@@ -568,6 +580,10 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             tables.table_hashes,
             tables.table_hash_bytes,
             tables.table_payload_copy_bytes,
+            tables.lowered_chunk_constructions,
+            tables.lowered_payload_bytes,
+            tables.lowered_construction_metadata_bytes,
+            tables.lowered_retained_bytes,
             tables.generated_words,
             tables.retained_bytes,
             tables.retained_entries,
@@ -587,7 +603,12 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         )?;
         self.resources.public_copy_bytes = checked_add(
             self.resources.public_copy_bytes,
-            r.public_table_copy_bytes_total,
+            // Cached lowered chunks allocate no party payload copies. Count
+            // handle writes at dealer issuance AND receiving-role import; the
+            // process-local canonical backings were constructed/charged above.
+            r.public_table_copy_bytes_total
+                .checked_mul(if cached_tables { 2 } else { 1 })
+                .ok_or(Error::Resource)?,
         )?;
         // Two independent worker Plans and a separate dealer Plan may coexist.
         // The primitive combined envelope already includes one Plan, two native

@@ -1,6 +1,7 @@
 //! Bounded request-local immutable native source tables. A hit clones only Arc;
 //! no entry generation, table payload copy or content hash occurs on that path.
-//! Party lookup copies and fresh preprocessing are deliberately NOT cached.
+//! Validated original-public lowered chunks share a separate leased backing.
+//! Fresh preprocessing, masks and randomized bases are deliberately NOT cached.
 use super::super::{allocate, lookup, Budget, Error, Lease};
 use super::source_tables;
 use std::{cell::RefCell, mem::size_of, sync::Arc};
@@ -59,9 +60,17 @@ pub struct Stats {
     pub table_hashes: usize,
     pub table_hash_bytes: usize,
     pub table_payload_copy_bytes: usize,
+    /// Original public partitions constructed once, never randomized party data.
+    pub lowered_chunk_constructions: usize,
+    pub lowered_payload_bytes: usize,
+    /// Completed lowered headers, Arc counters and stored handles, including
+    /// failed attempts. Separate from payload copies and live backing leases.
+    pub lowered_construction_metadata_bytes: usize,
+    pub lowered_retained_bytes: usize,
     pub generated_words: usize,
     /// Cache-held shared owners, also possibly held by live Plans. Not exclusive
-    /// memory and not refunded until the LAST cache/Plan handle is dropped.
+    /// memory: raw owners follow cache/Plan handles; lowered backing follows
+    /// the last cache/Plan/issued/imported party handle independently.
     pub retained_bytes: usize,
     pub retained_entries: usize,
     pub metadata_reservation_bytes: usize,
@@ -213,7 +222,7 @@ impl<'a> SourceTableCache<'a> {
             return Ok(owner);
         }
         state.stats.misses = state.stats.misses.checked_add(1).ok_or(Error::Resource)?;
-        let retained = size_of::<lookup::Table<'_>>() + count * 8 + shared_metadata_bytes();
+        let mut retained = size_of::<lookup::Table<'_>>() + count * 8 + shared_metadata_bytes();
         if state.entries.len() == self.limits.max_entries
             || state
                 .stats
@@ -250,12 +259,34 @@ impl<'a> SourceTableCache<'a> {
                 lookup::Table::new_zero_extended(50, &values, source, budget)?
             }
         };
-        // Construction/hash are completed actual work, counted separately from
-        // all references and unchanged per-party lookup copies/material.
+        // These copies/hashes already happened, even if lowering or admission
+        // fails later. Failed attempts never publish retained owners or hits.
         state.stats.table_constructions += 1;
         state.stats.table_hashes += 1;
         state.stats.table_hash_bytes += lookup::Table::construction_hash_bytes(count);
         state.stats.table_payload_copy_bytes += count * 8;
+        let lowered_retained = table.lowered_reservation_bytes();
+        retained = retained
+            .checked_add(lowered_retained)
+            .ok_or(Error::Resource)?;
+        if state
+            .stats
+            .retained_bytes
+            .checked_add(retained)
+            .ok_or(Error::Resource)?
+            > self.limits.max_retained_bytes
+        {
+            return Err(Error::Resource);
+        }
+        let table = table.with_shared_chunks_counted(|payload, metadata| {
+            state.stats.lowered_chunk_constructions += usize::from(payload != 0);
+            state.stats.lowered_payload_bytes += payload;
+            state.stats.table_payload_copy_bytes += payload;
+            state.stats.lowered_construction_metadata_bytes += metadata;
+        })?;
+        // Construction/hash are completed actual work, counted separately from
+        // per-reference public handles and unchanged fresh private material.
+        state.stats.lowered_retained_bytes += lowered_retained;
         let identity = Identity {
             namespace: self.namespace,
             numeric_revision: self.numeric_revision,

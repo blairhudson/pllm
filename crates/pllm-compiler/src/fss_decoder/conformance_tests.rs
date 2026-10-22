@@ -65,6 +65,15 @@ fn tensor_checked_profile_preserves_frozen_generated_qwen() {
     frozen_generated_qwen_with_schedule(true, OnlineSchedule::TensorV1);
 }
 
+#[test]
+#[ignore = "fresh-material shared-public-chunk full-decoder regression; explicit focused run"]
+fn tensor_shared_lowered_chunks_preserve_frozen_generated_qwen() {
+    // Includes complete row reductions, adjacent stable selection, fixed-T
+    // private feedback and final acceptance. Native execution separately checks
+    // every fresh issued pair, material byte and frame against admission.
+    frozen_generated_qwen_with_schedule(false, OnlineSchedule::TensorV1);
+}
+
 /// Ordinary regression: every physical node and private feedback step is checked
 /// against the independently frozen integer result. No export/evidence bundle.
 #[test]

@@ -17,6 +17,14 @@ const FIXTURE: &[u8] = include_bytes!(concat!(
 ));
 const SOURCES: &[(&str, &[u8])] = &[
     (
+        "crates/pllm-garble/src/fixed_activation_tables.rs",
+        include_bytes!("../../fixed_activation_tables.rs"),
+    ),
+    (
+        "crates/pllm-garble/src/fixed_activation_table_values.rs",
+        include_bytes!("../../fixed_activation_table_values.rs"),
+    ),
+    (
         "crates/pllm-garble/src/fusefss/typed_comparison.rs",
         include_bytes!("../../fusefss/typed_comparison.rs"),
     ),

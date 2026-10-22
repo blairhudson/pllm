@@ -15,7 +15,7 @@ use crate::interval_fss::RingComparison;
 use crate::shared_affine_lookup_reference::{issue_ring, RingParty, RingTable};
 use crate::shared_rescale_reference::Context;
 use sha2::{Digest, Sha256};
-use std::mem::size_of;
+use std::{mem::size_of, sync::Arc};
 use zeroize::Zeroizing;
 
 /// Bounded public composition only: 17-bit indices cover the source reciprocal
@@ -37,7 +37,15 @@ pub struct Table<'a> {
     bits: u8,
     source_digest: [u8; 32],
     digest: [u8; 32],
+    lowered: Option<Arc<Lowered<'a>>>,
     lease: Lease<'a>,
+}
+
+// Public original partitions only. This independent lease must outlive the raw
+// Table/cache whenever an issued or imported party still holds these chunks.
+struct Lowered<'a> {
+    chunks: Vec<Arc<RingTable>>,
+    _lease: Lease<'a>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,9 +55,12 @@ pub struct Resources {
     pub dcf_keys_per_party: usize,
     pub dcf_evaluations_per_party: usize,
     pub private_key_bytes_per_party: usize,
+    /// Actual public ownership copies: payload for legacy parties, Arc handles
+    /// only for shared parties. Shared backing is charged once below instead.
     pub public_table_bytes_per_party: usize,
     pub peer_frame_bytes_per_party: usize,
     pub output_bytes_per_party: usize,
+    /// Raw source plus any independently leased immutable lowered backing.
     pub table_reservation_bytes: usize,
     /// Additional reservation; the immutable Table retains its separate lease.
     pub issuance_reservation_bytes: usize,
@@ -99,6 +110,7 @@ impl<'a> Table<'a> {
             bits,
             source_digest,
             digest: hash.finalize().into(),
+            lowered: None,
             lease,
         })
     }
@@ -129,6 +141,74 @@ impl<'a> Table<'a> {
         end - start + usize::from(start != 0) + usize::from((end as u64) < 1u64 << self.bits)
     }
 
+    pub(crate) fn lowered_reservation_bytes(&self) -> usize {
+        let chunks = self.entries().div_ceil(CHUNK_ENTRIES);
+        size_of::<Lowered<'_>>()
+            + 2 * size_of::<usize>()
+            + chunks * size_of::<Arc<RingTable>>()
+            + (0..chunks)
+                .map(|c| {
+                    size_of::<RingTable>() + 2 * size_of::<usize>() + self.intervals(c) * 24 + 8
+                })
+                .sum::<usize>()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn lowered_payload_bytes(&self) -> usize {
+        (0..self.entries().div_ceil(CHUNK_ENTRIES))
+            .map(|c| self.intervals(c) * 24 + 8)
+            .sum()
+    }
+
+    /// Request-local opt-in. Default constructors and codecs keep their original
+    /// behavior. All canonical chunk construction is admitted before allocation;
+    /// no masks, nonces, keys or randomized bases enter this immutable owner.
+    #[cfg(test)]
+    pub(crate) fn with_shared_chunks(self) -> Result<Self, Error> {
+        self.with_shared_chunks_counted(|_, _| {})
+    }
+
+    /// Report completed public construction even if a later allocation fails.
+    /// Retained bytes are committed separately, only after all chunks succeed.
+    pub(crate) fn with_shared_chunks_counted(
+        mut self,
+        mut constructed: impl FnMut(usize, usize),
+    ) -> Result<Self, Error> {
+        if self.lowered.is_some() {
+            return Ok(self);
+        }
+        let budget = self.lease.budget;
+        let lease = budget.reserve(self.lowered_reservation_bytes())?;
+        let count = self.entries().div_ceil(CHUNK_ENTRIES);
+        let mut chunks = exact(count, budget)?;
+        for chunk in 0..count {
+            let (boundaries, coefficients) = self.chunk_buffers(chunk)?;
+            let table = RingTable::from_owned(
+                self.bits,
+                boundaries,
+                coefficients,
+                size_of::<RingTable>() + self.intervals(chunk) * 24 + 8,
+            )
+            .map_err(primitive_error)?;
+            // Payload and validated RingTable header already exist even if the
+            // following Arc allocation fails. Count metadata independently.
+            constructed(self.intervals(chunk) * 24 + 8, size_of::<RingTable>());
+            budget.allocation()?;
+            chunks.push(Arc::new(table));
+            constructed(0, 2 * size_of::<usize>() + size_of::<Arc<RingTable>>());
+        }
+        budget.allocation()?;
+        self.lowered = Some(Arc::new(Lowered {
+            chunks,
+            _lease: lease,
+        }));
+        constructed(
+            0,
+            size_of::<Lowered<'_>>() + 2 * size_of::<usize>() + size_of::<Arc<Lowered<'_>>>(),
+        );
+        Ok(self)
+    }
+
     pub fn resources(&self, lanes: usize) -> Result<Resources, Error> {
         if !(1..=MAX_LANES).contains(&lanes) {
             return Err(Error::Domain);
@@ -146,15 +226,22 @@ impl<'a> Table<'a> {
             evaluations = checked_add(evaluations, intervals)?;
             largest_public = largest_public.max(bytes);
         }
-        public_bytes = checked_mul(public_bytes, lanes)?;
+        public_bytes = if self.lowered.is_some() {
+            checked_add(
+                checked_mul(keys, size_of::<Arc<RingTable>>())?,
+                size_of::<Arc<Lowered<'_>>>(),
+            )?
+        } else {
+            checked_mul(public_bytes, lanes)?
+        };
         let frame = checked_add(HEADER_BYTES, checked_mul(keys, 8)?)?;
         let output = checked_mul(lanes, 8)?;
         let unit_bytes = checked_mul(
             keys,
             checked_add(size_of::<Unit>(), dcf.key_capacity_bytes)?,
         )?;
-        // All original public copies, key owners, masked opening owners and
-        // exported frame/output can coexist. No uncharged secret scratch buffer.
+        // All original public copies (or shared handles), key owners, masked
+        // openings and exported frame/output can coexist. No secret scratch discount.
         let party = checked_add(
             checked_add(unit_bytes, public_bytes)?,
             checked_add(
@@ -170,7 +257,11 @@ impl<'a> Table<'a> {
             checked_add(2 * FIXED_BYTES, checked_mul(dcf.issuance_scratch_bytes, 2)?)?,
         )?;
         let issuance = checked_add(checked_mul(party, 2)?, scratch)?;
-        if checked_add(issuance, self.lease.bytes)? > MAX_ALLOCATION_BYTES {
+        let table_bytes = checked_add(
+            self.lease.bytes,
+            self.lowered.as_ref().map_or(0, |v| v._lease.bytes),
+        )?;
+        if checked_add(issuance, table_bytes)? > MAX_ALLOCATION_BYTES {
             return Err(Error::Resource);
         }
         Ok(Resources {
@@ -182,13 +273,25 @@ impl<'a> Table<'a> {
             public_table_bytes_per_party: public_bytes,
             peer_frame_bytes_per_party: frame,
             output_bytes_per_party: output,
-            table_reservation_bytes: self.lease.bytes,
+            table_reservation_bytes: table_bytes,
             issuance_reservation_bytes: issuance,
             party_reservation_bytes: party,
         })
     }
 
     fn chunk(&self, index: usize) -> Result<RingTable, Error> {
+        let (boundaries, coefficients) = self.chunk_buffers(index)?;
+        self.lease.budget.allocation()?;
+        RingTable::new(
+            self.bits,
+            &boundaries,
+            &coefficients,
+            size_of::<RingTable>() + boundaries.len() * 8 + coefficients.len() * 16,
+        )
+        .map_err(primitive_error)
+    }
+
+    fn chunk_buffers(&self, index: usize) -> Result<(Vec<u64>, Vec<[u64; 2]>), Error> {
         let start = index * CHUNK_ENTRIES;
         let end = (start + CHUNK_ENTRIES).min(self.entries());
         let count = self.intervals(index);
@@ -207,19 +310,12 @@ impl<'a> Table<'a> {
             coefficients.push([0, 0]);
             boundaries.push(1u64 << self.bits);
         }
-        self.lease.budget.allocation()?;
-        RingTable::new(
-            self.bits,
-            &boundaries,
-            &coefficients,
-            size_of::<RingTable>() + boundaries.len() * 8 + coefficients.len() * 16,
-        )
-        .map_err(primitive_error)
+        Ok((boundaries, coefficients))
     }
 
     /// Trusted dealer issuance. The Table budget also owns the issued parties.
-    /// Public table contents may be retired immediately after this call: each
-    /// evaluator has its own immutable public copies and its own private keys.
+    /// Public Table may retire immediately: each evaluator retains immutable
+    /// public copies or independently leased shared chunks, plus fresh private keys.
     pub fn issue(&self, lanes: usize, context: Context) -> Result<[Party<'a>; 2], Error> {
         let r = self.resources(lanes)?;
         context
@@ -236,13 +332,31 @@ impl<'a> Table<'a> {
         let mask = (1u64 << self.bits) - 1;
         // Chunk-major order is public and fixed, including all-zero slices.
         for chunk in 0..r.chunks_per_lane {
-            let table = self.chunk(chunk)?;
+            let local = if self.lowered.is_none() {
+                Some(self.chunk(chunk)?)
+            } else {
+                None
+            };
+            let table = self
+                .lowered
+                .as_ref()
+                .map(|v| v.chunks[chunk].as_ref())
+                .or(local.as_ref())
+                .ok_or(Error::Domain)?;
             let cost = table.resources().map_err(primitive_error)?;
             for _ in 0..lanes {
                 let offset = Zeroizing::new(random()? & mask);
                 budget.allocation()?;
-                let ([a, b], _) = issue_ring(&table, *offset, cost.peak_logical_allocation_bytes)
-                    .map_err(primitive_error)?;
+                let [a, b] = if let Some(lowered) = &self.lowered {
+                    let (pair, _) = lowered.chunks[chunk]
+                        .issue_shared(*offset, cost.peak_logical_allocation_bytes)
+                        .map_err(primitive_error)?;
+                    pair.map(Lookup::Shared)
+                } else {
+                    let (pair, _) = issue_ring(table, *offset, cost.peak_logical_allocation_bytes)
+                        .map_err(primitive_error)?;
+                    pair.map(Lookup::Local)
+                };
                 let share = Zeroizing::new(random()? & mask);
                 left.push(Unit {
                     lookup: a,
@@ -263,6 +377,7 @@ impl<'a> Table<'a> {
                 nonce,
                 resources: r,
                 state: Some(State::Ready(left)),
+                _lowered: self.lowered.as_ref().map(Arc::clone),
                 lease: reservation.split(r.party_reservation_bytes)?,
             },
             Party {
@@ -273,6 +388,7 @@ impl<'a> Table<'a> {
                 nonce,
                 resources: r,
                 state: Some(State::Ready(right)),
+                _lowered: self.lowered.as_ref().map(Arc::clone),
                 lease: reservation.split(r.party_reservation_bytes)?,
             },
         ])
@@ -294,8 +410,30 @@ impl Table<'_> {
     }
 }
 
+enum Lookup {
+    Local(RingParty),
+    Shared(RingParty<Arc<RingTable>>),
+}
+impl Lookup {
+    fn write_material(&self, out: &mut Vec<u8>) {
+        match self {
+            Self::Local(p) => p.write_material(out),
+            Self::Shared(p) => p.write_material(out),
+        }
+    }
+    fn evaluate(
+        self,
+        opened: u64,
+    ) -> Result<Zeroizing<[u64; 2]>, crate::shared_rescale_reference::Error> {
+        match self {
+            Self::Local(p) => p.evaluate(opened),
+            Self::Shared(p) => p.evaluate(opened),
+        }
+    }
+}
+
 struct Unit {
-    lookup: RingParty,
+    lookup: Lookup,
     mask: Zeroizing<u64>,
 }
 
@@ -314,6 +452,7 @@ pub struct Party<'a> {
     nonce: [u8; 32],
     resources: Resources,
     state: Option<State>,
+    _lowered: Option<Arc<Lowered<'a>>>,
     lease: Lease<'a>,
 }
 
@@ -385,10 +524,28 @@ impl<'a> Party<'a> {
             budget.reserve(r.issuance_reservation_bytes - r.party_reservation_bytes)?;
         let mut keys = exact(r.dcf_keys_per_party, budget)?;
         for chunk in 0..r.chunks_per_lane {
-            let public = table.chunk(chunk)?;
+            let public = if table.lowered.is_none() {
+                Some(table.chunk(chunk)?)
+            } else {
+                None
+            };
             for _ in 0..lanes {
                 let mask = Zeroizing::new(input.word(table.bits)?);
-                let lookup = RingParty::read_material(&mut input, role, &public, budget)?;
+                let lookup = if let Some(lowered) = &table.lowered {
+                    Lookup::Shared(RingParty::read_shared_material(
+                        &mut input,
+                        role,
+                        Arc::clone(&lowered.chunks[chunk]),
+                        budget,
+                    )?)
+                } else {
+                    Lookup::Local(RingParty::read_material(
+                        &mut input,
+                        role,
+                        public.as_ref().ok_or(Error::Domain)?,
+                        budget,
+                    )?)
+                };
                 keys.push(Unit { lookup, mask });
             }
         }
@@ -401,12 +558,14 @@ impl<'a> Party<'a> {
             nonce,
             resources: r,
             state: Some(State::Ready(keys)),
+            _lowered: table.lowered.as_ref().map(Arc::clone),
             lease: reservation.split(r.party_reservation_bytes)?,
         })
     }
 
     pub fn cancel(&mut self) {
         self.state = None;
+        self._lowered = None;
     }
 
     pub fn is_consumed(&self) -> bool {
@@ -414,6 +573,7 @@ impl<'a> Party<'a> {
     }
 
     pub fn start(&mut self, shares: &[u64]) -> Result<Frame<'a>, Error> {
+        let lowered = self._lowered.take();
         let State::Ready(keys) = self.state.take().ok_or(Error::Consumed)? else {
             return Err(Error::Context);
         };
@@ -444,10 +604,12 @@ impl<'a> Party<'a> {
                 .split(self.resources.peer_frame_bytes_per_party)?,
         };
         self.state = Some(State::Opened(keys, opened));
+        self._lowered = lowered;
         Ok(frame)
     }
 
     pub fn finish(&mut self, peer: &[u8]) -> Result<Output<'a>, Error> {
+        let _lowered = self._lowered.take();
         let State::Opened(keys, opened) = self.state.take().ok_or(Error::Consumed)? else {
             return Err(Error::Context);
         };

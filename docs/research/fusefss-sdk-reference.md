@@ -123,6 +123,22 @@ index payloads again. The general arbitrary-index selector remains separate.
 This selector and compact templates have a distinct Program/schedule identity;
 the original Q12 numeric source contract remains unchanged.
 
+Validated public lookup chunks now share immutable, independently leased native
+backing across dealer issuance and holder import. Only original public values
+are reused: every invocation still issues fresh masks, keys and private bases.
+Raw-table generation, lowered payload construction, chunk headers/Arc counters,
+retained backing and per-issuance/import handles have separate accounting. The
+last Plan, cache or party handle retains its backing charge; exported packets
+and import-transition copies retain their own charges. Duplicate one-use imports
+reject before parsing or allocation, including after a failed import.
+
+Normal regressions cover exact-budget overlap, retained-owner drop order,
+allocation failure and cached/legacy parity. The opt-in generated-Qwen complete
+decoder check also preserves frozen observations and private feedback. This is
+storage reuse, not fewer protected operations, rounds or fresh private material.
+Historical trained-source rejection and WAN results below retain their original
+builds; they do not establish admission or speed for this ownership change.
+
 `capacity="decoder"` streams Q12 coefficients and row statistics into shared-core
 immutable files. Public contractions reuse `pllm_core::streamed_matrix`; the
 complete product still precedes the original FuseFSS floor. Complete vocabulary
