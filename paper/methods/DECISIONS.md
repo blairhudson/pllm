@@ -573,6 +573,26 @@ Admission, quiescence, ownership and exact transcript/share regressions precede
 acceptance. Expanded oracle-capture mapping, full-checkpoint admission, SDK
 promotion, security and performance qualification remain separate gates.
 
+## D24. Bounded NEXUS GELU numerical decision experiment
+
+**Explicitly approved by the user:** implement and run the bounded experiment in
+`docs/plans/nexus-gelu-numeric-experiment.md`, using the full cited PUMA printed
+coefficients as exact decimal-rational research inputs, the shorter BumbleBee
+precision control, the published dyadic `f4,g_(4,1/4)` with two g then two f
+compositions, threshold-difference normalization and adjacent-difference blending.
+Preserve NEXUS's separate piecewise endpoint oracle. Study `[-8,8]` only as a
+research domain; it is not a checkpoint/layer input certificate.
+
+High-precision samples and bounded adaptive interval enclosures must remain
+separate evidence. Retain uncertainty, inactive-branch amplification and failure;
+sampled maxima do not become uniform bounds. Do not silently refit, clip, add
+repetitions or move thresholds to repair the candidate.
+
+This approves a mathematical decision experiment, not the authors' hidden
+coefficient conversion, CKKS evaluation DAG/rounding/rescale/refresh parameters,
+an error tolerance, an executable NEXUS profile, encrypted execution, or decoder
+and SDK qualification. Existing backend and complete-request gates remain open.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -600,6 +620,7 @@ promotion, security and performance qualification remain separate gates.
 | D21 | Approved: paper-derived BumbleBee OLT/ParseMat indexing corrections | Rectangular stride, right-block index and global unrotated parsing corrected explicitly; pure algebra only, with B-N1 and HE/decoder qualification open. |
 | D22 | Approved: bounded SIGMA compiler-certified linear/rescale/activation handoff | Private ring50/Q12 complete dot, source-bound quarter-ring proof, exact GapARS12 and unchanged D20, bounded geometry and continuous original-owner admission; checkpoint submatrices labeled separately, no decoder/SDK qualification. |
 | D23 | Approved: bounded PUMA mid-graph handoff and deterministic test support | Same original runtime/PRSS, drained router and complete-node boundary; unchanged numerics/ceilings/sticky validity, nondefault insecure test-only fresh setup, with exact parity and ownership validation still required. |
+| D24 | Approved: bounded NEXUS GELU numerical decision experiment | Fixed source-derived polynomial/selector candidate, separate endpoint oracle, research-only domain and honest sampled/enclosed error; no executable CKKS/profile adoption or automatic repair. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
