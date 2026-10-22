@@ -941,6 +941,16 @@ pub enum Construction {
     Builder {
         lanes: usize,
     },
+    /// Program::negative only: new -> sign -> from_bit -> finish.
+    /// Does not cover negative_compact or arbitrary Builder extensions.
+    Negative {
+        lanes: usize,
+    },
+    /// Program::equal_zero only: full-ring bits, fixed six-shift OR reduction,
+    /// LowBits(1), from_bit, scalar affine, finish. Not equal_zero_bounded.
+    EqualZero {
+        lanes: usize,
+    },
     GuardedSilu {
         lanes: usize,
     },
@@ -1054,6 +1064,31 @@ impl Construction {
             Self::Builder { lanes } | Self::CheckedRange { lanes } => {
                 tile(lanes)?;
                 (0, 0, 0, 0)
+            }
+            Self::Negative { lanes } => {
+                tile(lanes)?;
+                // tensor_numeric.rs: new -> sign -> from_bit/from_boolean ->
+                // finish. new/row initialize the inline Program; node/push and
+                // bit_width touch only its inline arrays. No bit-map/shift array,
+                // coefficient slice, affine Vec allocation/copy or proof buffer.
+                // finish's SHA/available_at and owner/return/publication overlap
+                // use the common inventory below, not execution scratch.
+                (0, 0, 0, 0)
+            }
+            Self::EqualZero { lanes } => {
+                tile(lanes)?;
+                // tensor_numeric.rs: new -> bits -> six (ShiftRight, bit_or)
+                // pairs -> LowBits(1) -> from_bit/from_boolean -> scalar affine
+                // -> finish. bit_map/BitMap::width, bit_or and affine's scalar
+                // output_bounds introduce no tables or proof arrays. Charge the
+                // [32,16,8,4,2,1] expression slot and consuming iterator owner
+                // separately, including its cursor metadata, even if moved.
+                // Shifts infer u8 from BitMap::ShiftRight (not i32/usize).
+                let buffers = sum(&[
+                    std::mem::size_of::<[u8; 6]>(),
+                    std::mem::size_of::<std::array::IntoIter<u8, 6>>(),
+                ])?;
+                (0, 0, buffers, 0)
             }
             Self::AllValid { lanes } => {
                 row(1, lanes)?;

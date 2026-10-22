@@ -167,6 +167,192 @@ fn native_construction_phase_inventories_are_explicit_not_execution_allowances()
 }
 
 #[test]
+fn negative_and_equal_zero_have_separate_native_buffer_and_return_inventories() {
+    for lanes in [1, 3, 127, 128] {
+        let negative = Construction::Negative { lanes }.quote().unwrap();
+        let equality = Construction::EqualZero { lanes }.quote().unwrap();
+        for q in [negative, equality] {
+            verify_phases(q);
+            // Both APIs return Result<Program>; new/row returns Result<Builder>.
+            // Neither path returns a certificate, tuple or coefficient owner.
+            assert_eq!(
+                q.return_slot_bytes,
+                size_of::<Result<Program, Error>>().max(size_of::<Result<Builder, Error>>())
+            );
+            assert_eq!(q.borrowed_public_bytes, 0);
+            assert_eq!(q.public_table_bytes, 0);
+            assert_eq!(q.proof_buffer_bytes, 0);
+            assert_eq!(
+                q.immutable_template_bytes,
+                size_of::<Program>() + 2 * size_of::<usize>()
+            );
+        }
+        // Negative has no bit maps or reduction array. Equality has one u8
+        // six-shift expression and one owning IntoIter (buffer + cursor state).
+        // This independently names both slots rather than borrowing quote math.
+        let shifts = size_of::<[u8; 6]>();
+        let consuming_shifts = size_of::<std::array::IntoIter<u8, 6>>();
+        assert_eq!(negative.constructor_buffer_bytes, 0);
+        assert_eq!(equality.constructor_buffer_bytes, shifts + consuming_shifts);
+        assert_eq!(
+            equality.new_peak_bytes - negative.new_peak_bytes,
+            shifts + consuming_shifts
+        );
+        // The larger equality inventory must not silently widen Builder scope.
+        assert_eq!(
+            Construction::Builder { lanes }
+                .quote()
+                .unwrap()
+                .constructor_buffer_bytes,
+            0
+        );
+    }
+}
+
+#[test]
+fn native_predicate_quotes_match_actual_geometry_errors_including_overflow_inputs() {
+    for lanes in [0, 129, MAX_ROW_LANES, usize::MAX / 2 + 1, usize::MAX] {
+        let input = Interval::new(i64::MIN, i64::MAX).unwrap();
+        for (family, actual) in [
+            (
+                Construction::Negative { lanes },
+                Program::negative(lanes, input),
+            ),
+            (
+                Construction::EqualZero { lanes },
+                Program::equal_zero(lanes, input),
+            ),
+        ] {
+            assert_eq!(
+                family.quote(),
+                Err(ConstructionQuoteError::Geometry(Error::Bounds)),
+                "{family:?}"
+            );
+            assert!(matches!(actual, Err(Error::Bounds)), "{family:?}");
+        }
+    }
+}
+
+#[test]
+fn native_predicate_quotes_cover_retained_resources_and_original_instruction_contracts() {
+    // Independent, explicit instruction inventories. In particular Negative
+    // must not inherit equality's bit maps or compact/bounded conversion path.
+    let negative_instructions = [
+        Instruction::Input,
+        Instruction::Sign(Value(0)),
+        Instruction::FromBit(Value(1)),
+    ];
+    let equality_instructions = [
+        Instruction::Input,
+        Instruction::Bits(Value(0)),
+        Instruction::BitMap(Value(1), BitMap::ShiftRight(32)),
+        Instruction::BitOr(Value(1), Value(2)),
+        Instruction::BitMap(Value(3), BitMap::ShiftRight(16)),
+        Instruction::BitOr(Value(3), Value(4)),
+        Instruction::BitMap(Value(5), BitMap::ShiftRight(8)),
+        Instruction::BitOr(Value(5), Value(6)),
+        Instruction::BitMap(Value(7), BitMap::ShiftRight(4)),
+        Instruction::BitOr(Value(7), Value(8)),
+        Instruction::BitMap(Value(9), BitMap::ShiftRight(2)),
+        Instruction::BitOr(Value(9), Value(10)),
+        Instruction::BitMap(Value(11), BitMap::ShiftRight(1)),
+        Instruction::BitOr(Value(11), Value(12)),
+        Instruction::BitMap(Value(13), BitMap::LowBits(1)),
+        Instruction::FromBit(Value(14)),
+        Instruction::Affine {
+            left: Value(15),
+            right: None,
+            coefficients: Affine {
+                left: -1,
+                right: 0,
+                constant: 1,
+            },
+        },
+    ];
+    let negative_widths = [0, 1, 0];
+    let equality_widths = [
+        0, 64, 32, 64, 48, 64, 56, 64, 60, 64, 62, 64, 63, 64, 1, 0, 0,
+    ];
+    for lanes in [1, 3, 127, 128] {
+        for (lower, upper) in [(i64::MIN, i64::MAX), (-3, 3), (0, 0), (-3, -1), (1, 3)] {
+            let input = Interval::new(lower, upper).unwrap();
+            let from_bit = WorkBudget::from_boolean(lanes, 1).unwrap();
+            let negative_work = WorkBudget::conversion(lanes, true)
+                .unwrap()
+                .checked_add(from_bit)
+                .unwrap();
+            let reduction_pair = WorkBudget::local()
+                .checked_add(WorkBudget::bit_or(lanes, 64).unwrap())
+                .unwrap();
+            let equality_work = WorkBudget::conversion(lanes, false)
+                .unwrap()
+                .checked_add(reduction_pair.checked_mul(6).unwrap())
+                .unwrap()
+                .checked_add(WorkBudget::local()) // LowBits(1)
+                .unwrap()
+                .checked_add(from_bit)
+                .unwrap()
+                .checked_add(WorkBudget::local()) // final affine
+                .unwrap();
+            for (family, program, instructions, widths, work) in [
+                (
+                    Construction::Negative { lanes },
+                    Program::negative(lanes, input).unwrap(),
+                    negative_instructions.as_slice(),
+                    negative_widths.as_slice(),
+                    negative_work,
+                ),
+                (
+                    Construction::EqualZero { lanes },
+                    Program::equal_zero(lanes, input).unwrap(),
+                    equality_instructions.as_slice(),
+                    equality_widths.as_slice(),
+                    equality_work,
+                ),
+            ] {
+                let q = family.quote().unwrap();
+                verify_phases(q);
+                let resources = program.resources().unwrap();
+                assert_eq!(q.public_table_bytes, resources.public_table_bytes);
+                assert_eq!(
+                    q.immutable_template_bytes,
+                    resources.immutable_template_bytes
+                );
+                assert!(q.new_peak_bytes >= resources.immutable_template_bytes);
+                assert_eq!(program.public_affine_count, 0);
+                for table in &program.public_affines {
+                    assert!(table.is_empty());
+                    assert_eq!(table.capacity(), 0); // no backing or deep copy
+                }
+                assert_eq!(program.lanes(), lanes);
+                assert_eq!(program.output_lanes(), lanes);
+                assert_eq!(program.output_bounds(), Interval::new(0, 1).unwrap());
+                assert_eq!(program.validity_lanes(), None);
+                assert_eq!(program.numeric_profile(), super::super::NUMERIC_PROFILE);
+                assert_eq!(program.work_budget(), work);
+                assert_eq!(program.instructions(), instructions.len() - 1);
+                assert_eq!(program.len, instructions.len());
+                assert_eq!(&program.bit_widths[..program.len], widths);
+                for (node, instruction) in program.nodes[..program.len].iter().zip(instructions) {
+                    let node = node.unwrap();
+                    assert_eq!(node.instruction, *instruction);
+                    assert_eq!(node.lanes, lanes);
+                }
+                assert!(program.nodes[program.len..].iter().all(Option::is_none));
+            }
+            // Existing before/after harness also freezes digest/work/output
+            // identity across advisory quoting, without executing any kernel.
+            compare_result(Construction::Negative { lanes }, || {
+                Program::negative(lanes, input)
+            });
+            compare_result(Construction::EqualZero { lanes }, || {
+                Program::equal_zero(lanes, input)
+            });
+        }
+    }
+}
+
+#[test]
 fn geometry_quote_rejects_zero_overflow_bad_lengths_and_unsupported_rope_generation() {
     use ConstructionQuoteError::*;
     for family in [
