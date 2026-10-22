@@ -248,6 +248,62 @@ fn measured<T>(f: impl FnOnce() -> T) -> (T, usize) {
 }
 
 #[test]
+fn caller_owned_rotary_outputs_allocate_nothing_on_success_or_rejection() {
+    use pllm_core::puma::multiply::tensor;
+
+    let mut cosine = [i64::MIN; tensor::MAX_TILE_LANES / 2];
+    let mut sine = [i64::MAX; tensor::MAX_TILE_LANES / 2];
+    for width in (2..=tensor::MAX_TILE_LANES).step_by(2) {
+        let half = width / 2;
+        for theta in [1.0, 10000.0, 1000000.0, f32::MAX] {
+            for position in [0, 1, 512] {
+                let expected =
+                    tensor::Program::rotary_coefficients(theta, position, width).unwrap();
+                let (result, bytes) = measured(|| {
+                    tensor::Program::rotary_coefficients_into(
+                        theta,
+                        position,
+                        width,
+                        &mut cosine[..half],
+                        &mut sine[..half],
+                    )
+                });
+                assert_eq!(result, Ok(()));
+                assert_eq!(bytes, 0);
+                assert_eq!(&cosine[..half], expected.0.as_slice());
+                assert_eq!(&sine[..half], expected.1.as_slice());
+            }
+        }
+    }
+    for (theta, position, width, cosine_len, sine_len, error) in [
+        (f32::NAN, 0, 2, 1, 1, Error::Bounds),
+        (0.0, 0, 2, 1, 1, Error::Bounds),
+        (1.0, 513, 2, 1, 1, Error::Bounds),
+        (1.0, 0, 0, 0, 0, Error::Bounds),
+        (1.0, 0, usize::MAX, 1, 1, Error::Bounds),
+        (1.0, 0, 2, 0, 1, Error::Shape),
+        (1.0, 0, 2, 1, 0, Error::Shape),
+        (1.0, 0, 2, 2, 1, Error::Shape),
+    ] {
+        cosine.fill(i64::MIN);
+        sine.fill(i64::MAX);
+        let (result, bytes) = measured(|| {
+            tensor::Program::rotary_coefficients_into(
+                theta,
+                position,
+                width,
+                &mut cosine[..cosine_len],
+                &mut sine[..sine_len],
+            )
+        });
+        assert_eq!(result, Err(error));
+        assert_eq!(bytes, 0);
+        assert_eq!(cosine, [i64::MIN; tensor::MAX_TILE_LANES / 2]);
+        assert_eq!(sine, [i64::MAX; tensor::MAX_TILE_LANES / 2]);
+    }
+}
+
+#[test]
 fn shape_limit_and_bad_binding_reject_before_payload_allocation() {
     let (context, op) = setup();
     let limits = Limits::default();
@@ -983,6 +1039,14 @@ fn tensor_program_owners(
     program: &multiply::tensor::Program,
     value: u64,
 ) -> [multiply::tensor::Executor; 3] {
+    tensor_program_owners_with_template(program, None, value)
+}
+
+fn tensor_program_owners_with_template(
+    program: &multiply::tensor::Program,
+    shared: Option<&std::sync::Arc<multiply::tensor::Program>>,
+    value: u64,
+) -> [multiply::tensor::Executor; 3] {
     use multiply::tensor::Executor;
     let lanes = program.lanes();
     let runtimes = compound_owners(PrssLimits::default());
@@ -1010,7 +1074,11 @@ fn tensor_program_owners(
             Limits::default(),
         )
         .unwrap();
-        Executor::new(runtime, program.clone(), input).unwrap()
+        match shared {
+            Some(program) => Executor::new_shared(runtime, program.clone(), input),
+            None => Executor::new(runtime, program.clone(), input),
+        }
+        .unwrap()
     })
 }
 
@@ -1438,6 +1506,298 @@ fn tensor_register_allocation_failure_refunds_only_after_input_retirement() {
     assert!(matches!(result, Err(Error::Allocation)));
     assert!(!FAIL_NEXT.get());
     assert_eq!(usage.live_bytes(), 0);
+}
+
+#[test]
+fn shared_tensor_backing_is_not_cloned_and_retires_before_invocation_refund() {
+    use multiply::{
+        arithmetic::Affine,
+        tensor::{Builder, Executor},
+        Interval,
+    };
+    use std::sync::Arc;
+    for fail_registers in [false, true] {
+        let [runtime, _, _] = compound_owners(PrssLimits::default());
+        let usage = runtime.payload_usage();
+        let op = Operation::new(
+            runtime.context(),
+            0,
+            runtime.party(),
+            3,
+            18,
+            Limits::default(),
+        )
+        .unwrap();
+        let input =
+            ReplicatedShare::from_local(op, runtime.party(), &[1; 3], &[2; 3], Limits::default())
+                .unwrap();
+        let watch = Watch::start(&usage, true, false);
+        let mut audit = AUDIT.get();
+        audit.public_before_admission = true;
+        AUDIT.set(audit);
+        let mut builder = Builder::new(3, Interval::new(-10, 10).unwrap()).unwrap();
+        let out = builder
+            .affine_lanes(
+                builder.input(),
+                &[Affine {
+                    left: 2,
+                    right: 0,
+                    constant: 7,
+                }; 3],
+            )
+            .unwrap();
+        let program = Arc::new(builder.finish(out).unwrap());
+        let resources = program.resources().unwrap();
+        let mut audit = AUDIT.get();
+        audit.collect = false;
+        audit.public_before_admission = false;
+        AUDIT.set(audit);
+        COUNT.set(0);
+        TRACK.set(true);
+        FAIL_NEXT.set(fail_registers);
+        // Transfer the sole Arc: both original backing allocations must retire
+        // while the invocation reservation is still held, including on failure.
+        let result = Executor::new_shared(runtime, program, input);
+        TRACK.set(false);
+        assert!(!FAIL_NEXT.get());
+        if fail_registers {
+            assert!(matches!(result, Err(Error::Allocation)));
+            assert_eq!(COUNT.get(), 0);
+        } else {
+            let mut executor = result.unwrap();
+            assert_eq!(COUNT.get(), resources.register_container_bytes);
+            executor.cancel();
+            assert!(usage.live_bytes() >= resources.immutable_template_bytes);
+            drop(executor);
+        }
+        let audit = watch.finish();
+        assert_eq!(audit.allocations, 2); // coefficient Vec + original Arc only
+        assert_audit(audit);
+        assert_eq!(usage.live_bytes(), 0);
+    }
+}
+
+#[test]
+fn shared_tensor_protocol_allocation_failure_sweep_preserves_external_template() {
+    use multiply::{tensor::Program, Interval};
+    use std::sync::Arc;
+    let program = Arc::new(
+        Program::checked_range(
+            3,
+            Interval::new(i64::MIN, i64::MAX).unwrap(),
+            Interval::new(-10, 10).unwrap(),
+            0,
+        )
+        .unwrap(),
+    );
+    for party in 0..3 {
+        let mut completed = false;
+        for fail_at in 0..8000 {
+            let mut owners = tensor_program_owners_with_template(&program, Some(&program), 1);
+            let usages = owners.each_ref().map(|o| o.payload_usage());
+            let watch = Watch::start(&usages[party], false, false);
+            FAIL_AT.set(Some(fail_at));
+            let result = tensor_run(&mut owners, Some(party));
+            FAIL_AT.set(None);
+            let success = result.is_ok();
+            if let Err(error) = result {
+                assert_eq!(error, Error::Allocation);
+                assert!(owners.iter().any(|o| o.retired()));
+            }
+            drop(owners); // retire also peers that have not observed failure
+            let audit = watch.finish();
+            assert_audit(audit);
+            assert!(usages.iter().all(|u| u.live_bytes() == 0));
+            assert_eq!(Arc::strong_count(&program), 1);
+            if success {
+                completed = true;
+                break;
+            }
+        }
+        assert!(completed);
+    }
+}
+
+#[test]
+fn shared_tensor_quote_exact_and_one_byte_short_admit_before_allocation() {
+    use multiply::{
+        arithmetic::Affine,
+        tensor::{Builder, Executor},
+        Interval,
+    };
+    use std::sync::Arc;
+    let mut builder = Builder::new(3, Interval::new(-10, 10).unwrap()).unwrap();
+    let out = builder
+        .affine_lanes(
+            builder.input(),
+            &[Affine {
+                left: 2,
+                right: 0,
+                constant: 7,
+            }; 3],
+        )
+        .unwrap();
+    let out = builder.rescale(out, 18).unwrap();
+    let program = Arc::new(builder.finish(out).unwrap());
+    let quote = program.resources().unwrap().shared_admitted_bytes;
+    for short in [false, true] {
+        let limits = Limits::new(3, MAX_OPERATIONS, quote - usize::from(short)).unwrap();
+        let [runtime, _, _] = compound_owners(
+            PrssLimits::new(limits, pllm_core::puma::prss::MAX_AES_BLOCKS).unwrap(),
+        );
+        let usage = runtime.payload_usage();
+        assert_eq!(usage.limit_bytes(), quote - usize::from(short) - 4096);
+        let op = Operation::new(
+            runtime.context(),
+            0,
+            runtime.party(),
+            3,
+            18,
+            Limits::default(),
+        )
+        .unwrap();
+        let input =
+            ReplicatedShare::from_local(op, runtime.party(), &[1; 3], &[2; 3], Limits::default())
+                .unwrap();
+        FAIL_NEXT.set(short);
+        let (result, bytes) = measured(|| Executor::new_shared(runtime, program.clone(), input));
+        if short {
+            assert!(
+                FAIL_NEXT.replace(false),
+                "short quote must reject before first allocation"
+            );
+            assert!(matches!(result, Err(Error::Bounds)));
+            assert_eq!(bytes, 0);
+            assert_eq!(usage.peak_bytes(), 0);
+        } else {
+            let executor = result.unwrap();
+            assert_eq!(bytes, program.resources().unwrap().register_container_bytes);
+            // This is a conservative logical quote, NOT measured heap equality.
+            assert!(usage.peak_bytes() <= usage.limit_bytes());
+            drop(executor);
+        }
+        assert_eq!(usage.live_bytes(), 0);
+        assert_eq!(Arc::strong_count(&program), 1);
+    }
+    let limits = Limits::new(3, MAX_OPERATIONS, quote).unwrap();
+    let runtimes =
+        compound_owners(PrssLimits::new(limits, pllm_core::puma::prss::MAX_AES_BLOCKS).unwrap());
+    let mut owners = runtimes.map(|r| {
+        let op = Operation::new(r.context(), 0, Party::P0, 3, 18, Limits::default()).unwrap();
+        let input = ReplicatedShare::from_local(op, r.party(), &[1; 3], &[1; 3], Limits::default())
+            .unwrap();
+        Executor::new_shared(r, program.clone(), input).unwrap()
+    });
+    let usages = owners.each_ref().map(Executor::payload_usage);
+    tensor_run_wire(&mut owners, None, true).unwrap();
+    let results = owners.map(|o| o.finish().unwrap());
+    assert!(usages.iter().all(|u| u.peak_bytes() <= quote - 4096));
+    drop(results);
+    assert!(usages.iter().all(|u| u.live_bytes() == 0));
+}
+
+#[test]
+fn shared_tensor_shape_and_work_rejections_do_not_enter_allocating_constructor_region() {
+    use multiply::{
+        tensor::{Builder, Executor},
+        Interval,
+    };
+    use std::sync::Arc;
+    let mut builder = Builder::new(3, Interval::new(-10, 10).unwrap()).unwrap();
+    let out = builder.rescale(builder.input(), 18).unwrap();
+    let out = builder.rescale(out, 18).unwrap();
+    let program = Arc::new(builder.finish(out).unwrap());
+    assert!(program.work_budget().operations() > 1);
+    // Expanded shape, mismatched input shape, ordinal budget and AES budget.
+    for case in 0..4 {
+        let lanes = if case == 0 { 2 } else { 3 };
+        let operations = if case == 2 { 1 } else { MAX_OPERATIONS };
+        let aes = if case == 3 {
+            1
+        } else {
+            pllm_core::puma::prss::MAX_AES_BLOCKS
+        };
+        let limits = Limits::new(lanes, operations, MAX_ADMITTED_BYTES).unwrap();
+        let [runtime, _, _] = compound_owners(PrssLimits::new(limits, aes).unwrap());
+        let usage = runtime.payload_usage();
+        assert_eq!(runtime.cursors(), Default::default());
+        let n = if case == 1 { 2 } else { 3 };
+        let op = Operation::new(
+            runtime.context(),
+            0,
+            runtime.party(),
+            n,
+            18,
+            Limits::default(),
+        )
+        .unwrap();
+        let input = ReplicatedShare::from_local(
+            op,
+            runtime.party(),
+            &[1; 3][..n],
+            &[2; 3][..n],
+            Limits::default(),
+        )
+        .unwrap();
+        FAIL_NEXT.set(true);
+        let (result, bytes) = measured(|| Executor::new_shared(runtime, program.clone(), input));
+        assert!(
+            FAIL_NEXT.replace(false),
+            "rejection must precede register allocation"
+        );
+        assert_eq!(
+            result.err(),
+            Some(if case == 1 {
+                Error::Shape
+            } else {
+                Error::Bounds
+            })
+        );
+        assert_eq!(bytes, 0);
+        assert_eq!(usage.peak_bytes(), 0);
+        assert_eq!(usage.live_bytes(), 0);
+        assert_eq!(Arc::strong_count(&program), 1);
+    }
+}
+
+#[test]
+fn shared_tensor_start_allocation_failure_burns_same_cursors_as_owned() {
+    use multiply::{tensor::Program, Interval};
+    use std::sync::Arc;
+    let program = Arc::new(Program::negative_compact(3, Interval::new(-10, 10).unwrap()).unwrap());
+    for party in 0..3 {
+        // First instruction's allocations are identical: Arc template storage
+        // changes neither that instruction nor its failure/burn boundary.
+        let mut reached_success = false;
+        for fail_at in 0..128 {
+            let mut owned = tensor_program_owners_with_template(&program, None, 1);
+            let mut shared = tensor_program_owners_with_template(&program, Some(&program), 1);
+            let before_a = owned[party].cursors();
+            let before_b = shared[party].cursors();
+            assert_eq!(before_a, before_b);
+            FAIL_AT.set(Some(fail_at));
+            let a = owned[party].start_step();
+            FAIL_AT.set(None);
+            FAIL_AT.set(Some(fail_at));
+            let b = shared[party].start_step();
+            FAIL_AT.set(None);
+            assert_eq!(a.as_ref().err(), b.as_ref().err());
+            assert_eq!(owned[party].cursors(), shared[party].cursors());
+            assert_eq!(owned[party].retired(), shared[party].retired());
+            if a.is_err() {
+                assert_eq!(a.as_ref().err(), Some(&Error::Allocation));
+                assert!(owned[party].retired());
+            } else {
+                reached_success = true;
+            }
+            drop((a, b, owned, shared));
+            assert_eq!(Arc::strong_count(&program), 1);
+            if reached_success {
+                break;
+            }
+        }
+        assert!(reached_success);
+    }
 }
 
 #[test]

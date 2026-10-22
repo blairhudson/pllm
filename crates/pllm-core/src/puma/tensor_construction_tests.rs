@@ -1,0 +1,440 @@
+use super::*;
+use std::mem::{align_of, size_of};
+
+fn verify_phases(q: ConstructionQuote) {
+    let inline = size_of::<Program>();
+    assert_eq!(size_of::<Builder>(), inline);
+    assert_eq!(
+        q.immutable_template_bytes,
+        inline + 2 * size_of::<usize>() + q.public_table_bytes
+    );
+    assert!(q.return_slot_bytes >= size_of::<Result<Program, Error>>());
+    let owners = q.return_slot_bytes + size_of::<Builder>() + q.public_table_bytes;
+    let scratch = q.constructor_buffer_bytes + q.proof_buffer_bytes;
+    assert_eq!(
+        q.finish_buffer_bytes,
+        size_of::<Sha256>() + MAX_NODES * size_of::<usize>()
+    );
+    assert_eq!(q.new_build_bytes, owners + scratch);
+    assert_eq!(q.new_finish_bytes, owners + scratch + q.finish_buffer_bytes);
+    assert_eq!(
+        q.new_publish_bytes,
+        q.return_slot_bytes + q.immutable_template_bytes + scratch
+    );
+    assert_eq!(
+        q.new_peak_bytes,
+        q.new_build_bytes
+            .max(q.new_finish_bytes)
+            .max(q.new_publish_bytes)
+    );
+    assert_eq!(
+        q.peak_with_borrowed_public_bytes,
+        q.new_peak_bytes + q.borrowed_public_bytes
+    );
+}
+
+#[test]
+fn native_construction_phase_inventories_are_explicit_not_execution_allowances() {
+    for family in [
+        Construction::Builder { lanes: 1 },
+        Construction::CheckedRange { lanes: 128 },
+        Construction::AllValid { lanes: 1024 },
+    ] {
+        let q = family.quote().unwrap();
+        verify_phases(q);
+        assert_eq!(
+            (
+                q.public_table_bytes,
+                q.constructor_buffer_bytes,
+                q.proof_buffer_bytes,
+                q.borrowed_public_bytes
+            ),
+            (0, 0, 0, 0)
+        );
+    }
+    for family in [
+        Construction::RmsNormCertified {
+            rows: 1,
+            width: 1024,
+            gamma_len: 1024,
+        },
+        Construction::RmsNormWithInputNorm {
+            rows: 1024,
+            width: 1,
+            gamma_len: 1,
+        },
+        Construction::SoftmaxCertified {
+            rows: 1,
+            width: 1024,
+        },
+    ] {
+        // Geometry endpoint only; this is not numeric/work admission.
+        verify_phases(family.quote().unwrap());
+    }
+    let rope = Construction::RotaryHalf {
+        rows: 2,
+        width: 64,
+        cosine_len: 64,
+        sine_len: 64,
+    }
+    .quote()
+    .unwrap();
+    verify_phases(rope);
+    assert_eq!(rope.borrowed_public_bytes, 128 * size_of::<i64>());
+    assert_eq!(rope.public_table_bytes, 2 * 128 * size_of::<Affine>());
+    assert_eq!(
+        rope.constructor_buffer_bytes,
+        2 * size_of::<[Affine; 128]>()
+    );
+    assert_eq!(rope.proof_buffer_bytes, 0);
+    assert_eq!(
+        rope.return_slot_bytes,
+        size_of::<Result<Program, Error>>().max(size_of::<Result<Builder, Error>>())
+    );
+
+    let boxes = size_of::<[Option<Interval>; 36]>();
+    let ranged = boxes + align_of::<Option<Interval>>();
+    for family in [
+        Construction::RmsNormCertified {
+            rows: 2,
+            width: 3,
+            gamma_len: 3,
+        },
+        Construction::RmsNormWithInputNorm {
+            rows: 2,
+            width: 3,
+            gamma_len: 3,
+        },
+    ] {
+        let q = family.quote().unwrap();
+        verify_phases(q);
+        assert_eq!(q.borrowed_public_bytes, 3 * size_of::<i64>());
+        assert_eq!(q.public_table_bytes, 6 * size_of::<Affine>());
+        assert_eq!(q.constructor_buffer_bytes, 2 * size_of::<[Affine; 1024]>());
+        assert_eq!(
+            q.return_slot_bytes,
+            size_of::<Result<(Program, u128), Error>>()
+                .max(size_of::<Result<(Builder, Value, u128), Error>>())
+                .max(size_of::<Result<Builder, Error>>())
+        );
+        // Independent lexical inventory: twelve rsqrt bindings, two chained /
+        // returned temporaries, four RMS bindings/temporaries, helper return.
+        let proof_values = 12 + 2 + 4 + 1;
+        let proof_arrays = 2 + 1 + 1 + 1;
+        assert_eq!(
+            q.proof_buffer_bytes,
+            proof_values * ranged
+                + proof_arrays * boxes
+                + size_of::<[i128; 4]>()
+                + 2 * size_of::<[(Interval, i64); 3]>()
+                + 2 * size_of::<[(usize, i64); 3]>()
+        );
+    }
+    let softmax = Construction::SoftmaxCertified { rows: 1, width: 3 }
+        .quote()
+        .unwrap();
+    verify_phases(softmax);
+    assert_eq!(
+        softmax.return_slot_bytes,
+        size_of::<Result<(Program, u64), Error>>()
+            .max(size_of::<Result<(Program, Option<u64>), Error>>())
+            .max(size_of::<Result<Builder, Error>>())
+    );
+    assert_eq!(
+        softmax.proof_buffer_bytes,
+        (11 + 1 + 1) * ranged + 2 * boxes + size_of::<[i128; 4]>() + 2 * size_of::<Interval>()
+    );
+    assert_eq!(
+        (
+            softmax.public_table_bytes,
+            softmax.borrowed_public_bytes,
+            softmax.constructor_buffer_bytes
+        ),
+        (0, 0, 0)
+    );
+    let silu = Construction::GuardedSilu { lanes: 128 }.quote().unwrap();
+    verify_phases(silu);
+    assert_eq!(
+        silu.constructor_buffer_bytes,
+        size_of::<[(Value, i64); 2]>()
+            + size_of::<[(Value, i64); 4]>()
+            + (6 * 3 + 2 * 4 + 2 * 5) * size_of::<i64>()
+            + 2 * size_of::<[(i64, i64, bool); 2]>()
+            + 3 * size_of::<[(Interval, i64); 4]>()
+            + 4 * size_of::<[Value; 3]>()
+            + size_of::<Option<[Value; 3]>>()
+    );
+}
+
+#[test]
+fn geometry_quote_rejects_zero_overflow_bad_lengths_and_unsupported_rope_generation() {
+    use ConstructionQuoteError::*;
+    for family in [
+        Construction::Builder { lanes: 0 },
+        Construction::Builder { lanes: 129 },
+        Construction::CheckedRange { lanes: usize::MAX },
+        Construction::AllValid { lanes: 0 },
+        Construction::AllValid { lanes: 1025 },
+        Construction::GuardedSilu { lanes: 129 },
+        Construction::RmsNormCertified {
+            rows: usize::MAX,
+            width: 2,
+            gamma_len: 2,
+        },
+        Construction::RmsNormWithInputNorm {
+            rows: 0,
+            width: 3,
+            gamma_len: 3,
+        },
+        Construction::RmsNormCertified {
+            rows: 1,
+            width: 3,
+            gamma_len: 2,
+        },
+        Construction::RotaryHalf {
+            rows: 1,
+            width: 3,
+            cosine_len: 1,
+            sine_len: 1,
+        },
+        Construction::RotaryHalf {
+            rows: 2,
+            width: 128,
+            cosine_len: 128,
+            sine_len: 128,
+        },
+        Construction::RotaryHalf {
+            rows: 1,
+            width: 64,
+            cosine_len: 32,
+            sine_len: 31,
+        },
+        Construction::SoftmaxCertified { rows: 1, width: 0 },
+        Construction::SoftmaxCertified {
+            rows: usize::MAX,
+            width: 2,
+        },
+    ] {
+        assert!(matches!(family.quote(), Err(Geometry(_))), "{family:?}");
+    }
+    for (theta, position, width) in [
+        (f32::NAN, 0, 2),
+        (f32::INFINITY, 0, 2),
+        (0.5, 0, 2),
+        (1.0, 513, 2),
+        (1.0, 0, 0),
+        (1.0, 0, 3),
+        (1.0, 0, 130),
+    ] {
+        assert_eq!(
+            Construction::RotaryCoefficients {
+                theta,
+                position,
+                width
+            }
+            .quote(),
+            Err(Geometry(Error::Bounds))
+        );
+        assert!(matches!(
+            Program::rotary_coefficients(theta, position, width),
+            Err(Error::Bounds)
+        ));
+    }
+    for (theta, position, width) in [(1.0, 0, 2), (10000.0, 512, 128)] {
+        assert_eq!(
+            Construction::RotaryCoefficients {
+                theta,
+                position,
+                width
+            }
+            .quote(),
+            Err(UncheckedRotaryCoefficientCapacity)
+        );
+        // Refusing a quote must not silently disable the original API.
+        let (cos, sin) = Program::rotary_coefficients(theta, position, width).unwrap();
+        assert_eq!((cos.len(), sin.len()), (width / 2, width / 2));
+    }
+}
+
+fn compare_result(family: Construction, construct: impl Fn() -> Result<Program, Error>) {
+    let before = construct();
+    let q = family.quote().unwrap();
+    let after = construct();
+    match (before, after) {
+        (Ok(a), Ok(b)) => {
+            let resources = a.resources().unwrap();
+            assert_eq!(q.public_table_bytes, resources.public_table_bytes);
+            assert_eq!(
+                q.immutable_template_bytes,
+                resources.immutable_template_bytes
+            );
+            assert!(q.new_peak_bytes >= resources.immutable_template_bytes);
+            assert_eq!(a.digest(), b.digest());
+            assert_eq!(a.work_budget(), b.work_budget());
+            assert_eq!(a.instructions(), b.instructions());
+            assert_eq!(a.output_bounds(), b.output_bounds());
+            assert_eq!(a.validity_lanes(), b.validity_lanes());
+        }
+        (Err(a), Err(b)) => panic!("positive fixture failed before/after quote: {a:?}/{b:?}"),
+        _ => panic!("quoting changed constructor outcome"),
+    }
+}
+
+fn compare_error(family: Construction, construct: impl Fn() -> Result<Program, Error>) {
+    let before = construct().err().expect("negative fixture must fail");
+    family.quote().unwrap();
+    let after = construct()
+        .err()
+        .expect("quote must not admit negative fixture");
+    assert_eq!(before, after);
+}
+
+#[test]
+fn quoted_public_capacities_cover_native_results_without_changing_numerics_or_errors() {
+    let bound = Interval::new(-(1 << 18), 1 << 18).unwrap();
+    for n in [1, 127, 128] {
+        compare_result(Construction::Builder { lanes: n }, || {
+            let mut b = Builder::new(n, bound)?;
+            let out = b.affine(
+                b.input(),
+                None,
+                Affine {
+                    left: 1,
+                    right: 0,
+                    constant: 7,
+                },
+            )?;
+            let out = b.product(out, b.input(), true)?;
+            b.finish(out)
+        });
+        compare_result(Construction::GuardedSilu { lanes: n }, || {
+            Program::activation_guarded(Activation::Silu, n, bound)
+        });
+        compare_result(Construction::CheckedRange { lanes: n }, || {
+            Program::checked_range(n, Interval::new(i64::MIN, i64::MAX)?, bound, 0)
+        });
+    }
+    for n in [1, 128, 1024] {
+        compare_result(Construction::AllValid { lanes: n }, || {
+            Program::all_valid(n)
+        });
+    }
+    for width in [1, 3, 896] {
+        let gamma = vec![1 << 18; width];
+        compare_result(
+            Construction::RmsNormCertified {
+                rows: 1,
+                width,
+                gamma_len: width,
+            },
+            || Program::rms_norm_certified(1, width, bound, &gamma).map(|v| v.0),
+        );
+        compare_result(
+            Construction::RmsNormWithInputNorm {
+                rows: 1,
+                width,
+                gamma_len: width,
+            },
+            || {
+                Program::rms_norm_with_input_norm(1, width, bound, &gamma, (width as u128) << 36)
+                    .map(|v| v.0)
+            },
+        );
+    }
+    for width in [2, 64, 128] {
+        let cos = vec![1 << 18; width / 2];
+        let sin = vec![0; width / 2];
+        compare_result(
+            Construction::RotaryHalf {
+                rows: 1,
+                width,
+                cosine_len: cos.len(),
+                sine_len: sin.len(),
+            },
+            || Program::rotary_half(1, width, bound, &cos, &sin),
+        );
+    }
+    for width in [1, 3, 128] {
+        compare_result(Construction::SoftmaxCertified { rows: 1, width }, || {
+            Program::softmax_certified(1, width, bound).map(|v| v.0)
+        });
+    }
+    // Quote validates storage geometry only: unsafe numerical inputs still fail
+    // in their ORIGINAL constructor, with the same error after an advisory quote.
+    compare_error(Construction::CheckedRange { lanes: 3 }, || {
+        Program::checked_range(3, bound, bound, i64::MAX)
+    });
+    compare_error(
+        Construction::RmsNormWithInputNorm {
+            rows: 1,
+            width: 3,
+            gamma_len: 3,
+        },
+        || {
+            Program::rms_norm_with_input_norm(1, 3, Interval::new(1, 2)?, &[1 << 18; 3], 0)
+                .map(|v| v.0)
+        },
+    );
+}
+
+#[test]
+fn construction_quote_does_not_enter_frozen_digest_or_certificate_equations() {
+    let q = Construction::Builder { lanes: 3 }.quote().unwrap();
+    let mut b = Builder::new(3, Interval::new(-3, 3).unwrap()).unwrap();
+    let out = b
+        .affine(
+            b.input(),
+            None,
+            Affine {
+                left: 2,
+                right: 0,
+                constant: 1,
+            },
+        )
+        .unwrap();
+    let p = b.finish(out).unwrap();
+    let mut h = Sha256::new();
+    h.update(b"pllm.puma.public-tensor-program.q18.v1");
+    h.update(b"puma.source-derived-q18.v1");
+    h.update(3_u64.to_le_bytes());
+    h.update(2_u64.to_le_bytes());
+    h.update([0]);
+    h.update((-3_i64).to_le_bytes());
+    h.update(3_i64.to_le_bytes());
+    h.update([1, 0, 255]);
+    for c in [2_i64, 0, 1] {
+        h.update(c.to_le_bytes());
+    }
+    h.update((-5_i64).to_le_bytes());
+    h.update(7_i64.to_le_bytes());
+    assert_eq!(p.digest(), <[u8; 32]>::from(h.finalize()));
+    assert_eq!(p.work_budget(), WorkBudget::local());
+    assert_eq!(
+        q.immutable_template_bytes,
+        p.resources().unwrap().immutable_template_bytes
+    );
+
+    let bound = Interval::new(-(1 << 18), 1 << 18).unwrap();
+    let (a, radius_a) = Program::rms_norm_certified(1, 3, bound, &[1 << 18; 3]).unwrap();
+    Construction::RmsNormCertified {
+        rows: 1,
+        width: 3,
+        gamma_len: 3,
+    }
+    .quote()
+    .unwrap();
+    let (b, radius_b) = Program::rms_norm_certified(1, 3, bound, &[1 << 18; 3]).unwrap();
+    assert_eq!(
+        (a.digest(), a.work_budget(), radius_a),
+        (b.digest(), b.work_budget(), radius_b)
+    );
+    let (a, mass_a) = Program::softmax_certified(1, 3, bound).unwrap();
+    Construction::SoftmaxCertified { rows: 1, width: 3 }
+        .quote()
+        .unwrap();
+    let (b, mass_b) = Program::softmax_certified(1, 3, bound).unwrap();
+    assert_eq!(
+        (a.digest(), a.work_budget(), mass_a),
+        (b.digest(), b.work_budget(), mass_b)
+    );
+}

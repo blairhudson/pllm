@@ -7,6 +7,9 @@ const ONE: i64 = 1 << 18;
 #[path = "tensor_compact_tests.rs"]
 mod compact_tests;
 
+#[path = "tensor_shared_tests.rs"]
+mod shared_tests;
+
 #[test]
 fn bounded_equality_derives_minimum_public_width_and_excludes_zero_aliases() {
     for (lo, hi, width) in [

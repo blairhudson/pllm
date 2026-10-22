@@ -267,6 +267,44 @@ impl Program {
         }
         Ok((cosine, sine))
     }
+
+    /// The same finite binary32 split-half Q18 coefficients as
+    /// [`Self::rotary_coefficients`], written without allocating output storage.
+    /// Each destination must have exactly `width / 2` elements. Invalid geometry
+    /// returns [`Error::Bounds`]; invalid destination lengths return
+    /// [`Error::Shape`]. All checks precede writes to either destination.
+    ///
+    /// This only fills caller-owned storage. The caller must separately admit
+    /// its full backing and construction/return overlap before filling it; this
+    /// API supplies no retained-owner quote or execution admission.
+    pub fn rotary_coefficients_into(
+        theta: f32,
+        position: u32,
+        width: usize,
+        cosine: &mut [i64],
+        sine: &mut [i64],
+    ) -> Result<(), Error> {
+        if !theta.is_finite()
+            || theta < 1.0
+            || width == 0
+            || width > MAX_TILE_LANES
+            || width % 2 != 0
+            || position > 512
+        {
+            return Err(Error::Bounds);
+        }
+        if cosine.len() != width / 2 || sine.len() != width / 2 {
+            return Err(Error::Shape);
+        }
+        for i in 0..width / 2 {
+            let frequency = 1.0_f32 / libm::powf(theta, (2 * i) as f32 / width as f32);
+            let angle = position as f32 * frequency;
+            cosine[i] = (libm::cosf(angle) * ONE as f32) as i64;
+            sine[i] = (libm::sinf(angle) * ONE as f32) as i64;
+        }
+        Ok(())
+    }
+
     /// Half-split rotary embedding with explicit public Q18 coefficient rows.
     /// Each row supplies width/2 cosines and sines, repeated across its halves.
     /// The two signed coefficient products rescale separately before addition.
@@ -1021,6 +1059,10 @@ pub(super) fn activation_bounds(kind: Activation, input: Interval) -> Result<Int
     }
     Interval::new(lower, upper)
 }
+
+#[cfg(test)]
+#[path = "tensor_numeric_rotary_tests.rs"]
+mod rotary_tests;
 
 #[cfg(test)]
 mod tests {

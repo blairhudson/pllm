@@ -14,6 +14,7 @@ use super::{
 use crate::puma::payload::Reservation;
 use crate::puma::*;
 use sha2::{Digest, Sha256};
+use std::sync::Arc;
 
 pub const PROFILE: &str = "pllm.puma.public-tensor-program.q18.v1";
 /// Approved normalization adaptation: one positive Q18 unit instead of a
@@ -803,15 +804,20 @@ impl Program {
             .map(|v| self.nodes[v.0 as usize].unwrap().lanes)
     }
 
-    /// Conservative retained-register plus primitive/copy/frame allowance.
-    /// Original exported buffers retain their own ledger charges as usual.
-    pub fn admitted_bytes(&self) -> usize {
-        let working = (0..self.len)
+    // Joint register/primitive/copy peak for the original instruction schedule.
+    fn working_bytes(&self) -> Result<usize, Error> {
+        (0..self.len)
             .map(|step| {
-                let live: usize = (0..=step)
+                let live = (0..=step)
                     .filter(|&i| i == step || usize::from(self.last_use[i]) >= step)
-                    .map(|i| 2 * self.nodes[i].unwrap().lanes)
-                    .sum();
+                    .try_fold(0usize, |n, i| {
+                        self.nodes[i]
+                            .unwrap()
+                            .lanes
+                            .checked_mul(2)
+                            .and_then(|v| n.checked_add(v))
+                            .ok_or(Error::Bounds)
+                    })?;
                 let node = self.nodes[step].unwrap();
                 // Primitive allowance plus this executor's operand copies.
                 // Small-width OT expands each bit separately and can exceed
@@ -841,13 +847,373 @@ impl Program {
                     Instruction::BitXor(..) => 10 * node.lanes,
                     Instruction::BitConstantXor(..) => 6 * node.lanes,
                 };
-                (live + temporary) * 8
+                live.checked_add(temporary)
+                    .and_then(|n| n.checked_mul(8))
+                    .ok_or(Error::Bounds)
             })
-            .max()
-            .unwrap_or(0);
-        FIXED_RESERVE_BYTES + metadata_bytes(self) + 3 * std::mem::size_of::<Frame>() + working
+            .try_fold(0usize, |peak, n| Ok(peak.max(n?)))
+    }
+
+    /// Owner-defined sizes, not a complete enclosing graph's memory admission.
+    /// Shared execution grants no credit for caller-retained template ownership.
+    pub fn resources(&self) -> Result<Resources, Error> {
+        let add = |a: usize, b: usize| a.checked_add(b).ok_or(Error::Bounds);
+        let public_table_bytes = self.public_affines.iter().try_fold(0usize, |n, v| {
+            add(
+                n,
+                v.capacity()
+                    .checked_mul(std::mem::size_of::<Affine>())
+                    .ok_or(Error::Bounds)?,
+            )
+        })?;
+        let immutable_template_bytes = add(
+            add(
+                std::mem::size_of::<Program>(),
+                2 * std::mem::size_of::<usize>(),
+            )?,
+            public_table_bytes,
+        )?;
+        let register_container_bytes = self
+            .register_count
+            .checked_mul(std::mem::size_of::<Option<Register>>())
+            .ok_or(Error::Bounds)?;
+        let invocation_container_bytes =
+            add(std::mem::size_of::<Executor>(), register_container_bytes)?;
+        let frame_bytes = 3usize
+            .checked_mul(std::mem::size_of::<Frame>())
+            .ok_or(Error::Bounds)?;
+        let working_bytes = self.working_bytes()?;
+        let common = add(
+            add(FIXED_RESERVE_BYTES, invocation_container_bytes)?,
+            add(frame_bytes, working_bytes)?,
+        )?;
+        Ok(Resources {
+            runtime_fixed_reserve_bytes: FIXED_RESERVE_BYTES,
+            immutable_template_bytes,
+            public_table_bytes,
+            register_container_bytes,
+            invocation_container_bytes,
+            frame_bytes,
+            working_bytes,
+            owned_admitted_bytes: add(common, public_table_bytes)?,
+            shared_admitted_bytes: add(common, immutable_template_bytes)?,
+        })
+    }
+
+    /// Conservative owned-executor allowance, including its inline template.
+    /// Original exported buffers retain their own ledger charges as usual.
+    pub fn admitted_bytes(&self) -> usize {
+        // All dimensions/capacities originate in bounded native constructors.
+        self.resources()
+            .expect("bounded tensor resources")
+            .owned_admitted_bytes
     }
 }
+
+/// Conservative single-invocation envelope. Sizes count actual Vec capacities.
+/// `invocation_container_bytes` includes `register_container_bytes`; do not add
+/// them twice. `working_bytes` is the joint peak of live register payload and
+/// primitive/operand-copy temporaries, not immutable storage. Frame payloads are
+/// included there; `frame_bytes` prices three outer frame containers separately.
+/// The owned API stores Program inline; the shared API additionally retains an
+/// Arc allocation (including both counters) and its public coefficient backing.
+/// Neither API discounts a caller's baseline or another concurrent invocation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Resources {
+    pub runtime_fixed_reserve_bytes: usize,
+    pub immutable_template_bytes: usize,
+    pub public_table_bytes: usize,
+    pub register_container_bytes: usize,
+    pub invocation_container_bytes: usize,
+    pub frame_bytes: usize,
+    pub working_bytes: usize,
+    pub owned_admitted_bytes: usize,
+    pub shared_admitted_bytes: usize,
+}
+
+/// Public geometry of the audited, noncompact native constructor paths only.
+/// A quote does not prove numeric domains, certificates, instruction/work limits,
+/// or source authority. Those remain the original constructor's obligations.
+#[derive(Clone, Copy, Debug)]
+pub enum Construction {
+    /// Builder::new followed only by scalar-affine/product/rescale operations
+    /// and finish. Lane-affine tables and arbitrary extensions are NOT covered.
+    Builder {
+        lanes: usize,
+    },
+    GuardedSilu {
+        lanes: usize,
+    },
+    CheckedRange {
+        lanes: usize,
+    },
+    AllValid {
+        lanes: usize,
+    },
+    RmsNormCertified {
+        rows: usize,
+        width: usize,
+        gamma_len: usize,
+    },
+    RmsNormWithInputNorm {
+        rows: usize,
+        width: usize,
+        gamma_len: usize,
+    },
+    RotaryHalf {
+        rows: usize,
+        width: usize,
+        cosine_len: usize,
+        sine_len: usize,
+    },
+    SoftmaxCertified {
+        rows: usize,
+        width: usize,
+    },
+    RotaryCoefficients {
+        theta: f32,
+        position: u32,
+        width: usize,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ConstructionQuoteError {
+    Geometry(Error),
+    /// rotary_coefficients does not check either returned Vec's capacity. Do not
+    /// turn requested lengths into a bound on actual retained backing.
+    UncheckedRotaryCoefficientCapacity,
+}
+
+/// Logical owner/buffer envelope, NOT allocator/RSS or generated stack usage.
+/// `new_*` excludes the caller's baseline. `peak_with_borrowed_public_bytes`
+/// adds supplied slice elements once, NOT caller Vec capacities/headers or their
+/// generation scratch. A caller must retain its full independently priced owner
+/// baseline; these fields never authorize a capacity credit or a subtraction.
+/// Program moves transfer affine Vec backing: source/destination inline slots
+/// overlap, but coefficient payload is not deep-copied by those moves.
+/// Scalar arithmetic locals, ABI spill slots, libm/SHA implementation stack and
+/// allocator overhead are not request-owned buffers and are NOT stack-quoted.
+/// This quotes one construction plus publication into Arc, not concurrent calls,
+/// a compiler frontier, caller coefficient generation, or a whole D26 request.
+/// Table bytes rely on affine_lanes' existing exact-capacity acceptance check;
+/// allocator-internal slack and failed reservations are not RSS-quoted here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ConstructionQuote {
+    /// Largest audited inline Builder/Program Result (including certificates).
+    pub return_slot_bytes: usize,
+    pub borrowed_public_bytes: usize,
+    pub public_table_bytes: usize,
+    pub constructor_buffer_bytes: usize,
+    pub proof_buffer_bytes: usize,
+    pub finish_buffer_bytes: usize,
+    pub immutable_template_bytes: usize,
+    pub new_build_bytes: usize,
+    pub new_finish_bytes: usize,
+    pub new_publish_bytes: usize,
+    pub new_peak_bytes: usize,
+    pub peak_with_borrowed_public_bytes: usize,
+}
+
+impl Construction {
+    /// Allocation-free. Never invokes a numeric constructor or generates RoPE
+    /// coefficients. Re-audit this inventory when the named native paths change.
+    pub fn quote(self) -> Result<ConstructionQuote, ConstructionQuoteError> {
+        use ConstructionQuoteError::{Geometry, UncheckedRotaryCoefficientCapacity};
+        let invalid = || Geometry(Error::Bounds);
+        let sum = |parts: &[usize]| {
+            parts
+                .iter()
+                .try_fold(0usize, |a, b| a.checked_add(*b).ok_or_else(invalid))
+        };
+        let mul = |a: usize, b: usize| a.checked_mul(b).ok_or_else(invalid);
+        let tile = |lanes: usize| {
+            if (1..=MAX_TILE_LANES).contains(&lanes) {
+                Ok(lanes)
+            } else {
+                Err(invalid())
+            }
+        };
+        let row = |rows: usize, width: usize| {
+            let lanes = mul(rows, width)?;
+            if rows == 0 || width == 0 || lanes > MAX_ROW_LANES {
+                Err(invalid())
+            } else {
+                Ok(lanes)
+            }
+        };
+        let affine = std::mem::size_of::<Affine>();
+        let interval = std::mem::size_of::<Interval>();
+        // numeric.rs: Ranged owns Value + [Option<Interval>; 36]. Round the
+        // field sum up by its maximum possible tail padding, independent of
+        // Rust field ordering. No public access to private proof representation.
+        let boxes = std::mem::size_of::<[Option<Interval>; 36]>();
+        let ranged = sum(&[boxes, std::mem::align_of::<Option<Interval>>()])?;
+        let corners = std::mem::size_of::<[i128; 4]>();
+        let (borrowed, tables, buffers, proofs) = match self {
+            Self::Builder { lanes } | Self::CheckedRange { lanes } => {
+                tile(lanes)?;
+                (0, 0, 0, 0)
+            }
+            Self::AllValid { lanes } => {
+                row(1, lanes)?;
+                (0, 0, 0, 0)
+            }
+            Self::GuardedSilu { lanes } => {
+                tile(lanes)?;
+                // Union of named array slots across the nested calls (not a
+                // claim that they all coexist): impl's two pivot bindings,
+                // predicate parameter/iterator, bound-proof pivot return/local;
+                // low/high proof return/local, branch/iterator, and term
+                // expression/local/iterator. Predicate return/early/local slots
+                // and low/high executable polynomial term arrays are separate.
+                let buffers = sum(&[
+                    std::mem::size_of::<[(Value, i64); 2]>(),
+                    std::mem::size_of::<[(Value, i64); 4]>(),
+                    mul(6, std::mem::size_of::<[i64; 3]>())?,
+                    mul(2, std::mem::size_of::<[i64; 4]>())?,
+                    mul(2, std::mem::size_of::<[i64; 5]>())?,
+                    mul(2, std::mem::size_of::<[(i64, i64, bool); 2]>())?,
+                    mul(3, std::mem::size_of::<[(Interval, i64); 4]>())?,
+                    mul(4, std::mem::size_of::<[Value; 3]>())?,
+                    std::mem::size_of::<Option<[Value; 3]>>(),
+                ])?;
+                (0, 0, buffers, 0)
+            }
+            Self::RotaryHalf {
+                rows,
+                width,
+                cosine_len,
+                sine_len,
+            } => {
+                let lanes = tile(mul(rows, width)?)?;
+                if rows == 0
+                    || width == 0
+                    || width % 2 != 0
+                    || cosine_len != lanes / 2
+                    || sine_len != lanes / 2
+                {
+                    return Err(Geometry(Error::Shape));
+                }
+                // Array initialization/move overlap plus the two exact-capacity
+                // Vec copies retained by affine_lanes (the table field).
+                (
+                    mul(lanes, 8)?,
+                    mul(mul(2, lanes)?, affine)?,
+                    mul(mul(2, MAX_TILE_LANES)?, affine)?,
+                    0,
+                )
+            }
+            Self::RmsNormCertified {
+                rows,
+                width,
+                gamma_len,
+            }
+            | Self::RmsNormWithInputNorm {
+                rows,
+                width,
+                gamma_len,
+            } => {
+                let lanes = row(rows, width)?;
+                if gamma_len != width {
+                    return Err(Geometry(Error::Shape));
+                }
+                // rsqrt_ranged: 12 named Ranged slots; chained rescale temporary
+                // and result; RMS normalization: inverse, input/row temporary,
+                // product result; one helper return overlap = 19 Ranged slots.
+                // Five extra arrays: two helper arrays, denominator array plus
+                // consuming iterator copy, and row boxes. The proof-cell term
+                // array and iterator copy, borrowed power array and iterator
+                // copy, and product corner array are charged separately.
+                let proof = sum(&[
+                    mul(19, ranged)?,
+                    mul(5, boxes)?,
+                    corners,
+                    mul(2, std::mem::size_of::<[(Interval, i64); 3]>())?,
+                    mul(2, std::mem::size_of::<[(usize, i64); 3]>())?,
+                ])?;
+                // from_fn return plus destination scales array; moving the
+                // array does not duplicate the separately charged Vec table.
+                (
+                    mul(width, 8)?,
+                    mul(lanes, affine)?,
+                    mul(mul(2, MAX_ROW_LANES)?, affine)?,
+                    proof,
+                )
+            }
+            Self::SoftmaxCertified { rows, width } => {
+                row(rows, width)?;
+                // reciprocal: 11 named Ranged values + final product result +
+                // helper return overlap. Two helper arrays cover product/raw
+                // or rescale/iterator overlap. Scalar cell proof has no Vec.
+                (
+                    0,
+                    0,
+                    0,
+                    sum(&[mul(13, ranged)?, mul(2, boxes)?, corners, mul(2, interval)?])?,
+                )
+            }
+            Self::RotaryCoefficients {
+                theta,
+                position,
+                width,
+            } => {
+                if !theta.is_finite()
+                    || theta < 1.0
+                    || width == 0
+                    || width > MAX_TILE_LANES
+                    || width % 2 != 0
+                    || position > 512
+                {
+                    return Err(invalid());
+                }
+                return Err(UncheckedRotaryCoefficientCapacity);
+            }
+        };
+        // Builder::row local Program and returned Builder overlap. Construction
+        // retains one Builder; finish retains its inline Program return slot.
+        // Publish moves that Program into Arc; backing is transferred, not copied.
+        let inline = std::mem::size_of::<Program>();
+        let builder = std::mem::size_of::<Builder>();
+        let return_slot = match self {
+            Self::RmsNormCertified { .. } | Self::RmsNormWithInputNorm { .. } => {
+                std::mem::size_of::<Result<(Program, u128), Error>>()
+                    .max(std::mem::size_of::<Result<(Builder, Value, u128), Error>>())
+            }
+            Self::SoftmaxCertified { .. } => std::mem::size_of::<Result<(Program, u64), Error>>()
+                .max(std::mem::size_of::<Result<(Program, Option<u64>), Error>>()),
+            _ => std::mem::size_of::<Result<Program, Error>>(),
+        }
+        .max(std::mem::size_of::<Result<Builder, Error>>());
+        let finish = sum(&[
+            std::mem::size_of::<Sha256>(),
+            std::mem::size_of::<[usize; MAX_NODES]>(),
+        ])?;
+        let immutable = sum(&[inline, 2 * std::mem::size_of::<usize>(), tables])?;
+        let build = sum(&[builder, return_slot, tables, buffers, proofs])?;
+        let finish_phase = sum(&[builder, return_slot, tables, buffers, proofs, finish])?;
+        let publish = sum(&[return_slot, immutable, buffers, proofs])?;
+        let peak = build.max(finish_phase).max(publish);
+        Ok(ConstructionQuote {
+            return_slot_bytes: return_slot,
+            borrowed_public_bytes: borrowed,
+            public_table_bytes: tables,
+            constructor_buffer_bytes: buffers,
+            proof_buffer_bytes: proofs,
+            finish_buffer_bytes: finish,
+            immutable_template_bytes: immutable,
+            new_build_bytes: build,
+            new_finish_bytes: finish_phase,
+            new_publish_bytes: publish,
+            new_peak_bytes: peak,
+            peak_with_borrowed_public_bytes: sum(&[peak, borrowed])?,
+        })
+    }
+}
+
+#[cfg(test)]
+#[path = "tensor_construction_tests.rs"]
+mod construction_tests;
 
 fn polynomial(
     b: &mut Builder,
@@ -975,7 +1341,7 @@ enum Register {
 /// ```
 pub struct Executor {
     runtime: Option<PartyRuntime>,
-    program: Program,
+    program: ProgramOwner,
     registers: Vec<Option<Register>>,
     inbox: [Option<Message>; 3],
     invocation: u64,
@@ -985,16 +1351,36 @@ pub struct Executor {
     metadata: Option<Reservation>,
 }
 
-fn metadata_bytes(program: &Program) -> usize {
-    // The existing runtime retains its own 4096-byte fixed reserve. Charge this
-    // executor's inline program/register/frame metadata as an additional owner.
-    std::mem::size_of::<Executor>()
-        + program.register_count * std::mem::size_of::<Option<Register>>()
-        + program
-            .public_affines
-            .iter()
-            .map(|v| v.capacity() * std::mem::size_of::<Affine>())
-            .sum::<usize>()
+// Owned compatibility path deliberately stays inline: no new infallible heap
+// allocation or allocation-failure boundary is introduced by Executor::new.
+#[allow(clippy::large_enum_variant)]
+enum ProgramOwner {
+    Owned(Program),
+    Shared(Arc<Program>),
+    Retired,
+}
+
+impl std::ops::Deref for ProgramOwner {
+    type Target = Program;
+    fn deref(&self) -> &Program {
+        match self {
+            Self::Owned(p) => p,
+            Self::Shared(p) => p,
+            Self::Retired => unreachable!("retired template accessed"),
+        }
+    }
+}
+
+fn metadata_bytes(program: &ProgramOwner) -> Result<usize, Error> {
+    let resources = program.resources()?;
+    resources
+        .invocation_container_bytes
+        .checked_add(match program {
+            ProgramOwner::Shared(_) => resources.immutable_template_bytes,
+            ProgramOwner::Owned(_) => resources.public_table_bytes,
+            ProgramOwner::Retired => return Err(Error::Retired),
+        })
+        .ok_or(Error::Bounds)
 }
 
 impl Executor {
@@ -1139,8 +1525,28 @@ impl Executor {
     }
 
     pub fn new(
-        mut runtime: PartyRuntime,
+        runtime: PartyRuntime,
         program: Program,
+        input: ReplicatedShare,
+    ) -> Result<Self, Error> {
+        Self::new_inner(runtime, ProgramOwner::Owned(program), input)
+    }
+
+    /// Execute immutable shared instructions without cloning coefficient tables.
+    /// Caller constructs the Arc before entering this consuming API. Admission
+    /// conservatively includes its full backing for EACH invocation; enclosing
+    /// owners must separately retain/charge any external baseline through last use.
+    pub fn new_shared(
+        runtime: PartyRuntime,
+        program: Arc<Program>,
+        input: ReplicatedShare,
+    ) -> Result<Self, Error> {
+        Self::new_inner(runtime, ProgramOwner::Shared(program), input)
+    }
+
+    fn new_inner(
+        mut runtime: PartyRuntime,
+        program: ProgramOwner,
         mut input: ReplicatedShare,
     ) -> Result<Self, Error> {
         let mut metadata = None;
@@ -1180,7 +1586,12 @@ impl Executor {
                 .live_bytes()
                 .checked_sub(input_credit)
                 .ok_or(Error::Bounds)?
-                .checked_add(program.admitted_bytes() - FIXED_RESERVE_BYTES)
+                .checked_add(
+                    match &program {
+                        ProgramOwner::Shared(_) => program.resources()?.shared_admitted_bytes,
+                        _ => program.resources()?.owned_admitted_bytes,
+                    } - FIXED_RESERVE_BYTES,
+                )
                 .is_none_or(|v| v > usage.limit_bytes())
             {
                 return Err(Error::Bounds);
@@ -1189,7 +1600,7 @@ impl Executor {
             // Every nested Boolean fill, public pivot and possible helper split
             // is priced before the first instruction consumes randomness.
             runtime.source.admit_work(program.work_budget())?;
-            metadata = Some(usage.reserve(metadata_bytes(&program))?);
+            metadata = Some(usage.reserve(metadata_bytes(&program)?)?);
             let mut registers = Vec::new();
             registers
                 .try_reserve_exact(program.register_count)
@@ -1736,7 +2147,7 @@ impl Drop for Executor {
     fn drop(&mut self) {
         self.cancel();
         drop(std::mem::take(&mut self.registers));
-        drop(std::mem::take(&mut self.program.public_affines));
+        drop(std::mem::replace(&mut self.program, ProgramOwner::Retired));
         drop(self.metadata.take());
     }
 }
