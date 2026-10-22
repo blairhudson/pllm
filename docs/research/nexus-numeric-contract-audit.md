@@ -113,8 +113,10 @@ These recovered constants do not supply a certified domain or final-paper mappin
 Paper p.8 Eq.(3): zero for `x<=-4`; cubic `P` for `-4<x<=-1.95`;
 degree-six `Q` for `-1.95<x<=3`; identity above `3`. Sign-derived selectors
 combine segments. Observed `[-8,8]` and average approximation error `1e-4`
-are empirical evidence, not public range proofs. Exact paper `P/Q` coefficients
-and precision remain to be resolved from cited constructions.
+are empirical evidence, not public range proofs. The cited primary papers supply
+explicit `P/Q` polynomials (below); NEXUS's exact coefficient precision and CKKS
+interpretation remain unresolved. A new fit is not needed to recover those
+printed polynomials.
 
 Artifact `src/gelu.cpp:10–23,64–110` instead uses breakpoints **±3.5**,
 comparison scale **1/8.5**, and degree-12 central polynomial. Coefficients in
@@ -144,6 +146,103 @@ expression is `0.5*f(f(0.5*g(g(x))))`, not merely half of paper composition.
 Resolve this before adopting selectors. Four degree-nine compositions have
 formal degree 6561; paper p.12's degree-36 discussion cannot establish their
 certified error bound.
+
+### Recovered primary-source polynomials (not an adopted profile)
+
+PUMA v3, `papers/puma.pdf`, §4.2, p.5 Eq.(3), supplies the following literals in
+ascending ordinary powers of **unshifted, unnormalized** `x`:
+
+```text
+P = [-0.5054031199708174,
+     -0.42226581151983866,
+     -0.11807612951181953,
+     -0.011034134030615728]
+Q = [0.008526321541038084,
+     0.5,
+     0.3603292692789629,
+     0,
+     -0.037688200365904236,
+     0,
+     0.0018067462606141187]
+```
+
+PUMA attributes the coefficients to `numpy.polyfit`; it does not give the sampling
+grid, weights or underlying higher-precision fit. PUMA Eq.(2)/Algorithm 1 assigns
+`x=-4` to `P` and `x=-1.95` to `Q`. **NEXUS's own Eq.(3) endpoints govern NEXUS**:
+those points belong to zero and `P`, respectively.
+
+BumbleBee final, `papers/r22-bumblebee-final.pdf`, Appendix D, printed p.17,
+gives the same construction with shorter decimal tails:
+
+```text
+P = [-0.5054031199708174, -0.4222658115198386,
+     -0.1180761295118195, -0.0110341340306157]
+Q = [0.0085263215410380, 0.5, 0.3603292692789629, 0,
+     -0.037688200365904, 0, 0.0018067462606141]
+```
+
+BumbleBee's own p.8 Eq.(2)/p.9 Algorithm 3 instead uses thresholds
+`-5,-1.97,3` and an epsilon-shifted construction; those semantics do not transfer
+to NEXUS. The two citations strongly identify concrete polynomials, but NEXUS
+does not identify which printed precision it adopts. PUMA's Q18 or BumbleBee's
+parameterized fixed-point floor encoding does not specify CKKS coefficient
+conversion, evaluation order or rescaling. Their stated target is tanh GELU, not
+an automatically transferable error guarantee against exact `x*Phi(x)`.
+PUMA's reported mean `<0.00168`, median `<4.41e-05`, maximum `<0.01403` errors
+do not certify NEXUS's reported average `1e-4` on an unspecified distribution.
+
+The sign polynomials also have an independent primary source: Cheon–Kim–Kim,
+*Efficient Homomorphic Comparison Methods with Optimal Complexity*, ASIACRYPT
+2020, DOI `10.1007/978-3-030-64834-3_8`, printed p.232 §3.1 and p.241 §3.5:
+
+```text
+f4(x) = (315*x - 420*x^3 + 378*x^5 - 180*x^7 + 35*x^9)/128
+g4(x) = (5850*x - 34974*x^3 + 97015*x^5 - 113492*x^7 + 46623*x^9)/1024
+```
+
+These are exact printed dyadic polynomials. `g4` denotes the published
+finite-precision `g_(4,1/4)` choice, not every member of the paper's `g_(n,tau)`
+family. The source mentions `1e-4` fitting stopping precision separately from its
+`2^-10` coefficient precision. Algorithm 3, p.242, applies `g` repetitions before
+`f` repetitions, then converts the final sign to a comparator with `(s+1)/2`.
+It does not introduce the artifact's intermediate factor `0.5`. NEXUS's degree
+and repetition counts do not explicitly identify `tau` or coefficient rounding.
+Source Corollary 3 relates repetition counts to both input separation and output
+accuracy; it does not prove NEXUS's `(2,2)` choice for every claimed input.
+
+NEXUS p.8 does state segment indicators, the weighted output
+`b0*0 + b1*P(x) + b2*Q(x) + b3*x`, and adjacent-selector differences in its
+near-boundary example. These are not a complete numerical selector contract.
+For a public input domain `[L,U]`, comparison at threshold `t` needs a bound on
+the **difference**, `Delta_t=max(abs(L-t),abs(U-t))`. Normalized separation
+`2^-20` then represents `Delta_t*2^-20` in original units, not uniformly
+`2^-20`. Odd sign polynomials yield zero at an exact threshold; comparator
+conversion gives `1/2`, not an exact Boolean. The near-boundary blending
+discussion supplies neither a complete CKKS rounding contract nor a quantified
+boundary-error certificate.
+
+Remaining concrete decisions, before implementing a numerical profile:
+
+1. Adopt the full PUMA printed literals as an explicitly source-derived NEXUS
+   adaptation, or obtain author-confirmed NEXUS literals; no new refitting.
+2. Specify coefficient conversion, evaluation order, precision and CKKS rescaling.
+3. Explicitly select `f4,g_(4,1/4)`, public threshold-difference domains, and
+   tie/blending and approximation-error acceptance contracts.
+
+None of these choices is approved or implemented by this audit.
+
+Primary-source SHA-256 values, verified locally:
+
+| Source | SHA-256 |
+| --- | --- |
+| PUMA v3 | `84c82810a16be95b41200ba8e0071c39a8cadb15a45008ff8e75e295e0960973` |
+| BumbleBee final | `184bbe5104f183d4df66db2413f89c96c6c814e0b0ec6297f19745a1fa6e203b` |
+| Cheon–Kim–Kim publisher PDF | `3cebc1b089066707780fd54a4b16c71fec56ec56e6b7be72824a0a4570519146` |
+
+The publisher PDF is an ignored 1,039,467-byte source-inspection input at
+`target/nexus-source-review/cheon-kim-kim-asiacrypt2020.pdf`, fetched from
+`https://link.springer.com/content/pdf/10.1007/978-3-030-64834-3_8.pdf`.
+It is not vendored, linked, executed or required by a runtime.
 
 ## Missing HE, publication and complete-request contracts
 
