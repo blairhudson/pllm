@@ -11,8 +11,10 @@
 //! computation table and explicit post-compute transition capabilities; optional
 //! atomic hybrid round trips carry all three cost identities. Absent transition
 //! means illegal, NOT unknown/zero cost. Present unknown costs reject globally.
-//! Composite/branch/join graphs must first obtain a separately verified lowering;
-//! this API rejects non-chain dependencies rather than forgetting live values.
+//! The serial API rejects non-chain dependencies rather than forgetting live values.
+//! The separate composite trace validator below checks a supplied SSA execution
+//! order, exact typed capability matches, immutable parents and backing lifetimes.
+//! It does not optimize graphs or certify the caller's cryptographic assumptions.
 //! Costs are caller-supplied integer units under one public model identity. No
 //! measured latency, numeric validity, key ownership or backend support is inferred.
 
@@ -446,6 +448,628 @@ pub fn solve_public_encrypted_levels(
     Ok(PublicLevelSolution {
         ledger,
         ledger_digest,
+    })
+}
+
+/// A caller-supplied error bound in one explicitly named model. Known bounds and
+/// capability assumptions are required, not inferred or cryptographically proved.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublicCiphertextError {
+    pub model_identity: String,
+    pub bound: Option<u64>,
+}
+
+/// Physical state plus logical shape. Identities name reviewed external contracts;
+/// matching them proves consistency only, never source or semantic provenance.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublicCiphertextState {
+    pub scheme: String,
+    pub key_domain: String,
+    pub layout: String,
+    pub scale: String,
+    pub level: u32,
+    pub shape: Vec<u64>,
+    pub error: PublicCiphertextError,
+}
+
+/// Entire backing allocation, not the visible size of a slice/view.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublicCiphertextOwner {
+    pub identity: String,
+    pub bytes: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublicCiphertextValue {
+    pub identity: String,
+    pub state: PublicCiphertextState,
+    pub owner: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum PublicCiphertextJoin {
+    Unary,
+    /// Every input has the same physical state and shape, except error magnitude.
+    Aligned,
+    /// Exactly two inputs; scalar shape [1], vector shape/layout preserved.
+    /// The exact scalar/vector layout mapping must also match the capability.
+    ScalarBroadcast {
+        vector_input: usize,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum PublicCiphertextExecution {
+    Ckks {
+        compute: PublicLevelCompute,
+        depth: u32,
+        transition: PublicLevelTransition,
+    },
+    Hybrid {
+        round_trip: PublicHybridRoundTrip,
+    },
+    /// Read-only logical view of input zero. No modulus/scale/key/layout changes.
+    /// The output holds the parent's FULL backing until its own last release.
+    View {
+        cost: PublicCost,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublicCiphertextCapability {
+    pub identity: String,
+    /// Distinguishes, for example, square, reduction, multiply and residual add.
+    pub kernel_identity: String,
+    pub primitive: PublicPrimitive,
+    pub inputs: Vec<PublicCiphertextState>,
+    pub output: PublicCiphertextState,
+    pub join: PublicCiphertextJoin,
+    pub execution: PublicCiphertextExecution,
+    /// Mandatory external justification for this exact input/output error mapping.
+    pub error_assumption: Option<String>,
+    /// Complete temporary owners, including copies, entry/evaluation scratch,
+    /// keys/contexts charged to this step, and retained allocator arenas. Zero
+    /// must be explicit. Persistent owners belong in the graph owner inventory.
+    pub scratch_bytes: Option<u64>,
+    /// Additional intermediate/recovery owners, excluding the final output and
+    /// scratch above. Conservatively overlaps ALL live input/output backings.
+    pub recovery_overlap_bytes: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublicCiphertextGraphOperation {
+    pub identity: String,
+    pub kernel_identity: String,
+    pub primitive: PublicPrimitive,
+    pub inputs: Vec<String>,
+    pub output: PublicCiphertextValue,
+}
+
+/// Source lowering supplies this SSA graph and exact capability manifest. This
+/// gate does not establish that a model was faithfully lowered or kernels exist.
+/// Operations need not be stored topologically; the trace must execute each once.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublicCiphertextGraph {
+    pub cost_model_identity: String,
+    pub cost_unit: String,
+    pub maximum_level: u32,
+    pub owners: Vec<PublicCiphertextOwner>,
+    /// Keys, contexts and other persistent owners with no ciphertext handle.
+    pub persistent_owners: Vec<String>,
+    pub inputs: Vec<PublicCiphertextValue>,
+    pub operations: Vec<PublicCiphertextGraphOperation>,
+    pub capabilities: Vec<PublicCiphertextCapability>,
+    pub outputs: Vec<String>,
+    /// Input handles that may not be retired (e.g. retained KV parents).
+    pub retained_inputs: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublicCiphertextTraceStep {
+    pub operation: String,
+    pub capability: String,
+    /// Explicit handle releases AFTER output/scratch/recovery overlap is charged.
+    pub release: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PublicCiphertextTraceCapacity {
+    /// Includes nested state/shape/reference records, not just operation count.
+    pub max_records: usize,
+    pub max_work: usize,
+    /// Validator metadata payload envelope; not ciphertext allocation or RSS.
+    /// Caller-owned graph/trace storage and allocator bookkeeping are external.
+    pub max_buffer_bytes: usize,
+    /// All inventoried live backings plus simultaneous scratch/recovery owners.
+    pub max_live_owner_bytes: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PublicCiphertextTraceSummary {
+    pub total_cost: u64,
+    pub peak_live_backing_bytes: u64,
+    pub peak_live_owner_bytes: u64,
+    pub final_live_backing_bytes: u64,
+    pub work_bound: usize,
+    pub buffer_bytes: usize,
+}
+
+fn trace_records(n: &mut usize, extra: usize, limit: usize) -> Result<(), String> {
+    *n = add(*n, extra)?;
+    if *n > limit {
+        return Err("composite record capacity exceeded".into());
+    }
+    Ok(())
+}
+
+/// Length-only, allocation-free preflight. Bound nested loops before entering
+/// them. A deliberately conservative cubic bound covers pair scans, typed
+/// comparisons and complete reference/lifetime scans; there is no state search.
+fn trace_preflight(
+    g: &PublicCiphertextGraph,
+    trace: &[PublicCiphertextTraceStep],
+    c: PublicCiphertextTraceCapacity,
+) -> Result<(usize, usize), String> {
+    let mut records = 1;
+    for len in [
+        g.owners.len(),
+        g.persistent_owners.len(),
+        g.inputs.len(),
+        g.operations.len(),
+        g.capabilities.len(),
+        g.outputs.len(),
+        g.retained_inputs.len(),
+        trace.len(),
+    ] {
+        trace_records(&mut records, len, c.max_records)?;
+    }
+    let state_records = |n: &mut usize, s: &PublicCiphertextState| {
+        trace_records(n, add(9, s.shape.len())?, c.max_records)
+    };
+    for v in &g.inputs {
+        state_records(&mut records, &v.state)?;
+    }
+    for op in &g.operations {
+        trace_records(&mut records, add(3, op.inputs.len())?, c.max_records)?;
+        state_records(&mut records, &op.output.state)?;
+    }
+    for cap in &g.capabilities {
+        trace_records(&mut records, add(12, cap.inputs.len())?, c.max_records)?;
+        state_records(&mut records, &cap.output)?;
+        for s in &cap.inputs {
+            state_records(&mut records, s)?;
+        }
+    }
+    for step in trace {
+        trace_records(&mut records, add(2, step.release.len())?, c.max_records)?;
+    }
+    let work = add(
+        mul(mul(mul(records, records)?, records)?, 64)?,
+        mul(records, 256)?,
+    )?;
+    // Six bounded vectors, borrowed values only; no state/String cloning or
+    // canonical serialization. Leave ample payload room for Vec capacities.
+    let bytes = add(mul(records, 256)?, 1024)?;
+    if work > c.max_work || bytes > c.max_buffer_bytes {
+        return Err("composite work/buffer capacity exceeded".into());
+    }
+    Ok((work, bytes))
+}
+
+fn trace_state(s: &PublicCiphertextState, maximum: u32) -> Result<(), String> {
+    for id in [
+        &s.scheme,
+        &s.key_domain,
+        &s.layout,
+        &s.scale,
+        &s.error.model_identity,
+    ] {
+        identity(id)?;
+    }
+    if s.level > maximum || s.shape.is_empty() || s.error.bound.is_none() {
+        return Err("unknown error or invalid composite state".into());
+    }
+    let mut elements = 1u64;
+    for &dim in &s.shape {
+        if dim == 0 {
+            return Err("zero composite dimension".into());
+        }
+        elements = elements
+            .checked_mul(dim)
+            .ok_or("composite shape overflow")?;
+    }
+    Ok(())
+}
+
+fn same_domain(a: &PublicCiphertextState, b: &PublicCiphertextState) -> bool {
+    a.scheme == b.scheme
+        && a.key_domain == b.key_domain
+        && a.scale == b.scale
+        && a.level == b.level
+        && a.error.model_identity == b.error.model_identity
+}
+
+fn same_backing_state(a: &PublicCiphertextState, b: &PublicCiphertextState) -> bool {
+    same_domain(a, b) && a.layout == b.layout && a.error == b.error
+}
+
+fn trace_capability(cap: &PublicCiphertextCapability, maximum: u32) -> Result<u64, String> {
+    identity(&cap.identity)?;
+    identity(&cap.kernel_identity)?;
+    identity(
+        cap.error_assumption
+            .as_deref()
+            .ok_or("unknown error assumption")?,
+    )?;
+    cap.scratch_bytes.ok_or("unknown scratch owners")?;
+    cap.recovery_overlap_bytes
+        .ok_or("unknown recovery owners")?;
+    sum_cost(
+        cap.scratch_bytes.unwrap(),
+        cap.recovery_overlap_bytes.unwrap(),
+    )?;
+    if cap.inputs.is_empty() || cap.primitive == PublicPrimitive::UnknownNonlinear {
+        return Err("unknown primitive or missing composite inputs".into());
+    }
+    for s in cap.inputs.iter().chain(std::iter::once(&cap.output)) {
+        trace_state(s, maximum)?;
+    }
+    let first = &cap.inputs[0];
+    match cap.join {
+        PublicCiphertextJoin::Unary if cap.inputs.len() == 1 => (),
+        PublicCiphertextJoin::Aligned if cap.inputs.len() >= 2 => {
+            if cap.inputs.iter().any(|s| {
+                !same_domain(first, s) || first.layout != s.layout || first.shape != s.shape
+            }) || cap.output.layout != first.layout
+                || cap.output.shape != first.shape
+            {
+                return Err("incompatible aligned join".into());
+            }
+        }
+        PublicCiphertextJoin::ScalarBroadcast { vector_input }
+            if cap.inputs.len() == 2 && vector_input < 2 =>
+        {
+            let vector = &cap.inputs[vector_input];
+            let scalar = &cap.inputs[1 - vector_input];
+            if !same_domain(vector, scalar)
+                || scalar.shape.as_slice() != [1]
+                || cap.output.shape != vector.shape
+                || cap.output.layout != vector.layout
+            {
+                return Err("incompatible scalar broadcast join".into());
+            }
+        }
+        _ => return Err("invalid composite join arity".into()),
+    }
+    match &cap.execution {
+        PublicCiphertextExecution::Ckks {
+            compute,
+            depth,
+            transition: t,
+        } => {
+            let legal = match t.kind {
+                PublicLevelTransitionKind::Preserve => {
+                    t.to_level == t.from_level && t.cost.units == Some(0)
+                }
+                PublicLevelTransitionKind::Drop => t.to_level < t.from_level,
+                PublicLevelTransitionKind::Refresh => t.to_level > t.from_level,
+            };
+            if !legal
+                || compute.input_level < *depth
+                || compute.input_level > maximum
+                || t.from_level != compute.input_level - *depth
+                || t.to_level != cap.output.level
+                || t.to_level > maximum
+                || cap.inputs.iter().any(|s| {
+                    s.level != compute.input_level
+                        || s.scheme != cap.output.scheme
+                        || s.key_domain != cap.output.key_domain
+                })
+            {
+                return Err("illegal composite compute/transition".into());
+            }
+            sum_cost(cost(&compute.cost)?, cost(&t.cost)?)
+        }
+        PublicCiphertextExecution::Hybrid { round_trip: h } => {
+            identity(&h.identity)?;
+            if cap.primitive == PublicPrimitive::Arithmetic
+                || cap.inputs.len() != 1
+                || h.input_level != first.level
+                || h.output_level != cap.output.level
+            {
+                return Err("illegal composite hybrid entry/recovery".into());
+            }
+            sum_cost(
+                sum_cost(cost(&h.entry)?, cost(&h.evaluate)?)?,
+                cost(&h.recover)?,
+            )
+        }
+        PublicCiphertextExecution::View { cost: charge } => {
+            if cap.primitive != PublicPrimitive::Arithmetic
+                || cap.inputs.len() != 1
+                || !same_backing_state(first, &cap.output)
+            {
+                return Err("view cannot mutate physical parent state".into());
+            }
+            let elements = |s: &PublicCiphertextState| s.shape.iter().product::<u64>();
+            if elements(&cap.output) > elements(first) {
+                return Err("view exceeds parent extent".into());
+            }
+            cost(charge)
+        }
+    }
+}
+
+fn trace_vec<T: Clone>(count: usize, value: T) -> Result<Vec<T>, String> {
+    let mut result = Vec::new();
+    result
+        .try_reserve_exact(count)
+        .map_err(|_| "composite allocation failed")?;
+    result.resize(count, value);
+    Ok(result)
+}
+
+/// Validate a supplied execution trace, not an optimum. All inputs are immutable;
+/// every non-view output needs a fresh owner, even if its input dies immediately.
+/// Values remain live until explicit release. Views retain whole backing owners.
+/// Output allocation, scratch and recovery overlap are charged BEFORE releases.
+///
+/// Known declarations (including UNUSED capabilities) must be internally legal.
+/// This checks an external capability manifest, not its physics/security proof,
+/// actual kernel implementation, complete host RSS, or source-model equivalence.
+pub fn validate_public_ciphertext_trace(
+    g: &PublicCiphertextGraph,
+    trace: &[PublicCiphertextTraceStep],
+    capacity: PublicCiphertextTraceCapacity,
+) -> Result<PublicCiphertextTraceSummary, String> {
+    let (work_bound, buffer_bytes) = trace_preflight(g, trace, capacity)?;
+    identity(&g.cost_model_identity)?;
+    identity(&g.cost_unit)?;
+    if g.inputs.is_empty()
+        || g.operations.is_empty()
+        || g.outputs.is_empty()
+        || trace.len() != g.operations.len()
+    {
+        return Err("incomplete composite graph/trace".into());
+    }
+    // Validate bounded-length identifiers before any pair/reference comparisons.
+    for owner in &g.owners {
+        identity(&owner.identity)?;
+        if owner.bytes.is_none_or(|b| b == 0) {
+            return Err("unknown or empty backing owner".into());
+        }
+    }
+    for value in g
+        .inputs
+        .iter()
+        .chain(g.operations.iter().map(|op| &op.output))
+    {
+        identity(&value.identity)?;
+        identity(&value.owner)?;
+        trace_state(&value.state, g.maximum_level)?;
+    }
+    for op in &g.operations {
+        identity(&op.identity)?;
+        identity(&op.kernel_identity)?;
+        if op.inputs.is_empty() || op.primitive == PublicPrimitive::UnknownNonlinear {
+            return Err("unknown composite operation".into());
+        }
+        for id in &op.inputs {
+            identity(id)?;
+        }
+    }
+    for id in g
+        .outputs
+        .iter()
+        .chain(&g.retained_inputs)
+        .chain(&g.persistent_owners)
+    {
+        identity(id)?;
+    }
+    for step in trace {
+        identity(&step.operation)?;
+        identity(&step.capability)?;
+        for id in &step.release {
+            identity(id)?;
+        }
+    }
+    for (i, cap) in g.capabilities.iter().enumerate() {
+        trace_capability(cap, g.maximum_level)?;
+        if g.capabilities[..i]
+            .iter()
+            .any(|c| c.identity == cap.identity)
+        {
+            return Err("duplicate composite capability".into());
+        }
+    }
+    for (i, op) in g.operations.iter().enumerate() {
+        if g.operations[..i].iter().any(|x| x.identity == op.identity) {
+            return Err("duplicate composite operation".into());
+        }
+    }
+    for (i, owner) in g.owners.iter().enumerate() {
+        if g.owners[..i].iter().any(|x| x.identity == owner.identity) {
+            return Err("duplicate composite owner".into());
+        }
+    }
+    for (i, input) in g.inputs.iter().enumerate() {
+        if g.inputs[..i].iter().any(|prior| {
+            prior.owner == input.owner && !same_backing_state(&prior.state, &input.state)
+        }) {
+            return Err("aliased inputs disagree on physical backing state".into());
+        }
+    }
+    let count = add(g.inputs.len(), g.operations.len())?;
+    let mut values = Vec::new();
+    values
+        .try_reserve_exact(count)
+        .map_err(|_| "composite allocation failed")?;
+    values.extend(g.inputs.iter());
+    values.extend(g.operations.iter().map(|op| &op.output));
+    let value_index = |id: &str| {
+        values
+            .iter()
+            .position(|v| v.identity == id)
+            .ok_or("unknown composite value")
+    };
+    let mut owners = trace_vec(count, 0usize)?;
+    for (i, value) in values.iter().enumerate() {
+        if values[..i].iter().any(|v| v.identity == value.identity) {
+            return Err("duplicate composite value".into());
+        }
+        owners[i] = g
+            .owners
+            .iter()
+            .position(|o| o.identity == value.owner)
+            .ok_or("unknown backing owner")?;
+    }
+    for owner in &g.owners {
+        if !values.iter().any(|v| v.owner == owner.identity)
+            && !g.persistent_owners.contains(&owner.identity)
+        {
+            return Err("unused backing owner".into());
+        }
+    }
+    for op in &g.operations {
+        for id in &op.inputs {
+            value_index(id)?;
+        }
+    }
+    for (i, id) in g.outputs.iter().enumerate() {
+        value_index(id)?;
+        if g.outputs[..i].contains(id) {
+            return Err("duplicate composite output".into());
+        }
+    }
+    for (i, id) in g.retained_inputs.iter().enumerate() {
+        if !g.inputs.iter().any(|v| &v.identity == id) || g.retained_inputs[..i].contains(id) {
+            return Err("invalid retained parent".into());
+        }
+    }
+    let mut live = trace_vec(count, false)?;
+    let mut executed = trace_vec(g.operations.len(), false)?;
+    let mut references = trace_vec(g.owners.len(), 0usize)?;
+    let mut created = trace_vec(g.owners.len(), false)?;
+    let mut backing = 0u64;
+    for (i, id) in g.persistent_owners.iter().enumerate() {
+        let owner = g
+            .owners
+            .iter()
+            .position(|o| &o.identity == id)
+            .ok_or("unknown persistent owner")?;
+        if g.persistent_owners[..i].contains(id) {
+            return Err("duplicate persistent owner".into());
+        }
+        references[owner] = 1;
+        created[owner] = true;
+        backing = sum_cost(backing, g.owners[owner].bytes.unwrap())?;
+    }
+    for i in 0..g.inputs.len() {
+        live[i] = true;
+        if references[owners[i]] == 0 {
+            backing = sum_cost(backing, g.owners[owners[i]].bytes.unwrap())?;
+        }
+        references[owners[i]] = add(references[owners[i]], 1)?;
+        created[owners[i]] = true;
+    }
+    let mut peak_backing = backing;
+    let mut peak_owners = backing;
+    if backing > capacity.max_live_owner_bytes {
+        return Err("composite owner capacity exceeded".into());
+    }
+    let mut total_cost = 0;
+    for step in trace {
+        let index = g
+            .operations
+            .iter()
+            .position(|op| op.identity == step.operation)
+            .ok_or("unknown trace operation")?;
+        if executed[index] {
+            return Err("duplicate trace execution".into());
+        }
+        let op = &g.operations[index];
+        let cap = g
+            .capabilities
+            .iter()
+            .find(|c| c.identity == step.capability)
+            .ok_or("unknown trace capability")?;
+        if cap.kernel_identity != op.kernel_identity
+            || cap.primitive != op.primitive
+            || cap.inputs.len() != op.inputs.len()
+            || cap.output != op.output.state
+        {
+            return Err("composite capability/output mismatch".into());
+        }
+        for (id, expected) in op.inputs.iter().zip(&cap.inputs) {
+            let input = value_index(id)?;
+            if !live[input] || values[input].state != *expected {
+                return Err("unavailable parent (cycle, early release or type mismatch)".into());
+            }
+        }
+        let output = g.inputs.len() + index;
+        let owner = owners[output];
+        if matches!(&cap.execution, PublicCiphertextExecution::View { .. }) {
+            if owner != owners[value_index(&op.inputs[0])?] {
+                return Err("view must retain parent backing".into());
+            }
+        } else {
+            // Fresh means never owned by an input or another non-view producer,
+            // not merely currently dead. No hidden in-place/cache mutation.
+            if created[owner] {
+                return Err("non-view output needs fresh immutable backing".into());
+            }
+            created[owner] = true;
+        }
+        if references[owner] == 0 {
+            backing = sum_cost(backing, g.owners[owner].bytes.unwrap())?;
+        }
+        references[owner] = add(references[owner], 1)?;
+        live[output] = true;
+        executed[index] = true;
+        let overlap = sum_cost(
+            sum_cost(backing, cap.scratch_bytes.unwrap())?,
+            cap.recovery_overlap_bytes.unwrap(),
+        )?;
+        peak_backing = peak_backing.max(backing);
+        peak_owners = peak_owners.max(overlap);
+        if overlap > capacity.max_live_owner_bytes {
+            return Err("composite owner capacity exceeded".into());
+        }
+        total_cost = sum_cost(total_cost, trace_capability(cap, g.maximum_level)?)?;
+        for id in &step.release {
+            let released = value_index(id)?;
+            if !live[released] || g.retained_inputs.contains(id) {
+                return Err("invalid release or immutable retained parent retirement".into());
+            }
+            live[released] = false;
+            references[owners[released]] -= 1;
+            if references[owners[released]] == 0 {
+                backing -= g.owners[owners[released]].bytes.unwrap();
+            }
+        }
+    }
+    for id in g.outputs.iter().chain(&g.retained_inputs) {
+        if !live[value_index(id)?] {
+            return Err("missing composite boundary value".into());
+        }
+    }
+    Ok(PublicCiphertextTraceSummary {
+        total_cost,
+        peak_live_backing_bytes: peak_backing,
+        peak_live_owner_bytes: peak_owners,
+        final_live_backing_bytes: backing,
+        work_bound,
+        buffer_bytes,
     })
 }
 

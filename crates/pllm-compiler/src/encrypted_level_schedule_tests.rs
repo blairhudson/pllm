@@ -1,5 +1,548 @@
 use super::*;
 
+fn trace_capacity() -> PublicCiphertextTraceCapacity {
+    PublicCiphertextTraceCapacity {
+        max_records: 4096,
+        max_work: usize::MAX,
+        max_buffer_bytes: 4 << 20,
+        max_live_owner_bytes: u64::MAX,
+    }
+}
+
+fn ciphertext_state(shape: &[u64], layout: &str, level: u32) -> PublicCiphertextState {
+    PublicCiphertextState {
+        scheme: "synthetic-ckks-only".into(),
+        key_domain: "client-key-domain".into(),
+        layout: layout.into(),
+        scale: "synthetic-scale".into(),
+        level,
+        shape: shape.to_vec(),
+        error: PublicCiphertextError {
+            model_identity: "synthetic-error-model".into(),
+            bound: Some(1),
+        },
+    }
+}
+
+fn ciphertext_value(id: &str, state: PublicCiphertextState, owner: &str) -> PublicCiphertextValue {
+    PublicCiphertextValue {
+        identity: id.into(),
+        state,
+        owner: owner.into(),
+    }
+}
+
+fn trace_compute(level: u32, units: u64) -> PublicCiphertextExecution {
+    PublicCiphertextExecution::Ckks {
+        compute: PublicLevelCompute {
+            input_level: level,
+            cost: charge("compute", units),
+        },
+        depth: 0,
+        transition: transition(level, level, 0),
+    }
+}
+
+fn trace_cap(
+    id: &str,
+    primitive: PublicPrimitive,
+    inputs: Vec<PublicCiphertextState>,
+    output: PublicCiphertextState,
+    join: PublicCiphertextJoin,
+    execution: PublicCiphertextExecution,
+) -> PublicCiphertextCapability {
+    PublicCiphertextCapability {
+        identity: id.into(),
+        kernel_identity: id.into(),
+        primitive,
+        inputs,
+        output,
+        join,
+        execution,
+        error_assumption: Some("synthetic-error-assumption-not-a-proof".into()),
+        scratch_bytes: Some(0),
+        recovery_overlap_bytes: Some(0),
+    }
+}
+
+fn trace_op(
+    id: &str,
+    inputs: &[&str],
+    output: PublicCiphertextValue,
+    primitive: PublicPrimitive,
+) -> PublicCiphertextGraphOperation {
+    PublicCiphertextGraphOperation {
+        identity: id.into(),
+        kernel_identity: id.into(),
+        primitive,
+        inputs: inputs.iter().map(|id| (*id).into()).collect(),
+        output,
+    }
+}
+
+fn trace_step(id: &str, release: &[&str]) -> PublicCiphertextTraceStep {
+    PublicCiphertextTraceStep {
+        operation: id.into(),
+        capability: id.into(),
+        release: release.iter().map(|id| (*id).into()).collect(),
+    }
+}
+
+/// Synthetic cost/size fixture, NOT any method's numerical or HE parameter set.
+/// RMSNorm/softmax share this retained-vector -> scalar -> broadcast topology.
+fn retained_branch() -> (PublicCiphertextGraph, Vec<PublicCiphertextTraceStep>) {
+    let vector = ciphertext_state(&[4], "vector-layout", 2);
+    let scalar = ciphertext_state(&[1], "scalar-layout", 2);
+    let arithmetic = PublicPrimitive::Arithmetic;
+    let mut inverse = trace_cap(
+        "inverse",
+        PublicPrimitive::Invsqrt,
+        vec![scalar.clone()],
+        scalar.clone(),
+        PublicCiphertextJoin::Unary,
+        PublicCiphertextExecution::Hybrid {
+            round_trip: hybrid(2, 2, 4, 5, 6),
+        },
+    );
+    inverse.scratch_bytes = Some(500);
+    inverse.recovery_overlap_bytes = Some(600);
+    let graph = PublicCiphertextGraph {
+        cost_model_identity: "synthetic-test-only".into(),
+        cost_unit: "synthetic-integer-unit".into(),
+        maximum_level: 2,
+        owners: [
+            ("x-owner", 1000),
+            ("square-owner", 80),
+            ("sum-owner", 8),
+            ("inverse-owner", 8),
+            ("result-owner", 80),
+        ]
+        .into_iter()
+        .map(|(id, bytes)| PublicCiphertextOwner {
+            identity: id.into(),
+            bytes: Some(bytes),
+        })
+        .collect(),
+        persistent_owners: vec![],
+        inputs: vec![ciphertext_value("x", vector.clone(), "x-owner")],
+        operations: vec![
+            trace_op(
+                "square",
+                &["x"],
+                ciphertext_value("squared", vector.clone(), "square-owner"),
+                arithmetic,
+            ),
+            trace_op(
+                "sum",
+                &["squared"],
+                ciphertext_value("summed", scalar.clone(), "sum-owner"),
+                arithmetic,
+            ),
+            trace_op(
+                "inverse",
+                &["summed"],
+                ciphertext_value("factor", scalar.clone(), "inverse-owner"),
+                PublicPrimitive::Invsqrt,
+            ),
+            trace_op(
+                "multiply",
+                &["x", "factor"],
+                ciphertext_value("result", vector.clone(), "result-owner"),
+                arithmetic,
+            ),
+        ],
+        capabilities: vec![
+            trace_cap(
+                "square",
+                arithmetic,
+                vec![vector.clone()],
+                vector.clone(),
+                PublicCiphertextJoin::Unary,
+                trace_compute(2, 2),
+            ),
+            trace_cap(
+                "sum",
+                arithmetic,
+                vec![vector.clone()],
+                scalar.clone(),
+                PublicCiphertextJoin::Unary,
+                trace_compute(2, 3),
+            ),
+            inverse,
+            trace_cap(
+                "multiply",
+                arithmetic,
+                vec![vector.clone(), scalar],
+                vector,
+                PublicCiphertextJoin::ScalarBroadcast { vector_input: 0 },
+                trace_compute(2, 7),
+            ),
+        ],
+        outputs: vec!["result".into()],
+        retained_inputs: vec!["x".into()],
+    };
+    let trace = vec![
+        trace_step("square", &[]),
+        trace_step("sum", &["squared"]),
+        trace_step("inverse", &["summed"]),
+        trace_step("multiply", &["factor"]),
+    ];
+    (graph, trace)
+}
+
+#[test]
+fn composite_retains_branch_and_charges_full_recovery_overlap() {
+    let (g, trace) = retained_branch();
+    let original = g.clone();
+    let result = validate_public_ciphertext_trace(&g, &trace, trace_capacity()).unwrap();
+    assert_eq!(g, original);
+    assert_eq!(result.total_cost, 27);
+    assert_eq!(result.peak_live_backing_bytes, 1088);
+    // Retained x + scalar input + new recovered scalar + scratch + recovery.
+    assert_eq!(result.peak_live_owner_bytes, 1000 + 8 + 8 + 500 + 600);
+    assert_eq!(result.final_live_backing_bytes, 1080);
+    let mut early = trace.clone();
+    early[0].release.push("x".into());
+    assert!(
+        validate_public_ciphertext_trace(&g, &early, trace_capacity())
+            .unwrap_err()
+            .contains("retained parent")
+    );
+    let mut nonretained = g.clone();
+    nonretained.retained_inputs.clear();
+    assert!(
+        validate_public_ciphertext_trace(&nonretained, &early, trace_capacity())
+            .unwrap_err()
+            .contains("unavailable parent")
+    );
+}
+
+#[test]
+fn composite_exact_and_one_short_owner_work_buffer_and_records() {
+    let (g, trace) = retained_branch();
+    let result = validate_public_ciphertext_trace(&g, &trace, trace_capacity()).unwrap();
+    let exact = PublicCiphertextTraceCapacity {
+        max_records: (result.buffer_bytes - 1024) / 256,
+        max_work: result.work_bound,
+        max_buffer_bytes: result.buffer_bytes,
+        max_live_owner_bytes: result.peak_live_owner_bytes,
+    };
+    assert_eq!(
+        validate_public_ciphertext_trace(&g, &trace, exact).unwrap(),
+        result
+    );
+    for field in 0..4 {
+        let mut short = exact;
+        match field {
+            0 => short.max_records -= 1,
+            1 => short.max_work -= 1,
+            2 => short.max_buffer_bytes -= 1,
+            _ => short.max_live_owner_bytes -= 1,
+        }
+        assert!(validate_public_ciphertext_trace(&g, &trace, short).is_err());
+    }
+}
+
+#[test]
+fn composite_views_retain_backing_after_parent_handle_release() {
+    let (mut g, _) = retained_branch();
+    let vector = g.inputs[0].state.clone();
+    let scalar = ciphertext_state(&[1], "vector-layout", 2);
+    g.owners.truncate(1);
+    g.owners.push(PublicCiphertextOwner {
+        identity: "copy-owner".into(),
+        bytes: Some(8),
+    });
+    g.owners.push(PublicCiphertextOwner {
+        identity: "keys-owner".into(),
+        bytes: Some(200),
+    });
+    g.persistent_owners = vec!["keys-owner".into()];
+    g.retained_inputs.clear();
+    g.operations = vec![
+        trace_op(
+            "view",
+            &["x"],
+            ciphertext_value("view-value", scalar.clone(), "x-owner"),
+            PublicPrimitive::Arithmetic,
+        ),
+        trace_op(
+            "copy",
+            &["view-value"],
+            ciphertext_value("result", scalar.clone(), "copy-owner"),
+            PublicPrimitive::Arithmetic,
+        ),
+    ];
+    g.capabilities = vec![
+        trace_cap(
+            "view",
+            PublicPrimitive::Arithmetic,
+            vec![vector],
+            scalar.clone(),
+            PublicCiphertextJoin::Unary,
+            PublicCiphertextExecution::View {
+                cost: charge("view", 1),
+            },
+        ),
+        trace_cap(
+            "copy",
+            PublicPrimitive::Arithmetic,
+            vec![scalar.clone()],
+            scalar,
+            PublicCiphertextJoin::Unary,
+            trace_compute(2, 2),
+        ),
+    ];
+    let trace = vec![
+        trace_step("view", &["x"]),
+        trace_step("copy", &["view-value"]),
+    ];
+    let summary = validate_public_ciphertext_trace(&g, &trace, trace_capacity()).unwrap();
+    assert_eq!(summary.total_cost, 3);
+    assert_eq!(summary.peak_live_backing_bytes, 1208);
+    assert_eq!(summary.final_live_backing_bytes, 208);
+    // A second alias does not allocate/charge the 1000-byte backing twice.
+    let mut both_handles = trace.clone();
+    both_handles[0].release.clear();
+    both_handles[1].release.push("x".into());
+    assert_eq!(
+        validate_public_ciphertext_trace(&g, &both_handles, trace_capacity())
+            .unwrap()
+            .peak_live_owner_bytes,
+        1208
+    );
+    let mut mutation = g.clone();
+    mutation.capabilities[0].output.level = 1;
+    mutation.operations[0].output.state.level = 1;
+    assert!(
+        validate_public_ciphertext_trace(&mutation, &trace, trace_capacity())
+            .unwrap_err()
+            .contains("physical parent")
+    );
+    let mut fresh = g.clone();
+    fresh.capabilities[0].execution = trace_compute(2, 1);
+    assert!(
+        validate_public_ciphertext_trace(&fresh, &trace, trace_capacity())
+            .unwrap_err()
+            .contains("fresh immutable backing")
+    );
+}
+
+#[test]
+fn composite_aligned_residual_or_gate_join_and_mismatches() {
+    let (mut g, trace) = retained_branch();
+    // Turn the last stage into a two-vector aligned join. Neither arm disappears.
+    let vector = g.inputs[0].state.clone();
+    g.operations[3].inputs = vec!["x".into(), "squared".into()];
+    g.capabilities[3].inputs = vec![vector.clone(), vector];
+    g.capabilities[3].join = PublicCiphertextJoin::Aligned;
+    let mut trace = trace;
+    trace[1].release.clear();
+    trace[3].release.push("squared".into());
+    assert!(validate_public_ciphertext_trace(&g, &trace, trace_capacity()).is_ok());
+    for field in 0..5 {
+        let mut bad = g.clone();
+        let state = &mut bad.capabilities[3].inputs[1];
+        match field {
+            0 => state.level = 1,
+            1 => state.key_domain = "wrong-key".into(),
+            2 => state.layout = "wrong-layout".into(),
+            3 => state.scale = "wrong-scale".into(),
+            _ => state.shape = vec![2],
+        }
+        assert!(
+            validate_public_ciphertext_trace(&bad, &trace, trace_capacity())
+                .unwrap_err()
+                .contains("aligned join")
+        );
+    }
+    let (mut broadcast, original_trace) = retained_branch();
+    broadcast.capabilities[3].inputs[1].shape = vec![2];
+    assert!(
+        validate_public_ciphertext_trace(&broadcast, &original_trace, trace_capacity())
+            .unwrap_err()
+            .contains("broadcast join")
+    );
+}
+
+#[test]
+fn composite_unknown_assumptions_cycles_bindings_and_overflow_reject() {
+    let (g, trace) = retained_branch();
+    for field in 0..7 {
+        let mut bad = g.clone();
+        match field {
+            0 => {
+                if let PublicCiphertextExecution::Ckks { compute, .. } =
+                    &mut bad.capabilities[0].execution
+                {
+                    compute.cost.units = None;
+                }
+            }
+            1 => bad.capabilities[0].error_assumption = None,
+            2 => bad.capabilities[0].output.error.bound = None,
+            3 => bad.capabilities[0].scratch_bytes = None,
+            4 => bad.capabilities[0].recovery_overlap_bytes = None,
+            5 => bad.owners[0].bytes = None,
+            _ => bad.capabilities[0].primitive = PublicPrimitive::UnknownNonlinear,
+        }
+        assert!(validate_public_ciphertext_trace(&bad, &trace, trace_capacity()).is_err());
+    }
+    let mut unused = g.clone();
+    let mut unknown = unused.capabilities[0].clone();
+    unknown.identity = "unused-unknown".into();
+    unknown.error_assumption = None;
+    unused.capabilities.push(unknown);
+    assert!(validate_public_ciphertext_trace(&unused, &trace, trace_capacity()).is_err());
+    let mut unknown_recovery = g.clone();
+    if let PublicCiphertextExecution::Hybrid { round_trip } =
+        &mut unknown_recovery.capabilities[2].execution
+    {
+        round_trip.recover.units = None;
+    }
+    assert!(validate_public_ciphertext_trace(&unknown_recovery, &trace, trace_capacity()).is_err());
+    let mut illegal_transition = g.clone();
+    if let PublicCiphertextExecution::Ckks { transition, .. } =
+        &mut illegal_transition.capabilities[0].execution
+    {
+        transition.from_level = 1;
+    }
+    assert!(
+        validate_public_ciphertext_trace(&illegal_transition, &trace, trace_capacity()).is_err()
+    );
+    let mut alias = g.clone();
+    let mut incompatible = alias.inputs[0].clone();
+    incompatible.identity = "aliased-input".into();
+    incompatible.state.key_domain = "different-key-domain".into();
+    alias.inputs.push(incompatible);
+    assert!(
+        validate_public_ciphertext_trace(&alias, &trace, trace_capacity())
+            .unwrap_err()
+            .contains("aliased inputs")
+    );
+    let mut missing_output = g.clone();
+    missing_output.outputs = vec!["missing".into()];
+    assert!(validate_public_ciphertext_trace(&missing_output, &trace, trace_capacity()).is_err());
+    let mut cycle = g.clone();
+    cycle.operations[0].inputs = vec!["result".into()];
+    assert!(
+        validate_public_ciphertext_trace(&cycle, &trace, trace_capacity())
+            .unwrap_err()
+            .contains("cycle")
+    );
+    let mut binding = g.clone();
+    binding.operations[0].kernel_identity = "different-kernel".into();
+    assert!(
+        validate_public_ciphertext_trace(&binding, &trace, trace_capacity())
+            .unwrap_err()
+            .contains("mismatch")
+    );
+    let mut duplicate = trace.clone();
+    duplicate[1] = duplicate[0].clone();
+    assert!(
+        validate_public_ciphertext_trace(&g, &duplicate, trace_capacity())
+            .unwrap_err()
+            .contains("duplicate trace")
+    );
+    let mut overflow = g.clone();
+    overflow.capabilities[0].scratch_bytes = Some(u64::MAX);
+    assert!(
+        validate_public_ciphertext_trace(&overflow, &trace, trace_capacity())
+            .unwrap_err()
+            .contains("overflow")
+    );
+    let mut overflow = g.clone();
+    if let PublicCiphertextExecution::Ckks { compute, .. } = &mut overflow.capabilities[0].execution
+    {
+        compute.cost.units = Some(u64::MAX);
+    }
+    assert!(
+        validate_public_ciphertext_trace(&overflow, &trace, trace_capacity())
+            .unwrap_err()
+            .contains("overflow")
+    );
+    let mut overflow = g;
+    overflow.inputs[0].state.shape = vec![u64::MAX, 2];
+    assert!(
+        validate_public_ciphertext_trace(&overflow, &trace, trace_capacity())
+            .unwrap_err()
+            .contains("shape overflow")
+    );
+}
+
+#[test]
+fn composite_serial_selected_path_has_identical_costs() {
+    for use_hybrid in [false, true] {
+        let mut first = op("a", 1, 2);
+        if use_hybrid {
+            first.hybrid.push(hybrid(2, 2, 1, 1, 1));
+        }
+        let p = problem(vec![first, op("b", 1, 2)], 2, 1, 2);
+        let serial = solve_public_encrypted_levels(&p, capacity()).unwrap();
+        let (mut g, _) = retained_branch();
+        g.owners.clear();
+        g.operations.clear();
+        g.capabilities.clear();
+        g.retained_inputs.clear();
+        g.inputs = vec![ciphertext_value(
+            "input",
+            ciphertext_state(&[4], "vector-layout", p.input_level),
+            "input-owner",
+        )];
+        g.owners.push(PublicCiphertextOwner {
+            identity: "input-owner".into(),
+            bytes: Some(8),
+        });
+        let mut prior = "input".to_string();
+        let mut input_state = g.inputs[0].state.clone();
+        let mut trace = Vec::new();
+        for (i, step) in serial.ledger.steps.iter().enumerate() {
+            let op = &p.operations[i];
+            let output = format!("output-{i}");
+            let owner = format!("owner-{i}");
+            let output_state = ciphertext_state(&[4], "vector-layout", step.output_level);
+            let execution = match step.choice {
+                PublicLevelChoice::Ckks {
+                    compute_row,
+                    transition_row,
+                } => PublicCiphertextExecution::Ckks {
+                    compute: op.compute[compute_row].clone(),
+                    depth: op.depth,
+                    transition: op.transitions[transition_row].clone(),
+                },
+                PublicLevelChoice::Hybrid { round_trip_row } => PublicCiphertextExecution::Hybrid {
+                    round_trip: op.hybrid[round_trip_row].clone(),
+                },
+            };
+            g.owners.push(PublicCiphertextOwner {
+                identity: owner.clone(),
+                bytes: Some(8),
+            });
+            g.operations.push(trace_op(
+                &op.identity,
+                &[&prior],
+                ciphertext_value(&output, output_state.clone(), &owner),
+                op.primitive,
+            ));
+            g.capabilities.push(trace_cap(
+                &op.identity,
+                op.primitive,
+                vec![input_state],
+                output_state.clone(),
+                PublicCiphertextJoin::Unary,
+                execution,
+            ));
+            trace.push(trace_step(&op.identity, &[&prior]));
+            prior = output;
+            input_state = output_state;
+        }
+        g.outputs = vec![prior];
+        let checked = validate_public_ciphertext_trace(&g, &trace, trace_capacity()).unwrap();
+        assert_eq!(checked.total_cost, serial.ledger.total_cost);
+        assert_eq!(checked.peak_live_backing_bytes, 16);
+        assert_eq!(checked.final_live_backing_bytes, 8);
+    }
+}
+
 fn capacity() -> PublicLevelSolverCapacity {
     PublicLevelSolverCapacity {
         max_operations: 32,
