@@ -1,8 +1,10 @@
 # NEXUS numeric graph and decoder contract audit
 
-Source inspection only, 22 October 2026. No upstream runtime, checkpoint, tests,
-builds or encrypted execution performed. This evidence does not qualify a trained
-decoder, backend, numerical profile or security claim.
+Source inspection and the bounded clear GELU experiment below, 22 October 2026.
+No upstream runtime/checkpoint execution, upstream tests, builds or encrypted
+execution performed; local numerical regression tests are recorded below. This
+evidence does not qualify a trained decoder, backend, numerical profile or security
+claim.
 
 ## Immutable sources and existing approvals
 
@@ -248,12 +250,15 @@ It is not vendored, linked, executed or required by a runtime.
 
 D24 approves this research experiment only, not a NEXUS numeric profile or CKKS
 adoption. The reusable experiment is
-`examples/benchmarks/nexus_gelu_numerics.py`; its ordinary output is
-`docs/evidence/nexus-gelu-numerics.json`. With optional `mpmath==1.3.0` installed,
-the executed command is:
+`examples/benchmarks/nexus_gelu_numerics.py`. The current ordinary output, including
+the added numerical blockers, is `target/nexus-gelu-numerics.json` (ignored build/
+diagnostic space); `docs/evidence/nexus-gelu-numerics.json` is the earlier output
+and was not regenerated for this run. With the existing optional
+`mpmath==1.3.0` and pytest installed, the commands actually executed were:
 
 ```sh
-uv run --no-sync python examples/benchmarks/nexus_gelu_numerics.py --output docs/evidence/nexus-gelu-numerics.json
+uv run --no-sync python examples/benchmarks/nexus_gelu_numerics.py --output target/nexus-gelu-numerics.json
+uv run --no-sync python -m pytest tests/test_nexus_gelu_numerics.py -q
 ```
 
 The frozen candidate uses exact-rational PUMA printed coefficients, NEXUS's
@@ -263,7 +268,10 @@ are `12,199/20,11`; normalized separation `2^-20` therefore has distinct
 original-unit widths. No refit, clipping, extra repetitions, acceptance tolerance,
 encrypted arithmetic or source-model execution is introduced.
 
-At 80 decimal digits, the finite samples find:
+### Sampled observations, not uniform certificates
+
+At 80 decimal digits, 381 distinct original-unit inputs (257-point uniform grid
+plus thresholds and in-domain normalized dyadic offsets) give:
 
 | Diagnostic | Sampled maximum absolute error |
 | --- | ---: |
@@ -272,20 +280,196 @@ At 80 decimal digits, the finite samples find:
 | Blended output versus `x*Phi(x)` | 0.01221802 |
 | Full versus shorter printed coefficient precision | 5.47e-15 |
 
-These are sampled estimates, not uniform error bounds. At normalized distance
-`2^-20`, the sign composition's error is approximately **0.99981150** on both
-sides of every threshold. The fixed repetition count therefore does not provide
-an accurate sign estimate at that separation. Exact thresholds produce comparator
-`1/2` and blend adjacent branches, not the endpoint oracle's hard branch.
+These are sampled estimates, not uniform error bounds. The shorter printed
+coefficients do not explain the observed selector problem. Exact thresholds
+produce comparator `1/2` and blend adjacent branches, not the endpoint oracle's
+hard branch. Endpoint assignments remain **zero at -4, P at -1.95, Q at 3**.
+
+### Rigorous point enclosures and exact oracle jump lower bounds
+
+The output's `numeric_blockers.sign_point_witnesses` uses outward interval
+arithmetic, including rational coefficient conversion. The following numbers are
+rounded displays of those enclosures; exact binary endpoints are in the JSON.
+They hold on both signs and map to `x=t+Delta_t*z` for each threshold:
+
+| Normalized point z | Sign error | Comparator error | Band relation |
+| --- | ---: | ---: | --- |
+| `+/-2^-20` | 0.999811499255490484 | 0.499905749627745242 | Band boundary |
+| `+/-2^-19` | 0.999622998521496399 | 0.499811499260748200 | Strictly outside |
+
+These point errors lower-bound any uniform error budget covering those points;
+they are not upper bounds over a domain. The strict-outside witnesses avoid any
+ambiguity about whether the nominal band includes its boundary. Independent
+exact-rational compositions test both signs at both separations.
+
+Outward point enclosures also prove negative adjacent-difference weights:
+`b1(-85/64)` is approximately `-1.3252989633e-11`, and `b2(83/16)` approximately
+`-1.3221357765e-11`. Their upper endpoints are negative, while the individual
+comparators at those points remain in `[0,1]`. This is not floating-point noise
+and does not imply that all weights are negative or that an input left the domain.
+
+The exact P/Q literals make the piecewise oracle discontinuous. For any continuous
+approximation Y, continuity and the triangle inequality on the two one-sided
+limits imply `sup_x abs(Y(x)-F(x)) >= abs(F(t+)-F(t-))/2`. The experiment's
+`numeric_blockers.oracle_jumps` evaluates these differences with exact rationals:
+
+| Threshold | Exact half absolute jump |
+| --- | ---: |
+| `-4` | 0.000313315939415676 |
+| `-1.95` | 0.00361628446467038256759398984375 |
+| `3` | 0.00793176970057680015 |
+
+Thus **0.00793176970057680015 is a rigorous uniform-error lower bound**, not an
+achieved uniform upper bound, for any continuous approximation to this fixed
+endpoint oracle on `[-8,8]`. It does not apply as a lower bound against tanh GELU
+or `x*Phi(x)`, and does not depend on encrypted-arithmetic errors. Changing sign
+repetitions alone cannot remove this oracle-jump floor.
+
+### Bounded interval result and qualification status
 
 Directed-rounding interval evaluation covers the entire research domain, but
-reaches the 128-cell cap with all 128 stage-domain enclosures unresolved. Its
-loose bounds supply neither a useful uniform error certificate nor evidence that
-actual values leave the stage domain. No error tolerance has been approved.
-Independent signed-point rational compositions and all printed coefficient
-literals are covered by the 27 passing normal regression tests. The outcome is a
-bounded negative selector diagnostic; executable NEXUS and its open numerical,
-backend and decoder contracts remain unqualified.
+reaches the 128-cell cap after 246 cell evaluations; maximum leaf depth is 7
+(configured caps: 128 cells, depth 12, 256 evaluations). All 128 stage-domain
+enclosures remain unresolved. These loose bounds supply neither a useful uniform
+error certificate nor evidence that actual values leave the stage domain.
+
+The original D24 regression pass covered **34 tests**, including all printed literals,
+independent signed rational compositions, exact and one-sided endpoint semantics,
+closed-cell enclosures, negative selector witnesses, normalizer units and bounded
+refinement. No error tolerance has been approved. The fixed selector is
+**unqualified**: it is not an exact endpoint oracle and is inaccurate as a sign
+estimate even strictly outside the stated band. Acceptance as a looser blended
+GELU approximation is neither disproved for every possible budget nor established
+by these samples. Executable NEXUS and its numerical/backend/decoder contracts
+remain unqualified.
+
+The user subsequently approved the separate four-schedule clear-arithmetic study
+in `docs/plans/nexus-gelu-numeric-experiment.md`. Its executed result follows.
+D24's frozen candidate is unchanged, and neither study adopts a numerical contract.
+
+## Approved four-schedule clear-arithmetic follow-up
+
+The user answered **"Approve bounded study"**. Approval is for this experiment
+only: no CKKS, runtime, backend, numerical acceptance policy or executable profile
+is adopted. Only the pinned printed Cheon–Kim–Kim `f4,g_(4,1/4)` coefficients above
+are used; the new repetition counts are research adaptations, not claimed NEXUS
+schedules. PUMA P/Q, NEXUS thresholds and endpoints, adjacent selectors and public
+difference normalizers are unchanged. No upstream runtime was executed.
+
+Actual commands:
+
+```sh
+uv run --no-sync python examples/benchmarks/nexus_gelu_numerics.py --follow-up --output target/nexus-gelu-follow-up.json
+uv run --no-sync python -m pytest tests/test_nexus_gelu_numerics.py -q
+uv run --no-sync ruff check examples/benchmarks/nexus_gelu_numerics.py tests/test_nexus_gelu_numerics.py
+```
+
+The ordinary JSON records `completed_bounded_study_not_certified`. Study work
+took **3.374 seconds**, with **1,936 attempted interval cell evaluations** (484
+per candidate); no candidate timed out. Each candidate used **291 normalized
+sample locations and 381 original-unit locations**, fewer than the approved
+307+381 caps. Standalone normalized grids are classified separately into
+`D_epsilon=[-1,-epsilon] union [epsilon,1]`. Original-unit samples are separately
+classified into `E_epsilon` (all three normalized differences separated by epsilon)
+and its within-band complement, for epsilon `2^-4,2^-10,2^-20`.
+
+### Sampled comparisons — not uniform upper bounds
+
+| (r,s) in `f4^s(g4^r(z))` | Max sign error on sampled D_(2^-4) | D_(2^-10) | D_(2^-20) |
+| --- | ---: | ---: | ---: |
+| (2,2) | 2.64587e-11 | 0.8088406552 | 0.9998114993 |
+| (6,2) | 2.64415e-11 | 2.64415e-11 | 0.8013106704 |
+| (10,2) | 2.64263e-11 | 2.64263e-11 | 2.64263e-11 |
+| (10,3) | 1.01493e-52 | 1.01493e-52 | 1.01493e-52 |
+
+The sampled counts on these three separated sets are 242, 262 and 282,
+respectively; points at zero/inside the relevant gap are not sign-domain samples.
+Corresponding comparator errors are half the sign errors. These tables do not
+certify any entire D_epsilon, nor behavior arbitrarily near zero.
+
+| (r,s) | Sampled max error vs piecewise oracle | vs tanh GELU | vs `x*Phi(x)` | Largest sampled negative-weight magnitude |
+| --- | ---: | ---: | ---: | ---: |
+| (2,2) | 0.00793176970058 | 0.01180187834 | 0.01221801982 | 1.32530e-11 |
+| (6,2) | 0.00793176970058 | 0.01946455556 | 0.01987691824 | 1.32382e-11 |
+| (10,2) | 0.00793176970158 | 0.01950079097 | 0.01991309323 | 1.32606e-11 |
+| (10,3) | 0.00793176970058 | 0.01950079098 | 0.01991309323 | 5.16633e-53 |
+
+Sharper sampled comparison is **not** improved end-to-end GELU accuracy: the
+sharp candidates approach the fixed polynomial branches immediately below 3,
+where the oracle itself has appreciable tanh/`x*Phi(x)` error. On sampled
+E_(2^-20), the piecewise error drops from about `0.00793146` for (2,2) to
+`3.82384e-9` for (10,2) and `1.32318e-50` for (10,3), but this separated subset
+excludes the exact thresholds. It must not replace the full-domain result.
+
+Maximum sampled selector leakage remains about **0.5**, including exact ties.
+Negative-weight entries above are high-precision observations, not sign proofs
+over a domain. In particular, (10,3) also has outer-weight estimates around
+`2.1e-81`, at the 80-digit arithmetic noise floor; those do not prove exact
+negativity. Original D24's rigorously negative point witnesses remain as above.
+Printed-coefficient sensitivity remains about `5.5e-15` in all four candidates.
+Every sampled intermediate stage, individual selector, inactive-branch error term
+and separated/within-band group is retained in the ordinary output.
+
+### Rigorous point diagnostics and unchanged jump floor
+
+Outward interval point checks use only the listed normalized sample locations,
+with exact binary endpoints separate from decimal display estimates. At positive
+normalized separation `2^-20`, (10,2)'s sign error is enclosed near
+`1.8048427129e-15`; at `2^-19`, near `9.1192182873e-39`. For (10,3), those
+point-error enclosures contain zero with upper endpoints approximately
+`4.18e-73` and `9.79e-73`, respectively. Containing zero does **not** establish
+an exact zero error. These facts concern specific points, not whole separated
+domains. Both signs are included in the JSON and independent staged-polynomial
+regressions.
+
+The exact oracle jump calculation above is independent of r and s. Its
+**0.00793176970057680015 uniform-error lower bound** still applies to every
+continuous candidate against the fixed piecewise oracle. It is not an upper
+certificate and is not a lower bound against the two smooth GELU targets.
+
+### Clear-arithmetic cost, unresolved intervals and remaining gate
+
+The evaluated DAG uses ordinary Horner seeded with the highest coefficient,
+without zero-coefficient folding or expanded composed polynomials. One degree-nine
+stage uses one constant product, eight variable products and nine additions.
+
+| (r,s) | Composed stages | Exact formal sign degree | Sign constant/variable products | Sign additions / multiplication-dependency depth |
+| --- | ---: | ---: | ---: | ---: |
+| (2,2) | 4 | 6,561 | 4 / 32 | 36 / 36 |
+| (6,2) | 8 | 43,046,721 | 8 / 64 | 72 / 72 |
+| (10,2) | 12 | 282,429,536,481 | 12 / 96 | 108 / 108 |
+| (10,3) | 13 | 2,541,865,828,329 | 13 / 104 | 117 / 117 |
+
+For N=r+s, the full scalar blend DAG uses `3N+2` constant products, `24N+10`
+variable products, `27N+20` additions/subtractions and six public-constant
+divisions; multiplication-dependency depth is `9N+1`. This excludes diagnostic
+targets and sensitivity controls. An operation-counting correctness test checks
+the actual evaluated DAG. These are **not CKKS level, latency, memory or security
+claims**; no HE evaluation strategy is selected.
+
+All 16 interval passes hit their 64-leaf cap: **all 1,024 leaf stage-domain
+checks remain unresolved**. Each sign pass used 126 evaluations (maximum depth
+7), and each GELU pass used 106 (maximum depth 6), within the 128/pass, 2,048-total
+and depth-12 limits. Every full-domain partition cuts all thresholds and the three
+original-unit separation widths; E_epsilon bounds select wholly separated cells
+from that covering partition without another sweep. Outward bounds are retained,
+but supply no useful uniform upper-error certificate or evidence of an actual
+stage-domain escape.
+
+The dedicated suite passes **48 tests** and Ruff passes. Coverage includes the
+four source-polynomial compositions against independent higher-precision staged
+powers, original endpoint behavior, sample/group units, actual arithmetic cost,
+work/depth caps, real nested alarm interruption/restoration, incomplete/nonzero-
+exit handling and rejection of nonfinite endpoint serialization. Numeric work is
+hard-stopped at 120 seconds per candidate and 480 seconds total, including CLI
+setup/report output; a total deadline saves only compact incomplete status after
+stopping study work. No retry or budget increase was run.
+
+**Outcome: bounded study completed, no candidate adopted or numerically qualified.**
+The next user decision is the accepted target, error budget/statistic,
+boundary/blending and negative-weight acceptance, and public-range/failure policy.
+Useful uniform upper-error certification remains absent; encrypted conversion,
+rounding, Q/P/rescale/refresh and full-profile admission remain independent gates.
 
 ## Missing HE, publication and complete-request contracts
 
@@ -329,7 +513,7 @@ generation. Missing complete transaction:
 No blanket approval packet is supported by current evidence. Artifact constants
 narrow investigation but do not close final-paper or decoder-contract gates.
 
-## One smallest proposed next slice
+## Separate unapproved normalization dependency proposal
 
 **Paper Eq.(5) centered-second-moment prefix**, using Algorithm 3 QuickSum:
 
