@@ -127,6 +127,11 @@ pub struct Program {
 }
 
 impl Program {
+    /// Source-schedule ordinals, independent of physical value storage.
+    pub(super) fn logical_len(&self) -> usize {
+        self.nodes.len()
+    }
+
     /// Original ordered imports, including public source descriptors.
     pub(super) fn input_count(&self) -> usize {
         self.inputs
@@ -137,8 +142,24 @@ impl Program {
         (position, &self.nodes[..self.inputs][position])
     }
 
+    /// Borrow original geometry/code, including the original native kernel Arcs.
+    pub(super) fn recipe(&self, ordinal: usize) -> &Node {
+        &self.nodes[ordinal]
+    }
+
     pub(super) fn recipe_at(&self, ordinal: usize) -> Option<&Node> {
         self.nodes.get(ordinal)
+    }
+
+    /// Resolve a logical coordinate's owner; its lane index stays unchanged.
+    /// Expanded storage is exactly identity-mapped, with caller-side indexing
+    /// retaining its existing checked/unchecked behavior.
+    pub(super) fn value_slot(&self, logical_owner: usize) -> usize {
+        logical_owner
+    }
+
+    pub(super) fn output_coordinates(&self) -> &[(usize, usize)] {
+        &self.outputs
     }
 }
 

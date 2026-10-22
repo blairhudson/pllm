@@ -7,6 +7,10 @@ use crate::replicated_decoder::{
     },
     tests::{execute, workers},
 };
+use std::mem::size_of;
+
+#[path = "body_integration_restore_tests.rs"]
+mod restoration;
 
 fn fixture(checked: bool) -> (Arc<Program>, usize) {
     let mut b = Builder {
@@ -1526,3 +1530,181 @@ fn compiled_midgraph_exact_deterministic_full_wire_and_returned_owner_share_pari
 }
 
 // Expanded oracle capture also remains BLOCKED on compact-boundary mapping.
+
+#[test]
+fn shared_handoff_preserves_inline_owners_and_existing_fixed_allowance() {
+    use crate::replicated_decoder::runtime::body::{
+        handoff::{SuspendedWorker, TRANSITION_INLINE_BYTES},
+        Executor, Values,
+    };
+    // The exact pre-extraction Invocation fields, not a discounted worker slot.
+    #[allow(dead_code)]
+    struct OriginalInvocation {
+        compiled: Arc<Compiled>,
+        worker: Worker,
+        executor: Option<Executor>,
+    }
+    assert_eq!(size_of::<SuspendedWorker>(), size_of::<Worker>());
+    assert_eq!(size_of::<Invocation>(), size_of::<OriginalInvocation>());
+    assert!(TRANSITION_INLINE_BYTES + size_of::<&Values>() + 128 <= 4096);
+}
+
+#[test]
+fn shared_handoff_copies_both_components_and_never_releases_partial_restore() {
+    use crate::replicated_decoder::runtime::body::handoff::SuspendedWorker;
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            let (program, end) = fixture(false);
+            let clear = BTreeMap::from([("x".into(), vec![0; 3]), ("y".into(), vec![ONE; 3])]);
+            let [worker, peer_one, peer_two] = deterministic_workers(program.clone(), &clear);
+            drop((peer_one, peer_two));
+            let snapshot = boundary_snapshot(&worker);
+            let before = Arc::strong_count(&program);
+            let (suspended, runtime, copies) =
+                SuspendedWorker::begin(worker, &program, 2, &[0, 1]).unwrap();
+            assert_eq!(runtime.cursors(), snapshot.cursors);
+            for (id, copy) in copies.iter().enumerate() {
+                let (first, second) = snapshot.shares[id].as_ref().unwrap();
+                assert_eq!(copy.first.as_slice(), first.as_slice());
+                assert_eq!(copy.second.as_slice(), second.as_slice());
+            }
+            // First export is already installed; second fails midway through its
+            // checked copy. No Worker or partially restored values may escape.
+            let calls = std::cell::Cell::new(0);
+            let result = suspended.restore(runtime, end, &[end - 2, end - 1], |output, lane| {
+                calls.set(calls.get() + 1);
+                if output == 1 && lane == 1 {
+                    Err(Error::Binding)
+                } else {
+                    Ok((17, 29))
+                }
+            });
+            assert!(matches!(result, Err(Error::Binding)));
+            assert_eq!(calls.get(), 5);
+            assert_eq!(Arc::strong_count(&program), before - 1);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn shared_handoff_whole_original_loop_retires_once_without_resetting_runtime() {
+    use crate::replicated_decoder::runtime::body::handoff::SuspendedWorker;
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            // Lifecycle-only fixture: no tensor adapter or tensor execution.
+            // Feed the existing prefix owner's exports to the shared transition.
+            let (program, _) = midgraph_fixture(3, false);
+            let [worker, peer_one, peer_two] =
+                deterministic_workers(program.clone(), &midgraph_clear(3));
+            drop((peer_one, peer_two));
+            let before = boundary_snapshot(&worker);
+            let (suspended, runtime, copies) =
+                SuspendedWorker::begin(worker, &program, 2, &[0]).unwrap();
+            let worker = suspended
+                .restore(runtime, 3, &[2], |_, lane| {
+                    Ok((copies[0].first[lane], copies[0].second[lane]))
+                })
+                .unwrap();
+            let state = restored_state(&worker);
+            assert_eq!(state.0, 3);
+            assert!(state.1 && state.3 && state.4);
+            assert_eq!(state.2, 0);
+            let restored = boundary_snapshot(&worker);
+            assert_eq!(restored.cursors, before.cursors);
+            assert_eq!(restored.shares[2], before.shares[0]);
+            for &id in &program.retire[2] {
+                assert!(!state.5[id]);
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn shared_handoff_two_original_loops_replay_nonempty_last_use_ledgers() {
+    use crate::replicated_decoder::runtime::body::handoff::SuspendedWorker;
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            // Original compiler nodes and finish_fixture's unmodified last-use
+            // ledger: unlike midgraph_fixture, only the final owner is retained.
+            let mut b = Builder {
+                public_weights: true,
+                ..Builder::default()
+            };
+            let lanes = 129;
+            let bounds = Interval::new(-ONE, ONE).unwrap();
+            let input = b.push(Code::Input("x".into()), lanes, bounds).unwrap();
+            let first = b
+                .tensor_loop(LoopInput::Slice(input), lanes, |n| {
+                    tensor::Program::negative(n, bounds)
+                })
+                .unwrap();
+            let first_bounds = b.nodes[first].bounds;
+            let second = b
+                .tensor_loop(LoopInput::Slice(first), lanes, |n| {
+                    tensor::Program::negative(n, first_bounds)
+                })
+                .unwrap();
+            let program = finish_fixture(b, 1, (0..lanes).map(|i| (second, i)).collect());
+            let clear = BTreeMap::from([("x".into(), vec![0; lanes])]);
+            let [mut worker, peer_one, peer_two] = deterministic_workers(program.clone(), &clear);
+            drop((peer_one, peer_two));
+            let original = boundary_snapshot(&worker);
+            let party = worker.party();
+
+            for (source, output) in [(input, first), (first, second)] {
+                let Code::TensorLoop {
+                    program: tile,
+                    tail,
+                    ..
+                } = &program.nodes[output].code
+                else {
+                    panic!("expected original tiled loop");
+                };
+                assert_eq!(tile.lanes(), 128);
+                assert_eq!(tail.as_ref().unwrap().lanes(), 1);
+                assert!(!program.retire[output].is_empty());
+                assert_eq!(program.retire[output], vec![source]);
+                let before = boundary_snapshot(&worker);
+                assert!(before.shares[source].is_some());
+                assert!(before.shares[output].is_none());
+                let (suspended, runtime, copies) =
+                    SuspendedWorker::begin(worker, &program, output, &[source]).unwrap();
+                assert_eq!(runtime.cursors(), original.cursors);
+
+                // Lifecycle-only checked-export injection, NOT tensor execution
+                // or numeric/share parity. Copy both source components through
+                // the export callback; return the same consuming runtime unused.
+                let calls = std::cell::Cell::new(0);
+                worker = suspended
+                    .restore(runtime, output + 1, &[output], |index, lane| {
+                        assert_eq!(index, 0);
+                        calls.set(calls.get() + 1);
+                        Ok((copies[0].first[lane], copies[0].second[lane]))
+                    })
+                    .unwrap();
+                assert_eq!(calls.get(), lanes);
+                let (step, started, offset, empty, idle, owners) = restored_state(&worker);
+                assert_eq!(step, output + 1);
+                assert!(started && empty && idle);
+                assert_eq!(offset, 0);
+                assert!(!owners[source], "original last-use owner must retire");
+                assert!(owners[output], "completed export must remain live");
+                let after = boundary_snapshot(&worker);
+                assert_eq!(after.shares[output], before.shares[source]);
+                assert!(after.shares[source].is_none());
+                assert_eq!(after.cursors, original.cursors);
+                assert_eq!(worker.party(), party);
+            }
+            assert_eq!(restored_state(&worker).5, vec![false, false, true]);
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}

@@ -3,11 +3,58 @@
 //! No new Code variant, source authority, default policy or execution identity.
 //! Only original gather/gather/binary triples are folded; every product retains
 //! its original primitive width, order, input bounds and consuming runtime.
+use super::handoff::{owned_restore_inline_bytes, SuspendedWorker, TRANSITION_INLINE_BYTES};
 use super::*;
 use crate::replicated_decoder::{Code, Node, Program, Worker};
 use std::collections::BTreeMap;
 
 pub use super::super::BoundaryProgress;
+
+// Preserve the legacy handoff's transition/result/borrowed-reader census inside
+// its EXISTING fixed 4096-byte allowance, including 128 bytes for Arc/controls.
+// The owned-restoration slots below are ADDITIVE, never borrowed from this
+// allowance. No new heap owner is introduced by the handoff extraction.
+const _: () = assert!(TRANSITION_INLINE_BYTES + size_of::<&Values>() + 128 <= 4096);
+
+// Values move into the handoff guard, not into a borrowed reader. The original
+// Compiled Arc stays in the caller until the guard returns/unwinds, retaining
+// its original mapping and Plan without an Arc clone or an output-ID copy.
+struct RestoreOutputs {
+    values: Values,
+    #[cfg(test)]
+    _erased: restoration_tests::ErasureProbe,
+}
+
+/// Additive to the ENTIRE old admission, including its fixed control allowance.
+/// No presumed slack/alias credit: name the candidate, guard transitions, finish
+/// result, immutable mapping borrows, and census controls before extraction.
+fn owned_restoration_controls() -> Result<usize, Error> {
+    [
+        size_of::<RestoreOutputs>(), // Output-owner construction candidate.
+        owned_restore_inline_bytes::<RestoreOutputs>()?,
+        size_of::<Executor>(), // Extracted executor argument to finish.
+        size_of::<Result<(PartyRuntime, Values), Error>>(),
+        size_of::<usize>(),                // Original exclusive end.
+        size_of::<&[usize]>(),             // Original output IDs, borrowed from Compiled.
+        size_of::<&RestoreOutputs>(),      // Nonallocating reader borrow.
+        size_of::<Result<usize, Error>>(), // Census result.
+        size_of::<[usize; 2]>(),           // Census sum and unchanged admission limit.
+    ]
+    .into_iter()
+    .try_fold(0, add)
+}
+
+fn restoration_preflight(bytes: usize, limit: usize) -> Result<(), Error> {
+    if bytes > limit.min(MAX_PROGRAM_BYTES) {
+        Err(Error::Bounds)
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+#[path = "body_restore_test_support.rs"]
+pub(in crate::replicated_decoder) mod restoration_tests;
 
 // Borrow dependencies directly: Node::inputs() constructs a Vec, including when
 // merely asking whether one exported owner remains live.
@@ -47,7 +94,8 @@ fn preflight(program: &Program, start: usize, end: usize) -> Result<usize, Error
     let mut site_lanes = 0usize;
     let mut exported_lanes = 0usize;
     for step in (start..end).step_by(3) {
-        for node in &program.nodes[step..step + 2] {
+        for ordinal in step..step + 2 {
+            let node = program.recipe(ordinal);
             let Code::Gather(words) = &node.code else {
                 return Err(Error::Binding);
             };
@@ -58,13 +106,14 @@ fn preflight(program: &Program, start: usize, end: usize) -> Result<usize, Error
                 return Err(Error::Binding);
             }
             if owner < start {
-                let source = program.nodes.get(owner).ok_or(Error::Binding)?;
+                let source = program.recipe_at(owner).ok_or(Error::Binding)?;
                 external_owners = add(external_owners, 1)?;
                 input_lanes = add(input_lanes, source.lanes)?;
             }
         }
-        site_lanes = add(site_lanes, program.nodes[step + 2].lanes)?;
-        for node in &program.nodes[step..step + 3] {
+        site_lanes = add(site_lanes, program.recipe(step + 2).lanes)?;
+        for ordinal in step..step + 3 {
+            let node = program.recipe(ordinal);
             if node.lanes == 0 || node.lanes > MAX_VALUES {
                 return Err(Error::Bounds);
             }
@@ -111,12 +160,11 @@ fn preflight(program: &Program, start: usize, end: usize) -> Result<usize, Error
         construction,
         fixed_owners,
         primitive_scratch,
+        owned_restoration_controls()?,
     ]
     .into_iter()
     .try_fold(0, add)?;
-    if total > MAX_PROGRAM_BYTES {
-        return Err(Error::Bounds);
-    }
+    restoration_preflight(total, MAX_PROGRAM_BYTES)?;
     Ok(total)
 }
 
@@ -136,6 +184,7 @@ pub(crate) fn constructor_entries() -> usize {
 pub struct Compiled {
     program: Arc<Program>,
     plan: Arc<Plan>,
+    // Original logical schedule interval and owner mappings, not Worker slots.
     start: usize,
     end: usize,
     inputs: Box<[usize]>,
@@ -151,9 +200,9 @@ impl Compiled {
         end: usize,
     ) -> Result<Arc<Self>, Error> {
         if weights != WeightMode::Public
-            || start < program.inputs
+            || start < program.input_count()
             || start >= end
-            || end > program.nodes.len()
+            || end > program.logical_len()
             || (end - start) % 3 != 0
         {
             return Err(Error::Binding);
@@ -166,13 +215,14 @@ impl Compiled {
         let mut owners = BTreeMap::new();
         // Discover external owners before assigning local result registers.
         for step in (start..end).step_by(3) {
-            for node in &program.nodes[step..step + 2] {
+            for ordinal in step..step + 2 {
+                let node = program.recipe(ordinal);
                 let Code::Gather(words) = &node.code else {
                     return Err(Error::Binding);
                 };
                 for (id, _) in words.iter() {
                     if id < start && !owners.contains_key(&id) {
-                        let input = program.nodes.get(id).ok_or(Error::Binding)?;
+                        let input = program.recipe_at(id).ok_or(Error::Binding)?;
                         // Public file owners remain exclusively source-certified;
                         // this bridge never relabels them as secret input owners.
                         if matches!(input.code, Code::PublicInput { .. }) {
@@ -193,7 +243,7 @@ impl Compiled {
         let mut work = WorkBudget::default();
         for step in (start..end).step_by(3) {
             for id in step..step + 2 {
-                let Code::Gather(words) = &program.nodes[id].code else {
+                let Code::Gather(words) = &program.recipe(id).code else {
                     return Err(Error::Binding);
                 };
                 let mut iter = words.iter();
@@ -221,13 +271,13 @@ impl Compiled {
                         .and_then(|index| offset.checked_add(index))
                         != Some(word.1)
                         || word.0 != source
-                }) || program.nodes[id].bounds != program.nodes[source].bounds
+                }) || program.recipe(id).bounds != program.recipe(source).bounds
                 {
                     return Err(Error::Binding);
                 }
                 layouts.insert(id, view);
             }
-            let node = &program.nodes[step + 2];
+            let node = program.recipe(step + 2);
             let operation = match &node.code {
                 Code::Affine {
                     left,
@@ -264,8 +314,11 @@ impl Compiled {
         // gathers. Checked validity and feedback remain ordinary outside nodes.
         let mut outputs = Vec::new();
         for id in start..end {
-            if program.outputs.iter().any(|&(owner, _)| owner == id)
-                || program.nodes[end..].iter().any(|node| uses(node, id))
+            if program
+                .output_coordinates()
+                .iter()
+                .any(|&(owner, _)| owner == id)
+                || (end..program.logical_len()).any(|ordinal| uses(program.recipe(ordinal), id))
             {
                 outputs.push(id);
             }
@@ -277,7 +330,7 @@ impl Compiled {
         }
         for (index, step) in (start..end).step_by(3).enumerate() {
             let register = plan.registers[specs.len() + index];
-            let node = &program.nodes[step + 2];
+            let node = program.recipe(step + 2);
             if register.lanes != node.lanes || register.bounds != node.bounds {
                 return Err(Error::Binding);
             }
@@ -323,62 +376,17 @@ impl Compiled {
     /// Only call `begin` after all roles report `Reached` and the router is empty;
     /// this local result alone does not certify global quiescence.
     pub fn advance_to_start(&self, worker: &mut Worker) -> Result<BoundaryProgress, Error> {
-        if !Arc::ptr_eq(&self.program, &worker.program) {
-            worker.cancel();
-            return Err(Error::Binding);
-        }
-        worker.advance_before(self.start)
+        SuspendedWorker::advance_to_start(&self.program, self.start, worker)
     }
 
     /// Consumes one quiescent worker. At initial import boundary, retire only
     /// input declarations before entering the exact compiled interval.
     /// Caller must first globally drain frames across all three roles; these
     /// local checks cannot prove that the authenticated router is empty.
-    pub fn begin(self: Arc<Self>, mut worker: Worker) -> Result<Invocation, Error> {
-        let result = (|| {
-            worker.live()?;
-            // Expanded test-only checkpoint capture expects every retired owner.
-            // Until capture has a compact-body mapping, reject rather than skip
-            // boundaries or fabricate missing intermediate observations.
-            #[cfg(test)]
-            if super::super::oracle_trace::enabled() {
-                return Err(Error::Binding);
-            }
-            if !Arc::ptr_eq(&self.program, &worker.program)
-                || worker.imported != worker.program.inputs
-                || !worker.boundary_ready()
-            {
-                return Err(Error::Binding);
-            }
-            if worker.step == 0 && self.start == worker.program.inputs {
-                while worker.step < self.start {
-                    worker.retire_inputs();
-                }
-            }
-            if worker.step != self.start {
-                return Err(Error::Phase);
-            }
-            let mut inputs = Vec::new();
-            inputs
-                .try_reserve_exact(self.inputs.len())
-                .map_err(|_| Error::Allocation)?;
-            // Preserve outer owners: later ordinary nodes may still use them.
-            // Their copies and export overlap are included in aggregate admission.
-            for &id in &self.inputs {
-                let value = worker.values[id].as_ref().ok_or(Error::Binding)?;
-                let mut copy = Secret::new(value.first.len())?;
-                copy.first.copy_from_slice(&value.first);
-                copy.second.copy_from_slice(&value.second);
-                inputs.push(copy);
-            }
-            let super::super::Active::Idle(runtime) =
-                std::mem::replace(&mut worker.active, super::super::Active::Retired)
-            else {
-                return Err(Error::Phase);
-            };
-            Executor::new(self.plan.clone(), runtime, inputs)
-        })();
-        match result {
+    pub fn begin(self: Arc<Self>, worker: Worker) -> Result<Invocation, Error> {
+        let (mut worker, runtime, inputs) =
+            SuspendedWorker::begin(worker, &self.program, self.start, &self.inputs)?;
+        match Executor::new(self.plan.clone(), runtime, inputs) {
             Ok(executor) => Ok(Invocation {
                 compiled: self,
                 worker,
@@ -396,7 +404,7 @@ impl Compiled {
 /// disclosure or reusable worker is available until the body finishes cleanly.
 pub struct Invocation {
     compiled: Arc<Compiled>,
-    worker: Worker,
+    worker: SuspendedWorker,
     executor: Option<Executor>,
 }
 impl Invocation {
@@ -428,24 +436,36 @@ impl Invocation {
         }
         result
     }
+    /// Caller must globally drain all three roles and the router before finish;
+    /// local executor completion alone cannot certify that drain.
     pub fn finish(mut self) -> Result<Worker, Error> {
+        #[cfg(not(test))]
+        let limit = MAX_PROGRAM_BYTES;
+        #[cfg(test)]
+        let limit = restoration_tests::limit();
+        // Recheck the full additive lifetime ceiling BEFORE taking the executor
+        // or creating finish's runtime/Values result and output-owner candidate.
+        restoration_preflight(self.compiled.admitted_bytes, limit)?;
+        #[cfg(test)]
+        restoration_tests::extracting();
         let executor = self.executor.take().ok_or(Error::Retired)?;
         let (runtime, values) = executor.finish()?;
-        for (output, &id) in self.compiled.outputs.iter().enumerate() {
-            let mut value = Secret::new(self.worker.program.nodes[id].lanes)?;
-            for i in 0..value.first.len() {
-                (value.first[i], value.second[i]) = values.word(output, i)?;
-            }
-            self.worker.values[id] = Some(value);
-        }
-        // Same last-use ledger as original decoder. No original retirement is
-        // skipped, and no outside owner is prematurely destroyed.
-        while self.worker.step < self.compiled.end {
-            self.worker.retire_inputs();
-        }
-        self.worker.started = true;
-        self.worker.active = super::super::Active::Idle(runtime);
-        Ok(self.worker)
+        let outputs = RestoreOutputs {
+            values,
+            #[cfg(test)]
+            _erased: restoration_tests::ErasureProbe::take(),
+        };
+        self.worker.restore_owned(
+            runtime,
+            self.compiled.end,
+            &self.compiled.outputs,
+            outputs,
+            |outputs, output, i| {
+                #[cfg(test)]
+                restoration_tests::reading()?;
+                outputs.values.word(output, i)
+            },
+        )
     }
 }
 

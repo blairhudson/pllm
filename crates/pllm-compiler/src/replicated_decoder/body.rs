@@ -25,6 +25,9 @@ pub mod layer;
 #[path = "body_integration.rs"]
 pub mod integration;
 
+#[path = "body_handoff.rs"]
+pub(in crate::replicated_decoder) mod handoff;
+
 #[derive(Clone, Copy)]
 pub struct Register {
     pub lanes: usize,
