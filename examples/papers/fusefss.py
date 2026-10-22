@@ -51,3 +51,8 @@ def qwen_checked_tensor_smoke():
     """Same checked Q12 request with compact templates and bounded tensor waves."""
     return qwen_checked_batch_smoke().with_params(
         name="fusefss-checked-ranges-tensor", pipeline__linear__online_schedule="tensor-v1")
+
+
+def qwen_checked_tensor_minimal_smoke():
+    """Separate 3+1 workload fitting `user: hi`; does not qualify the 4+1 default."""
+    return qwen_checked_tensor_smoke().with_params(budget__max_input_tokens=3)

@@ -223,6 +223,16 @@ The admitted 1+1 control does not fit ordinary SDK rendering of short prompts:
 the pinned tokenizer encodes `user: hi` as three tokens. Preserve the Responses
 role-prefix contract; raw-token or prompt-format bypass is not SDK acceptance.
 
+The separate `qwen_checked_tensor_minimal_smoke` 3+1 factory fits that rendering.
+Its guarded installed-wheel complete-topology check passes without changing
+guards: native combined reservation 64,155,060 bytes, required host memory
+4,068,474,880 bytes with the normal 25% margin, and required disk
+37,476,300,632 bytes including the 2 GiB reserve. Qualification owners retire
+before graph reservation. No workers, tapes, material or private request run
+in this admission test (`target/fusefss-one-hot-fold-topology-3.log`). Actual
+ordinary SDK execution remains a separate acceptance gate; 4+1 remains
+disk-blocked on this host.
+
 Round reduction alone does not solve cold-request bytes. Reprice and measure the
 complete fresh-material delivery, source/setup scope, online traffic and aggregate
 resources before another long trained run. Require generated integer/feedback

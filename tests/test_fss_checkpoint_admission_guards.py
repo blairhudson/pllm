@@ -15,6 +15,24 @@ from test_fss_source import admit, bridge as bridge, write_checkpoint
 from test_fss_topology_admission import setup as qualification
 
 
+def test_minimal_checkpoint_workload_preserves_default_and_protocol():
+    from examples.papers.fusefss import (
+        qwen_checked_tensor_minimal_smoke,
+        qwen_checked_tensor_smoke,
+    )
+
+    default = qwen_checked_tensor_smoke()
+    minimal = qwen_checked_tensor_minimal_smoke()
+    assert default.budget.max_input_tokens == 4
+    assert minimal.budget.max_input_tokens == 3
+    assert default.budget.requests == minimal.budget.requests == 1
+    assert default.budget.max_new_tokens == minimal.budget.max_new_tokens == 1
+    assert default.pipeline == minimal.pipeline
+    assert default.deployment == minimal.deployment
+    assert minimal == default.with_params(budget__max_input_tokens=3)
+    assert minimal.configuration_digest() != default.configuration_digest()
+
+
 def test_checkpoint_qualification_uses_ordinary_phase_and_preserves_rejection(monkeypatch):
     import test_fss_checkpoint_admission as checkpoint
     from pllm.runtime import benchmark_memory as memory

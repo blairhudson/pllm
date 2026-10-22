@@ -514,6 +514,16 @@ but complete-topology admission, private-request acceptance and quality remain
 unqualified. Ordinary pytest output is retained under ignored
 `target/fusefss-one-hot-fold-topology-{1,4}.log`.
 
+The separately bounded `qwen_checked_tensor_minimal_smoke` factory uses 3+1,
+enough for the pinned tokenizer's ordinary `user: hi` rendering. Its guarded
+installed-wheel complete-topology admission passes at a 64,155,060-byte native
+combined reservation, 4,068,474,880 required host bytes (normal 25% margin), and
+37,476,300,632 required disk bytes (including the unchanged 2 GiB reserve).
+The source qualification owner retires before the full-graph reservations.
+This test creates no workers, tapes or material; it establishes neither a private
+response nor quality, and does not qualify the original 4+1 workload. Ordinary
+pytest output is `target/fusefss-one-hot-fold-topology-3.log`.
+
 Program-pricing admission now has a typed diagnostic path sharing the original
 admission walk and limits. Its bounded public record identifies the enclosing
 stage, error category and, only when known, kernel ordinal, observed bound and

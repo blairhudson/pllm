@@ -28,6 +28,10 @@ Only after that succeeds, use the same command with the final node ID ``[4]``.
 Source-only success is not full-topology admission; full-graph rejection remains
 a failure, never a skip or a retry with reduced caps or safety margins.
 
+The separate ``[3]`` workload uses ``qwen_checked_tensor_minimal_smoke`` and fits
+ordinary role-prefixed ``user: hi`` input. Its result cannot replace the original
+4+1 workload's admission or execution result; all guards and ceilings stay fixed.
+
 The explicit Hub cache keeps the cached source visible despite the ordinary
 test fixture's isolated XDG_CACHE_HOME. This remains a conditional retry recipe,
 not a claim that checkpoint admission has passed.
@@ -68,7 +72,7 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
     os.environ.get("PLLM_RUN_FSS_TOPOLOGY_ADMISSION") != "1",
     reason="opt in to pinned Qwen native-priced complete-topology admission",
 )
-@pytest.mark.parametrize("initial_rows", [1, 4])
+@pytest.mark.parametrize("initial_rows", [1, 3, 4])
 def test_pinned_qwen_checked_tensor_topology_admission(initial_rows, monkeypatch):
     """Require full graph capacity, without starting children or making material."""
     _complete_topology_admission(_qualified_qwen_source(initial_rows, monkeypatch))
@@ -85,7 +89,10 @@ def _qualified_qwen_source(initial_rows, monkeypatch):
     )
     from pllm.runtime.fss_source import load_role_source, resolve_client_source
 
-    from examples.papers.fusefss import qwen_checked_tensor_smoke
+    from examples.papers.fusefss import (
+        qwen_checked_tensor_minimal_smoke,
+        qwen_checked_tensor_smoke,
+    )
 
     # Default pytest pythonpath shadows the wheel. Reject mixed Python/native
     # imports rather than skipping an outdated or missing installed implementation.
@@ -101,6 +108,8 @@ def _qualified_qwen_source(initial_rows, monkeypatch):
     experiment = qwen_checked_tensor_smoke().with_params(
         budget__max_input_tokens=initial_rows,
     )
+    if initial_rows == 3:
+        assert experiment == qwen_checked_tensor_minimal_smoke()
     model = experiment.pipeline.model
     assert model.kind == "huggingface"
     assert model.source == "Qwen/Qwen2.5-0.5B-Instruct"
