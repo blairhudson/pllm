@@ -3,11 +3,81 @@
 Status: **UNAPPROVED PROPOSAL — DOCUMENTATION ONLY**.
 Recorded 22 October 2026. Parent review and explicit user approval are required
 before implementation. No decision number is assigned. This document adopts no
-executable, numeric profile, source artifact or validation result. D17/D19/D20/D22
-remain unchanged and do not authorize this new composition.
+executable, numeric profile, source artifact or validation result.
+D17/D19/D20/D22/D27 remain unchanged and do not authorize this new composition.
 
 Source audit: [`../research/sigma-normalization-softmax-audit.md`](../research/sigma-normalization-softmax-audit.md).
 No code edits, builds, tests or benchmarks accompanied this proposal.
+
+## Next user decision — bounded nExp only, after D27
+
+**Proposed decision wording; not an approval record:**
+
+> Approve **conditional local nExp implementation only**: 1–256 ring50/Q12 lanes,
+> original-owner `0 <= X < 2^38` provenance, paper Select16 clipping, private
+> byte coordinates, two reconstructed D19 lookups, fresh-masked consuming product
+> and reconstructed GapARS50,12. Approve the equation, 18 uses, eleven exchanges
+> and 22 frames below, including explicit CPU/paper departures; retain the
+> 64 MiB ceiling, continuous charges and D27 role/abort/barrier/source patterns.
+>
+> Require reviewed canonical records, actual layout/quote census and exact floor
+> evidence **before their construction/hash/issuance boundaries**. Joint-transcript
+> privacy remains unqualified. No new D22/D27 extraction or range authority,
+> post-D22 Multiply, softmax/normalization, transport, decoder or SDK approval.
+
+The smallest mathematical scope is exactly
+`floor(E0[min(X,65535) mod 256] * E1[floor(min(X,65535)/256)] / 4096)`.
+The reusable product implementation must first admit only this gate's two
+distinct ring50/Q12 payload owners, each in `[0,4097)`; `P` has interval
+`[0,16777217)` in Q24 and final E has `[0,4097)` in Q12. Reusable code does not
+authorize other products or a square using one capability twice.
+
+### Current API check: what D27 actually removes
+
+Read-only recheck against implementation committed in `b0f07f24`; no validation
+was rerun for this packet. The two eleven-exchange schedules are different
+regions: D27's count is not nExp implementation or source-wire evidence.
+
+| Previously missing mechanism | Current API/evidence boundary |
+| --- | --- |
+| Consuming single-role D22 handles | Native `LocalLinearActivationRun::into_roles` / `into_roles_from_reserved`; compiler `SigmaExecutionRun::into_roles(budget)` exist. Do not propose another D22 role scaffold. |
+| Source retention across split and returned owners | `execution_roles.rs::RetainedRoles` keeps an Arc to the **same** original checked source and ExternalCharge; mask already shares it. No Arc-uniqueness assumption or source-copy replacement. |
+| Immediate sibling burn and final barrier | Native `linear_activation/roles.rs::Coordination` clears both mailboxes on error/cancel/drop/unwind; `finish` requires both Ready. Caller polls run outside both mutexes; locked native work uses internal polling. Retained frames keep actual guards/leases; previously borrowed bytes cannot be revoked. |
+| Split preconstruction admission | Native `local_linear_activation_role_split_resources` and compiler `sigma_execution_role_split_resources` quote added layouts before allocation; native receives an exact reserved slice. Original source charge is neither refunded nor reacquired. This prices **D27**, not the proposed nExp owners. |
+
+**Not removed:** D27 role outputs expose only role/provenance and fallible
+descriptor access; they have no consuming nExp/native extraction API. D20 creates
+its output Binding with `interval=None` (`typed/activation.rs::activation_reserved_with`).
+D22 certifies the MLP complete sum and activation input, not a nonnegative
+activation output, score difference or norm energy. Matching metadata, a
+successful role run or a fresh root with copied values cannot supply that proof.
+
+For this first gate, a new clear-value entry must check the whole declared input
+slice before calling reserved root preparation: existing public
+`prepare_root(...).encode(...)` prepares masks **before** encode checks values.
+It cannot support the proposed zero-operation-draw rejection claim by itself.
+An inherited entry may exist only for actual matching mask/role owners whose
+original private Binding interval is contained in `[0,2^38)` and whose consumer
+matches this region. Its provenance stays LocalAssumption unless separately
+certified; no descriptor-based import or automatic D27-to-nExp adapter is allowed.
+If no genuine upstream owner satisfies that check, inherited admission stays
+fail-closed; the bounded clear-root gate does not require inventing a new
+producer certificate or another D27 adapter.
+
+### Approval choices versus implementation evidence
+
+The decision must explicitly select narrow Select16 rather than CPU Select50,
+the existing two-exchange TR, common-masked final GapARS output rather than the
+paper's returned shares, private unsigned coordinate interpretation, the fixed
+uses, product mask/split rule and byte domains below. It must not silently select
+the CPU softmax widths or normalization epsilon/affine policy.
+
+This packet is **not ready for unconditional execution approval**: new canonical
+record field order and exact owner layouts/quote formulas remain design-freeze
+items, not invented byte totals. A conditional yes permits their bounded
+implementation/review, not bypassing them. Engineering acceptance and outstanding
+privacy questions are separated below so neither becomes a claim of settled
+cryptography or another role-scaffolding prerequisite.
 
 ## Evidence identity and bounded scope
 
@@ -60,7 +130,7 @@ For inherited inputs, consume the original matching mask and evaluator owners
 with source-/edge-bound interval provenance contained in `[0,2^38)`. No copying
 into new roots, reconstructed-secret handoff, mask replacement or relabeling of
 metadata is permitted. Neither masked payloads nor observed extrema establish
-this provenance. **D22 supplies no attention or nExp authority**: its MLP handoff
+this provenance. **D22/D27 supply no attention or nExp authority**: the MLP handoff
 cannot certify nonnegative score differences or authorize this region. A future
 compiler certificate is separate work. No row maximum, inverse, norm, attention
 score generation or full decoder is included.
@@ -208,6 +278,30 @@ must account for both lookup transcripts, correlated internal masks, fresh
 product splits/output mask and final reconstruction. No composed security claim
 is made here, and functional/runtime tests cannot discharge that obligation.
 
+### Concrete joint-view questions; no answer is adopted
+
+Review one noncolluding evaluator's complete issued material and online view,
+with the local trusted-dealer premise stated explicitly; D27 does not establish
+independent hosting or privacy against a dealer observing masked traffic.
+
+1. Can the claimed FSS/lookup security assumptions cover **both** correlated
+   coordinates of the same C, both correction openings and nested Selects,
+   together with that role's product coefficients and final GapARS messages?
+   Fresh lookup streams do not make J0/J1 independent secrets.
+2. For each lookup, `Uhat=T+2u-r` and `R=sigma*T+r`, with `sigma` equal to ±1,
+   imply `Uhat mod 2 = R mod 2`. Account for this exact joint relation and
+   `rho mod 2 = r mod 2`; neither marginal uniformity nor this relation alone
+   proves privacy or an attack. Does the product's independent mask/splitting
+   suffice under the actual joint material/view, not just isolated equations?
+3. Does the argument include the reconstructed product, GapARS carry/output
+   openings, role-specific public-product term, reused parent-coordinate backing
+   and error/abort behavior? Which leakage and semi-honest/FSS assumptions are
+   needed? Do not infer malicious security or authentication from digest checks.
+
+Functional local prototyping, if explicitly approved conditionally, must remain
+labelled as such while these questions are open. No joint-view simulation proof
+or composed security qualification is supplied by this document.
+
 ## Private coordinate metadata and fixed ordered uses
 
 Reuse the private owner/ledger pattern in
@@ -275,8 +369,10 @@ coordinate capability. No intermediate is exported.
 ## Proposed local wire contract — also unapproved
 
 Reuse the existing typed activation wrapper convention: a consuming local frame
-enum owns one unchanged native frame, `as_bytes` forwards that frame, and the
-wrapper retains its own split lease (`typed/activation.rs:959–977,1399–1412`).
+enum owns one unchanged native frame and its original lease
+(`typed/activation.rs:959–977,1399–1412`). For role execution add D27's shared
+abort guard and fallible byte access: forward only while live, retain the same
+source/charge and native frame backing even after abort.
 There is **no extra serialized region envelope and no final region exchange**.
 The wrapper's private state accepts exactly the ordered phases below. This is a
 local peer codec proposal, not authenticated transport or a material importer.
@@ -309,8 +405,9 @@ after preflight; they supply uniqueness, not authentication.
 The immutable spec contains no runtime Binding, mask identity or issuance; those
 enter the separate region/ledger bindings only after spec construction. Exact
 canonical field encodings/order for the new spec and coordinate-provenance
-records must be frozen for approval using existing edge/use digest conventions.
-**This remaining digest-record encoding is an explicit preapproval blocker**;
+records must be frozen before their constructor/hash boundary using existing
+edge/use digest conventions.
+**This remaining digest-record encoding blocks unconditional activation**;
 the product/header byte contract below does not silently resolve it.
 
 For global stage ordinal `s=1..11`, use
@@ -347,6 +444,17 @@ validate **before any output mutation or share addition**. Then add matching
 role contributions modulo `2^50` to reconstruct only `P+rP`. Same-role frames,
 swapped/mismatched input views or bindings, changed issuance, replay and repeated
 execution burn local state; coordinator retires its sibling.
+
+For the proposed owning region, sibling retirement is an **enforced internal
+coordinator obligation**, not an instruction for an evaluator caller to remember.
+Follow D27's abort-first, both-mailbox retirement and two-Ready output barrier;
+escaped output wrappers must fail closed and their native backing must be erased
+on abort. Caller cancellation callbacks run outside coordination and role locks,
+with unwind-triggered abort; native locked work uses a non-reentrant internal
+poll. Keep source pins, the same source charge and new split reservations until
+their actual final coordinator/frame/output owners drop. Extract reusable
+private cancellation/retention mechanics where appropriate rather than building
+a parallel public ownership/import framework. This adds no twelfth exchange.
 
 The complete proposed wrapper dispatch order is:
 
@@ -430,8 +538,10 @@ the guard through final native capacity transfer, and reserve execution overlap
 before any operation entropy/secret allocation. Transfer/split original leases
 atomically without refund/re-reserve. This quote is a required owner API, not an
 implemented API or completed byte inventory. **Exact owner layouts and quote
-formulas remain an explicit preapproval blocker**, not deferred implementation
-bookkeeping; no unstated metadata/workspace exemption is authorized.
+formulas block unconditional activation**. Conditional design implementation
+permission does not satisfy that gate: the inventory must be reviewed before
+its corresponding construction/hash/issuance boundary. No unstated metadata or
+workspace exemption is authorized.
 
 Validate full geometry, domains, table/template identity and checked resource
 sums, then reserve aggregate capacity **before entropy or secret allocation**.
@@ -446,14 +556,44 @@ This is not process RSS or allocator/stack qualification.
 Erase and deallocate backing before refunding its lease, including partial
 issuance failure. Any malformed/replayed/out-of-order frame, mismatched use,
 allocation/entropy failure or cancellation burns remaining local execution.
-The coordinator explicitly retires its sibling. Retained frames, outputs and
-cancelled party metadata retain their charges through actual drop.
+The internal coordinator synchronously retires both siblings. Retained frames,
+outputs and cancelled party metadata retain their charges through actual drop.
 
 Frame validation, checksums and consuming ownership do not authenticate delivery,
 establish independently hosted parties, prevent durable replay or prove composed
 security. No legacy transport reuse or security qualification is claimed.
 
-## Required acceptance after approval; none performed here
+## Implementation-ready acceptance gates; none performed here
+
+These are ordered gates, not authorization to start implementation now. A
+conditional implementation decision must preserve every gate; an unconditional
+security/availability claim requires actual evidence, not just that decision.
+
+### Gate A — freeze declarations and price before their first use
+
+- Freeze canonical spec, coordinate/provenance and use-record field encodings;
+  distinguish declarative operation tags from native stage-operation digests.
+  Use D20's acyclic order: immutable descriptors/spec → predeclared private
+  Binding identities/intervals and provenance/ledger digests → region binding →
+  native stage contexts → issued native owners. Private Binding consumers must
+  not depend on the later region/stage digest that includes those Bindings.
+  Verify actual returned owners against those predeclared identities; metadata
+  alone never mints them. If this order cannot cover the new records, stop for
+  design review rather than hash a cycle or drop a binding field.
+- Publish pure owner-defined constructor/hash/resource-query quotes from the
+  actual region, coordinate, product, role-mailbox, coordinator, frame/output
+  and source-retention layouts. For each phase quote
+  `retained owners + simultaneous scratch/Result/origin/destination slots`;
+  use a maximum only for disjoint phases. Add original caller-owned/transferred
+  capacities and transition overlap explicitly. No D27 size or unexplained
+  workspace constant substitutes for this new census.
+- Reserve that metadata/source overlap before its construction/hash/copy; grow
+  the same aggregate positively before issuance and split the exact native
+  slices without refund/reacquire. Prove `total <= 64 MiB` with exact-fit,
+  one-byte-short and overflow tests at each initial/growth/split boundary.
+  A short/new reservation cannot refund the existing input/source owners.
+
+### Gate B — independent numerical, ownership and wire acceptance
 
 1. Independent integer oracle for the exact two-table/floor equation, with
    independent literal floor proofs and complete frozen-table/hash comparison.
@@ -467,27 +607,73 @@ security. No legacy transport reuse or security qualification is claimed.
 5. Normal native/public-API runtime checks, consuming-API compile-fail controls,
    both roles and lane endpoints 1/256, replay/failure burn and sibling retirement.
 6. Exact-budget/one-byte-short preflight, zero-draw rejection, allocation/entropy
-   fault sweeps, retained-owner drop orders, erasure/refund ordering and matrix
-   guard continuity. Charge actual new product frames and all live owners.
+   fault sweeps, retained-owner drop orders and erasure/refund ordering. Preserve
+   any original upstream guard without manufacturing an otherwise inadmissible
+   input to test it. Charge actual new product frames and all live owners.
 
-## Remaining concrete preapproval blockers
+Additionally make the following controls executable, not merely descriptors:
+
+- Root rejection for `-1` and `2^38`, before any operation nonce/mask/key/secret
+  buffer; success at 0 and `2^38-1`. For inherited inputs reject absent/wider
+  provenance, changed source/session/issuance/consumer, copied masked payloads,
+  exchanged roles and a D27 output descriptor offered as an input capability.
+- Check product contribution algebra for both roles modulo `2^50`, mask and
+  split endpoints, fresh independent draws across all four ring50 samples
+  (`rP,A0,B0,C0`) per lane/issuance, and separate region/product nonces. RNG byte
+  requests and secret physical material must match the chosen owner quote; a
+  distribution test is not a proof of uniformity or independence.
+- Check all 18 ledger uses, both coordinate/mask relations and retained parent
+  backing; no early C/X40 retirement or independent-root reconstruction. Assert
+  both LUT outputs' original owners survive their consuming product use, and
+  product/GapARS carry the derived `[0,2^24+1)` / `[0,4097)` intervals.
+- Record all eleven exchanges and exact `1688+208L` directed bytes at L=1/256;
+  assert source-versus-composition adaptations separately, not source-wire parity.
+  Reject every product-header field substitution, swapped ordered inputs,
+  noncanonical ring/bit residues, replay, repeated/reordered stages, truncation
+  and trailing bytes before output mutation. No hidden LUT/product opening or
+  final wrapper exchange is allowed.
+- Public role tests must execute the whole new region, require both Ready before
+  finish, and burn **both** siblings on the first error, cancellation, unfinished
+  drop or callback/native unwind, including after one output is locally ready
+  or has escaped. Test callback inspect/cancel reentrancy with bounded waits;
+  retained frames keep original leases and any inherited singleton after abort
+  (clear roots create no matrix singleton). Isolate
+  coordinator-only, frame-only and output-only source retention; exclude added
+  role charges when checking survival of the original source charge. Private
+  tests own pointer/erase/entropy/no-refund-gap observations unavailable through
+  public counters. Compile-fail clone/reuse/raw extraction/deferred-as-common
+  controls remain required; existing D22/D27 and SDK-negative tests stay unchanged.
+
+### Gate C — separate privacy disposition
+
+Record an independent disposition of the joint-view questions above under an
+explicit adversary/dealer/leakage model. Unresolved privacy blocks security or
+protected-deployment claims even if every Gate B test passes. Neither D27's
+local role isolation nor successful masked arithmetic settles this gate.
+
+## Remaining approval / activation gates — not met
 
 - Explicit approval of Select16 versus CPU Select50, two-exchange PLLM TR,
   reconstructed final GapARS, private unsigned-coordinate adapter, fixed uses
   and the proposed product/wrapper domains and byte contract.
-- Exact owner-defined metadata/hash/native-transition quote formulas and a
-  complete simultaneous-live owner inventory, before construction or hashing.
-- Frozen canonical field encodings/order for new immutable spec and private
-  coordinate-provenance records, with no runtime/spec digest cycle; the proposed
-  product frame's both-input/header encoding does not complete those records.
+- Before activation: exact owner-defined metadata/hash/native-transition quote
+  formulas and a complete simultaneous-live owner inventory, before construction
+  or hashing.
+- Before activation: frozen canonical field encodings/order for new immutable
+  spec and private coordinate-provenance records, with no runtime/spec digest
+  cycle; the proposed product frame's both-input/header encoding does not
+  complete those records.
 - Review of original-owner inherited-range admission; clear roots must reject
   every out-of-domain code before operation entropy/secret allocation. No D22
-  extension to attention/nExp is assumed.
+  or D27 extension to attention/nExp is assumed. The role-split, original-source
+  retention and enforced sibling-abort mechanisms themselves are already present
+  for D22; only their new nExp-specific composition/admission remains unapproved.
 - Reuse/extraction and execution of existing rational floor certificates against
   every selected literal; ordered mapping/source/table/mask provenance proof.
-- Independent privacy review of both D19 lookup transcripts followed by freshly
-  split product and reconstructed GapARS, without treating rho parity dependence
-  as a shown attack or correctness as security evidence.
+- Before security qualification: independent privacy review of both D19 lookup
+  transcripts followed by freshly split product and reconstructed GapARS,
+  without treating rho parity dependence as a shown attack or correctness as
+  security evidence.
 - After approval, implementation and the independent oracle, negative controls,
   normal runtime, lifetime/fault and exact-budget tests above. None run here.
 
