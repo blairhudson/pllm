@@ -25,6 +25,10 @@ def _worker(connection, options):
         report["configuration"]["client_process_isolated"] = True
         connection.send(("report", report))
     except BaseException as error:
+        from .benchmark_failure import sanitize_failure_diagnostics
+        diagnostics = sanitize_failure_diagnostics(getattr(error, "failure_diagnostics", None))
+        if diagnostics is not None:
+            connection.send(("failure_diagnostics", diagnostics))
         connection.send(("error", f"{type(error).__name__}: {error}"))
     finally:
         connection.close()
@@ -43,6 +47,7 @@ def run_isolated_loopback_benchmark(**options):
     process = context.Process(target=_worker, args=(send, options))
     process.start()
     send.close()
+    diagnostics = None
     try:
         while True:
             try:
@@ -53,8 +58,11 @@ def run_isolated_loopback_benchmark(**options):
                 progress(value)
             elif kind == "report":
                 return value
+            elif kind == "failure_diagnostics":
+                from .benchmark_failure import sanitize_failure_diagnostics
+                diagnostics = sanitize_failure_diagnostics(value)
             elif kind == "error":
-                raise LoopbackBenchmarkError(value)
+                raise LoopbackBenchmarkError(value, failure_diagnostics=diagnostics)
     finally:
         receive.close()
         process.join(timeout=2)

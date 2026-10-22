@@ -1302,6 +1302,7 @@ class MemoryWatchdog:
     def __init__(self, report, abort: Callable[[str], None], *, sample=None):
         self.report, self.abort, self.sample = report, abort, sample or host_memory
         self.error = None
+        self.failure_observation = None
         self.minimum_available_bytes = report["host"]["available"]
         self._minimum_swap = report["host"]["swap_used"]
         self.maximum_swap_growth_bytes = 0
@@ -1315,14 +1316,22 @@ class MemoryWatchdog:
         self._minimum_swap = min(self._minimum_swap, current.swap_used)
         self.maximum_swap_growth_bytes = max(self.maximum_swap_growth_bytes, current.swap_used - self._minimum_swap)
         if current.pressure in {"warning", "critical"}:
+            self._observe_failure(current)
             raise BenchmarkMemoryError(f"benchmark stopped: macOS memory pressure is {current.pressure}")
         # macOS keeps the workload-sized margin; other platforms retain the
         # existing runtime reserve. Swap never supplies capacity.
         floor = self.report.get("runtime_floor_bytes", max(GiB, initial["reserve_bytes"] // 2))
         if current.available < floor:
+            self._observe_failure(current)
             raise BenchmarkMemoryError("benchmark stopped: host memory fell below runtime reserve")
         if current.swap_used > self._minimum_swap + 256 * MiB:
+            self._observe_failure(current)
             raise BenchmarkMemoryError("benchmark stopped: host swap grew by more than 256 MiB")
+
+    def _observe_failure(self, current):
+        # The triggering observation, not a later sample after abort/cleanup.
+        self.failure_observation = {"pressure": current.pressure,
+            "available_bytes": current.available, "swap_used_bytes": current.swap_used}
 
     def _run(self):
         while not self._stop.wait(0.25):

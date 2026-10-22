@@ -590,6 +590,7 @@ class DashboardRuntime:
         self._stopping = threading.Event()
         self.memory_preflight = None
         self._memory_guard = None
+        self._benchmark_failure_diagnostics = None
         self._stop_started = False
         self._background_threads: set[threading.Thread] = set()
         self._last_privacy_delta: dict[str, int] = {}
@@ -845,12 +846,19 @@ class DashboardRuntime:
                    if self._fss else {}),
             )
             def memory_abort(reason):
+                from .benchmark_failure import capture_failure
                 self._stopping.set()
+                if hasattr(self._topology, "request_stop"):
+                    self._topology.request_stop()
+                capture_failure(self)
                 self._set(phase="error", error=reason)
                 # Stop providers immediately, including a partially loaded role.
                 # Client/session cleanup follows the ordinary shutdown path.
                 self._topology.close()
 
+            if hasattr(self._topology, "_failure_observer"):
+                from .benchmark_failure import capture_failure
+                self._topology._failure_observer = lambda: capture_failure(self)
             self._memory_guard = MemoryWatchdog(self.memory_preflight, memory_abort)
             self._memory_guard.start()
             await asyncio.to_thread(self._topology.start)
@@ -904,6 +912,8 @@ class DashboardRuntime:
                     ),
                     background_inventory_refill=self._background_inventory_refill,
                 )
+            if hasattr(self._topology, "_startup_step"):
+                self._topology._startup_step("client_startup", "client")
             self._client = self._topology.client(**client_options)
             if self._stopping.is_set():
                 raise RuntimeError("dashboard stopped during startup")
@@ -974,6 +984,8 @@ class DashboardRuntime:
                 ),
             )
         except Exception as exc:
+            from .benchmark_failure import capture_failure
+            capture_failure(self)
             self._set(phase="error", error=f"startup failed: {type(exc).__name__}: {exc}")
 
     def begin(
@@ -1073,6 +1085,8 @@ class DashboardRuntime:
             with self._client.tokenizer_scope():
                 self._execute_scoped_run(run_id, prompt, max_output_tokens)
         except Exception as exc:
+            from .benchmark_failure import capture_failure
+            capture_failure(self, phase="request")
             capture = self._active_run
             if capture is not None and capture.run_id == run_id:
                 self._finish_run(capture, "failed", exc)
@@ -1152,6 +1166,8 @@ class DashboardRuntime:
                     inventory=current_inventory,
                 )
         except Exception as exc:
+            from .benchmark_failure import capture_failure
+            capture_failure(self, phase="request")
             if capture.preparation_finished_at_ns is None:
                 capture.preparation_finished_at_ns = time.time_ns()
             capture.finished_at_ns = time.time_ns()
@@ -1293,6 +1309,8 @@ class DashboardRuntime:
             if not saw_completed:
                 raise _IncompleteResponseError("response stream ended before a terminal response")
         except Exception as exc:
+            from .benchmark_failure import capture_failure
+            capture_failure(self, phase="request")
             finished_at_ns = time.time_ns()
             if capture is None:
                 self._finish_legacy_run(finished_at_ns, exc)

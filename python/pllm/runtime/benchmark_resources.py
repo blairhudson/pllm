@@ -18,6 +18,10 @@ class ProcessMemorySampler:
         self.max_sample_seconds = 0.0
         self.error = False
         self.identities = {}
+        self._snapshot_lock = threading.Lock()
+        self._latest = None
+        self._latest_at = None
+        self._role_peaks = {}
         self.thread = threading.Thread(target=self._run, name="pllm-process-rss", daemon=True)
 
     def sample(self):
@@ -34,17 +38,44 @@ class ProcessMemorySampler:
                 pids[role] = process.pid
         try:
             total = 0
+            observed = {}
             for role, pid in pids.items():
                 process = psutil.Process(pid)
                 identity = (pid, process.create_time())
                 if self.identities.setdefault(role, identity) != identity:
                     raise ValueError("role process replaced during measurement")
-                total += process.memory_info().rss
+                rss = process.memory_info().rss
+                total += rss
+                observed[role] = rss
             self.peak = max(self.peak, total)
             self.samples += 1
+            from .benchmark_failure import ROLES
+            with self._snapshot_lock:
+                self._latest = {"latest_total_bytes": total, "peak_total_bytes": self.peak,
+                    "roles": {role: {"latest_bytes": rss,
+                        "peak_bytes": max(rss, self._role_peaks.get(role, 0))}
+                        for role, rss in observed.items() if role in ROLES}}
+                for role, value in self._latest["roles"].items():
+                    self._role_peaks[role] = value["peak_bytes"]
+                self._latest_at = time.monotonic()
         except (psutil.Error, OSError, ValueError):
             self.error = True
         self.max_sample_seconds = max(self.max_sample_seconds, time.monotonic() - start)
+
+    def failure_snapshot(self):
+        """Last complete sample only; no psutil calls on the abort path."""
+        from copy import deepcopy
+        if not self._snapshot_lock.acquire(blocking=False):
+            return None
+        try:
+            if self._latest is None:
+                return None
+            value = deepcopy(self._latest)
+            value["sample_age_seconds"] = max(0, time.monotonic() - self._latest_at)
+            value["sampling_incomplete"] = self.error
+            return value
+        finally:
+            self._snapshot_lock.release()
 
     def _run(self):
         while not self.stop_event.wait(self.interval):

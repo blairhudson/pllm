@@ -230,6 +230,8 @@ class LocalTopology:
         "_started",
         "_starting",
         "_startup_timeout",
+        "_startup_breadcrumbs",
+        "_failure_observer",
         "_stopping",
         "_telemetry_endpoint",
         "_telemetry_token",
@@ -306,6 +308,9 @@ class LocalTopology:
         self._source_pins: dict[str, str] | None = None
         self._memory_admission = None
         self._source_qualification = None
+        self._failure_observer = None
+        self._startup_breadcrumbs = {"phase": "memory_preflight", "role": None,
+                                    "spawned_roles": [], "ready_roles": []}
         self._capacity_reservations = None
         self._memory_budget_bytes = memory_budget_bytes
         self._memory_safety_margin_percent = memory_safety_margin_percent
@@ -348,6 +353,41 @@ class LocalTopology:
         self._starting = False
         self._closed = False
         self._stopping = threading.Event()
+
+    @property
+    def startup_breadcrumbs(self) -> dict[str, Any]:
+        """Public lifecycle observations; unknown on contention, never wait for spawn/IO."""
+        if not self._process_lock.acquire(blocking=False):
+            return {"phase": "unknown"}
+        try:
+            return deepcopy(self._startup_breadcrumbs)
+        finally:
+            self._process_lock.release()
+
+    def request_stop(self) -> None:
+        """Publish cancellation without waiting for locks or starting teardown."""
+        self._stopping.set()
+
+    def _startup_step(self, phase: str, role: str | None = None) -> None:
+        from .benchmark_failure import PHASES, ROLES
+        with self._process_lock:
+            self._startup_breadcrumbs.update(
+                phase=phase if phase in PHASES else "unknown",
+                role=role if role in ROLES else None)
+
+    def _qualification_flags(self, **flags) -> None:
+        with self._process_lock:
+            record = self._startup_breadcrumbs.setdefault("qualification", {})
+            record.update({key: value for key, value in flags.items()
+                           if key in ("priced", "completed", "retired") and type(value) is bool})
+
+    def _observe_failure(self) -> None:
+        observer = getattr(self, "_failure_observer", None)
+        if observer is not None:
+            try:
+                observer()
+            except Exception:
+                pass  # Diagnostics never alter cleanup or admission behavior.
 
     @property
     def model_id(self) -> str:
@@ -817,6 +857,9 @@ class LocalTopology:
                 stderr=stderr,
             )
             self._processes[role] = process
+            from .benchmark_failure import ROLES
+            if role in ROLES and role not in self._startup_breadcrumbs["spawned_roles"]:
+                self._startup_breadcrumbs["spawned_roles"].append(role)
             return process
 
     def _redacted_tail(self, role: str) -> str:
@@ -877,6 +920,8 @@ class LocalTopology:
 
         wall, cpu = time.perf_counter(), time.process_time()
         priced = retired = completed = False
+        self._qualification_flags(priced=False, retired=False, completed=False)
+        self._startup_step("qualification_metadata", "client")
         directory = Path(tempfile.gettempdir())  # Same device as native sources, guards and holder tapes.
         policy = {"backend": "native", "enforced_wan": self._memory_enforced_wan,
                   "memory_budget_bytes": self._memory_budget_bytes}
@@ -910,22 +955,33 @@ class LocalTopology:
                     qualification.enter_context(reserve_incremental_disk(contract["source_disk_bytes"],
                         directory=directory, minimum_free_bytes=2 << 30))
                 running()
+                self._startup_step("qualification_import", "client")
                 loaded = load_role_source(self._experiment, expected_pins=pins, source=source,
-                                          cancelled=self._stopping.is_set)
+                                          cancelled=self._stopping.is_set,
+                                          lifecycle=lambda phase: self._startup_step(phase, "client"),
+                                          on_failure=self._observe_failure)
                 try:
                     running()
+                    self._startup_step("qualification_pricing", "client")
                     report = benchmark_memory(self._experiment, fss_imported=loaded,
                         memory_safety_margin_percent=self._memory_safety_margin_percent, **policy)
                     if report["estimate"]["fss_admission"]["source_pins"] != pins:
                         raise TopologyError("qualified FuseFSS source pins differ")
                     priced = True
+                    self._qualification_flags(priced=True)
                     # The live qualification owner can reduce observed free disk.
                     # Recheck this native-derived estimate only after retirement.
                     estimate = report["estimate"]
+                except BaseException:
+                    self._observe_failure()
+                    raise
                 finally:
+                    self._startup_step("qualification_retirement", "client")
                     loaded.close()
                     retired = True
+                    self._qualification_flags(retired=True)
             running()
+            self._startup_step("graph_admission")
             report = admit_memory(estimate, observe(), **policy)
             report.update(admission_scope="complete_topology_before_children",
                 full_topology_admitted=report["admitted"],
@@ -947,6 +1003,10 @@ class LocalTopology:
                     self._source_pins = pins
                     self._capacity_reservations = graph.pop_all()
                 completed = True
+                self._qualification_flags(completed=True)
+        except BaseException:
+            self._observe_failure()
+            raise
         finally:
             self._source_qualification = {
                 "wall_seconds": time.perf_counter() - wall,
@@ -965,6 +1025,7 @@ class LocalTopology:
                 raise TopologyError("local topology cannot be started again")
             self._starting = True
         try:
+            self._startup_step("source_inspection")
             if (self._privacy_mode == "fss_public"
                     and self._experiment.pipeline.components["linear"].params.get("capacity", "capsule") == "decoder"):
                 self._qualify_fss_decoder()
@@ -1036,6 +1097,7 @@ class LocalTopology:
                         raise TopologyError("local topology stopped during startup")
                     self._started = True
                     self._starting = False
+                    self._startup_breadcrumbs.update(phase="ready", role=None)
                 return self
             if self._privacy_mode != "gkm_public" and set(self._role_ids) == {"worker_a", "worker_b"} and (
                 self._model.kind != "huggingface" or not Path(self._model.source).is_dir()
@@ -1067,6 +1129,7 @@ class LocalTopology:
             self._push_key = self._credential(used) if "preparation" in self._role_ids else ""
             commands = self._commands(ports)
             for role in self._role_ids:
+                self._startup_step("role_startup", role)
                 if self._progress is not None:
                     self._progress(role)
                 self._spawn(role, commands[role])
@@ -1080,13 +1143,19 @@ class LocalTopology:
                           else "offset-worker" if role in {"worker_a", "worker_b"} else "inference")
                 )
                 self._wait(role, expected, self._role_urls[role])
+                from .benchmark_failure import ROLES
+                with self._process_lock:
+                    if role in ROLES and role not in self._startup_breadcrumbs["ready_roles"]:
+                        self._startup_breadcrumbs["ready_roles"].append(role)
             with self._process_lock:
                 if self._closed or self._stopping.is_set():
                     raise TopologyError("local topology stopped during startup")
                 self._started = True
                 self._starting = False
+                self._startup_breadcrumbs.update(phase="ready", role=None)
             return self
         except BaseException as exc:
+            self._observe_failure()
             try:
                 self.close()
             except Exception as close_exc:
@@ -1265,7 +1334,7 @@ class LocalTopology:
         _stop_role_processes(processes)
 
     def close(self) -> None:
-        self._stopping.set()
+        self.request_stop()
         # The pressure guard, startup rollback and foreground caller can all
         # arrive here. One owner signals/reaps; other callers wait for retirement.
         with defer_termination_signals(), self._close_lock:

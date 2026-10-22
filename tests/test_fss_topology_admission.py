@@ -93,8 +93,10 @@ def setup(tmp_path, monkeypatch):
         "source_digest": manifest["source"], "original_input_digest": manifest["input_digest"],
         "numeric_profile": PROFILE, "initial_tokens": 2, "selections": 3, "vocabulary": 7}
 
-    def load(exp, *, expected_pins, source, cancelled):
+    def load(exp, *, expected_pins, source, cancelled, lifecycle=None, on_failure=None):
         assert exp is experiment and source is state.source and expected_pins == pins
+        if lifecycle is not None or on_failure is not None:
+            assert callable(lifecycle) and callable(on_failure)
         assert not cancelled()
         assert state.leases == {"qualification.memory": 384 << 20, "qualification.disk": 2 * GiB}
         assert state.topology.memory_admission["estimate"]["native_total_peak_bytes"] > 384 << 20

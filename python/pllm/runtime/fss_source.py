@@ -498,12 +498,15 @@ class LoadedFssSource:
         self.close()
 
 
-def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None, cancelled=None, source=None):
+def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None, cancelled=None, source=None,
+                     lifecycle=None, on_failure=None):
     """Import a role's own public checkpoint, pinned to coordinator's original snapshot.
 
     This does not send weights from client or manufacture serving admission.
     Native seal owns Q12 conversion, numeric/range rejection and program creation.
     """
+    if lifecycle is not None:
+        lifecycle("qualification_metadata")
     _cancelled(cancelled)
     source = source if source is not None else resolve_client_source(experiment, expected_pins=expected_pins)
     if not isinstance(source, FrozenFssSource):
@@ -524,6 +527,8 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         if specs != source._specs:
             raise FssSourceError("FuseFSS tensor headers changed after admission")
         kwargs = {"capacity": capacity} if capacity == "decoder" else {}
+        if lifecycle is not None:
+            lifecycle("qualification_import")
         builder = _native.FssSourceBuilder(source.config_bytes, rows, outputs, record["numeric_profile"], **kwargs)
         original_hash = hashlib.sha256(b"pllm.fss.original-ieee-stream.v1\0")
         identities, specs = dict(source._identities), dict(specs)
@@ -563,6 +568,8 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
             raise FssSourceError("FuseFSS source changed during import")
         _cancelled(cancelled)
         seal = {"serial": "seal", "wavefront-v1": "seal_wavefront", "tensor-v1": "seal_tensor"}[_online_schedule(record)]
+        if lifecycle is not None:
+            lifecycle("qualification_seal")
         program = getattr(builder, seal)()
         manifest_bytes = program.manifest(contract_bytes)
         manifest = _document(manifest_bytes, "program manifest", 1024)
@@ -580,6 +587,11 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         descriptor["sha256"] = hashlib.sha256(b"pllm.fss.public-f32-rotary-source.v1\0" + io._canonical(descriptor)).hexdigest()
         return LoadedFssSource(source, contract_bytes, program, manifest_bytes, io._canonical(descriptor))
     except BaseException:
+        if on_failure is not None:
+            try:
+                on_failure()
+            except Exception:
+                pass
         if program is not None:
             program.close()
         raise

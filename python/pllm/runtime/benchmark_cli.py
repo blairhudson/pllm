@@ -61,6 +61,11 @@ ProgressCallback = Callable[[str], None]
 class LoopbackBenchmarkError(RuntimeError):
     """Raised when the local benchmark roles cannot produce a complete run."""
 
+    def __init__(self, *args, failure_diagnostics=None):
+        super().__init__(*args)
+        from .benchmark_failure import sanitize_failure_diagnostics
+        self.failure_diagnostics = sanitize_failure_diagnostics(failure_diagnostics)
+
 
 def validate_benchmark_timeout(timeout_seconds: float, *, experiment: Experiment | None = None) -> None:
     """Extend the legacy window only for an explicitly admitted FSS Decoder.
@@ -1193,6 +1198,9 @@ def _run_loopback_benchmark(
     from .benchmark_resources import ProcessMemorySampler
     from .shutdown import defer_termination_signals
     memory_sampler = ProcessMemorySampler(dashboard_app.state.dashboard_runtime) if not docker else None
+    from .benchmark_failure import FailureDiagnostics, capture_failure, observe_failure
+    dashboard_app.state.dashboard_runtime._benchmark_failure_diagnostics = FailureDiagnostics(
+        dashboard_app.state.dashboard_runtime, memory_sampler)
     if memory_sampler is not None:
         memory_sampler.start()
 
@@ -1305,12 +1313,21 @@ def _run_loopback_benchmark(
             cold_process_cpu = dashboard_app.state.dashboard_runtime.cold_process_cpu()
             client_body_placement = dashboard_app.state.dashboard_runtime.client_body_placement()
     except KeyboardInterrupt as exc:
-        raise LoopbackBenchmarkError("benchmark interrupted") from exc
+        raise LoopbackBenchmarkError("benchmark interrupted",
+            failure_diagnostics=capture_failure(dashboard_app.state.dashboard_runtime)) from exc
     except LoopbackBenchmarkError as exc:
         diagnostic = handle.diagnostic()
         suffix = f"\n{diagnostic}" if diagnostic else ""
-        raise LoopbackBenchmarkError(f"{exc}{suffix}") from exc
+        raise LoopbackBenchmarkError(f"{exc}{suffix}",
+            failure_diagnostics=capture_failure(dashboard_app.state.dashboard_runtime)) from exc
+    except BaseException as exc:
+        # Preserve existing failure type/message, adding only the bounded record.
+        exc.failure_diagnostics = capture_failure(dashboard_app.state.dashboard_runtime)
+        raise
     finally:
+        # Final privacy/runtime checks intentionally remain after ordinary teardown.
+        # Keep a separate fallback now, without consuming the first-failure slot.
+        pre_teardown_diagnostics = observe_failure(dashboard_app.state.dashboard_runtime)
         try:
             with defer_termination_signals():
                 try:
@@ -1419,7 +1436,9 @@ def _run_loopback_benchmark(
             "pipeline_digest": experiment.pipeline.digest(),
         }
     if not report["checks"]["passed"]:
-        raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed")
+        raise LoopbackBenchmarkError("benchmark runtime or privacy checks failed",
+            failure_diagnostics=capture_failure(dashboard_app.state.dashboard_runtime,
+                                                observation=pre_teardown_diagnostics))
     return report
 
 

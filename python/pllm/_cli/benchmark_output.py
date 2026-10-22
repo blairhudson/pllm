@@ -89,6 +89,10 @@ class BenchmarkOutput:
         self.document["status"] = status
         # Exception messages can contain private request text or credentials.
         self.document["failure"] = {"type": type(error).__name__}
+        from pllm.runtime.benchmark_failure import sanitize_failure_diagnostics
+        diagnostics = sanitize_failure_diagnostics(getattr(error, "failure_diagnostics", None))
+        if diagnostics is not None:
+            self.document["failure"]["diagnostics"] = diagnostics
         if self.active is not None:
             self.document["candidates"][self.active]["status"] = status
         self._checkpoint()
