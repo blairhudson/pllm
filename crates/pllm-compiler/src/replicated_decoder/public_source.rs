@@ -1,9 +1,27 @@
 //! Source-certified public Q18 snapshots. Checkpoint bytes arrive in bounded
 //! frames; neither publication nor execution retains a resident weight matrix.
+use super::source_registry::{
+    add_bytes, array_bytes, binding_workspace_bytes, tree_entry_bytes, SourceConstructionQuote,
+    SourceRegistry,
+};
 use super::*;
 use pllm_core::public_file::{PublicFile, PublicFileWriter};
 use pllm_core::streamed_matrix::{self, MatrixGeometry, MatrixLayout, SelectionGeometry};
 use std::collections::BTreeMap;
+use std::mem::size_of;
+
+#[cfg(test)]
+#[path = "source_registry_tests.rs"]
+mod registry_tests;
+
+#[cfg(test)]
+#[path = "source_construction_tests.rs"]
+mod construction_tests;
+
+#[cfg(test)]
+thread_local! {
+    static CHECKED_IMPORT_FACTORIES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
 
 pub struct PublicSource {
     files: BTreeMap<String, PublicFile>,
@@ -32,6 +50,128 @@ struct Pending {
 pub struct PublicSourceImport(Option<Pending>);
 
 impl PublicSourceImport {
+    /// Allocation-free quote of the checked import's complete native owner
+    /// overlap. Source/norm maps remain borrowed baseline, separately inventoried
+    /// by their ACTUAL capacities. The cloned destination is bounded by those
+    /// capacities, not by file lengths. Keep the original norm import envelope
+    /// in full; no sharing or retired-record refund lowers an existing charge.
+    ///
+    /// Includes retained file handles/tree keys, maximum scan/output overlap,
+    /// 32 KiB encoded frame, binding SHA states and returned importer/source slots.
+    /// Incoming frame backing, existing plans/authenticated files and Manifest
+    /// inline/config/schema belong in retained_baseline_bytes. Kernel file cache,
+    /// tempfile/OS internals and allocator bookkeeping are not native payload.
+    pub(super) fn construction_quote(
+        registry: &SourceRegistry<'_>,
+        retained_baseline_bytes: usize,
+    ) -> Result<SourceConstructionQuote, Error> {
+        let sources = registry.source_records();
+        let norms = registry.source_norms();
+        let envelope = source_norms::import_envelope(norms)?;
+        let mut owned = array_bytes::<(String, SourceTensor)>(sources.len())?;
+        for (key, tensor) in sources {
+            owned = add_bytes(owned, key.capacity())?;
+            owned = add_bytes(owned, array_bytes::<usize>(tensor.shape.capacity())?)?;
+            if let Some(values) = &tensor.public_q18 {
+                owned = add_bytes(owned, array_bytes::<i64>(values.capacity())?)?;
+            } else {
+                let lanes = tensor
+                    .shape
+                    .iter()
+                    .try_fold(1usize, |n, d| n.checked_mul(*d).ok_or(Error::Bounds))?;
+                let file_bytes = u64::try_from(lanes)
+                    .map_err(|_| Error::Bounds)?
+                    .checked_mul(8)
+                    .ok_or(Error::Bounds)?;
+                if file_bytes == 0 || file_bytes > pllm_core::public_file::MAX_BYTES {
+                    return Err(Error::Bounds);
+                }
+                // Disk bytes are authenticated/reserved by PublicFileWriter,
+                // never charged as a resident source tensor here.
+                owned = add_bytes(owned, tree_entry_bytes::<(String, PublicFile)>()?)?;
+                owned = add_bytes(owned, key.capacity())?;
+                owned = add_bytes(owned, public_file_arc_bytes()?)?;
+            }
+        }
+        owned = add_bytes(owned, envelope.total_bytes)?;
+        owned = add_bytes(owned, binding_workspace_bytes()?)?;
+        for bytes in [
+            2 * 16384, // existing maximum encoded frame, NOT source length
+            size_of::<Pending>(),
+            size_of::<Self>(),
+            size_of::<Result<Self, Error>>(),
+            size_of::<PublicSource>(),
+            size_of::<Result<PublicSource, String>>(),
+            size_of::<Result<PublicFile, String>>(),
+            size_of::<Result<PublicFileWriter, String>>(),
+            size_of::<Result<source_norms::BlockScan, Error>>(),
+            size_of::<Result<source_norms::BlockNorms, Error>>(),
+            size_of::<SourceConstructionQuote>(),
+            size_of::<Result<SourceConstructionQuote, Error>>(),
+            size_of::<source_norms::ImportEnvelope>(),
+            // One cloned record/key may coexist with its destination slot.
+            size_of::<(String, SourceTensor)>(),
+        ] {
+            owned = add_bytes(owned, bytes)?;
+        }
+        SourceConstructionQuote::new(sources, norms, retained_baseline_bytes, owned)
+    }
+
+    /// Compiler-private opt-in: validate/quote BEFORE copying any owned metadata.
+    /// Parent first obtains SourceRegistry from compiler-minted descriptors under
+    /// its separately preadmitted validation/Manifest-construction allowance.
+    /// This entry reuses that authority instead of rerunning allocating semantic
+    /// lowering/shape maps. It does not validate a manifest execution digest.
+    /// Legacy `new(&Manifest)` and its default routing remain unchanged.
+    #[cfg(test)]
+    pub(super) fn new_checked(
+        registry: &SourceRegistry<'_>,
+        retained_baseline_bytes: usize,
+        cap: usize,
+    ) -> Result<Self, Error> {
+        Self::construction_quote(registry, retained_baseline_bytes)?.admit(cap)?;
+        #[cfg(test)]
+        CHECKED_IMPORT_FACTORIES.with(|n| n.set(n.get() + 1));
+        let mut tensors = Vec::new();
+        tensors
+            .try_reserve_exact(registry.source_records().len())
+            .map_err(|_| Error::Allocation)?;
+        if tensors.capacity() != registry.source_records().len() {
+            return Err(Error::Allocation);
+        }
+        for (key, tensor) in registry.source_records() {
+            tensors.push((
+                copy_string(key)?,
+                SourceTensor {
+                    shape: copy_slice(&tensor.shape)?,
+                    lower: tensor.lower,
+                    upper: tensor.upper,
+                    digest: tensor.digest,
+                    public_q18: tensor.public_q18.as_deref().map(copy_slice).transpose()?,
+                    row_l1: tensor.row_l1,
+                    row_squared_norm: tensor.row_squared_norm,
+                    row_l1_squared_sum: tensor.row_l1_squared_sum,
+                },
+            ));
+        }
+        Ok(Self(Some(Pending {
+            tensors,
+            cursor: 0,
+            offset: 0,
+            writer: None,
+            hash: Sha256::new(),
+            files: BTreeMap::new(),
+            row_sum: 0,
+            row_l1: 0,
+            row_square_sum: 0,
+            row_squared_norm: 0,
+            row_l1_squared_sum: 0,
+            binding: registry.binding(),
+            norms: registry.source_norms().clone(),
+            norm_scan: None,
+        })))
+    }
+
     pub fn new(manifest: &Manifest) -> Result<Self, String> {
         if manifest.weights != WeightMode::Public {
             return Err("public source requires the public-weight contract".into());
@@ -223,13 +363,27 @@ impl PublicSourceImport {
 }
 
 impl PublicSource {
+    /// Existing immutable handle/key backing only. Retain this owner while using
+    /// the census; do not infer aliasing from paths/digests or charge file length
+    /// as resident bytes. Parent adds this inventory to its outside baseline.
+    pub(super) fn resident_metadata_bytes(&self) -> Result<usize, Error> {
+        let mut bytes = size_of::<Self>();
+        for key in self.files.keys() {
+            bytes = add_bytes(bytes, tree_entry_bytes::<(String, PublicFile)>()?)?;
+            bytes = add_bytes(bytes, key.capacity())?;
+            bytes = add_bytes(bytes, public_file_arc_bytes()?)?;
+        }
+        Ok(bytes)
+    }
+
     #[cfg(test)]
     pub(super) fn test_values(
         program: &Program,
         values: &BTreeMap<String, Vec<i64>>,
     ) -> Option<Self> {
         let mut files = BTreeMap::new();
-        for node in &program.nodes[..program.inputs] {
+        for position in 0..program.input_count() {
+            let (_, node) = program.input_at(position);
             if let Code::PublicInput { key, digest, .. } = &node.code {
                 let bytes: Vec<u8> = values[key].iter().flat_map(|n| n.to_le_bytes()).collect();
                 let mut writer = PublicFileWriter::new(bytes.len() as u64, *digest).unwrap();
@@ -246,18 +400,49 @@ impl PublicSource {
     }
 
     pub(super) fn check(&self, program: &Program) -> Result<(), Error> {
+        // Preserve binding-first failure ordering before touching input nodes.
         if self.binding != program.source_binding {
             return Err(Error::Binding);
         }
-        let mut count = 0;
-        for node in &program.nodes[..program.inputs] {
-            if let Code::PublicInput { key, digest, .. } = &node.code {
-                let file = self.files.get(key).ok_or(Error::Binding)?;
-                if file.digest() != *digest || file.size() != node.lanes as u64 * 8 {
-                    return Err(Error::Binding);
+        self.check_files(
+            program.source_binding,
+            (0..program.input_count()).filter_map(|position| {
+                let (_, node) = program.input_at(position);
+                if let Code::PublicInput { key, digest, .. } = &node.code {
+                    Some(super::source_registry::FileDescriptor {
+                        key,
+                        digest: *digest,
+                        lanes: node.lanes,
+                    })
+                } else {
+                    None
                 }
-                count += 1;
+            }),
+        )
+    }
+
+    pub(super) fn check_registry(
+        &self,
+        registry: &super::source_registry::SourceRegistry<'_>,
+    ) -> Result<(), Error> {
+        self.check_files(registry.binding(), registry.files())
+    }
+
+    fn check_files<'a>(
+        &self,
+        binding: [u8; 32],
+        descriptors: impl Iterator<Item = super::source_registry::FileDescriptor<'a>>,
+    ) -> Result<(), Error> {
+        if self.binding != binding {
+            return Err(Error::Binding);
+        }
+        let mut count = 0;
+        for descriptor in descriptors {
+            let file = self.files.get(descriptor.key).ok_or(Error::Binding)?;
+            if file.digest() != descriptor.digest || file.size() != descriptor.lanes as u64 * 8 {
+                return Err(Error::Binding);
             }
+            count += 1;
         }
         if count != self.files.len() || count == 0 {
             return Err(Error::Binding);
@@ -268,6 +453,34 @@ impl PublicSource {
     pub(super) fn file(&self, key: &str) -> Result<&PublicFile, Error> {
         self.files.get(key).ok_or(Error::Binding)
     }
+}
+
+fn public_file_arc_bytes() -> Result<usize, Error> {
+    add_bytes(size_of::<std::fs::File>(), array_bytes::<usize>(2)?)
+}
+
+#[cfg(test)]
+fn copy_slice<T: Copy>(source: &[T]) -> Result<Vec<T>, Error> {
+    let mut copy = Vec::new();
+    copy.try_reserve_exact(source.len())
+        .map_err(|_| Error::Allocation)?;
+    if copy.capacity() != source.len() {
+        return Err(Error::Allocation);
+    }
+    copy.extend_from_slice(source);
+    Ok(copy)
+}
+
+#[cfg(test)]
+fn copy_string(source: &str) -> Result<String, Error> {
+    let mut copy = String::new();
+    copy.try_reserve_exact(source.len())
+        .map_err(|_| Error::Allocation)?;
+    if copy.capacity() != source.len() {
+        return Err(Error::Allocation);
+    }
+    copy.push_str(source);
+    Ok(copy)
 }
 
 /// Complete ring64 products, with a fixed 64 KiB public read buffer. Both

@@ -119,6 +119,134 @@ pub struct Program {
     pub(super) source_binding: [u8; 32],
 }
 
+impl Program {
+    /// Original ordered imports, including public source descriptors.
+    pub(super) fn input_count(&self) -> usize {
+        self.inputs
+    }
+
+    /// Return the logical owner and its borrowed original import recipe.
+    pub(super) fn input_at(&self, position: usize) -> (usize, &Node) {
+        (position, &self.nodes[..self.inputs][position])
+    }
+
+    pub(super) fn recipe_at(&self, ordinal: usize) -> Option<&Node> {
+        self.nodes.get(ordinal)
+    }
+}
+
+/// Compiler-minted, borrowed descriptor validation. This is not source-byte
+/// authentication or complete-program admission. Fields cannot be caller-built.
+pub(super) struct ValidatedSourceDescriptors<'a> {
+    sources: &'a BTreeMap<String, SourceTensor>,
+    norms: &'a SourceNorms,
+    weights: WeightMode,
+}
+
+impl<'a> ValidatedSourceDescriptors<'a> {
+    pub(super) fn public_records(
+        self,
+    ) -> Result<(&'a BTreeMap<String, SourceTensor>, &'a SourceNorms), Error> {
+        if self.weights != WeightMode::Public {
+            return Err(Error::Binding);
+        }
+        Ok((self.sources, self.norms))
+    }
+}
+
+/// Shared source-contract checks, before any expanded execution nodes exist.
+fn validate_source_records<'a>(
+    graph: &DecoderGraph,
+    shapes: &BTreeMap<String, Vec<usize>>,
+    sources: &'a BTreeMap<String, SourceTensor>,
+    weights: WeightMode,
+    execution: ExecutionPolicy,
+    norms: &'a SourceNorms,
+) -> Result<ValidatedSourceDescriptors<'a>, String> {
+    if !norms.is_empty()
+        && (weights != WeightMode::Public || execution.range_policy != RangePolicy::Checked)
+    {
+        return Err("public source norms require checked public execution".into());
+    }
+    source_norms::validate_set(graph, shapes, norms).map_err(|e| e.to_string())?;
+    let public: std::collections::BTreeSet<_> = graph
+        .operations
+        .iter()
+        .filter(|v| v.operator == Op::RmsNorm)
+        .map(|op| {
+            op.attributes
+                .get("weight")
+                .and_then(|v| v.as_str())
+                .ok_or("missing norm source")
+        })
+        .collect::<Result<_, _>>()?;
+    if shapes.len() != sources.len() || sources.iter().any(|(k, v)| shapes.get(k) != Some(&v.shape))
+    {
+        return Err("replicated source shape set mismatch".into());
+    }
+    if sources.iter().any(|(k, v)| {
+        v.digest == [0; 32]
+            || public.contains(k.as_str()) != v.public_q18.is_some()
+            || v.public_q18.as_ref().is_some_and(|x| {
+                x.len() != v.shape.iter().product::<usize>()
+                    || x.iter().any(|n| *n < v.lower || *n > v.upper)
+            })
+    }) {
+        return Err("replicated source commitment/public coefficient mismatch".into());
+    }
+    for source in sources.values() {
+        if let Some(sum) = source.row_l1 {
+            if weights != WeightMode::Public
+                || source.shape.len() != 2
+                || (source.shape[1] as u64)
+                    .checked_mul(source.lower.unsigned_abs().max(source.upper.unsigned_abs()))
+                    .is_none_or(|maximum| sum > maximum)
+            {
+                return Err("invalid public source row bound".into());
+            }
+        }
+        if let Some(sum) = source.row_squared_norm {
+            let magnitude =
+                u128::from(source.lower.unsigned_abs().max(source.upper.unsigned_abs()));
+            if weights != WeightMode::Public
+                || source.shape.len() != 2
+                || magnitude
+                    .checked_mul(magnitude)
+                    .and_then(|v| v.checked_mul(source.shape[1] as u128))
+                    .is_none_or(|maximum| sum > maximum)
+            {
+                return Err("invalid public source row square bound".into());
+            }
+        }
+        if let Some(sum) = source.row_l1_squared_sum {
+            let maximum = source
+                .row_l1
+                .and_then(|row| u128::from(row).checked_mul(u128::from(row)))
+                .and_then(|square| square.checked_mul(source.shape[0] as u128));
+            if weights != WeightMode::Public
+                || source.shape.len() != 2
+                || maximum.is_none_or(|maximum| sum > maximum)
+            {
+                return Err("invalid public source row energy bound".into());
+            }
+        }
+        if let Some(values) = &source.public_q18 {
+            let mut h = Sha256::new();
+            for value in values {
+                h.update(value.to_le_bytes());
+            }
+            if <[u8; 32]>::from(h.finalize()) != source.digest {
+                return Err("replicated public coefficient digest mismatch".into());
+            }
+        }
+    }
+    Ok(ValidatedSourceDescriptors {
+        sources,
+        norms,
+        weights,
+    })
+}
+
 #[derive(Clone)]
 struct View {
     words: Words,
@@ -1856,6 +1984,38 @@ fn ceil_sqrt(value: u128) -> u128 {
 }
 
 impl Program {
+    /// Validate the original source contract without constructing expanded nodes.
+    /// This deliberately retains existing source-shape/work preflights; it is not
+    /// a compact complete-request admission path or a manifest program-digest check.
+    /// Shapes, lowered graphs and validation maps are new construction temporaries,
+    /// not borrowed baseline; their aggregate D26 peak remains unaudited here.
+    pub(super) fn validated_source_descriptors(
+        manifest: &Manifest,
+    ) -> Result<ValidatedSourceDescriptors<'_>, String> {
+        manifest.execution.validate(manifest.weights)?;
+        let shapes = Self::source_shapes_with_policy(
+            &manifest.config,
+            manifest.rows,
+            manifest.outputs,
+            manifest.weights,
+            manifest.execution,
+        )?;
+        let first = lower_with_weights(
+            &manifest.config,
+            manifest.rows,
+            manifest.outputs,
+            manifest.weights,
+        )?;
+        validate_source_records(
+            &first.prefill,
+            &shapes,
+            &manifest.tensors,
+            manifest.weights,
+            manifest.execution,
+            &manifest.norms,
+        )
+    }
+
     /// Bounded source-mapped metadata admission runs before graph expansion.
     pub fn source_shapes(
         config: &[u8],
@@ -2020,85 +2180,7 @@ impl Program {
         execution.validate(weights)?;
         let shapes = Self::source_shapes_with_policy(config, rows, outputs, weights, execution)?;
         let first = lower_with_weights(config, rows, outputs, weights)?;
-        if !norms.is_empty()
-            && (weights != WeightMode::Public || execution.range_policy != RangePolicy::Checked)
-        {
-            return Err("public source norms require checked public execution".into());
-        }
-        source_norms::validate_set(&first.prefill, &shapes, norms).map_err(|e| e.to_string())?;
-        let public: std::collections::BTreeSet<_> = first
-            .prefill
-            .operations
-            .iter()
-            .filter(|v| v.operator == Op::RmsNorm)
-            .map(|op| {
-                op.attributes
-                    .get("weight")
-                    .and_then(|v| v.as_str())
-                    .ok_or("missing norm source")
-            })
-            .collect::<Result<_, _>>()?;
-        if shapes.len() != sources.len()
-            || sources.iter().any(|(k, v)| shapes.get(k) != Some(&v.shape))
-        {
-            return Err("replicated source shape set mismatch".into());
-        }
-        if sources.iter().any(|(k, v)| {
-            v.digest == [0; 32]
-                || public.contains(k.as_str()) != v.public_q18.is_some()
-                || v.public_q18.as_ref().is_some_and(|x| {
-                    x.len() != v.shape.iter().product::<usize>()
-                        || x.iter().any(|n| *n < v.lower || *n > v.upper)
-                })
-        }) {
-            return Err("replicated source commitment/public coefficient mismatch".into());
-        }
-        for source in sources.values() {
-            if let Some(sum) = source.row_l1 {
-                if weights != WeightMode::Public
-                    || source.shape.len() != 2
-                    || (source.shape[1] as u64)
-                        .checked_mul(source.lower.unsigned_abs().max(source.upper.unsigned_abs()))
-                        .is_none_or(|maximum| sum > maximum)
-                {
-                    return Err("invalid public source row bound".into());
-                }
-            }
-            if let Some(sum) = source.row_squared_norm {
-                let magnitude =
-                    u128::from(source.lower.unsigned_abs().max(source.upper.unsigned_abs()));
-                if weights != WeightMode::Public
-                    || source.shape.len() != 2
-                    || magnitude
-                        .checked_mul(magnitude)
-                        .and_then(|v| v.checked_mul(source.shape[1] as u128))
-                        .is_none_or(|maximum| sum > maximum)
-                {
-                    return Err("invalid public source row square bound".into());
-                }
-            }
-            if let Some(sum) = source.row_l1_squared_sum {
-                let maximum = source
-                    .row_l1
-                    .and_then(|row| u128::from(row).checked_mul(u128::from(row)))
-                    .and_then(|square| square.checked_mul(source.shape[0] as u128));
-                if weights != WeightMode::Public
-                    || source.shape.len() != 2
-                    || maximum.is_none_or(|maximum| sum > maximum)
-                {
-                    return Err("invalid public source row energy bound".into());
-                }
-            }
-            if let Some(values) = &source.public_q18 {
-                let mut h = Sha256::new();
-                for value in values {
-                    h.update(value.to_le_bytes());
-                }
-                if <[u8; 32]>::from(h.finalize()) != source.digest {
-                    return Err("replicated public coefficient digest mismatch".into());
-                }
-            }
-        }
+        validate_source_records(&first.prefill, &shapes, sources, weights, execution, norms)?;
         let mut site = AdmissionSite::default();
         let mut builder = Builder {
             public_weights: weights == WeightMode::Public,

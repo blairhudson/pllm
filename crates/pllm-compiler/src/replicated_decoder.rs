@@ -11,6 +11,7 @@ mod runtime;
 pub mod sdk;
 mod source;
 mod source_norms;
+mod source_registry;
 #[cfg(test)]
 mod tests;
 mod views;

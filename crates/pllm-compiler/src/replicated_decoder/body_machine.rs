@@ -1,6 +1,7 @@
 //! Consuming semantic-site interpreter. One primitive/tensor invocation at a time.
 use super::*;
 use crate::replicated_decoder::runtime::{arithmetic_frames, tensor_frames, PeerBytes};
+use crate::replicated_decoder::source_registry::SourceRegistry;
 use multiply::{Operand, PartyRuntime, Status};
 use puma::{Message, MessagePhase, Operation, Party, ReplicatedShare};
 
@@ -48,34 +49,27 @@ pub struct Executor {
     #[cfg(test)]
     observed_peak: usize,
 }
-impl Executor {
-    /// Caller binds plan.digest() in its outer program and verifies source owner
-    /// against that program before lending this immutable Arc. No seed/context is
-    /// replaced and no per-site PRSS cursor is reset here.
-    pub fn new(
-        plan: Arc<Plan>,
-        runtime: PartyRuntime,
-        inputs: Vec<Secret>,
-        public: Option<Arc<PublicSource>>,
-        source_program: Option<&crate::replicated_decoder::Program>,
-    ) -> Result<Self, Error> {
-        if runtime.status() != Status::Ready || inputs.len() != plan.inputs {
-            return Err(Error::Phase);
+
+/// Borrowed only during construction. Neither contract nor its metadata backing
+/// is retained by the consuming executor; the original PublicSource Arc is.
+enum SourceContract<'a, 'metadata> {
+    Expanded(Option<&'a crate::replicated_decoder::Program>),
+    Registry(&'a SourceRegistry<'metadata>),
+}
+
+impl SourceContract<'_, '_> {
+    fn check_files(&self, public: &PublicSource) -> Result<(), Error> {
+        match self {
+            Self::Expanded(program) => public.check(program.ok_or(Error::Binding)?),
+            Self::Registry(registry) => public.check_registry(registry),
         }
-        if plan
-            .ops
-            .iter()
-            .any(|op| matches!(op, Op::PublicMatrix { .. } | Op::Bias { .. }))
-        {
-            public
-                .as_ref()
-                .ok_or(Error::Binding)?
-                .check(source_program.ok_or(Error::Binding)?)?;
-        }
-        for op in plan.ops.iter() {
-            if let Op::PublicMatrix { source, .. } | Op::Bias { source, .. } = op {
-                let program = source_program.ok_or(Error::Binding)?;
-                let node = program.nodes.get(source.owner).ok_or(Error::Binding)?;
+    }
+
+    fn check_descriptor(&self, source: &Source) -> Result<(), Error> {
+        match self {
+            Self::Expanded(program) => {
+                let program = program.ok_or(Error::Binding)?;
+                let node = program.recipe_at(source.owner).ok_or(Error::Binding)?;
                 let crate::replicated_decoder::Code::PublicInput { key, digest, .. } = &node.code
                 else {
                     return Err(Error::Binding);
@@ -87,6 +81,79 @@ impl Executor {
                 {
                     return Err(Error::Binding);
                 }
+                Ok(())
+            }
+            Self::Registry(registry) => registry.check_descriptor(
+                source.owner,
+                &source.key,
+                source.digest,
+                source.lanes,
+                source.bounds,
+            ),
+        }
+    }
+}
+
+impl Executor {
+    /// Caller binds plan.digest() in its outer program and verifies source owner
+    /// against that program before lending this immutable Arc. No seed/context is
+    /// replaced and no per-site PRSS cursor is reset here.
+    pub fn new(
+        plan: Arc<Plan>,
+        runtime: PartyRuntime,
+        inputs: Vec<Secret>,
+        public: Option<Arc<PublicSource>>,
+        source_program: Option<&crate::replicated_decoder::Program>,
+    ) -> Result<Self, Error> {
+        Self::new_with_contract(
+            plan,
+            runtime,
+            inputs,
+            public,
+            SourceContract::Expanded(source_program),
+        )
+    }
+
+    /// Validate original source metadata and authenticated files without an
+    /// expanded Program. The enclosing compiler still binds the plan identity,
+    /// checks complete-request admission and globally drains the router. No
+    /// unchecked body Source descriptor or registry backing is retained here.
+    pub(in crate::replicated_decoder) fn new_with_registry(
+        plan: Arc<Plan>,
+        runtime: PartyRuntime,
+        inputs: Vec<Secret>,
+        public: Option<Arc<PublicSource>>,
+        registry: &SourceRegistry<'_>,
+    ) -> Result<Self, Error> {
+        Self::new_with_contract(
+            plan,
+            runtime,
+            inputs,
+            public,
+            SourceContract::Registry(registry),
+        )
+    }
+
+    fn new_with_contract(
+        plan: Arc<Plan>,
+        runtime: PartyRuntime,
+        inputs: Vec<Secret>,
+        public: Option<Arc<PublicSource>>,
+        contract: SourceContract<'_, '_>,
+    ) -> Result<Self, Error> {
+        if runtime.status() != Status::Ready || inputs.len() != plan.inputs {
+            return Err(Error::Phase);
+        }
+        if plan
+            .ops
+            .iter()
+            .any(|op| matches!(op, Op::PublicMatrix { .. } | Op::Bias { .. }))
+        {
+            contract.check_files(public.as_ref().ok_or(Error::Binding)?)?;
+        }
+        for op in plan.ops.iter() {
+            if let Op::PublicMatrix { source, .. } | Op::Bias { source, .. } = op {
+                contract.check_descriptor(source)?;
                 let file = public.as_ref().ok_or(Error::Binding)?.file(&source.key)?;
                 if file.digest() != source.digest || file.size() != source.lanes as u64 * 8 {
                     return Err(Error::Binding);
