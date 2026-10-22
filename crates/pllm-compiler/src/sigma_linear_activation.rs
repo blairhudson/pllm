@@ -36,9 +36,12 @@ mod source;
 #[path = "sigma_linear_activation/execution.rs"]
 mod execution;
 pub use execution::{
-    execute_sigma_linear_activation, sigma_execution_compiler_preflight, SigmaExecutionError,
-    SigmaExecutionFrame, SigmaExecutionMask, SigmaExecutionOutput, SigmaExecutionProvenance,
-    SigmaExecutionRun, SigmaExecutionStep,
+    execute_sigma_linear_activation, sigma_execution_compiler_preflight,
+    sigma_execution_role_split_resources, SigmaExecutionError, SigmaExecutionFrame,
+    SigmaExecutionMask, SigmaExecutionOutput, SigmaExecutionProvenance, SigmaExecutionRole,
+    SigmaExecutionRoleCoordinator, SigmaExecutionRoleFrame, SigmaExecutionRoleOutput,
+    SigmaExecutionRoleSplitResources, SigmaExecutionRoleStep, SigmaExecutionRun,
+    SigmaExecutionStep,
 };
 pub use source::{
     certify_source_checked_sigma_linear_activation, import_sigma_source_bytes, CheckedSigmaSource,

@@ -16,6 +16,13 @@ use pllm_core::edge_contract::{ConsumerUse, EdgeContractResourceQuote};
 const USES: usize = 4;
 const EXCHANGES: usize = 11; // matrix, two GapARS rounds, unchanged eight D20 rounds
 
+mod roles;
+pub use roles::{
+    role_split_resources, LinearActivationRole, LinearActivationRoleCoordinator,
+    LinearActivationRoleFrame, LinearActivationRoleOutput, LinearActivationRoleSplitResources,
+    LinearActivationRoleStep,
+};
+
 /// Local declaration of checked geometry and conditional domains, never source
 /// authentication, a compiler certificate, or permission to run another owner.
 /// Edge order: input, private weights, complete Q24 sum, Q12 rescale, D20 output.

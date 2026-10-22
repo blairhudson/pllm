@@ -10,7 +10,12 @@ mod independent;
 fn source() -> SourceIdentity {
     SourceIdentity::new([11; 32], [12; 32], approved_implementation())
 }
-fn spec(rows: usize, inner: usize, columns: usize, kind: ActivationKind) -> LinearActivationSpec {
+pub(super) fn spec(
+    rows: usize,
+    inner: usize,
+    columns: usize,
+    kind: ActivationKind,
+) -> LinearActivationSpec {
     let edges = std::array::from_fn(|i| {
         EdgeDescriptor::new(
             EdgeIdentity::new(source(), [1; 32], [20 + i as u8; 32], [3 + i as u8; 32], 0),
@@ -41,10 +46,10 @@ fn spec(rows: usize, inner: usize, columns: usize, kind: ActivationKind) -> Line
     )
     .unwrap()
 }
-fn dealer(budget: &Budget) -> LocalDealer<'_> {
+pub(super) fn dealer(budget: &Budget) -> LocalDealer<'_> {
     LocalDealer::new(source(), [1; 32], [2; 32], budget).unwrap()
 }
-fn oracle(spec: LinearActivationSpec, x: &[i64], w: &[i64]) -> Vec<i128> {
+pub(super) fn oracle(spec: LinearActivationSpec, x: &[i64], w: &[i64]) -> Vec<i128> {
     let table = match spec.activation.kind() {
         ActivationKind::Gelu => independent::Activation::Gelu.table(),
         ActivationKind::Silu => independent::Activation::Silu.table(),
@@ -66,7 +71,7 @@ fn oracle(spec: LinearActivationSpec, x: &[i64], w: &[i64]) -> Vec<i128> {
     }
     values
 }
-fn unmask(mask: &DealerMask<'_, Ring>, output: &CommonMasked<'_, Ring>) -> Vec<i128> {
+pub(super) fn unmask(mask: &DealerMask<'_, Ring>, output: &CommonMasked<'_, Ring>) -> Vec<i128> {
     assert_eq!(mask.binding, output.binding);
     output
         .backing

@@ -367,9 +367,17 @@ pub enum SigmaExecutionProvenance {
 /// fn duplicate(run: SigmaExecutionRun<'_>) { let _ = run.clone(); }
 /// ```
 pub struct SigmaExecutionRun<'b> {
-    native: typed::LocalLinearActivationRun<'b>,
+    native: Option<typed::LocalLinearActivationRun<'b>>,
     retained: Arc<RetainedSource<'b>>,
 }
+
+#[path = "execution_roles.rs"]
+mod roles;
+pub use roles::{
+    sigma_execution_role_split_resources, SigmaExecutionRole, SigmaExecutionRoleCoordinator,
+    SigmaExecutionRoleFrame, SigmaExecutionRoleOutput, SigmaExecutionRoleSplitResources,
+    SigmaExecutionRoleStep,
+};
 
 pub struct SigmaExecutionFrame<'b> {
     native: typed::LocalLinearActivationFrame<'b>,
@@ -429,7 +437,9 @@ impl<'b> SigmaExecutionRun<'b> {
 
     /// Cancelling burns both peers, but keeps source/metadata charge until drop.
     pub fn cancel(&mut self) {
-        self.native.cancel();
+        if let Some(native) = &mut self.native {
+            native.cancel();
+        }
     }
 
     pub fn begin(
@@ -438,6 +448,8 @@ impl<'b> SigmaExecutionRun<'b> {
     ) -> Result<[SigmaExecutionFrame<'b>; 2], SigmaExecutionError> {
         let [left, right] = self
             .native
+            .as_mut()
+            .ok_or(SigmaExecutionError::Native(typed::Error::Consumed))?
             .begin(cancelled)
             .map_err(SigmaExecutionError::Native)?;
         Ok([self.frame(left), self.frame(right)])
@@ -452,6 +464,8 @@ impl<'b> SigmaExecutionRun<'b> {
     ) -> Result<SigmaExecutionStep<'b>, SigmaExecutionError> {
         let step = self
             .native
+            .as_mut()
+            .ok_or(SigmaExecutionError::Native(typed::Error::Consumed))?
             .advance(peers, cancelled)
             .map_err(SigmaExecutionError::Native)?;
         match step.into_frames() {
@@ -471,7 +485,7 @@ impl<'b> SigmaExecutionRun<'b> {
                     },
                 ])),
                 Err(_) => {
-                    self.native.cancel();
+                    self.cancel();
                     Err(SigmaExecutionError::Native(typed::Error::Context))
                 }
             },
@@ -488,7 +502,7 @@ impl<'b> SigmaExecutionRun<'b> {
 
 impl Drop for SigmaExecutionRun<'_> {
     fn drop(&mut self) {
-        self.native.cancel();
+        self.cancel();
     }
 }
 
@@ -758,9 +772,15 @@ fn consume_checked_local_from_reserved<'b>(
             _native: mask,
             _retained: Arc::clone(&retained),
         },
-        SigmaExecutionRun { native, retained },
+        SigmaExecutionRun {
+            native: Some(native),
+            retained,
+        },
     ))
 }
+
+#[cfg(test)]
+static TEST_SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(test)]
 #[path = "execution_tests.rs"]

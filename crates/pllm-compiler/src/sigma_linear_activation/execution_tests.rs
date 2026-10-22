@@ -5,14 +5,14 @@ use pllm_types::{Digest, NamedDigest};
 
 // Generated original-source fixture, not a trained-checkpoint execution claim.
 // Independent publisher pin is fixed before any supplied bytes or plan changes.
-fn raw() -> [u8; 8] {
+pub(super) fn raw() -> [u8; 8] {
     let mut bytes = [0; 8];
     bytes[..4].copy_from_slice(&(1.0_f32 / 4096.0).to_le_bytes());
     bytes[4..].copy_from_slice(&(4095.0_f32 / 4096.0).to_le_bytes());
     bytes
 }
 
-fn fixture_request<'a>(
+pub(super) fn fixture_request<'a>(
     p: &'a DecoderPlan,
     values: &'a [f64],
     encoded: &'a [i64],
@@ -61,7 +61,7 @@ fn fixture_request<'a>(
     r
 }
 
-fn pin() -> ExpectedSigmaSourcePin {
+pub(super) fn pin() -> ExpectedSigmaSourcePin {
     pin_with_selection_capacity(0)
 }
 
@@ -85,7 +85,10 @@ fn pin_with_selection_capacity(extra: usize) -> ExpectedSigmaSourcePin {
     .unwrap()
 }
 
-fn packet<'a>(selection: &'a CheckpointTensorSelection, bytes: &'a [u8]) -> SigmaSourceBytes<'a> {
+pub(super) fn packet<'a>(
+    selection: &'a CheckpointTensorSelection,
+    bytes: &'a [u8],
+) -> SigmaSourceBytes<'a> {
     SigmaSourceBytes {
         artifact_name: "generated-f32-original",
         selection,
@@ -97,7 +100,7 @@ fn packet<'a>(selection: &'a CheckpointTensorSelection, bytes: &'a [u8]) -> Sigm
     }
 }
 
-fn checked() -> SourceCheckedSigmaLinearActivation {
+pub(super) fn checked() -> SourceCheckedSigmaLinearActivation {
     let p = plan();
     let values = [1.0 / 4096.0, 4095.0 / 4096.0];
     let encoded = [1, 4095];
@@ -106,7 +109,7 @@ fn checked() -> SourceCheckedSigmaLinearActivation {
     certify_source_checked_sigma_linear_activation(r, source).unwrap()
 }
 
-fn dealer<'b>(
+pub(super) fn dealer<'b>(
     c: &SourceCheckedSigmaLinearActivation,
     budget: &'b Budget,
 ) -> typed::LocalDealer<'b> {
@@ -576,6 +579,7 @@ fn original_reservation_rejects_short_payload_wrong_budget_and_input_before_nati
 // has only this single successful native issuance test; no parallel successes.
 #[test]
 fn raw_exact_admission_and_private_bridge_frames_outputs_keep_source_guard() {
+    let _serial = TEST_SERIAL.lock().unwrap();
     let c = checked();
     let payload = {
         let p = plan();

@@ -52,10 +52,17 @@ pub use activation::{
 };
 pub use linear_activation::{
     linear_activation_resources as local_linear_activation_resources,
+    role_split_resources as local_linear_activation_role_split_resources,
     LinearActivationFrame as LocalLinearActivationFrame,
     LinearActivationMetadataResources as LocalLinearActivationMetadataResources,
     LinearActivationResourceCalculationResources as LocalLinearActivationResourceCalculationResources,
     LinearActivationResources as LocalLinearActivationResources,
+    LinearActivationRole as LocalLinearActivationRole,
+    LinearActivationRoleCoordinator as LocalLinearActivationRoleCoordinator,
+    LinearActivationRoleFrame as LocalLinearActivationRoleFrame,
+    LinearActivationRoleOutput as LocalLinearActivationRoleOutput,
+    LinearActivationRoleSplitResources as LocalLinearActivationRoleSplitResources,
+    LinearActivationRoleStep as LocalLinearActivationRoleStep,
     LinearActivationRun as LocalLinearActivationRun,
     LinearActivationSpec as LocalLinearActivationSpec,
     LinearActivationStep as LocalLinearActivationStep,
