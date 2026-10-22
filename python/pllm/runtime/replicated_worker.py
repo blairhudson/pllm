@@ -33,6 +33,7 @@ from .replicated_protocol import (ROLES, FRAME_LIMIT, ADMISSION_LIMIT, REQUEST_M
 from .replicated_protocol import validate_transport_selector, validate_execution_binding
 from .replicated_source import admit_source
 from .replicated_peer import PeerStream, STREAM_MEMORY, TRANSPORT, binding, decode
+from .replicated_barrier import drain_peer_waves
 
 async def native_call(function, *args, _cancel=None):
     """Drain a cancelled native call before its caller can release admission."""
@@ -322,21 +323,7 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
                     return
                 if any(state["complete"] for state in states):
                     raise ValueError("replicated schedules diverged")
-                for _ in range(1024):
-                    # Freeze every sender's wave before any send. Replies from a
-                    # fast peer belong to the next wave; they cannot overtake a
-                    # slow peer's prerequisite rotation/opening.
-                    sent = await all_roles("prepare_dispatch")
-                    if any(set(state) != {"sent"} or type(state["sent"]) is not int
-                           or not 0 <= state["sent"] <= 16 for state in sent):
-                        raise ValueError("replicated dispatch acknowledgement differs")
-                    if not any(state["sent"] for state in sent):
-                        break
-                    delivered = await all_roles("dispatch")
-                    if delivered != sent:
-                        raise ValueError("replicated peer wave count differs")
-                else:
-                    raise ValueError("replicated peer round bound exceeded")
+                await drain_peer_waves(all_roles)
             raise ValueError("replicated barrier budget exhausted")
 
     @asynccontextmanager
