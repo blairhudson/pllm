@@ -1,7 +1,10 @@
 # HE client sampling: decision required
 
-**Status: proposed; neither choice selected.** No key generation or backend
-adoption is authorized by this document. [D4](../../paper/methods/DECISIONS.md#d4-bounded-poulpy-backend-qualification)
+**Status: Choice B design/review approved under
+[D28](../../paper/methods/DECISIONS.md#d28-secure-he-client-sampling-seam-design-and-review).**
+Choice A is not approved. No RNG, implementation, revised dependency pin, key
+generation or backend adoption is authorized by this decision.
+[D4](../../paper/methods/DECISIONS.md#d4-bounded-poulpy-backend-qualification)
 permits bounded functional qualification, not method/security-profile adoption;
 the decisions' opening rules also require secure randomness. Resolve this
 specific source-contract conflict before implementing original client generation.
@@ -99,6 +102,7 @@ default generator or replacement distribution is proposed here.
   export/kernel/I/O and runtime bounds remain open under either choice.
   Parameter-security and second-refresh entry-conversion gates also remain open.
 
-**Requested decision: A or B, with explicit wording above or a scoped amendment.
-Until then, literal client generation, preparation promotion and production
-availability remain closed.**
+**Recorded decision: B, design/review only.** Freeze the proposed implementation,
+RNG/entropy interface, dependency identity and security/resource contract for
+separate approval before generation. Literal client generation, preparation
+promotion and production availability remain closed.

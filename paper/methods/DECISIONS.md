@@ -669,6 +669,25 @@ escape checks; and unchanged SDK-negative tests. No raw-native extraction,
 serialization authority, new numeric composition, post-D22 Multiply,
 authenticated transport, SDK availability or security qualification is approved.
 
+## D28. Secure HE client sampling seam design and review
+
+**Explicitly approved by the user:** Choice B of the
+[HE client sampling decision](../../docs/plans/he-client-sampling.md).
+Do not use the pinned disclaimer-bearing Poulpy `Source` for secret, mask or
+error generation. Design and review a cryptographic RNG seam covering original
+client generation and every internal seed expansion, preserving the frozen
+distributions, numerical parameters and exact arithmetic.
+
+This approval selects no RNG algorithm, revised dependency pin or backend wrapper.
+Freeze and obtain approval for the implementation and its security/resource
+contract before generation. Preserve D4 resource and role limits, original dense
+and sparse secret-owner continuity, checked serial export and fail-burn lifecycle.
+Complete resource, numerical and parameter-security gates remain required.
+
+Choice A's qualification-only randomness exception is not approved. Design/review
+permission establishes neither secure backend/profile adoption nor a completed
+paper method, and authorizes no key generation or encrypted execution.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -700,6 +719,7 @@ authenticated transport, SDK availability or security qualification is approved.
 | D25 | Approved: bounded THOR multi-block frame-routing correction | Modular full-block routes, unchanged line-7 rotations and single-frame behavior; independent oracle and original counterexamples required, no HE/profile/decoder adoption. |
 | D26 | Approved: opt-in compact PUMA semantic outer representation | Stored-descriptor counting and audited whole-program peak ownership retain 65,536/64 MiB ceilings; same runtime/PRSS and complete-request work, certificate mapping and automatic semantic dispatch need validation; changed schedules/framing need separately approved identity. |
 | D27 | Approved: bounded SIGMA D22 consuming role split | Distinct native/compiler role owners move original material, source backing and continuous reservations; unchanged coupled API, equations and eleven-exchange transcript; coordinator burns both siblings on failure; no Multiply, transport or SDK promotion. |
+| D28 | Approved: secure HE client sampling seam design/review | Cover original generation and all internal expansions; preserve distributions, arithmetic and D4 gates. RNG, implementation, revised pin and security/resource contract require separate approval before generation; no qualification-only randomness exception. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
