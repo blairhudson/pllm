@@ -524,6 +524,15 @@ This test creates no workers, tapes or material; it establishes neither a privat
 response nor quality, and does not qualify the original 4+1 workload. Ordinary
 pytest output is `target/fusefss-one-hot-fold-topology-3.log`.
 
+The subsequent ordinary 3+1 `benchmark run` attempt used that factory, prompt
+`hi`, one output token, no warmups, one repetition, a 1,800-second timeout, and
+the normal 25% memory margin. It stopped with CLI exit 6:
+`benchmark stopped: macOS memory pressure is warning`. Its ordinary progress
+report has `status=failed`, `complete=false` and no candidate result; this is not
+private-response acceptance or a performance measurement. The report and CLI
+output are `target/fusefss-qwen-3-plus-1-sdk.{json,log}`. Pressure guards remain
+enabled; a fresh capacity/pressure check is required before retrying.
+
 Program-pricing admission now has a typed diagnostic path sharing the original
 admission walk and limits. Its bounded public record identifies the enclosing
 stage, error category and, only when known, kernel ordinal, observed bound and

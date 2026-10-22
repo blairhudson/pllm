@@ -233,6 +233,13 @@ in this admission test (`target/fusefss-one-hot-fold-topology-3.log`). Actual
 ordinary SDK execution remains a separate acceptance gate; 4+1 remains
 disk-blocked on this host.
 
+The subsequent ordinary 3+1 SDK benchmark stopped with exit 6 at
+`macOS memory pressure is warning`. Its normal progress report marks the
+candidate failed, with no completed result (`target/fusefss-qwen-3-plus-1-sdk.json`);
+CLI output is the adjacent `.log`. Do not count the attempt as private-request
+acceptance, quality or measured throughput. Keep pressure guards enabled and
+resample live capacity before retrying.
+
 Round reduction alone does not solve cold-request bytes. Reprice and measure the
 complete fresh-material delivery, source/setup scope, online traffic and aggregate
 resources before another long trained run. Require generated integer/feedback
