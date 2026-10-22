@@ -18,10 +18,11 @@
 //! Arithmetic is ordinary f64, with no rounding/tolerance or CKKS simulation;
 //! finite inputs may overflow to IEEE infinity. All fallible checks precede writes.
 //!
-//! Source gaps: optimized multi-block Algorithm 2 indexing (explicit error gate);
-//! Appendix B.2/B.3 printed mask indexing (use definition-based clear transforms,
-//! not those mask schedules); packed lower-lower complexification (only the
-//! fully specified Proposition 3.6 control below is implemented). Declared
+//! Algorithm 2 uses the paper-derived full-block routing correction proved in
+//! `docs/research/thor-multiblock-indexing-audit.md`, not an author erratum.
+//! Source gaps: Appendix B.2/B.3 printed mask indexing (use definition-based
+//! clear transforms, not those mask schedules); packed lower-lower complexification
+//! (only the fully specified Proposition 3.6 control below is implemented). Declared
 //! schedules exclude replication/transpose and input preparation. Rescale fields
 //! declare product-sum boundaries, not a complete level/scale DAG: the source
 //! does not freeze that DAG or mask scales. No full-source execution admission.
@@ -48,7 +49,9 @@ pub enum Error {
     Buffer,
     WorkLimit,
     NonFinite,
-    /// Algorithm 2, lines 7,16–17: missing full-block index when floor(l/c)>0.
+    /// Historical printed Algorithm 2 index gate; retained for API compatibility.
+    /// Full logical blocks now use the explicit paper-derived routing correction.
+    /// This does not admit physical CKKS slot tails.
     OptimizedMultiBlockIndexGate,
 }
 
@@ -414,27 +417,28 @@ pub fn lower_schedule(left: Layout) -> Result<Schedule, Error> {
     })
 }
 
-/// Fail closed rather than repairing printed Algorithm 2's multi-block indexing.
+/// Algorithm 2 with paper-derived lines 16–17 frame routing correction:
+/// `(j-floor(l/c)-1) mod M`, `(j-floor(l/c)) mod M`, M=m/c.
+/// Line 7 rotations are unchanged. Full logical frames only, not CKKS tails.
 pub fn optimized_lower_schedule(left: Layout) -> Result<Schedule, Error> {
     let _ = lower_schedule(left)?;
-    if left.frames() != 1 {
-        return Err(Error::OptimizedMultiBlockIndexGate);
-    }
-    let pairs = left.columns - 1;
+    let frames = left.frames();
+    let pairs = mul(frames, left.columns - 1)?;
+    let delayed = if left.columns > 1 { frames } else { 0 };
     Ok(Schedule {
-        tensor_products: left.columns,
+        tensor_products: mul(frames, left.columns)?,
         plaintext_products: mul(3, pairs)?,
         input_rotations: pairs,
-        output_rotations: usize::from(pairs > 0),
-        rescale_after_product_sums: 1 + usize::from(pairs > 0),
-        relinearize_after_product_sums: 1,
-        relinearize_before_output_rotation: usize::from(pairs > 0),
+        output_rotations: delayed,
+        rescale_after_product_sums: add(frames, delayed)?,
+        relinearize_after_product_sums: frames,
+        relinearize_before_output_rotation: delayed,
         ..Schedule::default()
     })
 }
 
 /// Executable Corollary 3.8 / Eq. (10), over caller packed buffers. This is
-/// basic lower-lower algebra, not execution of the gated optimized Algorithm 2.
+/// basic lower-lower algebra, not execution of optimized Algorithm 2.
 /// RHS is ordinary multi-diagonal packed; replicated accesses are fused, so no
 /// allocated replicated owner or implicit HE replication cost is claimed.
 pub fn lower_mm(
@@ -492,9 +496,12 @@ pub fn lower_mm(
     Ok(())
 }
 
-/// Executable single-frame Algorithm 2 subset (m=c), with delayed rotation
-/// of the second partial sum. Scratch is two full frames, owned by caller.
-/// Multi-block indexing remains gated; no guessed correction is applied.
+/// Executable Algorithm 2 for c|m|n, with paper-derived frame routing correction
+/// (see `optimized_lower_schedule`) and delayed rotation of each second sum.
+/// Scratch is two packed extents (2*left.elements()), owned by caller; no
+/// products, replicated RHS or masks are allocated. Clear gathers fuse masks
+/// and rotations, as in the single-frame subset; primitive counts are declared
+/// SIMD operations, not scalar instructions. Physical CKKS tails unsupported.
 /// RHS is packed normally; repeated lower diagonal reads fuse replication.
 // Explicit immutable layouts, borrowed operands and separate caller-owned
 // scratch/output buffers preserve ownership and pre-mutation validation order.
@@ -535,7 +542,8 @@ pub fn optimized_lower_mm(
     left.validate(a, limits)?;
     right.validate(b, limits)?;
     scratch[..scratch_len].fill(0.0);
-    let s = left.elements;
+    let extent = left.elements;
+    let s = left.frame_slots;
     let block = left.length * left.heads;
     // At destination x, first partial sum uses product x. Wrapped time lanes
     // use product y=x-nH, followed by the single final rotation by -nH.
@@ -544,12 +552,26 @@ pub fn optimized_lower_mm(
         for t in 0..left.length {
             for h in 0..left.heads {
                 let x = left.raw(r, t, h);
+                let frame = r / left.capacity;
+                let local = x % s;
                 for l in 0..left.columns {
                     let wrapped = t >= left.length - l;
-                    let y = if wrapped { minus(x, block, s) } else { x };
+                    let y = if wrapped {
+                        minus(local, block, s)
+                    } else {
+                        local
+                    };
                     // Both products are strictly below checked frame size s.
                     let shift = minus(l * left.heads, (l % left.capacity) * block, s);
-                    let src = plus(y, shift, s);
+                    // Correct product-frame routing only; do not also relabel
+                    // line 7's input rotation. Reduce q modulo M for l>=m.
+                    let routed = minus(frame, l / left.capacity, left.frames());
+                    let routed = minus(
+                        routed,
+                        usize::from(r % left.capacity < l % left.capacity),
+                        left.frames(),
+                    );
+                    let src = routed * s + plus(y, shift, s);
                     let av = if left.lane(src).expect("validated index").is_some() {
                         a[src]
                     } else {
@@ -557,7 +579,7 @@ pub fn optimized_lower_mm(
                     };
                     let product = av * right.read(b, l, t, h);
                     if wrapped {
-                        scratch[s + y] += product;
+                        scratch[extent + frame * s + y] += product;
                     } else {
                         scratch[x] += product;
                     }
@@ -565,9 +587,9 @@ pub fn optimized_lower_mm(
             }
         }
     }
-    for x in 0..s {
+    for x in 0..extent {
         output[x] = if out.lane(x).expect("validated index").is_some() {
-            scratch[x] + scratch[s + minus(x, block, s)]
+            scratch[x] + scratch[extent + (x / s) * s + minus(x % s, block, s)]
         } else {
             0.0
         };

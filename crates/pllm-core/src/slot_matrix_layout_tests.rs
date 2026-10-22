@@ -217,7 +217,7 @@ fn lower_products_match_dense_oracle_for_all_small_geometry_and_valid_rectangles
                         let mut out = vec![999.0; c.elements()];
                         lower_mm(a, &pa, b, &pb, c, &mut out, LIMITS).unwrap();
                         assert_eq!(unpacked(c, &out), expected);
-                        if p == m && a == c {
+                        if m % p == 0 && a == c {
                             let mut scratch = vec![999.0; 2 * c.elements()];
                             let mut optimized = vec![999.0; c.elements()];
                             optimized_lower_mm(
@@ -328,10 +328,15 @@ fn source_shapes_enumerate_without_he_objects_and_counts_have_separate_stages() 
     assert_eq!(s.input_rotations, 2 * 4 * 127);
     assert_eq!(s.relinearize_after_product_sums, 4);
     assert_eq!(s.conjugations, 0);
-    assert_eq!(
-        optimized_lower_schedule(l),
-        Err(Error::OptimizedMultiBlockIndexGate)
-    );
+    let optimized = optimized_lower_schedule(l).unwrap();
+    assert_eq!(optimized.tensor_products, 512);
+    assert_eq!(optimized.plaintext_products, 3 * 4 * 127);
+    assert_eq!(optimized.input_rotations, 4 * 127);
+    assert_eq!(optimized.output_rotations, 4);
+    assert_eq!(optimized.rescale_after_product_sums, 8);
+    assert_eq!(optimized.relinearize_after_product_sums, 4);
+    assert_eq!(optimized.relinearize_before_output_rotation, 4);
+    assert_eq!(optimized.conjugations, 0);
     let pc = block_pc_schedule(layout(128, 128, 6, 32, Diagonal::Lower)).unwrap();
     assert_eq!(pc.plaintext_products, 6 * 4 * 128 + 6 * 4);
     assert_eq!(pc.input_rotations, 4 * 31);
@@ -351,9 +356,407 @@ fn printed_multiblock_rotation_has_explicit_counterexample() {
     let slots = packed(l, &a);
     assert_eq!(slots[2], 10.0);
     assert_eq!(slots[l.address(0, 0, 2).unwrap()], 2.0);
+    // Preserve the literal printed selection above as a negative control.
+    // The approved paper-derived correction selects frame 1, not frame 0.
+    let mut b = vec![0.0; 16];
+    b[2 * 4] = 1.0;
+    let mut scratch = vec![SENTINEL; 2 * l.elements()];
+    let mut output = vec![SENTINEL; l.elements()];
+    optimized_lower_mm(
+        l,
+        &slots,
+        l,
+        &packed(l, &b),
+        l,
+        &mut scratch,
+        &mut output,
+        LIMITS,
+    )
+    .unwrap();
+    assert_eq!(output[l.address(0, 0, 0).unwrap()], 2.0);
+    assert_ne!(output[l.address(0, 0, 0).unwrap()], slots[2]);
+}
+
+#[test]
+fn optimized_corrected_algorithm_matches_240_audited_geometries_and_operand_coordinates() {
+    let mut geometries = 0;
+    let mut coordinates = 0;
+    for m in 1..=8 {
+        for n in (m..=16).step_by(m) {
+            for c in (1..=m).filter(|c| m % c == 0) {
+                for heads in [1, 2, 3] {
+                    let left = layout(m, n, heads, c, Diagonal::Lower);
+                    let right = layout(n, n, heads, c, Diagonal::Lower);
+                    let frames = m / c;
+                    let s = c * n * heads;
+                    // Independent labeled operand coordinates: check each
+                    // summand, including both mask branches and q>=M. Do not
+                    // use Layout address/lane or the kernel's modular helpers.
+                    for j in 0..frames {
+                        for r in 0..c {
+                            for t in 0..n {
+                                for h in 0..heads {
+                                    for l in 0..n {
+                                        let q = l / c;
+                                        let b = l % c;
+                                        let x = (r * n + t) * heads + h;
+                                        let y = if t >= n - l {
+                                            (x + s - n * heads) % s
+                                        } else {
+                                            x
+                                        };
+                                        let src = (y + s + l * heads - n * b * heads) % s;
+                                        let f = (j + frames - q % frames + frames
+                                            - usize::from(r < b))
+                                            % frames;
+                                        let sd = src / (n * heads);
+                                        let st = (src / heads) % n;
+                                        let sh = src % heads;
+                                        assert_eq!(
+                                            (sh, (c * f + sd + st) % m, st),
+                                            (h, (c * j + r + t) % m, (t + l) % n)
+                                        );
+                                        coordinates += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Independent dense contraction, distinct head-sensitive
+                    // signed integer operands (exactly representable in f64).
+                    let a: Vec<_> = (0..heads * m * n)
+                        .map(|i| ((i * 7 % 19) as i32 - 9) as f64)
+                        .collect();
+                    let b: Vec<_> = (0..heads * n * n)
+                        .map(|i| ((i * 11 % 23) as i32 - 11) as f64)
+                        .collect();
+                    let expected = dense_mm(&a, &b, m, n, heads);
+                    let mut pa = packed(left, &a);
+                    let mut pb = packed(right, &b);
+                    // Unused input suffix is never validated or consumed.
+                    pa.extend([f64::NAN; 3]);
+                    pb.extend([f64::INFINITY; 3]);
+                    let mut output = vec![SENTINEL; left.elements() + 3];
+                    let mut scratch = vec![SENTINEL; 2 * left.elements() + 3];
+                    optimized_lower_mm(
+                        left,
+                        &pa,
+                        right,
+                        &pb,
+                        left,
+                        &mut scratch,
+                        &mut output,
+                        LIMITS,
+                    )
+                    .unwrap();
+                    // Inspect output by independently derived frame map rather
+                    // than unpacking through the same layout implementation.
+                    for j in 0..frames {
+                        for r in 0..c {
+                            for t in 0..n {
+                                for h in 0..heads {
+                                    assert_eq!(
+                                        output[j * s + (r * n + t) * heads + h],
+                                        expected[(h * m + (c * j + r + t) % m) * n + t],
+                                        "m={m}, n={n}, c={c}, H={heads}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    assert_padding_and_suffix(left, &output);
+                    assert!(
+                        scratch[2 * left.elements()..]
+                            .iter()
+                            .all(|v| *v == SENTINEL)
+                    );
+                    let delayed = frames * usize::from(n > 1);
+                    assert_eq!(
+                        optimized_lower_schedule(left).unwrap(),
+                        Schedule {
+                            tensor_products: frames * n,
+                            plaintext_products: 3 * frames * (n - 1),
+                            input_rotations: frames * (n - 1),
+                            output_rotations: delayed,
+                            conjugations: 0,
+                            rescale_after_product_sums: frames + delayed,
+                            relinearize_after_product_sums: frames,
+                            relinearize_before_output_rotation: delayed,
+                        }
+                    );
+                    geometries += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(geometries, 240);
+    assert_eq!(coordinates, 209880);
+}
+
+#[test]
+fn optimized_single_frame_preserves_original_output_and_scratch_bits() {
+    for (m, n, heads) in [(1, 1, 1), (1, 8, 3), (2, 8, 2), (4, 12, 3)] {
+        let left = layout(m, n, heads, m, Diagonal::Lower);
+        let right = layout(n, n, heads, m, Diagonal::Lower);
+        let da: Vec<_> = (0..left.dense_elements())
+            .map(|i| ((i * 7 % 19) as f64 - 9.0) / 7.0)
+            .collect();
+        let db: Vec<_> = (0..right.dense_elements())
+            .map(|i| ((i * 11 % 23) as f64 - 11.0) / 11.0)
+            .collect();
+        let a = packed(left, &da);
+        let b = packed(right, &db);
+        let s = left.elements();
+        let block = n * heads;
+        let mut original_scratch = vec![0.0; 2 * s];
+        // Literal former single-frame loop, including original summation order.
+        for r in 0..m {
+            for t in 0..n {
+                for h in 0..heads {
+                    let x = left.raw(r, t, h);
+                    for l in 0..n {
+                        let wrapped = t >= n - l;
+                        let y = if wrapped { minus(x, block, s) } else { x };
+                        let shift = minus(l * heads, (l % m) * block, s);
+                        let product = a[plus(y, shift, s)] * right.read(&b, l, t, h);
+                        if wrapped {
+                            original_scratch[s + y] += product;
+                        } else {
+                            original_scratch[x] += product;
+                        }
+                    }
+                }
+            }
+        }
+        let original_output: Vec<_> = (0..s)
+            .map(|x| original_scratch[x] + original_scratch[s + minus(x, block, s)])
+            .collect();
+        let mut output = vec![SENTINEL; s];
+        let mut scratch = vec![SENTINEL; 2 * s];
+        optimized_lower_mm(left, &a, right, &b, left, &mut scratch, &mut output, LIMITS).unwrap();
+        assert_eq!(
+            output.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+            original_output
+                .iter()
+                .map(|v| v.to_bits())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            scratch.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+            original_scratch
+                .iter()
+                .map(|v| v.to_bits())
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+fn optimized_multiblock_valid_rectangles_ignore_poison_and_preserve_suffixes() {
+    for (m, n, c) in [(2, 2, 1), (4, 12, 1), (4, 12, 2), (6, 12, 3), (4, 8, 4)] {
+        for (vr, vk) in [(m, n), (m - 1, n - 1), (1, 1), (0, n), (m, 0), (0, 0)] {
+            let left = Layout::new(m, n, vr, vk, 3, c, Diagonal::Lower, LIMITS).unwrap();
+            let right = Layout::new(n, n, vk, vk, 3, c, Diagonal::Lower, LIMITS).unwrap();
+            let mut da = data(left.dense_elements());
+            let mut db = data(right.dense_elements());
+            // Zero extension constructed in row-major space, independent of
+            // diagonal layout and poison detection helpers.
+            for h in 0..3 {
+                for i in 0..m {
+                    for k in 0..n {
+                        if i >= vr || k >= vk {
+                            da[(h * m + i) * n + k] = 0.0;
+                        }
+                    }
+                }
+                for k in 0..n {
+                    for t in 0..n {
+                        if k >= vk || t >= vk {
+                            db[(h * n + k) * n + t] = 0.0;
+                        }
+                    }
+                }
+            }
+            let expected = dense_mm(&da, &db, m, n, 3);
+            let mut a = packed(left, &da);
+            let mut b = packed(right, &db);
+            poison_padding(left, &mut a);
+            poison_padding(right, &mut b);
+            let mut output = vec![SENTINEL; left.elements() + 3];
+            let mut scratch = vec![SENTINEL; 2 * left.elements() + 3];
+            optimized_lower_mm(left, &a, right, &b, left, &mut scratch, &mut output, LIMITS)
+                .unwrap();
+            assert_eq!(unpacked(left, &output), expected);
+            assert_padding_and_suffix(left, &output);
+            assert!(scratch[..2 * left.elements()].iter().all(|v| v.is_finite()));
+            assert!(
+                scratch[2 * left.elements()..]
+                    .iter()
+                    .all(|v| *v == SENTINEL)
+            );
+        }
+    }
+}
+
+#[test]
+fn optimized_multiblock_preflight_is_atomic_and_work_bound_is_exact() {
+    let left = layout(4, 12, 3, 2, Diagonal::Lower);
+    // RHS storage capacity need not match left: replication is a fused read.
+    let right = layout(12, 12, 3, 5, Diagonal::Lower);
+    let a = packed(left, &data(left.dense_elements()));
+    let b = packed(right, &data(right.dense_elements()));
+    let mut bad_a = a.clone();
+    *bad_a.last_mut().unwrap() = f64::NAN;
+    let mut bad_b = b.clone();
+    bad_b[right.address(2, 11, 11).unwrap()] = f64::INFINITY;
+    let mut output = vec![SENTINEL; left.elements() + 3];
+    let mut scratch = vec![SENTINEL; 2 * left.elements() + 3];
+    let before = output.clone();
+    let scratch_before = scratch.clone();
+    let required_work = left.elements() + right.elements() + 4 * left.elements() * left.columns();
+    let denied = Limits {
+        max_work: required_work - 1,
+        ..LIMITS
+    };
+    // Every extent is checked before scans; work denial precedes late NaNs.
+    for (av, bv, slen, olen, limits, error) in [
+        (
+            &bad_a[..],
+            &b[..],
+            scratch.len(),
+            output.len(),
+            denied,
+            Error::WorkLimit,
+        ),
+        (
+            &a[..],
+            &bad_b[..],
+            scratch.len(),
+            output.len(),
+            denied,
+            Error::WorkLimit,
+        ),
+        (
+            &bad_a[..],
+            &b[..],
+            2 * left.elements() - 1,
+            output.len(),
+            LIMITS,
+            Error::Buffer,
+        ),
+        (
+            &bad_a[..],
+            &b[..],
+            scratch.len(),
+            left.elements() - 1,
+            LIMITS,
+            Error::Buffer,
+        ),
+        (
+            &a[..a.len() - 1],
+            &bad_b[..],
+            scratch.len(),
+            output.len(),
+            LIMITS,
+            Error::Buffer,
+        ),
+        (
+            &bad_a[..],
+            &b[..b.len() - 1],
+            scratch.len(),
+            output.len(),
+            LIMITS,
+            Error::Buffer,
+        ),
+        (
+            &bad_a[..],
+            &b[..],
+            scratch.len(),
+            output.len(),
+            LIMITS,
+            Error::NonFinite,
+        ),
+        (
+            &a[..],
+            &bad_b[..],
+            scratch.len(),
+            output.len(),
+            LIMITS,
+            Error::NonFinite,
+        ),
+        (
+            &a[..],
+            &b[..],
+            scratch.len(),
+            output.len(),
+            Limits {
+                max_buffer_elements: scratch.len() - 1,
+                ..LIMITS
+            },
+            Error::Buffer,
+        ),
+    ] {
+        assert_eq!(
+            optimized_lower_mm(
+                left,
+                av,
+                right,
+                bv,
+                left,
+                &mut scratch[..slen],
+                &mut output[..olen],
+                limits
+            ),
+            Err(error)
+        );
+        assert_eq!(output, before);
+        assert_eq!(scratch, scratch_before);
+    }
+    // Unsupported partial logical frames and orientation remain geometry errors.
+    for unsupported in [
+        layout(4, 12, 3, 3, Diagonal::Lower),
+        layout(4, 12, 3, 2, Diagonal::Upper),
+    ] {
+        assert_eq!(optimized_lower_schedule(unsupported), Err(Error::Geometry));
+        assert_eq!(
+            optimized_lower_mm(
+                unsupported,
+                &bad_a,
+                right,
+                &bad_b,
+                unsupported,
+                &mut scratch,
+                &mut output,
+                LIMITS
+            ),
+            Err(Error::Geometry)
+        );
+        assert_eq!(output, before);
+        assert_eq!(scratch, scratch_before);
+    }
+    optimized_lower_mm(
+        left,
+        &a,
+        right,
+        &b,
+        left,
+        &mut scratch,
+        &mut output,
+        Limits {
+            max_work: required_work,
+            ..LIMITS
+        },
+    )
+    .unwrap();
     assert_eq!(
-        optimized_lower_schedule(l),
-        Err(Error::OptimizedMultiBlockIndexGate)
+        unpacked(left, &output),
+        dense_mm(&unpacked(left, &a), &unpacked(right, &b), 4, 12, 3)
+    );
+    assert_padding_and_suffix(left, &output);
+    assert!(
+        scratch[2 * left.elements()..]
+            .iter()
+            .all(|v| *v == SENTINEL)
     );
 }
 

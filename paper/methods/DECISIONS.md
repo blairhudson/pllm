@@ -593,6 +593,23 @@ coefficient conversion, CKKS evaluation DAG/rounding/rescale/refresh parameters,
 an error tolerance, an executable NEXUS profile, encrypted execution, or decoder
 and SDK qualification. Existing backend and complete-request gates remain open.
 
+## D25. Bounded THOR multi-block frame-routing correction
+
+**Explicitly approved by the user:** retain Algorithm 2 line 7 and replace the
+line 16–17 product-frame indices `j-1,j` with
+`(j-floor(l/c)-1) mod M,(j-floor(l/c)) mod M`, where `M=m/c`, under the existing
+bounded full-frame `c | m | n` contract. The derivation and independent printed
+counterexamples are in `docs/research/thor-multiblock-indexing-audit.md`.
+
+This is a documented paper-derived indexing correction, not verified author
+errata. Preserve the single-frame case, directed rotations, interlaced heads,
+delayed sums, checked work/buffers and atomic failure behavior. Retain the printed
+algorithm's counterexamples and add independent dense-oracle regressions.
+
+This approval adopts no physical CKKS slot-tail embedding, HE numeric/profile
+parameters, backend, encrypted execution, encoder-to-decoder extension or SDK
+method. Existing unresolved gates and resource ceilings remain unchanged.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -621,6 +638,7 @@ and SDK qualification. Existing backend and complete-request gates remain open.
 | D22 | Approved: bounded SIGMA compiler-certified linear/rescale/activation handoff | Private ring50/Q12 complete dot, source-bound quarter-ring proof, exact GapARS12 and unchanged D20, bounded geometry and continuous original-owner admission; checkpoint submatrices labeled separately, no decoder/SDK qualification. |
 | D23 | Approved: bounded PUMA mid-graph handoff and deterministic test support | Same original runtime/PRSS, drained router and complete-node boundary; unchanged numerics/ceilings/sticky validity, nondefault insecure test-only fresh setup, with exact parity and ownership validation still required. |
 | D24 | Approved: bounded NEXUS GELU numerical decision experiment | Fixed source-derived polynomial/selector candidate, separate endpoint oracle, research-only domain and honest sampled/enclosed error; no executable CKKS/profile adoption or automatic repair. |
+| D25 | Approved: bounded THOR multi-block frame-routing correction | Modular full-block routes, unchanged line-7 rotations and single-frame behavior; independent oracle and original counterexamples required, no HE/profile/decoder adoption. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

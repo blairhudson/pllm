@@ -2735,11 +2735,12 @@ decompression, `slot_matrix_layout` supplies diagonal slot transforms and produc
 and `interleaved_kv_layout` supplies distinct key/value packing, atomic append and
 exact clear attention reads. Caller-owned buffers, checked geometry and work
 admission precede mutation. Independent oracle and failure controls pass within
-a 501-test core suite. These are reusable BumbleBee, NEXUS, THOR and CacheMir
+a 507-test core suite. These are reusable BumbleBee, NEXUS, THOR and CacheMir
 prerequisites, not encrypted execution, adopted numeric profiles, refresh,
-private decoder state, SDK methods or performance evidence. Unsupported THOR
-multi-block source indexing remains an explicit rejection; BumbleBee B-N1 stays
-open.
+private decoder state, SDK methods or performance evidence. THOR's explicitly
+approved paper-derived routing correction additionally admits bounded full logical
+multi-block frames with independent dense and coordinate oracles. Physical CKKS
+slot tails and encrypted qualification remain open, as does BumbleBee B-N1.
 
 `pllm-compiler::encrypted_level_schedule` additionally solves a bounded public
 serial level/scheme path exactly, without the source optimizer's unsafe dominance
