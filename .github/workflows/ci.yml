@@ -96,5 +96,11 @@ jobs:
       - run: uv run --no-sync python scripts/docs_regen.py --check
       - run: npm run build
         working-directory: docs
+      - run: uv run --no-sync python -m unittest discover -s docs/tests -p 'test_*.py' -v
       - run: npm run typecheck
         working-directory: docs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: paper-drafts-${{ github.sha }}
+          path: docs/public/downloads/
+          if-no-files-found: error
