@@ -466,6 +466,15 @@ protected argmax for the named transaction, not original frontend equivalence.
 OLT/interleaving and conversion algebra can proceed while final-paper mapping
 remains blocked.
 
+The existing clear `shared_profile_oracle.py` additionally exposes bounded
+`coefficient_h2a` phase arithmetic for Appendix C/Algorithm 4: explicit
+`floor(q/t)` encoding, caller-supplied input/zero-encryption error phases and
+mask, and separate nearest-scaled receiver/sender shares. It reuses `down`, not
+`lift`. Ordinary oracle tests check 24,604 tiny cases and bounded large integers.
+This supplies no encryption, sampler, freshness enforcement, circuit privacy or
+universal one-bit-error theorem; it does not resolve B-N1 or select a backend.
+Run `uv run --no-sync python paper/reproduction-contracts/test_shared_profile_oracle.py`.
+
 ## 5. FuseFSS: integer compiler can start without guessing float ties
 
 F Protocol 3, p.17, Lemma 4.3 and App.E specify a complete mask-dependent

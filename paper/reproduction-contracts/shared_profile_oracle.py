@@ -152,6 +152,36 @@ def down(x, bits, odd_modulus):
     return ((2 * n * (x % odd_modulus) + odd_modulus) // (2 * odd_modulus)) % n
 
 
+def coefficient_h2a(m, error, zero_error, mask, *, bits, odd_modulus):
+    """Bounded clear coefficient phase check, not an H2A/HE backend.
+
+    Delta = floor(q/t) encoding is distinct from nearest modulus-up lift(m).
+    Both signed phases (error and fresh-encryption-zero zero_error) and mask
+    are caller supplied; no sampling or noise/security claim is made here.
+    Appendix C, Algorithm 4's coefficient sender share is -round(t*mask/q);
+    the receiver rounds the masked decryption phase. Odd q excludes half ties.
+    This algebra neither resolves BumbleBee B-N1 nor adopts a source numeric
+    profile, and gives no universal +/-1 reconstruction guarantee.
+    """
+    if any(type(x) is not int for x in (m, error, zero_error, mask, bits, odd_modulus)):
+        raise TypeError("plain Python int inputs required (not bool)")
+    if not 1 <= bits <= 64:
+        raise ValueError("bits must be in [1, 64]")
+    t = 1 << bits
+    q = odd_modulus
+    if not t < q < 1 << 256 or q % 2 != 1:
+        raise ValueError("odd modulus must satisfy 2**bits < q < 2**256")
+    if not 0 <= m < t or not 0 <= mask < q:
+        raise ValueError("canonical message and mask required")
+    if abs(error) > q // 2 or abs(zero_error) > q // 2:
+        raise ValueError("caller-supplied signed phases must have abs <= q//2")
+    delta = q // t
+    v = (delta * m + error) % q
+    receiver = down((v + zero_error + mask) % q, bits, q)
+    sender = -down(mask, bits, q) % t
+    return receiver, sender
+
+
 def prime_u64(n):
     """Deterministic Miller-Rabin for bounded public parameter arithmetic."""
     if n < 2 or n >= 1 << 64:

@@ -126,6 +126,89 @@ class BumbleBeeShares(unittest.TestCase):
             self.assertFalse(o.prime_u64(composite))
 
 
+class CoefficientH2AClearAlgebra(unittest.TestCase):
+    @staticmethod
+    def reference(m, error, zero_error, mask, bits, q):
+        # Independent quotient/remainder nearest rounding; never use down/lift.
+        t = 2 ** bits
+
+        def nearest(phase):
+            quotient, remainder = divmod((phase % q) * t, q)
+            assert 2 * remainder != q  # odd q: no half ties
+            return (quotient + int(2 * remainder > q)) % t
+
+        return (nearest((q // t) * m + error + zero_error + mask),
+                -nearest(mask) % t)
+
+    def test_exhaustive_tiny_odd_moduli_messages_masks_signed_phases(self):
+        # Every odd prime AND composite in this domain; all messages/masks.
+        cases = 0
+        for bits in range(1, 4):
+            t = 1 << bits
+            for q in range(t + 1, 18, 2):
+                radius = min(2, q // 2)
+                for m in range(t):
+                    for mask in range(q):
+                        for error in range(-radius, radius + 1):
+                            for zero_error in range(-radius, radius + 1):
+                                actual = o.coefficient_h2a(m, error, zero_error, mask,
+                                                          bits=bits, odd_modulus=q)
+                                self.assertEqual(actual, self.reference(m, error, zero_error, mask, bits, q))
+                                self.assertTrue(all(0 <= share < t for share in actual))
+                                cases += 1
+        self.assertEqual(cases, 24604)
+
+    def test_wrap_negative_phase_boundaries_and_mask_endpoints(self):
+        for bits, q in ((1, 3), (2, 7), (3, 9), (4, 255), (4, 257)):
+            for m in (0, 1, (1 << bits) - 1):
+                for mask in (0, 1, q // 2, q - 2, q - 1):
+                    for error in (-(q // 2), -1, 0, 1, q // 2):
+                        for zero_error in (-(q // 2), -1, 0, 1, q // 2):
+                            self.assertEqual(
+                                o.coefficient_h2a(m, error, zero_error, mask, bits=bits, odd_modulus=q),
+                                self.reference(m, error, zero_error, mask, bits, q))
+
+    def test_delta_floor_encoding_not_lift_or_universal_error_bound(self):
+        self.assertEqual(o.lift(3, 2, 7), 5)
+        self.assertEqual((7 // 4) * 3, 3)
+        self.assertEqual(o.coefficient_h2a(3, 0, 0, 0, bits=2, odd_modulus=7), (2, 0))
+        self.assertEqual(o.down(o.lift(3, 2, 7), 2, 7), 3)
+        receiver, sender = o.coefficient_h2a(0, 7, 0, 0, bits=3, odd_modulus=15)
+        self.assertEqual(o.signed(receiver + sender, 3), -4)
+
+    def test_reject_non_plain_int_inputs(self):
+        class IntSubclass(int):
+            pass
+
+        valid = dict(m=0, error=0, zero_error=0, mask=0, bits=2, odd_modulus=7)
+        for name in valid:
+            for value in (True, False, 1.0, "1", None, Fraction(1), IntSubclass(1)):
+                with self.subTest(name=name, value=value), self.assertRaises(TypeError):
+                    o.coefficient_h2a(**(valid | {name: value}))
+
+    def test_reject_out_of_domain_inputs(self):
+        valid = dict(m=0, error=0, zero_error=0, mask=0, bits=2, odd_modulus=7)
+        invalid = {"bits": (-1, 0, 65, 1 << 256),
+                   "odd_modulus": (-7, 0, 3, 4, 6, 1 << 256, (1 << 256) + 1),
+                   "m": (-1, 4, 1 << 256), "mask": (-1, 7, 1 << 256),
+                   "error": (-4, 4, 1 << 256), "zero_error": (-4, 4, 1 << 256)}
+        for name, values in invalid.items():
+            for value in values:
+                with self.subTest(name=name, value=value), self.assertRaises(ValueError):
+                    o.coefficient_h2a(**(valid | {name: value}))
+
+    def test_large_exact_integer_cases(self):
+        for bits, q in ((64, (1 << 64) + 1), (64, (1 << 256) - 1),
+                        (1, (1 << 255) + 1)):
+            for m in (0, 1, (1 << bits) - 1):
+                for mask in (0, q // 2, q - 1):
+                    for error, zero_error in ((0, 0), (-(q // 2), q // 2),
+                                              (q // 2, q // 2), (-(q // 2), -(q // 2))):
+                        self.assertEqual(
+                            o.coefficient_h2a(m, error, zero_error, mask, bits=bits, odd_modulus=q),
+                            self.reference(m, error, zero_error, mask, bits, q))
+
+
 class FuseCompilerAlgebra(unittest.TestCase):
     def test_every_small_partition_mask_and_input(self):
         # All 128 full-domain partitions on ring8, including singleton/full
