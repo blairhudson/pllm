@@ -465,7 +465,8 @@ Neither test makes material, launches roles or executes private inputs. An accep
 checkpoint-backed SDK request, complete integer parity, quality and matched WAN
 performance remain separate outstanding gates.
 
-The complete-topology test passes at 1+1 with the ordinary 25% safety margin:
+Before the one-hot staging fold, the complete-topology test passes at 1+1 with
+the ordinary 25% safety margin:
 required host memory is 4,068,474,880 bytes and required disk is 23,204,557,736
 bytes. Native transport's combined logical reservation is 62,577,393 bytes,
 below the unchanged 67,108,864-byte ceiling. These are admission prices and
@@ -478,7 +479,7 @@ and `hello` becomes three input tokens after the unchanged `user: ` prefix.
 That exceeds this control's one-input-token budget. Do not bypass rendering or
 submit raw token IDs to turn admission into an SDK acceptance claim.
 
-At 4+1, the rebuilt-wheel retry completes source admission but rejects in native
+At 4+1, that pre-fold rebuilt-wheel retry completes source admission but rejects in native
 transport pricing at `aggregate_reservation`, with `Resource`: 68,913,145 bytes
 against the unchanged 67,108,864-byte limit, a 1,804,281-byte excess. The final
 host/disk admission is not reached. The public owner terms are:
@@ -496,13 +497,30 @@ host/disk admission is not reached. The public owner terms are:
 These sum to the rejected reservation; they are logical admission charges, not
 measured RSS. No cap, margin or owner charge is reduced to accept the request.
 
+After the one-hot staging fold (`607813fd`), fresh installed-wheel retries retain
+the same caps, source pins, workload and guards. The 1+1 complete-topology control
+passes again, with a 60,448,276-byte native combined reservation and unchanged
+host/disk prices above. The 4+1 native transport reservation now passes at
+66,784,028 bytes, leaving 324,836 bytes below the 67,108,864-byte cap. The measured
+admission-price reduction is 2,129,117 bytes for each workload; this is the result
+of the complete pricing walk, not multiplication of the removed per-party array.
+
+The 4+1 retry then reaches final host/disk admission and rejects **disk headroom**:
+45,517,613,936 bytes are required, including the unchanged 2 GiB reserve, against
+41,405,534,208 available bytes. Required host memory remains 4,068,474,880 bytes;
+host memory admits with normal observed pressure. No tapes, material or workers
+are created. Native aggregate admission is therefore cleared for this workload,
+but complete-topology admission, private-request acceptance and quality remain
+unqualified. Ordinary pytest output is retained under ignored
+`target/fusefss-one-hot-fold-topology-{1,4}.log`.
+
 Program-pricing admission now has a typed diagnostic path sharing the original
 admission walk and limits. Its bounded public record identifies the enclosing
 stage, error category and, only when known, kernel ordinal, observed bound and
 aggregate owner terms. Unknown nested bounds remain unknown. The pricing-only
 Python exception uses a fixed 1,024-byte allowlisted formatter; live role and
 callback errors retain their generic rejection. Successful admission identities,
-prices and delivery schedules are unchanged. The rebuilt-wheel retry now locates
-the current 4+1 failure; it does not establish trained-request acceptance. Focused
+prices and delivery schedules are unchanged. The diagnostic retry located the
+pre-fold aggregate failure; it does not establish trained-request acceptance. Focused
 installed-wheel native transport, diagnostics, benchmark and boundary guards pass
 126 tests. No worker launch or private execution occurs in the admission retry.

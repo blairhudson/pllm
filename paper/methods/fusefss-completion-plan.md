@@ -194,14 +194,30 @@ source admission. Shared tables do not establish fewer dependent rounds or fresh
 private bytes; those still require repricing and measurement.
 
 The separate complete-topology admission passes at 1+1, including ordinary
-logical memory/disk reservations after source retirement. The 4+1 case instead
-rejects during native transport pricing, before final host/disk admission. A
-rebuilt-wheel diagnostic retry identifies `aggregate_reservation`: 68,913,145
+logical memory/disk reservations after source retirement. Before the one-hot
+staging fold, the 4+1 case rejects during native transport pricing, before final
+host/disk admission. A rebuilt-wheel diagnostic retry identifies
+`aggregate_reservation`: 68,913,145
 bytes against the unchanged 67,108,864-byte cap, exceeding it by 1,804,281 bytes.
 The SDK reference records the complete public owner terms. Reduce actual
 ownership/copy overlap rather than discounts or ceilings. No material, workers
 or private requests run in either case. Trained serving and quality remain
 unqualified.
+
+The one-hot staging fold (`607813fd`) removes actual full-domain backing while
+preserving individual-party output bytes and source work. Fresh installed-wheel
+retries pass the 1+1 complete-topology control and clear 4+1 native transport
+admission at 66,784,028 bytes, 324,836 bytes below the unchanged cap. The complete
+pricing walk reduces each workload's combined reservation by 2,129,117 bytes;
+per-party allocation savings alone did not establish that result.
+
+The 4+1 retry now reaches final host/disk admission, where disk rejects:
+45,517,613,936 required bytes, including the unchanged 2 GiB reserve, exceed
+41,405,534,208 available bytes. Host memory admits at 4,068,474,880 required bytes
+with normal pressure. Do not remove live owners, weaken reservations or raise
+caps to force acceptance. Complete-topology admission must pass before worker
+launch; no material, workers or private request ran in this retry. Logs remain
+ordinary pytest output under ignored `target/fusefss-one-hot-fold-topology-{1,4}.log`.
 
 The admitted 1+1 control does not fit ordinary SDK rendering of short prompts:
 the pinned tokenizer encodes `user: hi` as three tokens. Preserve the Responses
