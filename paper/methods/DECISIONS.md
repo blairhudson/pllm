@@ -610,6 +610,44 @@ This approval adopts no physical CKKS slot-tail embedding, HE numeric/profile
 parameters, backend, encrypted execution, encoder-to-decoder extension or SDK
 method. Existing unresolved gates and resource ceilings remain unchanged.
 
+## D26. Opt-in compact PUMA semantic outer representation
+
+**Explicitly approved by the user:** implement an opt-in compact semantic outer
+representation for complete-request admission, reusing the existing semantic body
+and original consuming runtime/PRSS owners. This extends D23; it does not change
+the default expanded representation or authorize a second PUMA execution engine.
+
+- Count stored bounded semantic/loop descriptors rather than every expanded
+  gather/product node, retaining the 65,536 stored-descriptor ceiling. This is an
+  explicit change in the counting definition, not evidence that the old graph fit.
+- Replace cumulative value charging with proven whole-program all-owner peak
+  accounting, retaining the 64 MiB ceiling. Price immutable metadata, live values,
+  slots, source/import owners, construction overlap, gathers, exports, frames and
+  active scratch. No per-segment resets, uncharged constructors or refunded live
+  owners. Borrowed external baseline and newly owned backing remain distinct.
+- Permit automatic semantic-body dispatch beyond D23's binary intervals, using
+  the same consuming runtime and PRSS owners, complete-node boundaries and a
+  globally drained router.
+- Preserve numeric equations, source bindings, complete-row/source-statistic/
+  attention-energy certificates, sticky validity, original protected work and
+  complete-request ordinal/AES/cursor ceilings and their definitions. Extract
+  shared certificate/admission contracts rather than dropping proof obligations.
+- Preserve canonical expanded identities where proved equivalent. Changed
+  schedules or framing require a distinct explicitly approved identity; this
+  approval does not authorize assigning such changes a frozen execution digest.
+
+The current 4+2 expanded lowering charges 69,009,408 bytes for gate/up products
+and both residual additions alone, already above 67,108,864 bytes. Therefore
+metadata-only cleanup cannot rescue complete-program admission. Its historical
+layer-six metadata failure is not proof of a scalar numeric-range failure.
+
+Implementation acceptance requires complete-request ownership/work inventories,
+early allocation admission and failure/retirement tests, deterministic frame,
+both-share and PRSS/AES parity for representation-only changes, and positive and
+negative certificate mappings before another installed publisher retry. Approval
+does not establish source admission, complete-checkpoint execution, quality,
+serving performance, security qualification or SDK availability.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -639,6 +677,7 @@ method. Existing unresolved gates and resource ceilings remain unchanged.
 | D23 | Approved: bounded PUMA mid-graph handoff and deterministic test support | Same original runtime/PRSS, drained router and complete-node boundary; unchanged numerics/ceilings/sticky validity, nondefault insecure test-only fresh setup, with exact parity and ownership validation still required. |
 | D24 | Approved: bounded NEXUS GELU numerical decision experiment | Fixed source-derived polynomial/selector candidate, separate endpoint oracle, research-only domain and honest sampled/enclosed error; no executable CKKS/profile adoption or automatic repair. |
 | D25 | Approved: bounded THOR multi-block frame-routing correction | Modular full-block routes, unchanged line-7 rotations and single-frame behavior; independent oracle and original counterexamples required, no HE/profile/decoder adoption. |
+| D26 | Approved: opt-in compact PUMA semantic outer representation | Stored-descriptor counting and audited whole-program peak ownership retain 65,536/64 MiB ceilings; same runtime/PRSS and complete-request work, certificate mapping and automatic semantic dispatch need validation; changed schedules/framing need separately approved identity. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
