@@ -2,6 +2,112 @@ use super::TEST_SERIAL as TEST;
 use super::*;
 
 #[test]
+fn reserved_party_admission_continuous_exact_and_legacy_frames() {
+    let _guard = TEST.lock().unwrap();
+    let s = scalar(50);
+    let cost = party::resources(s).unwrap();
+    for bytes in [cost.reservation_bytes - 1, cost.reservation_bytes + 1] {
+        let b = Budget::new(cost.reservation_bytes + 1).unwrap();
+        let lease = b.reserve(bytes).unwrap();
+        assert!(matches!(
+            party::issue_reserved_with(
+                s,
+                context(),
+                [&[2], &[3], &[4]],
+                lease,
+                &mut |_| panic!("nonexact reservation must not draw"),
+                &mut || false
+            ),
+            Err(Error::Resource)
+        ));
+        assert_eq!(b.used_bytes(), 0);
+        assert!(!LIVE.load(Ordering::SeqCst));
+    }
+    let mut legacy = None;
+    for reserved in [false, true] {
+        let b = Budget::new(cost.reservation_bytes + 97).unwrap();
+        let mut aggregate = b.reserve(cost.reservation_bytes + 97).unwrap();
+        let lease = aggregate.split(cost.reservation_bytes).unwrap();
+        let mut fill = |bytes: &mut [u8]| {
+            assert_eq!(b.used_bytes(), cost.reservation_bytes + 97);
+            bytes.fill(0x5a);
+            Ok(())
+        };
+        let [mut left, mut right] = if reserved {
+            party::issue_reserved_with(
+                s,
+                context(),
+                [&[2], &[3], &[4]],
+                lease,
+                &mut fill,
+                &mut || false,
+            )
+        } else {
+            drop(lease);
+            party::issue_with(s, context(), [&[2], &[3], &[4]], &b, &mut fill, &mut || {
+                false
+            })
+        }
+        .unwrap();
+        let lf = left.begin(&[7], &[10], &mut || false).unwrap();
+        let rf = right.begin(&[7], &[10], &mut || false).unwrap();
+        if let Some(bytes) = legacy.as_ref() {
+            let bytes: &Vec<u8> = bytes;
+            // Issuance identity intentionally changes; all legacy codec bytes
+            // outside binding remain identical under identical entropy.
+            assert_eq!(&lf.as_bytes()[..8], &bytes[..8]);
+            assert_eq!(&lf.as_bytes()[40..], &bytes[40..]);
+        } else {
+            legacy = Some(lf.as_bytes().to_vec());
+        }
+        let lo = left.finish(rf.as_bytes()).unwrap();
+        let ro = right.finish(lf.as_bytes()).unwrap();
+        assert_eq!(lo.values(), &[39]);
+        assert_eq!(ro.values(), lo.values());
+        drop((lo, ro, rf));
+        assert!(LIVE.load(Ordering::SeqCst));
+        drop(lf);
+        assert!(!LIVE.load(Ordering::SeqCst));
+        assert_eq!(b.used_bytes(), 97 + 2 * size_of::<party::Party<'static>>());
+        drop((left, right, aggregate));
+        assert_eq!(b.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn reserved_party_faults_retire_original_capacity_and_guard() {
+    let _guard = TEST.lock().unwrap();
+    let s = scalar(50);
+    let cost = party::resources(s).unwrap().reservation_bytes;
+    for fail in 0..4 {
+        let b = Budget::new(cost).unwrap();
+        let lease = b.reserve(cost).unwrap();
+        let mut calls = 0;
+        assert!(matches!(
+            party::issue_reserved_with(
+                s,
+                context(),
+                [&[2], &[3], &[4]],
+                lease,
+                &mut |bytes| {
+                    assert_eq!(b.used_bytes(), cost);
+                    if calls == fail {
+                        return Err(Error::Randomness);
+                    }
+                    calls += 1;
+                    bytes.fill(0);
+                    Ok(())
+                },
+                &mut || false
+            ),
+            Err(Error::Randomness)
+        ));
+        assert_eq!(b.used_bytes(), 0);
+        assert!(!LIVE.load(Ordering::SeqCst));
+    }
+}
+
+#[test]
 fn local_party_exact_admission_failures_and_retained_singleton() {
     let _guard = TEST.lock().unwrap();
     let s = scalar(8);
@@ -92,6 +198,8 @@ fn local_party_exact_admission_failures_and_retained_singleton() {
             Err(Error::Consumed)
         ));
         right.cancel();
+        assert_eq!(b.used_bytes(), 2 * size_of::<party::Party<'static>>());
+        drop((left, right));
         assert_eq!(b.used_bytes(), 0);
         assert!(!LIVE.load(Ordering::SeqCst));
     }
@@ -172,6 +280,8 @@ fn local_party_parity_canonical_frames_and_cancellation() {
     let rf = right.begin(&[1], &[2], &mut || false).unwrap();
     right.cancel();
     drop(rf);
+    assert_eq!(b.used_bytes(), 2 * size_of::<party::Party<'static>>());
+    drop((left, right));
     assert_eq!(b.used_bytes(), 0);
     let [mut left, mut right] = party::issue_local(s, context(), &[1], &[2], &[3], &b).unwrap();
     let lf = left.begin(&[1], &[2], &mut || false).unwrap();
@@ -183,6 +293,7 @@ fn local_party_parity_canonical_frames_and_cancellation() {
     right.cancel();
     drop(lf);
     drop(rf);
+    drop((left, right));
     assert_eq!(b.used_bytes(), 0);
 }
 
@@ -281,7 +392,10 @@ fn local_party_invalid_online_operands_consume_only_local_owner() {
                     local.begin(&[1], &[2], &mut || false),
                     Err(Error::Consumed)
                 ));
-                assert_eq!(b.used_bytes(), cost.party_reservation_bytes);
+                assert_eq!(
+                    b.used_bytes(),
+                    cost.party_reservation_bytes + size_of::<party::Party<'static>>()
+                );
                 assert_eq!(LIVE_HANDLES.load(Ordering::SeqCst), 1);
                 b.fail_after.store(-1, Ordering::SeqCst);
                 let frame = sibling.begin(&[1], &[2], &mut || false).unwrap();

@@ -2,6 +2,59 @@ use super::*;
 use std::sync::atomic::Ordering;
 
 #[test]
+fn reserved_arithmetic_preserves_legacy_frame_bytes_and_retained_fault_owners() {
+    for gate in [
+        Gate::Tr { shift: 12 },
+        Gate::GapArs { shift: 12 },
+        Gate::Drelu,
+    ] {
+        let spec = Spec {
+            bits: 50,
+            lanes: 1,
+            gate,
+        };
+        let cost = resources(spec).unwrap();
+        let b = Budget::new(cost.combined_reservation_bytes).unwrap();
+        let reference = Budget::new(cost.combined_reservation_bytes).unwrap();
+        let lease = b.reserve(cost.combined_reservation_bytes).unwrap();
+        let (masks, [mut a, mut c]) = issue_reserved_with(spec, context(), &[17], lease, |bytes| {
+            bytes.fill(9);
+            Ok(())
+        })
+        .unwrap();
+        let (rmasks, [mut ra, mut rc]) = issue_with(spec, context(), &[17], &reference, |bytes| {
+            bytes.fill(9);
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(masks.values(), rmasks.values());
+        let af = a.begin(&[29]).unwrap();
+        let cf = c.begin(&[29]).unwrap();
+        let raf = ra.begin(&[29]).unwrap();
+        let rcf = rc.begin(&[29]).unwrap();
+        assert_eq!(af.as_bytes(), raf.as_bytes());
+        assert_eq!(cf.as_bytes(), rcf.as_bytes());
+        if gate != Gate::Drelu {
+            let af2 = frame(a.advance(cf.as_bytes()).unwrap());
+            let cf2 = frame(c.advance(af.as_bytes()).unwrap());
+            let raf2 = frame(ra.advance(rcf.as_bytes()).unwrap());
+            let rcf2 = frame(rc.advance(raf.as_bytes()).unwrap());
+            assert_eq!(af2.as_bytes(), raf2.as_bytes());
+            assert_eq!(cf2.as_bytes(), rcf2.as_bytes());
+        }
+        // Invalid peer consumes secret state, not caller-retained inline owners.
+        assert!(a.advance(&[]).is_err());
+        c.cancel();
+        let retained = b.used_bytes();
+        assert!(retained >= 2 * size_of::<Party<'static>>());
+        drop((af, cf, masks));
+        assert!(b.used_bytes() >= 2 * size_of::<Party<'static>>());
+        drop((a, c));
+        assert_eq!(b.used_bytes(), 0);
+    }
+}
+
+#[test]
 fn reserved_issuance_matches_standalone_and_moves_output_without_refund() {
     for gate in [
         Gate::Tr { shift: 6 },

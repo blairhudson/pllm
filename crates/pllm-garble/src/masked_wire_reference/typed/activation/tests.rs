@@ -21,6 +21,458 @@ fn edge(wire: u8, lanes: usize) -> EdgeDescriptor {
 fn spec(kind: ActivationKind, lanes: usize) -> ActivationSpec {
     ActivationSpec::new(kind, [7; 32], edge(3, lanes), edge(4, lanes), [8; 32]).unwrap()
 }
+
+#[test]
+fn resource_calculation_quote_matches_independent_phase_inventory() {
+    use crate::compact_dpf::gpu127;
+    let q = ActivationSpec::checked_resource_calculation_resources().unwrap();
+    let m = ActivationSpec::checked_logical_resources().unwrap();
+    let core = EdgeContractResourceQuote::checked().unwrap();
+    let a = size_of::<arithmetic::Resources>();
+    let s = size_of::<selection::Resources>();
+    let l = size_of::<source_lookup::Resources>();
+    // Enumerate native helper objects independently; never use capacity values.
+    let arithmetic_geometry = size_of::<arithmetic::Spec>()
+        + size_of::<Result<(gpu127::Profile, u8, usize), Error>>()
+        + size_of::<Result<gpu127::Profile, gpu127::Error>>()
+        + size_of::<Result<gpu127::Profile, Error>>()
+        + size_of::<gpu127::Profile>();
+    let arithmetic = size_of::<arithmetic::Spec>()
+        + size_of::<Result<arithmetic::Resources, Error>>()
+        + arithmetic_geometry.max(
+            size_of::<gpu127::Profile>()
+                + size_of::<gpu127::Resources>()
+                + size_of::<gpu127::Profile>().max(size_of::<arithmetic::Spec>()),
+        );
+    let selection = 2 * size_of::<selection::Spec>()
+        + size_of::<Result<selection::Resources, Error>>()
+        + (size_of::<selection::Spec>() + size_of::<Result<(), Error>>())
+            .max(size_of::<[usize; 5]>());
+    let lookup_phases = [
+        size_of::<source_lookup::Spec>() + size_of::<Result<(), Error>>(),
+        size_of::<gpu127::Resources>()
+            + (size_of::<Result<gpu127::Profile, gpu127::Error>>()
+                + size_of::<Result<gpu127::Profile, Error>>())
+            .max(size_of::<gpu127::Profile>()),
+        size_of::<gpu127::Resources>() + s + selection,
+        size_of::<gpu127::Resources>()
+            + s
+            + size_of::<[usize; 14]>()
+            + 2 * size_of::<source_lookup::Spec>(),
+    ];
+    let lookup = size_of::<source_lookup::Spec>()
+        + size_of::<Result<source_lookup::Resources, Error>>()
+        + lookup_phases.into_iter().max().unwrap();
+    assert_eq!(arithmetic_resource_calculation_bytes().unwrap(), arithmetic);
+    assert_eq!(selection_resource_calculation_bytes().unwrap(), selection);
+    assert_eq!(lookup_resource_calculation_bytes().unwrap(), lookup);
+    let validation_phases = [
+        m.table_validation_scratch_bytes,
+        m.identity_validation_scratch_bytes,
+        m.collision_validation_scratch_bytes,
+        m.wire_digest_scratch_bytes,
+        m.wire_constructor_scratch_bytes,
+        size_of::<Numeric>() + core.numeric_construction_bytes,
+        core.consumer_use_construction_bytes,
+    ];
+    let revalidation = m.workspace_bytes
+        + size_of::<Result<(), Error>>()
+        + validation_phases.into_iter().max().unwrap();
+    let costs = size_of::<[usize; 7]>();
+    let native_costs = 2 * costs
+        + size_of::<Result<[usize; 7], Error>>()
+        + [arithmetic, selection, lookup].into_iter().max().unwrap();
+    // Explicit t,d,p,v,l,f destinations plus nested helper Result/scratch.
+    let record_phases = [
+        a + arithmetic,
+        2 * a + arithmetic,
+        2 * a + s + selection,
+        2 * a + 2 * s + selection,
+        2 * a + 2 * s + l + lookup,
+        2 * a + 3 * s + l + selection,
+    ];
+    let native_records = costs + record_phases.into_iter().max().unwrap();
+    let returned = costs
+        + 2 * a
+        + 3 * s
+        + l
+        + size_of::<ActivationResources>()
+        + size_of::<Result<ActivationResources, Error>>();
+    let phases = [revalidation, native_costs, native_records, returned];
+    assert_eq!(q.input_bytes, size_of::<ActivationSpec>());
+    assert_eq!(q.revalidation_phase_bytes, revalidation);
+    assert_eq!(q.native_costs_phase_bytes, native_costs);
+    assert_eq!(q.native_records_phase_bytes, native_records);
+    assert_eq!(q.return_phase_bytes, returned);
+    assert_eq!(
+        q.peak_bytes,
+        q.input_bytes + phases.into_iter().max().unwrap()
+    );
+    assert!(q.peak_bytes < q.input_bytes + phases.into_iter().sum::<usize>());
+    assert_eq!(q.peak_with_retained_bytes(0).unwrap(), q.peak_bytes);
+    let exact = usize::MAX - q.peak_bytes;
+    assert_eq!(q.peak_with_retained_bytes(exact).unwrap(), usize::MAX);
+    assert_eq!(q.peak_with_retained_bytes(exact + 1), Err(Error::Resource));
+    assert_eq!(resource_metadata_sum(&[]).unwrap(), 0);
+    assert_eq!(resource_metadata_sum(&[usize::MAX, 0]).unwrap(), usize::MAX);
+    assert_eq!(
+        resource_metadata_sum(&[usize::MAX, 1]),
+        Err(Error::Resource)
+    );
+}
+
+// Independent pre-refactor resource calculation. No native_costs helper or new
+// pre-calculation quote participates; native outputs retain their original order.
+fn legacy_resources(s: ActivationSpec) -> Result<ActivationResources, Error> {
+    s.validate()?;
+    let n = s.input.shape().elements();
+    let t = arithmetic::resources(arithmetic::Spec {
+        bits: 38,
+        lanes: n,
+        gate: arithmetic::Gate::Tr { shift: 6 },
+    })?;
+    let d = arithmetic::resources(arithmetic::Spec {
+        bits: 32,
+        lanes: n,
+        gate: arithmetic::Gate::Drelu,
+    })?;
+    let p = selection::resources(selection::Spec { bits: 32, lanes: n })?;
+    let v = selection::resources(selection::Spec {
+        bits: s.kind.index_bits(),
+        lanes: n,
+    })?;
+    let l = source_lookup::resources(source_lookup::Spec {
+        index_bits: s.kind.index_bits(),
+        output_bits: 50,
+        lanes: n,
+        boundary: selection::Boundary::Deferred,
+    })?;
+    let f = selection::resources_for(
+        selection::Spec { bits: 50, lanes: n },
+        selection::Boundary::Deferred,
+    )?;
+    let native = t.combined_reservation_bytes
+        + 2 * d.combined_reservation_bytes
+        + p.combined_reservation_bytes
+        + v.combined_reservation_bytes
+        + l.combined_reservation_bytes
+        + f.combined_reservation_bytes;
+    let party = size_of::<ActivationParty<'static>>()
+        + common_charge()
+        + 8 * (size_of::<ActivationFrame<'static>>() + size_of::<ActivationStep<'static>>())
+        + 6 * (8 * n + ALLOCATOR)
+        + 3 * (76 + 8 * n + ALLOCATOR)
+        + (16 << 10);
+    let workspace = 2 * size_of::<ActivationParty<'static>>()
+        + 2 * size_of::<UseLedger<20>>()
+        + 17 * size_of::<Binding>()
+        + 4 * (8 * n + ALLOCATOR)
+        + (32 << 10);
+    let wrapper = 2 * party + mask_charge() + 8 * n + ALLOCATOR + workspace;
+    let root = 2 * (8 * n + ALLOCATOR + common_charge())
+        + 8 * n
+        + ALLOCATOR
+        + mask_charge()
+        + size_of::<RootInput<'static>>();
+    let random = t.random_bytes
+        + 2 * d.random_bytes
+        + p.random_bytes
+        + v.random_bytes
+        + l.random_bytes
+        + f.random_bytes;
+    Ok(ActivationResources {
+        lanes: n,
+        exchanges: 8,
+        total_peer_frame_bytes: 1224 + 144 * n,
+        random_bytes: random,
+        party_material_payload_bytes: t.party_material_payload_bytes
+            + 2 * d.party_material_payload_bytes
+            + p.party_material_payload_bytes
+            + v.party_material_payload_bytes
+            + l.party_material_payload_bytes
+            + f.party_material_payload_bytes,
+        combined_reservation_bytes: native + wrapper,
+        native_reservation_bytes: native,
+        wrapper_reservation_bytes: wrapper,
+        clear_input_reservation_bytes: native + wrapper + root,
+        clear_input_random_bytes: 8 * n + random,
+    })
+}
+
+#[test]
+fn resource_calculation_quote_geometry_and_legacy_outputs() {
+    let before = ActivationSpec::checked_resource_calculation_resources().unwrap();
+    for kind in [ActivationKind::Gelu, ActivationKind::Silu] {
+        for lanes in [1, 17, 256] {
+            let s = spec(kind, lanes);
+            assert_eq!(activation_resources(s), legacy_resources(s));
+            assert_eq!(
+                ActivationSpec::checked_resource_calculation_resources().unwrap(),
+                before
+            );
+            let mut invalid = s;
+            invalid.output = invalid.input;
+            assert_eq!(activation_resources(invalid), Err(Error::Context));
+            assert_eq!(activation_resources(invalid), legacy_resources(invalid));
+        }
+    }
+    let mut invalid = spec(ActivationKind::Silu, 1);
+    invalid.input = edge(3, 257);
+    invalid.output = edge(4, 257);
+    assert_eq!(activation_resources(invalid), Err(Error::Domain));
+    assert_eq!(
+        ActivationSpec::checked_resource_calculation_resources().unwrap(),
+        before
+    );
+}
+
+// Pre-workspace sequence: intentionally independent of the new stage/schedule
+// helpers, including the old argument-evaluation and array construction order.
+fn legacy_numeric(s: &ActivationSpec) -> [u8; 32] {
+    digest(&[
+        b"pllm.sigma.typed.activation-numeric.v1\0",
+        b"EzPC:aa0f2f860266fb79901405ef5e9965b8c9fe2e88:mode1",
+        b"LocalAssumption:X=[-2^37,2^37);50/Q12;38/Q12;TR6;32/Q6;A=unsigned[0,2^31]",
+        &[s.kind.index_bits()],
+        &s.kind.table_digest(),
+    ])
+}
+fn legacy_declaration(s: &ActivationSpec) -> [u8; 32] {
+    digest(&[
+        DOMAIN.as_bytes(),
+        &s.operation,
+        &s.input.digest(),
+        &s.output.digest(),
+        &s.next_consumer,
+        &legacy_numeric(s),
+    ])
+}
+fn legacy_stage(s: &ActivationSpec, index: u8) -> [u8; 32] {
+    digest(&[
+        b"pllm.sigma.typed.activation-stage.v1\0",
+        &legacy_declaration(s),
+        &[index],
+    ])
+}
+fn legacy_metadata(s: &ActivationSpec) -> ([EdgeDescriptor; 17], [ConsumerUse; 20], [u8; 32]) {
+    let mut wires = [s.input; 17];
+    for (i, edge) in wires.iter_mut().enumerate() {
+        let (bits, frac, interpretation) = match i {
+            0 => (38, 12, Interpretation::Signed),
+            1 | 3 | 5 => (32, 6, Interpretation::Signed),
+            4 => (32, 6, Interpretation::Unsigned),
+            2 | 6 | 7 | 15 => (1, 0, Interpretation::Predicate),
+            8..=10 => (s.kind.index_bits(), 6, Interpretation::Unsigned),
+            _ => (50, 12, Interpretation::Signed),
+        };
+        let id = s.input.identity();
+        *edge = EdgeDescriptor::new(
+            EdgeIdentity::new(
+                id.source(),
+                id.plan(),
+                s.operation,
+                digest(&[
+                    b"pllm.sigma.typed.activation-wire.v1\0",
+                    &legacy_declaration(s),
+                    &[i as u8],
+                ]),
+                id.first_tensor_index(),
+            ),
+            s.input.shape(),
+            Numeric::new(bits, frac, interpretation).unwrap(),
+            if matches!(i, 11 | 12 | 13 | 16) {
+                Representation::AdditiveShare
+            } else if interpretation == Interpretation::Predicate {
+                Representation::CommonXorMasked
+            } else {
+                Representation::CommonAdditiveMasked
+            },
+            None,
+        )
+        .unwrap();
+    }
+    let edges = [
+        s.input, wires[0], wires[1], wires[2], wires[1], wires[3], wires[1], wires[4], wires[5],
+        wires[6], wires[5], wires[7], wires[8], wires[9], wires[10], wires[2], s.input, wires[12],
+        wires[11], wires[13],
+    ];
+    let stages = [
+        0, 1, 2, 3, 3, 5, 5, 7, 8, 9, 10, 11, 11, 13, 14, 15, 15, 17, 17, 19,
+    ];
+    let operands = [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0];
+    let uses = std::array::from_fn(|i| {
+        ConsumerUse::new(edges[i], legacy_stage(s, stages[i]), operands[i], i as u32)
+    });
+    let mut h = Sha256::new();
+    h.update(legacy_declaration(s));
+    h.update(arithmetic::DOMAIN.as_bytes());
+    h.update(selection::DOMAIN.as_bytes());
+    h.update(source_lookup::DOMAIN.as_bytes());
+    h.update(Profile::DOMAIN.as_bytes());
+    for edge in &wires {
+        h.update(edge.digest());
+    }
+    for slot in &uses {
+        h.update(slot.digest());
+    }
+    (wires, uses, h.finalize().into())
+}
+
+#[test]
+fn metadata_workspace_reuse_preserves_legacy_sequences() {
+    let mut workspace = ActivationMetadataWorkspace::new(&edge(99, 7));
+    for kind in [
+        ActivationKind::Gelu,
+        ActivationKind::Silu,
+        ActivationKind::Gelu,
+    ] {
+        for lanes in [1, 17, 256] {
+            let expected = spec(kind, lanes);
+            let s = ActivationSpec::new_with_workspace(
+                kind,
+                expected.operation,
+                expected.input,
+                expected.output,
+                expected.next_consumer,
+                &mut workspace,
+            )
+            .unwrap();
+            assert_eq!(s, expected);
+            assert_eq!(s.numeric_contract(), legacy_numeric(&s));
+            assert_eq!(s.declaration(&mut workspace.core), legacy_declaration(&s));
+            for stage in 0..20 {
+                assert_eq!(s.stage(stage), legacy_stage(&s, stage));
+            }
+            let (wires, uses, hash) = legacy_metadata(&s);
+            assert_eq!(s.digest_with_workspace(&mut workspace), hash);
+            assert_eq!(workspace.wires, wires);
+            assert_eq!(workspace.uses, uses);
+            assert_eq!(s.digest(), hash);
+            assert_eq!(s.wires().unwrap(), wires);
+            assert_eq!(s.uses(&wires), uses);
+        }
+    }
+    let s = spec(ActivationKind::Gelu, 1);
+    assert_eq!(
+        ActivationSpec::new_with_workspace(
+            s.kind,
+            s.operation,
+            s.input,
+            s.input,
+            s.next_consumer,
+            &mut workspace,
+        )
+        .err(),
+        Some(Error::Context)
+    );
+    assert_eq!(s.digest_with_workspace(&mut workspace), s.digest());
+}
+
+#[test]
+fn metadata_quote_matches_independent_phase_formulas() {
+    // Available before constructing a declaration or hashing either table.
+    let before_construction = ActivationSpec::checked_logical_resources().unwrap();
+    let s = spec(ActivationKind::Gelu, 1);
+    let q = s.logical_resources().unwrap();
+    assert_eq!(before_construction, q);
+    let core = EdgeContractResourceQuote::checked().unwrap();
+    let h = size_of::<Sha256>();
+    let d = size_of::<[u8; 32]>();
+    let r = size_of::<&[u8]>();
+    let numeric = 1 + d + 5 * r + h + 8 + d;
+    let declaration = (2 * d).max(2 * d + numeric).max(3 * d + 6 * r + h + 8 + d);
+    let indexed = declaration.max(d + 1 + 3 * r + h + 8 + d);
+    let wire_constructor = d
+        + size_of::<EdgeIdentity>()
+        + core
+            .edge_identity_construction_bytes
+            .max(size_of::<EdgeIdentity>() + size_of::<Shape>() + core.numeric_construction_bytes)
+            .max(core.edge_descriptor_construction_bytes);
+    assert_eq!(q.spec_bytes, size_of::<ActivationSpec>());
+    assert_eq!(q.workspace_bytes, size_of::<ActivationMetadataWorkspace>());
+    // Workspace includes both fixed output arrays plus the one shared core owner.
+    assert!(
+        q.workspace_bytes
+            >= 17 * size_of::<EdgeDescriptor>()
+                + 20 * size_of::<ConsumerUse>()
+                + EdgeContractWorkspace::logical_bytes()
+    );
+    assert_eq!(q.table_validation_scratch_bytes, h + 8 + 2 * d);
+    assert_eq!(
+        q.identity_validation_scratch_bytes,
+        size_of::<ActivationIdentityValidation>() + 3 * r + h + 8
+    );
+    assert_eq!(q.collision_validation_scratch_bytes, 4 * d);
+    assert_eq!(q.numeric_digest_scratch_bytes, numeric);
+    assert_eq!(
+        q.edge_digest_scratch_bytes,
+        core.descriptor_digest_bytes
+            - size_of::<EdgeDescriptor>()
+            - EdgeContractWorkspace::logical_bytes()
+    );
+    assert_eq!(
+        q.use_digest_scratch_bytes,
+        core.use_digest_bytes - size_of::<ConsumerUse>() - EdgeContractWorkspace::logical_bytes()
+    );
+    assert_eq!(q.edge_digest_scratch_bytes, d);
+    assert_eq!(q.use_digest_scratch_bytes, d);
+    assert_eq!(q.declaration_digest_scratch_bytes, declaration);
+    assert_eq!(q.stage_digest_scratch_bytes, indexed);
+    assert_eq!(q.wire_digest_scratch_bytes, indexed);
+    assert_eq!(q.wire_constructor_scratch_bytes, wire_constructor);
+    assert_eq!(
+        q.use_constructor_scratch_bytes,
+        core.consumer_use_construction_bytes
+    );
+    let nested = [
+        declaration,
+        indexed,
+        wire_constructor,
+        core.consumer_use_construction_bytes,
+        d,
+    ]
+    .into_iter()
+    .max()
+    .unwrap();
+    assert_eq!(q.activation_digest_scratch_bytes, h + nested);
+    let constructor_scratch = [
+        h + 8 + 2 * d,
+        q.identity_validation_scratch_bytes,
+        4 * d,
+        indexed,
+        wire_constructor,
+        size_of::<Numeric>() + core.numeric_construction_bytes,
+        core.consumer_use_construction_bytes,
+    ]
+    .into_iter()
+    .max()
+    .unwrap();
+    assert_eq!(q.constructor_input_bytes, size_of::<ActivationSpec>());
+    assert_eq!(
+        q.constructor_result_bytes,
+        size_of::<Result<ActivationSpec, Error>>()
+    );
+    assert_eq!(
+        q.constructor_peak_bytes,
+        q.constructor_input_bytes
+            + q.constructor_result_bytes
+            + q.workspace_bytes
+            + constructor_scratch
+    );
+    assert_eq!(
+        q.digest_peak_bytes,
+        q.spec_bytes + q.workspace_bytes + h + nested
+    );
+    assert_eq!(
+        q.peak_bytes,
+        q.constructor_peak_bytes.max(q.digest_peak_bytes)
+    );
+    // Metadata footprint is independent of lanes and activation table length.
+    assert_eq!(
+        q,
+        spec(ActivationKind::Silu, 256).logical_resources().unwrap()
+    );
+}
 fn oracle(kind: ActivationKind, values: &[i64]) -> Vec<i128> {
     // Independent signed wide-integer floor/absolute/clamp. This does not use
     // native ring helpers or the region's clipping implementation.

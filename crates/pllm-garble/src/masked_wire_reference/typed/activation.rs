@@ -7,7 +7,9 @@
 use super::internal_use::Ledger as UseLedger;
 use super::*;
 use crate::masked_wire_reference::source_lookup;
-use pllm_core::edge_contract::{ConsumerUse, EdgeIdentity};
+use pllm_core::edge_contract::{
+    ConsumerUse, EdgeContractResourceQuote, EdgeContractWorkspace, EdgeIdentity,
+};
 
 pub const DOMAIN: &str = "pllm.sigma.activation-reconstruction.v1";
 const MAGIC: &[u8; 8] = b"PLLMAC01";
@@ -28,6 +30,97 @@ const J: usize = 10;
 const L: usize = 11;
 const F: usize = 12;
 const O: usize = 13;
+
+// Borrowed template data, not per-call copied descriptor/stage/operand arrays.
+static USE_EDGES: [Option<usize>; USES] = [
+    None,
+    Some(XN),
+    Some(Y),
+    Some(D),
+    Some(Y),
+    Some(P),
+    Some(Y),
+    Some(A),
+    Some(C),
+    Some(H),
+    Some(C),
+    Some(E),
+    Some(Q),
+    Some(V),
+    Some(J),
+    Some(D),
+    None,
+    Some(F),
+    Some(L),
+    Some(O),
+];
+static USE_STAGES: [u8; USES] = [
+    0, 1, 2, 3, 3, 5, 5, 7, 8, 9, 10, 11, 11, 13, 14, 15, 15, 17, 17, 19,
+];
+static USE_OPERANDS: [u16; USES] = [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0];
+
+/// Reusable, allocation-free public metadata backing, never execution material.
+/// Initialization needs only a seed descriptor; every slot is overwritten before
+/// use. No partially initialized `from_fn` output or copied input-use array exists.
+pub struct ActivationMetadataWorkspace {
+    wires: [EdgeDescriptor; WIRES],
+    uses: [ConsumerUse; USES],
+    core: EdgeContractWorkspace,
+}
+impl ActivationMetadataWorkspace {
+    pub fn new(seed: &EdgeDescriptor) -> Self {
+        Self {
+            wires: [*seed; WIRES],
+            uses: [ConsumerUse::new(*seed, [0; 32], 0, 0); USES],
+            core: EdgeContractWorkspace::new(),
+        }
+    }
+}
+
+/// Activation-owned logical metadata storage only. Not machine stack/RSS,
+/// execution reservations, serialized bytes, or crypto dependency internals.
+///
+/// Phase scratch is additional to retained spec/workspace and uses the core
+/// owner's constructor quote. Both nested core hash states live in `workspace`;
+/// they are not charged again at a nested edge/use hash. Slice-reference tables
+/// are owned, but static domain strings, schedules and numeric tables are borrowed.
+/// Like the core quote, this excludes references outside those explicit tables,
+/// loop/control scalars, ABI move temporaries and dependency-private SHA scratch.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ActivationMetadataResources {
+    pub spec_bytes: usize,
+    pub workspace_bytes: usize,
+    pub table_validation_scratch_bytes: usize,
+    pub identity_validation_scratch_bytes: usize,
+    pub collision_validation_scratch_bytes: usize,
+    pub numeric_digest_scratch_bytes: usize,
+    /// Core digest quote minus its already-resident declaration and workspace.
+    pub edge_digest_scratch_bytes: usize,
+    pub use_digest_scratch_bytes: usize,
+    pub declaration_digest_scratch_bytes: usize,
+    pub stage_digest_scratch_bytes: usize,
+    pub wire_digest_scratch_bytes: usize,
+    pub wire_constructor_scratch_bytes: usize,
+    pub use_constructor_scratch_bytes: usize,
+    pub activation_digest_scratch_bytes: usize,
+    /// Named input/declaration slot and returned Result slot, not guessed copies.
+    pub constructor_input_bytes: usize,
+    pub constructor_result_bytes: usize,
+    pub constructor_peak_bytes: usize,
+    pub digest_peak_bytes: usize,
+    pub peak_bytes: usize,
+}
+
+// Actual declaration-validation phase slots, released before table/wire work.
+struct ActivationIdentityValidation {
+    input: EdgeIdentity,
+    output: EdgeIdentity,
+    input_source: SourceIdentity,
+    output_source: SourceIdentity,
+    input_shape: pllm_core::edge_contract::Shape,
+    output_shape: pllm_core::edge_contract::Shape,
+    implementation: [u8; 32],
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActivationKind {
@@ -70,10 +163,12 @@ impl ActivationKind {
         }
         let mut h = Sha256::new();
         for value in table {
-            h.update(value.to_le_bytes());
+            let encoded = value.to_le_bytes();
+            h.update(encoded);
         }
         let actual: [u8; 32] = h.finalize().into();
-        if actual != self.table_digest() {
+        let expected = self.table_digest();
+        if actual != expected {
             return Err(Error::Context);
         }
         Ok(())
@@ -108,6 +203,25 @@ impl ActivationSpec {
         spec.validate()?;
         Ok(spec)
     }
+    /// Same declaration checks as `new`, reusing caller-owned metadata backing.
+    pub fn new_with_workspace(
+        kind: ActivationKind,
+        operation: [u8; 32],
+        input: EdgeDescriptor,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        workspace: &mut ActivationMetadataWorkspace,
+    ) -> Result<Self, Error> {
+        let spec = Self {
+            kind,
+            operation,
+            input,
+            output,
+            next_consumer,
+        };
+        spec.validate_with_workspace(workspace)?;
+        Ok(spec)
+    }
     pub fn kind(self) -> ActivationKind {
         self.kind
     }
@@ -118,11 +232,163 @@ impl ActivationSpec {
         self.output
     }
 
-    fn validate(self) -> Result<(), Error> {
+    /// Checked metadata-only quote for `new[_with_workspace]` and
+    /// `digest[_with_workspace]`. Execution/dealer/root-input objects are not
+    /// included; their owners must keep their separate reservations live. A
+    /// caller retaining an original spec or descriptor while passing a copy
+    /// adds that caller-owned slot separately. The input slot here is the actual
+    /// named `spec`, not a speculative multiple of the public constructor args.
+    pub fn logical_resources(&self) -> Result<ActivationMetadataResources, Error> {
+        Self::checked_logical_resources()
+    }
+
+    /// Same metadata quote before any declaration construction or table hashing.
+    /// Geometry, activation kind and identities do not change these fixed backing
+    /// capacities. This grants neither execution nor source authority.
+    pub fn checked_logical_resources() -> Result<ActivationMetadataResources, Error> {
+        fn sum(parts: &[usize]) -> Result<usize, Error> {
+            parts.iter().try_fold(0usize, |total, &part| {
+                total.checked_add(part).ok_or(Error::Resource)
+            })
+        }
+        let core = EdgeContractResourceQuote::checked().map_err(|_| Error::Resource)?;
+        let hash = size_of::<Sha256>();
+        let output = size_of::<[u8; 32]>();
+        let length = size_of::<[u8; 8]>();
+        let spec_bytes = size_of::<Self>();
+        let workspace_bytes = size_of::<ActivationMetadataWorkspace>();
+        let edge_digest_scratch_bytes = core
+            .descriptor_digest_bytes
+            .checked_sub(size_of::<EdgeDescriptor>())
+            .and_then(|bytes| bytes.checked_sub(EdgeContractWorkspace::logical_bytes()))
+            .ok_or(Error::Resource)?;
+        let use_digest_scratch_bytes = core
+            .use_digest_bytes
+            .checked_sub(size_of::<ConsumerUse>())
+            .and_then(|bytes| bytes.checked_sub(EdgeContractWorkspace::logical_bytes()))
+            .ok_or(Error::Resource)?;
+        // These are concrete named phase slots, including returned hash bytes.
+        // Borrowed static backing is never charged as copied strings/tables.
+        let table_validation_scratch_bytes = sum(&[hash, length, output, output])?;
+        let identity_validation_scratch_bytes = sum(&[
+            size_of::<ActivationIdentityValidation>(),
+            size_of::<[&[u8]; 3]>(), // approved_implementation's borrowed parts
+            hash,
+            length,
+        ])?;
+        let collision_validation_scratch_bytes = size_of::<[[u8; 32]; 4]>();
+        let numeric_digest_scratch_bytes = sum(&[
+            size_of::<[u8; 1]>(),
+            output, // table_digest
+            size_of::<[&[u8]; 5]>(),
+            hash,
+            length,
+            output,
+        ])?;
+        // Core workspace + resident input/output edges already belong to base.
+        // First input digest survives output hashing, then both survive numeric.
+        let declaration_digest_scratch_bytes = edge_digest_scratch_bytes
+            .max(sum(&[output, edge_digest_scratch_bytes])?)
+            .max(sum(&[output, output, numeric_digest_scratch_bytes])?)
+            .max(sum(&[
+                3 * output,
+                size_of::<[&[u8]; 6]>(),
+                hash,
+                length,
+                output,
+            ])?);
+        let stage_digest_scratch_bytes = declaration_digest_scratch_bytes.max(sum(&[
+            output, // declaration
+            size_of::<[u8; 1]>(),
+            size_of::<[&[u8]; 3]>(),
+            hash,
+            length,
+            output,
+        ])?);
+        let wire_digest_scratch_bytes = stage_digest_scratch_bytes;
+        // `wire` and original `id` coexist with each nested constructor phase.
+        // Named identity/shape results survive Numeric construction; descriptor
+        // construction then owns those inputs and its Result slot itself.
+        let wire_constructor_scratch_bytes = sum(&[
+            output,
+            size_of::<EdgeIdentity>(),
+            core.edge_identity_construction_bytes
+                .max(sum(&[
+                    size_of::<EdgeIdentity>(),
+                    size_of::<pllm_core::edge_contract::Shape>(),
+                    core.numeric_construction_bytes,
+                ])?)
+                .max(core.edge_descriptor_construction_bytes),
+        ])?;
+        let use_constructor_scratch_bytes = core.consumer_use_construction_bytes;
+        // Outer activation hash remains live through declaration, wires, uses,
+        // and nested consumer -> edge hashes. Both core states are resident in
+        // workspace, so the nested digest's only extra slot is returned bytes.
+        let activation_digest_scratch_bytes = sum(&[
+            hash,
+            declaration_digest_scratch_bytes
+                .max(wire_digest_scratch_bytes)
+                .max(wire_constructor_scratch_bytes)
+                .max(stage_digest_scratch_bytes)
+                .max(use_constructor_scratch_bytes)
+                .max(edge_digest_scratch_bytes)
+                .max(use_digest_scratch_bytes),
+        ])?;
+        let constructor_input_bytes = size_of::<Self>();
+        let constructor_result_bytes = size_of::<Result<Self, Error>>();
+        let constructor_peak_bytes = sum(&[
+            constructor_input_bytes,
+            constructor_result_bytes,
+            workspace_bytes,
+            table_validation_scratch_bytes
+                .max(identity_validation_scratch_bytes)
+                .max(collision_validation_scratch_bytes)
+                .max(wire_digest_scratch_bytes)
+                .max(wire_constructor_scratch_bytes)
+                .max(sum(&[
+                    size_of::<Numeric>(),
+                    core.numeric_construction_bytes,
+                ])?)
+                .max(core.consumer_use_construction_bytes), // workspace seed
+        ])?;
+        let digest_peak_bytes =
+            sum(&[spec_bytes, workspace_bytes, activation_digest_scratch_bytes])?;
+        Ok(ActivationMetadataResources {
+            spec_bytes,
+            workspace_bytes,
+            table_validation_scratch_bytes,
+            identity_validation_scratch_bytes,
+            collision_validation_scratch_bytes,
+            numeric_digest_scratch_bytes,
+            edge_digest_scratch_bytes,
+            use_digest_scratch_bytes,
+            declaration_digest_scratch_bytes,
+            stage_digest_scratch_bytes,
+            wire_digest_scratch_bytes,
+            wire_constructor_scratch_bytes,
+            use_constructor_scratch_bytes,
+            activation_digest_scratch_bytes,
+            constructor_input_bytes,
+            constructor_result_bytes,
+            constructor_peak_bytes,
+            digest_peak_bytes,
+            peak_bytes: constructor_peak_bytes.max(digest_peak_bytes),
+        })
+    }
+
+    fn validate(&self) -> Result<(), Error> {
+        let mut workspace = ActivationMetadataWorkspace::new(&self.input);
+        self.validate_with_workspace(&mut workspace)
+    }
+
+    fn validate_with_workspace(
+        &self,
+        workspace: &mut ActivationMetadataWorkspace,
+    ) -> Result<(), Error> {
         if !(1..=256).contains(&self.input.shape().elements()) {
             return Err(Error::Domain);
         }
-        for edge in [self.input, self.output] {
+        let validate_edge = |edge: &EdgeDescriptor| {
             if edge.numeric()
                 != Numeric::new(50, 12, Interpretation::Signed).map_err(|_| Error::Domain)?
                 || edge.representation() != Representation::CommonAdditiveMasked
@@ -130,27 +396,45 @@ impl ActivationSpec {
             {
                 return Err(Error::Domain);
             }
-        }
-        if self.input.identity().source() != self.output.identity().source()
-            || self.input.identity().plan() != self.output.identity().plan()
-            || self.input.shape() != self.output.shape()
-            || self.input.identity().first_tensor_index()
-                != self.output.identity().first_tensor_index()
-            || self.input.identity().wire() == self.output.identity().wire()
+            Ok(())
+        };
+        validate_edge(&self.input)?;
+        validate_edge(&self.output)?;
         {
-            return Err(Error::Context);
-        }
-        if self.input.identity().source().implementation() != approved_implementation() {
-            return Err(Error::Unsupported);
+            let mut identities = ActivationIdentityValidation {
+                input: self.input.identity(),
+                output: self.output.identity(),
+                input_source: self.input.identity().source(),
+                output_source: self.output.identity().source(),
+                input_shape: self.input.shape(),
+                output_shape: self.output.shape(),
+                implementation: [0; 32],
+            };
+            if identities.input_source != identities.output_source
+                || identities.input.plan() != identities.output.plan()
+                || identities.input_shape != identities.output_shape
+                || identities.input.first_tensor_index() != identities.output.first_tensor_index()
+                || identities.input.wire() == identities.output.wire()
+            {
+                return Err(Error::Context);
+            }
+            identities.implementation = approved_implementation();
+            if identities.input_source.implementation() != identities.implementation {
+                return Err(Error::Unsupported);
+            }
         }
         self.kind.validate_table()?;
-        let wires = self.wires()?;
-        for (i, edge) in wires.iter().enumerate() {
-            if edge.identity().wire() == self.input.identity().wire()
-                || edge.identity().wire() == self.output.identity().wire()
-                || wires[..i]
-                    .iter()
-                    .any(|old| old.identity().wire() == edge.identity().wire())
+        self.wires_into(&mut workspace.wires, &mut workspace.core)?;
+        let input_wire = self.input.identity().wire();
+        let output_wire = self.output.identity().wire();
+        for (i, edge) in workspace.wires.iter().enumerate() {
+            let candidate = edge.identity().wire();
+            if candidate == input_wire
+                || candidate == output_wire
+                || workspace.wires[..i].iter().any(|old| {
+                    let old_wire = old.identity().wire();
+                    old_wire == candidate
+                })
             {
                 return Err(Error::Context);
             }
@@ -158,35 +442,63 @@ impl ActivationSpec {
         Ok(())
     }
 
-    fn numeric_contract(self) -> [u8; 32] {
-        digest(&[
+    fn numeric_contract(&self) -> [u8; 32] {
+        let bits = [self.kind.index_bits()];
+        let table_digest = self.kind.table_digest();
+        let parts: [&[u8]; 5] = [
             b"pllm.sigma.typed.activation-numeric.v1\0",
             b"EzPC:aa0f2f860266fb79901405ef5e9965b8c9fe2e88:mode1",
             b"LocalAssumption:X=[-2^37,2^37);50/Q12;38/Q12;TR6;32/Q6;A=unsigned[0,2^31]",
-            &[self.kind.index_bits()],
-            &self.kind.table_digest(),
-        ])
+            &bits,
+            &table_digest,
+        ];
+        digest(&parts)
     }
-    fn declaration(self) -> [u8; 32] {
-        digest(&[
+    fn declaration(&self, core: &mut EdgeContractWorkspace) -> [u8; 32] {
+        // Keep evaluation order and the earlier digest owners explicit.
+        let input = self.input.digest_with_workspace(core);
+        let output = self.output.digest_with_workspace(core);
+        let numeric = self.numeric_contract();
+        let parts: [&[u8]; 6] = [
             DOMAIN.as_bytes(),
             &self.operation,
-            &self.input.digest(),
-            &self.output.digest(),
+            &input,
+            &output,
             &self.next_consumer,
-            &self.numeric_contract(),
-        ])
+            &numeric,
+        ];
+        digest(&parts)
     }
-    fn stage(self, index: u8) -> [u8; 32] {
-        digest(&[
+    fn stage(&self, index: u8) -> [u8; 32] {
+        self.indexed_digest(
             b"pllm.sigma.typed.activation-stage.v1\0",
-            &self.declaration(),
-            &[index],
-        ])
+            index,
+            &mut EdgeContractWorkspace::new(),
+        )
     }
-    fn wires(self) -> Result<[EdgeDescriptor; WIRES], Error> {
+    fn indexed_digest(
+        &self,
+        domain: &[u8],
+        index: u8,
+        core: &mut EdgeContractWorkspace,
+    ) -> [u8; 32] {
+        let declaration = self.declaration(core);
+        let index = [index];
+        let parts: [&[u8]; 3] = [domain, &declaration, &index];
+        digest(&parts)
+    }
+    fn wires(&self) -> Result<[EdgeDescriptor; WIRES], Error> {
         let mut edges = [self.input; WIRES];
+        self.wires_into(&mut edges, &mut EdgeContractWorkspace::new())?;
+        Ok(edges)
+    }
+    fn wires_into(
+        &self,
+        edges: &mut [EdgeDescriptor; WIRES],
+        core: &mut EdgeContractWorkspace,
+    ) -> Result<(), Error> {
         for (i, edge) in edges.iter_mut().enumerate() {
+            let wire = self.indexed_digest(b"pllm.sigma.typed.activation-wire.v1\0", i as u8, core);
             let (bits, frac, interpretation) = match i {
                 XN => (38, 12, Interpretation::Signed),
                 Y | P | C => (32, 6, Interpretation::Signed),
@@ -196,78 +508,92 @@ impl ActivationSpec {
                 _ => (50, 12, Interpretation::Signed),
             };
             let id = self.input.identity();
-            *edge = EdgeDescriptor::new(
-                EdgeIdentity::new(
-                    id.source(),
-                    id.plan(),
-                    self.operation,
-                    digest(&[
-                        b"pllm.sigma.typed.activation-wire.v1\0",
-                        &self.declaration(),
-                        &[i as u8],
-                    ]),
-                    id.first_tensor_index(),
-                ),
-                self.input.shape(),
-                Numeric::new(bits, frac, interpretation).map_err(|_| Error::Domain)?,
-                if matches!(i, L | F | O | 16) {
-                    Representation::AdditiveShare
-                } else if interpretation == Interpretation::Predicate {
-                    Representation::CommonXorMasked
-                } else {
-                    Representation::CommonAdditiveMasked
-                },
-                None,
-            )
-            .map_err(|_| Error::Domain)?;
+            let identity = EdgeIdentity::new(
+                id.source(),
+                id.plan(),
+                self.operation,
+                wire,
+                id.first_tensor_index(),
+            );
+            let shape = self.input.shape();
+            let numeric = Numeric::new(bits, frac, interpretation).map_err(|_| Error::Domain)?;
+            let representation = if matches!(i, L | F | O | 16) {
+                Representation::AdditiveShare
+            } else if interpretation == Interpretation::Predicate {
+                Representation::CommonXorMasked
+            } else {
+                Representation::CommonAdditiveMasked
+            };
+            let descriptor = EdgeDescriptor::new(identity, shape, numeric, representation, None);
+            *edge = descriptor.map_err(|_| Error::Domain)?;
         }
-        Ok(edges)
+        Ok(())
     }
-    fn uses(self, w: &[EdgeDescriptor; WIRES]) -> [ConsumerUse; USES] {
-        let edges = [
-            self.input, w[XN], w[Y], w[D], w[Y], w[P], w[Y], w[A], w[C], w[H], w[C], w[E], w[Q],
-            w[V], w[J], w[D], self.input, w[F], w[L], w[O],
-        ];
-        let stages = [
-            0, 1, 2, 3, 3, 5, 5, 7, 8, 9, 10, 11, 11, 13, 14, 15, 15, 17, 17, 19,
-        ];
-        let operands = [0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0];
-        std::array::from_fn(|i| {
-            ConsumerUse::new(edges[i], self.stage(stages[i]), operands[i], i as u32)
-        })
+    fn uses(&self, w: &[EdgeDescriptor; WIRES]) -> [ConsumerUse; USES] {
+        let mut uses = [ConsumerUse::new(self.input, [0; 32], 0, 0); USES];
+        self.uses_into(w, &mut uses, &mut EdgeContractWorkspace::new());
+        uses
+    }
+    fn uses_into(
+        &self,
+        w: &[EdgeDescriptor; WIRES],
+        uses: &mut [ConsumerUse; USES],
+        core: &mut EdgeContractWorkspace,
+    ) {
+        for (i, use_slot) in uses.iter_mut().enumerate() {
+            // Borrow first: do not retain a descriptor copy during stage hashing.
+            let edge = match USE_EDGES[i] {
+                Some(index) => &w[index],
+                None => &self.input,
+            };
+            let stage = self.indexed_digest(
+                b"pllm.sigma.typed.activation-stage.v1\0",
+                USE_STAGES[i],
+                core,
+            );
+            *use_slot = ConsumerUse::new(*edge, stage, USE_OPERANDS[i], i as u32);
+        }
     }
     pub fn digest(self) -> [u8; 32] {
+        let mut workspace = ActivationMetadataWorkspace::new(&self.input);
+        self.digest_with_workspace(&mut workspace)
+    }
+    pub fn digest_with_workspace(&self, workspace: &mut ActivationMetadataWorkspace) -> [u8; 32] {
         // Construction already checked descriptor geometry. No execution state.
         let mut h = Sha256::new();
-        h.update(self.declaration());
+        h.update(self.declaration(&mut workspace.core));
         h.update(arithmetic::DOMAIN.as_bytes());
         h.update(selection::DOMAIN.as_bytes());
         h.update(source_lookup::DOMAIN.as_bytes());
         h.update(Profile::DOMAIN.as_bytes());
-        if let Ok(w) = self.wires() {
-            for edge in w {
-                h.update(edge.digest());
+        if self
+            .wires_into(&mut workspace.wires, &mut workspace.core)
+            .is_ok()
+        {
+            for edge in &workspace.wires {
+                h.update(edge.digest_with_workspace(&mut workspace.core));
             }
-            for use_slot in self.uses(&w) {
-                h.update(use_slot.digest());
+            self.uses_into(&workspace.wires, &mut workspace.uses, &mut workspace.core);
+            for use_slot in &workspace.uses {
+                h.update(use_slot.digest_with_workspace(&mut workspace.core));
             }
         }
         h.finalize().into()
     }
-    fn arithmetic(self, bits: u8, gate: arithmetic::Gate) -> arithmetic::Spec {
+    fn arithmetic(&self, bits: u8, gate: arithmetic::Gate) -> arithmetic::Spec {
         arithmetic::Spec {
             bits,
             lanes: self.input.shape().elements(),
             gate,
         }
     }
-    fn select(self, bits: u8) -> selection::Spec {
+    fn select(&self, bits: u8) -> selection::Spec {
         selection::Spec {
             bits,
             lanes: self.input.shape().elements(),
         }
     }
-    fn lookup(self) -> source_lookup::Spec {
+    fn lookup(&self) -> source_lookup::Spec {
         source_lookup::Spec {
             index_bits: self.kind.index_bits(),
             output_bits: 50,
@@ -294,6 +620,190 @@ pub struct ActivationResources {
     /// Includes original root masks, excludes existing dealer namespace entropy.
     pub clear_input_random_bytes: usize,
 }
+
+/// PRECALCULATION metadata for `activation_resources`, not its returned native
+/// execution capacities. Available before constructing or validating any spec.
+/// Phases are additional to the single by-value `input_bytes` owner and are
+/// sequential maxima. Native helper Results reserve their destination while
+/// their named inputs/scratch remain live; no speculative ABI copies are added.
+///
+/// Excludes caller-retained originals, this quote record if retained, references
+/// (except explicit slice tables), scalar evaluation/control locals, iterator
+/// adapters over borrowed slices, ABI moves, dependency-private SHA scratch,
+/// static tables/domains, execution/dealer/root owners, allocator internals and
+/// machine stack/RSS. Native capacity and stack-allowance *values* prove none of
+/// this metadata. No admission, provenance or certification authority is granted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ActivationResourceCalculationResources {
+    pub input_bytes: usize,
+    pub revalidation_phase_bytes: usize,
+    pub native_costs_phase_bytes: usize,
+    pub native_records_phase_bytes: usize,
+    pub return_phase_bytes: usize,
+    pub peak_bytes: usize,
+}
+
+pub(super) fn resource_metadata_sum(parts: &[usize]) -> Result<usize, Error> {
+    parts.iter().try_fold(0usize, |total, &part| {
+        total.checked_add(part).ok_or(Error::Resource)
+    })
+}
+
+// Audited calculation-only slots for native public resource helpers. These are
+// reusable across activation and linear activation; never native reservations.
+// Scalar `add`/`checked_sum` argument arrays are owned, unlike borrowed iterators.
+pub(super) fn arithmetic_resource_calculation_bytes() -> Result<usize, Error> {
+    use crate::compact_dpf::gpu127;
+    let geometry = resource_metadata_sum(&[
+        size_of::<arithmetic::Spec>(), // geometry's Copy input
+        size_of::<Result<(gpu127::Profile, u8, usize), Error>>(),
+        size_of::<Result<gpu127::Profile, gpu127::Error>>(),
+        size_of::<Result<gpu127::Profile, Error>>(), // mapped error destination
+        size_of::<gpu127::Profile>(),                // named geometry profile origin
+    ])?;
+    let calculation = resource_metadata_sum(&[
+        size_of::<gpu127::Profile>(),   // named profile origin
+        size_of::<gpu127::Resources>(), // named key
+        // Profile::resources input and later frame/output-charge Spec inputs
+        // are sequential; getters retain no separate arrays or results.
+        size_of::<gpu127::Profile>().max(size_of::<arithmetic::Spec>()),
+    ])?;
+    resource_metadata_sum(&[
+        size_of::<arithmetic::Spec>(),
+        size_of::<Result<arithmetic::Resources, Error>>(),
+        geometry.max(calculation),
+    ])
+}
+
+fn selection_resource_calculation_bytes() -> Result<usize, Error> {
+    resource_metadata_sum(&[
+        size_of::<selection::Spec>(), // resources -> resources_for Copy input
+        size_of::<selection::Spec>(),
+        size_of::<Result<selection::Resources, Error>>(),
+        resource_metadata_sum(&[
+            size_of::<selection::Spec>(), // validate Copy input
+            size_of::<Result<(), Error>>(),
+        ])?
+        .max(size_of::<[usize; 5]>()), // largest sequential checked_sum table
+    ])
+}
+
+fn lookup_resource_calculation_bytes() -> Result<usize, Error> {
+    use crate::compact_dpf::gpu127;
+    let gpu = size_of::<gpu127::Resources>();
+    let profile = resource_metadata_sum(&[
+        gpu, // named gpu destination
+        resource_metadata_sum(&[
+            size_of::<Result<gpu127::Profile, gpu127::Error>>(),
+            size_of::<Result<gpu127::Profile, Error>>(),
+        ])?
+        .max(size_of::<gpu127::Profile>()),
+    ])?;
+    let select = resource_metadata_sum(&[
+        gpu,
+        size_of::<selection::Resources>(), // named select destination
+        selection_resource_calculation_bytes()?,
+    ])?;
+    let calculation = resource_metadata_sum(&[
+        gpu,
+        size_of::<selection::Resources>(),
+        size_of::<[usize; 14]>(), // own_party add; other add tables are sequential
+        size_of::<source_lookup::Spec>(), // frame_charge's Copy input
+        size_of::<source_lookup::Spec>(), // nested first_frame_bytes Copy input
+    ])?;
+    resource_metadata_sum(&[
+        size_of::<source_lookup::Spec>(),
+        size_of::<Result<source_lookup::Resources, Error>>(),
+        resource_metadata_sum(&[
+            size_of::<source_lookup::Spec>(), // validate Copy input
+            size_of::<Result<(), Error>>(),
+        ])?
+        .max(profile)
+        .max(select)
+        .max(calculation),
+    ])
+}
+
+impl ActivationSpec {
+    /// Geometry/kind independent PRECALCULATION quote, not constructor metadata.
+    pub fn checked_resource_calculation_resources(
+    ) -> Result<ActivationResourceCalculationResources, Error> {
+        let metadata = Self::checked_logical_resources()?;
+        let core = EdgeContractResourceQuote::checked().map_err(|_| Error::Resource)?;
+        // Reuse the activation owner's validation phases, without charging a
+        // constructor input/result: activation_resources already owns its spec.
+        let validation_scratch = metadata
+            .table_validation_scratch_bytes
+            .max(metadata.identity_validation_scratch_bytes)
+            .max(metadata.collision_validation_scratch_bytes)
+            .max(metadata.wire_digest_scratch_bytes)
+            .max(metadata.wire_constructor_scratch_bytes)
+            .max(resource_metadata_sum(&[
+                size_of::<Numeric>(),
+                core.numeric_construction_bytes,
+            ])?)
+            .max(core.consumer_use_construction_bytes);
+        let revalidation_phase_bytes = resource_metadata_sum(&[
+            metadata.workspace_bytes,
+            size_of::<Result<(), Error>>(),
+            validation_scratch,
+        ])?;
+        let arithmetic = arithmetic_resource_calculation_bytes()?;
+        let selection = selection_resource_calculation_bytes()?;
+        let lookup = lookup_resource_calculation_bytes()?;
+        let costs = size_of::<[usize; 7]>();
+        let native_costs_phase_bytes = resource_metadata_sum(&[
+            costs, // caller's named costs destination
+            costs, // native_costs' named origin
+            size_of::<Result<[usize; 7], Error>>(),
+            arithmetic.max(selection).max(lookup),
+        ])?;
+        let a = size_of::<arithmetic::Resources>();
+        let s = size_of::<selection::Resources>();
+        let l = size_of::<source_lookup::Resources>();
+        // t,d,p,v,l,f construction in source order. Previous named records stay
+        // live, never sum mutually exclusive helper scratch phases.
+        let records = resource_metadata_sum(&[a, a, s, s, l, s])?;
+        let native_records_phase_bytes = resource_metadata_sum(&[
+            costs,
+            // Include each new named destination as well as the helper Result.
+            resource_metadata_sum(&[a, arithmetic])?
+                .max(resource_metadata_sum(&[a, a, arithmetic])?)
+                .max(resource_metadata_sum(&[a, a, s, selection])?)
+                .max(resource_metadata_sum(&[a, a, s, s, selection])?)
+                .max(resource_metadata_sum(&[a, a, s, s, l, lookup])?)
+                .max(resource_metadata_sum(&[a, a, s, s, l, s, selection])?),
+        ])?;
+        let return_phase_bytes = resource_metadata_sum(&[
+            costs,
+            records,
+            size_of::<ActivationResources>(), // named resources origin
+            size_of::<Result<ActivationResources, Error>>(),
+        ])?;
+        let input_bytes = size_of::<Self>();
+        Ok(ActivationResourceCalculationResources {
+            input_bytes,
+            revalidation_phase_bytes,
+            native_costs_phase_bytes,
+            native_records_phase_bytes,
+            return_phase_bytes,
+            peak_bytes: resource_metadata_sum(&[
+                input_bytes,
+                revalidation_phase_bytes
+                    .max(native_costs_phase_bytes)
+                    .max(native_records_phase_bytes)
+                    .max(return_phase_bytes),
+            ])?,
+        })
+    }
+}
+
+impl ActivationResourceCalculationResources {
+    /// Add actual caller-retained originals/other owners; no reservation minted.
+    pub fn peak_with_retained_bytes(self, retained: usize) -> Result<usize, Error> {
+        resource_metadata_sum(&[retained, self.peak_bytes])
+    }
+}
 fn frame_wrapper_charge() -> usize {
     size_of::<ActivationFrame<'static>>() + size_of::<ActivationStep<'static>>()
 }
@@ -313,25 +823,26 @@ fn workspace_charge(lanes: usize) -> usize {
         + 4 * (8 * lanes + ALLOCATOR)
         + (32 << 10)
 }
-fn native_costs(spec: ActivationSpec) -> Result<[usize; 7], Error> {
-    Ok([
-        arithmetic::resources(spec.arithmetic(38, arithmetic::Gate::Tr { shift: 6 }))?
-            .combined_reservation_bytes,
-        arithmetic::resources(spec.arithmetic(32, arithmetic::Gate::Drelu))?
-            .combined_reservation_bytes,
-        selection::resources(spec.select(32))?.combined_reservation_bytes,
-        arithmetic::resources(spec.arithmetic(32, arithmetic::Gate::Drelu))?
-            .combined_reservation_bytes,
-        selection::resources(spec.select(spec.kind.index_bits()))?.combined_reservation_bytes,
-        source_lookup::resources(spec.lookup())?.combined_reservation_bytes,
-        selection::resources_for(spec.select(50), selection::Boundary::Deferred)?
-            .combined_reservation_bytes,
-    ])
+fn native_costs(spec: &ActivationSpec) -> Result<[usize; 7], Error> {
+    let mut costs = [0; 7];
+    costs[0] = arithmetic::resources(spec.arithmetic(38, arithmetic::Gate::Tr { shift: 6 }))?
+        .combined_reservation_bytes;
+    costs[1] = arithmetic::resources(spec.arithmetic(32, arithmetic::Gate::Drelu))?
+        .combined_reservation_bytes;
+    costs[2] = selection::resources(spec.select(32))?.combined_reservation_bytes;
+    costs[3] = arithmetic::resources(spec.arithmetic(32, arithmetic::Gate::Drelu))?
+        .combined_reservation_bytes;
+    costs[4] =
+        selection::resources(spec.select(spec.kind.index_bits()))?.combined_reservation_bytes;
+    costs[5] = source_lookup::resources(spec.lookup())?.combined_reservation_bytes;
+    costs[6] = selection::resources_for(spec.select(50), selection::Boundary::Deferred)?
+        .combined_reservation_bytes;
+    Ok(costs)
 }
 pub fn activation_resources(spec: ActivationSpec) -> Result<ActivationResources, Error> {
     spec.validate()?;
     let lanes = spec.input.shape().elements();
-    let costs = native_costs(spec)?;
+    let costs = native_costs(&spec)?;
     let native = costs
         .iter()
         .try_fold(0usize, |n, &v| n.checked_add(v))
@@ -353,7 +864,7 @@ pub fn activation_resources(spec: ActivationSpec) -> Result<ActivationResources,
     let v = selection::resources(spec.select(spec.kind.index_bits()))?;
     let l = source_lookup::resources(spec.lookup())?;
     let f = selection::resources_for(spec.select(50), selection::Boundary::Deferred)?;
-    Ok(ActivationResources {
+    let resources = ActivationResources {
         lanes,
         exchanges: 8,
         total_peer_frame_bytes: 1224 + 144 * lanes,
@@ -380,7 +891,8 @@ pub fn activation_resources(spec: ActivationSpec) -> Result<ActivationResources,
             + v.random_bytes
             + l.random_bytes
             + f.random_bytes,
-    })
+    };
+    Ok(resources)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -599,7 +1111,7 @@ impl<'b> LocalDealer<'b> {
         Ok(range)
     }
 
-    fn activation_reserved_with(
+    pub(super) fn activation_reserved_with(
         &mut self,
         spec: ActivationSpec,
         input: DealerMask<'b, Ring>,
@@ -614,7 +1126,7 @@ impl<'b> LocalDealer<'b> {
         }
         let range = self.activation_input_range(spec, &input)?;
         let descriptors = spec.wires()?;
-        let native = native_costs(spec)?;
+        let native = native_costs(&spec)?;
         let n = cost.lanes;
         // All descriptor/table/range/geometry checks precede capacity, allocation
         // and entropy. Every native receives a split of this original aggregate.

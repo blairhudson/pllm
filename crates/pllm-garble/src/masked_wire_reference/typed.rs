@@ -41,12 +41,24 @@ use zeroize::Zeroizing;
 
 mod activation;
 mod internal_use;
+mod linear_activation;
 mod material;
 mod region;
 mod selection_bridge;
 pub use activation::{
-    activation_resources, ActivationFrame, ActivationIssued, ActivationKind, ActivationParty,
-    ActivationResources, ActivationSpec, ActivationStep,
+    activation_resources, ActivationFrame, ActivationIssued, ActivationKind,
+    ActivationMetadataResources, ActivationMetadataWorkspace, ActivationParty,
+    ActivationResourceCalculationResources, ActivationResources, ActivationSpec, ActivationStep,
+};
+pub use linear_activation::{
+    linear_activation_resources as local_linear_activation_resources,
+    LinearActivationFrame as LocalLinearActivationFrame,
+    LinearActivationMetadataResources as LocalLinearActivationMetadataResources,
+    LinearActivationResourceCalculationResources as LocalLinearActivationResourceCalculationResources,
+    LinearActivationResources as LocalLinearActivationResources,
+    LinearActivationRun as LocalLinearActivationRun,
+    LinearActivationSpec as LocalLinearActivationSpec,
+    LinearActivationStep as LocalLinearActivationStep,
 };
 pub use material::{
     matrix_material_resources, MatrixHandoff, MatrixImportPermit, MatrixMaterialDescriptor,
@@ -339,11 +351,6 @@ fn zeros(lanes: usize, budget: &Budget) -> Result<Zeroizing<Vec<u64>>, Error> {
     v.resize(lanes, 0);
     Ok(v)
 }
-fn fill_masks(values: &mut [u64], bits: u8) -> Result<(), Error> {
-    fill_masks_with(values, bits, |bytes| {
-        getrandom::fill(bytes).map_err(|_| Error::Randomness)
-    })
-}
 fn fill_masks_with(
     values: &mut [u64],
     bits: u8,
@@ -607,6 +614,23 @@ fn matrix_interval(x: Interval, w: Interval, inner: usize, bits: u8) -> Result<I
     Ok(result)
 }
 
+/// Exact incremental admission; input backing and dealer remain separate owners.
+pub(crate) fn matrix_reservation_bytes(spec: matrix::Spec) -> Result<usize, Error> {
+    let native = matrix::party::resources(spec)?;
+    Ok(native.reservation_bytes
+        + 2 * (size_of::<MatrixParty<'static>>() + common_charge())
+        + 8 * native.output_elements
+        + ALLOCATOR
+        + mask_charge())
+}
+
+/// Exact incremental admission for typed arithmetic, excluding original input.
+pub(crate) fn arithmetic_reservation_bytes<K>(spec: arithmetic::Spec) -> Result<usize, Error> {
+    Ok(arithmetic::resources(spec)?.combined_reservation_bytes
+        + 2 * (size_of::<ArithmeticParty<'static, K>>() + common_charge())
+        + mask_charge())
+}
+
 impl<'b> LocalDealer<'b> {
     /// Private-weight matrix only. `output` Q must equal fx+fw exactly. Native
     /// singleton/256-element/2^20 complete-MAC admission is preserved unchanged.
@@ -621,6 +645,119 @@ impl<'b> LocalDealer<'b> {
         output: EdgeDescriptor,
         next_consumer: [u8; 32],
         range: MatrixRange,
+    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+        self.matrix_with(
+            operation,
+            spec,
+            x,
+            w,
+            output,
+            next_consumer,
+            range,
+            None,
+            &mut |bytes| getrandom::fill(bytes).map_err(|_| Error::Randomness),
+        )
+    }
+
+    /// Move exact `matrix_reservation_bytes(spec)` on this dealer's budget.
+    /// Never refunds/reacquires native capacity. Inputs are consumed on failure.
+    #[cfg(test)]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn matrix_reserved_with(
+        &mut self,
+        operation: [u8; 32],
+        spec: matrix::Spec,
+        x: DealerMask<'b, Ring>,
+        w: DealerMask<'b, Ring>,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        range: MatrixRange,
+        reservation: Lease<'b>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+        self.matrix_with(
+            operation,
+            spec,
+            x,
+            w,
+            output,
+            next_consumer,
+            range,
+            Some(reservation),
+            fill,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn matrix_with(
+        &mut self,
+        operation: [u8; 32],
+        spec: matrix::Spec,
+        x: DealerMask<'b, Ring>,
+        w: DealerMask<'b, Ring>,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        range: MatrixRange,
+        reservation: Option<Lease<'b>>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+        self.matrix_with_ticket(
+            operation,
+            spec,
+            x,
+            w,
+            output,
+            next_consumer,
+            range,
+            reservation,
+            None,
+            fill,
+        )
+    }
+
+    /// Fixed regions acquire native singleton and issuance authority before
+    /// drawing either root. Move that same authority into native material.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn matrix_ticket_reserved_with(
+        &mut self,
+        operation: [u8; 32],
+        spec: matrix::Spec,
+        x: DealerMask<'b, Ring>,
+        w: DealerMask<'b, Ring>,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        range: MatrixRange,
+        reservation: Lease<'b>,
+        ticket: matrix::party::IssuanceTicket,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
+        self.matrix_with_ticket(
+            operation,
+            spec,
+            x,
+            w,
+            output,
+            next_consumer,
+            range,
+            Some(reservation),
+            Some(ticket),
+            fill,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn matrix_with_ticket(
+        &mut self,
+        operation: [u8; 32],
+        spec: matrix::Spec,
+        x: DealerMask<'b, Ring>,
+        w: DealerMask<'b, Ring>,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        range: MatrixRange,
+        reservation: Option<Lease<'b>>,
+        ticket: Option<matrix::party::IssuanceTicket>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
     ) -> Result<(DealerMask<'b, Ring>, [MatrixParty<'b>; 2]), Error> {
         self.input(x.binding, operation)?;
         self.input(w.binding, operation)?;
@@ -666,17 +803,18 @@ impl<'b> LocalDealer<'b> {
         };
         let party_bytes = size_of::<MatrixParty<'static>>() + common_charge();
         let mask_bytes = 8 * native_cost.output_elements + ALLOCATOR + mask_charge();
-        // Keep native peak reserved while allocating new owners. Release that
-        // slot only immediately before native issuance reserves its own leases.
-        let mut reservation = self
-            .budget
-            .reserve(native_cost.reservation_bytes + 2 * party_bytes + mask_bytes)?;
+        let bytes = matrix_reservation_bytes(spec)?;
+        let mut reservation = match reservation {
+            Some(lease) if lease.bytes == bytes && std::ptr::eq(lease.budget, self.budget) => lease,
+            Some(_) => return Err(Error::Resource),
+            None => self.budget.reserve(bytes)?,
+        };
         let left_lease = reservation.split(party_bytes)?;
         let right_lease = reservation.split(party_bytes)?;
         let mask_lease = reservation.split(mask_bytes)?;
         let binding = self.binding(output, next_consumer, interval)?;
         let mut masks = zeros(native_cost.output_elements, self.budget)?;
-        fill_masks(&mut masks, spec.bits)?;
+        fill_masks_with(&mut masks, spec.bits, &mut *fill)?;
         let op = digest(&[
             b"pllm.sigma.typed.matrix.v1\0",
             &operation,
@@ -692,15 +830,26 @@ impl<'b> LocalDealer<'b> {
             weight_wire: wd.digest(),
             output_wire: output.digest(),
         };
-        drop(reservation);
-        let [left, right] = matrix::party::issue_local(
-            spec,
-            context,
-            x.backing.values(),
-            w.backing.values(),
-            &masks,
-            self.budget,
-        )?;
+        let inputs = [x.backing.values(), w.backing.values(), &masks];
+        let [left, right] = match ticket {
+            Some(ticket) => matrix::party::issue_reserved_ticket_with(
+                spec,
+                context,
+                inputs,
+                reservation,
+                ticket,
+                fill,
+                &mut || false,
+            ),
+            None => matrix::party::issue_reserved_with(
+                spec,
+                context,
+                inputs,
+                reservation,
+                fill,
+                &mut || false,
+            ),
+        }?;
         let inputs = [x.binding, w.binding];
         Ok((
             DealerMask {
@@ -738,7 +887,7 @@ impl<'b> LocalDealer<'b> {
 impl<'b> MatrixParty<'b> {
     pub fn cancel(&mut self) {
         self.native = None;
-        self.lease = None;
+        retain_wrapper_metadata(&mut self.lease, size_of::<Self>());
         self.material_lease = None;
     }
     /// Consumes both evaluator capabilities, even on wrong role/mask/context.
@@ -770,8 +919,9 @@ impl<'b> MatrixParty<'b> {
     pub fn finish(&mut self, peer: &[u8]) -> Result<CommonMasked<'b, Ring>, Error> {
         let result = (|| {
             let output = self.native.as_mut().ok_or(Error::Consumed)?.finish(peer)?;
-            let lease = self.lease.take().ok_or(Error::Consumed)?;
-            self.native = None;
+            let lease = self.lease.as_mut().ok_or(Error::Consumed)?;
+            let lease = lease.split(lease.bytes - size_of::<Self>())?;
+            // Native completed owner retains its own inline metadata charge.
             self.material_lease = None;
             Ok(CommonMasked {
                 backing: CommonBacking::Matrix(output),
@@ -872,6 +1022,138 @@ impl<'b> LocalDealer<'b> {
         next_consumer: [u8; 32],
         predicate: bool,
     ) -> Result<(DealerMask<'b, K>, [ArithmeticParty<'b, K>; 2]), Error> {
+        self.arithmetic_with(
+            operation,
+            input,
+            gate,
+            output,
+            next_consumer,
+            predicate,
+            None,
+            &mut |bytes| getrandom::fill(bytes).map_err(|_| Error::Randomness),
+        )
+    }
+
+    /// Move exact `arithmetic_reservation_bytes::<Ring>(spec)` on dealer budget.
+    /// Original input backing is consumed, never copied or re-encoded.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn gap_ars_reserved_with(
+        &mut self,
+        operation: [u8; 32],
+        input: DealerMask<'b, Ring>,
+        shift: u8,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        reservation: Lease<'b>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(DealerMask<'b, Ring>, [ArithmeticParty<'b, Ring>; 2]), Error> {
+        self.arithmetic_reserved_with(
+            operation,
+            input,
+            arithmetic::Gate::GapArs { shift },
+            output,
+            next_consumer,
+            false,
+            reservation,
+            fill,
+        )
+    }
+
+    /// Exact original admission for typed TR; same quote contract as GapARS.
+    // Shared reserved adapter retained for fixed-region refactors. D22 uses
+    // GapARS and unchanged D20 issues its TR directly from its own aggregate.
+    #[allow(dead_code)]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn tr_reserved_with(
+        &mut self,
+        operation: [u8; 32],
+        input: DealerMask<'b, Ring>,
+        shift: u8,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        reservation: Lease<'b>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(DealerMask<'b, Ring>, [ArithmeticParty<'b, Ring>; 2]), Error> {
+        self.arithmetic_reserved_with(
+            operation,
+            input,
+            arithmetic::Gate::Tr { shift },
+            output,
+            next_consumer,
+            false,
+            reservation,
+            fill,
+        )
+    }
+
+    /// Exact `arithmetic_reservation_bytes::<Predicate>(spec)` original admission.
+    // Shared reserved adapter retained for fixed-region refactors. Unchanged D20
+    // issues DReLU directly from its aggregate rather than this typed adapter.
+    #[allow(dead_code)]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn drelu_reserved_with(
+        &mut self,
+        operation: [u8; 32],
+        input: DealerMask<'b, Ring>,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        reservation: Lease<'b>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<
+        (
+            DealerMask<'b, Predicate>,
+            [ArithmeticParty<'b, Predicate>; 2],
+        ),
+        Error,
+    > {
+        self.arithmetic_reserved_with(
+            operation,
+            input,
+            arithmetic::Gate::Drelu,
+            output,
+            next_consumer,
+            true,
+            reservation,
+            fill,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn arithmetic_reserved_with<K>(
+        &mut self,
+        operation: [u8; 32],
+        input: DealerMask<'b, Ring>,
+        gate: arithmetic::Gate,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        predicate: bool,
+        reservation: Lease<'b>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(DealerMask<'b, K>, [ArithmeticParty<'b, K>; 2]), Error> {
+        self.arithmetic_with(
+            operation,
+            input,
+            gate,
+            output,
+            next_consumer,
+            predicate,
+            Some(reservation),
+            fill,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn arithmetic_with<K>(
+        &mut self,
+        operation: [u8; 32],
+        input: DealerMask<'b, Ring>,
+        gate: arithmetic::Gate,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        predicate: bool,
+        reservation: Option<Lease<'b>>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(DealerMask<'b, K>, [ArithmeticParty<'b, K>; 2]), Error> {
         self.input(input.binding, operation)?;
         self.validate(output, predicate)?;
         let descriptor = input.binding.descriptor;
@@ -887,7 +1169,7 @@ impl<'b> LocalDealer<'b> {
             lanes: descriptor.shape().elements(),
             gate,
         };
-        let native_cost = arithmetic::resources(spec)?;
+        arithmetic::resources(spec)?;
         let (expected, interval) = match gate {
             arithmetic::Gate::Tr { shift } => {
                 let f = numeric
@@ -926,9 +1208,12 @@ impl<'b> LocalDealer<'b> {
             return Err(Error::Domain);
         }
         let party_bytes = size_of::<ArithmeticParty<'static, K>>() + common_charge();
-        let mut reservation = self
-            .budget
-            .reserve(native_cost.combined_reservation_bytes + 2 * party_bytes + mask_charge())?;
+        let bytes = arithmetic_reservation_bytes::<K>(spec)?;
+        let mut reservation = match reservation {
+            Some(lease) if lease.bytes == bytes && std::ptr::eq(lease.budget, self.budget) => lease,
+            Some(_) => return Err(Error::Resource),
+            None => self.budget.reserve(bytes)?,
+        };
         let left_lease = reservation.split(party_bytes)?;
         let right_lease = reservation.split(party_bytes)?;
         let mask_lease = reservation.split(mask_charge())?;
@@ -947,9 +1232,13 @@ impl<'b> LocalDealer<'b> {
             output_wire: output.digest(),
             first_tensor_index: descriptor.identity().first_tensor_index(),
         };
-        drop(reservation);
-        let (masks, [left, right]) =
-            arithmetic::issue(spec, context, input.backing.values(), self.budget)?;
+        let (masks, [left, right]) = arithmetic::issue_reserved_with(
+            spec,
+            context,
+            input.backing.values(),
+            reservation,
+            fill,
+        )?;
         Ok((
             DealerMask {
                 backing: MaskBacking::Arithmetic(masks),
@@ -982,7 +1271,7 @@ impl<'b> LocalDealer<'b> {
 impl<'b, K> ArithmeticParty<'b, K> {
     pub fn cancel(&mut self) {
         self.native = None;
-        self.lease = None;
+        retain_wrapper_metadata(&mut self.lease, size_of::<Self>());
     }
     pub fn begin(&mut self, input: CommonMasked<'b, Ring>) -> Result<arithmetic::Frame<'b>, Error> {
         let result = (|| {
@@ -1003,8 +1292,9 @@ impl<'b, K> ArithmeticParty<'b, K> {
         let result = (|| match self.native.as_mut().ok_or(Error::Consumed)?.advance(peer)? {
             arithmetic::Step::Frame(frame) => Ok(Step::Frame(frame)),
             arithmetic::Step::Output(output) => {
-                let lease = self.lease.take().ok_or(Error::Consumed)?;
-                self.native = None;
+                let lease = self.lease.as_mut().ok_or(Error::Consumed)?;
+                let lease = lease.split(lease.bytes - size_of::<Self>())?;
+                // Keep completed native owner charged until wrapper Drop.
                 Ok(Step::Output(CommonMasked {
                     backing: CommonBacking::Arithmetic(output),
                     binding: self.output,
@@ -1023,3 +1313,242 @@ impl<'b, K> ArithmeticParty<'b, K> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod reserved_adapter_tests {
+    use super::*;
+    use pllm_core::edge_contract::{EdgeIdentity, Shape};
+
+    fn source() -> SourceIdentity {
+        SourceIdentity::new([11; 32], [12; 32], approved_implementation())
+    }
+    fn edge(id: u8, f: u8, private: bool) -> EdgeDescriptor {
+        EdgeDescriptor::new(
+            EdgeIdentity::new(source(), [1; 32], [id + 64; 32], [id; 32], 0),
+            Shape::new(&[1, 1]).unwrap(),
+            Numeric::new(50, f, Interpretation::Signed).unwrap(),
+            Representation::CommonAdditiveMasked,
+            private.then_some(WeightVisibility::Private),
+        )
+        .unwrap()
+    }
+    fn root<'b>(
+        d: &mut LocalDealer<'b>,
+        id: u8,
+        private: bool,
+        f: u8,
+        value: i64,
+    ) -> (DealerMask<'b, Ring>, [CommonMasked<'b, Ring>; 2]) {
+        d.prepare_root(
+            edge(id, f, private),
+            BoundRange::new(-8192, 8192).unwrap(),
+            [9; 32],
+        )
+        .unwrap()
+        .encode(&[value])
+        .unwrap()
+    }
+    fn spec() -> matrix::Spec {
+        matrix::Spec {
+            bits: 50,
+            rows: 1,
+            inner: 1,
+            columns: 1,
+            layout: matrix::MatrixLayout::InputOutput,
+        }
+    }
+
+    #[test]
+    fn typed_reserved_matrix_exact_short_foreign_and_fault_admission() {
+        let _guard = matrix::TEST_SERIAL.lock().unwrap();
+        let cost = matrix_reservation_bytes(spec()).unwrap();
+        for delta in [-1isize, 0, 1, 2, 3] {
+            let budget = Budget::new(64 << 20).unwrap();
+            let foreign = Budget::new(cost).unwrap();
+            let mut d = LocalDealer::new(source(), [1; 32], [2; 32], &budget).unwrap();
+            let baseline = budget.used_bytes();
+            let (x, xc) = root(&mut d, 3, false, 12, -4096);
+            let (w, wc) = root(&mut d, 4, true, 12, 4096);
+            let owner_budget = if delta == 2 { &foreign } else { &budget };
+            let bytes = if delta == -1 {
+                cost - 1
+            } else if delta == 1 {
+                cost + 1
+            } else {
+                cost
+            };
+            let lease = owner_budget.reserve(bytes).unwrap();
+            // Occupy every spare byte: issuance must use original exact slice.
+            let blocker = if delta == 0 {
+                Some(budget.reserve((64 << 20) - budget.used_bytes()).unwrap())
+            } else {
+                None
+            };
+            let admitted = budget.used_bytes();
+            let mut draws = 0;
+            let result = d.matrix_reserved_with(
+                [9; 32],
+                spec(),
+                x,
+                w,
+                edge(5, 24, false),
+                [10; 32],
+                MatrixRange::RequireSignedNoWrap,
+                lease,
+                &mut |bytes| {
+                    assert_eq!(budget.used_bytes(), admitted);
+                    draws += 1;
+                    if delta == 3 {
+                        return Err(Error::Randomness);
+                    }
+                    bytes.fill(7);
+                    Ok(())
+                },
+            );
+            if delta == 0 {
+                let (mask, [mut a, mut b]) = result.unwrap();
+                assert_eq!(draws, 5); // Output mask, nonce, A/B/C split draws.
+                let [x0, x1] = xc;
+                let [w0, w1] = wc;
+                let af = a.begin(x0, w0, &mut || false).unwrap();
+                let bf = b.begin(x1, w1, &mut || false).unwrap();
+                let ao = a.finish(bf.as_bytes()).unwrap();
+                let bo = b.finish(af.as_bytes()).unwrap();
+                let expected = (-(4096i64 * 4096)) as u64 & super::super::mask(50);
+                assert_eq!(
+                    ao.backing.values()[0].wrapping_sub(mask.backing.values()[0])
+                        & super::super::mask(50),
+                    expected
+                );
+                assert_eq!(ao.backing.values(), bo.backing.values());
+                drop((mask, ao, bo, bf));
+                drop((a, b));
+                // Actual frame alone retains native singleton and charge.
+                assert!(matrix::party::issue_local(
+                    spec(),
+                    matrix::Context {
+                        plan: [1; 32],
+                        session: [2; 32],
+                        operation: [3; 32],
+                        input_wire: [4; 32],
+                        weight_wire: [5; 32],
+                        output_wire: [6; 32],
+                    },
+                    &[0],
+                    &[0],
+                    &[0],
+                    &budget
+                )
+                .is_err());
+                assert!(budget.used_bytes() > baseline);
+                drop(af);
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(Error::Resource) | Err(Error::Randomness)
+                ));
+                assert_eq!(draws, usize::from(delta == 3));
+                drop((xc, wc));
+            }
+            assert_eq!(foreign.used_bytes(), 0);
+            drop(blocker);
+            assert_eq!(budget.used_bytes(), baseline);
+        }
+    }
+
+    #[test]
+    fn typed_reserved_arithmetic_exact_nonexact_and_retained_metadata() {
+        let spec = arithmetic::Spec {
+            bits: 50,
+            lanes: 1,
+            gate: arithmetic::Gate::GapArs { shift: 12 },
+        };
+        let cost = arithmetic_reservation_bytes::<Ring>(spec).unwrap();
+        for delta in [-1isize, 0, 1, 2, 3] {
+            let budget = Budget::new(64 << 20).unwrap();
+            let foreign = Budget::new(cost).unwrap();
+            let mut d = LocalDealer::new(source(), [1; 32], [2; 32], &budget).unwrap();
+            let baseline = budget.used_bytes();
+            let (mask, caps) = root(&mut d, 3, false, 24, -4097);
+            let owner_budget = if delta == 2 { &foreign } else { &budget };
+            let bytes = if delta == -1 {
+                cost - 1
+            } else if delta == 1 {
+                cost + 1
+            } else {
+                cost
+            };
+            let lease = owner_budget.reserve(bytes).unwrap();
+            let blocker = if delta == 0 {
+                Some(budget.reserve((64 << 20) - budget.used_bytes()).unwrap())
+            } else {
+                None
+            };
+            let admitted = budget.used_bytes();
+            let mut draws = 0;
+            let result = d.gap_ars_reserved_with(
+                [9; 32],
+                mask,
+                12,
+                edge(5, 12, false),
+                [10; 32],
+                lease,
+                &mut |bytes| {
+                    assert_eq!(budget.used_bytes(), admitted);
+                    draws += 1;
+                    if delta == 3 {
+                        return Err(Error::Randomness);
+                    }
+                    bytes.fill(7);
+                    Ok(())
+                },
+            );
+            if delta == 0 {
+                let (mask, [mut a, mut b]) = result.unwrap();
+                let [x, y] = caps;
+                let af = a.begin(x).unwrap();
+                let bf = b.begin(y).unwrap();
+                let Step::Frame(af2) = a.advance(bf.as_bytes()).unwrap() else {
+                    panic!()
+                };
+                let Step::Frame(bf2) = b.advance(af.as_bytes()).unwrap() else {
+                    panic!()
+                };
+                let Step::Output(ao) = a.advance(bf2.as_bytes()).unwrap() else {
+                    panic!()
+                };
+                let Step::Output(bo) = b.advance(af2.as_bytes()).unwrap() else {
+                    panic!()
+                };
+                assert_eq!(
+                    ao.backing.values()[0].wrapping_sub(mask.backing.values()[0])
+                        & super::super::mask(50),
+                    super::super::mask(50) - 1
+                );
+                assert_eq!(ao.backing.values(), bo.backing.values());
+                drop((mask, ao, bo, af, bf, af2, bf2));
+                assert!(
+                    budget.used_bytes() - blocker.as_ref().map_or(0, |lease| lease.bytes)
+                        >= baseline + 2 * size_of::<ArithmeticParty<'static, Ring>>()
+                );
+                a.cancel();
+                b.cancel();
+                assert_eq!(
+                    budget.used_bytes() - blocker.as_ref().map_or(0, |lease| lease.bytes),
+                    baseline + 2 * size_of::<ArithmeticParty<'static, Ring>>()
+                );
+                drop((a, b));
+            } else {
+                assert!(matches!(
+                    result,
+                    Err(Error::Resource) | Err(Error::Randomness)
+                ));
+                assert_eq!(draws, usize::from(delta == 3));
+                drop(caps);
+            }
+            assert_eq!(foreign.used_bytes(), 0);
+            drop(blocker);
+            assert_eq!(budget.used_bytes(), baseline);
+        }
+    }
+}

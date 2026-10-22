@@ -165,11 +165,74 @@ pub(super) fn issue_with<'b>(
     core::validate(rw, cost.weight_elements, spec.bits)?;
     core::validate(ry, cost.output_elements, spec.bits)?;
     // Entire peak admitted before entropy, control ownership or allocation.
-    let mut lease = budget.reserve(cost.reservation_bytes)?;
-    let live = Live::acquire()?;
-    let issuance = ISSUANCE
-        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_add(1))
-        .map_err(|_| Error::Resource)?;
+    let lease = budget.reserve(cost.reservation_bytes)?;
+    issue_reserved_with(spec, context, [rx, rw, ry], lease, fill, cancelled)
+}
+
+/// Consume exactly `resources(spec)?.reservation_bytes` from original admission.
+/// Geometry, canonical masks and exact capacity are checked before entropy.
+pub(crate) fn issue_reserved_with<'b>(
+    spec: Spec,
+    context: Context,
+    [rx, rw, ry]: [&[u64]; 3],
+    lease: Lease<'b>,
+    fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    cancelled: &mut impl FnMut() -> bool,
+) -> Result<[Party<'b>; 2], Error> {
+    let cost = resources(spec)?;
+    context.validate()?;
+    core::validate(rx, cost.input_elements, spec.bits)?;
+    core::validate(rw, cost.weight_elements, spec.bits)?;
+    core::validate(ry, cost.output_elements, spec.bits)?;
+    if lease.bytes != cost.reservation_bytes {
+        return Err(Error::Resource);
+    }
+    // Legacy entry points still validate/admit before acquiring control, then
+    // check cancellation before nonce entropy. Their codec/order is unchanged.
+    let ticket = IssuanceTicket::acquire()?;
+    issue_reserved_ticket_with(spec, context, [rx, rw, ry], lease, ticket, fill, cancelled)
+}
+
+/// Actual singleton ownership and a burned native issuance number. An enclosing
+/// operation acquires this before root entropy, then moves it into issuance.
+/// Private fields prevent reconstruction from metadata. Drop releases the real
+/// guard on every partial failure; no peek/reacquire race or thread-local state.
+pub(crate) struct IssuanceTicket {
+    live: Live,
+    issuance: u64,
+}
+impl IssuanceTicket {
+    pub(crate) fn acquire() -> Result<Self, Error> {
+        let live = Live::acquire()?;
+        let issuance = ISSUANCE
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_add(1))
+            .map_err(|_| Error::Resource)?;
+        Ok(Self { live, issuance })
+    }
+}
+
+/// Same native issuance, with control admitted before enclosing root entropy.
+/// All checks remain here as well: a ticket authorizes no geometry or masks.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn issue_reserved_ticket_with<'b>(
+    spec: Spec,
+    context: Context,
+    [rx, rw, ry]: [&[u64]; 3],
+    mut lease: Lease<'b>,
+    ticket: IssuanceTicket,
+    fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    cancelled: &mut impl FnMut() -> bool,
+) -> Result<[Party<'b>; 2], Error> {
+    let cost = resources(spec)?;
+    context.validate()?;
+    core::validate(rx, cost.input_elements, spec.bits)?;
+    core::validate(rw, cost.weight_elements, spec.bits)?;
+    core::validate(ry, cost.output_elements, spec.bits)?;
+    if lease.bytes != cost.reservation_bytes {
+        return Err(Error::Resource);
+    }
+    let budget = lease.budget;
+    let IssuanceTicket { live, issuance } = ticket;
     if cancelled() {
         return Err(Error::Consumed);
     }
@@ -203,6 +266,19 @@ pub(super) fn issue_with<'b>(
             live: Some(other_live),
         },
     ])
+}
+
+#[cfg(test)]
+pub(crate) fn with_exhausted_issuance<T>(f: impl FnOnce() -> T) -> T {
+    struct Restore(u64);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            ISSUANCE.store(self.0, Ordering::SeqCst);
+        }
+    }
+    // Caller must hold matrix::TEST_SERIAL, as for every native matrix test.
+    let _restore = Restore(ISSUANCE.swap(u64::MAX, Ordering::SeqCst));
+    f()
 }
 
 fn operands(xhat: &[u64], what: &[u64]) -> [u8; 32] {
@@ -309,7 +385,10 @@ impl<'b> Party<'b> {
             // transfers only after every validation succeeds.
             Ok(MaskedOutput {
                 values: local,
-                _lease: self.lease.take().ok_or(Error::Consumed)?,
+                _lease: {
+                    let lease = self.lease.as_mut().ok_or(Error::Consumed)?;
+                    lease.split(lease.bytes - size_of::<Self>())?
+                },
                 _live: self.live.take().ok_or(Error::Consumed)?,
             })
         })();
@@ -322,7 +401,11 @@ impl<'b> Party<'b> {
     pub fn cancel(&mut self) {
         // Do not combine these assignments: drop secrets before refund.
         self.state = None;
-        self.lease = None;
+        if let Some(lease) = self.lease.as_mut() {
+            // Retained inline owner still exists after cancellation/completion.
+            let refund = lease.bytes.saturating_sub(size_of::<Self>());
+            drop(lease.split(refund));
+        }
         self.live = None;
     }
 }

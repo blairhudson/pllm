@@ -279,7 +279,7 @@ pub(super) fn issue_with<'a>(
 }
 
 /// Consume an exact slice of aggregate admission; never refund and reacquire.
-pub(super) fn issue_reserved_with<'a>(
+pub(crate) fn issue_reserved_with<'a>(
     spec: Spec,
     context: Context,
     input_masks: &[u64],
