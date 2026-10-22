@@ -39,6 +39,10 @@ mod row_memo;
 mod secret_replication;
 mod shared_rescale;
 mod shared_selection;
+// Rust-only local core; deliberately no Python registration until input admission exists.
+mod sigma_linear_activation;
+#[cfg(test)]
+mod sigma_linear_activation_admission;
 mod stage_kernel_plan;
 mod token_pruning;
 mod wavelet_gated;
