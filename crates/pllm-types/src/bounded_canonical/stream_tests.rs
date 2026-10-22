@@ -631,11 +631,11 @@ fn actual_transient_storage_contains_live_failed_selection_state() {
     assert!(matches!(s.json(&value), Err(StreamError::WorkLimit)));
     assert_eq!(s.transient.fragment_base, 0);
     assert!(std::ptr::eq(s.transient.outer.fragment.unwrap(), &value));
-    let (key, selected) = s.transient.selected.unwrap();
+    let (key, selected) = s.transient.selection.selected().unwrap();
     assert_eq!(key, "aa");
     assert!(std::ptr::eq(selected, &value["aa"]));
     assert_eq!(
-        s.transient.object_iter.as_ref().unwrap().size_hint(),
+        s.transient.selection.iterator().unwrap().size_hint(),
         (0, Some(0))
     );
     assert!(matches!(s.finish(), Err(StreamError::Poisoned)));
@@ -661,8 +661,8 @@ fn outer_and_shared_inner_snapshots_are_used_across_nested_emission() {
     ));
     assert_eq!(s.transient.inner.previous, Some("a"));
     assert!(s.transient.inner.waiting);
-    assert!(s.transient.selected.is_none());
-    assert!(s.transient.object_iter.is_none());
+    assert!(s.transient.selection.selected().is_none());
+    assert!(s.transient.selection.iterator().is_none());
     s.key("tail").unwrap();
     assert_eq!(s.transient.inner.previous, Some("attrs"));
     assert!(!s.transient.inner.waiting);

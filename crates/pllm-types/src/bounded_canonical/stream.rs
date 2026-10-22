@@ -12,6 +12,7 @@
 //! byte emitted, and one per output byte. This is an explicit algorithmic work
 //! budget, not a wall-clock or arbitrary external writer/allocator CPU bound.
 
+use super::selection::{KeyMeter, Selection};
 use super::{Error, Output};
 use serde_json::ser::{CompactFormatter, Formatter};
 use serde_json::{Number, Value};
@@ -119,9 +120,8 @@ impl StreamFrame<'_> {
 struct Transient<'a> {
     outer: StreamFrame<'a>,
     inner: StreamFrame<'a>,
-    selected: Option<(&'a str, &'a Value)>,
+    selection: Selection<'a>,
     fragment_base: usize,
-    object_iter: Option<serde_json::map::Iter<'a>>,
 }
 
 impl Transient<'_> {
@@ -129,9 +129,8 @@ impl Transient<'_> {
         Self {
             outer: StreamFrame::empty(),
             inner: StreamFrame::empty(),
-            selected: None,
+            selection: Selection::empty(),
             fragment_base: 0,
-            object_iter: None,
         }
     }
 }
@@ -205,6 +204,55 @@ struct Meter<'w, W> {
     limits: StreamLimits,
     usage: StreamUsage,
     failure: Option<MeterFailure>,
+}
+
+impl<W> Meter<'_, W> {
+    fn work(&mut self, amount: usize) -> Result<(), StreamError> {
+        self.usage.work = self
+            .usage
+            .work
+            .checked_add(amount)
+            .filter(|n| *n <= self.limits.max_work)
+            .ok_or(StreamError::WorkLimit)?;
+        Ok(())
+    }
+
+    fn check_text(&self, text: &str, key: bool) -> Result<(), StreamError> {
+        if key && text.len() > self.limits.max_key_bytes {
+            return Err(StreamError::KeyLimit);
+        }
+        if text.len() > self.limits.max_string_bytes {
+            return Err(StreamError::StringLimit);
+        }
+        Ok(())
+    }
+
+    fn compare(&mut self, left: &str, right: &str) -> Result<Ordering, StreamError> {
+        self.check_text(left, true)?;
+        self.check_text(right, true)?;
+        for (a, b) in left.bytes().zip(right.bytes()) {
+            self.work(1)?;
+            match a.cmp(&b) {
+                Ordering::Equal => {}
+                order => return Ok(order),
+            }
+        }
+        self.work(1)?;
+        Ok(left.len().cmp(&right.len()))
+    }
+}
+
+impl<W> KeyMeter for Meter<'_, W> {
+    type Error = StreamError;
+    fn candidate(&mut self) -> Result<(), StreamError> {
+        self.work(1)
+    }
+    fn check_key(&self, key: &str) -> Result<(), StreamError> {
+        self.check_text(key, true)
+    }
+    fn compare_keys(&mut self, a: &str, b: &str) -> Result<Ordering, StreamError> {
+        self.compare(a, b)
+    }
 }
 
 impl<W: io::Write> io::Write for Meter<'_, W> {
@@ -346,14 +394,7 @@ impl<'a, 'w, W: io::Write> Session<'a, 'w, W> {
     }
 
     fn work(&mut self, amount: usize) -> Result<(), StreamError> {
-        self.meter.usage.work = self
-            .meter
-            .usage
-            .work
-            .checked_add(amount)
-            .filter(|n| *n <= self.meter.limits.max_work)
-            .ok_or(StreamError::WorkLimit)?;
-        Ok(())
+        self.meter.work(amount)
     }
 
     fn emit(
@@ -382,13 +423,7 @@ impl<'a, 'w, W: io::Write> Session<'a, 'w, W> {
     }
 
     fn check_text(&self, text: &str, key: bool) -> Result<(), StreamError> {
-        if key && text.len() > self.meter.limits.max_key_bytes {
-            return Err(StreamError::KeyLimit);
-        }
-        if text.len() > self.meter.limits.max_string_bytes {
-            return Err(StreamError::StringLimit);
-        }
-        Ok(())
+        self.meter.check_text(text, key)
     }
 
     fn text(&mut self, text: &str, key: bool) -> Result<(), StreamError> {
@@ -405,18 +440,7 @@ impl<'a, 'w, W: io::Write> Session<'a, 'w, W> {
     }
 
     fn compare(&mut self, left: &str, right: &str) -> Result<Ordering, StreamError> {
-        // Both lengths checked before any potentially long prefix comparison.
-        self.check_text(left, true)?;
-        self.check_text(right, true)?;
-        for (a, b) in left.bytes().zip(right.bytes()) {
-            self.work(1)?;
-            match a.cmp(&b) {
-                Ordering::Equal => {}
-                order => return Ok(order),
-            }
-        }
-        self.work(1)?;
-        Ok(left.len().cmp(&right.len()))
+        self.meter.compare(left, right)
     }
 
     fn value(&mut self) -> Result<(), StreamError> {
@@ -632,32 +656,12 @@ impl<'a, 'w, W: io::Write> Session<'a, 'w, W> {
                     }
                 }
                 Value::Object(values) => {
-                    self.transient.selected = None;
-                    self.transient.object_iter = Some(values.iter());
-                    // Even the final empty selection scan is charged. Long keys
-                    // are capped before either prefix or candidate comparison.
-                    while let Some((key, value)) = self
-                        .transient
-                        .object_iter
-                        .as_mut()
-                        .and_then(|entries| entries.next())
-                    {
-                        self.work(1)?;
-                        self.check_text(key, true)?;
-                        if let Some(previous) = self.transient.outer.previous {
-                            if self.compare(key, previous)? != Ordering::Greater {
-                                continue;
-                            }
-                        }
-                        if let Some((old, _)) = self.transient.selected {
-                            if self.compare(key, old)? != Ordering::Less {
-                                continue;
-                            }
-                        }
-                        self.transient.selected = Some((key, value));
-                    }
-                    self.transient.object_iter = None;
-                    if let Some((key, value)) = self.transient.selected {
+                    self.transient.selection.run(
+                        values,
+                        self.transient.outer.previous,
+                        &mut self.meter,
+                    )?;
+                    if let Some((key, value)) = self.transient.selection.selected() {
                         self.ordered_key(key)?;
                         self.fragment_value(value)?;
                     } else {
