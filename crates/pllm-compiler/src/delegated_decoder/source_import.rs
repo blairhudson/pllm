@@ -16,6 +16,17 @@ pub const GKM_SOURCE_CHUNK_BYTES: usize = gkm::STREAMED_SOURCE_CHUNK_BYTES;
 const MAX_LIVE_IMPORT_BYTES: usize = 16 << 20;
 static LIVE_IMPORT_BYTES: AtomicUsize = AtomicUsize::new(0);
 
+/// Isolate tests that reserve the process-wide source import allowance.
+/// Acquire at test entry before creating owners and hold until all owners drop.
+/// Helpers returning owners and child threads must not reacquire this lock.
+#[cfg(test)]
+pub(super) fn process_import_guard() -> std::sync::MutexGuard<'static, ()> {
+    static PROCESS_IMPORT: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    PROCESS_IMPORT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
+
 struct ImportPermit(usize);
 
 impl ImportPermit {
@@ -292,6 +303,7 @@ mod tests {
 
     #[test]
     fn streamed_import_reserves_final_owners_and_bounded_conversion_workspace() {
+        let _guard = process_import_guard();
         for expanded in [false, true] {
             for seeded in [false, true] {
                 let contract = contract_with(expanded, seeded);
@@ -323,6 +335,7 @@ mod tests {
 
     #[test]
     fn actual_source_buffers_share_one_process_allowance_until_abort_or_failure() {
+        let _guard = process_import_guard();
         let before = LIVE_IMPORT_BYTES.load(Ordering::Acquire);
         let mut owners = Vec::new();
         loop {

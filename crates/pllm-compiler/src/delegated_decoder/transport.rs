@@ -668,6 +668,7 @@ impl GkmTransportWorker {
 
 #[cfg(test)]
 mod tests {
+    use super::super::source_import::process_import_guard;
     use super::*;
     use pllm_types::canonical_bytes;
     use serde_json::json;
@@ -758,6 +759,7 @@ mod tests {
 
     #[test]
     fn source_stage_transport_matches_scalar_t1_t2_full_seeded_and_decode() {
+        let _guard = process_import_guard();
         for decoder in [false, true] {
             for seeded in [false, true] {
                 for rows in [1, 2] {
@@ -912,6 +914,7 @@ mod tests {
 
     #[test]
     fn source_stage_transport_rejects_partial_rows_incomplete_and_tampering() {
+        let _guard = process_import_guard();
         let mut client = mode_importer(false, false, true, 2, 2).client().unwrap();
         assert_eq!(client.lookup_batch_rows().unwrap(), 2);
         assert_eq!(client.lookup_batch_rows().unwrap(), 2); // Getter cannot advance.
@@ -963,6 +966,7 @@ mod tests {
 
     #[test]
     fn selected_worker_binds_expected_context_and_complete_schedule_at_native_entry() {
+        let _guard = process_import_guard();
         for decoder in [false, true] {
             for seeded in [false, true] {
                 for wrong_schedule in [false, true] {
@@ -1018,6 +1022,7 @@ mod tests {
 
     #[test]
     fn batch_linear_rejects_bad_shape_and_late_nonfinite_encoding_and_burns_owner() {
+        let _guard = process_import_guard();
         for malformed in [0, 1, 2] {
             let mut client = mode_importer(false, false, true, 2, 1).client().unwrap();
             let publication = client.publication_bytes().unwrap();
@@ -1060,6 +1065,7 @@ mod tests {
 
     #[test]
     fn streamed_sdk_does_not_expose_repeat_publication_snapshots() {
+        let _guard = process_import_guard();
         for decoder in [false, true] {
             for seeded in [false, true] {
                 let mut client = importer(seeded, decoder).client().unwrap();
@@ -1074,6 +1080,7 @@ mod tests {
 
     #[test]
     fn seeded_sdk_selector_streamed_transport_and_final_acceptance_both_capacities() {
+        let _guard = process_import_guard();
         for decoder in [false, true] {
             let mut outputs = Vec::new();
             let mut sources = Vec::new();
