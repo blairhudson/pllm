@@ -39,8 +39,6 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
     from pllm.runtime.benchmark_memory import (
         BenchmarkMemoryError,
         MemoryWatchdog,
-        benchmark_memory,
-        require_admission,
     )
     from pllm.runtime.fss_source import load_role_source, resolve_client_source
 
@@ -69,10 +67,10 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
     profile = "fusefss.dense-rope-checked-ranges-ring50-q12.v1"
     assert experiment.pipeline.components["linear"].params["numeric_profile"] == profile
 
-    # Preserve the ordinary whole-topology gate and its default allocation
-    # margin, even though only one source owner will actually be imported.
-    report = benchmark_memory(experiment, backend="native")
-    require_admission(report)
+    # Use the ordinary runtime's source-only qualification phase: the unchanged
+    # whole-topology memory estimate/margin, one source disk owner, no tapes.
+    # A later native-priced complete-topology gate is still required for roles.
+    report = _source_qualification_report(experiment)
     cancelled = threading.Event()
     monitor = MemoryWatchdog(report, lambda _reason: cancelled.set())
 
@@ -214,3 +212,21 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
         check_memory()
     finally:
         monitor.close()
+
+
+def _source_qualification_report(experiment):
+    """Use the production next-phase gate, never admit a serving graph here."""
+    from pllm.runtime.benchmark_memory import (
+        BenchmarkMemoryError,
+        execution_memory_admission,
+        require_admission,
+    )
+
+    report = execution_memory_admission(experiment, backend="native")
+    require_admission(report)
+    if (
+        report.get("admission_scope") != "source_qualification_only"
+        or report.get("full_topology_admitted") is not False
+    ):
+        raise BenchmarkMemoryError("expected source-only qualification admission")
+    return report
