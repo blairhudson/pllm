@@ -8,6 +8,8 @@
 //! Setup types are party-local and non-cloneable. No seed import, export,
 //! persistence, cursor reset or source `fork` API exists. Typed seed messages
 //! must travel over authenticated private channels; no wire codec is supplied.
+//! The nondefault `insecure-test-support` feature adds a separate fresh-graph
+//! fixture using publicly known keys, never production entropy or live owners.
 
 use super::*;
 use aes::cipher::{generic_array::GenericArray, BlockEncrypt, KeyInit};
@@ -15,6 +17,10 @@ use aes::Aes128;
 
 #[path = "multiply.rs"]
 pub mod multiply;
+
+#[cfg(feature = "insecure-test-support")]
+#[path = "insecure_test_support.rs"]
+pub mod insecure_test_support;
 
 pub const PRSS_PROFILE: &str = "puma.spu-a42c261.yacl-5418371.prss.le64.aes128-ctr-call-reset.v1";
 pub const MAX_AES_BLOCKS: u64 = (3 * MAX_LANES as u64 + 3) * MAX_OPERATIONS;
@@ -309,7 +315,7 @@ impl Drop for SetupParty {
 
 /// One role's PRSS state and truncation runtime, inseparable on success/failure.
 /// No API releases material to a detachable owner, resets cursors, or imports
-/// old seeds. New setup always draws new OS seeds, including after restart.
+/// old seeds. Production setup always draws new OS seeds, including after restart.
 pub struct SourceParty {
     runtime: PartyRuntime,
     setup_context: Context,

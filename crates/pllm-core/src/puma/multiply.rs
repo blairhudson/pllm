@@ -268,6 +268,19 @@ impl InputBounds {
 pub struct SetupParty(super::SetupParty);
 
 impl SetupParty {
+    #[cfg(feature = "insecure-test-support")]
+    pub(super) fn insecure_test_setup(
+        context: Context,
+        party: Party,
+        limits: PrssLimits,
+    ) -> Result<Self, Error> {
+        Ok(Self(super::insecure_test_support::fixed_setup(
+            bound_context(context),
+            party,
+            limits,
+        )?))
+    }
+
     pub fn new(context: Context, party: Party, limits: PrssLimits) -> Result<Self, Error> {
         Ok(Self(super::SetupParty::new(
             bound_context(context),

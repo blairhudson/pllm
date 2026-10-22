@@ -20,8 +20,9 @@ Multiply phase: independent foreign setup may choose a different truncation pivo
 so matching foreign open/correction routes is not guaranteed. All attacks require
 `Binding`, then permanent `Retired` for receive/advance/consuming finish.
 
-Validated in the ordinary compiler library suite: 374 passed, nine opt-in tests
-ignored. The repaired directed-transcript regression passes within that suite.
+Earlier coordinator validation (before the D23 additions below): ordinary compiler
+library suite reported 374 passed, nine opt-in tests ignored. This is not validation
+of the new D23 tests; this worker ran no Cargo, builds, or tests.
 Replay:
 
 ```sh
@@ -77,10 +78,42 @@ No production program.rs change is necessary for this bridge API. Caller compile
 `Compiled::new(program.clone(), WeightMode::Public, start, end)`, hands in an idle
 worker with matching exact Program Arc and step, routes Invocation frames under
 existing router limits, then resumes returned Worker normally. Initial import
-boundary is supported when `start == program.inputs`; arbitrary mid-graph entry
-needs an existing quiescent idle seam. Current ordinary `Worker::advance` does not
-stop at arbitrary requested nodes, so automatic mid-graph dispatch is **not**
-claimed. Do not enable by default or reset runtime to create such a seam.
+boundary is supported when `start == program.inputs`. D23 adds opt-in
+`Worker::advance_before(target)` and `Compiled::advance_to_start(&mut Worker)`:
+exclusive original-node boundary, `Frames` or `Reached`, no target execution.
+Route every frame and its generated responses across the three original runtimes
+before advancing again. Begin only after all roles report `Reached` and the router
+is empty; a local result cannot establish global quiescence. Ordinary `advance`
+remains unchanged. No automatic/default dispatch or runtime reset is authorized.
+
+## D23 boundary and lifecycle regressions
+
+The non-public `#[cfg(test)]` `Worker::test_boundary_state` accessor in
+`runtime.rs` adds read-only test observation, not production behavior.
+Tests reuse existing Builder fixtures, ordinary workers, consuming protocol owners,
+and public boundary methods; no private cursor mutation or cloned runtime.
+
+- Globally drained three-role prefix routing; idempotent idle boundary calls.
+- Local, ordinary-product, Tensor and 128+1 TensorLoop prefixes; target/body owners
+  absent at entry, tail complete before entry, ordinary suffix products afterward.
+- Adjacent and separated compiled intervals; independent exact integer outputs,
+  complete retained-owner presence/control-state comparison with ordinary execution.
+  All retained prefix lanes, exported gather lanes and first-body result lanes are
+  final outputs, not merely a selected scalar. Random local shares are not compared.
+- Negative source-read sentinel: a deliberately unavailable late file owner is not
+  accessed before target; ordinary execution of the target read returns `Binding`.
+  This is a boundary test, not valid source admission or source authority evidence.
+- Prefix checked rejection, retained validity owner, later successful checked
+  fallback and final sticky masking; admitted and rejected input controls.
+- Backward/out-of-range, foreign exact Program Arc, active-at-target and partially
+  buffered prefix inbox failures; permanent retirement and ownership release.
+- Pending midgraph body cancellation/drop, prefix-to-body and body-to-ordinary-
+  suffix replay retirement. Router bytes are copied, never protocol owners.
+- Real Builder payload pressure: live prefix owners remain in unchanged aggregate
+  cap; rejected control never enters allocating constructor region.
+
+The source-read sentinel is intentionally invalid; it proves only that the target
+is untouched. It is not a source-import or checkpoint-acceptance fixture.
 
 ## Remaining gates
 
@@ -88,20 +121,91 @@ Full semantic-body dispatch (rows, matrices, sources and checked sticky validity
 remains separate;
 this bridge does not silently authorize it. Expanded test-only oracle capture is
 explicitly rejected until its compact intermediate-boundary mapping exists.
-No claim of fixed-seed PRSS byte parity, full-Qwen admission/execution, quality,
-security qualification or performance. Existing full-Qwen range/source/resource
-unknowns and all approval boundaries remain unchanged.
+No full-Qwen admission/execution, quality, security qualification or performance
+claim. Existing full-Qwen range/source/resource unknowns and approval boundaries
+remain unchanged.
 
-**Requested fixed-seed transcript/share parity remains blocked, not implemented.**
-`pllm-core/src/puma/prss.rs::SetupParty::with_entropy` is private to core; its
-`SeedEntropy`/`SeedPurpose` injection is available only to core descendant tests.
-Compiler's existing `workers()` uses OS seeds. Changing encoded incoming seed
-messages cannot reproduce each role's private/own seeds. Neither cloning live
-runtime nor resetting its cursor is permitted. None of the three owned files can
-provide a safe fixed-seed runtime factory. Coordinator needs a separately scoped
-core test-support facility (also accessible when core is a compiler dependency),
-then compare ordered sender/recipient/frame bytes AND every returned local share
-for the body interval and subsequent ordinary product under the same public test
-keys/context/input shares. Current layout tests use exact products and prove only
-integer/layout/ownership behavior, **not** PRSS transcript/share parity. No such
-factory or production entropy change was added.
+## Deterministic exact parity
+
+Factory is available:
+`puma::prss::insecure_test_support::fresh_compound_parties(Context, PrssLimits)`.
+Compiler's dev-dependency enables the nondefault `insecure-test-support` feature.
+The new helper uses only its PUBLIC fixed keys and fresh consuming owners, with
+the ordinary fixture's input splitting. Context/session/program bindings are
+intentionally identical across the two graphs; routers are entirely separate.
+No runtime cloning/reset, incoming-seed rewriting, or masked table oracle.
+
+`compiled_midgraph_exact_deterministic_full_wire_and_returned_owner_share_parity`
+compares default ordinary `Worker::advance` against bounded prefix, compiled body,
+then ordinary suffix. Cases cover local/product/Tensor/128+1 TensorLoop prefixes,
+both adjacent and separated intervals. The test verifies original tile and tail
+widths and compares every complete frame, including outer tensor frames, bindings,
+payload bytes, sender, recipient and global delivery order. It compares exact
+transcript prefixes through each body return, then the whole execution including
+the subsequent ordinary protected product. No framing normalization is allowed;
+any mismatch fails and needs coordinator investigation, not byte stripping.
+
+Final ordinary outputs retain every lane of each previously retained owner and
+both body results. Exact final per-role first components are compared before any
+reconstruction. The authorized test-only `Worker::test_boundary_state` now also
+borrows every actual live `(first, second)` array and reads existing core
+`Cursors` (`public_blocks`, `pair_blocks`, `private_blocks`, `aes_work`). It checks
+liveness, complete imports, idle Ready runtime, empty inbox and zero loop offset;
+completion is allowed. It cannot mutate/reset/clone runtime or accept seeds.
+Only test snapshots copy borrowed arrays into zeroizing owners. Active/pending
+and retired diagnostic access is rejected without changing worker state.
+
+Exact state comparisons cover ALL live owners, including presence/absence and
+every lane of both stored components:
+
+- At every compiled entry and return, against a third fresh deterministic graph
+  executing original ordinary nodes with `advance_before` only (no body).
+- At final completion, directly against the graph driven exclusively by default
+  `advance`, before consuming either worker set with `finish`.
+- All four core counters, including consumed AES work, at every compared state.
+- Sticky accepted/rejected prefixes use the same entry/return/final comparisons.
+- Repeated idle boundary calls compare full node/share/cursor state before/after,
+  and assert target plus every later owner remains absent. Combined with exact
+  ordinary entry state this checks no target execution or extra source draw.
+
+The independent default-advance graph remains the complete ordered-byte and
+final-state baseline; the third boundary graph is only the intermediate-state
+reference. Separate routers are used for all three. No stored shares are inferred
+from neighboring components. No API gap remains for this bounded idle-state
+contract. Dead, non-exported intermediates and mid-protocol/tile-offset states are
+not snapshot targets; every TensorLoop tile/tail frame is still compared in the
+full transcript, and the complete 129-lane prefix owner is compared at entry.
+
+Exact regression names:
+
+- `compiled_midgraph_exact_deterministic_full_wire_and_returned_owner_share_parity`
+- `compiled_midgraph_sticky_prefix_rejection_survives_body_and_later_safe_check`
+
+Accessor rejection checks also extend
+`bounded_boundary_invalid_requests_cancel_and_release_original_owners` and
+`bounded_boundary_pending_prefix_inbox_and_midgraph_drop_cancel`.
+
+## Validation
+
+The targeted release/offline compiler run passes all 18 body-integration tests,
+including complete ordered-frame, both-component and PRSS/AES-counter parity.
+Lifecycle checks explicitly drop unused peer workers before checking Program Arc
+retirement. The live-prefix admission rejection uses actual Builder ownership at
+the unchanged 64 MiB cap; the smaller accepted control remains separate.
+The complete release/offline compiler library suite passes 391 checks, with nine
+explicit opt-in checks ignored, under serial test execution.
+
+The feature-enabled core suite passes 504 checks, including all three deterministic
+factory tests. A normal/build/features dependency traversal rooted at
+`pllm-python` does not enable `insecure-test-support`; resolver 2 excludes the
+compiler dev-dependency from that production graph. Explicit all-feature or test
+builds can enable it and must never use these public keys with production secrets.
+
+Exact targeted invocation:
+
+```sh
+cargo test --release --offline -j 1 -p pllm-compiler --lib body_integration_tests -- --test-threads=1
+```
+
+These are native generated-graph checks, not installed SDK, trained-checkpoint,
+quality, performance or composed-security qualification.

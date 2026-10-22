@@ -2,7 +2,9 @@
 //! Generated graph, not a checkpoint or full-model qualification.
 use super::*;
 use crate::replicated_decoder::{
-    runtime::body::integration::{constructor_entries, restored_state, Compiled, Invocation},
+    runtime::body::integration::{
+        constructor_entries, restored_state, BoundaryProgress, Compiled, Invocation,
+    },
     tests::{execute, workers},
 };
 
@@ -254,7 +256,7 @@ fn compiled_binary_preflight_prices_live_payload_before_any_constructor_entry() 
 
 // Layout/ownership regression, NOT fixed-seed PRSS parity: y is exactly one so
 // integer expectations do not depend on stochastic rounding. Fixed entropy is
-// private in pllm-core; exposing a test-only factory needs coordinator approval.
+// supplied by the explicit insecure-test-support factory used below.
 #[test]
 fn compiled_binary_strides_broadcast_exports_and_ordinary_product_resume() {
     std::thread::Builder::new()
@@ -697,6 +699,828 @@ fn compiled_binary_late_wrong_context_duplicate_and_previous_product_replay_reti
         .unwrap();
 }
 
-// Still BLOCKED: fixed-seed ordered transcript/local-share parity needs an
-// approved core test-support entropy seam; fresh workers cannot establish it.
+// Globally drain ordinary frames before asking any original runtime to advance.
+// Reached is local: never enter a body merely because one role reported it.
+fn reach_boundary(
+    workers: &mut [Worker; 3],
+    target: usize,
+    compiled: Option<&Compiled>,
+) -> Vec<BodyFrame> {
+    let mut queue = Vec::<BodyFrame>::new();
+    let mut transcript = Vec::new();
+    for _ in 0..100_000 {
+        if queue.is_empty() {
+            let mut reached = 0;
+            for worker in workers.iter_mut() {
+                let from = worker.party();
+                let progress = match compiled {
+                    Some(compiled) => compiled.advance_to_start(worker),
+                    None => worker.advance_before(target),
+                }
+                .unwrap();
+                match progress {
+                    BoundaryProgress::Reached => reached += 1,
+                    BoundaryProgress::Frames(frames) => queue.extend(
+                        frames
+                            .into_iter()
+                            .map(|(to, raw)| (from, to, raw.as_bytes().to_vec())),
+                    ),
+                }
+            }
+            if reached == 3 {
+                assert!(queue.is_empty());
+                for worker in workers.iter_mut() {
+                    let state = restored_state(worker);
+                    assert_eq!(state.0, target);
+                    assert_eq!(state.2, 0);
+                    assert!(state.3 && state.4);
+                    // Same boundary is idempotent while idle, without PRSS work.
+                    let before = boundary_snapshot(worker);
+                    assert!(before.shares[target..].iter().all(Option::is_none));
+                    assert!(matches!(
+                        worker.advance_before(target).unwrap(),
+                        BoundaryProgress::Reached
+                    ));
+                    assert_eq!(boundary_snapshot(worker), before);
+                }
+                return transcript;
+            }
+        } else {
+            for (from, to, raw) in std::mem::take(&mut queue) {
+                transcript.push((from, to, raw.clone()));
+                queue.extend(
+                    workers[to as usize]
+                        .receive(&raw, from)
+                        .unwrap()
+                        .into_iter()
+                        .map(|(next, raw)| (to, next, raw.as_bytes().to_vec())),
+                );
+            }
+        }
+    }
+    panic!("prefix failed to reach globally drained boundary");
+}
+
+// Prefix classes exercise local retirement, ordinary product, Tensor, and a
+// 128+1 TensorLoop. All body/suffix products multiply by exact Q18 one.
+fn midgraph_fixture(kind: usize, separated: bool) -> (Arc<Program>, [(usize, usize); 2]) {
+    let mut b = Builder {
+        public_weights: true,
+        ..Builder::default()
+    };
+    let lanes = if kind == 3 { 129 } else { 3 };
+    let bounds = Interval::new(-ONE, ONE).unwrap();
+    let x = b.push(Code::Input("x".into()), lanes, bounds).unwrap();
+    let y = b
+        .push(Code::Input("y".into()), 3, Interval::new(ONE, ONE).unwrap())
+        .unwrap();
+    let prefix = match kind {
+        0 => b.affine(x, None, affine(1, 0, 0)).unwrap(),
+        1 => b.product(x, y, None, true).unwrap(),
+        2 => b
+            .tensor(x, tensor::Program::negative(lanes, bounds).unwrap())
+            .unwrap(),
+        3 => b
+            .tensor_loop(LoopInput::Slice(x), lanes, |n| {
+                tensor::Program::negative(n, bounds)
+            })
+            .unwrap(),
+        _ => unreachable!(),
+    };
+    let left: Words = (0..3).map(|i| (prefix, i)).collect();
+    let right: Words = (0..3).map(|i| (y, i)).collect();
+    let start = b.nodes.len();
+    let first = b.binary(&left, &right, true).unwrap();
+    let end = b.nodes.len();
+    let next = if separated {
+        let owner = b.gather(&first).unwrap();
+        let owner = b.affine(owner, None, affine(1, 0, 0)).unwrap();
+        (0..3).map(|i| (owner, i)).collect()
+    } else {
+        first.clone()
+    };
+    let second_start = b.nodes.len();
+    let second = b.binary(&next, &right, true).unwrap();
+    let second_end = b.nodes.len();
+    let suffix = b.binary(&second, &right, true).unwrap();
+    // Preserve complete prefix owner (including TensorLoop tail), a body gather,
+    // external inputs, and first result across both seams.
+    let outputs = suffix
+        .iter()
+        .chain(first.iter())
+        .chain((0..lanes).map(|i| (prefix, i)))
+        .chain((0..3).map(|i| (start, i)))
+        .chain([(x, lanes - 1), (y, 0)])
+        .collect();
+    (
+        finish_fixture(b, 2, outputs),
+        [(start, end), (second_start, second_end)],
+    )
+}
+
+fn midgraph_clear(kind: usize) -> BTreeMap<String, Vec<i64>> {
+    let lanes = if kind == 3 { 129 } else { 3 };
+    BTreeMap::from([
+        (
+            "x".into(),
+            (0..lanes).map(|i| (i as i64 % 3 - 1) * ONE).collect(),
+        ),
+        ("y".into(), vec![ONE; 3]),
+    ])
+}
+
+#[test]
+fn compiled_midgraph_prefix_body_suffix_and_adjacent_or_separate_intervals() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            for kind in 0..4 {
+                for separated in [false, true] {
+                    let (program, spans) = midgraph_fixture(kind, separated);
+                    let clear = midgraph_clear(kind);
+                    let prefix: Vec<u64> = clear["x"]
+                        .iter()
+                        .map(|&x| {
+                            if kind >= 2 {
+                                u64::from(x < 0)
+                            } else {
+                                x as u64
+                            }
+                        })
+                        .collect();
+                    let expected: Vec<_> = prefix[..3]
+                        .iter()
+                        .copied()
+                        .chain(prefix[..3].iter().copied())
+                        .chain(prefix.iter().copied())
+                        .chain(prefix[..3].iter().copied())
+                        .chain([*clear["x"].last().unwrap() as u64, ONE as u64])
+                        .collect();
+                    assert_eq!(execute(workers(program.clone(), &clear)), expected);
+                    let mut ordinary = workers(program.clone(), &clear);
+                    let mut resumed = workers(program.clone(), &clear);
+                    for (start, end) in spans {
+                        let compiled =
+                            Compiled::new(program.clone(), WeightMode::Public, start, end).unwrap();
+                        assert!(compiled.admitted_bytes() <= MAX_PROGRAM_BYTES);
+                        reach_boundary(&mut resumed, start, Some(&compiled));
+                        // Neither target gather nor any later body owner exists.
+                        for worker in &resumed {
+                            assert!(restored_state(worker).5[start..].iter().all(|&v| !v));
+                        }
+                        resumed = finish_body(
+                            resumed.map(|worker| compiled.clone().begin(worker).unwrap()),
+                        );
+                        reach_boundary(&mut ordinary, end, None);
+                        for (body, original) in resumed.iter().zip(&ordinary) {
+                            assert_eq!(restored_state(body), restored_state(original));
+                        }
+                    }
+                    assert_eq!(execute(resumed), expected);
+                    assert_eq!(execute(ordinary), expected);
+                }
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn bounded_boundary_stops_before_unavailable_source_without_executing_it() {
+    let mut b = Builder::default();
+    let input = b
+        .push(Code::Input("x".into()), 1, Interval::new(0, ONE).unwrap())
+        .unwrap();
+    let local = b.affine(input, None, affine(1, 0, 0)).unwrap();
+    let source = b
+        .push(
+            Code::PublicInput {
+                key: "unavailable".into(),
+                digest: [17; 32],
+                row_l1: None,
+                row_squared_norm: None,
+                row_l1_squared_sum: None,
+            },
+            1,
+            Interval::new(0, ONE).unwrap(),
+        )
+        .unwrap();
+    let target = b.nodes.len();
+    let read = b.gather(&[(source, 0)].into_iter().collect()).unwrap();
+    let program = finish_fixture(b, 1, vec![(local, 0), (read, 0)]);
+    // Negative execution sentinel, not a valid source-admission fixture: late
+    // public declaration has no installed file. Executing target must fail.
+    let clear = BTreeMap::from([("x".into(), vec![ONE])]);
+    let mut roles = workers(program, &clear);
+    reach_boundary(&mut roles, target, None);
+    for role in &roles {
+        assert!(!restored_state(role).5[target]);
+    }
+    assert!(matches!(roles[0].advance(), Err(Error::Binding)));
+}
+
+#[test]
+fn bounded_boundary_invalid_requests_cancel_and_release_original_owners() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(invalid_boundary_requests)
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+fn invalid_boundary_requests() {
+    for case in 0..4 {
+        let (program, spans) = midgraph_fixture(1, false);
+        let compiled =
+            Compiled::new(program.clone(), WeightMode::Public, spans[0].0, spans[0].1).unwrap();
+        let clear = midgraph_clear(1);
+        let mut roles = workers(program.clone(), &clear);
+        match case {
+            0 => {
+                reach_boundary(&mut roles, spans[0].0, Some(&compiled));
+                assert!(matches!(roles[0].advance_before(0), Err(Error::Bounds)));
+            }
+            1 => assert!(matches!(
+                roles[0].advance_before(program.nodes.len()),
+                Err(Error::Bounds)
+            )),
+            2 => {
+                // Input declarations retire, then ordinary product becomes active.
+                assert!(!roles[0].advance().unwrap().is_empty());
+                assert!(matches!(roles[0].test_boundary_state(), Err(Error::Phase)));
+                assert!(!roles[0].retired()); // Read-only diagnostic rejection.
+                assert!(matches!(roles[0].advance_before(2), Err(Error::Phase)));
+            }
+            3 => {
+                let (foreign, _) = midgraph_fixture(1, false);
+                let [mut worker, _, _] = workers(foreign, &clear);
+                assert!(matches!(
+                    compiled.advance_to_start(&mut worker),
+                    Err(Error::Binding)
+                ));
+                assert!(matches!(worker.advance(), Err(Error::Retired)));
+                roles[0].cancel();
+            }
+            _ => unreachable!(),
+        }
+        assert!(matches!(roles[0].advance(), Err(Error::Retired)));
+        assert!(matches!(
+            roles[0].test_boundary_state(),
+            Err(Error::Retired)
+        ));
+        assert!(matches!(
+            roles[0].advance_before(spans[0].0),
+            Err(Error::Retired)
+        ));
+        drop(roles);
+        assert_eq!(Arc::strong_count(&program), 2); // Caller + compiled, no worker leak.
+    }
+}
+
+#[test]
+fn compiled_midgraph_sticky_prefix_rejection_survives_body_and_later_safe_check() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            for rejected in [false, true] {
+                let mut b = Builder {
+                    public_weights: true,
+                    checked_bound: Some(ONE / 2),
+                    ..Builder::default()
+                };
+                let x = b
+                    .push(
+                        Code::Input("x".into()),
+                        3,
+                        Interval::new(-ONE, ONE).unwrap(),
+                    )
+                    .unwrap();
+                let y = b
+                    .push(Code::Input("y".into()), 3, Interval::new(ONE, ONE).unwrap())
+                    .unwrap();
+                let words = (0..3).map(|i| (x, i)).collect();
+                let safe = b.checked_view(&words).unwrap();
+                let valid_before = b.validity.unwrap();
+                let start = b.nodes.len();
+                let right = (0..3).map(|i| (y, i)).collect();
+                let body = b.binary(&safe, &right, true).unwrap();
+                let end = b.nodes.len();
+                // Force a second check with a wider PUBLIC incoming envelope;
+                // runtime safe values pass, but sticky prefix failure must remain.
+                let gathered = b.gather(&body).unwrap();
+                let widened = b
+                    .push(
+                        Code::Gather((0..3).map(|i| (gathered, i)).collect()),
+                        3,
+                        Interval::new(-ONE, ONE).unwrap(),
+                    )
+                    .unwrap();
+                let checked = b
+                    .checked_view(&(0..3).map(|i| (widened, i)).collect())
+                    .unwrap();
+                let valid = b.validity.unwrap();
+                let values = b.gather(&checked).unwrap();
+                let flags = b
+                    .gather(&std::iter::repeat_n((valid, 0), 3).collect())
+                    .unwrap();
+                let masked = b.product(values, flags, None, false).unwrap();
+                let program = finish_fixture(
+                    b,
+                    2,
+                    vec![
+                        (masked, 0),
+                        (masked, 1),
+                        (masked, 2),
+                        (valid, 0),
+                        (valid_before, 0),
+                    ],
+                );
+                let input = if rejected { ONE } else { ONE / 2 };
+                let clear = BTreeMap::from([
+                    ("x".into(), vec![input, 0, -ONE / 2]),
+                    ("y".into(), vec![ONE; 3]),
+                ]);
+                let expected = if rejected {
+                    vec![0; 5]
+                } else {
+                    vec![(ONE / 2) as u64, 0, (-ONE / 2) as u64, 1, 1]
+                };
+                assert_eq!(execute(workers(program.clone(), &clear)), expected);
+                let compiled =
+                    Compiled::new(program.clone(), WeightMode::Public, start, end).unwrap();
+                let mut roles = workers(program.clone(), &clear);
+                reach_boundary(&mut roles, start, Some(&compiled));
+                for role in &roles {
+                    assert!(restored_state(role).5[valid_before]);
+                }
+                let resumed = finish_body(roles.map(|role| compiled.clone().begin(role).unwrap()));
+                for role in &resumed {
+                    assert!(restored_state(role).5[valid_before]);
+                }
+                assert_eq!(execute(resumed), expected);
+                // Also compare sticky success/failure under identical PUBLIC
+                // deterministic setup, with independent ordinary/body routers.
+                let (expected_wire, expected_shares, expected_state) =
+                    trace_ordinary_finish(deterministic_workers(program.clone(), &clear));
+                let mut reference = deterministic_workers(program.clone(), &clear);
+                let mut roles = deterministic_workers(program, &clear);
+                let mut wire = reach_boundary(&mut roles, start, Some(&compiled));
+                reach_boundary(&mut reference, start, None);
+                assert_boundary_parity(&roles, &reference);
+                let (body_wire, resumed) =
+                    trace_body_finish(roles.map(|role| compiled.clone().begin(role).unwrap()));
+                wire.extend(body_wire);
+                reach_boundary(&mut reference, end, None);
+                assert_boundary_parity(&resumed, &reference);
+                let (suffix_wire, shares, state) = trace_ordinary_finish(resumed);
+                wire.extend(suffix_wire);
+                assert_eq!(wire, expected_wire, "sticky rejected={rejected}");
+                assert_eq!(shares, expected_shares, "sticky rejected={rejected}");
+                assert_eq!(state, expected_state, "sticky rejected={rejected}");
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn bounded_boundary_pending_prefix_inbox_and_midgraph_drop_cancel() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            for handoff in [false, true] {
+                let (program, spans) = midgraph_fixture(1, false);
+                let compiled =
+                    Compiled::new(program.clone(), WeightMode::Public, spans[0].0, spans[0].1)
+                        .unwrap();
+                let mut roles = workers(program.clone(), &midgraph_clear(1));
+                let mut rotations = Vec::new();
+                for role in &mut roles {
+                    let from = role.party();
+                    let BoundaryProgress::Frames(frames) = compiled.advance_to_start(role).unwrap()
+                    else {
+                        panic!("product prefix must emit rotations before boundary");
+                    };
+                    rotations.extend(
+                        frames
+                            .into_iter()
+                            .map(|(to, raw)| (from, to, raw.as_bytes().to_vec())),
+                    );
+                }
+                let mut openings = Vec::new();
+                for (from, to, raw) in rotations {
+                    openings.extend(
+                        roles[to as usize]
+                            .receive(&raw, from)
+                            .unwrap()
+                            .into_iter()
+                            .map(|(next, raw)| (to, next, raw.as_bytes().to_vec())),
+                    );
+                }
+                let (from, to, raw) = openings
+                    .into_iter()
+                    .find(|(from, to, raw)| {
+                        puma::Message::decode(raw, *from, *to)
+                            .unwrap()
+                            .header()
+                            .phase
+                            == puma::MessagePhase::MaskedInput
+                    })
+                    .unwrap();
+                assert!(roles[to as usize].receive(&raw, from).unwrap().is_empty());
+                assert!(!restored_state(&roles[to as usize]).3);
+                assert!(matches!(
+                    roles[to as usize].test_boundary_state(),
+                    Err(Error::Phase)
+                ));
+                assert!(!roles[to as usize].retired());
+                if handoff {
+                    let role = roles.into_iter().nth(to as usize).unwrap();
+                    assert!(matches!(compiled.clone().begin(role), Err(Error::Binding)));
+                } else {
+                    assert!(matches!(
+                        compiled.advance_to_start(&mut roles[to as usize]),
+                        Err(Error::Phase)
+                    ));
+                    assert!(matches!(roles[to as usize].advance(), Err(Error::Retired)));
+                    drop(roles);
+                }
+                assert_eq!(Arc::strong_count(&program), 2);
+            }
+            for cancel in [false, true] {
+                let (program, spans) = midgraph_fixture(1, false);
+                let compiled =
+                    Compiled::new(program.clone(), WeightMode::Public, spans[0].0, spans[0].1)
+                        .unwrap();
+                let mut roles = workers(program.clone(), &midgraph_clear(1));
+                reach_boundary(&mut roles, spans[0].0, Some(&compiled));
+                let [role, peer_one, peer_two] = roles;
+                // Ignored array fields otherwise stay in the partially moved
+                // array until scope exit, retaining their original Program Arcs.
+                drop((peer_one, peer_two));
+                let mut body = compiled.clone().begin(role).unwrap();
+                assert!(!body.advance().unwrap().is_empty());
+                if cancel {
+                    body.cancel();
+                    assert!(matches!(body.advance(), Err(Error::Retired)));
+                    assert!(matches!(body.finish(), Err(Error::Retired)));
+                } else {
+                    drop(body);
+                }
+                assert_eq!(Arc::strong_count(&program), 2);
+                assert_eq!(Arc::strong_count(&compiled), 1);
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn compiled_midgraph_preflight_keeps_live_prefix_payload_in_original_cap() {
+    for (lanes, accepted) in [(MAX_VALUES / 4, true), (MAX_VALUES, false)] {
+        let mut b = Builder {
+            public_weights: true,
+            ..Builder::default()
+        };
+        let x = b
+            .push(
+                Code::Input("x".into()),
+                lanes,
+                Interval::new(0, ONE).unwrap(),
+            )
+            .unwrap();
+        let prefix = b.affine(x, None, affine(1, 0, 0)).unwrap();
+        let start = b.nodes.len();
+        let words = [(prefix, 0)].into_iter().collect();
+        let result = b.binary(&words, &words, false).unwrap();
+        let end = b.nodes.len();
+        let program = finish_fixture(
+            b,
+            1,
+            vec![(x, 0), (prefix, lanes - 1), result.iter().next().unwrap()],
+        );
+        assert!(program.payload_bytes() < MAX_PROGRAM_BYTES);
+        if !accepted {
+            // Two repeated body inputs alone still fit. The original input
+            // and live prefix owner must coexist with both copies: their real
+            // Builder ledger, not an invented payload override, crosses the cap.
+            let repeated_input_bytes = 2 * lanes * 16;
+            assert!(repeated_input_bytes < MAX_PROGRAM_BYTES);
+            assert!(program.payload_bytes() + repeated_input_bytes >= MAX_PROGRAM_BYTES);
+        }
+        let before = constructor_entries();
+        let result = Compiled::new(program, WeightMode::Public, start, end);
+        if accepted {
+            assert!(result.unwrap().admitted_bytes() <= MAX_PROGRAM_BYTES);
+            assert_eq!(constructor_entries(), before + 1);
+        } else {
+            assert!(matches!(result, Err(Error::Bounds)));
+            assert_eq!(constructor_entries(), before);
+        }
+    }
+}
+
+#[test]
+fn compiled_midgraph_body_rotation_replay_retires_ordinary_suffix() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            let (program, spans) = midgraph_fixture(1, false);
+            let compiled =
+                Compiled::new(program.clone(), WeightMode::Public, spans[0].0, spans[1].1).unwrap();
+            let mut roles = workers(program, &midgraph_clear(1));
+            reach_boundary(&mut roles, spans[0].0, Some(&compiled));
+            let mut bodies = roles.map(|role| compiled.clone().begin(role).unwrap());
+            let first = advance_product(&mut bodies);
+            let (from, to, replay) = first[0].clone();
+            let openings = deliver_body_round(&mut bodies, first);
+            finish_product_open(&mut bodies, openings);
+            let mut resumed = finish_body(bodies);
+            for role in &mut resumed {
+                assert!(!role.advance().unwrap().is_empty());
+            }
+            let role = &mut resumed[to as usize];
+            assert!(matches!(role.receive(&replay, from), Err(Error::Binding)));
+            assert!(matches!(role.advance(), Err(Error::Retired)));
+            assert!(matches!(role.receive(&replay, from), Err(Error::Retired)));
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
+fn compiled_midgraph_prefix_rotation_replay_retires_body() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            let (program, spans) = midgraph_fixture(1, false);
+            let compiled =
+                Compiled::new(program.clone(), WeightMode::Public, spans[0].0, spans[0].1).unwrap();
+            let mut roles = workers(program, &midgraph_clear(1));
+            let prefix = reach_boundary(&mut roles, spans[0].0, Some(&compiled));
+            let (from, to, replay) = prefix
+                .into_iter()
+                .find(|(from, to, raw)| {
+                    puma::Message::decode(raw, *from, *to)
+                        .unwrap()
+                        .header()
+                        .phase
+                        == puma::MessagePhase::Multiply
+                })
+                .unwrap();
+            let mut bodies = roles.map(|worker| compiled.clone().begin(worker).unwrap());
+            advance_product(&mut bodies);
+            let body = &mut bodies[to as usize];
+            assert!(matches!(body.receive(&replay, from), Err(Error::Binding)));
+            assert!(matches!(body.advance(), Err(Error::Retired)));
+            assert!(matches!(body.receive(&replay, from), Err(Error::Retired)));
+            let body = bodies.into_iter().nth(to as usize).unwrap();
+            assert!(matches!(body.finish(), Err(Error::Retired)));
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+// PUBLIC test keys only. Each call creates fresh consuming runtime owners; equal
+// context bindings are intentional. Never mix these graphs' separate routers.
+fn deterministic_workers(program: Arc<Program>, clear: &BTreeMap<String, Vec<i64>>) -> [Worker; 3] {
+    let context = puma::Context::new([42; 32], program.digest(), 0).unwrap();
+    let runtimes = puma::prss::insecure_test_support::fresh_compound_parties(
+        context,
+        puma::prss::PrssLimits::default(),
+    )
+    .unwrap();
+    let mut roles =
+        runtimes.map(|runtime| Worker::new(program.clone(), runtime, [42; 32]).unwrap());
+    // Same ordinary input splitting as tests::workers; no masked table oracle.
+    for (key, n) in program.inputs() {
+        let first: Vec<_> = (0..n)
+            .map(|i| 0xc751f00d12345678u64.wrapping_add(i as u64 * 17))
+            .collect();
+        let second: Vec<_> = (0..n)
+            .map(|i| 0x254277811928f93du64.wrapping_add(i as u64 * 311))
+            .collect();
+        let third: Vec<_> = clear[key]
+            .iter()
+            .zip(first.iter().zip(&second))
+            .map(|(x, (a, b))| (*x as u64).wrapping_sub(*a).wrapping_sub(*b))
+            .collect();
+        let shares = [first, second, third];
+        for (i, role) in roles.iter_mut().enumerate() {
+            role.import(key, &shares[i], &shares[(i + 1) % 3]).unwrap();
+        }
+    }
+    roles
+}
+
+// Only borrowed local components are copied, into zeroizing test owners. Never
+// copy or reset the consuming runtime or its source schedule.
+#[derive(Debug, PartialEq, Eq)]
+struct BoundarySnapshot {
+    step: usize,
+    cursors: puma::prss::Cursors,
+    shares: Vec<Option<(zeroize::Zeroizing<Vec<u64>>, zeroize::Zeroizing<Vec<u64>>)>>,
+}
+
+fn boundary_snapshot(worker: &Worker) -> BoundarySnapshot {
+    let (step, cursors, shares) = worker.test_boundary_state().unwrap();
+    BoundarySnapshot {
+        step,
+        cursors,
+        shares: shares
+            .map(|value| {
+                value.map(|(first, second)| {
+                    (
+                        zeroize::Zeroizing::new(first.to_vec()),
+                        zeroize::Zeroizing::new(second.to_vec()),
+                    )
+                })
+            })
+            .collect(),
+    }
+}
+
+fn assert_boundary_parity(actual: &[Worker; 3], expected: &[Worker; 3]) {
+    for (actual, expected) in actual.iter().zip(expected) {
+        assert_eq!(actual.party(), expected.party());
+        assert_eq!(boundary_snapshot(actual), boundary_snapshot(expected));
+    }
+}
+
+// Ordinary baseline uses ONLY default advance, including across every proposed
+// seam. Candidate suffix uses this same driver. Record all bytes in delivery
+// order, preserving complete outer tensor frames and every direction/phase.
+fn trace_ordinary_finish(
+    mut roles: [Worker; 3],
+) -> (Vec<BodyFrame>, [Vec<u64>; 3], [BoundarySnapshot; 3]) {
+    let mut queue = Vec::<BodyFrame>::new();
+    let mut transcript = Vec::new();
+    for _ in 0..100_000 {
+        if queue.is_empty() {
+            if roles.iter().all(Worker::complete) {
+                let state = roles.each_ref().map(boundary_snapshot);
+                let shares = roles.map(|role| role.finish().unwrap().to_vec());
+                return (transcript, shares, state);
+            }
+            for role in &mut roles {
+                if !role.complete() {
+                    let from = role.party();
+                    queue.extend(
+                        role.advance()
+                            .unwrap()
+                            .into_iter()
+                            .map(|(to, raw)| (from, to, raw.as_bytes().to_vec())),
+                    );
+                }
+            }
+        } else {
+            for (from, to, raw) in std::mem::take(&mut queue) {
+                transcript.push((from, to, raw.clone()));
+                queue.extend(
+                    roles[to as usize]
+                        .receive(&raw, from)
+                        .unwrap()
+                        .into_iter()
+                        .map(|(next, raw)| (to, next, raw.as_bytes().to_vec())),
+                );
+            }
+        }
+    }
+    panic!("ordinary transcript did not finish");
+}
+
+fn trace_body_finish(mut bodies: [Invocation; 3]) -> (Vec<BodyFrame>, [Worker; 3]) {
+    let mut queue = Vec::<BodyFrame>::new();
+    let mut transcript = Vec::new();
+    for _ in 0..100_000 {
+        if queue.is_empty() {
+            if bodies.iter().all(Invocation::complete) {
+                return (transcript, bodies.map(|body| body.finish().unwrap()));
+            }
+            for body in &mut bodies {
+                let from = body.party();
+                queue.extend(
+                    body.advance()
+                        .unwrap()
+                        .into_iter()
+                        .map(|(to, raw)| (from, to, raw.as_bytes().to_vec())),
+                );
+            }
+        } else {
+            for (from, to, raw) in std::mem::take(&mut queue) {
+                transcript.push((from, to, raw.clone()));
+                queue.extend(
+                    bodies[to as usize]
+                        .receive(&raw, from)
+                        .unwrap()
+                        .into_iter()
+                        .map(|(next, raw)| (to, next, raw.as_bytes().to_vec())),
+                );
+            }
+        }
+    }
+    panic!("body transcript did not finish");
+}
+
+#[test]
+fn compiled_midgraph_exact_deterministic_full_wire_and_returned_owner_share_parity() {
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            for kind in 0..4 {
+                for separated in [false, true] {
+                    let (mut program, spans) = midgraph_fixture(kind, separated);
+                    // Ordinary final outputs retain every lane of existing live
+                    // owners and both returned body results for exact comparison.
+                    // Not expanded oracle capture or intermediate reconstruction.
+                    let graph = Arc::get_mut(&mut program).unwrap();
+                    let mut owners: Vec<_> = graph.outputs.iter().map(|&(id, _)| id).collect();
+                    owners.push(spans[1].1 - 1);
+                    owners.sort_unstable();
+                    owners.dedup();
+                    graph.outputs = owners
+                        .iter()
+                        .flat_map(|&id| (0..graph.nodes[id].lanes).map(move |lane| (id, lane)))
+                        .collect();
+                    for retired in &mut graph.retire {
+                        retired.retain(|id| !owners.contains(id));
+                    }
+                    if kind == 3 {
+                        let Code::TensorLoop {
+                            program: tile,
+                            tail,
+                            ..
+                        } = &graph.nodes[2].code
+                        else {
+                            panic!("expected original tiled prefix");
+                        };
+                        assert_eq!(tile.lanes(), 128);
+                        assert_eq!(tail.as_ref().unwrap().lanes(), 1);
+                    }
+                    let clear = midgraph_clear(kind);
+                    // Completely separate owners/routers, not cloned live state.
+                    let baseline = deterministic_workers(program.clone(), &clear);
+                    let mut candidate = deterministic_workers(program.clone(), &clear);
+                    let mut reference = deterministic_workers(program.clone(), &clear);
+                    let (expected_wire, expected_shares, expected_state) =
+                        trace_ordinary_finish(baseline);
+                    let mut actual_wire = Vec::new();
+                    for (start, end) in spans {
+                        let compiled =
+                            Compiled::new(program.clone(), WeightMode::Public, start, end).unwrap();
+                        let prefix = reach_boundary(&mut candidate, start, Some(&compiled));
+                        reach_boundary(&mut reference, start, None);
+                        assert_boundary_parity(&candidate, &reference);
+                        if kind != 0 && actual_wire.is_empty() {
+                            assert!(!prefix.is_empty());
+                        }
+                        actual_wire.extend(prefix);
+                        let bodies = candidate.map(|role| compiled.clone().begin(role).unwrap());
+                        let (wire, resumed) = trace_body_finish(bodies);
+                        assert!(!wire.is_empty());
+                        actual_wire.extend(wire);
+                        candidate = resumed;
+                        reach_boundary(&mut reference, end, None);
+                        assert_boundary_parity(&candidate, &reference);
+                        // Compare exact prefix through this body seam, without
+                        // stripping framing, bindings, headers, payload or order.
+                        assert_eq!(
+                            actual_wire.as_slice(),
+                            &expected_wire[..actual_wire.len()],
+                            "kind={kind}, separated={separated}, end={end}"
+                        );
+                    }
+                    let before_suffix = actual_wire.len();
+                    let (suffix, actual_shares, actual_state) = trace_ordinary_finish(candidate);
+                    assert!(!suffix.is_empty()); // Subsequent ordinary protected product.
+                    actual_wire.extend(suffix);
+                    assert!(actual_wire.len() > before_suffix);
+                    assert_eq!(
+                        actual_wire, expected_wire,
+                        "kind={kind}, separated={separated}"
+                    );
+                    assert_eq!(
+                        actual_shares, expected_shares,
+                        "kind={kind}, separated={separated}"
+                    );
+                    assert_eq!(
+                        actual_state, expected_state,
+                        "final live owners/cursors: kind={kind}, separated={separated}"
+                    );
+                    // State equality includes both actual stored components of
+                    // EVERY live owner and all four cursor counters/AES work.
+                }
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
 // Expanded oracle capture also remains BLOCKED on compact-boundary mapping.

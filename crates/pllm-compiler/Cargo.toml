@@ -19,3 +19,8 @@ sha2.workspace = true
 tempfile.workspace = true
 getrandom.workspace = true
 zeroize.workspace = true
+
+[dev-dependencies]
+# Resolver 2 excludes this feature from ordinary production dependency builds.
+# Tests unify it with the normal pllm-core dependency in their dependency graph.
+pllm-core = { workspace = true, features = ["insecure-test-support"] }

@@ -7,6 +7,8 @@ use super::*;
 use crate::replicated_decoder::{Code, Node, Program, Worker};
 use std::collections::BTreeMap;
 
+pub use super::super::BoundaryProgress;
+
 // Borrow dependencies directly: Node::inputs() constructs a Vec, including when
 // merely asking whether one exported owner remains live.
 fn uses(node: &Node, owner: usize) -> bool {
@@ -73,6 +75,9 @@ fn preflight(program: &Program, start: usize, end: usize) -> Result<usize, Error
     if registers > MAX_NODES || span > MAX_NODES {
         return Err(Error::Bounds);
     }
+    // Program::payload_bytes already charges 16*lanes for EVERY non-file node,
+    // not merely imports or a liveness estimate. Thus all live prefix owners,
+    // including retained validity/feedback, remain charged throughout the body.
     // Sum, not max: allow all input copies and all site outputs simultaneously,
     // plus all exported copies while retained body owners are still alive.
     let live_payload = bytes(add(input_lanes, site_lanes)?, 16)?;
@@ -313,8 +318,22 @@ impl Compiled {
         self.admitted_bytes
     }
 
+    /// Drive this exact Program Arc to the exclusive compiled start boundary.
+    /// Route every returned frame across all three roles before advancing again.
+    /// Only call `begin` after all roles report `Reached` and the router is empty;
+    /// this local result alone does not certify global quiescence.
+    pub fn advance_to_start(&self, worker: &mut Worker) -> Result<BoundaryProgress, Error> {
+        if !Arc::ptr_eq(&self.program, &worker.program) {
+            worker.cancel();
+            return Err(Error::Binding);
+        }
+        worker.advance_before(self.start)
+    }
+
     /// Consumes one quiescent worker. At initial import boundary, retire only
     /// input declarations before entering the exact compiled interval.
+    /// Caller must first globally drain frames across all three roles; these
+    /// local checks cannot prove that the authenticated router is empty.
     pub fn begin(self: Arc<Self>, mut worker: Worker) -> Result<Invocation, Error> {
         let result = (|| {
             worker.live()?;
@@ -327,9 +346,7 @@ impl Compiled {
             }
             if !Arc::ptr_eq(&self.program, &worker.program)
                 || worker.imported != worker.program.inputs
-                || worker.inbox.iter().any(Option::is_some)
-                || worker.loop_offset != 0
-                || !matches!(worker.active, super::super::Active::Idle(_))
+                || !worker.boundary_ready()
             {
                 return Err(Error::Binding);
             }

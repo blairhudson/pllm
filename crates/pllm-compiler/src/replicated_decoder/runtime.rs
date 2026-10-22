@@ -24,6 +24,13 @@ pub enum PeerBytes {
     Arithmetic(puma::wire::Encoded<Message>),
     Tensor(puma::wire::Encoded<tensor::Frame>),
 }
+
+/// Local bounded-driver result. Empty frames do not imply a reached boundary.
+/// `Reached` is not proof that the router has drained the other two roles.
+pub enum BoundaryProgress {
+    Frames(Vec<(Party, PeerBytes)>),
+    Reached,
+}
 impl PeerBytes {
     pub fn as_bytes(&self) -> &[u8] {
         match self {
@@ -137,6 +144,37 @@ impl Worker {
             self.loop_offset,
             self.values.iter().filter(|v| v.is_some()).count(),
         )
+    }
+    /// Borrow local components only at an idle, locally quiescent test boundary.
+    /// Caller still proves router drain. The iterator cannot outlive this borrow
+    /// or duplicate a consuming runtime.
+    #[cfg(test)]
+    pub(super) fn test_boundary_state(
+        &self,
+    ) -> Result<
+        (
+            usize,
+            puma::prss::Cursors,
+            impl Iterator<Item = Option<(&[u64], &[u64])>> + '_,
+        ),
+        Error,
+    > {
+        self.live()?;
+        if self.imported != self.program.inputs || !self.boundary_ready() {
+            return Err(Error::Phase);
+        }
+        let Active::Idle(runtime) = &self.active else {
+            return Err(Error::Phase);
+        };
+        Ok((
+            self.step,
+            runtime.cursors(),
+            self.values.iter().map(|value| {
+                value
+                    .as_ref()
+                    .map(|value| (value.first.as_slice(), value.second.as_slice()))
+            }),
+        ))
     }
     #[cfg(test)]
     pub(super) fn selection_test_phase(&self) -> Option<u8> {
@@ -359,10 +397,45 @@ impl Worker {
     /// start the next. The authenticated router drains every emitted peer batch
     /// on all three roles before invoking this barrier again.
     pub fn advance(&mut self) -> Result<Vec<(Party, PeerBytes)>, Error> {
-        let result = self.advance_inner();
+        let result = self.advance_inner(None);
         self.checked(result)
     }
-    fn advance_inner(&mut self) -> Result<Vec<(Party, PeerBytes)>, Error> {
+
+    /// Advance strictly before an existing original node, finishing every prefix
+    /// primitive and every TensorLoop tile. Backward, out-of-range and already
+    /// active target nodes are rejected and retire this worker.
+    ///
+    /// The caller must drain emitted frames across all three roles before each
+    /// advance and before handoff; local `Reached` cannot establish global drain.
+    pub fn advance_before(&mut self, target: usize) -> Result<BoundaryProgress, Error> {
+        let result = (|| {
+            self.live()?;
+            if target >= self.program.nodes.len() || target < self.step {
+                return Err(Error::Bounds);
+            }
+            if target == self.step && !matches!(self.active, Active::Idle(_)) {
+                return Err(Error::Phase);
+            }
+            let frames = self.advance_inner(Some(target))?;
+            if self.step == target {
+                if !frames.is_empty() || !self.boundary_ready() {
+                    return Err(Error::Phase);
+                }
+                Ok(BoundaryProgress::Reached)
+            } else {
+                Ok(BoundaryProgress::Frames(frames))
+            }
+        })();
+        self.checked(result)
+    }
+
+    fn boundary_ready(&self) -> bool {
+        matches!(&self.active, Active::Idle(runtime) if runtime.status() == Status::Ready)
+            && self.inbox.iter().all(Option::is_none)
+            && self.loop_offset == 0
+    }
+
+    fn advance_inner(&mut self, before: Option<usize>) -> Result<Vec<(Party, PeerBytes)>, Error> {
         self.live()?;
         if self.complete()
             || self.imported != self.program.inputs
@@ -472,7 +545,7 @@ impl Worker {
             Active::Retired => return Err(Error::Retired),
         };
         self.started = true;
-        while self.step < self.program.nodes.len() {
+        while self.step < before.unwrap_or(self.program.nodes.len()) {
             let node = &self.program.nodes[self.step];
             match &node.code {
                 Code::Input(_) | Code::PublicInput { .. } => {

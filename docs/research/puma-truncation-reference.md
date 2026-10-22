@@ -562,9 +562,27 @@ reciprocal/rsqrt, complete-row normalization and softmax. Signed interval proofs
 select public 8/16/32/64-bit conversion buckets, with checked subtraction and
 full-word membership guards where required. Distinct compact frame identities
 retain full-width arithmetic OT words and rounding equations. These constructors
-are not yet selected by a decoder execution policy. The bounded body-layer
-executor likewise has local operator, liveness and failure controls but still
-needs outer compiler ownership, source-certificate and dispatch integration.
+are not yet selected by a decoder execution policy.
+
+The bounded binary-body adapter consumes an already-admitted original worker,
+executes only an exact gather/gather/add-or-Q18-product interval, then returns the
+same runtime and PRSS owner. D23 adds explicit `Worker::advance_before` and
+`Compiled::advance_to_start` boundaries: every preceding original node, including
+all tensor-loop tiles, finishes before the target can execute. Local readiness
+does not establish global quiescence; the caller must drain all three roles and
+their router before moving ownership. Invalid targets, foreign programs, replay
+and cancellation retain consuming retirement. Original program ownership plus
+bridge/lowering overlap remains inside the unchanged 64 MiB cap.
+
+The nondefault `insecure-test-support` core feature creates fresh deterministic
+test graphs with publicly known keys. Production setup keeps OS randomness; no
+live runtime can be cloned or reset. The feature belongs only to isolated test
+dependency graphs, not production secrets. Exact parity controls and the bounded
+handoff contract live in
+`crates/pllm-compiler/src/replicated_decoder/body_integration_handoff.md`.
+Full semantic-body dispatch, compact-oracle boundary mapping, trained-checkpoint
+admission and SDK promotion remain separate gates. No automatic policy, numeric,
+security, quality or performance qualification follows from this native adapter.
 
 ### Shared SDK interfaces
 

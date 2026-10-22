@@ -8,6 +8,10 @@ authors.workspace = true
 description = "Exact integer execution, codecs, and masking for private LLM inference"
 publish = false
 
+[features]
+# Publicly known keys: deterministic fresh graphs for tests only. Never production.
+insecure-test-support = []
+
 [dependencies]
 aes.workspace = true
 rayon.workspace = true
