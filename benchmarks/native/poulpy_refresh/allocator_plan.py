@@ -1,6 +1,7 @@
 """Fixed-parameter mapped-allocation plan. Budgets are not completion proofs."""
 
 from pathlib import Path
+from dataclasses import dataclass
 import json
 import runpy
 
@@ -16,6 +17,7 @@ PAGE_TABLES = 16 << 20
 CHARGE_CEILING = CAP - GUARD - RUNTIME - PAGE_TABLES
 ISIZE_MAX = (1 << 63) - 1
 USIZE_MAX = (1 << 64) - 1
+MAX_MAPPINGS = 4096
 
 
 def allocation_geometry(size, alignment, *, page=PAGE, ticket=TICKET):
@@ -36,7 +38,133 @@ def allocation_geometry(size, alignment, *, page=PAGE, ticket=TICKET):
 
 
 def buffer_charge(size, count=1, alignment=64):
+    if type(count) is not int or count <= 0:
+        raise ValueError("positive allocation count required")
     return count * allocation_geometry(size, alignment)["charge_bytes"]
+
+
+@dataclass
+class _Mapping:
+    capacity: int
+    alignment: int
+    mapped: int
+    charge: int
+    retired: bool = False
+    unmap_failed: bool = False
+
+
+class MappingLedger:
+    """Serial integer simulation of allocator events, NOT an OS release proof.
+
+    Capacity means original allocation Layout.size(), never Vec length or an
+    AlignedBuf's truncated logical size. Retire ends the modelled owner only;
+    release credit requires a separately supplied successful-unmap outcome.
+    No payload memory or real mapping is allocated here.
+    """
+
+    def __init__(self, ceiling=CHARGE_CEILING, max_mappings=MAX_MAPPINGS):
+        if any(type(v) is not int or v < 0 for v in (ceiling, max_mappings)):
+            raise ValueError("nonnegative integer limits required")
+        self.ceiling = ceiling
+        self.max_mappings = max_mappings
+        self.mappings = {}
+        self.charged = 0
+        self.peak_charged = 0
+        self.poisoned = False
+
+    def allocate(self, name, capacity, alignment=64):
+        if name in self.mappings:
+            raise ValueError("duplicate mapping")
+        g = allocation_geometry(capacity, alignment)
+        if (self.poisoned or len(self.mappings) >= self.max_mappings
+                or self.charged + g["charge_bytes"] > self.ceiling):
+            raise ValueError("allocation rejected")
+        self.mappings[name] = _Mapping(capacity, alignment, g["mapped_bytes"], g["charge_bytes"])
+        self.charged += g["charge_bytes"]
+        self.peak_charged = max(self.peak_charged, self.charged)
+
+    def retire(self, name):
+        mapping = self.mappings[name]
+        if mapping.retired:
+            raise ValueError("owner already retired")
+        mapping.retired = True
+
+    def unmap_result(self, name, *, succeeded):
+        if type(succeeded) is not bool:
+            raise ValueError("explicit unmap outcome required")
+        mapping = self.mappings[name]
+        if not mapping.retired:
+            raise ValueError("owner still live")
+        if mapping.unmap_failed:
+            raise ValueError("no production retry for failed unmap")
+        if not succeeded:
+            mapping.unmap_failed = True
+            self.poisoned = True
+            return
+        self.charged -= mapping.charge
+        del self.mappings[name]
+
+    def realloc(self, old, new, capacity, *, old_unmap_succeeded):
+        mapping = self.mappings[old]
+        if type(old_unmap_succeeded) is not bool:
+            raise ValueError("explicit unmap outcome required")
+        if mapping.retired or self.poisoned:
+            raise ValueError("allocation rejected")
+        allocation_geometry(capacity, mapping.alignment)
+        if capacity == mapping.capacity:
+            return old
+        # Reserve BOTH capacities, even for shrink. Rejection preserves old.
+        self.allocate(new, capacity, mapping.alignment)
+        self.retire(old)
+        self.unmap_result(old, succeeded=old_unmap_succeeded)
+        return new
+
+
+def dft_phase_owners(baby_limbs=28, *, loading=False):
+    """Explicit leaf Layouts for candidate DFT phase, not complete liveness.
+
+    One tuple describes each allocation, (name, capacity bytes, alignment).
+    Context/solver/container capacities remain unknown and are never zero-filled.
+    """
+    if type(baby_limbs) is not int or baby_limbs not in (27, 28):
+        raise ValueError("only reviewed DFT baby widths allowed")
+    owners = []
+
+    def add(prefix, capacity, count=1, alignment=64):
+        owners.extend((f"{prefix}/{i}", capacity, alignment) for i in range(count))
+
+    add("wide_ct", S["z"](2, 28), 5)
+    add("entry", S["z"](2, 1))
+    for i in range(17):
+        add(f"ntt/{i}", 64 * (1 << i), 4)
+    for i in range(16):
+        add(f"twiddle/{i}", ((16 * (1 << i) + 63) // 64) * 64, 4)
+    for n, count in ((65536, 16), (4096, 31), (256, 31), (16, 15)):
+        add(f"diagonal/{n}", n * 32, 2 * count)
+    add("raw_secret", S["z"](1, 1), 2)
+    add("prepared_secret", S["d"](1, 1), 2)
+    add("high_key", S["HIGH_PREPARED"], 7)
+    add("baby", S["d"](2, baby_limbs), 4)
+    if loading:
+        add("raw_import", S["HIGH_RAW"])
+        add("prepare_scratch", 2 << 20)
+        add("vmp_private", 2 << 20, alignment=4)
+    else:
+        add("matrix_scratch", S["matrix_query_certificate"]()["matrix_query_bytes"])
+    return owners
+
+
+def phase_certificate(owners):
+    ledger = MappingLedger()
+    for name, capacity, alignment in owners:
+        ledger.allocate(name, capacity, alignment)
+    return {
+        "leaf_owners": [{"name": name, "capacity_bytes": capacity, "alignment": alignment}
+                        for name, capacity, alignment in owners],
+        "known_charge_bytes": ledger.charged,
+        "known_mapping_count": len(ledger.mappings),
+        "complete_upper_bound_bytes": None,
+    }
 
 
 def plan():
@@ -65,8 +193,17 @@ def plan():
     stream_io_budget = 1 << 20
     return {
         "schema": "pllm.poulpy-mmap-allocation-plan.v1",
+        "poulpy_commit": S["COMMIT"],
+        "cpu_execution_threads": 1,
+        "maximum_refreshes": 2,
         "admitted": False,
+        "execution_performed": False,
+        "budget_sufficiency_proven": False,
+        "conditional_total_is_complete_owner_bound": False,
         "full_owner_completion_bound_bytes": None,
+        "complete_setup_upper_bound_bytes": None,
+        "attributable_kernel_io_upper_bound_bytes": None,
+        "host_reserve_bytes": 4 << 30,
         "allocator_charge_ceiling_bytes": CHARGE_CEILING,
         "fixed_external_operational_reserves_bytes": GUARD + RUNTIME + PAGE_TABLES,
         "per_mapping_kernel_bookkeeping_ticket_bytes": TICKET,
@@ -78,6 +215,20 @@ def plan():
         "factor_2_evaluation_residual_charge_bytes": CHARGE_CEILING - known_evaluation,
         "uniform_dft_known_charge_bytes": uniform_dft,
         "uniform_dft_residual_charge_bytes": CHARGE_CEILING - uniform_dft,
+        "candidate_dft_phases": {
+            f"{width}_limb_{phase}": phase_certificate(dft_phase_owners(width, loading=loading))
+            for width in (27, 28)
+            for phase, loading in (("loading", True), ("evaluation", False))
+        },
+        "unclosed_phases": ["context_and_solver_setup", "key_generation_export",
+                            "affine_modup", "split_evalmod", "s2c_reentry"],
+        "transition_requirements": [
+            "end all typed borrows before refill or retirement",
+            "successful unmap of raw import, preparation scratch and private vector before evaluation scratch",
+            "successful unmap of prior baby cache before allocating next cache",
+            "successful unmap of DFT keys/scratch before typed tensor allocation; no cross-role cast",
+            "retain original Layout capacity through truncation; charge both mappings during every realloc",
+        ],
         "other_heap_operational_charge_budget_bytes": other_heap_budget,
         "stream_io_operational_charge_budget_bytes": stream_io_budget,
         "conditional_factor_2_total_bytes": known_evaluation + other_heap_budget + stream_io_budget + GUARD + RUNTIME + PAGE_TABLES,
@@ -86,7 +237,7 @@ def plan():
         "conditional_uniform_dft_margin_bytes": CAP - uniform_dft - other_heap_budget - stream_io_budget - GUARD - RUNTIME - PAGE_TABLES,
         "unproved_sufficiency": [
             "96-MiB charged allowance for all remaining contexts, plan/noise/container capacities, client codec and oracle owners",
-            "1-MiB charged stream buffers and attributable kernel I/O outside Rust allocator",
+            "1-MiB charged Rust stream buffers; attributable kernel I/O has no proved separate bound",
             "64-MiB non-Rust runtime and 16-MiB page-table allowances; 32-KiB per-mapping kernel ticket",
             "solver and context setup peak, all non-DFT phase scratch/copies, and full typed adapter liveness",
             "pinned-nightly native allocator tests and effective dependency closure",

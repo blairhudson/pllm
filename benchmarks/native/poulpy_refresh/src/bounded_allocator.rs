@@ -309,6 +309,9 @@ unsafe impl<M: Mapper> GlobalAlloc for BoundedAllocator<M> {
 
     unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let _ = unsafe { self.header(pointer, layout) };
+        // Poison invalidates qualification even when this request could reuse
+        // the old pointer without mapping. Preserve old storage on rejection.
+        if self.poisoned.load(Ordering::Acquire) { return self.deny(); }
         // GlobalAlloc requires positive new_size; defensively refuse zero
         // without freeing the old allocation. Failed growth/shrink also keeps it.
         if new_size == 0 { return self.deny(); }

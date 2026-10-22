@@ -74,6 +74,9 @@ fn cap_is_inclusive_and_map_count_is_separate() {
     }
     assert_eq!(b.snapshot().mappings, 0);
     assert_eq!(a.snapshot().peak_charged, charge);
+    let below = allocator(charge - 1, 2);
+    unsafe { assert!(below.alloc(l).is_null()); }
+    assert_eq!((below.snapshot().charged, below.snapshot().mappings), (0, 0));
 }
 
 #[test]
@@ -191,4 +194,57 @@ fn repeated_private_vector_shape_has_no_retained_mapping_growth() {
         assert_eq!(a.snapshot().charged, 0);
     }
     assert_eq!(a.snapshot().peak_charged, charge);
+}
+
+#[test]
+fn retained_live_capacity_cannot_be_spent_after_logical_truncation() {
+    let layout = Layout::from_size_align(PAGE_BYTES, 64).unwrap();
+    let g = geometry(layout, PAGE_BYTES, BOOKKEEPING_TICKET).unwrap();
+    let a = allocator(g.charge, 4);
+    unsafe {
+        let p = a.alloc(layout);
+        assert!(!p.is_null());
+        // Like AlignedBuf truncation: touching fewer bytes does not deallocate
+        // capacity, and caller must eventually use the original Layout.
+        p.write(1);
+        assert!(a.alloc(Layout::from_size_align(1, 1).unwrap()).is_null());
+        assert_eq!(a.snapshot().charged, g.charge);
+        a.dealloc(p, layout);
+    }
+    assert_eq!(a.snapshot().charged, 0);
+}
+
+#[test]
+fn realloc_failed_old_unmap_keeps_both_charges_and_rejects_same_size() {
+    let layout = Layout::from_size_align(128, 64).unwrap();
+    let new_layout = Layout::from_size_align(256, 64).unwrap();
+    let g = geometry(layout, PAGE_BYTES, BOOKKEEPING_TICKET).unwrap();
+    let a = BoundedAllocator::new(FailingUnmap, 2 * g.charge, 4, BOOKKEEPING_TICKET);
+    unsafe {
+        let p = a.alloc(layout);
+        assert!(!p.is_null());
+        p.write_bytes(0x37, layout.size());
+        let old = a.header(p, layout);
+        let q = a.realloc(p, layout, new_layout.size());
+        assert!(!q.is_null());
+        assert!(std::slice::from_raw_parts(q, layout.size()).iter().all(|&v| v == 0x37));
+        let new = a.header(q, new_layout);
+        let s = a.snapshot();
+        assert!(s.poisoned);
+        assert_eq!((s.charged, s.mapped, s.mappings), (2 * g.charge, 2 * g.mapped, 2));
+        assert_eq!(s.unmap_failures, 1);
+        assert!(a.alloc(layout).is_null());
+        assert!(a.realloc(q, new_layout, new_layout.size()).is_null());
+        assert!(a.realloc(q, new_layout, 512).is_null());
+        assert!(a.realloc(q, new_layout, 64).is_null());
+        // q remains valid after refused realloc. Deallocation is still legal
+        // while poisoned, but another failure earns no credit either.
+        assert_eq!(q.read(), 0x37);
+        a.dealloc(q, new_layout);
+        assert_eq!(a.snapshot().unmap_failures, 2);
+        assert_eq!(a.snapshot().charged, 2 * g.charge);
+        // Test-only OS cleanup, not a production accounting escape hatch.
+        assert_eq!(SystemMapper.unmap(old.base, old.mapped), 0);
+        assert_eq!(SystemMapper.unmap(new.base, new.mapped), 0);
+    }
 }

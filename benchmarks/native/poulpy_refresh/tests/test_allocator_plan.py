@@ -38,6 +38,9 @@ class AllocationPlanTests(unittest.TestCase):
         self.assertGreater(plan["conditional_uniform_dft_margin_bytes"], 0)
         self.assertEqual(plan["uniform_dft_known_charge_bytes"] - plan["factor_2_evaluation_known_charge_bytes"], 4 * 65536 * 2 * 32)
         self.assertFalse(plan["admitted"])
+        self.assertFalse(plan["budget_sufficiency_proven"])
+        self.assertFalse(plan["conditional_total_is_complete_owner_bound"])
+        self.assertIsNone(plan["attributable_kernel_io_upper_bound_bytes"])
         self.assertFalse(plan["bookkeeping_ticket_is_proven_kernel_bound"])
         self.assertIsNone(plan["full_owner_completion_bound_bytes"])
         # Aggregating tiny diagonals before page rounding would undercharge.
@@ -59,6 +62,114 @@ class AllocationPlanTests(unittest.TestCase):
         upstream_lock = next(s for s in sources if s["path"] == "Cargo.lock")
         self.assertEqual(c["solver_dependency_plan"]["upstream_lock_sha256"], upstream_lock["sha256"])
         self.assertFalse(c["hard_cap_enforcement_proves_completion"])
+
+    def test_explicit_leaf_phases_match_aggregate_and_stay_partial(self):
+        plan = P["plan"]()
+        phases = plan["candidate_dft_phases"]
+        self.assertEqual(phases["27_limb_loading"]["known_charge_bytes"], plan["factor_2_loading_known_charge_bytes"])
+        self.assertEqual(phases["27_limb_evaluation"]["known_charge_bytes"], plan["factor_2_evaluation_known_charge_bytes"])
+        self.assertEqual(phases["28_limb_evaluation"]["known_charge_bytes"], plan["uniform_dft_known_charge_bytes"])
+        for name, phase in phases.items():
+            self.assertIsNone(phase["complete_upper_bound_bytes"])
+            self.assertEqual(phase["known_mapping_count"], 342 if name.endswith("loading") else 340)
+            leaves = {leaf["name"] for leaf in phase["leaf_owners"]}
+            self.assertEqual("vmp_private/0" in leaves, name.endswith("loading"))
+            self.assertEqual("matrix_scratch/0" in leaves, name.endswith("evaluation"))
+        self.assertEqual(plan["conditional_uniform_dft_total_bytes"], 8_552_267_776)
+        self.assertEqual(plan["conditional_uniform_dft_margin_bytes"], 37_666_816)
+        self.assertEqual(plan["host_reserve_bytes"], 4 << 30)
+        self.assertTrue(plan["unclosed_phases"])
+
+    def test_capacity_retention_and_inclusive_cap(self):
+        charge = P["buffer_charge"](P["PAGE"])
+        ledger = P["MappingLedger"](ceiling=charge)
+        ledger.allocate("original_capacity", P["PAGE"])
+        self.assertEqual(ledger.charged, charge)
+        # Logical truncation/drop cannot replace the original Layout capacity.
+        ledger.retire("original_capacity")
+        with self.assertRaisesRegex(ValueError, "rejected"):
+            ledger.allocate("tiny_replacement", 1)
+        self.assertEqual(ledger.charged, charge)
+        ledger.unmap_result("original_capacity", succeeded=True)
+        ledger.allocate("tiny_replacement", 1)
+        self.assertLess(ledger.charged, charge)
+        with self.assertRaisesRegex(ValueError, "still live"):
+            ledger.unmap_result("tiny_replacement", succeeded=True)
+        with self.assertRaises(ValueError):
+            P["MappingLedger"](ceiling=charge - 1).allocate("too_big", P["PAGE"])
+        with self.assertRaises(ValueError):
+            P["buffer_charge"](1, -1)
+
+    def test_realloc_overlap_shrink_and_failed_unmap_stay_charged(self):
+        charge = P["buffer_charge"](128)
+        ledger = P["MappingLedger"](ceiling=charge)
+        ledger.allocate("old", 128)
+        for capacity in (64, 256):
+            with self.assertRaisesRegex(ValueError, "rejected"):
+                ledger.realloc("old", "new", capacity, old_unmap_succeeded=True)
+            self.assertFalse(ledger.mappings["old"].retired)
+            self.assertEqual(ledger.charged, charge)
+        successful = P["MappingLedger"](ceiling=2 * charge)
+        successful.allocate("old", 128)
+        successful.realloc("old", "grown", 256, old_unmap_succeeded=True)
+        successful.realloc("grown", "shrunk", 64, old_unmap_succeeded=True)
+        self.assertEqual(set(successful.mappings), {"shrunk"})
+        self.assertEqual(successful.mappings["shrunk"].capacity, 64)
+        self.assertEqual(successful.charged, charge)
+        self.assertEqual(successful.peak_charged, 2 * charge)
+        ledger = P["MappingLedger"](ceiling=2 * charge)
+        ledger.allocate("old", 128)
+        self.assertEqual(ledger.realloc("old", "new", 64, old_unmap_succeeded=False), "new")
+        self.assertTrue(ledger.poisoned)
+        self.assertEqual(ledger.charged, 2 * charge)
+        self.assertEqual(ledger.peak_charged, 2 * charge)
+        with self.assertRaisesRegex(ValueError, "rejected"):
+            ledger.realloc("new", "same", 64, old_unmap_succeeded=True)
+        with self.assertRaisesRegex(ValueError, "no production retry"):
+            ledger.unmap_result("old", succeeded=True)
+        ledger.retire("new")
+        ledger.unmap_result("new", succeeded=True)
+        self.assertEqual(ledger.charged, charge)
+        with self.assertRaisesRegex(ValueError, "rejected"):
+            ledger.allocate("after_poison", 1)
+
+    def test_mapping_count_failure_and_missing_unmap_outcome_fail_closed(self):
+        ledger = P["MappingLedger"](max_mappings=1)
+        ledger.allocate("one", 1)
+        with self.assertRaisesRegex(ValueError, "rejected"):
+            ledger.allocate("two", 1)
+        ledger.retire("one")
+        with self.assertRaises(ValueError):
+            ledger.unmap_result("one", succeeded=None)
+        ledger.unmap_result("one", succeeded=False)
+        self.assertEqual(len(ledger.mappings), 1)
+        self.assertTrue(ledger.poisoned)
+
+    def test_dft_transition_requires_raw_and_old_baby_unmapping(self):
+        ledger = P["MappingLedger"]()
+        for name, capacity, alignment in P["dft_phase_owners"](28, loading=True):
+            ledger.allocate(name, capacity, alignment)
+        scratch = P["S"]["matrix_query_certificate"]()["matrix_query_bytes"]
+        # Loading plus evaluation scratch cannot coexist even without unknowns.
+        with self.assertRaisesRegex(ValueError, "rejected"):
+            ledger.allocate("evaluation", scratch)
+        for name in ("raw_import/0", "prepare_scratch/0", "vmp_private/0"):
+            ledger.retire(name)
+            ledger.unmap_result(name, succeeded=True)
+        ledger.allocate("evaluation", scratch)
+        for i in range(4):
+            ledger.retire(f"baby/{i}")
+        # One next-cache leaf fits the residual; the complete cache does not.
+        ledger.allocate("next_baby/0", P["S"]["d"](2, 27))
+        with self.assertRaisesRegex(ValueError, "rejected"):
+            ledger.allocate("next_baby/1", P["S"]["d"](2, 27))
+        ledger.retire("next_baby/0")
+        ledger.unmap_result("next_baby/0", succeeded=True)
+        for i in range(4):
+            ledger.unmap_result(f"baby/{i}", succeeded=True)
+        for i in range(4):
+            ledger.allocate(f"next_baby/{i}", P["S"]["d"](2, 27))
+        self.assertEqual(ledger.charged, P["plan"]()["factor_2_evaluation_known_charge_bytes"])
 
     def test_isolated_commands_cannot_build_dependencies(self):
         runner = runpy.run_path(str(HERE / "allocator_probe.py"))

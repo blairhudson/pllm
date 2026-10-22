@@ -218,8 +218,8 @@ def report():
         "vmp_private_requested_bytes_per_high_key": 7 * 2 * 33 * VMP_PRIVATE,
         "maximum_retained_vmp_blocks_after_raw_before_other_owners": remaining_after_raw // VMP_PRIVATE,
         "blockers": [
-            "no bounded allocator reuse/reclamation for private VMP, baby caches, tensor and scratch",
-            "no public automorphism-to-tensor prepared-owner conversion",
+            "bounded allocator candidate exists but native tests and full typed phase adapter remain unqualified",
+            "release credit requires successful unmap; retained or failed-unmap mappings remain charged",
             "coefficient solver dependency allocation contract absent; probe dependency closure unlocked",
             "remaining contexts, containers, client, runtime and attributable I/O upper bounds absent",
             "independent parameter receipts and numerical re-entry qualification absent",

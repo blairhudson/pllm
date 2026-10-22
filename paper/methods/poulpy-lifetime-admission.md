@@ -8,6 +8,15 @@ envelope of **8,552,267,776 bytes**, leaving **37,666,816 bytes**. This includes
 explicit operational overhead budgets; their sufficiency remains unproved.
 **Successful completion and the full owner upper bound remain unqualified.**
 
+**Independent-lane update:** candidate DFT phases now enumerate every
+known leaf allocation's original capacity and alignment (340 evaluation mappings,
+342 loading mappings). An integer-only mapping ledger checks allocation overlap,
+retained capacity, explicit unmap outcomes and poison. It is a simulation, not
+evidence that an OS mapping was released. The Rust allocator now also rejects
+same-size realloc after poison, preserving the original allocation on rejection.
+The standalone allocator's ten Rust unit tests pass; no backend dependency was
+compiled and no encrypted execution occurred.
+
 Sections 1–4 preserve the source/default-allocator certificates. Sections 5–8
 describe the approved allocator route, exact remaining proof obligations, and
 the executable isolated-test gate. No upstream API/storage patch is selected.
@@ -16,9 +25,9 @@ Scope remains Poulpy v0.9.0 at
 `ca3532570ff62b96599a74f7adb85de7726b0446`, the original torus preset,
 `NTT4x30Portable<Standard>`, one execution thread, at most two refreshes,
 8,589,934,592 owner bytes including the 67,108,864-byte guard, and the separate
-4-GiB host reserve. This follow-up adds an uncompiled Rust allocator and small
-isolated fixtures. Executed checks are Python tests, including a two-page macOS
-mapping observation. The guarded Rust-test attempt was rejected before launch.
+4-GiB host reserve. This follow-up adds a Rust allocator and small isolated
+fixtures. Executed checks include Python tests and standalone Rust allocator
+unit tests. The earlier guarded Rust-test attempt was rejected before launch.
 No HE, native dependency build, dependency resolution/download, model or estimator
 execution. No source-method implementation is called.
 
@@ -236,8 +245,15 @@ contract. Exhaustion is a failed qualification, not a smaller-key fallback.
 | Pointer misuse | Caller still owes GlobalAlloc safety contract. Layout/header mismatch aborts without unwinding; header checks do not make arbitrary invalid pointers safe |
 | Concurrency | Atomic reservation checks include in-flight maps/realloc overlap. Snapshot fields are individual observations, not a coherent concurrent RSS snapshot; qualification execution stays serial |
 
+After poison, even a same-size realloc returns null; its original pointer and
+Layout remain valid for eventual deallocation. A failed old unmap during a
+successful realloc retains both charges and returns the copied new allocation;
+poison prevents any subsequent allocation/realloc. Deallocating another valid
+owner remains permitted, but cannot erase the failed-unmap charge. There is no
+production API to retry or forgive that failed deallocation.
+
 The allocator object itself is 88 bytes on this target, charged to the external
-runtime allowance; that size is asserted by the pending Rust unit tests.
+runtime allowance; that size is asserted by the standalone Rust unit tests.
 
 ```text
 owner ceiling                                  8,589,934,592
@@ -310,6 +326,34 @@ These positive margins establish **conditional compatibility**, not successful
 execution. The 96-/1-MiB budgets must be proved sufficient, including per-map
 rounding and realloc overlap. They are not substitutes for bounds on requests.
 No complete owner or setup upper bound is populated.
+
+The plan's `candidate_dft_phases` now includes separately named leaf Layouts for
+27-/28-limb loading and evaluation, with partial charge/count totals and an
+explicit `null` complete bound. The 28-limb loading charge is **7,781,122,048
+bytes**; evaluation remains **8,299,560,960 bytes**. Loading and evaluation scratch
+cannot coexist at the allocator ceiling, even before the unknown owners. Retiring
+raw import and preparation owners without successful unmapping therefore cannot
+authorize evaluation scratch. Likewise, while a retained 28-limb baby cache leaves
+room for one new 27-limb leaf, the second already exceeds the charge ceiling;
+the complete replacement cache cannot coexist. The tested transition releases
+old mappings before creating the complete next cache. Neither test establishes
+that actual typed upstream references have ended: the owned adapter is absent.
+
+`MappingLedger` takes original Layout capacity, not logical length. Shrinking
+realloc reserves a second mapping exactly as growth does; refusal leaves the old
+model owner unchanged. A supplied failed-unmap outcome keeps its mapping/count
+and poisons all further allocation, including same-size realloc. Python never
+constructs HE-sized buffers in these checks. The old no-reclamation payload ledger
+remains separate evidence for default-allocator policies, not the selected
+allocator's release accounting.
+
+The **1-MiB stream allowance covers charged Rust buffers only**. It does not also
+prove a bound for attributable file cache, kernel I/O, runtime I/O internals or
+their retention. Those costs remain unbounded obligations, alongside the
+96-MiB container/context capacity allowance and the kernel/runtime reserves.
+No solver dependency source or actual consumer lock has become available in this
+lane; its arithmetic-allocation bound remains absent. No budget was relabelled a
+source-proved bound, and no non-DFT phase gained a completion certificate.
 
 Frozen phase/lifetime sequence:
 
@@ -390,7 +434,8 @@ borrow-safe same-role refill, and invalid lifetime/size operations. They execute
 no upstream primitive. `complete_owner_upper_bound_bytes`,
 `complete_setup_upper_bound_bytes` and measured peak remain `null`.
 
-**21 Python tests passed**, including six new allocator-plan/OS tests. The OS
+**26 Python tests passed** on this follow-up, including eleven
+allocator-plan/OS tests. The OS
 test maps only 32,768 bytes, verifies zero initialization/alignment and successful
 munmap return. This is an API observation, not a Rust-adapter execution or an RSS
 measurement. An initial test wrongly expected Linux-style ENOMEM from macOS
@@ -398,15 +443,29 @@ mincore on an unmapped range; the installed macOS man page promises no such
 result, so that invalid assertion was removed. Residency bits are not used as a
 release certificate.
 
-The native fixture contains **eight Rust unit tests** plus a separate global-Vec/
+The native fixture contains **ten Rust unit tests** plus a separate global-Vec/
 aligned-allocation smoke executable. Cases include alignment/page residues,
 overflow/zero, exact-cap boundaries, mapping-count limits, failed mmap rollback,
 failed munmap poisoning, grow/shrink realloc overlap/failure preservation and 462
-small repeated allocations. **Neither executable has been compiled or run.**
+small repeated allocations. **All ten allocator unit tests pass** using an
+ordinary standalone `rustc --test` build. The separate global-Vec smoke
+executable remains unrun.
+The two added fixtures cover retained original capacity and successful realloc
+with failed old unmap (both charges retained, copied bytes preserved, subsequent
+same-size/growing-or-shrinking allocation refused). These checks establish only
+bounded allocator behavior, not dependency closure, a complete owner bound,
+guarded resource qualification, or encrypted-refresh admission.
 Fixtures live under `tests/allocator/` without `main.rs`, so Cargo does not
 auto-discover standalone module tests as backend integration-test crates.
 
-The next executable gate is `allocator_probe.py`: existing installed Rust 1.85.1
+Ordinary allocator unit-test replay (no backend dependencies):
+
+```sh
+rustc --edition=2021 --test benchmarks/native/poulpy_refresh/src/bounded_allocator.rs -o target/poulpy-allocator-tests
+target/poulpy-allocator-tests
+```
+
+The separately guarded qualification gate remains `allocator_probe.py`: Rust 1.85.1
 only, no Cargo/dependencies/downloads, codegen units 1, serial unit tests. It reuses
 the unchanged aggregate process-group guard/lock, 4-GiB host reserve, zero extra
 swap, 512-MiB/120-second compile ceiling and 128-MiB/30-second run ceiling. A later

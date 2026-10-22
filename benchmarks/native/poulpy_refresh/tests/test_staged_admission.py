@@ -31,6 +31,8 @@ class StagedAdmissionTests(unittest.TestCase):
         self.assertIsNone(r["complete_owner_upper_bound_bytes"])
         self.assertIsNone(r["complete_setup_upper_bound_bytes"])
         self.assertIsNone(r["measured_peak_bytes"])
+        self.assertTrue(any("candidate exists" in blocker for blocker in r["blockers"]))
+        self.assertFalse(any("no public automorphism-to-tensor" in blocker for blocker in r["blockers"]))
 
     def test_private_vmp_peak_is_not_cumulative_charge(self):
         ledger = S["RetentionLedger"]()
