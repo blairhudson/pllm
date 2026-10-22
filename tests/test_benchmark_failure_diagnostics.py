@@ -268,8 +268,9 @@ def test_optional_diagnostics_cross_isolation_pipe_without_new_process(monkeypat
 
 
 @pytest.mark.parametrize("phase", ["qualification_metadata", "qualification_import",
-                                   "qualification_seal", "qualification_pricing",
-                                   "qualification_retirement", "graph_admission"])
+                                    "qualification_seal", "qualification_pricing",
+                                    "qualification_retirement", "graph_admission",
+                                    "source_config", "source_tokenizer"])
 @pytest.mark.parametrize("warning_time", [False, True])
 def test_qualification_failure_flags_are_live_and_captured_before_cleanup(monkeypatch, phase, warning_time):
     """Real coordinator lifecycle; mocked source/leases/telemetry, no tensor import."""
@@ -297,6 +298,7 @@ def test_qualification_failure_flags_are_live_and_captured_before_cleanup(monkey
         if warning_time:
             runtime._memory_guard.failure_observation = {
                 "pressure": "warning", "available_bytes": 1024, "swap_used_bytes": 32}
+            topology.request_stop()
             collector.capture()
         raise RuntimeError(SECRET)
 
@@ -307,6 +309,9 @@ def test_qualification_failure_flags_are_live_and_captured_before_cleanup(monkey
 
     def resolve(*a, **k):
         if phase == "qualification_metadata":
+            warning()
+        if phase in ("source_config", "source_tokenizer"):
+            k["lifecycle"](phase)
             warning()
         return source
 
@@ -403,8 +408,10 @@ def test_source_breadcrumbs_surround_real_builder_boundaries(monkeypatch, phase)
     with pytest.raises(RuntimeError, match=SECRET):
         fss_source.load_role_source(NS(budget=NS(max_input_tokens=3, max_new_tokens=1)),
             expected_pins={}, source=source, lifecycle=observed.append, on_failure=capture)
-    assert observed == (["qualification_metadata", "qualification_import"]
-                        + (["qualification_seal"] if phase == "qualification_seal" else []))
+    assert observed == (["qualification_metadata", "source_contract", "source_lock", "source_headers",
+                         "qualification_import"] + (["source_weights", "source_rotary",
+                                                     "source_recheck", "qualification_seal"]
+                                                    if phase == "qualification_seal" else []))
     assert calls == (["capture"] + (["builder_close"] if phase == "qualification_seal" else [])
                      + ["cache_close"])
 

@@ -16,7 +16,7 @@ import threading
 import time
 from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -382,12 +382,43 @@ class LocalTopology:
                            if key in ("priced", "completed", "retired") and type(value) is bool})
 
     def _observe_failure(self) -> None:
+        self.request_stop()  # Publish cancellation before nonblocking observation.
         observer = getattr(self, "_failure_observer", None)
         if observer is not None:
             try:
                 observer()
             except Exception:
                 pass  # Diagnostics never alter cleanup or admission behavior.
+
+    @contextmanager
+    def _source_import_scope(self, role: str):
+        """Only live same-process setup may override an active request's phase.
+
+        This is not child IPC. Delayed callbacks from a finished/replaced scope
+        cannot revive it. The bounded latest record never enters output schema.
+        """
+        from .benchmark_failure import SOURCE_IMPORT_PHASES
+
+        role = role if type(role) is str and role in ("client", "worker_a", "worker_b", "dealer") else None
+        record = {"active": True, "phase": "qualification_metadata", "role": role}
+        with self._process_lock:
+            self._startup_breadcrumbs["source_import"] = record
+
+        def lifecycle(phase):
+            with self._process_lock:
+                if (record["active"]
+                        and self._startup_breadcrumbs.get("source_import") is record):
+                    record["phase"] = phase if type(phase) is str and phase in SOURCE_IMPORT_PHASES else "unknown"
+                    self._startup_breadcrumbs.update(phase=record["phase"], role=role)
+
+        try:
+            yield lifecycle
+        except BaseException:
+            self._observe_failure()
+            raise
+        finally:
+            with self._process_lock:
+                record["active"] = False
 
     @property
     def model_id(self) -> str:
@@ -935,7 +966,9 @@ class LocalTopology:
 
         try:
             running()
-            source = resolve_client_source(self._experiment)
+            with self._source_import_scope("client") as lifecycle:
+                source = resolve_client_source(self._experiment, lifecycle=lifecycle,
+                                               on_failure=self._observe_failure)
             contract = source.contract
             pins = dict(source.snapshot_pins)
             estimate = _fss_memory(json.loads(source.config_bytes), self._experiment.pipeline,
@@ -956,10 +989,10 @@ class LocalTopology:
                         directory=directory, minimum_free_bytes=2 << 30))
                 running()
                 self._startup_step("qualification_import", "client")
-                loaded = load_role_source(self._experiment, expected_pins=pins, source=source,
-                                          cancelled=self._stopping.is_set,
-                                          lifecycle=lambda phase: self._startup_step(phase, "client"),
-                                          on_failure=self._observe_failure)
+                with self._source_import_scope("client") as lifecycle:
+                    loaded = load_role_source(self._experiment, expected_pins=pins, source=source,
+                                              cancelled=self._stopping.is_set, lifecycle=lifecycle,
+                                              on_failure=self._observe_failure)
                 try:
                     running()
                     self._startup_step("qualification_pricing", "client")

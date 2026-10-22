@@ -47,8 +47,10 @@ def setup(tmp_path, monkeypatch):
         return source.contract_bytes
     source.runtime_contract = runtime_contract
 
-    def resolve(exp):
+    def resolve(exp, *, lifecycle=None, on_failure=None):
         assert exp is experiment
+        if lifecycle is not None or on_failure is not None:
+            assert callable(lifecycle) and callable(on_failure)
         state.events.append("source.metadata")
         return source
     monkeypatch.setattr(fss_source, "resolve_client_source", resolve)

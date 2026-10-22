@@ -10,11 +10,16 @@ import time
 SCHEMA = "pllm.benchmark_failure_diagnostics.v1"
 ROLES = ("client", "inference", "preparation", "worker_a", "worker_b", "worker_c",
          "dealer", "boundary_a", "boundary_b")
+SOURCE_IMPORT_PHASES = (
+    "qualification_metadata", "qualification_import", "qualification_seal",
+    "source_resolution", "source_config", "source_geometry", "source_inventory",
+    "source_lock", "source_contract", "source_headers", "source_tokenizer",
+    "source_weights", "source_rotary", "source_recheck", "source_manifest",
+)
 PHASES = ("unknown", "dashboard_startup", "memory_preflight", "source_inspection",
-          "source_qualification", "qualification_metadata", "qualification_import",
-          "qualification_seal", "qualification_pricing", "qualification_retirement",
+          "source_qualification", "qualification_pricing", "qualification_retirement",
           "graph_admission", "role_startup", "client_startup",
-          "ready", "request")
+          "ready", "request", *SOURCE_IMPORT_PHASES)
 _OBSERVE = object()
 
 
@@ -98,12 +103,23 @@ class FailureDiagnostics:
         runtime = self.runtime
         topology = runtime._topology
         breadcrumb = getattr(topology, "startup_breadcrumbs", {})
+        source_import = breadcrumb.get("source_import")
+        source_import = source_import if type(source_import) is dict else {}
+        importing = (source_import.get("active") is True
+                     and type(source_import.get("phase")) is str
+                     and source_import.get("phase") in SOURCE_IMPORT_PHASES
+                     and type(source_import.get("role")) is str
+                     and source_import.get("role") in ("client", "worker_a", "worker_b", "dealer"))
+        current_role = breadcrumb.get("role")
         if not runtime._lock.acquire(blocking=False):
             current_phase = "unknown"
         else:
             try:
                 state = runtime._state
-                if runtime._active_run is not None or state.get("phase") == "online":
+                if importing:
+                    current_phase = source_import["phase"]
+                    current_role = source_import["role"]
+                elif runtime._active_run is not None or state.get("phase") == "online":
                     current_phase = "request"
                 elif state.get("phase") == "ready":
                     current_phase = "ready"
@@ -122,7 +138,7 @@ class FailureDiagnostics:
         guard = runtime._memory_guard
         return sanitize_failure_diagnostics({
             "schema_version": SCHEMA, "phase": current_phase,
-            "role": breadcrumb.get("role") if current_phase not in ("request", "ready") else None,
+            "role": current_role if current_phase not in ("unknown", "request", "ready") else None,
             "elapsed_seconds": time.monotonic() - self.started,
             "qualification": breadcrumb.get("qualification"),
             "spawned_roles": breadcrumb.get("spawned_roles", []),

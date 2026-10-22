@@ -49,6 +49,14 @@ def _cancelled(cancelled):
         raise FssSourceError("FuseFSS source import cancelled")
 
 
+def _notify_failure(observer):
+    if observer is not None:
+        try:
+            observer()
+        except Exception:
+            pass  # Observation cannot replace the source error or cleanup.
+
+
 def _capacity(record):
     capacity = record.get("capacity", "capsule")
     if type(capacity) is not str or capacity not in {"capsule", "decoder"}:
@@ -411,7 +419,7 @@ def _check_pins(source, expected):
         raise FssSourceError("FuseFSS worker original snapshot pins differ")
 
 
-def _resolve_client_source(experiment, *, expected_pins=None):
+def _resolve_client_source(experiment, *, expected_pins=None, lifecycle=None):
     """Resolve original source pins and tokenizer without decoding any weight values."""
     encoded, model, profile, capacity = _experiment(experiment)
     root = Path(model.source).expanduser()
@@ -422,6 +430,8 @@ def _resolve_client_source(experiment, *, expected_pins=None):
     if not root.is_dir():
         raise FssSourceError("FuseFSS requires an existing HF/Safetensors directory")
     root = root.resolve()
+    if lifecycle is not None:
+        lifecycle("source_config")
     identity = io._identity(root / "config.json")
     original = io._read_bounded(root / "config.json", 16384)
     raw = _document(original, "config.json", 16384)
@@ -430,24 +440,38 @@ def _resolve_client_source(experiment, *, expected_pins=None):
             raise FssSourceError("FuseFSS requires original unquantized floating-point source")
     config = io._canonical(raw)
     rows, outputs = experiment.budget.max_input_tokens, experiment.budget.max_new_tokens
+    if lifecycle is not None:
+        lifecycle("source_geometry")
     _geometry(config, rows, outputs, profile, capacity)
     source_limit = io._DECODER_SOURCE_BYTES if capacity == "decoder" else _SOURCE
     tokenizer_limit = io._DECODER_TOKENIZER_BYTES if capacity == "decoder" else io._MAX_TOKENIZER_BYTES
+    if lifecycle is not None:
+        lifecycle("source_inventory")
     identities = _files(root, source_limit, capacity)
     if dict(identities)["config.json"] != identity:
         raise FssSourceError("FuseFSS config changed during admission")
+    if lifecycle is not None:
+        lifecycle("source_lock")
     checkpoint, lock_digest, lock = _locked(root, model, source_limit, identities, capacity)
     hashes = {row["path"]: row["sha256"] for row in lock["files"]}
     tokenizer = io._read_bounded(root / "tokenizer.json", tokenizer_limit)
     tokenizer_digest = hashlib.sha256(tokenizer).hexdigest()
     if hashes.get("config.json") != hashlib.sha256(original).hexdigest() or hashes.get("tokenizer.json") != tokenizer_digest:
         raise FssSourceError("FuseFSS config/tokenizer differ from original source lock")
+    if lifecycle is not None:
+        lifecycle("source_contract")
     contract, record = _contract(experiment, encoded, config, rows, outputs, lock_digest, tokenizer_digest)
     size = record["source_float32_bytes"]
+    if lifecycle is not None:
+        lifecycle("source_headers")
     _unchanged(root, size, identities, capacity)
     store, specs = _store(root, identities, record)
     store.clear_cache()
+    if lifecycle is not None:
+        lifecycle("source_tokenizer")
     tokenizer_again, descriptor = _tokenizer(root, raw.get("text_config", raw), record)
+    if lifecycle is not None:
+        lifecycle("source_recheck")
     if tokenizer_again != tokenizer or _locked(root, model, size, identities, capacity) != (checkpoint, lock_digest, lock):
         raise FssSourceError("FuseFSS source changed during admission")
     result = FrozenFssSource(model, root, encoded, config, original, contract, checkpoint,
@@ -458,15 +482,28 @@ def _resolve_client_source(experiment, *, expected_pins=None):
     return result
 
 
-def resolve_client_source(experiment, *, expected_pins=None):
-    """Reserve expanded source metadata before hashing, headers or tokenizers."""
+def resolve_client_source(experiment, *, expected_pins=None, lifecycle=None, on_failure=None):
+    """Reserve metadata; emit only fixed phase names, never paths or source data.
+
+    The optional callback runs once per phase, not once per tensor/frame. Callers
+    own role attribution and any cached cross-process forwarding.
+    """
+    def resolve():
+        try:
+            return _resolve_client_source(experiment, expected_pins=expected_pins, lifecycle=lifecycle)
+        except BaseException:
+            _notify_failure(on_failure)  # Before expanded metadata lease retirement.
+            raise
+
+    if lifecycle is not None:
+        lifecycle("source_resolution")
     if (isinstance(experiment, Experiment)
             and experiment.pipeline.components.get("linear") is not None
             and experiment.pipeline.components["linear"].params.get("capacity") == "decoder"):
         _experiment(experiment)  # Validate the explicit native policy before reservation.
         with tokenizer_admission.reserve_decoder_metadata():
-            return _resolve_client_source(experiment, expected_pins=expected_pins)
-    return _resolve_client_source(experiment, expected_pins=expected_pins)
+            return resolve()
+    return resolve()
 
 
 @dataclass(slots=True)
@@ -508,26 +545,35 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
 
     This does not send weights from client or manufacture serving admission.
     Native seal owns Q12 conversion, numeric/range rejection and program creation.
+    Lifecycle callbacks receive fixed names only. The failure callback runs before
+    owned cleanup; callers must signal stop before nonblocking cached diagnostics.
     """
-    if lifecycle is not None:
-        lifecycle("qualification_metadata")
-    _cancelled(cancelled)
-    source = source if source is not None else resolve_client_source(experiment, expected_pins=expected_pins)
-    if not isinstance(source, FrozenFssSource):
-        raise TypeError("FuseFSS source requires FrozenFssSource metadata")
-    _check_pins(source, expected_pins)
-    rows = experiment.budget.max_input_tokens if input_rows is None else input_rows
-    outputs = experiment.budget.max_new_tokens if outputs is None else outputs
-    contract_bytes = source.runtime_contract(experiment, rows, outputs)
-    record = _document(contract_bytes, "source contract")
-    capacity = _capacity(record)
-    size = record["source_float32_bytes"]
-    expected_lock = (source.checkpoint_digest, source.source_lock_digest, _document(source._lock, "source lock"))
-    if _locked(source.path, source.model, size, source._identities, capacity) != expected_lock:
-        raise FssSourceError("FuseFSS source changed after admission")
-    store, specs = _store(source.path, source._identities, record)
-    builder = program = None
+    builder = program = store = None
     try:
+        if lifecycle is not None:
+            lifecycle("qualification_metadata")
+        _cancelled(cancelled)
+        source = source if source is not None else resolve_client_source(
+            experiment, expected_pins=expected_pins, lifecycle=lifecycle, on_failure=on_failure)
+        if not isinstance(source, FrozenFssSource):
+            raise TypeError("FuseFSS source requires FrozenFssSource metadata")
+        _check_pins(source, expected_pins)
+        rows = experiment.budget.max_input_tokens if input_rows is None else input_rows
+        outputs = experiment.budget.max_new_tokens if outputs is None else outputs
+        if lifecycle is not None:
+            lifecycle("source_contract")
+        contract_bytes = source.runtime_contract(experiment, rows, outputs)
+        record = _document(contract_bytes, "source contract")
+        capacity = _capacity(record)
+        size = record["source_float32_bytes"]
+        expected_lock = (source.checkpoint_digest, source.source_lock_digest, _document(source._lock, "source lock"))
+        if lifecycle is not None:
+            lifecycle("source_lock")
+        if _locked(source.path, source.model, size, source._identities, capacity) != expected_lock:
+            raise FssSourceError("FuseFSS source changed after admission")
+        if lifecycle is not None:
+            lifecycle("source_headers")
+        store, specs = _store(source.path, source._identities, record)
         if specs != source._specs:
             raise FssSourceError("FuseFSS tensor headers changed after admission")
         kwargs = {"capacity": capacity} if capacity == "decoder" else {}
@@ -536,6 +582,8 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         builder = _native.FssSourceBuilder(source.config_bytes, rows, outputs, record["numeric_profile"], **kwargs)
         original_hash = hashlib.sha256(b"pllm.fss.original-ieee-stream.v1\0")
         identities, specs = dict(source._identities), dict(specs)
+        if lifecycle is not None:
+            lifecycle("source_weights")
         for name in sorted(record["source_shapes"]):
             filename, shape, dtype, offset, size_bytes = specs[name]
             itemsize = io._DTYPES[dtype].itemsize
@@ -553,6 +601,8 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
                 original_hash.update(frame)
                 del frame
         tables = []
+        if lifecycle is not None:
+            lifecycle("source_rotary")
         for operation, shape, theta in _rotary_specs(record):
             cosine_hash, sine_hash = hashlib.sha256(), hashlib.sha256()
             original_hash.update(struct.pack("<Q", len(operation.encode())) + operation.encode())
@@ -568,6 +618,8 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
                 del cosine, sine
             tables.append({"operation": operation, "shape": shape, "theta": theta,
                            "cosine_sha256": cosine_hash.hexdigest(), "sine_sha256": sine_hash.hexdigest()})
+        if lifecycle is not None:
+            lifecycle("source_recheck")
         if _locked(source.path, source.model, size, source._identities, capacity) != expected_lock:
             raise FssSourceError("FuseFSS source changed during import")
         _cancelled(cancelled)
@@ -575,6 +627,8 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         if lifecycle is not None:
             lifecycle("qualification_seal")
         program = getattr(builder, seal)()
+        if lifecycle is not None:
+            lifecycle("source_manifest")
         manifest_bytes = program.manifest(contract_bytes)
         manifest = _document(manifest_bytes, "program manifest", 1024)
         expected = {"schema": "pllm.fss.channel.program.v1", "contract": hashlib.sha256(contract_bytes).hexdigest(),
@@ -591,18 +645,15 @@ def load_role_source(experiment, *, expected_pins, input_rows=None, outputs=None
         descriptor["sha256"] = hashlib.sha256(b"pllm.fss.public-f32-rotary-source.v1\0" + io._canonical(descriptor)).hexdigest()
         return LoadedFssSource(source, contract_bytes, program, manifest_bytes, io._canonical(descriptor))
     except BaseException:
-        if on_failure is not None:
-            try:
-                on_failure()
-            except Exception:
-                pass
+        _notify_failure(on_failure)
         if program is not None:
             program.close()
         raise
     finally:
         if builder is not None:
             builder.close()
-        store.clear_cache()
+        if store is not None:
+            store.clear_cache()
 
 
 admit_source = resolve_client_source
