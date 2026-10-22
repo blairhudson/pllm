@@ -295,6 +295,41 @@ def test_client_metadata_pins_original_bytes_without_value_decode(tmp_path, monk
     assert "append" not in bridge.events
 
 
+@pytest.mark.parametrize("capacity", ["capsule", "decoder"])
+def test_tokenizer_document_retires_before_native_parse(tmp_path, monkeypatch, bridge, capacity):
+    import weakref
+    import tokenizers
+
+    write_checkpoint(tmp_path)
+    document = source._document
+    validated = []
+    native_parses = []
+
+    class TokenizerDocument(dict):
+        pass
+
+    def track_document(payload, label, limit=source._METADATA):
+        result = document(payload, label, limit)
+        if label == "tokenizer.json":
+            result = TokenizerDocument(result)
+            validated.append(weakref.ref(result))
+        return result
+
+    class NativeTokenizer:
+        @staticmethod
+        def from_buffer(raw):
+            assert validated and validated[-1]() is None
+            native_parses.append(raw)
+            return Tokenizer.from_buffer(raw)
+
+    monkeypatch.setattr(source, "_document", track_document)
+    monkeypatch.setattr(tokenizers, "Tokenizer", NativeTokenizer)
+    admitted = admit(bridge, tmp_path, capacity=capacity)
+    assert native_parses == [admitted.tokenizer_bytes]
+    assert admitted.tokenizer_digest == hashlib.sha256(admitted.tokenizer_bytes).hexdigest()
+    assert admitted.tokenizer_descriptor["vocab_size"] == 32
+
+
 @pytest.mark.parametrize("profile,tied", [(GPT, True), (GPT, False), (ROPE, True), (ROPE, False), (CHECKED, True), (CHECKED, False)])
 def test_original_dtype_signed_zero_storage_orientation_and_pins(tmp_path, bridge, profile, tied):
     _, originals = write_checkpoint(tmp_path, profile=profile, tied=tied)

@@ -310,6 +310,10 @@ def _tokenizer(root, config, contract):
     maximum = contract["vocabulary"]
     tokenizer_admission.validate_document(
         doc, vocabulary=maximum, max_entries=maximum, error=FssSourceError, label="FuseFSS")
+    # The validated JSON tree is no longer needed. Retire its complete vocabulary
+    # and merge strings before native parsing/reverse-index construction overlaps.
+    # Original bytes and the full metadata reservation remain unchanged.
+    del doc
     inner = Tokenizer.from_buffer(raw)
     actual_size = tokenizer_admission.validate_vocabulary(
         inner, vocabulary=maximum, allow_model_padding=expanded,
