@@ -311,6 +311,7 @@ def test_invalid_policy_rejects_without_source_work(setup, kwargs):
 
 def test_native_wan_forwards_policy_without_changing_supported_graphs(setup):
     from pllm.deployment import WanConditions
+    from pllm.profiles import ProprietaryGuarded
     from pllm.runtime.native_wan import NativeWanTopology
     topology = servers.build_roles(Model.hf("org/model"), wan=WanConditions(),
         memory_budget_bytes=12 * GiB, memory_safety_margin_percent=40)
@@ -319,8 +320,22 @@ def test_native_wan_forwards_policy_without_changing_supported_graphs(setup):
     assert topology._memory_enforced_wan
     assert topology.memory_admission is None
     topology.close()
+    # FuseFSS now has admitted dealer/holder WAN routes; construction stays lazy.
+    events_before_fss = tuple(setup.events)
+    topology = build(setup, wan=WanConditions(),
+        memory_budget_bytes=12 * GiB, memory_safety_margin_percent=40)
+    try:
+        assert isinstance(topology, NativeWanTopology)
+        assert topology._privacy_mode == "fss_public"
+        assert set(topology._role_ids) == {"dealer", "worker_a", "worker_b"}
+        assert topology._memory_budget_bytes == 12 * GiB and topology._memory_safety_margin_percent == 40
+        assert topology._memory_enforced_wan
+        assert topology.memory_admission is None and topology.source_qualification is None
+        assert tuple(setup.events) == events_before_fss
+    finally:
+        topology.close()
     with pytest.raises(servers.TopologyError, match="admitted public role topology"):
-        build(setup, wan=WanConditions())
+        servers.build_roles(ProprietaryGuarded(Model.hf("org/model")), wan=WanConditions())
 
 
 def test_non_fss_topology_property_and_docker_forwarding_are_unchanged():

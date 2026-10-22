@@ -155,7 +155,14 @@ def assert_retired(core):
             url, key = core.role_connections[role]
             response = httpx.get(url.removesuffix("/v1") + "/v1/fss/metrics",
                 headers={"authorization": f"Bearer {key}"}, timeout=10, trust_env=False)
-            response.raise_for_status()
+            if not response.is_success:
+                code = response.headers.get("x-pllm-error-code")
+                if code not in {"CLIENT_MEMORY_OBSERVATION_UNAVAILABLE", "CLIENT_MEMORY_PRESSURE",
+                                "CLIENT_MEMORY_CAPACITY_CHANGED", "FSS_METRICS_FAILED"}:
+                    code = "UNAVAILABLE"
+                raise AssertionError(
+                    f"Qwen2 FSS retirement metrics failed: role={role} "
+                    f"status={response.status_code} code={code}") from None
             counts.append(response.json()["active_sessions"])
         if counts == [0, 0, 0]:
             assert core._active is None

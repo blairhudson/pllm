@@ -30,6 +30,7 @@ from starlette.routing import Route
 
 from pllm import _native
 from pllm.configuration import Experiment
+from pllm.deployment.network import NetworkError
 from pllm.deployment.resources import reserve_incremental_memory, reserve_incremental_disk
 from .delegated_transport import _connections
 from .delegated_worker import _Reservation, _PayloadResponse, _body
@@ -43,6 +44,10 @@ from . import fss_protocol as p
 
 
 _NATIVE_COUNT_MAX = (1 << 64) - 1  # native usize counts / u64 callback encodings
+_METRICS_MEMORY_ERRORS = frozenset({
+    "CLIENT_MEMORY_OBSERVATION_UNAVAILABLE", "CLIENT_MEMORY_PRESSURE",
+    "CLIENT_MEMORY_CAPACITY_CHANGED",
+})
 
 
 def _key(value):
@@ -965,6 +970,16 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                     response.close()
                 if not isinstance(error, Exception):
                     raise
+                if function is metrics:
+                    # Authenticated public diagnostics only. Keep the empty body,
+                    # status and reservation/retirement guards; never export an
+                    # arbitrary exception message or its private cause.
+                    code = "FSS_METRICS_FAILED"
+                    if (isinstance(error, NetworkError) and len(error.args) == 1
+                            and type(error.args[0]) is str
+                            and error.args[0] in _METRICS_MEMORY_ERRORS):
+                        code = error.args[0]
+                    return Response(status_code=400, headers={"x-pllm-error-code": code})
                 return Response(status_code=400)
             finally:
                 attempt = getattr(request.state, "attempt", attempt)
