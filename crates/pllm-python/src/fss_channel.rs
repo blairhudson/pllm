@@ -223,16 +223,16 @@ pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
 mod tests {
     use super::*;
     use crate::replicated_transport::NumericDomainRejected;
+    use std::fmt::Write as _;
 
-    fn client<'py>(py: Python<'py>, checked: bool) -> Bound<'py, PyAny> {
+    fn client(py: Python<'_>, checked: bool) -> Bound<'_, PyAny> {
         // Codec-only opaque-contract fixture. No evaluator or authenticated
         // transport is simulated by these public, unkeyed frame checksums.
         let contract = b"{}";
-        let digest: String = contract_digest(contract)
-            .unwrap()
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
+        let mut digest = String::with_capacity(64);
+        for byte in contract_digest(contract).unwrap() {
+            write!(&mut digest, "{byte:02x}").unwrap();
+        }
         let manifest = pllm_types::canonical_bytes(&serde_json::json!({
             "contract": digest,
             "initial": 2,
