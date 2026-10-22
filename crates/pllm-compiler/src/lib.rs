@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
+mod bounded_index;
 mod compact_protected;
 mod decoder_boundary;
 mod decoder_continuation;

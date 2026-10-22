@@ -1,3 +1,5 @@
+use crate::bounded_index::SortState as GroupingSortState;
+use crate::bounded_index::{self, heapsort as grouping_sort, ExactBuffer as IndexAllocation};
 use pllm_models::{
     DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator, StateKind, StateTensor,
 };
@@ -5,6 +7,9 @@ use pllm_types::{canonical_digest, pipeline_digest_bytes, Digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
+
+/// Grouping counts heap comparator calls only; byte spans remain work units.
+pub(crate) type GroupingUsage = bounded_index::Usage;
 
 pub const DECODER_RUNTIME_SCHEDULE_SCHEMA_VERSION: &str = "pllm.decoder_runtime_schedule.v2";
 const DECODER_RUNTIME_SCHEDULE_DIGEST_DOMAIN: &str = "pllm.decoder_runtime_schedule.v2";
@@ -247,21 +252,15 @@ impl<'a> RemoteGroups<'a> {
     pub(crate) fn get(&self, id: &str) -> Option<RemoteGroup<'_, 'a>> {
         // Lower bound also preserves legacy behavior for a nonremote ID that
         // shadows a remote leader. Duplicate remote IDs never reach this owner.
-        let (mut lo, mut hi) = (0, self.by_id.len());
-        while lo < hi {
-            let mid = lo + (hi - lo) / 2;
+        let lo = bounded_index::lower_bound_by(&self.by_id, |&index| {
             #[cfg(test)]
             GROUPING_ACCESS.with(|counts| {
                 let mut c = counts.get();
                 c.id_probes += 1;
                 counts.set(c);
             });
-            if self.graph.operations[self.by_id[mid]].id.as_str() < id {
-                lo = mid + 1;
-            } else {
-                hi = mid;
-            }
-        }
+            self.graph.operations[index].id.as_str().cmp(id)
+        });
         let &index = self.by_id.get(lo)?;
         if self.graph.operations[index].id != id {
             return None;
@@ -303,29 +302,6 @@ pub(crate) struct RemoteGroupingResources {
     pub(crate) heap_bytes: usize,
     pub(crate) work_bound: u128,
     pub(crate) comparison_bound: u128,
-}
-
-/// Construction work units: explicit loop-item visits, scalar key comparisons,
-/// conservatively charged string spans (min byte length + termination), heap
-/// comparator calls/swaps and weight accesses. Not dependency/allocator CPU or
-/// native instructions. String ordering itself reuses optimized standard Ord.
-/// `comparisons` counts heap comparator calls only, not charged key byte spans.
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct GroupingUsage {
-    pub(crate) work: u128,
-    pub(crate) comparisons: u128,
-}
-impl GroupingUsage {
-    fn step(&mut self) {
-        self.work += 1;
-    }
-}
-
-#[derive(Default)]
-struct GroupingSortState {
-    root: usize,
-    child: usize,
-    end: usize,
 }
 
 #[derive(Default)]
@@ -1477,33 +1453,17 @@ fn grouping_mul(a: u128, b: u128) -> Result<u128, RemoteGroupingError<'static>> 
 }
 
 fn grouping_layout<T>(count: usize) -> Result<usize, RemoteGroupingError<'static>> {
-    std::alloc::Layout::array::<T>(count)
-        .map(|layout| layout.size())
-        .map_err(|_| RemoteGroupingError::Overflow)
+    bounded_index::layout_bytes::<T>(count).map_err(|_| RemoteGroupingError::Overflow)
 }
 
-struct IndexAllocation<T> {
-    slots: Box<[std::mem::MaybeUninit<T>]>,
-    initialized: usize,
-}
 fn grouping_box<T: Copy>(
     count: usize,
-    mut make: impl FnMut(usize) -> T,
+    make: impl FnMut(usize) -> T,
 ) -> Result<Box<[T]>, RemoteGroupingError<'static>> {
     grouping_layout::<T>(count)?;
     #[cfg(test)]
     GROUPING_ALLOCATIONS.with(|count| count.set(count.get() + 1));
-    let mut allocation = IndexAllocation {
-        slots: Box::<[T]>::new_uninit_slice(count),
-        initialized: 0,
-    };
-    while allocation.initialized < count {
-        allocation.slots[allocation.initialized].write(make(allocation.initialized));
-        allocation.initialized += 1;
-    }
-    // SAFETY: the entire exact-length slice was initialized. T: Copy has no
-    // destructor, so an initializer panic cannot strand an owned element.
-    Ok(unsafe { allocation.slots.assume_init() })
+    bounded_index::exact_box(count, make).map_err(|_| RemoteGroupingError::Overflow)
 }
 
 #[derive(Default)]
@@ -1553,67 +1513,8 @@ fn remote_key_cmp(
     }
 }
 
-/// In-place heapsort: no dependency sort scratch or undocumented comparison
-/// constant. At most 2 comparisons per sift level; no recursion or heap growth.
-fn grouping_sort<T>(
-    items: &mut [T],
-    usage: &mut GroupingUsage,
-    mut compare: impl FnMut(&T, &T, &mut GroupingUsage) -> std::cmp::Ordering,
-) {
-    fn sift<T>(
-        items: &mut [T],
-        state: &mut GroupingSortState,
-        usage: &mut GroupingUsage,
-        compare: &mut impl FnMut(&T, &T, &mut GroupingUsage) -> std::cmp::Ordering,
-    ) {
-        while state.root < state.end / 2 {
-            state.child = 2 * state.root + 1;
-            if state.child + 1 < state.end {
-                usage.comparisons += 1;
-                usage.step();
-                if compare(&items[state.child], &items[state.child + 1], usage).is_lt() {
-                    state.child += 1;
-                }
-            }
-            usage.comparisons += 1;
-            usage.step();
-            if !compare(&items[state.root], &items[state.child], usage).is_lt() {
-                break;
-            }
-            items.swap(state.root, state.child);
-            usage.step();
-            state.root = state.child;
-        }
-    }
-    let mut state = GroupingSortState {
-        root: items.len() / 2,
-        child: 0,
-        end: items.len(),
-    };
-    while state.root > 0 {
-        let root = state.root - 1;
-        state.root = root;
-        sift(items, &mut state, usage, &mut compare);
-        state.root = root;
-    }
-    while state.end > 1 {
-        state.end -= 1;
-        items.swap(0, state.end);
-        usage.step();
-        state.root = 0;
-        sift(items, &mut state, usage, &mut compare);
-    }
-}
-
 fn grouping_sort_comparisons(n: usize) -> Result<u128, RemoteGroupingError<'static>> {
-    if n < 2 {
-        return Ok(0);
-    }
-    let sifts = grouping_add((n / 2) as u128, (n - 1) as u128)?;
-    grouping_mul(
-        grouping_mul(2, sifts)?,
-        (usize::BITS - n.leading_zeros()) as u128,
-    )
+    bounded_index::sort_comparison_bound(n).map_err(|_| RemoteGroupingError::Overflow)
 }
 
 impl<'a> RemoteGroupingQuote<'a> {
