@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import importlib.util
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from unittest import mock
 from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,10 +20,7 @@ DOWNLOADS = ROOT / "docs/public/downloads"
 
 class PaperBuildTests(unittest.TestCase):
     def test_abstracts_use_full_width_and_body_typography(self) -> None:
-        for name, body_prefix in (
-            ("paper", "Language-model applications"),
-            ("low-memory", "A client can use providers"),
-        ):
+        for name in ("paper", "low-memory"):
             with self.subTest(paper=name):
                 layout = ET.fromstring(subprocess.check_output([
                     "pdftohtml", "-xml", "-stdout", "-zoom", "1", "-i",
@@ -35,7 +35,12 @@ class PaperBuildTests(unittest.TestCase):
                 end = next(i for i, (_, text) in enumerate(rows)
                            if text.startswith("This manuscript is a draft."))
                 abstract = [line for line, _ in rows[start:end]]
-                body = next(line for line, text in rows if text.startswith(body_prefix))
+                introduction = next(i for i, (_, text) in enumerate(rows)
+                                    if text == "1 Introduction")
+                # Use the first body row after the heading, not mutable prose.
+                body = rows[introduction + 1][0]
+                self.assertGreater(float(body.attrib["top"]),
+                                   float(rows[introduction][0].attrib["top"]))
                 body_font = fonts[body.attrib["font"]]
                 self.assertTrue(abstract)
                 for line in abstract:
@@ -55,6 +60,39 @@ class PaperBuildTests(unittest.TestCase):
                     float(rows[end][0].attrib["top"]),
                     "Full-width abstract must not overlap either body column",
                 )
+
+    def test_latex_identifiers_wrap_without_changing_web_semantics(self) -> None:
+        paths = (
+            "crates/pllm-garble/src/private_pages.rs::Table::Vocabulary",
+            "python/pllm/runtime/benchmark_memory.py::private_boundary_memory",
+            "benchmarks/research/private_boundary_decode_confirmation.py::matched_suite",
+            "docs/evidence/private-boundary-decode-confirmation-150x8.json",
+            "Sampling.memory_bytes",
+        )
+        markdown = "\n\n".join(f"`{path}`" for path in paths) + "\n\n" + (
+            "| Source |\n| --- |\n"
+            "| [arXiv:2609.10264v1](https://arxiv.org/abs/2609.10264v1) |\n"
+            "| DOI 10.14722/ndss.2025.230868 |\n"
+        )
+
+        def render(writer: str, filtered: bool = True) -> str:
+            return subprocess.check_output(
+                ["pandoc", "--from=markdown", f"--to={writer}",
+                 *([f"--lua-filter={ROOT / 'paper/pdf.lua'}"] if filtered else [])],
+                input=markdown, text=True, cwd=ROOT,
+            )
+
+        latex = render("latex")
+        for path in paths:
+            self.assertIn(r"\texttt{\nolinkurl{" + path + "}}", latex)
+        self.assertIn(
+            r"\href{https://arxiv.org/abs/2609.10264v1}{\nolinkurl{arXiv:2609.10264v1}}",
+            latex,
+        )
+        self.assertIn(r"\nolinkurl{10.14722/ndss.2025.230868}", latex)
+        for writer in ("html", "gfm"):
+            with self.subTest(writer=writer):
+                self.assertEqual(render(writer), render(writer, filtered=False))
 
     def test_web_citations_remain_markdown_links(self) -> None:
         for name in ("paper", "low-memory"):
@@ -131,14 +169,18 @@ class PaperBuildTests(unittest.TestCase):
     def test_arxiv_archive_compiles_without_repository_inputs(self) -> None:
         for name, source, limit, marker in (
             ("paper", "manuscript.md", 20, "P1-D"),
-            ("low-memory", "low-memory.md", 16, "P2-A"),
+            ("low-memory", "low-memory.md", 16,
+             "A tenfold claim must use unrounded matched peak observations"),
         ):
             with self.subTest(paper=name), tempfile.TemporaryDirectory(
                 prefix=f"pllm-{name}-arxiv-test-",
             ) as temporary:
                 directory = Path(temporary)
                 with ZipFile(DOWNLOADS / f"{name}-arxiv-source.zip") as archive:
-                    self.assertEqual(set(archive.namelist()), {"main.tex", "README.txt", "LICENSE"})
+                    expected = {"main.tex", "README.txt", "LICENSE"}
+                    if name == "low-memory":
+                        expected.add("docs/build/papers/figures/low-memory-history.png")
+                    self.assertEqual(set(archive.namelist()), expected)
                     self.assertIn(f"paper/{source}", archive.read("README.txt").decode())
                     archive.extractall(directory)
                 if engine := shutil.which("tectonic"):
@@ -162,7 +204,7 @@ class PaperBuildTests(unittest.TestCase):
                 self.assertLessEqual(int(pages), limit)
                 self.assertIn("612 x 792 pts", info)
                 text = subprocess.check_output(["pdftotext", str(directory / "main.pdf"), "-"], text=True)
-                self.assertIn(marker, text, "Draft evidence gates must survive publication")
+                self.assertIn(marker, " ".join(text.split()), "Draft evidence gates must survive publication")
 
     def test_generated_outputs_are_untracked(self) -> None:
         output = subprocess.check_output([
@@ -189,6 +231,75 @@ class PaperBuildTests(unittest.TestCase):
                     any(row_marker in page and caption in page for page in pages),
                     "A floating table must retain its evidence-scope caption",
                 )
+
+
+class PaperFigureIntegrationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        spec = importlib.util.spec_from_file_location("paper_builder", ROOT / "docs/scripts/build-papers.py")
+        self.builder = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(sys.modules, {spec.name: self.builder}):
+            spec.loader.exec_module(self.builder)
+
+    def test_low_memory_assets_reach_web_downloads_and_both_archives(self) -> None:
+        (ROOT / "target").mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=ROOT / "target", prefix="paper-figure-integration-") as temporary:
+            directory = Path(temporary)
+            downloads, web = directory / "downloads", directory / "web"
+            pdf = directory / "fixture.pdf"
+            pdf.write_bytes(b"PDF compilation is mocked in this asset-routing fixture")
+            with (mock.patch.object(self.builder, "DOWNLOADS", downloads),
+                  mock.patch.object(self.builder, "WEB_DIR", web),
+                  mock.patch.object(self.builder, "pdf_engine", return_value="unused"),
+                  mock.patch.object(self.builder, "browser_engine") as browser,
+                  mock.patch.object(self.builder, "build_pdf", return_value=pdf),
+                  mock.patch.object(self.builder, "run", wraps=self.builder.run) as run,
+                  mock.patch.object(sys, "argv", ["build-papers.py", "low-memory"])):
+                self.builder.main()
+            browser.assert_not_called()
+            self.assertEqual(run.call_args_list[0].args[0], [
+                sys.executable, str(ROOT / "docs/scripts/render-paper-figures.py"),
+                "--only", "low-memory-history",
+            ])
+            relative = "docs/build/papers/figures/low-memory-history.png"
+            image = (ROOT / relative).read_bytes()
+            self.assertEqual((downloads / "figures/low-memory-history.png").read_bytes(), image)
+            self.assertIn('src="/downloads/figures/low-memory-history.png"',
+                          (web / "low-memory.mdx").read_text())
+            with ZipFile(downloads / "low-memory-source.zip") as archive:
+                for path in (relative, relative.replace(".png", ".svg"),
+                             "paper/artifacts/historical-results-v1.json",
+                             "docs/scripts/render-paper-figures.py"):
+                    self.assertEqual(archive.read(path), (ROOT / path).read_bytes())
+                self.assertNotIn("paper/whitepaper.md", archive.namelist())
+                self.assertNotIn("docs/evidence/current-runtime-2026-09-11.json", archive.namelist())
+            with ZipFile(downloads / "low-memory-arxiv-source.zip") as archive:
+                self.assertEqual(set(archive.namelist()), {"main.tex", "README.txt", "LICENSE", relative})
+                self.assertIn("{" + relative + "}", archive.read("main.tex").decode())
+                self.assertEqual(archive.read(relative), image)
+
+    def test_target_selection_keeps_other_paper_assets_and_page_guards(self) -> None:
+        self.assertEqual({name: spec.max_pages for name, spec in self.builder.PAPERS.items()},
+                         {"paper": 20, "low-memory": 16, "whitepaper": 2})
+        for target, figures in (("paper", ()), ("low-memory", ("low-memory-history",)),
+                                ("whitepaper", ("mechanics", "research-loop")),
+                                ("all", ("low-memory-history", "mechanics", "research-loop"))):
+            with (self.subTest(target=target),
+                  mock.patch.object(self.builder, "pdf_engine", return_value="unused"),
+                  mock.patch.object(self.builder, "browser_engine", return_value="unused"),
+                  mock.patch.object(self.builder, "build_pdf"),
+                  mock.patch.object(self.builder, "build_whitepaper_pdf"),
+                  mock.patch.object(self.builder, "run") as run,
+                  mock.patch.object(self.builder, "build_web") as web,
+                  mock.patch.object(sys, "argv", ["build-papers.py", target, "--pdf-only"])):
+                self.builder.main()
+                if figures:
+                    run.assert_called_once_with([
+                        sys.executable, str(ROOT / "docs/scripts/render-paper-figures.py"),
+                        "--only", *figures,
+                    ])
+                else:
+                    run.assert_not_called()
+                web.assert_not_called()
 
 
 if __name__ == "__main__":

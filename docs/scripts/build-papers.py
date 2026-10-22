@@ -30,16 +30,20 @@ class Paper:
     web: str
     max_pages: int
     bibliography: bool = False
+    figures: tuple[str, ...] = ()
+    figure_inputs: tuple[str, ...] = ()
 
 
 PAPERS = {
     # Total-document guards include references/appendices, not venue page limits.
     "paper": Paper("manuscript.md", "paper.pdf", "paper.mdx", 20, True),
-    "low-memory": Paper("low-memory.md", "low-memory.pdf", "low-memory.mdx", 16, True),
-    "whitepaper": Paper("whitepaper.md", "whitepaper.pdf", "whitepaper.mdx", 2),
+    "low-memory": Paper("low-memory.md", "low-memory.pdf", "low-memory.mdx", 16, True,
+                        figures=("low-memory-history",),
+                        figure_inputs=("paper/artifacts/historical-results-v1.json",)),
+    "whitepaper": Paper("whitepaper.md", "whitepaper.pdf", "whitepaper.mdx", 2,
+                        figures=("mechanics", "research-loop"),
+                        figure_inputs=("docs/evidence/current-runtime-2026-09-11.json",)),
 }
-
-WHITEPAPER_FIGURES = ("mechanics", "research-loop")
 
 
 def run(command: list[str], *, env: dict[str, str] | None = None) -> None:
@@ -115,6 +119,73 @@ def build_pdf(spec: Paper, engine: str) -> Path:
     return output
 
 
+def whitepaper_profile_processes(profile: Path) -> list[int]:
+    """Read-only coverage for detached helpers retaining this unique profile."""
+    result = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True,
+                            text=True, check=True, timeout=1)
+    pattern = re.compile(re.escape(str(profile)) + r"(?=$|[/\s\"'])")
+    return [int(fields[0]) for line in result.stdout.splitlines()
+            if len(fields := line.split(None, 1)) == 2
+            and fields[0].isdigit() and pattern.search(fields[1])]
+
+
+def cleanup_whitepaper_browser(process: subprocess.Popen, profile: Path) -> None:
+    """Reap our child, drain its private group, and check visible profile helpers."""
+    ownership = f"owned browser PID/group {process.pid}, profile {profile}"
+    try:
+        # The PDF trailer can arrive just before Chrome's ordinary exit. Let that
+        # exit finish before signalling a sandboxed process group unnecessarily.
+        process.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            if process.poll() is not None:
+                break
+            try:
+                os.killpg(process.pid, sig)
+            except ProcessLookupError:
+                # The leader/group may exit between poll and killpg.
+                pass
+            except PermissionError:
+                # Group denial does not authorize signalling discovered helpers.
+                # Popen still owns this exact unreaped leader; ask it to retire
+                # its children, then verify group drain rather than assuming it.
+                try:
+                    process.send_signal(sig)
+                except ProcessLookupError:
+                    pass
+                except PermissionError as error:
+                    raise RuntimeError(f"Cannot signal {ownership}; cleanup unverified") from error
+            try:
+                process.wait(timeout=5)
+                break
+            except subprocess.TimeoutExpired as error:
+                if sig == signal.SIGKILL:
+                    raise RuntimeError(f"Timed out reaping {ownership}; cleanup unverified") from error
+
+    deadline = time.monotonic() + 5
+    while True:
+        denied = False
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            try:
+                helpers = whitepaper_profile_processes(profile)
+            except (OSError, subprocess.SubprocessError) as error:
+                raise RuntimeError(f"Cannot inspect helpers for {ownership}; cleanup unverified") from error
+            if not helpers:
+                return
+            detail = f"profile-associated helpers remain: {helpers}"
+        except PermissionError:
+            denied = True
+        else:
+            detail = "group members remain"
+        if time.monotonic() >= deadline:
+            if denied:
+                detail = "group visibility denied"
+            raise RuntimeError(f"Cannot confirm drain of {ownership}: {detail}; helper cleanup unverified")
+        time.sleep(0.1)
+
+
 def build_whitepaper_pdf(spec: Paper, browser: str) -> Path:
     output = BUILD_DIR / spec.output
     with tempfile.TemporaryDirectory(prefix="pllm-whitepaper-") as temporary:
@@ -174,13 +245,15 @@ def build_whitepaper_pdf(spec: Paper, browser: str) -> Path:
                         + (temp / "browser.log").read_text(encoding="utf-8", errors="replace")[-1200:]
                     )
             finally:
-                if process.poll() is None:
-                    os.killpg(process.pid, signal.SIGTERM)
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(process.pid, signal.SIGKILL)
-                        process.wait()
+                render_error = sys.exception()
+                try:
+                    cleanup_whitepaper_browser(process, temp / "profile")
+                except Exception as cleanup_error:
+                    if render_error is None:
+                        raise
+                    message = f"Browser cleanup also failed: {cleanup_error}"
+                    render_error.add_note(message)
+                    print(message, file=sys.stderr)
         if preview := os.environ.get("PLLM_WHITEPAPER_PREVIEW"):
             shutil.copyfile(pdf, preview)
         validate_pdf(pdf, spec)
@@ -220,10 +293,11 @@ def source_archive(name: str, spec: Paper) -> Path:
             Path("paper/whitepaper_print.lua"),
             Path("paper/whitepaper_print.html"),
             Path("paper/whitepaper_print.css"),
-            Path("docs/scripts/render-paper-figures.py"),
-            Path("docs/evidence/current-runtime-2026-09-11.json"),
         ])
-        for figure in WHITEPAPER_FIGURES:
+    if spec.figures:
+        files.extend([Path("docs/scripts/render-paper-figures.py"),
+                      *(Path(relative) for relative in spec.figure_inputs)])
+        for figure in spec.figures:
             files.extend([FIGURES.relative_to(ROOT) / f"{figure}.{extension}"
                           for extension in ("svg", "png")])
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
@@ -252,13 +326,17 @@ def arxiv_archive(name: str, spec: Paper) -> Path:
                 f"PLLM {name}: standalone arXiv source\n\n"
                 "Compile main.tex with pdfLaTeX twice. References are already\n"
                 "resolved and embedded; no Pandoc, Python, BibTeX, external\n"
-                "bibliography, or generated figures are required.\n\n"
+                "bibliography, or figure generation are required. Referenced\n"
+                "images are bundled at their TeX-relative paths.\n\n"
                 f"Canonical authoring source: paper/{spec.source} in the PLLM\n"
                 "repository, https://github.com/blairhudson/pllm\n\n"
                 "A buildable archive does not establish submission readiness.\n"
                 "Working-draft evidence placeholders remain in main.tex.\n"
             ).encode(),
         }
+        for figure in spec.figures:
+            relative = FIGURES.relative_to(ROOT) / f"{figure}.png"
+            files[relative.as_posix()] = (ROOT / relative).read_bytes()
         with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
             for relative, content in sorted(files.items()):
                 info = zipfile.ZipInfo(relative, (1980, 1, 1, 0, 0, 0))
@@ -280,8 +358,9 @@ def main() -> None:
     engine = pdf_engine(args.pdf_engine) if any(PAPERS[name].bibliography for name in names) else None
     browser = browser_engine(args.browser) if "whitepaper" in names else None
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    if "whitepaper" in names:
-        run([sys.executable, str(ROOT / "docs/scripts/render-paper-figures.py")])
+    figures = tuple(dict.fromkeys(figure for name in names for figure in PAPERS[name].figures))
+    if figures:
+        run([sys.executable, str(ROOT / "docs/scripts/render-paper-figures.py"), "--only", *figures])
     if not args.pdf_only:
         DOWNLOADS.mkdir(parents=True, exist_ok=True)
         WEB_DIR.mkdir(parents=True, exist_ok=True)
@@ -295,10 +374,10 @@ def main() -> None:
             pdf = build_pdf(spec, engine)
         if not args.pdf_only:
             shutil.copyfile(pdf, DOWNLOADS / spec.output)
-            if name == "whitepaper":
+            if spec.figures:
                 figure_downloads = DOWNLOADS / "figures"
                 figure_downloads.mkdir(parents=True, exist_ok=True)
-                for figure in WHITEPAPER_FIGURES:
+                for figure in spec.figures:
                     shutil.copyfile(FIGURES / f"{figure}.png",
                                     figure_downloads / f"{figure}.png")
             build_web(spec)

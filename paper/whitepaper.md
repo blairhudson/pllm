@@ -33,8 +33,8 @@ the output masks. Preparation stays idle online.
 > Supply corrections offline. Calculate on masked inputs. Reconstruct only at the client.
 
 These services must obey the protocol. **Their private protocol information must stay separate.**
-Preparation must erase its masks. Client-side Preparation keeps that trust
-within the client boundary. Providers can see public model weights, timing, and traffic
+Logical one-use retirement does not guarantee secure erasure. Client-side
+Preparation keeps that trust within the client boundary. Providers can see public model weights, timing, and traffic
 patterns. Processes on one host give no evidence of independent operators.
 
 ## The question is practical

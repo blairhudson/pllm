@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 import statistics
@@ -12,6 +13,12 @@ from xml.sax.saxutils import escape
 ROOT = Path(__file__).resolve().parents[2]
 FIGURES = ROOT / "docs" / "build" / "papers" / "figures"
 EVIDENCE = ROOT / "docs" / "evidence" / "current-runtime-2026-09-11.json"
+HISTORICAL_RESULTS = ROOT / "paper" / "artifacts" / "historical-results-v1.json"
+LOW_MEMORY_COHORT_IDS = (
+    "qwen25-private-boundary-decode-confirmation-150-8",
+    "qwen25-private-boundary-decode-long-output-150-32",
+    "qwen25-private-boundary-decode-long-output-150-64",
+)
 
 INK = "#19343c"
 MUTED = "#4c6570"
@@ -19,6 +26,11 @@ TEAL = "#087e79"
 TEAL_LIGHT = "#d8efeb"
 PANEL = "#f2f7f6"
 LINE = "#b9d4cf"
+LOW_MEMORY_ARMS = (
+    ("maintained", "Maintained prepared", INK, "circle"),
+    ("coupled-serial-u32", "Coupled serial / u32", "#a55324", "square"),
+    ("coupled-parallel-uniform_residues", "Coupled parallel / residue", TEAL, "triangle"),
+)
 
 
 def text(x: int, y: int, value: str, size: int = 20, *, color: str = INK,
@@ -140,7 +152,128 @@ def baseline() -> str:
     return svg(1200, 384, parts)
 
 
+def low_memory_cohorts(record: dict) -> list[dict]:
+    """Extract paired observations, never pooled summaries or scenario-window RSS."""
+    cohorts = []
+    for identifier in LOW_MEMORY_COHORT_IDS:
+        cohort, = (item for item in record["cohorts"] if item["id"] == identifier)
+        points = []
+        for recipe, _, _, _ in LOW_MEMORY_ARMS:
+            row, = (item for item in cohort["rows"] if item["recipe"] == recipe)
+            rss = row["metrics"]["process.peak_rss"]
+            tcp = row["metrics"]["network.all_link_stream_bytes"]
+            replicates = row["replicateIds"]
+            if (rss["unit"] != "bytes" or tcp["unit"] != "bytes"
+                    or len(replicates) != len(set(replicates))
+                    or len(replicates) != row["sampleCount"]
+                    or len(replicates) != len(rss["samples"])
+                    or len(replicates) != len(tcp["samples"])):
+                raise ValueError(f"Unpaired byte observations for {identifier}/{recipe}")
+            for replicate, memory, traffic in zip(replicates, rss["samples"], tcp["samples"]):
+                if any(type(value) is not int or value < 0 for value in (memory, traffic)):
+                    raise ValueError("Figure requires unrounded nonnegative byte counts")
+                points.append({"recipe": recipe, "replicate": replicate,
+                               "rss_bytes": memory, "tcp_bytes": traffic})
+        cohorts.append({"id": identifier, "report": cohort["report"],
+                        "inputs": cohort["identity"]["inputs"],
+                        "outputs": cohort["identity"]["outputs"],
+                        "tier": cohort["evidenceTier"], "points": points})
+    return cohorts
+
+
+def point_marker(x: float, y: float, color: str, shape: str) -> str:
+    if shape == "circle":
+        # ImageMagick's built-in SVG reader can ignore stroke attributes. Nested
+        # filled circles preserve the hollow marker in that ordinary PNG path.
+        return (f'<circle cx="{x}" cy="{y}" r="8" fill="{color}"/>'
+                f'<circle cx="{x}" cy="{y}" r="5" fill="white"/>')
+    if shape == "square":
+        return f'<rect x="{x - 8}" y="{y - 8}" width="16" height="16" fill="{color}"/>'
+    return (f'<polygon points="{x},{y - 10} {x - 10},{y + 8} {x + 10},{y + 8}" '
+            f'fill="{color}"/>')
+
+
+def low_memory_history() -> str:
+    record = json.loads(HISTORICAL_RESULTS.read_text())
+    cohorts = low_memory_cohorts(record)
+    ceiling_bytes = record["memorySensitivity"]["tiersBytes"]["low"]
+    parts = [text(40, 42, "Historical memory and all-link TCP traffic", 30, weight=700)]
+    for index, (_, label, color, shape) in enumerate(LOW_MEMORY_ARMS):
+        y = 82 + index * 37
+        parts += [point_marker(56, y - 8, color, shape), text(82, y, label, 28)]
+    parts += [text(40, 194, "One point/client; overlaps not jittered.", 26, color=MUTED)]
+    # Identical, explicitly truncated axes; keep byte counts exact until plotting.
+    x0, width, height = 145, 570, 205
+
+    def memory_x(value: int) -> float:
+        return x0 + width * (value / 2**20 - 200) / 64
+
+    for index, cohort in enumerate(cohorts):
+        top = 220 + index * 310
+        y0 = top + 55
+        parts += [f'<g data-cohort="{cohort["id"]}">',
+                  f'<title>{escape(cohort["report"])}</title>',
+                  text(110, top + 15,
+                       f'({"abc"[index]}) {cohort["inputs"]}+{cohort["outputs"]} · '
+                       f'{cohort["tier"]}', 30, weight=700),
+                  text(x0, y0 - 8, "TCP MB (decimal)", 24, color=MUTED)]
+        for tick in (350, 450, 550, 650):
+            y = y0 + height * (650 - tick) / 310
+            parts += [f'<rect x="{x0}" y="{y}" width="{width}" height="1" fill="{LINE}"/>',
+                      text(x0 - 16, y + 8, str(tick), 24, anchor="end", color=MUTED)]
+        for tick in (208, 224, 240, 256):
+            x = memory_x(tick * 2**20)
+            parts += [f'<rect x="{x}" y="{y0}" width="1" height="{height}" fill="{LINE}"/>',
+                      text(x, y0 + height + 29, str(tick), 24, anchor="middle", color=MUTED)]
+        ceiling_x = memory_x(ceiling_bytes)
+        parts.append(f'<g class="memory-ceiling" data-bytes="{ceiling_bytes}" data-x="{ceiling_x}">')
+        # Explicit filled dash segments also survive the built-in SVG reader.
+        for offset in range(0, height, 14):
+            parts.append(f'<rect x="{ceiling_x}" y="{y0 + offset}" width="2" '
+                         f'height="{min(8, height - offset)}" fill="{INK}"/>')
+        parts += ['</g>', text(ceiling_x, y0 - 8, f"{ceiling_bytes / 2**20:g} MiB", 24,
+                              anchor="middle", color=MUTED)]
+        for point in cohort["points"]:
+            _, label, color, shape = next(arm for arm in LOW_MEMORY_ARMS
+                                         if arm[0] == point["recipe"])
+            memory, traffic = point["rss_bytes"], point["tcp_bytes"]
+            if not (200 * 2**20 <= memory <= 264 * 2**20
+                    and 340 * 10**6 <= traffic <= 650 * 10**6):
+                raise ValueError("Historical point outside the declared figure axes")
+            x = memory_x(memory)
+            y = y0 + height * (650 - traffic / 10**6) / 310
+            parts += [f'<g class="replicate" data-recipe="{point["recipe"]}" '
+                      f'data-replicate="{point["replicate"]}" data-rss-bytes="{memory}" '
+                      f'data-tcp-bytes="{traffic}">',
+                      f'<title>{escape(label)}; replicate {point["replicate"]}; '
+                      f'RSS {memory} bytes; TCP {traffic} bytes</title>',
+                      point_marker(x, y, color, shape), '</g>']
+        parts.append('</g>')
+    parts += [text(430, 1176, "Complete-client lifetime peak RSS (MiB)", 28, anchor="middle"),
+              text(40, 1217, "Axes truncated; identical scales in each panel.", 26, color=MUTED),
+              text(40, 1252, "CPU loopback · source-present cold clients", 26, color=MUTED)]
+    return svg(780, 1273, parts)
+
+
+def render_png(source: Path, target: Path, magick: str, font_path: str) -> None:
+    # Opaque 8-bit RGB avoids 16-bit RGBA soft masks that can render invisible
+    # when embedded by the PDF engine. Keep the existing raster size and fonts.
+    subprocess.run([
+        magick, "-font", font_path, "-background", "white", "-density", "144", str(source),
+        "-resize", "1200x", "-background", "white", "-alpha", "remove", "-alpha", "off",
+        "-depth", "8", "-define", "png:color-type=2", "-strip", str(target),
+    ], check=True)
+
+
 def main() -> None:
+    generators = {
+        "mechanics": mechanics, "research-loop": research_loop,
+        "qwen-baseline": baseline, "low-memory-history": low_memory_history,
+    }
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--only", nargs="+", choices=generators,
+                        help="Render only the figures needed by the selected paper")
+    names = parser.parse_args().only or generators
     magick = shutil.which("magick") or shutil.which("convert")
     fontconfig = shutil.which("fc-match")
     if magick is None or fontconfig is None:
@@ -151,15 +284,12 @@ def main() -> None:
     if not Path(font_path).is_file():
         raise SystemExit("fontconfig did not resolve a usable sans-serif font")
     FIGURES.mkdir(parents=True, exist_ok=True)
-    for name, contents in [
-        ("mechanics", mechanics()), ("research-loop", research_loop()),
-        ("qwen-baseline", baseline()),
-    ]:
+    for name in names:
+        contents = generators[name]()
         source = FIGURES / f"{name}.svg"
         target = FIGURES / f"{name}.png"
         source.write_text(contents)
-        subprocess.run([magick, "-font", font_path, "-background", "white", "-density", "144", str(source),
-                        "-resize", "1200x", "-strip", str(target)], check=True)
+        render_png(source, target, magick, font_path)
         print(f"Rendered {target.relative_to(ROOT)}")
 
 

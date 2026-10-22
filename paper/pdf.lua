@@ -19,6 +19,12 @@ function Str(element)
     -- The manuscript uses six-per-em spaces between values and units; Latin
     -- Modern does not contain that Unicode glyph in either supported engine.
     element.text = element.text:gsub(" ", " ")
+    -- Source identifiers also occur as ordinary text and link labels in narrow
+    -- table cells. Keep their font/link target, but allow URL-style line breaks.
+    if element.text:match("^arXiv:%d[%d.v]+$")
+        or element.text:match("^10%.%d+/[%w./%-]+$") then
+      return pandoc.RawInline("latex", "\\nolinkurl{" .. element.text .. "}")
+    end
     return element
   end
 end
@@ -99,6 +105,13 @@ function Code(element)
     and (#element.text == 40 or #element.text == 64)
   if element.text:match("^[%w_.%-]+%.json$") or digest then
     return pandoc.RawInline("latex", "\\nolinkurl{" .. element.text .. "}")
+  end
+  -- Pandoc's default \texttt makes an entire path/member reference unbreakable.
+  -- Restrict the raw URL argument to safe identifier characters; leave arbitrary
+  -- code (braces, percent signs, etc.) to Pandoc's normal escaping.
+  if element.text:match("^[%w_./:%-]+$")
+      and (element.text:find("/", 1, true) or element.text:find(".", 1, true)) then
+    return pandoc.RawInline("latex", "\\texttt{\\nolinkurl{" .. element.text .. "}}")
   end
   -- Preserve simple commands, with breaks at spaces and within path tokens.
   -- A long path can otherwise cross the gutter even with breakable spaces.
