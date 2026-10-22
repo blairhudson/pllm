@@ -1,8 +1,9 @@
 # Poulpy refresh qualification: blocked before allocation
 
-**No encrypted qualification ran. Native compilation and standalone dependency
-resolution are also blocked.** Python guard/oracle tests pass; this directory is
-an admission-only implementation, not a completed two-refresh evaluator.
+**No encrypted qualification ran. Native compilation/tests remain blocked by the
+missing pinned nightly and insufficient host memory; the standalone consumer
+dependency lock now exists.** Python guard/oracle and frozen-identity tests pass;
+this is an admission-only implementation, not a completed two-refresh evaluator.
 
 User approved a distinct torus qualification profile, Poulpy v0.9.0 generic
 primitives, two sequential encrypted refreshes, one CPU thread, an 8-GiB full
@@ -68,22 +69,18 @@ receipt or a whole-circuit convolution/failure bound.
 
 ## Build-only handoff
 
-Use from the repository root after sufficient host headroom exists:
-
-```sh
-python3 scripts/qualify_rust_ckks_refresh.py resolve
-python3 scripts/qualify_rust_ckks_refresh.py toolchain
-python3 scripts/qualify_rust_ckks_refresh.py build
-```
+The standalone consumer `Cargo.lock` is present and its frozen package identities
+are checked without Cargo or native imports. No new resolution is needed for
+that check. Native work still requires standard Cargo, the pinned nightly and
+sufficient host headroom.
 
 The standalone `[workspace]`, local `.cargo/config.toml`, dated
 `rust-toolchain.toml`, explicit manifest path and explicit `rustup run` avoid root
-Cargo/toolchain changes. Resolution uses already-installed Cargo 1.85.1 without
-compiling dependencies. Compiler is pinned to nightly-2026-05-14; jobs never
-exceed two. Build driver sequentially compiles the binary and `cargo test
---no-run`; it never executes native tests or HE code. Cargo.lock must exist before
-the locked build. **No standalone Cargo.lock exists yet because the resolver was
-not admitted; the dependency closure is not claimed frozen.**
+Cargo/toolchain changes. Compiler is pinned to nightly-2026-05-14; jobs never
+exceed two. Any later build must use the existing consumer lock with `--locked`.
+Frozen identities do not establish selected features, native build success or
+complete solver allocation bounds. The initial blocked resolution described below
+is historical, not the current lock state.
 
 Operational budgets: resolution 300 s / 1 GiB, toolchain setup 300 s / 1 GiB,
 both compilations together 900 s / 4 GiB; each retains 4 GiB physical host
@@ -141,3 +138,48 @@ Poulpy's generic key-access traits are a possible basis for that investigation;
 this is not evidence that such an implementation fits or meets ten minutes.
 No larger memory cap, smaller/altered parameter preset, foreign backend or
 source-method mapping is approved implicitly. Parent records decisions/indexing.
+
+
+## Frozen dependency identities
+
+The standalone consumer lock now exists. The ordinary Python dependency test
+compares all seven frozen solver package versions/checksums and four immutable
+Poulpy Git identities, without rewriting historical source manifests. Standard
+consumer-only `cargo update -p cfg-if --precise 1.0.4` corrected the initial
+`1.0.5` drift; standard `cargo fetch --locked` acquired the missing packages.
+The ordinary identity test now passes. Root Cargo.lock was not changed by this
+lane. Exact checksums remain in the normal consumer Cargo.lock and match the
+unchanged frozen allocator contract.
+
+All seven solver packages use the exact source ID
+`registry+https://github.com/rust-lang/crates.io-index`. All four Poulpy packages
+use `git+https://github.com/poulpy-fhe/poulpy?rev=<commit>#<commit>`, with both
+commit fields equal to `ca3532570ff62b96599a74f7adb85de7726b0446`. The test rejects
+missing/duplicate pinned packages and changed/missing versions, registry checksums
+or source IDs; unrelated packages are outside this identity-only gate. Historical
+`consumer_lock_exists`/`download_or_resolution_performed` fields in the unchanged
+allocator contract describe its pre-resolution snapshot, not current lock status.
+
+Earlier locked offline metadata for `aarch64-apple-darwin` succeeded. Its observed
+solver identities and enabled features follow; the Python identity gate does not
+rerun metadata or validate feature selection:
+
+| Package | Version | Features |
+|---|---|---|
+| cfg-if | 1.0.4 | none |
+| dashu-base | 0.6.1 | std |
+| dashu-float | 0.6.2 | default, num-order, std |
+| dashu-int | 0.6.2 | default, num-order, std |
+| num-modular | 0.6.5 | none |
+| num-order | 1.2.0 | none |
+| static_assertions | 1.1.0 | none |
+
+Poulpy's four packages remain 0.9.0 at
+`ca3532570ff62b96599a74f7adb85de7726b0446`; portable backend features are exactly
+`enable-ckks, enable-core`. Cargo fetched `astro-float-num 0.3.7` as locked.
+Available sources and matching identities do not prove arithmetic allocation
+capacities, whole-process bounds, or native compilation under the frozen nightly.
+They do not promote parameter/security provenance; D28 remains design only.
+
+Native compilation and encrypted qualification remain blocked. The identity
+gate does not admit staged storage, secure sampling, or encrypted execution.
