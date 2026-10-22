@@ -563,12 +563,10 @@ fn charge(id: impl Into<String>, units: u64) -> PublicCost {
 
 fn transition(from: u32, to: u32, units: u64) -> PublicLevelTransition {
     PublicLevelTransition {
-        kind: if from == to {
-            PublicLevelTransitionKind::Preserve
-        } else if from > to {
-            PublicLevelTransitionKind::Drop
-        } else {
-            PublicLevelTransitionKind::Refresh
+        kind: match from.cmp(&to) {
+            std::cmp::Ordering::Equal => PublicLevelTransitionKind::Preserve,
+            std::cmp::Ordering::Greater => PublicLevelTransitionKind::Drop,
+            std::cmp::Ordering::Less => PublicLevelTransitionKind::Refresh,
         },
         from_level: from,
         to_level: to,
@@ -656,6 +654,8 @@ fn enumerate_formula(
     output: u32,
     max: u32,
 ) -> Option<u64> {
+    // Keep the brute-force oracle's explicit inputs independent of production state.
+    #[allow(clippy::too_many_arguments)]
     fn visit(
         i: usize,
         x: u32,

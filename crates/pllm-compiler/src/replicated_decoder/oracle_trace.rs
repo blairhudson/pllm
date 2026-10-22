@@ -63,6 +63,8 @@ struct Boundary {
     batch_dimension: bool,
 }
 
+type ReadyShares = [Option<Vec<(u64, u64)>>; 3];
+
 #[derive(Default)]
 struct Capture {
     enabled: bool,
@@ -70,7 +72,7 @@ struct Capture {
     spans: Vec<serde_json::Value>,
     cache: [BTreeMap<(usize, usize), (u64, u64)>; 3],
     finished: [BTreeSet<usize>; 3],
-    ready: BTreeMap<usize, [Option<Vec<(u64, u64)>>; 3]>,
+    ready: BTreeMap<usize, ReadyShares>,
     words: usize,
     metadata_words: usize,
     range_context: Option<RangeContext>,
@@ -433,7 +435,11 @@ fn drain_into(records: &mut Vec<serde_json::Value>, words: &mut usize) {
 }
 
 fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+    use std::fmt::Write as _;
+    bytes.iter().fold(String::new(), |mut text, byte| {
+        write!(text, "{byte:02x}").unwrap();
+        text
+    })
 }
 
 /// Observe outgoing headers immediately after the originating native transition.

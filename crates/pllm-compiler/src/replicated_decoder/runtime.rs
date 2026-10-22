@@ -72,6 +72,9 @@ pub struct Worker {
     public: Option<PublicSource>,
 }
 
+#[cfg(test)]
+type BoundaryState<I> = Result<(usize, puma::prss::Cursors, I), Error>;
+
 impl Worker {
     pub fn new(
         program: Arc<Program>,
@@ -151,14 +154,7 @@ impl Worker {
     #[cfg(test)]
     pub(super) fn test_boundary_state(
         &self,
-    ) -> Result<
-        (
-            usize,
-            puma::prss::Cursors,
-            impl Iterator<Item = Option<(&[u64], &[u64])>> + '_,
-        ),
-        Error,
-    > {
+    ) -> BoundaryState<impl Iterator<Item = Option<(&[u64], &[u64])>> + '_> {
         self.live()?;
         if self.imported != self.program.inputs || !self.boundary_ready() {
             return Err(Error::Phase);

@@ -31,7 +31,8 @@ fn fixture(family: &str, outputs: usize) -> (Publisher, [Worker; 3]) {
     // construction continues to sample the session and all source shares freshly.
     publisher.manifest.session = [42; 32];
     let mut clear = BTreeMap::new();
-    for (key, shape) in publisher.shapes().to_vec() {
+    let shapes = publisher.shapes().to_vec();
+    for (key, shape) in shapes {
         let values: Vec<f32> = if key == "model.embed_tokens.weight" {
             vec![0.25, -0.25, 1.5, -1.5, 0.75, -0.75]
         } else if key == "lm_head.weight" {

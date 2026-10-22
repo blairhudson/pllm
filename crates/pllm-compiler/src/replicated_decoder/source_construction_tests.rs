@@ -395,43 +395,49 @@ fn original_source_registry_owner_quote_leaves_manifest_identity_guard_intact() 
         PublicSourceImport::new(&manifest).unwrap(),
         &manifest,
     ));
-    let original_registry = registry(&manifest);
-    let mut incoming = Vec::with_capacity(129);
-    incoming.push(0);
-    let owners = SourceConstructionOwners {
-        manifest: &manifest,
-        incoming: Some(&incoming),
-        public: Some(&public),
-        retained_baseline_bytes: std::mem::size_of_val(&original_registry),
-    };
-    let quote = SourceRegistry::construction_quote_with_owners(&owners, MAX_PROGRAM_BYTES).unwrap();
-    let validated = Program::validated_source_descriptors(&manifest).unwrap();
-    REGISTRY_HASH_FACTORIES.with(|n| n.set(0));
-    REGISTRY_RECORD_VALIDATIONS.with(|n| n.set(0));
-    assert!(matches!(
-        SourceRegistry::from_validated_with_owners_checked(
+    // End registry borrows only; retain the incoming owner through the final check.
+    let _incoming = {
+        let original_registry = registry(&manifest);
+        let mut incoming = Vec::with_capacity(129);
+        incoming.push(0);
+        let owners = SourceConstructionOwners {
+            manifest: &manifest,
+            incoming: Some(&incoming),
+            public: Some(&public),
+            retained_baseline_bytes: std::mem::size_of_val(&original_registry),
+        };
+        let quote =
+            SourceRegistry::construction_quote_with_owners(&owners, MAX_PROGRAM_BYTES).unwrap();
+        let validated = Program::validated_source_descriptors(&manifest).unwrap();
+        REGISTRY_HASH_FACTORIES.with(|n| n.set(0));
+        REGISTRY_RECORD_VALIDATIONS.with(|n| n.set(0));
+        assert!(matches!(
+            SourceRegistry::from_validated_with_owners_checked(
+                validated,
+                &owners,
+                quote.peak_bytes - 1,
+            ),
+            Err(Error::Bounds)
+        ));
+        assert_eq!(REGISTRY_HASH_FACTORIES.with(|n| n.get()), 0);
+        assert_eq!(REGISTRY_RECORD_VALIDATIONS.with(|n| n.get()), 0);
+        let validated = Program::validated_source_descriptors(&manifest).unwrap();
+        let registry = SourceRegistry::from_validated_with_owners_checked(
             validated,
             &owners,
-            quote.peak_bytes - 1,
-        ),
-        Err(Error::Bounds)
-    ));
-    assert_eq!(REGISTRY_HASH_FACTORIES.with(|n| n.get()), 0);
-    assert_eq!(REGISTRY_RECORD_VALIDATIONS.with(|n| n.get()), 0);
-    let validated = Program::validated_source_descriptors(&manifest).unwrap();
-    let registry =
-        SourceRegistry::from_validated_with_owners_checked(validated, &owners, quote.peak_bytes)
-            .unwrap();
-    public.check_registry(&registry).unwrap();
-    assert!(std::ptr::eq(
-        registry.source_records(),
-        original_registry.source_records()
-    ));
-    assert_eq!(Arc::strong_count(&public), 1);
+            quote.peak_bytes,
+        )
+        .unwrap();
+        public.check_registry(&registry).unwrap();
+        assert!(std::ptr::eq(
+            registry.source_records(),
+            original_registry.source_records()
+        ));
+        assert_eq!(Arc::strong_count(&public), 1);
+        incoming
+    };
     // Quotes and the registry's descriptor/source binding do not authenticate
     // Manifest.program or source/composition/session. Ordinary compile still must.
-    drop(registry);
-    drop(original_registry);
     manifest.program[0] ^= 1;
     assert_eq!(
         manifest.compile().err().as_deref(),

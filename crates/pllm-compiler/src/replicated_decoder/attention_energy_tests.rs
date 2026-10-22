@@ -152,7 +152,8 @@ fn checked_public_source_norms_are_recomputed_and_source_bound() {
         Publisher::new_with_policy(&config, 2, 2, [1; 32], [2; 32], WeightMode::Public, policy)
             .unwrap();
     let mut frames = Vec::new();
-    for (key, shape) in publisher.shapes().to_vec() {
+    let shapes = publisher.shapes().to_vec();
+    for (key, shape) in shapes {
         let bytes: Vec<_> = (0..shape.iter().product::<usize>())
             .flat_map(|i| {
                 let value = if key.contains("norm") {

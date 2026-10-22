@@ -118,10 +118,10 @@ fn cross_plan_copies_outlive_original_budgets_and_preserve_exact_envelopes() {
                     .unwrap()
                     .packet_bytes_bound,
             );
-            for role in 0..2 {
-                req[role].pc = pc;
-                req[role].kernel.context = context;
-                req[role].kernel.plan_digest = plan.digest();
+            for request in &mut req {
+                request.pc = pc;
+                request.kernel.context = context;
+                request.kernel.plan_digest = plan.digest();
             }
             for (role, packet) in [&a, &b].into_iter().enumerate() {
                 expected[role].push(Material {
@@ -139,9 +139,9 @@ fn cross_plan_copies_outlive_original_budgets_and_preserve_exact_envelopes() {
     queues.flush(&mut callback).unwrap();
     assert!(callback.cross_plan);
     assert_eq!(budget.used_bytes(), 0);
-    for role in 0..2 {
-        assert_eq!(callback.records[role].len(), expected[role].len());
-        for (actual, original) in callback.records[role].iter().zip(&expected[role]) {
+    for (role, expected) in expected.iter().enumerate() {
+        assert_eq!(callback.records[role].len(), expected.len());
+        for (actual, original) in callback.records[role].iter().zip(expected) {
             assert!(same_kernel(actual.meta.kernel, original.meta.kernel));
             assert_eq!(
                 (

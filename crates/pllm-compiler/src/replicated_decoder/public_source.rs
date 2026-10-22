@@ -61,6 +61,8 @@ impl PublicSourceImport {
     /// Incoming frame backing, existing plans/authenticated files and Manifest
     /// inline/config/schema belong in retained_baseline_bytes. Kernel file cache,
     /// tempfile/OS internals and allocator bookkeeping are not native payload.
+    // Retained for staged request admission; not used by expanded dispatch yet.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn construction_quote(
         registry: &SourceRegistry<'_>,
         retained_baseline_bytes: usize,
@@ -366,6 +368,8 @@ impl PublicSource {
     /// Existing immutable handle/key backing only. Retain this owner while using
     /// the census; do not infer aliasing from paths/digests or charge file length
     /// as resident bytes. Parent adds this inventory to its outside baseline.
+    // The staged source-owner census consumes this; ordinary dispatch does not.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn resident_metadata_bytes(&self) -> Result<usize, Error> {
         let mut bytes = size_of::<Self>();
         for key in self.files.keys() {
@@ -455,6 +459,7 @@ impl PublicSource {
     }
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 fn public_file_arc_bytes() -> Result<usize, Error> {
     add_bytes(size_of::<std::fs::File>(), array_bytes::<usize>(2)?)
 }

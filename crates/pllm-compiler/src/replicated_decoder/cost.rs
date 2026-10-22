@@ -1145,7 +1145,8 @@ mod tests {
         let mut publisher =
             Publisher::new_with_weights(config, 2, 2, [1; 32], [2; 32], WeightMode::Public)
                 .unwrap();
-        for (key, shape) in publisher.shapes().to_vec() {
+        let shapes = publisher.shapes().to_vec();
+        for (key, shape) in shapes {
             let value = if key.contains("norm") {
                 1.0_f32
             } else if key == "model.embed_tokens.weight" {

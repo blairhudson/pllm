@@ -65,15 +65,14 @@ fn tournament(values: &[i64], retain_original: bool, alias_gather: bool) -> Arc<
     finish_builder(builder, 1, outputs)
 }
 
-fn decoder_fixture(
-    selection: SelectionPolicy,
-    lookup: LookupPolicy,
-) -> (
+type DecoderFixture = (
     Vec<u8>,
     BTreeMap<String, SourceTensor>,
     Arc<Program>,
     BTreeMap<String, Vec<i64>>,
-) {
+);
+
+fn decoder_fixture(selection: SelectionPolicy, lookup: LookupPolicy) -> DecoderFixture {
     let config = serde_json::to_vec(&serde_json::json!({
         "model_type":"qwen2", "hidden_size":2, "intermediate_size":2,
         "num_hidden_layers":1, "num_attention_heads":1, "num_key_value_heads":1,

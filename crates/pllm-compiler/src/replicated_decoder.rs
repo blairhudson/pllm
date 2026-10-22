@@ -11,6 +11,9 @@ mod runtime;
 pub mod sdk;
 mod source;
 mod source_norms;
+// Source-construction quotes are exercised by tests; request-wide admission
+// remains staged. Keep dead-code checking enabled in the test configuration.
+#[cfg_attr(not(test), allow(dead_code))]
 mod source_registry;
 #[cfg(test)]
 mod tests;

@@ -557,7 +557,7 @@ fn checked_rows_guard_fits_but_certificate_exhausts_whole_admission_budget() {
     let proof_bytes = safe.metadata_bytes() + std::mem::size_of::<(Words, u128)>();
     let (mut b, row) = build();
     b.allocated = MAX_PROGRAM_BYTES - guard_bytes - proof_bytes + 1;
-    let admission = (|| -> Result<Words, Error> { b.checked_rows(&row, 129) })();
+    let admission = b.checked_rows(&row, 129);
     assert!(matches!(admission, Err(Error::Bounds)));
     assert_eq!(b.nodes.len(), probe.nodes.len()); // every guard fit
     assert_eq!(b.validity, probe.validity);

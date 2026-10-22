@@ -158,12 +158,12 @@ fn compiled_binary_handoff_restores_complete_state_and_two_private_selections() 
                     assert_eq!(step, end);
                     assert!(started && empty && idle);
                     assert_eq!(offset, 0);
-                    for id in 0..end {
+                    for (id, &present) in values[..end].iter().enumerate() {
                         let retained = program.nodes[end..]
                             .iter()
                             .any(|node| node.inputs().contains(&id))
                             || program.outputs.iter().any(|&(owner, _)| owner == id);
-                        assert_eq!(values[id], retained, "owner {id}");
+                        assert_eq!(present, retained, "owner {id}");
                     }
                 }
                 assert_eq!(execute(resumed), expected);
@@ -1321,11 +1321,13 @@ fn deterministic_workers(program: Arc<Program>, clear: &BTreeMap<String, Vec<i64
 
 // Only borrowed local components are copied, into zeroizing test owners. Never
 // copy or reset the consuming runtime or its source schedule.
+type BoundarySharePair = (zeroize::Zeroizing<Vec<u64>>, zeroize::Zeroizing<Vec<u64>>);
+
 #[derive(Debug, PartialEq, Eq)]
 struct BoundarySnapshot {
     step: usize,
     cursors: puma::prss::Cursors,
-    shares: Vec<Option<(zeroize::Zeroizing<Vec<u64>>, zeroize::Zeroizing<Vec<u64>>)>>,
+    shares: Vec<Option<BoundarySharePair>>,
 }
 
 fn boundary_snapshot(worker: &Worker) -> BoundarySnapshot {

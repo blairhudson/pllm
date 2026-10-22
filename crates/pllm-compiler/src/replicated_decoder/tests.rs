@@ -69,7 +69,8 @@ fn public_numeric_admission_identifies_semantic_operator_and_retires_publisher()
     let mut publisher =
         Publisher::new_with_weights(PUBLIC_CONFIG, 2, 2, [1; 32], [2; 32], WeightMode::Public)
             .unwrap();
-    for (key, shape) in publisher.shapes().to_vec() {
+    let shapes = publisher.shapes().to_vec();
+    for (key, shape) in shapes {
         // Each public source value passes encoding. Its square cannot satisfy
         // the unchanged quarter-ring truncation bound at the first RMSNorm.
         let value = if key == "model.embed_tokens.weight" {
@@ -98,7 +99,8 @@ fn public_row_certificates_are_recomputed_across_frames_and_bind_source_reuse() 
         Publisher::new_with_weights(PUBLIC_CONFIG, 2, 2, [1; 32], [2; 32], WeightMode::Public)
             .unwrap();
     let mut frames = Vec::new();
-    for (key, shape) in publisher.shapes().to_vec() {
+    let shapes = publisher.shapes().to_vec();
+    for (key, shape) in shapes {
         let n = shape.iter().product::<usize>();
         let values: Vec<f32> = (0..n)
             .map(|i| {
@@ -316,11 +318,11 @@ fn compact_storage_preserves_frozen_full_prefix_execution_identities() {
         let (program, _) = fixture_with_body(family, active);
         let mut program = Arc::try_unwrap(program).ok().unwrap();
         program.bind([7; 32], [9; 32]);
-        let actual: String = program
-            .digest()
-            .iter()
-            .map(|v| format!("{v:02x}"))
-            .collect();
+        use std::fmt::Write as _;
+        let actual = program.digest().iter().fold(String::new(), |mut text, v| {
+            write!(text, "{v:02x}").unwrap();
+            text
+        });
         assert_eq!(actual, expected, "{family} {active}");
     }
 }

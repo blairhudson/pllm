@@ -542,7 +542,8 @@ mod final_outcome_tests {
         let mut publisher =
             Publisher::new_with_policy(config, 1, 1, [1; 32], [2; 32], WeightMode::Public, policy)
                 .unwrap();
-        for (key, shape) in publisher.shapes().to_vec() {
+        let shapes = publisher.shapes().to_vec();
+        for (key, shape) in shapes {
             let value = if key.contains("norm") { 1f32 } else { 0f32 };
             let data: Vec<u8> = (0..shape.iter().product::<usize>())
                 .flat_map(|_| value.to_le_bytes())

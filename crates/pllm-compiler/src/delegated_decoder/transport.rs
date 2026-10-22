@@ -868,11 +868,8 @@ mod tests {
                                     );
                                     assert_eq!(metadata["columns"], columns);
                                     assert_eq!(metadata["output_width"], output_width);
-                                    for role in 0..2 {
-                                        assert_eq!(
-                                            metadata["request_bytes"][role],
-                                            requests[role].len()
-                                        );
+                                    for (role, request) in requests.iter().enumerate() {
+                                        assert_eq!(metadata["request_bytes"][role], request.len());
                                     }
                                 }
                                 assert!(requests.iter().all(|request| request.len()
