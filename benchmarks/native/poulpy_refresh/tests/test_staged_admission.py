@@ -1,14 +1,62 @@
 """Source arithmetic and lifetime failures; no HE, native build, or large buffers."""
 
 from pathlib import Path
+import hashlib
+import json
 import runpy
 import unittest
+from unittest.mock import patch
 
 
 S = runpy.run_path(str(Path(__file__).resolve().parents[1] / "staged_admission.py"))
 
 
 class StagedAdmissionTests(unittest.TestCase):
+    def test_solver_source_frontier_never_claims_effective_closure(self):
+        audit = S["solver_dependency_audit"]()
+        self.assertEqual(audit["reviewed_source_packages"], ["cfg-if@1.0.4"])
+        self.assertEqual(len(audit["unreviewed_package_sources"]), 6)
+        self.assertIn("dashu-float@0.6.2", audit["unreviewed_package_sources"])
+        self.assertEqual(audit["verified_source_hash_count"], 0)
+        self.assertFalse(audit["effective_consumer_closure_verified"])
+        self.assertIsNone(audit["arithmetic_allocation_upper_bound_bytes"])
+        self.assertEqual(S["report"]()["solver_dependency_audit"], audit)
+        self.assertTrue(any("optional cfg-if core" in r for r in audit["remaining_requirements"]))
+
+    def test_dependency_hash_verification_is_explicit_and_fails_closed(self):
+        # Tiny synthetic bytes test verification mechanics, not real cache state.
+        manifest = json.loads((Path(__file__).resolve().parents[1] /
+                               "staged_admission.sources.json").read_text())
+        fixture = b"small synthetic source\n"
+        for source in manifest["solver_dependency_source_audit"]["reviewed_source_leaves"][0]["sources"]:
+            source["sha256"] = hashlib.sha256(fixture).hexdigest()
+        with patch.object(Path, "read_text", return_value=json.dumps(manifest)):
+            with patch.object(Path, "read_bytes", return_value=fixture) as read:
+                audit = S["solver_dependency_audit"]("existing-registry")
+                self.assertEqual(read.call_count, 2)
+                self.assertEqual(audit["verified_source_hash_count"], 2)
+                self.assertFalse(audit["effective_consumer_closure_verified"])
+                self.assertIsNone(audit["arithmetic_allocation_upper_bound_bytes"])
+            with patch.object(Path, "read_bytes", return_value=b"drift"):
+                with self.assertRaisesRegex(ValueError, "dependency source drift"):
+                    S["solver_dependency_audit"]("existing-registry")
+            with patch.object(Path, "read_bytes", side_effect=FileNotFoundError):
+                with self.assertRaises(FileNotFoundError):
+                    S["solver_dependency_audit"]("missing-registry")
+
+    def test_cfg_if_review_matches_recorded_lock_identity_not_caller_bounds(self):
+        here = Path(__file__).resolve().parents[1]
+        manifest = json.loads((here / "staged_admission.sources.json").read_text())
+        contract = json.loads((here / "bounded-allocator-contract.json").read_text())
+        leaf, = manifest["solver_dependency_source_audit"]["reviewed_source_leaves"]
+        locked = next(p for p in contract["solver_dependency_plan"]["upstream_solver_closure"]
+                      if p["name"] == leaf["name"])
+        self.assertEqual(leaf["version"], locked["version"])
+        self.assertEqual(leaf["registry_checksum"], locked["checksum"])
+        self.assertEqual(leaf["runtime_buffer_owners_defined_by_macro_itself"], 0)
+        self.assertEqual(len(leaf["feature_obligations"]), 3)
+        self.assertFalse(manifest["solver_dependency_source_audit"]["effective_consumer_closure_verified"])
+
     def test_matrix_query_covers_streamed_rhs_and_all_siblings(self):
         q = S["matrix_query_certificate"]()
         self.assertEqual(q["prepared_core_query_bytes"], 729_314_880)

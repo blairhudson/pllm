@@ -18,6 +18,7 @@
     {"path": "paper/methods/poulpy-staged-owner-bound.sources.json", "sha256": "4fbf13cdbf84f5cdb6fd12b77c854fa05881408b051e9b4a3707a69f1721727b"}
   ],
   "claim_locators": {
+    "cfg_if_source_leaf": ["D01:15-18", "D01:33-47", "D02:26-96", "D02:98-212"],
     "complete_matrix_scratch": ["S07:313-377", "S22:75-117", "S22:257-291", "S52:38-52", "S52:646-648", "S52:737-739", "S54:361-397", "A13:155-157"],
     "other_scratch_branch_bounds": ["S19:79-115", "S21:27-74", "S26:1521-1541", "S51:39-61", "S51:437-494", "S71:268-303", "S71:2472-2478", "S71:2588-2598", "S73:183-216", "S73:551-555", "A03:29-84", "A05:11-19", "A06:11-19", "A07:11-19", "A08:19-24", "A08:62-67", "A09:97-104", "A10:33-35", "A11:8-10", "A12:8-10"],
     "baby_cache_lifetime": ["S18:125-183", "S19:53-65", "S19:222-272"],
@@ -25,6 +26,31 @@
     "generic_switching_exception": ["S03:61-79", "S05:820-830", "S25:207-229", "S70:213-219", "S70:236-245", "A04:153-171"],
     "allocator_and_private_vmp": ["S49:98-127", "S58:46-83", "S58:118-140"],
     "solver_dependency_boundary": ["S81:12-30", "S81:51-64", "S81:110-158", "S81:256-393", "S81:403-409", "S81:449-464", "A01:241-274", "A02:30-31"]
+  },
+  "solver_dependency_source_audit": {
+    "review_date": "2026-10-22",
+    "identity_reference": "bounded-allocator-contract.json:solver_dependency_plan.upstream_solver_closure; A01 upstream lock, not an effective consumer lock",
+    "effective_consumer_closure_verified": false,
+    "arithmetic_allocation_upper_bound_bytes": null,
+    "unreviewed_package_sources": ["dashu-float@0.6.2", "dashu-int@0.6.2", "dashu-base@0.6.1", "num-modular@0.6.5", "num-order@1.2.0", "static_assertions@1.1.0"],
+    "reviewed_source_leaves": [
+      {
+        "name": "cfg-if",
+        "version": "1.0.4",
+        "registry_checksum": "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801",
+        "registry_archive_url": "https://static.crates.io/crates/cfg-if/cfg-if-1.0.4.crate",
+        "cached_archive_sha256_verified": true,
+        "source_members_equal_cached_archive": true,
+        "scope": "Source identity and macro-only non-test implementation, not effective feature closure or expanded-body allocation bounds",
+        "runtime_buffer_owners_defined_by_macro_itself": 0,
+        "feature_obligations": ["Effective consumer features still unknown", "rustc-dep-of-std enables optional rustc-std-workspace-core; do not treat this package as an unconditional dependency-free leaf", "Selected emitted branch bodies belong to caller allocation contracts"],
+        "sources": [
+          {"id": "D01", "path": "cfg-if-1.0.4/Cargo.toml", "sha256": "281d508beb1fe3927cf03d3f2f8c9a5117b1e4fe97ae21b9026cf318e8c35273"},
+          {"id": "D02", "path": "cfg-if-1.0.4/src/lib.rs", "sha256": "c09723e0890d15810374009e96b20bf0eb2f65f383006516f34db36240835c85"}
+        ]
+      }
+    ],
+    "method": "Read existing cached crate only: SHA-256 matches recorded upstream registry checksum; compare reviewed extracted files to archive members without extraction. No acquisition, Cargo resolution, compilation or dependency execution. D-series paths relative to an explicitly supplied existing registry source directory."
   },
   "supplementary_sources": [
     {"id": "A01", "path": "Cargo.lock", "sha256": "4f841f88c4b03c5ecea115f3277c52757bb874ab2536c5d85ca046445c902a39", "git_blob_sha1": "95e915471c0a840b4bc5b628bc8cc571eb7b7bd8"},

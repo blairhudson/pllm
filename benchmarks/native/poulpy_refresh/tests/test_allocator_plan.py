@@ -40,6 +40,8 @@ class AllocationPlanTests(unittest.TestCase):
         self.assertFalse(plan["admitted"])
         self.assertFalse(plan["budget_sufficiency_proven"])
         self.assertFalse(plan["conditional_total_is_complete_owner_bound"])
+        self.assertFalse(plan["solver_dependency_audit"]["effective_consumer_closure_verified"])
+        self.assertIsNone(plan["solver_dependency_audit"]["arithmetic_allocation_upper_bound_bytes"])
         self.assertIsNone(plan["attributable_kernel_io_upper_bound_bytes"])
         self.assertFalse(plan["bookkeeping_ticket_is_proven_kernel_bound"])
         self.assertIsNone(plan["full_owner_completion_bound_bytes"])

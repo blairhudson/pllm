@@ -200,6 +200,7 @@ def plan():
         "execution_performed": False,
         "budget_sufficiency_proven": False,
         "conditional_total_is_complete_owner_bound": False,
+        "solver_dependency_audit": S["solver_dependency_audit"](),
         "full_owner_completion_bound_bytes": None,
         "complete_setup_upper_bound_bytes": None,
         "attributable_kernel_io_upper_bound_bytes": None,
@@ -240,7 +241,7 @@ def plan():
             "1-MiB charged Rust stream buffers; attributable kernel I/O has no proved separate bound",
             "64-MiB non-Rust runtime and 16-MiB page-table allowances; 32-KiB per-mapping kernel ticket",
             "solver and context setup peak, all non-DFT phase scratch/copies, and full typed adapter liveness",
-            "pinned-nightly native allocator tests and effective dependency closure",
+            "pinned-nightly native allocator tests and effective dependency closure; cfg-if source identity alone is not closure",
         ],
     }
 

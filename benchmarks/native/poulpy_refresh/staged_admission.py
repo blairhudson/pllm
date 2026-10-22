@@ -186,6 +186,39 @@ def verify_sources(source_root):
     return len(entries)
 
 
+def solver_dependency_audit(registry_source_root=None):
+    """Expose reviewed source frontier, never infer a consumer feature closure.
+
+    Optional verification reads two small pinned source files only. Paths name
+    existing unpacked registry sources, not a cache populated by this function.
+    Macro identity does not bound allocations in emitted caller branch bodies.
+    """
+    manifest = json.loads((HERE / "staged_admission.sources.json").read_text())
+    audit = manifest["solver_dependency_source_audit"]
+    verified = 0
+    if registry_source_root is not None:
+        for leaf in audit["reviewed_source_leaves"]:
+            for source in leaf["sources"]:
+                path = Path(registry_source_root) / source["path"]
+                if hashlib.sha256(path.read_bytes()).hexdigest() != source["sha256"]:
+                    raise ValueError(f"dependency source drift: {source['path']}")
+                verified += 1
+    return {
+        "reviewed_source_packages": [
+            f"{leaf['name']}@{leaf['version']}" for leaf in audit["reviewed_source_leaves"]
+        ],
+        "unreviewed_package_sources": audit["unreviewed_package_sources"],
+        "verified_source_hash_count": verified,
+        "effective_consumer_closure_verified": False,
+        "arithmetic_allocation_upper_bound_bytes": None,
+        "remaining_requirements": [
+            "effective consumer lock and feature graph, including optional cfg-if core edge",
+            "all remaining pinned solver source identities and arithmetic capacity contracts",
+            "expanded cfg-if caller branch allocations; macro-only review grants no caller credit",
+        ],
+    }
+
+
 def report():
     query = matrix_query_certificate()
     matrices = 2 * sum(n * count * 32 for n, count in ((N, 16), (4096, 31), (256, 31), (16, 15)))
@@ -205,6 +238,7 @@ def report():
         "owner_ceiling_bytes": CAP,
         "guard_charge_bytes": GUARD,
         "matrix_query": query,
+        "solver_dependency_audit": solver_dependency_audit(),
         "matrix_policy_subset_bytes": subset,
         "matrix_policy_residual_upper_bytes": CAP - subset,
         "matrix_policy_with_raw_subset_bytes": subset + HIGH_RAW,
@@ -220,7 +254,7 @@ def report():
         "blockers": [
             "bounded allocator candidate exists but native tests and full typed phase adapter remain unqualified",
             "release credit requires successful unmap; retained or failed-unmap mappings remain charged",
-            "coefficient solver dependency allocation contract absent; probe dependency closure unlocked",
+            "cfg-if source leaf reviewed only; coefficient solver allocation contract absent and consumer dependency closure unlocked",
             "remaining contexts, containers, client, runtime and attributable I/O upper bounds absent",
             "independent parameter receipts and numerical re-entry qualification absent",
         ],
@@ -230,10 +264,14 @@ def report():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-dir", type=Path, help="optionally verify an existing pinned source tree")
+    parser.add_argument("--registry-source-dir", type=Path,
+                        help="optionally hash reviewed files in an existing registry source directory; never fetch")
     args = parser.parse_args()
     result = report()
     if args.source_dir is not None:
         result["verified_source_hash_count"] = verify_sources(args.source_dir)
+    if args.registry_source_dir is not None:
+        result["solver_dependency_audit"] = solver_dependency_audit(args.registry_source_dir)
     print(json.dumps(result, indent=2))
     return 78  # Admission remains blocked even when every source hash matches.
 
