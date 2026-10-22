@@ -23,6 +23,8 @@ mod machine;
 pub use machine::{Executor, Values};
 #[path = "body_families.rs"]
 mod families;
+#[path = "body_proof_admission.rs"]
+mod proof_admission;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RowKey {
@@ -187,6 +189,43 @@ enum Op {
     },
 }
 impl Op {
+    fn validate_layouts(&self, registers: &[Register]) -> Result<(), Error> {
+        match self {
+            Self::Binary { left, right, .. } => {
+                left.validate(registers)?;
+                right.validate(registers)
+            }
+            Self::Matrix { rows, .. } => {
+                for row in rows.iter() {
+                    row.left.validate(registers)?;
+                    row.right.validate(registers)?;
+                }
+                Ok(())
+            }
+            Self::Check {
+                input, previous, ..
+            } => {
+                input.validate(registers)?;
+                if let Some(previous) = previous {
+                    previous.validate(registers)?;
+                }
+                Ok(())
+            }
+            Self::Tensor { input, .. }
+            | Self::PublicMatrix { input, .. }
+            | Self::Bias { input, .. } => input.validate(registers),
+        }
+    }
+    fn first_layout(&self) -> Option<&Layout> {
+        match self {
+            Self::Binary { left, .. } => Some(left),
+            Self::Matrix { rows, .. } => rows.first().map(|r| &r.left),
+            Self::Tensor { input, .. }
+            | Self::PublicMatrix { input, .. }
+            | Self::Bias { input, .. }
+            | Self::Check { input, .. } => Some(input),
+        }
+    }
     fn layouts(&self) -> Vec<&Layout> {
         match self {
             Self::Binary { left, right, .. } => vec![left, right],
@@ -218,6 +257,17 @@ pub struct Builder {
     template_metadata: BTreeMap<[u8; 32], usize>,
     work: WorkBudget,
     advances: u64,
+    proof_admission_retired: bool,
+    #[cfg(test)]
+    proof_metadata_limit: usize,
+    #[cfg(test)]
+    fail_proof_allocation: bool,
+    #[cfg(test)]
+    fail_builder_allocation: bool,
+    #[cfg(test)]
+    checked_return_slice_fail_at: Option<usize>,
+    #[cfg(test)]
+    checked_return_slice_attempts: usize,
 }
 
 pub struct Plan {
@@ -236,6 +286,9 @@ pub struct Plan {
 }
 impl Builder {
     pub fn new(weights: WeightMode, inputs: &[Register]) -> Result<Self, Error> {
+        Self::new_admitted(weights, inputs, MAX_PROGRAM_BYTES)
+    }
+    fn new_admitted(weights: WeightMode, inputs: &[Register], limit: usize) -> Result<Self, Error> {
         if weights != WeightMode::Public {
             return Err(Error::Binding);
         }
@@ -247,34 +300,78 @@ impl Builder {
                 return Err(Error::Shape);
             }
         }
+        if Self::input_metadata_bytes(inputs.len())? > limit.min(MAX_PROGRAM_BYTES) {
+            return Err(Error::Bounds);
+        }
+        // Exact-capacity Global Vecs; all backing and input Region boxes were
+        // priced before either reserve or the first Box allocation.
+        let mut registers: Vec<Register> = Vec::new();
+        let mut regions: Vec<Box<[Region]>> = Vec::new();
+        registers
+            .try_reserve_exact(inputs.len())
+            .map_err(|_| Error::Allocation)?;
+        regions
+            .try_reserve_exact(inputs.len())
+            .map_err(|_| Error::Allocation)?;
+        if registers.capacity() != inputs.len() || regions.capacity() != inputs.len() {
+            return Err(Error::Bounds);
+        }
+        registers.extend_from_slice(inputs);
+        for r in inputs {
+            regions.push(Box::from([Region {
+                offset: 0,
+                len: r.lanes,
+                bounds: r.bounds,
+            }]));
+        }
         Ok(Self {
             inputs: inputs.len(),
-            registers: inputs.to_vec(),
-            regions: inputs
-                .iter()
-                .map(|r| {
-                    Box::from([Region {
-                        offset: 0,
-                        len: r.lanes,
-                        bounds: r.bounds,
-                    }])
-                })
-                .collect(),
+            registers,
+            regions,
             ops: vec![],
             proofs: vec![],
             templates: BTreeMap::new(),
             template_metadata: BTreeMap::new(),
             work: WorkBudget::default(),
             advances: 1,
+            proof_admission_retired: false,
+            #[cfg(test)]
+            proof_metadata_limit: limit.min(MAX_PROGRAM_BYTES),
+            #[cfg(test)]
+            fail_proof_allocation: false,
+            #[cfg(test)]
+            fail_builder_allocation: false,
+            #[cfg(test)]
+            checked_return_slice_fail_at: None,
+            #[cfg(test)]
+            checked_return_slice_attempts: 0,
         })
     }
-    pub fn input(&self, owner: usize) -> Result<Layout, Error> {
+    /// Admit this new view against current Builder capacities before allocation.
+    /// Caller-retained views/containers and source/transport/global owners remain
+    /// separate; repeated calls do not establish a whole-request ownership gate.
+    pub fn input(&mut self, owner: usize) -> Result<Layout, Error> {
+        self.proof_admission_live()?;
         if owner >= self.inputs {
             return Err(Error::Binding);
         }
-        Layout::contiguous(owner, self.registers[owner].lanes)
+        let result = (|| {
+            let lanes = self.registers[owner].lanes;
+            let quote: LayoutQuote = Layout::quote_contiguous(owner, lanes)?;
+            self.proof_preflight(quote.construction_peak_bytes)?;
+            #[cfg(test)]
+            if self.fail_builder_allocation {
+                return Err(Error::Allocation);
+            }
+            Layout::contiguous(owner, lanes)
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
+        }
+        result
     }
     fn bounds(&self, layout: &Layout) -> Result<Interval, Error> {
+        self.proof_admission_live()?;
         layout.validate(&self.registers)?;
         let (mut lo, mut hi) = (i64::MAX, i64::MIN);
         for i in 0..layout.len() {
@@ -291,18 +388,37 @@ impl Builder {
         }
         Interval::new(lo, hi)
     }
-    fn intern(
+    #[cfg(test)]
+    fn intern(&mut self, program: tensor::Program) -> Result<Arc<tensor::Program>, Error> {
+        self.intern_with_temporary(program, 0)
+    }
+    fn intern_with_temporary(
         &mut self,
         program: tensor::Program,
-        affine_words: usize,
+        temporary: usize,
     ) -> Result<Arc<tensor::Program>, Error> {
+        let result = self.intern_admitted(program, temporary);
+        if result.is_err() {
+            self.proof_admission_retired = true;
+        }
+        result
+    }
+    fn intern_admitted(
+        &mut self,
+        program: tensor::Program,
+        temporary: usize,
+    ) -> Result<Arc<tensor::Program>, Error> {
+        self.proof_admission_live()?;
         let digest = program.digest();
-        // Only our native constructor wrappers call this: RMS owns one lane
-        // table, RoPE two, remaining constructors none. Native affine_lanes
-        // guarantees exact Vec capacity. No private core field introspection.
-        let metadata = size_of::<tensor::Program>()
-            + 2 * size_of::<usize>()
-            + affine_words * size_of::<multiply::arithmetic::Affine>();
+        // Owner-defined actual template capacities and standalone shared-executor
+        // envelope. No external-template credit. Program construction already
+        // happened at the call site; this is not its preconstruction gate.
+        let resources = program.resources()?;
+        if resources.shared_admitted_bytes > puma::MAX_ADMITTED_BYTES {
+            return Err(Error::Bounds);
+        }
+        let metadata = resources.immutable_template_bytes;
+        self.template_insert_preflight(&digest, resources, temporary)?;
         if let Some(p) = self.templates.get(&digest) {
             if self.template_metadata[&digest] != metadata {
                 return Err(Error::Binding);
@@ -315,6 +431,10 @@ impl Builder {
             .try_fold(metadata, |n, p| n.checked_add(*p).ok_or(Error::Bounds))?;
         if bytes > MAX_PROGRAM_BYTES {
             return Err(Error::Bounds);
+        }
+        #[cfg(test)]
+        if self.fail_builder_allocation {
+            return Err(Error::Allocation);
         }
         let program = Arc::new(program);
         self.templates.insert(digest, program.clone());
@@ -329,12 +449,37 @@ impl Builder {
         work: WorkBudget,
         advances: u64,
     ) -> Result<Layout, Error> {
+        self.push_with_temporary(op, lanes, regions, work, advances, 0)
+    }
+    fn push_with_temporary(
+        &mut self,
+        op: Op,
+        lanes: usize,
+        regions: Vec<Region>,
+        work: WorkBudget,
+        advances: u64,
+        temporary: usize,
+    ) -> Result<Layout, Error> {
+        let result = self.push_admitted(op, lanes, regions, work, advances, temporary);
+        if result.is_err() {
+            self.proof_admission_retired = true;
+        }
+        result
+    }
+    fn push_admitted(
+        &mut self,
+        op: Op,
+        lanes: usize,
+        regions: Vec<Region>,
+        work: WorkBudget,
+        advances: u64,
+        temporary: usize,
+    ) -> Result<Layout, Error> {
+        self.proof_admission_live()?;
         if lanes == 0 || lanes > MAX_VALUES || self.registers.len() >= MAX_NODES {
             return Err(Error::Bounds);
         }
-        for input in op.layouts() {
-            input.validate(&self.registers)?;
-        }
+        op.validate_layouts(&self.registers)?;
         let (mut lo, mut hi, mut previous) = (0_i64, 0_i64, 0_usize);
         for r in &regions {
             if r.len == 0
@@ -347,21 +492,24 @@ impl Builder {
             lo = lo.min(r.bounds.lower());
             hi = hi.max(r.bounds.upper());
         }
-        self.work = self.work.checked_add(work)?;
-        self.work.limits()?;
-        self.advances = self.advances.checked_add(advances).ok_or(Error::Bounds)?;
+        let work = self.work.checked_add(work)?;
+        work.limits()?;
+        let advances = self.advances.checked_add(advances).ok_or(Error::Bounds)?;
         let owner = self.registers.len();
-        self.registers
-            .try_reserve(1)
-            .map_err(|_| Error::Allocation)?;
-        self.regions.try_reserve(1).map_err(|_| Error::Allocation)?;
-        self.ops.try_reserve(1).map_err(|_| Error::Allocation)?;
+        let output_quote = Layout::quote_contiguous(owner, lanes)?;
+        self.proof_preflight(output_quote.construction_peak_bytes)?;
+        self.push_storage_admitted(&op, &regions, temporary)?;
+        // Existing push-storage preflight also covers this one-span destination
+        // within its input-row scratch envelope. Construct before publishing state.
+        let output = Layout::contiguous(owner, lanes)?;
         self.registers.push(Register {
             lanes,
             bounds: Interval::new(lo, hi)?,
         });
         self.regions.push(regions.into_boxed_slice());
         self.ops.push(op);
+        self.work = work;
+        self.advances = advances;
         let retained = self
             .regions
             .iter()
@@ -372,7 +520,7 @@ impl Builder {
         if retained > MAX_PROGRAM_BYTES {
             return Err(Error::Bounds);
         }
-        Layout::contiguous(owner, lanes)
+        Ok(output)
     }
     fn proof(&self, row: &Layout) -> Option<Proof> {
         let key = row.row_key(row.len())?;
@@ -385,6 +533,7 @@ impl Builder {
 
 impl Plan {
     fn finish(builder: Builder, outputs: &[Layout]) -> Result<Arc<Self>, Error> {
+        builder.proof_admission_live()?;
         builder.work.limits()?;
         if builder.advances > MAX_COORDINATOR_ADVANCES {
             return Err(Error::Bounds);
@@ -397,6 +546,10 @@ impl Plan {
                 .filter(|&n| n <= MAX_VALUES)
                 .ok_or(Error::Bounds)
         })?;
+        // Container/proof/finalization admission only. Native Program constructors
+        // still lack a preconstruction owner quote; this is not whole-Builder
+        // or complete-request early admission.
+        builder.proof_finish_preflight(outputs)?;
         let count = builder.registers.len();
         let mut last = vec_zero::<usize>(count)?;
         last.fill(UNUSED);

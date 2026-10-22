@@ -1,17 +1,66 @@
 //! Original constructors and public loop geometry for every layer family.
 use super::*;
 
+type RotaryCoefficientRow = [i64; tensor::MAX_TILE_LANES / 2];
+// Two full destination arrays, independent of the currently active row width.
+const ROTARY_COEFFICIENT_BYTES: usize = 2 * size_of::<RotaryCoefficientRow>();
+// Each explicit zero-array initializer and its destination may overlap. This
+// inventories those four array value slots, not generated stack/RSS usage.
+const ROTARY_INITIALIZATION_BYTES: usize = 2 * ROTARY_COEFFICIENT_BYTES;
+
 impl Builder {
+    /// Native owner quote plus independently retained caller buffers. The live
+    /// Builder census is added by proof_preflight; neither borrowed slice bytes
+    /// nor a template already interned in that census earns a subtraction.
+    /// This does not replace post-construction capacity/work/numeric admission.
+    fn native_construction_preflight(
+        &mut self,
+        construction: tensor::Construction,
+        caller_buffer_bytes: usize,
+    ) -> Result<(), Error> {
+        let result = (|| {
+            self.proof_admission_live()?;
+            let quote = construction.quote().map_err(|error| match error {
+                tensor::ConstructionQuoteError::Geometry(error) => error,
+                // The native coefficient generator does not constrain actual
+                // Vec capacities. Requested lengths cannot authorize backing.
+                tensor::ConstructionQuoteError::UncheckedRotaryCoefficientCapacity => Error::Bounds,
+            })?;
+            self.proof_preflight(
+                caller_buffer_bytes
+                    .checked_add(quote.peak_with_borrowed_public_bytes)
+                    .ok_or(Error::Bounds)?,
+            )
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
+        }
+        result
+    }
+
     pub fn binary(
         &mut self,
         left: &Layout,
         right: &Layout,
         multiply: bool,
     ) -> Result<Layout, Error> {
+        self.binary_with_temporary(left, right, multiply, 0)
+    }
+    fn binary_with_temporary(
+        &mut self,
+        left: &Layout,
+        right: &Layout,
+        multiply: bool,
+        temporary: usize,
+    ) -> Result<Layout, Error> {
         if left.len() != right.len() {
             return Err(Error::Shape);
         }
-        let mut regions = Vec::new();
+        let slices = Self::proof_row_scratch(left)?
+            .checked_add(Self::proof_row_scratch(right)?)
+            .and_then(|n| n.checked_add(temporary))
+            .ok_or(Error::Bounds)?;
+        let mut regions = self.region_buffer(left.len().div_ceil(TILE), slices)?;
         let mut work = WorkBudget::default();
         for offset in (0..left.len()).step_by(TILE) {
             let len = TILE.min(left.len() - offset);
@@ -36,7 +85,7 @@ impl Builder {
                 bounds: range,
             });
         }
-        self.push(
+        self.push_with_temporary(
             Op::Binary {
                 left: left.clone(),
                 right: right.clone(),
@@ -50,6 +99,7 @@ impl Builder {
             } else {
                 0
             },
+            temporary,
         )
     }
     pub fn residual(
@@ -62,6 +112,20 @@ impl Builder {
             return Err(Error::Shape);
         }
         let mut energies = Vec::new();
+        let rows = left.len() / width;
+        let temporary = rows.checked_mul(size_of::<u128>()).ok_or(Error::Bounds)?;
+        let slices = Self::proof_row_scratch(left)?
+            .checked_add(Self::proof_row_scratch(right)?)
+            .ok_or(Error::Bounds)?;
+        self.proof_preflight(temporary.checked_add(slices).ok_or(Error::Bounds)?)?;
+        if energies.try_reserve_exact(rows).is_err() {
+            self.proof_admission_retired = true;
+            return Err(Error::Allocation);
+        }
+        if energies.capacity() != rows {
+            self.proof_admission_retired = true;
+            return Err(Error::Bounds);
+        }
         for offset in (0..left.len()).step_by(width) {
             let a = left.slice(offset, width)?;
             let b = right.slice(offset, width)?;
@@ -84,18 +148,29 @@ impl Builder {
                 .ok_or(Error::Bounds)?;
             energies.push(radius.checked_mul(radius).ok_or(Error::Bounds)?);
         }
-        let output = self.binary(left, right, false)?;
-        for (row, squared) in energies.into_iter().enumerate() {
-            self.proofs.push(Proof {
-                key: output
-                    .slice(row * width, width)?
-                    .row_key(width)
-                    .ok_or(Error::Binding)?,
-                energy: Some(squared),
-                mass: None,
-            });
+        let output = self.binary_with_temporary(left, right, false, temporary)?;
+        let result = (|| {
+            let temporary = temporary
+                .checked_add(output.metadata_bytes())
+                .and_then(|n| n.checked_add(64))
+                .ok_or(Error::Bounds)?;
+            for (row, squared) in energies.iter().copied().enumerate() {
+                self.record_proof(
+                    Proof {
+                        key: Self::proof_row_key(&output, row * width, width)
+                            .ok_or(Error::Binding)?,
+                        energy: Some(squared),
+                        mass: None,
+                    },
+                    temporary,
+                )?;
+            }
+            Ok(output)
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
         }
-        Ok(output)
+        result
     }
     fn tensors(
         &mut self,
@@ -103,15 +178,44 @@ impl Builder {
         stride: usize,
         programs: Vec<Arc<tensor::Program>>,
         certificates: Vec<(usize, Option<u128>, Option<u64>)>,
+        enclosing_temporary: usize,
     ) -> Result<Layout, Error> {
         if stride == 0 || input.len().div_ceil(stride) != programs.len() {
             return Err(Error::Shape);
         }
-        let mut interned = Vec::new();
         let mut regions = Vec::new();
+        let temporary = certificates
+            .capacity()
+            .checked_mul(size_of::<(usize, Option<u128>, Option<u64>)>())
+            .and_then(|n| n.checked_add(enclosing_temporary))
+            .ok_or(Error::Bounds)?;
+        // Input Vec backing remains live while destination boxes are formed.
+        let construction = programs
+            .capacity()
+            .checked_add(programs.len())
+            .and_then(|n| n.checked_mul(size_of::<Arc<tensor::Program>>()))
+            .and_then(|n| {
+                programs
+                    .len()
+                    .checked_mul(2 * size_of::<Region>())?
+                    .checked_add(n)
+            })
+            .and_then(|n| n.checked_add(temporary))
+            .and_then(|n| n.checked_add(input.metadata_bytes()))
+            .and_then(|n| n.checked_add(256))
+            .ok_or(Error::Bounds)?;
+        self.proof_preflight(construction)?;
+        if regions.try_reserve_exact(programs.len()).is_err() {
+            self.proof_admission_retired = true;
+            return Err(Error::Allocation);
+        }
+        if regions.capacity() != programs.len() {
+            self.proof_admission_retired = true;
+            return Err(Error::Bounds);
+        }
         let mut work = WorkBudget::default();
         let mut advances = 0u64;
-        for (row, program) in programs.into_iter().enumerate() {
+        for (row, program) in programs.iter().enumerate() {
             let offset = row * stride;
             if program.lanes() > stride.min(input.len() - offset)
                 || program.output_lanes() > stride.min(input.len() - offset)
@@ -128,55 +232,86 @@ impl Builder {
                 len: program.output_lanes(),
                 bounds: program.output_bounds(),
             });
-            interned.push(program);
         }
-        let output = self.push(
+        let output = self.push_with_temporary(
             Op::Tensor {
                 input: input.clone(),
                 stride,
-                programs: interned.into_boxed_slice(),
+                programs: programs.into_boxed_slice(),
             },
             input.len(),
             regions,
             work,
             advances,
+            temporary,
         )?;
-        for (row, energy, mass) in certificates {
-            let offset = row * stride;
-            let width = match &self.ops[self.ops.len() - 1] {
-                Op::Tensor { programs, .. } => programs[row].output_lanes(),
-                _ => return Err(Error::Binding),
-            };
-            self.proofs.push(Proof {
-                key: output
-                    .slice(offset, width)?
-                    .row_key(width)
-                    .ok_or(Error::Binding)?,
-                energy,
-                mass,
-            });
+        let result = (|| {
+            let temporary = temporary
+                .checked_add(output.metadata_bytes())
+                .and_then(|n| n.checked_add(input.metadata_bytes()))
+                .and_then(|n| n.checked_add(128))
+                .ok_or(Error::Bounds)?;
+            for (row, energy, mass) in certificates.iter().copied() {
+                let width = match self.ops.last().ok_or(Error::Binding)? {
+                    Op::Tensor { programs, .. } => {
+                        programs.get(row).ok_or(Error::Binding)?.output_lanes()
+                    }
+                    _ => return Err(Error::Binding),
+                };
+                let offset = row.checked_mul(stride).ok_or(Error::Bounds)?;
+                self.record_proof(
+                    Proof {
+                        key: Self::proof_row_key(&output, offset, width).ok_or(Error::Binding)?,
+                        energy,
+                        mass,
+                    },
+                    temporary,
+                )?;
+            }
+            Ok(output)
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
         }
-        Ok(output)
+        result
     }
     fn chunks(
         &mut self,
         input: &Layout,
+        construction: impl Fn(usize) -> tensor::Construction,
         make: impl Fn(usize, Interval) -> Result<tensor::Program, Error>,
     ) -> Result<Layout, Error> {
-        let mut programs = Vec::new();
-        for offset in (0..input.len()).step_by(TILE) {
-            let n = TILE.min(input.len() - offset);
-            let program = make(n, self.bounds(&input.slice(offset, n)?)?)?;
-            programs.push(self.intern(program, 0)?);
+        // PublicMatrix may already have pushed its unscaled owner before this
+        // family is called. Native constructor failures must burn that Builder.
+        let result = (|| {
+            let mut programs = self.new_template_list(input, input.len().div_ceil(TILE), 0)?;
+            for offset in (0..input.len()).step_by(TILE) {
+                let n = TILE.min(input.len() - offset);
+                self.native_construction_preflight(
+                    construction(n),
+                    Self::template_call_temporary(input, &programs, 0)?,
+                )?;
+                let program = make(n, self.bounds(&input.slice(offset, n)?)?)?;
+                let temporary = Self::template_call_temporary(input, &programs, 0)?;
+                programs.push(self.intern_with_temporary(program, temporary)?);
+            }
+            self.tensors(input, TILE, programs, vec![], 0)
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
         }
-        self.tensors(input, TILE, programs, vec![])
+        result
     }
     pub fn rescale(&mut self, input: &Layout) -> Result<Layout, Error> {
-        self.chunks(input, |n, bounds| {
-            let mut b = tensor::Builder::new(n, bounds)?;
-            let output = b.rescale(b.input(), 18)?;
-            b.finish(output)
-        })
+        self.chunks(
+            input,
+            |lanes| tensor::Construction::Builder { lanes },
+            |n, bounds| {
+                let mut b = tensor::Builder::new(n, bounds)?;
+                let output = b.rescale(b.input(), 18)?;
+                b.finish(output)
+            },
+        )
     }
     /// Deliberately includes masked slots. Zero values do not elide any rescale.
     pub fn attention_scale(&mut self, input: &Layout, head_dim: usize) -> Result<Layout, Error> {
@@ -184,25 +319,31 @@ impl Builder {
             return Err(Error::Shape);
         }
         let coefficient = ((1.0_f32 / (head_dim as f32).sqrt()) * ONE as f32) as i64;
-        self.chunks(input, |n, bounds| {
-            let mut b = tensor::Builder::new(n, bounds)?;
-            let raw = b.affine(
-                b.input(),
-                None,
-                multiply::arithmetic::Affine {
-                    left: coefficient,
-                    right: 0,
-                    constant: 0,
-                },
-            )?;
-            let output = b.rescale(raw, 18)?;
-            b.finish(output)
-        })
+        self.chunks(
+            input,
+            |lanes| tensor::Construction::Builder { lanes },
+            |n, bounds| {
+                let mut b = tensor::Builder::new(n, bounds)?;
+                let raw = b.affine(
+                    b.input(),
+                    None,
+                    multiply::arithmetic::Affine {
+                        left: coefficient,
+                        right: 0,
+                        constant: 0,
+                    },
+                )?;
+                let output = b.rescale(raw, 18)?;
+                b.finish(output)
+            },
+        )
     }
     pub fn silu(&mut self, input: &Layout) -> Result<Layout, Error> {
-        self.chunks(input, |n, bounds| {
-            tensor::Program::activation_guarded(tensor::Activation::Silu, n, bounds)
-        })
+        self.chunks(
+            input,
+            |lanes| tensor::Construction::GuardedSilu { lanes },
+            |n, bounds| tensor::Program::activation_guarded(tensor::Activation::Silu, n, bounds),
+        )
     }
     /// All complete membership tiles and sticky products precede normalization.
     pub fn checked(
@@ -210,6 +351,15 @@ impl Builder {
         input: &Layout,
         bound: i64,
         previous: Option<&Layout>,
+    ) -> Result<(Layout, Option<Layout>), Error> {
+        self.checked_with_temporary(input, bound, previous, 0)
+    }
+    fn checked_with_temporary(
+        &mut self,
+        input: &Layout,
+        bound: i64,
+        previous: Option<&Layout>,
+        enclosing_temporary: usize,
     ) -> Result<(Layout, Option<Layout>), Error> {
         if bound < 0 {
             return Err(Error::Bounds);
@@ -225,59 +375,209 @@ impl Builder {
         if incoming.lower() >= accepted.lower() && incoming.upper() <= accepted.upper() {
             return Ok((input.clone(), previous.cloned()));
         }
-        let mut checked = Vec::new();
-        let mut valid = Vec::new();
-        let mut work = WorkBudget::default();
-        let mut advances = 0u64;
-        for (tile, offset) in (0..input.len()).step_by(tensor::MAX_TILE_LANES).enumerate() {
-            let n = tensor::MAX_TILE_LANES.min(input.len() - offset);
-            let a = self.intern(
-                tensor::Program::checked_range(
+        let result = (|| {
+            let previous_bytes = previous
+                .map_or(0, |p| p.metadata_bytes() + 64)
+                .checked_add(enclosing_temporary)
+                .ok_or(Error::Bounds)?;
+            let tiles = input.len().div_ceil(tensor::MAX_TILE_LANES);
+            let mut checked = self.new_template_list(input, tiles, previous_bytes)?;
+            let mut valid = self.new_template_list(
+                input,
+                tiles,
+                previous_bytes
+                    .checked_add(checked.capacity() * size_of::<Arc<tensor::Program>>())
+                    .ok_or(Error::Bounds)?,
+            )?;
+            let mut work = WorkBudget::default();
+            let mut advances = 0u64;
+            for (tile, offset) in (0..input.len()).step_by(tensor::MAX_TILE_LANES).enumerate() {
+                let n = tensor::MAX_TILE_LANES.min(input.len() - offset);
+                let temporary = Self::template_call_temporary(
+                    input,
+                    &checked,
+                    previous_bytes
+                        .checked_add(valid.capacity() * size_of::<Arc<tensor::Program>>())
+                        .ok_or(Error::Bounds)?,
+                )?;
+                self.native_construction_preflight(
+                    tensor::Construction::CheckedRange { lanes: n },
+                    temporary,
+                )?;
+                let program = tensor::Program::checked_range(
                     n,
                     self.bounds(&input.slice(offset, n)?)?,
                     accepted,
                     0,
-                )?,
-                0,
-            )?;
-            let b = self.intern(tensor::Program::all_valid(n)?, 0)?;
-            work = work
-                .checked_add(a.work_budget())?
-                .checked_add(b.work_budget())?;
-            advances += a.instructions() as u64 + b.instructions() as u64;
-            if tile > 0 || previous.is_some() {
-                work = work.checked_add(WorkBudget::product(1, false)?)?;
-                advances += 1;
+                )?;
+                let a = self.intern_with_temporary(program, temporary)?;
+                // The just-interned guard is now in the live census, even
+                // though it has not yet been pushed into the local list.
+                self.native_construction_preflight(
+                    tensor::Construction::AllValid { lanes: n },
+                    temporary,
+                )?;
+                let program = tensor::Program::all_valid(n)?;
+                let b = self.intern_with_temporary(program, temporary)?;
+                work = work
+                    .checked_add(a.work_budget())?
+                    .checked_add(b.work_budget())?;
+                advances += a.instructions() as u64 + b.instructions() as u64;
+                if tile > 0 || previous.is_some() {
+                    work = work.checked_add(WorkBudget::product(1, false)?)?;
+                    advances += 1;
+                }
+                checked.push(a);
+                valid.push(b);
             }
-            checked.push(a);
-            valid.push(b);
+            let n = input.len();
+            let temporary = Self::template_call_temporary(
+                input,
+                &checked,
+                previous_bytes
+                    .checked_add(valid.capacity() * size_of::<Arc<tensor::Program>>())
+                    .ok_or(Error::Bounds)?,
+            )?;
+            let mut regions = self.region_buffer(2, temporary)?;
+            regions.push(Region {
+                offset: 0,
+                len: n,
+                bounds: accepted,
+            });
+            regions.push(Region {
+                offset: n,
+                len: 1,
+                bounds: Interval::new(0, 1)?,
+            });
+            // Both list Vecs coexist with their boxed destinations during freezing.
+            self.proof_preflight(
+                temporary
+                    .checked_add(
+                        tiles
+                            .checked_mul(2 * size_of::<Arc<tensor::Program>>())
+                            .ok_or(Error::Bounds)?,
+                    )
+                    .and_then(|n| n.checked_add(regions.capacity() * size_of::<Region>()))
+                    .and_then(|n| n.checked_add(256))
+                    .ok_or(Error::Bounds)?,
+            )?;
+            let output = self.push_with_temporary(
+                Op::Check {
+                    input: input.clone(),
+                    previous: previous.cloned(),
+                    accepted,
+                    checked: checked.into_boxed_slice(),
+                    valid: valid.into_boxed_slice(),
+                },
+                n.checked_add(1).ok_or(Error::Bounds)?,
+                regions,
+                work,
+                advances,
+                previous_bytes,
+            )?;
+            self.proof_preflight(
+                Self::proof_row_scratch(&output)?
+                    .checked_add(previous_bytes)
+                    .ok_or(Error::Bounds)?,
+            )?;
+            let safe = self.checked_return_slice(&output, 0, n)?;
+            let valid = self.checked_return_slice(&output, n, 1)?;
+            Ok((safe, Some(valid)))
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
         }
-        let n = input.len();
-        let output = self.push(
-            Op::Check {
-                input: input.clone(),
-                previous: previous.cloned(),
-                accepted,
-                checked: checked.into_boxed_slice(),
-                valid: valid.into_boxed_slice(),
-            },
-            n.checked_add(1).ok_or(Error::Bounds)?,
-            vec![
-                Region {
-                    offset: 0,
-                    len: n,
-                    bounds: accepted,
-                },
-                Region {
-                    offset: n,
-                    len: 1,
-                    bounds: Interval::new(0, 1)?,
-                },
-            ],
-            work,
-            advances,
-        )?;
-        Ok((output.slice(0, n)?, Some(output.slice(n, 1)?)))
+        result
+    }
+    /// Production calls the original Layout allocator unchanged. The local
+    /// test seam observes/fails each returned-slice attempt immediately before
+    /// that call, not individual allocator internals or infallible Arc OOM.
+    fn checked_return_slice(
+        &mut self,
+        output: &Layout,
+        start: usize,
+        len: usize,
+    ) -> Result<Layout, Error> {
+        #[cfg(test)]
+        {
+            let attempt = self.checked_return_slice_attempts;
+            self.checked_return_slice_attempts += 1;
+            if self.checked_return_slice_fail_at == Some(attempt) {
+                return Err(Error::Allocation);
+            }
+        }
+        output.slice(start, len)
+    }
+    /// Propagate only existing complete ordered input-row energy. Coordinatewise
+    /// safe-zero cannot increase energy even when sticky request validity is 0.
+    /// Mass and attention-only certificates are intentionally not transferred.
+    pub fn checked_rows(
+        &mut self,
+        input: &Layout,
+        width: usize,
+        bound: i64,
+        previous: Option<&Layout>,
+    ) -> Result<(Layout, Option<Layout>), Error> {
+        self.checked_rows_with_temporary(input, width, bound, previous, 0)
+    }
+    fn checked_rows_with_temporary(
+        &mut self,
+        input: &Layout,
+        width: usize,
+        bound: i64,
+        previous: Option<&Layout>,
+        enclosing_temporary: usize,
+    ) -> Result<(Layout, Option<Layout>), Error> {
+        if width == 0 || input.len() % width != 0 {
+            return Err(Error::Shape);
+        }
+        if bound < 0 {
+            return Err(Error::Bounds);
+        }
+        let incoming = self.bounds(input)?;
+        let result = (|| {
+            let (safe, valid) =
+                self.checked_with_temporary(input, bound, previous, enclosing_temporary)?;
+            if incoming.lower() >= -bound && incoming.upper() <= bound {
+                return Ok((safe, valid));
+            }
+            let cap = crate::replicated_decoder::checked_row_energy::cap_energy(width, bound)?;
+            // Returned layouts own backing not yet retained by a subsequent Op.
+            let temporary = safe
+                .metadata_bytes()
+                .checked_add(64)
+                .and_then(|n| {
+                    valid.as_ref().map_or(Some(n), |v| {
+                        v.metadata_bytes().checked_add(64)?.checked_add(n)
+                    })
+                })
+                .and_then(|n| n.checked_add(enclosing_temporary))
+                .ok_or(Error::Bounds)?;
+            for offset in (0..input.len()).step_by(width) {
+                let Some(energy) = self.proof_at(input, offset, width).and_then(|p| p.energy)
+                else {
+                    continue;
+                };
+                if let Some(energy) =
+                    crate::replicated_decoder::checked_row_energy::strict_improvement(energy, cap)
+                {
+                    let key = Self::proof_row_key(&safe, offset, width).ok_or(Error::Binding)?;
+                    self.record_proof(
+                        Proof {
+                            key,
+                            energy: Some(energy),
+                            mass: None,
+                        },
+                        temporary,
+                    )?;
+                }
+            }
+            Ok((safe, valid))
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
+        }
+        result
     }
     pub fn rms(
         &mut self,
@@ -290,26 +590,77 @@ impl Builder {
         if width == 0 || input.len() % width != 0 || gamma.len() != width {
             return Err(Error::Shape);
         }
-        let (safe, valid) = match checked {
-            Some(bound) => self.checked(input, bound, previous)?,
-            None => (input.clone(), previous.cloned()),
-        };
-        let mut programs = Vec::new();
-        let mut certificates = Vec::new();
-        for (row, offset) in (0..safe.len()).step_by(width).enumerate() {
-            let input = safe.slice(offset, width)?;
-            let bounds = self.bounds(&input)?;
-            let (program, squared) = match self.proof(&input).and_then(|p| p.energy) {
-                Some(norm) => {
-                    tensor::Program::rms_norm_with_input_norm(1, width, bounds, gamma, norm)?
+        let result = (|| {
+            // This API borrows slice elements, not the unknown enclosing Vec
+            // capacity/header. Keep those elements live through guards, native
+            // construction, interning and certificate publication separately.
+            let gamma_bytes = gamma
+                .len()
+                .checked_mul(size_of::<i64>())
+                .ok_or(Error::Bounds)?;
+            let (safe, valid) = match checked {
+                Some(bound) => {
+                    self.checked_rows_with_temporary(input, width, bound, previous, gamma_bytes)?
                 }
-                None => tensor::Program::rms_norm_certified(1, width, bounds, gamma)?,
+                None => (input.clone(), previous.cloned()),
             };
-            programs.push(self.intern(program, width)?);
-            certificates.push((row, Some(squared), None));
+            let mut programs = Vec::new();
+            let mut certificates = Vec::new();
+            let temporary = valid
+                .as_ref()
+                .map_or(0, |v| v.metadata_bytes() + 64)
+                .checked_add(gamma_bytes)
+                .ok_or(Error::Bounds)?;
+            self.proof_producer_buffers(&safe, width, &mut programs, &mut certificates, temporary)?;
+            for (row, offset) in (0..safe.len()).step_by(width).enumerate() {
+                self.proof_producer_row_preflight(&safe, &programs, &certificates, temporary)?;
+                let input = safe.slice(offset, width)?;
+                let bounds = self.bounds(&input)?;
+                let input_norm = self.proof(&input).and_then(|p| p.energy);
+                let construction = match input_norm {
+                    Some(_) => tensor::Construction::RmsNormWithInputNorm {
+                        rows: 1,
+                        width,
+                        gamma_len: gamma.len(),
+                    },
+                    None => tensor::Construction::RmsNormCertified {
+                        rows: 1,
+                        width,
+                        gamma_len: gamma.len(),
+                    },
+                };
+                // gamma is already included in `temporary` for every other
+                // boundary. Here the quote itself prices its borrowed elements.
+                let native_temporary = Self::proof_producer_temporary(
+                    &safe,
+                    &programs,
+                    &certificates,
+                    valid.as_ref().map_or(0, |v| v.metadata_bytes() + 64),
+                )?;
+                self.native_construction_preflight(construction, native_temporary)?;
+                let (program, squared) = match input_norm {
+                    Some(norm) => {
+                        tensor::Program::rms_norm_with_input_norm(1, width, bounds, gamma, norm)?
+                    }
+                    None => tensor::Program::rms_norm_certified(1, width, bounds, gamma)?,
+                };
+                let call_temporary =
+                    Self::proof_producer_temporary(&safe, &programs, &certificates, temporary)?;
+                programs.push(self.intern_with_temporary(program, call_temporary)?);
+                certificates.push((row, Some(squared), None));
+            }
+            Ok((
+                self.tensors(&safe, width, programs, certificates, temporary)?,
+                valid,
+            ))
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
         }
-        Ok((self.tensors(&safe, width, programs, certificates)?, valid))
+        result
     }
+    /// Allocation-free coefficient generation into pre-admitted fixed buffers;
+    /// native rotary_half retains its own authoritative construction quote.
     pub fn rope(
         &mut self,
         input: &Layout,
@@ -318,34 +669,95 @@ impl Builder {
         position: usize,
         theta: f32,
     ) -> Result<Layout, Error> {
-        if width == 0
-            || width > 128
-            || width % 2 != 0
-            || sequence == 0
-            || input.len() % width != 0
-            || input.len() / width % sequence != 0
-        {
-            return Err(Error::Shape);
+        self.rope_with_fill(
+            input,
+            width,
+            sequence,
+            position,
+            theta,
+            tensor::Program::rotary_coefficients_into,
+        )
+    }
+    /// Same production path with an observable fill boundary for focused tests.
+    /// No test-only allocator or alternate native program constructor is used.
+    fn rope_with_fill(
+        &mut self,
+        input: &Layout,
+        width: usize,
+        sequence: usize,
+        position: usize,
+        theta: f32,
+        fill: impl Fn(f32, u32, usize, &mut [i64], &mut [i64]) -> Result<(), Error>,
+    ) -> Result<Layout, Error> {
+        let result = (|| {
+            self.proof_admission_live()?;
+            if width == 0
+                || width > tensor::MAX_TILE_LANES
+                || width % 2 != 0
+                || sequence == 0
+                || input.len() % width != 0
+                || input.len() / width % sequence != 0
+            {
+                return Err(Error::Shape);
+            }
+            input.validate(&self.registers)?;
+            // Every sequence position occurs: rows is a positive multiple of
+            // sequence. Validate its maximum before list/array construction.
+            let last_position = position.checked_add(sequence - 1).ok_or(Error::Bounds)?;
+            if !theta.is_finite() || theta < 1.0 || last_position > 512 {
+                return Err(Error::Bounds);
+            }
+            // This existing gate prices the future list's exact capacity, input
+            // view scratch, both FULL coefficient arrays and initialization
+            // overlap before the list allocation or either array initializer.
+            let mut programs =
+                self.new_template_list(input, input.len() / width, ROTARY_INITIALIZATION_BYTES)?;
+            let mut cosine: RotaryCoefficientRow = [0; tensor::MAX_TILE_LANES / 2];
+            let mut sine: RotaryCoefficientRow = [0; tensor::MAX_TILE_LANES / 2];
+            let half = width / 2;
+            for (row, offset) in (0..input.len()).step_by(width).enumerate() {
+                let position = position.checked_add(row % sequence).ok_or(Error::Bounds)?;
+                let position = u32::try_from(position).map_err(|_| Error::Bounds)?;
+                // Re-census retained templates before every fill, not only the
+                // first row. Full caller array backing remains independently
+                // charged; borrowed slice elements never authorize its refund.
+                let temporary =
+                    Self::template_call_temporary(input, &programs, ROTARY_COEFFICIENT_BYTES)?;
+                self.native_construction_preflight(
+                    tensor::Construction::RotaryHalf {
+                        rows: 1,
+                        width,
+                        cosine_len: half,
+                        sine_len: half,
+                    },
+                    temporary,
+                )?;
+                fill(
+                    theta,
+                    position,
+                    width,
+                    &mut cosine[..half],
+                    &mut sine[..half],
+                )?;
+                let program = tensor::Program::rotary_half(
+                    1,
+                    width,
+                    self.bounds(&input.slice(offset, width)?)?,
+                    &cosine[..half],
+                    &sine[..half],
+                )?;
+                programs.push(self.intern_with_temporary(program, temporary)?);
+            }
+            // No unverified energy is introduced. A future producer-proven complete
+            // row certificate can be carried through this exact owner/offset key.
+            // Both arrays remain caller-owned through tensor/certificate
+            // publication, including the template-list boxing overlap.
+            self.tensors(input, width, programs, vec![], ROTARY_COEFFICIENT_BYTES)
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
         }
-        let mut programs = Vec::new();
-        for (row, offset) in (0..input.len()).step_by(width).enumerate() {
-            let (cos, sin) = tensor::Program::rotary_coefficients(
-                theta,
-                u32::try_from(position + row % sequence).map_err(|_| Error::Bounds)?,
-                width,
-            )?;
-            let program = tensor::Program::rotary_half(
-                1,
-                width,
-                self.bounds(&input.slice(offset, width)?)?,
-                &cos,
-                &sin,
-            )?;
-            programs.push(self.intern(program, 2 * width)?);
-        }
-        // No unverified energy is introduced. A future producer-proven complete
-        // row certificate can be carried through this exact owner/offset key.
-        self.tensors(input, width, programs, vec![])
+        result
     }
     pub fn softmax(
         &mut self,
@@ -361,17 +773,29 @@ impl Builder {
         {
             return Err(Error::Shape);
         }
-        let mut programs = Vec::new();
-        let mut certificates = Vec::new();
-        for row in 0..input.len() / keys {
-            let width = position + row % sequence + 1;
-            let view = input.slice(row * keys, width)?;
-            let (program, mass) =
-                tensor::Program::softmax_certified(1, width, self.bounds(&view)?)?;
-            programs.push(self.intern(program, 0)?);
-            certificates.push((row, None, Some(mass)));
+        let result = (|| {
+            let mut programs = Vec::new();
+            let mut certificates = Vec::new();
+            self.proof_producer_buffers(input, keys, &mut programs, &mut certificates, 0)?;
+            for row in 0..input.len() / keys {
+                let width = position + row % sequence + 1;
+                self.native_construction_preflight(
+                    tensor::Construction::SoftmaxCertified { rows: 1, width },
+                    Self::proof_producer_temporary(input, &programs, &certificates, 0)?,
+                )?;
+                let view = input.slice(row * keys, width)?;
+                let (program, mass) =
+                    tensor::Program::softmax_certified(1, width, self.bounds(&view)?)?;
+                let temporary = Self::proof_producer_temporary(input, &programs, &certificates, 0)?;
+                programs.push(self.intern_with_temporary(program, temporary)?);
+                certificates.push((row, None, Some(mass)));
+            }
+            self.tensors(input, keys, programs, certificates, 0)
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true;
         }
-        self.tensors(input, keys, programs, certificates)
+        result
     }
     fn matrix(
         &mut self,
@@ -379,9 +803,8 @@ impl Builder {
         lanes: usize,
         rescale: bool,
     ) -> Result<Layout, Error> {
-        let mut regions = Vec::new();
-        let mut work = WorkBudget::default();
-        let mut advances = 0u64;
+        let mut tiles = 0usize;
+        // Validate/price the full public schedule before any region/bounds Vec.
         for row in &mut rows {
             if row.inner == 0
                 || row.inner > puma::MAX_LANES
@@ -392,9 +815,27 @@ impl Builder {
                 return Err(Error::Shape);
             }
             row.tile = (puma::MAX_LANES / row.inner).min(TILE);
+            tiles = tiles
+                .checked_add(row.columns.div_ceil(row.tile))
+                .ok_or(Error::Bounds)?;
+        }
+        let construction = Self::matrix_construction_bytes(&rows, tiles)?;
+        let mut regions = self.region_buffer(tiles, construction)?;
+        let mut work = WorkBudget::default();
+        let mut advances = 0u64;
+        for row in &mut rows {
             let a = self.bounds(&row.left)?;
             let mass = self.proof(&row.left).and_then(|p| p.mass);
             let mut all = Vec::new();
+            let count = row.columns.div_ceil(row.tile);
+            if all.try_reserve_exact(count).is_err() {
+                self.proof_admission_retired = true;
+                return Err(Error::Allocation);
+            }
+            if all.capacity() != count {
+                self.proof_admission_retired = true;
+                return Err(Error::Bounds);
+            }
             for start in (0..row.columns).step_by(row.tile) {
                 let n = row.tile.min(row.columns - start);
                 let (mut lo, mut hi) = (i64::MAX, i64::MIN);
@@ -468,7 +909,7 @@ impl Builder {
         {
             return Err(Error::Shape);
         }
-        let mut schedule = Vec::new();
+        let mut schedule = self.matrix_row_buffer(left, right, rows)?;
         for row in 0..rows {
             schedule.push(MatrixRow {
                 left: left.slice(row * inner, inner)?,
@@ -516,7 +957,7 @@ impl Builder {
         {
             return Err(Error::Shape);
         }
-        let mut rows = Vec::new();
+        let mut rows = self.matrix_row_buffer(q, k, heads * sequence)?;
         for head in 0..heads {
             for row in 0..sequence {
                 let valid = position + row + 1;
@@ -569,7 +1010,7 @@ impl Builder {
         {
             return Err(Error::Shape);
         }
-        let mut rows = Vec::new();
+        let mut rows = self.matrix_row_buffer(p, v, heads * sequence)?;
         for head in 0..heads {
             for row in 0..sequence {
                 let valid = position + row + 1;
@@ -632,6 +1073,21 @@ impl Builder {
             right: Interval::new(0, 0)?,
         })?;
         let lanes = rows.checked_mul(columns).ok_or(Error::Bounds)?;
+        let source_bytes = size_of::<Source>()
+            .checked_add(source.key.capacity())
+            .and_then(|n| n.checked_add(192))
+            .ok_or(Error::Bounds)?;
+        let mut regions = self.region_buffer(
+            1,
+            Self::proof_row_scratch(input)?
+                .checked_add(source_bytes)
+                .ok_or(Error::Bounds)?,
+        )?;
+        regions.push(Region {
+            offset: 0,
+            len: lanes,
+            bounds,
+        });
         let raw = self.push(
             Op::PublicMatrix {
                 input: input.clone(),
@@ -642,11 +1098,7 @@ impl Builder {
                 transposed,
             },
             lanes,
-            vec![Region {
-                offset: 0,
-                len: lanes,
-                bounds,
-            }],
+            regions,
             WorkBudget::default(),
             0,
         )?;
@@ -665,7 +1117,16 @@ impl Builder {
         if width == 0 || width > 8192 || input.len() % width != 0 || source.lanes != width {
             return Err(Error::Shape);
         }
-        let mut regions = Vec::new();
+        let source_bytes = size_of::<Source>()
+            .checked_add(source.key.capacity())
+            .and_then(|n| n.checked_add(192))
+            .ok_or(Error::Bounds)?;
+        let mut regions = self.region_buffer(
+            input.len().div_ceil(TILE),
+            Self::proof_row_scratch(input)?
+                .checked_add(source_bytes)
+                .ok_or(Error::Bounds)?,
+        )?;
         for offset in (0..input.len()).step_by(TILE) {
             let len = TILE.min(input.len() - offset);
             let bounds = multiply::arithmetic::Affine {
@@ -696,3 +1157,113 @@ impl Builder {
         )
     }
 }
+
+#[cfg(test)]
+mod early_admission_tests {
+    use super::*;
+    #[test]
+    fn tensor_certificate_failure_after_push_preserves_binding_error_and_burns() {
+        let mut b = Builder::new(
+            WeightMode::Public,
+            &[Register {
+                lanes: 3,
+                bounds: Interval::new(-1, 1).unwrap(),
+            }],
+        )
+        .unwrap();
+        let input = b.input(0).unwrap();
+        let mut native = tensor::Builder::new(3, Interval::new(-1, 1).unwrap()).unwrap();
+        let output = native
+            .affine(
+                native.input(),
+                None,
+                multiply::arithmetic::Affine {
+                    left: 1,
+                    right: 0,
+                    constant: 0,
+                },
+            )
+            .unwrap();
+        let program = b.intern(native.finish(output).unwrap()).unwrap();
+        let work = program.work_budget();
+        let advances = 1 + program.instructions() as u64;
+        // Invalid private-owner fixture, not a new public certificate API.
+        assert!(matches!(
+            b.tensors(&input, 3, vec![program], vec![(1, Some(3), None)], 0),
+            Err(Error::Binding)
+        ));
+        assert_eq!(b.ops.len(), 1);
+        assert_eq!(b.work, work);
+        assert_eq!(b.advances, advances);
+        assert!(b.proofs.is_empty());
+        assert!(b.proof_admission_retired);
+        assert!(matches!(b.input(0), Err(Error::Binding)));
+        assert!(matches!(b.finish(&[input]), Err(Error::Binding)));
+    }
+
+    #[test]
+    fn rescale_factory_failure_after_published_owner_burns() {
+        let mut b = Builder::new(
+            WeightMode::Public,
+            &[Register {
+                lanes: 3,
+                bounds: Interval::new(-1, 1).unwrap(),
+            }],
+        )
+        .unwrap();
+        let input = b.input(0).unwrap();
+        let raw = b.binary(&input, &input, false).unwrap();
+        let work = b.work;
+        let advances = b.advances;
+        let called = std::cell::Cell::new(false);
+        // Same private chunks boundary used after PublicMatrix pushes raw.
+        let result = b.chunks(
+            &raw,
+            |lanes| tensor::Construction::Builder { lanes },
+            |_, _| {
+                called.set(true);
+                Err(Error::Bounds)
+            },
+        );
+        assert!(matches!(result, Err(Error::Bounds)));
+        assert!(called.get());
+        assert_eq!(b.ops.len(), 1);
+        assert_eq!(b.work, work);
+        assert_eq!(b.advances, advances);
+        assert!(b.proof_admission_retired);
+        assert!(matches!(b.input(0), Err(Error::Binding)));
+        assert!(matches!(b.finish(&[raw]), Err(Error::Binding)));
+    }
+
+    #[test]
+    fn exhausted_body_metadata_rejects_before_native_factory() {
+        let mut b = Builder::new(
+            WeightMode::Public,
+            &[Register {
+                lanes: 3,
+                bounds: Interval::new(-1, 1).unwrap(),
+            }],
+        )
+        .unwrap();
+        let input = b.input(0).unwrap();
+        b.proof_metadata_limit = 1;
+        let called = std::cell::Cell::new(false);
+        let result = b.chunks(
+            &input,
+            |lanes| tensor::Construction::Builder { lanes },
+            |n, _| {
+                called.set(true);
+                tensor::Program::all_valid(n)
+            },
+        );
+        assert!(matches!(result, Err(Error::Bounds)));
+        assert!(!called.get());
+        assert!(b.templates.is_empty());
+        assert!(b.ops.is_empty());
+        assert!(b.proof_admission_retired);
+    }
+}
+
+#[cfg(test)]
+#[path = "body_native_construction_tests.rs"]
+mod native_construction_tests;

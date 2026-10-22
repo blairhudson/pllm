@@ -339,3 +339,7 @@ impl Span {
 #[cfg(test)]
 #[path = "body_layout_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "body_input_admission_tests.rs"]
+mod input_admission_tests;

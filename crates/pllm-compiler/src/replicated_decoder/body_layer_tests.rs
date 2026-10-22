@@ -144,6 +144,148 @@ fn body_layer_rank_four_permutation_and_concat_are_owner_retaining() {
     assert!(plan.resources().admitted_bytes < MAX_PROGRAM_BYTES);
 }
 
+#[test]
+fn body_layer_input_layout_quote_preserves_identity_work_and_complete_row_bindings() {
+    let inputs = [body::Register {
+        lanes: 3,
+        bounds: Interval::new(-12, 12).unwrap(),
+    }];
+    let make = |builder_input: bool| {
+        let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+        let row = if builder_input {
+            b.input(0).unwrap()
+        } else {
+            layer::Layout::affine(0, 0, &[3], &[1]).unwrap()
+        };
+        let quote = layer::Layout::quote_contiguous(0, 3).unwrap();
+        assert_eq!(
+            quote.destination_backing_bytes,
+            row.backing_bytes().unwrap()
+        );
+        let output = b.residual(&row, &row, 3).unwrap();
+        let plan = b.finish(&[output.clone()]).unwrap();
+        let proof = plan.complete_row(&output).unwrap();
+        let ordered =
+            layer::Layout::concat(&[output.slice(0, 1).unwrap(), output.slice(1, 2).unwrap()])
+                .unwrap();
+        let alias = plan.complete_row(&ordered).unwrap();
+        assert_eq!(alias.key(), proof.key());
+        assert_eq!(alias.energy(), proof.energy());
+        assert_eq!(alias.mass(), proof.mass());
+        assert_eq!(alias.producer(), plan.digest());
+        let reversed = layer::Layout::concat(&[
+            output.slice(2, 1).unwrap(),
+            output.slice(1, 1).unwrap(),
+            output.slice(0, 1).unwrap(),
+        ])
+        .unwrap();
+        let repeated = layer::Layout::concat(&[
+            output.slice(0, 1).unwrap(),
+            output.slice(0, 1).unwrap(),
+            output.slice(2, 1).unwrap(),
+        ])
+        .unwrap();
+        assert!(plan.complete_row(&reversed).is_none());
+        assert!(plan.complete_row(&repeated).is_none());
+        assert!(plan.complete_row(&output.slice(0, 2).unwrap()).is_none());
+        assert!(plan.complete_row(&row).is_none());
+        plan
+    };
+    let quoted = make(true);
+    let direct = make(false);
+    assert_eq!(quoted.digest(), direct.digest());
+    assert_eq!(quoted.work_budget(), direct.work_budget());
+    assert_eq!(quoted.coordinator_advances(), direct.coordinator_advances());
+    assert_eq!(
+        quoted.resources().admitted_bytes,
+        direct.resources().admitted_bytes
+    );
+}
+
+#[test]
+fn body_layer_checked_row_energy_rejected_and_endpoint_schedule_controls() {
+    let inputs = [
+        body::Register {
+            lanes: 1,
+            bounds: Interval::new(-12, 12).unwrap(),
+        },
+        body::Register {
+            lanes: 2,
+            bounds: Interval::new(0, 0).unwrap(),
+        },
+        body::Register {
+            lanes: 3,
+            bounds: Interval::new(0, 0).unwrap(),
+        },
+    ];
+    let make = |transfer: bool| {
+        let mut b = layer::Builder::new(WeightMode::Public, &inputs).unwrap();
+        let input = layer::Layout::concat(&[b.input(0).unwrap(), b.input(1).unwrap()]).unwrap();
+        let zero = b.input(2).unwrap();
+        // Genuine native producer: only one input coordinate can be nonzero.
+        // Scalar hull is [-12,12], complete-row energy is 144 < 3*9^2.
+        let produced = b.residual(&input, &zero, 3).unwrap();
+        let alias =
+            layer::Layout::concat(&[produced.slice(0, 1).unwrap(), produced.slice(1, 2).unwrap()])
+                .unwrap();
+        let (safe, valid) = if transfer {
+            b.checked_rows(&alias, 3, 9, None)
+        } else {
+            b.checked(&alias, 9, None)
+        }
+        .unwrap();
+        let (again, sticky) = if transfer {
+            b.checked_rows(&alias, 3, 9, valid.as_ref())
+        } else {
+            b.checked(&alias, 9, valid.as_ref())
+        }
+        .unwrap();
+        let plan = b.finish(&[safe.clone(), again, sticky.unwrap()]).unwrap();
+        let producer = plan.complete_row(&produced).unwrap();
+        assert_eq!(producer.producer(), plan.digest());
+        assert_eq!(producer.energy(), Some(144));
+        if transfer {
+            let proof = plan.complete_row(&safe).unwrap();
+            assert_eq!(proof.energy(), Some(144));
+            assert_eq!(proof.mass(), None);
+            assert_eq!(proof.producer(), plan.digest());
+            assert!(plan.complete_row(&safe.slice(0, 2).unwrap()).is_none());
+        } else {
+            assert!(plan.complete_row(&safe).is_none());
+        }
+        plan
+    };
+    let transferred = make(true);
+    let baseline = make(false);
+    assert_eq!(transferred.digest(), baseline.digest());
+    assert_eq!(transferred.work_budget(), baseline.work_budget());
+    assert_eq!(
+        transferred.coordinator_advances(),
+        baseline.coordinator_advances()
+    );
+    for value in [-10_i64, -9, 0, 9, 10] {
+        let clear = BTreeMap::from([
+            ("x0".into(), vec![value]),
+            ("x1".into(), vec![0; 2]),
+            ("x2".into(), vec![0; 3]),
+        ]);
+        let drive = |plan: &Arc<layer::Plan>| {
+            let program = fixture(plan, &inputs);
+            run(
+                workers(program, &clear).map(|w| layer::from_worker(plan.clone(), w, None)),
+                plan,
+            )
+        };
+        let (actual, trace) = drive(&transferred);
+        let (expected, baseline_trace) = drive(&baseline);
+        assert_eq!(actual, expected);
+        assert_eq!(trace, baseline_trace);
+        let accepted = (-9..=9).contains(&value);
+        let safe = vec![if accepted { value as u64 } else { 0 }, 0, 0];
+        assert_eq!(actual, vec![safe.clone(), safe, vec![u64::from(accepted)]]);
+    }
+}
+
 fn finish_expanded(b: Builder, inputs: usize, outputs: Vec<(usize, usize)>) -> Arc<Program> {
     let work = schedule_work(&b.nodes).unwrap();
     let mut last: Vec<_> = (0..b.nodes.len()).collect();

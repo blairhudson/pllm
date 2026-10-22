@@ -330,6 +330,48 @@ fn checked_rows_transfer_only_exact_complete_ordered_provenance() {
 }
 
 #[test]
+fn checked_rows_ordered_fragmented_alias_uses_existing_authority_only() {
+    let build = |certified: bool| {
+        let mut b = Builder {
+            checked_bound: Some(9),
+            ..Builder::default()
+        };
+        let mut row = input(&mut b, 1, Interval::new(-12, 12).unwrap());
+        let tail = input(&mut b, 2, Interval::new(-12, 12).unwrap());
+        row.extend(tail.iter());
+        if certified {
+            b.record_row_energy(&row, 150).unwrap();
+        }
+        let mut alias = row.slice(..1);
+        alias.extend(row.slice(1..).iter());
+        assert!(alias.iter().eq(row.iter()));
+        let safe = b.checked_rows(&alias, 3).unwrap();
+        (b, safe)
+    };
+    let (with_proof, safe) = build(true);
+    let (without_proof, uncertified) = build(false);
+    assert_eq!(with_proof.row_norm(&safe, 3), Some(150));
+    assert_eq!(without_proof.row_norm(&uncertified, 3), None);
+    assert_eq!(with_proof.validity, without_proof.validity);
+    assert_eq!(with_proof.nodes.len(), without_proof.nodes.len());
+    assert_eq!(
+        schedule_work(&with_proof.nodes).unwrap(),
+        schedule_work(&without_proof.nodes).unwrap()
+    );
+    // Equal geometry and bounds on another owner cannot acquire this proof.
+    let mut b = Builder {
+        checked_bound: Some(9),
+        ..Builder::default()
+    };
+    let row = input(&mut b, 3, Interval::new(-12, 12).unwrap());
+    b.record_row_energy(&row, 150).unwrap();
+    let other = input(&mut b, 3, Interval::new(-12, 12).unwrap());
+    assert_eq!(b.row_norm(&other, 3), None);
+    let safe = b.checked_rows(&other, 3).unwrap();
+    assert_eq!(b.row_norm(&safe, 3), None);
+}
+
+#[test]
 fn checked_rows_strict_energy_benefit_admits_sparse_rms_norm_without_guard_work_changes() {
     let width = 3;
     let cap = 512 * ONE;

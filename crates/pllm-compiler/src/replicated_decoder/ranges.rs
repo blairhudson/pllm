@@ -13,19 +13,21 @@ impl Builder {
         if safe == *words {
             return Ok(safe);
         }
-        let cap =
-            u128::try_from(self.checked_bound.ok_or(Error::Binding)?).map_err(|_| Error::Bounds)?;
-        let cap_energy = cap
-            .checked_mul(cap)
-            .and_then(|square| square.checked_mul(width as u128))
-            .ok_or(Error::Bounds)?;
+        let cap_energy = crate::replicated_decoder::checked_row_energy::cap_energy(
+            width,
+            self.checked_bound.ok_or(Error::Binding)?,
+        )?;
         self.admission_stage = "checked_range_row_certificate";
         for (original, output) in words.chunks_exact(width).zip(safe.chunks_exact(width)) {
             if let Some(energy) = self.row_norm(&original, width) {
                 // The scalar interval already proves cap_energy. Only retain
                 // strict improvements, charging ordinary certificate metadata.
-                if energy < cap_energy {
-                    self.record_row_energy(&output, energy.min(cap_energy))?;
+                if let Some(energy) =
+                    crate::replicated_decoder::checked_row_energy::strict_improvement(
+                        energy, cap_energy,
+                    )
+                {
+                    self.record_row_energy(&output, energy)?;
                 }
             }
         }

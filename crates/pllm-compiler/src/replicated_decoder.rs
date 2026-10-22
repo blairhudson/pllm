@@ -2,6 +2,7 @@
 //! The client/model owner supplies independent input/model shares. Only final
 //! token IDs may be reconstructed after the fixed full-prefix feedback loop.
 
+mod checked_row_energy;
 pub mod cost;
 mod norm_bounds;
 mod policy;
