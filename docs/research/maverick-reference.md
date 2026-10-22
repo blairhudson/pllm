@@ -147,6 +147,30 @@ the installed-wheel example is `examples/benchmarks/coded_delegation.py`.
 New evidence: `docs/evidence/research-coded-delegation-cost.json` and
 `docs/evidence/research-coded-delegation-sdk.json`.
 
+## Compiler publication inventory
+
+`pllm_compiler::delegation_publication_inventory` adds metadata-only binding to
+the shared immutable decoder matrix inventory. It checks the supplied semantic
+plan before hashing, requires exact ordered source-artifact coverage, retains
+every full-head row and declared bias, and records unimplemented local semantics
+instead of substituting the existing W8A8 runtime. Grouping uses semantic source
+roles, not model-family names or parsed tensor paths. Legacy runtime-schedule
+digests remain unchanged.
+
+Explicit two-matrix batch slots use the existing native allocation planner;
+geometry, arithmetic work and independent resident-capsule costs can reject
+before tensor reads. Passing those checks still returns the **M-N blocked**
+status: the source FP8/scaling, activation, BF16, bias and state equations are
+not an approved executable numeric profile. Source and publication digests are
+declarations, not checkpoint authentication. No preprocessing, secret issuance,
+worker transport, trained execution or security qualification occurs here.
+
+Fifteen native compiler regressions cover exact coverage, substitutions, bounded
+replacement-plan rejection, ordered bindings, full-head preservation, native
+allocation prices and legacy digest stability. They are correctness checks, not
+serving measurements. Tests live in
+`crates/pllm-compiler/src/delegation_publication_inventory/tests.rs`.
+
 ## Next promotion gate
 
 Establish a concrete code-distance/failure certificate and reviewed dual-LPN
