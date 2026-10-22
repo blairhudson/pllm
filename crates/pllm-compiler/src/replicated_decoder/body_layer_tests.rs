@@ -1139,3 +1139,402 @@ fn body_layer_nonzero_causal_gqa_with_concatenated_previous_kv() {
         assert_eq!(trace, body_trace);
     }
 }
+
+/// Exercise the real BODY interpreter, not a second shared-native constructor.
+/// Plan templates/active native owners are private to other modules: these tests
+/// observe their exact runtime reservation, not Arc pointer identity. Reverting
+/// any BODY constructor to the owned API removes the independently priced
+/// template reservation and must fail the corresponding activity assertion.
+mod shared_template_execution {
+    use super::*;
+    use puma::{prss::PrssLimits, Party, ReplicatedShare};
+
+    const PARTIES: [Party; 3] = [Party::P0, Party::P1, Party::P2];
+    const LANES: usize = 3;
+    type Wire = Vec<(Party, Party, Vec<u8>)>;
+    type Outgoing = Vec<(Party, PeerBytes)>;
+    type Components = Vec<(u64, u64)>;
+
+    #[derive(Clone, Copy)]
+    enum Family {
+        Tensor,
+        Check,
+    }
+
+    fn fixture(family: Family) -> (Arc<layer::Plan>, Vec<tensor::Program>) {
+        let bounds = Interval::new(-2 * ONE, 2 * ONE).unwrap();
+        let mut builder = layer::Builder::new(
+            WeightMode::Public,
+            &[body::Register {
+                lanes: LANES,
+                bounds,
+            }],
+        )
+        .unwrap();
+        let input = builder.input(0).unwrap();
+        let (outputs, original) = match family {
+            Family::Tensor => {
+                let output = builder.attention_scale(&input, 4).unwrap();
+                // Original native composition for this public Builder family.
+                let mut native = tensor::Builder::new(LANES, bounds).unwrap();
+                let raw = native
+                    .affine(
+                        native.input(),
+                        None,
+                        Affine {
+                            left: ONE / 2,
+                            right: 0,
+                            constant: 0,
+                        },
+                    )
+                    .unwrap();
+                let output_native = native.rescale(raw, 18).unwrap();
+                (vec![output], vec![native.finish(output_native).unwrap()])
+            }
+            Family::Check => {
+                // Genuine checked producer supplies both safe words and the
+                // protected validity consumed by AllValid. No ledger injection.
+                let (safe, valid) = builder.checked(&input, ONE, None).unwrap();
+                (
+                    vec![safe, valid.unwrap()],
+                    vec![
+                        tensor::Program::checked_range(
+                            LANES,
+                            bounds,
+                            Interval::new(-ONE, ONE).unwrap(),
+                            0,
+                        )
+                        .unwrap(),
+                        tensor::Program::all_valid(LANES).unwrap(),
+                    ],
+                )
+            }
+        };
+        (builder.finish(&outputs).unwrap(), original)
+    }
+
+    fn components(party: Party) -> Components {
+        [-ONE, 7, 2 * ONE]
+            .into_iter()
+            .enumerate()
+            .map(|(i, clear)| {
+                let a = 0xf123_4567_89ab_cdef_u64.wrapping_add(i as u64 * 17);
+                let b = 0x8123_4567_89ab_cdef_u64.wrapping_sub(i as u64 * 23);
+                let shares = [a, b, (clear as u64).wrapping_sub(a).wrapping_sub(b)];
+                (shares[party as usize], shares[party.next() as usize])
+            })
+            .collect()
+    }
+
+    fn runtimes(plan: &layer::Plan, bytes: usize) -> [multiply::PartyRuntime; 3] {
+        let work = plan.work_budget();
+        let limits = PrssLimits::new(
+            // Limits admits its declared maximum before any executor exists.
+            // Checked Sign/Bits and wide Boolean conversions expand to 2*LANES.
+            puma::Limits::new(2 * LANES, work.operations(), bytes).unwrap(),
+            work.cursors().aes_work,
+        )
+        .unwrap();
+        let context = puma::Context::new([111; 32], plan.digest(), 0).unwrap();
+        // Fresh known-key fixtures, never a fork/reset of a live owner.
+        puma::prss::insecure_test_support::fresh_compound_parties(context, limits).unwrap()
+    }
+
+    fn bodies(
+        plan: &Arc<layer::Plan>,
+        runtimes: [multiply::PartyRuntime; 3],
+    ) -> [layer::Executor; 3] {
+        runtimes.map(|runtime| {
+            let mut input = Secret::new(LANES).unwrap();
+            for (i, (first, second)) in components(runtime.party()).into_iter().enumerate() {
+                input.first[i] = first;
+                input.second[i] = second;
+            }
+            layer::Executor::new(plan.clone(), runtime, vec![input], None, None).unwrap()
+        })
+    }
+
+    fn original_input(runtime: &multiply::PartyRuntime, words: &[(u64, u64)]) -> ReplicatedShare {
+        // Preserve BODY's original ordinal-zero input rebinding, including the
+        // checked-validity -> AllValid boundary. No charged export is retained.
+        let operation = puma::Operation::new(
+            runtime.context(),
+            0,
+            Party::P0,
+            words.len(),
+            1,
+            puma::Limits::default(),
+        )
+        .unwrap();
+        let first: Vec<_> = words.iter().map(|word| word.0).collect();
+        let second: Vec<_> = words.iter().map(|word| word.1).collect();
+        ReplicatedShare::from_local(
+            operation,
+            runtime.party(),
+            &first,
+            &second,
+            puma::Limits::default(),
+        )
+        .unwrap()
+    }
+
+    // Test-only router adapter: both paths use the original typed frame codec.
+    // Every full wave drains before advancing either interpreter's next step.
+    trait RoundOwner {
+        fn begin(&mut self) -> Result<Outgoing, Error>;
+        fn incoming(&mut self, raw: &[u8], from: Party) -> Result<Outgoing, Error>;
+    }
+    fn native_frames(frames: [Option<tensor::Frame>; 3]) -> Result<Outgoing, Error> {
+        frames
+            .into_iter()
+            .flatten()
+            .map(|frame| Ok((frame.recipient(), PeerBytes::Tensor(frame.encode()?))))
+            .collect()
+    }
+    impl RoundOwner for layer::Executor {
+        fn begin(&mut self) -> Result<Outgoing, Error> {
+            self.advance()
+        }
+        fn incoming(&mut self, raw: &[u8], from: Party) -> Result<Outgoing, Error> {
+            self.receive(raw, from)
+        }
+    }
+    impl RoundOwner for tensor::Executor {
+        fn begin(&mut self) -> Result<Outgoing, Error> {
+            native_frames(self.start_step()?)
+        }
+        fn incoming(&mut self, raw: &[u8], from: Party) -> Result<Outgoing, Error> {
+            native_frames(self.receive_encoded(raw, from)?)
+        }
+    }
+    fn round(owners: &mut [impl RoundOwner; 3]) -> Result<Wire, Error> {
+        let mut queue = Vec::new();
+        for (i, owner) in owners.iter_mut().enumerate() {
+            queue.extend(
+                owner
+                    .begin()?
+                    .into_iter()
+                    .map(|(to, raw)| (PARTIES[i], to, raw)),
+            );
+        }
+        let mut wire = Vec::new();
+        for _ in 0..1024 {
+            if queue.is_empty() {
+                return Ok(wire);
+            }
+            let mut next = Vec::new();
+            for (from, to, frame) in queue {
+                wire.push((from, to, frame.as_bytes().to_vec()));
+                next.extend(
+                    owners[to as usize]
+                        .incoming(frame.as_bytes(), from)?
+                        .into_iter()
+                        .map(|(recipient, raw)| (to, recipient, raw)),
+                );
+            }
+            queue = next;
+        }
+        panic!("native instruction wave failed to drain");
+    }
+
+    fn words(value: &ReplicatedShare) -> Components {
+        value
+            .first()
+            .iter()
+            .copied()
+            .zip(value.second().iter().copied())
+            .collect()
+    }
+
+    fn compare_original(family: Family, bytes: usize) {
+        let (plan, original) = fixture(family);
+        // BODY's conservative floor is NOT the native runtime's payload limit.
+        assert_eq!(
+            plan.resources().primitive_ledger_allowance_bytes,
+            2 * puma::MAX_ADMITTED_BYTES
+        );
+        let body_runtimes = runtimes(&plan, bytes);
+        let body_usage = body_runtimes
+            .each_ref()
+            .map(multiply::PartyRuntime::payload_usage);
+        let mut owners = bodies(&plan, body_runtimes);
+        let mut native_runtimes = runtimes(&plan, bytes);
+        let native_usage = native_runtimes
+            .each_ref()
+            .map(multiply::PartyRuntime::payload_usage);
+        let retained_plan = Arc::downgrade(&plan);
+        drop(plan);
+        // Only the genuine BODY owners retain the original Plan and its template
+        // Arcs now. This observes Plan lifetime, not a native Arc pointer.
+        assert_eq!(retained_plan.strong_count(), 3);
+        let mut incoming = PARTIES.map(components);
+        let mut expected: [Vec<Components>; 3] = std::array::from_fn(|_| Vec::new());
+        for program in &original {
+            let resources = program.resources().unwrap();
+            let template_delta = resources.immutable_template_bytes - resources.public_table_bytes;
+            assert_eq!(
+                template_delta,
+                std::mem::size_of::<tensor::Program>() + 2 * std::mem::size_of::<usize>()
+            );
+            let mut reference = native_runtimes.map(|runtime| {
+                let input = original_input(&runtime, &incoming[runtime.party() as usize]);
+                // Frozen original BODY choice, deliberately NOT new_shared.
+                tensor::Executor::new(runtime, program.clone(), input).unwrap()
+            });
+            for _ in 0..program.instructions() {
+                assert_eq!(round(&mut owners).unwrap(), round(&mut reference).unwrap());
+                assert_eq!(retained_plan.strong_count(), 3);
+                for (body, native) in body_usage.iter().zip(&native_usage) {
+                    // Same inputs, registers, active primitive and drained wire.
+                    // Only shared immutable-owner reservation differs. This exact
+                    // equality catches reverting Tensor, Checked OR AllValid.
+                    assert_eq!(body.live_bytes(), native.live_bytes() + template_delta);
+                }
+                for owner in &mut reference {
+                    owner.finish_step().unwrap();
+                }
+            }
+            let finished = reference.map(|owner| {
+                if program.validity_lanes().is_some() {
+                    let (runtime, safe, valid) = owner.finish_checked().unwrap();
+                    // Match BODY's store/copy boundary: owned output components
+                    // are ordinary outer buffers; release native payload leases.
+                    (runtime, words(&safe), words(&valid))
+                } else {
+                    let (runtime, output) = owner.finish().unwrap();
+                    (runtime, words(&output), Vec::new())
+                }
+            });
+            incoming = finished.each_ref().map(|(_, _, next)| next.clone());
+            native_runtimes = finished.map(|(runtime, output, _)| {
+                expected[runtime.party() as usize].push(output);
+                runtime
+            });
+            assert!(native_usage.iter().all(|usage| usage.live_bytes() == 0));
+        }
+        assert!(round(&mut owners).unwrap().is_empty());
+        assert!(owners.iter().all(layer::Executor::complete));
+        assert!(body_usage.iter().all(|usage| usage.live_bytes() == 0));
+        for (i, owner) in owners.into_iter().enumerate() {
+            let (runtime, values) = owner.finish().unwrap();
+            // Successful exports intentionally retain the original Plan; native
+            // invocation reservations have already retired independently.
+            assert!(retained_plan.upgrade().is_some());
+            assert_eq!(runtime.cursors(), native_runtimes[i].cursors());
+            for (output, expected) in expected[i].iter().enumerate() {
+                assert_eq!(values.output_len(output).unwrap(), expected.len());
+                for (lane, expected) in expected.iter().enumerate() {
+                    assert_eq!(values.word(output, lane).unwrap(), *expected);
+                }
+            }
+        }
+        assert!(retained_plan.upgrade().is_none());
+    }
+
+    #[test]
+    fn tensor_shared_reservation_full_wire_both_components_cursors_and_success_release() {
+        compare_original(Family::Tensor, puma::MAX_ADMITTED_BYTES);
+    }
+
+    #[test]
+    fn checked_and_all_valid_shared_reservations_preserve_original_execution_and_release() {
+        compare_original(Family::Check, puma::MAX_ADMITTED_BYTES);
+    }
+
+    #[test]
+    fn native_activity_cancellation_malformed_receive_and_premature_finish_release_reservations() {
+        // Target each of the three ordinary native constructor branches. No
+        // private Plan/Executor fields, fabricated certificates or runtime hooks.
+        for stage in 0..3 {
+            for exit in 0..3 {
+                let family = if stage == 0 {
+                    Family::Tensor
+                } else {
+                    Family::Check
+                };
+                let (plan, original) = fixture(family);
+                let runtimes = runtimes(&plan, puma::MAX_ADMITTED_BYTES);
+                let usage = runtimes
+                    .each_ref()
+                    .map(multiply::PartyRuntime::payload_usage);
+                let mut owners = bodies(&plan, runtimes);
+                let retained_plan = Arc::downgrade(&plan);
+                drop(plan);
+                assert_eq!(retained_plan.strong_count(), 3);
+                if stage == 2 {
+                    // Finish every real guard instruction, then next advance
+                    // enters its genuine protected-validity AllValid consumer.
+                    for _ in 0..original[0].instructions() {
+                        round(&mut owners).unwrap();
+                    }
+                }
+                let retained = owners.each_mut().map(|owner| owner.advance().unwrap());
+                let program = &original[usize::from(stage == 2)];
+                let resources = program.resources().unwrap();
+                for usage in &usage {
+                    assert!(
+                        usage.live_bytes()
+                            >= resources.invocation_container_bytes
+                                + resources.immutable_template_bytes
+                    );
+                }
+                for mut owner in owners {
+                    match exit {
+                        0 => {
+                            owner.cancel();
+                            assert_eq!(owner.advance().err(), Some(Error::Retired));
+                            assert_eq!(owner.live_bytes(), 0);
+                        }
+                        1 => {
+                            assert!(owner.receive(b"invalid", Party::P1).is_err());
+                            assert_eq!(owner.advance().err(), Some(Error::Retired));
+                            assert_eq!(owner.live_bytes(), 0);
+                        }
+                        2 => assert!(matches!(owner.finish(), Err(Error::Phase))),
+                        _ => unreachable!(),
+                    }
+                }
+                assert!(retained_plan.upgrade().is_none());
+                if retained.iter().any(|frames| !frames.is_empty()) {
+                    // Actual outgoing buffers retain issuer leases after native
+                    // cancellation/drop; never refund somebody else's owner.
+                    assert!(usage.iter().any(|usage| usage.live_bytes() > 0));
+                }
+                drop(retained);
+                assert!(usage.iter().all(|usage| usage.live_bytes() == 0));
+            }
+        }
+    }
+
+    #[test]
+    fn native_shared_envelope_exact_accepts_one_short_rejects_before_first_instruction() {
+        for family in [Family::Tensor, Family::Check] {
+            let (plan, original) = fixture(family);
+            let exact = original
+                .iter()
+                .map(|program| program.resources().unwrap().shared_admitted_bytes)
+                .max()
+                .unwrap();
+            // Checked precedes AllValid and has the larger envelope. Public
+            // runtime limits cannot be lowered at that protected boundary, so
+            // this is NOT an AllValid-specific exact/one-short assertion.
+            assert_eq!(
+                exact,
+                original[0].resources().unwrap().shared_admitted_bytes
+            );
+            assert!(exact <= puma::MAX_ADMITTED_BYTES);
+            compare_original(family, exact);
+            let runtimes = runtimes(&plan, exact - 1);
+            let usage = runtimes
+                .each_ref()
+                .map(multiply::PartyRuntime::payload_usage);
+            let owners = bodies(&plan, runtimes);
+            for mut owner in owners {
+                assert!(matches!(owner.advance(), Err(Error::Bounds)));
+                assert_eq!(owner.advance().err(), Some(Error::Retired));
+                assert_eq!(owner.live_bytes(), 0);
+            }
+            assert!(usage.iter().all(|usage| usage.live_bytes() == 0));
+        }
+    }
+}

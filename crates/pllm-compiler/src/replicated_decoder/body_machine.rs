@@ -480,7 +480,7 @@ impl Executor {
                     let program = programs.get(self.cursor).ok_or(Error::Phase)?.clone();
                     let value = self.gather(input, self.cursor * stride, program.lanes())?;
                     let input = Self::share(&runtime, &value)?;
-                    let mut executor = tensor::Executor::new(runtime, (*program).clone(), input)?;
+                    let mut executor = tensor::Executor::new_shared(runtime, program, input)?;
                     let frames = executor.start_step()?;
                     self.active = Active::Tensor(executor, TensorTarget::Row { row: self.cursor });
                     return tensor_frames(frames);
@@ -601,7 +601,7 @@ impl Executor {
                             let value = self.gather(input, self.cursor, n)?;
                             let input = Self::share(&runtime, &value)?;
                             let mut executor =
-                                tensor::Executor::new(runtime, (*program).clone(), input)?;
+                                tensor::Executor::new_shared(runtime, program, input)?;
                             let frames = executor.start_step()?;
                             self.active = Active::Tensor(executor, TensorTarget::Checked);
                             return tensor_frames(frames);
@@ -614,7 +614,7 @@ impl Executor {
                             let input = Self::share_parts(&runtime, value.first(), value.second())?;
                             drop(value);
                             let mut executor =
-                                tensor::Executor::new(runtime, (*valid[tile]).clone(), input)?;
+                                tensor::Executor::new_shared(runtime, valid[tile].clone(), input)?;
                             let frames = executor.start_step()?;
                             self.active = Active::Tensor(executor, TensorTarget::AllValid);
                             return tensor_frames(frames);

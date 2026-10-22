@@ -643,7 +643,7 @@ impl Plan {
                     op_bytes += programs.len() * size_of::<Arc<tensor::Program>>();
                     for p in programs.iter() {
                         hash.update(p.digest());
-                        scratch = scratch.max(p.admitted_bytes());
+                        scratch = scratch.max(p.resources()?.shared_admitted_bytes);
                     }
                 }
                 Op::Matrix { rows, rescale } => {
@@ -715,7 +715,7 @@ impl Plan {
                     op_bytes += (checked.len() + valid.len()) * size_of::<Arc<tensor::Program>>();
                     for p in checked.iter().chain(valid.iter()) {
                         hash.update(p.digest());
-                        scratch = scratch.max(p.admitted_bytes());
+                        scratch = scratch.max(p.resources()?.shared_admitted_bytes);
                     }
                 }
             }
