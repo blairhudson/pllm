@@ -67,7 +67,7 @@ async def test_empty_wave_sends_no_dispatch():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("invalid", [
     {"sent": True}, {"sent": -1}, {"sent": 17}, {"sent": 1.0},
-    {"sent": 0, "extra": 0}, {},
+    {"sent": 0, "extra": 0}, {}, None, 0, [],
 ])
 async def test_malformed_prepare_ack_never_dispatches(invalid):
     async def all_roles(action):
@@ -76,6 +76,37 @@ async def test_malformed_prepare_ack_never_dispatches(invalid):
 
     with pytest.raises(ValueError, match="dispatch acknowledgement differs"):
         await drain_peer_waves(all_roles)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replies", [[], states(0), states(0, 0), states(0, 0, 0, 0), None, {}])
+async def test_missing_or_extra_roles_cannot_announce_drain(replies):
+    actions = []
+
+    async def all_roles(action):
+        actions.append(action)
+        return replies
+
+    with pytest.raises(ValueError, match="dispatch acknowledgement differs"):
+        await drain_peer_waves(all_roles)
+    assert actions == ["prepare_dispatch"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("replies", [
+    states(True, 0, 0), states(1.0, 0, 0), states(1, False, 0),
+    states(1, 0), states(1, 0, 0, 0), None,
+])
+async def test_delivery_ack_types_and_role_population_are_checked(replies):
+    actions = []
+
+    async def all_roles(action):
+        actions.append(action)
+        return states(1, 0, 0) if action == "prepare_dispatch" else replies
+
+    with pytest.raises(ValueError, match="dispatch acknowledgement differs"):
+        await drain_peer_waves(all_roles)
+    assert actions == ["prepare_dispatch", "dispatch"]
 
 
 @pytest.mark.asyncio
