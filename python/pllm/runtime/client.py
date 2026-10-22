@@ -228,6 +228,10 @@ class _BundleIntegrityError(ProtocolError):
     pass
 
 
+class _ClientBorrowedError(ModelError):
+    """Close was rejected without retiring or releasing any borrowed owner."""
+
+
 class _NoProviderHTTP:
     """Fail closed if provider controls are called for a client-owned plan."""
 
@@ -277,13 +281,16 @@ class ResponseStream(Generic[T]):
             return
         self._closed = True
         callback, self._close = self._close, None
-        try:
+
+        def close_iterator():
             iterator_close = getattr(self.iterator, "close", None)
             if iterator_close is not None:
                 iterator_close()
-        finally:
-            if callback is not None:
-                callback()
+
+        calls = [close_iterator]
+        if callback is not None:
+            calls.append(callback)
+        _cleanup_calls(calls, primary=sys.exception())
 
     def _cancel(self) -> None:
         """Signal an owned iterator before waiting for its executing thread."""
@@ -294,8 +301,8 @@ class ResponseStream(Generic[T]):
     def __enter__(self) -> "ResponseStream[T]":
         return self
 
-    def __exit__(self, *_: Any) -> None:
-        self.close()
+    def __exit__(self, _type: Any, error: BaseException | None, _traceback: Any) -> None:
+        _cleanup_calls([self.close], primary=error)
 
 
 @dataclass(slots=True)
@@ -734,6 +741,13 @@ class _BlindedCorrelationProvider:
         return bfv, context_id
 
     def _create(self, stage: StageMetadata, count: int) -> list[BlindedStageCorrelation]:
+        self.owner._begin_preparation()
+        try:
+            return self._create_idle(stage, count)
+        finally:
+            self.owner._end_preparation()
+
+    def _create_idle(self, stage: StageMetadata, count: int) -> list[BlindedStageCorrelation]:
         if self.state.mode == "local-test":
             response = self.owner.http.post(
                 f"/v1/runtime/sessions/{self.session_id}/correlations/proprietary/local-test",
@@ -993,19 +1007,23 @@ class _CorrelationSource:
         self.mode = state.mode
         self.prefetch = max(1, prefetch)
         if self.mode == "bfv" and self.state.bfv is None:
-            self.state.bfv = BFVCorrelationClient(
-                dimension=self.model.tokenizer.vocab_size,
-                plain_modulus=self.model.modulus,
-                pydeps_path=client.tenseal_path,
-            )
-            self.state.context_id = new_id("ctx")
-            response = client.http.put(
-                f"/v1/runtime/sessions/{session_id}/contexts/{self.state.context_id}",
-                headers={**client.headers, "Content-Type": "application/octet-stream"},
-                content=self.state.bfv.public_context,
-            )
-            _raise(response)
-            client.audit.public_context_bytes += len(self.state.bfv.public_context)
+            client._begin_preparation()
+            try:
+                self.state.bfv = BFVCorrelationClient(
+                    dimension=self.model.tokenizer.vocab_size,
+                    plain_modulus=self.model.modulus,
+                    pydeps_path=client.tenseal_path,
+                )
+                self.state.context_id = new_id("ctx")
+                response = client.http.put(
+                    f"/v1/runtime/sessions/{session_id}/contexts/{self.state.context_id}",
+                    headers={**client.headers, "Content-Type": "application/octet-stream"},
+                    content=self.state.bfv.public_context,
+                )
+                _raise(response)
+                client.audit.public_context_bytes += len(self.state.bfv.public_context)
+            finally:
+                client._end_preparation()
         elif self.mode not in {"bfv", "local-test"}:
             raise ValueError(f"unsupported correlation mode {self.mode}")
 
@@ -1023,6 +1041,13 @@ class _CorrelationSource:
             return len(self.state.pool)
 
     def _replenish_locked(self, count: int) -> None:
+        self.owner._begin_preparation()
+        try:
+            self._replenish_idle_locked(count)
+        finally:
+            self.owner._end_preparation()
+
+    def _replenish_idle_locked(self, count: int) -> None:
         if self.mode == "local-test":
             response = self.owner.http.post(
                 f"/v1/runtime/sessions/{self.session_id}/correlations/local-test",
@@ -1448,6 +1473,8 @@ class RuntimeClient:
         self._active_offset_transports: dict[str, Any] = {}
         self._active_boundary_transports: dict[str, Any] = {}
         self._online_active = 0
+        self._foreground_active = 0
+        self._pending_prepared_refills: set[str] = set()
         self._preparation_active = 0
         self._transformer_conversations: dict[str, _TransformerConversationState] = {}
         self._transformer_conversation_lock = threading.Lock()
@@ -1490,6 +1517,16 @@ class RuntimeClient:
         # Response retains an isolated authenticated online session.
         with self._crypto_state_lock:
             existing = self._crypto_states.get(model_id)
+            # Legacy demand has no committed inventory on first use. Reject
+            # before opening a session or constructing a fresh BFV context;
+            # explicit idle preprocess remains the way to populate this pool.
+            needs_material = (existing is None or len(existing.pool) == 0
+                              or self.correlation_mode == "bfv" and existing.bfv is None)
+            with self._activity_lock:
+                if self._closing:
+                    raise ModelError("prepared client admission is closed")
+                if self._foreground_active and needs_material:
+                    raise ModelError("legacy correlation inventory unavailable; prepare explicitly while the client is idle")
             session_body: dict[str, Any] = {
                 "model": model_id,
                 "max_output_tokens": max_output_tokens,
@@ -2793,6 +2830,9 @@ class RuntimeClient:
                 # Explicit SDK/benchmark preparation may already have issued this
                 # exact first epoch. It has never been reserved or consumed.
                 return
+            # An idle gap between online epochs is still inside the same owned
+            # foreground response. Never cancel/reissue material in that gap.
+            self._require_preparation_idle()
             for inventory in (state.prepared_inventory, state.prepared_inventory_spare):
                 if inventory is not None:
                     if inventory.status()["reserved"]:
@@ -2909,13 +2949,42 @@ class RuntimeClient:
                 else:
                     retained.append(retired)
             state.retired_inventories = retained
-            if (
-                self.background_inventory_refill
-                and not self._closing
-                and state.active_prepared_responses == 0
-                and state.prepared_inventory_spare is None
-            ):
-                state.refill_future = self._provider_executor.submit(self._background_refill, model_id, state)
+            self._schedule_idle_refill_locked(model_id, state)
+
+    def _schedule_idle_refill_locked(self, model_id, state) -> None:
+        """Caller holds the model-state lock; scheduling is not material issuance."""
+        with self._activity_lock:
+            if self._closing:
+                return
+            if self._foreground_active:
+                self._pending_prepared_refills.add(model_id)
+                return
+        if (self.background_inventory_refill and state.privacy_mode == "public"
+                and state.prepared_inventory is not None and state.active_prepared_responses == 0
+                and state.prepared_inventory_spare is None and not state.refill_in_progress
+                and (state.refill_future is None or state.refill_future.done())):
+            state.refill_future = self._provider_executor.submit(self._background_refill, model_id, state)
+
+    def _begin_foreground(self) -> None:
+        with self._activity_lock:
+            if self._closing:
+                raise ModelError("prepared client admission is closed")
+            if self._preparation_active:
+                raise ModelError("prepared inventory refill is in progress; retry when ready")
+            self._foreground_active += 1
+
+    def _end_foreground(self) -> None:
+        with self._activity_lock:
+            self._foreground_active -= 1
+            pending = tuple(self._pending_prepared_refills) if self._foreground_active == 0 else ()
+            if pending:
+                self._pending_prepared_refills.clear()
+        if pending:
+            with self._transformer_state_lock:
+                for model_id in pending:
+                    state = self._transformer_states.get(model_id)
+                    if state is not None:
+                        self._schedule_idle_refill_locked(model_id, state)
 
     def _begin_online(self) -> None:
         with self._activity_lock:
@@ -2929,13 +2998,22 @@ class RuntimeClient:
         with self._activity_lock:
             self._online_active = max(0, self._online_active - 1)
 
+    def _require_preparation_idle_locked(self) -> None:
+        if self._closing:
+            raise ModelError("prepared client admission is closed")
+        if self._online_active:
+            self.audit.preparation_requests_during_online += 1
+            raise ModelError("preparation cannot run while inference is online")
+        if self._foreground_active:
+            raise ModelError("preparation cannot run while a foreground response is active")
+
+    def _require_preparation_idle(self) -> None:
+        with self._activity_lock:
+            self._require_preparation_idle_locked()
+
     def _begin_preparation(self) -> None:
         with self._activity_lock:
-            if self._closing:
-                raise ModelError("prepared client admission is closed")
-            if self._online_active:
-                self.audit.preparation_requests_during_online += 1
-                raise ModelError("preparation cannot run while inference is online")
+            self._require_preparation_idle_locked()
             self._preparation_active += 1
 
     def _end_preparation(self) -> None:
@@ -2978,6 +3056,15 @@ class RuntimeClient:
         prepared_public = state.privacy_mode == "public"
         provider: Any | None
         with self._transformer_state_lock:
+            if state.privacy_mode == "proprietary" and state.privacy_protocol in {
+                "blinded_ole_w4a4", "guarded_blinded_w4a4",
+            }:
+                missing = any(not state.queues[stage.id] for stage in self._remote_stages(state))
+                with self._activity_lock:
+                    if self._closing:
+                        raise ModelError("prepared client admission is closed")
+                    if self._foreground_active and missing:
+                        raise ModelError("proprietary correlation inventory unavailable; prepare explicitly while the client is idle")
             if prepared_public:
                 if state.refill_in_progress:
                     raise ModelError("prepared inventory refill is in progress; retry when ready")
@@ -3109,6 +3196,25 @@ class RuntimeClient:
     ) -> dict[str, Any]:
         if self._local_engine is not None:
             raise ModelError("client-only topology does not use a preparation inventory")
+        # Own the entire explicit preparation call, including authority lookups
+        # and non-seeded providers. A check-then-release admits a foreground
+        # response while a slower preparation control is still in flight.
+        self._begin_preparation()
+        try:
+            return self._preprocess_idle(model_id, count, stages=stages,
+                stage_rows=stage_rows, _phase_rows=_phase_rows)
+        finally:
+            self._end_preparation()
+
+    def _preprocess_idle(
+        self,
+        model_id: str,
+        count: int,
+        *,
+        stages: list[str] | None = None,
+        stage_rows: dict[str, int] | None = None,
+        _phase_rows: dict[str, dict[str, int]] | None = None,
+    ) -> dict[str, Any]:
         descriptor = self._model_manifest(model_id, refresh=True)
         target = max(0, int(count))
         if descriptor.get("metadata", {}).get("client_runtime") in {
@@ -3440,7 +3546,7 @@ class RuntimeClient:
                 for inventory in candidates
             ):
                 return
-        self.preprocess(model_id, count=required_rows, stage_rows=stage_rows, _phase_rows=phase_rows)
+        raise ModelError("prepared inventory unavailable; prepare explicitly while the client is idle")
 
     def close(self) -> None:
         primary = sys.exception()
@@ -3453,6 +3559,11 @@ class RuntimeClient:
                 errors.append(error)
 
         with self._activity_lock:
+            if self._foreground_active or self._online_active or self._preparation_active:
+                # Do not wait: this may be the executing response's own callback.
+                # Reject atomically before closing admission, clearing registries
+                # or freeing any source, transport or one-use material owner.
+                raise _ClientBorrowedError("client close requires retired foreground and preparation owners; close streams and retry")
             self._closing = True
             offset_transports = tuple(self._active_offset_transports.values())
             self._active_offset_transports.clear()
@@ -3483,11 +3594,9 @@ class RuntimeClient:
         self._decode_pending_responses.clear()
         self._decode_terminal_responses.clear()
         with self._transformer_state_lock:
+            states = tuple(self._transformer_states.values())
             inventories: list[PreparedInventory] = []
-            for state in self._transformer_states.values():
-                retire(state.bundle.close)
-                if state.prefill_cache is not None:
-                    retire(state.prefill_cache.clear)
+            for state in states:
                 if state.prepared_inventory is not None:
                     inventories.append(state.prepared_inventory)
                 if state.prepared_inventory_spare is not None:
@@ -3498,6 +3607,12 @@ class RuntimeClient:
                 state.retired_inventories.clear()
             self._transformer_states.clear()
             self._model_manifests.clear()
+        # Admission is closed and every borrower retired. Resource destructors
+        # may call out; never run them under the state coordination lock.
+        for state in states:
+            retire(state.bundle.close)
+            if state.prefill_cache is not None:
+                retire(state.prefill_cache.clear)
         with self._transformer_conversation_lock:
             self._transformer_conversations.clear()
         self.cache.clear()
@@ -3706,8 +3821,25 @@ class RuntimeClient:
         if self._prepared_queue is not None:
             from .prepared_queue import OwnedPreparedAttempt
 
-            return OwnedPreparedAttempt(self, body)
-        return self._scoped_events(body)
+            # Preserve the caller's cancellation/tokenizer context even when a
+            # different thread/context performs the first lazy stream read.
+            source = OwnedPreparedAttempt(self, body)
+        else:
+            source = self._scoped_events(body)
+        return self._foreground_events(source)
+
+    def _foreground_events(self, source: Iterator[ResponseEvent]) -> Iterator[ResponseEvent]:
+        # Keep ownership across yielded callbacks, online epoch gaps and inner
+        # retirement. A ContextVar or online counter alone cannot exclude a
+        # different thread's preparation during these foreground intervals.
+        self._begin_foreground()
+        try:
+            try:
+                yield from source
+            finally:
+                _cleanup_calls([source.close], primary=sys.exception())
+        finally:
+            _cleanup_calls([self._end_foreground], primary=sys.exception())
 
     def _scoped_events(self, body: dict[str, Any]) -> Iterator[ResponseEvent]:
         with self.tokenizer_scope():
@@ -5829,15 +5961,23 @@ class OpenAI:
     def close(self) -> None:
         try:
             self._core.close()
-        finally:
+        except _ClientBorrowedError:
+            # The core rejected close and still owns live borrows. Its topology
+            # must remain available for their eventual normal retirement.
+            raise
+        except BaseException as error:
+            if self._owned_topology is not None:
+                _cleanup_calls([self._owned_topology.close], primary=error)
+            raise
+        else:
             if self._owned_topology is not None:
                 self._owned_topology.close()
 
     def __enter__(self) -> "OpenAI":
         return self
 
-    def __exit__(self, *_: Any) -> None:
-        self.close()
+    def __exit__(self, _type: Any, error: BaseException | None, _traceback: Any) -> None:
+        _cleanup_calls([self.close], primary=error)
 
 
 class _OwnedAsyncResponseStream:
