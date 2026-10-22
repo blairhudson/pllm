@@ -12,6 +12,7 @@ pub mod ckks_layout;
 pub mod codec;
 pub mod coded_delegation_reference;
 pub mod coded_linear;
+pub mod coefficient_layout;
 pub mod coefficient_repacking;
 pub mod compact;
 pub mod compact_product;
