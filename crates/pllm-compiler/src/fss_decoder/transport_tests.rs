@@ -682,15 +682,21 @@ fn admission_and_reply_caps_are_pre_input_and_consuming() {
     ));
     assert_eq!(inspection.counts.delivered.load(Ordering::SeqCst), 0);
     inspection.drained();
-    let mut reply = Reply::new(4).unwrap();
-    assert_eq!(reply.bound(), 4);
-    assert!(reply.write(&[1, 2, 3, 4, 5]).is_err());
-    assert!(reply.bytes().is_err());
-    assert!(reply.write(&[1]).is_err());
-    let mut reply = Reply::new(4).unwrap();
-    reply.write(&[1]).unwrap();
-    assert!(reply.write(&[2]).is_err());
-    assert!(reply.bytes().is_err());
+    Reply::with_bound(4, |reply| {
+        assert_eq!(reply.bound(), 4);
+        assert!(reply.write(&[1, 2, 3, 4, 5]).is_err());
+        assert!(reply.bytes().is_err());
+        assert!(reply.write(&[1]).is_err());
+        Ok(())
+    })
+    .unwrap();
+    Reply::with_bound(4, |reply| {
+        reply.write(&[1]).unwrap();
+        assert!(reply.write(&[2]).is_err());
+        assert!(reply.bytes().is_err());
+        Ok(())
+    })
+    .unwrap();
 }
 
 #[test]

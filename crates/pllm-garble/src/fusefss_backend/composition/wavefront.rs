@@ -418,6 +418,25 @@ pub struct Runtime<'s, 'p, 'a> {
 }
 
 impl<'a> Runtime<'_, '_, 'a> {
+    /// Still-unfed PCs of this frozen secret group only; no polling, advancing
+    /// or speculative lookahead into a later dependency frontier.
+    pub fn pending_materials(&self, destination: &mut [usize]) -> Result<usize, Error> {
+        let state = self.state.as_ref().ok_or(Error::Consumed)?;
+        let first = state.offset + state.slots.len();
+        if state.waiting || first >= state.end {
+            return Err(Error::Context);
+        }
+        let count = destination.len().min(state.end - first);
+        for (index, pc) in destination[..count].iter_mut().enumerate() {
+            let step = self.schedule.step(first + index).ok_or(Error::Context)?;
+            if step.rounds == 0 {
+                return Err(Error::Context);
+            }
+            *pc = step.pc;
+        }
+        Ok(count)
+    }
+
     pub fn cancel(&mut self) {
         self.state = None;
     }

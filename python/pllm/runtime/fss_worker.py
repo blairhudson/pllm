@@ -37,7 +37,7 @@ from .delegated_worker import _Reservation, _PayloadResponse, _body
 from .replicated_worker import native_call
 from .fss_source import resolve_client_source, load_role_source
 from .fss_child_status import StatusWriter, source_status_scope
-from .fss_tape import MaterialTape
+from .fss_tape import MaterialTape, MATERIAL_RECEIVE_BYTES, MATERIAL_RECEIVE_RECORDS, MATERIAL_RECEIVE_PYTHON_BYTES
 from .fss_transport import price_transport, timeout_limit, transport_capacity, transport_material_delivery
 from .benchmark_delegated import FSS_PHASE_COUNTERS
 from .delegated_source import _DECODER_SOURCE_BYTES
@@ -261,6 +261,11 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
     # bodies and exported ACKs. Batch Python overlap is additional to both the
     # legacy role owner and native's separately checked queue reservation.
     role_memory = p.ROLE_MEMORY + (p.MATERIAL_BATCH_PYTHON_BYTES if delivery == "batch-v1" else 0)
+    # This online owner is a checked subdivision of the existing ROLE_MEMORY,
+    # not an increase or reuse of the offline batch allowance. Benchmark pricing
+    # enumerates it alongside native/source/HTTP/AEAD owners under the same cap.
+    receive_python = (MATERIAL_RECEIVE_PYTHON_BYTES if experiment.pipeline.components["linear"].params.get(
+        "online_schedule") in ("wavefront-v1", "tensor-v1") else 0)
     configuration = experiment.configuration_digest()
     epoch = secrets.token_hex(32)
     active = None
@@ -532,6 +537,34 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             callback_meta(attempt, meta, "material", p.HOLDERS.index(role))
             return attempt.tape.take(meta)  # native-owned thread; never a dealer RPC
 
+        def material_window(self, metadata):
+            attempt = self.attempt
+            try:
+                if (role not in p.HOLDERS or attempt.cancelled() or attempt.phase != "running"
+                        or attempt.transport_resources.python_receive_reservation_bytes != MATERIAL_RECEIVE_PYTHON_BYTES
+                        or type(metadata) is not tuple or not 1 <= len(metadata) <= MATERIAL_RECEIVE_RECORDS):
+                    raise ValueError("FuseFSS material receive is not admitted")
+                requests, first, pcs, total = [], None, [], 0
+                for raw in metadata:
+                    meta = callback_meta(attempt, raw, "material", p.HOLDERS.index(role))
+                    if first is None:
+                        first = meta["kernel"]
+                    if meta["kernel"] != first or meta["pc"] in pcs:
+                        raise ValueError("FuseFSS material receive group differs")
+                    # Do not impose a new numeric-PC sort. Tape AAD/cursor and
+                    # native import enforce the original frozen schedule order.
+                    pcs.append(meta["pc"])
+                    total += meta["packet_bytes_bound"]
+                    if total > MATERIAL_RECEIVE_BYTES:
+                        raise ValueError("FuseFSS material receive exceeds admission")
+                    requests.append((raw, meta["packet_bytes_bound"]))
+                return attempt.tape.take_window(tuple(requests), cancelled=attempt.cancelled)
+            except BaseException as error:
+                attempt.retiring = True
+                attempt.signal()
+                p.clear_failure_frames(error)
+                raise
+
         def exchange(self, meta, frame):
             return bridge(self.attempt, exchange, meta, frame)
 
@@ -744,10 +777,13 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 seen_frames.add(identity)
                 def bind():
                     attempt.native = _native.FssRoleRequest(attempt.loaded.native_program,
-                        attempt.contract, value["request_frame"], p.ROLES.index(role))
+                        attempt.contract, value["request_frame"], p.ROLES.index(role),
+                        **({"material_window": True} if receive_python else {}))
                     attempt.admission, resources = validate_admission(attempt, attempt.native.metadata())
                     if resources.python_batch_reservation_bytes != role_memory - p.ROLE_MEMORY:
                         raise ValueError("FuseFSS Python batch reservation differs")
+                    if resources.python_receive_reservation_bytes != receive_python:
+                        raise ValueError("FuseFSS Python receive reservation differs")
                     attempt.transport_resources = resources
                     if role in p.HOLDERS:
                         price = resources.tape

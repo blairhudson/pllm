@@ -13,6 +13,7 @@ import pytest
 
 from pllm.runtime import benchmark_failure as diagnostics
 from pllm.runtime import delegated_client
+from pllm.runtime import delegated_transport
 from pllm.runtime import fss_protocol as p
 from pllm.runtime import fss_transport as transport
 from pllm.runtime.fss_client import FssClient
@@ -85,6 +86,8 @@ def route(monkeypatch):
             assert cancelled is attempt and 0 < timeout <= 23
             self.deadline = transport.time.monotonic() + timeout
             self.live, self.counts = [False] * 3, {}
+            self.closed = False
+            self.io = delegated_transport._IOOwner()
 
         def check(self):
             pass
@@ -116,9 +119,16 @@ def route(monkeypatch):
                 return p.pack({"frame": b"" if role == "dealer" else role.encode(),
                                "peer_bytes": p.peer_bytes(), "storage": storage})
             return p.pack({"prepared" if action == "prepare" else
-                           "started" if action == "start" else "accepted": True})
+                            "started" if action == "start" else "accepted": True})
+
+        async def _post(self, index, action, payload, *, phase, limit, timeout):
+            # Immediate fake replies retain these tests' deterministic ordering;
+            # blocked/concurrent readers have their own finish-barrier controls.
+            return self.post(index, action, payload, phase=phase, limit=limit)
 
         def close(self):
+            self.io.close(())
+            self.closed = True
             state.cleanup.append(("peers", collector._snapshot))
             retiring("peers.close")
 

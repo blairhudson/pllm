@@ -1,6 +1,9 @@
 use super::*;
 use pllm_garble::fusefss_backend::composition::kernels;
 
+#[path = "transport_receive_tests.rs"]
+mod receiving;
+
 #[derive(Default)]
 struct TapeDealer {
     records: [VecDeque<Material>; 2],

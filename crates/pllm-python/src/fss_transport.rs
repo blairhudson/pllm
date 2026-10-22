@@ -14,8 +14,8 @@ use pllm_compiler::fss_decoder::{
     channel::{self, Manifest, Request},
     sdk,
     transport::{
-        self, Admission, DealerTransport, Kernel, MaterialRecord, MaterialRequest, PeerRequest,
-        Reply, WorkerTransport, CALLBACK_METADATA_BYTES_BOUND,
+        self, Admission, DealerTransport, Kernel, MaterialReceive, MaterialRecord, MaterialRequest,
+        PeerRequest, Reply, ReplyView, WorkerTransport, CALLBACK_METADATA_BYTES_BOUND,
     },
     Error, Program,
 };
@@ -165,6 +165,14 @@ fn peer_meta(request: PeerRequest) -> Vec<u8> {
 }
 
 fn delivery_metadata(value: &mut Value, admission: &Admission) {
+    if let Some(receive) = admission.material_receive() {
+        value["material_receive"] = json!({
+            "records_bound": transport::MATERIAL_WINDOW_RECORDS,
+            "payload_bytes_bound": transport::MATERIAL_WINDOW_BYTES,
+            "native_reservation_bytes_per_holder": receive.native_reservation_bytes(),
+            "python_overlap_bytes_per_holder": receive.python_overlap_bytes(),
+        });
+    }
     if let Some(batch) = admission.delivery_batch() {
         value["material_delivery"] = json!(admission.material_delivery().name());
         value["delivery_batch"] = json!({
@@ -234,6 +242,7 @@ impl Control {
 struct Bridge {
     callback: Py<PyAny>,
     control: Arc<Control>,
+    material_window: bool,
 }
 impl Bridge {
     fn notification(&self, name: &str) -> Result<(), Error> {
@@ -341,6 +350,86 @@ impl DealerTransport for Bridge {
     }
 }
 impl WorkerTransport for Bridge {
+    fn material_window(
+        &mut self,
+        requests: &[MaterialRequest],
+        replies: &mut [ReplyView<'_>],
+    ) -> Result<(), Error> {
+        self.control.check()?;
+        if !self.material_window
+            || requests.is_empty()
+            || requests.len() > transport::MATERIAL_WINDOW_RECORDS
+            || requests.len() != replies.len()
+        {
+            return Err(Error::Resource);
+        }
+        let bytes = requests
+            .iter()
+            .zip(replies.iter())
+            .try_fold(0usize, |total, (r, reply)| {
+                if r.packet_bytes_bound != reply.bound() {
+                    return Err(Error::Context);
+                }
+                total
+                    .checked_add(reply.bound())
+                    .filter(|&n| n <= transport::MATERIAL_WINDOW_BYTES)
+                    .ok_or(Error::Resource)
+            })?;
+        if bytes == 0 {
+            return Err(Error::Resource);
+        }
+        // Native's complete charged window already covers this fixed packaging
+        // scratch. Python argument/result/ciphertext overlap is separately priced.
+        Python::attach(|py| {
+            self.control.check()?;
+            let mut metadata = Vec::new();
+            metadata
+                .try_reserve_exact(requests.len())
+                .map_err(|_| Error::Allocation)?;
+            if metadata.capacity() != requests.len() {
+                return Err(Error::Resource);
+            }
+            for request in requests {
+                let raw = material_meta(*request);
+                if raw.len() > CALLBACK_METADATA_BYTES_BOUND {
+                    return Err(Error::Resource);
+                }
+                metadata.push(PyBytes::new(py, &raw));
+            }
+            let metadata = PyTuple::new(py, metadata).map_err(|_| Error::Allocation)?;
+            let result = self
+                .callback
+                .bind(py)
+                .call_method1("material_window", (metadata,))
+                .map_err(|_| Error::Context)?;
+            let result = result.cast_exact::<PyTuple>().map_err(|_| Error::Context)?;
+            if result.len() != replies.len() {
+                return Err(Error::Context);
+            }
+            // Validate the whole immutable result before copying the first reply.
+            for (index, reply) in replies.iter().enumerate() {
+                let item = result.get_item(index).map_err(|_| Error::Context)?;
+                let bytes = item
+                    .cast_exact::<PyBytes>()
+                    .map_err(|_| Error::Context)?
+                    .as_bytes();
+                if bytes.is_empty() || bytes.len() > reply.bound() {
+                    return Err(Error::Resource);
+                }
+            }
+            self.control.check()?;
+            for (index, reply) in replies.iter_mut().enumerate() {
+                self.control.check()?;
+                let item = result.get_item(index).map_err(|_| Error::Context)?;
+                reply.write(
+                    item.cast_exact::<PyBytes>()
+                        .map_err(|_| Error::Context)?
+                        .as_bytes(),
+                )?;
+            }
+            self.control.check()
+        })
+    }
     fn material(&mut self, request: MaterialRequest, reply: &mut Reply) -> Result<(), Error> {
         self.control.check()?;
         let meta = material_meta(request);
@@ -464,8 +553,39 @@ impl NativeRoleRequest {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Self> {
-        let [program, contract, request, role] =
-            arguments(args, kwargs, ["program", "contract", "request", "role"])?;
+        // Keyword-only local provisioning opt-in. The original four-argument
+        // constructor retains scalar admission/callback behavior and capacities.
+        if kwargs.is_some_and(|value| value.len() > 5) {
+            return Err(invalid());
+        }
+        let kwargs = kwargs.map(|value| value.copy()).transpose()?;
+        let receive = if let Some(value) = kwargs
+            .as_ref()
+            .map(|kw| kw.get_item("material_window"))
+            .transpose()?
+            .flatten()
+        {
+            if !value.is_instance_of::<PyBool>() {
+                return Err(invalid());
+            }
+            let enabled = value.extract::<bool>()?;
+            kwargs
+                .as_ref()
+                .ok_or_else(invalid)?
+                .del_item("material_window")?;
+            if enabled {
+                MaterialReceive::FrozenWindow
+            } else {
+                MaterialReceive::Scalar
+            }
+        } else {
+            MaterialReceive::Scalar
+        };
+        let [program, contract, request, role] = arguments(
+            args,
+            kwargs.as_ref(),
+            ["program", "contract", "request", "role"],
+        )?;
         let program = program.extract::<PyRef<'_, NativeProgram>>()?;
         let contract = bytes(&contract, 1 << 20)?;
         let contract_digest = program.checked_contract_digest(contract)?;
@@ -486,7 +606,7 @@ impl NativeRoleRequest {
                 let manifest = Manifest::new(contract_digest, input_digest, &source)?;
                 let request = Request::parse(request, &manifest)?;
                 let admission =
-                    transport::admit_with_delivery(&source, request.context(), delivery)?;
+                    transport::admit_with_receive(&source, request.context(), delivery, receive)?;
                 Ok::<_, Error>(Owner {
                     program: source,
                     request,
@@ -546,7 +666,10 @@ impl NativeRoleRequest {
     ) -> PyResult<Option<Py<PyBytes>>> {
         // No exclusive Python borrow or owner mutex is held across callbacks.
         let mut owner = self.take(py)?;
-        let result = (|| {
+        // Also unregister/drain on native/packaging unwind. Re-raise the original
+        // panic only after the existing cancellation sequence, never retain the
+        // callback -> attempt -> native owner cycle after an allocation panic.
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let [input_frame, callback] = arguments(args, kwargs, ["input_frame", "transport"])?;
             let callback = callback.unbind();
             *self
@@ -554,9 +677,27 @@ impl NativeRoleRequest {
                 .active
                 .lock()
                 .unwrap_or_else(|e| e.into_inner()) = Some(callback.clone_ref(py));
+            // Optional scalar compatibility is decided before input/material work,
+            // never after a batch callback has consumed a record.
+            let material_window = if owner.role < 2 && owner.admission.material_receive().is_some()
+            {
+                match callback.bind(py).getattr("material_window") {
+                    Ok(method) if method.is_callable() => true,
+                    Ok(_) => return Err(invalid()),
+                    Err(error)
+                        if error.is_instance_of::<pyo3::exceptions::PyAttributeError>(py) =>
+                    {
+                        false
+                    }
+                    Err(_) => return Err(invalid()),
+                }
+            } else {
+                false
+            };
             let mut bridge = Bridge {
                 callback,
                 control: Arc::clone(&self.control),
+                material_window,
             };
             let input = if owner.role == 2 {
                 if !input_frame.is_none() {
@@ -581,12 +722,17 @@ impl NativeRoleRequest {
                         let input = owner
                             .request
                             .take_input(owner.role, input.ok_or(Error::Context)?)?;
-                        let output = transport::execute_with_delivery(
+                        let output = transport::execute_with_receive(
                             &owner.program,
                             owner.role,
                             owner.request.context(),
                             input,
                             owner.admission.material_delivery(),
+                            if material_window {
+                                MaterialReceive::FrozenWindow
+                            } else {
+                                MaterialReceive::Scalar
+                            },
                             &mut bridge,
                         )?;
                         bridge.control.check()?;
@@ -596,14 +742,18 @@ impl NativeRoleRequest {
                 .map_err(|_: Error| invalid())?;
             self.control.check().map_err(|_| invalid())?;
             Ok(output.map(|bytes| PyBytes::new(py, &bytes).unbind()))
-        })();
-        if result.is_err() {
+        }));
+        if !matches!(&result, Ok(Ok(_))) {
             self.control.abort(py);
         }
         self.control.clear();
         // Unregister first, then wait without the GIL for an external cancel
         // callback that already claimed this transport. No callback outlives run.
         py.detach(|| self.control.wait_cancel());
+        let result = match result {
+            Ok(result) => result,
+            Err(payload) => std::panic::resume_unwind(payload),
+        };
         if self.control.cancel_failed.load(Ordering::Acquire) {
             return Err(invalid());
         }
@@ -659,7 +809,7 @@ fn fss_transport_admission<'py>(
             .map_err(|error| transport::AdmissionFailure::new(transport::AdmissionStage::Manifest,error))?;
         let pricing_context=pllm_garble::shared_rescale_reference::Context {
             plan:source.digest(),session:[1;32],operation:[2;32],first_tensor_index:0 };
-        let a=transport::admit_with_delivery_diagnostic(&source,pricing_context,delivery)?;let c=manifest.resources();
+        let a=transport::admit_with_receive_diagnostic(&source,pricing_context,delivery,MaterialReceive::FrozenWindow)?;let c=manifest.resources();
         let mut value=json!({"schema":"pllm.fss.program_transport_admission.v1",
             "capacity":source.capacity().name(),"guard_disk_bytes":a.guard_disk_bytes(),
             "scope":"program-pricing-not-request-admission","contract_digest":hex(digest),"program_digest":hex(source.digest()),

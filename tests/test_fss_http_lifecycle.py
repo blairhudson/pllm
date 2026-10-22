@@ -16,6 +16,7 @@ import pytest
 import pytest_asyncio
 
 from pllm.runtime import fss_protocol as p, fss_transport as client, fss_worker as worker
+from pllm.runtime.delegated_transport import _IOOwner
 from pllm.runtime.client import ProtocolError
 from test_fss_worker import (
     Frozen, ORIGINS, Routing, callback_metadata, client_key, cluster, configuration,
@@ -129,25 +130,35 @@ async def client_route(cluster, monkeypatch):
             self.request_id, self.live, self.counts = None, [False] * 3, {}
             self.deadline, self.cancelled = client.time.monotonic() + timeout, cancelled
             self.closed = False
+            # Borrow the fixture's ASGI loop, retaining the genuine synchronous
+            # dispatch/cancellation contract. The fixture, not this mock, owns
+            # loop retirement; never stop it or create a second I/O thread.
+            class IO:
+                closed = False
+                run = _IOOwner.run
+            self.io = IO()
+            self.io.loop = loop
             owners.append(self)
         def check(self):
             if self.cancelled() or client.time.monotonic() >= self.deadline:
                 raise ProtocolError("bounded review client cancelled", 499)
         def post(self, index, action, payload=b"", *, phase, limit):
             self.check()
+            return self.io.run(self._post(index, action, payload, phase=phase, limit=limit,
+                                          timeout=max(0.0, self.deadline - client.time.monotonic())),
+                               timeout=max(0.0, self.deadline - client.time.monotonic()))
+
+        async def _post(self, index, action, payload, *, phase, limit, timeout):
+            self.check()
             role = p.ROLES[index]
             events.append((role, action, phase))
             requests.append((role, action, payload))
-            async def request():
+            async with asyncio.timeout(min(5.0, timeout)):
                 if action == "manifest":
-                    return await cluster.clients[role].get("/v1/fss/manifest")
-                path = "/v1/fss/admit" if action == "admit" else f"/v1/fss/{self.request_id}/{action}"
-                return await cluster.clients[role].post(path, content=payload)
-            future = asyncio.run_coroutine_threadsafe(request(), loop)
-            try:
-                response = future.result(timeout=5)
-            finally:
-                future.cancel()
+                    response = await cluster.clients[role].get("/v1/fss/manifest")
+                else:
+                    path = "/v1/fss/admit" if action == "admit" else f"/v1/fss/{self.request_id}/{action}"
+                    response = await cluster.clients[role].post(path, content=payload)
             content = response.content
             for transform in transforms:
                 content = transform(role, action, content)
@@ -163,6 +174,7 @@ async def client_route(cluster, monkeypatch):
                     try: future.result(timeout=5)
                     finally: future.cancel()
             self.closed = True
+            self.io.closed = True
         def audit(self): return dict(self.counts)
 
     @contextmanager

@@ -26,6 +26,13 @@ pub use batch::{
     MATERIAL_BATCH_RECORDS_BOUND, MATERIAL_BATCH_RECORD_OVERHEAD_BYTES,
 };
 
+#[path = "transport_receive.rs"]
+mod receive;
+pub use pllm_garble::fusefss_backend::composition::provider::{
+    Reply, ReplyView, MATERIAL_WINDOW_BYTES, MATERIAL_WINDOW_RECORDS,
+};
+pub use receive::{MaterialReceive, ReceiveResources, MATERIAL_RECEIVE_PYTHON_BYTES};
+
 #[path = "transport_diagnostics.rs"]
 mod diagnostics;
 use diagnostics::{aggregate_base, aggregate_batch, Progress};
@@ -72,56 +79,6 @@ pub struct PeerRequest {
     pub frame_bytes: usize,
 }
 
-/// Native-owned, fallibly allocated, erasing callback response. No caller can
-/// replace its allocation or widen its exact public bound. Exactly one write;
-/// a rejected/second write burns the reply even if the callback ignores the error.
-pub struct Reply {
-    bytes: Zeroizing<Vec<u8>>,
-    bound: usize,
-    state: u8,
-}
-impl Reply {
-    fn new(bound: usize) -> Result<Self, Error> {
-        if bound == 0 || bound > MAX_ALLOCATION_BYTES {
-            return Err(Error::Resource);
-        }
-        let mut bytes = Vec::new();
-        bytes
-            .try_reserve_exact(bound)
-            .map_err(|_| Error::Allocation)?;
-        if bytes.capacity() != bound {
-            return Err(Error::Resource);
-        }
-        Ok(Self {
-            bytes: Zeroizing::new(bytes),
-            bound,
-            state: 0,
-        })
-    }
-    pub fn bound(&self) -> usize {
-        self.bound
-    }
-    pub fn write(&mut self, bytes: &[u8]) -> Result<(), Error> {
-        let fresh = self.state == 0;
-        self.state = 2;
-        if !fresh {
-            return Err(Error::Consumed);
-        }
-        if bytes.is_empty() || bytes.len() > self.bound {
-            return Err(Error::Resource);
-        }
-        self.bytes.extend_from_slice(bytes);
-        self.state = 1;
-        Ok(())
-    }
-    fn bytes(&self) -> Result<&[u8], Error> {
-        if self.state != 1 {
-            return Err(Error::Consumed);
-        }
-        Ok(&self.bytes)
-    }
-}
-
 pub trait DealerTransport {
     /// Accept exactly this recipient's opaque material before returning. Both
     /// recipients must accept the current pc before the dealer advances.
@@ -144,6 +101,15 @@ pub trait DealerTransport {
 }
 pub trait WorkerTransport {
     fn material(&mut self, request: MaterialRequest, reply: &mut Reply) -> Result<(), Error>;
+    /// Local provision of this frozen group's original record prefix. No peer
+    /// protocol, PC reorder, suffix retry or material issuance is permitted.
+    fn material_window(
+        &mut self,
+        _requests: &[MaterialRequest],
+        _replies: &mut [ReplyView<'_>],
+    ) -> Result<(), Error> {
+        Err(Error::Unsupported)
+    }
     /// Send one own-party opaque frame and receive the matching peer frame.
     /// Transport must permit simultaneous sends without unbounded buffering.
     fn exchange(
@@ -167,6 +133,7 @@ pub struct Admission {
     online: super::OnlineSchedule,
     delivery: MaterialDelivery,
     batch: Option<BatchResources>,
+    receive: Option<ReceiveResources>,
     kernels: usize,
     requests: usize,
     frames: usize,
@@ -180,6 +147,9 @@ pub struct Admission {
     transcript: [u8; 32],
 }
 impl Admission {
+    pub fn material_receive(&self) -> Option<&ReceiveResources> {
+        self.receive.as_ref()
+    }
     pub fn material_delivery(&self) -> MaterialDelivery {
         self.delivery
     }
@@ -262,6 +232,24 @@ pub fn admit_with_delivery_diagnostic(
     context: Context,
     delivery: MaterialDelivery,
 ) -> Result<Admission, AdmissionFailure> {
+    admit_with_receive_diagnostic(program, context, delivery, MaterialReceive::Scalar)
+}
+
+pub fn admit_with_receive(
+    program: &Program,
+    context: Context,
+    delivery: MaterialDelivery,
+    receive: MaterialReceive,
+) -> Result<Admission, Error> {
+    admit_with_receive_diagnostic(program, context, delivery, receive).map_err(Error::from)
+}
+
+pub fn admit_with_receive_diagnostic(
+    program: &Program,
+    context: Context,
+    delivery: MaterialDelivery,
+    receive: MaterialReceive,
+) -> Result<Admission, AdmissionFailure> {
     // Keep every exact (role,nonce) claim across the complete request. Indexed,
     // preallocated storage removes the quadratic scan; its complete capacity is
     // priced before kernel visitation and private input. No per-kernel reset.
@@ -293,6 +281,8 @@ pub fn admit_with_delivery_diagnostic(
         max_cumulative: usize,
         hash: Sha256,
         progress: Progress,
+        receive: bool,
+        receive_used: bool,
     }
     impl MaterialVisitor for Scan {
         fn visit(&mut self, context: Context, plan: &Plan<'_>) -> Result<(), Error> {
@@ -349,7 +339,15 @@ pub fn admit_with_delivery_diagnostic(
             let extra = wave
                 .as_ref()
                 .map_or(0, |w| w.resources().additional_reservation_bytes);
-            self.peak = self.peak.max(add(add(native, frame_copies)?, extra)?);
+            let receive = if self.receive && wave.is_some() {
+                self.receive_used = true;
+                mul(2, ReceiveResources::new()?.native_reservation_bytes())?
+            } else {
+                0
+            };
+            self.peak = self
+                .peak
+                .max(add(add(add(native, frame_copies)?, extra)?, receive)?);
             // A later failure in the enclosing schedule is not a visitor-stage
             // failure. Do not attribute it to this successfully visited kernel.
             self.progress = Progress::schedule();
@@ -371,6 +369,8 @@ pub fn admit_with_delivery_diagnostic(
         max_cumulative: if file_guard { 32 << 30 } else { 1 << 30 },
         hash: hash_start(program),
         progress: Progress::schedule(),
+        receive: receive == MaterialReceive::FrozenWindow,
+        receive_used: false,
     };
     program
         .visit_material(context, &mut scan)
@@ -406,6 +406,14 @@ pub fn admit_with_delivery_diagnostic(
         online: program.online_schedule(),
         delivery,
         batch,
+        receive: if scan.receive_used {
+            Some(
+                ReceiveResources::new()
+                    .map_err(|error| AdmissionFailure::new(AdmissionStage::TransportPeak, error))?,
+            )
+        } else {
+            None
+        },
         kernels: scan.kernels,
         requests,
         frames: scan.frames,
@@ -626,6 +634,7 @@ struct Role<'g, 't, T: WorkerTransport> {
     hash: Sha256,
     cancelled: bool,
     complete: bool,
+    receive_budget: Option<&'g Budget>,
 }
 
 // Fixed stack storage avoids another unpriced/fallible heap owner per kernel.
@@ -635,6 +644,12 @@ pub(super) enum Execution<'s, 'p, 'a> {
     Wave(wavefront::Runtime<'s, 'p, 'a>),
 }
 impl<'a> Execution<'_, '_, 'a> {
+    fn pending_materials(&self, pcs: &mut [usize]) -> Result<usize, Error> {
+        match self {
+            Self::Wave(r) => r.pending_materials(pcs),
+            Self::Serial(_) => Err(Error::Context),
+        }
+    }
     pub(super) fn poll(&mut self) -> Result<Event<'a>, Error> {
         match self {
             Self::Serial(r) => r.poll(),
@@ -724,31 +739,88 @@ impl<T: WorkerTransport> Driver for Role<'_, '_, T> {
                         if bound > self.admission.packet_bytes {
                             return Err(Error::Resource);
                         }
-                        let mut reply = Reply::new(bound)?;
-                        self.transport.material(
-                            MaterialRequest {
-                                kernel: k,
-                                role: self.role,
-                                pc,
-                                packet_bytes_bound: bound,
-                            },
-                            &mut reply,
-                        )?;
-                        let bytes = reply.bytes()?;
-                        if bytes.len() < ENVELOPE_BYTES {
-                            return Err(Error::Context);
+                        // Mode/window is chosen from public geometry before any
+                        // record is consumed. Never fall back after provider work.
+                        if let Some(budget) = self
+                            .receive_budget
+                            .filter(|_| wave.is_some() && bound <= MATERIAL_WINDOW_BYTES)
+                        {
+                            let mut window = receive::Window::new(
+                                budget,
+                                MaterialRequest {
+                                    kernel: k,
+                                    role: self.role,
+                                    pc,
+                                    packet_bytes_bound: bound,
+                                },
+                            )?;
+                            let available = runtime.pending_materials(window.pcs_mut())?;
+                            receive::prepare(
+                                &mut window,
+                                plan,
+                                available,
+                                self.admission.packet_bytes,
+                            )?;
+                            let count = window.requests().len();
+                            if add(self.requests, count)? > self.admission.requests {
+                                return Err(Error::Resource);
+                            }
+                            window.provide(|requests, replies| {
+                                self.transport.material_window(requests, replies)
+                            })?;
+                            // All writes validated before the first import. Each
+                            // original envelope and request-long claim still runs
+                            // in its original order; any failure burns this role.
+                            let mut next = Event::NeedMaterial { pc };
+                            for index in 0..count {
+                                let request = window.requests()[index];
+                                if !matches!(next, Event::NeedMaterial { pc } if pc == request.pc) {
+                                    return Err(Error::Context);
+                                }
+                                let bytes = window.bytes(index)?;
+                                if bytes.len() < ENVELOPE_BYTES {
+                                    return Err(Error::Context);
+                                }
+                                let nonce = bytes[48..80].try_into().map_err(|_| Error::Context)?;
+                                self.requests = add(self.requests, 1)?;
+                                next = runtime.feed_result(plan.import_step_bytes(
+                                    request.pc,
+                                    context,
+                                    self.role,
+                                    nonce,
+                                    bytes,
+                                    &mut self.guard,
+                                ))?;
+                            }
+                            next
+                        } else {
+                            Reply::with_bound(bound, |reply| {
+                                self.transport.material(
+                                    MaterialRequest {
+                                        kernel: k,
+                                        role: self.role,
+                                        pc,
+                                        packet_bytes_bound: bound,
+                                    },
+                                    reply,
+                                )?;
+                                let bytes = reply.bytes()?;
+                                if bytes.len() < ENVELOPE_BYTES {
+                                    return Err(Error::Context);
+                                }
+                                let nonce = bytes[48..80].try_into().map_err(|_| Error::Context)?;
+                                self.requests = add(self.requests, 1)?;
+                                let material = plan.import_step_bytes(
+                                    pc,
+                                    context,
+                                    self.role,
+                                    nonce,
+                                    bytes,
+                                    &mut self.guard,
+                                );
+                                runtime.feed_result(material)
+                            })?
                         }
-                        let nonce = bytes[48..80].try_into().map_err(|_| Error::Context)?;
-                        self.requests = add(self.requests, 1)?;
-                        let material = plan.import_step_bytes(
-                            pc,
-                            context,
-                            self.role,
-                            nonce,
-                            bytes,
-                            &mut self.guard,
-                        );
-                        runtime.feed_result(material)?
                     }
                     Event::Frame(frame) => {
                         if self.frames >= self.admission.frames {
@@ -758,24 +830,25 @@ impl<T: WorkerTransport> Driver for Role<'_, '_, T> {
                         if len > self.admission.peer_frame_bytes {
                             return Err(Error::Resource);
                         }
-                        let mut reply = Reply::new(len)?;
-                        self.transport.exchange(
-                            PeerRequest {
-                                kernel: k,
-                                role: self.role,
-                                frame: frames,
-                                frame_bytes: len,
-                            },
-                            frame.as_bytes(),
-                            &mut reply,
-                        )?;
-                        let peer = reply.bytes()?;
-                        if peer.len() != len {
-                            return Err(Error::Context);
-                        }
-                        frames = add(frames, 1)?;
-                        self.frames = add(self.frames, 1)?;
-                        runtime.advance(peer)?
+                        Reply::with_bound(len, |reply| {
+                            self.transport.exchange(
+                                PeerRequest {
+                                    kernel: k,
+                                    role: self.role,
+                                    frame: frames,
+                                    frame_bytes: len,
+                                },
+                                frame.as_bytes(),
+                                reply,
+                            )?;
+                            let peer = reply.bytes()?;
+                            if peer.len() != len {
+                                return Err(Error::Context);
+                            }
+                            frames = add(frames, 1)?;
+                            self.frames = add(self.frames, 1)?;
+                            runtime.advance(peer)
+                        })?
                     }
                     Event::Output(output) => {
                         if frames != expected_frames {
@@ -830,7 +903,29 @@ pub fn execute_with_delivery(
     delivery: MaterialDelivery,
     transport: &mut impl WorkerTransport,
 ) -> Result<TokenShares, Error> {
-    let admission = match admit_with_delivery(program, context, delivery) {
+    execute_with_receive(
+        program,
+        role,
+        context,
+        input,
+        delivery,
+        MaterialReceive::Scalar,
+        transport,
+    )
+}
+
+pub fn execute_with_receive(
+    program: &Program,
+    role: u8,
+    context: Context,
+    input: Zeroizing<Vec<u64>>,
+    delivery: MaterialDelivery,
+    receive: MaterialReceive,
+    transport: &mut impl WorkerTransport,
+) -> Result<TokenShares, Error> {
+    // Explicit local mode is fixed before admission/Worker/provider work. Legacy
+    // execute entrypoints always select Scalar; no capability callback or retry.
+    let admission = match admit_with_receive(program, context, delivery, receive) {
         Ok(a) => a,
         Err(e) => {
             transport.cancel();
@@ -863,6 +958,17 @@ pub fn execute_with_delivery(
             return Err(e);
         }
     };
+    let receive_budget = match admission
+        .material_receive()
+        .map(|r| Budget::new(r.native_reservation_bytes()))
+        .transpose()
+    {
+        Ok(budget) => budget,
+        Err(error) => {
+            transport.cancel();
+            return Err(error);
+        }
+    };
     let mut driver = Role {
         transport,
         role,
@@ -874,6 +980,7 @@ pub fn execute_with_delivery(
         hash: hash_start(program),
         cancelled: false,
         complete: false,
+        receive_budget: receive_budget.as_ref(),
     };
     let result = (|| {
         let output = Worker::new(program, role, context, input)?.execute(&mut driver)?;

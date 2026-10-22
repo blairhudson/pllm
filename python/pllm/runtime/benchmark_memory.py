@@ -409,6 +409,12 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
         guard_disk = MAX_GUARD_DISK_BYTES if expanded else 0
         disk_scope = "capacity ceilings before native import"
         python_batch, native_batch = 0, None
+        from .fss_tape import MATERIAL_RECEIVE_PYTHON_BYTES
+        schedule = pipeline.components["linear"].params.get("online_schedule", "serial")
+        if contract.get("online_schedule", "serial") != schedule:
+            raise ValueError("native online schedule differs")
+        python_receive = (MATERIAL_RECEIVE_PYTHON_BYTES
+            if schedule in ("wavefront-v1", "tensor-v1") else 0)
         batch_scope = "conservative transport envelope before native import"
         if delivery == "batch-v1":
             from .fss_protocol import MATERIAL_BATCH_PYTHON_BYTES
@@ -418,6 +424,8 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
             tape_limit, guard_disk = resources.tape.max_file_bytes, resources.guard_disk_bytes
             total_packet_limit = resources.tape.total_packet_bytes
             disk_scope = "native transport admission after import"
+            if resources.python_receive_reservation_bytes != python_receive:
+                raise ValueError("native online material receive owner differs")
             if delivery == "batch-v1":
                 # Shared transport admission validates the native bound/mode.
                 # Native packet/queue leases are already inside the fixed native
@@ -442,6 +450,8 @@ def _fss_memory(config, pipeline, rows, outputs, cache_bytes, cache_bound, check
         role_parts["tokenizer_parse_copies"] = 4 * source_io._DECODER_TOKENIZER_BYTES
     if delivery == "batch-v1":
         role_parts["material_batch_python_overlap"] = python_batch
+    if python_receive:
+        role_parts["material_receive_python_overlap"] = python_receive
     client_work, role_work = sum(client_parts.values()), sum(role_parts.values())
     client_bound = client_memory_bytes(capacity)
     # The authenticated worker reserves its existing role envelope plus the

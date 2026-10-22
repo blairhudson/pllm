@@ -1,6 +1,163 @@
 use super::*;
 
 #[test]
+fn allocation_failure_after_first_window_import_consumes_runtime_without_early_window_refund() {
+    use crate::fusefss_backend::composition::provider::ReplyWindow;
+    use std::sync::atomic::Ordering;
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let plan = kernels::floor(
+        kernels::Binding {
+            source_digest: [81; 32],
+            contract_digest: [82; 32],
+        },
+        gates::InputRange {
+            min: -100_000,
+            max: 100_000,
+        },
+        12,
+        &budget,
+    )
+    .unwrap()
+    .0
+    .repeat_tensor(2)
+    .unwrap();
+    let schedule = Schedule::new(&plan).unwrap();
+    let mut runtime = schedule.runtime(0, context(), &[0; 2]).unwrap();
+    assert!(matches!(
+        runtime.poll().unwrap(),
+        Event::NeedMaterial { .. }
+    ));
+    let required = ReplyWindow::<usize>::reservation_bytes().unwrap();
+    let window_budget = Budget::new(required).unwrap();
+    let mut window = ReplyWindow::new(&window_budget, 0usize).unwrap();
+    assert!(runtime.pending_materials(window.pcs_mut()).unwrap() >= 2);
+    let mut packets = Vec::new();
+    for i in 0..2 {
+        let pc = window.pc(i).unwrap();
+        window
+            .push(
+                pc,
+                plan.step_transport_resources(pc)
+                    .unwrap()
+                    .packet_bytes_bound,
+            )
+            .unwrap();
+        let [a, b] = plan.issue_step(pc, context()).unwrap();
+        drop(b);
+        packets.push(a.export_packet().unwrap());
+    }
+    window
+        .provide(|_, replies| {
+            for (reply, packet) in replies.iter_mut().zip(&packets) {
+                reply.write(packet.as_bytes())?;
+            }
+            Ok(())
+        })
+        .unwrap();
+    drop(packets);
+    let mut guard = ImportGuard::new_indexed(plan.resources.secret_steps.max(1), &budget).unwrap();
+    let first = window.bytes(0).unwrap();
+    let material = plan.import_step_bytes(
+        window.pc(0).unwrap(),
+        context(),
+        0,
+        first[48..80].try_into().unwrap(),
+        first,
+        &mut guard,
+    );
+    assert!(matches!(
+        runtime.feed_result(material).unwrap(),
+        Event::NeedMaterial { .. }
+    ));
+    budget.fail_after.store(0, Ordering::SeqCst);
+    let second = window.bytes(1).unwrap();
+    let material = plan.import_step_bytes(
+        window.pc(1).unwrap(),
+        context(),
+        0,
+        second[48..80].try_into().unwrap(),
+        second,
+        &mut guard,
+    );
+    assert!(runtime.feed_result(material).is_err());
+    assert!(runtime.is_consumed());
+    assert_eq!(window_budget.used_bytes(), required);
+    drop(window);
+    assert_eq!(window_budget.used_bytes(), 0);
+    budget.fail_after.store(-1, Ordering::SeqCst);
+    drop(runtime);
+    drop(guard);
+    drop(schedule);
+    drop(plan);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn real_frozen_group_has_bounded_full_tail_windows_without_crossing_frame_barrier() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let plan = kernels::floor(
+        kernels::Binding {
+            source_digest: [71; 32],
+            contract_digest: [72; 32],
+        },
+        gates::InputRange {
+            min: -100_000,
+            max: 100_000,
+        },
+        12,
+        &budget,
+    )
+    .unwrap()
+    .0
+    .repeat_tensor(17)
+    .unwrap();
+    let schedule = Schedule::new(&plan).unwrap();
+    let mut runtime = schedule.runtime(0, context(), &[0; 17]).unwrap();
+    let mut guard = ImportGuard::new_indexed(plan.resources.secret_steps.max(1), &budget).unwrap();
+    let mut event = runtime.poll().unwrap();
+    let state = runtime.state.as_ref().unwrap();
+    let expected: Vec<_> = (state.offset..state.end)
+        .map(|i| schedule.step(i).unwrap().pc)
+        .collect();
+    assert!(expected.len() >= 17);
+    let mut consumed = Vec::new();
+    let mut counts = Vec::new();
+    while matches!(event, Event::NeedMaterial { .. }) {
+        let mut pcs = [usize::MAX; 8];
+        let count = runtime.pending_materials(&mut pcs).unwrap();
+        counts.push(count);
+        for &pc in &pcs[..count] {
+            assert!(matches!(event, Event::NeedMaterial { pc: actual } if actual == pc));
+            let [material, other] = plan.issue_step(pc, context()).unwrap();
+            drop(other);
+            let packet = material.export_packet().unwrap();
+            let material = plan.import_step_bytes(
+                pc,
+                context(),
+                0,
+                packet.as_bytes()[48..80].try_into().unwrap(),
+                packet.as_bytes(),
+                &mut guard,
+            );
+            event = runtime.feed_result(material).unwrap();
+            consumed.push(pc);
+        }
+    }
+    assert_eq!(consumed, expected);
+    assert_eq!(counts[0], 8);
+    assert_eq!(*counts.last().unwrap(), (expected.len() - 1) % 8 + 1);
+    assert!(matches!(event, Event::Frame(_)));
+    assert!(runtime.pending_materials(&mut [0; 8]).is_err());
+    drop(event);
+    runtime.cancel();
+    drop(runtime);
+    drop(guard);
+    drop(schedule);
+    drop(plan);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
 fn compact_tensor_keeps_one_template_with_exact_large_lane_outputs() {
     let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
     let binding = kernels::Binding {
@@ -299,6 +456,19 @@ fn evaluate(schedule: &Schedule<'_, '_>, inputs: &[u64]) -> Result<(Vec<u64>, us
         events = match events {
             (Event::NeedMaterial { pc: x }, Event::NeedMaterial { pc: y }) => {
                 assert_eq!(x, y);
+                // Every existing scalar oracle also checks bounded observation
+                // against the actual frozen frontier, never a future group.
+                for runtime in [&a, &b] {
+                    let mut pcs = [usize::MAX; 8];
+                    let count = runtime.pending_materials(&mut pcs)?;
+                    let state = runtime.state.as_ref().unwrap();
+                    let first = state.offset + state.slots.len();
+                    assert_eq!(count, 8.min(state.end - first));
+                    for (index, pc) in pcs[..count].iter().enumerate() {
+                        assert_eq!(*pc, schedule.step(first + index).unwrap().pc);
+                    }
+                    assert_eq!(pcs[0], x);
+                }
                 let [m0, m1] = plan.issue_step(x, context())?;
                 let p0 = m0.export_packet()?;
                 let p1 = m1.export_packet()?;
@@ -321,6 +491,8 @@ fn evaluate(schedule: &Schedule<'_, '_>, inputs: &[u64]) -> Result<(Vec<u64>, us
                 (a.feed_result(m0)?, b.feed_result(m1)?)
             }
             (Event::Frame(x), Event::Frame(y)) => {
+                assert!(a.pending_materials(&mut [0; 8]).is_err());
+                assert!(b.pending_materials(&mut [0; 8]).is_err());
                 rounds += 1;
                 assert!(x.as_bytes().len() <= schedule.resources.largest_frame_bytes);
                 (a.advance(y.as_bytes())?, b.advance(x.as_bytes())?)

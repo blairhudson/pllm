@@ -45,6 +45,11 @@ _ORDINAL_BYTES = 4
 _NONCE_BYTES = 12
 _TAG_BYTES = 16
 _BUFFER_SLACK = 64 << 10
+# Local online receive policy; not a tape/wire/numeric profile. Kept identical
+# to the shared native provider window and checked by price_transport.
+MATERIAL_RECEIVE_RECORDS = 8
+MATERIAL_RECEIVE_BYTES = 64 << 10
+MATERIAL_RECEIVE_PYTHON_BYTES = 8 * MATERIAL_RECEIVE_BYTES + 8192 * MATERIAL_RECEIVE_RECORDS + _BUFFER_SLACK
 # Preserve the v1 count/AAD/nonce encodings. The count itself must fit u32;
 # ordinals are zero-based and must fit both AAD and nonce. Every record needs at
 # least one packet byte, and must reserve all selected on-disk metadata/framing.
@@ -335,32 +340,72 @@ class MaterialTape:
 
     def take(self, metadata: bytes) -> bytes:
         with self._operation():
-            if self._state != "sealed" or self._records_read >= self._resources.records:
-                raise MaterialTapeError("material tape read order or record count differs")
-            self._metadata(metadata)
-            header = self._read_exact(_HEADER.size)
-            meta_bytes, ciphertext_bytes, nonce = _HEADER.unpack(header)
-            r = self._resources
-            packet_bytes = ciphertext_bytes - _TAG_BYTES
-            if (not 0 < meta_bytes <= r.metadata_bytes_per_record or not 0 < packet_bytes <= r.packet_bytes
-                    or self._packets_read + packet_bytes > r.total_packet_bytes
-                    or nonce != self._records_read.to_bytes(_NONCE_BYTES, "big")):
-                raise MaterialTapeError("material tape record geometry differs")
-            if r.metadata_storage == "inline":
-                stored_metadata = self._read_exact(meta_bytes)
-                if not hmac.compare_digest(metadata, stored_metadata):
-                    raise MaterialTapeError("material tape metadata differs")
-            ciphertext = self._read_exact(ciphertext_bytes)
+            return self._take_locked(metadata, self._resources.packet_bytes)
+
+    def _take_locked(self, metadata, packet_bound):
+        if self._state != "sealed" or self._records_read >= self._resources.records:
+            raise MaterialTapeError("material tape read order or record count differs")
+        self._metadata(metadata)
+        header = self._read_exact(_HEADER.size)
+        meta_bytes, ciphertext_bytes, nonce = _HEADER.unpack(header)
+        r = self._resources
+        packet_bytes = ciphertext_bytes - _TAG_BYTES
+        if (not 0 < meta_bytes <= r.metadata_bytes_per_record or not 0 < packet_bytes <= min(r.packet_bytes, packet_bound)
+                or self._packets_read + packet_bytes > r.total_packet_bytes
+                or nonce != self._records_read.to_bytes(_NONCE_BYTES, "big")):
+            raise MaterialTapeError("material tape record geometry differs")
+        if r.metadata_storage == "inline":
+            stored_metadata = self._read_exact(meta_bytes)
+            if not hmac.compare_digest(metadata, stored_metadata):
+                raise MaterialTapeError("material tape metadata differs")
+        ciphertext = self._read_exact(ciphertext_bytes)
+        try:
+            packet = self._aead.decrypt(nonce, bytes(ciphertext),
+                                        self._aad(self._records_read, header, metadata))
+        except InvalidTag:
+            raise MaterialTapeError("material tape authentication failed") from None
+        if len(packet) != packet_bytes:
+            raise MaterialTapeError("material tape decrypted size differs")
+        self._records_read += 1
+        self._packets_read += packet_bytes
+        return packet
+
+    def take_window(self, requests, *, cancelled=None):
+        """One lock/callback, same ordered per-record AES-GCM/AAD and cursors.
+
+        Caller already holds the explicitly priced Python receive owner. Validate
+        every public bound before reads; reject each header against its own bound
+        BEFORE ciphertext allocation. Any partial failure burns the whole tape.
+        Immutable returned bytes have the same caller retirement duty as take().
+        """
+        with self._operation():
+            if type(requests) is not tuple or not 1 <= len(requests) <= MATERIAL_RECEIVE_RECORDS:
+                raise MaterialTapeError("material receive window count differs")
+            total = 0
+            for index, request in enumerate(requests):
+                if type(request) is not tuple or len(request) != 2:
+                    raise MaterialTapeError("material receive request differs")
+                metadata, bound = request
+                self._metadata(metadata)
+                if type(bound) is not int or not 0 < bound <= min(self._resources.packet_bytes, MATERIAL_RECEIVE_BYTES):
+                    raise MaterialTapeError("material receive bound differs")
+                if any(metadata == previous[0] for previous in requests[:index]):
+                    raise MaterialTapeError("material receive metadata repeats")
+                total += bound
+                if total > MATERIAL_RECEIVE_BYTES:
+                    raise MaterialTapeError("material receive window bytes differ")
+            packets = []
             try:
-                packet = self._aead.decrypt(nonce, bytes(ciphertext),
-                                            self._aad(self._records_read, header, metadata))
-            except InvalidTag:
-                raise MaterialTapeError("material tape authentication failed") from None
-            if len(packet) != packet_bytes:
-                raise MaterialTapeError("material tape decrypted size differs")
-            self._records_read += 1
-            self._packets_read += packet_bytes
-            return packet
+                for metadata, bound in requests:
+                    if cancelled is not None and cancelled():
+                        raise MaterialTapeError("material receive window retired")
+                    packets.append(self._take_locked(metadata, bound))
+                if cancelled is not None and cancelled():
+                    raise MaterialTapeError("material receive window retired")
+                return tuple(packets)
+            except BaseException:
+                packets.clear()  # No accepted prefix/suffix retry, including OOM.
+                raise
 
     def finish(self) -> None:
         with self._operation():

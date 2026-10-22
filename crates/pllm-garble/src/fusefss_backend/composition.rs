@@ -20,6 +20,7 @@ pub mod gates;
 pub mod kernels;
 mod lanes;
 pub mod norm;
+pub mod provider;
 mod runtime;
 mod source_tables;
 pub mod wavefront;

@@ -80,6 +80,8 @@ class TransportResources:
     material_delivery: str = "single"
     python_batch_reservation_bytes: int = 0
     native_batch_reservation_bytes: int = 0
+    python_receive_reservation_bytes: int = 0
+    native_receive_reservation_bytes: int = 0
 
     @property
     def transport_disk_bytes_per_holder(self):
@@ -140,6 +142,27 @@ def price_transport(admission, contract: bytes) -> TransportResources:
         python_batch = p.MATERIAL_BATCH_PYTHON_BYTES
     elif "delivery_batch" in admission:
         raise ValueError("FuseFSS unexpected material batch pricing")
+    # Online receive bytes are independent of OFFLINE delivery. Native capacity
+    # pays native window only; Python copies stay inside the unchanged role owner.
+    from .fss_tape import MATERIAL_RECEIVE_BYTES, MATERIAL_RECEIVE_RECORDS, MATERIAL_RECEIVE_PYTHON_BYTES
+    receive = admission.get("material_receive")
+    python_receive = native_receive = 0
+    expects_receive = _contract(contract).get("online_schedule") in ("wavefront-v1", "tensor-v1")
+    if expects_receive:
+        if type(receive) is not dict or set(receive) != {"records_bound", "payload_bytes_bound",
+                "native_reservation_bytes_per_holder", "python_overlap_bytes_per_holder"}:
+            raise ValueError("FuseFSS native material receive pricing differs")
+        for name, expected in (("records_bound", MATERIAL_RECEIVE_RECORDS),
+                               ("payload_bytes_bound", MATERIAL_RECEIVE_BYTES),
+                               ("python_overlap_bytes_per_holder", MATERIAL_RECEIVE_PYTHON_BYTES)):
+            if type(receive[name]) is not int or receive[name] != expected:
+                raise ValueError("FuseFSS native material receive bound differs")
+        native_receive = receive["native_reservation_bytes_per_holder"]
+        if type(native_receive) is not int or not MATERIAL_RECEIVE_BYTES <= native_receive <= combined // 2:
+            raise ValueError("FuseFSS native material receive reservation differs")
+        python_receive = MATERIAL_RECEIVE_PYTHON_BYTES
+    elif "material_receive" in admission:
+        raise ValueError("FuseFSS unexpected material receive pricing")
     metadata = integer("callback_metadata_bytes_bound", MAX_METADATA_BYTES)
     if metadata == 0:
         raise ValueError("FuseFSS callback metadata bound differs")
@@ -152,7 +175,7 @@ def price_transport(admission, contract: bytes) -> TransportResources:
     return TransportResources(hashlib.sha256(contract).hexdigest(), tape,
         integer("guard_disk_bytes", MAX_GUARD_DISK_BYTES, default),
         integer("guard_reservation_bytes", 64 << 20, default),
-        combined, delivery, python_batch, native_batch)
+        combined, delivery, python_batch, native_batch, python_receive, native_receive)
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,6 +233,165 @@ def _receipt(raw, role, *, capacity="capsule"):
             raise ProtocolError("FuseFSS tape framing accounting differs")
         digest(storage["sealed_digest"])
     return frame, counts, storage
+
+
+def _finish_receipts(peers, boundary, failure, **receipt_options):
+    """Join both receipts; bound local drain, leaving stragglers to global close.
+
+    Fixed ownership: two bounded CONTROL_LIMIT readers/results, one cancellation
+    watcher, join/drain Futures and their fixed Task/result containers; caller
+    interruption can add one drain-fence Task on this same owner. No new pool,
+    thread, queue, retries or history. Validation is synchronous on that loop,
+    so only one unpack runs at a time. At most four CONTROL_LIMIT collector/raw
+    payload copies overlap, plus two validated small receipt packages. These
+    remain in the existing HTTP-control phase envelope, not a new byte credit
+    or a socket/TLS/allocator/stack/physical-memory proof. A fixed five-entry
+    retirement-root set retains reads that outlast cooperative drain.
+    """
+    import asyncio
+    from .delegated_transport import _IO_DRAIN_TIMEOUT
+
+    # One response-local I/O owner admits exactly one finish collector. Never
+    # replace the root set while a previous collector/callback still owns it.
+    if hasattr(peers.io, "_fss_finish_pending"):
+        raise ProtocolError("FuseFSS finish collection is one-use")
+    first_error = owned_task = None
+    submitted = False
+    # all_tasks() is weak: explicitly retain the fixed set until completion or
+    # the existing I/O owner's global shutdown cancels and joins it. Callbacks
+    # capture only this set, never a native owner or an attempt observer.
+    pending = set()
+
+    def settled(future):
+        pending.discard(future)
+        if not future.cancelled():
+            future.exception()  # Retrieve late errors without replacing first_error.
+
+    def track(future):
+        if len(pending) >= 5:
+            raise ProtocolError("FuseFSS finish retirement exceeds its fixed task bound")
+        pending.add(future)
+        future.add_done_callback(settled)
+        return future
+
+    def failed(error, role=None):
+        nonlocal first_error
+        if first_error is None:
+            first_error = error
+            if role is not None:
+                # Another outstanding call may have written the one-slot marker.
+                boundary(role, "finish", "entered")
+            failure()
+
+    async def receive(index, role):
+        raw = receipt = None
+        try:
+            if first_error is not None:
+                raise asyncio.CancelledError
+            peers.check()
+            boundary(role, "finish", "entered")
+            raw = await peers._post(index, "finish", b"", phase="online", limit=CONTROL_LIMIT,
+                                    timeout=max(0.0, peers.deadline - time.monotonic()))
+            if first_error is not None:
+                raise asyncio.CancelledError
+            receipt = _receipt(raw, role, **receipt_options)
+            peers.live[index] = False
+            boundary(role, "finish", "validated")
+            return receipt
+        except asyncio.CancelledError:
+            raise
+        except BaseException as error:
+            failed(error, role)
+            raise
+        finally:
+            raw = receipt = None
+
+    async def cancellation():
+        try:
+            while True:
+                peers.check()
+                await asyncio.sleep(0.01)
+        except asyncio.CancelledError:
+            raise
+        except BaseException as error:
+            failed(error)
+            raise
+
+    async def owned():
+        nonlocal owned_task
+        # Authoritative admission runs without an await on the sole I/O loop;
+        # concurrent callers cannot replace a previous collector's root set.
+        if hasattr(peers.io, "_fss_finish_pending"):
+            raise ProtocolError("FuseFSS finish collection is one-use")
+        peers.io._fss_finish_pending = pending
+        owned_task = track(asyncio.current_task())
+        tasks = []
+        watcher = joined = None
+        try:
+            async with asyncio.timeout(max(0.0, peers.deadline - time.monotonic())):
+                for index, role in enumerate(HOLDERS):
+                    tasks.append(track(asyncio.create_task(receive(index, role))))
+                watcher = track(asyncio.create_task(cancellation()))
+                joined = track(asyncio.gather(*tasks))
+                await asyncio.wait((joined, watcher), return_when=asyncio.FIRST_COMPLETED)
+                if first_error is not None:
+                    raise first_error
+                if watcher.done():
+                    await watcher
+                receipts = await joined
+                peers.check()
+                return receipts
+        except TimeoutError:
+            error = ProtocolError("GKM request cancelled or timed out", 499)
+            failed(error)
+            raise error from None
+        except BaseException as error:
+            failed(error)
+            raise
+        finally:
+            # Cancel every read BEFORE awaiting any one of them. In particular,
+            # a failed B must never leave us waiting for A's peer-frame barrier.
+            for task in tasks:
+                task.cancel()
+            if watcher is not None:
+                watcher.cancel()
+            draining = [*tasks, *(() if watcher is None else (watcher,)),
+                        *(() if joined is None else (joined,))]
+            if draining:
+                # Unlike timeout(gather(...)), wait does not wait for children
+                # to acknowledge cancellation after its timeout. Leave any
+                # resistant read strongly owned for peers.close()/io.close().
+                # first_error already bars late validation and native access.
+                await asyncio.wait(draining, timeout=_IO_DRAIN_TIMEOUT)
+
+    try:
+        if peers.closed:
+            raise ProtocolError("GKM worker channels are retired")
+        peers.check()
+        submitted = True
+        return peers.io.run(owned(), timeout=peers.deadline - time.monotonic())
+    except BaseException as error:
+        # Same failed-online accounting as _Peers.post; bypass only its serial
+        # dispatch wrapper, not the bounded HTTP reader or audit counters.
+        peers.calls_known = peers.server_known = False
+        failed(error)
+        if submitted and not peers.io.closed and (owned_task is None or not owned_task.done()):
+            # _IOOwner.run cancels its Future on a caller-side interruption or
+            # dispatch timeout. Fence that asynchronous cancellation before the
+            # native owner is closed. Use the existing I/O drain interval, not
+            # a renewed request deadline or another five-second peer lease.
+            async def drained():
+                await asyncio.sleep(0)
+                if owned_task is not None:
+                    await asyncio.wait((owned_task,), timeout=_IO_DRAIN_TIMEOUT)
+
+            try:
+                peers.io.run(drained(), timeout=_IO_DRAIN_TIMEOUT)
+            except BaseException:
+                # Preserve the initiating error. The existing peers.close()
+                # finally remains responsible for global pool/thread retirement.
+                pass
+        raise
 
 
 def execute_request(experiment, source, ids, outputs, connections, timeout, attempt, *, completed_program=None):
@@ -332,17 +514,13 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
                 _ack(peers, index, "start", {"started": True}, phase="online")
                 boundary(ROLES[index], "start", "validated")
             frames = []
-            for index, role in enumerate(HOLDERS):
-                boundary(role, "finish", "entered")
-                raw = peers.post(index, "finish", phase="online", limit=CONTROL_LIMIT)
-                frame, counts, storage = _receipt(raw, role, **receipt_options)
+            for role, (frame, counts, storage) in zip(
+                    HOLDERS, _finish_receipts(peers, boundary, failure, **receipt_options), strict=True):
                 frames.append(frame)
                 for key, count in counts.items():
                     peer_counts[key] += count
                 peers.counts[f"fss_storage.{role}.write_bytes"] = storage["encrypted_file_bytes_written"]
                 peers.counts[f"fss_storage.{role}.read_bytes"] = storage["encrypted_file_bytes_read"]
-                peers.live[index] = False
-                boundary(role, "finish", "validated")
             boundary("client", "reconstruct", "entered")
             selected = tuple(native.finish(*frames))
             if len(selected) != outputs:

@@ -189,6 +189,7 @@ class _IOOwner:
     def __init__(self):
         self.loop = _NetworkLoop()
         self.closed = False
+        self._closing = False
         self.thread = threading.Thread(target=self.loop.run_forever, name="pllm-gkm-io", daemon=False)
         try:
             self.thread.start()
@@ -197,9 +198,16 @@ class _IOOwner:
             raise
 
     def run(self, coroutine, *, timeout):
-        if self.closed:
+        if self.closed or getattr(self, "_closing", False):
             coroutine.close()
             raise ProtocolError("GKM I/O owner is retired")
+        try:
+            caller_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            caller_loop = None
+        if caller_loop is self.loop:
+            coroutine.close()
+            raise ProtocolError("GKM I/O dispatch cannot block its own loop")
         try:
             future = asyncio.run_coroutine_threadsafe(coroutine, self.loop)
         except BaseException:
@@ -216,32 +224,67 @@ class _IOOwner:
     def close(self, clients):
         if self.closed:
             return
+        if self._closing or threading.current_thread() is self.thread:
+            raise ProtocolError("GKM I/O owner retirement is already active")
+        self._closing = True
+
+        async def cancel_and_join(tasks):
+            pending = {task for task in tasks if not task.done()}
+            while pending:
+                for task in pending:
+                    task.cancel()
+                _, pending = await asyncio.wait(pending, timeout=_IO_DRAIN_TIMEOUT)
+            for task in tasks:
+                if not task.cancelled():
+                    task.exception()
+            # Finish callbacks (including FSS root-set removal) before returning
+            # ownership to the caller. No detached cancellation watcher.
+            await asyncio.sleep(0)
 
         async def drain():
-            pending = asyncio.all_tasks() - {asyncio.current_task()}
-            for task in pending:
-                task.cancel()
-            if pending:
-                await asyncio.gather(*pending, return_exceptions=True)
-            closing = [asyncio.create_task(client.aclose()) for client in clients]
-            unfinished = set()
+            closing = []
             try:
+                await cancel_and_join(asyncio.all_tasks() - {asyncio.current_task()})
+                closing = [asyncio.create_task(client.aclose()) for client in clients]
+                unfinished = set()
                 if closing:
                     _, unfinished = await asyncio.wait(closing, timeout=_IO_DRAIN_TIMEOUT)
+                await cancel_and_join(closing)
+                results = [None if task.cancelled() else task.exception() for task in closing]
+                finalizer = asyncio.create_task(self.loop.shutdown_asyncgens())
+                try:
+                    _, pending = await asyncio.wait((finalizer,), timeout=_IO_DRAIN_TIMEOUT)
+                finally:
+                    await cancel_and_join((finalizer,))
+                if pending:
+                    raise TimeoutError("GKM I/O async-generator retirement timed out")
+                if not finalizer.cancelled():
+                    finalizer.result()
+                if unfinished:
+                    raise ProtocolError("GKM I/O pool retirement timed out")
+                for result in results:
+                    if isinstance(result, BaseException):
+                        raise result
             finally:
-                for task in closing:
-                    task.cancel()
-                results = await asyncio.gather(*closing, return_exceptions=True)
-            async with asyncio.timeout(_IO_DRAIN_TIMEOUT):
-                await self.loop.shutdown_asyncgens()
-            if unfinished:
-                raise ProtocolError("GKM I/O pool retirement timed out")
-            for result in results:
-                if isinstance(result, BaseException):
-                    raise result
+                await cancel_and_join(asyncio.all_tasks() - {asyncio.current_task()})
 
+        interrupted = None
         try:
-            self.run(drain(), timeout=3 * _IO_DRAIN_TIMEOUT)
+            # Do not use run(): its caller timeout cancels the retirement Task,
+            # then used to stop the loop with live HTTP buffers/callbacks. Keep
+            # this same cleanup Future and original request charge until joined.
+            # A backend ignoring cancellation forever cannot be safely refunded;
+            # it has no hard wall-time guarantee. No request/peer lease is renewed.
+            future = asyncio.run_coroutine_threadsafe(drain(), self.loop)
+            while True:
+                try:
+                    future.result()
+                    break
+                except BaseException as error:
+                    if future.done():
+                        raise
+                    if interrupted is None:
+                        interrupted = error
         finally:
             self.closed = True
             self.loop.call_soon_threadsafe(self.loop.stop)
@@ -249,6 +292,8 @@ class _IOOwner:
             if self.thread.is_alive():
                 raise ProtocolError("GKM I/O thread did not retire")
             self.loop.close()
+        if interrupted is not None:
+            raise interrupted
 
 
 class _Peers:
