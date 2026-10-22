@@ -575,6 +575,635 @@ pub mod owned_backing {
         }
     }
 
+    /// Opt-in bounded census of original owners. Legacy entry points above retain
+    /// their signatures, acceptance limits, traversal and error precedence.
+    ///
+    /// This is a logical resource seam, not Budget authority, registration,
+    /// physical-memory admission or a constructor-allocation proof. It requires
+    /// the same pinned default serde_json feature closure as the legacy policy.
+    pub mod bounded {
+        use super::{
+            AppliedMethod, Census as Backing, DecoderGraph, DecoderPlan, ModelOperation,
+            StateTensor, MAX_JSON_DEPTH,
+        };
+        use pllm_types::bounded_canonical::borrowed::{
+            self as json, Event, NativeFrame, Traversal,
+        };
+        use serde_json::Value;
+        use std::{fmt, mem::size_of, slice};
+
+        #[derive(Clone, Copy, Debug)]
+        pub struct Limits {
+            /// Per complete pass; root inline slots remain excluded.
+            pub max_backing_bytes: usize,
+            /// Session-wide, including repeated preflight/replay passes.
+            pub max_work: usize,
+            pub max_workspace_bytes: usize,
+            /// Session-wide across all attribute roots and repeated passes.
+            pub max_json_nodes: usize,
+            pub max_json_payload_bytes: usize,
+            pub max_json_string_bytes: usize,
+            pub max_json_key_bytes: usize,
+            /// Zero-based, like the legacy census. Values above MAX_JSON_DEPTH
+            /// do not relax that policy: effective cap is min(requested, 16).
+            pub max_json_depth: usize,
+        }
+
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        pub enum Error {
+            Overflow,
+            Backing(super::Error),
+            Json(json::Error),
+            WorkLimit,
+            WorkspaceLimit,
+            Poisoned,
+        }
+
+        impl fmt::Display for Error {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(match self {
+                    Self::Overflow => "bounded owner census arithmetic overflow",
+                    Self::Backing(_) => "bounded owner census backing policy failed",
+                    Self::Json(_) => "bounded owner census JSON traversal failed",
+                    Self::WorkLimit => "bounded owner census work limit exceeded",
+                    Self::WorkspaceLimit => "bounded owner census workspace limit exceeded",
+                    Self::Poisoned => "bounded owner census is poisoned",
+                })
+            }
+        }
+        impl std::error::Error for Error {}
+
+        fn backing_error(error: super::Error) -> Error {
+            Error::Backing(error)
+        }
+
+        fn json_error(error: json::Error) -> Error {
+            match error {
+                json::Error::Overflow => Error::Overflow,
+                json::Error::WorkLimit => Error::WorkLimit,
+                json::Error::WorkspaceLimit => Error::WorkspaceLimit,
+                json::Error::DepthLimit => Error::Backing(super::Error::JsonDepth),
+                other => Error::Json(other),
+            }
+        }
+
+        fn add(a: usize, b: usize) -> Result<usize, Error> {
+            a.checked_add(b).ok_or(Error::Overflow)
+        }
+        fn twice(n: usize) -> Result<usize, Error> {
+            n.checked_mul(2).ok_or(Error::Overflow)
+        }
+
+        /// These are original immutable owners, never reconstructed JSON or DTOs.
+        #[derive(Clone, Copy, Debug)]
+        pub enum Input<'a> {
+            Value(&'a Value),
+            Graph(&'a DecoderGraph),
+            Plan(&'a DecoderPlan),
+        }
+
+        #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+        pub struct Usage {
+            pub work: usize,
+            pub dto_steps: usize,
+            /// Includes every JSON traversal, including repeated passes. Depth
+            /// is the maximum ONE-based depth; other counters accumulate.
+            pub json: json::Usage,
+            pub completed_passes: usize,
+        }
+
+        /// Successful full pass, bound to its original owner. `backing_bytes`
+        /// resets per pass; usage/work do NOT. No partial success on errors.
+        #[derive(Debug)]
+        pub struct Report<'a> {
+            input: Input<'a>,
+            backing_bytes: usize,
+            usage: Usage,
+        }
+
+        impl<'a> Report<'a> {
+            pub fn input(&self) -> Input<'a> {
+                self.input
+            }
+            pub fn backing_bytes(&self) -> usize {
+                self.backing_bytes
+            }
+            pub fn usage(&self) -> Usage {
+                self.usage
+            }
+        }
+
+        /// Full supplied frame pool plus explicit logical caller state/slots.
+        /// All named terms are summed, including mutually exclusive DTO phases;
+        /// no opaque padding is used as a substitute for known slots. Ordinary
+        /// scalar evaluation locals are excluded, as in the JSON utility.
+        /// Borrowed owner backing, allocator overhead, private numeric formatter
+        /// buffers, compiled callframes and RSS are NOT part of this envelope.
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        pub struct Resources {
+            pub json: json::Resources,
+            pub control_bytes: usize,
+            pub backing_counter_bytes: usize,
+            pub dto_iterators_bytes: usize,
+            pub dto_entry_slots_bytes: usize,
+            pub argument_bytes: usize,
+            pub json_limits_bytes: usize,
+            pub event_slots_bytes: usize,
+            pub usage_transition_bytes: usize,
+            pub result_slots_bytes: usize,
+            pub quotation_bytes: usize,
+            pub completion_bytes: usize,
+            pub logical_workspace_bytes: usize,
+            pub dependency_buffer_bytes: Option<usize>,
+            pub compiled_callframe_bytes: Option<usize>,
+            pub rss_bytes: Option<usize>,
+        }
+
+        impl Resources {
+            /// Numeric check only; no reservation, authority or input identity.
+            pub fn check(&self, limits: Limits) -> Result<(), Error> {
+                if self.logical_workspace_bytes > limits.max_workspace_bytes {
+                    Err(Error::WorkspaceLimit)
+                } else {
+                    Ok(())
+                }
+            }
+        }
+
+        /// Call BEFORE constructing caller frame storage or the census session.
+        /// Actual construction re-quotes the actual typed pool, including unused
+        /// slots. This quote does not price a Vec allocator or user factory.
+        pub fn resources_for_slots(slots: usize) -> Result<Resources, Error> {
+            let json = Traversal::resources_for_native_slots(slots).map_err(json_error)?;
+            let mut quote = Resources {
+                json,
+                control_bytes: size_of::<Census<'_, '_>>(),
+                backing_counter_bytes: size_of::<Backing>(),
+                // IntoIterator producer and retained loop iterator for every
+                // concrete DTO loop; sum all loop kinds conservatively.
+                dto_iterators_bytes: twice(add(
+                    add(
+                        size_of::<slice::Iter<'_, AppliedMethod>>(),
+                        size_of::<slice::Iter<'_, ModelOperation>>(),
+                    )?,
+                    add(
+                        size_of::<slice::Iter<'_, String>>(),
+                        add(
+                            size_of::<std::array::IntoIter<&Vec<StateTensor>, 2>>(),
+                            size_of::<slice::Iter<'_, StateTensor>>(),
+                        )?,
+                    )?,
+                )?)?,
+                // For-loop next producer/match results and element bindings, plus the actual
+                // two-state-collection array consumed by IntoIter.
+                dto_entry_slots_bytes: add(
+                    add(
+                        twice(size_of::<Option<&AppliedMethod>>())? + size_of::<&AppliedMethod>(),
+                        twice(size_of::<Option<&ModelOperation>>())? + size_of::<&ModelOperation>(),
+                    )?,
+                    add(
+                        twice(size_of::<Option<&String>>())? + size_of::<&String>(),
+                        add(
+                            size_of::<[&Vec<StateTensor>; 2]>()
+                                + twice(size_of::<Option<&Vec<StateTensor>>>())?
+                                + size_of::<&Vec<StateTensor>>(),
+                            twice(size_of::<Option<&StateTensor>>())? + size_of::<&StateTensor>(),
+                        )?,
+                    )?,
+                )?,
+                // run/plan/graph/json headers and the event handler; source-level
+                // argument copies, not machine ABI or callback-stack estimates.
+                argument_bytes: add(
+                    add(
+                        add(
+                            size_of::<(&mut Census<'_, '_>, Input<'_>)>(),
+                            size_of::<(&mut Census<'_, '_>, &DecoderPlan, &mut Backing)>(),
+                        )?,
+                        add(
+                            size_of::<(&mut Census<'_, '_>, &DecoderGraph, &mut Backing)>(),
+                            add(
+                                size_of::<(&mut Census<'_, '_>, &Value, &mut Backing)>(),
+                                size_of::<(&mut Backing, Event<'_>)>(),
+                            )?,
+                        )?,
+                    )?,
+                    add(
+                        size_of::<(&mut Census<'_, '_>, &DecoderPlan)>(),
+                        add(
+                            size_of::<(&mut Census<'_, '_>, &DecoderGraph)>(),
+                            size_of::<(&mut Census<'_, '_>, &Value)>(),
+                        )?,
+                    )?,
+                )?,
+                json_limits_bytes: twice(size_of::<json::Limits>())?,
+                event_slots_bytes: add(
+                    twice(size_of::<Result<Option<Event<'_>>, json::Error>>())?,
+                    size_of::<Event<'_>>()
+                        .checked_mul(3)
+                        .ok_or(Error::Overflow)?,
+                )?,
+                usage_transition_bytes: add(
+                    twice(size_of::<json::Usage>())?,
+                    twice(size_of::<Usage>())?,
+                )?,
+                // JSON constructor result/forwarding, backing and outer unit
+                // return/propagation, checked arithmetic and public run result.
+                result_slots_bytes: add(
+                    add(
+                        twice(size_of::<Result<Traversal<'_, '_>, json::Error>>())?,
+                        twice(size_of::<Result<(), super::Error>>())?,
+                    )?,
+                    add(
+                        // Event charge/propagation, loop outcome, JSON body,
+                        // graph body and plan body unit-result slots.
+                        size_of::<Result<(), Error>>()
+                            .checked_mul(6)
+                            .ok_or(Error::Overflow)?,
+                        add(
+                            twice(size_of::<Result<usize, Error>>())?,
+                            add(
+                                twice(size_of::<Result<Report<'_>, Error>>())?,
+                                twice(size_of::<Result<usize, super::Error>>())?,
+                            )?,
+                        )?,
+                    )?,
+                )?,
+                // Own local/return/caller quote slots and constructor results;
+                // child JSON quotation phase already resides in json's envelope.
+                quotation_bytes: add(
+                    twice(add(
+                        size_of::<Resources>(),
+                        size_of::<Result<Resources, Error>>(),
+                    )?)?,
+                    add(
+                        twice(size_of::<Result<Census<'_, '_>, Error>>())?,
+                        add(
+                            twice(size_of::<Limits>())?,
+                            size_of::<Result<json::Resources, json::Error>>(),
+                        )?,
+                    )?,
+                )?,
+                completion_bytes: add(size_of::<Report<'_>>(), twice(size_of::<Input<'_>>())?)?,
+                logical_workspace_bytes: 0,
+                dependency_buffer_bytes: None,
+                compiled_callframe_bytes: None,
+                rss_bytes: None,
+            };
+            let mut total = quote.json.logical_workspace_bytes;
+            // Explicit field additions: no temporary accounting array/buffer.
+            total = add(total, quote.control_bytes)?;
+            total = add(total, quote.backing_counter_bytes)?;
+            total = add(total, quote.dto_iterators_bytes)?;
+            total = add(total, quote.dto_entry_slots_bytes)?;
+            total = add(total, quote.argument_bytes)?;
+            total = add(total, quote.json_limits_bytes)?;
+            total = add(total, quote.event_slots_bytes)?;
+            total = add(total, quote.usage_transition_bytes)?;
+            total = add(total, quote.result_slots_bytes)?;
+            total = add(total, quote.quotation_bytes)?;
+            total = add(total, quote.completion_bytes)?;
+            quote.logical_workspace_bytes = total;
+            Ok(quote)
+        }
+
+        /// Caller retains the original plan/graphs/values until the workspace
+        /// ends: inactive frames can retain borrowed references until overwritten
+        /// or dropped. No full-reference-clearing promise is made.
+        ///
+        /// One work unit per pass dispatch, graph/JSON/DTO-collection header and
+        /// visited DTO element, PLUS all shared traversal work. Fixed-capacity
+        /// event charging is covered by its traversal transition, not a CPU bound.
+        /// Per-pass backing is reset; all work/JSON counters remain global across
+        /// calls, including preflight/replay. Failure poisons the whole session.
+        /// DTO vector backing is charged before element bodies; JSON container
+        /// backing is charged before child events. The shared native walker
+        /// creates an object's iterator BEFORE its container event. This is not
+        /// pre-iterator-initialization admission or a bound on std/native CPU.
+        ///
+        /// ```compile_fail
+        /// use pllm_models::owned_backing::bounded::{resources_for_slots, Census, Limits};
+        /// use pllm_types::bounded_canonical::borrowed::NativeFrame;
+        /// let mut value = serde_json::json!(null);
+        /// let limits = Limits { max_backing_bytes: 1000, max_work: 1000,
+        ///     max_workspace_bytes: usize::MAX, max_json_nodes: 1000,
+        ///     max_json_payload_bytes: 1000, max_json_string_bytes: 1000,
+        ///     max_json_key_bytes: 1000, max_json_depth: 16 };
+        /// resources_for_slots(1).unwrap().check(limits).unwrap();
+        /// let mut frames = [const { NativeFrame::empty() }; 1];
+        /// let mut census = Census::new(&mut frames, limits).unwrap();
+        /// let report = census.json(&value).unwrap();
+        /// value = serde_json::json!(true);
+        /// assert_eq!(report.backing_bytes(), 0);
+        /// ```
+        ///
+        /// Dropping reports and the first session does not clear inactive frame
+        /// references. Even after a shallow pass, earlier owners must remain live
+        /// while that pool is reused:
+        ///
+        /// ```compile_fail
+        /// use pllm_models::owned_backing::bounded::{resources_for_slots, Census, Limits};
+        /// use pllm_types::bounded_canonical::borrowed::NativeFrame;
+        /// let original = serde_json::json!({"outer": [{"inner": [true]}]});
+        /// let shallow = serde_json::json!(null);
+        /// let limits = Limits { max_backing_bytes: 100_000, max_work: 100_000,
+        ///     max_workspace_bytes: usize::MAX, max_json_nodes: 100_000,
+        ///     max_json_payload_bytes: 100_000, max_json_string_bytes: 100_000,
+        ///     max_json_key_bytes: 100_000, max_json_depth: 16 };
+        /// resources_for_slots(17).unwrap().check(limits).unwrap();
+        /// let mut frames = [const { NativeFrame::empty() }; 17];
+        /// {
+        ///     let mut first = Census::new(&mut frames, limits).unwrap();
+        ///     {
+        ///         let report = first.json(&original).unwrap();
+        ///         assert!(report.usage().json.depth > 1);
+        ///     } // original report dropped
+        ///     {
+        ///         let report = first.json(&shallow).unwrap();
+        ///         assert_eq!(report.backing_bytes(), 0);
+        ///     } // shallow report dropped; deeper slots still borrow original
+        /// } // first Census dropped, not the caller's frame pool
+        /// drop(original); // cannot free an earlier owner before pool reuse
+        /// let mut second = Census::new(&mut frames, limits).unwrap();
+        /// assert_eq!(second.json(&shallow).unwrap().backing_bytes(), 0);
+        /// ```
+        pub struct Census<'a, 'w> {
+            frames: &'w mut [NativeFrame<'a>],
+            limits: Limits,
+            usage: Usage,
+            input: Option<Input<'a>>,
+            json_workspace_bytes: usize,
+            failed: bool,
+        }
+
+        impl<'a, 'w> Census<'a, 'w> {
+            pub fn new(frames: &'w mut [NativeFrame<'a>], limits: Limits) -> Result<Self, Error> {
+                let quote = resources_for_slots(frames.len())?;
+                quote.check(limits)?;
+                if frames.is_empty() {
+                    return Err(Error::Json(json::Error::WorkspaceTooSmall));
+                }
+                Ok(Self {
+                    frames,
+                    limits,
+                    usage: Usage::default(),
+                    input: None,
+                    json_workspace_bytes: quote.json.logical_workspace_bytes,
+                    failed: false,
+                })
+            }
+
+            /// Diagnostic counters only. After an error these describe partial
+            /// progress, not a successful owner census or usable report.
+            pub fn usage(&self) -> Usage {
+                self.usage
+            }
+
+            /// Latest immutable binding, not completion evidence. On failure,
+            /// only a successful Report (never this accessor) certifies a pass.
+            pub fn input(&self) -> Option<Input<'a>> {
+                self.input
+            }
+
+            pub fn json(&mut self, value: &'a Value) -> Result<Report<'a>, Error> {
+                self.run(Input::Value(value))
+            }
+            pub fn graph(&mut self, graph: &'a DecoderGraph) -> Result<Report<'a>, Error> {
+                self.run(Input::Graph(graph))
+            }
+            pub fn plan(&mut self, plan: &'a DecoderPlan) -> Result<Report<'a>, Error> {
+                self.run(Input::Plan(plan))
+            }
+
+            fn step(&mut self) -> Result<(), Error> {
+                let work = add(self.usage.work, 1)?;
+                if work > self.limits.max_work {
+                    return Err(Error::WorkLimit);
+                }
+                self.usage.dto_steps = add(self.usage.dto_steps, 1)?;
+                self.usage.work = work;
+                Ok(())
+            }
+
+            fn run(&mut self, input: Input<'a>) -> Result<Report<'a>, Error> {
+                if self.failed {
+                    return Err(Error::Poisoned);
+                }
+                self.failed = true;
+                self.input = Some(input);
+                let mut backing = Backing::new(self.limits.max_backing_bytes);
+                self.step()?;
+                match input {
+                    Input::Value(value) => self.json_body(value, &mut backing)?,
+                    Input::Graph(graph) => self.graph_body(graph, &mut backing)?,
+                    Input::Plan(plan) => self.plan_body(plan, &mut backing)?,
+                }
+                self.usage.completed_passes = add(self.usage.completed_passes, 1)?;
+                self.failed = false;
+                Ok(Report {
+                    input,
+                    backing_bytes: backing.bytes,
+                    usage: self.usage,
+                })
+            }
+
+            fn plan_body(
+                &mut self,
+                plan: &'a DecoderPlan,
+                backing: &mut Backing,
+            ) -> Result<(), Error> {
+                let DecoderPlan {
+                    schema_version,
+                    model_family,
+                    adapter,
+                    config_digest,
+                    transformations,
+                    prefill,
+                    decode,
+                    token_feedback: _,
+                } = plan;
+                backing
+                    .add(schema_version.capacity())
+                    .map_err(backing_error)?;
+                backing
+                    .add(model_family.capacity())
+                    .map_err(backing_error)?;
+                backing.add(adapter.capacity()).map_err(backing_error)?;
+                backing
+                    .add(config_digest.backing_capacity_bytes())
+                    .map_err(backing_error)?;
+                backing
+                    .array::<AppliedMethod>(transformations.capacity())
+                    .map_err(backing_error)?;
+                self.step()?;
+                for method in transformations {
+                    self.step()?;
+                    let AppliedMethod {
+                        component,
+                        implementation,
+                        method_id,
+                        input_digest,
+                        configuration_digest,
+                    } = method;
+                    backing.add(component.capacity()).map_err(backing_error)?;
+                    backing
+                        .add(implementation.capacity())
+                        .map_err(backing_error)?;
+                    backing.add(method_id.capacity()).map_err(backing_error)?;
+                    backing
+                        .add(input_digest.backing_capacity_bytes())
+                        .map_err(backing_error)?;
+                    backing
+                        .add(configuration_digest.backing_capacity_bytes())
+                        .map_err(backing_error)?;
+                }
+                self.graph_body(prefill, backing)?;
+                self.graph_body(decode, backing)
+            }
+
+            fn graph_body(
+                &mut self,
+                graph: &'a DecoderGraph,
+                backing: &mut Backing,
+            ) -> Result<(), Error> {
+                let DecoderGraph {
+                    mode: _,
+                    batch: _,
+                    query_sequence: _,
+                    maximum_key_sequence: _,
+                    operations,
+                    state_inputs,
+                    state_outputs,
+                    output,
+                } = graph;
+                self.step()?;
+                backing.add(output.capacity()).map_err(backing_error)?;
+                backing
+                    .array::<ModelOperation>(operations.capacity())
+                    .map_err(backing_error)?;
+                self.step()?;
+                for operation in operations {
+                    self.step()?;
+                    let ModelOperation {
+                        id,
+                        operator: _,
+                        layer: _,
+                        state_kind: _,
+                        inputs,
+                        output_shape,
+                        attributes,
+                    } = operation;
+                    backing.add(id.capacity()).map_err(backing_error)?;
+                    backing
+                        .array::<String>(inputs.capacity())
+                        .map_err(backing_error)?;
+                    self.step()?;
+                    for input in inputs {
+                        self.step()?;
+                        backing.add(input.capacity()).map_err(backing_error)?;
+                    }
+                    backing
+                        .array::<u64>(output_shape.capacity())
+                        .map_err(backing_error)?;
+                    self.json_body(attributes, backing)?;
+                }
+                for states in [state_inputs, state_outputs] {
+                    self.step()?;
+                    backing
+                        .array::<StateTensor>(states.capacity())
+                        .map_err(backing_error)?;
+                    for state in states {
+                        self.step()?;
+                        let StateTensor {
+                            id,
+                            layer: _,
+                            kind: _,
+                            shape,
+                            maximum_sequence: _,
+                        } = state;
+                        backing.add(id.capacity()).map_err(backing_error)?;
+                        backing
+                            .array::<u64>(shape.capacity())
+                            .map_err(backing_error)?;
+                    }
+                }
+                Ok(())
+            }
+
+            fn json_body(&mut self, value: &'a Value, backing: &mut Backing) -> Result<(), Error> {
+                self.step()?;
+                let limits = json::Limits {
+                    max_nodes: self
+                        .limits
+                        .max_json_nodes
+                        .checked_sub(self.usage.json.nodes)
+                        .ok_or(Error::Overflow)?,
+                    max_depth: add(self.limits.max_json_depth.min(MAX_JSON_DEPTH), 1)?,
+                    max_bytes: self
+                        .limits
+                        .max_json_payload_bytes
+                        .checked_sub(self.usage.json.bytes)
+                        .ok_or(Error::Overflow)?,
+                    max_string_bytes: self.limits.max_json_string_bytes,
+                    max_key_bytes: self.limits.max_json_key_bytes,
+                    max_work: self
+                        .limits
+                        .max_work
+                        .checked_sub(self.usage.work)
+                        .ok_or(Error::Overflow)?,
+                    max_workspace_bytes: self.json_workspace_bytes,
+                };
+                let mut walk =
+                    Traversal::new_native(value, &mut *self.frames, limits).map_err(json_error)?;
+                let outcome = loop {
+                    match walk.next_event() {
+                        Ok(Some(event)) => {
+                            if let Err(error) = charge_event(backing, event) {
+                                break Err(error);
+                            }
+                        }
+                        Ok(None) => break Ok(()),
+                        Err(error) => break Err(json_error(error)),
+                    }
+                };
+                let usage = walk.usage();
+                // No other DTO work runs while walk holds the remaining global
+                // allowance; merging once cannot lend that allowance twice.
+                self.usage.work = add(self.usage.work, usage.work)?;
+                self.usage.json.work = add(self.usage.json.work, usage.work)?;
+                self.usage.json.nodes = add(self.usage.json.nodes, usage.nodes)?;
+                self.usage.json.bytes = add(self.usage.json.bytes, usage.bytes)?;
+                self.usage.json.depth = self.usage.json.depth.max(usage.depth);
+                self.usage.json.object_candidates =
+                    add(self.usage.json.object_candidates, usage.object_candidates)?;
+                outcome
+            }
+        }
+
+        fn charge_event(backing: &mut Backing, event: Event<'_>) -> Result<(), Error> {
+            match event {
+                Event::Key { key, .. } => backing.add(key.capacity()).map_err(backing_error),
+                Event::Value { value, .. } => match value {
+                    Value::String(text) => backing.add(text.capacity()).map_err(backing_error),
+                    Value::Array(values) => backing
+                        .array::<Value>(values.capacity())
+                        .map_err(backing_error),
+                    Value::Object(values) => {
+                        let bytes = values
+                            .len()
+                            .max(1)
+                            .checked_mul(
+                                super::checked_tree_node_bytes::<(String, Value)>()
+                                    .map_err(backing_error)?,
+                            )
+                            .ok_or(Error::Backing(super::Error::Overflow))?;
+                        backing.add(bytes).map_err(backing_error)
+                    }
+                    Value::Null | Value::Bool(_) | Value::Number(_) => Ok(()),
+                },
+            }
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
