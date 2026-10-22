@@ -26,6 +26,11 @@ pub use batch::{
     MATERIAL_BATCH_RECORDS_BOUND, MATERIAL_BATCH_RECORD_OVERHEAD_BYTES,
 };
 
+#[path = "transport_diagnostics.rs"]
+mod diagnostics;
+use diagnostics::{aggregate_base, aggregate_batch, Progress};
+pub use diagnostics::{AdmissionBound, AdmissionFailure, AdmissionOwners, AdmissionStage};
+
 // Includes native reply/delivery buffers, Python byte copies, and single-slot
 // authenticated queue/HTTP ownership at each end. Arbitrary callback retention
 // is forbidden, not silently included in a process-wide/RSS claim.
@@ -246,6 +251,17 @@ pub fn admit_with_delivery(
     context: Context,
     delivery: MaterialDelivery,
 ) -> Result<Admission, Error> {
+    admit_with_delivery_diagnostic(program, context, delivery).map_err(Error::from)
+}
+
+/// Same admission and unchanged limits as `admit_with_delivery`, with bounded
+/// public geometry diagnostics. No input, material, callback error or payload is
+/// accepted here. An enclosing stage does not identify a nested limit failure.
+pub fn admit_with_delivery_diagnostic(
+    program: &Program,
+    context: Context,
+    delivery: MaterialDelivery,
+) -> Result<Admission, AdmissionFailure> {
     // Keep every exact (role,nonce) claim across the complete request. Indexed,
     // preallocated storage removes the quadratic scan; its complete capacity is
     // priced before kernel visitation and private input. No per-kernel reset.
@@ -253,10 +269,15 @@ pub fn admit_with_delivery(
     let guard_capacity = requests.max(1);
     let file_guard = program.capacity() == super::Capacity::Decoder;
     let (guard_reservation_bytes, guard_disk_bytes) = if file_guard {
-        let resources = ImportGuard::indexed_file_resources(guard_capacity)?;
+        let resources = ImportGuard::indexed_file_resources(guard_capacity)
+            .map_err(|error| AdmissionFailure::new(AdmissionStage::ReplayGuard, error))?;
         (resources.resident_bytes, resources.disk_bytes)
     } else {
-        (ImportGuard::indexed_reservation_bytes(guard_capacity)?, 0)
+        (
+            ImportGuard::indexed_reservation_bytes(guard_capacity)
+                .map_err(|error| AdmissionFailure::new(AdmissionStage::ReplayGuard, error))?,
+            0,
+        )
     };
     struct Scan {
         online: super::OnlineSchedule,
@@ -271,9 +292,11 @@ pub fn admit_with_delivery(
         file_guard: bool,
         max_cumulative: usize,
         hash: Sha256,
+        progress: Progress,
     }
     impl MaterialVisitor for Scan {
         fn visit(&mut self, context: Context, plan: &Plan<'_>) -> Result<(), Error> {
+            self.progress = Progress::kernel(AdmissionStage::PlanTransport, self.kernels);
             let r = if self.file_guard {
                 plan.transport_resources_indexed_file(PACKET_SLOTS, self.guard)?
             } else {
@@ -285,6 +308,7 @@ pub fn admit_with_delivery(
                 ordinal: self.kernels,
             };
             hash_kernel(&mut self.hash, k);
+            self.progress.stage = AdmissionStage::Wavefront;
             let wave = if self.online.uses_wavefront() && !plan.is_atomic_vector() {
                 Some(wavefront::Schedule::new(plan)?)
             } else {
@@ -293,6 +317,7 @@ pub fn admit_with_delivery(
             if let Some(w) = &wave {
                 self.hash.update(w.digest());
             }
+            self.progress.stage = AdmissionStage::KernelCounts;
             self.kernels = add(self.kernels, 1)?;
             self.requests = add(self.requests, r.secret_steps)?;
             self.frames = add(
@@ -305,10 +330,17 @@ pub fn admit_with_delivery(
             });
             self.peer_frame_bytes = self.peer_frame_bytes.max(frame_bytes);
             self.packet = self.packet.max(r.largest_packet_bytes_bound);
+            self.progress.stage = AdmissionStage::CumulativePackets;
             self.cumulative = add(self.cumulative, r.cumulative_packet_bytes_per_party_bound)?;
+            self.progress.bound = Some(AdmissionBound {
+                observed: self.cumulative,
+                limit: self.max_cumulative,
+            });
             if self.cumulative > self.max_cumulative {
                 return Err(Error::Resource);
             }
+            self.progress.stage = AdmissionStage::TransportPeak;
+            self.progress.bound = None;
             let native = add(
                 mul(2, r.combined_worker_reservation_bytes)?,
                 r.combined_dealer_export_reservation_bytes,
@@ -318,6 +350,9 @@ pub fn admit_with_delivery(
                 .as_ref()
                 .map_or(0, |w| w.resources().additional_reservation_bytes);
             self.peak = self.peak.max(add(add(native, frame_copies)?, extra)?);
+            // A later failure in the enclosing schedule is not a visitor-stage
+            // failure. Do not attribute it to this successfully visited kernel.
+            self.progress = Progress::schedule();
             Ok(())
         }
         fn cancel(&mut self) {}
@@ -335,19 +370,19 @@ pub fn admit_with_delivery(
         file_guard,
         max_cumulative: if file_guard { 32 << 30 } else { 1 << 30 },
         hash: hash_start(program),
+        progress: Progress::schedule(),
     };
-    program.visit_material(context, &mut scan)?;
+    program
+        .visit_material(context, &mut scan)
+        .map_err(|error| scan.progress.failure(error))?;
     if scan.requests != requests || scan.kernels != program.resources().kernels {
-        return Err(Error::Context);
+        return Err(AdmissionFailure::new(
+            AdmissionStage::ScheduleConsistency,
+            Error::Context,
+        ));
     }
     let r = program.resources();
-    let owners = add(
-        add(
-            mul(3, r.metadata_bytes)?,
-            mul(2, r.live_array_bytes_per_party)?,
-        )?,
-        mul(3, r.source_table_cache_bytes_per_role)?,
-    )?;
+    let (owners, mut combined) = aggregate_base(r, scan.peak)?;
     // Each role has independent request-long cache metadata and retained tables,
     // including tables unrelated to the current Plan. Cache ownership grows
     // monotonically: its final size conservatively overlaps every transport peak.
@@ -355,19 +390,18 @@ pub fn admit_with_delivery(
     // generated-value staging alongside the final immutable cached owner.
     // Fixed native adapter/ledger/callback metadata slack, in addition to exact
     // guard, packet, frame, Plan, source/program and tensor-array reservations.
-    let mut combined = add(add(owners, scan.peak)?, 64 * 1024)?;
     let batch = match delivery {
         MaterialDelivery::Single => None,
         MaterialDelivery::BatchV1 => {
-            let resources = BatchResources::new()?;
-            combined = add(combined, resources.native_reservation_bytes())?;
-            combined = add(combined, resources.python_overlap_bytes())?;
+            let resources = BatchResources::new()
+                .map_err(|error| AdmissionFailure::new(AdmissionStage::BatchResources, error))?;
+            combined = aggregate_batch(owners, combined, &resources)?;
             Some(resources)
         }
     };
-    if combined > MAX_ALLOCATION_BYTES {
-        return Err(Error::Resource);
-    }
+    // Recreate only the public owner record, not the price or admission walk.
+    let owners = owners.with_batch(batch.as_ref());
+    owners.check_limit(combined, MAX_ALLOCATION_BYTES)?;
     Ok(Admission {
         online: program.online_schedule(),
         delivery,

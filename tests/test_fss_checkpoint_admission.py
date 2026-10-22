@@ -1,10 +1,32 @@
 """Opt-in installed-wheel checkpoint admission; no roles or private execution.
 
-After ordinary wheel installation, retry both row counts from the repository root::
+After ordinary wheel installation, retry 1+1 from the repository root first::
 
     env -u PYTHONPATH HF_HUB_CACHE="$HOME/.cache/huggingface/hub" \
-        PLLM_RUN_REAL_QWEN25=1 uv run --no-sync pytest \
-        -o pythonpath= -q -rA tests/test_fss_checkpoint_admission.py
+        PLLM_RUN_REAL_QWEN25=1 uv run --no-sync python -m pytest \
+        -o pythonpath= -q -rA -x \
+        'tests/test_fss_checkpoint_admission.py::test_pinned_qwen_checked_tensor_source_admission[1]'
+
+Only after that succeeds, retry 4+1 with the same guards::
+
+    env -u PYTHONPATH HF_HUB_CACHE="$HOME/.cache/huggingface/hub" \
+        PLLM_RUN_REAL_QWEN25=1 uv run --no-sync python -m pytest \
+        -o pythonpath= -q -rA -x \
+        'tests/test_fss_checkpoint_admission.py::test_pinned_qwen_checked_tensor_source_admission[4]'
+
+Complete-topology admission has a separate opt-in. It imports one qualification
+source, obtains ordinary native program pricing, retires that source and its
+leases, then requires and reserves the full graph. No children, material tapes,
+private execution or trained-request quality are exercised. Run 1+1 first::
+
+    env -u PYTHONPATH HF_HUB_CACHE="$HOME/.cache/huggingface/hub" \
+        PLLM_RUN_FSS_TOPOLOGY_ADMISSION=1 uv run --no-sync python -m pytest \
+        -o pythonpath= -q -rA -x \
+        'tests/test_fss_checkpoint_admission.py::test_pinned_qwen_checked_tensor_topology_admission[1]'
+
+Only after that succeeds, use the same command with the final node ID ``[4]``.
+Source-only success is not full-topology admission; full-graph rejection remains
+a failure, never a skip or a retry with reduced caps or safety margins.
 
 The explicit Hub cache keeps the cached source visible despite the ordinary
 test fixture's isolated XDG_CACHE_HOME. This remains a conditional retry recipe,
@@ -15,10 +37,13 @@ budget varied. Source numeric/work admission is not tape/transport admission,
 an accepted private request, serving qualification, or trained-model quality.
 """
 
+from contextlib import contextmanager, ExitStack
+from dataclasses import replace
 import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
 import tempfile
 import threading
@@ -34,6 +59,24 @@ import pytest
 @pytest.mark.parametrize("initial_rows", [1, 4])
 def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
     """Require the complete native numeric/resource walk, not serving qualification."""
+    with _qualified_qwen_source(initial_rows, monkeypatch):
+        pass
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    os.environ.get("PLLM_RUN_FSS_TOPOLOGY_ADMISSION") != "1",
+    reason="opt in to pinned Qwen native-priced complete-topology admission",
+)
+@pytest.mark.parametrize("initial_rows", [1, 4])
+def test_pinned_qwen_checked_tensor_topology_admission(initial_rows, monkeypatch):
+    """Require full graph capacity, without starting children or making material."""
+    _complete_topology_admission(_qualified_qwen_source(initial_rows, monkeypatch))
+
+
+@contextmanager
+def _qualified_qwen_source(initial_rows, monkeypatch):
+    """One guarded native owner shared by independent source/graph admission tests."""
     import pllm
     from pllm.deployment.resources import reserve_incremental_disk, reserve_incremental_memory
     from pllm.runtime.benchmark_memory import (
@@ -126,12 +169,14 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
         # diagnostics remain in pytest's captured stderr if admission fails.
         monkeypatch.setenv("PLLM_FSS_ADMISSION_DEBUG", "1")
 
-        # Match fss_worker: reserve the exact native contract price on the native
-        # tempfile device, then bind only this locally imported owner's backing.
-        # The ordinary role owner price covers import/compile; create no tapes.
+        # Reserve the exact native contract price on the native tempfile device,
+        # retaining production qualification's 2 GiB floor at this live recheck.
+        # Bind only this local owner's backing, as fss_worker does. The ordinary
+        # role owner price covers import/compile; create no tapes.
         with reserve_incremental_memory(report["estimate"]["incremental_owner_bounds"]["per_role"]):
             with reserve_incremental_disk(
-                contract["source_disk_bytes"], directory=Path(tempfile.gettempdir())
+                contract["source_disk_bytes"], directory=Path(tempfile.gettempdir()),
+                minimum_free_bytes=2 << 30,
             ) as source_lease:
                 loaded = None
                 try:
@@ -201,6 +246,7 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
                         + 2 * resources["live_array_bytes_per_party"]
                         + resources["peak_native_bytes"]
                     )
+                    yield experiment, loaded, check_memory
                 finally:
                     # Stop ledger observations before closing native files; keep
                     # the full pending charge until native ownership is retired.
@@ -212,6 +258,67 @@ def test_pinned_qwen_checked_tensor_source_admission(initial_rows, monkeypatch):
         check_memory()
     finally:
         monitor.close()
+
+
+def _complete_topology_admission(qualification):
+    """Mirror LocalTopology qualification/pricing/reservation, stopping before children."""
+    from pllm.deployment.resources import reserve_incremental_disk, reserve_incremental_memory
+    from pllm.runtime.benchmark_memory import (
+        admit_memory,
+        benchmark_memory,
+        host_memory,
+        require_admission,
+    )
+
+    with qualification as (experiment, loaded, check_memory):
+        # Only this ordinary API may produce the native program/transport price.
+        # It checks a live LoadedFssSource, original pins/identity, full saved
+        # envelope and manifest/resource agreement; no JSON price is supplied.
+        priced = benchmark_memory(experiment, backend="native", fss_imported=loaded)
+        estimate = priced["estimate"]
+        admission = estimate["fss_admission"]
+        assert admission["source_pins"] == loaded.source.snapshot_pins
+        assert admission["metadata_only"] is False
+        assert admission["numeric_admission"] == "native_imported_program"
+        assert admission["pricing_scope"] == "saved_full_envelope; not_request_admission"
+        assert admission["qualification_owner_lifetime"] == (
+            "caller_owned; retire_before_full_topology_source_imports"
+        )
+        assert admission["complete_program_resources"] == json.loads(loaded.native_program.metadata())
+        assert admission["transport_admission"]["scope"] == "program-pricing-not-request-admission"
+        assert admission["disk_price_scope"] == "native transport admission after import"
+        assert admission["serving_qualified"] is False
+        assert estimate["max_input_tokens"] == experiment.budget.max_input_tokens
+        assert estimate["max_output_tokens"] == experiment.budget.max_new_tokens
+        check_memory()
+        # As in LocalTopology, this live-owner observation is not the final
+        # admission: qualification files can temporarily consume graph headroom.
+
+    # Context retirement must finish before the final complete-graph capacity check.
+    # Keep the normal policy/margin, resampling actual native tempfile storage.
+    assert loaded._closed
+    directory = Path(tempfile.gettempdir())
+    host = replace(host_memory(), disk_free=int(shutil.disk_usage(directory).free))
+    report = admit_memory(estimate, host, backend="native")
+    report.update(
+        admission_scope="complete_topology_before_children",
+        full_topology_admitted=report["admitted"],
+        reservation_scope="process_local_logical_memory_and_disk; not_filesystem_or_cross_process_quota",
+    )
+    # Ordinary report stays in pytest output even when the unchanged gate rejects.
+    print(json.dumps(report, sort_keys=True))
+    require_admission(report)
+    # Same logical complete-graph leases as LocalTopology. No source reimport,
+    # tape allocation, material generation, role creation or execution follows.
+    with ExitStack() as graph:
+        required = report["candidates"]["native"]
+        graph.enter_context(reserve_incremental_memory(required["required_host_bytes"]))
+        disk = required["required_disk_bytes"] - (2 << 30)
+        if disk:
+            graph.enter_context(reserve_incremental_disk(
+                disk, directory=directory, minimum_free_bytes=2 << 30,
+            ))
+    return report
 
 
 def _source_qualification_report(experiment):

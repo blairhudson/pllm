@@ -2,7 +2,7 @@
 
 Status: bounded source decoder and ordinary SDK integration implemented and
 tested on generated checkpoints. Full trained-model qualification remains open.
-PUMA remains parked at its separate admission gate.
+Separate PUMA compact-execution work has not cleared its admission gate.
 
 ## Contract
 
@@ -175,13 +175,37 @@ passes 408 focused checks plus four three-process SDK/gateway checks. The
 swap growth under the same caps and delay. Its separate cohort is not a trained
 performance result.
 
-Pinned tensor 4+1 qualification still rejects at the output head, with
+Historical pinned tensor 4+1 qualification rejected at the output head, with
 35,178,175,330 public-copy bytes against the unchanged 34,359,738,368-byte ceiling.
 The separate 1+1 control admits 19,229 peer exchanges per holder and 7.45 GB of
 complete native material. About 12.8 minutes of RTT waiting at 40 ms remains
 before compute; packet allowances still reach 4.17 GB per holder before HTTP
 metadata. No workers launch in these source-only controls. More dependent-round
 and material reduction remains necessary before another long trained request.
+
+With shared immutable public chunks, fresh installed-wheel source-admission tests
+now pass at both 1+1 and 4+1 under the unchanged ceilings. The earlier cumulative
+copy rejection is no longer the current source gate. These tests perform the
+complete native numeric/resource walk but create no tapes or workers. A separate
+opt-in test now prices native transport from the live qualification owner, retires
+it, and requires fresh whole-topology memory/disk admission and reservations.
+That gate, followed by an accepted private SDK request, remains distinct from
+source admission. Shared tables do not establish fewer dependent rounds or fresh
+private bytes; those still require repricing and measurement.
+
+The separate complete-topology admission passes at 1+1, including ordinary
+logical memory/disk reservations after source retirement. The 4+1 case instead
+rejects during native transport pricing, before final host/disk admission. A
+rebuilt-wheel diagnostic retry identifies `aggregate_reservation`: 68,913,145
+bytes against the unchanged 67,108,864-byte cap, exceeding it by 1,804,281 bytes.
+The SDK reference records the complete public owner terms. Reduce actual
+ownership/copy overlap rather than discounts or ceilings. No material, workers
+or private requests run in either case. Trained serving and quality remain
+unqualified.
+
+The admitted 1+1 control does not fit ordinary SDK rendering of short prompts:
+the pinned tokenizer encodes `user: hi` as three tokens. Preserve the Responses
+role-prefix contract; raw-token or prompt-format bypass is not SDK acceptance.
 
 Round reduction alone does not solve cold-request bytes. Reprice and measure the
 complete fresh-material delivery, source/setup scope, online traffic and aggregate

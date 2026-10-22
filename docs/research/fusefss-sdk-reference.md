@@ -402,7 +402,7 @@ retirement. The 118 decoder checks include all five frozen semantic fixtures,
 checked-range rejection and stable ordered selection. The rebuilt installed wheel
 passes 408 focused Python checks plus four three-process SDK/gateway checks.
 
-### Trained-source scheduling gate: tensor
+### Historical trained-source scheduling gate: tensor
 
 The pinned `examples/papers/fusefss.py:qwen_checked_tensor_smoke` 4+1 source
 qualification completes public range construction but rejects the kernel walk at
@@ -435,3 +435,65 @@ all-link bodies are 19,909,435 bytes, including 7,681,488 online bytes. All runt
 checks pass and observed swap growth is zero. This single transport qualification
 run, which overlaps short regression checks, is a negative practicality result;
 it supplies no trained-Qwen timing or matched speed comparison.
+
+### Shared-public-chunk source retry
+
+After immutable public-chunk reuse, the installed-wheel pinned-Qwen source tests
+pass at both 1+1 and 4+1 under the unchanged numeric, work, public-copy and native
+memory ceilings. These are the ordinary opt-in
+`test_pinned_qwen_checked_tensor_source_admission` cases in
+[`tests/test_fss_checkpoint_admission.py`](../../tests/test_fss_checkpoint_admission.py).
+They execute the full native source/program admission walk, not just metadata
+preflight. The earlier 4+1 public-copy rejection above remains historical evidence,
+not the current source-admission outcome.
+
+Source qualification retains the ordinary memory/watchdog policy and 2 GiB disk
+floor, but creates no tapes or workers. A separate opt-in
+`test_pinned_qwen_checked_tensor_topology_admission` obtains native transport prices
+from the live source owner, retires that owner, then rechecks and reserves complete
+topology memory and disk. Source-only success does not discharge that gate.
+Neither test makes material, launches roles or executes private inputs. An accepted
+checkpoint-backed SDK request, complete integer parity, quality and matched WAN
+performance remain separate outstanding gates.
+
+The complete-topology test passes at 1+1 with the ordinary 25% safety margin:
+required host memory is 4,068,474,880 bytes and required disk is 23,204,557,736
+bytes. Native transport's combined logical reservation is 62,577,393 bytes,
+below the unchanged 67,108,864-byte ceiling. These are admission prices and
+process-local logical reservations, not measured RSS, allocated tapes or a
+cross-process/filesystem quota.
+
+The 1+1 control is not an ordinary SDK serving workload. Responses renders role
+prefixes before tokenization: with the pinned tokenizer, each of `A`, `hi`, `!`
+and `hello` becomes three input tokens after the unchanged `user: ` prefix.
+That exceeds this control's one-input-token budget. Do not bypass rendering or
+submit raw token IDs to turn admission into an SDK acceptance claim.
+
+At 4+1, the rebuilt-wheel retry completes source admission but rejects in native
+transport pricing at `aggregate_reservation`, with `Resource`: 68,913,145 bytes
+against the unchanged 67,108,864-byte limit, a 1,804,281-byte excess. The final
+host/disk admission is not reached. The public owner terms are:
+
+| Combined reservation term | Bytes |
+| --- | ---: |
+| Metadata | 25,227,438 |
+| Live arrays | 15,943,552 |
+| Public source-table cache | 1,208,520 |
+| Transport peak | 13,330,075 |
+| Fixed metadata | 65,536 |
+| Native batch backing | 2,123,880 |
+| Python batch backing | 11,014,144 |
+
+These sum to the rejected reservation; they are logical admission charges, not
+measured RSS. No cap, margin or owner charge is reduced to accept the request.
+
+Program-pricing admission now has a typed diagnostic path sharing the original
+admission walk and limits. Its bounded public record identifies the enclosing
+stage, error category and, only when known, kernel ordinal, observed bound and
+aggregate owner terms. Unknown nested bounds remain unknown. The pricing-only
+Python exception uses a fixed 1,024-byte allowlisted formatter; live role and
+callback errors retain their generic rejection. Successful admission identities,
+prices and delivery schedules are unchanged. The rebuilt-wheel retry now locates
+the current 4+1 failure; it does not establish trained-request acceptance. Focused
+installed-wheel native transport, diagnostics, benchmark and boundary guards pass
+126 tests. No worker launch or private execution occurs in the admission retry.

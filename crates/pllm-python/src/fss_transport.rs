@@ -33,6 +33,94 @@ use std::sync::{
 fn invalid() -> PyErr {
     crate::invalid("FuseFSS role request rejected".to_owned())
 }
+
+/// Pricing-only allowlist. Live role/callback paths must keep using invalid().
+/// Fixed storage bounds formatting before allocating the Python exception text;
+/// no Debug/Display of nested errors, Plans, contexts or caller data is used.
+struct PricingDiagnostic {
+    bytes: [u8; CALLBACK_METADATA_BYTES_BOUND],
+    length: usize,
+}
+
+impl std::fmt::Write for PricingDiagnostic {
+    fn write_str(&mut self, value: &str) -> std::fmt::Result {
+        let end = self
+            .length
+            .checked_add(value.len())
+            .ok_or(std::fmt::Error)?;
+        let output = self
+            .bytes
+            .get_mut(self.length..end)
+            .ok_or(std::fmt::Error)?;
+        output.copy_from_slice(value.as_bytes());
+        self.length = end;
+        Ok(())
+    }
+}
+
+impl PricingDiagnostic {
+    fn new(failure: transport::AdmissionFailure) -> Result<Self, std::fmt::Error> {
+        use std::fmt::Write;
+        let mut output = Self {
+            bytes: [0; CALLBACK_METADATA_BYTES_BOUND],
+            length: 0,
+        };
+        let error = match failure.error {
+            Error::Domain => "Domain",
+            Error::Unsupported => "Unsupported",
+            Error::Resource => "Resource",
+            Error::Allocation => "Allocation",
+            Error::Randomness => "Randomness",
+            Error::Context => "Context",
+            Error::Consumed => "Consumed",
+        };
+        write!(
+            output,
+            "FuseFSS program transport admission rejected: stage={} error={error}",
+            failure.stage.name(),
+        )?;
+        if let Some(ordinal) = failure.kernel_ordinal {
+            write!(output, " kernel_ordinal={ordinal}")?;
+        }
+        if let Some(bound) = failure.bound {
+            write!(output, " observed={} limit={}", bound.observed, bound.limit)?;
+        }
+        if let Some(owners) = failure.owners {
+            write!(
+                output,
+                " metadata_bytes={} live_array_bytes={} source_table_cache_bytes={} transport_peak_bytes={} fixed_metadata_bytes={} batch_native_bytes={} batch_python_bytes={}",
+                owners.metadata_bytes,
+                owners.live_array_bytes,
+                owners.source_table_cache_bytes,
+                owners.transport_peak_bytes,
+                owners.fixed_metadata_bytes,
+                owners.batch_native_bytes,
+                owners.batch_python_bytes,
+            )?;
+        }
+        Ok(output)
+    }
+
+    fn text(&self) -> &str {
+        // Every write is static ASCII or decimal usize formatting.
+        std::str::from_utf8(&self.bytes[..self.length])
+            .unwrap_or("FuseFSS program transport admission rejected")
+    }
+}
+
+// Fixed pricing metadata uses the existing 64 KiB adapter metadata reservation,
+// not a new allowance. No diagnostic owner survives into a live role or callback.
+const _: () = assert!(
+    std::mem::size_of::<PricingDiagnostic>() + std::mem::size_of::<transport::AdmissionFailure>()
+        <= 64 * 1024
+);
+
+fn pricing_invalid(failure: transport::AdmissionFailure) -> PyErr {
+    match PricingDiagnostic::new(failure) {
+        Ok(output) => crate::invalid(output.text().to_owned()),
+        Err(_) => crate::invalid("FuseFSS program transport admission rejected".to_owned()),
+    }
+}
 fn arguments<'py, const N: usize>(
     args: &Bound<'py, PyTuple>,
     kwargs: Option<&Bound<'py, PyDict>>,
@@ -567,10 +655,11 @@ fn fss_transport_admission<'py>(
     let input_digest = program.input_digest;
     drop(program);
     let value=py.detach(|| {
-        let manifest=Manifest::new(digest,input_digest,&source)?;
+        let manifest=Manifest::new(digest,input_digest,&source)
+            .map_err(|error| transport::AdmissionFailure::new(transport::AdmissionStage::Manifest,error))?;
         let pricing_context=pllm_garble::shared_rescale_reference::Context {
             plan:source.digest(),session:[1;32],operation:[2;32],first_tensor_index:0 };
-        let a=transport::admit_with_delivery(&source,pricing_context,delivery)?;let c=manifest.resources();
+        let a=transport::admit_with_delivery_diagnostic(&source,pricing_context,delivery)?;let c=manifest.resources();
         let mut value=json!({"schema":"pllm.fss.program_transport_admission.v1",
             "capacity":source.capacity().name(),"guard_disk_bytes":a.guard_disk_bytes(),
             "scope":"program-pricing-not-request-admission","contract_digest":hex(digest),"program_digest":hex(source.digest()),
@@ -584,12 +673,94 @@ fn fss_transport_admission<'py>(
             "client_peak_bytes":c.client_peak_bytes,"worker_input_import_bytes":c.worker_input_import_bytes,"worker_output_export_bytes":c.worker_output_export_bytes,
             "offline_tape_storage_cpu_and_http_charges":"caller-owned-additional"});
         delivery_metadata(&mut value, &a);
-        Ok::<_,Error>(value)
-    }).map_err(|_|invalid())?;
+        Ok::<_,transport::AdmissionFailure>(value)
+    }).map_err(pricing_invalid)?;
     Ok(PyBytes::new(py, &canonical_bytes(&value)))
 }
 
 pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<NativeRoleRequest>()?;
     module.add_function(wrap_pyfunction!(fss_transport_admission, module)?)
+}
+
+#[cfg(test)]
+mod pricing_diagnostic_tests {
+    use super::*;
+    use transport::{AdmissionBound, AdmissionFailure, AdmissionOwners, AdmissionStage};
+
+    #[test]
+    fn maximum_public_fields_fit_fixed_buffer_and_have_only_allowlisted_keys() {
+        let failure = AdmissionFailure {
+            stage: AdmissionStage::AggregateReservation,
+            error: Error::Resource,
+            kernel_ordinal: Some(usize::MAX),
+            bound: Some(AdmissionBound {
+                observed: usize::MAX,
+                limit: usize::MAX,
+            }),
+            owners: Some(AdmissionOwners {
+                metadata_bytes: usize::MAX,
+                live_array_bytes: usize::MAX,
+                source_table_cache_bytes: usize::MAX,
+                transport_peak_bytes: usize::MAX,
+                fixed_metadata_bytes: usize::MAX,
+                batch_native_bytes: usize::MAX,
+                batch_python_bytes: usize::MAX,
+            }),
+        };
+        let output = PricingDiagnostic::new(failure).unwrap();
+        assert!(output.length <= CALLBACK_METADATA_BYTES_BOUND);
+        let fields: Vec<_> = output.text().split_whitespace().skip(5).collect();
+        assert_eq!(fields.len(), 12);
+        assert_eq!(fields[0], "stage=aggregate_reservation");
+        assert_eq!(fields[1], "error=Resource");
+        let keys = [
+            "kernel_ordinal",
+            "observed",
+            "limit",
+            "metadata_bytes",
+            "live_array_bytes",
+            "source_table_cache_bytes",
+            "transport_peak_bytes",
+            "fixed_metadata_bytes",
+            "batch_native_bytes",
+            "batch_python_bytes",
+        ];
+        for (field, key) in fields[2..].iter().zip(keys) {
+            let (actual, value) = field.split_once('=').unwrap();
+            assert_eq!(actual, key);
+            assert_eq!(value.parse::<usize>().unwrap(), usize::MAX);
+        }
+    }
+
+    #[test]
+    fn opaque_nested_errors_have_no_invented_bound_or_payload_text() {
+        for (error, name) in [
+            (Error::Domain, "Domain"),
+            (Error::Unsupported, "Unsupported"),
+            (Error::Resource, "Resource"),
+            (Error::Allocation, "Allocation"),
+            (Error::Randomness, "Randomness"),
+            (Error::Context, "Context"),
+            (Error::Consumed, "Consumed"),
+        ] {
+            let failure = AdmissionFailure::new(AdmissionStage::PlanTransport, error);
+            let output = PricingDiagnostic::new(failure).unwrap();
+            assert_eq!(
+                output.text(),
+                format!("FuseFSS program transport admission rejected: stage=plan_transport error={name}")
+            );
+        }
+    }
+
+    #[test]
+    fn formatter_rejects_overlong_text_without_growing_storage() {
+        use std::fmt::Write;
+        let mut output = PricingDiagnostic {
+            bytes: [0; CALLBACK_METADATA_BYTES_BOUND],
+            length: CALLBACK_METADATA_BYTES_BOUND,
+        };
+        assert!(output.write_str("x").is_err());
+        assert_eq!(output.length, CALLBACK_METADATA_BYTES_BOUND);
+    }
 }
