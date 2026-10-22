@@ -60,6 +60,44 @@ python -m pllm benchmark quality \
   --memory-safety-margin-percent 0 --output quality.json --format json
 ```
 
+## Broader GKM source-model quality
+
+`gkm_quality.py` reuses the approved full/seeded GKM factories, pinned offline
+Qwen checkpoint, one-thread CPU, two workers, final verification, and unchanged
+32-request/64-input/8-output budget. It uses the existing twelve public prompts
+below, not a downloaded dataset. From the repository root in the matching
+installed environment with the `quality` extra and checkpoint already cached:
+
+```sh
+python -m pllm benchmark quality \
+  --experiment examples.papers.gkm_quality:experiment \
+  --experiment examples.papers.gkm_quality:seeded \
+  --factory --trust-python \
+  --prompts-file benchmarks/research/data/paper-quality-prompts.json \
+  --reference-storage streamed --decode-steps 3 \
+  --memory-safety-margin-percent 25 \
+  --output docs/evidence/gkm-quality-public-v1.json --format json
+```
+
+This is one invocation: full sharing supplies the common greedy decode tokens,
+and both candidates and the independent reference consume those same token IDs.
+The harness checks actual tokenization/source locks and enforces admission without
+truncation or fallback. Each GKM prompt requests four selections and accepts only
+after request-end verification. The existing adapter can then observe full logits
+for agreement/error metrics. It does not measure KV parity or streaming decode.
+An ID-only candidate supports top-1 agreement only, with logit metrics unknown.
+
+GKM uses nearest-even scale-2048 i16/Q11 linears, ring64 products, original float32
+lookup, and the declared client-float32 profile. The independent reference uses
+the same checkpoint with eager Transformers FP32 operators and module-streamed
+weights. This measures source-model fidelity, not exact Q11 equality. W8A8 is
+neither the source reference nor a substitute GKM execution. Full/seeded sharing
+keeps its distinct randomness assumptions. The ordinary report records actual
+source locks, numerical profiles, token-cohort identities and supported metrics.
+The command remains unrun here; this public diagnostic is not a held-out task
+suite, serving-cost result, or publication qualification. Failures abort rather
+than omit positions or create partial-cohort scores. Keep the output write-once.
+
 ## Implementation sequence
 
 GKM and PUMA have executable paper factories. `puma.py` uses the same `MODEL`

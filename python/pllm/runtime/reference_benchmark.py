@@ -346,8 +346,39 @@ def _agreement_summary(actual, expected, *, top_k, final_tokens=False):
     return result
 
 
+def _check_reference_source(resolved_source):
+    """Rebind freshly read reference files to the already admitted source pins.
+
+    A shared path is not a shared checkpoint: candidates retire before reference
+    loading. Reuse the ordinary source-lock reader, not cached resolution. This
+    detects observed changes; immutable local source remains an assumption, not
+    an atomic snapshot, publisher authentication, or malicious-source proof.
+    """
+    from pllm.model_loader import _source_lock
+    from .quality_outcomes import QualityIntegrityError
+
+    try:
+        current = _source_lock(resolved_source.path, resolved_source.model)
+    except (OSError, ValueError) as error:
+        raise QualityIntegrityError("quality reference source binding failed") from error
+    expected = (resolved_source.checkpoint_digest, resolved_source.source_lock_digest,
+                resolved_source.manifest.metadata["source_lock"])
+    if current != expected:
+        raise QualityIntegrityError("quality reference source binding failed")
+
+
 def _reference_trajectories(resolved_source, configurations, token_cohort, decode_cohort,
                             reference_storage, decode_steps, memory_safety_margin_percent):
+    _check_reference_source(resolved_source)
+    try:
+        return _load_reference_trajectories(resolved_source, configurations, token_cohort,
+            decode_cohort, reference_storage, decode_steps, memory_safety_margin_percent)
+    finally:
+        _check_reference_source(resolved_source)
+
+
+def _load_reference_trajectories(resolved_source, configurations, token_cohort, decode_cohort,
+                                reference_storage, decode_steps, memory_safety_margin_percent):
     import torch
     import transformers
     loading = None
