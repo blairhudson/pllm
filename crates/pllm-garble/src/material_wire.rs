@@ -20,6 +20,28 @@ impl<'b> MaterialPacket<'b> {
     pub fn as_bytes(&self) -> &[u8] {
         &self.bytes
     }
+    /// Full backing capacity, including spare bytes; not the envelope length.
+    pub fn capacity_bytes(&self) -> usize {
+        self.bytes.capacity()
+    }
+    /// Consume this standalone byte owner into another admitted Budget lifetime.
+    /// Reserve the FULL backing capacity before refunding its original charge,
+    /// even for the same Budget. No allocation, copy, parsing or RNG occurs.
+    /// Failure consumes/erases this packet; success keeps erasure before the
+    /// final destination refund. No native party or borrowed payload is moved.
+    pub fn into_budget(self, budget: &Budget) -> Result<MaterialPacket<'_>, Error> {
+        let lease = budget.reserve(self.capacity_bytes())?;
+        let Self {
+            bytes,
+            _lease: source_lease,
+        } = self;
+        let packet = MaterialPacket {
+            bytes,
+            _lease: lease,
+        };
+        drop(source_lease);
+        Ok(packet)
+    }
     /// Bounded copy at the authenticated transport boundary. No parsing or RNG.
     pub fn from_bytes(bytes: &[u8], budget: &'b Budget) -> Result<Self, Error> {
         if !(ENVELOPE_BYTES..=MAX_ALLOCATION_BYTES).contains(&bytes.len()) {
@@ -325,4 +347,160 @@ mod tests {
         drop(copied);
         assert_eq!(budget.used_bytes(), 0);
     }
+
+    // Test-only private construction: public packet constructors remain exact
+    // capacity. Initialize a secret tail before truncation to model spare backing.
+    pub(super) fn with_spare(budget: &Budget, spare: usize) -> MaterialPacket<'_> {
+        let envelope = golden();
+        let capacity = envelope.len() + spare;
+        let lease = budget.reserve(capacity).unwrap();
+        let mut bytes = Zeroizing::new(allocate(capacity, budget).unwrap());
+        bytes.extend_from_slice(&envelope);
+        bytes.resize(capacity, 0xa5);
+        bytes.truncate(envelope.len());
+        MaterialPacket {
+            bytes,
+            _lease: lease,
+        }
+    }
+
+    #[test]
+    fn transfer_keeps_pointer_capacity_envelope_and_outlives_original_budget() {
+        let destination = Budget::new(4096).unwrap();
+        let (moved, pointer, capacity) = {
+            let source = Budget::new(4096).unwrap();
+            let packet = with_spare(&source, 73);
+            let pointer = packet.as_bytes().as_ptr();
+            let capacity = packet.capacity_bytes();
+            assert!(capacity > packet.as_bytes().len());
+            let moved = packet.into_budget(&destination).unwrap();
+            assert_eq!(source.used_bytes(), 0);
+            (moved, pointer, capacity)
+        }; // Original Budget is gone; no lease or payload borrows it.
+        assert_eq!(moved.as_bytes().as_ptr(), pointer);
+        assert_eq!(moved.capacity_bytes(), capacity);
+        assert_eq!(moved.as_bytes(), golden());
+        assert_eq!(moved.nonce(), nonce());
+        assert_eq!(read(&moved), Ok(BODY));
+        assert_eq!(destination.used_bytes(), capacity);
+        drop(moved);
+        assert_eq!(destination.used_bytes(), 0);
+    }
+
+    #[test]
+    fn transfer_admits_actual_capacity_exact_fit_and_consumes_on_shortfall() {
+        for spare in [0, 1, 4096] {
+            let capacity = golden().len() + spare;
+            for short in [false, true] {
+                let source = Budget::new(capacity).unwrap();
+                let destination = Budget::new(capacity - usize::from(short)).unwrap();
+                let packet = with_spare(&source, spare);
+                let pointer = packet.as_bytes().as_ptr();
+                let result = packet.into_budget(&destination);
+                assert_eq!(source.used_bytes(), 0);
+                if short {
+                    assert!(matches!(result, Err(Error::Resource)));
+                    assert_eq!(destination.used_bytes(), 0);
+                } else {
+                    let moved = result.unwrap();
+                    assert_eq!(moved.as_bytes().as_ptr(), pointer);
+                    assert_eq!(destination.used_bytes(), capacity);
+                    assert_eq!(moved.capacity_bytes(), capacity);
+                    drop(moved);
+                    assert_eq!(destination.used_bytes(), 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn same_budget_transfer_requires_full_overlap_before_source_refund() {
+        for spare in [0, 41] {
+            let capacity = golden().len() + spare;
+            for limit in [capacity, 2 * capacity - 1, 2 * capacity] {
+                let budget = Budget::new(limit).unwrap();
+                let packet = with_spare(&budget, spare);
+                let pointer = packet.as_bytes().as_ptr();
+                let result = packet.into_budget(&budget);
+                if limit < 2 * capacity {
+                    // Refunding before admission would incorrectly succeed here.
+                    assert!(matches!(result, Err(Error::Resource)));
+                    assert_eq!(budget.used_bytes(), 0);
+                } else {
+                    let moved = result.unwrap();
+                    assert_eq!(moved.as_bytes().as_ptr(), pointer);
+                    assert_eq!(budget.used_bytes(), capacity);
+                    drop(moved);
+                    assert_eq!(budget.used_bytes(), 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn transfer_removes_allocation_not_destination_admission_or_from_bytes_failpoint() {
+        let capacity = golden().len();
+        let source = Budget::new(capacity).unwrap();
+        let destination = Budget::new(capacity).unwrap();
+        let packet = make(&source);
+        source.fail_after.store(0, Ordering::SeqCst);
+        destination.fail_after.store(0, Ordering::SeqCst);
+        let moved = packet.into_budget(&destination).unwrap();
+        assert_eq!(source.used_bytes(), 0);
+        assert_eq!(destination.used_bytes(), capacity);
+        assert_eq!(source.fail_after.load(Ordering::SeqCst), 0);
+        assert_eq!(destination.fail_after.load(Ordering::SeqCst), 0);
+        drop(moved);
+        // The existing copying API still reaches its original allocation hook.
+        assert!(matches!(
+            MaterialPacket::from_bytes(&golden(), &destination),
+            Err(Error::Allocation)
+        ));
+        assert_eq!(destination.used_bytes(), 0);
+        let source = Budget::new(capacity).unwrap();
+        let short = Budget::new(capacity - 1).unwrap();
+        let packet = make(&source);
+        short.fail_after.store(0, Ordering::SeqCst);
+        assert!(matches!(packet.into_budget(&short), Err(Error::Resource)));
+        assert_eq!(source.used_bytes(), 0);
+        assert_eq!(short.used_bytes(), 0);
+        assert_eq!(short.fail_after.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn transferred_secret_erases_before_final_destination_refund() {
+        let capacity = golden().len() + 73;
+        let source = Budget::new(capacity).unwrap();
+        let destination = Budget::new(capacity).unwrap();
+        let mut moved = with_spare(&source, 73).into_budget(&destination).unwrap();
+        assert_eq!(source.used_bytes(), 0);
+        moved.bytes.zeroize();
+        assert!(moved.as_bytes().is_empty());
+        assert_eq!(moved.capacity_bytes(), capacity);
+        assert_eq!(destination.used_bytes(), capacity);
+        assert!(matches!(destination.reserve(1), Err(Error::Resource)));
+        drop(moved);
+        assert_eq!(destination.used_bytes(), 0);
+    }
+
+    #[test]
+    fn transfer_unwind_drops_backing_before_destination_lease_refund() {
+        let source = Budget::new(4096).unwrap();
+        let destination = Budget::new(4096).unwrap();
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let moved = with_spare(&source, 73).into_budget(&destination).unwrap();
+            assert_eq!(source.used_bytes(), 0);
+            assert_eq!(destination.used_bytes(), moved.capacity_bytes());
+            assert_eq!(read(&moved), Ok(BODY));
+            panic!("unwind transferred packet");
+        }));
+        assert!(outcome.is_err());
+        // MaterialPacket's unchanged field order drops Zeroizing before Lease.
+        assert_eq!(source.used_bytes(), 0);
+        assert_eq!(destination.used_bytes(), 0);
+    }
 }
+
+#[cfg(test)]
+#[path = "material_wire_queue_tests.rs"]
+mod queue_tests;

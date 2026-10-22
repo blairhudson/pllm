@@ -465,8 +465,7 @@ impl<T: DealerTransport> Dealer<'_, '_, T> {
             }
         }
         if let Some(queues) = self.batches.as_mut().filter(|_| !singleton) {
-            queues.push_pair(requests, [packets[0].as_bytes(), packets[1].as_bytes()])?;
-            drop(packets);
+            queues.push_pair(requests, packets)?;
             if queues.full() {
                 queues.flush(self.transport)?;
             }
@@ -563,7 +562,7 @@ pub fn prepare_with_delivery(
         }
     };
     // This independent owner outlives Program::visit_material and every Plan
-    // Budget it creates. Only copied opaque packets borrow it.
+    // Budget it creates. Only destination-admitted opaque byte owners borrow it.
     let budget = if admission.batch.is_some() {
         match Budget::new(BatchResources::packet_budget_bytes()) {
             Ok(b) => Some(b),

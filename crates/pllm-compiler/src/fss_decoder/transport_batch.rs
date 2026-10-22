@@ -1,6 +1,9 @@
 //! Bounded cross-Plan delivery ownership. Packet storage/erasure is the shared
 //! native wire owner; this adapter only retains public descriptors and ordering.
 use super::{add, mul, DealerTransport, Error, MaterialRequest};
+#[cfg(test)]
+use super::{Budget, MaterialPacket};
+#[cfg(not(test))]
 use pllm_garble::fusefss_backend::{wire::MaterialPacket, Budget};
 use std::mem::size_of;
 
@@ -101,8 +104,9 @@ pub(super) fn record_bytes(packet: usize) -> Result<usize, Error> {
     )
 }
 
-/// The Budget is owned by prepare(), outside Program::visit_material(). Copying
-/// into it is the safe lifetime transfer; a MaterialPacket<'visit> never escapes.
+/// The Budget is owned by prepare(), outside Program::visit_material(). Consuming
+/// packet handoff admits the existing backing here before its original charge
+/// retires; no packet borrowing a visit's Budget escapes.
 pub(super) struct Queues<'a> {
     budget: &'a Budget,
     records: [Vec<MaterialRecord<'a>>; 2],
@@ -156,28 +160,32 @@ impl<'a> Queues<'a> {
     pub(super) fn push_pair(
         &mut self,
         requests: [MaterialRequest; 2],
-        packets: [&[u8]; 2],
+        packets: [MaterialPacket<'_>; 2],
     ) -> Result<(), Error> {
         let mut next = self.body_bytes;
         for role in 0..2 {
             if requests[role].role != role as u8
-                || packets[role].len() > requests[role].packet_bytes_bound
+                || packets[role].as_bytes().len() > requests[role].packet_bytes_bound
                 || self.records[role].len() >= MATERIAL_BATCH_RECORDS_BOUND
             {
                 return Err(Error::Context);
             }
-            next[role] = add(next[role], record_bytes(packets[role].len())?)?;
+            // Bound actual backing as well as wire bytes, without relaxing the
+            // existing per-role body or aggregate packet Budget caps. Ordinary
+            // exporters use exact capacity; spare capacity may reject earlier.
+            next[role] = add(next[role], record_bytes(packets[role].capacity_bytes())?)?;
             if next[role] > MATERIAL_BATCH_BODY_BYTES_BOUND {
                 return Err(Error::Resource);
             }
         }
-        // Both original exports overlap these copies. A failed second copy
-        // drops the first; no partly enqueued pair can be delivered.
-        let copies = [
-            MaterialPacket::from_bytes(packets[0], self.budget)?,
-            MaterialPacket::from_bytes(packets[1], self.budget)?,
+        // Both destination admissions must succeed before either queue changes.
+        // A failed second handoff erases/refunds the first temporary owner.
+        let [left, right] = packets;
+        let transferred = [
+            left.into_budget(self.budget)?,
+            right.into_budget(self.budget)?,
         ];
-        for (role, packet) in copies.into_iter().enumerate() {
+        for (role, packet) in transferred.into_iter().enumerate() {
             self.records[role].push(MaterialRecord {
                 request: requests[role],
                 packet,
@@ -219,7 +227,7 @@ impl<'a> Queues<'a> {
     }
     pub(super) fn clear(&mut self) {
         for queue in &mut self.records {
-            queue.clear(); // Shared MaterialPacket Drop erases/refunds every copy.
+            queue.clear(); // Shared MaterialPacket Drop erases/refunds each backing.
         }
         self.body_bytes = [MATERIAL_BATCH_ENVELOPE_BYTES_BOUND; 2];
     }
