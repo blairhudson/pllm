@@ -3,6 +3,8 @@
 
 pub const REPOSITORY: &str = "Qwen/Qwen2.5-0.5B-Instruct";
 pub const REVISION: &str = "7ae557604adf67be50417f59c2c2f167def9a775";
+// Range-only consumers do not use this pin or claim full-file verification.
+#[allow(dead_code)]
 pub const FILE_SHA256: &str = "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe";
 pub const TENSOR: &str = "model.layers.0.mlp.gate_proj.weight";
 pub const SOURCE_SHAPE_OI: [usize; 2] = [4864, 896];
