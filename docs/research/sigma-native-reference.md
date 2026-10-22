@@ -411,6 +411,49 @@ garbling suite passes 554 unit checks, 35 external/oracle checks and 20 doctests
 conversion, authenticated material/peer transport, compiler ranges, a complete
 decoder, SDK selection, or independent security qualification.
 
+## Local complete-dot / activation composition (D22)
+
+The separate `typed::LocalLinearActivationSpec` and
+`LocalDealer::local_linear_activation_from_values` compose a complete private
+ring50/Q24 matrix sum, one exact GapARS12 to ring50/Q12, and the unchanged D20
+GELU/SiLU owner. There is no per-term floor, bias or changed activation profile.
+Complete endpoint-product intervals must admit the quarter-ring promise before
+issuance; dimensions, each 256-element matrix limit, contraction work and the
+existing 64 MiB native ceiling remain enforced. These intervals and source labels
+are checked **local developer declarations**, not authenticated checkpoint proofs.
+
+The fixed local schedule has eleven exchanges. A four-use ledger consumes
+original capabilities; native backing, matrix singleton guards, retained frames
+and zeroizing owners keep continuous reservations. Singleton/issuance admission
+precedes root entropy, and cancellation retires both local parties. Exact-budget
+reserved transfer preserves budget identity without refund/reacquire. The
+native API supplies no authenticated delivery or isolated worker transport.
+
+Owner-defined preconstruction quotes separately cover activation and linear-spec
+metadata validation, hashing and constructor/return overlap. They are available
+before constructing a declaration, use checked sums and sequential phase maxima,
+and do not themselves reserve capacity. Caller-retained copies and source/compiler
+overlap remain separate; logical storage is not stack, allocator or process RSS.
+
+The independent fixture selects 256 coordinates of one pinned Qwen gate row. It
+is a **checkpoint-derived submatrix**, not its original 896-wide contraction,
+complete MLP or decoder. Native unit tests import the frozen independent oracle
+and test full dot/floor/activation behavior, both layouts, failure retirement and
+reservation continuity. Source certification remains exclusively compiler-owned.
+The bounded `sigma_linear_activation::execute_sigma_linear_activation` facade
+derives its native declaration and coefficients only from its checked source and
+certificate. Its incremental compiler quote reserves before source hashing or
+copies, includes import scratch and sequential metadata/proof/native-handoff
+overlap, and retains the original guard across atomic native-capacity transfer.
+An already borrowed semantic plan and immutable inventory are baseline owners,
+not newly allocated backing; their initial construction is outside this boundary.
+Transferred metadata and source/coefficient backing remain charged until their
+last frame, mask or output owner retires. These are logical added-owner bounds,
+not whole-compiler RSS or allocator guarantees. No native `LocalAssumption`
+provenance is elevated by source labels or metadata hashes. Publisher pin trust,
+authenticated transport and complete-decoder/SDK admission remain separate.
+Approved boundary: [`../plans/sigma-compiler-linear-activation.md`](../plans/sigma-compiler-linear-activation.md).
+
 ## Separate GPU-derived DPF primitive
 
 Decision D16's private `compact_dpf::gpu127` module implements the approved

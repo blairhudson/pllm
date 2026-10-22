@@ -1257,6 +1257,15 @@ garbling suite passes 554 unit, 35 external/oracle and 20 documentation checks,
 with eight opt-in skips; decoder/SDK and transport gates remain.
 Contract:
 `docs/research/sigma-native-reference.md`.
+The separate D22 Rust compiler facade checks pinned source bytes and Q12 floor
+encoding before composing one bounded private complete dot, exact GapARS12 and
+the unchanged activation. Source-bound intervals certify the declared input
+domain; native provenance remains a local assumption. Incremental import,
+compiler and native overlap retain one continuously charged owner through masks,
+frames and outputs. Borrowed plan/inventory construction remains outside that
+boundary. A checkpoint-derived submatrix is not an original full layer; this
+local trusted-dealer facade supplies no decoder, authenticated transport or SDK
+component. Contract: `docs/plans/sigma-compiler-linear-activation.md`.
 The separate `pllm.nonlinear.LogRowGatedMultiplyQ9` operator composes a private
 4,096-row lookup with exact half-gates rescaling and multiplication through opaque
 labels. Its Q18-to-Q9 numeric profile matches uncompressed Curl; the existing

@@ -56,6 +56,9 @@ const MAX_TOTAL_ELEMENTS: u64 = 1 << 48;
 pub struct DecoderMatrixInventory {
     bytes: Vec<u8>,
     digest: Digest,
+    // Constructor-only binding; not new serialized fields or digest inputs.
+    semantic_plan_identity: [u8; 32],
+    config_identity: [u8; 32],
 }
 
 impl DecoderMatrixInventory {
@@ -65,6 +68,24 @@ impl DecoderMatrixInventory {
 
     pub fn digest(&self) -> &Digest {
         &self.digest
+    }
+
+    /// Identities captured only after structural/geometry validation succeeds.
+    /// These bind a later immutable plan borrow; they grant no execution authority.
+    pub fn semantic_plan_identity(&self) -> [u8; 32] {
+        self.semantic_plan_identity
+    }
+
+    pub fn config_identity(&self) -> [u8; 32] {
+        self.config_identity
+    }
+
+    /// Retained logical payload only; prior lowering/construction is excluded.
+    /// No allocator-overhead, peak-scratch or RSS claim follows from this quote.
+    pub fn retained_payload_bytes(&self) -> Option<usize> {
+        std::mem::size_of::<Self>()
+            .checked_add(self.bytes.capacity())?
+            .checked_add(self.digest.backing_capacity_bytes())
     }
 }
 
@@ -914,5 +935,10 @@ pub fn lower_decoder_matrix_inventory(
     serialized_bound(&inventory, MAX_OUTPUT_BYTES)?;
     let bytes = canonical_bytes(&inventory);
     let digest = digest_bytes(DECODER_MATRIX_INVENTORY_SCHEMA_VERSION, &bytes);
-    Ok(DecoderMatrixInventory { bytes, digest })
+    Ok(DecoderMatrixInventory {
+        bytes,
+        digest,
+        semantic_plan_identity: inventory.model_plan_digest.as_sha256(),
+        config_identity: inventory.model_config_digest.as_sha256(),
+    })
 }

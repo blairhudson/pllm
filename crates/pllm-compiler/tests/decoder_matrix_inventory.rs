@@ -88,10 +88,39 @@ fn inventory(plan: &DecoderPlan) -> Value {
     );
     assert_eq!(parsed["model_plan_digest"], json!(plan.digest()));
     assert_eq!(parsed["model_config_digest"], json!(plan.config_digest));
+    assert_eq!(
+        inventory.semantic_plan_identity(),
+        plan.digest().as_sha256()
+    );
+    assert_eq!(inventory.config_identity(), plan.config_digest.as_sha256());
+    assert!(
+        inventory.retained_payload_bytes().unwrap()
+            >= std::mem::size_of_val(&inventory) + inventory.canonical_bytes().len() + 64
+    );
     let bytes_entry = decoder_matrix_inventory_bytes(&canonical_bytes(plan)).unwrap();
     assert_eq!(bytes_entry.canonical_bytes(), inventory.canonical_bytes());
     assert_eq!(bytes_entry.digest(), inventory.digest());
+    assert_eq!(
+        bytes_entry.semantic_plan_identity(),
+        inventory.semantic_plan_identity()
+    );
+    assert_eq!(bytes_entry.config_identity(), inventory.config_identity());
     parsed
+}
+
+#[test]
+fn inventory_identity_snapshot_cannot_follow_later_plan_mutation() {
+    let mut model = plan("llama", true);
+    let snapshot = lower_decoder_matrix_inventory(&model).unwrap();
+    let original = model.digest().as_sha256();
+    model.prefill.output.push_str(".changed");
+    assert_eq!(snapshot.semantic_plan_identity(), original);
+    assert_ne!(
+        snapshot.semantic_plan_identity(),
+        model.digest().as_sha256()
+    );
+    model.config_digest = digest_bytes("changed-config", b"fixture");
+    assert_ne!(snapshot.config_identity(), model.config_digest.as_sha256());
 }
 
 fn linear(graph: &mut DecoderGraph) -> &mut ModelOperation {

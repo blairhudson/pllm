@@ -6,6 +6,61 @@ extends the local D20 boundary; it does not authorize a decoder, transport, new
 general numeric profile, or checkpoint-wide range policy. D16–D20 remain unchanged. See
 [the approved activation contract](sigma-full-activation.md).
 
+Implementation gate: the bounded local native chain and source/certificate checks
+now have a consuming raw-source execution path and aggregate incremental owner
+quote in `sigma_linear_activation/execution.rs`. The Rust compiler module exposes
+the bounded facade after scoped aggregate review and serial compiler/native
+validation. This remains a local trusted-dealer composition, not a decoder,
+authenticated role transport or SDK component. Shared edge/model phase quotes
+and native constructor/resource-calculation quotes remain distinct from native
+reservation values.
+
+Accounting scope is **incremental added/transferred owners**, not all transitively
+reachable caller memory. Preexisting borrowed plan/inventory, supplied byte and
+coordinate slices, source/issuance/input slices and static backing are excluded;
+none is cloned or retained by the returned capability. Request selection and pin
+metadata capacities ARE charged because ownership transfers, even when allocated
+before the call. Newly copied original bytes and the one coefficient backing are
+charged throughout their actual retained lifetime. No `DecoderPlan` retained-owner
+scaffold is required: extra capacity on a borrowed plan changes external baseline,
+not this boundary's added ownership. Prior contrary blocker wording was incorrect.
+
+The checked reservation is retained source/wrapper population plus source owner's
+import/encoding scratch plus the compiler boundary population and maximum of:
+
+1. Source verification/commitment: source initialization, verifier/encoding moves,
+   fixed SHA/decode workspace and explicit reference-array iterator slots.
+2. Pairing: context construction/return, stream frames and model owner's complete
+   admission, collection, sink, hash/replay and return quote.
+3. Proof: context, actual proof workspace (including retained descriptors/spec),
+   numeric argument/results, and maximum nested model/schema/core/activation phase.
+   Whole shared quotes conservatively also charge embedded workspace/spec copies.
+4. Certificate return: source/coefficient/certificate origins and Results, proof
+   and context, commitment digest results; retained inventory separately includes
+   stack-to-Arc origin/destination and wrapper/native transition slots.
+5. Native metadata: owner-defined constructor and resource-calculation peaks,
+   original spec/resource records and return Results. Retained wrapper population
+   covers mask/run, all 22 frames, 11 steps and two opaque outputs.
+
+Compiler/import guard is reserved BEFORE source hashing/copying or workspace
+construction. After certification computes the native spec and exact native
+reservation under that guard, `resize_payload` atomically grows the SAME guard
+before native issuance. Growth failure keeps original accounting intact. The
+reserved native entry transfers its exact slice without decrement/reacquire;
+the source retains all compiler remainder until the final source-retaining
+mask/run/frame/output drops. Admission input/workspace fields and native source
+wrapper fields enforce owned-data-before-guard destruction on errors. No existing
+native price or guard is reduced, and no arbitrary caller allowance is accepted.
+
+Compiler tests define exact admission, one-byte-short initial/growth rejection,
+checked overflow, transferred-capacity pricing, substituted source/issuance and
+stale/fresh plan/config rejection, borrowed-model independence, retained frames,
+opaque outputs and cancellation/drop lifetimes. Budget counters observe charge
+restoration, not erased bytes or entropy. Compiler has no injected entropy
+observer; native tests own actual draw-count and no-refund-gap observations.
+Dealer construction entropy predates the facade. Native provenance remains
+`LocalAssumption`; no decoded secret/public output handle is introduced.
+
 ## Existing authorization and approved extension
 
 Declaration-only compiler binding of one existing D20 invocation can reuse
@@ -85,10 +140,12 @@ on failure.
 
 Preflight the complete concurrent owner inventory before entropy: roots,
 coefficients, certificates, masks, native/wrapper owners, frames, tables and
-transition overlap. Current typed matrix/arithmetic entry points release a
-preflight reservation before native issuance reacquires capacity. Add reserved
-entry points and split the original reservation; nesting those existing calls
-does not establish continuous aggregate ownership.
+transition overlap. Reserved matrix/arithmetic entry points must split the
+original reservation without a refund-and-reacquire gap. Those internal paths
+now exist; nesting independently reserving public calls is still insufficient.
+Metadata constructors must also have owner-defined quotes available before
+construction, validation or table hashing; an already-constructed spec cannot
+serve as its own preconstruction admission evidence.
 
 Native matrix/arithmetic cancelled or completed wrappers must retain metadata
 charges until their structs drop, as D20 does. Retained matrix frames keep the

@@ -29,6 +29,8 @@ pub mod delegation_publication_inventory;
 pub mod encrypted_level_schedule;
 pub mod fss_decoder;
 pub mod replicated_decoder;
+pub mod sigma_linear_activation;
+pub mod verified_source;
 pub use decoder_boundary::{PrivateBoundaryContract, PrivateBoundaryPhase};
 pub use decoder_matrix_inventory::{
     decoder_matrix_inventory_bytes, lower_decoder_matrix_inventory, DecoderMatrixInventory,
@@ -6466,7 +6468,7 @@ fn lower_model_linear_region(
         _ => {
             return Err(format!(
                 "semantic linear operation {operation_id} has an invalid bias identity"
-            ))
+            ));
         }
     };
     Ok(ModelLinearRegion {
@@ -6782,7 +6784,7 @@ fn lower_model_last_token_region(
         _ => {
             return Err(format!(
                 "semantic last-token operation {operation_id} has contradictory selection metadata"
-            ))
+            ));
         }
     };
     let input = graph
@@ -6864,7 +6866,7 @@ fn lower_model_reshape_region(
         _ => {
             return Err(format!(
                 "semantic reshape operation {operation_id} has an unsupported layout"
-            ))
+            ));
         }
     };
     let region = ModelReshapeRegion {
