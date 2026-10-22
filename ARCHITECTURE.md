@@ -2728,6 +2728,19 @@ Moving arithmetic to Rust does not remove dependent client-to-inference stage
 exchanges, offline preparation work, or client attention state. No speed claim
 follows merely from the choice of implementation language.
 
+Shared bounded clear-algebra prerequisites additionally live in `pllm-core`:
+`coefficient_conversion` checks deterministic coefficient-phase conversion,
+`coefficient_compression` implements coefficient packing and shift/substitution
+decompression, `slot_matrix_layout` supplies diagonal slot transforms and products,
+and `interleaved_kv_layout` supplies distinct key/value packing, atomic append and
+exact clear attention reads. Caller-owned buffers, checked geometry and work
+admission precede mutation. Independent oracle and failure controls pass within
+a 501-test core suite. These are reusable BumbleBee, NEXUS, THOR and CacheMir
+prerequisites, not encrypted execution, adopted numeric profiles, refresh,
+private decoder state, SDK methods or performance evidence. Unsupported THOR
+multi-block source indexing remains an explicit rejection; BumbleBee B-N1 stays
+open.
+
 Hugging Face sources use the standard shared Hub snapshot cache for both online
 and offline resolution, with immutable snapshot commits recorded in source locks.
 Streamed integer stage weights use a separate regenerable compiled cache whose
