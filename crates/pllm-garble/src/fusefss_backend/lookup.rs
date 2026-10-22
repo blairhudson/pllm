@@ -645,3 +645,7 @@ impl<'a> Party<'a> {
 #[cfg(test)]
 #[path = "lookup_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "table_cache_tests.rs"]
+mod table_cache_tests;
