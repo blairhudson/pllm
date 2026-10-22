@@ -521,6 +521,58 @@ padding against independent dense modular oracles. This decision authorizes no
 HE backend, H2A/OT implementation, noise bound, final-paper numeric manifest,
 decoder, SDK or security claim. B-N1 remains open.
 
+## D22. Bounded SIGMA compiler-certified linear-to-activation handoff
+
+**Explicitly approved by the user:** the bounded composition in
+`docs/plans/sigma-compiler-linear-activation.md`: a private complete matrix dot,
+exact GapARS12, then unchanged D20 GELU/SiLU, with source-bound interval admission
+and continuous original-owner reservations.
+
+Operands remain signed ring50/Q12. Certify the complete unwrapped Q24 sum inside
+`[-2^48, 2^48)` before issuance; one signed floor by 4096 produces ring50/Q12
+inside D20's existing input domain. No per-term floors, partial-dot substitution,
+bias omission, remasking, masked sign extension, clipping or extra final shift.
+Each input/weight/output matrix has at most 256 elements; existing work and
+64 MiB logical allocation ceilings remain unchanged.
+
+Bind immutable source, tensor/layout/coordinates, semantic operation, encoding,
+numeric implementation and declared input domain. Use an immutable checkpoint
+fixture; if only a submatrix fits, label it explicitly rather than claiming
+original-layer execution. Observed extrema and public metadata are not range
+proofs. Consume matching native owners without reconstructed-secret handoff,
+retaining guarded backing and split original reservations through last use.
+
+This approves the specified bounded certified handoff and acceptance tests, not
+a full decoder, general numeric profile, authenticated transport, persistent KV,
+checkpoint-wide range policy, SDK availability or security qualification.
+D16–D20 and D9 remain unchanged.
+
+## D23. Bounded PUMA mid-graph dispatch and deterministic test support
+
+**Explicitly approved by the user:** stop ordinary execution immediately before
+an admitted body interval, drain peer frames, and move the same original runtime
+and PRSS owner through the body executor and back. Arithmetic, resource ceilings,
+source ownership, sticky validity, original operation order and consuming failure
+retirement remain unchanged. A local idle boundary does not establish that the
+three-role router has drained; the handoff requires both.
+
+The internal boundary must be explicit and fail closed on invalid targets,
+pending-message misuse, foreign programs and protocol failure. Finish the whole
+preceding original node, including all tensor-loop tiles, before yielding. No
+runtime reset, second executor, automatic default selection or expanded semantic
+interval is authorized.
+
+Also approved: a disabled-by-default, explicitly insecure **test-support** feature
+for fresh deterministic setup with public test entropy, solely to compare ordered
+frames and local shares across control and body execution. Preserve the original
+setup namespace binding. Ordinary production entropy is unchanged; live runtimes
+cannot be cloned or reset. Test feature unification must not enable the helper in
+ordinary production builds.
+
+Admission, quiescence, ownership and exact transcript/share regressions precede
+acceptance. Expanded oracle-capture mapping, full-checkpoint admission, SDK
+promotion, security and performance qualification remain separate gates.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -546,6 +598,8 @@ decoder, SDK or security claim. B-N1 remains open.
 | D19 | Approved: both bounded SIGMA source lookup boundaries | Audited correction and dependent mask, consuming deferred Select, specified framing and aggregate admission; full activation and decoder remain separate gates. |
 | D20 | Approved: bounded SIGMA full GELU/SiLU owning region | Fixed ring50/Q12 and local encoded range, private ring38/32 path, original backing/use ledger, deferred combination, PLLMAC01 final frame and continuous aggregate leases; no decoder/SDK qualification. |
 | D21 | Approved: paper-derived BumbleBee OLT/ParseMat indexing corrections | Rectangular stride, right-block index and global unrotated parsing corrected explicitly; pure algebra only, with B-N1 and HE/decoder qualification open. |
+| D22 | Approved: bounded SIGMA compiler-certified linear/rescale/activation handoff | Private ring50/Q12 complete dot, source-bound quarter-ring proof, exact GapARS12 and unchanged D20, bounded geometry and continuous original-owner admission; checkpoint submatrices labeled separately, no decoder/SDK qualification. |
+| D23 | Approved: bounded PUMA mid-graph handoff and deterministic test support | Same original runtime/PRSS, drained router and complete-node boundary; unchanged numerics/ceilings/sticky validity, nondefault insecure test-only fresh setup, with exact parity and ownership validation still required. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
