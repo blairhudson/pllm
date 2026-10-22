@@ -538,6 +538,25 @@ launch, with zero observed swap growth. They retain separate identities from the
 earlier tiled-lookup layer-eight attention rejection. No whole-checkpoint response
 or quality result follows. Historical source versions remain in Git.
 
+Checked RMSNorm lowering now preserves a complete ordered row's existing energy
+certificate across the unchanged private zero-fallback guard. Its bound is
+`min(B, width * cap²)`; only strict improvements over the scalar bound retain
+additional, ordinarily charged metadata. Missing, reordered, duplicated or
+mixed-owner rows cannot inherit another row's proof. Static alias paths and
+their frozen execution identities remain unchanged. Native controls cover the
+129-lane boundary/tail, stochastic integer parity, all 40 ordered truncation
+events and final sticky rejection. This does not prove a Qwen numeric defect or
+clear its complete-program limits.
+
+Admission failures now include a public construction stage and resource ledger
+alongside the existing operator context. These diagnostics do not enter the
+execution digest or expose private values. The opt-in ordinary test
+`test_pinned_public_qwen_checked_trie_source_publication` in
+`tests/test_replicated_public_weights.py` retries the pinned 4+2 publisher through
+the installed SDK, retaining whole-topology memory admission and pressure/swap
+monitoring. It does not launch workers or establish accepted decoder execution;
+the historical attempts above remain separate from any rebuilt retry.
+
 The separate native compact-sign constructors cover guarded SiLU/GELU,
 reciprocal/rsqrt, complete-row normalization and softmax. Signed interval proofs
 select public 8/16/32/64-bit conversion buckets, with checked subtraction and

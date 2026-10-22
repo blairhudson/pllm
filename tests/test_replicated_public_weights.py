@@ -2,7 +2,9 @@
 
 import json
 import math
+import os
 from pathlib import Path
+import threading
 
 import numpy as np
 import psutil
@@ -300,6 +302,91 @@ def test_pinned_public_qwen_prices_shape_work_before_checkpoint_import():
     with pytest.raises(ValueError, match="source expansion budget"):
         _native.replicated_source_contract(private.canonical_bytes(),
             config, 4, 2, source_lock, checkpoint)
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    os.environ.get("PLLM_RUN_REAL_QWEN25") != "1",
+    reason="opt in to the pinned cached real Qwen2.5 checkpoint",
+)
+def test_pinned_public_qwen_checked_trie_source_publication():
+    """Publish the installed SDK source only; never start roles or decode a prompt."""
+    import pllm
+    from pllm.runtime.benchmark_memory import (
+        BenchmarkMemoryError,
+        MemoryWatchdog,
+        benchmark_memory,
+        require_admission,
+    )
+    from pllm.runtime.replicated_protocol import execution_binding
+
+    # pyproject's default pythonpath otherwise shadows the rebuilt wheel. Do not
+    # silently exercise mixed Python/native versions or skip an outdated wheel.
+    checkout_python = Path(__file__).resolve().parents[1] / "python"
+    for module in (pllm, _native, source_io):
+        assert not Path(module.__file__).resolve().is_relative_to(checkout_python), (
+            "Run with the rebuilt installed wheel, PYTHONPATH unset and -o pythonpath="
+        )
+
+    experiment = Experiment(
+        "puma-pinned-public-source-publication",
+        PumaThreePartyCpu(
+            Model.hf(
+                "Qwen/Qwen2.5-0.5B-Instruct",
+                revision="7ae557604adf67be50417f59c2c2f167def9a775",
+                local_files_only=True,
+            ),
+            weights="public",
+            range_policy="checked",
+            max_abs_activation=256,
+            lookup="trie",
+            selection="tiled",
+            peer_transport="streams",
+        ),
+        Deployment.local(root="local://puma-pinned-public-source-publication"),
+        ExecutionBudget(requests=1, max_input_tokens=4, max_new_tokens=2),
+    )
+    # Keep the ordinary whole-topology estimate, allocation margin, pressure
+    # floor and swap guard, even though this test allocates no workers.
+    report = benchmark_memory(experiment, backend="native")
+    require_admission(report)
+    cancelled = threading.Event()
+    monitor = MemoryWatchdog(report, lambda _reason: cancelled.set())
+    publisher = None
+
+    def check_memory():
+        if monitor.error is not None:
+            raise BenchmarkMemoryError(monitor.error)
+        monitor.check()
+
+    try:
+        monitor.start()
+        source = admit_source(experiment)
+        check_memory()
+        assert source.source_lock_digest == "383f5ed6947ba56ceed6083a9503d6302f09559e1e57ee614409900b36084c29"
+        assert source.checkpoint_digest == "f69322057253c4fb853c10e73da5d84111262e0fb1edba33933b9e5b8caf59fd"
+        assert source.contract["weights"] == "public"
+        assert source.contract["selection_prefix_rows"] == [4, 5]
+        assert source.contract["execution"] == execution_binding(experiment)
+        try:
+            # Fixed public synthetic IDs; no tokenizer or private prompt decode.
+            publisher, manifest = source.publisher(
+                experiment, (0, 0, 0, 0), 2, cancelled.is_set,
+            )
+        except ValueError as error:
+            check_memory()
+            # Preserve the native public context/stage/ledger verbatim, without
+            # persisting exceptions or guessing which numeric contract failed.
+            pytest.fail(f"Pinned public source publication rejected: {error}", pytrace=False)
+        check_memory()
+        value = json.loads(manifest)
+        assert value["weights"] == "public"
+        assert value["execution"] == execution_binding(experiment)
+        assert value.get("norms")
+    finally:
+        if publisher is not None:
+            publisher.close()
+        monitor.close()
 
 
 def large_public_source_fixture(path, dtype="F32", change=None):

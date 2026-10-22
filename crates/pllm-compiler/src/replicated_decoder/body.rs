@@ -22,6 +22,9 @@ const RETAINED: usize = usize::MAX - 1;
 #[path = "body_layer.rs"]
 pub mod layer;
 
+#[path = "body_integration.rs"]
+pub mod integration;
+
 #[derive(Clone, Copy)]
 pub struct Register {
     pub lanes: usize,

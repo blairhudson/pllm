@@ -847,6 +847,175 @@ fn audit_case(
     audit_fixture(fixture, mode, tiled_lookup, tiled_selection);
 }
 
+/// Focused compiler guard/energy regression. Reuses the ordinary native workers,
+/// bounded checkpoint capture, actual seed/frame evidence and independent Python
+/// RMSNorm/AES oracle. All-party evidence stays in the anonymous test-only pipe.
+pub(in crate::replicated_decoder) fn audit_checked_row_energy(
+    program: Arc<Program>,
+    values: Vec<i64>,
+    cap: i64,
+    rms_node: usize,
+    checkpoints: &[(&str, Vec<(usize, usize)>)],
+    rejected: bool,
+) -> Vec<[u64; 7]> {
+    let _session = Session::start();
+    for (name, words) in checkpoints {
+        diagnostic(0, name, &[words.len()], words.clone());
+    }
+    let clear = BTreeMap::from([("x".to_owned(), values.clone())]);
+    let (mut workers, keys, public_seed) = make_workers(program, &clear, None);
+    let mut queue = Vec::new();
+    let mut records = Vec::new();
+    let mut record_words = 0;
+    let mut events = Vec::new();
+    for transition in 0..1_000_000 {
+        if workers.iter().all(Worker::complete) {
+            break;
+        }
+        if queue.is_empty() {
+            for worker in &mut workers {
+                if worker.complete() {
+                    continue;
+                }
+                for (to, frame) in worker.advance().unwrap() {
+                    if let Some(event) = truncation(worker, &frame) {
+                        events.push(event);
+                    }
+                    queue.push((worker.party(), to, frame));
+                }
+            }
+        } else {
+            for (from, to, frame) in std::mem::take(&mut queue) {
+                let worker = &mut workers[to as usize];
+                for (next, frame) in worker.receive(frame.as_bytes(), from).unwrap() {
+                    if let Some(event) = truncation(worker, &frame) {
+                        events.push(event);
+                    }
+                    queue.push((to, next, frame));
+                }
+            }
+        }
+        assert!(queue.len() <= 2048 && events.len() <= CAPTURE_WORDS);
+        drain_into(&mut records, &mut record_words);
+        assert!(transition < 999_999, "bounded checked-row transitions");
+    }
+    assert!(queue.is_empty() && workers.iter().all(Worker::complete));
+    drain_into(&mut records, &mut record_words);
+    assert_eq!(records.len(), checkpoints.len());
+    CAPTURE.with(|slot| {
+        let state = slot.borrow();
+        assert!(state.ready.is_empty() && state.words == 0);
+    });
+    // Guards, sticky products and argmax must add no truncation sites.
+    assert!(events.iter().all(|e| e["node"] == rms_node));
+    // Compare every event in observed order, including multiplicity and public
+    // PRSS cursor endpoints. Fresh setup changes bindings and randomized pivot
+    // role/routes, not these public schedule coordinates. Route completeness is
+    // independently checked per invocation by native_mask_tapes below.
+    let signature: Vec<_> = events
+        .iter()
+        .map(|e| {
+            [
+                e["node"].as_u64().unwrap(),
+                e["tensor_step"].as_u64().unwrap(),
+                e["loop_offset"].as_u64().unwrap(),
+                e["invocation"].as_u64().unwrap(),
+                e["lanes"].as_u64().unwrap(),
+                e["public_end"].as_u64().unwrap(),
+                e["pair_end"].as_u64().unwrap(),
+            ]
+        })
+        .collect();
+    assert_eq!(signature.len(), 40); // four directed frames per truncation
+    assert_eq!(
+        signature
+            .iter()
+            .map(|e| e[1])
+            .collect::<BTreeSet<_>>()
+            .len(),
+        10
+    );
+    let final_components = workers.map(|worker| worker.finish().unwrap());
+    let payload = zeroize::Zeroizing::new(
+        serde_json::to_string(&serde_json::json!({
+            "input": values, "cap": cap, "rejected": rejected, "records": records,
+            "events": events, "pair_keys": keys.iter().map(|key| hex(key)).collect::<Vec<_>>(),
+            "public_seed": hex(&public_seed.to_le_bytes()),
+            "final_components": final_components.each_ref().map(|v| v.as_slice()),
+        }))
+        .unwrap(),
+    );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap();
+    let script = r#"
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import replicated_decoder_oracle as o
+b = json.load(sys.stdin)
+x = o.array([b['input']])
+c = b['cap']
+safe = o.np.where((x >= -c) & (x <= c), x, 0)
+valid = bool(o.np.all((x >= -c) & (x <= c)))
+assert valid == (not b['rejected'])
+events = b['events']
+bindings = list(dict.fromkeys(e['binding'] for e in events))
+physical = o.native_mask_tapes(events, [bytes.fromhex(k) for k in b['pair_keys']],
+    int.from_bytes(bytes.fromhex(b['public_seed']), 'little'), dict.fromkeys(bindings, 18))
+suffixes = ['squares', 'mean'] + ['rsqrt/' + s for s in
+    ['u', 'u2', 'u3', 'u4', 'polynomial', 'out']] + ['normalize', 'gamma']
+assert len(bindings) == len(suffixes) == 10
+layout = {}
+for binding, suffix in zip(bindings, suffixes):
+    lanes = len(physical[binding]['masks'])
+    vector = suffix in ('squares', 'normalize', 'gamma')
+    assert lanes == (x.shape[-1] if vector else 1)
+    layout['norm/' + suffix] = {'shift': 18, 'shape': [1, lanes] if vector else [1],
+        'lanes': [[binding, i] for i in range(lanes)]}
+tape = o.adapt_tapes(physical, layout)
+rms = o.rmsnorm(safe, [o.Q] * x.shape[-1], tape, 'norm')
+tape.finish()
+later = o.np.where((safe >= -(c//2)) & (safe <= c//2), safe, 0)
+sticky = valid and bool(o.np.all((safe >= -(c//2)) & (safe <= c//2)))
+records = {r['id']: r['values'] for r in b['records']}
+assert records['safe'] == safe.reshape(-1).tolist()
+assert records['rms'] == rms.reshape(-1).tolist()
+assert records['later_safe'] == later.reshape(-1).tolist()
+assert records['first_valid'] == [int(valid)]
+assert records['sticky'] == [int(sticky)]
+token = max(range(x.shape[-1]), key=lambda i: int(rms[0, i]))
+assert token != 0
+assert records['selected'] == [token]
+final = [sum(p[i] for p in b['final_components']) % (1 << 64) for i in range(2)]
+assert final == [token if sticky else 0, int(sticky)]
+"#;
+    use std::io::Write;
+    let mut child = std::process::Command::new(root.join(".venv/bin/python"))
+        .arg("-c")
+        .arg(script)
+        .arg(root.join("tests"))
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("oracle Python environment");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(payload.as_bytes())
+        .unwrap();
+    let result = child.wait_with_output().unwrap();
+    // Do not print captured operands, masks or Python assertion source.
+    assert!(
+        result.status.success(),
+        "independent checked-row stochastic audit failed"
+    );
+    signature
+}
+
 fn audit_fixture(fixture: Fixture, mode: &str, tiled_lookup: bool, tiled_selection: bool) {
     let (program, clear, config, manifest) = fixture;
     CAPTURE.with(|slot| {

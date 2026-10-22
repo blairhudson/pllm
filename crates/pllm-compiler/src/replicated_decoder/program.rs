@@ -11,6 +11,10 @@ mod linear_tests;
 #[path = "body_tests.rs"]
 mod body_tests;
 
+#[cfg(test)]
+#[path = "body_integration_tests.rs"]
+mod body_integration_tests;
+
 #[path = "ranges.rs"]
 mod ranges;
 #[cfg(test)]
@@ -275,6 +279,13 @@ struct Builder {
     row_masses: Vec<(usize, u64)>,
     public_norms: BTreeMap<usize, BlockNorms>,
     attention_energies: Vec<(Words, u128)>,
+    // Public admission diagnostics only; never hashed or executed.
+    admission_stage: &'static str,
+    admission_limit: Option<&'static str>,
+    requested_bytes: Option<usize>,
+    requested_lanes: Option<usize>,
+    value_payload_bytes: usize,
+    trie_workspace_bytes: usize,
 }
 
 fn construction_views(graph: &DecoderGraph, sources: usize) -> Result<(), String> {
@@ -320,8 +331,38 @@ fn construction_views(graph: &DecoderGraph, sources: usize) -> Result<(), String
 }
 
 impl Builder {
+    fn admission_ledger(&self) -> String {
+        format!(
+            "stage: {}, limit: {:?}, nodes: {}/{MAX_NODES}, program_bytes: {}/{MAX_PROGRAM_BYTES}, requested_bytes: {:?}, requested_lanes: {:?}, value_limit: {MAX_VALUES}, public_value_limit: {MAX_PUBLIC_SOURCE_VALUES}, workspace_bytes: {}, trie_active_workspace_bytes: {}, value_payload_bytes: {}, cumulative_nonvalue_bytes: {}, tensor_templates: {}, row_certificates: {}",
+            self.admission_stage,
+            self.admission_limit,
+            self.nodes.len(),
+            self.allocated,
+            self.requested_bytes,
+            self.requested_lanes,
+            self.workspace_bytes,
+            self.trie_workspace_bytes,
+            self.value_payload_bytes,
+            self.allocated.saturating_sub(self.value_payload_bytes),
+            self.tensors.len(),
+            self.row_norms.len() + self.row_energies.len(),
+        )
+    }
+
+    fn charge_program_bytes(&mut self, bytes: usize) -> Result<(), Error> {
+        let requested = self.allocated.checked_add(bytes);
+        self.requested_bytes = requested;
+        let Some(total) = requested.filter(|n| *n <= MAX_PROGRAM_BYTES) else {
+            self.admission_limit = Some("program_bytes");
+            return Err(Error::Bounds);
+        };
+        self.allocated = total;
+        Ok(())
+    }
+
     fn push(&mut self, code: Code, lanes: usize, bounds: Interval) -> Result<usize, Error> {
         let public_source = matches!(code, Code::PublicInput { .. });
+        self.requested_lanes = Some(lanes);
         if lanes == 0
             || lanes
                 > if public_source {
@@ -329,8 +370,16 @@ impl Builder {
                 } else {
                     MAX_VALUES
                 }
-            || self.nodes.len() >= MAX_NODES
         {
+            self.admission_limit = Some(if public_source {
+                "public_values"
+            } else {
+                "values"
+            });
+            return Err(Error::Bounds);
+        }
+        if self.nodes.len() >= MAX_NODES {
+            self.admission_limit = Some("nodes");
             return Err(Error::Bounds);
         }
         let metadata = match &code {
@@ -417,6 +466,7 @@ impl Builder {
                     .ok_or(Error::Bounds)?;
                 let extra = workspace.saturating_sub(self.workspace_bytes);
                 self.workspace_bytes = self.workspace_bytes.max(workspace);
+                self.trie_workspace_bytes = self.trie_workspace_bytes.max(workspace);
                 metadata
                     .checked_add(1024)
                     .and_then(|n| n.checked_add(extra))
@@ -441,14 +491,13 @@ impl Builder {
             }
             _ => 0,
         };
-        self.allocated = self
-            .allocated
-            .checked_add(
-                metadata + std::mem::size_of::<Node>() + if public_source { 0 } else { 16 * lanes },
-            )
-            .ok_or(Error::Bounds)?;
-        if self.allocated > MAX_PROGRAM_BYTES {
-            return Err(Error::Bounds);
+        self.charge_program_bytes(
+            metadata + std::mem::size_of::<Node>() + if public_source { 0 } else { 16 * lanes },
+        )?;
+        if !public_source {
+            // Already included in the admitted total above. Diagnostic subtotal
+            // only; never an additional allowance or allocation.
+            self.value_payload_bytes += 16 * lanes;
         }
         let id = self.nodes.len();
         self.nodes.try_reserve(1).map_err(|_| Error::Allocation)?;
@@ -984,16 +1033,11 @@ impl Builder {
             .metadata_bytes()
             .checked_add(std::mem::size_of::<(Words, u128)>())
             .ok_or(Error::Bounds)?;
-        let allocated = self
-            .allocated
-            .checked_add(bytes)
-            .filter(|n| *n <= MAX_PROGRAM_BYTES)
-            .ok_or(Error::Bounds)?;
+        self.charge_program_bytes(bytes)?;
         self.row_energies
             .try_reserve_exact(1)
             .map_err(|_| Error::Allocation)?;
         self.row_energies.push((row.clone(), squared));
-        self.allocated = allocated;
         Ok(())
     }
 
@@ -1144,6 +1188,7 @@ impl Builder {
         let anchor = self.gather(&tokens.words.slice(..1))?;
         let zero = self.constant(anchor, 0)?;
         for (step, op) in graph.operations.iter().enumerate() {
+            self.admission_stage = "operator_lowering";
             let mut shape: Vec<usize> = op.output_shape.iter().map(|v| *v as usize).collect();
             site.step = Some(step);
             site.operator = Some(op.operator);
@@ -1309,7 +1354,7 @@ impl Builder {
                         );
                     }
                     let checked = if self.checked_bound.is_some() {
-                        Some(self.checked_view(original)?)
+                        Some(self.checked_rows(original, width)?)
                     } else {
                         None
                     };
@@ -1319,7 +1364,9 @@ impl Builder {
                     }
                     let input_words = checked.as_ref().unwrap_or(original);
                     for row in input_words.chunks_exact(width) {
+                        self.admission_stage = "rms_norm_input_gather";
                         let input = self.gather(&row)?;
+                        self.admission_stage = "rms_norm_numeric_constructor";
                         let (program, squared) = if self.public_weights {
                             let gamma = gamma.public_q18.as_ref().ok_or(Error::Binding)?;
                             let (program, squared) = match self.row_norm(&row, width) {
@@ -1349,13 +1396,11 @@ impl Builder {
                                 None,
                             )
                         };
+                        self.admission_stage = "rms_norm_tensor_owner";
                         let output = self.tensor(input, program)?;
                         if let Some(squared) = squared {
-                            self.allocated = self
-                                .allocated
-                                .checked_add(std::mem::size_of::<(usize, u128)>())
-                                .filter(|n| *n <= MAX_PROGRAM_BYTES)
-                                .ok_or(Error::Bounds)?;
+                            self.admission_stage = "rms_norm_output_certificate";
+                            self.charge_program_bytes(std::mem::size_of::<(usize, u128)>())?;
                             self.row_norms
                                 .try_reserve_exact(1)
                                 .map_err(|_| Error::Allocation)?;
@@ -1642,11 +1687,8 @@ impl Builder {
                         };
                         let id = self.tensor(input, program)?;
                         if let Some(mass) = mass {
-                            self.allocated = self
-                                .allocated
-                                .checked_add(std::mem::size_of::<(usize, u64)>())
-                                .filter(|n| *n <= MAX_PROGRAM_BYTES)
-                                .ok_or(Error::Bounds)?;
+                            self.admission_stage = "softmax_output_certificate";
+                            self.charge_program_bytes(std::mem::size_of::<(usize, u64)>())?;
                             self.row_masses
                                 .try_reserve_exact(1)
                                 .map_err(|_| Error::Allocation)?;
@@ -2058,22 +2100,23 @@ impl Program {
             }
         }
         let mut site = AdmissionSite::default();
+        let mut builder = Builder {
+            public_weights: weights == WeightMode::Public,
+            checked_bound: execution.checked_bound(),
+            lookup: execution.lookup,
+            selection: execution.selection,
+            token_source_binding: if execution.lookup == LookupPolicy::Trie {
+                source_binding_with_norms(sources, norms)
+            } else {
+                [0; 32]
+            },
+            admission_stage: "source_import_envelope",
+            ..Builder::default()
+        };
         let result = (|| -> Result<Self, Error> {
-            let mut builder = Builder {
-                // Retained certificates, request/tree owners, largest scan and
-                // completed-output overlap share the existing program allowance.
-                allocated: source_norms::import_envelope(norms)?.total_bytes,
-                public_weights: weights == WeightMode::Public,
-                checked_bound: execution.checked_bound(),
-                lookup: execution.lookup,
-                selection: execution.selection,
-                token_source_binding: if execution.lookup == LookupPolicy::Trie {
-                    source_binding_with_norms(sources, norms)
-                } else {
-                    [0; 32]
-                },
-                ..Builder::default()
-            };
+            // Retained certificates and source overlap keep their original cap.
+            builder.allocated = source_norms::import_envelope(norms)?.total_bytes;
+            builder.admission_stage = "source_inputs";
             let mut inputs = BTreeMap::new();
             for (key, source) in sources {
                 let bounds = Interval::new(source.lower, source.upper)?;
@@ -2177,6 +2220,7 @@ impl Program {
                 }
             }
             if execution.range_policy == RangePolicy::Checked {
+                builder.admission_stage = "final_acceptance";
                 let valid = if let Some(valid) = builder.validity {
                     valid
                 } else {
@@ -2207,6 +2251,7 @@ impl Program {
             site.operator = None;
             site.layer = None;
             site.inputs = [None; 2];
+            builder.admission_stage = "complete_schedule_work";
             let work = schedule_work(&builder.nodes)?;
             let mut h = Sha256::new();
             h.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
@@ -2377,6 +2422,7 @@ impl Program {
                 return Err(Error::Bounds);
             }
             site.complete_work = Some((work.operations(), work.cursors().aes_work));
+            builder.admission_stage = "complete_work_limits";
             work.limits()?;
             for &(id, index) in &selected {
                 last[id] = builder.nodes.len();
@@ -2390,7 +2436,7 @@ impl Program {
                 }
             }
             Ok(Self {
-                nodes: builder.nodes,
+                nodes: std::mem::take(&mut builder.nodes),
                 inputs: count,
                 outputs: selected,
                 retire,
@@ -2400,7 +2446,12 @@ impl Program {
                 source_binding: source_binding_with_norms(sources, norms),
             })
         })();
-        result.map_err(|e| format!("replicated decoder admission: {e}; public context {site}"))
+        result.map_err(|e| {
+            format!(
+                "replicated decoder admission: {e}; public context {site}; public admission ledger {}",
+                builder.admission_ledger()
+            )
+        })
     }
 
     pub fn digest(&self) -> [u8; 32] {
