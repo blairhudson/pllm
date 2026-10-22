@@ -2741,6 +2741,16 @@ private decoder state, SDK methods or performance evidence. Unsupported THOR
 multi-block source indexing remains an explicit rejection; BumbleBee B-N1 stays
 open.
 
+`pllm-compiler::encrypted_level_schedule` additionally solves a bounded public
+serial level/scheme path exactly, without the source optimizer's unsafe dominance
+pruning. Explicit cost tables bind legal CKKS compute/drop/refresh choices and
+complete hybrid entry/evaluation/recovery costs. Unknown costs, non-chain graphs,
+overflow and capacity excess reject; stable ties and canonical ledgers retain
+the full problem identity. Thirteen native regressions include independent
+exhaustive path oracles. This is a planning algorithm with caller-declared costs,
+not a ciphertext executor, backend capability proof, numeric profile, general
+graph optimizer or measured paper-system improvement.
+
 `pllm-types::bounded_canonical` provides borrowed canonical JSON traversal and
 ordered schema sessions with explicit node, depth, encoded-byte and work limits.
 `pllm-models::bounded_canonical` streams semantic plan and operation identities

@@ -26,6 +26,7 @@ mod decoder_matrix_inventory;
 mod decoder_runtime_schedule;
 mod delegated_decoder;
 pub mod delegation_publication_inventory;
+pub mod encrypted_level_schedule;
 pub mod fss_decoder;
 pub mod replicated_decoder;
 pub use decoder_boundary::{PrivateBoundaryContract, PrivateBoundaryPhase};
