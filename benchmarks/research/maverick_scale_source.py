@@ -198,7 +198,18 @@ class Audit:
             url = self.final_url
         else:
             raise Reject("non-scale payload read refused")
-        if not 0 < length <= max(MAX_RANGE, HEADER_BYTES) or length > BODY_LIMIT - self.body:
+        return self._read_range(start, length, kind, url)
+
+    def _remaining_body_budget(self):
+        return BODY_LIMIT - self.body
+
+    def _before_request(self):
+        if self.requests + self.prior_requests >= REQUEST_LIMIT:
+            raise Reject("request budget exhausted")
+
+    def _read_range(self, start, length, kind, url):
+        """Shared bounded transport; callers must first enforce their named scope."""
+        if not 0 < length <= max(MAX_RANGE, HEADER_BYTES) or length > self._remaining_body_budget():
             raise Reject("body budget exceeded before read/request")
         end = start + length - 1
         if not 0 <= start <= end < FILE_SIZE:
@@ -226,8 +237,7 @@ class Audit:
                             or (host.hostname or "").endswith(".huggingface.co")
                             or (host.hostname or "").endswith(".hf.co"))):
                 raise Reject("redirect outside public official hosts")
-            if self.requests + self.prior_requests >= REQUEST_LIMIT:
-                raise Reject("request budget exhausted")
+            self._before_request()
             self.requests += 1
             try:
                 response = self.opener.open(Request(url, headers=headers), timeout=30)
@@ -254,11 +264,11 @@ class Audit:
                         or response.headers.get("Transfer-Encoding")
                         or encodings not in ([], ["identity"])):
                     raise Reject("range/size/encoding mismatch; response closed before body")
-                if length > BODY_LIMIT - self.body:
+                if length > self._remaining_body_budget():
                     raise Reject("aggregate cap exceeded before body")
                 chunks, remaining = [], length
                 while remaining:
-                    chunk = response.read(min(16 << 10, remaining, BODY_LIMIT - self.body))
+                    chunk = response.read(min(16 << 10, remaining, self._remaining_body_budget()))
                     if not chunk:
                         raise Reject("truncated bounded body")
                     self.body += len(chunk)
