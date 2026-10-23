@@ -72,8 +72,8 @@ receipt or a whole-circuit convolution/failure bound.
 
 The standalone consumer `Cargo.lock` is present and its frozen package identities
 are checked without Cargo or native imports. No new resolution is needed for
-that check. Native work still requires standard Cargo, the pinned nightly and
-sufficient host headroom.
+that check. Current parent-only standard Cargo commands appear below; native work
+still requires the pinned nightly and sufficient host headroom.
 
 The standalone `[workspace]`, local `.cargo/config.toml`, dated
 `rust-toolchain.toml`, explicit manifest path and explicit `rustup run` avoid root
@@ -146,6 +146,57 @@ this is not evidence that such an implementation fits or meets ten minutes.
 No larger memory cap, smaller/altered parameter preset, foreign backend or
 source-method mapping is approved implicitly. Parent records decisions/indexing.
 
+## Typed storage follow-up (not execution admission)
+
+`src/staged_storage.rs` now owns actual Poulpy `AlignedBuf`, specialized prepared
+automorphism and tensor types. Its seven-slot rotation provider returns upstream
+backend views borrowed from the real owners. Rust's `&self` / `&mut self` and
+consuming-release signatures prevent retiring storage while those views remain
+live. No cross-role cast or fabricated reference is involved. The module adopts
+already allocated storage; it does not authenticate imported keys, allocate the
+approved key graph, prepare keys, or implement the refresh pipeline.
+Opaque raw/prepared-key adoption rejects `UnprovenOwnerCapacity`: a visible
+backend span or logical shape cannot establish the original allocation capacity.
+
+`src/staged_preparation.rs` extends this to actual raw automorphism and
+`ScratchOwned` preparation owners. It retains the original full seven-row raw
+allocation and original scratch capacity. `RotationImport` reads through a
+wire-length-limited `Read` into existing upstream storage, checks the full shape,
+Galois element and trailing bytes, and permanently rejects retry after a failed
+or attempted parse. Malformed imported metadata cannot change the Layout used by
+checked cleanup. Parsed imports deliberately cannot become preparation/provider
+material: immutable-store digest and dense-key identity authentication are not
+implemented, and metadata checks are not substituted for them.
+
+For trusted locally generated raw material, `RotationPreparation` owns the raw
+key, specialized prepared destination and preparation scratch together. Its real
+public `glwe_automorphism_key_prepare` call preserves the upstream arithmetic and
+sets the Galois tag through the upstream factory. The destination can return to
+the phase provider only after raw and scratch checked releases succeed. This
+method still rejects at the incomplete qualification-bound gate BEFORE invoking
+the factory; no test override exists. Same-role refill takes the actual owner
+out of a mutably borrowed phase after old views end, without another coefficient
+allocation. Missing keys, invalid refill and release failure latch phase failure;
+later cleanup cannot rehabilitate that phase.
+
+Checked release observes the existing bounded allocator's charge, mapped-extent
+and mapping-count decreases after dropping the original owner. It also rejects
+all sticky denial/map/unmap failures, including failed unmap with retained charge.
+This requires the declared global allocator and serial operation. It is not a
+concurrent per-object release certificate or whole-process memory upper bound.
+Aligned storage uses original capacity even after logical truncation. Prepared
+high-key checks use the reviewed seven-row, 33-limb, 968,884,224-byte coefficient
+buffer only; metadata and every unproved owner remain additional.
+
+The ordinary Cargo integration test `tests/staged_storage.rs` links these modules
+without modifying the eager executable. It uses tiny aligned-storage fixtures,
+real mmap/unmap fault injection, the actual typed key-provider interface and
+allocation-free high-key layout checks. It never constructs an HE-sized key,
+context solver, ciphertext or replacement numerical profile. D33 compilation
+completed successfully. Under D35, all **31 tiny ownership tests passed** with
+one test thread (zero failures/ignored). These storage/refill/cleanup checks do
+not qualify HE arithmetic, trusted key origin, secure sampling, complete resource
+bounds or a refresh backend. Capacity refusal and encrypted admission stay closed.
 
 ## Frozen dependency identities
 
@@ -188,5 +239,17 @@ Available sources and matching identities do not prove arithmetic allocation
 capacities, whole-process bounds, or native compilation under the frozen nightly.
 They do not promote parameter/security provenance; D28 remains design only.
 
-Native compilation and encrypted qualification remain blocked. The identity
-gate does not admit staged storage, secure sampling, or encrypted execution.
+Use standard Cargo and ordinary tests, not a receipt/archive driver. Reproduce
+the D33 compile and D35 storage-only test after fresh host admission:
+
+```sh
+python3 -m unittest discover -s benchmarks/native/poulpy_refresh/tests -p 'test_*.py' -v
+rustup run nightly-2026-05-14 cargo test --manifest-path benchmarks/native/poulpy_refresh/Cargo.toml --release --locked --offline --target aarch64-apple-darwin --jobs 1 --test staged_storage --no-run
+rustup run nightly-2026-05-14 cargo test --manifest-path benchmarks/native/poulpy_refresh/Cargo.toml --release --locked --offline --target aarch64-apple-darwin --jobs 1 --test staged_storage -- --test-threads=1
+```
+
+Only this tiny storage target is authorized by D35; other native execution is
+not implied. Full backend execution still rejects: solver/setup allocation contracts, remaining typed
+staging/import, full runtime/kernel/I/O bounds, parameter evidence and numerical
+re-entry remain open. The 8-GiB owner ceiling, one CPU execution thread and at most
+two refreshes are unchanged.

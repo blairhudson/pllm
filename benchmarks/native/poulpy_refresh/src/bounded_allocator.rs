@@ -33,7 +33,7 @@ const MAP_FAILED: *mut u8 = usize::MAX as *mut u8;
 // Values/signatures checked against the installed macOS SDK sys/mman.h and
 // unistd.h. No libc crate, malloc, formatting, unwinding, or heap-owned registry.
 #[link(name = "System")]
-extern "C" {
+unsafe extern "C" {
     fn getpagesize() -> i32;
     fn mmap(address: *mut c_void, length: usize, protection: i32, flags: i32, fd: i32, offset: i64) -> *mut c_void;
     fn munmap(address: *mut c_void, length: usize) -> i32;
