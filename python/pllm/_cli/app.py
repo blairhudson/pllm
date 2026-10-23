@@ -1980,6 +1980,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     arguments = list(argv) if argv is not None else sys.argv[1:]
     output_format = _detect_format(arguments)
     parser = build_parser()
+    args = None
     try:
         args = parser.parse_args(arguments)
         output_format, no_input, dry_run = _globals(args)
@@ -2023,5 +2024,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     except KeyboardInterrupt:
         raise SystemExit(130) from None
     except CLIError as exc:
-        emit_error(exc, output_format)
+        if getattr(args, "command", None) == "benchmark" and getattr(args, "benchmark_command", None) == "quality":
+            try:
+                emit_error(exc, output_format, quality_notes=True)
+            except BaseException:
+                try:
+                    emit_error(exc, output_format)  # Existing renderer remains the fallback.
+                except BaseException:
+                    pass
+        else:
+            emit_error(exc, output_format)
         raise SystemExit(exc.exit_code) from None

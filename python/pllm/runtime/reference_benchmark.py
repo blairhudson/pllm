@@ -170,16 +170,47 @@ def _memory_watchdog_note(guard):
     return None
 
 
+def _memory_admission_note(report):
+    """At most 256 ASCII bytes from cached integers; no sampling or GiB inversion."""
+    try:
+        if (type(report) is not dict or report.get("admitted") is not False
+                or type(report.get("requested_backend")) is not str
+                or report["requested_backend"] != "native"):
+            return None
+        host, candidates = report.get("host"), report.get("candidates")
+        if type(host) is not dict or type(candidates) is not dict:
+            return None
+        native = candidates.get("native")
+        if type(native) is not dict or native.get("admitted") is not False:
+            return None
+        required, budget = native.get("required_host_bytes"), host.get("admission_budget_bytes")
+        if any(type(value) is not int or not 0 <= value <= (1 << 63) - 1
+               for value in (required, budget)):
+            return None
+        parts = ["backend=native", f"estimated_peak_bytes={required}", f"safe_headroom_bytes={budget}"]
+        available = host.get("available")
+        if type(available) is int and 0 <= available <= (1 << 63) - 1:
+            parts.append(f"available_bytes={available}")
+        estimate = report.get("estimate")
+        margin = estimate.get("allocation_slack_percent") if type(estimate) is dict else None
+        if type(margin) is int and 0 <= margin <= 100:
+            parts.append(f"margin_percent={margin}")
+        return "quality memory admission: " + "; ".join(parts)
+    except BaseException:
+        pass  # Never replace the original admission error with diagnostics.
+    return None
+
+
 def _delegated_candidate(experiment, prompts, source, decode_steps, continuations, memory_safety_margin_percent=25, *, outcomes=None, expected_cohort=None):
     """Run the installed two-worker path; return only finally accepted logits.
 
-    Cached guard triggers annotate exceptions. Record mode also carries that
+    Cached admission bytes and guard triggers annotate exceptions. Record mode carries that
     same bounded note through its outcomes owner into existing limitations,
     without retaining the exception, private text or mutable guard observation.
     """
     from threading import Event
 
-    from .benchmark_memory import MemoryWatchdog, benchmark_memory, require_admission
+    from .benchmark_memory import BenchmarkMemoryError, MemoryWatchdog, benchmark_memory, require_admission
     from .delegated_transport import execute_request
     from .servers import build_roles
 
@@ -191,7 +222,20 @@ def _delegated_candidate(experiment, prompts, source, decode_steps, continuation
         raise ReferenceBenchmarkError("tokenized prompt exceeds the Experiment input budget")
     report = benchmark_memory(experiment, backend="native",
                               memory_safety_margin_percent=memory_safety_margin_percent)
-    require_admission(report)
+    try:
+        require_admission(report)
+    except BenchmarkMemoryError as error:
+        try:
+            note = _memory_admission_note(error.report) if error.report is report else None
+            if note is not None:
+                if outcomes is not None and getattr(outcomes, "_memory_guard_note", None) is None:
+                    outcomes._memory_guard_note = note  # Existing record-mode limitations owner.
+                notes = getattr(error, "__notes__", None)
+                if not (type(notes) is list and notes and type(notes[-1]) is str and notes[-1] == note):
+                    error.add_note(note)
+        except BaseException:
+            pass
+        raise
     cancelled = Event()
     guard_note = None
 
