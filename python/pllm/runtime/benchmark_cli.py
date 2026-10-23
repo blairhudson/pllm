@@ -1478,12 +1478,29 @@ def _run_loopback_benchmark(
         )
     report["client_body_placement"] = client_body_placement
     report["native_process_memory"] = native_memory
+    # handle.close() has run the ordinary supervisor retirement/reap path. Read
+    # only its cached wait4 results; never relabel the pre-teardown RSS sample as
+    # final OS HWM or compete with the isolated client's multiprocessing owner.
+    from .process_usage import provider_lifetime_usage
+    cpu_kernel = (experiment is None or
+                  experiment.pipeline.components["kernels"].component == "pllm/cpu")
+    report["provider_lifetime_usage"] = provider_lifetime_usage(
+        dashboard_app.state.dashboard_runtime._topology, roles,
+        local_cpu_loopback=not docker and not emulate_wan and cpu_kernel,
+        source_present=dashboard_app.state.dashboard_runtime.source_lock_digest is not None)
     report["client_process_memory"] = {
         "scope": "client and in-process dashboard; excludes provider processes and OS file cache",
         "peak_scope": "process lifetime; multiple candidates require fresh processes for comparison",
         "before": memory_before,
         "after": process_memory(),
     }
+    from .client_memory_scope import client_memory_report
+    report["client_owned_memory"] = client_memory_report(
+        memory_sampler, report["client_process_memory"]["after"])
+    from .client_memory_scope import client_lifetime_manifest
+    report["client_owned_memory"]["lifetime_owner"] = client_lifetime_manifest(
+        memory_sampler, dashboard_app.state.dashboard_runtime._topology, roles,
+        local_cpu_loopback=not docker and not emulate_wan and cpu_kernel)
     report["memory_preflight"] = dashboard_app.state.dashboard_runtime.memory_preflight
     guard = dashboard_app.state.dashboard_runtime._memory_guard
     if guard is not None:

@@ -44,10 +44,12 @@ def run_isolated_loopback_benchmark(**options):
             options[key] = options[key].to_spec()
     context = multiprocessing.get_context("spawn")
     receive, send = context.Pipe(duplex=False)
-    process = context.Process(target=_worker, args=(send, options))
+    from .client_process_usage import client_process_factory, finalize_client_report
+    process = client_process_factory(context.Process)(target=_worker, args=(send, options))
     process.start()
     send.close()
     diagnostics = None
+    report, forced = None, False
     try:
         while True:
             try:
@@ -57,7 +59,8 @@ def run_isolated_loopback_benchmark(**options):
             if kind == "progress" and progress is not None:
                 progress(value)
             elif kind == "report":
-                return value
+                report = value
+                break
             elif kind == "failure_diagnostics":
                 from .benchmark_failure import sanitize_failure_diagnostics
                 diagnostics = sanitize_failure_diagnostics(value)
@@ -67,6 +70,7 @@ def run_isolated_loopback_benchmark(**options):
         receive.close()
         process.join(timeout=2)
         if process.is_alive():
+            forced = True
             # The worker's SIGTERM handler closes the ordinary role supervisor.
             process.terminate()
             process.join(timeout=35)
@@ -83,3 +87,6 @@ def run_isolated_loopback_benchmark(**options):
                     pass
             process.kill()
             process.join(timeout=5)
+    # Child source/supervisor close preceded its report. Parent join now covers
+    # Python/native finalization too; the owner alone reaped and retained wait4.
+    return finalize_client_report(report, process, forced=forced)

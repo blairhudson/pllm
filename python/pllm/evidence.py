@@ -14,6 +14,7 @@ from typing import Any, TYPE_CHECKING
 from pllm.plan import CompiledPlan, _unwrap
 
 if TYPE_CHECKING:
+    from pllm._benchmark_evidence import MetricSpec
     from pllm.search import BeamSearch, GridSearch, RandomSearch, SearchCandidate
 
 _BENCHMARK_RESULT_SCHEMA = "pllm.benchmark_result.v1"
@@ -499,9 +500,11 @@ class EvidenceRegistry:
         environment_digest: str | None = None,
         privacy_cohort: str | None = None,
         numeric_cohort: str | None = None,
-        metric: str | None = None,
+        metric: str | MetricSpec | None = None,
         status: str | None = None,
     ) -> tuple[BenchmarkResult, ...]:
+        from pllm._benchmark_evidence import client_memory_metric_id, has_client_memory_metric
+        scoped_metric = client_memory_metric_id(metric)
         matches = []
         for result in self._records.values():
             document = result.to_dict()
@@ -517,9 +520,11 @@ class EvidenceRegistry:
                 continue
             if numeric_cohort is not None and document["numeric_cohort"] != numeric_cohort:
                 continue
-            if metric is not None and not any(
-                measurement["component"] == metric for measurement in document["metrics"]
-            ):
+            if scoped_metric is not None:
+                if not has_client_memory_metric(document, scoped_metric):
+                    continue
+            elif metric is not None and not any(
+                    measurement["component"] == metric for measurement in document["metrics"]):
                 continue
             if status is not None and document["status"] != status:
                 continue

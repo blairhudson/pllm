@@ -10,7 +10,16 @@ import psutil
 
 class ProcessMemorySampler:
     def __init__(self, runtime, *, interval=0.05):
+        from .client_memory_scope import ClientMemoryScope
         self.runtime = runtime
+        declared = getattr(runtime, "_benchmark_client_memory_owner", None)
+        if (type(declared) is ClientMemoryScope and declared.root_pid == os.getpid()
+                and declared.claim_sampling()):
+            self.client_memory_scope = declared
+        else:
+            self.client_memory_scope = ClientMemoryScope()
+            self.client_memory_scope.claim_sampling()
+        runtime._benchmark_client_memory_owner = self.client_memory_scope
         self.interval = interval
         self.stop_event = threading.Event()
         self.peak = 0
@@ -26,27 +35,43 @@ class ProcessMemorySampler:
 
     def sample(self):
         start = time.monotonic()
+        self.client_memory_scope.begin_sample()
         topology = self.runtime._topology
         pids = {"client": os.getpid()}
+        readings = {}
         if topology is not None:
             with topology._process_lock:
                 processes = dict(topology._processes)
             for role, process in processes.items():
-                if process.pid is None:
-                    self.error = True  # Docker is a different resource domain.
-                    return
                 pids[role] = process.pid
+        native_roles = set(pids)
+        pids.update(self.client_memory_scope.targets(
+            {pid for role, pid in pids.items() if role != "client"}))
         try:
             total = 0
             observed = {}
             for role, pid in pids.items():
-                process = psutil.Process(pid)
-                identity = (pid, process.create_time())
-                if self.identities.setdefault(role, identity) != identity:
-                    raise ValueError("role process replaced during measurement")
-                rss = process.memory_info().rss
-                total += rss
-                observed[role] = rss
+                try:
+                    if pid is None:
+                        raise ValueError("nonlocal resource domain")
+                    process = psutil.Process(pid)
+                    identity = (pid, process.create_time())
+                    rss = process.memory_info().rss
+                    if role not in native_roles and psutil.Process(pid).create_time() != identity[1]:
+                        # Recheck registered helper birth with a fresh handle:
+                        # Process.create_time() itself caches its first result.
+                        raise ValueError("client helper identity changed during RSS read")
+                    readings[role] = (*identity, rss)
+                    if role in native_roles:
+                        if self.identities.setdefault(role, identity) != identity:
+                            raise ValueError("role process replaced during measurement")
+                        total += rss
+                        observed[role] = rss
+                except (psutil.Error, OSError, ValueError):
+                    if role in native_roles:
+                        self.error = True
+            if set(observed) != native_roles:
+                return
             self.peak = max(self.peak, total)
             self.samples += 1
             from .benchmark_failure import ROLES
@@ -60,7 +85,10 @@ class ProcessMemorySampler:
                 self._latest_at = time.monotonic()
         except (psutil.Error, OSError, ValueError):
             self.error = True
-        self.max_sample_seconds = max(self.max_sample_seconds, time.monotonic() - start)
+        finally:
+            span = time.monotonic() - start
+            self.client_memory_scope.observe(readings, span_seconds=span)
+            self.max_sample_seconds = max(self.max_sample_seconds, span)
 
     def failure_snapshot(self):
         """Last complete sample only; no psutil calls on the abort path."""

@@ -80,7 +80,8 @@ def _execute(case, sampling, inputs, salt, directory):
     body = canonical(request)
     if len(body) > 16 << 20:
         raise ValueError("private target inputs exceed 16 MiB")
-    process = subprocess.Popen([_interpreter(case.build.python), "-I", "-m", "pllm._benchmark_worker"],
+    from pllm.runtime.client_process_usage import client_popen_factory, finalize_client_payload
+    process = client_popen_factory(subprocess.Popen)([_interpreter(case.build.python), "-I", "-m", "pllm._benchmark_worker"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
          cwd=directory, env=_environment(sampling.threads), start_new_session=True)
     # Providers can own separate process groups. Remember their process identities
@@ -104,7 +105,8 @@ def _execute(case, sampling, inputs, salt, directory):
         except ProcessLookupError:
             pass
     monitor = MemoryWatchdog({"host": {"reserve_bytes": host.reserve, "swap_used": host.swap_used,
-                                       "available": host.available}}, abort)
+                                        "available": host.available}}, abort)
+    payload = None
     try:
         monitor.start()
         try:
@@ -135,6 +137,8 @@ def _execute(case, sampling, inputs, salt, directory):
                     child.wait(timeout=5)
             except psutil.Error:
                 pass
+
+        finalize_client_payload(payload, process)
 
 
 def _result(case, suite, replicate, cohort, build, payload):
@@ -215,7 +219,13 @@ class BenchmarkRun:
             raise ValueError("benchmark run exceeds 256 MiB")
         return cls(json.loads(payload))
 
-    def compare(self, control, candidate, metric, *, allow_build_changes=False):
+    def compare(self, control, candidate, metric, *, allow_build_changes=False, minimum_reduction=10):
+        """Compare old point metrics unchanged, or opt into guarded client scopes.
+
+        New MetricSpec/ID selections are descriptive or bounded, never point
+        rankings. ``minimum_reduction`` applies only to qualified new intervals;
+        missing optional scope does not change an accepted target's status.
+        """
         """Paired ratios only inside the exact cohort and measurement contract."""
         import statistics
         if not self.to_dict()["complete"]:
@@ -228,6 +238,12 @@ class BenchmarkRun:
         expected = set(range(self.to_dict()["suite"]["sampling"]["processes"]))
         if any(set(group) != expected for group in groups.values()):
             return {"status": "unranked", "reason": "missing_case"}
+        from pllm._benchmark_evidence import client_memory_metric_id, compare_client_memory_pairs
+        selected = client_memory_metric_id(metric)
+        if selected is not None:
+            return compare_client_memory_pairs([(groups[control][rep], groups[candidate][rep])
+                for rep in sorted(expected)], selected, allow_build_changes=allow_build_changes,
+                minimum_reduction=minimum_reduction)
         a, b, ratios = [], [], []
         for rep in sorted(expected):
             left, right = groups[control][rep], groups[candidate][rep]

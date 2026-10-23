@@ -477,6 +477,8 @@ _LAZY_EXPORTS = {name: f"pllm.metrics.{module}" for module, names in _LAZY_MODUL
 _LAZY_EXPORTS.update({name: "pllm._benchmark_contract" for name in (
     "BenchmarkTarget", "BenchmarkCase", "BenchmarkSuite", "BuildRef", "Sampling",
     "Scenario", "TargetBudget")})
+_LAZY_EXPORTS.update({name: "pllm._benchmark_evidence" for name in (
+    "MetricSpec", "client_memory_metric_specs")})
 
 
 def __getattr__(name):
@@ -505,6 +507,7 @@ def benchmark_memory(model, *, max_input_tokens=None, max_output_tokens=None, in
 
 
 __all__ = [
+    "MetricSpec", "client_memory_metric_specs",
     "BenchmarkRequirement", "benchmark_capabilities", "benchmark_coverage",
     "BenchmarkTarget", "BenchmarkCase", "BenchmarkSuite", "BuildRef", "Sampling",
     "Scenario", "TargetBudget", "benchmark_target", "benchmark_suite", "BenchmarkRun",

@@ -63,7 +63,11 @@ def audit_metrics(windows, m, *, window="request_windows"):
 
 
 def response_metrics(report, m):
+    from .client_memory_scope import client_memory_metrics
+    from .process_usage import provider_lifetime_metrics
     from .topology_accounting import ACCOUNTING_SCHEMA, accounting_coverage_identity
+    provider_lifetime_metrics(report, m)
+    client_memory_metrics(report, m)
     coverage = accounting_coverage_identity(report.get("topology_accounting"))
     body_scope = "covered_application_bodies"
     if coverage not in {ACCOUNTING_SCHEMA, "historical_coverage_not_recorded"}:

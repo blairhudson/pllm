@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 import math
 
 from pllm._benchmark_contract import BenchmarkCase, Sampling, canonical, digest, identity
@@ -154,3 +155,200 @@ def comparable_key(result, *, allow_build_changes=False):
 def metric_contract(metric):
     return canonical({key: value for key, value in metric.items()
         if key not in {"value", "sample_count", "unavailable_reason"}})
+
+
+_CLIENT_MEMORY_SPECS = {
+    "client.owned_sampled_peak_rss_sum": "estimate",
+    "client.owned_peak_rss_lower_bound": "lower_bound",
+    "client.owned_lifetime_peak_rss_sum_interval": "interval",
+}
+_CLIENT_LIFETIME_WINDOW = "isolated_client_group_birth_through_complete_retirement"
+
+
+@dataclass(frozen=True, slots=True)
+class MetricSpec:
+    """Opt-in client-memory selection, not a new metric executor or component.
+
+    Existing string/component selectors retain their old meaning. The interval
+    spec discovers metadata, never synthesizes a scalar measurement. Lifetime
+    coverage is available only after the qualified client owner's final reap.
+    """
+    id: str
+
+    def __post_init__(self):
+        if type(self.id) is not str or self.id not in _CLIENT_MEMORY_SPECS:
+            raise ValueError("unsupported opt-in client memory metric")
+
+    def to_spec(self):
+        from pllm.runtime.client_memory_scope import WINDOW
+        return {"id": self.id, "unit": "bytes", "kind": _CLIENT_MEMORY_SPECS[self.id],
+            "window": _CLIENT_LIFETIME_WINDOW if self.id.endswith("_interval") else WINDOW,
+            "source_setup_costs": ("only_inside_declared_isolated_lifetime" if self.id.endswith("_interval")
+                else "pre_sampler_resolution_and_import_excluded"),
+            "physical_peak": False}
+
+
+def client_memory_metric_specs():
+    """Discover three bounded optional selections; no workload/monitor is run."""
+    return tuple(MetricSpec(name) for name in _CLIENT_MEMORY_SPECS)
+
+
+def client_memory_metric_id(metric):
+    name = metric.id if type(metric) is MetricSpec else metric
+    return name if type(name) is str and name in _CLIENT_MEMORY_SPECS else None
+
+
+def has_client_memory_metric(document, name):
+    if name.endswith("_interval"):
+        report = document.get("execution", {}).get("details", {}).get("report")
+        scope = report.get("client_owned_memory") if type(report) is dict else None
+        return type(scope) is dict and type(scope.get("lifetime_peak_rss_sum_interval")) is dict
+    return any(row["id"] == name for row in document["metrics"])
+
+
+def _client_memory_observation(document, name):
+    """Validate trusted normal report data, never demand invented PID receipts."""
+    from pllm.runtime.client_memory_scope import HELPERS, SCHEMA, WINDOW
+    execution = document["execution"]
+    report = execution["details"].get("report", {})
+    scope = report.get("client_owned_memory", {})
+    if (execution["case"]["target"]["kind"] != "response"
+            or report.get("schema_version") != "pllm.loopback_benchmark.v1"
+            or report.get("checks", {}).get("passed") is not True
+            or scope.get("schema") != SCHEMA or scope.get("window") != WINDOW):
+        return None
+    source = report.get("configuration", {}).get("source_lock_digest")
+    if source is None or source != execution["comparison"]["source_digest"] or source != execution["fixture"]["digest"]:
+        return None
+    runs = report.get("runs")
+    if type(runs) is not list or not 1 <= len(runs) <= 64:
+        return None
+    bodies = []
+    for run in runs:
+        tokens = run.get("tokens", {})
+        body, output = run.get("model_fingerprint"), run.get("generation", {}).get("output_text_digest")
+        if (run.get("status") != "completed" or tokens.get("authoritative") is not True
+                or any(type(tokens.get(k)) is not int or not 0 <= tokens[k] <= (1 << 31)
+                       for k in ("input_tokens", "output_tokens"))
+                or any(type(v) is not str or len(v) != 64 for v in (body, output))):
+            return None
+        maximum = run.get("max_output_tokens")
+        if type(maximum) is not int or not 0 <= maximum <= (1 << 31) or type(run.get("warm")) is not bool:
+            return None
+        bodies.append((body, output, tokens["input_tokens"], tokens["output_tokens"], maximum, run["warm"]))
+    if (name.endswith("_interval") and scope.get("lifetime_peak_rss_sum_interval", {}).get("source")
+            in {"complete_owned_member_wait4_family_maxima",
+                "owner_bound_individual_prefix_lower_and_wait4_family_upper"}):
+        from pllm.runtime.client_process_usage import owned_family_interval
+        interval = owned_family_interval(scope)
+        return ({**interval, "kind": "interval", "window": _CLIENT_LIFETIME_WINDOW,
+                 "bodies": canonical(bodies)} if interval is not None else None)
+    members = scope.get("latest", {}).get("members")
+    if (type(members) is not dict or not 1 <= len(members) <= 9 or "client" not in members
+            or any(key not in ("client", *HELPERS) for key in members)):
+        return None
+    span = scope.get("maximum_sample_span_seconds")
+    if (type(scope.get("samples")) is not int or scope["samples"] <= 0
+            or type(span) not in (int, float) or not math.isfinite(span) or span < 0):
+        return None
+
+    def count(value):
+        return type(value) is int and 0 <= value <= (1 << 63) - 1
+
+    complete = (scope.get("membership_declared") is True
+        and scope.get("membership_declared_before_sampling") is True
+        and scope.get("sampling_coverage") == "all_declared_members_observed"
+        and type(scope.get("samples")) is int and scope["samples"] > 0
+        and type(scope.get("complete_member_samples")) is int
+        and scope.get("complete_member_samples") == scope["samples"]
+        and type(scope.get("missing_member_samples")) is int
+        and scope.get("missing_member_samples") == 0
+        and scope.get("latest", {}).get("missing_members") == []
+        and all(type(row) is dict and row.get("reason") is None and count(row.get("rss_bytes"))
+                for row in members.values()))
+    if name.endswith("_interval"):
+        bounds = scope.get("lifetime_peak_rss_sum_interval", {})
+        hwms = bounds.get("member_hwm_bytes")
+        if (not complete or bounds.get("window") != _CLIENT_LIFETIME_WINDOW
+                or bounds.get("metric") != "client_owned_rss_sum_peak"
+                or bounds.get("source") != "final_individual_os_hwm"
+                or bounds.get("hwm_coverage") != "individual_process_only"
+                or bounds.get("finalized_after_full_member_retirement") is not True
+                or bounds.get("unit") != "bytes" or bounds.get("isolated_lifetime") is not True
+                or bounds.get("membership_complete") is not True or bounds.get("reason") is not None
+                or type(hwms) is not dict or set(hwms) != set(members)
+                or not all(count(value) for value in hwms.values())
+                or bounds.get("lower_bound_bytes") != max(hwms.values())
+                or bounds.get("upper_bound_bytes") != sum(hwms.values())):
+            return None
+        return {"kind": "interval", "lower": bounds["lower_bound_bytes"],
+            "upper": bounds["upper_bound_bytes"], "window": _CLIENT_LIFETIME_WINDOW,
+            "bodies": canonical(bodies)}
+    row = next((row for row in document["metrics"] if row["id"] == name), {})
+    kind = _CLIENT_MEMORY_SPECS[name]
+    semantics = ("non_atomic_same_pass_owner_declared_RSS_sum" if kind == "estimate"
+                 else "maximum_individual_RSS_observation_not_group_peak")
+    field = "sampled_peak_rss_sum_bytes" if kind == "estimate" else "sampled_peak_rss_lower_bound_bytes"
+    if (not count(scope.get(field)) or type(row.get("value")) not in (int, float)
+            or row.get("value") != scope.get(field)
+            or row.get("origin") != kind or row.get("unit") != "bytes"
+            or row.get("window") != WINDOW or row.get("measurement_scope") != semantics
+            or row.get("statistic") != "measurement" or row.get("role") != "client"
+            or row.get("component") != "pllm/memory" or row.get("parameters") != {"kind": "peak_rss"}
+            or row.get("owners") != ["client"] or row.get("phase") != "full"
+            or row.get("sample_count") != 1):
+        return None
+    if kind == "estimate":
+        if (not complete or scope.get("sampled_peak_rss_sum_kind") !=
+                "non_atomic_same_pass_estimate_not_simultaneous_peak_bound"
+                or scope.get("latest", {}).get("same_pass_rss_sum_bytes") != sum(
+                    member["rss_bytes"] for member in members.values())
+                or row["value"] < scope["latest"]["same_pass_rss_sum_bytes"]):
+            return None
+    elif (scope.get("lower_bound_source") != "maximum_individual_RSS_observation"
+            or not any(type(member) is dict and count(member.get("rss_bytes")) for member in members.values())
+            or row["value"] < max(member["rss_bytes"] for member in members.values()
+                if type(member) is dict and count(member.get("rss_bytes")))):
+        return None
+    return {"kind": kind, "value": row["value"], "window": WINDOW,
+            "contract": metric_contract(row), "bodies": canonical(bodies)}
+
+
+def compare_client_memory_pairs(pairs, name, *, allow_build_changes=False, minimum_reduction=10):
+    """Extend normal comparison gates; estimates/bounds never become point ranks.
+
+    At most 32 existing replicate pairs and nine member HWMs. No history, monitor,
+    receipts or new runner. Fixed summaries use existing report metadata allowance.
+    """
+    if type(minimum_reduction) is not int or not 1 <= minimum_reduction <= 1_000_000:
+        raise ValueError("minimum reduction must be an integer in [1, 1000000]")
+    if not 1 <= len(pairs) <= 32:
+        return {"status": "unranked", "reason": "missing_case"}
+    observations = []
+    for left, right in pairs:
+        key = comparable_key(left, allow_build_changes=allow_build_changes)
+        if key is None or key != comparable_key(right, allow_build_changes=allow_build_changes):
+            return {"status": "unranked", "reason": "cohort_contract_differs"}
+        try:
+            a, b = (_client_memory_observation(result.to_dict(), name) for result in (left, right))
+        except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
+            return {"status": "unranked", "reason": "client_memory_scope_unavailable_or_unsafe"}
+        if a is None or b is None:
+            return {"status": "unranked", "reason": "client_memory_scope_unavailable_or_unsafe"}
+        if (a["kind"] != b["kind"] or a["window"] != b["window"] or a["bodies"] != b["bodies"]
+                or a.get("contract") != b.get("contract")):
+            return {"status": "unranked", "reason": "client_memory_scope_contract_differs"}
+        if a["kind"] == "interval":
+            observations.append({"control": {"lower_bytes": a["lower"], "upper_bytes": a["upper"]},
+                "candidate": {"lower_bytes": b["lower"], "upper_bytes": b["upper"]},
+                "reduction_established": a["lower"] > 0 and b["upper"] * minimum_reduction <= a["lower"]})
+        else:
+            observations.append({"control_bytes": a["value"], "candidate_bytes": b["value"]})
+    kind = _CLIENT_MEMORY_SPECS[name]
+    established = kind == "interval" and all(row["reduction_established"] for row in observations)
+    return {"status": "descriptive_only" if kind == "estimate" else "bounded",
+        "metric": name, "kind": kind, "pairs": observations, "process_pairs": len(observations),
+        "window": a["window"],
+        "minimum_reduction": minimum_reduction,
+        "reduction_status": "established_in_scope" if established else "not_established",
+        "physical_peak": False, "scope": "client_owned_RSS_sum_not_physical_used_RAM"}

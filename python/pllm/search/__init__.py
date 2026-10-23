@@ -312,7 +312,9 @@ class ParetoFrontier:
     ) -> None:
         if not isinstance(objectives, Mapping) or not objectives:
             raise SearchError("objectives must be a nonempty mapping")
-        normalized = dict(sorted(objectives.items()))
+        from pllm._benchmark_evidence import client_memory_metric_id
+        normalized = dict(sorted((client_memory_metric_id(key) or key, direction)
+            for key, direction in objectives.items()))
         if any(direction not in {"min", "max"} for direction in normalized.values()):
             raise SearchError("objective directions must be min or max")
         values = tuple(evaluations)
@@ -324,6 +326,11 @@ class ParetoFrontier:
         excluded = []
         for evaluation in values:
             document = evaluation.result.to_dict()
+            if any(client_memory_metric_id(name) is not None for name in normalized):
+                # Opt-in estimates and intervals have no honest point ordering.
+                # Use BenchmarkRun.compare's scoped descriptive/bound comparison.
+                excluded.append(evaluation)
+                continue
             scoped = document["schema_version"] == "pllm.benchmark_result.v2"
             if scoped:
                 from pllm._benchmark_evidence import comparable_key, metric_contract

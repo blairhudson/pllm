@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from pllm.configuration import Experiment, Model, Pipeline
+from pllm.runtime.process_usage import provider_popen_factory
 from pllm.runtime.shutdown import defer_termination_signals
 
 
@@ -133,7 +134,9 @@ def _spawn_role_process(
     if discard_output:
         stdout = subprocess.DEVNULL
         stderr = subprocess.DEVNULL
-    return subprocess.Popen(
+    # This synchronous Popen is the sole owner of provider reaping (including
+    # health polls). Never apply the usage hook to multiprocessing/asyncio owners.
+    return provider_popen_factory(subprocess.Popen)(
         command,
         cwd=Path.cwd(),
         env=environment,
