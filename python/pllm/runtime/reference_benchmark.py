@@ -133,8 +133,50 @@ def _fss_quality_identity(experiment, source, decode_steps, prompts):
         "diagnostic_requests": len(prompts)*(decode_steps+1), "output_selections_per_request": 1}
 
 
+def _memory_watchdog_note(guard):
+    """Sanitize cached guard data only; at most 256 ASCII bytes, no new sample.
+
+    Unknown exception text is never copied: it may contain private paths or
+    caller data. Record mode can retain this sanitized note in existing report
+    limitations; it is not a new structured guard field or scored outcome.
+    """
+    try:
+        reason = getattr(guard, "error", None)
+        observation = getattr(guard, "failure_observation", None)
+        parts = []
+        if type(reason) is str:
+            public_reasons = (
+                "benchmark stopped: macOS memory pressure is warning",
+                "benchmark stopped: macOS memory pressure is critical",
+                "benchmark stopped: host memory fell below runtime reserve",
+                "benchmark stopped: host swap grew by more than 256 MiB",
+            )
+            parts.append(reason if len(reason) <= 80 and reason in public_reasons
+                         else "unclassified failure (text omitted)")
+        if (type(observation) is dict and len(observation) == 3
+                and all(type(key) is str and key in ("pressure", "available_bytes", "swap_used_bytes")
+                        for key in observation)):
+            pressure = observation["pressure"]
+            if type(pressure) is str and pressure in ("normal", "warning", "critical"):
+                parts.append("pressure=" + pressure)
+            for key in ("available_bytes", "swap_used_bytes"):
+                value = observation[key]
+                if type(value) is int and 0 <= value <= (1 << 63) - 1:
+                    parts.append(f"{key}={value}")
+        if parts:
+            return "memory watchdog observed: " + "; ".join(parts)
+    except BaseException:
+        pass  # Diagnostics must not replace an execution/cleanup failure.
+    return None
+
+
 def _delegated_candidate(experiment, prompts, source, decode_steps, continuations, memory_safety_margin_percent=25, *, outcomes=None, expected_cohort=None):
-    """Run the installed two-worker path; return only finally accepted logits."""
+    """Run the installed two-worker path; return only finally accepted logits.
+
+    Cached guard triggers annotate exceptions. Record mode also carries that
+    same bounded note through its outcomes owner into existing limitations,
+    without retaining the exception, private text or mutable guard observation.
+    """
     from threading import Event
 
     from .benchmark_memory import MemoryWatchdog, benchmark_memory, require_admission
@@ -151,49 +193,90 @@ def _delegated_candidate(experiment, prompts, source, decode_steps, continuation
                               memory_safety_margin_percent=memory_safety_margin_percent)
     require_admission(report)
     cancelled = Event()
-    guard = MemoryWatchdog(report, lambda _: cancelled.set())
+    guard_note = None
+
+    def remember_guard():
+        nonlocal guard_note
+        if guard_note is None:
+            note = _memory_watchdog_note(guard)
+            if guard_note is None:
+                guard_note = note
+
+    def abort(_reason):
+        try:
+            remember_guard()  # Freeze the first trigger before signalling cancel.
+        except BaseException:
+            pass
+        finally:
+            cancelled.set()
+
+    def annotate(error):
+        try:
+            remember_guard()
+            if guard_note is not None:
+                if outcomes is not None:
+                    outcomes._memory_guard_note = guard_note
+                notes = getattr(error, "__notes__", None)
+                if (type(notes) is list and notes and type(notes[-1]) is str
+                        and notes[-1] == guard_note):
+                    return
+                error.add_note(guard_note)
+        except BaseException:
+            pass
+
+    guard = MemoryWatchdog(report, abort)
     actual, decoded, selected = [], [], []
     result = None
     try:
-        guard.start()
-        with build_roles(experiment) as topology:
-            for index, row in enumerate(ids):
-                if outcomes is not None:
-                    outcomes.current, outcomes.attempted = index * (decode_steps + 1), False
-                guard.check()
-                if outcomes is not None:
-                    outcomes.attempted = True
+        try:
+            guard.start()
+            with build_roles(experiment) as topology:
                 try:
-                    result = execute_request(
-                        experiment, source, row, decode_steps + 1,
-                        topology.worker_connections(), 3600.0, cancelled.is_set,
-                        decode_tokens=None if continuations is None else continuations[index],
-                    )
-                except Exception as error:
-                    from .quality_outcomes import numeric_rejection, Outcome
-                    if outcomes is None or not numeric_rejection(error):
-                        raise
-                    for step in range(decode_steps + 1):
-                        outcomes.record(index * (decode_steps + 1) + step, Outcome("rejected", "numeric_domain_rejected"))
-                    selected.append(tuple(continuations[index]) if continuations is not None else ())
-                    continue
-                guard.check()
-                vectors = [np.frombuffer(value, dtype="<f4").copy() for value in result.logits]
-                if (len(vectors) != decode_steps + 1 or any(vector.shape != (source.contract["vocabulary"],)
-                        or not np.isfinite(vector).all() for vector in vectors)):
-                    raise ReferenceBenchmarkError("quality output malformed")
-                if outcomes is None:
-                    actual.append(vectors[0])
-                    decoded.extend(vectors[1:])
-                else:
-                    from .quality_outcomes import Outcome
-                    for step, vector in enumerate(vectors):
-                        outcomes.record(index * (decode_steps + 1) + step, Outcome("accepted"), vector)
-                selected.append(result.executed[len(row):])
-                result = vectors = None  # Complete KV retires before next request.
+                    for index, row in enumerate(ids):
+                        if outcomes is not None:
+                            outcomes.current, outcomes.attempted = index * (decode_steps + 1), False
+                        guard.check()
+                        if outcomes is not None:
+                            outcomes.attempted = True
+                        try:
+                            result = execute_request(
+                                experiment, source, row, decode_steps + 1,
+                                topology.worker_connections(), 3600.0, cancelled.is_set,
+                                decode_tokens=None if continuations is None else continuations[index],
+                            )
+                        except Exception as error:
+                            from .quality_outcomes import numeric_rejection, Outcome
+                            if outcomes is None or not numeric_rejection(error):
+                                raise
+                            for step in range(decode_steps + 1):
+                                outcomes.record(index * (decode_steps + 1) + step, Outcome("rejected", "numeric_domain_rejected"))
+                            selected.append(tuple(continuations[index]) if continuations is not None else ())
+                            continue
+                        guard.check()
+                        vectors = [np.frombuffer(value, dtype="<f4").copy() for value in result.logits]
+                        if (len(vectors) != decode_steps + 1 or any(vector.shape != (source.contract["vocabulary"],)
+                                or not np.isfinite(vector).all() for vector in vectors)):
+                            raise ReferenceBenchmarkError("quality output malformed")
+                        if outcomes is None:
+                            actual.append(vectors[0])
+                            decoded.extend(vectors[1:])
+                        else:
+                            from .quality_outcomes import Outcome
+                            for step, vector in enumerate(vectors):
+                                outcomes.record(index * (decode_steps + 1) + step, Outcome("accepted"), vector)
+                        selected.append(result.executed[len(row):])
+                        result = vectors = None  # Complete KV retires before next request.
+                except BaseException as error:
+                    annotate(error)  # Before topology cleanup can replace the error.
+                    raise
+        finally:
+            guard.close()
+            result = None
+    except BaseException as error:
+        annotate(error)  # Include startup/cleanup errors, with Python precedence intact.
+        raise
     finally:
-        guard.close()
-        result = None
+        guard = None  # Break guard -> abort -> remember_guard -> guard ownership.
     kernel = experiment.pipeline.components["kernels"]
     contract = source.contract
     metadata = {
@@ -911,6 +994,8 @@ def run_reference_benchmark(
         "candidates": candidates,
         **({"reference_loading": loading} if loading is not None else {}),
         "limitations": [
+            *([note for batch in batches
+               if (note := getattr(batch, "_memory_guard_note", None)) is not None] if record else []),
             ("local worker execution; serving costs require benchmark run; no independent-operator privacy measurement"
              if any(admitted is not None for _, _, _, admitted in configurations)
              else "local clear integer kernels, not a provider transport or privacy measurement"),
