@@ -378,6 +378,11 @@ class LocalTopology:
                 value["source_import"] = records[0]
             elif len(records) > 1:
                 value.pop("source_import", None)  # Ambiguous attribution stays unknown.
+            progress = {role: record for role, reader in getattr(self, "_child_source_status", {}).items()
+                        if role in ("worker_a", "worker_b")
+                        and (record := getattr(reader, "progress_snapshot", lambda: None)()) is not None}
+            if progress:
+                value["fss_execution_progress"] = progress
             return value
         finally:
             self._process_lock.release()

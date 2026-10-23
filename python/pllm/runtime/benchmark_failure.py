@@ -80,6 +80,30 @@ def _roles(value):
     return [role for role in ROLES if role in value]
 
 
+def sanitize_execution_progress(value):
+    """Two latest holder gauges, fixed public scalars; never stringify tags."""
+    if type(value) is not dict or len(value) > 2:
+        return None
+    fields = {"stage", "kernel", "pc", "frame", "materials_returned", "peer_acked",
+              "peer_received", "elapsed_seconds", "changed_seconds", "cpu_ns", "sample_age_seconds"}
+    if any(type(k) is not str or k not in ("worker_a", "worker_b") for k in value):
+        return None
+    result = {}
+    for role, record in value.items():
+        if (type(record) is not dict or len(record) != len(fields)
+                or any(type(k) is not str or k not in fields for k in record)):
+            continue
+        # Local import avoids the source-status -> failure-schema import cycle.
+        from .fss_child_status import PROGRESS_STAGES
+        stage = _tag(record["stage"], PROGRESS_STAGES)
+        if stage is None:
+            continue
+        result[role] = {key: (_seconds(record[key]) if key.endswith("seconds") else _count(record[key]))
+                        for key in fields - {"stage"}}
+        result[role]["stage"] = stage
+    return result or None
+
+
 def sanitize_failure_diagnostics(value):
     """Rebuild a fixed, <4 KiB record at each exception/IPC/output boundary."""
     if type(value) is not dict or value.get("schema_version") != SCHEMA:
@@ -121,6 +145,9 @@ def sanitize_failure_diagnostics(value):
     boundary = sanitize_fss_control_boundary(value.get("fss_control_boundary"))
     if boundary is not None:
         result["fss_control_boundary"] = boundary
+    progress = sanitize_execution_progress(value.get("fss_execution_progress"))
+    if progress is not None:
+        result["fss_execution_progress"] = progress
     return result
 
 
@@ -205,6 +232,14 @@ class FailureDiagnostics:
                 except BaseException:
                     pass  # Optional cached observation cannot change failure.
         guard = runtime._memory_guard
+        # The current client marker is attempt-owned. Before holder start there
+        # may still be a failed previous role generation in the reader cache.
+        # Every path reaching holder start has completed all new source imports,
+        # whose generation-begin records clear both old holder gauges.
+        fresh_boundary = sanitize_fss_control_boundary(control_boundary)
+        progress_eligible = (fresh_boundary is not None
+            and fresh_boundary["role"] in ("worker_a", "worker_b")
+            and fresh_boundary["action"] in ("start", "finish"))
         return sanitize_failure_diagnostics({
             "schema_version": SCHEMA, "phase": current_phase,
             "role": current_role if current_phase not in ("unknown", "request", "ready") else None,
@@ -215,6 +250,10 @@ class FailureDiagnostics:
             "host": getattr(guard, "failure_observation", None),
             "process_rss": self.sampler.failure_snapshot() if self.sampler is not None else None,
             "fss_control_boundary": control_boundary,
+            # Cached child data only. Startup/success cannot inherit an older
+            # request's gauge; role reader also clears at each source generation.
+            "fss_execution_progress": (breadcrumb.get("fss_execution_progress")
+                                       if current_phase == "request" and progress_eligible else None),
         })
 
     def capture(self, *, phase=None, observation=_OBSERVE, control_boundary=_OBSERVE):

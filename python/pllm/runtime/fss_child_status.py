@@ -11,6 +11,7 @@ import os
 import socket
 import struct
 import threading
+import time
 
 from .benchmark_failure import SOURCE_IMPORT_PHASES
 
@@ -32,6 +33,80 @@ _SOCKET_BUFFER_MAX_BYTES = 64 << 10
 SUPERVISOR_MEMORY_BYTES = len(ROLES) * _THREAD_STACK_BYTES + (2 << 20)
 WORKER_MEMORY_BYTES = 1 << 20
 
+# One optional holder gauge, not event history. The ordinary role reservation
+# covers the worker subdivision; supervisor pricing adds two independent owners.
+# Worker: point/old/new 6-slot tuples + <=63-bit ints <2 KiB; sampled 10-slot
+# tuples and conversion/pack temporaries <4 KiB; timer controls/terminal overlap
+# <4 KiB. Reader: <=88-byte old/new fragments, decoded tuples/dicts, old/new cache,
+# failure deepcopy and JSON staging <12 KiB. Each 16 KiB bound is conservative
+# Python logical ownership, not allocator/stack/RSS proof or native Budget credit.
+PROGRESS_WORKER_BYTES = 16 << 10
+PROGRESS_SUPERVISOR_BYTES = 16 << 10
+PROGRESS_STAGES = ("native", "tape", "callback", "outbound_ack", "mailbox", "complete", "retiring")
+PROGRESS_SAMPLES = 10
+_PROGRESS_MAGIC = b"FSP1"
+_PROGRESS_RECORD = struct.Struct("<4sQHBB9Q")
+_NONE = (1 << 64) - 1
+_PROGRESS_FIELDS = ("kernel", "pc", "frame", "materials_returned", "peer_acked",
+                    "peer_received", "elapsed_ns", "changed_ns", "cpu_ns")
+
+
+class ExecutionProgress:
+    """One attempt, fixed public point; no native, tape or callback lock reads.
+
+    Native means outside Python callbacks, NOT proof of active native compute.
+    Returned materials are not claims/imports. Only timer/start/terminal samples
+    serialize/send; millions of boundary changes never write the status FD.
+    """
+    __slots__ = ("writer", "generation", "origin", "cpu_origin", "point",
+                 "returned", "cached", "ended")
+
+    def __init__(self, writer):
+        self.writer = writer
+        self.generation = writer.generation if writer is not None else 0
+        self.origin, self.cpu_origin = time.monotonic_ns(), time.process_time_ns()
+        self.point = (0, _NONE, _NONE, _NONE, 0)
+        self.returned = 0
+        self.cached = None
+        self.ended = False
+
+    def enter(self, stage, meta=None):
+        if self.ended:
+            return
+        _, kernel, pc, frame, _ = self.point
+        if meta is not None:
+            kernel = meta["kernel"]["ordinal"]
+            pc, frame = meta.get("pc", _NONE), meta.get("frame", _NONE)
+        self.point = (PROGRESS_STAGES.index(stage), kernel, pc, frame,
+                      max(0, time.monotonic_ns() - self.origin))
+
+    def sample(self, attempt, kind=_UPDATE):
+        if self.ended:
+            return
+        stage, kernel, pc, frame, changed = self.point
+        words = (kernel, pc, frame, self.returned, attempt.peer_sent, attempt.peer_received,
+                 max(0, time.monotonic_ns() - self.origin), changed,
+                 max(0, time.process_time_ns() - self.cpu_origin))
+        if any(type(n) is not int or not 0 <= n < 1 << 63 for n in words[3:]):
+            return
+        self.cached = _progress_value(stage, words)
+        if self.writer is not None:
+            self.writer.progress(self.generation, stage, words, kind)
+        if kind != _UPDATE:
+            self.ended = True
+            self.writer = None
+
+
+def _progress_value(stage, words):
+    value = dict(zip(_PROGRESS_FIELDS, words, strict=True))
+    for name in ("kernel", "pc", "frame"):
+        if value[name] == _NONE:
+            value[name] = None
+    value["stage"] = PROGRESS_STAGES[stage]
+    value["elapsed_seconds"] = value.pop("elapsed_ns") / 1_000_000_000
+    value["changed_seconds"] = value.pop("changed_ns") / 1_000_000_000
+    return value
+
 
 class StatusWriter:
     def __init__(self, channel):
@@ -42,6 +117,7 @@ class StatusWriter:
         self.generation = 0
         self.current = None
         self.closed = False
+        self.progress_generation = self.progress_sequence = 0
 
     @classmethod
     def from_environment(cls):
@@ -99,6 +175,28 @@ class StatusWriter:
         finally:
             self.lock.release()
         return scope
+
+    def progress(self, generation, stage, words, kind=_UPDATE):
+        # One nonblocking write, no retry or acknowledgement. A partial record
+        # disables diagnostics so subsequent legacy records cannot misframe it.
+        if self.closed or not self.lock.acquire(blocking=False):
+            return
+        try:
+            if generation != self.generation or not 1 <= generation <= _SCOPES:
+                return
+            if generation != self.progress_generation:
+                self.progress_generation, self.progress_sequence = generation, 0
+            if self.progress_sequence >= _STEPS:
+                return
+            packet = _PROGRESS_RECORD.pack(_PROGRESS_MAGIC, generation,
+                self.progress_sequence, kind, stage, *words)
+            self.progress_sequence += 1
+            if self.channel.send(packet) != len(packet):
+                self.close()
+        except (OSError, ValueError, struct.error):
+            self.close()
+        finally:
+            self.lock.release()
 
 
 class _Scope:
@@ -199,6 +297,10 @@ class StatusReader:
         self.ended = True
         self.thread = None
         self.closed = False
+        self.progress_latest = None
+        self.progress_generation = self.progress_sequence = 0
+        self.progress_ended = False
+        self.retired = False
 
     def start(self):
         if threading.stack_size() > _THREAD_STACK_BYTES:
@@ -223,12 +325,57 @@ class StatusReader:
         with self.lock:
             self.latest = None
 
+    def progress_snapshot(self):
+        # EOF can precede parent failure capture. Keep failed/in-flight evidence
+        # until explicit close/new source generation; successful END clears it.
+        if self.retired or not self.lock.acquire(blocking=False):
+            return None
+        try:
+            if self.retired or self.progress_latest is None:
+                return None
+            received, value = self.progress_latest
+            return {**value, "sample_age_seconds": max(0, time.monotonic() - received)}
+        except BaseException:
+            return None
+        finally:
+            self.lock.release()
+
+    def _accept_progress(self, packet):
+        if self.role == "dealer" or len(packet) != _PROGRESS_RECORD.size:
+            return False
+        magic, generation, sequence, kind, stage, *words = _PROGRESS_RECORD.unpack(packet)
+        if (magic != _PROGRESS_MAGIC or not 1 <= generation <= self.generation
+                or sequence >= _STEPS or kind not in (_UPDATE, _END, _FAIL)
+                or stage >= len(PROGRESS_STAGES)
+                or any(n != _NONE and n >= 1 << 63 for n in words[:3])
+                or any(n >= 1 << 63 for n in words[3:]) or words[7] > words[6]):
+            return False
+        if generation < self.generation:
+            return True
+        if generation == self.progress_generation:
+            if self.progress_ended or sequence <= self.progress_sequence:
+                return True
+            if sequence != self.progress_sequence + 1:
+                return False
+        elif sequence != 0:
+            return False
+        self.progress_generation, self.progress_sequence = generation, sequence
+        self.progress_ended = kind != _UPDATE
+        with self.lock:
+            self.progress_latest = (None if kind == _END else
+                (time.monotonic(), _progress_value(stage, words)))
+        return True
+
     def accept(self, packet):
         """Reader-thread-only fixed-record parser; false disables this channel."""
         if self.closed:
             return False
         self.count += 1
-        if len(packet) != _RECORD.size or self.count > _MAX_RECORDS:
+        if self.count > _MAX_RECORDS:
+            return False
+        if packet[:4] == _PROGRESS_MAGIC:
+            return self._accept_progress(packet)
+        if len(packet) != _RECORD.size:
             return False
         magic, generation, sequence, kind, phase = _RECORD.unpack(packet)
         if (magic != _MAGIC or not 1 <= generation <= _SCOPES or sequence >= _STEPS
@@ -255,6 +402,8 @@ class StatusReader:
         with self.lock:
             if self.closed:
                 return False
+            if generation > self.progress_generation:
+                self.progress_latest = None
             self.latest = {"active": kind != _END, "phase": SOURCE_IMPORT_PHASES[phase],
                            "role": self.role}
             if kind == _FAIL:
@@ -275,11 +424,17 @@ class StatusReader:
         pending = b""
         try:
             while not self.closed:
-                block = self.channel.recv(_RECORD.size - len(pending))
+                # Preserve legacy initial read/fragments and malformed-record
+                # rejection. Only a complete FSP1 prefix requests a longer tail.
+                if len(pending) >= _RECORD.size and pending[:4] == _PROGRESS_MAGIC:
+                    size = _PROGRESS_RECORD.size
+                else:
+                    size = _RECORD.size
+                block = self.channel.recv(size - len(pending))
                 if not block:
                     break
                 pending += block
-                if len(pending) == _RECORD.size:
+                if len(pending) == size and not (size == _RECORD.size and pending[:4] == _PROGRESS_MAGIC):
                     if not self.accept(pending):
                         break
                     pending = b""
@@ -292,6 +447,7 @@ class StatusReader:
             self.channel.close()
 
     def close(self):
+        self.retired = True
         self.closed = True
         self.stop = self.failure = None
         self.child.close()
@@ -306,5 +462,6 @@ class StatusReader:
         if self.lock.acquire(blocking=False):
             try:
                 self.latest = None
+                self.progress_latest = None
             finally:
                 self.lock.release()

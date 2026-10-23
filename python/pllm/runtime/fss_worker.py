@@ -36,7 +36,8 @@ from .delegated_transport import _connections
 from .delegated_worker import _Reservation, _PayloadResponse, _body
 from .replicated_worker import native_call
 from .fss_source import resolve_client_source, load_role_source
-from .fss_child_status import StatusWriter, source_status_scope
+from .fss_child_status import (StatusWriter, source_status_scope, ExecutionProgress,
+                               PROGRESS_SAMPLES, _UPDATE, _END, _FAIL)
 from .fss_tape import MaterialTape, MATERIAL_RECEIVE_BYTES, MATERIAL_RECEIVE_RECORDS, MATERIAL_RECEIVE_PYTHON_BYTES
 from .fss_transport import price_transport, timeout_limit, transport_capacity, transport_material_delivery
 from .benchmark_delegated import FSS_PHASE_COUNTERS
@@ -119,6 +120,28 @@ class _Attempt:
         self.peer_bytes = p.peer_bytes()
         self.native_run_ns = None
         self.delivery_callback_ns = self.seal_callback_ns = 0
+        self.progress = None  # Allocated only on holder run, inside role lease.
+
+    def progress_enter(self, stage, meta=None):
+        try:
+            if self.progress is not None:
+                self.progress.enter(stage, meta)
+        except BaseException:
+            pass  # Optional clocks/tags/diagnostics never replace real errors.
+
+    def progress_sample(self, kind=_UPDATE):
+        try:
+            if self.progress is not None:
+                self.progress.sample(self, kind)
+        except BaseException:
+            pass
+
+    def progress_returned(self, count):
+        try:
+            if self.progress is not None:
+                self.progress.returned += count
+        except BaseException:
+            pass
 
     def cancelled(self):
         return self.stop.is_set() or time.monotonic() >= self.expires
@@ -143,6 +166,11 @@ class _Attempt:
 
     async def close(self):
         if self.close_task is None:
+            if self.phase == "complete":
+                self.progress_enter("retiring")
+                self.progress_sample()
+            else:
+                self.progress_sample(_FAIL)  # Before stop/drain, preserve wait.
             self.retiring = True
             self.signal()
             self.close_task = asyncio.create_task(self._close())
@@ -223,8 +251,17 @@ class _Attempt:
         # A failed native cleanup must not silently refund potentially live owners.
         if errors:
             self.reservation = reservation
+            self.progress_sample(_FAIL)
+            self.progress = None
             raise RuntimeError("FuseFSS retirement failed") from None
-        reservation.close()
+        try:
+            reservation.close()
+        except BaseException:
+            self.progress_sample(_FAIL)
+            self.progress = None
+            raise
+        self.progress_sample(_END)
+        self.progress = None
 
 
 def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
@@ -477,9 +514,12 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
         if attempt.peer_sent >= attempt.admission["frames_per_party"]:
             raise ValueError("FuseFSS frame count exceeds admission")
         peer = next(r for r in p.HOLDERS if r != role)
+        attempt.progress_enter("outbound_ack", meta)
         await rpc(attempt, peer, "peer", {"sender": role, "epochs": attempt.epochs,
             "sequence": attempt.peer_sent, "metadata": raw, "frame": frame}, "online")
         attempt.peer_sent += 1
+        if attempt.mailbox is None:
+            attempt.progress_enter("mailbox", meta)
         while attempt.mailbox is None:
             if attempt.cancelled():
                 raise ValueError("FuseFSS mailbox retired")
@@ -534,8 +574,13 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             attempt = self.attempt
             if role not in p.HOLDERS or attempt.cancelled() or attempt.phase != "running":
                 raise ValueError("FuseFSS material is sealed offline only")
-            callback_meta(attempt, meta, "material", p.HOLDERS.index(role))
-            return attempt.tape.take(meta)  # native-owned thread; never a dealer RPC
+            public = callback_meta(attempt, meta, "material", p.HOLDERS.index(role))
+            attempt.progress_enter("tape", public)
+            del public  # Gauge retains scalars only, not parsed context/IDs.
+            packet = attempt.tape.take(meta)  # native-owned thread; never a dealer RPC
+            attempt.progress_returned(1)
+            attempt.progress_enter("native")
+            return packet
 
         def material_window(self, metadata):
             attempt = self.attempt
@@ -558,7 +603,11 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                     if total > MATERIAL_RECEIVE_BYTES:
                         raise ValueError("FuseFSS material receive exceeds admission")
                     requests.append((raw, meta["packet_bytes_bound"]))
-                return attempt.tape.take_window(tuple(requests), cancelled=attempt.cancelled)
+                attempt.progress_enter("tape", meta)
+                packets = attempt.tape.take_window(tuple(requests), cancelled=attempt.cancelled)
+                attempt.progress_returned(len(packets))
+                attempt.progress_enter("native")
+                return packets
             except BaseException as error:
                 attempt.retiring = True
                 attempt.signal()
@@ -566,14 +615,21 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 raise
 
         def exchange(self, meta, frame):
-            return bridge(self.attempt, exchange, meta, frame)
+            self.attempt.progress_enter("callback")
+            result = bridge(self.attempt, exchange, meta, frame)
+            self.attempt.progress_enter("native")
+            return result
 
         def finish(self):
             if self.attempt.cancelled() or self.attempt.phase != ("preparing" if role == "dealer" else "running"):
                 raise ValueError("FuseFSS callback retired")
             if role in p.HOLDERS:
+                self.attempt.progress_enter("tape")
                 self.attempt.tape.finish()  # native-owned thread; validates complete consumption
-                return bridge(self.attempt, finish_callback)
+                self.attempt.progress_enter("callback")
+                result = bridge(self.attempt, finish_callback)
+                self.attempt.progress_enter("native")
+                return result
             started = time.perf_counter_ns()
             try:
                 return bridge(self.attempt, finish_callback)
@@ -589,6 +645,12 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             # executor queue and later retirement. Native planning, callbacks,
             # packet/frame encoding and Python/native bridge overhead remain in it.
             started = time.perf_counter_ns()
+            if role in p.HOLDERS:
+                try:
+                    attempt.progress = ExecutionProgress(source_status)
+                    attempt.progress_sample()
+                except BaseException:
+                    pass
             try:
                 return attempt.native.run(input_frame, Callbacks(attempt))
             finally:
@@ -606,7 +668,9 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                     raise ValueError("FuseFSS native output exceeds admission")
                 attempt.output = result
             attempt.phase = "complete"
+            attempt.progress_enter("complete")
         except BaseException as error:
+            attempt.progress_sample(_FAIL)  # Freeze original wait before cleanup.
             result = input_frame = None
             p.clear_failure_frames(error)
             attempt.retiring = True
@@ -668,7 +732,9 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
                 * (1 if os.sys.platform == "darwin" else 1024),
              "active_sessions": int(active is not None), "seen_requests": len(seen),
             "retired_sessions": retired_sessions, "serving_qualified": False,
-            "phase_timing": dict(phase_timing)}
+             "phase_timing": dict(phase_timing)}
+        if active is not None and active.progress is not None and active.progress.cached is not None:
+            value["execution_progress"] = dict(active.progress.cached)
         return _PayloadResponse(json.dumps(value).encode(), reservation,
                                 limit=p.CONTROL_LIMIT, media_type="application/json")
 
@@ -744,6 +810,20 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             raise ValueError("FuseFSS source admission retired")
         attempt.phase = "admitted"
         async def expire():
+            # Reuse this existing expiry task. Exactly 10 coalesced opportunities,
+            # regardless of callback count. Last sample precedes the unchanged
+            # expiry by <=10s; no renewal, extra thread/task or HTTP observation.
+            try:
+                origin = time.monotonic()
+                duration = max(0, attempt.expires - origin)
+                sampling_end = max(0, duration - min(10, duration / 16))
+                for index in range(1, PROGRESS_SAMPLES + 1):
+                    await asyncio.sleep(max(0, origin + sampling_end * index / PROGRESS_SAMPLES - time.monotonic()))
+                    attempt.progress_sample()
+            except asyncio.CancelledError:
+                raise
+            except BaseException:
+                pass  # Sampling faults cannot bypass the original expiry below.
             await asyncio.sleep(max(0, attempt.expires-time.monotonic()))
             attempt.timer = None
             schedule_retire(attempt)
