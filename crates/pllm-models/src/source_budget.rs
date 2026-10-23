@@ -1,8 +1,120 @@
 //! Caller-selected bounds for source expansion before semantic graph allocation.
 //! Source mappings opt in only when these dimensions bound their graph builder.
 
-use crate::{DecoderWorkload, ModelError};
+use crate::{DecoderPlan, DecoderWorkload, ModelError};
 use serde_json::Value;
+
+/// Opt-in metadata bounds; these do not authenticate the source or provide a
+/// counter reservation. The compiler frontend must keep its real owner/charge.
+#[derive(Clone, Copy, Debug)]
+pub struct ConfigLowererLimits {
+    pub max_operations_per_phase: usize,
+    pub max_string_bytes: usize,
+    pub max_attribute_nodes: usize,
+    pub max_retained_strings: usize,
+    pub max_factory_bytes: usize,
+}
+
+/// A quotation of the actual registered source factory, borrowing its immutable
+/// configuration. Cannot be rebound to a different document or workload. It is
+/// NOT a source certificate or an allocation permit. Legacy byte lowering is
+/// unchanged; an owning frontend reserves before calling `construct`.
+pub struct ConfigLowererQuote<'a> {
+    document: &'a Value,
+    workload: DecoderWorkload,
+    lower: fn(&Value, DecoderWorkload) -> Result<DecoderPlan, ModelError>,
+    metadata: SourceMetadataEstimate,
+    factory_bytes: usize,
+}
+
+impl<'a> ConfigLowererQuote<'a> {
+    pub fn new(
+        document: &'a Value,
+        workload: DecoderWorkload,
+        expansion: DecoderExpansionBudget,
+        limits: ConfigLowererLimits,
+    ) -> Result<Self, ModelError> {
+        let lower = super::source_mappings::admitted_lowerer(document, workload, expansion)?;
+        let metadata = expansion.preflight_metadata(
+            document,
+            workload,
+            limits.max_operations_per_phase,
+            limits.max_string_bytes,
+            limits.max_attribute_nodes,
+            limits.max_retained_strings,
+        )?;
+        // Real existing document, not caller-reported baseline/capacity. Original
+        // source backing is retained/charged by the caller; these are EXTRA copy
+        // and canonicalization allowances under the registered closed builders.
+        let source_bytes =
+            crate::owned_backing::checked_json_backing_bytes(document, limits.max_factory_bytes)
+                .map_err(|_| rejected())?;
+        let operations = metadata
+            .operations_per_phase
+            .checked_mul(2)
+            .ok_or_else(rejected)?;
+        let states = metadata
+            .states_per_phase
+            .checked_mul(4)
+            .ok_or_else(rejected)?;
+        // Validation retains available IDs/shapes and input/output state indexes.
+        // Reuse the shared opaque-node policy, not an assumed private std layout.
+        let validation_entries = operations
+            .checked_mul(4)
+            .and_then(|n| states.checked_mul(4).and_then(|s| n.checked_add(s)))
+            .and_then(|n| n.checked_add(32))
+            .ok_or_else(rejected)?;
+        let node = crate::owned_backing::checked_tree_node_bytes::<(String, Vec<u64>)>()
+            .map_err(|_| rejected())?;
+        let validation = validation_entries.checked_mul(node).ok_or_else(rejected)?;
+        // Both phase results overlap. An additional full builder envelope covers
+        // reallocating Vec/string backing while its prior allocation still lives;
+        // four source envelopes cover typed config + Value/canonical temporaries.
+        // This is logical owner admission, not allocator overhead/stack/RSS.
+        let factory_bytes = metadata
+            .retained_metadata_bytes
+            .checked_mul(2)
+            .and_then(|n| source_bytes.checked_mul(4).and_then(|s| n.checked_add(s)))
+            .and_then(|n| n.checked_add(validation))
+            .and_then(|n| n.checked_add(std::mem::size_of::<DecoderPlan>()))
+            .ok_or_else(rejected)?;
+        if factory_bytes > limits.max_factory_bytes {
+            return Err(rejected());
+        }
+        Ok(Self {
+            document,
+            workload,
+            lower,
+            metadata,
+            factory_bytes,
+        })
+    }
+
+    pub fn metadata(&self) -> SourceMetadataEstimate {
+        self.metadata
+    }
+    pub fn factory_bytes(&self) -> usize {
+        self.factory_bytes
+    }
+
+    /// Must run inside the frontend's already retained real reservation. This
+    /// invokes the original semantic factory; no serialized plan/DTO surrogate.
+    pub fn construct(self) -> Result<DecoderPlan, ModelError> {
+        #[cfg(test)]
+        FACTORY_ATTEMPTS.with(|n| n.set(n.get() + 1));
+        (self.lower)(self.document, self.workload)
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static FACTORY_ATTEMPTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn factory_attempts() -> usize {
+    FACTORY_ATTEMPTS.with(|n| n.get())
+}
 
 /// Pre-construction logical metadata allowance. These are conservative, checked
 /// builder bounds, not allocator observations or a process/RSS reservation.
@@ -111,12 +223,19 @@ impl DecoderExpansionBudget {
         let retained = nodes
             .checked_mul(std::mem::size_of::<Value>())
             .and_then(|n| {
-                n.checked_add(
-                    operations * 2 * (std::mem::size_of::<crate::ModelOperation>() + 512 + 8192),
-                )
+                operations
+                    .checked_mul(2)
+                    .and_then(|o| {
+                        o.checked_mul(std::mem::size_of::<crate::ModelOperation>() + 512 + 8192)
+                    })
+                    .and_then(|o| n.checked_add(o))
             })
             .and_then(|n| n.checked_add(2 * (256 << 10)))
-            .and_then(|n| n.checked_add(retained_strings * 2))
+            .and_then(|n| {
+                retained_strings
+                    .checked_mul(2)
+                    .and_then(|s| n.checked_add(s))
+            })
             .ok_or_else(rejected)?;
         Ok(SourceMetadataEstimate {
             operations_per_phase: operations,
@@ -224,16 +343,101 @@ pub(super) fn preflight_dense_source(
         .ok_or_else(rejected)?;
     let batch = workload.batch;
     let rows = workload.max_input_tokens;
+    // Preflight is also used before an owned constructor has reserved its
+    // payload. Shape inspection must not allocate temporary Vecs at that seam.
     for shape in [
-        vec![batch, rows, hidden],
-        vec![batch, rows, intermediate],
-        vec![batch, rows, vocabulary],
-        vec![batch, rows, heads, head_dim],
-        vec![batch, heads, rows, rows],
-        vec![batch, heads, capacity],
-        vec![batch, kv_heads, capacity, head_dim],
+        &[batch, rows, hidden][..],
+        &[batch, rows, intermediate][..],
+        &[batch, rows, vocabulary][..],
+        &[batch, rows, heads, head_dim][..],
+        &[batch, heads, rows, rows][..],
+        &[batch, heads, capacity][..],
+        &[batch, kv_heads, capacity, head_dim][..],
     ] {
-        product(&shape, budget.max_tensor_elements)?;
+        product(shape, budget.max_tensor_elements)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod factory_quote_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn source() -> Value {
+        json!({"model_type":"qwen2", "num_hidden_layers":1, "hidden_size":4,
+            "intermediate_size":8, "num_attention_heads":2, "num_key_value_heads":1,
+            "vocab_size":7, "max_position_embeddings":8, "hidden_act":"silu",
+            "rms_norm_eps":0.000001, "rope_theta":10000,
+            "tie_word_embeddings":true, "use_sliding_window":false})
+    }
+
+    fn limits() -> ConfigLowererLimits {
+        ConfigLowererLimits {
+            max_operations_per_phase: 128,
+            max_string_bytes: 1024,
+            max_attribute_nodes: 32768,
+            max_retained_strings: 1 << 20,
+            max_factory_bytes: 64 << 20,
+        }
+    }
+
+    fn expansion() -> DecoderExpansionBudget {
+        DecoderExpansionBudget {
+            max_layers: 8,
+            max_feature_width: 128,
+            max_attention_heads: 8,
+            max_vocabulary: 128,
+            max_tensor_elements: 32768,
+        }
+    }
+
+    fn workload() -> DecoderWorkload {
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: 4,
+            max_new_tokens: 2,
+        }
+    }
+
+    #[test]
+    fn actual_factory_matches_independent_original_byte_lowerer() {
+        let document = source();
+        let original = crate::lower_model_json_with_budget(
+            &serde_json::to_vec(&document).unwrap(),
+            workload(),
+            expansion(),
+        )
+        .unwrap();
+        let quote = ConfigLowererQuote::new(&document, workload(), expansion(), limits()).unwrap();
+        let admitted = quote.construct().unwrap();
+        assert_eq!(admitted, original);
+        assert_eq!(admitted.digest(), original.digest());
+    }
+
+    #[test]
+    fn exact_layout_cap_and_one_short_before_factory() {
+        let document = source();
+        let quote = ConfigLowererQuote::new(&document, workload(), expansion(), limits()).unwrap();
+        let bytes = quote.factory_bytes();
+        let mut exact = limits();
+        exact.max_factory_bytes = bytes;
+        let exact_quote =
+            ConfigLowererQuote::new(&document, workload(), expansion(), exact).unwrap();
+        assert_eq!(exact_quote.factory_bytes(), bytes);
+        let mut short = exact;
+        short.max_factory_bytes -= 1;
+        assert!(ConfigLowererQuote::new(&document, workload(), expansion(), short).is_err());
+        let plan = exact_quote.construct().unwrap();
+        assert!(plan.checked_owned_backing_bytes(bytes).unwrap() <= bytes);
+    }
+
+    #[test]
+    fn genuine_dimensions_reject_before_semantic_factory() {
+        let mut document = source();
+        document["hidden_size"] = json!(1024);
+        // The ordinary semantic factory has no caller width allowance; refuse
+        // the actual opt-in dimensional limit before invoking that factory.
+        assert!(ConfigLowererQuote::new(&document, workload(), expansion(), limits()).is_err());
+    }
 }

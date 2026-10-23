@@ -93,6 +93,13 @@ impl ImportedValue {
     pub fn counts(&self) -> SourceCounts {
         self.counts
     }
+
+    /// Same raw-payload ceiling used by this owner's bounded census. Work units
+    /// count cursor events separately and cannot substitute for this byte cap.
+    /// Reuses the original pinned scalar Number policy, not lexical JSON length.
+    pub fn traversal_payload_bound(&self) -> Result<usize, Error> {
+        traversal_payload_bound(self.counts)
+    }
 }
 
 /// Consumes both ORIGINAL owners; cannot be rebound to substitute bytes/baseline.
@@ -216,6 +223,13 @@ fn payload(counts: SourceCounts) -> Result<usize, Error> {
     .try_fold(0, add)
 }
 
+fn traversal_payload_bound(counts: SourceCounts) -> Result<usize, Error> {
+    add(
+        counts.decoded_string_bytes,
+        super::mul(counts.spans, NUMBER_DISPLAY_BYTES)?,
+    )
+}
+
 fn census_limits(
     limits: Limits,
     counts: SourceCounts,
@@ -227,10 +241,7 @@ fn census_limits(
         max_work: usize::try_from(work).map_err(|_| Error::Overflow)?,
         max_workspace_bytes: resources.logical_workspace_bytes,
         max_json_nodes: limits.max_nodes,
-        max_json_payload_bytes: add(
-            counts.decoded_string_bytes,
-            super::mul(counts.spans, NUMBER_DISPLAY_BYTES)?,
-        )?,
+        max_json_payload_bytes: traversal_payload_bound(counts)?,
         max_json_string_bytes: limits.max_string_bytes,
         max_json_key_bytes: limits.max_string_bytes,
         max_json_depth: CENSUS_SLOTS - 1,

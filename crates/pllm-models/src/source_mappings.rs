@@ -7,6 +7,7 @@ use super::{
     lower_qwen3_decoder, lower_qwen_decoder, shared_kv_decoder, DecoderExpansionBudget,
     DecoderPlan, DecoderWorkload, ModelError, Qwen3Config, QwenConfig,
 };
+use serde::Deserialize;
 use serde_json::Value;
 
 /// Maps semantic artifact roles to exact checkpoint names. The decoder graphs
@@ -77,6 +78,27 @@ const HYBRID_ARTIFACTS: ArtifactLayout<'static> = ArtifactLayout {
 };
 
 type SourceLowering = fn(&[u8], Value, DecoderWorkload) -> Result<DecoderPlan, ModelError>;
+type AdmittedLowering = fn(&Value, DecoderWorkload) -> Result<DecoderPlan, ModelError>;
+
+pub(super) fn admitted_lowerer(
+    document: &Value,
+    workload: DecoderWorkload,
+    budget: DecoderExpansionBudget,
+) -> Result<AdmittedLowering, ModelError> {
+    let source = document.get("model_type").and_then(Value::as_str);
+    let mapping = SOURCE_MAPPINGS
+        .iter()
+        .find(|mapping| Some(mapping.model_type) == source)
+        .ok_or_else(|| ModelError::Unsupported("source has no admitted Value factory".into()))?;
+    let lower = mapping
+        .lower_admitted
+        .ok_or_else(|| ModelError::Unsupported("source has no admitted Value factory".into()))?;
+    let preflight = mapping.preflight.ok_or_else(|| {
+        ModelError::Unsupported("source has no bounded expansion contract".into())
+    })?;
+    preflight(document, workload, budget)?;
+    Ok(lower)
+}
 type SourcePreflight =
     fn(&Value, DecoderWorkload, DecoderExpansionBudget) -> Result<(), ModelError>;
 
@@ -293,6 +315,9 @@ struct SourceMapping {
     model_type: &'static str,
     semantic_family: &'static str,
     lower: SourceLowering,
+    // Same semantic factory; the immutable Value belongs to an already admitted
+    // frontend. This is not a parser, source authenticator, or admission permit.
+    lower_admitted: Option<AdmittedLowering>,
     preflight: Option<SourcePreflight>,
 }
 
@@ -303,12 +328,20 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
         lower: |_, document, workload| {
             absolute_position_decoder::lower_source_json(&document, workload, &ABSOLUTE_POSITION)
         },
+        // Its existing preflight eagerly parses/clones the configuration and
+        // builds a JSON adapter. Do not enter that factory before reservation.
+        lower_admitted: None,
         preflight: Some(absolute_position_decoder::preflight),
     },
     SourceMapping {
         model_type: "qwen2",
         semantic_family: "qwen2",
         lower: lower_dense_qwen2,
+        lower_admitted: Some(|document, workload| {
+            let config = QwenConfig::deserialize(document)
+                .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
+            lower_qwen_decoder(&config, workload)
+        }),
         preflight: Some(|document, workload, budget| {
             preflight_dense_source(document, workload, budget, HeadWidth::HiddenPerHead)
         }),
@@ -317,6 +350,11 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
         model_type: "qwen3",
         semantic_family: "qwen3",
         lower: lower_dense_qwen3,
+        lower_admitted: Some(|document, workload| {
+            let config = Qwen3Config::deserialize(document)
+                .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
+            lower_qwen3_decoder(&config, workload)
+        }),
         preflight: Some(|document, workload, budget| {
             preflight_dense_source(document, workload, budget, HeadWidth::SourceField)
         }),
@@ -325,6 +363,7 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
         model_type: "llama",
         semantic_family: "llama",
         lower: lower_dense_gated,
+        lower_admitted: Some(dense_gated_source::lower_admitted_value),
         preflight: Some(|document, workload, budget| {
             preflight_dense_source(document, workload, budget, HeadWidth::HiddenPerHead)
         }),
@@ -333,18 +372,21 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
         model_type: "gemma4",
         semantic_family: "gemma4_text",
         lower: lower_shared_kv,
+        lower_admitted: None,
         preflight: None,
     },
     SourceMapping {
         model_type: "phi3",
         semantic_family: "phi4_mini",
         lower: lower_fused_dense,
+        lower_admitted: None,
         preflight: None,
     },
     SourceMapping {
         model_type: "qwen3_5",
         semantic_family: "qwen3_5_text",
         lower: lower_hybrid,
+        lower_admitted: None,
         preflight: None,
     },
 ];
@@ -514,6 +556,21 @@ mod tests {
                 let bounded = lower_json(&bytes, workload, Some(budget)).unwrap();
                 assert_eq!(plain, bounded);
                 assert_eq!(plain.digest(), bounded.digest());
+                // Independent byte frontend still invokes the original source
+                // factories. The opt-in frontend must not serialize a plan, use
+                // its digest as provenance, or replace any numeric recipe.
+                let mapping = SOURCE_MAPPINGS
+                    .iter()
+                    .find(|m| m.model_type == family)
+                    .unwrap();
+                if mapping.lower_admitted.is_some() {
+                    let lower = admitted_lowerer(&source, workload, budget).unwrap();
+                    let from_value = lower(&source, workload).unwrap();
+                    assert_eq!(plain, from_value);
+                    assert_eq!(plain.digest(), from_value.digest());
+                } else {
+                    assert!(admitted_lowerer(&source, workload, budget).is_err());
+                }
                 assert_eq!(
                     plain.prefill.operations.len(),
                     estimate.operations_per_phase,
@@ -560,6 +617,7 @@ mod tests {
             model_type: "sentinel",
             semantic_family: "sentinel",
             lower: lowering_sentinel,
+            lower_admitted: None,
             preflight: Some(|document, workload, budget| {
                 preflight_dense_source(document, workload, budget, HeadWidth::SourceField)
             }),

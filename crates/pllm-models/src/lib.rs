@@ -2,6 +2,7 @@
 
 pub mod bounded_canonical;
 pub mod cache;
+pub mod source_work;
 
 use pllm_types::{canonical_digest, Digest};
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -19,7 +20,7 @@ mod shared_kv_decoder;
 mod source_budget;
 mod source_mappings;
 
-pub use source_budget::DecoderExpansionBudget;
+pub use source_budget::{ConfigLowererLimits, ConfigLowererQuote, DecoderExpansionBudget};
 
 pub const DECODER_PLAN_SCHEMA_VERSION: &str = "pllm.decoder_plan.v1";
 

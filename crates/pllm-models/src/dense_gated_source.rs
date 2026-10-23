@@ -118,8 +118,24 @@ pub(super) fn lower_json(
 ) -> Result<DecoderPlan, ModelError> {
     let source: SourceConfig = serde_json::from_slice(bytes)
         .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
+    lower_config(&source, workload)
+}
+
+pub(super) fn lower_admitted_value(
+    document: &Value,
+    workload: DecoderWorkload,
+) -> Result<DecoderPlan, ModelError> {
+    let source = SourceConfig::deserialize(document)
+        .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
+    lower_config(&source, workload)
+}
+
+fn lower_config(
+    source: &SourceConfig,
+    workload: DecoderWorkload,
+) -> Result<DecoderPlan, ModelError> {
     let (head_dim, rope_frequency_scaling) = source.validate()?;
-    let digest = canonical_digest("pllm.dense_gated_source_config.v1", &source);
+    let digest = canonical_digest("pllm.dense_gated_source_config.v1", source);
     lower_dense_decoder(
         &DenseDecoderConfig {
             model_family: &source.model_type,
