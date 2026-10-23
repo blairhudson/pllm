@@ -1,4 +1,4 @@
-"""Non-interactive loopback benchmark orchestration for the CLI."""
+"""Non-interactive benchmark dispatch and loopback orchestration for the CLI."""
 
 from __future__ import annotations
 
@@ -21,10 +21,102 @@ import httpx
 import uvicorn
 
 if TYPE_CHECKING:
+    from argparse import Namespace
+    from pllm._benchmark_contract import BenchmarkSuite
     from pllm.configuration import Experiment
 
 
 REPORT_SCHEMA = "pllm.loopback_benchmark.v1"
+
+
+def run_suite_factory_cli(suite: BenchmarkSuite, args: Namespace, output_format: str, dry_run: bool) -> None:
+    """Dispatch a declared suite intact to the ordinary isolated suite engine.
+
+    CLI defaults are legacy Experiment defaults, not suite overrides. Explicit
+    values must match every case; no flattening, resampling or model resolution
+    occurs in this controller. Private text is sent only through engine inputs.
+
+    Ordinary invocation: ``pllm benchmark run --experiment campaign.py:campaign
+    --factory --trust-python --prompt-file prompt.txt --output target/run.json``.
+    Bind required build/memory arguments in that normal zero-argument factory;
+    legacy CLI defaults cannot supply or change them. Output uses the public
+    ``pllm.benchmark_run.v1`` schema, not the legacy loopback/WAN report schema.
+    """
+    from pllm._benchmark_contract import BenchmarkSuite
+    from pllm._cli.errors import LocalIOError, ResolutionError
+    from pllm._cli.output import emit_machine
+    from pllm.metrics import benchmark_suite
+    from .benchmark_context import validate_context
+
+    if type(suite) is not BenchmarkSuite:
+        raise TypeError("suite factory must produce a BenchmarkSuite")
+    parameters = [case.target.to_spec()["parameters"] for case in suite.cases]
+    responses = all(case.target.kind == "response" for case in suite.cases)
+    explicit = set(getattr(args, "benchmark_explicit_options", ()))
+    common = {"warmups": suite.sampling.warmups, "repetitions": suite.sampling.repetitions,
+              "timeout": suite.sampling.timeout_seconds}
+    if responses:
+        common["temperature"] = 0  # Ordinary response executor's fixed greedy policy.
+        for option, field in (("max_output_tokens", "scenario"), ("backend", "backend")):
+            values = [p[field]["max_output_tokens"] if field == "scenario" else p.get(field) for p in parameters]
+            if all(value == values[0] for value in values):
+                common[option] = values[0]
+    allowed = {"output", "prompt", "prompt_file"}
+    conflicts = explicit - allowed - common.keys()
+    conflicts.update(key for key in explicit & common.keys() if getattr(args, key) != common[key])
+    conflicts.update(key for key in (
+        "compare_feasible", "capture_output_digest", "compare_kernels", "isolate_candidates",
+        "docker", "preflight_only", "wan", "wan_estimate", "show_dashboard", "wan_party",
+    ) if getattr(args, key, None))
+    if getattr(args, "benchmark_model_override", False):
+        conflicts.add("model")
+    if not responses and explicit & {"prompt", "prompt_file"}:
+        conflicts.add("prompt")
+    if conflicts:
+        raise ResolutionError("BENCHMARK_SUITE_OVERRIDE", "declare suite options in the factory; conflicting CLI options: "
+                              + ", ".join(sorted(key.replace("_", "-") for key in conflicts)))
+    inputs = None
+    if responses:
+        if any(p["scenario"]["kind"] == "sequence" for p in parameters):
+            raise ResolutionError("BENCHMARK_SUITE_INPUTS", "sequence suites require explicit per-case SDK inputs")
+        try:
+            prompt = args.prompt
+            if args.prompt_file is not None:
+                with args.prompt_file.expanduser().open("rb") as source:
+                    prompt = source.read(16385).decode("utf-8")
+            prompt = validate_context(prompt)
+        except OSError as exc:
+            raise LocalIOError("BENCHMARK_PROMPT_READ", "cannot read suite prompt file") from exc
+        except (ValueError, UnicodeError) as exc:
+            raise ResolutionError("BENCHMARK_PROMPT", "suite prompt must contain 1 to 16384 UTF-8 bytes") from exc
+        inputs = {case.name: {"prompt": prompt} for case in suite.cases}
+    output = args.output.expanduser() if args.output is not None else None
+    if output is not None and output.exists() and not args.force:
+        raise LocalIOError("OUTPUT_EXISTS", f"output already exists; use --force to replace it: {output}")
+    if dry_run:
+        data = {"dry_run": True, "suite": suite.to_spec(), "output": str(output) if output else None,
+                "report_schema": "pllm.benchmark_run.v1"}
+        if output_format == "human":
+            print(f"Would run {len(suite.cases)} suite cases in one isolated cohort")
+        else:
+            emit_machine("benchmark.run", data, output_format)
+        return
+    try:
+        if output is not None and args.force:
+            output.unlink(missing_ok=True)
+        run = benchmark_suite(suite, inputs=inputs, output=output)
+    except OSError as exc:
+        raise LocalIOError("OUTPUT_WRITE", "cannot write suite checkpoint") from exc
+    report = run.to_dict()  # Public serializer, including failed/blocked/unavailable evidence.
+    if output_format == "human":
+        print(f"Recorded {len(report['results'])} trials in suite cohort {report['cohort']}")
+        for row in report["results"]:
+            print(f"{row['execution']['case']['name']}: {row['status']}")
+        print("No ranking inferred; use BenchmarkRun.compare with a matched metric contract")
+        if output is not None:
+            print(f"Wrote {output}")
+    else:
+        emit_machine("benchmark.run", {"output": str(output) if output else None, "report": report}, output_format)
 
 
 def accounted_benchmark_body_totals(accounting: Mapping[str, Any]) -> dict[str, int | None]:

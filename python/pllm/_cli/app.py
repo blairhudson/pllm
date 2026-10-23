@@ -33,6 +33,16 @@ class _BenchmarkModelAction(argparse.Action):
         namespace.benchmark_model_override = True
 
 
+class _BenchmarkOptionAction(argparse.Action):
+    """Remember explicit suite overrides without changing legacy default values."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        options = set(getattr(namespace, "benchmark_explicit_options", ()))
+        options.add(self.dest)
+        namespace.benchmark_explicit_options = frozenset(options)
+
+
 def _add_globals(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--format",
@@ -343,6 +353,8 @@ def build_parser() -> _Parser:
         "run",
         help="run the real client, preparation, and inference roles on loopback",
     )
+    benchmark_run.register("action", "store", _BenchmarkOptionAction)
+    benchmark_run.register("action", None, _BenchmarkOptionAction)
     benchmark_selection = benchmark_run.add_mutually_exclusive_group()
     benchmark_selection.add_argument(
         "--experiment",
@@ -350,8 +362,8 @@ def build_parser() -> _Parser:
         default=[],
         metavar="TARGET",
         help=(
-            "Experiment .json/.yaml or explicit Python path.py:object/module:object; repeat to "
-            "compare pipelines"
+            "Experiment .json/.yaml or explicit Python path.py:object/module:object; "
+            "Python may return one BenchmarkSuite; repeat Experiments to compare pipelines"
         ),
     )
     benchmark_selection.add_argument("--plan", type=Path, help="fixed selected deployment")
@@ -780,14 +792,29 @@ def _benchmark(args: argparse.Namespace, output_format: str, no_input: bool, dry
             raise ResolutionError(
                 "BENCHMARK_EXPERIMENT_TINY", "--experiment cannot be combined with --tiny"
             )
-        for target_name in args.experiment:
-            target = resolve_target(
+        targets = [
+            resolve_target(
                 target_name,
                 factory=args.factory,
                 no_input=no_input,
                 trust_python=args.trust_python,
                 output_format=output_format,
+                allow_benchmark_suite=True,
             )
+            for target_name in args.experiment
+        ]
+        from pllm._benchmark_contract import BenchmarkSuite
+
+        if any(isinstance(target.configuration, BenchmarkSuite) for target in targets):
+            if len(targets) != 1:
+                raise ResolutionError(
+                    "BENCHMARK_SUITE_TARGETS", "declare all matched cases in one BenchmarkSuite factory"
+                )
+            from pllm.runtime.benchmark_cli import run_suite_factory_cli
+
+            run_suite_factory_cli(targets[0].configuration, args, output_format, dry_run)
+            return
+        for target_name, target in zip(args.experiment, targets):
             if not isinstance(target.configuration, Experiment):
                 raise ResolutionError(
                     "BENCHMARK_EXPERIMENT_TYPE", f"target is not an Experiment: {target_name}"

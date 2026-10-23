@@ -258,6 +258,15 @@ class BenchmarkTarget:
         for key, value in changes.items():
             if key in model_changes:
                 continue
+            # Public response acceptance geometry is opt-in. Removing an
+            # expectation restores the exact legacy target bytes/digest.
+            if document["kind"] == "response" and key in {
+                    "expected_input_tokens", "expected_output_tokens"}:
+                if value is None:
+                    params.pop(key, None)
+                else:
+                    params[key] = value
+                continue
             if key not in params or key == "model":
                 raise ValueError(f"unknown target parameter {key!r}")
             params[key] = value
@@ -345,7 +354,13 @@ class BenchmarkTarget:
     @classmethod
     def response(cls, experiment, *, scenario=None, backend="native", wan=None, client_stage=None,
                  client_mlp=None, client_metadata=False, concurrent_requests=1, client_attention=None,
-                 state_audit=False):
+                 state_audit=False, expected_input_tokens=None, expected_output_tokens=None):
+        """Ordinary responses with optional exact authoritative usage checks.
+
+        Expectations describe public per-request counts, not forced generation
+        or private token values. None preserves the original canonical target.
+        Natural EOS remains enabled; a different completed count fails the check.
+        """
         if scenario is None:
             scenario = Scenario.cold()
         if not isinstance(scenario, Scenario):
@@ -371,6 +386,10 @@ class BenchmarkTarget:
             raise ValueError("response state audit must be a boolean")
         if state_audit:
             parameters["state_audit"] = True
+        for name, value in (("expected_input_tokens", expected_input_tokens),
+                            ("expected_output_tokens", expected_output_tokens)):
+            if value is not None:
+                parameters[name] = value
         return cls("response", parameters)
 
     @classmethod
@@ -408,6 +427,8 @@ def _validate_target(document):
         fields[kind] = fields[kind] | {"concurrent_requests"}
     if kind == "response" and "state_audit" in p:
         fields[kind] = fields[kind] | {"state_audit"}
+    if kind == "response":
+        fields[kind] |= {key for key in ("expected_input_tokens", "expected_output_tokens") if key in p}
     if kind == "preparation" and "output_columns" in p:
         fields[kind] = fields[kind] | {"output_columns"}
         if "credit_window" in p:
@@ -485,6 +506,18 @@ def _validate_target(document):
                 raise ValueError("recurrence requires local memory storage")
     elif kind == "response":
         Scenario(**p["scenario"])
+        # ExecutionBudget/Scenario are ceilings; these optional fields instead
+        # require observed authoritative equality for every completed request.
+        expected = {key for key in ("expected_input_tokens", "expected_output_tokens") if key in p}
+        if expected:
+            budget = Experiment.from_spec(p["model"]["experiment"]).budget
+            for key, maximum in (("expected_input_tokens", budget.max_input_tokens),
+                                 ("expected_output_tokens", min(budget.max_new_tokens,
+                                                               p["scenario"]["max_output_tokens"]))):
+                if key in p:
+                    bounded_int(p[key], 0, maximum, key)
+            if "concurrent_requests" in p:
+                raise ValueError("expected token counts require serial response scenarios")
         if "concurrent_requests" in p:
             bounded_int(p["concurrent_requests"], 2, 8, "concurrent requests")
             if (p["scenario"]["kind"] != "cold" or p["backend"] != "native"

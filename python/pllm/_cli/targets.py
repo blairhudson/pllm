@@ -148,6 +148,7 @@ def resolve_target(
     no_input: bool,
     trust_python: bool,
     output_format: str,
+    allow_benchmark_suite: bool = False,
 ) -> ResolvedTarget:
     """Resolve strict data or one explicit public Python object."""
     from pllm.config import ConfigurationError, Experiment, load_configuration
@@ -218,9 +219,22 @@ def resolve_target(
                 raise ResolutionError(
                     "TARGET_FACTORY", f"Python target factory failed ({type(exc).__name__})"
                 ) from exc
-    if type(value) is not Experiment:
+    accepted_types = (Experiment,)
+    if allow_benchmark_suite:
+        from pllm._benchmark_contract import BenchmarkSuite
+
+        accepted_types += (BenchmarkSuite,)
+    if type(value) not in accepted_types:
         raise ResolutionError(
-            "TARGET_TYPE", "Python target must resolve to a public pllm.config.Experiment"
+            "TARGET_TYPE", "Python target must resolve to a public "
+            + ("Experiment or BenchmarkSuite" if allow_benchmark_suite else "pllm.config.Experiment")
         )
-    _reject_secret_fields(value.to_spec())
+    public_spec = value.to_spec()
+    if allow_benchmark_suite and type(value) is BenchmarkSuite:
+        # BenchmarkTarget validates this exact top-level field as a bounded
+        # public fixture seed, never a masking/key seed. Scan every nested
+        # model/config field normally; do not alter the actual suite/spec.
+        for case in public_spec["cases"]:
+            case["target"]["parameters"].pop("seed", None)
+    _reject_secret_fields(public_spec)
     return ResolvedTarget(value, "python-factory" if factory else "python-object", target, True)

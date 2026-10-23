@@ -197,6 +197,32 @@ def response_metrics(report, m):
                          "unit": "requests" if name == "base_body_bytes_per_request" else "generated_tokens"})
 
 
+def _expected_token_count_checks(parameters, report):
+    """Opt-in ordinary report checks; never coerce absent/estimated usage to zero.
+
+    Called only after the existing execution, report and state-audit gates. The
+    unrequested path is a no-op, preserving old reports and canonical identities.
+    Counts and commitments are observations: do not truncate or rewrite them.
+    """
+    expected = {key: parameters[key] for key in (
+        "expected_input_tokens", "expected_output_tokens") if key in parameters}
+    if not expected:
+        return True
+    runs = report.get("runs")
+    checks = report["checks"]
+    for key, count in expected.items():
+        field = key.removeprefix("expected_")
+        checks[key] = isinstance(runs, list) and bool(runs) and all(
+            isinstance(row, dict) and row.get("status") == "completed"
+            and isinstance(row.get("tokens"), dict)
+            and row["tokens"].get("authoritative") is True
+            and type(row["tokens"].get(field)) is int
+            and row["tokens"][field] >= 0 and row["tokens"][field] == count
+            for row in runs)
+    checks["passed"] = checks.get("passed") is True and all(checks[key] for key in expected)
+    return checks["passed"]
+
+
 def execute_response(p, m):
     from pllm.configuration import Experiment
     from pllm.deployment import WanConditions
@@ -411,6 +437,16 @@ def execute_response(p, m):
         component_ids=sorted(c.component for c in experiment.pipeline.components.values()), report=report)
     m.limitations += ["Runtime checks and matched output commitments are not full-logit/KV or generation-quality oracles.",
         "Cached checkpoint; source resolution, public artifact publication and physical wire retain the ordinary report's exclusions."]
+    # COUNT VALIDATION: after successful execution and state/identity capture, so
+    # mismatches retain actual usage, output digests, samples and audit witnesses.
+    # Exceptions/failed attempts above retain their original failure code.
+    expected = {key: p[key] for key in ("expected_input_tokens", "expected_output_tokens") if key in p}
+    if expected:
+        m.comparison["workload_digest"] = digest({
+            "workload": m.comparison["workload_digest"], "expected_token_counts": expected})
+        if not _expected_token_count_checks(p, report):
+            m.oracle["outcome"] = "failed"
+            raise TargetUnavailable("response_expected_token_counts_failed", status="failed")
 
 
 def execute_operator(p, m):
