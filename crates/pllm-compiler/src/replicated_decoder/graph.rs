@@ -10,6 +10,13 @@ use super::*;
 #[path = "graph_driver.rs"]
 pub(super) mod driver;
 
+#[path = "graph_attention_driver.rs"]
+pub(super) mod attention_driver;
+
+#[cfg(test)]
+#[path = "graph_attention_tests.rs"]
+mod attention_tests;
+
 #[cfg(test)]
 #[path = "graph_driver_tests.rs"]
 mod driver_tests;
@@ -26,6 +33,48 @@ pub(super) struct OrderedGraph<'g, V> {
 }
 
 impl<'g, V> OrderedGraph<'g, V> {
+    /// Original borrowed owner remains live through every frontier phase. This
+    /// accessor supplies its actual capacity census, not a cloned graph or an
+    /// execution/source capability.
+    pub(super) fn semantic_graph(&self) -> &'g DecoderGraph {
+        self.graph
+    }
+
+    /// Container-only bound for a preadmitted frontier. One full conservative
+    /// B-tree node per entry, including construction/split overlap; no credit for
+    /// semantic retirement. Borrowed graph/source backing is NOT included.
+    pub(super) fn storage_bound(graph: &DecoderGraph) -> Result<usize, Error> {
+        let references = graph.operations.iter().try_fold(0usize, |n, op| {
+            n.checked_add(op.inputs.len()).ok_or(Error::Bounds)
+        })?;
+        let entries = references
+            .checked_add(graph.operations.len())
+            .and_then(|n| n.checked_add(graph.state_inputs.len()))
+            .ok_or(Error::Bounds)?;
+        let entry = std::mem::size_of::<(String, V)>()
+            .checked_add(std::mem::size_of::<(&str, usize)>())
+            .and_then(|n| n.checked_add(std::mem::size_of::<usize>()))
+            .and_then(|n| n.checked_mul(16))
+            .and_then(|n| n.checked_add(128))
+            .ok_or(Error::Bounds)?;
+        let mut bytes = entries
+            .checked_mul(entry)
+            .and_then(|n| n.checked_add(std::mem::size_of::<Self>()))
+            .ok_or(Error::Bounds)?;
+        for op in &graph.operations {
+            for id in std::iter::once(&op.id).chain(&op.inputs) {
+                bytes = bytes
+                    .checked_add(id.capacity().checked_mul(2).ok_or(Error::Bounds)?)
+                    .ok_or(Error::Bounds)?;
+            }
+        }
+        Ok(bytes)
+    }
+
+    pub(super) fn value(&self, id: &str) -> Option<&V> {
+        self.values.get(id)
+    }
+
     pub(super) fn new(graph: &'g DecoderGraph) -> Self {
         let values = BTreeMap::new();
         let mut uses: BTreeMap<&str, usize> = BTreeMap::new();
@@ -131,16 +180,6 @@ impl Builder {
             ) {
                 *shape.last_mut().ok_or(Error::Shape)? = keys;
             }
-            let source = |name: &str| -> Result<&SourceView, Error> {
-                sources
-                    .get(
-                        op.attributes
-                            .get(name)
-                            .and_then(|v| v.as_str())
-                            .ok_or(Error::Binding)?,
-                    )
-                    .ok_or(Error::Binding)
-            };
             let (a, b) = traversal.inputs(op);
             for (target, view) in site.inputs.iter_mut().zip([a, b]) {
                 if let Some(view) = view {
@@ -152,107 +191,9 @@ impl Builder {
             let oracle_start = self.nodes.len();
             let output = match op.operator {
                 Op::TokenLookup => {
-                    let table = source("weight")?;
-                    if table.shape != [vocabulary, *shape.last().ok_or(Error::Shape)?] {
-                        return Err(Error::Shape);
-                    }
-                    if self.public_weights && self.lookup == policy::LookupPolicy::Trie {
-                        self.trie_lookup(tokens, table, &shape)?
-                    } else if self.public_weights && self.lookup == policy::LookupPolicy::Tiled {
-                        self.tiled_lookup(tokens, table, &shape)?
-                    } else {
-                        let table_bound = self.nodes[table.owner].bounds;
-                        let mut words = Words::new();
-                        for token in tokens.words.iter() {
-                            let mut one_hot = Words::new();
-                            if self.public_weights {
-                                let original = self.nodes[token.0].bounds;
-                                let bounds = Interval::new(
-                                    original
-                                        .lower()
-                                        .checked_sub((vocabulary - 1) as i64)
-                                        .ok_or(Error::Bounds)?,
-                                    original.upper(),
-                                )?;
-                                let equal = self.tensor_loop(
-                                    LoopInput::TokenOffsets {
-                                        owner: token.0,
-                                        index: token.1,
-                                    },
-                                    vocabulary,
-                                    |n| tensor::Program::equal_zero(n, bounds),
-                                )?;
-                                one_hot = self.view(equal, vec![1, vocabulary]).words;
-                            } else {
-                                for start in (0..vocabulary).step_by(128) {
-                                    let n = 128.min(vocabulary - start);
-                                    let x =
-                                        self.gather(&std::iter::repeat_n(token, n).collect())?;
-                                    let mut builder =
-                                        tensor::Builder::new(n, self.nodes[x].bounds)?;
-                                    let coefficients: Vec<_> = (start..start + n)
-                                        .map(|i| affine(1, 0, -(i as i64)))
-                                        .collect();
-                                    let shifted =
-                                        builder.affine_lanes(builder.input(), &coefficients)?;
-                                    let program = builder.finish(shifted)?;
-                                    let difference = self.tensor(x, program)?;
-                                    let program = tensor::Program::equal_zero(
-                                        n,
-                                        self.nodes[difference].bounds,
-                                    )?;
-                                    let equal = self.tensor(difference, program)?;
-                                    one_hot.extend((0..n).map(|i| (equal, i)));
-                                }
-                            }
-                            let selectors = View {
-                                words: one_hot,
-                                shape: vec![1, vocabulary],
-                            };
-                            let row =
-                                self.matrix(&selectors, MatrixView::source(table, true)?, false)?;
-                            // Source input IDs and protected argmax establish exactly
-                            // one selector. The output is an original table element.
-                            for (id, _) in row.words.iter() {
-                                self.nodes[id].bounds = table_bound;
-                            }
-                            words.extend(row.words);
-                        }
-                        View {
-                            words,
-                            shape: shape.clone(),
-                        }
-                    }
+                    driver::token_lookup(self, op, &shape, tokens, sources, vocabulary)?
                 }
-                Op::Linear | Op::OutputHead => {
-                    let mut output = self.matrix(
-                        a.ok_or(Error::Binding)?,
-                        MatrixView::source(source("weight")?, false)?,
-                        true,
-                    )?;
-                    if op.attributes.get("bias").is_some_and(|v| !v.is_null()) {
-                        let bias = source("bias")?;
-                        if bias.shape != [*shape.last().ok_or(Error::Shape)?] {
-                            return Err(Error::Shape);
-                        }
-                        let repeated: Words = (0..output.words.len())
-                            .map(|i| (bias.owner, i % bias.shape[0]))
-                            .collect();
-                        output.words = self.binary(&output.words, &repeated, false)?;
-                    }
-                    output.shape = shape.clone();
-                    self.projection_energies(
-                        a.ok_or(Error::Binding)?,
-                        &output,
-                        source("weight")?,
-                        op.attributes
-                            .get("bias")
-                            .filter(|v| !v.is_null())
-                            .map(|_| source("bias"))
-                            .transpose()?,
-                    )?;
-                    output
-                }
+                Op::Linear | Op::OutputHead => driver::projection(self, op, &shape, a, sources)?,
                 Op::RmsNorm => View {
                     words: driver::rms_norm(
                         self,
@@ -304,264 +245,30 @@ impl Builder {
                 },
                 Op::Reshape => driver::reshape::<Self>(op, &shape, a)?,
                 Op::RotaryEmbedding => {
-                    if shape.len() != 4
-                        || shape[3] > 128
-                        || op.attributes.get("frequency_scaling").is_some()
-                        || op.attributes.get("pairing").and_then(|v| v.as_str())
-                            != Some("split_half")
-                    {
-                        return Err(Error::Binding);
-                    }
-                    let theta = op
-                        .attributes
-                        .get("theta")
-                        .and_then(|v| v.as_u64())
-                        .ok_or(Error::Binding)? as f32;
-                    let width = shape[3];
-                    let mut words = Words::new();
-                    for (index, row) in a
-                        .ok_or(Error::Binding)?
-                        .words
-                        .chunks_exact(width)
-                        .enumerate()
-                    {
-                        let (cos, sin) = tensor::Program::rotary_coefficients(
-                            theta,
-                            (position + index % sequence) as u32,
-                            width,
-                        )?;
-                        let energy = if self.public_norms.is_empty() {
-                            None
-                        } else {
-                            self.row_norm(&row, width)
-                                .or_else(|| self.attention_energy(&row, width))
-                                .map(|energy| norm_bounds::rotary_energy(energy, &cos, &sin, 18))
-                                .transpose()?
-                        };
-                        let input = self.gather(&row)?;
-                        let program = tensor::Program::rotary_half(
-                            1,
-                            width,
-                            self.nodes[input].bounds,
-                            &cos,
-                            &sin,
-                        )?;
-                        let output = self.tensor(input, program)?;
-                        if let Some(energy) = energy {
-                            let row = (0..width).map(|i| (output, i)).collect();
-                            self.record_attention_energy(&row, energy)?;
-                        }
-                        words.extend((0..width).map(|i| (output, i)));
-                    }
-                    View {
-                        words,
-                        shape: shape.clone(),
-                    }
+                    attention_driver::rotary(self, op, &shape, a, position, sequence)?
                 }
                 Op::KvCacheAppend => {
-                    let key = (
-                        op.layer.ok_or(Error::Binding)?,
-                        op.state_kind.ok_or(Error::Binding)?,
-                    );
-                    let mode = op
-                        .attributes
-                        .get("mode")
-                        .and_then(|v| v.as_str())
-                        .ok_or(Error::Binding)?;
-                    let input = if position == 0 {
-                        if mode != "initialize" {
-                            return Err(Error::Binding);
-                        }
-                        a
-                    } else {
-                        if mode != "append" {
-                            return Err(Error::Binding);
-                        }
-                        b
-                    }
-                    .ok_or(Error::Binding)?;
-                    let (heads, width) = (input.shape[1], input.shape[3]);
-                    let mut words = Words::new();
-                    for head in 0..heads {
-                        if position > 0 {
-                            let previous = state.get(&key).ok_or(Error::Binding)?;
-                            if previous.shape != [1, heads, position, width] {
-                                return Err(Error::Shape);
-                            }
-                            words.extend(
-                                previous
-                                    .words
-                                    .slice(head * position * width..(head + 1) * position * width),
-                            );
-                        }
-                        words.extend(
-                            input
-                                .words
-                                .slice(head * sequence * width..(head + 1) * sequence * width),
-                        );
-                    }
-                    let out = View {
-                        words,
-                        shape: vec![1, heads, keys, width],
-                    };
-                    state.insert(key, out.clone());
-                    out
+                    attention_driver::kv_append::<Self>(op, a, b, position, sequence, keys, state)?
                 }
                 Op::CacheSuffix => driver::cache_suffix::<Self>(op, a)?,
-                Op::AttentionScores => {
-                    let q = a.ok_or(Error::Binding)?;
-                    let k = b.ok_or(Error::Binding)?;
-                    let (heads, width) = (q.shape[1], q.shape[3]);
-                    let group = op
-                        .attributes
-                        .get("group_size")
-                        .and_then(|v| v.as_u64())
-                        .ok_or(Error::Binding)? as usize;
-                    if group == 0 || heads / group != k.shape[1] {
-                        return Err(Error::Shape);
-                    }
-                    let mut words = Words::new();
-                    for h in 0..heads {
-                        for r in 0..sequence {
-                            let query = View {
-                                words: q.words.slice(
-                                    (h * sequence + r) * width..(h * sequence + r + 1) * width,
-                                ),
-                                shape: vec![1, width],
-                            };
-                            let key_rows = View {
-                                words: k.words.slice(
-                                    (h / group) * keys * width
-                                        ..((h / group) * keys + position + r + 1) * width,
-                                ),
-                                shape: vec![position + r + 1, width],
-                            };
-                            words.extend(
-                                self.matrix_with_attention(
-                                    &query,
-                                    MatrixView::Values(&key_rows),
-                                    true,
-                                    true,
-                                )?
-                                .words,
-                            );
-                            words.extend(std::iter::repeat_n((zero, 0), sequence - r - 1));
-                        }
-                    }
-                    View {
-                        words,
-                        shape: shape.clone(),
-                    }
-                }
-                Op::AttentionScale => {
-                    let width = op
-                        .attributes
-                        .get("head_dim")
-                        .and_then(|v| v.as_u64())
-                        .ok_or(Error::Binding)?;
-                    let coefficient = ((1.0_f32 / (width as f32).sqrt()) * ONE as f32) as i64;
-                    let mut words = Words::new();
-                    for chunk in a.ok_or(Error::Binding)?.words.chunks(128) {
-                        let input = self.gather(&chunk)?;
-                        let mut b = tensor::Builder::new(chunk.len(), self.nodes[input].bounds)?;
-                        let raw = b.affine(b.input(), None, affine(coefficient, 0, 0))?;
-                        let output = b.rescale(raw, 18)?;
-                        let id = self.tensor(input, b.finish(output)?)?;
-                        words.extend((0..chunk.len()).map(|i| (id, i)));
-                    }
-                    View {
-                        words,
-                        shape: shape.clone(),
-                    }
-                }
+                Op::AttentionScores => attention_driver::scores(
+                    self,
+                    op,
+                    &shape,
+                    a,
+                    b,
+                    sequence,
+                    position,
+                    keys,
+                    (zero, 0),
+                )?,
+                Op::AttentionScale => attention_driver::scale(self, op, &shape, a)?,
                 Op::CausalMask => a.ok_or(Error::Binding)?.clone(),
                 Op::Softmax => {
-                    let mut words = Words::new();
-                    for (i, row) in a
-                        .ok_or(Error::Binding)?
-                        .words
-                        .chunks_exact(keys)
-                        .enumerate()
-                    {
-                        let width = position + i % sequence + 1;
-                        let input = self.gather(&row.slice(..width))?;
-                        let (program, mass) = if self.public_weights {
-                            let (program, mass) = tensor::Program::softmax_certified(
-                                1,
-                                width,
-                                self.nodes[input].bounds,
-                            )?;
-                            (program, Some(mass))
-                        } else {
-                            (
-                                tensor::Program::softmax(1, width, self.nodes[input].bounds)?,
-                                None,
-                            )
-                        };
-                        let id = self.tensor(input, program)?;
-                        if let Some(mass) = mass {
-                            self.admission_stage = "softmax_output_certificate";
-                            self.charge_program_bytes(std::mem::size_of::<(usize, u64)>())?;
-                            self.row_masses
-                                .try_reserve_exact(1)
-                                .map_err(|_| Error::Allocation)?;
-                            self.row_masses.push((id, mass));
-                        }
-                        words.extend((0..width).map(|i| (id, i)));
-                        words.extend(std::iter::repeat_n((zero, 0), keys - width));
-                    }
-                    View {
-                        words,
-                        shape: shape.clone(),
-                    }
+                    attention_driver::softmax(self, &shape, a, sequence, position, keys, (zero, 0))?
                 }
                 Op::AttentionValues => {
-                    let probabilities = a.ok_or(Error::Binding)?;
-                    let values = b.ok_or(Error::Binding)?;
-                    let (heads, width) = (shape[1], shape[3]);
-                    let group = op
-                        .attributes
-                        .get("group_size")
-                        .and_then(|v| v.as_u64())
-                        .ok_or(Error::Binding)? as usize;
-                    if group == 0 || heads / group != values.shape[1] {
-                        return Err(Error::Shape);
-                    }
-                    let mut words = Words::new();
-                    for h in 0..heads {
-                        for r in 0..sequence {
-                            let valid = position + r + 1;
-                            let p = View {
-                                words: probabilities.words.slice(
-                                    (h * sequence + r) * keys..(h * sequence + r) * keys + valid,
-                                ),
-                                shape: vec![1, valid],
-                            };
-                            let mut selected = Words::new();
-                            for d in 0..width {
-                                for k in 0..valid {
-                                    selected.push(
-                                        values.words.at(((h / group) * keys + k) * width + d),
-                                    );
-                                }
-                            }
-                            words.extend(
-                                self.linear(
-                                    &p,
-                                    &View {
-                                        words: selected,
-                                        shape: vec![width, valid],
-                                    },
-                                    true,
-                                )?
-                                .words,
-                            );
-                        }
-                    }
-                    View {
-                        words,
-                        shape: shape.clone(),
-                    }
+                    attention_driver::values(self, op, &shape, a, b, sequence, position, keys)?
                 }
                 Op::LastToken => driver::last_token::<Self>(&shape, a)?,
                 Op::GreedyTokenSelection if self.public_weights => {
@@ -609,5 +316,25 @@ impl Builder {
             traversal.finish(op, output)?;
         }
         traversal.output()
+    }
+}
+
+impl OrderedGraph<'_, View> {
+    /// Reuse original semantic input bindings without a second graph traversal.
+    /// Detached qualification only: the candidate is not an expanded View and
+    /// cannot be published into this frontier or executed as a complete graph.
+    #[allow(dead_code)]
+    pub(super) fn compact_binary_candidate<'a>(
+        &self,
+        builder: &'a Builder,
+        op: &pllm_models::ModelOperation,
+    ) -> Result<super::compact_lowering::CompactBinary<'a>, Error> {
+        let (a, b) = self.inputs(op);
+        super::compact_lowering::CompactBinary::lower_unadmitted(
+            builder,
+            op,
+            a.ok_or(Error::Binding)?,
+            b.ok_or(Error::Binding)?,
+        )
     }
 }

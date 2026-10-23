@@ -293,6 +293,21 @@ pub struct Plan {
     resources: Resources,
 }
 impl Builder {
+    /// Existing owner-local input-container quote, before Builder allocation.
+    /// Enclosing integrations must ADD their retained owners; no template,
+    /// publication/finalization or execution workspace is credited here.
+    pub(in crate::replicated_decoder) fn input_container_quote(
+        inputs: &[Register],
+    ) -> Result<usize, Error> {
+        if inputs.is_empty() || inputs.len() >= MAX_NODES {
+            return Err(Error::Bounds);
+        }
+        if inputs.iter().any(|r| r.lanes == 0 || r.lanes > MAX_VALUES) {
+            return Err(Error::Shape);
+        }
+        Self::input_metadata_bytes(inputs.len())
+    }
+
     pub fn new(weights: WeightMode, inputs: &[Register]) -> Result<Self, Error> {
         Self::new_admitted(weights, inputs, MAX_PROGRAM_BYTES)
     }
@@ -979,9 +994,14 @@ impl Plan {
             mass: proof.mass,
         })
     }
+    /// Stored operation count without statistics' temporary program lists.
+    /// Admission may read this before allocating any census workspace.
+    pub(in crate::replicated_decoder) fn semantic_sites(&self) -> usize {
+        self.ops.len()
+    }
     pub fn statistics(&self) -> Statistics {
         let mut s = Statistics {
-            semantic_sites: self.ops.len(),
+            semantic_sites: self.semantic_sites(),
             register_owners: self.registers.len(),
             range_regions: self.regions.iter().map(|r| r.len()).sum(),
             tensor_invocations: 0,

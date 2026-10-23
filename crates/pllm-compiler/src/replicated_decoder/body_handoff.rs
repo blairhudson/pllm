@@ -75,6 +75,23 @@ pub(in crate::replicated_decoder) fn owned_restore_inline_bytes<Outputs>() -> Re
     })
 }
 
+// Exercise the SAME production guard with nonnative drop probes. This is not a
+// Worker/runtime fixture, drain issuer, or producer/consumer proof constructor.
+#[cfg(test)]
+pub(in crate::replicated_decoder) fn test_restore_owner_order<Outputs, Runtime, Suspended>(
+    outputs: Outputs,
+    runtime: Runtime,
+    suspended: Suspended,
+    copy: impl FnOnce(&Outputs, &mut Suspended) -> Result<(), Error>,
+) -> Result<(Runtime, Suspended), Error> {
+    RestoreOwners {
+        outputs,
+        runtime,
+        suspended,
+    }
+    .copy_then_release(copy)
+}
+
 impl SuspendedWorker {
     /// Census the original worker's independently owned authenticated files.
     /// Worker currently owns PublicSource by value, not Arc: an adapter lending a
@@ -186,7 +203,6 @@ impl SuspendedWorker {
     /// through the adapter's admitted owner/layout and returns BOTH components;
     /// it must not allocate. End/output IDs come from immutable compiler mapping,
     /// not caller-provided descriptors. Every original node must be complete.
-    #[cfg(test)]
     pub(in crate::replicated_decoder) fn restore(
         mut self,
         runtime: PartyRuntime,

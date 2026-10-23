@@ -3,6 +3,9 @@
 //! token IDs may be reconstructed after the fixed full-prefix feedback loop.
 
 mod checked_row_energy;
+// Compiler-private ownership bridge; no default dispatch or drain issuer.
+#[allow(dead_code)]
+mod body_tensor_integration;
 pub mod cost;
 mod norm_bounds;
 mod policy;
@@ -29,8 +32,8 @@ pub use runtime::{PeerBytes, Worker};
 pub use source::{Manifest, Publisher, SourceChunk};
 pub use source_norms::{BlockNorms, SourceNorms};
 
-use multiply::{arithmetic::Affine, tensor, InputBounds, Interval, MatrixShape};
-use pllm_core::puma::{self, multiply, Error, WorkBudget};
+use multiply::{InputBounds, Interval, MatrixShape, arithmetic::Affine, tensor};
+use pllm_core::puma::{self, Error, WorkBudget, multiply};
 use sha2::{Digest as _, Sha256};
 use std::sync::Arc;
 use views::Words;

@@ -1,8 +1,8 @@
 //! Source-certified public Q18 snapshots. Checkpoint bytes arrive in bounded
 //! frames; neither publication nor execution retains a resident weight matrix.
 use super::source_registry::{
-    add_bytes, array_bytes, binding_workspace_bytes, tree_entry_bytes, SourceConstructionQuote,
-    SourceRegistry,
+    SourceConstructionQuote, SourceRegistry, add_bytes, array_bytes, binding_workspace_bytes,
+    tree_entry_bytes,
 };
 use super::*;
 use pllm_core::public_file::{PublicFile, PublicFileWriter};
@@ -499,13 +499,32 @@ pub(super) fn multiply(
     columns: usize,
     transposed: bool,
 ) -> Result<Secret, Error> {
+    multiply_components(
+        file,
+        [input.first.as_slice(), input.second.as_slice()],
+        rows,
+        inner,
+        columns,
+        transposed,
+    )
+}
+
+/// Borrow the existing private physical slices, including nonzero offsets.
+/// Same checked chunk scan; no coefficient or input collection is constructed.
+pub(super) fn multiply_components(
+    file: &PublicFile,
+    inputs: [&[u64]; 2],
+    rows: usize,
+    inner: usize,
+    columns: usize,
+    transposed: bool,
+) -> Result<Secret, Error> {
     let layout = if transposed {
         MatrixLayout::InputOutput
     } else {
         MatrixLayout::OutputInput
     };
     let geometry = MatrixGeometry::new(rows, inner, columns, layout).map_err(stream_error)?;
-    let inputs = [input.first.as_slice(), input.second.as_slice()];
     geometry
         .validate_inputs(file, &inputs)
         .map_err(stream_error)?;

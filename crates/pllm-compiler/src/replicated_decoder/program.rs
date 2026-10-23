@@ -6,6 +6,23 @@ use std::collections::BTreeMap;
 #[path = "graph.rs"]
 mod graph;
 
+#[path = "request_driver.rs"]
+mod request_driver;
+
+#[path = "request_acceptance.rs"]
+mod request_acceptance;
+
+// Compiler-private compact metadata; default expanded routing is unchanged.
+#[allow(dead_code)]
+#[path = "compact_lowering.rs"]
+pub(super) mod compact_lowering;
+
+// Borrowed canonical vocabulary is needed by frozen recipe publication too.
+// This does not replace original production finalization or admit a request.
+#[allow(dead_code)]
+#[path = "schedule_finalization.rs"]
+mod schedule_finalization;
+
 #[cfg(test)]
 #[path = "linear_tests.rs"]
 mod linear_tests;
@@ -17,6 +34,139 @@ mod graph_tests;
 #[cfg(test)]
 #[path = "program_prepared_tensor_tests.rs"]
 mod prepared_tensor_tests;
+
+// Fixture-only exact Manifest::compile capture; no production numeric sink change.
+#[cfg(test)]
+#[path = "program_manifest_prepared_fixture.rs"]
+pub(super) mod manifest_prepared_fixture;
+
+/// Genuine expanded-worker fixture for staged, consuming one-loop adapters.
+/// Only the closed rescale18 factory constructs templates; publication borrows
+/// that same capability, and the ordinary finalizer owns identity and retirement.
+/// No default graph lowering or production admission uses this seam.
+#[cfg(test)]
+pub(super) fn prepared_rescale18_worker_fixture(
+    lanes: usize,
+    bounds: Interval,
+) -> Result<
+    (
+        Arc<Program>,
+        super::prepared_tensor_map::PreparedTensorMap,
+        usize,
+        usize,
+    ),
+    Error,
+> {
+    use super::prepared_tensor_map::PreparedTensorMap;
+
+    if !matches!(lanes, 1 | 128 | 129 | 257) {
+        return Err(Error::Bounds);
+    }
+    let mut builder = Builder {
+        public_weights: true,
+        ..Builder::default()
+    };
+    let input = builder.push(Code::Input("local".into()), lanes, bounds)?;
+    let imports = builder.nodes.len();
+    let prepared = PreparedTensorMap::rescale(lanes, bounds, 18, builder.allocated, |peak| {
+        if peak > MAX_PROGRAM_BYTES {
+            Err(Error::Bounds)
+        } else {
+            Ok(())
+        }
+    })?;
+    let output = builder.prepared_tensor_map(input, &prepared)?;
+    // advance_before requires an existing original node at the interval end.
+    // This ordinary local identity is outside the replaced loop. Its dead result
+    // retires normally; ONLY the original loop output is retained for export.
+    builder.affine(output, None, affine(1, 0, 0))?;
+    let selected = (0..lanes).map(|index| (output, index)).collect();
+    let program = builder.finish(
+        imports,
+        selected,
+        &mut AdmissionSite::default(),
+        |h| {
+            h.update(b"pllm.replicated-decoder.prepared-rescale18-worker-fixture.v1");
+            Ok(())
+        },
+        || source_binding(&BTreeMap::new()),
+    )?;
+    Ok((Arc::new(program), prepared, input, output))
+}
+
+#[cfg(test)]
+type ProtectedPreparedFixture = (
+    Arc<Program>,
+    super::prepared_tensor_map::PreparedTensorMap,
+    usize,
+    usize,
+    Option<usize>,
+);
+
+/// Extended qualification fixture only. Preserve the plain fixture above and
+/// use the same original compiler publication/finalizer for every variant.
+#[cfg(test)]
+pub(super) fn prepared_rescale18_protected_worker_fixture(
+    lanes: usize,
+    bounds: Interval,
+    retain_input: bool,
+    sticky: bool,
+) -> Result<ProtectedPreparedFixture, Error> {
+    use super::prepared_tensor_map::PreparedTensorMap;
+    if !matches!(lanes, 1 | 128 | 129 | 257) {
+        return Err(Error::Bounds);
+    }
+    let mut builder = Builder {
+        public_weights: true,
+        ..Builder::default()
+    };
+    let input = builder.push(Code::Input("local".into()), lanes, bounds)?;
+    let imports = builder.nodes.len();
+    if sticky {
+        // A real scalar prefix check creates original sticky validity. Keep the
+        // map on the original input, so final masking cannot pass vacuously by
+        // mapping only the prefix's zero fallback. No private branch/routing.
+        builder.checked_bound = Some(ONE / 2);
+        builder.checked_view(&[(input, 0)].into_iter().collect())?;
+    }
+    let validity = builder.validity;
+    let prepared = PreparedTensorMap::rescale(lanes, bounds, 18, builder.allocated, |peak| {
+        if peak > MAX_PROGRAM_BYTES {
+            Err(Error::Bounds)
+        } else {
+            Ok(())
+        }
+    })?;
+    let output = builder.prepared_tensor_map(input, &prepared)?;
+    // Genuine ordinary protected suffix: must consume the restored source
+    // ordinal/AES schedule, not merely run a local identity after restoration.
+    let product = builder.product(output, output, None, false)?;
+    let final_owner = if let Some(valid) = validity {
+        let flags = builder.gather(&std::iter::repeat_n((valid, 0), lanes).collect())?;
+        builder.product(product, flags, None, false)?
+    } else {
+        product
+    };
+    let mut selected: Vec<_> = (0..lanes).map(|i| (final_owner, i)).collect();
+    if let Some(valid) = validity {
+        selected.push((valid, 0));
+    }
+    if retain_input {
+        selected.push((input, 0));
+    }
+    let program = builder.finish(
+        imports,
+        selected,
+        &mut AdmissionSite::default(),
+        |h| {
+            h.update(b"pllm.replicated-decoder.prepared-rescale18-protected-worker-fixture.v1");
+            h.update([u8::from(retain_input), u8::from(sticky)]);
+            Ok(())
+        },
+        || source_binding(&BTreeMap::new()),
+    )?;
+    Ok((Arc::new(program), prepared, input, output, validity))
+}
 
 #[cfg(test)]
 #[path = "body_tests.rs"]
@@ -130,15 +280,96 @@ pub struct Program {
     pub(super) source_binding: [u8; 32],
 }
 
+#[path = "schedule_access.rs"]
+pub(super) mod schedule_access;
+
 impl Program {
+    pub(super) fn schedule_access(&self) -> schedule_access::PrivateScheduleRef<'_> {
+        schedule_access::PrivateScheduleRef::expanded(self)
+    }
+
+    /// Actual retained expanded owner census for the TEST-ONLY frozen oracle.
+    /// Counts repeated native owners conservatively, without Arc alias credit.
+    /// This is not a bounded producer or a replacement for request admission.
+    #[cfg(test)]
+    pub(super) fn frozen_oracle_metadata_bytes(&self) -> Result<usize, Error> {
+        use std::mem::size_of;
+        let add = |a: usize, b: usize| a.checked_add(b).ok_or(Error::Bounds);
+        let mut bytes = add(
+            size_of::<Self>() + 2 * size_of::<usize>(),
+            self.nodes
+                .capacity()
+                .checked_mul(size_of::<Node>())
+                .ok_or(Error::Bounds)?,
+        )?;
+        bytes = add(
+            bytes,
+            self.outputs
+                .capacity()
+                .checked_mul(size_of::<(usize, usize)>())
+                .ok_or(Error::Bounds)?,
+        )?;
+        bytes = add(
+            bytes,
+            self.retire
+                .capacity()
+                .checked_mul(size_of::<Vec<usize>>())
+                .ok_or(Error::Bounds)?,
+        )?;
+        for list in &self.retire {
+            bytes = add(
+                bytes,
+                list.capacity()
+                    .checked_mul(size_of::<usize>())
+                    .ok_or(Error::Bounds)?,
+            )?;
+        }
+        let native = |p: &Arc<tensor::Program>| {
+            add(
+                p.resources()?.immutable_template_bytes,
+                2 * size_of::<usize>(),
+            )
+        };
+        for node in &self.nodes {
+            let extra = match &node.code {
+                Code::Input(name) | Code::PublicInput { key: name, .. } => name.capacity(),
+                Code::Gather(words) => words.metadata_bytes(),
+                Code::PublicValues(values) => values
+                    .capacity()
+                    .checked_mul(size_of::<i64>())
+                    .ok_or(Error::Bounds)?,
+                Code::Affine { .. }
+                | Code::Product { norm: None, .. }
+                | Code::PublicProduct { .. } => 0,
+                Code::Tensor { program, .. } => native(program)?,
+                Code::TensorLoop { program, tail, .. } => {
+                    add(native(program)?, tail.as_ref().map_or(Ok(0), native)?)?
+                }
+                _ => return Err(Error::Binding),
+            };
+            bytes = add(bytes, extra)?;
+        }
+        Ok(bytes)
+    }
+
+    /// Borrowed metadata only; original expanded identity, ownership and lifetime
+    /// stay with this Program. No compact execution capability is manufactured.
+    pub(super) fn read_recipe(&self, ordinal: usize) -> schedule_access::ReadNode<'_> {
+        self.schedule_access()
+            .node(ordinal)
+            .expect("original schedule ordinal")
+    }
+
     /// Source-schedule ordinals, independent of physical value storage.
     pub(super) fn logical_len(&self) -> usize {
-        self.nodes.len()
+        self.schedule_access().len()
     }
 
     /// Original ordered imports, including public source descriptors.
     pub(super) fn input_count(&self) -> usize {
-        self.inputs
+        self.schedule_access()
+            .input_count()
+            .expect("original imports")
     }
 
     /// Return the logical owner and its borrowed original import recipe.
@@ -155,15 +386,30 @@ impl Program {
         self.nodes.get(ordinal)
     }
 
+    pub(super) fn value_slot_count(&self) -> usize {
+        self.schedule_access()
+            .value_slot_count()
+            .expect("original slots")
+    }
+
     /// Resolve a logical coordinate's owner; its lane index stays unchanged.
     /// Expanded storage is exactly identity-mapped, with caller-side indexing
     /// retaining its existing checked/unchecked behavior.
     pub(super) fn value_slot(&self, logical_owner: usize) -> usize {
-        logical_owner
+        self.schedule_access()
+            .value_slot(logical_owner)
+            .expect("original slot mapping")
+    }
+
+    /// Original last-use list, in logical owner coordinates and original order.
+    pub(super) fn retire_at(&self, ordinal: usize) -> &[usize] {
+        self.schedule_access()
+            .retirement(ordinal)
+            .expect("original retirement ordinal")
     }
 
     pub(super) fn output_coordinates(&self) -> &[(usize, usize)] {
-        &self.outputs
+        self.schedule_access().outputs().expect("original outputs")
     }
 }
 
@@ -173,6 +419,7 @@ pub(super) struct ValidatedSourceDescriptors<'a> {
     sources: &'a BTreeMap<String, SourceTensor>,
     norms: &'a SourceNorms,
     weights: WeightMode,
+    execution: ExecutionPolicy,
 }
 
 impl<'a> ValidatedSourceDescriptors<'a> {
@@ -276,6 +523,7 @@ fn validate_source_records<'a>(
         sources,
         norms,
         weights,
+        execution,
     })
 }
 
@@ -284,6 +532,10 @@ struct View {
     words: Words,
     shape: Vec<usize>,
 }
+
+#[path = "original_import.rs"]
+#[allow(dead_code)]
+mod original_import;
 
 struct SourceView {
     owner: usize,
@@ -424,6 +676,9 @@ impl<'a> MatrixView<'a> {
 #[derive(Default)]
 struct Builder {
     nodes: Vec<Node>,
+    // Empty on the legacy path. Only genuine opt-in input creation can append
+    // these immutable records; ordinary coordinate-only Views cannot mint one.
+    original_inputs: Vec<Arc<original_import::InputRecord>>,
     allocated: usize,
     workspace_bytes: usize,
     tensors: BTreeMap<[u8; 32], Arc<tensor::Program>>,
@@ -490,6 +745,108 @@ fn construction_views(graph: &DecoderGraph, sources: usize) -> Result<(), String
     Ok(())
 }
 
+impl compact_lowering::SelectSink for Builder {
+    type Owner = usize;
+    fn bounds(&self, owner: usize) -> Interval {
+        self.nodes[owner].bounds
+    }
+    fn affine(&mut self, left: usize, right: usize, coefficients: Affine) -> Result<usize, Error> {
+        Builder::affine(self, left, Some(right), coefficients)
+    }
+    fn product(&mut self, left: usize, right: usize) -> Result<usize, Error> {
+        Builder::product(self, left, right, None, false)
+    }
+    fn selected_affine(
+        &mut self,
+        no: usize,
+        product: usize,
+        bounds: Interval,
+    ) -> Result<usize, Error> {
+        let out = Builder::affine(self, no, Some(product), affine(1, 1, 0))?;
+        self.nodes[out].bounds = bounds;
+        Ok(out)
+    }
+}
+
+struct ExpandedArgmax<'a> {
+    builder: &'a mut Builder,
+    input: &'a Words,
+    values: Words,
+    ids: Words,
+    next_values: Words,
+    next_ids: Words,
+}
+
+impl compact_lowering::ArgmaxSink for ExpandedArgmax<'_> {
+    type Owner = usize;
+    type Output = Words;
+    fn indices(&mut self, lanes: usize) -> Result<(), Error> {
+        let indices = self.builder.push(
+            Code::PublicValues((0..lanes as i64).collect()),
+            lanes,
+            Interval::new(0, lanes as i64 - 1)?,
+        )?;
+        self.values = self.input.clone();
+        self.ids = (0..lanes).map(|i| (indices, i)).collect();
+        Ok(())
+    }
+    fn begin_round(&mut self, _round: usize, _lanes: usize) -> Result<(), Error> {
+        self.next_values = Words::new();
+        self.next_ids = Words::new();
+        Ok(())
+    }
+    fn gather_pairs(
+        &mut self,
+        field: compact_lowering::ArgmaxField,
+        start: usize,
+        pairs: usize,
+        parity: usize,
+    ) -> Result<usize, Error> {
+        let words = match field {
+            compact_lowering::ArgmaxField::Values => &self.values,
+            compact_lowering::ArgmaxField::Indices => &self.ids,
+        };
+        self.builder.gather(
+            &(0..pairs)
+                .map(|i| words.at(start + 2 * i + parity))
+                .collect(),
+        )
+    }
+    fn difference(&mut self, left: usize, right: usize) -> Result<usize, Error> {
+        self.builder.affine(left, Some(right), affine(1, -1, 0))
+    }
+    fn negative(&mut self, difference: usize) -> Result<usize, Error> {
+        self.builder.tensor(
+            difference,
+            tensor::Program::negative(
+                self.builder.nodes[difference].lanes,
+                self.builder.nodes[difference].bounds,
+            )?,
+        )
+    }
+    fn select(&mut self, bit: usize, yes: usize, no: usize) -> Result<usize, Error> {
+        self.builder.select(bit, yes, no)
+    }
+    fn publish_pairs(&mut self, best: usize, index: usize, lanes: usize) -> Result<(), Error> {
+        self.next_values.extend((0..lanes).map(|i| (best, i)));
+        self.next_ids.extend((0..lanes).map(|i| (index, i)));
+        Ok(())
+    }
+    fn carry(&mut self, index: usize) -> Result<(), Error> {
+        self.next_values.push(self.values.at(index));
+        self.next_ids.push(self.ids.at(index));
+        Ok(())
+    }
+    fn end_round(&mut self) -> Result<(), Error> {
+        self.values = std::mem::take(&mut self.next_values);
+        self.ids = std::mem::take(&mut self.next_ids);
+        Ok(())
+    }
+    fn finish(&mut self) -> Result<Words, Error> {
+        Ok(std::mem::take(&mut self.ids))
+    }
+}
+
 impl Builder {
     fn admission_ledger(&self) -> String {
         format!(
@@ -521,6 +878,17 @@ impl Builder {
     }
 
     fn push(&mut self, code: Code, lanes: usize, bounds: Interval) -> Result<usize, Error> {
+        // A finished/reused Builder cannot relabel an old sealed declaration by
+        // creating another Input at its recycled ordinal. Legacy builders have
+        // no records and pay no new allocation or changed numeric schedule.
+        if matches!(&code, Code::Input(_))
+            && self
+                .original_inputs
+                .iter()
+                .any(|input| input.owner() == self.nodes.len())
+        {
+            return Err(Error::Binding);
+        }
         let public_source = matches!(code, Code::PublicInput { .. });
         self.requested_lanes = Some(lanes);
         if lanes == 0
@@ -766,20 +1134,8 @@ impl Builder {
             left: a.bounds,
             right: b.bounds,
         };
-        let range = if let Some(proof) = norm {
-            if shape.is_none() || proof.inner() != terms || proof.input_bounds() != bounds {
-                return Err(Error::Binding);
-            }
-            if rescale {
-                proof.output_bounds()?
-            } else {
-                proof.raw_bounds()
-            }
-        } else if rescale {
-            bounds.dot_output(terms)?
-        } else {
-            bounds.dot_product(terms)?
-        };
+        let range =
+            compact_lowering::product_bounds(bounds, terms, shape.is_some(), rescale, norm)?;
         self.push(
             Code::Product {
                 left,
@@ -863,7 +1219,7 @@ impl Builder {
         match input {
             LoopInput::Slice(_) if owner.lanes != lanes => return Err(Error::Shape),
             LoopInput::TokenOffsets { index, .. } if index >= owner.lanes => {
-                return Err(Error::Shape)
+                return Err(Error::Shape);
             }
             _ => (),
         }
@@ -1020,43 +1376,16 @@ impl Builder {
             )?;
             return Ok(self.view(output, vec![1]));
         }
-        let indices = self.push(
-            Code::PublicValues((0..n as i64).collect()),
-            n,
-            Interval::new(0, n as i64 - 1)?,
-        )?;
-        let mut values = logits.words.clone();
-        let mut ids: Words = (0..n).map(|i| (indices, i)).collect();
-        while values.len() > 1 {
-            let mut next_values = Words::new();
-            let mut next_ids = Words::new();
-            for (v, ids) in values.chunks(256).zip(ids.chunks(256)) {
-                let pairs = v.len() / 2;
-                if pairs > 0 {
-                    let left = self.gather(&(0..pairs).map(|i| v.at(2 * i)).collect())?;
-                    let right = self.gather(&(0..pairs).map(|i| v.at(2 * i + 1)).collect())?;
-                    let difference = self.affine(left, Some(right), affine(1, -1, 0))?;
-                    let less = self.tensor(
-                        difference,
-                        tensor::Program::negative(pairs, self.nodes[difference].bounds)?,
-                    )?;
-                    let best = self.select(less, right, left)?;
-                    let left_id = self.gather(&(0..pairs).map(|i| ids.at(2 * i)).collect())?;
-                    let right_id = self.gather(&(0..pairs).map(|i| ids.at(2 * i + 1)).collect())?;
-                    let index = self.select(less, right_id, left_id)?;
-                    next_values.extend((0..pairs).map(|i| (best, i)));
-                    next_ids.extend((0..pairs).map(|i| (index, i)));
-                }
-                if v.len() % 2 != 0 {
-                    next_values.push(v.at(v.len() - 1));
-                    next_ids.push(ids.at(ids.len() - 1));
-                }
-            }
-            values = next_values;
-            ids = next_ids;
-        }
+        let mut sink = ExpandedArgmax {
+            builder: self,
+            input: &logits.words,
+            values: Words::new(),
+            ids: Words::new(),
+            next_values: Words::new(),
+            next_ids: Words::new(),
+        };
         Ok(View {
-            words: ids,
+            words: compact_lowering::argmax_tree(&mut sink, n)?,
             shape: vec![1],
         })
     }
@@ -1175,77 +1504,32 @@ impl Builder {
     ) -> Result<View, Error> {
         let inner = *input.shape.last().ok_or(Error::Shape)?;
         let rows = input.words.len() / inner;
-        if (rows as u64)
-            .checked_mul(inner as u64)
-            .and_then(|n| n.checked_mul(columns as u64))
-            .is_none_or(|n| n > 1 << 32)
-        {
-            return Err(Error::Bounds);
-        }
-        let product = InputBounds {
-            left: self.bounds(&input.words)?,
-            right: self.nodes[weight].bounds,
-        };
-        let energy = match self.nodes[weight].code {
+        let statistics = match self.nodes[weight].code {
             Code::PublicInput {
-                row_l1_squared_sum: Some(sum),
-                ..
-            } if !transposed && rescale => {
-                // |(Wx)_j| <= M*||W_j||_1. One final truncation per
-                // coordinate adds a vector of norm <sqrt(columns).
-                // This is a complete-row certificate, not a scalar bound.
-                let magnitude = u128::from(
-                    product
-                        .left
-                        .lower()
-                        .unsigned_abs()
-                        .max(product.left.upper().unsigned_abs()),
-                );
-                let radius = magnitude
-                    .checked_mul(ceil_sqrt(sum))
-                    .ok_or(Error::Bounds)?
-                    .div_ceil(ONE as u128)
-                    .checked_add(ceil_sqrt(columns as u128))
-                    .ok_or(Error::Bounds)?;
-                Some(radius.checked_mul(radius).ok_or(Error::Bounds)?)
-            }
-            _ => None,
-        };
-        let ordinary = product.product().and_then(|product| {
-            affine(i64::try_from(inner).map_err(|_| Error::Bounds)?, 0, 0).output_bounds(
-                InputBounds {
-                    left: product,
-                    right: Interval::new(0, 0)?,
-                },
-            )
-        });
-        let bounds = match self.nodes[weight].code {
-            Code::PublicInput {
-                row_l1: Some(sum),
+                row_l1,
                 row_squared_norm,
+                row_l1_squared_sum,
                 ..
-            } if !transposed => {
-                let magnitude = product
-                    .left
-                    .lower()
-                    .unsigned_abs()
-                    .max(product.left.upper().unsigned_abs());
-                let mut bound = u128::from(magnitude) * u128::from(sum);
-                if let Some(squared) = row_squared_norm
-                    .and_then(|w| self.row_norm(&input.words, inner)?.checked_mul(w))
-                {
-                    let root = squared.isqrt();
-                    bound = bound.min(root + u128::from(root * root != squared));
-                }
-                let bound = i64::try_from(bound).map_err(|_| Error::Bounds)?;
-                if let Ok(ordinary) = ordinary {
-                    Interval::new(ordinary.lower().max(-bound), ordinary.upper().min(bound))?
-                } else {
-                    Interval::new(-bound, bound)?
-                }
-            }
-            _ => ordinary?,
+            } => PublicMatrixStatistics {
+                row_l1,
+                row_squared_norm,
+                row_l1_squared_sum,
+            },
+            _ => PublicMatrixStatistics::default(),
         };
+        let (bounds, energy) = public_matrix_contract(
+            [rows, inner, columns],
+            transposed,
+            rescale,
+            || {
+                Ok(InputBounds {
+                    left: self.bounds(&input.words)?,
+                    right: self.nodes[weight].bounds,
+                })
+            },
+            statistics,
+            || self.row_norm(&input.words, inner),
+        )?;
         let input = self.gather(&input.words)?;
         let raw = self.push(
             Code::PublicProduct {
@@ -1263,6 +1547,25 @@ impl Builder {
         if !rescale {
             return Ok(self.view(raw, shape));
         }
+        #[cfg(test)]
+        let captured = manifest_prepared_fixture::capture_public_rescale(
+            self,
+            weight,
+            raw,
+            rows * columns,
+            bounds,
+        )?;
+        #[cfg(test)]
+        let id = if let Some(id) = captured {
+            id
+        } else {
+            self.tensor_loop(LoopInput::Slice(raw), rows * columns, |n| {
+                let mut b = tensor::Builder::new(n, bounds)?;
+                let scaled = b.rescale(b.input(), 18)?;
+                b.finish(scaled)
+            })?
+        };
+        #[cfg(not(test))]
         let id = self.tensor_loop(LoopInput::Slice(raw), rows * columns, |n| {
             let mut b = tensor::Builder::new(n, bounds)?;
             let scaled = b.rescale(b.input(), 18)?;
@@ -1345,10 +1648,7 @@ impl Builder {
                     .map_or_else(|| self.scalar_row_energy(&right), Ok)?;
                 // Public triangle inequality; the residual addition remains
                 // the original exact ring64 operation and stays range-checked.
-                let radius = ceil_sqrt(left)
-                    .checked_add(ceil_sqrt(right))
-                    .ok_or(Error::Bounds)?;
-                self.record_row_energy(&output, radius.checked_mul(radius).ok_or(Error::Bounds)?)?;
+                self.record_row_energy(&output, residual_energy(left, right)?)?;
             }
         }
         Ok(words)
@@ -1423,24 +1723,122 @@ impl Builder {
         })
     }
 
-
     fn binary(&mut self, a: &Words, b: &Words, product: bool) -> Result<Words, Error> {
-        if a.len() != b.len() {
-            return Err(Error::Shape);
-        }
-        let mut words = Words::new();
-        for (a, b) in a.chunks(128).zip(b.chunks(128)) {
-            let left = self.gather(&a)?;
-            let right = self.gather(&b)?;
-            let id = if product {
-                self.product(left, right, None, true)?
-            } else {
-                self.affine(left, Some(right), affine(1, 1, 0))?
-            };
-            words.extend((0..a.len()).map(|i| (id, i)));
-        }
-        Ok(words)
+        compact_lowering::binary(self, a, b, product)
     }
+}
+
+impl compact_lowering::BinarySink for Builder {
+    type View = Words;
+    type Owner = usize;
+    type Output = Words;
+
+    fn len(view: &Words) -> usize {
+        view.len()
+    }
+
+    fn slice(view: &Words, start: usize, end: usize) -> Words {
+        view.slice(start..end)
+    }
+
+    fn empty(&self) -> Words {
+        Words::new()
+    }
+
+    fn gather(&mut self, view: &Words) -> Result<usize, Error> {
+        Builder::gather(self, view)
+    }
+
+    fn combine(&mut self, left: usize, right: usize, product: bool) -> Result<usize, Error> {
+        if product {
+            self.product(left, right, None, true)
+        } else {
+            self.affine(left, Some(right), affine(1, 1, 0))
+        }
+    }
+
+    fn append(&mut self, output: &mut Words, owner: usize, lanes: usize) -> Result<(), Error> {
+        output.extend((0..lanes).map(|i| (owner, i)));
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct PublicMatrixStatistics {
+    row_l1: Option<u64>,
+    row_squared_norm: Option<u128>,
+    row_l1_squared_sum: Option<u128>,
+}
+
+/// Original public_matrix numeric/certificate contract. Source statistics and
+/// complete input-row norms must come from the owning compiler's source/row
+/// ledger. Closures retain the original lazy validation/construction order.
+fn public_matrix_contract(
+    [rows, inner, columns]: [usize; 3],
+    transposed: bool,
+    rescale: bool,
+    product: impl FnOnce() -> Result<InputBounds, Error>,
+    statistics: PublicMatrixStatistics,
+    input_norm: impl FnOnce() -> Option<u128>,
+) -> Result<(Interval, Option<u128>), Error> {
+    if (rows as u64)
+        .checked_mul(inner as u64)
+        .and_then(|n| n.checked_mul(columns as u64))
+        .is_none_or(|n| n > 1 << 32)
+    {
+        return Err(Error::Bounds);
+    }
+    let product = product()?;
+    let energy = match statistics.row_l1_squared_sum {
+        Some(sum) if !transposed && rescale => {
+            let magnitude = u128::from(
+                product
+                    .left
+                    .lower()
+                    .unsigned_abs()
+                    .max(product.left.upper().unsigned_abs()),
+            );
+            let radius = magnitude
+                .checked_mul(ceil_sqrt(sum))
+                .ok_or(Error::Bounds)?
+                .div_ceil(ONE as u128)
+                .checked_add(ceil_sqrt(columns as u128))
+                .ok_or(Error::Bounds)?;
+            Some(radius.checked_mul(radius).ok_or(Error::Bounds)?)
+        }
+        _ => None,
+    };
+    let ordinary = product.product().and_then(|product| {
+        affine(i64::try_from(inner).map_err(|_| Error::Bounds)?, 0, 0).output_bounds(InputBounds {
+            left: product,
+            right: Interval::new(0, 0)?,
+        })
+    });
+    let bounds = match statistics.row_l1 {
+        Some(sum) if !transposed => {
+            let magnitude = product
+                .left
+                .lower()
+                .unsigned_abs()
+                .max(product.left.upper().unsigned_abs());
+            let mut bound = u128::from(magnitude) * u128::from(sum);
+            if let Some(squared) = statistics
+                .row_squared_norm
+                .and_then(|w| input_norm()?.checked_mul(w))
+            {
+                let root = squared.isqrt();
+                bound = bound.min(root + u128::from(root * root != squared));
+            }
+            let bound = i64::try_from(bound).map_err(|_| Error::Bounds)?;
+            if let Ok(ordinary) = ordinary {
+                Interval::new(ordinary.lower().max(-bound), ordinary.upper().min(bound))?
+            } else {
+                Interval::new(-bound, bound)?
+            }
+        }
+        _ => ordinary?,
+    };
+    Ok((bounds, energy))
 }
 
 /// Original RMSNorm factory selection. General complete-row energy may refine
@@ -1461,6 +1859,13 @@ fn rms_norm_program(
     } else {
         Ok((tensor::Program::rms_norm(1, width, bounds, gamma)?, None))
     }
+}
+
+fn residual_energy(left: u128, right: u128) -> Result<u128, Error> {
+    let radius = ceil_sqrt(left)
+        .checked_add(ceil_sqrt(right))
+        .ok_or(Error::Bounds)?;
+    radius.checked_mul(radius).ok_or(Error::Bounds)
 }
 
 fn affine(left: i64, right: i64, constant: i64) -> Affine {
@@ -1746,80 +2151,22 @@ impl Program {
             if execution.lookup == LookupPolicy::Trie {
                 builder.register_initial_tokens(&tokens.words, vocabulary)?;
             }
-            let mut selected = vec![];
-            for output in 0..outputs {
-                site = AdmissionSite {
-                    selection: output,
-                    ..AdmissionSite::default()
-                };
-                // D9 recomputes the complete private prefix for each selection.
-                // A fresh semantic prefill and fresh arithmetic are required:
-                // retained KV would change both the stochastic numeric schedule
-                // and the source method's charged work.
-                let plan = lower_with_weights(config, rows + output, outputs - output, weights)
-                    .map_err(|_| Error::Binding)?;
-                let mut state = BTreeMap::new();
-                #[cfg(test)]
-                if super::runtime::oracle_trace::enabled() {
-                    super::runtime::oracle_trace::boundary(
-                        output,
-                        "input.tokens",
-                        &tokens.shape,
-                        tokens.words.iter().collect(),
-                    );
-                }
-                let result = builder.graph(
-                    &plan.prefill,
-                    &tokens,
-                    &inputs,
+            let mut selected = request_driver::drive(
+                &mut request_driver::Expanded {
+                    builder: &mut builder,
+                    inputs: &inputs,
                     sources,
                     vocabulary,
-                    0,
-                    &mut state,
-                    &mut site,
-                )?;
-                if result.words.len() != 1 {
-                    return Err(Error::Shape);
-                }
-                selected.extend(result.words.iter());
-                tokens.words.extend(result.words.iter());
-                tokens.shape = vec![1, tokens.words.len()];
-                #[cfg(test)]
-                if super::runtime::oracle_trace::enabled() {
-                    super::runtime::oracle_trace::boundary(
-                        output,
-                        "feedback.history",
-                        &tokens.shape,
-                        tokens.words.iter().collect(),
-                    );
-                }
-            }
+                },
+                config,
+                rows,
+                outputs,
+                weights,
+                &mut tokens,
+                &mut site,
+            )?;
             if execution.range_policy == RangePolicy::Checked {
-                builder.admission_stage = "final_acceptance";
-                let valid = if let Some(valid) = builder.validity {
-                    valid
-                } else {
-                    let anchor = builder.gather(&std::iter::once((input, 0)).collect())?;
-                    builder.constant(anchor, 1)?
-                };
-                #[cfg(test)]
-                if super::runtime::oracle_trace::enabled() {
-                    super::runtime::oracle_trace::diagnostic(
-                        0,
-                        "acceptance.valid",
-                        &[],
-                        vec![(valid, 0)],
-                    );
-                }
-                // Invalid executions reveal only zero token shares and one
-                // aggregate rejection bit. No per-site validity is exported.
-                let selected_words: Words = selected.iter().copied().collect();
-                let token_node = builder.gather(&selected_words)?;
-                let flags: Words = std::iter::repeat_n((valid, 0), outputs).collect();
-                let flag_node = builder.gather(&flags)?;
-                let masked = builder.product(token_node, flag_node, None, false)?;
-                selected = (0..outputs).map(|i| (masked, i)).collect();
-                selected.push((valid, 0));
+                builder.final_acceptance(input, outputs, &mut selected)?;
             }
             let mut last: Vec<_> = (0..builder.nodes.len()).collect();
             site.step = None;
@@ -2152,4 +2499,271 @@ pub(super) fn lower_with_weights(
         },
     )
     .map_err(|e| e.to_string())
+}
+
+// Canonical expanded encoding, shared with allocation-free candidate lowering.
+// These helpers do not assign a new identity or admit a compact executable.
+fn hash_node_header(h: &mut Sha256, lanes: usize, bounds: Interval) {
+    h.update((lanes as u64).to_le_bytes());
+    h.update(bounds.lower().to_le_bytes());
+    h.update(bounds.upper().to_le_bytes());
+}
+
+fn hash_affine(h: &mut Sha256, left: usize, right: Option<usize>, c: Affine) {
+    h.update([2]);
+    h.update((left as u64).to_le_bytes());
+    h.update(right.map_or(u64::MAX, |v| v as u64).to_le_bytes());
+    for v in [c.left, c.right, c.constant] {
+        h.update(v.to_le_bytes());
+    }
+}
+
+fn hash_public_product(
+    h: &mut Sha256,
+    input: usize,
+    weight: usize,
+    rows: usize,
+    inner: usize,
+    columns: usize,
+    transposed: bool,
+) {
+    h.update([6, u8::from(transposed)]);
+    for n in [input, weight, rows, inner, columns] {
+        h.update((n as u64).to_le_bytes());
+    }
+}
+
+fn hash_tensor_loop(
+    h: &mut Sha256,
+    input: LoopInput,
+    program: &Arc<tensor::Program>,
+    tail: Option<&Arc<tensor::Program>>,
+) {
+    h.update([8]);
+    match input {
+        LoopInput::Slice(id) => {
+            h.update([0]);
+            h.update((id as u64).to_le_bytes());
+        }
+        LoopInput::TokenOffsets { owner, index } => {
+            h.update([1]);
+            h.update((owner as u64).to_le_bytes());
+            h.update((index as u64).to_le_bytes());
+        }
+    }
+    h.update(program.digest());
+    h.update([tail.is_some() as u8]);
+    if let Some(tail) = tail {
+        h.update(tail.digest());
+    }
+}
+
+fn hash_tensor(h: &mut Sha256, input: usize, program: &Arc<tensor::Program>) {
+    h.update([4]);
+    h.update((input as u64).to_le_bytes());
+    h.update(program.digest());
+}
+
+fn hash_gather(h: &mut Sha256, words: impl IntoIterator<Item = (usize, usize)>) {
+    h.update([1]);
+    for (owner, index) in words {
+        h.update((owner as u64).to_le_bytes());
+        h.update((index as u64).to_le_bytes());
+    }
+}
+
+fn hash_product(
+    h: &mut Sha256,
+    left: usize,
+    right: usize,
+    shape: Option<MatrixShape>,
+    rescale: bool,
+    norm: Option<&puma::multiply::norm::RowEnergyProof>,
+) {
+    // A certified complete dot binds its obligations as well as operand owners.
+    h.update([if norm.is_some() { 13 } else { 3 }, u8::from(rescale)]);
+    h.update((left as u64).to_le_bytes());
+    h.update((right as u64).to_le_bytes());
+    for n in shape.map_or([0, 0, 0], MatrixShape::dimensions) {
+        h.update((n as u64).to_le_bytes());
+    }
+    if let Some(proof) = norm {
+        h.update(proof.digest());
+    }
+}
+
+#[allow(dead_code)]
+impl Builder {
+    /// Original expanded finalization, shared with compiler-private fixtures.
+    /// The caller supplies only the identity prefix/source binding; ordered node
+    /// encoding, work limits, output retention and last-use retirement stay here.
+    fn finish(
+        &mut self,
+        count: usize,
+        selected: Vec<(usize, usize)>,
+        site: &mut AdmissionSite,
+        identity: impl FnOnce(&mut Sha256) -> Result<(), Error>,
+        source_binding: impl FnOnce() -> [u8; 32],
+    ) -> Result<Program, Error> {
+        let builder = self;
+        let mut last: Vec<_> = (0..builder.nodes.len()).collect();
+        site.step = None;
+        site.operator = None;
+        site.layer = None;
+        site.inputs = [None; 2];
+        builder.admission_stage = "complete_schedule_work";
+        let work = schedule_work(&builder.nodes)?;
+        let mut h = Sha256::new();
+        identity(&mut h)?;
+        #[cfg(test)]
+        let finalization_prefix = h.clone();
+        for (id, node) in builder.nodes.iter().enumerate() {
+            for input in node.inputs() {
+                last[input] = id;
+            }
+            hash_node_header(&mut h, node.lanes, node.bounds);
+            match &node.code {
+                Code::Input(key) => {
+                    h.update([0]);
+                    h.update((key.len() as u64).to_le_bytes());
+                    h.update(key);
+                }
+                Code::PublicInput { key, digest, .. } => {
+                    h.update([5]);
+                    h.update((key.len() as u64).to_le_bytes());
+                    h.update(key);
+                    h.update(digest);
+                }
+                Code::PublicValues(values) => {
+                    h.update([7]);
+                    for n in values {
+                        h.update(n.to_le_bytes());
+                    }
+                }
+                Code::PublicProduct {
+                    input,
+                    weight,
+                    rows,
+                    inner,
+                    columns,
+                    transposed,
+                } => {
+                    hash_public_product(
+                        &mut h,
+                        *input,
+                        *weight,
+                        *rows,
+                        *inner,
+                        *columns,
+                        *transposed,
+                    );
+                }
+                Code::PublicLookup {
+                    input,
+                    weight,
+                    plan,
+                } => {
+                    h.update([10]);
+                    for n in [*input, *weight] {
+                        h.update((n as u64).to_le_bytes());
+                    }
+                    h.update(plan.digest());
+                }
+                Code::Selection { input, plan } => {
+                    h.update([11]);
+                    h.update((*input as u64).to_le_bytes());
+                    h.update(plan.digest());
+                }
+                Code::TrieLookup {
+                    input,
+                    weight,
+                    plan,
+                } => {
+                    h.update([12]);
+                    h.update((*input as u64).to_le_bytes());
+                    h.update((*weight as u64).to_le_bytes());
+                    h.update(plan.digest());
+                }
+                Code::CheckedRange { input, program } => {
+                    h.update([9]);
+                    h.update((*input as u64).to_le_bytes());
+                    h.update(program.digest());
+                }
+                Code::Gather(items) => {
+                    hash_gather(&mut h, items.iter());
+                }
+                Code::SourceGather(view) => {
+                    // Hash the same logical gather as the original expanded
+                    // list. Compact storage changes neither PRSS contexts nor
+                    // the ordered primitive schedule.
+                    hash_gather(&mut h, view.indices().map(|index| (view.owner, index)));
+                }
+                Code::Affine {
+                    left,
+                    right,
+                    coefficients: c,
+                } => {
+                    hash_affine(&mut h, *left, *right, *c);
+                }
+                Code::Product {
+                    left,
+                    right,
+                    shape,
+                    rescale,
+                    norm,
+                } => {
+                    hash_product(&mut h, *left, *right, *shape, *rescale, norm.as_deref());
+                }
+                Code::Tensor { input, program } => {
+                    hash_tensor(&mut h, *input, program);
+                }
+                Code::TensorLoop {
+                    input,
+                    program,
+                    tail,
+                } => {
+                    hash_tensor_loop(&mut h, *input, program, tail.as_ref());
+                }
+            }
+        }
+        if work.operations() == 0 {
+            return Err(Error::Bounds);
+        }
+        site.complete_work = Some((work.operations(), work.cursors().aes_work));
+        builder.admission_stage = "complete_work_limits";
+        work.limits()?;
+        for &(id, index) in &selected {
+            last[id] = builder.nodes.len();
+            h.update((id as u64).to_le_bytes());
+            h.update((index as u64).to_le_bytes());
+        }
+        let mut retire = vec![vec![]; builder.nodes.len()];
+        for (id, end) in last.into_iter().enumerate() {
+            if end < retire.len() {
+                retire[end].push(id);
+            }
+        }
+        // Deliberately after original work/identity/limit diagnostics succeed.
+        // This checks borrowed metadata only; no compact executable or global
+        // memory admission is enabled, and original nodes/Arcs remain owners.
+        #[cfg(test)]
+        schedule_finalization::compare_original(
+            &builder.nodes,
+            &selected,
+            &finalization_prefix,
+            &h,
+            work,
+            &retire,
+        );
+        Ok(Program {
+            nodes: std::mem::take(&mut builder.nodes),
+            inputs: count,
+            outputs: selected,
+            retire,
+            digest: h.finalize().into(),
+            payload_bytes: builder.allocated,
+            work,
+            source_binding: source_binding(),
+        })
+    }
 }

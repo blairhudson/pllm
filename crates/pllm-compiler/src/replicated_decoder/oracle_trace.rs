@@ -339,7 +339,7 @@ pub(super) fn retiring(worker: &Worker) {
             .collect();
         for coordinate @ (owner, index) in requested {
             let pair = worker
-                .word(owner, index)
+                .word(owner, index, worker.program.schedule_access())
                 .expect("native checkpoint coordinate unavailable");
             if state.cache[role].insert(coordinate, pair).is_none() {
                 state.words += 2;

@@ -46,6 +46,69 @@ fn owner_growth_capacity(len: usize, capacity: usize) -> Result<usize, Error> {
     }
 }
 
+/// Closed destination import, not a row coordinate or numeric certificate.
+/// The mutable borrow pins the ACTUAL Builder; moving/replacing a Builder or
+/// selecting an equal-looking consumer cannot substitute another destination.
+///
+/// No production issuer exists yet. bind_complete_row_import deliberately
+/// returns Binding, including for a structurally valid, fully admitted request.
+/// Only a compiler-owned compact import/export mapping may eventually issue
+/// this value. In particular ConsumerObligation metadata is not such authority.
+pub(in crate::replicated_decoder) struct AuthenticatedRowEdge<'a> {
+    destination: &'a mut Builder,
+    original_producer: &'a Arc<Plan>,
+    producer: &'a Arc<Plan>,
+    export: usize,
+    start: usize,
+    source_row: &'a Layout,
+    input_row: &'a Layout,
+    retained_baseline: usize,
+}
+
+impl Plan {
+    /// Borrow the exact native program owning a complete certified Tensor row.
+    /// Returning an Arc reference preserves actual ownership, not digest reuse.
+    pub(in crate::replicated_decoder) fn complete_row_prepared_owner(
+        &self,
+        row: &Layout,
+    ) -> Result<&Arc<tensor::Program>, Error> {
+        let native = self.complete_row(row).ok_or(Error::Binding)?;
+        let key = native.key();
+        let op = key.owner.checked_sub(self.inputs).ok_or(Error::Binding)?;
+        let Op::Tensor {
+            stride, programs, ..
+        } = self.ops.get(op).ok_or(Error::Binding)?
+        else {
+            return Err(Error::Binding);
+        };
+        if *stride == 0 || key.width != *stride || key.offset % *stride != 0 {
+            return Err(Error::Binding);
+        }
+        programs.get(key.offset / *stride).ok_or(Error::Binding)
+    }
+
+    /// Check the ACTUAL native producer of this complete row, not a digest or
+    /// an independently prepared replacement. This is a read-only necessary
+    /// check; it does not authenticate any consumer or runtime value owner.
+    /// Only a single complete native Tensor row is supported. General residual,
+    /// source-only and attention-only coordinates cannot name a prepared owner.
+    pub(in crate::replicated_decoder) fn check_original_prepared_row_owner(
+        &self,
+        row: &Layout,
+        original: &Arc<tensor::Program>,
+        candidate: &Arc<tensor::Program>,
+    ) -> Result<(), Error> {
+        if !Arc::ptr_eq(original, candidate) {
+            return Err(Error::Binding);
+        }
+        let actual = self.complete_row_prepared_owner(row)?;
+        if !Arc::ptr_eq(actual, original) {
+            return Err(Error::Binding);
+        }
+        Ok(())
+    }
+}
+
 impl Builder {
     pub(super) fn input_metadata_bytes(count: usize) -> Result<usize, Error> {
         let mut bytes = add(size_of::<Self>(), 512)?;
@@ -423,6 +486,226 @@ impl Builder {
         Ok(())
     }
 
+    /// Necessary structural checks only, never destination dataflow authority.
+    /// Lookup is in the native GENERAL row ledger. Source statistics, compact
+    /// projection coordinates and attention-only bounds are not accepted here.
+    #[allow(clippy::too_many_arguments)]
+    fn checked_row_import(
+        &self,
+        original_producer: &Arc<Plan>,
+        producer: &Arc<Plan>,
+        export: usize,
+        start: usize,
+        source_row: &Layout,
+        input_row: &Layout,
+    ) -> Result<(CompleteRow, RowKey), Error> {
+        self.proof_admission_live()?;
+        if !Arc::ptr_eq(original_producer, producer) {
+            return Err(Error::Binding);
+        }
+        let native = producer.complete_row(source_row).ok_or(Error::Binding)?;
+        if native.producer() != producer.digest() {
+            return Err(Error::Binding);
+        }
+        let output = producer.output_layout(export)?;
+        if start.checked_add(source_row.len()).ok_or(Error::Bounds)? > output.len() {
+            return Err(Error::Shape);
+        }
+        let input = input_row.row_key(source_row.len()).ok_or(Error::Binding)?;
+        if input.owner >= self.inputs {
+            return Err(Error::Binding);
+        }
+        input_row.validate(&self.registers)?;
+        // Preserve the actual exported scalar hull, not caller-selected bounds.
+        // Read the native region ledger without making row slices or buffers.
+        let (mut lower, mut upper) = (i64::MAX, i64::MIN);
+        for index in 0..source_row.len() {
+            let word = source_row.word(index)?;
+            if word != output.word(start + index)? {
+                return Err(Error::Binding);
+            }
+            let regions = producer.regions.get(word.0).ok_or(Error::Binding)?;
+            let slot = regions.partition_point(|r| r.offset <= word.1);
+            let region = slot
+                .checked_sub(1)
+                .and_then(|slot| regions.get(slot))
+                .filter(|r| word.1 - r.offset < r.len)
+                .ok_or(Error::Binding)?;
+            lower = lower.min(region.bounds.lower());
+            upper = upper.max(region.bounds.upper());
+        }
+        if self.registers[input.owner].bounds != Interval::new(lower, upper)? {
+            return Err(Error::Binding);
+        }
+        // Return the ORIGINAL producer obligation and a checked coordinate,
+        // never a rebound destination Proof before consumer authentication.
+        Ok((native, input))
+    }
+
+    fn row_import_owners(
+        producer: &Arc<Plan>,
+        source_row: &Layout,
+        input_row: &Layout,
+        retained_baseline: usize,
+    ) -> Result<usize, Error> {
+        [
+            // Conservative full native admission, never a template-sharing credit.
+            producer.resources().admitted_bytes,
+            2 * size_of::<usize>(),
+            source_row.backing_bytes()?,
+            input_row.backing_bytes()?,
+            2 * size_of::<Layout>(),
+            2 * size_of::<AuthenticatedRowEdge<'_>>(),
+            size_of::<Result<AuthenticatedRowEdge<'_>, Error>>(),
+            2 * size_of::<Proof>(),
+            size_of::<CompleteRow>(),
+        ]
+        .into_iter()
+        .try_fold(retained_baseline, add)
+    }
+
+    /// Read-only, allocation-free TOTAL for current Builder live capacities,
+    /// producer/query owners, temporary buffers and exact record_proof growth.
+    /// A successful quote DOES NOT authenticate a producer-to-consumer edge.
+    /// ADD enclosing original Program/Worker/import-map/source-file owners in
+    /// retained_baseline; they are not implied by native Plan admitted bytes.
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::replicated_decoder) fn complete_row_import_quote(
+        &self,
+        original_producer: &Arc<Plan>,
+        producer: &Arc<Plan>,
+        export: usize,
+        start: usize,
+        source_row: &Layout,
+        input_row: &Layout,
+        retained_baseline: usize,
+        temporary: usize,
+    ) -> Result<usize, Error> {
+        self.checked_row_import(
+            original_producer,
+            producer,
+            export,
+            start,
+            source_row,
+            input_row,
+        )?;
+        let owners = Self::row_import_owners(producer, source_row, input_row, retained_baseline)?;
+        let (_, extra) = self.record_proof_growth(add(owners, temporary)?)?;
+        add(self.proof_live_metadata()?, extra)
+    }
+
+    /// Read-only admission under the SAME actual owner limit as record_proof.
+    /// A checked copy may use this before retaining handles/allocating payloads;
+    /// it still confers no executable consumer or certificate import authority.
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::replicated_decoder) fn complete_row_import_preflight(
+        &self,
+        original_producer: &Arc<Plan>,
+        producer: &Arc<Plan>,
+        export: usize,
+        start: usize,
+        source_row: &Layout,
+        input_row: &Layout,
+        retained_baseline: usize,
+        temporary: usize,
+    ) -> Result<(), Error> {
+        let quote = self.complete_row_import_quote(
+            original_producer,
+            producer,
+            export,
+            start,
+            source_row,
+            input_row,
+            retained_baseline,
+            temporary,
+        )?;
+        if quote > self.proof_limit() {
+            Err(Error::Bounds)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Fail-closed issuer until the MAIN EMITTER owns a closed executable import
+    /// mapping. That mapping must prove: original producer Arc + exact export
+    /// segment is copied, in order, into this exact Builder input row, under the
+    /// unchanged original source/validity/lifecycle contract. Metadata alone,
+    /// including a successful quote, cannot prove that copy will actually occur.
+    /// No flags, callbacks, caller labels or test-only issuer bypass this gate.
+    /// Original bridge exports and their real single-use value copies are owned
+    /// by body_tensor_integration's compact_row_proof child. Even that custody
+    /// cannot open this metadata-only constructor: its consuming bind_import
+    /// still needs the main emitter's final executable destination/input owner.
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::replicated_decoder) fn bind_complete_row_import<'a>(
+        &'a mut self,
+        original_producer: &'a Arc<Plan>,
+        producer: &'a Arc<Plan>,
+        export: usize,
+        start: usize,
+        source_row: &'a Layout,
+        input_row: &'a Layout,
+        retained_baseline: usize,
+        temporary: usize,
+    ) -> Result<AuthenticatedRowEdge<'a>, Error> {
+        let quote = self.complete_row_import_quote(
+            original_producer,
+            producer,
+            export,
+            start,
+            source_row,
+            input_row,
+            retained_baseline,
+            temporary,
+        )?;
+        if quote > self.proof_limit() {
+            return Err(Error::Bounds);
+        }
+        // Do NOT replace this with a struct literal from these arguments. The
+        // emitter must first supply a closed binding derived from its actual
+        // executable copy/import map, and this issuer must check that binding.
+        Err(Error::Binding)
+    }
+
+    /// Consuming, destination-pinned publication. No production edge can be
+    /// issued yet. Once the original emitter can authenticate the copy mapping,
+    /// this path rechecks all binding/owner/capacity facts and uses the ordinary
+    /// admitted record_proof growth. No separate attention/source ledger exists
+    /// here, and neither can be substituted for the producer's native proof.
+    pub(in crate::replicated_decoder) fn import_complete_row(
+        edge: AuthenticatedRowEdge<'_>,
+        temporary: usize,
+    ) -> Result<(), Error> {
+        let destination = edge.destination;
+        let result = (|| {
+            let (native, input) = destination.checked_row_import(
+                edge.original_producer,
+                edge.producer,
+                edge.export,
+                edge.start,
+                edge.source_row,
+                edge.input_row,
+            )?;
+            let owners = Self::row_import_owners(
+                edge.producer,
+                edge.source_row,
+                edge.input_row,
+                edge.retained_baseline,
+            )?;
+            destination.record_proof(
+                Proof {
+                    key: input,
+                    energy: native.energy(),
+                    mass: native.mass(),
+                },
+                add(owners, temporary)?,
+            )
+        })();
+        if result.is_err() {
+            destination.proof_admission_retired = true;
+        }
+        result
+    }
     /// Bound slice Vec growth plus old/new Arc conversion overlap, including
     /// small-Vec minimum capacity. Used before proof producers make row slices.
     pub(super) fn proof_row_scratch(input: &Layout) -> Result<usize, Error> {
@@ -552,6 +835,59 @@ impl Builder {
             extra = add(extra, n)?;
         }
         add(self.proof_live_metadata()?, extra)
+    }
+
+    /// Allocation-free FINALIZATION-phase quote, including the current live
+    /// Builder capacity census and the SAME finish scratch/destination-overlap
+    /// policy used by proof_finish_preflight. This is a total, not an increment
+    /// to add to proof_live_metadata again. Output layouts are charged by that
+    /// policy, even when their backing aliases a Builder-owned input layout.
+    ///
+    /// ADD `retained_baseline` for independently retained external owners:
+    /// original Program/Worker/source owners, caller containers and layout
+    /// handles/backing not already covered by the output-layout policy, and
+    /// enclosing transition/result/control slots. No shared-template discount.
+    /// This quote excludes earlier construction peaks, secret input/export
+    /// copies, execution workspace, transport and later restoration. It does
+    /// not admit the total; compose phase maxima or call the baseline preflight.
+    /// Work/geometry validation mirrors Plan::finish before its allocations;
+    /// outputs are validated without constructing op.layouts() or other Vecs.
+    pub(in crate::replicated_decoder) fn proof_finish_quote(
+        &self,
+        outputs: &[Layout],
+        retained_baseline: usize,
+    ) -> Result<usize, Error> {
+        self.proof_admission_live()?;
+        self.work.limits()?;
+        if self.advances > MAX_COORDINATOR_ADVANCES {
+            return Err(Error::Bounds);
+        }
+        if self.ops.is_empty() || outputs.is_empty() || outputs.len() > MAX_NODES {
+            return Err(Error::Shape);
+        }
+        outputs.iter().try_fold(0usize, |n, layout| {
+            n.checked_add(layout.len())
+                .filter(|&n| n <= MAX_VALUES)
+                .ok_or(Error::Bounds)
+        })?;
+        for output in outputs {
+            output.validate(&self.registers)?;
+        }
+        add(retained_baseline, self.proof_finish_bytes(outputs)?)
+    }
+
+    /// Read-only admission of external retained baseline + finalization total
+    /// against the EXISTING owner limit (and unchanged MAX_PROGRAM_BYTES).
+    /// Rejection neither allocates nor retires/mutates this borrowed Builder.
+    pub(in crate::replicated_decoder) fn proof_finish_preflight_with_baseline(
+        &self,
+        outputs: &[Layout],
+        retained_baseline: usize,
+    ) -> Result<(), Error> {
+        if self.proof_finish_quote(outputs, retained_baseline)? > self.proof_limit() {
+            return Err(Error::Bounds);
+        }
+        Ok(())
     }
 
     pub(super) fn proof_finish_preflight(&self, outputs: &[Layout]) -> Result<(), Error> {

@@ -218,6 +218,19 @@ fn fixture_with_weights(
     active: bool,
     mode: WeightMode,
 ) -> (Arc<Program>, BTreeMap<String, Vec<i64>>) {
+    let (config, source, clear) = fixture_sources(family, active);
+    let program = Program::compile_with_weights(&config, 2, 2, &source, mode).unwrap();
+    (Arc::new(program), clear)
+}
+
+type FixtureSources = (
+    Vec<u8>,
+    BTreeMap<String, SourceTensor>,
+    BTreeMap<String, Vec<i64>>,
+);
+
+/// Existing numeric fixture, before compilation or any Worker construction.
+pub(super) fn fixture_sources(family: &str, active: bool) -> FixtureSources {
     let config = serde_json::to_vec(&serde_json::json!({
         "model_type": family, "hidden_size": 2, "intermediate_size": 2,
         "num_hidden_layers": 1, "num_attention_heads": 1, "num_key_value_heads": 1,
@@ -272,8 +285,7 @@ fn fixture_with_weights(
         clear.insert(key, values);
     }
     clear.insert("input.tokens".into(), vec![1, 2]);
-    let program = Program::compile_with_weights(&config, 2, 2, &source, mode).unwrap();
-    (Arc::new(program), clear)
+    (config, source, clear)
 }
 
 #[test]

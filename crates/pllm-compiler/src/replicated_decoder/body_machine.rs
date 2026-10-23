@@ -1,6 +1,6 @@
 //! Consuming semantic-site interpreter. One primitive/tensor invocation at a time.
 use super::*;
-use crate::replicated_decoder::runtime::{arithmetic_frames, tensor_frames, PeerBytes};
+use crate::replicated_decoder::runtime::{PeerBytes, arithmetic_frames, tensor_frames};
 use crate::replicated_decoder::source_registry::SourceRegistry;
 use multiply::{Operand, PartyRuntime, Status};
 use puma::{Message, MessagePhase, Operation, Party, ReplicatedShare};
@@ -844,9 +844,11 @@ pub(in crate::replicated_decoder) fn try_from_worker(
     ) else {
         panic!("idle test runtime required");
     };
-    let inputs = worker.values[..worker.program.inputs]
-        .iter_mut()
-        .filter_map(Option::take)
+    let inputs = (0..worker.program.input_count())
+        .filter_map(|position| {
+            let (owner, _) = worker.program.input_at(position);
+            worker.values[worker.program.value_slot(owner)].take()
+        })
         .collect();
     let public = public.or_else(|| worker.public.take().map(Arc::new));
     Executor::new(plan, runtime, inputs, public, Some(&worker.program))

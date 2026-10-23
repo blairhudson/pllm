@@ -22,6 +22,324 @@ fn proof() -> Proof {
     }
 }
 
+fn row_import_producer() -> (Arc<Plan>, Layout, Layout) {
+    let mut b = Builder::new(
+        WeightMode::Public,
+        &[
+            Register {
+                lanes: 6,
+                bounds: Interval::new(-12, 12).unwrap(),
+            },
+            Register {
+                lanes: 6,
+                bounds: Interval::new(0, 0).unwrap(),
+            },
+        ],
+    )
+    .unwrap();
+    let input = b.input(0).unwrap();
+    let zero = b.input(1).unwrap();
+    let output = b.residual(&input, &zero, 3).unwrap();
+    let other = b.residual(&output, &zero, 3).unwrap();
+    let plan = b.finish(&[output.clone(), other]).unwrap();
+    (
+        plan,
+        output.slice(0, 3).unwrap(),
+        output.slice(3, 3).unwrap(),
+    )
+}
+
+#[test]
+fn row_import_quote_reuses_exact_record_growth_and_prices_retained_owners() {
+    let (producer, source, _) = row_import_producer();
+    for existing in [0, 1, 4] {
+        let mut b = builder();
+        let input = b.input(0).unwrap();
+        for _ in 0..existing {
+            b.record_proof(proof(), 0).unwrap();
+        }
+        let baseline = 137;
+        let temporary = 19;
+        let old = (b.proofs.len(), b.proofs.capacity(), b.work, b.advances);
+        let owners = Builder::row_import_owners(&producer, &source, &input, baseline).unwrap();
+        let (capacity, extra) = b.record_proof_growth(owners + temporary).unwrap();
+        let total = b
+            .complete_row_import_quote(
+                &producer, &producer, 0, 0, &source, &input, baseline, temporary,
+            )
+            .unwrap();
+        assert_eq!(
+            capacity,
+            growth_capacity(b.proofs.len(), b.proofs.capacity()).unwrap()
+        );
+        assert_eq!(total, b.proof_live_metadata().unwrap() + extra);
+        assert!(owners > baseline + producer.resources().admitted_bytes);
+        assert_eq!(
+            total,
+            b.complete_row_import_quote(&producer, &producer, 0, 0, &source, &input, 0, 0)
+                .unwrap()
+                + baseline
+                + temporary
+        );
+        assert_eq!(
+            (b.proofs.len(), b.proofs.capacity(), b.work, b.advances),
+            old
+        );
+        assert!(!b.proof_admission_retired);
+    }
+}
+
+#[test]
+fn row_import_binding_rejects_equal_digest_wrong_arc_export_and_malformed_rows() {
+    let (producer, source, next) = row_import_producer();
+    let (replacement, _, _) = row_import_producer();
+    assert_eq!(producer.digest(), replacement.digest());
+    let mut b = builder();
+    let input = b.input(0).unwrap();
+    assert!(matches!(
+        b.complete_row_import_quote(&producer, &replacement, 0, 0, &source, &input, 0, 0),
+        Err(Error::Binding)
+    ));
+    for (export, start, row) in [(1, 0, &source), (0, 3, &source), (0, 0, &next)] {
+        assert!(
+            b.complete_row_import_quote(&producer, &producer, export, start, row, &input, 0, 0)
+                .is_err()
+        );
+    }
+    let key = source.row_key(3).unwrap();
+    let reordered =
+        Layout::concat(&[source.slice(2, 1).unwrap(), source.slice(0, 2).unwrap()]).unwrap();
+    let duplicated = Layout::affine(key.owner, key.offset, &[3], &[0]).unwrap();
+    let mixed = Layout::concat(&[source.slice(0, 2).unwrap(), next.slice(2, 1).unwrap()]).unwrap();
+    for row in [source.slice(0, 2).unwrap(), reordered, duplicated, mixed] {
+        assert!(
+            b.complete_row_import_quote(&producer, &producer, 0, 0, &row, &input, 0, 0)
+                .is_err()
+        );
+    }
+    for row in [
+        input.slice(0, 2).unwrap(),
+        Layout::affine(0, 0, &[3], &[0]).unwrap(),
+        Layout::affine(0, 1, &[3], &[1]).unwrap(),
+        Layout::contiguous(1, 3).unwrap(),
+    ] {
+        assert!(
+            b.complete_row_import_quote(&producer, &producer, 0, 0, &source, &row, 0, 0)
+                .is_err()
+        );
+    }
+    assert!(b.proofs.is_empty());
+    assert!(!b.proof_admission_retired);
+}
+
+#[test]
+fn row_import_scalar_contract_and_native_general_ledger_are_required() {
+    let (producer, source, _) = row_import_producer();
+    let mut b = Builder::new(
+        WeightMode::Public,
+        &[Register {
+            lanes: 3,
+            bounds: Interval::new(-9, 9).unwrap(),
+        }],
+    )
+    .unwrap();
+    let input = b.input(0).unwrap();
+    assert!(matches!(
+        b.complete_row_import_quote(&producer, &producer, 0, 0, &source, &input, 0, 0),
+        Err(Error::Binding)
+    ));
+    // Ordinary binary has no GENERAL row certificate. Matching scalar ranges,
+    // source/attention numbers or complete coordinates cannot manufacture one.
+    let mut ordinary = builder();
+    let row = ordinary.input(0).unwrap();
+    let alias = Layout::affine(0, 0, &[3], &[1]).unwrap();
+    let output = ordinary.binary(&row, &alias, false).unwrap();
+    let no_proof = ordinary.finish(&[output.clone()]).unwrap();
+    let mut destination = Builder::new(
+        WeightMode::Public,
+        &[Register {
+            lanes: 3,
+            bounds: Interval::new(-24, 24).unwrap(),
+        }],
+    )
+    .unwrap();
+    let input = destination.input(0).unwrap();
+    assert!(matches!(
+        destination.complete_row_import_quote(&no_proof, &no_proof, 0, 0, &output, &input, 0, 0,),
+        Err(Error::Binding)
+    ));
+    assert!(destination.proofs.is_empty());
+}
+
+#[test]
+fn row_import_issuer_stays_closed_even_with_valid_admitted_endpoints() {
+    let (producer, source, _) = row_import_producer();
+    for short in [false, true] {
+        let mut b = builder();
+        let input = b.input(0).unwrap();
+        let quote = b
+            .complete_row_import_quote(&producer, &producer, 0, 0, &source, &input, 31, 17)
+            .unwrap();
+        b.proof_metadata_limit = quote - usize::from(short);
+        b.fail_proof_allocation = true;
+        let old = (
+            b.proofs.len(),
+            b.proofs.capacity(),
+            b.registers.len(),
+            b.ops.len(),
+            b.work,
+            b.advances,
+        );
+        let refs = Arc::strong_count(&producer);
+        let error = b
+            .bind_complete_row_import(&producer, &producer, 0, 0, &source, &input, 31, 17)
+            .err();
+        assert_eq!(
+            error,
+            Some(if short { Error::Bounds } else { Error::Binding })
+        );
+        assert_eq!(
+            (
+                b.proofs.len(),
+                b.proofs.capacity(),
+                b.registers.len(),
+                b.ops.len(),
+                b.work,
+                b.advances
+            ),
+            old
+        );
+        assert_eq!(Arc::strong_count(&producer), refs);
+        assert!(!b.proof_admission_retired);
+        assert!(b.proof(&input).is_none());
+        // No test-only authenticated-edge fixture: no successful import can be
+        // tested honestly until the actual compact emitter owns that binding.
+    }
+}
+
+#[test]
+fn row_import_quote_overflow_and_retired_builder_never_publish_or_allocate() {
+    let (producer, source, _) = row_import_producer();
+    let mut b = builder();
+    let input = b.input(0).unwrap();
+    for (baseline, temporary) in [(usize::MAX, 0), (0, usize::MAX)] {
+        assert!(matches!(
+            b.complete_row_import_quote(
+                &producer, &producer, 0, 0, &source, &input, baseline, temporary,
+            ),
+            Err(Error::Bounds)
+        ));
+    }
+    assert!(b.proofs.is_empty());
+    assert!(!b.proof_admission_retired);
+    assert!(matches!(
+        b.bind_complete_row_import(
+            &producer,
+            &producer,
+            0,
+            0,
+            &source,
+            &input,
+            MAX_PROGRAM_BYTES,
+            0,
+        )
+        .err(),
+        Some(Error::Bounds)
+    ));
+    b.proof_admission_retired = true;
+    assert!(matches!(
+        b.complete_row_import_quote(&producer, &producer, 0, 0, &source, &input, 0, 0),
+        Err(Error::Binding)
+    ));
+}
+
+#[test]
+fn row_import_checked_aliases_preserve_original_proof_without_rebinding_it() {
+    let (producer, source, _) = row_import_producer();
+    let mut b = builder();
+    let input = b.input(0).unwrap();
+    let source_alias =
+        Layout::concat(&[source.slice(0, 1).unwrap(), source.slice(1, 2).unwrap()]).unwrap();
+    let input_alias =
+        Layout::concat(&[input.slice(0, 2).unwrap(), input.slice(2, 1).unwrap()]).unwrap();
+    let original = producer.complete_row(&source).unwrap();
+    let (checked, key) = b
+        .checked_row_import(&producer, &producer, 0, 0, &source_alias, &input_alias)
+        .unwrap();
+    assert_eq!(checked.producer(), original.producer());
+    assert_eq!(checked.key(), original.key());
+    assert_eq!(checked.energy(), original.energy());
+    assert_eq!(checked.mass(), original.mass());
+    assert_eq!(key, input.row_key(3).unwrap());
+    assert!(b.proofs.is_empty());
+    assert!(b.proof(&input).is_none());
+}
+
+fn native_row_import_producer() -> (Arc<Plan>, Layout, Arc<tensor::Program>) {
+    let mut b = builder();
+    let input = b.input(0).unwrap();
+    let (output, valid) = b.rms(&input, 3, &[ONE; 3], None, None).unwrap();
+    assert!(valid.is_none());
+    let producer = b.finish(&[output.clone()]).unwrap();
+    let prepared = Arc::clone(producer.complete_row_prepared_owner(&output).unwrap());
+    (producer, output, prepared)
+}
+
+#[test]
+fn prepared_row_owner_is_actual_native_arc_not_equal_digest_or_general_label() {
+    let (producer, row, prepared) = native_row_import_producer();
+    let (_, _, replacement) = native_row_import_producer();
+    assert_eq!(prepared.digest(), replacement.digest());
+    assert!(!Arc::ptr_eq(&prepared, &replacement));
+    producer
+        .check_original_prepared_row_owner(&row, &prepared, &prepared)
+        .unwrap();
+    for (original, candidate) in [(&prepared, &replacement), (&replacement, &replacement)] {
+        assert_eq!(
+            producer.check_original_prepared_row_owner(&row, original, candidate),
+            Err(Error::Binding)
+        );
+    }
+    assert!(
+        producer
+            .complete_row_prepared_owner(&row.slice(0, 2).unwrap())
+            .is_err()
+    );
+    let reordered = Layout::concat(&[row.slice(2, 1).unwrap(), row.slice(0, 2).unwrap()]).unwrap();
+    assert!(producer.complete_row_prepared_owner(&reordered).is_err());
+    let (residual, general_row, _) = row_import_producer();
+    assert!(residual.complete_row(&general_row).is_some());
+    assert!(residual.complete_row_prepared_owner(&general_row).is_err());
+}
+
+#[test]
+fn checked_row_copy_preflight_uses_actual_owner_limit_before_payload_allocation() {
+    let (producer, row, prepared) = native_row_import_producer();
+    for short in [false, true] {
+        let mut destination = Builder::new(
+            WeightMode::Public,
+            &[Register {
+                lanes: 3,
+                bounds: prepared.output_bounds(),
+            }],
+        )
+        .unwrap();
+        let input = destination.input(0).unwrap();
+        let required = destination
+            .complete_row_import_quote(&producer, &producer, 0, 0, &row, &input, 137, 19)
+            .unwrap();
+        destination.proof_metadata_limit = required - usize::from(short);
+        destination.fail_proof_allocation = true;
+        assert_eq!(
+            destination
+                .complete_row_import_preflight(&producer, &producer, 0, 0, &row, &input, 137, 19,),
+            if short { Err(Error::Bounds) } else { Ok(()) }
+        );
+        assert!(destination.proofs.is_empty());
+        assert!(!destination.proof_admission_retired);
+    }
+}
+
 #[test]
 fn input_containers_exact_one_short_and_shape_rejection() {
     let inputs = [Register {
@@ -417,6 +735,97 @@ fn finalization_exact_one_short_includes_spare_capacity_and_boxes() {
 }
 
 #[test]
+fn finalization_external_baseline_quote_exact_one_short_and_unchanged_census() {
+    let mut b = builder();
+    let input = b.input(0).unwrap();
+    let output = b.residual(&input, &input, 3).unwrap();
+    let outputs = [output];
+    let local = b.proof_finish_bytes(&outputs).unwrap();
+    let baseline = 37;
+    let quote = b.proof_finish_quote(&outputs, baseline).unwrap();
+    assert_eq!(quote, local + baseline);
+    assert_eq!(b.proof_finish_quote(&outputs, 0).unwrap(), local);
+    let capacities = (
+        b.registers.capacity(),
+        b.regions.capacity(),
+        b.ops.capacity(),
+        b.proofs.capacity(),
+    );
+    // Existing fault seam covers allocating Builder paths, not a global
+    // allocator observer. Quote/preflight must not enter those paths.
+    b.fail_builder_allocation = true;
+    b.proof_metadata_limit = quote;
+    b.proof_finish_preflight_with_baseline(&outputs, baseline)
+        .unwrap();
+    b.proof_metadata_limit = quote - 1;
+    assert!(matches!(
+        b.proof_finish_preflight_with_baseline(&outputs, baseline),
+        Err(Error::Bounds)
+    ));
+    assert!(!b.proof_admission_retired);
+    assert_eq!(
+        capacities,
+        (
+            b.registers.capacity(),
+            b.regions.capacity(),
+            b.ops.capacity(),
+            b.proofs.capacity(),
+        )
+    );
+    // Numeric quote is independent of the cap; no post-cap discount.
+    assert_eq!(b.proof_finish_quote(&outputs, baseline).unwrap(), quote);
+    b.proof_metadata_limit = usize::MAX;
+    let exact_baseline = MAX_PROGRAM_BYTES - local;
+    b.proof_finish_preflight_with_baseline(&outputs, exact_baseline)
+        .unwrap();
+    assert!(matches!(
+        b.proof_finish_preflight_with_baseline(&outputs, exact_baseline + 1),
+        Err(Error::Bounds)
+    ));
+    assert!(matches!(
+        b.proof_finish_quote(&outputs, usize::MAX),
+        Err(Error::Bounds)
+    ));
+}
+
+#[test]
+fn finalization_quote_rejects_invalid_and_retired_builder_without_state_change() {
+    let mut b = builder();
+    let input = b.input(0).unwrap();
+    assert!(matches!(
+        b.proof_finish_quote(&[input.clone()], 0),
+        Err(Error::Shape)
+    )); // No operation, same as finish.
+    let output = b.residual(&input, &input, 3).unwrap();
+    assert!(matches!(b.proof_finish_quote(&[], 0), Err(Error::Shape)));
+    let foreign = Layout::contiguous(99, 3).unwrap();
+    assert!(b.proof_finish_quote(&[foreign], 0).is_err());
+    let oversized = Layout::contiguous(0, MAX_VALUES).unwrap();
+    assert!(matches!(
+        b.proof_finish_quote(&[oversized.clone(), oversized], 0),
+        Err(Error::Bounds)
+    ));
+    let outputs = [output];
+    let advances = b.advances;
+    b.advances = MAX_COORDINATOR_ADVANCES + 1;
+    assert!(matches!(
+        b.proof_finish_quote(&outputs, 0),
+        Err(Error::Bounds)
+    ));
+    b.advances = advances;
+    assert!(!b.proof_admission_retired);
+    b.proof_admission_retired = true;
+    assert!(matches!(
+        b.proof_finish_quote(&outputs, 0),
+        Err(Error::Binding)
+    ));
+    assert!(matches!(
+        b.proof_finish_preflight_with_baseline(&outputs, 0),
+        Err(Error::Binding)
+    ));
+}
+
+#[test]
 fn exact_ordered_alias_only_and_nonbeneficial_controls() {
     for energy in [150, 243, 432] {
         let mut b = builder();
@@ -569,14 +978,16 @@ fn each_checked_return_slice_fault_burns_without_changing_sticky_guard_work() {
                         ..
                     },
                 ) => {
-                    assert!(a
-                        .iter()
-                        .map(|p| p.digest())
-                        .eq(e.iter().map(|p| p.digest())));
-                    assert!(av
-                        .iter()
-                        .map(|p| p.digest())
-                        .eq(ev.iter().map(|p| p.digest())));
+                    assert!(
+                        a.iter()
+                            .map(|p| p.digest())
+                            .eq(e.iter().map(|p| p.digest()))
+                    );
+                    assert!(
+                        av.iter()
+                            .map(|p| p.digest())
+                            .eq(ev.iter().map(|p| p.digest()))
+                    );
                 }
                 _ => panic!("expected unchanged complete guard schedule"),
             }

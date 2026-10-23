@@ -207,6 +207,134 @@ fn assert_same_schedule(actual: &Builder, expected: &Builder) {
         assert_eq!(a.bounds, e.bounds);
         match (&a.code, &e.code) {
             (Code::Input(a), Code::Input(e)) => assert_eq!(a, e),
+            (
+                Code::PublicInput {
+                    key: ak,
+                    digest: ad,
+                    row_l1: al,
+                    row_squared_norm: an,
+                    row_l1_squared_sum: asq,
+                },
+                Code::PublicInput {
+                    key: ek,
+                    digest: ed,
+                    row_l1: el,
+                    row_squared_norm: en,
+                    row_l1_squared_sum: esq,
+                },
+            ) => {
+                assert_eq!((ak, ad, al, an, asq), (ek, ed, el, en, esq));
+            }
+            (Code::SourceGather(a), Code::SourceGather(e)) => {
+                assert_eq!(
+                    (
+                        a.owner,
+                        a.offset,
+                        a.rows,
+                        a.columns,
+                        a.row_stride,
+                        a.column_stride
+                    ),
+                    (
+                        e.owner,
+                        e.offset,
+                        e.rows,
+                        e.columns,
+                        e.row_stride,
+                        e.column_stride
+                    )
+                );
+            }
+            (
+                Code::PublicProduct {
+                    input: ai,
+                    weight: aw,
+                    rows: ar,
+                    inner: an,
+                    columns: ac,
+                    transposed: at,
+                },
+                Code::PublicProduct {
+                    input: ei,
+                    weight: ew,
+                    rows: er,
+                    inner: en,
+                    columns: ec,
+                    transposed: et,
+                },
+            ) => assert_eq!((ai, aw, ar, an, ac, at), (ei, ew, er, en, ec, et)),
+            (
+                Code::TensorLoop {
+                    input: ai,
+                    program: ap,
+                    tail: at,
+                },
+                Code::TensorLoop {
+                    input: ei,
+                    program: ep,
+                    tail: et,
+                },
+            ) => {
+                match (ai, ei) {
+                    (LoopInput::Slice(a), LoopInput::Slice(e)) => assert_eq!(a, e),
+                    (
+                        LoopInput::TokenOffsets {
+                            owner: ao,
+                            index: ai,
+                        },
+                        LoopInput::TokenOffsets {
+                            owner: eo,
+                            index: ei,
+                        },
+                    ) => assert_eq!((ao, ai), (eo, ei)),
+                    _ => panic!("original loop input variant changed"),
+                }
+                assert_eq!(ap.digest(), ep.digest());
+                assert_eq!(
+                    at.as_ref().map(|p| p.digest()),
+                    et.as_ref().map(|p| p.digest())
+                );
+                for native in std::iter::once(ap).chain(at.iter()) {
+                    assert!(Arc::ptr_eq(
+                        native,
+                        actual.tensors.get(&native.digest()).unwrap()
+                    ));
+                }
+                for native in std::iter::once(ep).chain(et.iter()) {
+                    assert!(Arc::ptr_eq(
+                        native,
+                        expected.tensors.get(&native.digest()).unwrap()
+                    ));
+                }
+            }
+            (
+                Code::PublicLookup {
+                    input: ai,
+                    weight: aw,
+                    plan: ap,
+                },
+                Code::PublicLookup {
+                    input: ei,
+                    weight: ew,
+                    plan: ep,
+                },
+            ) => {
+                assert_eq!((ai, aw, ap.digest()), (ei, ew, ep.digest()));
+            }
+            (
+                Code::TrieLookup {
+                    input: ai,
+                    weight: aw,
+                    plan: ap,
+                },
+                Code::TrieLookup {
+                    input: ei,
+                    weight: ew,
+                    plan: ep,
+                },
+            ) => {
+                assert_eq!((ai, aw, ap.digest()), (ei, ew, ep.digest()));
+            }
             (Code::Gather(a), Code::Gather(e)) => assert_eq!(a, e),
             (
                 Code::Affine {
@@ -292,6 +420,9 @@ fn assert_same_schedule(actual: &Builder, expected: &Builder) {
     );
     assert_eq!(actual.admission_ledger(), expected.admission_ledger());
 }
+
+#[path = "graph_contraction_tests.rs"]
+mod contractions;
 
 #[test]
 fn expanded_rms_family_preserves_original_checked_rows_native_owners_and_proof_scopes() {
