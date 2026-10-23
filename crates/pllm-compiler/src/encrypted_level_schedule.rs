@@ -1086,3 +1086,7 @@ pub fn validate_public_ciphertext_trace(
 #[cfg(test)]
 #[path = "encrypted_level_schedule_tests.rs"]
 mod tests;
+
+/// Exact bounded planning over the existing fixed-state SSA ciphertext graph.
+#[path = "encrypted_level_dag.rs"]
+pub mod dag;
