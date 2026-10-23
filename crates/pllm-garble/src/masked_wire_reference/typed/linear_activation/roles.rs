@@ -1,7 +1,7 @@
 //! D27 process-local ownership split. No serialization or new numeric boundary.
+use super::super::role_coordination::{self as custody, arc_bytes, SplitControl};
 use super::*;
-use std::alloc::Layout;
-use std::sync::{atomic::AtomicUsize, Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 /// Incremental owner inventory beyond the original D22 run. Available before
 /// constructing a coordination object, hashing, allocation or entropy. Includes
@@ -15,13 +15,6 @@ pub struct LinearActivationRoleSplitResources {
     pub wrapper_population_bytes: usize,
     pub transition_bytes: usize,
     pub reservation_bytes: usize,
-}
-
-fn arc_bytes<T>() -> Result<usize, Error> {
-    Layout::new::<[AtomicUsize; 2]>()
-        .extend(Layout::new::<T>())
-        .map(|(layout, _)| layout.pad_to_align().size())
-        .map_err(|_| Error::Resource)
 }
 
 pub fn role_split_resources() -> Result<LinearActivationRoleSplitResources, Error> {
@@ -90,124 +83,16 @@ struct RoleStateFor<B: AllocationContext> {
     party: LinearPartyFor<B>,
     output: Option<CommonMaskedFor<B, Ring>>,
 }
-struct RoleSlotFor<B: AllocationContext> {
-    state: Mutex<RoleStateFor<B>>,
-    _lease: LeaseFor<B>,
-}
-#[derive(Default)]
-struct SplitControl {
-    aborted: bool,
-    ready: [bool; 2],
-}
-
-/// Cancellation-only registry. Private strong links retain allocation accounting
-/// until the registry drops (Weak links would retain uncharged Arc allocations).
-/// No public method can evaluate, borrow, extract or import a sibling's state.
-struct CoordinationFor<B: AllocationContext> {
-    control: Mutex<SplitControl>,
-    slots: [Arc<RoleSlotFor<B>>; 2],
-    _original_run: Option<LeaseFor<B>>,
-    _additional: LeaseFor<B>,
-}
-
-impl<B: AllocationContext> CoordinationFor<B> {
-    fn abort_locked(&self, control: &mut SplitControl) {
-        control.aborted = true;
-        for slot in &self.slots {
-            let mut state = slot.state.lock().unwrap_or_else(|p| p.into_inner());
-            state.output = None;
-            state.party.cancel();
-        }
-    }
-
-    fn control(&self) -> MutexGuard<'_, SplitControl> {
-        match self.control.lock() {
-            Ok(control) => control,
-            Err(poisoned) => {
-                let mut control = poisoned.into_inner();
-                self.abort_locked(&mut control);
-                control
-            }
-        }
-    }
-
-    fn abort(&self) {
-        self.abort_locked(&mut self.control());
-    }
-
-    /// Caller code must never run under either mutex: callbacks may inspect or
-    /// cancel this same coordinator. An unwind burns both before propagating.
-    fn poll_cancelled(&self, cancelled: &mut impl FnMut() -> bool) -> Result<(), Error> {
-        let aborted = {
-            let control = self.control();
-            control.aborted
-        };
-        if aborted {
-            return Err(Error::Consumed);
-        }
-        let mut poll = CallbackPollFor {
-            coordination: self,
-            armed: true,
-        };
-        let cancelled = cancelled();
-        poll.armed = false;
-        if cancelled {
-            self.abort();
-            Err(Error::Consumed)
-        } else {
-            Ok(())
-        }
-    }
-
-    fn operation<T>(
-        &self,
-        f: impl FnOnce(&mut SplitControl) -> Result<T, Error>,
-    ) -> Result<T, Error> {
-        let mut operation = OperationFor {
-            coordination: self,
-            control: self.control(),
-            armed: true,
-        };
-        let result = if operation.control.aborted {
-            Err(Error::Consumed)
-        } else {
-            f(&mut operation.control)
-        };
-        if result.is_err() {
-            self.abort_locked(&mut operation.control);
-        }
-        operation.armed = false;
-        result
+impl<B: AllocationContext> custody::Retire for RoleStateFor<B> {
+    fn retire(&mut self) {
+        self.output = None;
+        self.party.cancel();
     }
 }
-
-// If locked native work panics, the role-state lock unwinds first; this guard
-// then burns BOTH continuations before releasing the coordination lock. Caller
-// callbacks use CallbackPoll instead and never execute under either mutex.
-struct OperationFor<'a, B: AllocationContext> {
-    coordination: &'a CoordinationFor<B>,
-    control: MutexGuard<'a, SplitControl>,
-    armed: bool,
-}
-
-struct CallbackPollFor<'a, B: AllocationContext> {
-    coordination: &'a CoordinationFor<B>,
-    armed: bool,
-}
-impl<B: AllocationContext> Drop for CallbackPollFor<'_, B> {
-    fn drop(&mut self) {
-        if self.armed {
-            self.coordination.abort();
-        }
-    }
-}
-impl<B: AllocationContext> Drop for OperationFor<'_, B> {
-    fn drop(&mut self) {
-        if self.armed {
-            self.coordination.abort_locked(&mut self.control);
-        }
-    }
-}
+type RoleSlotFor<B> = custody::RoleSlotFor<B, RoleStateFor<B>>;
+type CoordinationFor<B> = custody::CoordinationFor<B, RoleStateFor<B>>;
+type OperationFor<'a, B> = custody::OperationFor<'a, B, RoleStateFor<B>>;
+type CallbackPollFor<'a, B> = custody::CallbackPollFor<'a, B, RoleStateFor<B>>;
 
 /// Local coordinator, with cancellation authority only. Dropping it aborts both
 /// roles, including unclaimed/completed outputs. Keep it through output use.
@@ -363,7 +248,7 @@ impl<B: AllocationContext> LinearActivationRoleFor<B> {
                 )),
                 PartyStepFor::Output(output) => {
                     state.output = Some(output);
-                    control.ready[usize::from(self.role)] = true;
+                    control.mark_ready(self.role);
                     #[cfg(test)]
                     tests::panic_after_locked_output(self.role, &state, control);
                     Ok(LinearActivationRoleStepFor::Ready)
@@ -384,9 +269,7 @@ impl<B: AllocationContext> LinearActivationRoleFor<B> {
     /// ```
     pub fn finish(mut self) -> Result<LinearActivationRoleOutputFor<B>, Error> {
         let output = self.shared.operation(|control| {
-            if control.ready != [true; 2] {
-                return Err(Error::Consumed);
-            }
+            control.require_both_ready()?;
             if self
                 .slot
                 .state
@@ -568,3 +451,7 @@ type Coordination<'b> = CoordinationFor<&'b Budget>;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "roles_legacy_oracle_tests.rs"]
+mod legacy_oracle_tests;

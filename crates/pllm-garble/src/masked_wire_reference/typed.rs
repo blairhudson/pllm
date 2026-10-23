@@ -43,9 +43,16 @@ use zeroize::Zeroizing;
 
 mod activation;
 mod internal_use;
+// D29's conditional implementation is not an activated/public product API.
+mod nexp;
+#[allow(dead_code)]
+mod nexp_product;
+mod nexp_stage_bounds;
+pub use nexp::{nexp_declaration_resources, validate_nexp_clear_root, NexpDeclarationResources};
 mod linear_activation;
 mod material;
 mod region;
+mod role_coordination;
 mod selection_bridge;
 pub use activation::{
     activation_resources, activation_resources_for, ActivationFrame, ActivationFrameFor,
@@ -551,10 +558,7 @@ type ArithmeticIssuedFor<C, K> = (DealerMaskFor<C, K>, [ArithmeticPartyFor<C, K>
 impl<C: AllocationContext> RootInputFor<C> {
     /// Validate against the predeclared interval, never derive public metadata
     /// from values. Input is borrowed transiently, not copied or retained clear.
-    pub fn encode(
-        mut self,
-        values: &[i64],
-    ) -> Result<EncodedRootFor<C>, Error> {
+    pub fn encode(mut self, values: &[i64]) -> Result<EncodedRootFor<C>, Error> {
         let binding = self.dealer.binding;
         let interval = binding.interval.ok_or(Error::Domain)?;
         if values.len() != binding.descriptor.shape().elements()

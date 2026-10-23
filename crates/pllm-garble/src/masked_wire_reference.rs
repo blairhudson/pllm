@@ -21,6 +21,10 @@ pub mod arithmetic;
 mod coins;
 pub mod matrix;
 mod product;
+// D29 prerequisite owner, deliberately not a public Multiply. Canonical-record
+// review still gates region activation; private issuance is exercised by tests.
+#[allow(dead_code)]
+mod elementwise_product;
 mod rescale;
 mod seeded_codec;
 pub mod selection;

@@ -6,6 +6,9 @@
 
 use super::internal_use::Ledger as UseLedger;
 use super::*;
+
+#[path = "certified_exp_lookup.rs"]
+pub(super) mod certified_exp_lookup;
 use crate::masked_wire_reference::source_lookup;
 use pllm_core::edge_contract::{
     ConsumerUse, EdgeContractResourceQuote, EdgeContractWorkspace, EdgeIdentity,
@@ -675,7 +678,7 @@ pub(super) fn arithmetic_resource_calculation_bytes() -> Result<usize, Error> {
     ])
 }
 
-fn selection_resource_calculation_bytes() -> Result<usize, Error> {
+pub(super) fn selection_resource_calculation_bytes() -> Result<usize, Error> {
     resource_metadata_sum(&[
         size_of::<selection::Spec>(), // resources -> resources_for Copy input
         size_of::<selection::Spec>(),
@@ -688,7 +691,7 @@ fn selection_resource_calculation_bytes() -> Result<usize, Error> {
     ])
 }
 
-fn lookup_resource_calculation_bytes() -> Result<usize, Error> {
+pub(super) fn lookup_resource_calculation_bytes() -> Result<usize, Error> {
     use crate::compact_dpf::gpu127;
     let gpu = size_of::<gpu127::Resources>();
     let profile = resource_metadata_sum(&[
