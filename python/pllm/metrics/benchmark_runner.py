@@ -222,8 +222,9 @@ class BenchmarkRun:
     def compare(self, control, candidate, metric, *, allow_build_changes=False, minimum_reduction=10):
         """Compare old point metrics unchanged, or opt into guarded client scopes.
 
-        New MetricSpec/ID selections are descriptive or bounded, never point
-        rankings. ``minimum_reduction`` applies only to qualified new intervals;
+        Owned-group selections are descriptive or bounded. An explicitly qualified
+        existing client.peak_rss compares only the root's report-endpoint HWM.
+        ``minimum_reduction`` applies only to qualified whole-lifetime intervals;
         missing optional scope does not change an accepted target's status.
         """
         """Paired ratios only inside the exact cohort and measurement contract."""

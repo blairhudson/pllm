@@ -313,6 +313,7 @@ class ParetoFrontier:
         if not isinstance(objectives, Mapping) or not objectives:
             raise SearchError("objectives must be a nonempty mapping")
         from pllm._benchmark_evidence import client_memory_metric_id
+        guarded_selection = any(client_memory_metric_id(key) is not None for key in objectives)
         normalized = dict(sorted((client_memory_metric_id(key) or key, direction)
             for key, direction in objectives.items()))
         if any(direction not in {"min", "max"} for direction in normalized.values()):
@@ -326,8 +327,8 @@ class ParetoFrontier:
         excluded = []
         for evaluation in values:
             document = evaluation.result.to_dict()
-            if any(client_memory_metric_id(name) is not None for name in normalized):
-                # Opt-in estimates and intervals have no honest point ordering.
+            if guarded_selection:
+                # Never strip an opt-in qualification into an unguarded point rank.
                 # Use BenchmarkRun.compare's scoped descriptive/bound comparison.
                 excluded.append(evaluation)
                 continue
