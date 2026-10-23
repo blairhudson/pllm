@@ -915,6 +915,10 @@ class DashboardRuntime:
             if hasattr(self._topology, "_startup_step"):
                 self._topology._startup_step("client_startup", "client")
             self._client = self._topology.client(**client_options)
+            # Bind the existing benchmark owner at the actual in-process client
+            # creator, before its prewarm/paging/refill work. No extra sampler.
+            from .client_memory_scope import declare_builtin_client_lifetime
+            declare_builtin_client_lifetime(self)
             if self._fss:
                 collector = getattr(self, "_benchmark_failure_diagnostics", None)
                 if collector is not None:

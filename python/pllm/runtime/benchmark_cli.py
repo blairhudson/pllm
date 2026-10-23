@@ -1500,7 +1500,9 @@ def _run_loopback_benchmark(
     from .client_memory_scope import client_lifetime_manifest
     report["client_owned_memory"]["lifetime_owner"] = client_lifetime_manifest(
         memory_sampler, dashboard_app.state.dashboard_runtime._topology, roles,
-        local_cpu_loopback=not docker and not emulate_wan and cpu_kernel)
+        # Native WAN's exact owner uses a local relay thread; the manifest still
+        # rejects remote/container/custom owners and requires relay retirement.
+        local_cpu_loopback=not docker and cpu_kernel)
     report["memory_preflight"] = dashboard_app.state.dashboard_runtime.memory_preflight
     guard = dashboard_app.state.dashboard_runtime._memory_guard
     if guard is not None:

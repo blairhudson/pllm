@@ -240,11 +240,71 @@ def client_memory_report(sampler, process_memory):
     return scope.report(process_memory.get("lifetime_peak_rss_bytes"))
 
 
+def _builtin_local_client_topology(topology, *, retired=False):
+    from .servers import LocalTopology
+    if type(topology) is LocalTopology:
+        return True
+    from .native_wan import NativePartyNetwork, NativeWanTopology
+    # Native WAN is a local in-process TCP relay, not a remote/container owner.
+    # Qualify only its audited public client path, never arbitrary subclasses.
+    if type(topology) is not NativeWanTopology or getattr(topology, "_privacy_mode", None) != "public":
+        return False
+    network = getattr(topology, "_native_network", None)
+    if type(network) is not NativePartyNetwork:
+        return False
+    if not retired:
+        return True
+    if getattr(network, "closed", None) is not True or not hasattr(network, "thread"):
+        return False
+    thread = network.thread
+    return thread is None or type(thread) is threading.Thread and not thread.is_alive()
+
+
+def declare_builtin_client_lifetime(runtime):
+    """Called by the dashboard's actual client creator, before prewarm/refill.
+
+    This audited built-in public path creates client work in this process:
+    dashboard/prewarm workers, provider-I/O and paging/refill executors, native
+    client threads, and optional WAN relay threads. Their RSS is root RSS, not an
+    omitted helper. LocalTopology._spawn alone creates the declared preparation
+    and inference providers; they NEVER become client members through parentage.
+
+    Existing foreign/helper launchers keep their own bind_helper/birth/final-usage
+    contract. Never upgrade a sampling-only seal or an incomplete helper roster.
+    No PID observation/discovery, new owner record, reserve or admission credit.
+    """
+    from pllm.configuration import Model
+    from pllm.sources import BundleModel, TinyModel
+
+    scope = getattr(runtime, "_benchmark_client_memory_owner", None)
+    topology = getattr(runtime, "_topology", None)
+    if (type(scope) is not ClientMemoryScope or scope.root_pid != os.getpid()
+            or not _builtin_local_client_topology(topology)
+            or getattr(topology, "_privacy_mode", None) != "public"):
+        return False
+    source = getattr(topology, "_model", None)
+    offline_pin = (type(source) is Model and source.kind == "huggingface"
+        and source.local_files_only is True and type(source.revision) is str
+        and len(source.revision) == 40 and all(c in "0123456789abcdef" for c in source.revision))
+    if type(source) not in (BundleModel, TinyModel) and not offline_pin:
+        return False
+    # Only this exact built-in creator has an exhaustive root-only declaration.
+    # No helper launcher exists on this path; the concurrent sampler can only
+    # update root readings. Other creators must bind helpers before sealing.
+    with scope._lock:
+        if scope._sealed or set(scope._members) != {"client"} or scope._conflicts:
+            return False
+    scope.seal_lifetime_membership(closed_family=False)
+    return True
+
+
 def client_lifetime_manifest(sampler, topology, roles, *, local_cpu_loopback):
     """Source-owner classification, not PID ancestry, discovery or a receipt.
 
     Audited built-in local-source CPU topology keeps its client in-process; its
     production subprocess owners create exactly the declared provider roles.
+    Native WAN adds an in-process relay, not a client helper process. Its creator
+    must explicitly declare the client lifetime and retire the relay first.
     Test-only compiler oracle subprocesses are NOT production helper evidence.
     Other/extra helper launchers must provide
     seal_lifetime_membership(), real birth-bound owners and their cached final
@@ -261,9 +321,9 @@ def client_lifetime_manifest(sampler, topology, roles, *, local_cpu_loopback):
         return manifest
     from .servers import LocalTopology
     from .process_usage import _PROVIDERS
-    # Exact built-in closed owner only. Foreign topologies, GPU, containers and
-    # provider descendants cannot silently become the client's closed family.
-    if type(topology) is not LocalTopology:
+    # Exact built-in closed owner only. Foreign/remote topologies, GPU, containers
+    # and provider descendants cannot silently become the client's closed family.
+    if not _builtin_local_client_topology(topology, retired=True):
         return manifest
     with topology._process_lock:
         closed = getattr(topology, "_closed", False) is True and getattr(topology, "_started", False) is True
@@ -280,6 +340,8 @@ def client_lifetime_manifest(sampler, topology, roles, *, local_cpu_loopback):
         declared = scope._lifetime_declared
         closed_family = scope._lifetime_closed_family
         conflicts = bool(scope._conflicts)
+    if type(topology) is not LocalTopology and not declared:
+        return manifest
     if (not closed or not known_graph or conflicts or not 1 <= len(members) <= MAX_MEMBERS
             or members["client"][0] != os.getpid() or not _birth(members["client"][1])):
         return manifest
