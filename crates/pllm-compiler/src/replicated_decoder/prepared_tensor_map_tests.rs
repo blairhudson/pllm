@@ -2,9 +2,9 @@
 //! No original Worker bridge, sealed source identity or row-proof authority.
 use super::*;
 use crate::replicated_decoder::prepared_tensor_map::{
-    native_attempts, observe_native_owners, take_native_owners, OneLoopScope, PreparedTensorMap,
+    OneLoopScope, PreparedTensorMap, native_attempts, observe_native_owners, take_native_owners,
 };
-use puma::{prss::Cursors, prss::PrssLimits, Party};
+use puma::{Party, prss::Cursors, prss::PrssLimits};
 
 use std::mem::size_of_val;
 
@@ -193,9 +193,11 @@ fn closed_factory_original_arcs_match_ordinary_body_wire_both_shares_and_cursors
             candidate.coordinator_advances(),
             reference.coordinator_advances()
         );
-        assert!(candidate
-            .complete_row(candidate.output_layout(0).unwrap())
-            .is_none());
+        assert!(
+            candidate
+                .complete_row(candidate.output_layout(0).unwrap())
+                .is_none()
+        );
         let Op::Tensor { programs, .. } = &candidate.ops[0] else {
             panic!("committed unrolled Tensor required")
         };
@@ -404,6 +406,18 @@ fn prepared_factory_literal_phase_inventory_and_owned_callback_captures() {
             backing += tail.immutable_template_bytes;
         }
         expected = baseline + expected.max(slots[3] + backing);
+        if silu {
+            // Independent literal pre-factory phase. Nine actual WorkBudget
+            // value/receiver/argument positions, three query/arithmetic Result
+            // moves, limit/gate results; four prior/gate positions. Disjoint
+            // from native construction, not a private-callframe/RSS claim.
+            let workspace = 2 * size_of::<tensor::ActivationWorkWorkspace>()
+                + 9 * size_of::<WorkBudget>()
+                + 3 * size_of::<Result<WorkBudget, Error>>()
+                + size_of::<Result<puma::prss::PrssLimits, Error>>()
+                + size_of::<Result<(), Error>>();
+            expected = expected.max(baseline + slots[0] + workspace) + 4 * size_of::<WorkBudget>();
+        }
         let input = Interval::new(-ONE, ONE).unwrap();
         let prepared = if silu {
             PreparedTensorMap::guarded_silu(lanes, input, baseline, admit)
@@ -432,9 +446,11 @@ fn prepared_factory_literal_phase_inventory_and_owned_callback_captures() {
             values[calls.get() - 1],
             baseline + slots[3] + prepared.template_bytes().unwrap()
         );
-        assert!(values[..calls.get()]
-            .iter()
-            .all(|bytes| *bytes <= values[0]));
+        assert!(
+            values[..calls.get()]
+                .iter()
+                .all(|bytes| *bytes <= values[0])
+        );
         (values[0], capture_bytes)
     }
     for silu in [false, true] {
@@ -487,12 +503,14 @@ fn prepared_factory_invalid_parameters_and_baseline_overflow_precede_entry() {
         PreparedTensorMap::rescale(129, input, 0, 0, |_| Err(Error::Binding)),
         Err(Error::Binding)
     ));
-    assert!(std::panic::catch_unwind(|| {
-        PreparedTensorMap::rescale(129, input, 0, 0, |_| {
-            panic!("original admission precedence")
+    assert!(
+        std::panic::catch_unwind(|| {
+            PreparedTensorMap::rescale(129, input, 0, 0, |_| {
+                panic!("original admission precedence")
+            })
         })
-    })
-    .is_err());
+        .is_err()
+    );
     assert_eq!(native_attempts(), before);
 }
 
@@ -698,9 +716,11 @@ fn prepared_tensor_map_original_arcs_flat_tail_wire_both_shares_and_cursors() {
             candidate.statistics().tensor_instructions,
             reference.statistics().tensor_instructions
         );
-        assert!(candidate
-            .complete_row(candidate.output_layout(0).unwrap())
-            .is_none());
+        assert!(
+            candidate
+                .complete_row(candidate.output_layout(0).unwrap())
+                .is_none()
+        );
         let Op::PreparedTensorMap { prepared, .. } = &candidate.ops[0] else {
             panic!("map op")
         };
@@ -1478,10 +1498,12 @@ fn prepared_map_consecutive_q18_and_mixed_sticky_sites_match_original_full_execu
         assert_eq!(mapped_stats.semantic_sites, ordinary_stats.semantic_sites);
         assert_eq!(mapped_stats.register_owners, ordinary_stats.register_owners);
         assert_eq!(mapped_stats.range_regions, ordinary_stats.range_regions);
-        assert!(mapped
-            .outputs
-            .iter()
-            .all(|output| mapped.complete_row(output).is_none()));
+        assert!(
+            mapped
+                .outputs
+                .iter()
+                .all(|output| mapped.complete_row(output).is_none())
+        );
         if guarded {
             assert_eq!(original.guard_tiles, 2 * lanes.div_ceil(128) as u64);
         } else {

@@ -1,9 +1,9 @@
 //! Semantic public-body plan. No model/source admission override lives here.
-use super::{Register, Resources, RETAINED, TILE, UNUSED};
+use super::{RETAINED, Register, Resources, TILE, UNUSED};
 use crate::replicated_decoder::prepared_tensor_map::PreparedTensorMap;
 use crate::replicated_decoder::{
-    multiply, puma, tensor, vec_zero, Error, InputBounds, Interval, PublicSource, Secret,
-    WeightMode, WorkBudget, MAX_NODES, MAX_PROGRAM_BYTES, MAX_VALUES, ONE,
+    Error, InputBounds, Interval, MAX_NODES, MAX_PROGRAM_BYTES, MAX_VALUES, ONE, PublicSource,
+    Secret, WeightMode, WorkBudget, multiply, puma, tensor, vec_zero,
 };
 use sha2::{Digest, Sha256};
 use std::{
@@ -432,9 +432,13 @@ impl Builder {
                     self.proof_preflight(extra)
                 })
             } else {
-                PreparedTensorMap::guarded_silu(input.len(), bounds, baseline, |extra| {
-                    self.proof_preflight(extra)
-                })
+                PreparedTensorMap::guarded_silu_with_prior_work(
+                    input.len(),
+                    bounds,
+                    baseline,
+                    self.work,
+                    |extra| self.proof_preflight(extra),
+                )
             }
         })();
         if result.is_err() {
@@ -1034,3 +1038,7 @@ pub(in crate::replicated_decoder) use machine::{from_worker, try_from_worker};
 #[cfg(test)]
 #[path = "prepared_tensor_map_tests.rs"]
 mod prepared_tensor_map_tests;
+
+#[cfg(test)]
+#[path = "body_activation_work_tests.rs"]
+mod activation_work_tests;

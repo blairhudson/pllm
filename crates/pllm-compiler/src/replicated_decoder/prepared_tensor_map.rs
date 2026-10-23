@@ -3,7 +3,7 @@
 //! No constructor wraps an arbitrary Program or accepts an external row proof.
 //! The captured interval is a local compiler-declaration subset contract, not
 //! external proof or checkpoint/source authority.
-use super::{puma, tensor, Error, Interval, WorkBudget, MAX_VALUES};
+use super::{Error, Interval, MAX_VALUES, WorkBudget, puma, tensor};
 use sha2::{Digest, Sha256};
 use std::{mem::size_of, sync::Arc};
 
@@ -200,6 +200,85 @@ impl Factory {
     }
 }
 
+// Private, closed pre-factory gate; not a Budget, request permit or work debit.
+// Zero-sized on the unchanged rescale path. Guarded activation carries the
+// caller's ACTUAL already-published work, never resets it to a local subtotal.
+trait WorkGate {
+    fn workspace_phase_bytes() -> Result<usize, Error>;
+    fn check(
+        self,
+        lanes: usize,
+        width: usize,
+        remainder: usize,
+        input: Interval,
+    ) -> Result<(), Error>;
+}
+struct NoWorkGate;
+impl WorkGate for NoWorkGate {
+    fn workspace_phase_bytes() -> Result<usize, Error> {
+        Ok(0)
+    }
+    fn check(self, _: usize, _: usize, _: usize, _: Interval) -> Result<(), Error> {
+        Ok(())
+    }
+}
+struct ActivationWorkGate {
+    prior: WorkBudget,
+}
+impl WorkGate for ActivationWorkGate {
+    fn workspace_phase_bytes() -> Result<usize, Error> {
+        // Workspace plus named native-query/aggregation return and move slots.
+        // No native Program here; native construction is a later, disjoint phase.
+        // empty() return and caller-owned binding, even when a move is elided.
+        let workspace = tensor::ActivationWorkWorkspace::workspace_bytes()
+            .checked_mul(2)
+            .ok_or(Error::Bounds)?;
+        let values = size_of::<WorkBudget>()
+            // full query/mul receiver; scheduled_work; tail; scheduled-add
+            // receiver/argument; final-add receiver/argument; total; limits receiver
+            .checked_mul(9)
+            .ok_or(Error::Bounds)?;
+        let returns = size_of::<Result<WorkBudget, Error>>()
+            .checked_mul(3) // native query, checked_mul, checked_add bridge slots
+            .ok_or(Error::Bounds)?;
+        add(
+            add(add(workspace, values)?, returns)?,
+            add(
+                size_of::<Result<puma::prss::PrssLimits, Error>>(),
+                size_of::<Result<(), Error>>(),
+            )?,
+        )
+    }
+    fn check(
+        self,
+        lanes: usize,
+        width: usize,
+        remainder: usize,
+        input: Interval,
+    ) -> Result<(), Error> {
+        let mut workspace = tensor::ActivationWorkWorkspace::empty();
+        let mut scheduled_work = tensor::Program::activation_guarded_work(
+            tensor::Activation::Silu,
+            width,
+            input,
+            &mut workspace,
+        )?
+        .checked_mul(u64::try_from(lanes / width).map_err(|_| Error::Bounds)?)?;
+        if remainder != 0 {
+            let tail = tensor::Program::activation_guarded_work(
+                tensor::Activation::Silu,
+                remainder,
+                input,
+                &mut workspace,
+            )?;
+            scheduled_work = scheduled_work.checked_add(tail)?;
+        }
+        let total = self.prior.checked_add(scheduled_work)?;
+        total.limits()?;
+        Ok(())
+    }
+}
+
 impl PreparedTensorMap {
     pub(super) fn rescale<F: FnMut(usize) -> Result<(), Error>>(
         lanes: usize,
@@ -214,16 +293,48 @@ impl PreparedTensorMap {
             Factory::Rescale(shift),
             caller_baseline,
             admit,
+            NoWorkGate,
         )
     }
 
+    // Standalone/local factory seam retained for other compiler emitters. BODY
+    // supplies actual prior work through guarded_silu_with_prior_work below.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn guarded_silu<F: FnMut(usize) -> Result<(), Error>>(
         lanes: usize,
         input: Interval,
         caller_baseline: usize,
         admit: F,
     ) -> Result<Self, Error> {
-        Self::prepare(lanes, input, Factory::GuardedSilu, caller_baseline, admit)
+        // Standalone factory users have no caller work supplied: this admits
+        // ONLY the local schedule. It cannot stand in for global admission.
+        Self::prepare(
+            lanes,
+            input,
+            Factory::GuardedSilu,
+            caller_baseline,
+            admit,
+            ActivationWorkGate {
+                prior: WorkBudget::default(),
+            },
+        )
+    }
+
+    pub(super) fn guarded_silu_with_prior_work<F: FnMut(usize) -> Result<(), Error>>(
+        lanes: usize,
+        input: Interval,
+        caller_baseline: usize,
+        prior_work: WorkBudget,
+        admit: F,
+    ) -> Result<Self, Error> {
+        Self::prepare(
+            lanes,
+            input,
+            Factory::GuardedSilu,
+            caller_baseline,
+            admit,
+            ActivationWorkGate { prior: prior_work },
+        )
     }
 
     // F's two inline move positions are priced, not arbitrary callback work or
@@ -231,12 +342,13 @@ impl PreparedTensorMap {
     // callback must account those independent owners (including a borrowed
     // callback object's own inline storage). This is not a Budget, source proof
     // or complete-constructor/request envelope.
-    fn prepare<F: FnMut(usize) -> Result<(), Error>>(
+    fn prepare<F: FnMut(usize) -> Result<(), Error>, G: WorkGate>(
         lanes: usize,
         input: Interval,
         factory: Factory,
         caller_baseline: usize,
         mut admit: F,
+        work_gate: G,
     ) -> Result<Self, Error> {
         if lanes == 0 || lanes > MAX_VALUES {
             return Err(Error::Bounds);
@@ -261,7 +373,16 @@ impl PreparedTensorMap {
             )?);
             templates = add(templates, quote.immutable_template_bytes)?;
         }
-        peak = add(caller_baseline, peak.max(add(assembly.owner, templates)?))?;
+        peak = peak.max(add(assembly.owner, templates)?);
+        peak = peak.max(add(assembly.quote, G::workspace_phase_bytes()?)?);
+        // Prior argument, gate expression, prepare parameter and check receiver:
+        // four actual inline gate/value positions, no heap backing. The gate
+        // Result shares the already-priced Result<(),Error>
+        // callback phase slot; it is consumed before any native construction.
+        peak = add(
+            add(caller_baseline, peak)?,
+            size_of::<G>().checked_mul(4).ok_or(Error::Bounds)?,
+        )?;
         // Admit BOTH constructions before the first native factory can allocate.
         admit(peak)?;
         // Preserve the original first-callback error/unwind precedence, but do
@@ -269,6 +390,7 @@ impl PreparedTensorMap {
         if matches!(factory, Factory::Rescale(shift) if !(1..=62).contains(&shift)) {
             return Err(Error::Bounds);
         }
+        work_gate.check(lanes, width, remainder, input)?;
         let full = Self::make_admitted(factory, width, input, full_quote)?;
         let tail = if let Some(quote) = tail_quote {
             // Repeat with actual retained capacity, not just constructor's bound.
@@ -444,3 +566,7 @@ impl PreparedTensorMap {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "prepared_activation_work_tests.rs"]
+mod activation_work_tests;
