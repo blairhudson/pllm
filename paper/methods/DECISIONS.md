@@ -767,6 +767,23 @@ head equality, totality/no-wrap proofs, quality and all other method gates remai
 unproved. Header/index `total_size` drift is not repaired or waived. Official Qwen
 metadata still does not identify the Maverick authors' evaluated artifact.
 
+## D33. HE compile-only host-memory admission
+
+**Explicitly approved by the user on 23 October 2026:** for single-job HE
+compilation only, replace the free-plus-speculative-only host gate with PLLM's
+existing platform host-memory admission reading. Require at least **8 GiB
+(8,589,934,592 bytes) available** and **normal memory pressure** before starting.
+The threshold is unchanged; macOS uses the existing framework accounting, not a
+new estimate or a memory-pressure percentage substituted for bytes.
+
+This permits ordinary pinned, locked, offline compilation with one build job,
+including test-binary construction via `--no-run`. It does **not** authorize test
+execution, key generation, encryption, refresh, RNG changes, dependency/pin
+updates or backend/profile adoption. D4 runtime ceilings and D28's design-only
+sampling restrictions remain unchanged. Reject compilation if the host gate
+fails; this decision establishes neither a physical-peak proof nor complete
+encrypted-execution admission.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -803,6 +820,7 @@ metadata still does not identify the Maverick authors' evaluated artifact.
 | D30 | Approved: bounded THOR reconciliation study | Exact printed/artifact candidates and budgets only; no hybrid, numerical/backend adoption or encrypted execution. |
 | D31 | Approved: Maverick mathematical map/quality criteria | Exact named numeric-only candidate; no implementation/heavy execution, achieved proof/quality qualification, security/storage/batch or generation approval. |
 | D32 | Approved: Maverick pinned BF16 scale-storage amendment | Exact BF16-to-F32 promotion before unchanged D31 multiplication only; source values/integrity/ties, proofs and quality remain unproved, with no implementation or heavy-execution authorization. |
+| D33 | Approved: HE compile-only framework memory gate | At least 8 GiB available and normal pressure, single-job compilation only; no tests, keys, RNG changes, runtime-cap changes or adoption. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
