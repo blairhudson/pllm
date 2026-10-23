@@ -460,6 +460,31 @@ def _reference_trajectories(resolved_source, configurations, token_cohort, decod
         _check_reference_source(resolved_source)
 
 
+def _reference_dependencies(*, initialize):
+    """Check optional presence without initializing the reference's frameworks.
+
+    Streamed reference has its own post-setup admission before weight loaders;
+    its imports can wait until candidate owners retire. Resident reference has
+    no separate post-framework host gate, so retains its original eager path.
+    Presence is not binary/import compatibility: those failures still need the
+    actual import at use. No thread settings, seeds or module cache are changed.
+    """
+    try:
+        if not initialize:
+            from importlib.util import find_spec
+            import sys
+
+            for name in ("torch", "transformers"):
+                if sys.modules.get(name) is None and find_spec(name) is None:
+                    raise ImportError("reference dependency not installed")
+            return None, None
+        import torch
+        import transformers
+        return torch, transformers
+    except ImportError as exc:
+        raise ReferenceBenchmarkError("quality diagnostic requires torch and transformers") from exc
+
+
 def _load_reference_trajectories(resolved_source, configurations, token_cohort, decode_cohort,
                                 reference_storage, decode_steps, memory_safety_margin_percent):
     import torch
@@ -642,12 +667,8 @@ def run_reference_benchmark(
     if logit_bytes > MAX_LOGIT_WORKING_SET_BYTES:
         raise ReferenceBenchmarkError("quality logit working set exceeds 512 MiB")
 
-    try:
-        import torch
-        import transformers
-    except ImportError as exc:
-        raise ReferenceBenchmarkError("quality diagnostic requires torch and transformers") from exc
-    reference_threads = torch.get_num_threads()
+    torch, transformers = _reference_dependencies(initialize=reference_storage == "resident")
+    reference_threads = torch.get_num_threads() if torch is not None else None
     checkpoint_digest = resolved_source.checkpoint_digest
     if source_lock is None or checkpoint_digest is None:
         raise ReferenceBenchmarkError("reference checkpoint has no source lock")
@@ -888,6 +909,9 @@ def run_reference_benchmark(
     trajectories = []
     with CaptureFailure(record) as reference_phase:
         if not stopped:
+            if torch is None:
+                torch, transformers = _reference_dependencies(initialize=True)
+                reference_threads = torch.get_num_threads()
             trajectories, loading = _reference_trajectories(resolved_source, configurations, token_cohort,
                 decode_cohort, reference_storage, decode_steps, memory_safety_margin_percent)
     reference_complete = not stopped and not reference_phase.failed
@@ -954,8 +978,10 @@ def run_reference_benchmark(
     environment = {
         "system": platform.system(),
         "machine": platform.machine(),
-        "python_reference": f"transformers/{transformers.__version__}",
-        "torch": str(torch.__version__),
+        # Skipped reference in record mode must not import frameworks merely to
+        # report versions/threads. None means reference initialization not done.
+        "python_reference": f"transformers/{transformers.__version__}" if transformers is not None else None,
+        "torch": str(torch.__version__) if torch is not None else None,
         "numpy": np.__version__,
         "reference_dtype": "float32",
         "reference_attention": "eager",
