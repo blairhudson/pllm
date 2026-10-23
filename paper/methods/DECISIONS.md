@@ -861,6 +861,37 @@ remain explicitly unresolved. No model runs, changed caps, disclosure changes,
 runtime authority, SDK promotion or completed-method claims are authorized.
 D34/D35/D36 and their existing limits remain unchanged.
 
+## D38. Three independently bounded follow-ups to D37
+
+**Explicitly approved by the user on 24 October 2026:** implement the following
+three actions separately, using GPT-6.1 Sol for implementation and Astra for
+planning/review. None adopts a numerical/backend profile, enables the SDK, raises
+caps or authorizes encrypted/model execution.
+
+1. **NEXUS clear prefix:** implement the width-768 public slot schedule,
+   caller-buffered clear oracle and ordinary correctness tests in
+   `N-N/PREFIX768-32x1024-v1`. Retain at most 64 MiB of local owners, at most
+   `2^28` cumulative clear-work units, and every tighter/global limit. Full
+   synthetic-trace construction/validation must refuse without independently
+   authorized finite metadata admission; this approval supplies no such grant.
+   No inverse/epsilon choice, HE profile, ciphertext/key authority or source/model
+   import follows.
+2. **HE Layout patch preparation only:** author in isolation the two owning
+   Layout accessors, existing raw/prepared rotation-consumer bindings and bounded
+   test definitions described in the secure-seam packet; Astra reviews the
+   patches. Do not apply them to Main, adopt a dependency/pin, build or execute
+   tests, or implement sampler/client code. Return patches and proposed dependency
+   identity for separate adoption/qualification decisions. D28 remains design-only.
+3. **CacheMir N-Q only:** implement and check 60 exact-rational standard-
+   Goldschmidt cases plus six invalid records. One process/thread, 30 seconds,
+   64 MiB working memory and 1 MiB output, with preflighted arithmetic/storage
+   limits. No S-Q retained-state/planner cells, model calibration, numerical/state
+   adoption or HE/native execution is authorized.
+
+These approvals do not activate any other D37 attachment or close unavailable
+source, numerical, security, capacity or actual encrypted-execution evidence.
+D36's separate bounded SIGMA composition and its existing limits are unchanged.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -902,6 +933,7 @@ D34/D35/D36 and their existing limits remain unchanged.
 | D35 | Approved: 31 tiny HE storage tests | Only compiled `staged_storage`, one test thread and fresh D33 admission; no HE keys/ciphertexts, solver, refresh, RNG/pin changes or backend adoption. |
 | D36 | Approved conditionally: one-row SIGMA causal softmax, active count 1–3 | Paper widths, inherited nExp and exact floors; genuine owners/internal uses and full work/storage admission before issuance; no full-row, normalization, SDK, transport or joint-privacy promotion. |
 | D37 | Approved: seven design-only method-completion packets | Specify N-N/B-S/M-X/C-S/R-S/H-F/N-G separately; no numerical/backend/state/RNG adoption, implementation, model execution, cap increases or manufactured source evidence. |
+| D38 | Approved: three separately bounded D37 follow-ups | NEXUS clear prefix and conditional synthetic metadata only; isolated HE Layout patch preparation without adoption/build/tests; CacheMir's 66 synthetic N-Q cases within fixed limits. No full methods, HE/models, SDK or cap increases. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

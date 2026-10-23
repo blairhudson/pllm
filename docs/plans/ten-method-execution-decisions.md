@@ -1,6 +1,6 @@
 # Ten-method execution: bounded decision packet
 
-**D29/D30/D31 approved on 23 October 2026; later scopes are recorded in D32–D37.**
+**D29/D30/D31 approved on 23 October 2026; later scopes are recorded in D32–D38.**
 Selected actions: S-E conditional local implementation, T-S bounded study, and
 M-N mathematical map/quality criteria only. No completed-method claim follows.
 Later approvals permit exact BF16-scale promotion (D32), bounded HE compilation
@@ -9,6 +9,9 @@ and only the one-row SIGMA causal-softmax subcase with 1–3 active positions (D
 D37 commissions the N-N/B-S/M-X/C-S/R-S/H-F/N-G specifications only. Each must
 return its own implementation/adoption decision; none of their proposed choices
 is adopted by commissioning the packet. No new model runs or cap increases follow.
+D38 separately permits the bounded NEXUS clear prefix, isolated HE Layout patch
+preparation (no adoption/build/tests), and only CacheMir's 66 non-HE N-Q cases.
+The remaining implementation/adoption choices and missing evidence stay open.
 The S-N row below remains a proposal for normalization and wider-row scope,
 not a request to renew D36. Other unselected rows remain proposals.
 Governing authority: [decision register](../../paper/methods/DECISIONS.md).
@@ -49,5 +52,5 @@ Links are normative scope references, not claims that every linked audit is a co
 All later implementation must reuse shared source/component/admission/ownership,
 transport and scheduling contracts. Completion still requires actual independent
 correctness, lifecycle, quality/resource evidence and ordinary SDK qualification;
-this document runs no code, builds or tests. D29–D37 record only their selected
+this document runs no code, builds or tests. D29–D38 record only their selected
 individual scopes; all remaining proposals and evidence gates stay unchanged.
