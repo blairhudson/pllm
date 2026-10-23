@@ -15,11 +15,21 @@
 //! The separate composite trace validator below checks a supplied SSA execution
 //! order, exact typed capability matches, immutable parents and backing lifetimes.
 //! It does not optimize graphs or certify the caller's cryptographic assumptions.
+//! `validate_public_encrypted_level_trace` links those existing contracts: it
+//! rechecks the exact solver result and binds its ordered choices to a supplied
+//! unary trace, with caller-explicit carrier scheme, key domain and kernels.
 //! Costs are caller-supplied integer units under one public model identity. No
 //! measured latency, numeric validity, key ownership or backend support is inferred.
 
 use pllm_types::{canonical_digest, valid_identity, Digest};
 use serde::{Deserialize, Serialize};
+
+#[path = "encrypted_level_trace_bridge.rs"]
+mod trace_bridge;
+pub use trace_bridge::{
+    validate_public_encrypted_level_trace, CheckedPublicEncryptedLevelTrace,
+    PublicEncryptedLevelTraceBinding, PublicEncryptedLevelTraceCapacity,
+};
 
 pub const ENCRYPTED_LEVEL_PROBLEM_DOMAIN: &str = "pllm.encrypted_level_problem.v1";
 pub const ENCRYPTED_LEVEL_LEDGER_DOMAIN: &str = "pllm.encrypted_level_ledger.v1";
