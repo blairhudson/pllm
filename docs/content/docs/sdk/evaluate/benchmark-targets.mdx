@@ -144,14 +144,42 @@ the largest complete worker peak across all replicates. The idle suite launcher
 and provider processes have separate ownership. Older benchmarks that split client
 and relay processes retain their original, narrower memory scope.
 
+### Guarded client-memory comparisons
+
+For an existing `BenchmarkRun` containing matched `control` and `candidate`
+cases, explicitly qualify the existing client high-water metric:
+
+```python
+from pllm.metrics import MetricSpec
+
+selection = MetricSpec(
+    "client.peak_rss", qualification="root_only_report_endpoint",
+)
+comparison = run.compare("control", "candidate", selection)
+```
+
+This requires a fresh, birth-bound, root-only client owner, completed response
+and full-state audit, matching source/body/cohort/trajectory, and the original
+`RUSAGE_SELF` measurement through the report endpoint. Missing or incompatible
+evidence returns `unranked`; it does not invalidate an otherwise accepted run.
+Ordinary string selectors keep their previous behavior.
+
+The qualified result covers one client's process RSS high-water mark through that
+endpoint, not physical RAM, provider memory, controller/source work outside the
+worker, or its later serialization and exit. It establishes no whole-lifetime
+tenfold reduction. Owned-group sampled sums remain estimates; lifetime intervals
+require their own complete ownership and retirement evidence.
+
 ### Decode epochs and concurrent callers
 
-Select `PreparedInventory(decode_epoch_tokens=16, allocation="demand",
-refill="on-demand")` with `ClientPrefixReuse` and canonical `prefix_f32`
-quantization to benchmark fresh inventory epochs inside an ordinary response.
-Full request time includes every idle Preparation pause. Reports retain epochs
-started, pause count/time, issued/reserved/claimed/burned/discarded stage rows,
-and separately directed lifecycle-control bodies.
+The existing `PreparedInventory(decode_epoch_tokens=16, allocation="demand",
+refill="on-demand")` configuration records a fixed-window epoch policy. It does
+not authorize preparation during a foreground response. The client can consume
+an explicitly prepared, still-live first epoch; an exhausted or stale inventory
+fails rather than regenerating material, including between online epochs of that
+same response. Prepare supported request inventory while the client is idle.
+Reports retain epoch and issued/reserved/claimed/burned/discarded row counters;
+those counters alone do not establish cross-epoch execution support.
 
 `BenchmarkTarget.response(experiment, concurrent_requests=4)` submits two to eight
 barrier-aligned requests on one fresh client. It requires a cold, native, greedy
@@ -165,15 +193,12 @@ retained state. Unknown per-role peaks and physical-wire measurements remain nul
 It does not add overlapping per-request audit deltas or process peaks. Serial
 responses and grouped workloads have distinct comparison identities.
 
-Run the installed public example with a private prompt supplied on stdin:
-
-```sh
-python examples/benchmarks/epoch_prefix_sdk.py --output epoch-prefix.json < prompt.txt
-```
-
-The source contains serial full-cap/epoch and grouped full/in-flight controls.
-Source, natural EOS, output cap and numeric identity stay fixed within each pair.
-See [prepared SDK configuration](/sdk/inference/prepared-sdk/) and the
+The historical `examples/benchmarks/epoch_prefix_sdk.py` fixture retains serial
+full-cap/epoch and grouped full/in-flight controls. Its epoch cases are not a
+current end-to-end success claim: requests needing foreground replenishment
+reject under the ownership gate above. Source, natural EOS, output cap and
+numeric identity remain fixed within each historical pair. See
+[prepared SDK configuration](/sdk/inference/prepared-sdk/) and the
 [ownership and replay contract](https://github.com/blairhudson/pllm/blob/main/docs/research/epoch-prefix-sdk-reference.md).
 
 ### Research client-stage ownership
