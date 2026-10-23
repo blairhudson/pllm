@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 import hashlib
 import hmac
+from io import FileIO
 import os
 from pathlib import Path
 import shutil
@@ -63,6 +64,62 @@ MAX_RECORDS = min(_ENCODED_RECORDS, MAX_TOTAL_PACKET_BYTES,
 
 class MaterialTapeError(ValueError):
     """Fixed, payload-free failure; the active tape is consumed on every error."""
+
+
+class _ReadWindow:
+    """One bounded ciphertext snapshot, never an index or a future-group cache.
+
+    Physical reads do not advance the authenticated/logical tape cursor. Defer
+    EOF/I/O failure until the original decoder requests unavailable bytes, so an
+    earlier geometry/metadata/authentication failure remains the first error.
+    """
+
+    __slots__ = ("size", "raw", "available", "offset", "error")
+
+    def __init__(self, size):
+        self.size, self.raw = size, None
+        self.available = self.offset = 0
+        self.error = None
+
+    def fill(self, handle):
+        self.raw = bytearray(self.size)
+        view = memoryview(self.raw)
+        while self.available < self.size:
+            try:
+                count = os.readv(handle.fileno(), (view[self.available:],))
+            except InterruptedError:
+                continue  # Same unconsumed OS suffix, never a material retry.
+            except BaseException as error:
+                if isinstance(error, (MaterialTapeError, KeyboardInterrupt, SystemExit)):
+                    # Do not retain an I/O traceback/frame (or private OS detail)
+                    # across earlier records' original validation checkpoints.
+                    error.__traceback__ = error.__context__ = error.__cause__ = None
+                    self.error = error
+                else:
+                    self.error = MaterialTapeError("material tape operation failed")
+                break
+            if type(count) is not int or not 0 < count <= self.size - self.available:
+                break
+            self.available += count
+
+    def read(self, owner, size):
+        if self.raw is None:
+            self.fill(owner._file)
+        start = self.offset
+        end = min(start + size, self.available)
+        view = memoryview(self.raw)[start:end]
+        self.offset = end
+        owner._read += len(view)
+        if view:
+            owner._read_hash.update(view)
+        if len(view) != size:
+            if self.error is not None:
+                raise self.error from None
+            raise MaterialTapeError("material tape is truncated")
+        return view
+
+    def clear(self):
+        self.raw = self.error = None
 
 
 def capacity_limits(capacity="capsule"):
@@ -274,12 +331,54 @@ class MaterialTape:
         view = memoryview(raw)
         offset = 0
         while offset < len(view):
-            count = self._file.write(view[offset:])
+            try:
+                count = self._file.write(view[offset:])
+            except InterruptedError:
+                continue
             if type(count) is not int or not 0 < count <= len(view) - offset:
                 raise MaterialTapeError("material tape write failed")
             self._written += count
             self._write_hash.update(view[offset:offset + count])
             offset += count
+
+    def _write_record(self, header, metadata, ciphertext):
+        writev = getattr(os, "writev", None)
+        # Never bypass a wrapper's write/failure/serialization semantics. Native
+        # TemporaryFile on supported POSIX systems is unbuffered, exact FileIO.
+        if writev is None or type(self._file) is not FileIO:
+            self._write_all(header)
+            if metadata is not None:
+                self._write_all(metadata)
+            self._write_all(ciphertext)
+            return
+        # Existing price().append_buffer_bytes reserves _BUFFER_SLACK (64 KiB)
+        # for bounded view/hash/header/object staging. This path uses at most
+        # three iov slots, four live base/tail views plus one hash slice, one
+        # shrinking <=3-entry list, fixed cursor/count integers, and CPython's
+        # <=3 Py_buffer/iovec descriptors. No new payload backing or retained
+        # owner; native crypto scratch/allocator/RSS remain outside this quote.
+        views = ([memoryview(header), memoryview(ciphertext)] if metadata is None else
+                 [memoryview(header), memoryview(metadata), memoryview(ciphertext)])
+        remaining = sum(map(len, views))
+        fd = self._file.fileno()
+        while views:
+            try:
+                count = writev(fd, views)
+            except InterruptedError:
+                continue
+            if type(count) is not int or not 0 < count <= remaining:
+                raise MaterialTapeError("material tape write failed")
+            self._written += count  # Account all accepted OS bytes before hashing.
+            remaining -= count
+            while count:
+                view = views[0]
+                accepted = min(count, len(view))
+                self._write_hash.update(view[:accepted])
+                count -= accepted
+                if accepted == len(view):
+                    del views[0]
+                else:
+                    views[0] = view[accepted:]
 
     def append(self, metadata: bytes, packet: bytes) -> None:
         with self._operation():
@@ -301,10 +400,7 @@ class MaterialTape:
             ciphertext = self._aead.encrypt(nonce, packet, self._aad(ordinal, header, metadata))
             if len(ciphertext) != len(packet) + _TAG_BYTES:
                 raise MaterialTapeError("material tape encryption size differs")
-            self._write_all(header)
-            if r.metadata_storage == "inline":
-                self._write_all(metadata)
-            self._write_all(ciphertext)
+            self._write_record(header, metadata if r.metadata_storage == "inline" else None, ciphertext)
             self._packets_written += len(packet)
             self._records_written += 1
 
@@ -326,6 +422,9 @@ class MaterialTape:
     def _read_exact(self, size):
         if size > self._sealed_bytes - self._read:
             raise MaterialTapeError("material tape is truncated")
+        window = getattr(self, "_read_window", None)
+        if window is not None:
+            return window.read(self, size)
         raw = bytearray(size)
         view = memoryview(raw)
         offset = 0
@@ -370,13 +469,52 @@ class MaterialTape:
         self._packets_read += packet_bytes
         return packet
 
+    def _current_read_window(self, count, total):
+        # With no trusted record-offset index, unauthenticated header lengths
+        # cannot safely locate an arbitrary interior frozen window. In particular
+        # a header prepass must not read future groups or change the first error.
+        # Only the final frozen window has a trusted EXACT byte endpoint, from
+        # the original writer's sealed extent and authenticated consumed prefix.
+        # Decide fallback before ANY packet consumption; wrappers/scalars retain
+        # their existing I/O/failure policy. No seek, fallback or reread follows
+        # an optimized read attempt, including short reads and deferred errors.
+        r = self._resources
+        if (self._state != "sealed" or type(self._file) is not FileIO
+                or not hasattr(os, "readv") or r.records - self._records_read != count):
+            return None
+        packets = self._packets_written - self._packets_read
+        span = self._sealed_bytes - self._read
+        stored = r.metadata_bytes_per_record if r.metadata_storage == "inline" else 0
+        minimum = 1 if r.metadata_storage == "inline" else 0
+        if (not 0 < packets <= total
+                or not packets + count * (_HEADER.size + _TAG_BYTES + minimum) <= span
+                <= packets + count * (_HEADER.size + _TAG_BYTES + stored)
+                or self._file.tell() != self._read):
+            return None
+        # Simultaneous ONLINE owners (not offline/native credit), W<=65536,
+        # N<=8, M<=4096: snapshot <=W+N*(M+40)=98624; ciphertext bytes copy
+        # <=W+16=65552; returned-prefix PLUS current plaintext <=W=65536.
+        # Budget 3*M+512 for full AAD/header/binding temporaries; keep the existing
+        # 8192*N metadata/bridge allowance and 65536 view/object staging intact.
+        # Total <=373584 < the 655360 online subdivision of the held ROLE_MEMORY
+        # reservation (checked by fss_worker.material_window before this factory).
+        # This does NOT use price().take_buffer_bytes, offline or native credits.
+        # readv returns an integer, not another span-sized bytes owner; one iovec,
+        # base/tail views and decoder views share this single exact bytearray.
+        # Crypto internals, allocator/RSS and caller-retained outputs stay external.
+        return _ReadWindow(span)
+
     def take_window(self, requests, *, cancelled=None):
         """One lock/callback, same ordered per-record AES-GCM/AAD and cursors.
 
         Caller already holds the explicitly priced Python receive owner. Validate
         every public bound before reads; reject each header against its own bound
-        BEFORE ciphertext allocation. Any partial failure burns the whole tape.
+        BEFORE the per-record ciphertext copy. The optional ciphertext snapshot
+        is bounded by trusted writer counters, never on-disk lengths. Any partial
+        failure burns the whole tape.
         Immutable returned bytes have the same caller retirement duty as take().
+        Only a final frozen window coalesces its exact sealed span; all other
+        windows remain scalar. No next-group header/ciphertext is read or cached.
         """
         with self._operation():
             if type(requests) is not tuple or not 1 <= len(requests) <= MATERIAL_RECEIVE_RECORDS:
@@ -395,10 +533,15 @@ class MaterialTape:
                 if total > MATERIAL_RECEIVE_BYTES:
                     raise MaterialTapeError("material receive window bytes differ")
             packets = []
+            window = None
             try:
-                for metadata, bound in requests:
+                for index, (metadata, bound) in enumerate(requests):
                     if cancelled is not None and cancelled():
                         raise MaterialTapeError("material receive window retired")
+                    if index == 0:
+                        window = self._current_read_window(len(requests), total)
+                        if window is not None:
+                            self._read_window = window
                     packets.append(self._take_locked(metadata, bound))
                 if cancelled is not None and cancelled():
                     raise MaterialTapeError("material receive window retired")
@@ -406,6 +549,10 @@ class MaterialTape:
             except BaseException:
                 packets.clear()  # No accepted prefix/suffix retry, including OOM.
                 raise
+            finally:
+                if window is not None:
+                    del self._read_window
+                    window.clear()
 
     def finish(self) -> None:
         with self._operation():
