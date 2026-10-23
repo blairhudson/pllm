@@ -130,3 +130,71 @@ Current gaps are tracked in [the ten-method coverage table](../../paper/TEN-METH
 Implement missing algorithms in reusable native/compiler/runtime components.
 Extend shared benchmark metrics when needed. Paper files contain configuration;
 the SDK owns execution, admission, measurement and report output.
+
+## Matched Qwen3 client-memory campaign
+
+`low_memory_qwen3.py` configures maintained prepared versus paged/prewarmed
+execution of the same offline Qwen3-4B revision, explicit W8A8/prefix-f32 body,
+full client KV, greedy sampler and state audit. Both arms commit all 71 uniform
+one-use rows before readiness; refill is idle-only. Missing rows reject rather
+than generate material during a response. Paging already committed public
+artifacts is allowed. Source/compiler/privacy/host admission is unchanged.
+
+`low_memory_qwen3_prompt.txt` is public text, not token-ID padding. The opt-in
+cached-tokenizer test checks this exact asset with the production SDK normalizer,
+chat renderer and tokenizer descriptor at revision
+`1cfa9a7208912126459214e8b04321603b3df60c`, including stable config/tokenizer
+hashes before/after. This is **tokenizer-only 64**, not accepted SDK usage or a
+guaranteed eight-token completion. No instructions, tools, history, extra BOS or
+thinking-mode override is supplied. Early EOS, unknown usage or actual counts
+other than 64 input / 8 output fail ordinary strict runtime checks; no EOS
+suppression or forced minimum length is used.
+
+After the generic strict-count/Suite CLI and opt-in client-memory API changes
+are installed, use the ordinary trusted zero-argument wrapper. Supply all four
+public choices explicitly; nothing captures a build, chooses host memory, or
+downloads a checkpoint on import. `BuildRef.capture()` can identify a previously
+approved installed build; it does not build one. Select the allowance within the
+unchanged ordinary 16 GiB ceiling and actual host/whole-topology admission.
+
+```sh
+export PLLM_LOW_MEMORY_BUILD_DIGEST='<approved installed BuildRef.expected_digest>'
+export PLLM_LOW_MEMORY_BYTES='<explicit whole-topology byte allowance>'
+export PLLM_LOW_MEMORY_PROCESSES='<explicit independent replicate count, 1..32>'
+export PLLM_LOW_MEMORY_TIMEOUT_SECONDS='<explicit per-attempt timeout, at most 3600>'
+python -m pllm benchmark run \
+  --experiment examples.papers.low_memory_qwen3:cli_suite \
+  --factory --trust-python --no-input \
+  --prompt-file examples/papers/low_memory_qwen3_prompt.txt \
+  --output target/low-memory-qwen3.json --format json
+```
+
+These placeholders must be replaced, not executed literally. One invocation
+supplies one private salt/cohort and fresh isolated workers per arm/replicate;
+do not combine separate CLI invocations. Suite configuration supplies count,
+state, sampling and resource contracts; conflicting CLI overrides are rejected.
+Output uses public `pllm.benchmark_run.v1`, **not** the legacy loopback/WAN schema.
+Completion means every attempt has a record, not that any measurement qualifies.
+
+Inspect owner-aware comparisons through the ordinary report, without substituting
+the root process for SDK/client helpers:
+
+```python
+from pllm.metrics import BenchmarkRun
+from examples.papers.low_memory_qwen3 import CLIENT_MEMORY_METRICS
+
+run = BenchmarkRun.load("target/low-memory-qwen3.json")
+for metric in CLIENT_MEMORY_METRICS:
+    print(run.compare("maintained", "paged-prepared", metric, minimum_reduction=10))
+```
+
+Sampled owner sums are non-atomic estimates; maximum individual observations
+are lower bounds, not group peaks. Only a qualified isolated client-group
+birth-through-complete-retirement interval can establish a scoped reduction
+bound. Missing helper/source-setup ownership or final per-member HWM remains
+unranked; a live root snapshot is insufficient. Scalar availability budgets
+remain unknown when telemetry is absent. Providers stay separately charged.
+Keep source loading, client helpers, retained inventory and retirement in the
+declared lifetime; never silently narrow it to the online/root-only window.
+The historical 8.25 GiB estimate and 0.83 GiB target are not measured RSS.
+**No accepted 64/8 campaign or tenfold memory reduction has been measured here.**

@@ -1,0 +1,1 @@
+Explain how a prepared private inference client can keep prompt text local while sending only masked requests to remote inference helpers. Describe why one-use material must be committed before a response starts, why consumed rows cannot be reused, and why paging public weights is different from generating fresh cryptographic material.
