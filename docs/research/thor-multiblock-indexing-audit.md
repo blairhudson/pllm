@@ -597,8 +597,8 @@ profile adoption are not established by approval.
 Smallest useful request: one reusable, source-independent Python reconciliation
 experiment and ordinary output; no copied source tree, evidence archive,
 tensor/checkpoint download, upstream import/execution, network, HE/native call,
-build, installation or profile change. No code or numerical study was run for
-this proposal.
+build, installation or profile change. At the time of this proposal, no code or
+numerical study had been run; the subsequent D30 execution is recorded below.
 
 - **P (printed-literal candidate):** transcribe the complete Appendix C tuples
   at displayed precision, use their printed increasing order and the literal
@@ -630,3 +630,108 @@ this proposal.
   activation domains, fine-tuned/base embedding equality, effective epsilon,
   CKKS error/security, bootstrap correctness, exact primes, encrypted latency
   or admission. Observing one better curve does not authorize adopting it.
+
+### Observed D30 literal reconciliation, 23 October 2026
+
+The approved clear scalar study completed once. Its experiment and nine normal
+regression tests are committed in **`560522f6`**. The retained ordinary output
+is `target/thor-literal-reconciliation-r1.json` (ignored, not an archived source
+tree). This documentation update reads that output; it does not rerun the study.
+All 92 printed coefficients were checked against the pinned Appendix C PDF,
+and all 92 artifact coefficients against the previously retrieved, locally
+retained source at `b513c06aaabccc04b560721e35e9a98008428c25`. No new upstream
+fetch/import or checkpoint, HE/native, installation or build workload was used.
+
+**Source-to-result mapping.** In
+[`benchmarks/research/thor_literal_reconciliation.py`](../../benchmarks/research/thor_literal_reconciliation.py),
+`P` and `A` retain the two complete literal sets; `points` fixes the grids above;
+`evaluate` applies the two complete caller formulas and three arithmetic modes.
+P uses increasing-order Horner evaluation. A reverses the pinned lists and
+retains Stockmeyer grouping, including GELU's outer-coefficient halving before
+evaluation. `study` produces `points.<function>` and
+`summary.<function>.<candidate>` in the JSON. The numerical tables below read
+that summary's `classifications`, `baseline_binary64_errors.decimal160`,
+`decimal80_vs_160` and `binary64_vs_decimal160` fields; display values are rounded,
+while the JSON retains full recorded decimal strings and round-trip binary64
+strings. No hybrid, coefficient repair, clipping or additional variant was run.
+
+There were **3,132 complete candidate-point evaluations**:
+`2 functions × 261 points × 2 candidates × 3 arithmetic modes`. Recorded resource
+windows were:
+
+| Recorded field | Observed value and scope |
+| --- | --- |
+| `evaluation_wall_seconds` | `0.04957262519747019` seconds, from budget initialization through evaluation/summary construction. |
+| `wall_seconds_before_output` | `0.051475292071700096` seconds, through the initial output-encoding phase, before final serialization/write. |
+| `process_peak_rss_bytes_through_evaluation` | `21,200,896` bytes (`20.21875 MiB`), process high-water RSS observed at the evaluation endpoint. |
+| `process_peak_rss_bytes_before_output` | `22,249,472` bytes (`21.21875 MiB`), process high-water RSS observed before final serialization/write. |
+| `output_bytes` | **370,762 bytes**, matching the retained JSON's actual length. |
+
+The run exited successfully; recorded counts/readings were below the fixed
+5,000-evaluation, 30-second, 64-MiB working-RSS and 1-MiB output ceilings. The
+script also armed a wall timer and checked time/RSS after final serialization;
+that last check's readings were not stored. These times
+exclude interpreter startup, imports and literal construction before budget
+initialization, and do not measure final writing/exit. RSS is the process's
+observed lifetime high-water mark through each named endpoint, not a separate
+allocation total or a measured final-exit peak. There were no worker processes.
+
+**Observed values, not accuracy certificates.** Every Decimal80 and Decimal160
+result was finite (261 per row in each mode). All nonfinite binary64 results
+were **negative infinity**; there were no positive infinities or NaNs.
+The baseline column is maximum absolute difference between Decimal160 and the
+binary64 `math.erf`-based GELU or `math.tanh` diagnostic, not a certified function
+error or a full-model quality measurement.
+
+| Function / candidate | Binary64 finite / negative infinity | Maximum absolute diagnostic-baseline difference (input) |
+| --- | --- | --- |
+| GELU / P | 79 / 182 | `1.358872781611939e754` (`Z=-8`) |
+| GELU / A | 261 / 0 | `1.038682580615624e-3` (`Z=-3.125`) |
+| Tanh / P | 161 / 100 | `2.158494128906946e353` (`A=40`) |
+| Tanh / A | 261 / 0 | `0.9418092907000301` (`A=40`) |
+
+**Precision sensitivity.** Decimal80-versus-Decimal160 differences used all 261
+finite pairs per row. Relative differences divide by the absolute Decimal160
+value only when it is nonzero; zero references are counted separately, without
+an invented denominator floor. Agreement between two finite precisions is not
+a certified bound on either result.
+
+| Function / candidate | Maximum absolute Decimal80–160 difference (input) | Maximum relative Decimal80–160 difference (input) |
+| --- | --- | --- |
+| GELU / P | `1.277920120655198e675` (`-8`) | `1.087235957555707e-74` (`1`) |
+| GELU / A | `8.841653844605608e-75` (`-8`) | `1.257286801769220e-70` (`-7.6875`) |
+| Tanh / P | `1.020736062623355e274` (`40`) | `8.325845448902007e-79` (`23.4375`) |
+| Tanh / A | `1.495099157975856e-76` (`39.6875`) | `1.603145608392157e-76` (`39.6875`) |
+
+The binary64-versus-Decimal160 summary reports the following maxima only over
+finite pairs; P's excluded nonfinite pairs remain explicitly counted above.
+
+| Function / candidate | Finite pairs | Maximum absolute binary64–Decimal160 difference (input) | Maximum relative difference (input) |
+| --- | --- | --- | --- |
+| GELU / P | 79 | `1.627223666010971e289` (`2.3125`) | `1.551844557347051e-11` (`-1`) |
+| GELU / A | 261 | `2.813225336728333e-11` (`-7.9375`) | `2.189652998037005e-6` (`-7.6875`) |
+| Tanh / P | 161 | `2.383296712530603e293` (`-24.375`) | `5.503361656932969e-13` (`-1.5625`) |
+| Tanh / A | 261 | `5.618416073768156e-12` (`40`) | `9.655177160335911e-11` (`40`) |
+
+A's finite outputs therefore do **not** establish accuracy: its Tanh diagnostic
+discrepancy near `0.9418` at `A=40` persists at both Decimal precisions, whereas
+the binary64–Decimal160 difference there is about `5.62e-12`. Conversely, P's
+literal results on these declared windows do not identify the intended author
+function or recover missing fit domains. Neither comparison selects a winner,
+adopts a numerical profile/backend, binds source to the evaluated paper run, or
+qualifies CKKS/bootstrap error, security, actual activation coverage or full-model
+quality.
+
+Reusable commands from the repository root (not rerun for this update):
+
+```sh
+mkdir -p target
+python3 benchmarks/research/thor_literal_reconciliation.py > target/thor-literal-reconciliation.json
+python3 -m unittest discover -s tests -p 'test_thor_literal_reconciliation.py' -v
+```
+
+The observed nine-test parent run passed; its ordinary log is
+`target/thor-study-parent-tests-r1.log`. Tests cover exact rational composition
+references, the declared grids/literals, binary64 Stockmeyer grouping,
+nonfinite/zero-reference handling and evaluation/time/memory/output limits.
+They do not certify either diagnostic baseline or qualify encrypted execution.
