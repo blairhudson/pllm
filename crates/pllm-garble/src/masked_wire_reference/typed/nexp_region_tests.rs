@@ -1142,3 +1142,9 @@ mod lifecycle_tests;
 
 #[path = "nexp_region_inventory_tests.rs"]
 mod independent_inventory;
+
+#[path = "nexp_clear_root_boundary_tests.rs"]
+mod public_boundary;
+
+#[path = "nexp_facade_canonical_tests.rs"]
+mod facade_canonical;

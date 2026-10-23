@@ -48,6 +48,12 @@ mod nexp;
 #[allow(dead_code)]
 mod nexp_product;
 mod nexp_stage_bounds;
+pub use nexp::{
+    clear_nexp_bootstrap_bytes, clear_nexp_from_reserved, clear_nexp_resources,
+    ClearNexpCoordinatorFor, ClearNexpCreatedFor, ClearNexpError, ClearNexpFrameFor,
+    ClearNexpInput, ClearNexpMaskFor, ClearNexpOutputFor, ClearNexpResources, ClearNexpRoleFor,
+    ClearNexpSpec, ClearNexpStepFor, ClearNexpWork,
+};
 pub use nexp::{nexp_declaration_resources, validate_nexp_clear_root, NexpDeclarationResources};
 mod linear_activation;
 mod material;

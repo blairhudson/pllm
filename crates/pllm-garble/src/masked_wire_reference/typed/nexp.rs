@@ -1,8 +1,7 @@
-//! D29 prerequisite declarations. No region execution/issuance constructor is
-//! exported until the canonical records, table floors and full phase inventory
-//! are reviewed. This is NOT an nExp capability, inherited adapter, or admission
-//! of the eleven-exchange region. The independently implemented private product
-//! owner is usable by that future region, not by public post-D22 Multiply.
+//! D29 bounded clear-root nExp and its original owning eleven-exchange region.
+//! Public entry consumes genuinely charged immutable clear storage and an exact
+//! original-counter reservation. Source labels remain local declarations.
+//! No inherited adapter, post-D22 Multiply, SDK or joint-privacy qualification.
 
 use super::super::elementwise_product;
 use super::*;
@@ -180,5 +179,14 @@ pub fn validate_nexp_clear_root(input: &EdgeDescriptor, values: &[i64]) -> Resul
 mod tests;
 
 #[path = "nexp_region.rs"]
-#[allow(dead_code)] // Private local composition, not exported/registered/adopted.
+#[allow(dead_code)] // Internal region implementation; no SDK/component registration.
 pub(super) mod region;
+
+#[path = "nexp_clear_root.rs"]
+mod clear_root;
+pub use clear_root::{
+    clear_nexp_bootstrap_bytes, clear_nexp_from_reserved, clear_nexp_resources,
+    ClearNexpCoordinatorFor, ClearNexpCreatedFor, ClearNexpError, ClearNexpFrameFor,
+    ClearNexpInput, ClearNexpMaskFor, ClearNexpOutputFor, ClearNexpResources, ClearNexpRoleFor,
+    ClearNexpSpec, ClearNexpStepFor, ClearNexpWork,
+};

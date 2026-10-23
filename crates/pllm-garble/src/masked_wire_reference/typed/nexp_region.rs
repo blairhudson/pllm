@@ -22,16 +22,16 @@ const MAP: [usize; N] = bounds::EDGE_BY_USE;
 const DOMAIN: &[u8] = super::REGION_DOMAIN;
 const COORD: &[u8] = super::COORDINATE_DOMAIN;
 const EQUATION: &[u8] = super::EQUATION;
-pub(super) type Input = OwnedCharged<Zeroizing<Vec<i64>>>;
+pub type Input = OwnedCharged<Zeroizing<Vec<i64>>>;
 type Slot<C> = custody::RoleSlotFor<C, State<C>>;
 type Shared<C> = custody::CoordinationFor<C, State<C>>;
-type Created<C> = (Mask<C>, Coordinator<C>, [Role<C>; 2]);
+pub type Created<C> = (Mask<C>, Coordinator<C>, [Role<C>; 2]);
 type ArithmeticIssued<C> =
     Result<(arithmetic::OutputMasksFor<C>, [arithmetic::PartyFor<C>; 2]), Error>;
 type LookupIssued<C> = Result<(lookup::OutputMasksFor<C>, [lookup::PartyFor<C>; 2]), Error>;
 
 #[derive(Clone, Copy)]
-pub(super) struct Spec {
+pub struct Spec {
     // X,X40,A,H,B,W,V,C,J0,J1,U0,U1,P,E, in this EXACT order.
     pub(super) edges: [EdgeDescriptor; 14],
     pub(super) operation: [u8; 32],
@@ -60,7 +60,7 @@ impl From<Error> for BuildError {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct Quote {
+pub struct Quote {
     pub(super) incoming_owner_bytes: usize,
     pub(super) child_bytes: [usize; 8],
     pub(super) table_bytes: usize,
@@ -75,33 +75,38 @@ pub(super) struct Quote {
 /// Separate deterministic categories, NOT CPU instructions/entropy/privacy.
 /// Includes both lookup invocations, all floor entries and all native gates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct WorkQuote {
-    pub(super) input_validation_lanes: usize,
-    pub(super) input_retirement_words: usize,
-    pub(super) root_validation_lanes: usize,
-    pub(super) root_initialization_words: usize,
-    pub(super) root_encoding_word_writes: usize,
-    pub(super) root_mask_generation_words: usize,
-    pub(super) root_retirement_words: usize,
-    pub(super) ordered_use_checks: usize,
-    pub(super) public_table_range_checks: usize,
-    pub(super) stage_bound_descriptor_checks: usize,
-    pub(super) stage_bound_interval_writes: usize,
-    pub(super) stage_bound_metadata_queries: usize,
-    pub(super) stage_bound_table_metadata_passes: usize,
-    pub(super) buffer_initialization_words: usize,
-    pub(super) buffer_erasure_words: usize,
-    pub(super) projection_lane_visits: usize,
-    pub(super) floor_taylor: usize,
-    pub(super) floor_squarings: usize,
-    pub(super) floor_multiply: usize,
-    pub(super) floor_divide: usize,
-    pub(super) floor_remainder: usize,
-    pub(super) floor_add: usize,
-    pub(super) floor_shift: usize,
-    pub(super) paired_native_issue_aes: usize,
-    pub(super) native_evaluate_aes_per_role: usize,
-    pub(super) random_byte_requests: usize,
+pub struct WorkQuote {
+    /// One checked declaration and the standard public query/issuance route.
+    /// Extra caller-initiated queries/callback work are outside this invocation.
+    pub public_declaration_descriptor_checks: usize,
+    pub public_resource_query_passes: usize,
+    pub public_resource_descriptor_checks: usize,
+    pub input_validation_lanes: usize,
+    pub input_retirement_words: usize,
+    pub root_validation_lanes: usize,
+    pub root_initialization_words: usize,
+    pub root_encoding_word_writes: usize,
+    pub root_mask_generation_words: usize,
+    pub root_retirement_words: usize,
+    pub ordered_use_checks: usize,
+    pub public_table_range_checks: usize,
+    pub stage_bound_descriptor_checks: usize,
+    pub stage_bound_interval_writes: usize,
+    pub stage_bound_metadata_queries: usize,
+    pub stage_bound_table_metadata_passes: usize,
+    pub buffer_initialization_words: usize,
+    pub buffer_erasure_words: usize,
+    pub projection_lane_visits: usize,
+    pub floor_taylor: usize,
+    pub floor_squarings: usize,
+    pub floor_multiply: usize,
+    pub floor_divide: usize,
+    pub floor_remainder: usize,
+    pub floor_add: usize,
+    pub floor_shift: usize,
+    pub paired_native_issue_aes: usize,
+    pub native_evaluate_aes_per_role: usize,
+    pub random_byte_requests: usize,
 }
 
 fn sum(parts: &[usize]) -> Result<usize, Error> {
@@ -110,7 +115,10 @@ fn sum(parts: &[usize]) -> Result<usize, Error> {
         .try_fold(0usize, |n, b| n.checked_add(*b).ok_or(Error::Resource))
 }
 
-fn preflight<C: AllocationContext>(dealer: &LocalDealerFor<C>, s: &Spec) -> Result<usize, Error> {
+pub(super) fn preflight<C: AllocationContext>(
+    dealer: &LocalDealerFor<C>,
+    s: &Spec,
+) -> Result<usize, Error> {
     let expect = [
         (50, 12, Interpretation::Signed),
         (40, 12, Interpretation::Signed),
@@ -196,6 +204,7 @@ pub(super) fn bootstrap_bytes<C: AllocationContext>() -> usize {
 
 #[allow(dead_code)] // Concrete source-level old/new/call/return inventory.
 struct ConstructionSlots<'a, C: AllocationContext> {
+    public_calls: super::clear_root::CallSlots<'a, C>,
     spec: [Spec; 2],
     quote: Quote,
     quote_result: Result<Quote, BuildError>,
@@ -422,6 +431,9 @@ pub(super) fn resources<C: AllocationContext>(
         return Err(Error::Context.into());
     }
     let work = WorkQuote {
+        public_declaration_descriptor_checks: 14,
+        public_resource_query_passes: 2,
+        public_resource_descriptor_checks: 2 * 14,
         // Original whole-root validation, then the checked stage preflight.
         input_validation_lanes: 2 * n,
         // Pinned zeroize Vec visits initialized len, clears, then full capacity.
@@ -1295,17 +1307,17 @@ impl<C: AllocationContext> Body<C> {
         }
     }
 }
-pub(super) struct Coordinator<C: AllocationContext> {
+pub struct Coordinator<C: AllocationContext> {
     shared: Arc<Shared<C>>,
 }
 /// Dealer output mask remains local/opaque and retains original source/range
 /// custody, even after all role/frame handles are gone. No raw detach/Clone.
-pub(super) struct Mask<C: AllocationContext> {
+pub struct Mask<C: AllocationContext> {
     native: DealerMaskFor<C, Ring>,
     shared: Arc<Shared<C>>,
 }
 impl<C: AllocationContext> Mask<C> {
-    pub(super) fn descriptor(&self) -> Result<EdgeDescriptor, Error> {
+    pub fn descriptor(&self) -> Result<EdgeDescriptor, Error> {
         self.shared
             .operation(|_| Ok(self.native.binding.descriptor))
     }
@@ -1316,7 +1328,7 @@ impl<C: AllocationContext> Drop for Mask<C> {
     }
 }
 impl<C: AllocationContext> Coordinator<C> {
-    pub(super) fn cancel(&mut self) {
+    pub fn cancel(&mut self) {
         self.shared.abort();
     }
 }
@@ -1325,33 +1337,39 @@ impl<C: AllocationContext> Drop for Coordinator<C> {
         self.shared.abort();
     }
 }
-pub(super) struct Role<C: AllocationContext> {
+pub struct Role<C: AllocationContext> {
     slot: Arc<Slot<C>>,
     shared: Arc<Shared<C>>,
     role: u8,
     handed_off: bool,
 }
-pub(super) struct Frame<C: AllocationContext> {
+pub struct Frame<C: AllocationContext> {
     native: Body<C>,
     shared: Arc<Shared<C>>,
 }
 impl<C: AllocationContext> Frame<C> {
-    pub(super) fn bytes(&self) -> Result<&[u8], Error> {
+    /// Borrow the original local peer codec only while the region is live.
+    /// Already borrowed bytes cannot be revoked; this is not transport auth.
+    pub fn bytes(&self) -> Result<&[u8], Error> {
         self.shared.operation(|_| Ok(self.native.bytes()))
     }
 }
 #[allow(clippy::large_enum_variant)]
-pub(super) enum Step<C: AllocationContext> {
+pub enum Step<C: AllocationContext> {
     Frame(Frame<C>),
     Ready,
 }
-pub(super) struct Output<C: AllocationContext> {
+pub struct Output<C: AllocationContext> {
     slot: Arc<Slot<C>>,
     shared: Arc<Shared<C>>,
     role: u8,
 }
 impl<C: AllocationContext> Output<C> {
-    pub(super) fn descriptor(&self) -> Result<EdgeDescriptor, Error> {
+    pub fn role(&self) -> u8 {
+        self.role
+    }
+
+    pub fn descriptor(&self) -> Result<EdgeDescriptor, Error> {
         self.shared.operation(|_| {
             self.slot
                 .state
@@ -1370,10 +1388,11 @@ impl<C: AllocationContext> Drop for Output<C> {
     }
 }
 impl<C: AllocationContext> Role<C> {
-    pub(super) fn begin(
-        &mut self,
-        cancelled: &mut impl FnMut() -> bool,
-    ) -> Result<Frame<C>, Error> {
+    pub fn role(&self) -> u8 {
+        self.role
+    }
+
+    pub fn begin(&mut self, cancelled: &mut impl FnMut() -> bool) -> Result<Frame<C>, Error> {
         self.shared.poll_cancelled(cancelled)?;
         self.shared.operation(|_| {
             let native = self
@@ -1388,7 +1407,7 @@ impl<C: AllocationContext> Role<C> {
             })
         })
     }
-    pub(super) fn advance(
+    pub fn advance(
         &mut self,
         peer: &[u8],
         cancelled: &mut impl FnMut() -> bool,
@@ -1408,7 +1427,7 @@ impl<C: AllocationContext> Role<C> {
             }
         })
     }
-    pub(super) fn finish(mut self) -> Result<Output<C>, Error> {
+    pub fn finish(mut self) -> Result<Output<C>, Error> {
         let output = self.shared.operation(|control| {
             control.require_both_ready()?;
             if self
