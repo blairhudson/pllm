@@ -129,7 +129,10 @@
     "cleanup": "new child process group; TERM then KILL on any error/timeout/resource breach; kill remaining group after root exit; retain traces and explicit cleanup status"
   },
   "build": {
-    "jobs": 2,
+    "jobs": 1,
+    "compile_host_memory_source": "pllm.runtime.benchmark_memory.host_memory",
+    "compile_minimum_available_bytes": 8589934592,
+    "compile_required_pressure": "normal",
     "toolchain_setup_seconds": 300,
     "resolution_seconds": 300,
     "compile_seconds": 900,
@@ -144,6 +147,6 @@
     "tests": "compile native tests with cargo test --release --locked --no-run; execute only focused Python guard/oracle tests during build-only phase",
     "global_toolchain_changes": false,
     "root_workspace_changes": false,
-    "failed_attempt_logs": "append-only unique receipt directories; never overwrite prior attempts"
+    "failed_attempt_logs": "ordinary uniquely named logs under ignored target/; never overwrite prior attempts"
   }
 }

@@ -77,8 +77,9 @@ sufficient host headroom.
 
 The standalone `[workspace]`, local `.cargo/config.toml`, dated
 `rust-toolchain.toml`, explicit manifest path and explicit `rustup run` avoid root
-Cargo/toolchain changes. Compiler is pinned to nightly-2026-05-14; jobs never
-exceed two. Any later build must use the existing consumer lock with `--locked`.
+Cargo/toolchain changes. Compiler is pinned to nightly-2026-05-14; compilation
+uses one job under D33. Any later build must use the existing consumer lock with
+`--locked`.
 Frozen identities do not establish selected features, native build success or
 complete solver allocation bounds. The initial blocked resolution described below
 is historical, not the current lock state.
@@ -88,9 +89,15 @@ both compilations together 900 s / 4 GiB; each retains 4 GiB physical host
 reserve, 8 GiB disk reserve plus a 4-GiB build/download allocation. These are
 abort ceilings/allocations, not compiler performance predictions. Guard checks
 aggregate process-group RSS plus 64 MiB helper reserve, global swap-used **and**
-swapout counters, deadline, bounded logs and observation gaps. Free/speculative
-pages alone count toward conservative memory admission; inactive pages and
-existing swap are not treated as capacity. Additional swap invalidates an
+swapout counters, deadline, bounded logs and observation gaps. For single-job
+compilation only, [D33](../../../paper/methods/DECISIONS.md#d33-he-compile-only-host-memory-admission)
+requires at least 8 GiB available from the existing
+`pllm.runtime.benchmark_memory.host_memory()` accounting and normal memory
+pressure. A pressure percentage is not a byte measurement. This supersedes the
+free-plus-speculative-only compilation check, not the allocator/execution guards,
+runtime caps or unproved HE admission. It permits test-binary compilation with
+`--no-run`, not test execution, key generation, encryption or RNG changes.
+Existing swap is not additional capacity; additional swap invalidates an
 attempt. Process groups are terminated and remaining descendants killed on
 failure, including a leader that has already exited. Use ordinary Cargo commands
 and tests; keep temporary logs and resource observations in ignored `target/`.
