@@ -144,7 +144,16 @@
     "estimate_basis": "operational admission allocation, not measured compiler use or a proven compiler-space estimate; abort on guard breach",
     "additional_swap_bytes": 0,
     "additional_swapout_pages": 0,
-    "tests": "compile native tests with cargo test --release --locked --no-run; execute only focused Python guard/oracle tests during build-only phase",
+    "tests": "compile native tests with cargo test --release --locked --no-run; execute focused Python guard/oracle tests; D35 separately permits only the 31 compiled staged_storage tiny-buffer ownership tests with one test thread after fresh D33 admission",
+    "storage_test_scope": {
+      "decision": "D35",
+      "target": "staged_storage",
+      "expected_tests": 31,
+      "test_threads": 1,
+      "host_admission": "fresh D33 admission; existing allocator and resource guards unchanged",
+      "he_keys_ciphertexts_solver_refresh": false,
+      "rng_pin_changes_or_backend_adoption": false
+    },
     "global_toolchain_changes": false,
     "root_workspace_changes": false,
     "failed_attempt_logs": "ordinary uniquely named logs under ignored target/; never overwrite prior attempts"

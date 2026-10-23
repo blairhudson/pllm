@@ -784,6 +784,32 @@ sampling restrictions remain unchanged. Reject compilation if the host gate
 fails; this decision establishes neither a physical-peak proof nor complete
 encrypted-execution admission.
 
+## D34. Implement the selected Maverick numeric map
+
+**Explicitly approved by the user on 24 October 2026:** implement and unit-test
+the already selected D31/D32 conversion/import primitives and a clear correctness
+oracle for the fixed eight-ID request. Preserve the selected arithmetic, scale
+storage amendment, checkpoint, full vocabulary and quality-screen criteria.
+
+This adds implementation permission, not a new numeric map or role/protocol
+adaptation. It does not authorize a trained-model run, generation, security or SDK
+qualification. Source integrity/finiteness/tying, honest no-wrap, protocol,
+dependency, storage and whole-method admission gates remain independent. Small
+independent correctness fixtures do not establish a completed trained decoder.
+
+## D35. Execute tiny HE storage tests
+
+**Explicitly approved by the user on 24 October 2026:** execute only the 31
+compiled `staged_storage` ownership tests, serially with one test thread, after
+fresh D33 host admission. Preserve the existing allocator limits and resource
+guards. These tests use tiny buffers, not HE keys, ciphertexts, the solver or
+refresh. D33's compilation permission otherwise remains unchanged.
+
+This permits neither encrypted execution, RNG/dependency/pin changes nor backend
+adoption. Passing storage tests does not close trusted-origin, opaque-capacity,
+sampling, cryptographic or complete setup/execution admission requirements. D28
+remains design-only.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -821,6 +847,8 @@ encrypted-execution admission.
 | D31 | Approved: Maverick mathematical map/quality criteria | Exact named numeric-only candidate; no implementation/heavy execution, achieved proof/quality qualification, security/storage/batch or generation approval. |
 | D32 | Approved: Maverick pinned BF16 scale-storage amendment | Exact BF16-to-F32 promotion before unchanged D31 multiplication only; source values/integrity/ties, proofs and quality remain unproved, with no implementation or heavy-execution authorization. |
 | D33 | Approved: HE compile-only framework memory gate | At least 8 GiB available and normal pressure, single-job compilation only; no tests, keys, RNG changes, runtime-cap changes or adoption. |
+| D34 | Approved: implement selected Maverick numeric map | D31/D32 primitives and fixed eight-ID clear correctness oracle; no new numeric/protocol adaptation, trained-model run, generation or SDK/security qualification. |
+| D35 | Approved: 31 tiny HE storage tests | Only compiled `staged_storage`, one test thread and fresh D33 admission; no HE keys/ciphertexts, solver, refresh, RNG/pin changes or backend adoption. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

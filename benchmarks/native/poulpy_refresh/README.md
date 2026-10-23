@@ -97,6 +97,11 @@ pressure. A pressure percentage is not a byte measurement. This supersedes the
 free-plus-speculative-only compilation check, not the allocator/execution guards,
 runtime caps or unproved HE admission. It permits test-binary compilation with
 `--no-run`, not test execution, key generation, encryption or RNG changes.
+Separately, [D35](../../../paper/methods/DECISIONS.md#d35-execute-tiny-he-storage-tests)
+permits only the 31 compiled `staged_storage` ownership tests, with one test
+thread and fresh D33 admission. They use tiny buffers, not HE keys, ciphertexts,
+the solver or refresh. Allocator limits, resource guards and all encrypted
+execution restrictions remain unchanged.
 Existing swap is not additional capacity; additional swap invalidates an
 attempt. Process groups are terminated and remaining descendants killed on
 failure, including a leader that has already exited. Use ordinary Cargo commands
