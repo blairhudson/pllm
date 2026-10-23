@@ -634,9 +634,11 @@ numerical study had been run; the subsequent D30 execution is recorded below.
 ### Observed D30 literal reconciliation, 23 October 2026
 
 The approved clear scalar study completed once. Its experiment and nine normal
-regression tests are committed in **`560522f6`**. The retained ordinary output
-is `target/thor-literal-reconciliation-r1.json` (ignored, not an archived source
-tree). This documentation update reads that output; it does not rerun the study.
+regression tests are committed in **`560522f6`**. The retained
+[ordinary output](../evidence/thor-literal-reconciliation.json) is
+`docs/evidence/thor-literal-reconciliation.json`, unchanged from the original
+`target/thor-literal-reconciliation-r1.json`. This documentation update reads
+that output; it does not rerun the study or add an evidence archive.
 All 92 printed coefficients were checked against the pinned Appendix C PDF,
 and all 92 artifact coefficients against the previously retrieved, locally
 retained source at `b513c06aaabccc04b560721e35e9a98008428c25`. No new upstream
