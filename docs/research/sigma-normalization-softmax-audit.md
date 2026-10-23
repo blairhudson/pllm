@@ -1,16 +1,22 @@
 # SIGMA protected normalization and causal softmax audit
 
-Status: **READ-ONLY SOURCE AUDIT; NO EXECUTABLE OR PROFILE ADOPTION**.
-Recorded 22 October 2026. The bounded [nExp proposal](../plans/sigma-nexp.md)
-is **UNAPPROVED**. No decision number is assigned. Parent review and explicit
-user approval precede implementation. D17/D20/D22 do not authorize these new
-compositions, broader numeric domains, or decoder availability.
+Current status, 24 October 2026: **D29 CONDITIONALLY APPROVED; BOUNDED nExp
+IMPLEMENTATION COMMITTED; BOUNDED SOFTMAX ROOT CONDITIONALLY APPROVED IN D36**.
+The [nExp packet](../plans/sigma-nexp.md) received conditional local approval in
+[D29](../../paper/methods/DECISIONS.md#d29-conditional-bounded-sigma-nexp-implementation).
+Its private owning region landed in `ec68ad19`; Parent reported **755 / 43 / 35
+component checks passed**. The guarded public clear-root facade landed in
+`d6b6e910` with **95 checks passed**. Those results are not full softmax,
+normalization, checkpoint, decoder, SDK or security qualification. The inherited
+nExp entry needed below is still closed; clear-root component tests do not supply it.
 
-The audit inspected existing shared primitives, the pinned paper, and inert
-author-source text. No code was edited, built, imported or executed; no tests or
-benchmarks were run. Writing this record supplies no validation evidence.
-PUMA compact-emission, rotary review and FuseFSS topology qualification are
-outside scope.
+The original read-only audit, recorded 22 October, is retained below, including
+its then-unapproved recommendations and paper/CPU conflicts. Its statements
+about missing implementations describe that date, not the current D29 status.
+No implementation code was changed; no tests, benchmarks or native/model imports
+or execution accompanied this update. D17/D19/D20/D22/D27/D29 do not authorize
+the proposed outer composition,
+broader numeric domains or decoder availability.
 
 ## Source identity and locations
 
@@ -192,7 +198,7 @@ full signed38 score domain. A tighter source-bound certificate or an explicit
 paper-width choice is required. D22's MLP certificate does not certify attention
 scores. Neither width choice is adopted here.
 
-## Reuse audit and remaining implementation contracts
+## Historical reuse audit and implementation contracts (22 October)
 
 | Existing shared owner/path | Reusable part and remaining boundary |
 | --- | --- |
@@ -221,7 +227,11 @@ security. Material needs confidential authenticated delivery in a future runtime
 
 ## Next slice and unresolved decisions
 
-Recommend only the **unapproved bounded nExp owning region** in
+This subsection retains the 22 October recommendations. D29 and D36 now govern
+the subsequently approved bounded nExp and one-row softmax scopes; the historical
+recommendation below does not revoke or expand those decisions.
+
+The recommendation then was only the **unapproved bounded nExp owning region** in
 [`../plans/sigma-nexp.md`](../plans/sigma-nexp.md). It uses existing 8-bit lookup
 geometry and advances reusable private-product ownership without pretending to
 complete row softmax or normalization.
@@ -278,3 +288,179 @@ Outstanding decisions/proofs:
 Checkpoint epsilon mapping, authenticated transport, private embedding/head,
 stable selection/private feedback, full-decoder scheduling and SDK/quality gates
 remain separate. No scaffold or local primitive supplies those qualifications.
+
+## Conditionally approved next slice: one public-causal softmax root, active count 1–3
+
+**D36 authorizes conditional local implementation, not achieved qualification.** This is the
+next bounded decoder operator, not another nExp adoption or a claim of complete
+paper reproduction. One row has public geometry of at most three positions and
+an ordered, nonempty public causal active set `A`, `k=|A|` in `1..=3`. Positions
+and lengths are public leakage; inactive positions are public zeros and never
+enter any private maximum, exponent or denominator. No finite negative infinity.
+Arbitrary private gamma/normalization, SDK routing and the full 1,024-entry row
+remain unapproved.
+
+### Numeric and owner contract
+
+Retain the paper equation above, unchanged:
+
+```text
+M=max(X_i:i in A); E_i=nExp(M-X_i)
+D=sum(E_i:i in A); Z=floor(D/64); R=floor(2^18/Z)
+P_i=floor(E_i*R/4096)                   # inactive P_i=0
+```
+
+The external score root retains the original immutable charged input/source,
+same counter and plan/session/operation identities. Check every declared score
+in signed ring50/Q12 `[-2^37,2^37)` and the entire public geometry before operation
+entropy or private allocation. This is a local trusted-dealer clear-input
+premise, not checkpoint authentication or a compiler attention certificate.
+Already-masked scores cannot enter by copying them into a new clear root.
+For `k=1`, use existing public-value ownership for code **4096** and inactive
+zeros; there is no private comparison/nExp/inverse/product schedule. Bind that
+public output's actual custody/quote rather than inventing a private input.
+
+For `k=2,3`, freeze this traversal in public position order:
+
+1. Start with `M=X_a0`. Each of the `k-1` updates forms full-ring `d=M-X_aj`,
+   privately projects it to signed39 for DReLU, obtains masked `b=[d>=0]`, and
+   uses existing reconstructed **Select50** to form `M=X_aj+Select50(b,d)`.
+   Keep the full ring50 operand; do not sign-extend a masked ring39 view. Equal
+   values retain the earlier maximum convention; no winner/tie bit is opened.
+2. Form the `k` private differences `M-X_i` in `[0,2^38)` and transfer them to
+   **one batched inherited D29 nExp child**, with its original eighteen uses and
+   eleven exchanges. Transfer original dealer/evaluator Bindings, masks, source,
+   lanes and leases; never invoke clear-root nExp on recovered or guessed values.
+3. Consume that child's original E owner into the outer root. Its private fixed
+   ledger authorizes each E lane twice: denominator reduction and final product.
+   Reduce without opening D. The maximum relation proves some difference is zero,
+   hence some E is exactly 4096: `4096<=D<=4096*k<=12288`.
+4. Privately project D and its mask modulo `2^14`; D is **unsigned14/Q12**, not
+   signed14. Use native **unsigned TR14,6**, then a private numeric-coordinate
+   handoff: unsigned8/Q6 output becomes the **same raw-code unsigned8/Q0 lookup
+   coordinate** Z, with original backing/mask and `64<=Z<=64*k<=192` provenance.
+   No public typed-TR relabel, ring widening, Q12 index or signed8 interpretation
+   (which misreads 128–192). `p=14,q=8` follows the paper for k=2/3; k=1 bypasses it.
+5. One reconstructed **D19 LUT8-to-50** supplies R. Authorize its scalar owner for
+   exactly k internal product reads; broadcast is a private lane mapping, not
+   cloned/exported capabilities. Reuse the consuming native elementwise product
+   for E and that R, followed by reconstructed GapARS50,12. `0<=E,R<=4096` gives
+   `E*R<=2^24<2^48`; preserve this complete Q24 product and its one final floor.
+   Do not renormalize the quantized row or substitute matrix singletons.
+
+This requires new **closed composition/provenance work**, not new numerical
+recipes. At `ec68ad19`, `typed/nexp_region.rs::Input/construct` accepts charged
+clear storage and prepares a root; it is not an inherited-input API. Its private
+product is restricted to the D29 lookup pair. Required producers are the outer
+comparison/difference owners; consumers are the nested nExp ingress/completion,
+unsigned denominator-coordinate bridge and closed E/R product. Matching public
+descriptors/digests, successful D27 outputs or a fresh `RootKnown` declaration
+cannot mint those private inputs. Comparison, reduction, repeated-use/fanout and
+their range/mask relations need proof before those boundaries may issue.
+
+### Exact table and ordered-use declaration
+
+Use the existing verified E0/E1 bytes/floors in `fixed_exp_tables.rs`; no new exp
+or floating-point table generator. The sole new public inverse table is exact
+integer arithmetic: `T[0]=0` (unreachable sentinel), `T[z]=(1<<18)/z` floored for
+`z=1..255`. Zero is not a defined reciprocal or a private validity branch.
+Retain the proof that only coordinates 64–192 are reachable. All 256 entries,
+including the sentinel, must be checked before owning/hashing/issuing the table.
+The full table has `T[1]=262144`: its global maximum is **not** 4096. The closed
+lookup-result binding needs the genuine reachable-coordinate proof to establish
+`1365<=R<=4096`; do not infer that interval from table identity or clip other
+entries to make the bound appear true.
+
+For `B=concat(z=0..255, u64LE(T[z]))`, record `H_payload=SHA256(B)`. Reuse D19's
+**existing** table identity, not a digest-only capability:
+
+```text
+H_lookup = SHA256(b"pllm.sigma.source-lookup.canonical-table.v1"
+                  || u8(8) || u8(50) || numeric_contract[32] || B)
+```
+
+Here `numeric_contract` must bind these equations/floors, unsigned coordinate
+mapping, source/paper pins, E0/E1 identities and ring/scale constants. Canonical
+record field order must be reviewed before hashing; no new record is approved by
+this paragraph. Source/operation, k/A order, both product operands, role, issuance,
+every edge/use and lane mapping belong in the invocation/ledger bindings, not
+the table payload hash. Follow `source_lookup.rs::table_identity` and its distinct
+`invocation_binding`; preserve D19's `rho=2u-r` dependency.
+
+Declare outer uses in this order, separately for dealer role2/evaluator roles0/1:
+
+| Block | Ordered reads/transfers |
+| --- | --- |
+| Entry | One original score-root entry. |
+| Each maximum update | Eight: M/X subtraction operands; d50 projection; d39 DReLU; b/d50 Select operands; X/Select-result affine operands. |
+| Differences | Two per active lane: final M and original X. |
+| Nested child | One difference-vector transfer; one original E-vector receipt. Child retains its separate eighteen-use ledger. |
+| Denominator | k E reads, then D projection, projected D TR, original TR-output coordinate mapping, coordinate LUT: k+4. |
+| Output | k ordered E/R product pairs, one product-to-GapARS transfer, one final output handoff. |
+
+Thus the proposed outer template has **27 uses at k=2, 40 at k=3** (`13k+1`),
+plus the unchanged nested eighteen-use template and native gate ledgers. Reuse
+`typed/internal_use.rs::Ledger`, burning before checking; no public fanout API,
+capability Clone, raw-native extraction or extra retry. Slot, operand ordinal and
+actual owner/coordinate identity must match. This is a proposed template, not an
+already-issued use permit.
+
+### Exchange, admission and failure phases
+
+For k=2/3, the public online order is: `2*(k-1)` exchanges for maximum
+(DReLU39 then Select50 per step); **11** for the single batched nExp child;
+**2** for TR14,6; **2** for reconstructed inverse lookup; **1** for product;
+**2** for final GapARS. Proposed totals: **20/22 exchanges, 40/44 peer frames**.
+These are logical composition counts, not timing, bytes, offline-material
+delivery costs or current execution evidence. Local affine/reduction/projection
+work is not zero merely because it sends no frame.
+
+- Reuse D27's shared `typed/role_coordination.rs` custody, two sibling slots and
+  both-Ready barrier. Bind outer/child operation, phase, role and replay context;
+  no returned root output before both siblings finish. Caller polls remain
+  outside locks. Wrong frame/role/phase, cancel/drop or unwind burns both siblings.
+- Validate whole root/source/range/geometry, tables, counters, work and aggregate
+  caps **before** entropy, masks, keys or private factories. Checked-add all actual
+  prior/request work and pending comparison + inherited-child + TR + lookup +
+  product + GapARS work, including metadata/hash, local lane visits, initialization,
+  repeated reads, failure erasure and cleanup. Reuse native owner work categories;
+  do not treat descriptor counts as a CPU budget or reset per child/phase.
+- Quote concrete roots/source backing and actual capacities, all role/ledger/
+  Arc/header/transition/Result/workspace/table slots, child construction overlap,
+  mailboxes, retained frames and returned outputs before their construction under
+  the **same existing 64 MiB logical ceiling**. No released/reacquired guard,
+  phantom spare-capacity credit or unpriced clear-input/child/frame allocation.
+  Current clear-root nExp quotes do not prove inherited/outer quotes. Exact new
+  layouts and total byte/work formulas remain required before factory entry;
+  this packet supplies no fabricated full-root byte total or Budget authority.
+- Consume/burn issuance and use slots before partial material can escape. Any
+  construction error/unwind retires the root and produced child material; no
+  nonce/entropy/work refund or retry on that owner. Retained output/frame leases
+  survive cancellation until actual erasure/drop. Keep full-output-ring arithmetic
+  masks, independent Boolean masks and fresh independent product splits/output
+  masks; no small-mask shortcut or decoder-visible intermediate.
+
+### D36 approval and next acceptance gate
+
+[D36](../../paper/methods/DECISIONS.md#d36-conditional-bounded-sigma-causal-softmax-root)
+approves **only conditional local implementation of this fixed one-row k<=3
+composition**, including its inherited private bridges, ordered uses and explicit
+reconstructed boundaries. Freeze canonical records, genuine owner handoffs, full
+owner/work quotes and numerical premises before their respective
+hash/construction/issuance boundaries. D29 alone is not that permission.
+
+First acceptance: independent literal integer oracle for k=1/2/3, ties, score
+endpoints, clip65535/65536, equal-score Z=128/192, inactive positions and
+`[0,-4096] -> [3013,1107]` without renormalization; all256 inverse entries and
+independent table-hash bytes; both-role transcript/owner parity. Then real-factory
+zero-draw invalid/exhausted-work rejection, exact/one-short capacity/work limits,
+original-counter/source identity and repeated-read misuse, partial entropy/factory
+failures, retained frames, cancellation/replay/unwind and both-Ready negatives.
+Those tests are **not run or added here**. Independent joint-view review must
+cover max/Select, correlated E reduction and R broadcast, D19 corrections and
+product/GapARS; functional tests do not prove that composition private.
+
+No transport authentication, checkpoint conformance, general normalization,
+arbitrary gamma, wider 11–17-bit expansion, full-row/decoder/SDK, request history
+or security promotion follows. Allocator behavior, native/private callframes,
+CPython and process RSS remain outside logical owner/work accounting.

@@ -1,8 +1,13 @@
 # Ten-method execution: bounded decision packet
 
-**D29/D30/D31 approved on 23 October 2026; all other rows remain proposals.**
+**D29/D30/D31 approved on 23 October 2026; later scopes are recorded in D32–D36.**
 Selected actions: S-E conditional local implementation, T-S bounded study, and
 M-N mathematical map/quality criteria only. No completed-method claim follows.
+Later approvals permit exact BF16-scale promotion (D32), bounded HE compilation
+(D33), selected Maverick implementation (D34), 31 tiny HE storage tests (D35),
+and only the one-row SIGMA causal-softmax subcase with 1–3 active positions (D36).
+The S-N row below remains a proposal for normalization and wider-row scope,
+not a request to renew D36. Other unselected rows remain proposals.
 Governing authority: [decision register](../../paper/methods/DECISIONS.md).
 Already-approved work is not up for renewal here. Original protocols and secure
 randomness remain requirements; missing author code alone does not require adaptation permission.
@@ -41,5 +46,5 @@ Links are normative scope references, not claims that every linked audit is a co
 All later implementation must reuse shared source/component/admission/ownership,
 transport and scheduling contracts. Completion still requires actual independent
 correctness, lifecycle, quality/resource evidence and ordinary SDK qualification;
-this document runs no code, builds or tests. D29/D30/D31 record only the selected
-individual scopes; all other rows and evidence gates remain unchanged.
+this document runs no code, builds or tests. D29–D36 record only their selected
+individual scopes; all remaining proposals and evidence gates stay unchanged.

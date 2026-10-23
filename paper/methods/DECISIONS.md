@@ -810,6 +810,29 @@ adoption. Passing storage tests does not close trusted-origin, opaque-capacity,
 sampling, cryptographic or complete setup/execution admission requirements. D28
 remains design-only.
 
+## D36. Conditional bounded SIGMA causal-softmax root
+
+**Explicitly approved by the user on 24 October 2026:** conditional local
+implementation of the [one-row composition](../../docs/research/sigma-normalization-softmax-audit.md)
+with one to three public active positions. Preserve ring50/Q12, signed39 maximum
+comparisons, the paper-derived unsigned14-to-unsigned8 denominator path, existing
+D29 nExp, exact integer inverse/floors and public inactive zeros. Do not
+renormalize quantized outputs or reveal clear intermediates. This explicitly
+selects the packet's paper widths rather than the conflicting fixed CPU widths.
+
+Genuine inherited owners, fixed internal uses/fanout, canonical records and
+complete cumulative work/storage admission must precede issuance. Retain the
+existing 64 MiB ceiling and fresh full-ring arithmetic masks. The proposed
+20/22-exchange schedules for two/three active positions require independent
+validation; they are not timing or execution evidence. One active position uses
+the separately admitted public code 4096 path.
+
+This does not authorize full-length rows, general normalization, SDK routing,
+transport, checkpoint conformance or joint-privacy/security qualification. Local
+clear-root range checks do not mint compiler attention/source certificates.
+Allocator, private callframe and physical-memory obligations remain separate.
+D29's nExp component checks do not establish this outer composition.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -849,6 +872,7 @@ remains design-only.
 | D33 | Approved: HE compile-only framework memory gate | At least 8 GiB available and normal pressure, single-job compilation only; no tests, keys, RNG changes, runtime-cap changes or adoption. |
 | D34 | Approved: implement selected Maverick numeric map | D31/D32 primitives and fixed eight-ID clear correctness oracle; no new numeric/protocol adaptation, trained-model run, generation or SDK/security qualification. |
 | D35 | Approved: 31 tiny HE storage tests | Only compiled `staged_storage`, one test thread and fresh D33 admission; no HE keys/ciphertexts, solver, refresh, RNG/pin changes or backend adoption. |
+| D36 | Approved conditionally: one-row SIGMA causal softmax, active count 1–3 | Paper widths, inherited nExp and exact floors; genuine owners/internal uses and full work/storage admission before issuance; no full-row, normalization, SDK, transport or joint-privacy promotion. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
