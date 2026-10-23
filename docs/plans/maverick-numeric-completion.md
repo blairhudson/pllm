@@ -1,6 +1,7 @@
 # Maverick: scoped numerical-completion decision
 
 **Mathematical map/quality-screen choices approved — D31, 23 October 2026.**
+**Pinned BF16 scale-storage amendment approved — D32, same date.**
 Implementation and heavy execution are not authorized. M-N's source, proof,
 quality and execution gates remain blocked; M-D remains separate. Selected arithmetic, source
 pins, tensor inventory, graph and acceptance rules are in
@@ -47,15 +48,33 @@ certificate or quality result blocks the candidate; it does not authorize repair
 Rejection leaves the independently implementable source algebra intact and the
 whole-model numerical gate unresolved.
 
+### D32 storage-only amendment to D31
+
+The original D31 decision quoted above is unchanged. A subsequent
+[header-only audit](../research/maverick-fp8-pinned-header-audit.md) found that all
+252 block-scale tensors at the same official pin are stored BF16, contradicting
+the originally required F32 storage. The user has explicitly approved only this
+reconciliation: accept those pinned BF16 scales and **promote exactly to F32**
+before the unchanged F32 multiplication. A finite BF16 word `b` has F32 bits
+`b<<16`; this preserves its stored value, not any hypothetical prior F32 precision.
+
+The name remains `M-N/Qwen3-4B-8prompt-candidate-1`, identified by D31 **plus D32**.
+Pins, shapes, rounding/reductions, Q8, head, workload and quality criteria do not
+change. The original mismatch remains historical evidence, not an undisclosed
+repair. Index `total_size` drift is neither corrected nor waived. Payload
+integrity, positive finite scales, head/embedding byte equality, totality/no-wrap
+proofs and quality remain unproved. No implementation, payload acquisition or
+heavy execution is authorized by this amendment; all other gates remain.
+
 ## Facts, choices, and evidence: three different things
 
 | Category | Exact boundary |
 | --- | --- |
 | Governing source facts | arXiv **2609.10264v1**, PDF SHA-256 `c9570fdeb51a26f9d707bcc7bf485f2001e7d3e15ebdf34815123935a1e8e2a0`; BabyBear; nearest-integer `256*W`; centered `/2^16` then BF16; local nonlinearities; optimistic request-end verification; original eight-token Qwen3-4B next-logits workload |
-| Known official-Qwen facts | Pinned config/index/implementation; 128×128 scales, dynamic E4M3FN activation code, Q/K norm before RoPE, no biases, tying declaration; source pins and hashes in proposal §2 |
+| Known official-Qwen facts | Pinned config/index/implementation and bounded headers; 252 stored BF16 128×128 block-scale tensors, E4M3 projections, BF16 table/head/norm declarations, dynamic E4M3FN activation code, Q/K norm before RoPE, no biases, tying declaration; source pins/hashes in proposal §2, not payload verification |
 | Missing author evidence | No immutable author repo/evaluated checkpoint/numerical manifest recovered from inspected sources. Author-linked ePrint returned 403. This is **not** proof no artifact exists |
 | Proposed numerical choices | Original-family source anchor with unknown author identity; fixed-Q8 activation rule; exact ties/cast path/local arithmetic; explicit BF16 table/head exception; defined quality oracle/thresholds |
-| Missing execution evidence | Actual tensor dtypes/values/ties/authentication; honest-domain no-wrap and all-reply finite/i64 proofs; correctness/quality observations; complete deployment admission and security composition |
+| Missing execution evidence | Payload integrity/values/ties and scale positive-finiteness; index-size discrepancy explanation; actual-source honest no-wrap and all-reply finite/i64 proofs; correctness/quality observations; complete deployment admission and security composition |
 
 No new training is proposed. Nevertheless replacing dynamic-FP8 activation
 quantization and scaled FP8 matmul by fixed-Q8 field evaluation changes the
@@ -82,7 +101,8 @@ becomes exactly half an integer at scale 256: even/away ties differ.
 The proposal fixes all of the following, rather than deferring them to an importer:
 
 - Exact 651-tensor FP8-artifact name/shape set and 398-tensor BF16-comparator set;
-  E4M3FN bit decoding, scale direction/axes, BF16 source tables/norms, positive
+  E4M3FN bit decoding, D32 stored-BF16/exact-F32 scales with unchanged direction/axes,
+  BF16 source tables/norms, positive
   finite scales, no biases, duplicate/extent checks, original tied head handling.
 - Signed i64 Wq/xq; exact nearest-even quantization; canonical BabyBear residues;
   direct BF16 rescaling; subnormals retained; no saturation, integer-i8 clamp,

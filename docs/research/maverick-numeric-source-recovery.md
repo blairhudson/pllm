@@ -1,7 +1,8 @@
 # Maverick M-N: source recovery and selected mathematical map
 
 **M-N remains blocked. M-D remains separate.** This is a
-source-recovery result and D31-approved mathematical map, not an adopted execution profile or
+source-recovery result and D31-approved mathematical map with the D32 pinned
+BF16-scale storage amendment, not an adopted execution profile or
 evidence of source-faithful model execution. See the
 [scoped reviewer decision](../plans/maverick-numeric-completion.md).
 An independently implemented, unambiguous paper construction needs no new fidelity
@@ -106,10 +107,21 @@ These pins are real, official artifacts, **not recovered Maverick provenance**:
 | [Transformers v4.51.0](https://github.com/huggingface/transformers/tree/0720e206c6ba28887e4d60ef60a6a089f6c1cc76) | Annotated tag dereferenced to commit `0720e206c6ba28887e4d60ef60a6a089f6c1cc76`; checkpoint config names this version |
 | [Tokenizers v0.21.1](https://github.com/huggingface/tokenizers/tree/133db48d4f272070076fbc7a649c9e8aa8cd0646) | Tag resolves to commit `133db48d4f272070076fbc7a649c9e8aa8cd0646`; proposed quality-tokenization engine, within pinned Transformers' `>=0.21,<0.22` requirement |
 
-Only metadata and implementation text were fetched. No checkpoint shard, tensor
+**Original recovery pass:** only metadata and implementation text were fetched. No checkpoint shard, tensor
 header, tokenizer payload, or quality dataset was downloaded. Advertised LFS
 hashes identify future imports; they are not a claim that payloads were verified.
 Config dtype and index names alone do not prove tensor dtypes, values, or ties.
+
+The later [bounded header audit](maverick-fp8-pinned-header-audit.md) checked all
+651 names/shapes and observed 252 `F8_E4M3` projections, **252 BF16 scales** and
+147 other BF16 tensors, with no F32 tensors. The original F32-scale import
+requirement was contradicted. [D32](../../paper/methods/DECISIONS.md#d32-maverick-pinned-bf16-scale-storage-amendment)
+now amends only that storage rule: exact BF16-to-F32 promotion precedes the
+unchanged multiplication. No tensor payload was read or its values validated.
+The index still declares `total_size=5,191,286,912`, whereas header payload extents
+sum to `5,189,976,192`, an unexplained excess of **1,310,720** bytes; neither the
+index nor its pinned hash is rewritten. Separate BF16 head/embedding headers have
+matching shapes, not an established byte-equality tie.
 
 Relevant pinned Transformers source:
 
@@ -135,7 +147,8 @@ Specific conflicts/limits, rather than silent substitutions:
   and a BF16 model default. Paper does not identify this serialization or scales.
 - The index gives scales for all `36*7` transformer projections, **not** the
   embedding or head. Config says `tie_word_embeddings=true`, but index contains
-  both tensors. Their equality and serialized dtype require payload validation.
+  both tensors. Headers now declare both BF16 with the expected shapes; equality
+  and finite values still require payload validation.
   A blanket "every weight is FP8" import cannot be inferred.
 - Official graph resolves local order and bias presence for this particular
   Qwen revision, not Maverick's implementation, floating kernels, or reductions.
@@ -169,7 +182,7 @@ FP8 parity, or the paper's measured model solely because shapes match.
 | Boundary | Recovered fact | Proposed completion/adaptation |
 | --- | --- | --- |
 | Model | Paper says Qwen3-4B/FP8, no artifact revision | Select official FP8 source anchor in §2; no claim it changes or matches the authors' unknown revision |
-| Weight value | Official serialized projections have block scales; named implementation multiplies scales | Decode E4M3FN, multiply scale in F32, then paper's fixed-Q8 weight rounding |
+| Weight value | Headers declare BF16 block scales; named implementation multiplies scales | D32 exact BF16-to-F32 scale promotion, E4M3FN decode, unchanged F32 multiply and fixed-Q8 weight rounding |
 | Input value | Paper omits `xq`; official FP8 path dynamically quantizes activations | Use exact nearest-even `256*x`, **not** official dynamic FP8 |
 | Decode | Paper says centered `/2^16` then BF16 | Choose direct rational-to-BF16, not F32 intermediate |
 | Local arithmetic | Qwen graph/order recoverable; original kernels unpinned | Fixed reductions, cast sites and correctly rounded functions below |
@@ -184,10 +197,15 @@ not unspecified rounding choices. M-B/M-C/M-S remain deliberately outside this
 
 Use exactly the FP8 checkpoint and Transformers graph pins in §2. Before any
 execution, validate all shard hashes, tensor names/dtypes/shapes, finiteness,
-strictly positive finite F32 block scales, and config agreement. Required types:
-E4M3FN projection payloads, F32 scales, BF16 embeddings, head and norm weights.
-Reject any mismatch; no dtype conversion, replacement checkpoint, repair, tensor
-omission, vocabulary resize, or fallback importer.
+strictly positive finite stored BF16 block scales and their exact F32 promotions,
+and config agreement. Required stored types: E4M3FN projection payloads, **BF16
+scales**, BF16 embeddings, head and norm weights. D32 explicitly amends the prior
+F32-storage requirement after the header contradiction; its only dtype-conversion
+exception is the exact scale promotion specified in §3.2. Reject every other dtype
+mismatch; no replacement checkpoint, repair, tensor omission, vocabulary resize,
+fallback importer or other dtype conversion is permitted. These are source
+requirements, not facts that the unexamined payload has passed them, and not
+implementation or execution authorization.
 
 Exact FP8 tensor set: for `l=0..35`, the seven weights
 `model.layers.l.self_attn.{q,k,v,o}_proj.weight` and
@@ -275,8 +293,15 @@ zero. Otherwise it is `(-1)^s*(1+f/8)*2^(e-7)`, except `e=15,f=7`, which
 is NaN and rejects. There are no infinity encodings; maximum finite magnitude
 is 448. This is E4M3FN, **not** E4M3FNUZ or E5M2.
 
-For projection row `i`, column `j`, decode FP8 value `v[i,j]` using E4M3FN and
-its corresponding stored F32 block scale `S[floor(i/128),floor(j/128)]`:
+For projection row `i`, column `j`, decode FP8 value `v[i,j]` using E4M3FN. Under
+D32, first promote its corresponding **stored BF16** block scale exactly to F32;
+call the resulting value `S[floor(i/128),floor(j/128)]`. For a finite logical BF16
+word `b`, the F32 representation is `b<<16`, with no arithmetic rounding. This
+preserves the serialized value, including subnormals and signed zero, rather than
+recovering any hypothetical earlier F32 precision. Stored scales must still be
+strictly positive and finite; nonfinite values and either signed zero fail that
+unchanged gate. The [standalone argument](maverick-fp8-pinned-header-audit.md#6-self-contained-exact-promotion-proof)
+does not inspect payloads or implement a decoder. Then use the **unchanged** rules:
 
 ```text
 Weff[i,j] = R32(v[i,j] * S[floor(i/128),floor(j/128)])

@@ -742,6 +742,31 @@ checkpoint acquisition or heavy execution, security/batch/storage/party/cap chan
 is authorized. M-B/M-C/M-S/M-D and remaining M-N evidence stay gated; no silent
 numeric repairs are permitted.
 
+## D32. Maverick pinned BF16 scale-storage amendment
+
+**Explicitly approved by the user on 23 October 2026:** amend only D31's source
+import rule for official `Qwen/Qwen3-4B-FP8` revision
+`96b30dc13593a244a5e59e84687309f53c375cfa`. Its 252 block-scale tensors are stored
+as BF16, contradicting the original F32-storage requirement; the
+[header audit](../../docs/research/maverick-fp8-pinned-header-audit.md) preserves that
+historical finding. Accept these pinned BF16 scales and promote each **exactly**
+to F32 before the unchanged `R32(v*S)` multiplication and nearest-even Q8 rule.
+For a finite BF16 word `b`, the F32 representation has bits `b<<16`; this preserves
+the stored value, not hypothetical precision discarded before serialization.
+
+This is the sole specified source-dtype exception, not permission to convert
+other tensors, choose another pin/shape/scale, change rounding, graph, head,
+workload or quality criteria. The document-only candidate name remains
+`M-N/Qwen3-4B-8prompt-candidate-1`, selected by **D31 plus D32**; no runtime profile
+or capability is adopted. See the audit's
+[self-contained promotion proof](../../docs/research/maverick-fp8-pinned-header-audit.md#6-self-contained-exact-promotion-proof).
+
+No implementation, checkpoint acquisition, payload read, heavy execution or
+serving is authorized. Payload integrity, positive finite scale values, tied
+head equality, totality/no-wrap proofs, quality and all other method gates remain
+unproved. Header/index `total_size` drift is not repaired or waived. Official Qwen
+metadata still does not identify the Maverick authors' evaluated artifact.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -777,6 +802,7 @@ numeric repairs are permitted.
 | D29 | Approved conditionally: bounded SIGMA nExp | Exact S-E local implementation; records, owner quotes, floor proofs and privacy gates remain; no full softmax/normalization, decoder or SDK promotion. |
 | D30 | Approved: bounded THOR reconciliation study | Exact printed/artifact candidates and budgets only; no hybrid, numerical/backend adoption or encrypted execution. |
 | D31 | Approved: Maverick mathematical map/quality criteria | Exact named numeric-only candidate; no implementation/heavy execution, achieved proof/quality qualification, security/storage/batch or generation approval. |
+| D32 | Approved: Maverick pinned BF16 scale-storage amendment | Exact BF16-to-F32 promotion before unchanged D31 multiplication only; source values/integrity/ties, proofs and quality remain unproved, with no implementation or heavy-execution authorization. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
