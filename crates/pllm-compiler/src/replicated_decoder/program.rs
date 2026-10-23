@@ -3,6 +3,9 @@ use pllm_models::{DecoderExpansionBudget, DecoderGraph, DecoderWorkload, ModelOp
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[path = "private_matrix_driver.rs"]
+pub(super) mod private_matrix_driver;
+
 #[path = "graph.rs"]
 mod graph;
 
@@ -1510,57 +1513,14 @@ impl Builder {
             return self.linear_chunks(input, &weight, rescale);
         }
         let rows = input.words.len() / inner;
-        let tile = (puma::MAX_LANES / inner).min(128);
-        let mut words = Words::new();
-        for row in input.words.chunks_exact(inner) {
-            let mass = self.row_certificate(&row, inner, &self.row_masses);
-            let left = self.gather(&row)?;
-            for start in (0..columns).step_by(tile) {
-                let n = tile.min(columns - start);
-                let right = weight.gather(self, start, n, 0, inner)?;
-                let norm = if attention && !self.attention_energies.is_empty() {
-                    self.attention_dot(&row, &weight, start, n, inner, left, right)?
-                } else {
-                    None
-                };
-                let output = self.product_with_norm(
-                    left,
-                    right,
-                    Some(MatrixShape::new(1, inner, n)?),
-                    rescale,
-                    norm,
-                )?;
-                if let Some(mass) = mass {
-                    // Only intact native softmax rows carry nonnegative mass.
-                    // Ordinary product/quarter-ring admission above still runs;
-                    // this proof tightens the result passed to later operators.
-                    let values = self.nodes[right].bounds;
-                    let bound = |v: i64| {
-                        i64::try_from(i128::from(v) * i128::from(mass)).map_err(|_| Error::Bounds)
-                    };
-                    let mut range = Interval::new(
-                        bound(values.lower().min(0))?,
-                        bound(values.upper().max(0))?,
-                    )?;
-                    if rescale {
-                        range = Interval::new(
-                            range.lower().div_euclid(ONE),
-                            -(-range.upper()).div_euclid(ONE),
-                        )?;
-                    }
-                    let ordinary = self.nodes[output].bounds;
-                    self.nodes[output].bounds = Interval::new(
-                        ordinary.lower().max(range.lower()),
-                        ordinary.upper().min(range.upper()),
-                    )?;
-                }
-                words.extend((0..n).map(|i| (output, i)));
-            }
-        }
-        Ok(View {
-            words,
-            shape: vec![1, rows, columns],
-        })
+        private_matrix_driver::expanded(
+            self,
+            input,
+            &weight,
+            [rows, inner, columns],
+            rescale,
+            attention,
+        )
     }
 
     fn public_matrix(
