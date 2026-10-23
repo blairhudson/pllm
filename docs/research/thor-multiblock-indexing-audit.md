@@ -590,6 +590,10 @@ artifact paths remain separately labeled oracle candidates.
 
 ### Proposed next bounded experiment — approval still required
 
+**Approval update, 23 October 2026:** the user approved this exact bounded study
+as D30. The historical heading remains for stable links. Execution/results and
+profile adoption are not established by approval.
+
 Smallest useful request: one reusable, source-independent Python reconciliation
 experiment and ordinary output; no copied source tree, evidence archive,
 tensor/checkpoint download, upstream import/execution, network, HE/native call,

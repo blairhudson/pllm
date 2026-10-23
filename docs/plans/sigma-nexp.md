@@ -1,9 +1,10 @@
 # SIGMA bounded nExp owning region
 
-Status: **UNAPPROVED PROPOSAL — DOCUMENTATION ONLY**.
-Recorded 22 October 2026. Parent review and explicit user approval are required
-before implementation. No decision number is assigned. This document adopts no
-executable, numeric profile, source artifact or validation result.
+Status: **CONDITIONAL LOCAL IMPLEMENTATION APPROVED — D29, 23 October 2026**.
+The user selected the exact bounded decision below. Canonical records, actual
+owner quotes and table-floor evidence remain required before their respective
+construction/hash/issuance boundaries. Approval establishes no implementation,
+validation result, whole-method profile or source artifact.
 D17/D19/D20/D22/D27 remain unchanged and do not authorize this new composition.
 
 Source audit: [`../research/sigma-normalization-softmax-audit.md`](../research/sigma-normalization-softmax-audit.md).
@@ -11,7 +12,7 @@ No code edits, builds, tests or benchmarks accompanied this proposal.
 
 ## Next user decision — bounded nExp only, after D27
 
-**Proposed decision wording; not an approval record:**
+**Exact wording selected by the user; approval is recorded in D29:**
 
 > Approve **conditional local nExp implementation only**: 1–256 ring50/Q12 lanes,
 > original-owner `0 <= X < 2^38` provenance, paper Select16 clipping, private
@@ -107,7 +108,7 @@ Three proposed adaptations must not be described as verbatim source execution:
 | TR16,8 | Pinned CPU `TruncateReduce`, `api.cpp:2850–2913`, reconstructs in one exchange. | Existing D17/GPU127 arithmetic owner uses carry and output exchanges: two. |
 | Final GapARS12 | Paper Fig.8 returns party shares of the masked result. | Existing arithmetic owner reconstructs an opaque common-masked result, adding that explicit output boundary. |
 
-Consequently, eleven exchanges below describe an **UNAPPROVED PROPOSED PLLM
+Consequently, eleven exchanges below describe a **CONDITIONALLY APPROVED PLLM
 composition**, not a verbatim paper/CPU schedule or an observed runtime.
 
 Proposed geometry: **1–256 independent lanes**, under the existing combined
@@ -366,7 +367,7 @@ survive until product consumes them. Retained frames can keep backing/leases
 longer. Public metadata cannot authorize additional reads or reconstruct a
 coordinate capability. No intermediate is exported.
 
-## Proposed local wire contract — also unapproved
+## Proposed local wire contract — activation remains gated
 
 Reuse the existing typed activation wrapper convention: a consuming local frame
 enum owns one unchanged native frame and its original lease
@@ -667,7 +668,8 @@ local role isolation nor successful masked arithmetic settles this gate.
   every out-of-domain code before operation entropy/secret allocation. No D22
   or D27 extension to attention/nExp is assumed. The role-split, original-source
   retention and enforced sibling-abort mechanisms themselves are already present
-  for D22; only their new nExp-specific composition/admission remains unapproved.
+  for D22; D29 conditionally approves their new nExp-specific composition, not
+  established admission or qualification evidence.
 - Reuse/extraction and execution of existing rational floor certificates against
   every selected literal; ordered mapping/source/table/mask provenance proof.
 - Before security qualification: independent privacy review of both D19 lookup

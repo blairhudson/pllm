@@ -1,12 +1,12 @@
-# Maverick M-N: source recovery and an unadopted numerical completion
+# Maverick M-N: source recovery and selected mathematical map
 
 **M-N remains blocked. M-D remains separate.** This is a
-source-recovery result and approval proposal, not an adopted execution profile or
+source-recovery result and D31-approved mathematical map, not an adopted execution profile or
 evidence of source-faithful model execution. See the
 [scoped reviewer decision](../plans/maverick-numeric-completion.md).
 An independently implemented, unambiguous paper construction needs no new fidelity
-permission. This proposal requests review only of actual numerical adaptations;
-the current task authorizes documentation, not their implementation or execution.
+permission. The user selected the exact map and screening criteria on 23 October
+2026; that decision authorizes neither implementation nor heavy execution.
 No runtime/compiler file, capability, security parameter, or allocation cap changes.
 
 ## 1. Result and bounded search

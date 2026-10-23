@@ -688,6 +688,60 @@ Choice A's qualification-only randomness exception is not approved. Design/revie
 permission establishes neither secure backend/profile adoption nor a completed
 paper method, and authorizes no key generation or encrypted execution.
 
+## D29. Conditional bounded SIGMA nExp implementation
+
+**Explicitly approved by the user on 23 October 2026:** S-E's exact
+[conditional local nExp packet](../../docs/plans/sigma-nexp.md#next-user-decision--bounded-nexp-only-after-d27).
+Scope is 1–256 ring50/Q12 lanes with original-owner `0 <= X < 2^38`
+provenance, Select16, private byte coordinates, two reconstructed D19 lookups,
+fresh-masked consuming product and reconstructed GapARS50,12. Preserve the
+specified equation, eighteen uses, eleven exchanges/twenty-two frames and
+documented CPU/paper departures, 64 MiB ceiling and continuous original charges.
+
+Reviewed canonical records, actual owner layout/quote census and exact table-floor
+evidence are required before their respective construction/hash/issuance boundaries.
+Conditional approval permits implementing those prerequisites, not bypassing them.
+Require zero-draw invalid-root rejection, both-role burn/barrier and the fixed
+`1688 + 208L` peer-byte contract. Joint-transcript privacy remains unqualified.
+No new source/range authority, D22/D27 extraction, general post-D22 Multiply,
+normalization, full softmax, transport, decoder or SDK promotion is approved.
+
+## D30. Bounded THOR printed/artifact reconciliation study
+
+**Explicitly approved by the user on 23 October 2026:** T-S's exact
+[bounded study](../../docs/research/thor-multiblock-indexing-audit.md#proposed-next-bounded-experiment--approval-still-required).
+Compare complete printed-literal and pinned artifact-call compositions, no hybrid
+or repairs, at the declared 261 points/function with Decimal 80/160 checks and
+separate binary64 diagnostics, retaining artifact Stockmeyer grouping.
+
+One reusable Python experiment and ordinary output; one CPU process, at most
+5,000 complete candidate-point evaluations, 30 seconds, 64 MiB working memory and
+1 MiB output. No installs, network, checkpoints, upstream execution, native/HE or
+builds. Preserve nonfinite values and precision sensitivity. Baselines are not
+certified oracles. No profile/backend adoption, evaluated-run binding, quality,
+encrypted execution or silent repair is approved by this study.
+
+## D31. Maverick mathematical map and quality-screen choices
+
+**Explicitly approved by the user on 23 October 2026:** M-N's exact
+[numeric-only decision](../../docs/plans/maverick-numeric-completion.md#recommendation-and-exact-decision),
+`M-N/Qwen3-4B-8prompt-candidate-1`, as a disclosed source-derived adaptation.
+This selects the packet's pinned official FP8 artifact, multiplied 128×128
+E4M3FN scales, nearest-even fixed-Q8 inputs/weights, direct centered-rational
+division by 65,536 to BF16, specified local arithmetic/cast order and BF16-head
+exception—not official dynamic-FP8 execution or recovered author numerics.
+
+Scope remains eight IDs at positions 0–7 to all 151,936 final logits; no selection,
+feedback or reusable KV. Honest no-wrap and all-canonical-reply totality proofs
+remain required. Screening criteria: 1,024 pinned cases, at least 973 top-1 matches
+against the specified BF16 oracle, mean NLL increase at most `ln(1.05)`, zero
+failures and exact delegated/clear-candidate parity. Approval proves none of these.
+
+Only the mathematical map and screening choices are selected. No implementation,
+checkpoint acquisition or heavy execution, security/batch/storage/party/cap change
+is authorized. M-B/M-C/M-S/M-D and remaining M-N evidence stay gated; no silent
+numeric repairs are permitted.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -720,6 +774,9 @@ paper method, and authorizes no key generation or encrypted execution.
 | D26 | Approved: opt-in compact PUMA semantic outer representation | Stored-descriptor counting and audited whole-program peak ownership retain 65,536/64 MiB ceilings; same runtime/PRSS and complete-request work, certificate mapping and automatic semantic dispatch need validation; changed schedules/framing need separately approved identity. |
 | D27 | Approved: bounded SIGMA D22 consuming role split | Distinct native/compiler role owners move original material, source backing and continuous reservations; unchanged coupled API, equations and eleven-exchange transcript; coordinator burns both siblings on failure; no Multiply, transport or SDK promotion. |
 | D28 | Approved: secure HE client sampling seam design/review | Cover original generation and all internal expansions; preserve distributions, arithmetic and D4 gates. RNG, implementation, revised pin and security/resource contract require separate approval before generation; no qualification-only randomness exception. |
+| D29 | Approved conditionally: bounded SIGMA nExp | Exact S-E local implementation; records, owner quotes, floor proofs and privacy gates remain; no full softmax/normalization, decoder or SDK promotion. |
+| D30 | Approved: bounded THOR reconciliation study | Exact printed/artifact candidates and budgets only; no hybrid, numerical/backend adoption or encrypted execution. |
+| D31 | Approved: Maverick mathematical map/quality criteria | Exact named numeric-only candidate; no implementation/heavy execution, achieved proof/quality qualification, security/storage/batch or generation approval. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

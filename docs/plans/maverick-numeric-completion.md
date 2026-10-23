@@ -1,7 +1,8 @@
 # Maverick: scoped numerical-completion decision
 
-**Review packet only; no approval, adoption or implementation.**
-M-N remains blocked; M-D remains separate. Normative proposed arithmetic, source
+**Mathematical map/quality-screen choices approved — D31, 23 October 2026.**
+Implementation and heavy execution are not authorized. M-N's source, proof,
+quality and execution gates remain blocked; M-D remains separate. Selected arithmetic, source
 pins, tensor inventory, graph and acceptance rules are in
 [the numerical proposal](../research/maverick-numeric-source-recovery.md), §§2–4.
 This packet changes no stable contract, paper claim, capability or allocation cap.
@@ -17,7 +18,7 @@ unavailability alone is not an adaptation or permission gate. The BF16-head
 exception and the proposed numerical realization below need the narrow review
 requested here; source facts cannot be created by approval.
 
-Proposed decision text for the user, **not a decision already made**:
+Exact numeric-only decision selected by the user; recorded in D31:
 
 > Approve only the mathematical map and quality-screen choices in numerical
 > proposal §§2–4, named `M-N/Qwen3-4B-8prompt-candidate-1`, as a separately
