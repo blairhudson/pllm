@@ -833,6 +833,34 @@ clear-root range checks do not mint compiler attention/source certificates.
 Allocator, private callframe and physical-memory obligations remain separate.
 D29's nExp component checks do not establish this outer composition.
 
+## D37. Specify seven separately selectable method-completion contracts
+
+**Explicitly approved by the user on 24 October 2026:** prepare the N-N, B-S,
+M-X, C-S, R-S, H-F and N-G design packets in the
+[bounded execution decision sheet](../../docs/plans/ten-method-execution-decisions.md).
+Each packet must return a separate implementation or adoption decision:
+
+- **N-N:** width-768 QuickSum, centered-energy layout, padding, work and owner
+  ceilings; no inverse, epsilon or HE adoption.
+- **B-S:** paper-derived arithmetic and exact HE/OT/key/error attachments;
+  no numerical-profile or backend adoption.
+- **M-X:** one priced original-eight-token storage/window/batch candidate,
+  preserving parties and verification; no generation or preprocessing-to-fit.
+- **C-S:** paper-aligned reciprocal numerics and immutable cache/append/refresh
+  lifecycle; no evaluated-source claim or state-policy adoption.
+- **R-S:** four-segment reciprocal, exact conversions, key/error graph and bounded
+  qualification proposal; no generic public-LUT substitute or backend adoption.
+- **H-F:** fallible entropy/fork, shuffle, erasure and resource contract; D28
+  remains design-only, with no sampler implementation or RNG/pin change.
+- **N-G:** explicit GELU target, candidate, domain, error and boundary policies,
+  acknowledging the proven error lower bound; no new sweep or numerical adoption.
+
+These are specification commissions, not permission to fill missing evidence with
+defaults. Missing author/source, security, numerical or capacity evidence must
+remain explicitly unresolved. No model runs, changed caps, disclosure changes,
+runtime authority, SDK promotion or completed-method claims are authorized.
+D34/D35/D36 and their existing limits remain unchanged.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -873,6 +901,7 @@ D29's nExp component checks do not establish this outer composition.
 | D34 | Approved: implement selected Maverick numeric map | D31/D32 primitives and fixed eight-ID clear correctness oracle; no new numeric/protocol adaptation, trained-model run, generation or SDK/security qualification. |
 | D35 | Approved: 31 tiny HE storage tests | Only compiled `staged_storage`, one test thread and fresh D33 admission; no HE keys/ciphertexts, solver, refresh, RNG/pin changes or backend adoption. |
 | D36 | Approved conditionally: one-row SIGMA causal softmax, active count 1–3 | Paper widths, inherited nExp and exact floors; genuine owners/internal uses and full work/storage admission before issuance; no full-row, normalization, SDK, transport or joint-privacy promotion. |
+| D37 | Approved: seven design-only method-completion packets | Specify N-N/B-S/M-X/C-S/R-S/H-F/N-G separately; no numerical/backend/state/RNG adoption, implementation, model execution, cap increases or manufactured source evidence. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
