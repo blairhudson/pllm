@@ -6,13 +6,20 @@
 
 use super::*;
 use crate::decoder_matrix_inventory::{
-    admit_inventory_for_original_owner, owned_inventory_bootstrap_bytes,
+    admit_inventory_for_original_owner, admit_inventory_for_plan_owner,
+    owned_inventory_bootstrap_bytes,
 };
+use crate::original_plan_owner::{OriginalPlanOwner, OriginalPlanRef};
+use crate::original_source::OriginalSourcePlan;
 use pllm_garble::masked_wire_reference::typed;
 use pllm_garble::shared_allocation::{
     Error as NativeError, OwnedBudget, OwnedCharged, OwnedExternalCharge,
 };
 use pllm_types::{Digest, NamedDigest};
+use std::{
+    alloc::Layout,
+    sync::{atomic::AtomicUsize, Arc},
+};
 
 /// Incoming, already charged publisher declaration. The upstream typed builder
 /// must reserve BEFORE constructing its strings/vectors. This factory checks
@@ -123,9 +130,14 @@ pub struct OwnedSigmaInput {
     _charge: OwnedExternalCharge,
 }
 
-/// Opaque original input custody, retained by external Rust session owners.
+/// Opaque original input custody, also retained by the existing execution Arc
+/// through masks, frames, roles and outputs; callers may drop this sidecar.
 /// No pin/plan/source/guard extraction or lifetime extension is available.
 pub struct OwnedSigmaInputRetention {
+    inner: Arc<InputCustody>,
+}
+
+struct InputCustody {
     semantic: OwnedPlanInventory,
     publisher: OwnedCharged<PublisherDeclaration>,
     charge: OwnedExternalCharge,
@@ -133,24 +145,31 @@ pub struct OwnedSigmaInputRetention {
 
 impl OwnedSigmaInputRetention {
     pub fn preparation_work(&self) -> Option<PreparationWork> {
-        self.semantic.preparation_work
+        self.inner.semantic.preparation_work
     }
 
     pub fn is_budget(&self, budget: &pllm_garble::shared_allocation::Budget) -> bool {
-        self.charge.is_for(budget)
-            && std::ptr::eq(self.semantic.budget(), budget)
-            && std::ptr::eq(self.publisher.budget(), budget)
+        self.inner.charge.is_for(budget)
+            && std::ptr::eq(self.inner.semantic.budget(), budget)
+            && std::ptr::eq(self.inner.publisher.budget(), budget)
             && self
+                .inner
                 .semantic
                 .raw
                 .as_ref()
                 .is_none_or(|raw| std::ptr::eq(raw.budget(), budget))
     }
+
+    pub(super) fn retain(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
 }
 
 struct OwnedPlanInventory {
     inventory: OwnedCharged<DecoderMatrixInventory>,
-    input: OwnedCharged<DecoderPlan>,
+    input: OriginalPlanOwner,
     // Original immutable bytes, not a reconstructed/re-encoded surrogate.
     // Kept through the existing session residue with all original charges.
     raw: Option<OwnedCharged<Vec<u8>>>,
@@ -162,10 +181,10 @@ impl OwnedPlanInventory {
         self.inventory.payload()
     }
     fn plan(&self) -> &DecoderPlan {
-        self.input.payload()
+        self.input.borrow().plan()
     }
     fn budget(&self) -> &pllm_garble::shared_allocation::Budget {
-        self.input.budget()
+        self.input.borrow().budget()
     }
 }
 
@@ -225,6 +244,19 @@ pub fn bootstrap_bytes() -> Result<usize, InputError> {
     n = add(n, size_of::<Vec<u8>>())?;
     n = add(n, size_of::<Operation<'static>>())?;
     n = add(n, size_of::<OwnedSigmaInputRetention>())?;
+    n = add(n, size_of::<InputCustody>())?;
+    n = add(n, 3 * size_of::<Arc<InputCustody>>())?;
+    n = add(
+        n,
+        Layout::new::<[AtomicUsize; 2]>()
+            .extend(Layout::new::<InputCustody>())
+            .map_err(|_| InputError::Resource)?
+            .0
+            .pad_to_align()
+            .size(),
+    )?;
+    n = add(n, size_of::<SourceInputLimits>())?;
+    n = add(n, size_of::<OriginalPlanRef<'_>>())?;
     n = add(
         n,
         size_of::<(
@@ -295,6 +327,15 @@ pub struct PlanInputLimits {
     pub parse: crate::plan_input::Limits,
     pub inventory_work: u128,
     pub max_work: u128,
+}
+
+/// Additional SIGMA preparation work only. The genuine source owner retains its
+/// separately prepaid factory/JSON work and cumulative ledger unchanged. Neither
+/// source quota nor historical source work is reset, refunded or lent here.
+#[derive(Clone, Copy, Debug)]
+pub struct SourceInputLimits {
+    pub inventory_work: u128,
+    pub max_additional_work: u128,
 }
 
 /// Read-only prepaid accounting, retained with the original plan/byte owners.
@@ -494,6 +535,56 @@ pub fn prepare_from_plan_bytes(
     Ok(prepared)
 }
 
+/// Consume the actual original config-factory owner. No plan serialization,
+/// parser, cloned DecoderPlan, checkpoint-authentication or new execution path.
+/// All original source/root/raw/Value guards stay in the shared input custody.
+pub fn prepare_from_original_source(
+    source: OriginalSourcePlan,
+    publisher: OwnedCharged<PublisherDeclaration>,
+    source_working: OwnedExternalCharge,
+    inventory_working: OwnedExternalCharge,
+    limits: SourceInputLimits,
+) -> Result<OwnedSigmaInput, InputError> {
+    if !std::ptr::eq(source.budget(), publisher.budget())
+        || !source_working.is_for(source.budget())
+        || !inventory_working.is_for(source.budget())
+    {
+        return Err(InputError::BudgetIdentity);
+    }
+    if source_working.payload_bytes() < bootstrap_bytes()?
+        || inventory_working.payload_bytes() < inventory_bootstrap_bytes()?
+    {
+        return Err(InputError::Resource);
+    }
+    // Same backing check as raw input; do NOT run a third pin/geometry quote.
+    if add(
+        size_of::<OwnedCharged<PublisherDeclaration>>(),
+        publisher.payload().backing_bytes()?,
+    )? > publisher.charged_bytes()
+    {
+        return Err(InputError::PublisherOwner);
+    }
+    let metadata = metadata_work(publisher.payload())?;
+    let total = work_add(metadata, limits.inventory_work)?;
+    if total > limits.max_additional_work {
+        return Err(InputError::Work);
+    }
+    let mut prepared = prepare_owner(
+        OriginalPlanOwner::Source(source),
+        publisher,
+        source_working,
+        inventory_working,
+        limits.inventory_work,
+    )?;
+    prepared.semantic.preparation_work = Some(PreparationWork {
+        parse: 0,
+        inventory: limits.inventory_work,
+        metadata,
+        total,
+    });
+    Ok(prepared)
+}
+
 fn quote(publisher: &OwnedCharged<PublisherDeclaration>) -> Result<Quote, InputError> {
     let p = publisher.payload();
     let publisher_owner_bytes = add(
@@ -537,13 +628,29 @@ fn quote(publisher: &OwnedCharged<PublisherDeclaration>) -> Result<Quote, InputE
 pub fn prepare(
     plan: OwnedCharged<DecoderPlan>,
     publisher: OwnedCharged<PublisherDeclaration>,
+    source_working: OwnedExternalCharge,
+    inventory_working: OwnedExternalCharge,
+    max_inventory_work: u128,
+) -> Result<OwnedSigmaInput, InputError> {
+    prepare_owner(
+        OriginalPlanOwner::Charged(plan),
+        publisher,
+        source_working,
+        inventory_working,
+        max_inventory_work,
+    )
+}
+
+fn prepare_owner(
+    plan: OriginalPlanOwner,
+    publisher: OwnedCharged<PublisherDeclaration>,
     mut source_working: OwnedExternalCharge,
     inventory_working: OwnedExternalCharge,
     max_inventory_work: u128,
 ) -> Result<OwnedSigmaInput, InputError> {
-    if !source_working.is_for(plan.budget())
-        || !inventory_working.is_for(plan.budget())
-        || !std::ptr::eq(publisher.budget(), plan.budget())
+    if !source_working.is_for(plan.borrow().budget())
+        || !inventory_working.is_for(plan.borrow().budget())
+        || !std::ptr::eq(publisher.budget(), plan.borrow().budget())
     {
         return Err(InputError::BudgetIdentity);
     }
@@ -562,9 +669,15 @@ pub fn prepare(
     if resources.publisher_owner_bytes > publisher.charged_bytes() {
         return Err(InputError::PublisherOwner);
     }
-    let inventory =
-        admit_inventory_for_original_owner(&plan, inventory_working, max_inventory_work)
-            .map_err(InputError::Inventory)?;
+    let inventory = match plan.borrow() {
+        OriginalPlanRef::Charged(input) => {
+            admit_inventory_for_original_owner(input, inventory_working, max_inventory_work)
+        }
+        source @ OriginalPlanRef::Source(_) => {
+            admit_inventory_for_plan_owner(source, inventory_working, max_inventory_work)
+        }
+    }
+    .map_err(InputError::Inventory)?;
     let semantic = OwnedPlanInventory {
         input: plan,
         inventory,
@@ -753,6 +866,17 @@ impl OwnedSigmaInput {
             publisher,
             _charge: charge,
         } = self;
+        // All backing/control/Arc slots were included in the original source
+        // preparation charge, BEFORE any metadata/native factory. Move guards;
+        // never shrink, refund, clone a plan or reacquire a replacement lease.
+        let retention = OwnedSigmaInputRetention {
+            inner: Arc::new(InputCustody {
+                semantic,
+                publisher,
+                charge,
+            }),
+        };
+        let semantic = &retention.inner.semantic;
         let request = SigmaLinearActivationRequest {
             plan: semantic.plan(),
             selection,
@@ -772,7 +896,7 @@ impl OwnedSigmaInput {
             source_coefficients: operation.source_coefficients,
             encoded_private_coefficients: operation.encoded_private_coefficients,
         };
-        let result = execute_owned_sigma_linear_activation(
+        let result = super::execution::execute_owned_retaining_input(
             pin,
             supplied,
             request,
@@ -780,19 +904,10 @@ impl OwnedSigmaInput {
             root,
             dealer,
             input,
+            retention.retain(),
         )
         .map_err(InputError::Execution);
-        result.map(|(mask, run)| {
-            (
-                mask,
-                run,
-                OwnedSigmaInputRetention {
-                    semantic,
-                    publisher,
-                    charge,
-                },
-            )
-        })
+        result.map(|(mask, run)| (mask, run, retention))
     }
 }
 

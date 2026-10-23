@@ -31,6 +31,7 @@ mod delegated_decoder;
 pub mod delegation_publication_inventory;
 pub mod encrypted_level_schedule;
 pub mod fss_decoder;
+mod original_plan_owner;
 #[doc(hidden)]
 pub mod original_source;
 pub mod replicated_decoder;

@@ -52,7 +52,8 @@ mod construction;
 
 // Compiler-only typed owning-input funnel; no raw import/SDK registration.
 pub(crate) use construction::{
-    admit_inventory_for_original_owner, owned_inventory_bootstrap_bytes,
+    admit_inventory_for_original_owner, admit_inventory_for_plan_owner,
+    owned_inventory_bootstrap_bytes,
 };
 
 pub const DECODER_MATRIX_INVENTORY_SCHEMA_VERSION: &str = "pllm.decoder_matrix_inventory.v1";

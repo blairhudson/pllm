@@ -2,6 +2,9 @@ use super::super::tests::{plan, request};
 use super::*;
 use pllm_core::edge_contract::EdgeIdentity;
 
+#[path = "source_input_tests.rs"]
+mod source_input;
+
 const LIMIT: usize = 64 << 20;
 const WORK: u128 = 1 << 28;
 

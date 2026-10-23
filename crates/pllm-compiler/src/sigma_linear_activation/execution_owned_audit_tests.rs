@@ -59,6 +59,9 @@ fn independently_enumerated_phases() -> SigmaCompilerPhases {
         typed::LocalLinearActivationSpec::checked_resource_calculation_resources().unwrap();
 
     let quote_records = total([
+        // Independent caller/continuation custody slots, not source backing.
+        size_of::<Option<super::super::input_owner::OwnedSigmaInputRetention>>(),
+        size_of::<Option<super::super::input_owner::OwnedSigmaInputRetention>>(),
         size_of::<SigmaCompilerPhases>(),
         size_of::<model_canonical::ResourceQuote>(),
         size_of::<EdgeContractResourceQuote>(),

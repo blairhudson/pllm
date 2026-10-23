@@ -1140,11 +1140,13 @@ pub use input_owner::{
     bootstrap_bytes as owned_sigma_input_source_bootstrap,
     inventory_bootstrap_bytes as owned_sigma_input_inventory_bootstrap,
     prepare as prepare_owned_sigma_input,
+    prepare_from_original_source as prepare_owned_sigma_input_from_original_source,
     prepare_from_plan_bytes as prepare_owned_sigma_input_from_plan_bytes,
     InputError as SigmaInputError, Operation as OwnedSigmaOperation, OwnedSigmaInput,
     OwnedSigmaInputRetention, PlanInputLimits as OwnedSigmaPlanInputLimits,
     PreparationWork as OwnedSigmaPreparationWork,
     PublisherDeclaration as SigmaPublisherDeclaration,
+    SourceInputLimits as OwnedSigmaSourceInputLimits,
 };
 
 #[cfg(test)]

@@ -5,6 +5,7 @@
 //! admission grows the SAME guard before issuance; transfer never refunds it.
 //! Native provenance remains LocalAssumption; no decoder or elevation claim.
 
+use super::input_owner::OwnedSigmaInputRetention;
 use super::*;
 use pllm_garble::masked_wire_reference::{matrix, typed};
 use pllm_garble::shared_allocation::{
@@ -183,7 +184,8 @@ impl SigmaExecutionContext for OwnedBudgetContext {
 }
 
 /// Original transferred inputs drop before workspace and guard on every error.
-/// No plan/inventory/borrowed buffer is cloned or retained by the returned owner.
+/// No plan/inventory/borrowed buffer is cloned. The owning input continuation
+/// additionally moves its actual custody into the existing retention Arc.
 struct SigmaCompilerAdmissionFor<'a, C: SigmaExecutionContext> {
     request: Option<SigmaLinearActivationRequest<'a>>,
     expected: Option<ExpectedSigmaSourcePin>,
@@ -228,6 +230,9 @@ impl SigmaCompilerPhases {
         // Quote records are concrete owned records, not the reservation values
         // described by those records. Count their entire retained population.
         let quote_records = execution_sum([
+            // Resident optional input-custody move/result slots. Its original
+            // Arc backing/source guards remain separately reserved, never lent.
+            2 * size_of::<Option<OwnedSigmaInputRetention>>(),
             size_of::<Self>(),
             size_of::<model_canonical::ResourceQuote>(),
             size_of::<EdgeContractResourceQuote>(),
@@ -509,7 +514,7 @@ pub fn execute_sigma_linear_activation<'b>(
     input: &[i64],
 ) -> Result<(SigmaExecutionMask<'b>, SigmaExecutionRun<'b>), SigmaExecutionError> {
     execute_with_context::<&'b Budget>(
-        expected, supplied, request, inventory, &budget, dealer, input,
+        expected, supplied, request, inventory, &budget, dealer, input, None,
     )
 }
 
@@ -526,7 +531,32 @@ pub fn execute_owned_sigma_linear_activation(
     input: &[i64],
 ) -> Result<(OwnedSigmaExecutionMask, OwnedSigmaExecutionRun), SigmaExecutionError> {
     execute_with_context::<OwnedBudgetContext>(
-        expected, supplied, request, inventory, budget, dealer, input,
+        expected, supplied, request, inventory, budget, dealer, input, None,
+    )
+}
+
+/// Compiler-private continuation of genuine owning input custody. Same source
+/// verifier/compiler/native algorithm; no alternate pin or proof issuer.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn execute_owned_retaining_input(
+    expected: ExpectedSigmaSourcePin,
+    supplied: SigmaSourceBytes<'_>,
+    request: SigmaLinearActivationRequest<'_>,
+    inventory: &DecoderMatrixInventory,
+    budget: &OwnedBudget,
+    dealer: &mut typed::OwnedLocalDealer,
+    input: &[i64],
+    retention: OwnedSigmaInputRetention,
+) -> Result<(OwnedSigmaExecutionMask, OwnedSigmaExecutionRun), SigmaExecutionError> {
+    execute_with_context::<OwnedBudgetContext>(
+        expected,
+        supplied,
+        request,
+        inventory,
+        budget,
+        dealer,
+        input,
+        Some(retention),
     )
 }
 
@@ -539,9 +569,14 @@ fn execute_with_context<C: SigmaExecutionContext>(
     root: &C::Root,
     dealer: &mut typed::LocalDealerFor<C>,
     input: &[i64],
+    input_custody: Option<OwnedSigmaInputRetention>,
 ) -> Result<(SigmaExecutionMaskFor<C>, SigmaExecutionRunFor<C>), SigmaExecutionError> {
     let budget = C::root_budget(root);
-    if !dealer.is_budget(budget) {
+    if !dealer.is_budget(budget)
+        || input_custody
+            .as_ref()
+            .is_some_and(|owner| !owner.is_budget(budget))
+    {
         return Err(SigmaExecutionError::BudgetIdentity);
     }
     let payload = execution_payload_quote_for::<C>(&expected, &request)?;
@@ -601,13 +636,16 @@ fn execute_with_context<C: SigmaExecutionContext>(
         )
         // Admission's workspace and vacated input fields retire before transfer.
     };
-    consume_checked_local_from_reserved_for::<C>(checked, budget, dealer, input, charge)
+    consume_checked_with_input::<C>(checked, budget, dealer, input, charge, input_custody)
 }
 
 /// Source and coefficients erase before the last accounting guard refunds.
 /// No public Arc/Weak, source owner, guard, native owner or lease escape exists.
 struct RetainedSourceFor<C: SigmaExecutionContext> {
     checked: SourceCheckedSigmaLinearActivation,
+    // Ordered after verified bytes/coefficients and before the execution charge.
+    // Mask, frames, roles and outputs already retain this SAME existing Arc.
+    _input_custody: Option<OwnedSigmaInputRetention>,
     _charge: C::Charge,
 }
 #[cfg(test)]
@@ -1138,6 +1176,7 @@ fn consume_checked_local_from_reserved<'b>(
     consume_checked_local_from_reserved_for::<&'b Budget>(checked, budget, dealer, input, charge)
 }
 
+#[cfg(test)]
 fn consume_checked_local_from_reserved_for<C: SigmaExecutionContext>(
     checked: SourceCheckedSigmaLinearActivation,
     budget: &Budget,
@@ -1145,10 +1184,22 @@ fn consume_checked_local_from_reserved_for<C: SigmaExecutionContext>(
     input: &[i64],
     charge: C::Charge,
 ) -> Result<(SigmaExecutionMaskFor<C>, SigmaExecutionRunFor<C>), SigmaExecutionError> {
+    consume_checked_with_input::<C>(checked, budget, dealer, input, charge, None)
+}
+
+fn consume_checked_with_input<C: SigmaExecutionContext>(
+    checked: SourceCheckedSigmaLinearActivation,
+    budget: &Budget,
+    dealer: &mut typed::LocalDealerFor<C>,
+    input: &[i64],
+    charge: C::Charge,
+    input_custody: Option<OwnedSigmaInputRetention>,
+) -> Result<(SigmaExecutionMaskFor<C>, SigmaExecutionRunFor<C>), SigmaExecutionError> {
     // A stack owner enforces source-erasure-before-refund on EVERY error path,
     // including wrong-budget/shape rejection before allocating Arc backing.
     let owner = RetainedSourceFor::<C> {
         checked,
+        _input_custody: input_custody,
         _charge: charge,
     };
     if !dealer.is_budget(budget) || !C::charge_is_for(&owner._charge, budget) {

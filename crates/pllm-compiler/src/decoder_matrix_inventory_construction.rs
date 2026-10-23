@@ -964,6 +964,7 @@ fn bootstrap_bytes() -> Result<usize, InventoryFailure<'static>> {
     // frames, earlier Results, quote records or partially initialized metadata.
     sum!(&[
         quote_control_bytes()?,
+        size_of::<crate::original_plan_owner::OriginalPlanRef<'_>>(),
         size_of::<Context<'_>>(),
         size_of::<Result<Context<'_>, InventoryFailure<'_>>>(),
         size_of::<Result<u128, InventoryFailure<'_>>>(),
@@ -1090,6 +1091,18 @@ impl<'p> ConstructionQuote<'p> {
         working: &OwnedExternalCharge,
         limits: Limits,
     ) -> Result<(Resources, Context<'p>), InventoryFailure<'p>> {
+        Self::parts_for(
+            crate::original_plan_owner::OriginalPlanRef::Charged(input),
+            working,
+            limits,
+        )
+    }
+
+    fn parts_for(
+        input: crate::original_plan_owner::OriginalPlanRef<'p>,
+        working: &OwnedExternalCharge,
+        limits: Limits,
+    ) -> Result<(Resources, Context<'p>), InventoryFailure<'p>> {
         if working.payload_bytes() < quote_control_bytes()? {
             return Err("matrix inventory bootstrap reservation too short".into());
         }
@@ -1100,7 +1113,7 @@ impl<'p> ConstructionQuote<'p> {
         if working.payload_bytes() < bootstrap {
             return Err("matrix inventory bootstrap reservation too short".into());
         }
-        let plan = input.payload();
+        let plan = input.plan();
         // Census invokes exactly one native Cursor::new per operation's attrs.
         // Its DTO/JSON visits have their own shared meter; root-slot assignment
         // is prepaid independently, including roots skipped by early failure.
@@ -1110,7 +1123,7 @@ impl<'p> ConstructionQuote<'p> {
         // Genuine original capacities; no legacy recursive fallback or caller
         // baseline. Effective census depth remains its documented <=16 policy.
         let native_limits = census::Limits {
-            max_backing_bytes: input.charged_bytes(),
+            max_backing_bytes: input.backing_limit(),
             max_work: limits
                 .max_work
                 .checked_sub(Context::pool_work()?)
@@ -1137,11 +1150,8 @@ impl<'p> ConstructionQuote<'p> {
             (report, owner.usage().work)
         };
         context.charge(work as u128)?;
-        let input_owner_bytes = sum!(&[
-            size_of::<OwnedCharged<DecoderPlan>>(),
-            report.backing_bytes()
-        ])?;
-        if input_owner_bytes > input.charged_bytes() {
+        let input_owner_bytes = sum!(&[input.inline_bytes(), report.backing_bytes()])?;
+        if input_owner_bytes > input.reserved_bytes() {
             return Err("matrix inventory original plan reservation too short".into());
         }
         context.prepay_json_schema(report.usage().json)?;
@@ -1208,7 +1218,7 @@ impl<'p> ConstructionQuote<'p> {
         Ok((
             Resources {
                 input_owner_bytes,
-                input_reserved_bytes: input.charged_bytes(),
+                input_reserved_bytes: input.reserved_bytes(),
                 bootstrap_bytes: bootstrap,
                 row_backing_bytes,
                 index_workspace_bytes,
@@ -1389,6 +1399,18 @@ pub(crate) fn admit_inventory_for_original_owner(
     working: OwnedExternalCharge,
     max_work: u128,
 ) -> Result<OwnedCharged<DecoderMatrixInventory>, NativeError> {
+    admit_inventory_for_plan_owner(
+        crate::original_plan_owner::OriginalPlanRef::Charged(input),
+        working,
+        max_work,
+    )
+}
+
+pub(crate) fn admit_inventory_for_plan_owner(
+    input: crate::original_plan_owner::OriginalPlanRef<'_>,
+    mut working: OwnedExternalCharge,
+    max_work: u128,
+) -> Result<OwnedCharged<DecoderMatrixInventory>, NativeError> {
     if !working.is_for(input.budget()) {
         return Err(NativeError::Context);
     }
@@ -1396,35 +1418,30 @@ pub(crate) fn admit_inventory_for_original_owner(
         return Err(NativeError::Resource);
     }
     let extra = owned_inventory_control_bytes()?;
-    let quote = match ConstructionQuote::checked(input, working, Limits { max_work }) {
-        Ok(quote) => quote,
-        Err((error, working)) => {
-            // Retire the borrowed diagnostic while the original guard is live.
-            {
-                let _diagnostic = error;
+    let (resources, context) =
+        match ConstructionQuote::parts_for(input, &working, Limits { max_work }) {
+            Ok(parts) => parts,
+            Err(error) => {
+                // Retire the borrowed diagnostic while the original guard is live.
+                {
+                    let _diagnostic = error;
+                }
+                drop(working);
+                return Err(NativeError::Resource);
             }
-            drop(working);
-            return Err(NativeError::Resource);
-        }
-    };
+        };
     // Do all fallible arithmetic before destructuring the quote, whose field
     // order already retires Context before its charge on early return/unwind.
-    let payload = quote
-        .resources
+    let payload = resources
         .construction_payload_bytes
         .checked_add(extra)
         .ok_or(NativeError::Resource)?;
-    let ConstructionQuote {
-        context,
-        mut working,
-        ..
-    } = quote;
     let payload = payload.max(working.payload_bytes()); // never shrink incoming guard
     if let Err(error) = working.resize_payload(payload) {
         drop(context);
         return Err(error);
     }
-    let plan = input.payload();
+    let plan = input.plan();
     working.try_build(move |_| {
         let mut context = context;
         let result = finish(plan, &mut context);
