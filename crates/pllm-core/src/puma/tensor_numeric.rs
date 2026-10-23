@@ -4,7 +4,7 @@
 //! Every runtime executes the same graph; no exponent or selected box is opened.
 use super::*;
 
-const ONE: i64 = 1 << 18;
+pub(super) const ONE: i64 = 1 << 18;
 const DOMAINS: usize = 36;
 
 #[cfg(test)]
@@ -243,7 +243,7 @@ impl Ranged {
     }
 }
 
-fn affine(left: i64, right: i64, constant: i64) -> Affine {
+pub(super) fn affine(left: i64, right: i64, constant: i64) -> Affine {
     Affine {
         left,
         right,
@@ -376,35 +376,12 @@ impl Program {
         cosine: &[i64],
         sine: &[i64],
     ) -> Result<Self, Error> {
-        let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
-        if rows == 0
-            || width == 0
-            || width % 2 != 0
-            || cosine.len() != lanes / 2
-            || sine.len() != lanes / 2
-        {
-            return Err(Error::Shape);
-        }
+        #[cfg(test)]
+        rotary_work::entered_factory();
+        let lanes = rotary_work::geometry(rows, width, cosine.len(), sine.len())?;
         let mut b = Builder::new(lanes, input)?;
-        if cosine.iter().chain(sine).any(|c| !(-ONE..=ONE).contains(c)) {
-            return Err(Error::Bounds);
-        }
-        let x = b.input();
-        let half = width / 2;
-        let mut coefficients = [affine(0, 0, 0); MAX_TILE_LANES];
-        for (i, c) in coefficients[..lanes].iter_mut().enumerate() {
-            *c = affine(cosine[(i / width) * half + i % half], 0, 0);
-        }
-        let cosine_product = b.affine_lanes(x, &coefficients[..lanes])?;
-        let cosine_product = b.rescale(cosine_product, 18)?;
-        let swapped = b.row_map(x, width, RowMap::Rotate(half))?;
-        for (i, c) in coefficients[..lanes].iter_mut().enumerate() {
-            let s = sine[(i / width) * half + i % half];
-            *c = affine(if i % width < half { -s } else { s }, 0, 0);
-        }
-        let sine_product = b.affine_lanes(swapped, &coefficients[..lanes])?;
-        let sine_product = b.rescale(sine_product, 18)?;
-        let output = b.affine(cosine_product, Some(sine_product), affine(1, 1, 0))?;
+        rotary_work::validate_coefficients(cosine, sine)?;
+        let output = rotary_work::recipe(&mut b, width, cosine, sine)?;
         b.finish(output)
     }
 

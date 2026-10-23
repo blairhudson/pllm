@@ -1923,6 +1923,13 @@ pub use negative_work::NegativeWorkResources;
 #[path = "tensor_negative_work_tests.rs"]
 mod negative_work_tests;
 
+#[path = "tensor_rotary_work.rs"]
+mod rotary_work;
+pub use rotary_work::RotaryWorkResources;
+#[cfg(test)]
+#[path = "tensor_rotary_work_tests.rs"]
+mod rotary_work_tests;
+
 #[path = "tensor_work_preflight.rs"]
 mod work_preflight;
 pub use work_preflight::{

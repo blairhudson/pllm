@@ -14,7 +14,7 @@ pub(super) fn row_entries() -> usize {
 }
 
 /// Actual arguments, not a numeric profile or an extensible Builder callback.
-/// Gamma stays immutably borrowed through construction. Input-norm is exactly
+/// Gamma and rotary rows stay immutably borrowed through construction. Input-norm is exactly
 /// the existing general-input-row obligation, NOT an attention proof conversion.
 #[derive(Debug)]
 pub enum FactoryParameters<'a> {
@@ -46,6 +46,11 @@ pub enum FactoryParameters<'a> {
     SoftmaxCertified {
         input: Interval,
     },
+    RotaryHalf {
+        input: Interval,
+        cosine: &'a [i64],
+        sine: &'a [i64],
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,7 +68,7 @@ impl From<Error> for WorkPreflightError {
     }
 }
 
-/// Owns scalar construction parameters and borrows the original gamma, with no
+/// Owns scalar construction parameters and borrows the original public rows, with no
 /// setters/Clone or build method. Only ledger-admitted parts can construct.
 ///
 /// ```compile_fail
@@ -115,6 +120,14 @@ impl Construction {
                 P::RmsNormWithInputNorm { gamma, .. },
             ) => *gamma_len == gamma.len(),
             (
+                Self::RotaryHalf {
+                    cosine_len,
+                    sine_len,
+                    ..
+                },
+                P::RotaryHalf { cosine, sine, .. },
+            ) => *cosine_len == cosine.len() && *sine_len == sine.len(),
+            (
                 Self::Negative { .. }
                 | Self::EqualZero { .. }
                 | Self::Builder { .. }
@@ -122,7 +135,8 @@ impl Construction {
                 | Self::AllValid { .. }
                 | Self::SoftmaxCertified { .. }
                 | Self::RmsNormCertified { .. }
-                | Self::RmsNormWithInputNorm { .. },
+                | Self::RmsNormWithInputNorm { .. }
+                | Self::RotaryHalf { .. },
                 _,
             ) => false,
             _ => return Err(WorkPreflightError::Unsupported),
@@ -299,6 +313,21 @@ impl<'a> ClosedFactory<'a> {
             (Construction::SoftmaxCertified { rows, width }, P::SoftmaxCertified { input }) => {
                 Program::softmax_certified_work(*rows, *width, *input, &mut workspace.softmax)?
             }
+            (
+                Construction::RotaryHalf { rows, width, .. },
+                P::RotaryHalf {
+                    input,
+                    cosine,
+                    sine,
+                },
+            ) => Program::rotary_half_work(
+                *rows,
+                *width,
+                *input,
+                cosine,
+                sine,
+                &mut workspace.softmax,
+            )?,
             _ => return Err(WorkPreflightError::ParameterBinding),
         };
         // Numeric validation FIRST: geometry-only quoting cannot change the
@@ -363,6 +392,17 @@ impl<'a> ClosedFactory<'a> {
                 let (p, c) = Program::softmax_certified(rows, width, input)?;
                 (p, ProducedCertificate::AttentionMass(c))
             }
+            (
+                Construction::RotaryHalf { rows, width, .. },
+                P::RotaryHalf {
+                    input,
+                    cosine,
+                    sine,
+                },
+            ) => (
+                Program::rotary_half(rows, width, input, cosine, sine)?,
+                ProducedCertificate::None,
+            ),
             _ => return Err(Error::Binding),
         };
         Ok(FactoryOutput {
