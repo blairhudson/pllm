@@ -314,6 +314,29 @@ Separate approximation, protected evaluation and scheduling. Separate correlatio
 
 **Original evidence boundary:** September 2026 preprint; reported 1.5–2.1x end-to-end gains are against Cachemir, not plaintext inference. Not independently reproduced.
 
+##### ROSETTA evaluated-source recovery (23 October 2026)
+
+The locked `arXiv:2609.16915v1` PDF (SHA-256
+`b4c7195d32808881b2da8b3a6876b571d8215bbc02aaafaa78ef327aa27fb4e8`)
+names [ROSETTA_artifact-B77F](https://anonymous.4open.science/r/ROSETTA_artifact-B77F/).
+Fresh retrieval of its [public file-tree API](https://anonymous.4open.science/api/repo/ROSETTA_artifact-B77F/files/)
+returned **HTTP 410**, exact body `{"error":"repository_expired"}`; the landing
+page's HTTP 200 was only an application shell. Author-linked public listings and
+scoped archive queries yielded no replacement evaluated release. These are
+retrieval findings, not proof of universal artifact absence. Direct response
+bodies totaled 1,281,081 bytes, plus search-result metadata; no upstream code ran.
+
+The author-associated `rotation-sandbox` lead is Cachemir-labelled, not an
+identified ROSETTA evaluated revision; see the
+[CacheMir audit](#cachemir-source-recovery-and-implementation-decision-sheet).
+Still needed: immutable evaluated source/config binding exact LUT boundaries,
+coefficients/scales and endpoint/floor behavior; HomComp encoding; the actual
+65536-RLWE → 2048-RLWE → 1024-LWE secret/key-switch graph, decomposition/noise and
+recovery; and version-bound nonlinear/calibration and conversion/level costs.
+The [ROSETTA contract](../../paper/methods/encrypted-computation-contracts.md#7-rosetta-contract)
+is not completed by surrogate public-LUT PBS or by inheriting a different
+CacheMir release's numerics. No profile/backend adoption follows.
+
 #### [Breaking the Layer Barrier: Remodeling Private Transformer Inference with Hybrid CKKS and MPC](https://www.usenix.org/conference/usenixsecurity25/presentation/xu-tianshi) (2025)
 
 **Paper ID:** `breaking-layer-barrier` · **Track:** `component_candidate` · **Source evidence:** `abstract_or_publication_record_reviewed`
@@ -1194,6 +1217,10 @@ identifies the paper/authors/venue. The anonymous Appendix A endpoint did not
 yield source; its API returned 401 and was not retried. That is not artifact
 absence: the following public Zenodo versions contain `Cachemir_ae.zip`.
 
+A separate 23 October check of the [public file-tree API](https://anonymous.4open.science/api/repo/Cachemir-B254/files/)
+returned **HTTP 410**, exact body `{"error":"repository_expired"}`. This does not
+invalidate the previously recovered immutable Zenodo sources below.
+
 | Immutable release DOI | Version / publication date | Bytes | Archive SHA-256 |
 | --- | --- | ---: | --- |
 | [10.5281/zenodo.22844188](https://zenodo.org/records/22844188) | `v0.1-ae`, 2026-09-19 | 3,261,037 | `15afe42bca5a2f29baddc754c5f4d2489d6cae92571d66639f8a019da3d0b295` |
@@ -1279,6 +1306,30 @@ and datasets. The bundled manuscript p.19/Table 12 claims three-token error
 propagation, but matching trained-model driver/calibration files were not found
 in the released tree. No checkpoint/tokenizer revision, GQA mapping, calibrated
 real-model identity or complete private head/lookup/token loop was recovered.
+
+**Independent sandbox cross-check (23 October 2026).** The ROSETTA author-linked
+[`JerryFishY/rotation-sandbox`](https://github.com/JerryFishY/rotation-sandbox/tree/7c953a13e12e0646ef935eae22477c833f21d2d5)
+at immutable `7c953a13e12e0646ef935eae22477c833f21d2d5` identifies Cachemir in
+`README.md:1–3`, but is not an additional trained/evaluated driver. In this
+**different tree**, `main.go:42–50` uses synthetic input;
+[`util.go:420–438,543–555`](https://github.com/JerryFishY/rotation-sandbox/blob/7c953a13e12e0646ef935eae22477c833f21d2d5/util.go#L420-L438)
+fills weights/KV with constant `0.01`, explicitly as dummy data, not checkpoint
+loading or prefill. `llama.go:93–104,145–156` comments out cache insertion and
+Softmax in both default decoder and comparison. `Model:186–197` repeats the same
+layer/maps 32 times, not a generated-token loop. `main.go:163` also supplies
+`"mask"` to `PrepareCache`, whose `util.go:526–538` switch accepts only `k`/`v`.
+
+`archive_old_materials/run_test.sh:12` prints paper-sized flags, but `:14`
+executes only `-test`/`-level`, retaining tiny `main.go:13–20` defaults. Its
+printed command therefore cannot bind table rows to the advertised configuration.
+The sole branch has parentless root
+`36fb362118f6a218d643d5fb2c7045aef7866a48`, followed by two TODO-only edits
+(`5f52bf44d3c0f66c761dfa97acf60560e4757b40`, pinned head); tags/releases were
+empty. No earlier evaluated implementation pointer was recovered from that
+history. This bounded follow-up used 25 public text/metadata requests totaling
+208,572 response bytes, with no upstream execution or dependency/model downloads.
+It neither replaces the Zenodo audit nor resolves the source/model/calibration,
+per-layer retained-state and token-loop questions below.
 
 **Minimal decision sheet; no approval recorded here.**
 

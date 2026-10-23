@@ -190,3 +190,49 @@ Required later evidence, parent-serialized through ordinary tests/builds:
    adoption remain separate. No copied trees, evidence archives or custom verifier.
 
 This review executed no upstream code, RNG, test, build or key generation.
+
+## 7. Newer upstream source check (23 October 2026)
+
+Latest published release/tag remained v0.9.0 at the frozen commit above. Newer
+main was inspected at immutable
+[`4246d324c57d97d73bf3209d7b832a57454512ec`](https://github.com/poulpy-fhe/poulpy/tree/4246d324c57d97d73bf3209d7b832a57454512ec).
+Paths/lines in this section refer only to that revision; earlier frozen-source
+anchors and historical qualification results remain unchanged.
+
+- **Secure source still missing:** `poulpy-hal/src/source.rs:1–29,37–46,102–118`
+  still uses ChaCha8, disclaims keygen suitability and has `TryRng::Error =
+  Infallible`; its queried post-release history was empty. Concrete Source/child
+  seed forwarding remains in `poulpy-core/src/delegates/sampling.rs:16–57`, with
+  reconstruction in `poulpy-cpu-portable/src/sampling.rs:34,65,86` and uniform-mask
+  `hal_defaults/vec_znx.rs:373–374`. Fresh outer entropy does not replace these.
+- **Export epoch still separate:** `poulpy-ckks/src/layouts/bootstrapping_keys.rs:322–440`
+  generates a key set from a supplied dense secret and three concrete Sources;
+  plain key serialization is not the trusted client-origin authority required by
+  PLLM's `benchmarks/native/poulpy_refresh/src/staged_identity.rs:440–443`.
+- **Opaque capacity still unresolved:** raw/prepared automorphism-key fields stay
+  `pub(crate)` (`poulpy-core/src/layouts/glwe_automorphism_key.rs:57–59`,
+  `layouts/prepared/glwe_automorphism_key.rs:12–14`). Backend borrows do not retain
+  public access to original owning capacity/alignment. `AlignedBuf` already has
+  those methods; that does not close the specialized-owner gate in
+  `benchmarks/native/poulpy_refresh/src/staged_preparation.rs:37–58`. No inspected
+  change unblocks that adapter. The smallest missing seam is read-only access to
+  the specialized owner's original typed buffer/Layout, not another shape quote.
+
+A genuine new **leaf** improvement is
+[`e97e2ce069545d151936cc81ad5ba84a216424e7`](https://github.com/poulpy-fhe/poulpy/commit/e97e2ce069545d151936cc81ad5ba84a216424e7)
+plus alignment/reuse follow-up
+[`a8e472ac6d91ac15ef3f0eaf4490160b64a51198`](https://github.com/poulpy-fhe/poulpy/commit/a8e472ac6d91ac15ef3f0eaf4490160b64a51198):
+secret-tensor preparation moves formerly private heap temporaries into caller
+scratch, counts aligned buffers and wipes before normal return
+(`poulpy-core/src/layouts/glwe_secret_tensor.rs:232–249,327`). Key encryption
+reuses disjoint preparation/encryption scratch via their maximum. This is not
+failure-path erasure qualification, secure sampling, trusted export or a complete
+allocator-inclusive setup/CPU/RSS bound. Private/helper ownership remains explicit.
+
+Current main is not a drop-in pin: its `CHANGELOG.md:20–21,124–129,153–158`
+records changed tie rounding and gadget/offset key wire formats. No change was
+adopted or backported. Remaining authority/evidence is still the approved concrete
+secure source route, original client epoch/export, actual owning layouts and
+complete admission/qualification in §6; **D28 stays design-only**. This source
+check used 20 public requests / 506,356 response bytes, with no dependencies,
+builds, native operations, RNG/keygen or models executed.
