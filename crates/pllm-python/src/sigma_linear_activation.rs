@@ -1,17 +1,12 @@
 //! Private, unregistered same-process SIGMA bridge core.
 //!
-//! Registration gate: compiler admission starts with an ALREADY constructed
-//! DecoderPlan, DecoderMatrixInventory, ExpectedSigmaSourcePin, selections and
-//! borrowed numeric/source buffers. The trusted pin now has a separate admitted
-//! metadata constructor, but neither compiler preflight nor source/role quotes
-//! admit plan/inventory construction from Python, serde allocation/scratch, or
-//! Python object packaging. A byte limit is not that missing construction census.
-//! Do not register these classes or add a
-//! Python factory until those owners provide enforceable preconstruction quotes
-//! and actual immutable Python buffer custody is retained through decoding.
+//! Typed input is the compiler's opaque admitted owning bundle plus original
+//! same-counter charged execution buffers. No uncharged plan/pin/request entry exists.
+//! Python-origin parsing/exporter custody and CPython packaging remain closed
+//! allocation gates; nothing here registers a Python constructor or component.
 //!
-//! This core accepts only that existing Rust caller baseline. It never decodes
-//! bytes into a plan/pin, derives an expected pin from supplied bytes, constructs
+//! This core accepts only that admitted Rust caller baseline. It never decodes
+//! bytes itself (the shared compiler importer does), derives a pin from bytes, constructs
 //! a certificate, or calls the native primitive directly. Source validation,
 //! original coefficients, original counter/charges and the native pre-entropy
 //! IssuanceTicket path remain exclusively in the consuming compiler facade.
@@ -22,20 +17,22 @@
 //! Python constructors, registration entry point or SDK surface exists here.
 #![allow(dead_code)]
 
-use pllm_compiler::{
-    sigma_linear_activation::{
-        execute_owned_sigma_linear_activation, ExpectedSigmaSourcePin, OwnedSigmaExecutionMask,
-        OwnedSigmaExecutionRole, OwnedSigmaExecutionRoleCoordinator, OwnedSigmaExecutionRoleFrame,
-        OwnedSigmaExecutionRoleOutput, OwnedSigmaExecutionRoleStep, OwnedSigmaExecutionRun,
-        SigmaExecutionError, SigmaLinearActivationRequest, SigmaSourceBytes,
-    },
-    verified_source::SELECTED_SOURCE_BYTE_CAPACITY,
-    DecoderMatrixInventory,
+use crate::sigma_linear_activation_admission::{
+    check_original_data, require_python_allocation_contract, ExecutionData,
 };
+use pllm_compiler::sigma_linear_activation::{
+    owned_sigma_input_inventory_bootstrap, owned_sigma_input_source_bootstrap,
+    prepare_owned_sigma_input_from_plan_bytes, OwnedSigmaExecutionMask, OwnedSigmaExecutionRole,
+    OwnedSigmaExecutionRoleCoordinator, OwnedSigmaExecutionRoleFrame,
+    OwnedSigmaExecutionRoleOutput, OwnedSigmaExecutionRoleStep, OwnedSigmaExecutionRun,
+    OwnedSigmaInput, OwnedSigmaInputRetention, OwnedSigmaOperation, OwnedSigmaPlanInputLimits,
+    SigmaExecutionError, SigmaInputError, SigmaPublisherDeclaration, SigmaSourceBytes,
+};
+pub(crate) use pllm_compiler::verified_source::SELECTED_SOURCE_BYTE_CAPACITY;
 use pllm_core::edge_contract::EdgeDescriptor;
 use pllm_garble::{
     masked_wire_reference::typed::OwnedLocalDealer,
-    shared_allocation::{Error as AllocationError, OwnedBudget, OwnedExternalCharge},
+    shared_allocation::{Error as AllocationError, OwnedBudget, OwnedCharged, OwnedExternalCharge},
 };
 use pyo3::prelude::*;
 use std::{
@@ -50,19 +47,27 @@ use std::{
 // Refuse schedule growth rather than silently underprice new frame owners.
 const MAX_FRAMES: usize = 22;
 const MAX_OUTPUTS: usize = 2;
-const MAX_VALUES: usize = 256;
+pub(crate) const MAX_VALUES: usize = 256;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum BridgeError {
+pub(crate) enum BridgeError {
     Resource,
     Affinity,
     Consumed,
     ForeignFrame,
+    ForeignInput,
+    UnadmittedInput,
+    UnadmittedPython,
     Allocation(AllocationError),
     Compiler(SigmaExecutionError),
+    Input(SigmaInputError),
 }
 
-type Issued = (OwnedSigmaExecutionMask, OwnedSigmaExecutionRun);
+type Issued = (
+    OwnedSigmaExecutionMask,
+    OwnedSigmaExecutionRun,
+    OwnedSigmaInputRetention,
+);
 type Split = (
     OwnedSigmaExecutionRoleCoordinator,
     [OwnedSigmaExecutionRole; 2],
@@ -97,6 +102,8 @@ impl Affinity {
 struct Retention {
     coordinator: RefCell<OwnedSigmaExecutionRoleCoordinator>,
     _mask: OwnedSigmaExecutionMask,
+    _original: OwnedSigmaInputRetention,
+    _data: OwnedCharged<ExecutionData>,
     affinity: Affinity,
     frames: Cell<usize>,
     outputs: Cell<usize>,
@@ -371,12 +378,55 @@ impl LocalRole {
 }
 
 // Every field holding a native owner precedes the final bridge charge.
-struct Admission<'a> {
-    expected: Option<ExpectedSigmaSourcePin>,
-    request: Option<SigmaLinearActivationRequest<'a>>,
+struct Admission {
     issued: Option<Issued>,
     split: Option<Split>,
+    mask: Option<OwnedSigmaExecutionMask>,
+    original: Option<OwnedSigmaInput>,
+    original_retention: Option<OwnedSigmaInputRetention>,
+    data: Option<OwnedCharged<ExecutionData>>,
     charge: Option<OwnedExternalCharge>,
+}
+
+/// Creation has the same packaging transaction as steps/outputs. A role may
+/// escape before commit; error/unwind still revokes it through this armed link.
+#[must_use = "keep creation abort authority through ALL Rust packaging"]
+struct PendingOwners {
+    owners: Option<LocalOwners>,
+    retained: Rc<Retention>,
+    armed: bool,
+}
+
+impl PendingOwners {
+    // Actual gate, BEFORE any Py::new/tuple/exception allocation. Even a failed
+    // packaging attempt burns the authentic shared run. No pymethod calls this.
+    fn take_python_owners(&mut self) -> Result<LocalOwners, BridgeError> {
+        if let Err(error) = require_python_allocation_contract() {
+            self.retained.cancel();
+            return Err(error);
+        }
+        self.take_owners()
+    }
+    fn take_owners(&mut self) -> Result<LocalOwners, BridgeError> {
+        self.owners.take().ok_or_else(|| {
+            self.retained.cancel();
+            BridgeError::Consumed
+        })
+    }
+    fn commit(mut self) -> Result<(), BridgeError> {
+        if self.owners.is_some() || self.retained.coordinator.borrow().is_aborted() {
+            return Err(BridgeError::Consumed);
+        }
+        self.armed = false;
+        Ok(())
+    }
+}
+impl Drop for PendingOwners {
+    fn drop(&mut self) {
+        if self.armed {
+            self.retained.cancel();
+        }
+    }
 }
 
 /// Pure checked logical inventory of the concrete Rust wrappers introduced here.
@@ -419,12 +469,13 @@ impl BridgeResources {
             population::<LocalOutput>(MAX_OUTPUTS)?,
         ])?;
         let construction = sum(&[
-            size_of::<Admission<'_>>(),
-            size_of::<ExpectedSigmaSourcePin>(),
-            size_of::<SigmaLinearActivationRequest<'_>>(),
+            size_of::<Admission>(),
+            size_of::<OwnedSigmaInput>(),
+            size_of::<OwnedCharged<ExecutionData>>(),
+            size_of::<OwnedSigmaOperation<'_>>(),
             size_of::<SigmaSourceBytes<'_>>(),
             size_of::<Issued>(),
-            size_of::<Result<Issued, SigmaExecutionError>>(),
+            size_of::<Result<Issued, SigmaInputError>>(),
             size_of::<Split>(),
             size_of::<Result<Split, SigmaExecutionError>>(),
             size_of::<Retention>(),
@@ -433,10 +484,21 @@ impl BridgeResources {
             size_of::<[LocalRole; 2]>(),
             size_of::<LocalOwners>(),
             size_of::<Result<LocalOwners, BridgeError>>(),
+            size_of::<PendingOwners>(),
+            size_of::<Result<PendingOwners, BridgeError>>(),
             size_of::<OwnedExternalCharge>(),
             size_of::<Result<OwnedExternalCharge, AllocationError>>(),
             size_of::<Self>(),
             size_of::<Result<Self, BridgeError>>(),
+            size_of::<[usize; 5]>(),
+            size_of::<[(usize, usize); 4]>(),
+            size_of::<usize>(),
+            size_of::<Result<usize, BridgeError>>(),
+            size_of::<OwnedCharged<Vec<u8>>>(),
+            size_of::<OwnedCharged<SigmaPublisherDeclaration>>(),
+            size_of::<OwnedSigmaPlanInputLimits>(),
+            size_of::<[OwnedExternalCharge; 3]>(),
+            size_of::<Result<OwnedSigmaInput, SigmaInputError>>(),
         ])?;
         let operation = sum(&[
             size_of::<RoleCall<'_>>(),
@@ -469,7 +531,7 @@ impl BridgeResources {
         // phases are sequential; summing all tables conservatively overcounts.
         let calculation = sum(&[
             size_of::<[usize; 5]>(),  // population
-            size_of::<[usize; 18]>(), // construction
+            size_of::<[usize; 30]>(), // construction
             size_of::<[usize; 24]>(), // operation
             size_of::<[usize; 3]>(),  // transition
             size_of::<[usize; 3]>(),  // payload
@@ -494,69 +556,131 @@ impl BridgeResources {
     }
 }
 
-/// Bounded Rust-only local factory. All incoming complex inputs are preexisting
-/// caller-owned Rust baseline; this is deliberately NOT a Python-input factory.
-/// The independent trusted expected pin and supplied byte tuple remain separate.
-#[allow(clippy::too_many_arguments)]
-fn from_existing_rust_inputs(
-    expected: ExpectedSigmaSourcePin,
-    supplied: SigmaSourceBytes<'_>,
-    request: SigmaLinearActivationRequest<'_>,
-    inventory: &DecoderMatrixInventory,
+/// Only genuine opaque compiler input and original charged Rust buffers enter.
+/// This is NOT a Python parser or Python packaging admission boundary.
+fn from_admitted_rust_inputs(
+    original: OwnedSigmaInput,
+    data: OwnedCharged<ExecutionData>,
     budget: &OwnedBudget,
     dealer: &mut OwnedLocalDealer,
-    input: &[i64],
-) -> Result<LocalOwners, BridgeError> {
+) -> Result<PendingOwners, BridgeError> {
     if !dealer.is_budget(budget.budget()) {
         return Err(BridgeError::Compiler(SigmaExecutionError::BudgetIdentity));
     }
-    // No serde, Vec conversion, source copy or callbacks before these caps.
-    if supplied.bytes.is_empty()
-        || supplied.bytes.len() > SELECTED_SOURCE_BYTE_CAPACITY
-        || supplied.scalar_artifact_offsets.len() > MAX_VALUES
-        || request.source_coefficients.len() > MAX_VALUES
-        || request.encoded_private_coefficients.len() > MAX_VALUES
-        || input.len() > MAX_VALUES
-    {
-        return Err(BridgeError::Resource);
+    if !original.is_budget(budget.budget()) {
+        return Err(BridgeError::ForeignInput);
     }
     let quote = BridgeResources::checked()?;
     let charge = budget
         .charge_external(quote.payload_bytes)
         .map_err(BridgeError::Allocation)?;
+    from_admitted_rust_inputs_reserved(original, data, budget, dealer, charge)
+}
+
+/// Private typed Rust vertical path. Incoming immutable bytes, publisher trust
+/// declaration and source/coefficient buffers are ORIGINAL charged owners. This
+/// does not acquire a Python exporter, format exceptions or register any class.
+/// Reserve bridge wrapper/control overlap before parser/source/native factories.
+fn from_charged_plan_bytes(
+    raw: OwnedCharged<Vec<u8>>,
+    publisher: OwnedCharged<SigmaPublisherDeclaration>,
+    data: OwnedCharged<ExecutionData>,
+    budget: &OwnedBudget,
+    dealer: &mut OwnedLocalDealer,
+    limits: OwnedSigmaPlanInputLimits,
+) -> Result<PendingOwners, BridgeError> {
+    if !std::ptr::eq(raw.budget(), budget.budget()) || !dealer.is_budget(budget.budget()) {
+        return Err(BridgeError::ForeignInput);
+    }
+    let charge = budget
+        .charge_external(BridgeResources::checked()?.payload_bytes)
+        .map_err(BridgeError::Allocation)?;
+    check_original_data(&data, budget)?;
+    let parse = budget
+        .charge_external(
+            pllm_compiler::plan_input::bootstrap_bytes()
+                .map_err(SigmaInputError::Import)
+                .map_err(BridgeError::Input)?,
+        )
+        .map_err(BridgeError::Allocation)?;
+    let source = budget
+        .charge_external(owned_sigma_input_source_bootstrap().map_err(BridgeError::Input)?)
+        .map_err(BridgeError::Allocation)?;
+    let inventory = budget
+        .charge_external(owned_sigma_input_inventory_bootstrap().map_err(BridgeError::Input)?)
+        .map_err(BridgeError::Allocation)?;
+    let original =
+        prepare_owned_sigma_input_from_plan_bytes(raw, publisher, parse, source, inventory, limits)
+            .map_err(BridgeError::Input)?;
+    from_admitted_rust_inputs_reserved(original, data, budget, dealer, charge)
+}
+
+fn from_admitted_rust_inputs_reserved(
+    original: OwnedSigmaInput,
+    data: OwnedCharged<ExecutionData>,
+    budget: &OwnedBudget,
+    dealer: &mut OwnedLocalDealer,
+    charge: OwnedExternalCharge,
+) -> Result<PendingOwners, BridgeError> {
+    if !dealer.is_budget(budget.budget())
+        || !original.is_budget(budget.budget())
+        || !charge.is_for(budget.budget())
+    {
+        return Err(BridgeError::ForeignInput);
+    }
+    if charge.payload_bytes() < BridgeResources::checked()?.payload_bytes {
+        return Err(BridgeError::Resource);
+    }
     let mut admitted = Admission {
-        expected: Some(expected),
-        request: Some(request),
+        original: Some(original),
+        data: Some(data),
         issued: None,
         split: None,
+        mask: None,
+        original_retention: None,
         charge: Some(charge),
     };
+    let data = admitted.data.as_ref().ok_or(BridgeError::Consumed)?;
+    check_original_data(data, budget)?;
+    let values = data.payload();
     admitted.issued = Some(
-        execute_owned_sigma_linear_activation(
-            admitted.expected.take().ok_or(BridgeError::Consumed)?,
-            supplied,
-            admitted.request.take().ok_or(BridgeError::Consumed)?,
-            inventory,
-            budget,
-            dealer,
-            input,
-        )
-        .map_err(BridgeError::Compiler)?,
+        admitted
+            .original
+            .take()
+            .ok_or(BridgeError::Consumed)?
+            .execute_retained(
+                values.source(),
+                values.operation(),
+                budget,
+                dealer,
+                &values.input,
+            )
+            .map_err(|error| match error {
+                SigmaInputError::Execution(error) => BridgeError::Compiler(error),
+                other => BridgeError::Input(other),
+            })?,
     );
-    let (mask, run) = admitted.issued.take().ok_or(BridgeError::Consumed)?;
+    let (mask, run, original) = admitted.issued.take().ok_or(BridgeError::Consumed)?;
+    admitted.mask = Some(mask);
+    admitted.original_retention = Some(original);
     admitted.split = Some(run.into_roles(budget).map_err(BridgeError::Compiler)?);
     let (coordinator, [left, right]) = admitted.split.take().ok_or(BridgeError::Consumed)?;
     // Sole additional heap allocation. Complete core inventory was charged
     // before compiler import/issuance; original compiler guards never move out.
     let retained = Rc::new(Retention {
         coordinator: RefCell::new(coordinator),
-        _mask: mask,
+        _mask: admitted.mask.take().ok_or(BridgeError::Consumed)?,
+        _original: admitted
+            .original_retention
+            .take()
+            .ok_or(BridgeError::Consumed)?,
+        _data: admitted.data.take().ok_or(BridgeError::Consumed)?,
         affinity: Affinity::current(),
         frames: Cell::new(0),
         outputs: Cell::new(0),
         _charge: admitted.charge.take().ok_or(BridgeError::Consumed)?,
     });
-    Ok((
+    let owners = (
         LocalCoordinator {
             retained: Rc::clone(&retained),
         },
@@ -567,10 +691,15 @@ fn from_existing_rust_inputs(
             },
             LocalRole {
                 native: RefCell::new(Some(right)),
-                retained,
+                retained: Rc::clone(&retained),
             },
         ],
-    ))
+    );
+    Ok(PendingOwners {
+        owners: Some(owners),
+        retained,
+        armed: true,
+    })
 }
 
 #[cfg(test)]

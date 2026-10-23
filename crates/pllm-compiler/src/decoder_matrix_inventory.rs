@@ -50,6 +50,11 @@ use std::mem::{size_of, MaybeUninit};
 )]
 mod construction;
 
+// Compiler-only typed owning-input funnel; no raw import/SDK registration.
+pub(crate) use construction::{
+    admit_inventory_for_original_owner, owned_inventory_bootstrap_bytes,
+};
+
 pub const DECODER_MATRIX_INVENTORY_SCHEMA_VERSION: &str = "pllm.decoder_matrix_inventory.v1";
 pub const DECODER_MATRIX_INVENTORY_MAX_PLAN_BYTES: usize = 8 << 20;
 const MAX_OUTPUT_BYTES: usize = 8 << 20;

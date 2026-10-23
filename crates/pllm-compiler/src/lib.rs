@@ -20,6 +20,8 @@ use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
 mod bounded_index;
+#[doc(hidden)]
+pub mod plan_input;
 mod compact_protected;
 mod decoder_boundary;
 mod decoder_continuation;

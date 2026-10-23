@@ -4,7 +4,7 @@
 //! compiler integration test `tests/sigma_role_facade.rs`.
 
 use super::*;
-use pllm_compiler::{lower_decoder_matrix_inventory, sigma_linear_activation::*};
+use pllm_compiler::sigma_linear_activation::*;
 use pllm_core::edge_contract::{
     ConsumerUse, EdgeIdentity, Interpretation, Numeric, Representation, Shape, SourceIdentity,
     WeightVisibility,
@@ -22,6 +22,8 @@ use std::{
 #[path = "../../pllm-garble/tests/sigma_linear_activation/fixture.rs"]
 mod fixture;
 
+// Original hard Budget maximum remains unchanged, including the full retained
+// parser envelope and all original source owners through the last output.
 const LIMIT: usize = 64 << 20;
 const TENSOR_OFFSET: u64 = 281_019_680;
 // All matrix issuances in this bridge test module share the native singleton.
@@ -207,23 +209,6 @@ fn request<'a>(
     }
 }
 
-fn pin(plan: &DecoderPlan) -> ExpectedSigmaSourcePin {
-    ExpectedSigmaSourcePin::from_trusted_publisher(
-        NamedDigest {
-            id: "model.safetensors".into(),
-            digest: Digest::from_sha256(selected_digest()),
-        },
-        512,
-        request(plan, &[], &[]).selection,
-        SourceDtype::Bf16,
-        SourceEndian::Little,
-        TENSOR_OFFSET,
-        &plan.config_digest,
-        &plan.digest(),
-    )
-    .unwrap()
-}
-
 fn coefficients() -> Vec<i64> {
     // Independent integer BF16 -> floor-Q12; no production encoder oracle.
     fixture::source_bytes()
@@ -271,15 +256,83 @@ fn issue(budget: &OwnedBudget, dealer: &mut OwnedLocalDealer) -> Result<FixtureI
     issue_changed(budget, dealer, 0)
 }
 
-fn issue_changed(
+struct PreparedFixture {
+    original: OwnedSigmaInput,
+    data: OwnedCharged<ExecutionData>,
+    descriptor: EdgeDescriptor,
+    source_floor: usize,
+}
+
+struct PreparedRawFixture {
+    raw: OwnedCharged<Vec<u8>>,
+    declaration: OwnedCharged<SigmaPublisherDeclaration>,
+    data: OwnedCharged<ExecutionData>,
+    descriptor: EdgeDescriptor,
+    baseline: usize,
+}
+
+fn raw_plan_owner(budget: &OwnedBudget, p: &DecoderPlan) -> OwnedCharged<Vec<u8>> {
+    // Fixture-only upstream origin: count, reserve, then fixed-buffer serialize.
+    // Neither a production serializer contract nor a Python byte-buffer import.
+    struct Count(usize);
+    impl std::io::Write for Count {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0 = self.0.checked_add(bytes.len()).unwrap();
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let controls = std::mem::size_of::<Count>()
+        + std::mem::size_of::<std::io::Cursor<&mut [u8]>>()
+        + std::mem::size_of::<serde_json::Serializer<&mut Count>>()
+        + std::mem::size_of::<serde_json::Serializer<std::io::Cursor<&mut [u8]>>>()
+        + std::mem::size_of::<Result<(), serde_json::Error>>()
+        + std::mem::size_of::<Box<[u8]>>()
+        + std::mem::size_of::<Vec<u8>>();
+    let mut origin = budget.charge_external(controls).unwrap();
+    let mut count = Count(0);
+    serde_json::to_writer(&mut count, p).unwrap();
+    let capacity = count.0 + 73;
+    origin.resize_payload(controls + capacity).unwrap();
+    origin
+        .try_build(|_| {
+            let mut bytes = vec![0; capacity].into_boxed_slice().into_vec();
+            bytes.truncate(count.0);
+            let mut cursor = std::io::Cursor::new(bytes.as_mut_slice());
+            serde_json::to_writer(&mut cursor, p).unwrap();
+            assert_eq!(cursor.position() as usize, count.0);
+            Ok(bytes)
+        })
+        .unwrap()
+}
+
+fn raw_input_limits() -> OwnedSigmaPlanInputLimits {
+    OwnedSigmaPlanInputLimits {
+        parse: pllm_compiler::plan_input::Limits {
+            max_source_bytes: LIMIT,
+            max_nodes: 1 << 20,
+            max_depth: 32,
+            max_string_bytes: 1 << 20,
+            max_number_bytes: 128,
+            max_number_work: 1 << 28,
+            max_work: 1 << 30,
+            max_payload_bytes: LIMIT,
+        },
+        inventory_work: 1 << 28,
+        max_work: 1 << 30,
+    }
+}
+
+fn prepare_raw_changed(
     budget: &OwnedBudget,
-    dealer: &mut OwnedLocalDealer,
     change: usize,
-) -> Result<FixtureIssue, BridgeError> {
-    // These caller-owned inputs ALL retire before any test begins exchanging
-    // frames. No test-side keepalive substitutes for original compiler custody.
+) -> Result<PreparedRawFixture, BridgeError> {
+    // Unowned fixture temporaries retire before exchanges. Genuine charged
+    // inputs move into Retention; no test-side keepalive substitutes for custody.
     let p = plan();
-    let inventory = lower_decoder_matrix_inventory(&p).unwrap();
+    let baseline = budget.budget().used_bytes();
     let mut bytes = fixture::source_bytes();
     let mut values = fixture::weights_io();
     let mut encoded = coefficients();
@@ -300,23 +353,6 @@ fn issue_changed(
     }
     let r = request(&p, &values, &encoded);
     let descriptor = r.activation_output;
-    let expected = pin(&p);
-    let source_floor = expected.certification_retained_quote(&r).unwrap()
-        + expected
-            .import_quote()
-            .unwrap()
-            .import_encoding_scratch_bytes
-        + owned_sigma_execution_compiler_preflight(&p, &inventory).unwrap();
-    let selection = r.selection.clone();
-    let supplied = SigmaSourceBytes {
-        artifact_name: "model.safetensors",
-        selection: &selection,
-        dtype: SourceDtype::Bf16,
-        endian: SourceEndian::Little,
-        tensor_offset: TENSOR_OFFSET,
-        scalar_artifact_offsets: &offsets,
-        bytes: &bytes,
-    };
     let mut input: Vec<_> = fixture::input()
         .into_iter()
         .map(|x| (x * 4096.0) as i64)
@@ -324,14 +360,133 @@ fn issue_changed(
     if change == 10 {
         input.push(0);
     }
-    let owners =
-        from_existing_rust_inputs(expected, supplied, r, &inventory, budget, dealer, &input)?;
+    let data = ExecutionData {
+        selection: r.selection.clone(),
+        artifact_name: "model.safetensors".into(),
+        dtype: SourceDtype::Bf16,
+        endian: SourceEndian::Little,
+        tensor_offset: TENSOR_OFFSET,
+        offsets,
+        bytes,
+        coefficients: values.clone(),
+        encoded: encoded.clone(),
+        input,
+        mode: r.mode,
+        linear: r.linear_operation.into(),
+        activation: r.activation_operation.into(),
+        next: r.next_operation.into(),
+        source: r.source,
+        input_edge: r.input,
+        private_weights: r.private_weights,
+        complete_sum: r.complete_sum,
+        rescaled: r.rescaled,
+        activation_output: r.activation_output,
+        rescale_operation: r.rescale_operation,
+        next_use: r.next_use,
+        input_domain: r.input_domain,
+    };
+    // Publisher and execution buffers remain independent typed fixture origins;
+    // the serialized plan below goes through the real shared admitted importer.
+    let artifact = NamedDigest {
+        id: "model.safetensors".into(),
+        digest: Digest::from_sha256(selected_digest()),
+    };
+    let selection = data.selection.clone();
+    let config = p.config_digest.clone();
+    let semantic = p.digest();
+    let declaration_backing = selection.checked_metadata_backing_bytes().unwrap()
+        + artifact.id.capacity()
+        + artifact.digest.backing_capacity_bytes()
+        + config.backing_capacity_bytes()
+        + semantic.backing_capacity_bytes();
+    let declaration = SigmaPublisherDeclaration::from_reserved(
+        budget
+            .charge_external(declaration_backing)
+            .map_err(BridgeError::Allocation)?,
+        artifact,
+        selection,
+        config,
+        semantic,
+        512,
+        SourceDtype::Bf16,
+        SourceEndian::Little,
+        TENSOR_OFFSET,
+    )
+    .map_err(BridgeError::Input)?;
+    let raw = raw_plan_owner(budget, &p);
+    let data = budget
+        .charge_external(data.backing_bytes()?)
+        .map_err(BridgeError::Allocation)?
+        .try_build(|_| Ok(data))
+        .map_err(BridgeError::Allocation)?;
+    Ok(PreparedRawFixture {
+        raw,
+        declaration,
+        data,
+        descriptor,
+        baseline,
+    })
+}
+
+fn prepare_changed(budget: &OwnedBudget, change: usize) -> Result<PreparedFixture, BridgeError> {
+    let PreparedRawFixture {
+        raw,
+        declaration,
+        data,
+        descriptor,
+        baseline,
+    } = prepare_raw_changed(budget, change)?;
+    let original = prepare_owned_sigma_input_from_plan_bytes(
+        raw,
+        declaration,
+        budget
+            .charge_external(
+                pllm_compiler::plan_input::bootstrap_bytes()
+                    .map_err(SigmaInputError::Import)
+                    .map_err(BridgeError::Input)?,
+            )
+            .map_err(BridgeError::Allocation)?,
+        budget
+            .charge_external(owned_sigma_input_source_bootstrap().map_err(BridgeError::Input)?)
+            .map_err(BridgeError::Allocation)?,
+        budget
+            .charge_external(owned_sigma_input_inventory_bootstrap().map_err(BridgeError::Input)?)
+            .map_err(BridgeError::Allocation)?,
+        raw_input_limits(),
+    )
+    .map_err(BridgeError::Input)?;
+    let source_floor = budget.budget().used_bytes() - baseline;
+    Ok(PreparedFixture {
+        original,
+        data,
+        descriptor,
+        source_floor,
+    })
+}
+
+fn issue_changed(
+    budget: &OwnedBudget,
+    dealer: &mut OwnedLocalDealer,
+    change: usize,
+) -> Result<FixtureIssue, BridgeError> {
+    let PreparedFixture {
+        original,
+        data,
+        descriptor,
+        source_floor,
+    } = prepare_changed(budget, change)?;
+    let mut pending = from_admitted_rust_inputs(original, data, budget, dealer)?;
+    let owners = pending.take_owners()?;
+    pending.commit()?;
     Ok(FixtureIssue {
         owners,
         descriptor,
         source_floor,
     })
 }
+
+#[path = "sigma_linear_activation_owned_input_tests.rs"]
+mod owned_input;
 
 fn commit_step(mut pending: PendingStep<'_>) -> LocalStep {
     let step = pending.take_step().unwrap();
@@ -772,7 +927,7 @@ fn duplicate_finish_revokes_both_previously_committed_outputs() {
 }
 
 #[test]
-fn public_source_authority_blocks_second_live_issuance_needed_for_foreign_bridge_frame() {
+fn retained_original_inventory_blocks_second_live_issuance_needed_for_foreign_bridge_frame() {
     let _serial = SERIAL.lock().unwrap();
     let budget = OwnedBudget::new(LIMIT).unwrap();
     let mut dealer = dealer(&budget);
@@ -784,18 +939,25 @@ fn public_source_authority_blocks_second_live_issuance_needed_for_foreign_bridge
     let stale = begin(&right);
     drop((coordinator, left, right));
     let held = budget.budget().used_bytes();
-    assert!(matches!(
-        issue(&budget, &mut dealer),
-        Err(BridgeError::Compiler(SigmaExecutionError::Native(
-            typed::Error::Resource
-        )))
-    ));
+    let second = issue(&budget, &mut dealer);
+    assert!(
+        matches!(
+            second,
+            Err(BridgeError::Input(SigmaInputError::Inventory(
+                typed::Error::Resource
+            )))
+        ),
+        "actual refusal: {:?}",
+        second.as_ref().err()
+    );
     assert_eq!(budget.budget().used_bytes(), held);
     assert!(stale.native.as_bytes().is_err());
     // Exact blocked seam: a foreign LocalFrame needs two distinct Retentions
-    // from genuine public issuances, but this old opaque frame still owns the
-    // process-wide matrix singleton. Do not forge another Rc/native owner or
-    // copy private frame bytes to pretend this reaches ForeignFrame checking.
+    // from genuine public issuances. This old opaque frame retains the original
+    // full parser/inventory reservation as well as the native matrix singleton.
+    // The unchanged 64 MiB bound refuses at inventory admission FIRST; this is
+    // not a proof that the later singleton/ForeignFrame check was reached. Do
+    // not refund that reservation or forge an Rc/native owner to bypass it.
     drop(stale);
     assert_eq!(budget.budget().used_bytes(), baseline);
     drop(issue(&budget, &mut dealer).unwrap());
@@ -812,6 +974,7 @@ fn bridge_exact_fit_one_short_and_first_reservation_boundary_restore_original_co
     let baseline = sizing.budget().used_bytes();
     let issued = issue(&sizing, &mut d).unwrap();
     let additional = sizing.budget().used_bytes() - baseline;
+    let input_floor = issued.source_floor;
     drop(issued);
     assert_eq!(sizing.budget().used_bytes(), baseline);
     drop((d, sizing));
@@ -848,7 +1011,8 @@ fn bridge_exact_fit_one_short_and_first_reservation_boundary_restore_original_co
     let q = BridgeResources::checked().unwrap();
     let bridge_charge = q.payload_bytes + size_of::<OwnedExternalCharge>();
     for short in [true, false] {
-        let budget = OwnedBudget::new(baseline + bridge_charge - usize::from(short)).unwrap();
+        let budget =
+            OwnedBudget::new(baseline + input_floor + bridge_charge - usize::from(short)).unwrap();
         let mut d = dealer(&budget);
         let result = issue(&budget, &mut d);
         if short {
@@ -874,6 +1038,16 @@ fn assert_retention(
     identity: *const pllm_garble::shared_allocation::Budget,
     floor: usize,
 ) {
+    assert!(retained._original.is_budget(retained._charge.budget()));
+    assert!(std::ptr::eq(
+        retained._data.budget(),
+        retained._charge.budget()
+    ));
+    assert!(
+        retained._data.charged_bytes()
+            >= retained._data.payload().backing_bytes().unwrap()
+                + size_of::<OwnedCharged<ExecutionData>>()
+    );
     assert_eq!(std::ptr::from_ref(retained._charge.budget()), identity);
     assert_eq!(
         retained._charge.payload_bytes(),
@@ -1073,12 +1247,13 @@ fn independent_bridge_census_covers_population_transitions_layout_and_overflow()
         2 * size_of::<LocalOutput>(),
     ];
     let construction = [
-        size_of::<Admission<'_>>(),
-        size_of::<ExpectedSigmaSourcePin>(),
-        size_of::<SigmaLinearActivationRequest<'_>>(),
+        size_of::<Admission>(),
+        size_of::<OwnedSigmaInput>(),
+        size_of::<OwnedCharged<ExecutionData>>(),
+        size_of::<OwnedSigmaOperation<'_>>(),
         size_of::<SigmaSourceBytes<'_>>(),
         size_of::<Issued>(),
-        size_of::<Result<Issued, SigmaExecutionError>>(),
+        size_of::<Result<Issued, SigmaInputError>>(),
         size_of::<Split>(),
         size_of::<Result<Split, SigmaExecutionError>>(),
         size_of::<Retention>(),
@@ -1087,10 +1262,21 @@ fn independent_bridge_census_covers_population_transitions_layout_and_overflow()
         size_of::<[LocalRole; 2]>(),
         size_of::<LocalOwners>(),
         size_of::<Result<LocalOwners, BridgeError>>(),
+        size_of::<PendingOwners>(),
+        size_of::<Result<PendingOwners, BridgeError>>(),
         size_of::<OwnedExternalCharge>(),
         size_of::<Result<OwnedExternalCharge, AllocationError>>(),
         size_of::<BridgeResources>(),
         size_of::<Result<BridgeResources, BridgeError>>(),
+        size_of::<[usize; 5]>(),
+        size_of::<[(usize, usize); 4]>(),
+        size_of::<usize>(),
+        size_of::<Result<usize, BridgeError>>(),
+        size_of::<OwnedCharged<Vec<u8>>>(),
+        size_of::<OwnedCharged<SigmaPublisherDeclaration>>(),
+        size_of::<OwnedSigmaPlanInputLimits>(),
+        size_of::<[OwnedExternalCharge; 3]>(),
+        size_of::<Result<OwnedSigmaInput, SigmaInputError>>(),
     ];
     let operation = [
         size_of::<RoleCall<'_>>(),
@@ -1147,3 +1333,8 @@ fn independent_bridge_census_covers_population_transitions_layout_and_overflow()
         Err(BridgeError::Resource)
     );
 }
+
+// Test-only Python experiment; ancestor authority and fixture stay unchanged.
+#[cfg(test)]
+#[path = "sigma_python_local.rs"]
+mod python_local;

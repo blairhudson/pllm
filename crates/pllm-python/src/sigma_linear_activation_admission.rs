@@ -1,68 +1,144 @@
-//! Preconstruction audit for the private, unregistered same-process SIGMA core.
-//!
-//! **Blocked: no admitted input owner or factory is implemented here.** Existing
-//! compiler execution admission starts after plan/inventory/request construction.
-//! Its reservation cannot retroactively cover those constructors. This module is
-//! mounted only for metadata-only regressions, never called by the bridge core.
-//! These tests do not supply the missing inventory construction admission.
-//!
-//! # Actual owners and available queries
-//!
-//! * `DecoderPlan::checked_owned_backing_bytes` is an allocation-free census of
-//!   an EXISTING plan: both graphs, operation/state/transform vectors, string and
-//!   digest capacities, and the shared JSON-tree accounting policy. Add the root
-//!   `size_of::<DecoderPlan>()` once. This is useful when moving that exact plan,
-//!   not a quote for Clone, deserialization or model lowering. Model expansion
-//!   limits and bounded canonical hashing do not admit those other operations.
-//! * `DecoderMatrixInventory::retained_payload_bytes` includes the EXISTING
-//!   private bytes Vec capacity, digest backing and inline owner. Its canonical
-//!   byte slice exposes length, not that capacity. Both public constructors,
-//!   `lower_decoder_matrix_inventory` and `decoder_matrix_inventory_bytes`, lack
-//!   a preconstruction resource query and a reservation-bearing construction
-//!   boundary. Lowering owns preflight/grouping maps and sets, source/group/member
-//!   metadata and copies, allocating plan/config digests, canonical serialization
-//!   scratch/output and the final digest. The byte entry point additionally owns
-//!   duplicate-key sets/strings, serde decoding scratch and a temporary plan.
-//! * `ExpectedSigmaSourcePin::checked_construction_quote` and
-//!   `from_trusted_publisher_admitted` ARE public associated functions. Their
-//!   `SigmaSourceConstructionResources` return type is re-exported by the
-//!   compiler facade so enclosing owners can compose its concrete inventory.
-//!   This quote covers the exact incoming artifact/selection/digest capacities,
-//!   three exact string and two coordinate tuple copies, retained pin and named
-//!   constructor/decoder scratch. Its numeric cap is explicitly NOT a reservation
-//!   token. A containing owner must retain the original charge through pin drop.
-//! * Source import/certification, owned compiler preflight and role-split quotes
-//!   cover their subsequent phases only. Borrowed plan/inventory, source bytes,
-//!   offsets, original f64 values, canonical i64 coefficients, input i64 values
-//!   and operation-name owners remain outside that compiler admission. Request
-//!   selection is a separate owned capacity, not the expected-pin selection.
-//! * The existing bridge's private `BridgeResources` covers its concrete Rust
-//!   Rc retention, coordinator/two roles, bounded frames/outputs and transactional
-//!   packaging overlap. It excludes CPython objects and input extraction. It
-//!   cannot serve as an input construction quote or a Python packaging allowance.
-//!
-//! # Exact stopping seam
-//!
-//! Starting with an already-owned exact plan does not require cloning it, but
-//! constructing its genuine inventory still has no owner-provided peak quote
-//! BEFORE lowering. A post-lowering retained census cannot price that earlier
-//! overlap. Starting with BOTH an already-built plan and inventory instead only
-//! recovers the existing Rust baseline; it does not solve preconstruction.
-//!
-//! Required next seam belongs to the inventory owner: an allocation-free checked
-//! peak census over the same immutable plan, including actual resident capacities,
-//! grouping/digest/serialization/error scratch, plus construction that enforces
-//! that bound while the caller's original reservation remains live. Any plan
-//! clone/JSON route needs its own corresponding owner contract. No fixed byte
-//! allowance, doubled retained size, serialized byte cap or Arc<Budget> can replace
-//! either contract. Therefore no aggregate number, success token, placeholder
-//! factory or alternative paper-specific accounting framework is exposed here.
-//!
-//! Registration additionally needs actual immutable Python buffer custody during
-//! decoding, constructor/clone scratch and Python packaging overlap composed with
-//! original Budget guards, and reviewed integration with existing fail-closed
-//! role transaction guards. No raw native escape, lifetime cast, D27 change or
-//! SDK promotion follows from the source metadata constructor becoming available.
+//! Typed Rust boundary for the UNREGISTERED local bridge. Incoming allocations
+//! must already have been made under their original real charge. This census is
+//! not admission of their construction. Charged Rust plan bytes can use the
+//! shared compiler importer; Python exporter/packaging gates remain shut.
+
+use crate::sigma_linear_activation::{BridgeError, MAX_VALUES, SELECTED_SOURCE_BYTE_CAPACITY};
+use pllm_compiler::sigma_linear_activation::{
+    CheckpointTensorSelection, IntegerInterval, OwnedSigmaOperation, SigmaSourceBytes, SourceDtype,
+    SourceEndian,
+};
+use pllm_core::edge_contract::{ConsumerUse, EdgeDescriptor, SourceIdentity};
+use pllm_garble::shared_allocation::{OwnedBudget, OwnedCharged};
+use pllm_models::DecoderMode;
+use std::mem::size_of;
+
+/// Private typed owner. No Python parser, borrowed certificate or plain DTO can
+/// enter execution: the bridge takes only an ORIGINAL same-counter OwnedCharged.
+#[cfg_attr(test, derive(Clone))]
+pub(crate) struct ExecutionData {
+    pub(crate) selection: CheckpointTensorSelection,
+    pub(crate) artifact_name: String,
+    pub(crate) dtype: SourceDtype,
+    pub(crate) endian: SourceEndian,
+    pub(crate) tensor_offset: u64,
+    pub(crate) offsets: Vec<u64>,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) coefficients: Vec<f64>,
+    pub(crate) encoded: Vec<i64>,
+    pub(crate) input: Vec<i64>,
+    pub(crate) mode: DecoderMode,
+    pub(crate) linear: String,
+    pub(crate) activation: String,
+    pub(crate) next: String,
+    pub(crate) source: SourceIdentity,
+    pub(crate) input_edge: EdgeDescriptor,
+    pub(crate) private_weights: EdgeDescriptor,
+    pub(crate) complete_sum: EdgeDescriptor,
+    pub(crate) rescaled: EdgeDescriptor,
+    pub(crate) activation_output: EdgeDescriptor,
+    pub(crate) rescale_operation: [u8; 32],
+    pub(crate) next_use: ConsumerUse,
+    pub(crate) input_domain: IntegerInterval,
+}
+
+impl ExecutionData {
+    pub(crate) fn backing_bytes(&self) -> Result<usize, BridgeError> {
+        let mut total = self
+            .selection
+            .checked_metadata_backing_bytes()
+            .map_err(|_| BridgeError::Resource)?;
+        for bytes in [
+            self.artifact_name.capacity(),
+            self.linear.capacity(),
+            self.activation.capacity(),
+            self.next.capacity(),
+            self.bytes.capacity(),
+        ] {
+            total = total.checked_add(bytes).ok_or(BridgeError::Resource)?;
+        }
+        for (capacity, element) in [
+            (self.offsets.capacity(), size_of::<u64>()),
+            (self.coefficients.capacity(), size_of::<f64>()),
+            (self.encoded.capacity(), size_of::<i64>()),
+            (self.input.capacity(), size_of::<i64>()),
+        ] {
+            total = total
+                .checked_add(capacity.checked_mul(element).ok_or(BridgeError::Resource)?)
+                .ok_or(BridgeError::Resource)?;
+        }
+        Ok(total)
+    }
+
+    pub(crate) fn operation(&self) -> OwnedSigmaOperation<'_> {
+        OwnedSigmaOperation {
+            mode: self.mode,
+            linear_operation: &self.linear,
+            activation_operation: &self.activation,
+            next_operation: &self.next,
+            source: self.source,
+            input: self.input_edge,
+            private_weights: self.private_weights,
+            complete_sum: self.complete_sum,
+            rescaled: self.rescaled,
+            activation_output: self.activation_output,
+            rescale_operation: self.rescale_operation,
+            next_use: self.next_use,
+            input_domain: self.input_domain,
+            source_coefficients: &self.coefficients,
+            encoded_private_coefficients: &self.encoded,
+        }
+    }
+
+    pub(crate) fn source(&self) -> SigmaSourceBytes<'_> {
+        SigmaSourceBytes {
+            artifact_name: &self.artifact_name,
+            selection: &self.selection,
+            dtype: self.dtype,
+            endian: self.endian,
+            tensor_offset: self.tensor_offset,
+            scalar_artifact_offsets: &self.offsets,
+            bytes: &self.bytes,
+        }
+    }
+}
+
+/// Called under the real bridge reservation, before any compiler/native factory.
+pub(crate) fn check_original_data(
+    data: &OwnedCharged<ExecutionData>,
+    root: &OwnedBudget,
+) -> Result<(), BridgeError> {
+    if !std::ptr::eq(data.budget(), root.budget()) {
+        return Err(BridgeError::ForeignInput);
+    }
+    let actual = data
+        .payload()
+        .backing_bytes()?
+        .checked_add(size_of::<OwnedCharged<ExecutionData>>())
+        .ok_or(BridgeError::Resource)?;
+    if data.charged_bytes() < actual {
+        return Err(BridgeError::UnadmittedInput);
+    }
+    let value = data.payload();
+    if value.bytes.is_empty()
+        || value.bytes.len() > SELECTED_SOURCE_BYTE_CAPACITY
+        || value.offsets.len() > MAX_VALUES
+        || value.coefficients.len() > MAX_VALUES
+        || value.encoded.len() > MAX_VALUES
+        || value.input.len() > MAX_VALUES
+    {
+        return Err(BridgeError::Resource);
+    }
+    Ok(())
+}
+
+/// No allocation is permitted behind this gate. Rust charged-byte import does
+/// not admit Python exporter acquisition/capacity/immutability/lifetime;
+/// CPython GC/PyCell/type-init/exception/tuple/object backing and allocator peak.
+/// Rust `size_of::<Py<T>>()` is NOT a CPython allocation quote.
+pub(crate) fn require_python_allocation_contract() -> Result<(), BridgeError> {
+    Err(BridgeError::UnadmittedPython)
+}
 
 #[cfg(test)]
 #[path = "sigma_linear_activation_admission_tests.rs"]

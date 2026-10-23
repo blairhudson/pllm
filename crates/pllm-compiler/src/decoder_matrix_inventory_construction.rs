@@ -1358,6 +1358,85 @@ fn finish<'p>(
     })
 }
 
+/// Concrete owning-return slots, added to the unchanged checked construction
+/// envelope. Input backing is still censused from the same genuine owner.
+fn owned_inventory_control_bytes() -> Result<usize, NativeError> {
+    let mut bytes = size_of::<OwnedCharged<DecoderMatrixInventory>>();
+    bytes = bytes
+        .checked_add(size_of::<
+            Result<OwnedCharged<DecoderMatrixInventory>, NativeError>,
+        >())
+        .ok_or(NativeError::Resource)?;
+    bytes
+        .checked_add(size_of::<Result<DecoderMatrixInventory, NativeError>>())
+        .ok_or(NativeError::Resource)
+}
+
+pub(crate) fn owned_inventory_bootstrap_bytes() -> Result<usize, NativeError> {
+    bootstrap_bytes()
+        .map_err(|_| NativeError::Resource)?
+        .checked_add(owned_inventory_control_bytes()?)
+        .ok_or(NativeError::Resource)
+}
+
+/// Independently owning inventory, constructed from the original charged plan.
+/// No OwnedCharged extraction, borrowed-owner upgrade, cloned plan or refund/
+/// reacquire. Calling bundle keeps the original owner through inventory lifetime;
+/// this result alone grants no source/execution authority. Legacy diagnostics
+/// stay unchanged; this private consuming funnel returns fixed rejection only.
+pub(crate) fn admit_inventory_for_original_owner(
+    input: &OwnedCharged<DecoderPlan>,
+    working: OwnedExternalCharge,
+    max_work: u128,
+) -> Result<OwnedCharged<DecoderMatrixInventory>, NativeError> {
+    if !working.is_for(input.budget()) {
+        return Err(NativeError::Context);
+    }
+    if working.payload_bytes() < owned_inventory_bootstrap_bytes()? {
+        return Err(NativeError::Resource);
+    }
+    let extra = owned_inventory_control_bytes()?;
+    let quote = match ConstructionQuote::checked(input, working, Limits { max_work }) {
+        Ok(quote) => quote,
+        Err((error, working)) => {
+            // Retire the borrowed diagnostic while the original guard is live.
+            {
+                let _diagnostic = error;
+            }
+            drop(working);
+            return Err(NativeError::Resource);
+        }
+    };
+    // Do all fallible arithmetic before destructuring the quote, whose field
+    // order already retires Context before its charge on early return/unwind.
+    let payload = quote
+        .resources
+        .construction_payload_bytes
+        .checked_add(extra)
+        .ok_or(NativeError::Resource)?;
+    let ConstructionQuote {
+        context,
+        mut working,
+        ..
+    } = quote;
+    let payload = payload.max(working.payload_bytes()); // never shrink incoming guard
+    if let Err(error) = working.resize_payload(payload) {
+        drop(context);
+        return Err(error);
+    }
+    let plan = input.payload();
+    working.try_build(move |_| {
+        let mut context = context;
+        let result = finish(plan, &mut context);
+        if result.is_err() {
+            context.work = context.limit;
+        }
+        result.map_err(|_| NativeError::Resource)
+        // Captured Context erases prepaid pools before try_build's guard can
+        // refund on error/panic. Success retains the entire original reservation.
+    })
+}
+
 #[cfg(test)]
 #[path = "decoder_matrix_inventory_construction_tests.rs"]
 mod tests;

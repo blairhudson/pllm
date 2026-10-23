@@ -53,8 +53,8 @@ pub use execution::{
 };
 pub use source::{
     certify_source_checked_sigma_linear_activation, import_sigma_source_bytes, CheckedSigmaSource,
-    ExpectedSigmaSourcePin, SigmaSourceBytes, SigmaSourceConstructionResources, SigmaSourceResources,
-    SourceCheckedSigmaLinearActivation, SourceDtype, SourceEndian,
+    ExpectedSigmaSourcePin, SigmaSourceBytes, SigmaSourceConstructionResources,
+    SigmaSourceResources, SourceCheckedSigmaLinearActivation, SourceDtype, SourceEndian,
 };
 
 pub const SIGMA_LINEAR_ACTIVATION_SCHEMA: &str = "pllm.sigma.linear-activation-certificate.v1";
@@ -146,7 +146,8 @@ impl CheckpointTensorSelection {
         self.checked_metadata_backing_bytes().map_err(String::from)
     }
 
-    fn checked_metadata_backing_bytes(&self) -> Result<usize, &'static str> {
+    #[doc(hidden)]
+    pub fn checked_metadata_backing_bytes(&self) -> Result<usize, &'static str> {
         let coordinate_capacity = self
             .output_coordinates
             .capacity()
@@ -1128,6 +1129,23 @@ pub fn sigma_weight_selection_identity(selection: &CheckpointTensorSelection) ->
         &canonical_bytes(selection),
     )
 }
+
+// Compiler-only typed owning inputs; no SDK/Python registration or raw import.
+#[path = "sigma_linear_activation/input_owner.rs"]
+pub(crate) mod input_owner;
+
+// Opaque typed Rust handoff only; no SDK/component or Python registration.
+#[doc(hidden)]
+pub use input_owner::{
+    bootstrap_bytes as owned_sigma_input_source_bootstrap,
+    inventory_bootstrap_bytes as owned_sigma_input_inventory_bootstrap,
+    prepare as prepare_owned_sigma_input,
+    prepare_from_plan_bytes as prepare_owned_sigma_input_from_plan_bytes,
+    InputError as SigmaInputError, Operation as OwnedSigmaOperation, OwnedSigmaInput,
+    OwnedSigmaInputRetention, PlanInputLimits as OwnedSigmaPlanInputLimits,
+    PreparationWork as OwnedSigmaPreparationWork,
+    PublisherDeclaration as SigmaPublisherDeclaration,
+};
 
 #[cfg(test)]
 #[path = "sigma_linear_activation/tests.rs"]
