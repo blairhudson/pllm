@@ -890,13 +890,6 @@ fn partial_frame_slots() -> Result<usize, Error> {
         size_of::<ExactBuffer<ModelOperation>>(),
         size_of::<ExactBuffer<StateTensor>>(),
         size_of::<ExactBuffer<AppliedMethod>>(),
-        size_of::<ExactBuffer<Value>>(),
-        size_of::<ExactBuffer<u8>>(),
-        size_of::<String>(),
-        size_of::<Map<String, Value>>(),
-        size_of::<Value>(),
-        size_of::<Result<String, Error>>(),
-        size_of::<Result<Value, Error>>(),
         size_of::<Result<DecoderPlan, Error>>(),
         size_of::<Result<DecoderGraph, Error>>(),
         size_of::<Result<ModelOperation, Error>>(),
@@ -904,30 +897,64 @@ fn partial_frame_slots() -> Result<usize, Error> {
         size_of::<Result<AppliedMethod, Error>>(),
         size_of::<Result<Vec<String>, Error>>(),
         size_of::<Result<Vec<u64>, Error>>(),
-        size_of::<Result<Vec<Value>, Error>>(),
         size_of::<Result<Vec<ModelOperation>, Error>>(),
         size_of::<Result<Vec<StateTensor>, Error>>(),
         size_of::<Result<Vec<AppliedMethod>, Error>>(),
-        size_of::<std::string::FromUtf8Error>(),
         size_of::<de::value::StrDeserializer<'_, Error>>(),
         size_of::<de::value::StringDeserializer<Error>>(),
+    ];
+    terms.into_iter().try_fold(json_frame_slots()?, add)
+}
+
+// Model-neutral controls of the SAME Builder::json/string/array implementation.
+fn json_frame_slots() -> Result<usize, Error> {
+    [
+        size_of::<ExactBuffer<Value>>(),
+        size_of::<ExactBuffer<u8>>(),
+        size_of::<String>(),
+        size_of::<Map<String, Value>>(),
+        size_of::<Value>(),
+        size_of::<Result<String, Error>>(),
+        size_of::<Result<Value, Error>>(),
+        size_of::<Result<Vec<Value>, Error>>(),
+        size_of::<std::string::FromUtf8Error>(),
         size_of::<std::str::Bytes<'_>>(),
         size_of::<std::ops::Range<usize>>(),
         size_of::<(&Builder<'_>, usize)>(),
         size_of::<(usize, Span, Number)>(),
         size_of::<[u8; 4]>(),
-    ];
-    terms.into_iter().try_fold(0, add)
+    ]
+    .into_iter()
+    .try_fold(0, add)
 }
 
-fn partial_frames(stats: SourceCounts) -> Result<usize, Error> {
+fn active_frames(stats: SourceCounts, slots: usize) -> Result<usize, Error> {
     // Builder recursively descends only into child source spans. Array dispatch
     // and its typed wrapper share one ExactBuffer; string/enum/numeric helpers
     // are leaf calls whose concrete slots are all in partial_frame_slots.
     // Container depth plus leaf and outer-return slots bounds the active path.
     // Two complete sets at EACH level cover origin/destination result moves;
     // no backing retirement/reuse credit is taken anywhere in this quote.
-    mul(mul(add(stats.depth, 2)?, 2)?, partial_frame_slots()?)
+    mul(mul(add(stats.depth, 2)?, 2)?, slots)
+}
+
+fn partial_frames(stats: SourceCounts) -> Result<usize, Error> {
+    active_frames(stats, partial_frame_slots()?)
+}
+
+fn source_backing(stats: SourceCounts, array_slot: usize) -> Result<usize, Error> {
+    let trees = mul(
+        add(stats.objects, stats.map_entries)?,
+        pllm_models::owned_backing::checked_tree_node_bytes::<(String, Value)>()
+            .map_err(|_| Error::Overflow)?,
+    )?;
+    [
+        mul(stats.array_children, array_slot)?,
+        stats.decoded_string_bytes,
+        trees,
+    ]
+    .into_iter()
+    .try_fold(0, add)
 }
 
 fn payload(stats: SourceCounts) -> Result<usize, Error> {
@@ -943,17 +970,10 @@ fn payload(stats: SourceCounts) -> Result<usize, Error> {
     ]
     .into_iter()
     .try_fold(0, add)?;
-    let trees = mul(
-        add(stats.objects, stats.map_entries)?,
-        pllm_models::owned_backing::checked_tree_node_bytes::<(String, Value)>()
-            .map_err(|_| Error::Overflow)?,
-    )?;
     let terms = [
         bootstrap_bytes()?,
         layout_bytes::<Span>(stats.spans).map_err(|_| Error::Overflow)?,
-        mul(stats.array_children, array_slot)?,
-        stats.decoded_string_bytes,
-        trees,
+        source_backing(stats, array_slot)?,
         partial_frames(stats)?,
         number_resources()?.total()?,
     ];
@@ -966,6 +986,15 @@ fn build_work(stats: SourceCounts, raw_bytes: usize) -> Result<u128, Error> {
     // work is a separate disjoint slice, never part of this free allowance.
     // Fixed schema match alternatives: every field of all five concrete DTOs.
     let fields = 8u128 + 8 + 7 + 5 + 5;
+    shared_build_work(stats, raw_bytes, fields)
+}
+
+fn shared_build_work(
+    stats: SourceCounts,
+    raw_bytes: usize,
+    string_and_dispatch_passes: u128,
+) -> Result<u128, Error> {
+    let fields = string_and_dispatch_passes;
     let strings = wide_mul(stats.decoded_string_bytes as u128, fields)?;
     let source_passes = wide_mul(raw_bytes as u128, 3)?;
     let span_visits = wide_mul(stats.spans as u128, fields + 2 + 2 + 1)?;
@@ -1004,14 +1033,18 @@ fn census_work(stats: SourceCounts) -> Result<usize, Error> {
     // Native cursor: enter+exit per value, array edges, object selection /
     // candidate / pending-child per entry. Qualified integer/f64 Number display
     // is bounded by the pinned CompactFormatter/zmij output above.
-    let cursor = wide_add(
+    usize::try_from(wide_add(headers, wide_add(dto, json_cursor_work(stats)?)?)?)
+        .map_err(|_| Error::Overflow)
+}
+
+fn json_cursor_work(stats: SourceCounts) -> Result<u128, Error> {
+    wide_add(
         wide_mul(stats.spans as u128, 2 + NUMBER_DISPLAY_BYTES as u128)?,
         wide_add(
             stats.array_children as u128,
             wide_mul(stats.map_entries as u128, 3)?,
         )?,
-    )?;
-    usize::try_from(wide_add(headers, wide_add(dto, cursor)?)?).map_err(|_| Error::Overflow)
+    )
 }
 
 /// Quote borrows the ORIGINAL immutable byte owner and owns the ORIGINAL working
@@ -1125,6 +1158,33 @@ pub fn quote(
     charge: OwnedExternalCharge,
     limits: Limits,
 ) -> Result<ImportQuote<'_>, Error> {
+    check_original(original, &charge)?;
+    let (counts, meter) = scan_original(original, limits, bootstrap_bytes()?, &charge)?;
+    let raw = original.payload();
+    let required = payload(counts)?;
+    if required > limits.max_payload_bytes {
+        return Err(Error::Capacity);
+    }
+    // Refuse full preconstruction work without entering any real allocation.
+    let mut check = meter;
+    check.pay(wide_add(
+        build_work(counts, raw.len())?,
+        wide_add(census_work(counts)? as u128, numeric_work(counts, limits)?)?,
+    )?)?;
+    Ok(ImportQuote {
+        original,
+        charge,
+        limits,
+        counts,
+        meter,
+        required,
+    })
+}
+
+fn check_original(
+    original: &OwnedCharged<Vec<u8>>,
+    charge: &OwnedExternalCharge,
+) -> Result<(), Error> {
     if !charge.is_for(original.budget()) {
         return Err(Error::Counter);
     }
@@ -1135,7 +1195,15 @@ pub fn quote(
     if original.charged_bytes() < incoming {
         return Err(Error::OriginalOwner);
     }
-    let bootstrap = bootstrap_bytes()?;
+    Ok(())
+}
+
+fn scan_original(
+    original: &OwnedCharged<Vec<u8>>,
+    limits: Limits,
+    bootstrap: usize,
+    charge: &OwnedExternalCharge,
+) -> Result<(SourceCounts, Meter), Error> {
     if charge.payload_bytes() < bootstrap {
         return Err(Error::Bootstrap);
     }
@@ -1167,24 +1235,7 @@ pub fn quote(
         limits,
     }
     .run()?;
-    let required = payload(counts)?;
-    if required > limits.max_payload_bytes {
-        return Err(Error::Capacity);
-    }
-    // Refuse full preconstruction work without entering any real allocation.
-    let mut check = meter;
-    check.pay(wide_add(
-        build_work(counts, raw.len())?,
-        wide_add(census_work(counts)? as u128, numeric_work(counts, limits)?)?,
-    )?)?;
-    Ok(ImportQuote {
-        original,
-        charge,
-        limits,
-        counts,
-        meter,
-        required,
-    })
+    Ok((counts, meter))
 }
 
 struct Construct<'a> {
@@ -1195,29 +1246,7 @@ struct Construct<'a> {
 }
 impl Construct<'_> {
     fn run(self) -> Result<DecoderPlan, Error> {
-        let mut buffer = exact::<Span>(self.counts.spans)?;
-        for _ in 0..self.counts.spans {
-            push(&mut buffer, Span::EMPTY)?;
-        }
-        let mut spans = finish(buffer)?;
-        let mut prepaid = Meter {
-            used: 0,
-            limit: wide_add(
-                self.counts.scan_work,
-                wide_mul(self.counts.spans as u128, 2)?,
-            )?,
-        };
-        Scanner {
-            raw: self.original.payload(),
-            position: 0,
-            stack: [Frame::EMPTY; DEPTH],
-            active: 0,
-            stats: SourceCounts::default(),
-            meter: &mut prepaid,
-            output: Some(&mut spans),
-            limits: self.limits,
-        }
-        .run()?;
+        let spans = replay(self.original, self.counts, self.limits)?;
         let builder = Builder {
             raw: self.original.payload(),
             spans: &spans,
@@ -1263,6 +1292,37 @@ impl Construct<'_> {
     }
 }
 
+// One scanner replay/initialization path for both DTO and arbitrary-Value input.
+fn replay(
+    original: &OwnedCharged<Vec<u8>>,
+    counts: SourceCounts,
+    limits: Limits,
+) -> Result<Vec<Span>, Error> {
+    let mut buffer = exact::<Span>(counts.spans)?;
+    for _ in 0..counts.spans {
+        push(&mut buffer, Span::EMPTY)?;
+    }
+    let mut spans = finish(buffer)?;
+    let mut prepaid = Meter {
+        used: 0,
+        // Same immutable input gives the measured scan exactly. Span init/drop
+        // has its own prepaid construction credit, never lent to this walker.
+        limit: counts.scan_work,
+    };
+    Scanner {
+        raw: original.payload(),
+        position: 0,
+        stack: [Frame::EMPTY; DEPTH],
+        active: 0,
+        stats: SourceCounts::default(),
+        meter: &mut prepaid,
+        output: Some(&mut spans),
+        limits,
+    }
+    .run()?;
+    Ok(spans)
+}
+
 #[cfg(test)]
 thread_local! {
     static FACTORIES: std::cell::Cell<(usize, Option<usize>, Option<usize>)> = const { std::cell::Cell::new((0,None,None)) };
@@ -1277,3 +1337,7 @@ pub(crate) fn allocation_factories_for_test() -> usize {
 #[cfg(test)]
 #[path = "plan_input_tests.rs"]
 mod tests;
+
+/// Model-neutral immutable JSON import; same scanner, builder and qualifications.
+#[path = "json_value_input.rs"]
+pub mod json;

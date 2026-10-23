@@ -24,6 +24,7 @@ mod mixed_gated;
 mod network;
 mod offset_transport;
 mod owned_arguments;
+mod owned_raw_input;
 mod packed_embedding;
 mod paged;
 mod polynomial_shift;
