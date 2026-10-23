@@ -38,6 +38,7 @@ fn dense_mm(a: &[f64], b: &[f64], m: usize, n: usize, h: usize) -> Vec<f64> {
 // Independent dense coordinates only: no layout, diagonal, rotation, pack or
 // unpack helpers. Pair inner coordinates k and k+m/2 in the cyclic column order
 // starting at j. Im(X) = (A[i,k]*B[k+m/2,j]-A[i,k+m/2]*B[k,j])/2.
+#[allow(clippy::too_many_arguments)] // Keep independent dense geometry axes explicit.
 fn dense_paired_oracle(
     a: &[f64],
     b: &[f64],
@@ -71,6 +72,8 @@ fn dense_paired_oracle(
 }
 
 const SENTINEL: f64 = 12345.0;
+// Coordinate-indexed checks retain the original lane, suffix and panic behavior.
+#[allow(clippy::needless_range_loop)]
 fn assert_padding_and_suffix(l: Layout, values: &[f64]) {
     for i in 0..l.elements() {
         if l.lane(i).unwrap().is_none() {
@@ -79,6 +82,8 @@ fn assert_padding_and_suffix(l: Layout, values: &[f64]) {
     }
     assert!(values[l.elements()..].iter().all(|v| *v == SENTINEL));
 }
+// Visit exactly the layout's coordinates, not a potentially shorter input slice.
+#[allow(clippy::needless_range_loop)]
 fn poison_padding(l: Layout, values: &mut [f64]) {
     for i in 0..l.elements() {
         if l.lane(i).unwrap().is_none() {
@@ -88,6 +93,8 @@ fn poison_padding(l: Layout, values: &mut [f64]) {
 }
 
 #[test]
+// Explicit dense/packed coordinates are the independent bijection oracle.
+#[allow(clippy::needless_range_loop)]
 fn all_addresses_heads_diagonals_and_partial_frames_are_bijective() {
     for (r, c) in [(1, 1), (1, 8), (2, 8), (8, 2), (4, 4), (8, 8)] {
         for h in [1, 3, 12] {
@@ -144,6 +151,8 @@ fn every_basis_vector_transposes_across_rectangles_and_orientations() {
 }
 
 #[test]
+// Retain coordinate indexing and the original masked-rotation oracle order.
+#[allow(clippy::needless_range_loop)]
 fn replication_and_masked_rotations_preserve_heads_and_padding() {
     for d in [Diagonal::Upper, Diagonal::Lower] {
         let l = Layout::new(4, 8, 3, 5, 3, 3, d, LIMITS).unwrap();

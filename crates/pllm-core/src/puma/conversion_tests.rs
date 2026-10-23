@@ -224,6 +224,8 @@ fn kind_input_binding_and_replay_cannot_cross_conversion_boundaries() {
 
 #[test]
 fn independent_openssl_scalar_circuit_transcripts_match_all_padding_bits() {
+    use std::fmt::Write as _;
+
     let mut owners = parties(PrssLimits::default());
     for (kind, end, expected) in [
         (
@@ -246,7 +248,10 @@ fn independent_openssl_scalar_circuit_transcripts_match_all_padding_bits() {
             &[1 << 63, u64::MAX, i64::MAX as u64],
             true,
         );
-        let actual: String = digest.iter().map(|b| format!("{b:02x}")).collect();
+        let actual = digest.iter().fold(String::new(), |mut text, b| {
+            write!(&mut text, "{b:02x}").unwrap();
+            text
+        });
         assert_eq!(actual, expected);
         assert!(owners.iter().all(|p| p.cursors().pair_blocks == end));
         drop(output);

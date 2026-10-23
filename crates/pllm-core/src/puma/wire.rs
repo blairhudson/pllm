@@ -221,6 +221,70 @@ impl Message {
     }
 }
 
+impl prss::PublicContribution {
+    pub fn encode(self) -> [u8; 93] {
+        let mut out = [0; 93];
+        out[..4].copy_from_slice(b"PUP1");
+        out[4..36].copy_from_slice(&self.context.session);
+        out[36..68].copy_from_slice(&self.context.schedule);
+        out[68..76].copy_from_slice(&self.context.phase.to_le_bytes());
+        out[76] = self.from as u8;
+        out[77..].copy_from_slice(&self.value.to_le_bytes());
+        out
+    }
+
+    pub fn decode(raw: &[u8], sender: Party) -> Result<Self, Error> {
+        if raw.len() != 93 || &raw[..4] != b"PUP1" {
+            return Err(Error::Shape);
+        }
+        let from = party(raw[76])?;
+        if from != sender {
+            return Err(Error::Role);
+        }
+        Ok(Self {
+            context: Context::new(
+                raw[4..36].try_into().unwrap(),
+                raw[36..68].try_into().unwrap(),
+                u64::from_le_bytes(raw[68..76].try_into().unwrap()),
+            )?,
+            from,
+            value: u128::from_le_bytes(raw[77..].try_into().unwrap()),
+        })
+    }
+}
+
+impl prss::SeedMessage {
+    pub fn encode(self) -> Result<Encoded<Self>, Error> {
+        let mut bytes = allocate(54)?;
+        bytes[..4].copy_from_slice(b"PUS1");
+        bytes[4..36].copy_from_slice(&self.setup);
+        bytes[36] = self.from as u8;
+        bytes[37] = self.to as u8;
+        bytes[38..].copy_from_slice(&*self.seed);
+        Ok(Encoded {
+            bytes,
+            _owner: self,
+        })
+    }
+
+    pub fn decode(raw: &[u8], sender: Party, recipient: Party) -> Result<Self, Error> {
+        if raw.len() != 54 || &raw[..4] != b"PUS1" {
+            return Err(Error::Shape);
+        }
+        let from = party(raw[36])?;
+        let to = party(raw[37])?;
+        if from != sender || to != recipient || from.next().next() != to {
+            return Err(Error::Role);
+        }
+        Ok(Self {
+            setup: raw[4..36].try_into().unwrap(),
+            from,
+            to,
+            seed: Zeroizing::new(raw[38..].try_into().unwrap()),
+        })
+    }
+}
+
 #[cfg(test)]
 mod compact_tests {
     use super::*;
@@ -286,69 +350,5 @@ mod compact_tests {
                 }
             }
         }
-    }
-}
-
-impl prss::PublicContribution {
-    pub fn encode(self) -> [u8; 93] {
-        let mut out = [0; 93];
-        out[..4].copy_from_slice(b"PUP1");
-        out[4..36].copy_from_slice(&self.context.session);
-        out[36..68].copy_from_slice(&self.context.schedule);
-        out[68..76].copy_from_slice(&self.context.phase.to_le_bytes());
-        out[76] = self.from as u8;
-        out[77..].copy_from_slice(&self.value.to_le_bytes());
-        out
-    }
-
-    pub fn decode(raw: &[u8], sender: Party) -> Result<Self, Error> {
-        if raw.len() != 93 || &raw[..4] != b"PUP1" {
-            return Err(Error::Shape);
-        }
-        let from = party(raw[76])?;
-        if from != sender {
-            return Err(Error::Role);
-        }
-        Ok(Self {
-            context: Context::new(
-                raw[4..36].try_into().unwrap(),
-                raw[36..68].try_into().unwrap(),
-                u64::from_le_bytes(raw[68..76].try_into().unwrap()),
-            )?,
-            from,
-            value: u128::from_le_bytes(raw[77..].try_into().unwrap()),
-        })
-    }
-}
-
-impl prss::SeedMessage {
-    pub fn encode(self) -> Result<Encoded<Self>, Error> {
-        let mut bytes = allocate(54)?;
-        bytes[..4].copy_from_slice(b"PUS1");
-        bytes[4..36].copy_from_slice(&self.setup);
-        bytes[36] = self.from as u8;
-        bytes[37] = self.to as u8;
-        bytes[38..].copy_from_slice(&*self.seed);
-        Ok(Encoded {
-            bytes,
-            _owner: self,
-        })
-    }
-
-    pub fn decode(raw: &[u8], sender: Party, recipient: Party) -> Result<Self, Error> {
-        if raw.len() != 54 || &raw[..4] != b"PUS1" {
-            return Err(Error::Shape);
-        }
-        let from = party(raw[36])?;
-        let to = party(raw[37])?;
-        if from != sender || to != recipient || from.next().next() != to {
-            return Err(Error::Role);
-        }
-        Ok(Self {
-            setup: raw[4..36].try_into().unwrap(),
-            from,
-            to,
-            seed: Zeroizing::new(raw[38..].try_into().unwrap()),
-        })
     }
 }

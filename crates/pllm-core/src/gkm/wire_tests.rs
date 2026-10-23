@@ -35,6 +35,9 @@ fn worker_window_permit_preserves_original_full_requirement_and_prices_only_seed
         let plan = [Step::Linear([1; 32]), Step::Lookup];
         // Original wire admission formula, retaining the actual current inline
         // owner size for every role/profile. No seeded endpoint allowance here.
+        // Keep both literal max operands: this fixture's linear arm dominates,
+        // but the independent oracle must still state the full original recipe.
+        #[allow(clippy::unnecessary_min_or_max)]
         let original = plan.len() * size_of::<Step>()
             + (13usize * 8 + 11 * 16).max(7 * 4)
             + size_of::<WorkerWireWindow>()

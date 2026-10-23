@@ -36,6 +36,8 @@ fn values(count: usize, seed: u64, q: u64) -> Vec<u64> {
         .collect()
 }
 
+// Keep the independent lane/coefficient coordinate oracle and accumulation order.
+#[allow(clippy::needless_range_loop)]
 fn evaluate(layout: CoefficientLayout, a: &[u64], b: &[u64]) -> Vec<u64> {
     let degree = layout.ring().degree();
     let q = layout.ring().modulus();

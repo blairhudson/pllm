@@ -246,7 +246,11 @@ fn independent_ot_transcripts_match_mask_delivery_and_full_arithmetic_pairs() {
     ] {
         let maximum = (1_u64 << bits) - 1;
         let (output, digest, plan) = run(&mut owners, &[0, maximum, maximum / 2], bits);
-        let actual: String = digest.iter().map(|v| format!("{v:02x}")).collect();
+        let actual = digest.iter().fold(String::new(), |mut text, v| {
+            use std::fmt::Write as _;
+            write!(&mut text, "{v:02x}").unwrap();
+            text
+        });
         assert_eq!(actual, expected);
         assert_eq!(plan.helper() as usize, helper);
         assert!(owners.iter().all(|p| p.cursors().pair_blocks == end));
@@ -442,7 +446,11 @@ fn independent_ppa_transcripts_match_mask_rotation_carry_reveal_and_output() {
     ] {
         let maximum = u64::MAX >> (64 - bits);
         let (output, digest, _) = run_ppa(&mut owners, &[0, maximum, maximum / 2], bits);
-        let actual: String = digest.iter().map(|v| format!("{v:02x}")).collect();
+        let actual = digest.iter().fold(String::new(), |mut text, v| {
+            use std::fmt::Write as _;
+            write!(&mut text, "{v:02x}").unwrap();
+            text
+        });
         assert_eq!(actual, expected);
         assert!(owners.iter().all(|p| p.cursors().pair_blocks == end));
         drop(output);

@@ -151,6 +151,8 @@ fn bounded_equality_full_ring_shares_cover_widths_signed_endpoints_and_vocabular
 }
 
 #[test]
+// Directed role indices are part of this literal transcript/byte-count oracle.
+#[allow(clippy::needless_range_loop)]
 fn bounded_equality_costs_and_actual_directional_encoded_frames() {
     let bounds = Interval::new(-151935, 151935).unwrap();
     for width in [0, 18, 64] {
@@ -1967,7 +1969,7 @@ fn guarded_activation_range_proof_covers_independent_rounding_choices() {
             for x in [start, start + (end - start) / 2, end] {
                 for bits in 0..1_u64 << truncations {
                     let masks = (0..truncations).map(|i| {
-                        if bits >> i & 1 == 0 {
+                        if (bits >> i) & 1 == 0 {
                             0
                         } else {
                             (ONE - 1) as u64
