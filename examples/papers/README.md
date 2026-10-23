@@ -176,16 +176,19 @@ state, sampling and resource contracts; conflicting CLI overrides are rejected.
 Output uses public `pllm.benchmark_run.v1`, **not** the legacy loopback/WAN schema.
 Completion means every attempt has a record, not that any measurement qualifies.
 
-Inspect owner-aware comparisons through the ordinary report, without substituting
-the root process for SDK/client helpers:
+Inspect owner-aware comparisons through the ordinary report. Keep whole-client
+selections separate from the explicitly qualified root endpoint selection:
 
 ```python
 from pllm.metrics import BenchmarkRun
-from examples.papers.low_memory_qwen3 import CLIENT_MEMORY_METRICS
+from examples.papers.low_memory_qwen3 import CLIENT_MEMORY_METRICS, ROOT_ENDPOINT_MEMORY_METRIC
 
 run = BenchmarkRun.load("target/low-memory-qwen3.json")
 for metric in CLIENT_MEMORY_METRICS:
     print(run.compare("maintained", "paged-prepared", metric, minimum_reduction=10))
+
+# Existing client.peak_rss, opt-in root-only endpoint qualification; no new metric.
+print(run.compare("maintained", "paged-prepared", ROOT_ENDPOINT_MEMORY_METRIC))
 ```
 
 Sampled owner sums are non-atomic estimates; maximum individual observations
@@ -196,5 +199,16 @@ unranked; a live root snapshot is insufficient. Scalar availability budgets
 remain unknown when telemetry is absent. Providers stay separately charged.
 Keep source loading, client helpers, retained inventory and retirement in the
 declared lifetime; never silently narrow it to the online/root-only window.
+The separate endpoint selection requires fresh matched accepted-count/source/body/
+trajectory evidence, retired owners and birth-bound membership containing exactly
+the root and no helpers. It compares genuine `RUSAGE_SELF` RSS HWM from process
+birth through the report endpoint, including client prewarm/paging work inside
+that window. It excludes later report serialization/exit and outside-role
+provider/controller/parent-source costs; it is neither a complete post-exit
+lifetime nor physical/private used RAM. Missing/conflicting ownership or endpoint
+evidence stays unranked, never falls back to the raw legacy selector, and never
+replaces an unavailable group interval. A provider-inflated `wait4` family maximum
+remains upper-only; sampled sums never become point peaks. Endpoint ratios report
+`reduction_status="not_established"`, including ratios at or above ten.
 The historical 8.25 GiB estimate and 0.83 GiB target are not measured RSS.
 **No accepted 64/8 campaign or tenfold memory reduction has been measured here.**

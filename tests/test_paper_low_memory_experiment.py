@@ -424,6 +424,51 @@ def test_whole_client_opt_in_selections_never_alias_individual_process_metrics()
     assert all(row["outcome"] == "unknown" for row in assess_budgets(case, []))
 
 
+def test_optional_root_endpoint_selection_is_separate_and_leaves_target_identities_unchanged():
+    selected = experiment.ROOT_ENDPOINT_MEMORY_METRIC
+    assert selected.id == "client.peak_rss" and selected.qualification == "root_only_report_endpoint"
+    assert selected not in experiment.CLIENT_MEMORY_METRICS
+    assert selected.to_spec()["window"] == "client_process_birth_through_report_endpoint"
+    assert selected.to_spec()["physical_peak"] is False
+    # Frozen ff0bc8e1 metadata fixture: selection changes no suite/target/budget.
+    configured = suite()
+    assert configured.digest == "5e623ff074b3bc97b4daaed108e1724aa2cffd4802215cd773f604d37b74391d"
+    assert [case.target.digest for case in configured.cases] == [
+        "63320f1e022185b3af79f6c139df03af4f467e68b02ee797a47c93a5f8c28d27",
+        "2e39a4f9de6086fdb549cdfa4f4b6ba9e164562b556f7b8c8eb5c5c28c9bb981"]
+    assert "qualification" not in json.dumps(configured.to_spec())
+    assert [budget.metric for budget in configured.cases[0].budgets] == list(experiment.MEASUREMENTS)
+
+
+@pytest.mark.parametrize("birth_bound", [True, False])
+def test_campaign_endpoint_uses_ordinary_guard_without_promoting_lifetime_or_legacy(monkeypatch, birth_bound):
+    from test_client_endpoint_memory_comparison import run, scope
+    from pllm.runtime import client_process_usage
+
+    # Reuse the independently tested synthetic ordinary Report fixture, not a
+    # checkpoint run or a new metric producer. Darwin usage records are doubles.
+    monkeypatch.setattr(client_process_usage, "supported", lambda: True)
+    observed = run(change=lambda row: scope(row)["lifetime_owner"].update(root_birth_bound=birth_bound))
+    before = observed.to_dict()
+    endpoint = observed.compare("control", "candidate", experiment.ROOT_ENDPOINT_MEMORY_METRIC)
+    if birth_bound:
+        assert endpoint["status"] == "comparable_in_scope"
+        assert endpoint["paired_control_over_candidate"] == [100]
+        assert endpoint["window"] == "client_process_birth_through_report_endpoint"
+        assert not endpoint["physical_peak"] and not endpoint["whole_lifetime"]
+        interval = observed.compare("control", "candidate", experiment.CLIENT_MEMORY_METRICS[2])
+        assert interval["status"] == "bounded" and interval["reduction_status"] == "not_established"
+        assert interval["pairs"][0]["candidate"]["upper_bytes"] == 1 << 30
+        assert endpoint["reduction_status"] == "not_established"
+    else:
+        assert endpoint["status"] == "unranked"
+        assert observed.compare("control", "candidate", experiment.CLIENT_MEMORY_METRICS[2])["status"] == "unranked"
+    # The legacy selector remains unchanged, but is not an opt-in fallback.
+    assert observed.compare("control", "candidate", "client.peak_rss")["status"] == "comparable"
+    assert all(row["status"] == "completed" for row in before["results"])
+    assert observed.to_dict() == before
+
+
 def test_tracked_public_asset_bytes_and_shared_inputs_without_tokenizer_claim():
     import hashlib
 

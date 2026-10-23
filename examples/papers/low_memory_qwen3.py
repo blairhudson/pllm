@@ -39,12 +39,18 @@ BenchmarkRun.compare checks matching source/body/workload/output-state contracts
 It does not compare independently salted runs or prove BF16 fidelity/task quality,
 stochastic parity, intermediate-tensor equality, history or pending-token equality.
 
-process.peak_rss and client.peak_rss are individual-process diagnostics, not a
-complete client/helper group. CLIENT_MEMORY_METRICS selects ordinary guarded
+Raw process.peak_rss and client.peak_rss are individual-process diagnostics, not a
+complete client/helper group. CLIENT_MEMORY_METRICS retains ordinary guarded
 owner-aware comparisons: sampled sums are descriptive estimates; individual
 observations are lower bounds; only complete isolated lifetime intervals can
 establish a scoped reduction bound. Unknown helper membership, source setup,
 per-member HWM or retirement must remain unranked, never root-only success.
+Separately, ROOT_ENDPOINT_MEMORY_METRIC explicitly qualifies existing
+client.peak_rss for birth-through-report-endpoint RUSAGE_SELF HWM only when the
+ordinary creator/retirement and birth-bound membership prove exactly one client
+process and no client helpers. Its scoped endpoint ratio neither replaces unknown
+whole-lifetime coverage nor establishes a group, physical or tenfold reduction.
+Provider-inflated wait4 family maxima stay upper bounds, never endpoint values.
 Provider resources, external filesystem cache and disk snapshots stay separate.
 The historical 8.25 GiB estimate and rounded 0.83 GiB budget are not observations
 or thresholds here. Only matched measured peaks can establish a tenfold ratio;
@@ -71,6 +77,8 @@ NAMES = ("maintained", "paged-prepared")
 CLIENT_MEMORY_METRICS = tuple(MetricSpec(name) for name in (
     "client.owned_sampled_peak_rss_sum", "client.owned_peak_rss_lower_bound",
     "client.owned_lifetime_peak_rss_sum_interval"))
+# Optional report selection only: no target, availability budget or default change.
+ROOT_ENDPOINT_MEMORY_METRIC = MetricSpec("client.peak_rss", qualification="root_only_report_endpoint")
 
 # Measurement requirements, not invented telemetry or observed results.
 MEASUREMENTS = {
