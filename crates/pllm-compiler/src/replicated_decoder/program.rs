@@ -12,6 +12,23 @@ mod request_driver;
 #[path = "request_acceptance.rs"]
 mod request_acceptance;
 
+#[allow(dead_code)]
+#[path = "request_origin.rs"]
+mod request_origin;
+
+/// Only this module can create the actual token-input emission event.
+pub(super) struct CreatedRequestInput {
+    owner: usize,
+    rows: usize,
+    bounds: Interval,
+}
+
+impl CreatedRequestInput {
+    pub(super) fn parts(self) -> (usize, usize, Interval) {
+        (self.owner, self.rows, self.bounds)
+    }
+}
+
 // Compiler-private compact metadata; default expanded routing is unchanged.
 #[allow(dead_code)]
 #[path = "compact_lowering.rs"]
@@ -278,6 +295,8 @@ pub struct Program {
     payload_bytes: usize,
     work: WorkBudget,
     pub(super) source_binding: [u8; 32],
+    // Consuming source/request custody follows the original Program allocation.
+    pub(super) request_custody: Option<Box<request_origin::schedule::Custody>>,
 }
 
 #[path = "schedule_access.rs"]
@@ -348,6 +367,9 @@ impl Program {
                 _ => return Err(Error::Binding),
             };
             bytes = add(bytes, extra)?;
+        }
+        if let Some(custody) = &self.request_custody {
+            bytes = add(bytes, custody.retained_bytes())?;
         }
         Ok(bytes)
     }
@@ -679,6 +701,7 @@ struct Builder {
     // Empty on the legacy path. Only genuine opt-in input creation can append
     // these immutable records; ordinary coordinate-only Views cannot mint one.
     original_inputs: Vec<Arc<original_import::InputRecord>>,
+    request_emission: Option<request_origin::Active>,
     allocated: usize,
     workspace_bytes: usize,
     tensors: BTreeMap<[u8; 32], Arc<tensor::Program>>,
@@ -848,6 +871,52 @@ impl compact_lowering::ArgmaxSink for ExpandedArgmax<'_> {
 }
 
 impl Builder {
+    /// Mint only during actual Input creation under an already admitted permit
+    /// factory. No existing View or ordinal is accepted by this endpoint.
+    fn create_request_input(
+        &mut self,
+        mint: request_origin::InputMint,
+    ) -> Result<Arc<original_import::InputRecord>, Error> {
+        let (rows, bounds) = mint.parts();
+        if self
+            .nodes
+            .iter()
+            .any(|n| matches!(&n.code, Code::Input(key) if key == "input.tokens"))
+        {
+            return Err(Error::Binding);
+        }
+        let next = self
+            .original_inputs
+            .len()
+            .checked_add(1)
+            .ok_or(Error::Bounds)?;
+        if self.original_inputs.capacity() < next {
+            self.original_inputs
+                .try_reserve_exact(1)
+                .map_err(|_| Error::Allocation)?;
+            if self.original_inputs.capacity() != next {
+                return Err(Error::Allocation);
+            }
+        }
+        if self.nodes.len() == self.nodes.capacity() {
+            let next = self.nodes.len().checked_add(1).ok_or(Error::Bounds)?;
+            self.nodes
+                .try_reserve_exact(1)
+                .map_err(|_| Error::Allocation)?;
+            if self.nodes.capacity() != next {
+                return Err(Error::Allocation);
+            }
+        }
+        let owner = self.push(Code::Input("input.tokens".into()), rows, bounds)?;
+        let record = original_import::request_record(CreatedRequestInput {
+            owner,
+            rows,
+            bounds,
+        })?;
+        self.original_inputs.push(Arc::clone(&record));
+        Ok(record)
+    }
+
     fn admission_ledger(&self) -> String {
         format!(
             "stage: {}, limit: {:?}, nodes: {}/{MAX_NODES}, program_bytes: {}/{MAX_PROGRAM_BYTES}, requested_bytes: {:?}, requested_lanes: {:?}, value_limit: {MAX_VALUES}, public_value_limit: {MAX_PUBLIC_SOURCE_VALUES}, workspace_bytes: {}, trie_active_workspace_bytes: {}, value_payload_bytes: {}, cumulative_nonvalue_bytes: {}, tensor_templates: {}, row_certificates: {}",
@@ -2366,6 +2435,7 @@ impl Program {
                 payload_bytes: builder.allocated,
                 work,
                 source_binding: source_binding_with_norms(sources, norms),
+                request_custody: None,
             })
         })();
         result.map_err(|e| {
@@ -2764,6 +2834,7 @@ impl Builder {
             payload_bytes: builder.allocated,
             work,
             source_binding: source_binding(),
+            request_custody: None,
         })
     }
 }

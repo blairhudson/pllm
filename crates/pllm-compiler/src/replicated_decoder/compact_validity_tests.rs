@@ -784,6 +784,7 @@ fn native_rejected_lanes_are_zero_safe_and_later_success_cannot_clear_sticky() {
         outputs: selected,
         digest: finalized.digest,
         source_binding: frozen.source_binding(),
+        request_custody: None,
         payload_bytes: quote.peak_bytes,
         work: finalized.work,
     });

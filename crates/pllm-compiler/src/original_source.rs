@@ -183,6 +183,60 @@ impl SourceQuote {
 }
 
 impl OriginalSourcePlan {
+    /// Known logical slots for compiler metadata's shared-ledger transition.
+    /// No allocation/factory/CPU-fuel/physical-callframe authority follows.
+    pub(crate) fn compiler_metadata_control_bytes() -> Result<usize, Error> {
+        type Guard<'a> = std::sync::MutexGuard<'a, Ledger>;
+        let mut bytes = size_of::<Guard<'_>>();
+        for n in [
+            size_of::<Result<Guard<'_>, std::sync::PoisonError<Guard<'_>>>>(),
+            size_of::<&OwnedExternalCharge>(),
+            size_of::<&Arc<OwnedCharged<Context>>>(),
+            size_of::<Result<u64, Error>>(),
+            size_of::<Option<u64>>(),
+            3 * size_of::<u64>(),
+        ] {
+            bytes = add(bytes, n)?;
+        }
+        Ok(bytes)
+    }
+
+    /// Compiler-private bounded metadata visits share the original source's
+    /// cumulative quota. Not native WorkBudget, an input/proof issuer or CPU fuel.
+    /// An admitted transition error burns all lowering siblings; no refund/reset.
+    pub(crate) fn prepay_compiler_metadata(
+        &self,
+        controller: &OwnedExternalCharge,
+        visits: u64,
+    ) -> Result<(), Error> {
+        if !controller.is_for(self.budget()) {
+            return Err(Error::Counter);
+        }
+        if controller.payload_bytes() < Self::compiler_metadata_control_bytes()? {
+            return Err(Error::Capacity);
+        }
+        let mut ledger = self
+            .root()
+            .payload()
+            .ledger
+            .as_ref()
+            .ok_or(Error::Burned)?
+            .lock()
+            .map_err(|_| Error::Burned)?;
+        if ledger.burned {
+            return Err(Error::Burned);
+        }
+        ledger.burned = true;
+        let used = ledger
+            .used
+            .checked_add(visits)
+            .filter(|used| *used <= ledger.limit)
+            .ok_or(Error::Work)?;
+        ledger.used = used;
+        ledger.burned = false;
+        Ok(())
+    }
+
     pub fn workload(&self) -> DecoderWorkload {
         self.inner.payload().workload
     }

@@ -20,6 +20,19 @@ impl InputRecord {
     }
 }
 
+/// Only program's genuine token Input push can create this consuming event.
+/// No existing ordinal/View or source hash is accepted as a creation substitute.
+pub(super) fn request_record(
+    created: super::CreatedRequestInput,
+) -> Result<Arc<InputRecord>, Error> {
+    let (owner, rows, bounds) = created.parts();
+    Ok(Arc::new(InputRecord {
+        owner,
+        logical: ViewShape::new(&[1, rows])?,
+        bounds,
+    }))
+}
+
 /// Only declare_original_input can mint this view, at the original Input push.
 /// No constructor accepts a preexisting View, owner ordinal, digest or baseline.
 pub(super) struct OriginalImportedView<'s> {

@@ -137,6 +137,7 @@ fn fixture(
         payload_bytes: builder.allocated,
         work,
         source_binding: [0; 32],
+        request_custody: None,
     });
     (
         program,

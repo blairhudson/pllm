@@ -25,6 +25,7 @@ fn finish_builder(builder: Builder, inputs: usize, outputs: Vec<(usize, usize)>)
         retire,
         digest: [63; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: builder.allocated,
         work,
     })

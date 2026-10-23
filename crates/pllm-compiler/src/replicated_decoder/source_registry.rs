@@ -517,10 +517,6 @@ impl<'a> SourceRegistry<'a> {
     /// Retained registry heap backing, including new norm ownership: zero.
     /// Not a bound on allocating from_manifest validation temporaries. The inline
     /// handle itself must still be charged by its enclosing owner.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "D26 registry construction is not yet promoted")
-    )]
     pub(super) fn owned_backing_bytes(&self) -> usize {
         0
     }

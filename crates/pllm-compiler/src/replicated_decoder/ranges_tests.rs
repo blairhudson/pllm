@@ -241,6 +241,7 @@ fn checked_range_compiler_native_outputs_match_independent_integer_recipe() {
         outputs,
         digest: [197; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     });
@@ -656,6 +657,7 @@ fn checked_rows_rms_norm_native_final_acceptance_stochastic_oracle_tail() {
         outputs: vec![(masked, 0), (sticky, 0)],
         digest: [198; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     });

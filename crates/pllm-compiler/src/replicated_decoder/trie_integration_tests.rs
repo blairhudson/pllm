@@ -365,6 +365,7 @@ fn row_program(alias: bool) -> (Arc<Program>, BTreeMap<String, Vec<i64>>, Vec<u6
         retire,
         digest: [63; 32],
         source_binding: [19; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     });

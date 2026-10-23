@@ -310,6 +310,7 @@ fn finish_expanded(b: Builder, inputs: usize, outputs: Vec<(usize, usize)>) -> A
         retire,
         digest: [83; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     })

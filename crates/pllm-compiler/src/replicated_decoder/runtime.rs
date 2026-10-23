@@ -74,7 +74,7 @@ pub struct Worker {
     imported_words: usize,
     session: [u8; 32],
     pid: u32,
-    public: Option<PublicSource>,
+    public: Option<PublicOwner>,
     // Test-only consuming custody. Production has no frozen constructor/route.
     #[cfg(test)]
     oracle_values: Option<frozen_execution_tests::Values>,
@@ -82,6 +82,32 @@ pub struct Worker {
 
 #[cfg(test)]
 type BoundaryState<I> = Result<(usize, puma::prss::Cursors, I), Error>;
+
+/// Same authenticated file owner, either the original by-value route or the
+/// actual shared source used during consuming source/request construction.
+/// Owned callers do not acquire an extra heap allocation.
+pub(super) enum PublicOwner {
+    Owned(PublicSource),
+    Shared(Arc<PublicSource>),
+}
+impl std::ops::Deref for PublicOwner {
+    type Target = PublicSource;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Owned(source) => source,
+            Self::Shared(source) => source,
+        }
+    }
+}
+impl PublicOwner {
+    #[cfg(test)]
+    pub(super) fn into_shared(self) -> Arc<PublicSource> {
+        match self {
+            Self::Owned(source) => Arc::new(source),
+            Self::Shared(source) => source,
+        }
+    }
+}
 
 impl Worker {
     pub fn new(
@@ -98,6 +124,24 @@ impl Worker {
         session: [u8; 32],
         public: Option<PublicSource>,
     ) -> Result<Self, Error> {
+        Self::with_public_owner(program, runtime, session, public.map(PublicOwner::Owned))
+    }
+
+    pub(in crate::replicated_decoder) fn new_with_shared_source(
+        program: Arc<Program>,
+        runtime: PartyRuntime,
+        session: [u8; 32],
+        public: Arc<PublicSource>,
+    ) -> Result<Self, Error> {
+        Self::with_public_owner(program, runtime, session, Some(PublicOwner::Shared(public)))
+    }
+
+    fn with_public_owner(
+        program: Arc<Program>,
+        runtime: PartyRuntime,
+        session: [u8; 32],
+        public: Option<PublicOwner>,
+    ) -> Result<Self, Error> {
         if runtime.status() != Status::Ready
             || !runtime.matches_context(Context::new(session, program.digest(), 0)?)
         {
@@ -106,6 +150,14 @@ impl Worker {
         let public_count = program.schedule_access().public_input_count()?;
         if let Some(source) = &public {
             source.check(&program)?;
+        }
+        // A consuming request already retains its authenticated creator. The
+        // legacy by-value route cannot substitute a different same-binding owner.
+        if let Some(custody) = &program.request_custody {
+            if !matches!(&public, Some(PublicOwner::Shared(source)) if Arc::ptr_eq(source, custody.public()))
+            {
+                return Err(Error::Binding);
+            }
         }
         if public.is_some() != (public_count > 0)
             || !program.schedule_access().public_prefix(public_count)?

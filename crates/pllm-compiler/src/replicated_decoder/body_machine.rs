@@ -850,6 +850,11 @@ pub(in crate::replicated_decoder) fn try_from_worker(
             worker.values[worker.program.value_slot(owner)].take()
         })
         .collect();
-    let public = public.or_else(|| worker.public.take().map(Arc::new));
+    let public = public.or_else(|| {
+        worker
+            .public
+            .take()
+            .map(crate::replicated_decoder::runtime::PublicOwner::into_shared)
+    });
     Executor::new(plan, runtime, inputs, public, Some(&worker.program))
 }

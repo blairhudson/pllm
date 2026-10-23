@@ -135,6 +135,41 @@ impl<'g, V> OrderedGraph<'g, V> {
         self.values.remove(&self.graph.output).ok_or(Error::Binding)
     }
 }
+/// Constructors remain INSIDE original graph emission, never from arbitrary
+/// caller Views. Request history receives these events only at genuine sites.
+pub(super) struct SelectionEvent<'a> {
+    graph: &'a DecoderGraph,
+    operation: &'a pllm_models::ModelOperation,
+    view: &'a View,
+}
+pub(super) struct FeedbackEvent<'a> {
+    graph: &'a DecoderGraph,
+    operation: &'a pllm_models::ModelOperation,
+    view: &'a View,
+}
+impl<'a> SelectionEvent<'a> {
+    pub(super) fn graph(&self) -> &'a DecoderGraph {
+        self.graph
+    }
+    pub(super) fn operation(&self) -> &'a pllm_models::ModelOperation {
+        self.operation
+    }
+    pub(super) fn view(&self) -> &'a View {
+        self.view
+    }
+}
+impl<'a> FeedbackEvent<'a> {
+    pub(super) fn graph(&self) -> &'a DecoderGraph {
+        self.graph
+    }
+    pub(super) fn operation(&self) -> &'a pllm_models::ModelOperation {
+        self.operation
+    }
+    pub(super) fn view(&self) -> &'a View {
+        self.view
+    }
+}
+
 impl Builder {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn graph(
@@ -148,6 +183,7 @@ impl Builder {
         state: &mut BTreeMap<(u64, pllm_models::StateKind), View>,
         site: &mut AdmissionSite,
     ) -> Result<View, Error> {
+        request_origin::graph_entry(self, graph, tokens)?;
         let sequence = tokens.words.len();
         let keys = position.checked_add(sequence).ok_or(Error::Bounds)?;
         if sequence != graph.query_sequence as usize || keys > graph.maximum_key_sequence as usize {
@@ -302,6 +338,25 @@ impl Builder {
             };
             if output.words.len() != shape.iter().product::<usize>() {
                 return Err(Error::Shape);
+            }
+            if op.operator == Op::GreedyTokenSelection {
+                request_origin::selected(
+                    self,
+                    SelectionEvent {
+                        graph,
+                        operation: op,
+                        view: &output,
+                    },
+                )?;
+            } else if op.operator == Op::TokenFeedback {
+                request_origin::feedback(
+                    self,
+                    FeedbackEvent {
+                        graph,
+                        operation: op,
+                        view: &output,
+                    },
+                )?;
             }
             #[cfg(test)]
             if oracle_trace::enabled() {

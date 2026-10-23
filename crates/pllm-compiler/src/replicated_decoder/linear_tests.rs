@@ -31,6 +31,7 @@ fn selector_program(vocabulary: usize) -> Arc<Program> {
         outputs: (0..vocabulary).map(|i| (output, i)).collect(),
         digest: [97; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     })
@@ -136,6 +137,7 @@ fn batched_private_argmax_preserves_lowest_index_ties_and_odd_tails() {
             outputs: output.words.iter().collect(),
             digest: [95; 32],
             source_binding: [0; 32],
+            request_custody: None,
             payload_bytes: builder.allocated,
             work,
         });
@@ -213,6 +215,7 @@ fn paged_public_matrix_products_cross_disk_chunks_and_truncate_complete_sums() {
                     outputs: out.words.iter().collect(),
                     digest: [93; 32],
                     source_binding: [0; 32],
+                    request_custody: None,
                     payload_bytes: b.allocated,
                     work,
                 });
@@ -275,6 +278,7 @@ fn compile(
         outputs: out.words.iter().collect(),
         digest: [71; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     }))
@@ -436,6 +440,7 @@ fn certified_public_row_sum_admits_sparse_products_without_relaxing_truncation()
             outputs: output.words.iter().collect(),
             digest: [94; 32],
             source_binding: [0; 32],
+            request_custody: None,
             payload_bytes: b.allocated,
             work,
         });
@@ -530,6 +535,7 @@ fn public_matrix_energy_follows_complete_residual_rows_into_rms_norm() {
             .collect(),
         digest: [98; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     });
@@ -614,6 +620,7 @@ fn certified_row_norms_apply_only_to_complete_rows_and_preserve_public_products(
         outputs: row.words.iter().chain(output.words.iter()).collect(),
         digest: [96; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     });
@@ -687,6 +694,7 @@ fn certified_softmax_mass_binds_complete_rows_and_preserves_private_products() {
         outputs: row.words.iter().chain(output.words.iter()).collect(),
         digest: [98; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     });
@@ -768,6 +776,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 outputs: output.words.iter().collect(),
                 digest: [73; 32],
                 source_binding: [0; 32],
+                request_custody: None,
                 payload_bytes: b.allocated,
                 work,
             });
@@ -780,6 +789,7 @@ fn compact_source_tiles_preserve_strided_transpose_and_partial_contractions() {
                 outputs: program.outputs.clone(),
                 digest: program.digest,
                 source_binding: program.source_binding,
+                request_custody: None,
                 payload_bytes: program.payload_bytes,
                 work: program.work,
             };

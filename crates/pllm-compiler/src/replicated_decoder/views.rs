@@ -20,6 +20,27 @@ pub(super) struct Words {
 }
 
 impl Words {
+    /// Opt-in preallocated descriptor pool; legacy creation remains unchanged.
+    pub(super) fn try_with_spans(capacity: usize) -> Result<Self, pllm_core::puma::Error> {
+        let mut spans = Vec::new();
+        spans
+            .try_reserve_exact(capacity)
+            .map_err(|_| pllm_core::puma::Error::Allocation)?;
+        if spans.capacity() != capacity {
+            return Err(pllm_core::puma::Error::Allocation);
+        }
+        Ok(Self { spans, len: 0 })
+    }
+
+    pub(super) fn span_pool_bytes(capacity: usize) -> Option<usize> {
+        capacity.checked_mul(std::mem::size_of::<Span>())
+    }
+
+    pub(super) fn clear_preserving_capacity(&mut self) {
+        self.spans.clear();
+        self.len = 0;
+    }
+
     pub(super) fn new() -> Self {
         Self::default()
     }

@@ -12,6 +12,26 @@ impl Builder {
         outputs: usize,
         selected: &mut Vec<(usize, usize)>,
     ) -> Result<(), Error> {
+        let (masked, valid) = self.acceptance_nodes(input, outputs, selected)?;
+        *selected = (0..outputs).map(|i| (masked, i)).collect();
+        selected.push((valid, 0));
+        Ok(())
+    }
+
+    /// Same epilogue; consumes logical history, not caller-selected authority.
+    pub(super) fn final_acceptance_owned<'s>(
+        &mut self,
+        pending: request_origin::PendingRequest<'s>,
+    ) -> Result<request_origin::LogicalComplete<'s>, Error> {
+        request_origin::accept(self, pending)
+    }
+
+    pub(super) fn acceptance_nodes(
+        &mut self,
+        input: usize,
+        outputs: usize,
+        selected: &[(usize, usize)],
+    ) -> Result<(usize, usize), Error> {
         let builder = self;
         builder.admission_stage = "final_acceptance";
         let valid = if let Some(valid) = builder.validity {
@@ -36,9 +56,7 @@ impl Builder {
         let flags: Words = std::iter::repeat_n((valid, 0), outputs).collect();
         let flag_node = builder.gather(&flags)?;
         let masked = builder.product(token_node, flag_node, None, false)?;
-        *selected = (0..outputs).map(|i| (masked, i)).collect();
-        selected.push((valid, 0));
-        Ok(())
+        Ok((masked, valid))
     }
 }
 

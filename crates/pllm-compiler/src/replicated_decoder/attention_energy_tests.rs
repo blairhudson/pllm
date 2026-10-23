@@ -10,6 +10,7 @@ fn program(builder: Builder, inputs: usize, output: Words) -> Arc<Program> {
         outputs: output.iter().collect(),
         digest: [113; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: builder.allocated,
         work,
     })

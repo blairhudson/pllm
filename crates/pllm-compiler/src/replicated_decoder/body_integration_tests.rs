@@ -101,6 +101,7 @@ fn finish_fixture(b: Builder, inputs: usize, outputs: Vec<(usize, usize)>) -> Ar
         retire,
         digest: [219; 32],
         source_binding: [0; 32],
+        request_custody: None,
         payload_bytes: b.allocated,
         work,
     })

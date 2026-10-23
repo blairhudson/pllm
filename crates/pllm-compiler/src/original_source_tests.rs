@@ -5,6 +5,58 @@ use pllm_garble::shared_allocation::{OwnedBudget, MAX_ALLOCATION_BYTES};
 const RAW: &[u8] = br#"{"model_type":"qwen2","hidden_size":4,"intermediate_size":8,"num_hidden_layers":1,"num_attention_heads":2,"num_key_value_heads":1,"vocab_size":7,"max_position_embeddings":8,"hidden_act":"silu","rms_norm_eps":0.000001,"rope_theta":10000,"tie_word_embeddings":true,"use_sliding_window":false}"#;
 const BAD_EPSILON: &[u8] = br#"{"model_type":"qwen2","hidden_size":4,"intermediate_size":8,"num_hidden_layers":1,"num_attention_heads":2,"num_key_value_heads":1,"vocab_size":7,"max_position_embeddings":8,"hidden_act":"silu","rms_norm_eps":-1,"rope_theta":10000,"tie_word_embeddings":true,"use_sliding_window":false}"#;
 
+#[test]
+fn compiler_metadata_uses_actual_shared_quota_and_prequoted_transition_slots() {
+    let root = OwnedBudget::new(pllm_garble::shared_allocation::MAX_ALLOCATION_BYTES).unwrap();
+    let first = prepared(&root, RAW, 4, limits()).construct().unwrap();
+    let control = OriginalSourcePlan::compiler_metadata_control_bytes().unwrap();
+    type G<'a> = std::sync::MutexGuard<'a, Ledger>;
+    let literal = size_of::<G<'_>>()
+        + size_of::<Result<G<'_>, std::sync::PoisonError<G<'_>>>>()
+        + size_of::<&OwnedExternalCharge>()
+        + size_of::<&Arc<OwnedCharged<Context>>>()
+        + size_of::<Result<u64, Error>>()
+        + size_of::<Option<u64>>()
+        + 3 * size_of::<u64>();
+    assert_eq!(control, literal);
+    let before = first
+        .root()
+        .payload()
+        .ledger
+        .as_ref()
+        .unwrap()
+        .lock()
+        .unwrap()
+        .used;
+    assert_eq!(
+        first.prepay_compiler_metadata(&root.charge_external(control - 1).unwrap(), 1),
+        Err(Error::Capacity)
+    );
+    let foreign = OwnedBudget::new(pllm_garble::shared_allocation::MAX_ALLOCATION_BYTES).unwrap();
+    assert_eq!(
+        first.prepay_compiler_metadata(&foreign.charge_external(control).unwrap(), 1),
+        Err(Error::Counter)
+    );
+    let guard = root.charge_external(control).unwrap();
+    first.prepay_compiler_metadata(&guard, 7).unwrap();
+    assert_eq!(
+        first
+            .root()
+            .payload()
+            .ledger
+            .as_ref()
+            .unwrap()
+            .lock()
+            .unwrap()
+            .used,
+        before + 7
+    );
+    let remaining = limits().max_work - before - 7;
+    first.prepay_compiler_metadata(&guard, remaining).unwrap();
+    assert_eq!(first.prepay_compiler_metadata(&guard, 1), Err(Error::Work));
+    assert_eq!(first.lower_bootstrap_bytes(limits()), Err(Error::Burned));
+}
+
 fn limits() -> Limits {
     Limits {
         expansion: DecoderExpansionBudget {
