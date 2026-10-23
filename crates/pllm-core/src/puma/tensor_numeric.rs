@@ -7,6 +7,121 @@ use super::*;
 const ONE: i64 = 1 << 18;
 const DOMAINS: usize = 36;
 
+#[cfg(test)]
+thread_local! {
+    static EQUAL_ZERO_FACTORY_ATTEMPTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(super) fn equal_zero_factory_attempts() -> usize {
+    EQUAL_ZERO_FACTORY_ATTEMPTS.with(|count| count.get())
+}
+
+/// One native-owned recipe for both instruction emission and pure work
+/// traversal. Deliberately private and specific to legacy full-ring EqualZero;
+/// bounded equality and its different conversion/codec are not this factory.
+trait EqualZeroSink {
+    type Value: Copy;
+    fn bits(&mut self, input: Self::Value) -> Result<Self::Value, Error>;
+    fn map(&mut self, input: Self::Value, map: BitMap) -> Result<Self::Value, Error>;
+    fn or(&mut self, left: Self::Value, right: Self::Value) -> Result<Self::Value, Error>;
+    fn arithmetic_bit(&mut self, input: Self::Value) -> Result<Self::Value, Error>;
+    fn complement(&mut self, input: Self::Value) -> Result<Self::Value, Error>;
+}
+
+fn equal_zero_recipe<S: EqualZeroSink>(sink: &mut S, input: S::Value) -> Result<S::Value, Error> {
+    let mut bits = sink.bits(input)?;
+    for shift in [32, 16, 8, 4, 2, 1] {
+        let other = sink.map(bits, BitMap::ShiftRight(shift))?;
+        bits = sink.or(bits, other)?;
+    }
+    let bit = sink.map(bits, BitMap::LowBits(1))?;
+    let nonzero = sink.arithmetic_bit(bit)?;
+    sink.complement(nonzero)
+}
+
+impl EqualZeroSink for Builder {
+    type Value = Value;
+    fn bits(&mut self, input: Value) -> Result<Value, Error> {
+        Builder::bits(self, input)
+    }
+    fn map(&mut self, input: Value, map: BitMap) -> Result<Value, Error> {
+        self.bit_map(input, map)
+    }
+    fn or(&mut self, left: Value, right: Value) -> Result<Value, Error> {
+        self.bit_or(left, right)
+    }
+    fn arithmetic_bit(&mut self, input: Value) -> Result<Value, Error> {
+        self.from_bit(input)
+    }
+    fn complement(&mut self, input: Value) -> Result<Value, Error> {
+        self.affine(input, None, affine(-1, 0, 1))
+    }
+}
+
+#[derive(Clone, Copy)]
+enum EqualityWorkValue {
+    Arithmetic,
+    Bits(u8),
+}
+
+impl EqualityWorkValue {
+    fn width(self) -> Result<u8, Error> {
+        match self {
+            Self::Bits(width) => Ok(width),
+            Self::Arithmetic => Err(Error::Binding),
+        }
+    }
+}
+
+struct EqualityWork {
+    lanes: usize,
+    total: WorkBudget,
+}
+
+impl EqualityWork {
+    fn include(&mut self, work: WorkBudget) -> Result<(), Error> {
+        self.total = self.total.checked_add(work)?;
+        Ok(())
+    }
+}
+
+impl EqualZeroSink for EqualityWork {
+    type Value = EqualityWorkValue;
+    fn bits(&mut self, input: Self::Value) -> Result<Self::Value, Error> {
+        if !matches!(input, EqualityWorkValue::Arithmetic) {
+            return Err(Error::Binding);
+        }
+        self.include(WorkBudget::conversion(self.lanes, false)?)?;
+        Ok(EqualityWorkValue::Bits(64))
+    }
+    fn map(&mut self, input: Self::Value, map: BitMap) -> Result<Self::Value, Error> {
+        let width = map.width(input.width()?)?;
+        self.include(WorkBudget::local())?;
+        Ok(EqualityWorkValue::Bits(width))
+    }
+    fn or(&mut self, left: Self::Value, right: Self::Value) -> Result<Self::Value, Error> {
+        let width = left.width()?.max(right.width()?);
+        self.include(WorkBudget::bit_or(self.lanes, width)?)?;
+        Ok(EqualityWorkValue::Bits(width))
+    }
+    fn arithmetic_bit(&mut self, input: Self::Value) -> Result<Self::Value, Error> {
+        let width = input.width()?;
+        if width > 1 {
+            return Err(Error::Bounds);
+        }
+        self.include(WorkBudget::from_boolean(self.lanes, width)?)?;
+        Ok(EqualityWorkValue::Arithmetic)
+    }
+    fn complement(&mut self, input: Self::Value) -> Result<Self::Value, Error> {
+        if !matches!(input, EqualityWorkValue::Arithmetic) {
+            return Err(Error::Binding);
+        }
+        self.include(WorkBudget::local())?;
+        Ok(EqualityWorkValue::Arithmetic)
+    }
+}
+
 #[derive(Clone)]
 struct Ranged {
     value: Value,
@@ -42,21 +157,21 @@ impl Ranged {
         Ok(Self { value, boxes })
     }
 
-    fn exact_map(
+    fn exact_map<S: attention_work::SoftmaxSink>(
         &self,
-        b: &mut Builder,
+        b: &mut S,
         value: Value,
         f: impl Fn(usize) -> i64,
     ) -> Result<Self, Error> {
         let boxes =
             std::array::from_fn(|j| self.boxes[j].map(|_| Interval::new(f(j), f(j)).unwrap()));
-        b.0.nodes[value.0 as usize].as_mut().unwrap().bounds = hull(&boxes)?;
+        b.refine(value, hull(&boxes)?);
         Ok(Self { value, boxes })
     }
 
-    fn affine(
+    fn affine<S: attention_work::SoftmaxSink>(
         &self,
-        b: &mut Builder,
+        b: &mut S,
         other: Option<&Self>,
         coefficients: Affine,
     ) -> Result<Self, Error> {
@@ -71,11 +186,16 @@ impl Ranged {
             }
         }
         let value = b.affine(self.value, other.map(|r| r.value), coefficients)?;
-        b.0.nodes[value.0 as usize].as_mut().unwrap().bounds = hull(&boxes)?;
+        b.refine(value, hull(&boxes)?);
         Ok(Self { value, boxes })
     }
 
-    fn product(&self, b: &mut Builder, other: &Self, rescale: bool) -> Result<Self, Error> {
+    fn product<S: attention_work::SoftmaxSink>(
+        &self,
+        b: &mut S,
+        other: &Self,
+        rescale: bool,
+    ) -> Result<Self, Error> {
         let mut raw = [None; DOMAINS];
         let mut boxes = [None; DOMAINS];
         for j in 0..DOMAINS {
@@ -112,13 +232,13 @@ impl Ranged {
         Ok(Self { value, boxes })
     }
 
-    fn rescale(&self, b: &mut Builder, shift: u8) -> Result<Self, Error> {
+    fn rescale<S: attention_work::SoftmaxSink>(&self, b: &mut S, shift: u8) -> Result<Self, Error> {
         let mut boxes = [None; DOMAINS];
         for (slot, source) in boxes.iter_mut().zip(self.boxes) {
             *slot = source.map(|r| rescaled_bounds(r, shift)).transpose()?;
         }
         let value = b.rescale(self.value, shift)?;
-        b.0.nodes[value.0 as usize].as_mut().unwrap().bounds = hull(&boxes)?;
+        b.refine(value, hull(&boxes)?);
         Ok(Self { value, boxes })
     }
 }
@@ -132,23 +252,6 @@ fn affine(left: i64, right: i64, constant: i64) -> Affine {
 }
 
 impl Builder {
-    // Compare signed words without subtracting. Flipping the sign bit maps
-    // signed order to unsigned order. At the highest differing bit, the public
-    // bound alone determines which word is larger. Zero difference yields false.
-    fn outside_bound(&mut self, bits: Value, bound: i64, below: bool) -> Result<Value, Error> {
-        let key = (bound as u64) ^ (1 << 63);
-        let ordered = self.bit_constant_xor(bits, 1 << 63)?;
-        let diff = self.bit_constant_xor(ordered, key)?;
-        let mut spread = diff;
-        for shift in [1, 2, 4, 8, 16, 32] {
-            let lower = self.bit_map(spread, BitMap::ShiftRight(shift))?;
-            spread = self.bit_or(spread, lower)?;
-        }
-        let lower = self.bit_map(spread, BitMap::ShiftRight(1))?;
-        let highest = self.bit_xor(spread, lower)?;
-        self.bit_map(highest, BitMap::Parity(if below { key } else { !key }))
-    }
-
     /// Inclusive frozen public interval guard, safe for every incoming i64 word.
     /// Invalid operands become `fallback` BEFORE any range-dependent arithmetic.
     /// Valid operands are unchanged, not clipped. Both predicate and selection
@@ -161,50 +264,7 @@ impl Builder {
         accepted: Interval,
         fallback: i64,
     ) -> Result<CheckedValue, Error> {
-        self.node(input, false)?;
-        if fallback < accepted.lower() || fallback > accepted.upper() {
-            return Err(Error::Bounds);
-        }
-        if self.0.numeric_profile != COMPACT_NONLINEAR_PROFILE {
-            self.0.numeric_profile = CHECKED_RANGE_PROFILE;
-        }
-        let bits = self.bits(input)?;
-        let below = self.outside_bound(bits, accepted.lower(), true)?;
-        let above = self.outside_bound(bits, accepted.upper(), false)?;
-        let invalid = self.bit_or(below, above)?;
-        let valid_bit = self.bit_constant_xor(invalid, 1)?;
-        let valid = self.from_bit(valid_bit)?;
-
-        // Expand the secret bit to an all-zero/all-one word using disjoint XORs.
-        // Boolean mux avoids x-fallback overflow even at MIN/MAX signed words.
-        let mut mask = valid_bit;
-        for shift in [1, 2, 4, 8, 16, 32] {
-            let upper = self.bit_map(mask, BitMap::ShiftLeft(shift))?;
-            mask = self.bit_xor(mask, upper)?;
-        }
-        let delta = self.bit_constant_xor(bits, fallback as u64)?;
-        let union = self.bit_or(mask, delta)?;
-        let xor = self.bit_xor(mask, delta)?;
-        let intersection = self.bit_xor(union, xor)?;
-        let selected = self.bit_constant_xor(intersection, fallback as u64)?;
-
-        // Conversion admits <=62 bits. Reassemble a signed word from disjoint
-        // 32/31/1-bit chunks; every affine intermediate fits signed i64 even
-        // without the membership invariant. No truncation or stochastic rounding.
-        let low = self.bit_map(selected, BitMap::LowBits(32))?;
-        let low = self.from_boolean(low)?;
-        let high = self.bit_map(selected, BitMap::ShiftRight(32))?;
-        let high = self.bit_map(high, BitMap::LowBits(31))?;
-        let high = self.from_boolean(high)?;
-        let sign = self.bit_map(selected, BitMap::ShiftRight(63))?;
-        let sign = self.from_bit(sign)?;
-        let negative = self.affine(sign, None, affine(i64::MIN, 0, 0))?;
-        let upper = self.affine(high, Some(negative), affine(1 << 32, 1, 0))?;
-        let safe = self.affine(upper, Some(low), affine(1, 1, 0))?;
-        // This narrowing is justified by the exact Boolean mux above, not by
-        // trusting incoming interval metadata or checking an already wrapped op.
-        self.0.nodes[safe.0 as usize].as_mut().unwrap().bounds = accepted;
-        Ok(CheckedValue { safe, valid })
+        rms_work::checked_recipe(self, input, accepted, fallback)
     }
 }
 
@@ -213,13 +273,11 @@ impl Program {
     /// plus protected sign, not an opening. Use on the validity output of a guard
     /// before multiplying into a persistent request-wide scalar validity bit.
     pub fn all_valid(lanes: usize) -> Result<Self, Error> {
+        #[cfg(test)]
+        rms_work::entered(2);
         let mut b = Builder::row(lanes, Interval::new(0, 1)?)?;
         b.0.numeric_profile = CHECKED_RANGE_PROFILE;
-        let sum = b.row_map(b.input(), lanes, RowMap::Sum)?;
-        let difference = b.affine(sum, None, affine(1, 0, -(lanes as i64)))?;
-        let failed = b.sign(difference)?;
-        let failed = b.from_bit(failed)?;
-        let valid = b.affine(failed, None, affine(-1, 0, 1))?;
+        let valid = rms_work::all_valid_recipe(&mut b, lanes)?;
         b.finish(valid)
     }
 
@@ -231,6 +289,8 @@ impl Program {
         accepted: Interval,
         fallback: i64,
     ) -> Result<Self, Error> {
+        #[cfg(test)]
+        rms_work::entered(1);
         let mut b = Builder::new(lanes, incoming)?;
         let checked = b.checked_range(b.input(), accepted, fallback)?;
         b.finish_checked(checked.safe, checked.valid)
@@ -382,85 +442,15 @@ impl Program {
         certify_mass: bool,
         compact: bool,
     ) -> Result<(Self, Option<u64>), Error> {
-        let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
-        if width == 0 || rows == 0 {
-            return Err(Error::Bounds);
-        }
+        #[cfg(test)]
+        attention_work::entered_factory();
+        let lanes = attention_work::geometry(rows, width)?;
         let mut b = Builder::row(lanes, input)?;
         if compact {
             b.0.numeric_profile = COMPACT_NONLINEAR_PROFILE;
         }
-        let x = b.input();
-        let mut maximum = x;
-        let mut offset = 1;
-        while offset < width {
-            let other = b.row_map(maximum, width, RowMap::Rotate(offset))?;
-            let difference = b.affine(maximum, Some(other), affine(1, -1, 0))?;
-            let bit = if compact {
-                b.sign_compact(difference)?
-            } else {
-                b.sign(difference)?
-            };
-            let bit = b.from_bit(bit)?;
-            maximum = select(&mut b, bit, other, maximum)?;
-            // The secret selector chooses one of the two candidates exactly.
-            b.0.nodes[maximum.0 as usize].as_mut().unwrap().bounds = input;
-            offset *= 2;
-        }
-        let z = b.affine(x, Some(maximum), affine(1, -1, 0))?;
-        let lower = input
-            .lower()
-            .checked_sub(input.upper())
-            .ok_or(Error::Bounds)?;
-        b.0.nodes[z.0 as usize].as_mut().unwrap().bounds = Interval::new(lower, 0)?;
-        let keep = if guard_tail {
-            Some(softmax_keep(&mut b, z)?)
-        } else {
-            None
-        };
-        let safe_z = if let Some(keep) = keep {
-            let safe = b.product(z, keep, false)?;
-            // keep=1 iff z>-14*ONE; otherwise safe=0. This proof uses
-            // the shared predicate, never a revealed value or private range.
-            b.0.nodes[safe.0 as usize].as_mut().unwrap().bounds =
-                Interval::new(lower.max(-14 * ONE + 1), 0)?;
-            safe
-        } else {
-            z
-        };
-        let reduced = b.rescale(safe_z, 5)?;
-        let mut exp = b.affine(reduced, None, affine(1, 0, ONE))?;
-        for _ in 0..5 {
-            exp = b.square(exp)?;
-        }
-        let keep = match keep {
-            Some(keep) => keep,
-            None => softmax_keep(&mut b, z)?,
-        };
-        let exp = b.product(exp, keep, false)?;
-        let total = b.row_map(exp, width, RowMap::Sum)?;
-        let upper = b.node(total, false)?.bounds.upper();
-        // At least one lane has Z=0, exact exp=ONE, and survives clipping.
-        let total_range = Interval::new(ONE, upper)?;
-        b.0.nodes[total.0 as usize].as_mut().unwrap().bounds = total_range;
-        let inverse = reciprocal(&mut b, total, total_range)?;
-        let mass = if certify_mass {
-            let (range, product) = reciprocal_mass_bounds(total_range)?;
-            b.0.nodes[inverse.0 as usize].as_mut().unwrap().bounds = range;
-            // e_i>=0, d=sum(e_i), r>=0. Each p_i=TR(e_i*r) is at
-            // most (e_i*r+Q-1)/Q, so sum(p_i)<=floor((d*r+n*(Q-1))/Q).
-            Some(
-                u64::try_from(
-                    (i128::from(product.upper()) + width as i128 * i128::from(ONE - 1))
-                        / i128::from(ONE),
-                )
-                .map_err(|_| Error::Bounds)?,
-            )
-        } else {
-            None
-        };
-        let inverse = b.row_map(inverse, width, RowMap::Broadcast)?;
-        let output = b.product(exp, inverse, true)?;
+        let (output, mass) =
+            softmax_recipe(&mut b, width, input, guard_tail, certify_mass, compact)?;
         Ok((b.finish(output)?, mass))
     }
 
@@ -566,56 +556,58 @@ impl Program {
         input_norm: Option<u128>,
         compact: bool,
     ) -> Result<(Self, u128), Error> {
-        let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
-        if width == 0 || rows == 0 || gamma.len() != width {
-            return Err(Error::Shape);
-        }
-        let (mut b, normalized, radius) =
-            rms_normalization(rows, width, input, partitioned, input_norm, compact)?;
-        let scales: [Affine; MAX_ROW_LANES] =
-            std::array::from_fn(|i| affine(gamma[i % width], 0, 0));
-        let scaled = b.affine_lanes(normalized, &scales[..lanes])?;
-        let output = b.rescale(scaled, 18)?;
-        let squared = if partitioned {
-            let gamma = gamma
-                .iter()
-                .map(|v| v.unsigned_abs())
-                .max()
-                .ok_or(Error::Shape)?;
-            // Each public-gamma rescale contributes an error of magnitude < 1
-            // per lane. Minkowski and Cauchy-Schwarz retain the complete row.
-            let radius = radius
-                .checked_mul(u128::from(gamma))
-                .ok_or(Error::Bounds)?
-                .div_ceil(ONE as u128)
-                .checked_add(ceil_sqrt(width as u128))
-                .ok_or(Error::Bounds)?;
-            radius.checked_mul(radius).ok_or(Error::Bounds)?
+        #[cfg(test)]
+        rms_work::entered(0);
+        let lanes = rms_work::geometry(rows, width, gamma.len())?;
+        let mut b = Builder::row(lanes, input)?;
+        b.0.numeric_profile = if compact {
+            COMPACT_NONLINEAR_PROFILE
         } else {
-            0
+            RMS_NORM_PROFILE
         };
+        let (output, squared) = rms_recipe(&mut b, width, input, gamma, partitioned, input_norm)?;
         Ok((b.finish(output)?, squared))
     }
 
     pub fn negative(lanes: usize, input: Interval) -> Result<Self, Error> {
+        #[cfg(test)]
+        negative_work::entered_factory();
         let mut b = Builder::new(lanes, input)?;
-        let bit = b.sign(b.input())?;
-        let out = b.from_bit(bit)?;
+        let out = negative_work::recipe(&mut b)?;
         b.finish(out)
     }
 
     /// Arithmetic equality to zero, with every decision retained as a share.
     pub fn equal_zero(lanes: usize, input: Interval) -> Result<Self, Error> {
+        #[cfg(test)]
+        EQUAL_ZERO_FACTORY_ATTEMPTS.with(|count| count.set(count.get() + 1));
         let mut b = Builder::new(lanes, input)?;
-        let mut bits = b.bits(b.input())?;
-        for shift in [32, 16, 8, 4, 2, 1] {
-            let other = b.bit_map(bits, BitMap::ShiftRight(shift))?;
-            bits = b.bit_or(bits, other)?;
-        }
-        let bit = b.bit_map(bits, BitMap::LowBits(1))?;
-        let nonzero = b.from_bit(bit)?;
-        let out = b.affine(nonzero, None, affine(-1, 0, 1))?;
+        let input = b.input();
+        let out = equal_zero_recipe(&mut b, input)?;
         b.finish(out)
+    }
+
+    /// Exact schedule work/cursors for ONE legacy full-64-bit EqualZero tile,
+    /// before constructing any Builder, Program, Arc, or native instruction
+    /// array. Runs the same private factory recipe with scalar width/work state
+    /// only; no allocation, randomness, source proof or Budget authority.
+    ///
+    /// Every valid signed Interval is accepted by this factory. Its full-ring
+    /// conversion does not specialize to the declared domain, so work is domain
+    /// independent. This is NOT equal_zero_bounded's work/codec. Caller must
+    /// checked-multiply full invocations, add the separately queried tail and
+    /// prior request work, then enforce its limits BEFORE factories/storage.
+    /// Native/dependency callframes, physical memory and execution buffers are
+    /// not quoted by this work-only API. Existing equal_zero acceptance is not
+    /// narrowed by an implicit limits check.
+    pub fn equal_zero_work(lanes: usize, _input: Interval) -> Result<WorkBudget, Error> {
+        validate_tile_lanes(lanes)?;
+        let mut work = EqualityWork {
+            lanes,
+            total: WorkBudget::default(),
+        };
+        equal_zero_recipe(&mut work, EqualityWorkValue::Arithmetic)?;
+        Ok(work.total)
     }
 
     /// Minimum positive public quotient width proving equality to zero on the
@@ -687,9 +679,89 @@ impl Program {
     }
 }
 
-fn softmax_keep(b: &mut Builder, z: Value) -> Result<Value, Error> {
+/// The actual factory recipe, shared with fixed-metadata work preflight. Bounds
+/// refinements and reciprocal proof cells remain here, not in the work sink.
+pub(super) fn softmax_recipe<S: attention_work::SoftmaxSink>(
+    b: &mut S,
+    width: usize,
+    input: Interval,
+    guard_tail: bool,
+    certify_mass: bool,
+    compact: bool,
+) -> Result<(Value, Option<u64>), Error> {
+    let x = b.input();
+    let mut maximum = x;
+    let mut offset = 1;
+    while offset < width {
+        let other = b.row_map(maximum, width, RowMap::Rotate(offset))?;
+        let difference = b.affine(maximum, Some(other), affine(1, -1, 0))?;
+        let bit = if compact {
+            b.sign_compact(difference)?
+        } else {
+            b.sign(difference)?
+        };
+        let bit = b.from_bit(bit)?;
+        maximum = select(b, bit, other, maximum)?;
+        // Exact secret selection narrows to the original public input box.
+        b.refine(maximum, input);
+        offset *= 2;
+    }
+    let z = b.affine(x, Some(maximum), affine(1, -1, 0))?;
+    let lower = input
+        .lower()
+        .checked_sub(input.upper())
+        .ok_or(Error::Bounds)?;
+    b.refine(z, Interval::new(lower, 0)?);
+    let keep = if guard_tail {
+        Some(softmax_keep(b, z)?)
+    } else {
+        None
+    };
+    let safe_z = if let Some(keep) = keep {
+        let safe = b.product(z, keep, false)?;
+        // keep=1 iff z>-14*ONE; otherwise safe=0, without opening a lane.
+        b.refine(safe, Interval::new(lower.max(-14 * ONE + 1), 0)?);
+        safe
+    } else {
+        z
+    };
+    let reduced = b.rescale(safe_z, 5)?;
+    let mut exp = b.affine(reduced, None, affine(1, 0, ONE))?;
+    for _ in 0..5 {
+        exp = b.square(exp)?;
+    }
+    let keep = match keep {
+        Some(keep) => keep,
+        None => softmax_keep(b, z)?,
+    };
+    let exp = b.product(exp, keep, false)?;
+    let total = b.row_map(exp, width, RowMap::Sum)?;
+    let upper = b.node(total, false)?.bounds.upper();
+    // At least one exact maximum survives clipping with exp=ONE.
+    let total_range = Interval::new(ONE, upper)?;
+    b.refine(total, total_range);
+    let inverse = reciprocal(b, total, total_range)?;
+    let mass = if certify_mass {
+        let (range, product) = reciprocal_mass_bounds(total_range)?;
+        b.refine(inverse, range);
+        Some(
+            u64::try_from(
+                (i128::from(product.upper()) + width as i128 * i128::from(ONE - 1))
+                    / i128::from(ONE),
+            )
+            .map_err(|_| Error::Bounds)?,
+        )
+    } else {
+        None
+    };
+    let inverse = b.row_map(inverse, width, RowMap::Broadcast)?;
+    let output = b.product(exp, inverse, true)?;
+    Ok((output, mass))
+}
+
+fn softmax_keep<S: attention_work::SoftmaxSink>(b: &mut S, z: Value) -> Result<Value, Error> {
     let threshold = b.affine(z, None, affine(-1, 0, -14 * ONE))?;
-    let keep = if b.0.numeric_profile == COMPACT_NONLINEAR_PROFILE {
+    let keep = if b.compact() {
         b.sign_compact(threshold)?
     } else {
         b.sign(threshold)?
@@ -697,24 +769,45 @@ fn softmax_keep(b: &mut Builder, z: Value) -> Result<Value, Error> {
     b.from_bit(keep)
 }
 
-fn rms_normalization(
-    rows: usize,
+/// The actual RMS factory, after its original geometry/profile initialization.
+/// Work preflight shares every normalization, gamma and output-proof step.
+pub(super) fn rms_recipe<S: rms_work::RmsSink>(
+    b: &mut S,
+    width: usize,
+    input: Interval,
+    gamma: &[i64],
+    partitioned: bool,
+    input_norm: Option<u128>,
+) -> Result<(Value, u128), Error> {
+    let (normalized, radius) = rms_normalization(b, width, input, partitioned, input_norm)?;
+    let scaled = b.gamma(normalized, width, gamma)?;
+    let output = b.rescale(scaled, 18)?;
+    let squared = if partitioned {
+        let gamma = gamma
+            .iter()
+            .map(|v| v.unsigned_abs())
+            .max()
+            .ok_or(Error::Shape)?;
+        let radius = radius
+            .checked_mul(u128::from(gamma))
+            .ok_or(Error::Bounds)?
+            .div_ceil(ONE as u128)
+            .checked_add(ceil_sqrt(width as u128))
+            .ok_or(Error::Bounds)?;
+        radius.checked_mul(radius).ok_or(Error::Bounds)?
+    } else {
+        0
+    };
+    Ok((output, squared))
+}
+
+pub(super) fn rms_normalization<S: rms_work::RmsSink>(
+    b: &mut S,
     width: usize,
     input: Interval,
     partitioned: bool,
     input_norm: Option<u128>,
-    compact: bool,
-) -> Result<(Builder, Value, u128), Error> {
-    let lanes = rows.checked_mul(width).ok_or(Error::Bounds)?;
-    if rows == 0 || width == 0 {
-        return Err(Error::Shape);
-    }
-    let mut b = Builder::row(lanes, input)?;
-    b.0.numeric_profile = if compact {
-        COMPACT_NONLINEAR_PROFILE
-    } else {
-        RMS_NORM_PROFILE
-    };
+) -> Result<(Value, u128), Error> {
     let x = b.input();
     let square = b.square(x)?;
     let sum = b.row_map(square, width, RowMap::Sum)?;
@@ -738,8 +831,7 @@ fn rms_normalization(
             / ONE as u128;
         let ordinary = b.node(sum, false)?.bounds;
         let upper = upper.min(ordinary.upper() as u128) as i64;
-        b.0.nodes[sum.0 as usize].as_mut().unwrap().bounds =
-            Interval::new(ordinary.lower(), upper)?;
+        b.refine(sum, Interval::new(ordinary.lower(), upper)?);
     }
     let inverse_width = ((1.0_f32 / width as f32) * ONE as f32) as i64;
     if inverse_width <= 0 {
@@ -749,7 +841,7 @@ fn rms_normalization(
     let mean = b.rescale(raw_mean, 18)?;
     let denominator = b.affine(mean, None, affine(1, 0, RMS_NORM_EPSILON_Q18))?;
     let bounds = b.node(denominator, false)?.bounds;
-    let mut inverse = rsqrt_ranged(&mut b, denominator, bounds, partitioned)?;
+    let mut inverse = rsqrt_ranged(b, denominator, bounds, partitioned)?;
     inverse.value = b.row_map(inverse.value, width, RowMap::Broadcast)?;
     // Correlate each row value with its own denominator before multiplying.
     // For Q=2^18, c=E(1/width)>0, S=sum(TR(x_i^2)), d=TR(S*c)+epsilon:
@@ -814,10 +906,8 @@ fn rms_normalization(
             }
         }
     }
-    let normalized = Ranged { value: x, boxes }
-        .product(&mut b, &inverse, true)?
-        .value;
-    Ok((b, normalized, radius))
+    let normalized = Ranged { value: x, boxes }.product(b, &inverse, true)?.value;
+    Ok((normalized, radius))
 }
 
 fn ceil_sqrt(value: u128) -> u128 {
@@ -825,7 +915,11 @@ fn ceil_sqrt(value: u128) -> u128 {
     root + u128::from(root * root != value)
 }
 
-pub(super) fn reciprocal(b: &mut Builder, input: Value, bounds: Interval) -> Result<Value, Error> {
+pub(super) fn reciprocal<S: attention_work::SoftmaxSink>(
+    b: &mut S,
+    input: Value,
+    bounds: Interval,
+) -> Result<Value, Error> {
     let x = Ranged::input(input, bounds, 36)?;
     let highest = b.highest_bit(input, 36)?;
     let reversed = b.bit_map(highest, BitMap::ReverseLowBits(36))?;
@@ -847,7 +941,7 @@ pub(super) fn reciprocal(b: &mut Builder, input: Value, bounds: Interval) -> Res
 /// These are proof cells only; the executable highest-bit circuit is unchanged.
 /// Splitting each exponent bucket into at most 256 cells retains the relation
 /// between d and r(d), instead of multiplying unrelated whole-domain extrema.
-fn reciprocal_mass_bounds(bounds: Interval) -> Result<(Interval, Interval), Error> {
+pub(super) fn reciprocal_mass_bounds(bounds: Interval) -> Result<(Interval, Interval), Error> {
     if bounds.lower() < ONE || bounds.upper() >= 1_i64 << 36 {
         return Err(Error::Bounds);
     }
@@ -904,8 +998,8 @@ pub(super) fn rsqrt(b: &mut Builder, input: Value, bounds: Interval) -> Result<V
     Ok(rsqrt_ranged(b, input, bounds, false)?.value)
 }
 
-fn rsqrt_ranged(
-    b: &mut Builder,
+fn rsqrt_ranged<S: attention_work::SoftmaxSink>(
+    b: &mut S,
     input: Value,
     bounds: Interval,
     partitioned: bool,
@@ -929,7 +1023,7 @@ fn rsqrt_ranged(
         for (slot, domain) in p.boxes.iter_mut().zip(u.boxes) {
             *slot = domain.map(rsqrt_polynomial_bounds).transpose()?;
         }
-        b.0.nodes[p.value.0 as usize].as_mut().unwrap().bounds = hull(&p.boxes)?;
+        b.refine(p.value, hull(&p.boxes)?);
     }
 
     // XOR-linear pair folding and parity work on shares; the one-hot invariant

@@ -10,6 +10,9 @@ mod compact_tests;
 #[path = "tensor_shared_tests.rs"]
 mod shared_tests;
 
+#[path = "activation_work_tests.rs"]
+mod activation_work_tests;
+
 #[test]
 fn bounded_equality_derives_minimum_public_width_and_excludes_zero_aliases() {
     for (lo, hi, width) in [

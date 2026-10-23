@@ -132,15 +132,24 @@ pub struct Program {
 
 pub struct Builder(Program);
 
+// Shared by native tile construction and its allocation-free equality work
+// query. Keep both constructor geometry checks; no Program is needed to price it.
+fn validate_tile_lanes(lanes: usize) -> Result<(), Error> {
+    if !(1..=MAX_TILE_LANES).contains(&lanes) || !(1..=MAX_ROW_LANES).contains(&lanes) {
+        return Err(Error::Bounds);
+    }
+    Ok(())
+}
+
 impl Builder {
     pub fn new(lanes: usize, input: Interval) -> Result<Self, Error> {
-        if !(1..=MAX_TILE_LANES).contains(&lanes) {
-            return Err(Error::Bounds);
-        }
+        validate_tile_lanes(lanes)?;
         Self::row(lanes, input)
     }
 
     fn row(lanes: usize, input: Interval) -> Result<Self, Error> {
+        #[cfg(test)]
+        work_preflight::observed_row_entry();
         if !(1..=MAX_ROW_LANES).contains(&lanes) {
             return Err(Error::Bounds);
         }
@@ -188,49 +197,17 @@ impl Builder {
         bounds: Interval,
         bit: bool,
     ) -> Result<Value, Error> {
-        if self.0.len == MAX_NODES {
-            return Err(Error::Bounds);
-        }
-        let value = Value(self.0.len as u8);
-        let [first, second] = instruction.inputs();
-        let lanes = self.0.nodes[first.ok_or(Error::Binding)?.0 as usize]
-            .ok_or(Error::Binding)?
-            .lanes;
-        if let Some(second) = second {
-            if self.0.nodes[second.0 as usize].ok_or(Error::Binding)?.lanes != lanes {
-                return Err(Error::Shape);
-            }
-        }
-        let lanes = match instruction {
-            Instruction::RowMap(_, width, RowMap::Sum) if lanes % width == 0 => lanes / width,
-            Instruction::RowMap(_, width, RowMap::Broadcast) => {
-                lanes.checked_mul(width).ok_or(Error::Bounds)?
-            }
-            _ => lanes,
-        };
-        if lanes == 0 || lanes > self.0.lanes {
-            return Err(Error::Bounds);
-        }
-        self.0.bit_widths[self.0.len] = match instruction {
-            Instruction::Sign(_) | Instruction::CompactSign(..) => 1,
-            Instruction::Bits(_) => 64,
-            Instruction::LowBits(_, bits) => bits,
-            Instruction::BitMap(v, map) => map.width(self.bit_width(v)?)?,
-            Instruction::BitOr(a, b) | Instruction::BitXor(a, b) => {
-                self.bit_width(a)?.max(self.bit_width(b)?)
-            }
-            Instruction::BitOrLow(_, _, bits) => bits,
-            Instruction::BitConstantXor(v, constant) => self
-                .bit_width(v)?
-                .max((64 - constant.leading_zeros()) as u8),
-            _ => 0,
-        };
-        self.0.nodes[self.0.len] = Some(Node {
+        let (value, node, width) = attention_work::checked_node(
+            &self.0.nodes,
+            &self.0.bit_widths,
+            self.0.len,
+            self.0.lanes,
             instruction,
             bounds,
             bit,
-            lanes,
-        });
+        )?;
+        self.0.bit_widths[self.0.len] = width;
+        self.0.nodes[self.0.len] = Some(node);
         self.0.len += 1;
         Ok(value)
     }
@@ -241,97 +218,23 @@ impl Builder {
         right: Option<Value>,
         coefficients: Affine,
     ) -> Result<Value, Error> {
-        let bounds = InputBounds {
-            left: self.node(left, false)?.bounds,
-            right: match right {
-                Some(v) => self.node(v, false)?.bounds,
-                None => Interval::new(0, 0)?,
-            },
-        };
-        if right.is_none() && coefficients.right != 0 {
-            return Err(Error::Bounds);
-        }
-        self.push(
-            Instruction::Affine {
-                left,
-                right,
-                coefficients,
-            },
-            coefficients.output_bounds(bounds)?,
-            false,
-        )
+        attention_work::SoftmaxSink::affine(self, left, right, coefficients)
     }
 
     pub fn product(&mut self, left: Value, right: Value, rescale: bool) -> Result<Value, Error> {
-        let bounds = InputBounds {
-            left: self.node(left, false)?.bounds,
-            right: self.node(right, false)?.bounds,
-        };
-        let output = if rescale {
-            bounds.output()?
-        } else {
-            let mut lo = i128::MAX;
-            let mut hi = i128::MIN;
-            for x in [bounds.left.lower(), bounds.left.upper()] {
-                for y in [bounds.right.lower(), bounds.right.upper()] {
-                    let v = i128::from(x) * i128::from(y);
-                    lo = lo.min(v);
-                    hi = hi.max(v);
-                }
-            }
-            Interval::new(
-                i64::try_from(lo).map_err(|_| Error::Bounds)?,
-                i64::try_from(hi).map_err(|_| Error::Bounds)?,
-            )?
-        };
-        self.push(
-            Instruction::Product {
-                left,
-                right,
-                rescale,
-                certified: None,
-            },
-            output,
-            false,
-        )
+        attention_work::SoftmaxSink::product(self, left, right, rescale)
     }
 
     pub fn rescale(&mut self, input: Value, shift: u8) -> Result<Value, Error> {
-        let bounds = rescaled_bounds(self.node(input, false)?.bounds, shift)?;
-        self.push(Instruction::Rescale { input, shift }, bounds, false)
+        attention_work::SoftmaxSink::rescale(self, input, shift)
     }
 
     pub fn square(&mut self, input: Value) -> Result<Value, Error> {
-        let bound = self.node(input, false)?.bounds;
-        let a = i128::from(bound.lower()).pow(2);
-        let b = i128::from(bound.upper()).pow(2);
-        let low = if bound.lower() <= 0 && bound.upper() >= 0 {
-            0
-        } else {
-            a.min(b)
-        };
-        let raw = Interval::new(
-            i64::try_from(low).map_err(|_| Error::Bounds)?,
-            i64::try_from(a.max(b)).map_err(|_| Error::Bounds)?,
-        )?;
-        self.push(
-            Instruction::Product {
-                left: input,
-                right: input,
-                rescale: true,
-                certified: Some(raw),
-            },
-            rescaled_bounds(raw, 18)?,
-            false,
-        )
+        attention_work::SoftmaxSink::square(self, input)
     }
 
     pub fn row_map(&mut self, input: Value, width: usize, map: RowMap) -> Result<Value, Error> {
-        let output = map.output_bounds(width, self.node(input, false)?.bounds)?;
-        if map != RowMap::Broadcast && self.node(input, false)?.lanes % width != 0 {
-            return Err(Error::Shape);
-        }
-        self.push(Instruction::RowMap(input, width, map), output, false)
+        attention_work::SoftmaxSink::row_map(self, input, width, map)
     }
 
     pub fn affine_lanes(&mut self, input: Value, coefficients: &[Affine]) -> Result<Value, Error> {
@@ -342,21 +245,8 @@ impl Builder {
             return Err(Error::Bounds);
         }
         let bounds = self.node(input, false)?.bounds;
-        let mut lower = i64::MAX;
-        let mut upper = i64::MIN;
-        for c in coefficients {
-            if c.right != 0 {
-                return Err(Error::Bounds);
-            }
-            let range = c.output_bounds(InputBounds {
-                left: bounds,
-                right: Interval::new(0, 0)?,
-            })?;
-            lower = lower.min(range.lower());
-            upper = upper.max(range.upper());
-        }
+        let bounds = rms_work::affine_bounds(bounds, coefficients.iter().copied())?;
         let slot = self.0.public_affine_count;
-        let bounds = Interval::new(lower, upper)?;
         let mut table = Vec::new();
         table
             .try_reserve_exact(coefficients.len())
@@ -373,27 +263,15 @@ impl Builder {
     }
 
     pub fn sign(&mut self, input: Value) -> Result<Value, Error> {
-        self.node(input, false)?;
-        self.push(Instruction::Sign(input), Interval::new(0, 1)?, true)
+        attention_work::SoftmaxSink::sign(self, input)
     }
 
     pub fn from_bit(&mut self, input: Value) -> Result<Value, Error> {
-        if self.bit_width(input)? > 1 {
-            return Err(Error::Bounds);
-        }
-        self.from_boolean(input)
+        attention_work::SoftmaxSink::from_bit(self, input)
     }
 
     pub fn from_boolean(&mut self, input: Value) -> Result<Value, Error> {
-        let bits = self.bit_width(input)?;
-        if bits > 62 {
-            return Err(Error::Bounds);
-        }
-        self.push(
-            Instruction::FromBit(input),
-            Interval::new(0, (1_i64 << bits) - 1)?,
-            false,
-        )
+        attention_work::SoftmaxSink::from_boolean(self, input)
     }
 
     fn bit_width(&self, input: Value) -> Result<u8, Error> {
@@ -402,84 +280,31 @@ impl Builder {
     }
 
     pub fn bits(&mut self, input: Value) -> Result<Value, Error> {
-        self.node(input, false)?;
-        self.push(Instruction::Bits(input), Interval::new(0, 0)?, true)
+        attention_work::SoftmaxSink::bits(self, input)
     }
 
     pub fn bit_map(&mut self, input: Value, map: BitMap) -> Result<Value, Error> {
-        map.width(self.bit_width(input)?)?;
-        self.push(Instruction::BitMap(input, map), Interval::new(0, 0)?, true)
+        attention_work::SoftmaxSink::bit_map(self, input, map)
     }
 
     pub fn bit_or(&mut self, left: Value, right: Value) -> Result<Value, Error> {
-        self.bit_width(left)?;
-        self.bit_width(right)?;
-        self.push(Instruction::BitOr(left, right), Interval::new(0, 0)?, true)
+        attention_work::SoftmaxSink::bit_or(self, left, right)
     }
 
     pub fn bit_xor(&mut self, left: Value, right: Value) -> Result<Value, Error> {
-        self.bit_width(left)?;
-        self.bit_width(right)?;
-        self.push(Instruction::BitXor(left, right), Interval::new(0, 0)?, true)
-    }
-
-    fn bit_constant_xor(&mut self, input: Value, constant: u64) -> Result<Value, Error> {
-        self.bit_width(input)?;
-        self.push(
-            Instruction::BitConstantXor(input, constant),
-            Interval::new(0, 0)?,
-            true,
-        )
+        attention_work::SoftmaxSink::bit_xor(self, left, right)
     }
 
     /// Retain secret arithmetic validity alongside the ordinary output. The
     /// caller must AND every lane into request-wide sticky validity and disclose
     /// only that final aggregate to the client before releasing any tokens/state.
     pub fn finish_checked(mut self, output: Value, valid: Value) -> Result<Program, Error> {
-        if output == valid {
-            return Err(Error::Binding);
-        }
-        let bounds = self.node(valid, false)?.bounds;
-        if bounds.lower() < 0 || bounds.upper() > 1 {
-            return Err(Error::Bounds);
-        }
+        rms_work::checked_output(&self, output, valid)?;
         self.0.checked_validity = Some(valid);
         if self.0.numeric_profile != COMPACT_NONLINEAR_PROFILE {
             self.0.numeric_profile = CHECKED_RANGE_PROFILE;
         }
         self.finish(output)
-    }
-
-    fn highest_bit(&mut self, input: Value, width: u8) -> Result<Value, Error> {
-        let compact = self.0.numeric_profile == COMPACT_NONLINEAR_PROFILE;
-        let bits = if compact {
-            let bounds = self.node(input, false)?.bounds;
-            if bounds.lower() <= 0 || i128::from(bounds.upper()) >= 1_i128 << width {
-                return Err(Error::Bounds);
-            }
-            self.push(
-                Instruction::LowBits(input, width),
-                Interval::new(0, 0)?,
-                true,
-            )?
-        } else {
-            self.bits(input)?
-        };
-        let mut spread = self.bit_map(bits, BitMap::LowBits(width))?;
-        for shift in [1, 2, 4, 8, 16, 32] {
-            let lower = self.bit_map(spread, BitMap::ShiftRight(shift))?;
-            spread = if compact {
-                self.push(
-                    Instruction::BitOrLow(spread, lower, width),
-                    Interval::new(0, 0)?,
-                    true,
-                )?
-            } else {
-                self.bit_or(spread, lower)?
-            };
-        }
-        let lower = self.bit_map(spread, BitMap::ShiftRight(1))?;
-        self.bit_xor(spread, lower)
     }
 
     pub fn finish(mut self, output: Value) -> Result<Program, Error> {
@@ -587,8 +412,8 @@ impl Builder {
     }
 }
 
-fn activation_predicates(
-    b: &mut Builder,
+fn activation_predicates<S: attention_work::SoftmaxSink>(
+    b: &mut S,
     input: Value,
     pivots: [i64; 3],
     compact: bool,
@@ -642,104 +467,13 @@ impl Program {
         guarded: bool,
         compact: bool,
     ) -> Result<Self, Error> {
+        #[cfg(test)]
+        activation_work::entered(kind, guarded);
         let mut b = Builder::new(lanes, input)?;
         if compact {
             b.0.numeric_profile = COMPACT_NONLINEAR_PROFILE;
         }
-        let original = b.input();
-        let pivots = match kind {
-            Activation::Gelu => [-1048576, -511180, 786432],
-            Activation::Silu => [-2097152, -1048576, 1048576],
-        };
-        let early = if guarded {
-            Some(activation_predicates(&mut b, original, pivots, compact)?)
-        } else {
-            None
-        };
-        let x = if let Some(predicates) = early {
-            let inside = b.affine(
-                predicates[2],
-                Some(predicates[0]),
-                Affine {
-                    left: 1,
-                    right: -1,
-                    constant: 0,
-                },
-            )?;
-            // [x<=hi]-[x<lo] is exactly the indicator of lo<=x<=hi.
-            b.0.nodes[inside.0 as usize].as_mut().unwrap().bounds = Interval::new(0, 1)?;
-            let safe = b.product(original, inside, false)?;
-            // Both excluded tails map to zero only inside the polynomial; the
-            // final identity branch still uses the untouched original input.
-            let lo = input.lower().max(pivots[0]);
-            let hi = input.upper().min(pivots[2]);
-            b.0.nodes[safe.0 as usize].as_mut().unwrap().bounds = if lo <= hi {
-                Interval::new(lo.min(0), hi.max(0))?
-            } else {
-                Interval::new(0, 0)?
-            };
-            safe
-        } else {
-            original
-        };
-        let x2 = b.product(x, x, true)?;
-        let x3 = if kind == Activation::Gelu {
-            Some(b.product(x2, x, true)?)
-        } else {
-            None
-        };
-        let x4 = b.product(x2, x2, true)?;
-        let x6 = match x3 {
-            Some(v) => b.product(v, v, true)?,
-            None => b.product(x2, x4, true)?,
-        };
-        let (low, high, pivots) = match kind {
-            Activation::Gelu => (
-                polynomial(
-                    &mut b,
-                    x,
-                    -132488,
-                    &[(x, -110694), (x2, -30952), (x3.unwrap(), -2892)],
-                )?,
-                polynomial(
-                    &mut b,
-                    x,
-                    2235,
-                    &[(x, 131072), (x2, 94458), (x4, -9879), (x6, 473)],
-                )?,
-                [-1048576, -511180, 786432],
-            ),
-            Activation::Silu => (
-                polynomial(&mut b, x, -80413, &[(x, -21489), (x2, -1453)])?,
-                polynomial(
-                    &mut b,
-                    x,
-                    2229,
-                    &[(x, 131072), (x2, 59806), (x4, -2913), (x6, 71)],
-                )?,
-                [-2097152, -1048576, 1048576],
-            ),
-        };
-        let predicates = match early {
-            Some(predicates) => predicates,
-            None => activation_predicates(&mut b, original, pivots, compact)?,
-        };
-        let upper = select(&mut b, predicates[2], high, original)?;
-        let middle = select(&mut b, predicates[1], low, upper)?;
-        let removed = b.product(predicates[0], middle, false)?;
-        let output = b.affine(
-            middle,
-            Some(removed),
-            Affine {
-                left: 1,
-                right: -1,
-                constant: 0,
-            },
-        )?;
-        if guarded {
-            b.0.nodes[output.0 as usize].as_mut().unwrap().bounds =
-                numeric::activation_bounds(kind, input)?;
-        }
+        let output = activation_work::emit(&mut b, kind, input, guarded, compact)?;
         b.finish(output)
     }
 
@@ -763,30 +497,7 @@ impl Program {
     }
 
     fn instruction_work(&self, node: Node) -> Result<WorkBudget, Error> {
-        Ok(match node.instruction {
-            Instruction::Input => WorkBudget::default(),
-            Instruction::Product { rescale, .. } => WorkBudget::product(node.lanes, rescale)?,
-            Instruction::Rescale { .. } => WorkBudget::rescale(node.lanes)?,
-            Instruction::Sign(_) => WorkBudget::conversion(node.lanes, true)?,
-            Instruction::CompactSign(_, bits) => {
-                WorkBudget::conversion_signed_compact(node.lanes, bits)?
-            }
-            Instruction::Bits(_) => WorkBudget::conversion(node.lanes, false)?,
-            Instruction::LowBits(_, bits) => WorkBudget::conversion_bounded(node.lanes, bits)?,
-            Instruction::FromBit(input) => {
-                WorkBudget::from_boolean(node.lanes, self.bit_widths[input.0 as usize])?
-            }
-            Instruction::BitOr(a, b) | Instruction::BitOrLow(a, b, _) => WorkBudget::bit_or(
-                node.lanes,
-                self.bit_widths[a.0 as usize].max(self.bit_widths[b.0 as usize]),
-            )?,
-            Instruction::Affine { .. }
-            | Instruction::LaneAffine(..)
-            | Instruction::RowMap(..)
-            | Instruction::BitMap(..)
-            | Instruction::BitConstantXor(..)
-            | Instruction::BitXor(..) => WorkBudget::local(),
-        })
+        attention_work::instruction_work(node, &self.bit_widths)
     }
     pub fn output_bounds(&self) -> Interval {
         self.nodes[self.len - 1].unwrap().bounds
@@ -1250,8 +961,8 @@ impl Construction {
 #[path = "tensor_construction_tests.rs"]
 mod construction_tests;
 
-fn polynomial(
-    b: &mut Builder,
+fn polynomial<S: attention_work::SoftmaxSink>(
+    b: &mut S,
     input: Value,
     constant: i64,
     terms: &[(Value, i64)],
@@ -1289,7 +1000,12 @@ fn polynomial(
     Ok(sum)
 }
 
-fn select(b: &mut Builder, bit: Value, yes: Value, no: Value) -> Result<Value, Error> {
+fn select<S: attention_work::SoftmaxSink>(
+    b: &mut S,
+    bit: Value,
+    yes: Value,
+    no: Value,
+) -> Result<Value, Error> {
     let difference = b.affine(
         yes,
         Some(no),
@@ -2199,3 +1915,42 @@ mod compact_rows;
 
 #[path = "tensor_numeric.rs"]
 mod numeric;
+
+#[path = "tensor_negative_work.rs"]
+mod negative_work;
+pub use negative_work::NegativeWorkResources;
+#[cfg(test)]
+#[path = "tensor_negative_work_tests.rs"]
+mod negative_work_tests;
+
+#[path = "tensor_work_preflight.rs"]
+mod work_preflight;
+pub use work_preflight::{
+    AdmittedFactory, AdmittedWorkSchedule, CallerWorkLedger, ClosedFactory, FactoryOutput,
+    FactoryParameters, FactoryWorkSummary, ProducedCertificate, WorkPreflight, WorkPreflightError,
+    WorkPreflightResources, WorkPreflightWorkspace,
+};
+
+#[cfg(test)]
+#[path = "tensor_work_preflight_tests.rs"]
+mod work_preflight_tests;
+
+#[path = "tensor_attention_work.rs"]
+mod attention_work;
+pub use attention_work::SoftmaxWorkWorkspace;
+
+#[cfg(test)]
+#[path = "tensor_attention_work_tests.rs"]
+mod attention_work_tests;
+
+#[path = "tensor_rms_work.rs"]
+mod rms_work;
+pub use rms_work::RmsWorkWorkspace;
+
+#[cfg(test)]
+#[path = "tensor_rms_work_tests.rs"]
+mod rms_work_tests;
+
+#[path = "activation_work.rs"]
+mod activation_work;
+pub use activation_work::ActivationWorkWorkspace;

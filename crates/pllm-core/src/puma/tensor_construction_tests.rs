@@ -1,6 +1,245 @@
 use super::*;
 use std::mem::{align_of, size_of};
 
+// Literal pre-extraction composition. Never call equal_zero_recipe or its work
+// visitor for the expected instructions/digest/slot plan.
+fn original_equal_zero(lanes: usize, input: Interval) -> Result<Program, Error> {
+    let mut b = Builder::new(lanes, input)?;
+    let mut bits = b.bits(b.input())?;
+    for shift in [32, 16, 8, 4, 2, 1] {
+        let other = b.bit_map(bits, BitMap::ShiftRight(shift))?;
+        bits = b.bit_or(bits, other)?;
+    }
+    let bit = b.bit_map(bits, BitMap::LowBits(1))?;
+    let nonzero = b.from_bit(bit)?;
+    let out = b.affine(
+        nonzero,
+        None,
+        Affine {
+            left: -1,
+            right: 0,
+            constant: 1,
+        },
+    )?;
+    b.finish(out)
+}
+
+fn equality_loop_work(lanes: usize, input: Interval) -> Result<WorkBudget, Error> {
+    if lanes == 0 {
+        return Err(Error::Bounds);
+    }
+    let width = lanes.min(MAX_TILE_LANES);
+    let mut work = Program::equal_zero_work(width, input)?
+        .checked_mul(u64::try_from(lanes / width).map_err(|_| Error::Bounds)?)?;
+    if lanes % width != 0 {
+        work = work.checked_add(Program::equal_zero_work(lanes % width, input)?)?;
+    }
+    Ok(work)
+}
+
+// Test consumer of the ordinary native WorkBudget admission contract. This is
+// not a new production Budget/constructor API or complete-owner memory claim.
+fn admitted_equality_loop(
+    lanes: usize,
+    input: Interval,
+    max_operations: u64,
+    max_aes: u64,
+) -> Result<(Program, Option<Program>), Error> {
+    let work = equality_loop_work(lanes, input)?;
+    work.admit(
+        0,
+        crate::puma::prss::Cursors::default(),
+        max_operations,
+        max_aes,
+    )?;
+    let width = lanes.min(MAX_TILE_LANES);
+    let full = Program::equal_zero(width, input)?;
+    let tail = if lanes % width == 0 {
+        None
+    } else {
+        Some(Program::equal_zero(lanes % width, input)?)
+    };
+    Ok((full, tail))
+}
+
+#[test]
+fn equal_zero_work_preflight_matches_literal_factory_every_width_and_domain_endpoints() {
+    for lanes in 1..=MAX_TILE_LANES {
+        for (lower, upper) in [
+            (i64::MIN, i64::MAX),
+            (i64::MIN, i64::MIN),
+            (i64::MAX, i64::MAX),
+            (INPUT_MIN, INPUT_MAX_EXCLUSIVE - 1),
+            (-151935, 151935),
+            (-1, 1),
+            (0, 0),
+        ] {
+            let input = Interval::new(lower, upper).unwrap();
+            let attempts = numeric::equal_zero_factory_attempts();
+            let quote = Program::equal_zero_work(lanes, input).unwrap();
+            assert_eq!(numeric::equal_zero_factory_attempts(), attempts);
+            let actual = Program::equal_zero(lanes, input).unwrap();
+            assert_eq!(numeric::equal_zero_factory_attempts(), attempts + 1);
+            let original = original_equal_zero(lanes, input).unwrap();
+            assert_eq!(quote, actual.work_budget());
+            assert_eq!(quote.cursors(), original.work_budget().cursors());
+            assert_eq!(quote.operations(), 28);
+            assert_eq!(actual.nodes, original.nodes);
+            assert_eq!(actual.len, original.len);
+            assert_eq!(actual.bit_widths, original.bit_widths);
+            assert_eq!(actual.digest(), original.digest());
+            assert_eq!(actual.numeric_profile(), original.numeric_profile());
+            assert_eq!(actual.last_use, original.last_use);
+            assert_eq!(actual.slots, original.slots);
+            assert_eq!(actual.register_count, original.register_count);
+        }
+    }
+}
+
+#[test]
+fn equal_zero_work_preflight_full_tail_and_call_reset_cursors_match_native_programs() {
+    let input = Interval::new(-1024, 1024).unwrap();
+    for lanes in [1, 2, 7, 127, 128, 129, 255, 256, 257, 1025] {
+        let attempts = numeric::equal_zero_factory_attempts();
+        let quote = equality_loop_work(lanes, input).unwrap();
+        assert_eq!(numeric::equal_zero_factory_attempts(), attempts);
+        let width = lanes.min(MAX_TILE_LANES);
+        let full = Program::equal_zero(width, input).unwrap();
+        let mut actual = full
+            .work_budget()
+            .checked_mul((lanes / width) as u64)
+            .unwrap();
+        if lanes % width != 0 {
+            let tail = Program::equal_zero(lanes % width, input).unwrap();
+            actual = actual.checked_add(tail.work_budget()).unwrap();
+        }
+        assert_eq!(quote, actual);
+        assert_eq!(quote.cursors(), actual.cursors());
+    }
+    // Odd invocation tails are priced separately, never one merged PRSS fill.
+    let one = Program::equal_zero_work(1, input).unwrap();
+    let two_calls = one.checked_mul(2).unwrap();
+    assert_ne!(
+        two_calls.cursors(),
+        Program::equal_zero_work(2, input).unwrap().cursors()
+    );
+}
+
+#[test]
+fn equal_zero_work_preflight_geometry_errors_match_factory_without_entering_it() {
+    assert!(matches!(Interval::new(1, 0), Err(Error::Bounds)));
+    for lanes in [0, MAX_TILE_LANES + 1, usize::MAX] {
+        for input in [
+            Interval::new(0, 0).unwrap(),
+            Interval::new(i64::MIN, i64::MAX).unwrap(),
+        ] {
+            let attempts = numeric::equal_zero_factory_attempts();
+            let quote = Program::equal_zero_work(lanes, input);
+            assert!(matches!(quote, Err(Error::Bounds)));
+            assert_eq!(numeric::equal_zero_factory_attempts(), attempts);
+            let actual = Program::equal_zero(lanes, input).map(|p| p.work_budget());
+            assert_eq!(quote, actual);
+            assert_eq!(numeric::equal_zero_factory_attempts(), attempts + 1);
+        }
+    }
+}
+
+#[test]
+fn equal_zero_work_preflight_zero_one_short_and_overflow_refuse_before_all_factories() {
+    let input = Interval::new(i64::MIN, i64::MAX).unwrap();
+    for lanes in [1, 127, 128, 129, 257] {
+        let quote = equality_loop_work(lanes, input).unwrap();
+        let (ops, aes) = (quote.operations(), quote.cursors().aes_work);
+        let attempts = numeric::equal_zero_factory_attempts();
+        for (max_ops, max_aes) in [(0, aes), (ops - 1, aes), (ops, 0), (ops, aes - 1)] {
+            assert!(matches!(
+                admitted_equality_loop(lanes, input, max_ops, max_aes),
+                Err(Error::Bounds)
+            ));
+            assert_eq!(numeric::equal_zero_factory_attempts(), attempts);
+        }
+        let (full, tail) = admitted_equality_loop(lanes, input, ops, aes).unwrap();
+        assert_eq!(
+            numeric::equal_zero_factory_attempts(),
+            attempts + 1 + usize::from(tail.is_some())
+        );
+        assert_eq!(
+            full.work_budget(),
+            Program::equal_zero_work(lanes.min(MAX_TILE_LANES), input).unwrap()
+        );
+    }
+    let attempts = numeric::equal_zero_factory_attempts();
+    let quote = Program::equal_zero_work(1, input).unwrap();
+    assert!(matches!(quote.checked_mul(u64::MAX), Err(Error::Bounds)));
+    assert!(matches!(
+        WorkBudget::local()
+            .checked_mul(u64::MAX)
+            .unwrap()
+            .checked_add(quote),
+        Err(Error::Bounds)
+    ));
+    for cursors in [
+        crate::puma::prss::Cursors {
+            public_blocks: u64::MAX,
+            ..Default::default()
+        },
+        crate::puma::prss::Cursors {
+            pair_blocks: u64::MAX,
+            ..Default::default()
+        },
+        crate::puma::prss::Cursors {
+            aes_work: u64::MAX,
+            ..Default::default()
+        },
+    ] {
+        assert!(matches!(
+            quote.admit(0, cursors, u64::MAX, u64::MAX),
+            Err(Error::Bounds)
+        ));
+    }
+    // Equality itself draws no private blocks. A following ordinary rescale
+    // does; aggregate preflight must retain that independent cursor overflow.
+    assert_eq!(quote.cursors().private_blocks, 0);
+    let with_rescale = quote.checked_add(WorkBudget::rescale(1).unwrap()).unwrap();
+    assert!(matches!(
+        with_rescale.admit(
+            0,
+            crate::puma::prss::Cursors {
+                private_blocks: u64::MAX,
+                ..Default::default()
+            },
+            u64::MAX,
+            u64::MAX
+        ),
+        Err(Error::Bounds)
+    ));
+    assert_eq!(numeric::equal_zero_factory_attempts(), attempts);
+}
+
+#[test]
+fn equal_zero_work_preflight_keeps_existing_rescale_work_contract_and_bounded_scope_distinct() {
+    let input = Interval::new(-37, 37).unwrap();
+    for lanes in [1, 3, 127, MAX_TILE_LANES] {
+        let mut native = Builder::new(lanes, input).unwrap();
+        let output = native.rescale(native.input(), 18).unwrap();
+        assert_eq!(
+            native.finish(output).unwrap().work_budget(),
+            WorkBudget::rescale(lanes).unwrap()
+        );
+        let legacy = Program::equal_zero_work(lanes, input).unwrap();
+        assert_ne!(
+            legacy,
+            Program::equal_zero_bounded(lanes, input)
+                .unwrap()
+                .work_budget()
+        );
+        assert_eq!(
+            legacy,
+            Program::equal_zero_work(lanes, Interval::new(i64::MIN, i64::MAX).unwrap()).unwrap()
+        );
+    }
+}
+
 fn verify_phases(q: ConstructionQuote) {
     let inline = size_of::<Program>();
     assert_eq!(size_of::<Builder>(), inline);
