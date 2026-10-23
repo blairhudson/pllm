@@ -75,13 +75,13 @@ def test_sdk_exact_f3_final_only_fixed_count_and_three_real_children(tmp_path, m
     # parent-only guard. Public metadata/tokenizer/source-lock reads remain real.
     monkeypatch.setattr(fss_source, "load_role_source", no_parent_tensor_import)
     captured, calls = [], []
-    original = transport._Peers.post
+    original = transport._Peers._post
 
-    def observe(self, index, action, *args, **kwargs):
+    async def observe(self, index, action, *args, **kwargs):
         calls.append((index, action, kwargs.get("phase")))  # Public control metadata only.
-        return original(self, index, action, *args, **kwargs)
+        return await original(self, index, action, *args, **kwargs)
 
-    monkeypatch.setattr(transport._Peers, "post", observe)
+    monkeypatch.setattr(transport._Peers, "_post", observe)
     with OpenAI(experiment=experiment, timeout=300) as client:
         topology = client._owned_topology
         statuses = topology.statuses
@@ -104,7 +104,8 @@ def test_sdk_exact_f3_final_only_fixed_count_and_three_real_children(tmp_path, m
         assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
         assert "generation_decode_online_body_bytes" not in audit
         online = [(index, action) for index, action, phase in calls if phase == "online"]
-        assert online == [(0, "input"), (1, "input"), (0, "start"), (1, "start"), (0, "finish"), (1, "finish")]
+        assert online[:4] == [(0, "input"), (1, "input"), (0, "start"), (1, "start")]
+        assert sorted(online[4:]) == [(0, "finish"), (1, "finish")]
         # No per-selection input/feedback roundtrip through client, and dealer
         # has already retired before either initial private frame is sent.
         assert calls.index((2, "finish", "setup")) < calls.index((0, "input", "online"))

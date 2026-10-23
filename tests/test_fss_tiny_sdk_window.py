@@ -7,6 +7,7 @@ accepted output. This is not trained quality, process isolation or RSS evidence.
 """
 import asyncio
 from contextlib import ExitStack
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -77,8 +78,10 @@ def q12_expected(root):
 
 
 @pytest.fixture
-def tiny(tmp_path, monkeypatch):
+def tiny(tmp_path, monkeypatch, request):
     experiment = dense_tensor_smoke(tmp_path)
+    if hasattr(request, "param"):
+        experiment = experiment.with_params(budget__requests=request.param)
     root = Path(experiment.pipeline.model.source)
     # Keep the real nonzero fixture/tied head, but make the last vocabulary
     # row win. A silently truncated vocabulary would now fail the oracle.
@@ -314,3 +317,111 @@ def test_tiny_sdk_b_native_packet_failure_while_a_waits_drains_without_output(ti
         assert tiny.frozen[:3] == ("worker_b", "finish", "failed")
         assert not tiny.results and tiny.reconstructed == 0
         assert_retired(tiny, client)
+
+
+def observe_serial_material(state, monkeypatch):
+    """Observe real provider packets without retaining plaintext packet/view owners."""
+    fingerprints = {}
+    original_run = _native.FssRoleRequest.run  # Existing fixture's delegating native wrapper.
+
+    def run(owner, frame, callbacks):
+        class ObservedCallbacks:
+            def __getattr__(self, name):
+                return getattr(callbacks, name)
+
+            def material_window(self, metadata):
+                packets = callbacks.material_window(metadata)
+                identity = (callbacks.attempt.request_id, owner.role)
+                if identity not in fingerprints:
+                    fingerprints[identity] = hashlib.sha256(packets[0]).digest()
+                return packets
+
+        return original_run(owner, frame, ObservedCallbacks())
+
+    monkeypatch.setattr(_native.FssRoleRequest, "run", run)
+    return fingerprints
+
+
+def assert_serial_retired(state, client, request_number):
+    assert_retired(state, client)
+    assert not client._core._tokenizer_scopes and client._core._tokenizer_owner.get() is None
+    assert client._core._fss_control_snapshot() is None
+    assert len(state.sessions) == 3 * request_number
+    assert len(state.roles) == 3 * request_number and len(state.client_owners) == request_number
+    assert all(owner.closed for owner in state.roles + state.client_owners)
+    assert len(state.peers) == request_number
+    for peers in state.peers:
+        assert peers.io.closed and not peers.io.thread.is_alive()
+        assert not peers.io._fss_finish_pending
+        assert all(channel.is_closed for channel in peers.clients)
+    current = state.peers[-1]
+    assert {session.request_id for session in state.sessions[-3:]} == {current.request_id}
+    return current
+
+
+def consume_serial_success(state, client):
+    """Only test observations reset; no production attempt/root/token state touched."""
+    state.parsed.clear()
+    before = state.reconstructed
+    with client.responses.create(input="hello", max_output_tokens=2, stream=True, store=False) as stream:
+        events = []
+        for event in stream:
+            assert state.reconstructed == before + 1 and len(state.results) == state.reconstructed
+            events.append(event)
+    assert events and state.results[-1].selected == state.expected
+
+
+def assert_fresh_serial_owners(state, fingerprints, first, second):
+    assert first.request_id != second.request_id and first.io is not second.io
+    assert first.io._fss_finish_pending is not second.io._fss_finish_pending
+    assert state.client_owners[0].real is not state.client_owners[1].real
+    assert all(a.real is not b.real for a in state.roles[:3] for b in state.roles[3:])
+    for role in (0, 1):
+        assert fingerprints[first.request_id, role] != fingerprints[second.request_id, role]
+    assert state.scalar == [0, 0] and all(any(size > 1 for size in sizes) for sizes in state.windows)
+    # Real authenticated endpoints reject the retired identity after fresh success.
+    for role in p.HOLDERS:
+        origin, credential = state.connections[role]
+        response = httpx.post(origin + f"/v1/fss/{first.request_id}/finish",
+            headers={"authorization": f"Bearer {credential}"}, timeout=5, trust_env=False)
+        assert response.status_code == 409
+
+
+@pytest.mark.parametrize("tiny", [2], indirect=True)
+def test_tiny_sdk_same_client_two_fresh_successes(tiny, monkeypatch):
+    fingerprints = observe_serial_material(tiny, monkeypatch)
+    with OpenAI(experiment=tiny.experiment, role_connections=tiny.connections, timeout=30) as client:
+        client._core._result_hook = tiny.results.append
+        consume_serial_success(tiny, client)
+        first = assert_serial_retired(tiny, client, 1)
+        source = client._core._source
+        consume_serial_success(tiny, client)
+        second = assert_serial_retired(tiny, client, 2)
+        assert client._core._source is source  # Same admitted public owner, fresh request material.
+        assert tiny.reconstructed == 2 and not tiny.native_errors
+        assert_fresh_serial_owners(tiny, fingerprints, first, second)
+
+
+@pytest.mark.parametrize("tiny", [2], indirect=True)
+def test_tiny_sdk_same_client_recovers_after_native_b_failure(tiny, monkeypatch):
+    fingerprints = observe_serial_material(tiny, monkeypatch)
+    tiny.fault = True
+    markers = []
+    with OpenAI(experiment=tiny.experiment, role_connections=tiny.connections, timeout=30) as client:
+        client._core._result_hook = tiny.results.append
+        client._core._fss_failure_observer = markers.append
+        with pytest.raises(ProtocolError):
+            with client.responses.create(input="hello", max_output_tokens=2, stream=True, store=False) as stream:
+                for _ in stream:
+                    pytest.fail("failed first request disclosed an application event")
+        assert tiny.injected and tiny.wait_snapshot == (1, 0, True)
+        assert len(markers) == 1 and markers[0][:3] == ("worker_b", "finish", "failed")
+        assert tiny.reconstructed == 0 and not tiny.results and tiny.exchanges[1] == 0
+        first = assert_serial_retired(tiny, client, 1)
+        source, errors = client._core._source, tuple(tiny.native_errors)
+        tiny.fault = False  # Disable only this test's packet corruptor; do not repair SDK state.
+        consume_serial_success(tiny, client)
+        second = assert_serial_retired(tiny, client, 2)
+        assert client._core._source is source and tuple(tiny.native_errors) == errors
+        assert tiny.reconstructed == 1 and len(markers) == 1
+        assert_fresh_serial_owners(tiny, fingerprints, first, second)
