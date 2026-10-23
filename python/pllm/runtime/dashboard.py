@@ -1276,6 +1276,14 @@ class DashboardRuntime:
                         else:
                             terminal_status = getattr(response, "status", None)
                         generation = {"response_status": terminal_status}
+                        if event_type == "response.incomplete" and terminal_status == "incomplete":
+                            details = (response.get("incomplete_details") if isinstance(response, dict)
+                                       else getattr(response, "incomplete_details", None))
+                            reason = details.get("reason") if isinstance(details, dict) else None
+                            # Snapshot the terminal issuer's public enum now; do
+                            # not retain its mutable dict, callbacks or payloads.
+                            if type(reason) is str and reason in {"max_output_tokens", "content_filter"}:
+                                generation["incomplete_details"] = {"reason": reason}
                         if capture_output_digest:
                             # Public-task verification only; ordinary runs never fingerprint output.
                             text = (

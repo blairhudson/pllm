@@ -383,8 +383,38 @@ def _root_endpoint_observation(document, report, scope, bodies):
             or row["component"] != "pllm/memory" or row["parameters"] != {"kind": "peak_rss"}):
         return None
     for run in report["runs"]:
-        if (run.get("generation", {}).get("response_status") != "completed"
-                or run["tokens"]["output_tokens"] > run["max_output_tokens"]):
+        status = run.get("generation", {}).get("response_status")
+        if run["tokens"]["output_tokens"] > run["max_output_tokens"]:
+            return None
+        if status == "incomplete":
+            # API token-limit termination is normal for a strictly bounded
+            # benchmark, but counts/reason alone are NOT native acceptance.
+            # The existing terminal observation follows completion/cancel
+            # barriers; native finally counters corroborate that issued event.
+            details = run["generation"].get("incomplete_details")
+            checks, counters = report["checks"], run.get("privacy", {})
+            maximum = parameters["scenario"]["max_output_tokens"]
+            if (type(details) is not dict or details != {"reason": "max_output_tokens"}
+                    or any(value is not True for value in checks.values())
+                    or any(checks.get(key) is not True for key in (
+                        "all_runs_completed", "authoritative_token_usage", "sampling_matches_request",
+                        "model_fingerprint_present", "no_plaintext_prompt_bytes_sent",
+                        "no_plaintext_token_ids_sent", "no_online_preparation_requests",
+                        "expected_input_tokens", "expected_output_tokens"))
+                    or any(type(parameters.get(key)) is not int or parameters[key] <= 0
+                           for key in ("expected_input_tokens", "expected_output_tokens"))
+                    or run["max_output_tokens"] != maximum
+                    or parameters["expected_output_tokens"] != maximum
+                    or run["tokens"]["output_tokens"] != maximum
+                    or type(report["configuration"].get("max_output_tokens")) is not int
+                    or report["configuration"].get("max_output_tokens") != maximum
+                    or any(type(counters.get(key)) is not int or counters[key] != expected
+                           for key, expected in (
+                               ("generation_completed_responses", 1),
+                               ("generation_output_tokens", maximum),
+                               ("generation_requested_output_tokens", maximum)))):
+                return None
+        elif status != "completed":
             return None
         for key in ("expected_input_tokens", "expected_output_tokens"):
             if key in parameters and (report["checks"].get(key) is not True

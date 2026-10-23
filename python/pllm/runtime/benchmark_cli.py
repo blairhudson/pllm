@@ -190,8 +190,15 @@ def validate_benchmark_timeout(timeout_seconds: float, *, experiment: Experiment
 
 
 def _generation_metadata(value: dict[str, Any], *, capture_output_digest: bool) -> dict[str, Any]:
-    """Terminal status by default; fingerprints only for opted-in public diagnostics."""
+    """Terminal status/public reason; fingerprints only for opted-in diagnostics."""
     result = {"response_status": value.get("response_status")}
+    details = value.get("incomplete_details")
+    reason = details.get("reason") if type(details) is dict else None
+    if (result["response_status"] == "incomplete" and type(reason) is str
+            and reason in {"max_output_tokens", "content_filter"}):
+        # Fixed enum-only observation inside the existing bounded report/details
+        # allowance; no payload/history, new reserve credit or acceptance flag.
+        result["incomplete_details"] = {"reason": reason}
     if capture_output_digest and "output_text_digest" in value:
         result["output_text_digest"] = value["output_text_digest"]
     return result

@@ -41,22 +41,22 @@ def no_children(monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", forbidden)
 
 
-def report(value, salt):
+def report(value, salt, *, input_tokens=3, output_tokens=2):
     scope = ClientMemoryScope()
     scope.claim_sampling()
     scope.observe({"client": (os.getpid(), 1., value // 2)}, span_seconds=0)
     scope.seal_lifetime_membership()  # Actual producer declares after sampler start.
     scope.observe({"client": (os.getpid(), 1., value // 2)}, span_seconds=0)
     row = {"status": "completed", "cold": True, "warm": False,
-        "tokens": {"authoritative": True, "input_tokens": 3, "output_tokens": 2},
-        "model_fingerprint": "b" * 64, "max_output_tokens": 2,
+        "tokens": {"authoritative": True, "input_tokens": input_tokens, "output_tokens": output_tokens},
+        "model_fingerprint": "b" * 64, "max_output_tokens": output_tokens,
         "generation": {"response_status": "completed", "output_text_digest": "c" * 64},
         "durations": {"full_seconds": .5, "online_seconds": .3, "ttft_seconds": .1,
                       "tokens_per_second": 5, "preparation_seconds": .2},
         "privacy": {"plaintext_prompt_bytes_sent": 0, "plaintext_token_ids_sent": 0,
                     "preparation_requests_during_online": 0}}
     observed = build_loopback_report(model_id="synthetic-owner-endpoint", tiny=False,
-        max_output_tokens=2, warmup_runs=[], runs=[row], source_lock_digest="a" * 64,
+        max_output_tokens=output_tokens, warmup_runs=[], runs=[row], source_lock_digest="a" * 64,
         prompt_digest=hashlib.sha256(b"pllm.benchmark.prompt.v1\0" + salt + b"private-input").hexdigest(),
         capture_output_digest=True)
     topology = LocalTopology.__new__(LocalTopology)
@@ -81,11 +81,11 @@ def report(value, salt):
     return observed
 
 
-def run(*, change=None, other_salt=False, audited=True):
+def run(*, change=None, other_salt=False, audited=True, input_tokens=3, output_tokens=2):
     experiment = pllm.Experiment("endpoint-test-double", MaskedLinearCpu(pllm.Model.tiny()),
-        pllm.Deployment.local(root="target/endpoint-test-double"), pllm.ExecutionBudget(1, 128, 2))
-    target = BenchmarkTarget.response(experiment, scenario=Scenario.cold(max_output_tokens=2),
-        state_audit=audited).with_params(expected_input_tokens=3, expected_output_tokens=2)
+        pllm.Deployment.local(root="target/endpoint-test-double"), pllm.ExecutionBudget(1, 128, output_tokens))
+    target = BenchmarkTarget.response(experiment, scenario=Scenario.cold(max_output_tokens=output_tokens),
+        state_audit=audited).with_params(expected_input_tokens=input_tokens, expected_output_tokens=output_tokens)
     sampling = Sampling(processes=1)
     cases = tuple(BenchmarkCase(name, target) for name in ("control", "candidate"))
     suite = BenchmarkSuite(cases, sampling)
@@ -94,21 +94,24 @@ def run(*, change=None, other_salt=False, audited=True):
         salt = ("cd" if index and other_salt else "ab") * 32
         m = Measurement({"sampling": sampling.to_spec(), "salt": salt,
             "inputs": {"prompt": "private-input"}, "directory": "."})
-        observed = report(1000 if index == 0 else 10, m.salt)
+        observed = report(1000 if index == 0 else 10, m.salt,
+            input_tokens=input_tokens, output_tokens=output_tokens)
         assert _expected_token_count_checks(target.to_spec()["parameters"], observed)
         response_metrics(observed, m)
         binding = {"sampler_seed": 42, "temperature": 0, "numeric_body_fingerprint": "b" * 64,
             "cryptographic_randomness_frozen": False, "failed": False,
             "selections": [{"position": position, "cache_lengths": [position], "checked_values": 20,
                 "logits_and_active_kv": "d" * 64, "selected_token": "e" * 64,
-                "rng_before": "f" * 64, "rng_after": "a" * 64} for position in (3, 4)]}
+                "rng_before": "f" * 64, "rng_after": "a" * 64}
+                for position in range(input_tokens, input_tokens + output_tokens)]}
         m.details.update(report=observed, response_state_audit={"schema": "pllm.response_state_audit.v1",
             "bindings": [binding]})
         m.metrics.append(measurement("legacy", 1))
         m.samples.append({"index": 0, "kind": "measurement", "status": "completed",
             "duration_seconds": .5, "artifact_digest": None})
         m.fixture = {"kind": "generated_checkpoint", "digest": "a" * 64, "metadata": {}}
-        m.oracle = {"kind": "salted_full_logit_kv_sampler_commitments", "outcome": "passed", "checked_values": 40}
+        m.oracle = {"kind": "salted_full_logit_kv_sampler_commitments", "outcome": "passed",
+            "checked_values": 20 * output_tokens}
         m.admission.update(admitted=True, required_bytes=1, host_headroom_bytes=1 << 30)
         m.comparison.update({key: "a" * 64 if key == "source_digest" else "b" * 64 for key in m.comparison})
         m.finalize_workload(target)
