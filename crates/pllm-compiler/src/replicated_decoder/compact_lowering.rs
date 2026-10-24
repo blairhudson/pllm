@@ -1531,6 +1531,118 @@ struct ContractionPublication<'a> {
     work: WorkBudget,
 }
 
+/// Creation custody, not a new label-based publication or compact frontier.
+/// Ordinary finalized Program retains every original source/native allocation.
+pub(in crate::replicated_decoder) struct CreationPublication {
+    pub owner: request_origin::source_bias::Creation,
+    pub census: DescriptorCensus,
+    pub original_work: WorkBudget,
+}
+
+pub(in crate::replicated_decoder) fn creation_publication_bytes() -> Result<usize, Error> {
+    [
+        std::mem::size_of::<CreationPublication>(),
+        std::mem::size_of::<ContractionPublication<'_>>(),
+        std::mem::size_of::<PublishedOp<'_>>(),
+        2 * std::mem::size_of::<PublishedView>(),
+        2 * std::mem::size_of::<usize>(), // Local mapping Arc control, not authority.
+        projection_bias_control_bytes()?,
+    ]
+    .into_iter()
+    .try_fold(0, add_bytes)
+}
+
+/// Narrow freeze of ONE already created original projection. No native factory,
+/// new semantic cursor, source allocation, or caller View can reach this entry.
+pub(in crate::replicated_decoder) fn publish_creation(
+    owner: request_origin::source_bias::Creation,
+    program: &Program,
+    registry: &super::super::source_registry::SourceRegistry<'_>,
+    retained: usize,
+    limit: usize,
+) -> Result<CreationPublication, Error> {
+    if add_bytes(retained, creation_publication_bytes()?)? > limit.min(MAX_PROGRAM_BYTES) {
+        return Err(Error::Bounds);
+    }
+    owner.check(program, registry)?;
+    let d = owner.description();
+    let (_, _, weight, weight_norms) = registry.records().nth(d.weight).ok_or(Error::Binding)?;
+    let (_, _, bias, bias_norms) = registry.records().nth(d.bias).ok_or(Error::Binding)?;
+    let summary = projection_bias_summary(
+        d.bias_start(),
+        d.lanes(),
+        d.floor_bounds,
+        Interval::new(bias.lower, bias.upper)?,
+    )?;
+    if summary.bounds != Some(d.output_bounds) || summary.work != WorkBudget::default() {
+        return Err(Error::Binding);
+    }
+    let publication = ContractionPublication {
+        kind: PublishedKind::Projection {
+            weight: d.weight,
+            source: weight,
+            norms: weight_norms,
+            geometry: d.geometry,
+            raw_bounds: d.raw_bounds,
+            // Addition clears general row-energy authority; original graph's
+            // attention-specific source-bound proof propagation remains there.
+            row_energy: None,
+            input_energy: None,
+            bias: Some(ProjectionBias {
+                owner: d.bias,
+                source: bias,
+                norms: bias_norms,
+                floor_bounds: d.floor_bounds,
+                coefficients: affine(1, 1, 0),
+            }),
+        },
+        prepared: None, // SAME full/tail Arcs stay in creation owner + Program.
+        nodes: d.end - d.first,
+        // Transfer original accounting, not another debit or recomputed recipe.
+        work: (d.first..d.end).try_fold(WorkBudget::default(), |work, id| {
+            work.checked_add(program.recipe(id).work_budget()?)
+        })?,
+    };
+    if publication.nodes != 3 + ProjectionBias::nodes(d.lanes())? {
+        return Err(Error::Binding);
+    }
+    let origin = Arc::new(());
+    let view = |mapping, shape: [usize; 3], bounds| -> Result<PublishedView, Error> {
+        Ok(PublishedView {
+            origin: Arc::clone(&origin),
+            slot: None,
+            mapping,
+            start: 0,
+            lanes: shape.iter().product(),
+            shape,
+            rank: 3,
+            logical: ViewShape::new(&shape)?,
+            order: LaneOrder::Linear,
+            import_slot: None,
+            bounds,
+        })
+    };
+    let [rows, inner, columns] = d.geometry;
+    let original_work = publication.work;
+    let published = PublishedOp {
+        first: d.first,
+        input: view(Mapping::Dense(d.first), [1, rows, inner], d.input_bounds)?,
+        output: view(
+            Mapping::Products(d.bias_start()),
+            [1, rows, columns],
+            d.output_bounds,
+        )?,
+        kind: publication.kind,
+        prepared: publication.prepared,
+    };
+    let census = published.descriptor_census(d.end);
+    Ok(CreationPublication {
+        owner,
+        census,
+        original_work,
+    })
+}
+
 /// Binary traversal needs only uniform bounds and lane counts here. The exact
 /// original gather coordinates remain in ProjectionBias and its frozen recipe.
 #[derive(Clone, Copy)]
@@ -1539,6 +1651,26 @@ struct BiasOperand {
     bounds: Interval,
 }
 struct BiasSink(PublicationSink);
+
+fn projection_bias_summary(
+    first: usize,
+    lanes: usize,
+    floor: Interval,
+    bias: Interval,
+) -> Result<Summary, Error> {
+    binary(
+        &mut BiasSink(PublicationSink { first, next: first }),
+        &BiasOperand {
+            lanes,
+            bounds: floor,
+        },
+        &BiasOperand {
+            lanes,
+            bounds: bias,
+        },
+        false,
+    )
+}
 impl BinarySink for BiasSink {
     type View = BiasOperand;
     type Owner = Value;
@@ -1969,17 +2101,11 @@ impl graph::driver::ContractionSink for CompactContractionSink<'_, '_, '_> {
             .ok_or(Error::Bounds)?;
         #[cfg(test)]
         BIAS_RECIPE_ATTEMPTS.with(|count| count.set(count.get() + 1));
-        let summary = binary(
-            &mut BiasSink(PublicationSink { first, next: first }),
-            &BiasOperand {
-                lanes: output.view.lanes,
-                bounds: floor_bounds,
-            },
-            &BiasOperand {
-                lanes: output.view.lanes,
-                bounds: Interval::new(source.lower, source.upper)?,
-            },
-            false,
+        let summary = projection_bias_summary(
+            first,
+            output.view.lanes,
+            floor_bounds,
+            Interval::new(source.lower, source.upper)?,
         )?;
         if summary.work != WorkBudget::default() || summary.lanes != output.view.lanes {
             return Err(Error::Binding);

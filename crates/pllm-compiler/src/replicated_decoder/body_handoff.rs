@@ -93,6 +93,18 @@ pub(in crate::replicated_decoder) fn test_restore_owner_order<Outputs, Runtime, 
 }
 
 impl SuspendedWorker {
+    /// Shared allocation identity, not a digest-equal reimport or by-value copy.
+    pub(in crate::replicated_decoder) fn check_shared_source(
+        worker: &Worker,
+        public: &Arc<crate::replicated_decoder::PublicSource>,
+    ) -> Result<(), Error> {
+        match &worker.public {
+            Some(super::super::PublicOwner::Shared(original)) if Arc::ptr_eq(original, public) => {
+                Ok(())
+            }
+            _ => Err(Error::Binding),
+        }
+    }
     /// Census the original worker's independently owned authenticated files.
     /// Worker currently owns PublicSource by value, not Arc: an adapter lending a
     /// separate existing Arc to its executor must charge BOTH owners, never infer

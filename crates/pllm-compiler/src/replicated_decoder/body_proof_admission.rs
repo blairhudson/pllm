@@ -348,10 +348,7 @@ impl Builder {
         }
     }
     fn proof_limit(&self) -> usize {
-        #[cfg(test)]
-        return self.proof_metadata_limit.min(MAX_PROGRAM_BYTES);
-        #[cfg(not(test))]
-        MAX_PROGRAM_BYTES
+        self.proof_metadata_limit.min(MAX_PROGRAM_BYTES)
     }
     /// No temporary collections: capacity, not length, for every live Vec.
     /// Repeated Arc references overcount backing intentionally.

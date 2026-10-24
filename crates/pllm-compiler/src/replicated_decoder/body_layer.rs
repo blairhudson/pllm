@@ -266,7 +266,6 @@ pub struct Builder {
     work: WorkBudget,
     advances: u64,
     proof_admission_retired: bool,
-    #[cfg(test)]
     proof_metadata_limit: usize,
     #[cfg(test)]
     fail_proof_allocation: bool,
@@ -310,6 +309,20 @@ impl Builder {
 
     pub fn new(weights: WeightMode, inputs: &[Register]) -> Result<Self, Error> {
         Self::new_admitted(weights, inputs, MAX_PROGRAM_BYTES)
+    }
+    /// Preserve enclosing retained owners at every existing allocation gate,
+    /// including initial input backing; no presumed slack in local BODY limits.
+    pub(in crate::replicated_decoder) fn new_with_baseline(
+        weights: WeightMode,
+        inputs: &[Register],
+        retained: usize,
+        cap: usize,
+    ) -> Result<Self, Error> {
+        let available = cap
+            .min(MAX_PROGRAM_BYTES)
+            .checked_sub(retained)
+            .ok_or(Error::Bounds)?;
+        Self::new_admitted(weights, inputs, available)
     }
     fn new_admitted(weights: WeightMode, inputs: &[Register], limit: usize) -> Result<Self, Error> {
         if weights != WeightMode::Public {
@@ -358,7 +371,6 @@ impl Builder {
             work: WorkBudget::default(),
             advances: 1,
             proof_admission_retired: false,
-            #[cfg(test)]
             proof_metadata_limit: limit.min(MAX_PROGRAM_BYTES),
             #[cfg(test)]
             fail_proof_allocation: false,

@@ -58,7 +58,7 @@ pub(in crate::replicated_decoder) mod restoration_tests;
 
 // Borrow dependencies directly: Node::inputs() constructs a Vec, including when
 // merely asking whether one exported owner remains live.
-fn uses(node: &Node, owner: usize) -> bool {
+pub(in crate::replicated_decoder) fn uses(node: &Node, owner: usize) -> bool {
     match &node.code {
         Code::Input(_) | Code::PublicInput { .. } | Code::PublicValues(_) => false,
         Code::Gather(words) => words.owners().any(|id| id == owner),

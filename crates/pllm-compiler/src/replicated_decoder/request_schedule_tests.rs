@@ -6,6 +6,9 @@ use crate::replicated_decoder::{
     PeerBytes,
 };
 
+#[path = "source_bias_tests.rs"]
+mod source_bias_tests;
+
 fn complete<'s>(case: &mut Case<'s>) -> LogicalComplete<'s> {
     let pending = case.run();
     case.builder.final_acceptance_owned(pending).unwrap()

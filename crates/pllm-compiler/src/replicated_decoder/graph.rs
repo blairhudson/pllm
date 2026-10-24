@@ -147,6 +147,60 @@ pub(super) struct FeedbackEvent<'a> {
     operation: &'a pllm_models::ModelOperation,
     view: &'a View,
 }
+/// Issued only after the actual original projection, bias and proof propagation.
+/// Coordinates describe this emission; they cannot construct an event elsewhere.
+pub(super) struct ProjectionEvent<'a> {
+    graph: &'a DecoderGraph,
+    operation: &'a pllm_models::ModelOperation,
+    input: &'a View,
+    output: &'a View,
+    sources: &'a BTreeMap<String, SourceView>,
+    records: &'a BTreeMap<String, SourceTensor>,
+    start: usize,
+}
+pub(super) struct ReshapeEvent<'a> {
+    graph: &'a DecoderGraph,
+    operation: &'a pllm_models::ModelOperation,
+    input: &'a View,
+    output: &'a View,
+}
+impl<'a> ReshapeEvent<'a> {
+    pub(super) fn graph(&self) -> &'a DecoderGraph {
+        self.graph
+    }
+    pub(super) fn operation(&self) -> &'a pllm_models::ModelOperation {
+        self.operation
+    }
+    pub(super) fn input(&self) -> &'a View {
+        self.input
+    }
+    pub(super) fn output(&self) -> &'a View {
+        self.output
+    }
+}
+impl<'a> ProjectionEvent<'a> {
+    pub(super) fn graph(&self) -> &'a DecoderGraph {
+        self.graph
+    }
+    pub(super) fn operation(&self) -> &'a pllm_models::ModelOperation {
+        self.operation
+    }
+    pub(super) fn input(&self) -> &'a View {
+        self.input
+    }
+    pub(super) fn output(&self) -> &'a View {
+        self.output
+    }
+    pub(super) fn sources(&self) -> &'a BTreeMap<String, SourceView> {
+        self.sources
+    }
+    pub(super) fn records(&self) -> &'a BTreeMap<String, SourceTensor> {
+        self.records
+    }
+    pub(super) fn start(&self) -> usize {
+        self.start
+    }
+}
 impl<'a> SelectionEvent<'a> {
     pub(super) fn graph(&self) -> &'a DecoderGraph {
         self.graph
@@ -223,8 +277,8 @@ impl Builder {
                     *target = Some((bounds.lower(), bounds.upper()));
                 }
             }
-            #[cfg(test)]
-            let oracle_start = self.nodes.len();
+            let emission_start = self.nodes.len();
+            request_origin::source_bias::preflight(self, graph, op)?;
             let output = match op.operator {
                 Op::TokenLookup => {
                     driver::token_lookup(self, op, &shape, tokens, sources, vocabulary)?
@@ -339,6 +393,22 @@ impl Builder {
             if output.words.len() != shape.iter().product::<usize>() {
                 return Err(Error::Shape);
             }
+            if matches!(op.operator, Op::Linear | Op::OutputHead)
+                && op.attributes.get("bias").is_some_and(|v| !v.is_null())
+            {
+                request_origin::source_bias::created(
+                    self,
+                    ProjectionEvent {
+                        graph,
+                        operation: op,
+                        input: a.ok_or(Error::Binding)?,
+                        output: &output,
+                        sources,
+                        records: public,
+                        start: emission_start,
+                    },
+                )?;
+            }
             if op.operator == Op::GreedyTokenSelection {
                 request_origin::selected(
                     self,
@@ -358,6 +428,17 @@ impl Builder {
                     },
                 )?;
             }
+            if op.operator == Op::Reshape {
+                request_origin::source_bias::consumed(
+                    self,
+                    ReshapeEvent {
+                        graph,
+                        operation: op,
+                        input: a.ok_or(Error::Binding)?,
+                        output: &output,
+                    },
+                )?;
+            }
             #[cfg(test)]
             if oracle_trace::enabled() {
                 oracle_trace::boundary(
@@ -366,7 +447,7 @@ impl Builder {
                     &output.shape,
                     output.words.iter().collect(),
                 );
-                oracle_trace::span(site.selection, &op.id, oracle_start, self.nodes.len());
+                oracle_trace::span(site.selection, &op.id, emission_start, self.nodes.len());
             }
             traversal.finish(op, output)?;
         }

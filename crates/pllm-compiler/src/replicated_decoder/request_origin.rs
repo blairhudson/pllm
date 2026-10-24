@@ -20,6 +20,8 @@ const COMPLETE: u8 = 2;
 
 #[path = "request_schedule.rs"]
 pub(super) mod schedule;
+#[path = "source_bias.rs"]
+pub(in crate::replicated_decoder) mod source_bias;
 
 fn add(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_add(b).ok_or(Error::Bounds)
@@ -95,6 +97,7 @@ pub(super) struct Resources {
     pub rows: usize,
     pub outputs: usize,
     pub max_operations: usize,
+    pub projection_slots: usize,
 }
 
 /// Metadata quote only. Source/model factories retain their own guarded work;
@@ -140,6 +143,7 @@ pub(super) fn quote(
         return Err(Error::Binding);
     }
     let max_operations = graph.operations.len();
+    let projection_slots = max_operations.checked_mul(outputs).ok_or(Error::Bounds)?;
     let mut payload = 0;
     // Full existing creation-record capacity remains charged conservatively;
     // destination backing overlaps old backing during any required reserve.
@@ -160,6 +164,7 @@ pub(super) fn quote(
         bytes::<OriginalSourcePlan>(outputs)?,
         bytes::<usize>(outputs.checked_mul(2).ok_or(Error::Bounds)?)?,
         bytes::<Fragment>(outputs)?,
+        source_bias::creation_bytes(projection_slots, sources.registry.source_records())?,
         bytes::<(usize, usize)>(add(outputs, 1)?)?,
         // Two preallocated pools: growing tokens and active epoch snapshot.
         Words::span_pool_bytes(add(outputs, 1)?)
@@ -276,6 +281,7 @@ pub(super) fn quote(
         rows,
         outputs,
         max_operations,
+        projection_slots,
     })
 }
 
@@ -311,6 +317,7 @@ impl RequestInputPermit<'_> {
 struct History<'s> {
     epochs: Vec<Arc<OriginalSourcePlan>>,
     fragments: Vec<Fragment>,
+    projections: Vec<Option<source_bias::Creation>>,
     scratch: Words,
     origin: HistoryOrigin,
     sources: RequestSources<'s>,
@@ -463,6 +470,10 @@ pub(super) struct Active {
     selected: Option<Selection>,
     feedback: Option<Fragment>,
     input_words: Words,
+    projections: Vec<Option<source_bias::Creation>>,
+    source_records: usize,
+    registry_identity: source_registry::Instance,
+    snapshot_remaining: usize,
     committed: bool,
 }
 
@@ -571,6 +582,7 @@ pub(super) fn declare<'s>(
         .map_err(|_| Error::Bounds)?;
     let mut epochs = reserve(resources.outputs)?;
     let fragments = reserve(resources.outputs)?;
+    let projections = reserve(resources.projection_slots)?;
     let mut words = Words::try_with_spans(add(resources.outputs, 1)?)?;
     let scratch = Words::try_with_spans(add(resources.outputs, 1)?)?;
     let source = Arc::new(source);
@@ -609,6 +621,7 @@ pub(super) fn declare<'s>(
         history: History {
             epochs,
             fragments,
+            projections,
             scratch,
             origin: HistoryOrigin(origin),
             sources,
@@ -705,13 +718,23 @@ impl History<'_> {
     /// Logical metadata visits through actual retained owners, not a native work
     /// formula/opaque CPU bound. Future plan construction has its own original
     /// guarded factory quote; it does not borrow this admission.
-    fn prepay_epoch(&self, epoch: usize) -> Result<(), Error> {
+    fn prepay_epoch(&mut self, epoch: usize) -> Result<(), Error> {
         let plan = self.epochs.get(epoch).ok_or(Error::Binding)?;
         let graph = &plan.plan().prefill;
         let visits = add(
             source_registry::semantic_metadata_bytes(graph)?,
             graph.operations.len().checked_mul(2).ok_or(Error::Bounds)?,
         )?;
+        let visits = add(
+            visits,
+            source_bias::creation_work(graph, self.sources.registry.source_records())?,
+        )?;
+        // Original mapping snapshots coexist with source/native owners and all
+        // prior epochs. Grow same guard BEFORE operator emission; never refund.
+        let snapshot = source_bias::snapshot_bytes(graph)?;
+        self.charge
+            .resize_payload(add(self.charge.payload_bytes(), snapshot)?)
+            .map_err(|_| Error::Bounds)?;
         self.origin
             .payload()
             .source
@@ -1092,6 +1115,10 @@ impl request_driver::RequestSink for BoundExpanded<'_, '_> {
             selected: None,
             feedback: None,
             input_words,
+            projections: std::mem::take(&mut self.history.projections),
+            source_records: std::ptr::from_ref(self.sources) as usize,
+            registry_identity: self.history.sources.registry.instance(),
+            snapshot_remaining: source_bias::snapshot_bytes(&plan.prefill)?,
             committed: false,
         });
         let vocabulary = plan
@@ -1143,6 +1170,7 @@ impl request_driver::RequestSink for BoundExpanded<'_, '_> {
         self.history.sticky = fragment.sticky_out;
         self.history.fragments.push(fragment);
         self.history.scratch = std::mem::take(&mut active.input_words);
+        self.history.projections = std::mem::take(&mut active.projections);
         self.history.check_tokens(tokens)?;
         active.committed = true;
         Ok(())

@@ -381,6 +381,23 @@ pub(super) struct SourceRegistry<'a> {
     sources: &'a BTreeMap<String, SourceTensor>,
     norms: &'a SourceNorms,
     binding: [u8; 32],
+    instance: Instance,
+}
+
+/// Allocation-free instance identity, preserved by moves, never by rebuilding a
+/// digest-equal registry. Capturing an address after its borrow ends is unsound
+/// identity: a later stack allocation could reuse that address. This token is
+/// NOT source/file authority and grants no admission or ownership-sharing credit.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct Instance(u64);
+impl Instance {
+    fn mint() -> Result<Self, Error> {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        NEXT.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+            .map(Self)
+            .map_err(|_| Error::Bounds)
+    }
 }
 
 impl<'a> SourceRegistry<'a> {
@@ -499,11 +516,15 @@ impl<'a> SourceRegistry<'a> {
             sources,
             norms,
             binding: program::source_binding_with_norms(sources, norms),
+            instance: Instance::mint()?,
         })
     }
 
     pub(super) fn source_records(&self) -> &'a BTreeMap<String, SourceTensor> {
         self.sources
+    }
+    pub(super) fn instance(&self) -> Instance {
+        self.instance
     }
 
     pub(super) fn source_norms(&self) -> &'a SourceNorms {

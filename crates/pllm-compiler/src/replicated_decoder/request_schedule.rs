@@ -9,18 +9,29 @@ use std::io::Write;
 /// ordinary Worker, cancellation and consuming BODY handoff. Native nodes retire
 /// before this final field releases the original source/parameter guards.
 pub(in crate::replicated_decoder) struct Custody {
-    _epochs: Vec<Arc<OriginalSourcePlan>>,
-    _fragments: Vec<Fragment>,
+    pub(super) projections: Vec<Option<source_bias::Creation>>,
+    pub(super) epochs: Vec<Arc<OriginalSourcePlan>>,
+    pub(super) fragments: Vec<Fragment>,
     _tokens: View,
     _scratch: Words,
-    origin: HistoryOrigin,
+    pub(super) origin: HistoryOrigin,
     _history_charge: OwnedExternalCharge,
     named_retained_bytes: usize,
     // Release finalization's real same-counter guard LAST.
-    _schedule_charge: OwnedExternalCharge,
+    schedule_charge: OwnedExternalCharge,
 }
 
 impl Custody {
+    pub(super) fn prepay_bias_metadata(&self, visits: usize) -> Result<(), Error> {
+        self.origin
+            .payload()
+            .source
+            .prepay_compiler_metadata(
+                &self.schedule_charge,
+                u64::try_from(visits).map_err(|_| Error::Bounds)?,
+            )
+            .map_err(|_| Error::Bounds)
+    }
     pub(in crate::replicated_decoder) fn public(&self) -> &Arc<PublicSource> {
         &self.origin.payload().public
     }
@@ -355,20 +366,22 @@ pub(super) fn finish(
     let History {
         epochs,
         fragments,
+        projections,
         scratch,
         origin,
         charge,
         ..
     } = history;
     let custody = Box::new(Custody {
-        _epochs: epochs,
-        _fragments: fragments,
+        projections,
+        epochs,
+        fragments,
         _tokens: tokens,
         _scratch: scratch,
         origin,
         _history_charge: charge,
         named_retained_bytes: resources.peak_bytes,
-        _schedule_charge: guard,
+        schedule_charge: guard,
     });
     let program = Arc::new(Program {
         nodes: std::mem::take(&mut builder.nodes),
@@ -400,6 +413,9 @@ impl Program {
         session: [u8; 32],
     ) -> Result<Worker, Error> {
         let owner = self.request_custody.as_ref().ok_or(Error::Binding)?;
+        if owner.origin.payload().state.load(Ordering::Acquire) != COMPLETE {
+            return Err(Error::Retired);
+        }
         Worker::new_with_shared_source(
             Arc::clone(self),
             runtime,

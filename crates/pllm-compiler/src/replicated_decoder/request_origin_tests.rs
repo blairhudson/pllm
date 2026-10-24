@@ -689,6 +689,7 @@ fn stale_for_test<'s>(pending: &PendingRequest<'s>, root: &OwnedBudget) -> Reque
         history: History {
             epochs: vec![Arc::clone(&origin.payload().source)],
             fragments: Vec::new(),
+            projections: Vec::new(),
             scratch: Words::try_with_spans(pending.history.resources.outputs + 1).unwrap(),
             sources: RequestSources {
                 manifest: pending.history.sources.manifest,
@@ -896,6 +897,10 @@ fn arbitrary_scalar_alias_cannot_replace_genuine_token_feedback_publication() {
             selected: None,
             feedback: None,
             input_words: tokens.words.clone(),
+            projections: Vec::new(),
+            source_records: std::ptr::from_ref(&case.fixture.manifest.tensors) as usize,
+            registry_identity: case.registry.instance(),
+            snapshot_remaining: 0,
             committed: false,
         });
         let mut sink = BoundExpanded {
