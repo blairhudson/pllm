@@ -1,4 +1,196 @@
 use super::*;
+use crate::shared_allocation::Lease;
+
+#[test]
+fn private_build_aggregate_splits_and_both_dealer_guards_in_both_contexts() {
+    fn check<C: AllocationContext>(s: Spec, budget: &Budget, lease: LeaseFor<C>) {
+        let q = resources_for_context::<C>(s).unwrap();
+        let child = correction::resources::<C>(CorrectionDescriptor { wire_spec: s }).unwrap();
+        let baseline = budget.used_bytes() - q.combined_reservation_bytes;
+        let table = vec![1; s.entries()];
+        let (masks, parties) =
+            issue_reserved_with(s, context(), &table, &[0, 1], lease, rng(81)).unwrap();
+        assert_eq!(budget.used_bytes(), baseline + q.combined_reservation_bytes);
+        assert_eq!(
+            masks._scanner_dealer.bytes,
+            q.dealer_reservation_bytes - child.dealer
+        );
+        assert_eq!(
+            masks._correction_dealer.bytes,
+            child.dealer - child.select.dealer_reservation_bytes
+        );
+        for party in &parties {
+            assert_eq!(party.lease.bytes, q.party_reservation_bytes - child.party);
+            assert_eq!(
+                party.correction.lease.bytes,
+                child.party - child.select.party_reservation_bytes
+            );
+            assert!(party.correction.scan_lease.is_none());
+        }
+        drop(parties);
+        assert_eq!(budget.used_bytes(), baseline + q.dealer_reservation_bytes);
+        assert_eq!(masks.values().len(), 2);
+        drop(masks);
+        assert_eq!(budget.used_bytes(), baseline);
+    }
+    for boundary in [Boundary::Deferred, Boundary::Reconstructed] {
+        for index_bits in [8, 10] {
+            let s = Spec {
+                index_bits,
+                output_bits: 50,
+                lanes: 2,
+                boundary,
+            };
+            let q = resources(s).unwrap();
+            let budget = Budget::new(q.combined_reservation_bytes).unwrap();
+            check(
+                s,
+                &budget,
+                Lease::reserve(&&budget, q.combined_reservation_bytes).unwrap(),
+            );
+            let root = crate::shared_allocation::OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let q =
+                resources_for_context::<crate::shared_allocation::OwnedBudgetContext>(s).unwrap();
+            let mut work = root.charge_external(q.combined_reservation_bytes).unwrap();
+            let lease = work
+                .split_native(root.budget(), q.combined_reservation_bytes)
+                .unwrap();
+            check(s, root.budget(), lease);
+            let before = root.budget().used_bytes();
+            drop(work);
+            assert!(root.budget().used_bytes() < before);
+        }
+    }
+}
+
+#[test]
+fn private_build_nonexact_charge_rejects_before_allocation() {
+    for boundary in [Boundary::Deferred, Boundary::Reconstructed] {
+        let s = spec(boundary);
+        let d = CorrectionDescriptor { wire_spec: s };
+        let q = correction::resources::<&Budget>(d).unwrap();
+        for bytes in [q.combined - 1, q.combined + 1] {
+            let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let lease = Lease::reserve(&&budget, bytes).unwrap();
+            budget.fail_after.store(0, Ordering::SeqCst);
+            assert!(matches!(
+                correction::prepare_reserved(d, lease),
+                Err(Error::Resource)
+            ));
+            assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+            assert_eq!(budget.used_bytes(), 0);
+        }
+    }
+}
+
+#[test]
+fn private_build_rejected_lane_burns_and_cannot_retry_entropy() {
+    let s = spec(Boundary::Deferred);
+    let d = CorrectionDescriptor { wire_spec: s };
+    let q = correction::resources::<&Budget>(d).unwrap();
+    let budget = Budget::new(q.combined).unwrap();
+    let mut build =
+        correction::prepare_reserved(d, Lease::reserve(&&budget, q.combined).unwrap()).unwrap();
+    // Negative ticket only: no test manufactures a successful issued-key seal.
+    assert!(matches!(
+        build.push_after_keypair(IssuedKeyLane { index: 1 }, &mut |_| panic!(
+            "bad lane entropy"
+        )),
+        Err(Error::Context)
+    ));
+    assert!(matches!(
+        build.push_after_keypair(IssuedKeyLane { index: 0 }, &mut |_| panic!(
+            "replayed entropy"
+        )),
+        Err(Error::Consumed)
+    ));
+    assert_eq!(budget.used_bytes(), q.combined);
+    drop(build);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn private_build_partial_issuance_failure_and_panic_each_original_draw() {
+    for boundary in [Boundary::Deferred, Boundary::Reconstructed] {
+        for index_bits in [8, 10] {
+            let s = Spec {
+                index_bits,
+                output_bits: 50,
+                lanes: 2,
+                boundary,
+            };
+            let q = resources(s).unwrap();
+            let table = vec![1; s.entries()];
+            let budget = Budget::new(q.combined_reservation_bytes).unwrap();
+            let mut draws = Vec::new();
+            let mut fill = rng(19);
+            drop(
+                issue_with(s, context(), &table, &[0, 1], &budget, |b| {
+                    draws.push(b.len());
+                    fill(b)
+                })
+                .unwrap(),
+            );
+            for fail in 0..draws.len() {
+                for panic in [false, true] {
+                    let mut index = 0;
+                    let mut fill = rng(19);
+                    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        issue_with(s, context(), &table, &[0, 1], &budget, |b| {
+                            assert_eq!(b.len(), draws[index]);
+                            let here = index;
+                            index += 1;
+                            fill(b)?;
+                            if here == fail {
+                                if panic {
+                                    panic!("written original draw")
+                                } else {
+                                    return Err(Error::Randomness);
+                                }
+                            }
+                            Ok(())
+                        })
+                    }));
+                    if panic {
+                        assert!(outcome.is_err());
+                    } else {
+                        assert!(matches!(outcome, Ok(Err(Error::Randomness))));
+                    }
+                    assert_eq!(index, fail + 1, "no suffix draws after failure");
+                    assert_eq!(budget.used_bytes(), 0);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn private_build_allocation_failures_retire_partial_arrays_and_original_guards() {
+    for boundary in [Boundary::Deferred, Boundary::Reconstructed] {
+        for index_bits in [8, 10] {
+            let s = Spec {
+                index_bits,
+                output_bits: 50,
+                lanes: 2,
+                boundary,
+            };
+            let table = vec![1; s.entries()];
+            let q = resources(s).unwrap();
+            let budget = Budget::new(q.combined_reservation_bytes).unwrap();
+            budget.fail_after.store(1000, Ordering::SeqCst);
+            drop(issue_with(s, context(), &table, &[0, 1], &budget, rng(7)).unwrap());
+            let factories = 1000 - budget.fail_after.load(Ordering::SeqCst);
+            for fail in 0..factories {
+                budget.fail_after.store(fail, Ordering::SeqCst);
+                assert!(matches!(
+                    issue_with(s, context(), &table, &[0, 1], &budget, rng(7)),
+                    Err(Error::Allocation)
+                ));
+                assert_eq!(budget.used_bytes(), 0);
+            }
+        }
+    }
+}
 use std::sync::atomic::Ordering;
 
 #[test]
@@ -649,80 +841,56 @@ fn independently_inventoried_padded_owner_reservations() {
                     } else {
                         0
                     };
-                    let party_inventory = [
-                        size_of::<Party<'static>>(),     // inline execution and Select metadata
-                        size_of::<LookupLane>() * lanes, // padded key + mask vector backing
-                        8 * entries,                     // one immutable table backing per party
-                        8 * lanes,                       // local arithmetic backing
-                        8 * lanes,                       // local correction backing
-                        8 * lanes,                       // borrowed masked indices
-                        4 * allocator_allowance,         // lane/table/arithmetic/correction vectors
-                        32 * lanes,                      // split masks plus scan sum/count overlap
-                        3 * allocator_allowance,
-                        size_of::<ScanResultFor<&Budget>>(),
-                        size_of::<correction::Controls<'_, &Budget>>(),
-                        entries, // lane-serial full expansion backing, not L*N
-                        size_of::<Zeroizing<Vec<u8>>>(), // scratch vector owner
-                        allocator_allowance, // scratch allocation
-                        first_payload, // borrowed first receive frame
-                        first_payload + frame_owner + allocator_allowance, // retained first send owner
-                        8 * lanes + output_owner + allocator_allowance, // final output; overlaps Select output
-                        second_payload, // borrowed Select receive frame
-                        if second_payload == 0 { 0 } else { frame_owner }, // retained Select frame wrapper
-                        stack_allowance,
-                    ];
-                    let dealer_inventory = [
-                        size_of::<OutputMasks<'static>>(),
-                        8 * lanes,   // derived mask backing
-                        8 * lanes,   // borrowed input masks
-                        8 * entries, // borrowed table
-                        8 * lanes,   // transient predicate masks for Select
-                        8 * lanes,   // transient arithmetic masks for Select
-                        3 * allocator_allowance,
-                        2 * size_of::<GpuKey>(), // transient paired issuance owners
-                        size_of::<correction::Controls<'_, &Budget>>(),
-                        stack_allowance,
-                    ];
-                    let lookup_party: usize = party_inventory.iter().sum();
-                    let lookup_dealer: usize = dealer_inventory.iter().sum();
-                    // Independent compact cross-check; scratch-owner size stays
-                    // ABI-derived rather than assuming a 24-byte Vec layout.
-                    assert_eq!(
-                        lookup_party,
-                        size_of::<Party<'static>>()
-                            + size_of::<LookupLane>() * lanes
-                            + 9 * entries
-                            + 96 * lanes
-                            + 3 * allocator_allowance
-                            + size_of::<ScanResultFor<&Budget>>()
-                            + size_of::<correction::Controls<'_, &Budget>>()
-                            + frame_owner
-                            + output_owner
-                            + 8800
-                            + size_of::<Zeroizing<Vec<u8>>>()
-                            + if second_payload == 0 {
-                                0
-                            } else {
-                                76 + 8 * lanes + frame_owner
-                            }
-                    );
-                    assert_eq!(
-                        lookup_dealer,
-                        size_of::<OutputMasks<'static>>()
-                            + 32 * lanes
-                            + 8 * entries
-                            + 2 * size_of::<GpuKey>()
-                            + size_of::<correction::Controls<'_, &Budget>>()
-                            + 8384
-                    );
+                    // Literal independent decomposition. Scan transfer T appears
+                    // ONCE, and the child contains no GPU/table/scanner owner.
+                    let transfer =
+                        size_of::<ScanResultFor<&Budget>>() + 16 * lanes + 2 * allocator_allowance;
+                    let scanner = size_of::<Party<'static>>() - size_of::<CorrectionFor<&Budget>>()
+                        + size_of::<LookupLane>() * lanes
+                        + 8 * entries
+                        + 2 * allocator_allowance
+                        + 8 * lanes
+                        + entries
+                        + size_of::<Zeroizing<Vec<u8>>>()
+                        + allocator_allowance
+                        + size_of::<ScannerControls<'_, &Budget>>()
+                        + stack_allowance;
+                    let correction = size_of::<CorrectionFor<&Budget>>()
+                        + 24 * lanes
+                        + 2 * allocator_allowance
+                        + size_of::<correction::Controls<'_, &Budget>>()
+                        + first_payload
+                        + second_payload
+                        + first_payload
+                        + frame_owner
+                        + allocator_allowance
+                        + 8 * lanes
+                        + output_owner
+                        + allocator_allowance
+                        + stack_allowance
+                        + if second_payload == 0 { 0 } else { frame_owner };
+                    let correction_dealer = size_of::<correction::CorrectionMasksFor<&Budget>>()
+                        + 24 * lanes
+                        + 3 * allocator_allowance
+                        + stack_allowance
+                        + size_of::<correction::IssuanceControls<'_, &Budget>>();
+                    let scanner_dealer = 8 * lanes
+                        + 8 * entries
+                        + 2 * size_of::<GpuKey>()
+                        + stack_allowance
+                        + size_of::<ParentControls<'_, &Budget>>()
+                        + size_of::<OutputMasks<'static>>()
+                        - size_of::<correction::CorrectionMasksFor<&Budget>>();
                     // Select has its own independently tested inventory. Add it
                     // once only; lookup must not replace inline keys by codecs.
                     let nested =
                         selection::resources_for(selection::Spec { bits: m, lanes }, boundary)
                             .unwrap();
                     let actual = resources(spec).unwrap();
-                    let expected_party = lookup_party + nested.party_reservation_bytes;
-                    let expected_dealer = lookup_dealer + nested.dealer_reservation_bytes;
+                    let expected_party =
+                        scanner + transfer + correction + nested.party_reservation_bytes;
+                    let expected_dealer =
+                        scanner_dealer + correction_dealer + nested.dealer_reservation_bytes;
                     let expected_combined = expected_dealer + 2 * expected_party;
                     assert_eq!(actual.party_reservation_bytes, expected_party);
                     assert_eq!(actual.dealer_reservation_bytes, expected_dealer);

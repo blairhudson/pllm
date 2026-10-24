@@ -16,7 +16,69 @@ use std::mem::size_of;
 use zeroize::Zeroizing;
 
 mod correction;
-use correction::{CorrectionFor, CorrectionState, ScanResultFor};
+use correction::{
+    CorrectionBuildFor, CorrectionDescriptor, CorrectionFor, CorrectionState, ScanResultFor,
+};
+
+// Created only at the original validated parent issuance sites below. Neither
+// seal is public, cloneable or deserializable; a digest is not an issuer.
+struct LookupIssueSeal {
+    spec: Spec,
+    binding: [u8; 32],
+    select_context: selection::Context,
+}
+struct IssuedKeyLane {
+    index: usize,
+}
+type LookupResult<C> = Result<(OutputMasksFor<C>, [PartyFor<C>; 2]), Error>;
+
+#[allow(dead_code)] // Concrete quote-only simultaneous call/move/result slots.
+struct ParentControls<'a, C: AllocationContext> {
+    quote: Resources,
+    quote_result: Result<Resources, Error>,
+    correction_quote: correction::CorrectionResources,
+    correction_quote_result: Result<correction::CorrectionResources, Error>,
+    descriptor: CorrectionDescriptor,
+    context: Context,
+    table: &'a [u64],
+    input_masks: &'a [u64],
+    nonce: [u8; 32],
+    table_identity: [u8; 32],
+    binding: [u8; 32],
+    seal: Option<LookupIssueSeal>,
+    seal_result: Result<LookupIssueSeal, Error>,
+    lane_ticket: Option<IssuedKeyLane>,
+    lane_ticket_result: Result<IssuedKeyLane, Error>,
+    lane_index: usize,
+    key_profile: Profile,
+    key_profile_result: Result<Profile, gpu127::Error>,
+    aggregate: Option<LeaseFor<C>>,
+    aggregate_result: Result<LeaseFor<C>, Error>,
+    correction_reservation: Option<LeaseFor<C>>,
+    scanner_reservations: [Option<LeaseFor<C>>; 2],
+    scanner_dealer: Option<LeaseFor<C>>,
+    correction_dealer_move: Option<LeaseFor<C>>,
+    scanner_dealer_move: Option<LeaseFor<C>>,
+    split_results: [Result<LeaseFor<C>, Error>; 3],
+    build: Option<CorrectionBuildFor<C>>,
+    build_result: Result<CorrectionBuildFor<C>, Error>,
+    scanner_executions: [Option<Execution>; 2],
+    scanner_execution_results: [Result<Execution, Error>; 2],
+    child_result: correction::CorrectionResult<C>,
+    child_masks_move: Option<correction::CorrectionMasksFor<C>>,
+    child_parties_move: Option<[CorrectionFor<C>; 2]>,
+    parent_parties_move: Option<[PartyFor<C>; 2]>,
+    output_move: Option<OutputMasksFor<C>>,
+    final_result: LookupResult<C>,
+    allocation_link: Option<C>,
+}
+
+#[allow(dead_code)] // Scanner-only controls; never enter the key/table-free child.
+struct ScannerControls<'a, C: AllocationContext> {
+    execution: Option<Execution>,
+    abort: Option<correction::AbortOnDrop<'a, C>>,
+    scan: Option<ScanResultFor<C>>,
+}
 
 pub const DOMAIN: &str = "pllm.sigma.source-lookup.gpu127.v1";
 pub const MAX_LANES: usize = super::MAX_LANES;
@@ -155,7 +217,8 @@ pub(crate) fn resources_for_context<C: AllocationContext>(spec: Spec) -> Result<
     let gpu = Profile::new(spec.index_bits)
         .map_err(gpu_error)?
         .resources();
-    let select = selection::resources_for_context::<C>(spec.select(), spec.boundary)?;
+    let child = correction::resources::<C>(CorrectionDescriptor { wire_spec: spec })?;
+    let select = child.select;
     let table = mul(8, spec.entries())?;
     let lane = mul(size_of::<LookupLane>(), spec.lanes)?;
     let select_frame = if spec.boundary == Boundary::Reconstructed {
@@ -163,44 +226,31 @@ pub(crate) fn resources_for_context<C: AllocationContext>(spec: Spec) -> Result<
     } else {
         0
     };
-    let own_party = add(&[
-        size_of::<PartyFor<C>>(),
+    let scanner = add(&[
+        size_of::<PartyFor<C>>()
+            .checked_sub(size_of::<CorrectionFor<C>>())
+            .ok_or(Error::Resource)?,
         lane,
         table,
-        mul(16, spec.lanes)?, // local R/C backing, later output/C
-        mul(8, spec.lanes)?,  // borrowed common masked indices
-        4 * ALLOCATOR,        // lane, table, R, C vectors
-        mul(size_of::<[u64; 2]>(), spec.lanes)?, // migrated mask backing
-        ALLOCATOR,
-        correction::scan_bytes::<C>(spec)?,
-        correction::control_bytes::<C>(),
-        spec.entries(), // one lane-serial complete expansion
+        2 * ALLOCATOR,
+        mul(8, spec.lanes)?, // borrowed common masked indices
+        spec.entries(),      // one lane-serial complete expansion
         size_of::<Zeroizing<Vec<u8>>>() + ALLOCATOR,
-        first_frame_bytes(spec),     // borrowed peer first frame
-        select_frame,                // borrowed peer Select frame
-        frame_charge_for::<C>(spec), // retained first send frame
-        if select_frame != 0 {
-            size_of::<FrameFor<C>>() // retained Select wrapper
-        } else {
-            0
-        },
-        output_charge_for::<C>(spec), // final output overlaps nested Select output
+        size_of::<ScannerControls<'_, C>>(),
         WORKSPACE,
     ])?;
-    let own_dealer = add(&[
-        size_of::<OutputMasksFor<C>>(),
-        C::TRANSIENT_LINK_BYTES,
-        mul(8, spec.lanes)?,  // derived output masks
-        mul(8, spec.lanes)?,  // borrowed input masks
-        table,                // borrowed complete public table
-        mul(16, spec.lanes)?, // transient Select predicate/arithmetic masks
-        3 * ALLOCATOR,
+    let scanner_dealer = add(&[
+        mul(8, spec.lanes)?, // borrowed input masks
+        table,               // borrowed complete public table
         gpu.pair_owner_bytes,
-        correction::control_bytes::<C>(),
         WORKSPACE,
+        size_of::<ParentControls<'_, C>>(),
+        size_of::<OutputMasksFor<C>>()
+            .checked_sub(size_of::<correction::CorrectionMasksFor<C>>())
+            .ok_or(Error::Resource)?,
     ])?;
-    let party = add(&[own_party, select.party_reservation_bytes])?;
-    let dealer = add(&[own_dealer, select.dealer_reservation_bytes])?;
+    let party = add(&[scanner, correction::scan_bytes::<C>(spec)?, child.party])?;
+    let dealer = add(&[scanner_dealer, child.dealer])?;
     let combined = add(&[dealer, mul(2, party)?])?;
     if combined > MAX_ALLOCATION_BYTES {
         return Err(Error::Resource);
@@ -296,7 +346,8 @@ pub type OutputMasks<'a> = OutputMasksFor<&'a Budget>;
 pub struct OutputMasksFor<C: AllocationContext> {
     values: Zeroizing<Vec<u64>>,
     _select_masks: selection::OutputMasksFor<C>,
-    _lease: LeaseFor<C>,
+    _correction_dealer: LeaseFor<C>,
+    _scanner_dealer: LeaseFor<C>,
 }
 impl<C: AllocationContext> OutputMasksFor<C> {
     /// Low-level trusted dealer view only. rho=2u-r, hence rho mod 2=r mod 2.
@@ -434,19 +485,26 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     // Entire public and canonical input preflight precedes admission, entropy,
     // and allocation. Identity hashes full canonical bytes, not a caller label.
     let identity = table_identity(spec, context.numeric_contract, table);
-    let select_cost = selection::resources_for_context::<C>(spec.select(), spec.boundary)?;
-    let select_reservation = reservation.split(select_cost.combined_reservation_bytes)?;
-    let mut a =
-        reservation.split(cost.party_reservation_bytes - select_cost.party_reservation_bytes)?;
-    let mut b =
-        reservation.split(cost.party_reservation_bytes - select_cost.party_reservation_bytes)?;
-    let scanner_a = a.split(correction::scan_bytes::<C>(spec)?)?;
-    let scanner_b = b.split(correction::scan_bytes::<C>(spec)?)?;
+    let descriptor = CorrectionDescriptor { wire_spec: spec };
+    let child = correction::resources::<C>(descriptor)?;
+    let child_reservation = reservation.split(child.combined)?;
+    let scanner_bytes = cost
+        .party_reservation_bytes
+        .checked_sub(child.party)
+        .ok_or(Error::Resource)?;
+    let scanner_a = reservation.split(scanner_bytes)?;
+    let scanner_b = reservation.split(scanner_bytes)?;
+    if reservation.bytes
+        != cost
+            .dealer_reservation_bytes
+            .checked_sub(child.dealer)
+            .ok_or(Error::Resource)?
+    {
+        return Err(Error::Resource);
+    }
     // Declare all reservations before secret owners: reverse local drop order
     // erases backing before refunds on every early return.
-    let mut masks = zeros(spec.lanes, budget)?;
-    let mut predicate_masks = zeros(spec.lanes, budget)?;
-    let mut arithmetic_masks = zeros(spec.lanes, budget)?;
+    let mut build = correction::prepare_reserved(descriptor, child_reservation)?;
     let new_execution = || -> Result<Execution, Error> {
         let mut own_table = zeros(spec.entries(), budget)?;
         own_table.copy_from_slice(table);
@@ -463,13 +521,14 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     };
     let mut left = new_execution()?;
     let mut right = new_execution()?;
-    let mut left_masks = Zeroizing::new(allocate(spec.lanes, budget)?);
-    let mut right_masks = Zeroizing::new(allocate(spec.lanes, budget)?);
-    let left_correction = zeros(spec.lanes, budget)?;
-    let right_correction = zeros(spec.lanes, budget)?;
     let mut nonce = [0; 32];
     fill(&mut nonce)?;
     let binding = invocation_binding(spec, context, identity, nonce);
+    let seal = LookupIssueSeal {
+        spec,
+        binding,
+        select_context: select_context(context, binding),
+    };
     let profile = Profile::new(spec.index_bits).map_err(gpu_error)?;
     for (i, &rin) in input_masks.iter().enumerate() {
         let [k0, k1] = GpuKey::issue_with(
@@ -478,58 +537,25 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
             |bytes| fill(bytes).map_err(|_| gpu127::Error::Randomness),
         )
         .map_err(gpu_error)?;
-        let r = Zeroizing::new(draw(spec.output_bits, &mut fill)?);
-        let q = Zeroizing::new(draw(1, &mut fill)?);
-        let r0 = Zeroizing::new(draw(spec.output_bits, &mut fill)?);
-        let q0 = Zeroizing::new(draw(1, &mut fill)?);
-        arithmetic_masks[i] = *r;
-        predicate_masks[i] = *q;
         left.lanes.push(LookupLane { key: k0 });
-        left_masks.push([*r0, *q0]);
         right.lanes.push(LookupLane { key: k1 });
-        right_masks.push([r.wrapping_sub(*r0) & mask(spec.output_bits), *q ^ *q0]);
+        // Only this original-key creation site mints the one-shot lane ticket.
+        build.push_after_keypair(IssuedKeyLane { index: i }, &mut fill)?;
     }
-    let select_context = select_context(context, binding);
-    let (select_masks, [select0, select1]) = selection::issue_reserved_with(
-        spec.select(),
-        select_context,
-        &predicate_masks,
-        &arithmetic_masks,
-        spec.boundary,
-        select_reservation,
-        &mut fill,
-    )?;
-    for i in 0..spec.lanes {
-        masks[i] = select_masks.values()[i]
-            .wrapping_mul(2)
-            .wrapping_sub(arithmetic_masks[i])
-            & mask(spec.output_bits);
-    }
-    let new_correction =
-        |role, masks, select, lease, correction| -> Result<CorrectionFor<C>, Error> {
-            Ok(CorrectionFor {
-                masks,
-                state: Some(CorrectionState {
-                    arithmetic: Zeroizing::new(Vec::new()),
-                    correction,
-                    digest: [0; 32],
-                    phase: 0,
-                }),
-                select: Some(select),
-                scan_lease: None,
-                role,
-                spec,
-                binding,
-                lease,
-            })
-        };
-    let correction0 = new_correction(0, left_masks, select0, a, left_correction)?;
-    let correction1 = new_correction(1, right_masks, select1, b, right_correction)?;
+    let (
+        correction::CorrectionMasksFor {
+            values,
+            select_masks,
+            dealer,
+        },
+        [correction0, correction1],
+    ) = build.finish(seal, &mut fill)?;
     Ok((
         OutputMasksFor {
-            values: masks,
+            values,
             _select_masks: select_masks,
-            _lease: reservation,
+            _correction_dealer: dealer,
+            _scanner_dealer: reservation,
         },
         [
             PartyFor {
