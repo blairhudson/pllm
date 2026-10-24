@@ -194,7 +194,7 @@ fn draw(bits: u8, fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>) -> Resu
     fill(&mut *bytes)?;
     Ok(u64::from_le_bytes(*bytes) & mask(bits))
 }
-fn split(
+pub(super) fn split(
     value: u64,
     bits: u8,
     fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
@@ -221,6 +221,35 @@ struct Execution {
     local: Zeroizing<Vec<u64>>,
     input_digest: [u8; 32],
     phase: Phase,
+}
+
+// Opaque moved carry result. No raw/share accessor or public issuer.
+pub(super) struct TerminalLocalFor<C: AllocationContext> {
+    values: Zeroizing<Vec<u64>>,
+    role: u8,
+    binding: [u8; 32],
+    _lease: LeaseFor<C>,
+}
+impl<C: AllocationContext> TerminalLocalFor<C> {
+    pub(super) fn add_beta(
+        &mut self,
+        material: &mut super::typed::gapars_terminal::MaterialFor<C>,
+        beta: &super::typed::CommonMaskedFor<C, super::typed::Ring>,
+    ) -> Result<(), Error> {
+        material.apply(self.role, self.binding, beta, &mut self.values)
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_values(&self) -> &[u64] {
+        &self.values
+    }
+}
+
+pub(super) fn terminal_move_bytes<C: AllocationContext>() -> usize {
+    2 * size_of::<Execution>()
+        + 2 * size_of::<PartyFor<C>>()
+        + 2 * size_of::<Option<Execution>>()
+        + 2 * size_of::<TerminalLocalFor<C>>()
 }
 
 /// No Clone/Debug/clear-mask getters. One party's material only. Failed calls
@@ -449,6 +478,59 @@ fn binding(spec: Spec, context: Context, nonce: [u8; 32]) -> [u8; 32] {
 }
 
 impl<C: AllocationContext> PartyFor<C> {
+    pub(super) fn terminal_identity(&self) -> Result<(u8, [u8; 32]), Error> {
+        if self.spec
+            != (Spec {
+                bits: 50,
+                lanes: 4,
+                gate: Gate::GapArs { shift: 12 },
+            })
+        {
+            return Err(Error::Domain);
+        }
+        Ok((self.id, self.binding))
+    }
+
+    pub(super) fn finish_terminal_carry(
+        mut self,
+        peer: &[u8],
+    ) -> Result<TerminalLocalFor<C>, Error> {
+        self.terminal_identity()?;
+        let mut state = self.state.take().ok_or(Error::Consumed)?;
+        if state.phase != Phase::Carry {
+            return Err(Error::Context);
+        }
+        self.validate_peer(&state, peer)?;
+        self.finish_carry(&mut state, peer)?;
+        Ok(TerminalLocalFor {
+            values: state.local,
+            role: self.id,
+            binding: self.binding,
+            _lease: self.lease,
+        })
+    }
+
+    fn finish_carry(&self, state: &mut Execution, peer: &[u8]) -> Result<(), Error> {
+        let (shift, gap) = match self.spec.gate {
+            Gate::Tr { shift } => (shift, false),
+            Gate::GapArs { shift } => (shift, true),
+            Gate::Drelu => return Err(Error::Domain),
+        };
+        for (index, word) in peer[HEADER..].chunks_exact(8).enumerate() {
+            let opened = state.local[index] ^ u64::from_le_bytes(word.try_into().unwrap());
+            state.local[index] = rescale::finish(
+                self.id,
+                state.input[index],
+                self.spec.bits,
+                shift,
+                gap,
+                &state.lanes[index].constants,
+                opened,
+            );
+        }
+        Ok(())
+    }
+
     pub fn cancel(&mut self) {
         self.state = None;
     }
@@ -502,23 +584,7 @@ impl<C: AllocationContext> PartyFor<C> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
         self.validate_peer(&state, peer)?;
         if state.phase == Phase::Carry {
-            let (shift, gap) = match self.spec.gate {
-                Gate::Tr { shift } => (shift, false),
-                Gate::GapArs { shift } => (shift, true),
-                Gate::Drelu => return Err(Error::Domain),
-            };
-            for (index, word) in peer[HEADER..].chunks_exact(8).enumerate() {
-                let opened = state.local[index] ^ u64::from_le_bytes(word.try_into().unwrap());
-                state.local[index] = rescale::finish(
-                    self.id,
-                    state.input[index],
-                    self.spec.bits,
-                    shift,
-                    gap,
-                    &state.lanes[index].constants,
-                    opened,
-                );
-            }
+            self.finish_carry(&mut state, peer)?;
             state.phase = Phase::Output;
             let frame = self.frame(&state)?;
             self.state = Some(state);

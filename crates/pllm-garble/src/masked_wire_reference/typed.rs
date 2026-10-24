@@ -27,6 +27,10 @@
 //! memory is never retained and remains the caller's responsibility.
 
 use super::{arithmetic, matrix, selection};
+
+// No production caller until enclosing state/source/handle admission exists.
+#[allow(dead_code)]
+pub(super) mod gapars_terminal;
 pub use crate::shared_allocation::{Budget, Error};
 use crate::{
     compact_dpf::gpu127::Profile,
