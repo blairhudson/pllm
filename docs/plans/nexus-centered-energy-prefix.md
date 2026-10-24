@@ -4,18 +4,48 @@
 Encrypted profiles, native HE builds/execution and ciphertext/key authority
 remain excluded. Approval supplies no ambient full-trace metadata-work grant;
 see [D38](../../paper/methods/DECISIONS.md#d38-three-independently-bounded-follow-ups-to-d37).
-Baseline: `7fa07d746f55ae7157f3a371a57def920fb9fbb0`. No implementation,
-tests, native execution or measurements accompany this packet.
+Historical proposal baseline: `7fa07d746f55ae7157f3a371a57def920fb9fbb0`.
+No implementation, tests, native execution or measurements accompanied that
+original packet; current implementation status is recorded below.
 
-Astra review revision against Main `a61f4bf6c8f52c31e6584de4aad5cb65dd23be28`:
+Historical Astra review revision against Main `a61f4bf6c8f52c31e6584de4aad5cb65dd23be28`:
 §5 now specifies the shared construction quote and separates conditional
 synthetic trace admission from the clear executor's physical buffer pool.
-The original author's document and patch remain unchanged. Contract names below
-are proposed unless explicitly identified as existing; no API is implemented here.
+The original author's document and patch remain unchanged. Proposal/no-API wording
+in the preserved design below records that stage, not the current source status.
 
 Normative scope: [D37](../../paper/methods/DECISIONS.md#d37-specify-seven-separately-selectable-method-completion-contracts),
 [N-N decision row](ten-method-execution-decisions.md#select-individual-rows-not-approve-everything),
 and [Eq.(5) dependency proposal](../research/nexus-numeric-contract-audit.md#separate-unapproved-normalization-dependency-proposal).
+
+## Implemented clear/structural slice — ea6057cf
+
+[Implementation commit `ea6057cf`](https://github.com/blairhudson/pllm/commit/ea6057cf694a0d20a0144414376580abdd21fb63)
+publishes the D38 clear-only slice under the original map, budgets and conditions.
+Astra133 source review cleared all three admission repairs:
+
+| Published module | Implemented binding and ordinary regression evidence |
+| --- | --- |
+| [`pllm_core::row_fold`](../../crates/pllm-core/src/row_fold.rs) | `Geometry`, `Invocation` and `WorkLedger`: caller-buffered ordered energy prefix; checked cumulative clear/oracle/control sum and control subcounter. [`row_fold_tests.rs`](../../crates/pllm-core/src/row_fold_tests.rs) covers independent dense parity, padding/row boundaries, exact/short work, poison and unwind. |
+| [`pllm_compiler::row_fold_reference`](../../crates/pllm-compiler/src/row_fold_reference.rs) | `BorrowedClearBuffers` / `ChargedRowFold` retain original clear borrows and whole-pool charges; `row_fold_compiler_control_and_core_share_exact_aggregate_before_entry` checks compiler control and core work share the same checked ledger. This is not source-tensor authentication. |
+| [`encrypted_level_schedule::construction`](../../crates/pllm-compiler/src/encrypted_trace_construction.rs) | `PublicCiphertextConstructionQuote` has private admission fields/read-only getters. Non-Clone `TraceAdmission` binds the exact immutable quote and original metadata ledger: `admit_trace` prepays once before construction; `validate_constructed` consumes it without another debit. [`encrypted_trace_construction_tests.rs`](../../crates/pllm-compiler/src/encrypted_trace_construction_tests.rs) checks exact-one-invocation admission, swap/abort/failure accounting and pre-factory refusal; compile-fail cases reject quote forgery/token replay. |
+
+Final standard core/compiler package gate: **2,180 passed, nine existing ignored,
+one explicitly skipped full-map test**, including integration/doc regressions.
+Separately, `all_rows_dense_independent_parity_six_full_maps` already executed its
+**six independent 32×1024 fixtures once**, checking every active/padding lane on
+the same unchanged numerical kernel; that historical evidence is not added to
+the 2,180 count. Strict `--lib --tests` Clippy passed. All-targets Clippy is not
+claimed: the legacy `boundary_head_dotprod.rs:73` example warning remains.
+
+The full-trace quote is **7,774 metadata records**, **1,991,168 validator payload
+bytes** and **30,068,627,962,880 work quanta**: bounds/rejection ceilings, not an
+ambient grant or successful full-trace verification. Independent finite metadata
+admission remains required; missing/short admission returns
+`MissingAmbientTraceAdmission` / `MetadataWorkRefused` before graph factories.
+Clear-original borrow/charge checks confer no tensor provenance or source/security
+adoption. Full LayerNorm, inverse/epsilon, HE execution, parameters and keys remain
+excluded; the D37 unknowns and original normative conditions below remain intact.
 
 ## 1. Result and provenance boundary
 
