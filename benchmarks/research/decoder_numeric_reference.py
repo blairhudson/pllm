@@ -24,6 +24,7 @@ from fractions import Fraction as F
 from functools import lru_cache
 import importlib.util
 import json
+import hashlib
 from math import prod
 from pathlib import Path
 import sys
@@ -32,6 +33,163 @@ from benchmarks.research import maverick_numeric_encoding_oracle as encoding
 
 
 NUMERICS = "M-N/Qwen3-4B-8prompt-candidate-1"
+
+
+@dataclass(frozen=True)
+class Composition:
+    """Synthetic development result; neither JSON nor tensors authenticate source."""
+
+    status: str
+    result: Result | None = None
+    config_sha256: str | None = None
+    plan_digest: str | None = None
+    refusal: Exception | None = None
+    source_status: str = "UNPROVED"
+    synthetic_fixture: bool = True
+    execution_scope: str = "DEVELOPMENT_SYNTHETIC"
+
+
+def _bound_attributes(ops, tensors, d, scale_refs, head_pair):
+    """Complete structural/source preflight: no tensor conversion or operators."""
+    shapes = {op["id"]: op["output_shape"] for op in ops}
+    used = set(head_pair)
+    projections = set()
+    for op in ops:
+        kind, a = op["operator"], op["attributes"]
+        if kind in ("linear", "rms_norm"):
+            ref = a["weight"]
+            used.add(ref)
+            source = tensors[ref]
+            width = shapes[op["inputs"][0]][-1]
+            if kind == "linear":
+                _attrs(a, {"weight": ref, "bias": None})
+                _require(source.shape == (op["output_shape"][-1], width), "original matrix geometry")
+                if source.dtype == "F8_E4M3":
+                    scale = tensors[scale_refs[ref]]
+                    used.add(scale_refs[ref])
+                    projections.add(ref)
+                    r, c = source.shape
+                    _require(r % 128 == c % 128 == 0 and scale.dtype == "BF16"
+                             and scale.shape == (r//128, c//128), "explicit block geometry")
+                    # Existing immutable SourceTensor already validates BF16.
+                    # Check sign/zero here without materializing converted values.
+                    _require(all(0 < w < 0x7f80 for w in scale.words), "positive finite scales")
+                else:
+                    _require(source.dtype == "synthetic_Q8" and ref not in scale_refs, "explicit synthetic matrix")
+            else:
+                _require(set(a) == {"weight", "epsilon", "weight_offset"}
+                         and type(a["epsilon"]) in (F, str) and F(a["epsilon"]) == F(1, 1000000)
+                         and type(a["weight_offset"]) is int and a["weight_offset"] == 0
+                         and source.dtype == "BF16" and source.shape == (width,), "norm source/attributes")
+        elif kind == "token_lookup":
+            _attrs(a, {"weight": head_pair[0]})
+            _require(op["inputs"] == ["input.tokens"], "original IDs")
+        elif kind == "output_head":
+            _attrs(a, {"weight": head_pair[0], "tied": True, "input_layout": "batch_hidden",
+                       "output_layout": "batch_vocabulary", "compute_dtype": "model_native",
+                       "output_dtype": "model_native"})
+        elif kind == "reshape":
+            _attrs(a, {"layout": "batch_heads_sequence_feature" if len(op["output_shape"]) == 4
+                       else "batch_sequence_hidden"})
+        elif kind == "rotary_embedding":
+            _attrs(a, {"theta": d.theta, "rotary_dimensions": d.width, "pairing": "split_half",
+                       "position_policy": "sequential_absolute", "coefficient_profile": "pllm.numeric.rope.q30.libm.v1",
+                       "input_layout": "batch_heads_sequence_feature", "output_layout": "batch_heads_sequence_feature",
+                       "tail_policy": "unchanged"})
+        elif kind == "kv_cache_append":
+            _require(type(a.get("state")) is str and bool(a["state"]), "state reference")
+            _attrs(a, {"state": a["state"], "mode": "initialize", "state_capacity": 8,
+                       "state_layout": "batch_kv_heads_sequence_feature", "absolute_write_positions_input": "input.positions",
+                       "padding_mask_input": "input.attention_mask", "valid_lengths_input": "input.sequence_lengths",
+                       "attention_domain": {"layout": "batch_kv_heads_sequence_feature", "maximum_sequence": 8,
+                                            "includes_current": True}})
+        elif kind == "cache_suffix":
+            _attrs(a, {"axis": 2, "maximum_sequence": 8, "semantics": "visible_valid_prefix",
+                       "absolute_write_positions_input": "input.positions", "padding_mask_input": "input.attention_mask",
+                       "valid_lengths_input": "input.sequence_lengths"})
+        elif kind in ("attention_scores", "attention_values"):
+            _attrs(a, {"group_size": d.heads//d.kv_heads})
+        elif kind == "attention_scale":
+            _attrs(a, {"head_dim": d.width})
+        elif kind == "softmax":
+            _attrs(a, {"axis": -1})
+        elif kind == "last_token":
+            _attrs(a, {"axis": 1, "selection": "last_valid", "valid_lengths_input": "input.sequence_lengths"})
+        elif kind in ("residual_add", "multiply", "silu", "causal_mask"):
+            _attrs(a, {})
+        else:
+            raise PlanError("unsupported original operator")
+    _require(set(tensors) == used and set(scale_refs) == projections, "complete exact source bindings")
+
+
+def compose_fixed8(config_bytes, tensors, tokens, *, scale_refs, head_pair, numeric_binding=NUMERICS):
+    """Real public adapter -> original IR -> existing oracle, bounded synthetic only.
+
+    No decode/selection/feedback execution. Failures return no partial result.
+    Scalar Unresolved remains typed in refusal. Native factory needs an explicitly
+    selected matching development installation, never checkpoint/model imports.
+    """
+    identity = digest = None
+    try:
+        _require(type(config_bytes) is bytes and len(config_bytes) <= 16384, "bounded config bytes")
+        identity = hashlib.sha256(config_bytes).hexdigest()
+        config = parse_plan(config_bytes)
+        _require(type(config) is dict, "config object")
+        # This bounded join supports ONLY this flat adapter grammar. A nested
+        # text_config can drive a different native graph despite small top-level
+        # geometry; never flatten it or let unchecked aliases reach the factory.
+        fields = {"model_type", "hidden_size", "intermediate_size", "num_hidden_layers",
+                  "num_attention_heads", "num_key_value_heads", "head_dim", "vocab_size",
+                  "max_position_embeddings", "rms_norm_eps", "rope_theta", "hidden_act",
+                  "attention_bias", "tie_word_embeddings", "attention_dropout", "rope_scaling",
+                  "sliding_window", "use_sliding_window", "use_cache", "max_window_layers"}
+        _require(set(config) == fields and config["model_type"] == "qwen3"
+                 and all(type(v) in (str, int, bool, F, type(None)) for v in config.values()),
+                 "supported flat adapter config required")
+        # Bound native factory allocation BEFORE lowering; geometry is still derived
+        # independently from its output below, not supplied to the operator runner.
+        _require(type(config.get("num_hidden_layers")) is int and config["num_hidden_layers"] == 1,
+                 "bounded synthetic layer count")
+        for key in ("hidden_size", "intermediate_size", "num_attention_heads", "num_key_value_heads", "head_dim", "vocab_size"):
+            _require(type(config.get(key)) is int and 0 < config[key] <= 64, "bounded explicit factory geometry")
+        _require(type(tensors) is dict and all(type(t) is SourceTensor for t in tensors.values()),
+                 "immutable source records")
+        source_words = sum(len(t.words) for t in tensors.values())
+        _require(source_words <= 4096, "bounded immutable source words")
+        _require(type(scale_refs) is dict and all(type(k) is str and type(v) is str for k, v in scale_refs.items())
+                 and type(head_pair) is tuple and len(head_pair) == 2
+                 and all(type(k) is str for k in head_pair), "explicit bindings")
+        from pllm.modeling import lower_model
+        original = lower_model(config_bytes, batch=1, max_input_tokens=8, max_new_tokens=1)
+        raw = original.canonical_bytes()
+        _require(type(raw) is bytes and len(raw) <= 262144, "bounded canonical plan")
+        digest = original.digest
+        plan = parse_plan(raw)
+        ops = plan["prefill"]["operations"]
+        _require(type(ops) is list and len(ops) <= 64, "bounded original operations")
+        _require(len({op["id"] for op in ops}) == len(ops)
+                 and not {"input.tokens", "input.positions", "input.attention_mask", "input.sequence_lengths"}
+                 .intersection(op["id"] for op in ops), "unique non-shadowing original IDs")
+        heads = [op for op in ops if op["operator"] == "output_head"]
+        _require(len(heads) == 1, "unique full head")
+        layers = sum(op["operator"] == "linear" for op in ops)//7
+        d = Dimensions(layers, ops[0]["output_shape"][-1], ops[25]["output_shape"][-1],
+                       ops[5]["output_shape"][1], ops[6]["output_shape"][1], ops[5]["output_shape"][-1],
+                       heads[0]["output_shape"][-1], ops[10]["attributes"]["theta"], "synthetic_operator_fixture")
+        words = sum(prod(op["output_shape"]) for op in ops)
+        transient = max(prod(op["output_shape"]) for op in ops)*4
+        _require(words+4*source_words+transient <= 65536
+                 and words*4*(16+max(d.hidden, d.intermediate, d.heads*d.width))+4*source_words <= 1000000,
+                 "bounded live tensor words/structural loop visits")
+        _bound_attributes(ops[:1+30*d.layers+3], tensors, d, scale_refs, head_pair)
+        result = run_fixed8(plan, tensors, tokens, dimensions=d, scale_refs=scale_refs,
+                            head_pair=head_pair, numeric_binding=numeric_binding)
+        return Composition("complete_synthetic", result, identity, digest)
+    except (PlanError, KeyError, TypeError, IndexError, ValueError, ArithmeticError, ImportError) as error:
+        unresolved = isinstance(error, scalar_owner().Unresolved)
+        # Do not leak tensor values or parser payloads in public diagnostics.
+        refusal = error if unresolved else PlanError("composition preflight or numeric refusal")
+        return Composition("unresolved" if unresolved else "refused", None, identity, digest, refusal)
 
 
 class PlanError(ValueError):
@@ -136,7 +294,10 @@ def parse_plan(text):
     # Preserve decimal epsilon exactly; do not first round through host binary64.
     def reject_nonfinite(_):
         raise PlanError("nonfinite JSON literal")
-    return json.loads(text, parse_float=F, parse_constant=reject_nonfinite)
+    try:
+        return json.loads(text, parse_float=F, parse_constant=reject_nonfinite)
+    except RecursionError:
+        raise PlanError("bounded JSON parser recursion exhausted") from None
 
 
 def _r16(word):
@@ -372,7 +533,8 @@ def run_fixed8(plan, tensors, tokens, *, dimensions, scale_refs, head_pair, nume
     embedding, head = (tensors[ref] for ref in head_pair)
     _require(embedding.dtype == head.dtype == "BF16" and
              embedding.shape == head.shape == (d.vocabulary, d.hidden) and
-             embedding.words == head.words, "finite BF16 copies must agree bit-for-bit")
+              embedding.words == head.words, "finite BF16 copies must agree bit-for-bit")
+    _bound_attributes(operations, tensors, d, scale_refs, head_pair)
     head_matrix = tuple(encoding.q8_i64(encoding.decode_f32(encoding.promote_bf16_to_f32_bits(w)).value) for w in head.words)
     head_op = operations[-1]
     _attrs(head_op["attributes"], {"weight": lookup_ref, "tied": True,
