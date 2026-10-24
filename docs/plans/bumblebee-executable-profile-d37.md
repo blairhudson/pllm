@@ -765,6 +765,14 @@ request. The next question is only B-S/ANALYZE-1; Q remains closed.
 
 ### Proposed next action: B-S/ANALYZE-1, source-only and finite
 
+**Narrow approval — October 24, 2026:** The user approved only
+B-S/ANALYZE-1 as bounded below: Astra source-only analysis of twelve fixed
+symbolic cases, at most sixteen backend API rows and eight OT rows, within
+sixty minutes and all existing limits. This does not select B-S/A, B-S/H or
+B-S/Q, adopt a backend, or authorize implementation, source-code edits,
+execution, network access or keys. All other proposal and adoption gates remain
+unchanged.
+
 This action commissions **Astra planning/analysis only**, not Attachment A/B
 adoption or B-S/Q. Existing numbers remain proposed; no tuple, sampler, profile,
 checkpoint or dependency may change to make an inequality pass. No implementation
