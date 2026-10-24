@@ -277,6 +277,75 @@ impl<'a> FeedbackEvent<'a> {
     }
 }
 
+/// One semantic frontier for every storage representation. This traversal has
+/// no source, proof or completion authority of its own; those stay with its
+/// participating sink. Begin occurs AFTER original state/input binding and
+/// BEFORE the first original gather/constant, preserving rejection order.
+pub(super) enum DispatchStep<'g, 'v, V> {
+    Begin,
+    Operator {
+        step: usize,
+        operation: &'g pllm_models::ModelOperation,
+        left: Option<&'v V>,
+        right: Option<&'v V>,
+    },
+}
+
+pub(super) fn dispatch_begin<V: Clone>(
+    traversal: &mut OrderedGraph<'_, V>,
+    tokens: &V,
+    state: &mut BTreeMap<(u64, pllm_models::StateKind), V>,
+    mut sink: impl FnMut(
+        DispatchStep<'_, '_, V>,
+        &mut BTreeMap<(u64, pllm_models::StateKind), V>,
+    ) -> Result<Option<V>, Error>,
+) -> Result<(), Error> {
+    for input in &traversal.semantic_graph().state_inputs {
+        let key = (input.layer.ok_or(Error::Binding)?, input.kind);
+        traversal.bind(
+            input.id.clone(),
+            state.get(&key).ok_or(Error::Binding)?.clone(),
+        );
+    }
+    traversal.bind("input.tokens".into(), tokens.clone());
+    if sink(DispatchStep::Begin, state)?.is_some() {
+        return Err(Error::Binding);
+    }
+    Ok(())
+}
+
+pub(super) fn dispatch_operator<'g, 'v, V>(
+    traversal: &'v OrderedGraph<'g, V>,
+    step: usize,
+) -> Result<DispatchStep<'g, 'v, V>, Error> {
+    let (_, operation) = traversal.operations().nth(step).ok_or(Error::Binding)?;
+    let (left, right) = traversal.inputs(operation);
+    Ok(DispatchStep::Operator {
+        step,
+        operation,
+        left,
+        right,
+    })
+}
+
+pub(super) fn dispatch<V: Clone>(
+    graph: &DecoderGraph,
+    tokens: &V,
+    state: &mut BTreeMap<(u64, pllm_models::StateKind), V>,
+    mut sink: impl FnMut(
+        DispatchStep<'_, '_, V>,
+        &mut BTreeMap<(u64, pllm_models::StateKind), V>,
+    ) -> Result<Option<V>, Error>,
+) -> Result<V, Error> {
+    let mut traversal = OrderedGraph::<V>::new(graph);
+    dispatch_begin(&mut traversal, tokens, state, &mut sink)?;
+    for (step, operation) in traversal.operations() {
+        let output = sink(dispatch_operator(&traversal, step)?, state)?.ok_or(Error::Binding)?;
+        traversal.finish(operation, output)?;
+    }
+    traversal.output()
+}
+
 impl Builder {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn graph(
@@ -296,18 +365,22 @@ impl Builder {
         if sequence != graph.query_sequence as usize || keys > graph.maximum_key_sequence as usize {
             return Err(Error::Shape);
         }
-        let mut traversal = OrderedGraph::<View>::new(graph);
-        for input in &graph.state_inputs {
-            let key = (input.layer.ok_or(Error::Binding)?, input.kind);
-            traversal.bind(
-                input.id.clone(),
-                state.get(&key).ok_or(Error::Binding)?.clone(),
-            );
-        }
-        traversal.bind("input.tokens".into(), tokens.clone());
-        let anchor = self.gather(&tokens.words.slice(..1))?;
-        let zero = self.constant(anchor, 0)?;
-        for (step, op) in traversal.operations() {
+        let (mut anchor, mut zero) = (None, None);
+        dispatch(graph, tokens, state, |dispatch, state| {
+            let DispatchStep::Operator {
+                step,
+                operation: op,
+                left: a,
+                right: b,
+            } = dispatch
+            else {
+                let input = self.gather(&tokens.words.slice(..1))?;
+                anchor = Some(input);
+                zero = Some(self.constant(input, 0)?);
+                return Ok(None);
+            };
+            let anchor = anchor.ok_or(Error::Binding)?;
+            let zero = zero.ok_or(Error::Binding)?;
             self.admission_stage = "operator_lowering";
             let mut shape: Vec<usize> = op.output_shape.iter().map(|v| *v as usize).collect();
             site.step = Some(step);
@@ -323,7 +396,6 @@ impl Builder {
             ) {
                 *shape.last_mut().ok_or(Error::Shape)? = keys;
             }
-            let (a, b) = traversal.inputs(op);
             for (target, view) in site.inputs.iter_mut().zip([a, b]) {
                 if let Some(view) = view {
                     let bounds = self.bounds(&view.words)?;
@@ -519,9 +591,8 @@ impl Builder {
                 );
                 oracle_trace::span(site.selection, &op.id, emission_start, self.nodes.len());
             }
-            traversal.finish(op, output)?;
-        }
-        traversal.output()
+            Ok(Some(output))
+        })
     }
 }
 

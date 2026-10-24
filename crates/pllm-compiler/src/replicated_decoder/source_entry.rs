@@ -132,10 +132,12 @@ fn empty_builder(manifest: &Manifest, registry: &SourceRegistry<'_>) -> Builder 
 /// This aggregate is never returned to Python. Drop order retires the emitted
 /// input/map/permit owners before their original continuous factory reservation.
 pub(super) struct CreatedInputs<'s> {
-    builder: Builder,
-    inputs: BTreeMap<String, SourceView>,
-    permit: request_origin::RequestInputPermit<'s>,
-    charge: OwnedExternalCharge,
+    pub(super) builder: Builder,
+    pub(super) inputs: BTreeMap<String, SourceView>,
+    pub(super) permit: request_origin::RequestInputPermit<'s>,
+    pub(super) charge: OwnedExternalCharge,
+    // Only the prequoted actual input-emission path can mint this aggregate.
+    created: (),
 }
 
 /// Consumes source + admission on every outcome: no retry token/borrowed plan is
@@ -156,6 +158,10 @@ pub(super) fn create_inputs<'s>(
         .map_err(|_| Error::Bounds)?;
     public.check_registry(registry)?;
     let sources = request_origin::RequestSources::new(manifest, registry, public)?;
+    original
+        .budget()
+        .admit_peak(original.budget().used_bytes())
+        .map_err(|_| Error::Bounds)?;
     let mut builder = empty_builder(manifest, registry);
     builder.allocated = source_norms::import_envelope(&manifest.norms)?.total_bytes;
     let node_capacity = add(q.declarations, 1)?;
@@ -207,6 +213,7 @@ pub(super) fn create_inputs<'s>(
         inputs,
         permit,
         charge,
+        created: (),
     })
 }
 
@@ -260,6 +267,7 @@ pub(in crate::replicated_decoder) fn compile(
         inputs,
         permit,
         charge,
+        created: (),
     } = create_inputs(original, owners.manifest, &registry, public, imports_guard)?;
     let lowering = permit.lowering_control_bytes(limits)?;
     if controller.payload_bytes() < lowering {
@@ -336,6 +344,15 @@ fn import_json(root: &OwnedBudget, raw: &[u8]) -> Result<OwnedCharged<json::Impo
         .charge_external(raw.len())
         .map_err(|_| Error::Bounds)?
         .try_build(|_| {
+            // Only the named borrowed slice participates in this COPY window;
+            // its caller's allocation capacity is unknown. The destination and
+            // owner control are ALREADY reserved on this same counter.
+            root.budget().admit_peak(
+                root.budget()
+                    .used_bytes()
+                    .checked_add(raw.len())
+                    .ok_or(pllm_garble::shared_allocation::Error::Resource)?,
+            )?;
             let mut bytes = Vec::new();
             bytes
                 .try_reserve_exact(raw.len())
@@ -363,7 +380,157 @@ fn import_json_owner(
     .construct()
     .map_err(|_| Error::Binding)
 }
+#[cfg(test)]
+thread_local! {
+    static PUBLIC_OWNER_DROP:std::cell::Cell<Option<(bool,usize,usize)>>=const{std::cell::Cell::new(None)};
+}
+#[cfg(test)]
+pub(in crate::replicated_decoder::program) fn test_public_owner_drop(
+) -> Option<(bool, usize, usize)> {
+    PUBLIC_OWNER_DROP.with(|state| state.take())
+}
+
+// Field drop order: last outer PUBLIC payload, weak observer/control, THEN
+// its independent same-counter reservation. No credit from request/import
+// guards, which may already have retired inside emit.
+#[cfg(test)]
+struct PublicSnapshotOwner {
+    public: Arc<PublicSource>,
+    charge: PublicSnapshotCharge,
+}
+#[cfg(test)]
+struct PublicSnapshotCharge {
+    weak: std::sync::Weak<PublicSource>,
+    guard: OwnedExternalCharge,
+}
+#[cfg(test)]
+impl Drop for PublicSnapshotCharge {
+    fn drop(&mut self) {
+        PUBLIC_OWNER_DROP.with(|state| {
+            state.set(Some((
+                self.weak.upgrade().is_none(),
+                self.guard.budget().used_bytes(),
+                self.guard.charged_bytes(),
+            )))
+        });
+    }
+}
+#[cfg(test)]
+impl PublicSnapshotOwner {
+    fn new(public: PublicSource, root: &OwnedBudget) -> Result<Self, Error> {
+        let payload = add(
+            add(public.resident_metadata_bytes()?, 2 * size_of::<usize>())?,
+            size_of::<Self>(),
+        )?;
+        let phase = add(
+            root.budget().used_bytes(),
+            add(payload, size_of::<OwnedExternalCharge>())?,
+        )?;
+        if phase > MAX_PROGRAM_BYTES {
+            return Err(Error::Bounds);
+        }
+        let guard = root.charge_external(payload).map_err(|_| Error::Bounds)?;
+        // Reservation precedes Arc allocation. Its peak is recorded by SAME
+        // source counter; descriptor/file backing comes from actual finish.
+        let public = Arc::new(public);
+        let weak = Arc::downgrade(&public);
+        Ok(Self {
+            public,
+            charge: PublicSnapshotCharge { weak, guard },
+        })
+    }
+}
+
 impl SourceRequestImport {
+    /// Lexical test adapter over actual production source/import/input factories.
+    /// Not a storage publication or an executable entry. The complete compact
+    /// entry must take over this custody before production activation.
+    #[cfg(test)]
+    pub(in crate::replicated_decoder::program) fn with_created<R>(
+        mut self,
+        emit: impl FnOnce(CreatedInputs<'_>, OwnedExternalCharge) -> Result<R, Error>,
+    ) -> Result<R, Error> {
+        let Pending {
+            importer,
+            original,
+            manifest,
+            raw,
+            limits: _,
+            registry: mut registry_guard,
+            imports: mut import_guard,
+            mut controller,
+            root,
+        } = self.0.take().ok_or(Error::Retired)?;
+        root.budget()
+            .admit_peak(root.budget().used_bytes())
+            .map_err(|_| Error::Bounds)?;
+        let outer =
+            PublicSnapshotOwner::new(importer.finish().map_err(|_| Error::Binding)?, &root)?;
+        if !outer.charge.guard.is_for(root.budget()) {
+            return Err(Error::Binding);
+        }
+        let public = &outer.public;
+        let owners = SourceConstructionOwners {
+            manifest: manifest.payload(),
+            incoming: None,
+            public: Some(public),
+            retained_baseline_bytes: root
+                .budget()
+                .used_bytes()
+                .checked_sub(registry_guard.payload_bytes())
+                .ok_or(Error::Bounds)?,
+        };
+        let q = SourceRegistry::original_construction_quote(&original, &owners, MAX_PROGRAM_BYTES)?;
+        if registry_guard.payload_bytes() < q.new_owned_peak_bytes {
+            registry_guard
+                .resize_payload(q.new_owned_peak_bytes)
+                .map_err(|_| Error::Bounds)?;
+        }
+        let registry = SourceRegistry::from_original_checked(
+            &original,
+            &owners,
+            public,
+            &registry_guard,
+            MAX_PROGRAM_BYTES,
+        )?;
+        let q = quote_imports(
+            &original,
+            manifest.payload(),
+            &registry,
+            public,
+            &import_guard,
+        )?;
+        if import_guard.payload_bytes() < q.payload_bytes {
+            import_guard
+                .resize_payload(q.payload_bytes)
+                .map_err(|_| Error::Bounds)?;
+        }
+        let context = add(
+            request_origin::compact_storage::context_bytes(),
+            OriginalSourcePlan::compiler_metadata_control_bytes().map_err(|_| Error::Bounds)?,
+        )?;
+        if controller.payload_bytes() < context {
+            controller
+                .resize_payload(context)
+                .map_err(|_| Error::Bounds)?;
+        }
+        let created = create_inputs(
+            original,
+            manifest.payload(),
+            &registry,
+            Arc::clone(public),
+            import_guard,
+        )?;
+        let result = emit(created, controller);
+        // Borrowed compiler payloads have retired before their owners/charges.
+        drop(outer);
+        drop(registry_guard);
+        drop(manifest);
+        drop(raw);
+        drop(root);
+        result
+    }
+
     /// Fixed bounded opt-in admission, not a new numeric/protocol choice. Large
     /// or unknown shapes fail closed; old constructors never enter this route.
     pub fn new(raw: &[u8]) -> Result<Self, Error> {
@@ -396,6 +563,9 @@ impl SourceRequestImport {
             .charge_external(config_values.len())
             .map_err(|_| Error::Bounds)?
             .try_build(|_| {
+                // Config destination, source JSON owner, raw owner and result
+                // overlap are already represented by these live reservations.
+                root.budget().admit_peak(root.budget().used_bytes())?;
                 let mut bytes = Vec::new();
                 bytes
                     .try_reserve_exact(config_values.len())
@@ -460,6 +630,7 @@ impl SourceRequestImport {
             .map_err(|_| Error::Bounds)?;
         let manifest = dto_guard
             .try_build(|_| {
+                root.budget().admit_peak(root.budget().used_bytes())?;
                 Manifest::deserialize(imported.payload().value())
                     .map_err(|_| pllm_garble::shared_allocation::Error::Resource)
             })
@@ -492,6 +663,9 @@ impl SourceRequestImport {
         q.admit(MAX_PROGRAM_BYTES)?;
         imports
             .resize_payload(q.new_owned_peak_bytes)
+            .map_err(|_| Error::Bounds)?;
+        root.budget()
+            .admit_peak(root.budget().used_bytes())
             .map_err(|_| Error::Bounds)?;
         let importer = PublicSourceImport::new_checked(
             &descriptors,
@@ -543,6 +717,9 @@ impl SourceRequestImport {
             controller,
             root,
         } = self.0.take().ok_or(Error::Retired)?;
+        root.budget()
+            .admit_peak(root.budget().used_bytes())
+            .map_err(|_| Error::Bounds)?;
         let public = Arc::new(importer.finish().map_err(|_| Error::Binding)?);
         let result = crate::replicated_decoder::sdk::SourceRequestProgram::construct(
             original,

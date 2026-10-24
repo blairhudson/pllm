@@ -18,6 +18,8 @@ const OPEN: u8 = 0;
 const BURNED: u8 = 1;
 const COMPLETE: u8 = 2;
 
+#[path = "compact_request_storage.rs"]
+pub(super) mod compact_storage;
 #[path = "rotary_creation.rs"]
 pub(in crate::replicated_decoder) mod rotary_creation;
 #[path = "request_schedule.rs"]
@@ -55,6 +57,8 @@ struct Origin {
     input: Arc<original_import::InputRecord>,
     source: Arc<OriginalSourcePlan>,
     public: Arc<PublicSource>,
+    registry_identity: source_registry::Instance,
+    source_records: usize,
     bounds: Interval,
     state: AtomicU8,
 }
@@ -621,6 +625,8 @@ pub(super) fn declare<'s>(
                 input: record,
                 source,
                 public: Arc::clone(&sources.public),
+                registry_identity: sources.registry.instance(),
+                source_records: std::ptr::from_ref(sources.registry.source_records()) as usize,
                 bounds,
                 state: AtomicU8::new(OPEN),
             })

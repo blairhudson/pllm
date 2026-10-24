@@ -155,6 +155,12 @@ impl SourceQuote {
         let charged = working
             .try_build(|_| {
                 let result = (|| {
+                    // Same-counter working/inline reservation includes ALL
+                    // source owners and construction scratch before the factory.
+                    source
+                        .budget()
+                        .admit_peak(source.budget().used_bytes())
+                        .map_err(Error::Native)?;
                     let plan = build_plan(source.payload(), workload, limits, prepared)?;
                     Ok(Context {
                         plan,
@@ -375,6 +381,10 @@ impl OriginalSourcePlan {
         let mut failure = None;
         let charged = working
             .try_build(|_| {
+                if let Err(error) = self.budget().admit_peak(self.budget().used_bytes()) {
+                    failure = Some(Error::Native(error));
+                    return Err(NativeError::Resource);
+                }
                 let result =
                     build_plan(source.payload(), workload, limits, prepared).map(|plan| Context {
                         plan,

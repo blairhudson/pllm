@@ -8,6 +8,8 @@ use crate::replicated_decoder::{
 
 #[path = "rotary_creation_tests.rs"]
 mod rotary_creation_tests;
+#[path = "compact_request_storage_tests.rs"]
+mod compact_request_storage_tests;
 #[path = "source_bias_tests.rs"]
 mod source_bias_tests;
 

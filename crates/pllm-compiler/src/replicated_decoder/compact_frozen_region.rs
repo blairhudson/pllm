@@ -79,6 +79,7 @@ pub(in crate::replicated_decoder) struct FrozenRegion<'a> {
     output: Option<usize>,
     origin: Arc<()>,
     next: usize,
+    request_prelude: Option<request_origin::compact_storage::Prelude>,
     work: WorkBudget,
     resources: FreezeResources,
     // Retain exact input seals and original plan/source owner borrows. A consuming
@@ -409,6 +410,7 @@ impl<'a> CompactGraph<'_, 'a> {
             output,
             origin: self.origin,
             next: self.next,
+            request_prelude: self.request_prelude,
             work: self.work,
             resources,
             _prebound_inputs: self.prebound_inputs,

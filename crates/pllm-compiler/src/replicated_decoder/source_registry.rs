@@ -477,6 +477,12 @@ impl<'a> SourceRegistry<'a> {
         original
             .prepay_compiler_metadata(guard, u64::try_from(visits).map_err(|_| Error::Bounds)?)
             .map_err(|_| Error::Bounds)?;
+        // The actual reservation precedes shape/validator allocation. Never use
+        // a retrospective source census or original_owners_peak_bytes as history.
+        original
+            .budget()
+            .admit_peak(original.budget().used_bytes())
+            .map_err(|_| Error::Bounds)?;
         let (shapes, _) = program::source_shapes_from_plan(original.plan(), manifest.weights)
             .map_err(|_| Error::Binding)?;
         let validated = program::validate_source_records(

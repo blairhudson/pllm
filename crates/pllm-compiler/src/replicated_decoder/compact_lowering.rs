@@ -818,6 +818,77 @@ pub(in crate::replicated_decoder) enum PhysicalLaneOrder {
     },
 }
 
+impl<'a> CompactGraph<'a, 'a> {
+    /// Genuine ORIGINAL declaration -> native compact emission. The source
+    /// context, not a recovered input View / digest / expanded executable,
+    /// supplies the initial import, exact source registry and native admission.
+    pub(in crate::replicated_decoder::program) fn from_source_request(
+        imports: &'a Builder,
+        context: &'a request_origin::compact_storage::EmissionContext<'a>,
+        cap: usize,
+    ) -> Result<Self, Error> {
+        let mut attempt = context.attempt();
+        context.check_imports(imports)?;
+        let semantic = &context.plan().plan().prefill;
+        let validated = ValidatedSourceDescriptors {
+            sources: context.registry().source_records(),
+            norms: context.registry().source_norms(),
+            weights: WeightMode::Public,
+            execution: context.manifest().execution,
+        };
+        let mut graph =
+            Self::with_limit_and_admission(imports, validated, semantic, 0, cap, 0, Some(context))?;
+        let (owner, rows, bounds) = context.initial_input();
+        if imports.nodes.len() != add_bytes(owner, 1)? || !semantic.state_inputs.is_empty() {
+            return Err(Error::Binding);
+        }
+        let logical = ViewShape::semantic(&[1, u64::try_from(rows).map_err(|_| Error::Bounds)?])?;
+        let view = PublishedView {
+            origin: graph.origin.clone(),
+            slot: None,
+            mapping: Mapping::Dense(owner),
+            start: 0,
+            lanes: rows,
+            shape: logical.envelope()?,
+            rank: logical.rank,
+            logical,
+            order: LaneOrder::Linear,
+            import_slot: Some(0),
+            bounds,
+        };
+        if graph.bound_imports.len() == graph.bound_imports.capacity() {
+            return Err(Error::Bounds);
+        }
+        graph.bound_imports.push(BoundImport {
+            semantic: "input.tokens",
+            view: view.clone(),
+        });
+        graph.validate_view(&view)?;
+        let mut prelude = None;
+        // Same Begin/input binding as Builder::graph, ONE prequoted frontier.
+        graph::dispatch_begin(
+            &mut graph.frontier,
+            &view,
+            &mut BTreeMap::new(),
+            |event, _| {
+                if !matches!(event, graph::DispatchStep::Begin) {
+                    return Err(Error::Binding);
+                }
+                prelude = Some(context.prelude()?);
+                Ok(None)
+            },
+        )?;
+        let prelude = prelude.ok_or(Error::Binding)?;
+        if prelude.first() != imports.nodes.len() {
+            return Err(Error::Binding);
+        }
+        graph.next = add_bytes(prelude.first(), 2)?;
+        graph.request_prelude = Some(prelude);
+        attempt.commit();
+        Ok(graph)
+    }
+}
+
 /// Source-neutral BODY bias mapping. Source authority is the retained original
 /// import/source owner, never these numeric IDs, intervals or a copied digest.
 #[derive(Clone, Copy)]
@@ -1079,6 +1150,8 @@ pub(in crate::replicated_decoder) struct CompactGraph<'g, 'a> {
     work: WorkBudget,
     limit: usize,
     outside_owner_bytes: usize,
+    request_admission: Option<&'a request_origin::compact_storage::EmissionContext<'a>>,
+    request_prelude: Option<request_origin::compact_storage::Prelude>,
     prebound_inputs: Option<input_owner::InputOwner<'a>>,
     validity: compact_validity::RequestValidity<'a>,
     contraction_control_bytes: std::cell::Cell<usize>,
@@ -1301,6 +1374,16 @@ pub(in crate::replicated_decoder) struct TokenLookupCensus<'s, 'a> {
 #[cfg(test)]
 thread_local! {
     static LOOKUP_NATIVE_ATTEMPTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static REQUEST_LOOKUP_FAILURE:std::cell::Cell<u8>=const{std::cell::Cell::new(0)};
+}
+
+#[cfg(test)]
+pub(super) fn test_lookup_attempts() -> usize {
+    LOOKUP_NATIVE_ATTEMPTS.with(|n| n.get())
+}
+#[cfg(test)]
+pub(super) fn test_lookup_failure(stage: u8) {
+    REQUEST_LOOKUP_FAILURE.with(|s| s.set(stage));
 }
 
 impl CompactTokenLookup {
@@ -1393,6 +1476,36 @@ impl CompactTokenLookup {
         )?;
         let lanes = vocabulary.min(128); // original Builder::tensor_loop width
         let remainder = vocabulary % lanes;
+        // The shared request controller reserves query/ticket slots BEFORE the
+        // original native work query. Isolated qualifiers retain their original
+        // local checks and acquire no request authority through this branch.
+        let admission = graph.request_admission;
+        let query_bytes = if admission.is_some() {
+            let r = tensor::WorkPreflightWorkspace::resources();
+            [
+                r.workspace_bytes,
+                r.factory_bytes,
+                r.ticket_bytes,
+                r.admitted_schedule_bytes,
+                r.admitted_part_bytes,
+                r.summary_bytes,
+                r.ledger_bytes,
+                r.ticket_result_bytes,
+                r.build_result_bytes,
+            ]
+            .into_iter()
+            .try_fold(0usize, |n, v| {
+                add_bytes(n, v.checked_mul(2).ok_or(Error::Bounds)?)
+            })?
+        } else {
+            0
+        };
+        if let Some(controller) = admission {
+            controller.admit_phase(
+                add_bytes(query_bytes, graph.contraction_control_bytes.get())?,
+                0,
+            )?;
+        }
         graph.admit_pending_work(Self::pending_work(vocabulary, input.lanes, input.bounds)?)?;
         let prior = |lanes| {
             graph
@@ -1415,41 +1528,132 @@ impl CompactTokenLookup {
             graph.baseline()?,
         )?;
         graph.admit_local(peak)?;
-        let make = |lanes| -> Result<EqualityProgram, Error> {
-            if let Some(previous) = prior(lanes) {
-                return Ok(EqualityProgram {
-                    bounds: offsets,
-                    program: previous.program.clone(),
-                    owns: false,
-                });
-            }
-            let quote = native_construction_quote(tensor::Construction::EqualZero { lanes })?;
-            #[cfg(test)]
-            LOOKUP_NATIVE_ATTEMPTS.with(|count| count.set(count.get() + 1));
-            let program = tensor::Program::equal_zero(lanes, offsets)?;
-            let resources = program.resources()?;
-            if resources.immutable_template_bytes != quote.immutable_template_bytes
-                || resources.shared_admitted_bytes > puma::MAX_ADMITTED_BYTES
-                || program.lanes() != lanes
-                || program.output_lanes() != lanes
-                || program.validity_lanes().is_some()
-            {
-                return Err(Error::Binding);
-            }
-            // Original Builder interning only for a newly constructed native
-            // program. Never replace an existing closed/prepared Arc owner.
-            let existing = graph
-                .owned_native_programs()
-                .find(|old| old.digest() == program.digest())
-                .cloned();
-            Ok(EqualityProgram {
-                bounds: offsets,
-                owns: existing.is_none(),
-                program: existing.unwrap_or_else(|| Arc::new(program)),
-            })
+        let (mut full_part, mut tail_part) = if let Some(controller) = admission {
+            // Separate tickets: full-tail's native convenience API has ONE tail
+            // invocation, whereas this original graph has one tail PER token.
+            let mut workspace = tensor::WorkPreflightWorkspace::empty();
+            let full_invocations = u64::try_from(vocabulary / lanes)
+                .map_err(|_| Error::Bounds)?
+                .checked_mul(u64::try_from(input.lanes).map_err(|_| Error::Bounds)?)
+                .ok_or(Error::Bounds)?;
+            let full = tensor::Construction::EqualZero { lanes }
+                .bind(tensor::FactoryParameters::EqualZero { input: offsets })
+                .and_then(|factory| factory.preflight(full_invocations, &mut workspace))
+                .map_err(|_| Error::Bounds)?;
+            let tail = if remainder != 0 {
+                Some(
+                    tensor::Construction::EqualZero { lanes: remainder }
+                        .bind(tensor::FactoryParameters::EqualZero { input: offsets })
+                        .and_then(|factory| factory.preflight(input.lanes as u64, &mut workspace))
+                        .map_err(|_| Error::Bounds)?,
+                )
+            } else {
+                None
+            };
+            // BOTH persistent debits finish before the first factory. A later
+            // tail refusal/factory failure does not refund the full debit.
+            let (full, _) = controller.admit_work(full)?.into_parts();
+            let tail = tail
+                .map(|ticket| controller.admit_work(ticket).map(|v| v.into_parts().0))
+                .transpose()?;
+            (Some(full), tail)
+        } else {
+            (None, None)
         };
-        let full = make(lanes)?;
-        let tail = (remainder != 0).then(|| make(remainder)).transpose()?;
+        // Work workspace has retired. Admit the actual native full/tail overlap,
+        // not the sum of query and construction maxima.
+        if let Some(controller) = admission {
+            let controls = add_bytes(
+                2 * std::mem::size_of::<Option<tensor::AdmittedFactory<'_>>>(),
+                2 * tensor::WorkPreflightWorkspace::resources().build_result_bytes,
+            )?;
+            controller.admit_phase(
+                add_bytes(
+                    Self::quote(
+                        vocabulary,
+                        prior(lanes).is_none(),
+                        remainder != 0 && prior(remainder).is_none(),
+                        0,
+                    )?,
+                    add_bytes(controls, graph.contraction_control_bytes.get())?,
+                )?,
+                0,
+            )?;
+        }
+        let make =
+            |lanes, part: Option<tensor::AdmittedFactory<'_>>| -> Result<EqualityProgram, Error> {
+                if let Some(previous) = prior(lanes) {
+                    return Ok(EqualityProgram {
+                        bounds: offsets,
+                        program: previous.program.clone(),
+                        owns: false,
+                    });
+                }
+                let quote = native_construction_quote(tensor::Construction::EqualZero { lanes })?;
+                #[cfg(test)]
+                LOOKUP_NATIVE_ATTEMPTS.with(|count| count.set(count.get() + 1));
+                let program = if admission.is_some() {
+                    let (program, certificate) = part.ok_or(Error::Binding)?.build()?.into_parts();
+                    if certificate != tensor::ProducedCertificate::None {
+                        return Err(Error::Binding);
+                    }
+                    program
+                } else {
+                    tensor::Program::equal_zero(lanes, offsets)?
+                };
+                #[cfg(test)]
+                if admission.is_some()
+                    && REQUEST_LOOKUP_FAILURE.with(|stage| {
+                        if stage.get() == 1 {
+                            stage.set(0);
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                {
+                    return Err(Error::Allocation);
+                }
+                let resources = program.resources()?;
+                if resources.immutable_template_bytes != quote.immutable_template_bytes
+                    || resources.shared_admitted_bytes > puma::MAX_ADMITTED_BYTES
+                    || program.lanes() != lanes
+                    || program.output_lanes() != lanes
+                    || program.validity_lanes().is_some()
+                {
+                    return Err(Error::Binding);
+                }
+                // Original Builder interning only for a newly constructed native
+                // program. Never replace an existing closed/prepared Arc owner.
+                let existing = graph
+                    .owned_native_programs()
+                    .find(|old| old.digest() == program.digest())
+                    .cloned();
+                Ok(EqualityProgram {
+                    bounds: offsets,
+                    owns: existing.is_none(),
+                    program: existing.unwrap_or_else(|| Arc::new(program)),
+                })
+            };
+        let full = make(lanes, full_part.take())?;
+        let tail = (remainder != 0)
+            .then(|| make(remainder, tail_part.take()))
+            .transpose()?;
+        if let Some(controller) = admission {
+            let retained = std::iter::once(&full)
+                .chain(tail.iter())
+                .filter(|p| p.owns)
+                .try_fold(0usize, |n, p| {
+                    add_bytes(
+                        n,
+                        add_bytes(
+                            p.program.resources()?.immutable_template_bytes,
+                            2 * std::mem::size_of::<usize>(),
+                        )?,
+                    )
+                })?;
+            controller.retain(retained)?;
+        }
         let mut selector_bounds = full.program.output_bounds();
         let mut work = full
             .program
@@ -2722,6 +2926,26 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         limit: usize,
         outside_owner_bytes: usize,
     ) -> Result<Self, Error> {
+        Self::with_limit_and_admission(
+            imports,
+            validated,
+            semantic,
+            start,
+            limit,
+            outside_owner_bytes,
+            None,
+        )
+    }
+
+    fn with_limit_and_admission(
+        imports: &'a Builder,
+        validated: ValidatedSourceDescriptors<'a>,
+        semantic: &'g DecoderGraph,
+        start: usize,
+        limit: usize,
+        outside_owner_bytes: usize,
+        admission: Option<&'a request_origin::compact_storage::EmissionContext<'a>>,
+    ) -> Result<Self, Error> {
         let execution = validated.execution;
         let (sources, norms) = validated.public_records()?;
         // No expanded arithmetic prefix, hidden validity or omitted certificates.
@@ -2809,6 +3033,12 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         if initial_peak > limit {
             return Err(Error::Bounds);
         }
+        if let Some(controller) = admission {
+            controller.admit_phase(
+                add_bytes(add_bytes(std::mem::size_of::<Self>(), storage)?, slots)?,
+                0,
+            )?;
+        }
         #[cfg(test)]
         input_owner::CONTAINER_FACTORIES.with(|n| n.set(n.get() + 1));
         let mut ops = Vec::new();
@@ -2826,6 +3056,12 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         }
         let origin = Arc::new(());
         let validity = compact_validity::RequestValidity::original(imports, origin.clone());
+        if let Some(controller) = admission {
+            controller.retain(add_bytes(
+                add_bytes(std::mem::size_of::<Self>(), storage)?,
+                slots,
+            )?)?;
+        }
         Ok(Self {
             imports,
             sources,
@@ -2841,6 +3077,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             work: WorkBudget::default(),
             limit,
             outside_owner_bytes,
+            request_admission: admission,
+            request_prelude: None,
             prebound_inputs: None,
             validity,
             contraction_control_bytes: std::cell::Cell::new(0),
@@ -3454,10 +3692,18 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
     }
 
     pub(super) fn lower_next(&mut self) -> Result<PublishedView, Error> {
+        let mut attempt = self.request_admission.map(|context| context.attempt());
         if self.failed {
             return Err(Error::Retired);
         }
         let result = self.lower_next_inner();
+        // lower_next_inner's contraction guard, factory parts, result wrappers
+        // and publication validation have ALL retired before this boundary.
+        if result.is_ok() {
+            if let Some(controller) = self.request_admission {
+                controller.retire_phase()?;
+            }
+        }
         if result.is_err() {
             self.failed = true;
             self.failure = self.frontier.operations().nth(self.cursor).map(|(_, op)| {
@@ -3484,16 +3730,24 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 }
             });
         }
+        if result.is_ok() {
+            if let Some(attempt) = attempt.as_mut() {
+                attempt.commit();
+            }
+        }
         result
     }
 
     fn lower_next_inner(&mut self) -> Result<PublishedView, Error> {
-        let (_, op) = self
-            .frontier
-            .operations()
-            .nth(self.cursor)
-            .ok_or(Error::Binding)?;
-        let (a, b) = self.frontier.inputs(op);
+        let graph::DispatchStep::Operator {
+            operation: op,
+            left: a,
+            right: b,
+            ..
+        } = graph::dispatch_operator(&self.frontier, self.cursor)?
+        else {
+            return Err(Error::Binding);
+        };
         let input = if op.operator == Op::TokenLookup && self.prebound_inputs.is_some() {
             // The original driver receives the request's GLOBAL token view,
             // independently of the operation's first semantic input.
@@ -3745,6 +3999,19 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             kind,
             prepared,
         });
+        #[cfg(test)]
+        if self.request_admission.is_some()
+            && REQUEST_LOOKUP_FAILURE.with(|stage| {
+                if stage.get() == 2 {
+                    stage.set(0);
+                    true
+                } else {
+                    false
+                }
+            })
+        {
+            return Err(Error::Allocation);
+        }
         self.frontier.finish(op, output.clone())?;
         if let PublishedKind::RmsNorm {
             checked: Some(rows),
@@ -3761,6 +4028,12 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
 
     pub(super) fn work_budget(&self) -> WorkBudget {
         self.work
+    }
+
+    #[cfg(test)]
+    pub(super) fn test_lower_limit(&mut self, limit: usize) {
+        assert!(limit <= self.limit);
+        self.limit = limit;
     }
 
     pub(in crate::replicated_decoder) fn failure_site(&self) -> Option<FailureSite<'g>> {

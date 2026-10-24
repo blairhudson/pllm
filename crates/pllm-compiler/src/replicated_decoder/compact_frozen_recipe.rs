@@ -399,6 +399,12 @@ impl<'a> FrozenRegion<'a> {
     // derives all work itself; this is not a replacement numeric/source verifier.
     fn validate_recipe_geometry(&self) -> Result<(), Error> {
         let mut next = self.imports_owner.nodes.len();
+        if let Some(prelude) = &self.request_prelude {
+            if prelude.first() != next {
+                return Err(Error::Binding);
+            }
+            next = add_bytes(next, 2)?;
+        }
         let mut sticky = self.imports_owner.validity;
         if self.next > MAX_NODES {
             return Err(Error::Bounds);
@@ -858,6 +864,11 @@ impl BorrowedOrderedNodes for FrozenSchedule<'_, '_> {
     fn node(&self, ordinal: usize) -> Result<BorrowedNode<'_>, Error> {
         if let Some(node) = self.owner.imported_recipe(ordinal) {
             return Ok(BorrowedNode::from(node));
+        }
+        if let Some(prelude) = &self.owner.request_prelude {
+            if ordinal >= prelude.first() && ordinal < add_bytes(prelude.first(), 2)? {
+                return prelude.node(ordinal);
+            }
         }
         if ordinal >= self.owner.next {
             return Err(Error::Binding);
