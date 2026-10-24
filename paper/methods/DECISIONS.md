@@ -924,6 +924,36 @@ These approvals do not activate any other D37 attachment or close unavailable
 source, numerical, security, capacity or actual encrypted-execution evidence.
 D36's separate bounded SIGMA composition and its existing limits are unchanged.
 
+## D39. Bounded SIGMA private party-share terminal extraction
+
+**Explicitly approved by the user on 24 October 2026:** implement the four-lane
+ring50 private GapARS12 plus private-beta terminal extraction, its resource
+contracts and custody tests. The terminal produces **party shares**, not a final
+reconstructed result. Reuse the existing carry machinery and codec; this is no
+authorization for a new arithmetic default or protocol-wide activation.
+
+Retain the existing fresh full-ring masks `rF` and `rBeta`. Make **one fresh
+independent split of their combined mask**: sample `h0`, then set
+`h1 = (rF + rBeta) - h0` modulo `2^50`. The `h0` randomness is independent of
+existing material. With `f0 + f1 = q + rF`, party `b` locally computes
+`f_b + b * (Beta + rBeta) - h_b`; the two shares sum to `q + Beta`.
+Delivery is one-use and genuinely owned, with no mask reconstruction or
+substitution. Genuine consuming owners must preserve original custody. Price and
+reserve the complete simultaneous owner, transition
+and scratch inventory on the original counter before buffer allocations or
+factories. Include fresh randomness/material and retained delivery owners, rather
+than treating external backing or an already constructed payload as free.
+
+Error, cancellation, drop and unwind must burn the sibling operation and retain
+its custody/reservations until outstanding owners retire. Parent state and layout
+must price these additional owners before activation; this bounded approval does
+not establish that enclosing admission or an implementation already exists.
+
+Existing caps, default arithmetic and D17 mask requirements remain unchanged.
+No LayerNorm, LUT13, numerical/backend/compiler/SDK/transport activation, final
+reconstruction, joint-privacy/security qualification or passing-test claim
+follows. D26 and the other historical decisions are unchanged.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -966,6 +996,7 @@ D36's separate bounded SIGMA composition and its existing limits are unchanged.
 | D36 | Approved conditionally: one-row SIGMA causal softmax, active count 1–3 | Paper widths, inherited nExp and exact floors; genuine owners/internal uses and full work/storage admission before issuance; no full-row, normalization, SDK, transport or joint-privacy promotion. |
 | D37 | Approved: seven design-only method-completion packets | Specify N-N/B-S/M-X/C-S/R-S/H-F/N-G separately; no numerical/backend/state/RNG adoption, implementation, model execution, cap increases or manufactured source evidence. |
 | D38 | Approved: three separately bounded D37 follow-ups | NEXUS clear prefix and conditional synthetic metadata only; isolated HE Layout patch preparation without adoption/build/tests; CacheMir's 66 synthetic N-Q cases within fixed limits. No full methods, HE/models, SDK or cap increases. |
+| D39 | Approved: four-lane SIGMA private party-share terminal extraction | Ring50 private GapARS12 plus private beta, existing carry/codec, one fresh independent split of combined rF+rBeta and preallocated original-counter custody; sibling burn/retention and enclosing state/layout pricing required. No final reconstruction, default/cap change, LayerNorm/LUT13 or compiler/SDK/transport/security qualification. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
