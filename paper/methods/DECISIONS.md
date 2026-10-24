@@ -983,6 +983,26 @@ checkpoint arithmetic compilation, inference, fallback, budget resets and source
 authority inferred from policy are not authorized. No passing-test or completed
 implementation claim follows from this decision.
 
+## D41. Private D19 scan-to-correction/Select ownership extraction
+
+**Explicitly approved by the user on 24 October 2026:** implement the private
+D19 scan-to-correction/Select ownership and exact-resource extraction, with
+ordinary compatibility, resource and lifecycle tests. Preserve existing public
+APIs, index-width gates 8/10, equations, RNG draw order, full-ring masks,
+`rho = 2u - r`, frame bytes and default outputs. This is ownership/resource
+refactoring, not a new numerical interpretation or profile adoption.
+
+Split one original reservation before allocation and before RNG use; retain the
+same original counter and source custody without refund/reacquisition. Price all
+simultaneously retained owners and transitions before their factories; preserve
+failure burn and retention through retirement. The extracted resource quote is
+not whole-normalization-fit assurance, and existing caps remain unchanged.
+
+Interval scan, a shared-key profile, LUT13, LayerNorm, compiler/SDK/transport
+activation, joint privacy/security qualification and physical-fit claims are
+excluded. This decision authorizes implementation and tests, not a claim that
+either is complete or passing. D19's original boundaries remain unchanged.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1027,6 +1047,7 @@ implementation claim follows from this decision.
 | D38 | Approved: three separately bounded D37 follow-ups | NEXUS clear prefix and conditional synthetic metadata only; isolated HE Layout patch preparation without adoption/build/tests; CacheMir's 66 synthetic N-Q cases within fixed limits. No full methods, HE/models, SDK or cap increases. |
 | D39 | Approved: four-lane SIGMA private party-share terminal extraction | Ring50 private GapARS12 plus private beta, existing carry/codec, one fresh independent split of combined rF+rBeta and preallocated original-counter custody; sibling burn/retention and enclosing state/layout pricing required. No final reconstruction, default/cap change, LayerNorm/LUT13 or compiler/SDK/transport/security qualification. |
 | D40 | Approved: server-bound scalar source policy for explicit checked-public ingress | Authenticated server Experiment/config derives finite source/workload geometry; toy defaults and all caps/refusals unchanged. Tests and metadata-only quote permitted, not client-manifest authority, tensor reads, checkpoint arithmetic compilation, inference, fallback or whole-checkpoint fit. |
+| D41 | Approved: private D19 scan-to-correction/Select ownership and exact-resource extraction | Original reservation split before allocation/RNG, continuous counter/source custody and failure burn; unchanged APIs, 8/10 gates, equations, draw order, masks and framing. Compatibility/resource/lifecycle tests only; no interval scan, shared-key profile, LUT13/LayerNorm, activation, security or physical/whole-Norm fit claim. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
