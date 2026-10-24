@@ -24,6 +24,9 @@
 use pllm_types::{canonical_digest, valid_identity, Digest};
 use serde::{Deserialize, Serialize};
 
+#[path = "encrypted_trace_construction.rs"]
+pub mod construction;
+
 #[path = "encrypted_level_trace_bridge.rs"]
 mod trace_bridge;
 pub use trace_bridge::{
@@ -622,6 +625,44 @@ fn trace_records(n: &mut usize, extra: usize, limit: usize) -> Result<(), String
     Ok(())
 }
 
+/// Shared record-to-validator envelope. Construction quotes and legacy graph
+/// preflight deliberately use the same checked formula and unchanged limits.
+fn trace_resource_bound(records: usize) -> Option<(usize, usize)> {
+    let work = records
+        .checked_mul(records)?
+        .checked_mul(records)?
+        .checked_mul(64)?
+        .checked_add(records.checked_mul(256)?)?;
+    let bytes = records.checked_mul(256)?.checked_add(1024)?;
+    Some((work, bytes))
+}
+
+/// Record accounting shared by borrowed preconstruction and legacy graph walk.
+struct TraceRecordCounter {
+    records: usize,
+}
+impl TraceRecordCounter {
+    fn new() -> Self {
+        Self { records: 1 }
+    }
+    fn top(&mut self, n: usize) -> Option<()> {
+        self.records = self.records.checked_add(n)?;
+        Some(())
+    }
+    fn state(&mut self, rank: usize) -> Option<()> {
+        self.top(9usize.checked_add(rank)?)
+    }
+    fn operation(&mut self, arity: usize) -> Option<()> {
+        self.top(3usize.checked_add(arity)?)
+    }
+    fn capability(&mut self, arity: usize) -> Option<()> {
+        self.top(12usize.checked_add(arity)?)
+    }
+    fn step(&mut self, releases: usize) -> Option<()> {
+        self.top(2usize.checked_add(releases)?)
+    }
+}
+
 /// Length-only, allocation-free preflight. Bound nested loops before entering
 /// them. A deliberately conservative cubic bound covers pair scans, typed
 /// comparisons and complete reference/lifetime scans; there is no state search.
@@ -630,7 +671,7 @@ fn trace_preflight(
     trace: &[PublicCiphertextTraceStep],
     c: PublicCiphertextTraceCapacity,
 ) -> Result<(usize, usize), String> {
-    let mut records = 1;
+    let mut counter = TraceRecordCounter::new();
     for len in [
         g.owners.len(),
         g.persistent_owners.len(),
@@ -641,35 +682,42 @@ fn trace_preflight(
         g.retained_inputs.len(),
         trace.len(),
     ] {
-        trace_records(&mut records, len, c.max_records)?;
+        counter.top(len).ok_or("composite resource overflow")?;
+        trace_records(&mut 0, counter.records, c.max_records)?;
     }
-    let state_records = |n: &mut usize, s: &PublicCiphertextState| {
-        trace_records(n, add(9, s.shape.len())?, c.max_records)
+    let state_records = |n: &mut TraceRecordCounter, s: &PublicCiphertextState| {
+        n.state(s.shape.len())
+            .ok_or("composite resource overflow")?;
+        trace_records(&mut 0, n.records, c.max_records)
     };
     for v in &g.inputs {
-        state_records(&mut records, &v.state)?;
+        state_records(&mut counter, &v.state)?;
     }
     for op in &g.operations {
-        trace_records(&mut records, add(3, op.inputs.len())?, c.max_records)?;
-        state_records(&mut records, &op.output.state)?;
+        counter
+            .operation(op.inputs.len())
+            .ok_or("composite resource overflow")?;
+        state_records(&mut counter, &op.output.state)?;
     }
     for cap in &g.capabilities {
-        trace_records(&mut records, add(12, cap.inputs.len())?, c.max_records)?;
-        state_records(&mut records, &cap.output)?;
+        counter
+            .capability(cap.inputs.len())
+            .ok_or("composite resource overflow")?;
+        state_records(&mut counter, &cap.output)?;
         for s in &cap.inputs {
-            state_records(&mut records, s)?;
+            state_records(&mut counter, s)?;
         }
     }
     for step in trace {
-        trace_records(&mut records, add(2, step.release.len())?, c.max_records)?;
+        counter
+            .step(step.release.len())
+            .ok_or("composite resource overflow")?;
+        trace_records(&mut 0, counter.records, c.max_records)?;
     }
-    let work = add(
-        mul(mul(mul(records, records)?, records)?, 64)?,
-        mul(records, 256)?,
-    )?;
+    let (work, bytes) =
+        trace_resource_bound(counter.records).ok_or("composite resource overflow")?;
     // Six bounded vectors, borrowed values only; no state/String cloning or
     // canonical serialization. Leave ample payload room for Vec capacities.
-    let bytes = add(mul(records, 256)?, 1024)?;
     if work > c.max_work || bytes > c.max_buffer_bytes {
         return Err("composite work/buffer capacity exceeded".into());
     }

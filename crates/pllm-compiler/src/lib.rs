@@ -35,6 +35,7 @@ mod original_plan_owner;
 #[doc(hidden)]
 pub mod original_source;
 pub mod replicated_decoder;
+pub mod row_fold_reference;
 pub mod sigma_linear_activation;
 pub mod verified_source;
 pub use decoder_boundary::{PrivateBoundaryContract, PrivateBoundaryPhase};
