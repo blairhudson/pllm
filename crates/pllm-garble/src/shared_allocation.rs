@@ -25,6 +25,7 @@ pub enum Error {
 pub struct Budget {
     limit: usize,
     used: AtomicUsize,
+    admitted_peak: AtomicUsize,
     #[cfg(test)]
     pub(crate) fail_after: std::sync::atomic::AtomicIsize,
     #[cfg(test)]
@@ -38,6 +39,7 @@ impl Budget {
         Ok(Self {
             limit,
             used: AtomicUsize::new(0),
+            admitted_peak: AtomicUsize::new(0),
             #[cfg(test)]
             fail_after: std::sync::atomic::AtomicIsize::new(-1),
             #[cfg(test)]
@@ -46,6 +48,25 @@ impl Budget {
     }
     pub fn used_bytes(&self) -> usize {
         self.used.load(Ordering::SeqCst)
+    }
+    /// Highest successfully admitted numeric total, including reservations.
+    ///
+    /// Numeric admission evidence only, not measured storage or RSS. This does
+    /// not establish completeness of an inventory, source/provenance authority,
+    /// or work admission. Callers must inventory all owners and reserve actual
+    /// storage separately. Releases and transfers never lower this value.
+    pub fn admitted_peak_bytes(&self) -> usize {
+        self.admitted_peak.load(Ordering::SeqCst)
+    }
+    /// Check a caller-inventoried complete phase total against this limit and
+    /// monotonically retain it. Does not reserve/refund bytes or debit work.
+    /// Rejection leaves both usage and admitted peak unchanged.
+    pub fn admit_peak(&self, bytes: usize) -> Result<(), Error> {
+        if bytes > self.limit {
+            return Err(Error::Resource);
+        }
+        self.admitted_peak.fetch_max(bytes, Ordering::SeqCst);
+        Ok(())
     }
     /// Charge caller-owned payload and the guard's inline metadata to this budget.
     ///
@@ -69,11 +90,16 @@ impl Budget {
         })
     }
     fn reserve_bytes(&self, bytes: usize) -> Result<(), Error> {
-        self.used
+        let previous = self
+            .used
             .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |used| {
                 used.checked_add(bytes).filter(|next| *next <= self.limit)
             })
             .map_err(|_| Error::Resource)?;
+        // The successful update checked this exact sum. Do not reload `used`:
+        // another owner may already have released storage before this point.
+        self.admitted_peak
+            .fetch_max(previous + bytes, Ordering::SeqCst);
         #[cfg(test)]
         self.accounting_updates.fetch_add(1, Ordering::SeqCst);
         Ok(())
@@ -543,6 +569,10 @@ pub(crate) fn exact_capacity<T>(values: Vec<T>, capacity: usize) -> Result<Vec<T
     }
     Ok(values)
 }
+
+#[cfg(test)]
+#[path = "shared_allocation_peak_tests.rs"]
+mod peak_tests;
 
 #[cfg(test)]
 mod tests {
