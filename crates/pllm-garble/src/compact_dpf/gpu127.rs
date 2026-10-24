@@ -24,6 +24,8 @@ use aes::cipher::{Block, BlockEncrypt, KeyInit};
 use aes::Aes128;
 use zeroize::{Zeroize, Zeroizing};
 
+pub(crate) mod interval50;
+
 const MAX_ORDINARY: usize = 55;
 const MAX_FULL_BITS: u8 = 10;
 const MAGIC: &[u8; 15] = b"PLLM-DPF-GPU127";
