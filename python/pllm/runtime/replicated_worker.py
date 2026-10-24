@@ -9,6 +9,7 @@ import argparse
 import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
+from functools import partial
 import hmac
 import json
 import os
@@ -494,6 +495,8 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
                     constructor = getattr(constructor, "_from_source_request", None)
                     if not callable(constructor):
                         raise ValueError("replicated source-request native entrypoint unavailable")
+                    constructor = partial(constructor,
+                        server_policy=(source.experiment_bytes, source.config_bytes))
                 native = await native_call(constructor, value["manifest"], ROLES.index(role),
                                            _discard=lambda owner: owner.close())
                 attempt = _Attempt(native, reservation, request_id)

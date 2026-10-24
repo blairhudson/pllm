@@ -20,7 +20,8 @@ from test_replicated_sdk import experiment_fixture
     ("public", "static", "per_token", "expanded", "http", "legacy"),
     ("public", "checked", "per_token", "expanded", "streams", "legacy"),
 ])
-@pytest.mark.parametrize("failure", [None, "missing", "constructor", "source", "config", "binding", "runtime", "disk", "import"])
+@pytest.mark.parametrize("failure", [None, "missing", "old_signature", "constructor", "source",
+    "config", "binding", "runtime", "disk", "import", "client_policy"])
 async def test_source_request_route_mock(tmp_path, monkeypatch, weights, range_policy,
                                          lookup, selection, transport, expected, failure):
     """Real canonical policy/admit envelope; no native call or filesystem source IO."""
@@ -36,6 +37,8 @@ async def test_source_request_route_mock(tmp_path, monkeypatch, weights, range_p
         Deployment.local(root=str(tmp_path / "roles")), ExecutionBudget(requests=8,
             max_input_tokens=8, max_new_tokens=2))
     events, held = [], []
+    retained_experiment = bytes(bytearray(experiment.canonical_bytes()))
+    retained_config = bytes(bytearray(b"server config"))
 
     class Reservation:
         def __enter__(self):
@@ -51,9 +54,14 @@ async def test_source_request_route_mock(tmp_path, monkeypatch, weights, range_p
             events.append("legacy")
 
         @staticmethod
-        def _from_source_request(manifest, role):
+        def _from_source_request(manifest, role, *, server_policy):
             events.append("source")
             assert type(manifest) is bytes and role == 1
+            assert type(server_policy) is tuple and len(server_policy) == 2
+            assert server_policy[0] is retained_experiment
+            assert server_policy[1] is retained_config
+            if failure == "client_policy":
+                assert json.loads(manifest)["server_policy"] != [list(item) for item in server_policy]
             if failure == "constructor":
                 raise ValueError("constructor refused")
             return SimpleNamespace(close=lambda: events.append("close"))
@@ -63,6 +71,10 @@ async def test_source_request_route_mock(tmp_path, monkeypatch, weights, range_p
 
     if failure == "missing":
         del Native._from_source_request
+    if failure == "old_signature":
+        def old_signature(manifest, role):
+            raise AssertionError("old constructor body must not be entered")
+        Native._from_source_request = staticmethod(old_signature)
 
     def runtime(*args):
         events.append("runtime")
@@ -75,7 +87,8 @@ async def test_source_request_route_mock(tmp_path, monkeypatch, weights, range_p
         if failure == "import":
             raise ValueError("source import refused")
 
-    source = SimpleNamespace(source_lock_digest="a" * 64, config_bytes=b"server config",
+    source = SimpleNamespace(source_lock_digest="a" * 64, config_bytes=retained_config,
+        experiment_bytes=retained_experiment,
         contract={"weights": weights, "public_weight_snapshot_bytes_per_worker": 1},
         runtime_contract=runtime, populate_public_worker=populate,
         runtime_contract_digest="b" * 64, tokenizer_digest="d" * 64)
@@ -104,18 +117,24 @@ async def test_source_request_route_mock(tmp_path, monkeypatch, weights, range_p
             value["config"] = list(b"other config")
         if failure == "binding":
             value["execution"] = {}
+        if failure == "client_policy":
+            # Untrusted manifest metadata cannot replace admitted server owners
+            # or select the source route on a canonical legacy server policy.
+            value["server_policy"] = [list(b"attacker enlarged policy"), list(b"other config")]
         response = await client.post("/v1/replicated/admit", content=pack({
             "request": "c" * 64, "epoch": epoch, "manifest": json.dumps(value).encode()}))
         rejected = (failure in {"source", "config", "binding", "runtime"}
                     or failure == "disk" and weights == "public"
-                    or failure in {"missing", "constructor"} and expected == "source"
+                     or failure in {"missing", "old_signature", "constructor"} and expected == "source"
                     or failure == "import" and weights == "public")
         assert response.status_code == (400 if rejected else 200)
         if failure in {"source", "config", "binding", "runtime"} or failure == "disk" and weights == "public":
             assert "source" not in events and "legacy" not in events
-        elif not (failure == "missing" and expected == "source"):
+        elif not (failure in {"missing", "old_signature"} and expected == "source"):
             assert expected in events
             assert ("legacy" if expected == "source" else "source") not in events
+        else:
+            assert "source" not in events and "legacy" not in events
         if not rejected:
             assert "refund" not in events
             assert events.index("runtime") < events.index(expected)
@@ -144,19 +163,30 @@ def test_public_import_preserves_original_error_when_cleanup_fails(monkeypatch, 
 
 @pytest.mark.asyncio
 async def test_cancelled_source_constructor_closes_before_reservation_refund():
+    from functools import partial
     import threading
     entered, release = threading.Event(), threading.Event()
     events = []
+    identities = []
 
-    def constructor():
+    def constructor(manifest, role, *, server_policy):
+        assert manifest == b"request" and role == 1
+        assert tuple(map(id, server_policy)) == tuple(identities)
         entered.set()
         assert release.wait(5)
+        assert tuple(map(id, server_policy)) == tuple(identities)
+        assert server_policy == (b"retained server experiment", b"retained server config")
         events.append("returned")
         return SimpleNamespace(close=lambda: events.append("closed"))
 
     async def admission():
+        source = SimpleNamespace(experiment_bytes=bytes(bytearray(b"retained server experiment")),
+            config_bytes=bytes(bytearray(b"retained server config")))
+        identities.extend((id(source.experiment_bytes), id(source.config_bytes)))
+        bound = partial(constructor, server_policy=(source.experiment_bytes, source.config_bytes))
+        source = None  # Only the bound call/native thread need retain these exact bytes.
         try:
-            await worker.native_call(constructor, _discard=lambda owner: owner.close())
+            await worker.native_call(bound, b"request", 1, _discard=lambda owner: owner.close())
         finally:
             events.append("refund")
 
