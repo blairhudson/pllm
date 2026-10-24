@@ -8,7 +8,7 @@ use std::cell::{Cell, RefCell};
 /// Lexical source context shared by future compact and RMS emission. It owns
 /// actual origin/plan/public-source roots and a same-counter reservation; source
 /// descriptor borrows come from the genuine permit, never from Builder caches.
-pub(in crate::replicated_decoder::program) struct EmissionContext<'s> {
+pub(in crate::replicated_decoder) struct EmissionContext<'s> {
     manifest: &'s Manifest,
     registry: &'s SourceRegistry<'s>,
     public: Arc<PublicSource>,
@@ -27,12 +27,12 @@ pub(in crate::replicated_decoder::program) struct EmissionContext<'s> {
     guard: RefCell<OwnedExternalCharge>,
 }
 
-pub(in crate::replicated_decoder::program) struct EmissionAttempt<'c, 's> {
+pub(in crate::replicated_decoder) struct EmissionAttempt<'c, 's> {
     context: &'c EmissionContext<'s>,
     committed: bool,
 }
 impl EmissionAttempt<'_, '_> {
-    pub(in crate::replicated_decoder::program) fn commit(&mut self) {
+    pub(in crate::replicated_decoder) fn commit(&mut self) {
         self.committed = true;
     }
 }
@@ -50,7 +50,7 @@ impl Drop for EmissionAttempt<'_, '_> {
 }
 
 impl EmissionContext<'_> {
-    pub(in crate::replicated_decoder::program) fn attempt(&self) -> EmissionAttempt<'_, '_> {
+    pub(in crate::replicated_decoder) fn attempt(&self) -> EmissionAttempt<'_, '_> {
         EmissionAttempt {
             context: self,
             committed: false,
@@ -60,7 +60,7 @@ impl EmissionContext<'_> {
     pub(super) fn test_origin(&self) -> Arc<OwnedCharged<Origin>> {
         Arc::clone(&self.origin)
     }
-    pub(in crate::replicated_decoder::program) fn check_open(&self) -> Result<(), Error> {
+    pub(in crate::replicated_decoder) fn check_open(&self) -> Result<(), Error> {
         if self.origin.payload().state.load(Ordering::Acquire) == OPEN {
             Ok(())
         } else {
@@ -149,7 +149,7 @@ impl EmissionContext<'_> {
     /// All arguments describe NEW, named simultaneously live storage above this
     /// context's retained payload. Other same-counter guards stay in `outside`;
     /// no digest credit or independently measured maxima are combined here.
-    pub(in crate::replicated_decoder::program) fn admit_phase(
+    pub(in crate::replicated_decoder) fn admit_phase(
         &self,
         new_live: usize,
         uncovered: usize,
@@ -192,7 +192,7 @@ impl EmissionContext<'_> {
 
     /// Call only AFTER dead construction scratch/results have left scope. The
     /// actual recipe/native payload stays covered by this guard through freeze.
-    pub(in crate::replicated_decoder::program) fn retain(
+    pub(in crate::replicated_decoder) fn retain(
         &self,
         new_retained: usize,
     ) -> Result<(), Error> {
@@ -232,7 +232,7 @@ impl EmissionContext<'_> {
             .map_err(|_| Error::Bounds)
     }
 
-    pub(in crate::replicated_decoder::program) fn admit_work<'p>(
+    pub(in crate::replicated_decoder) fn admit_work<'p>(
         &self,
         ticket: tensor::WorkPreflight<'p>,
     ) -> Result<tensor::AdmittedWorkSchedule<'p>, Error> {

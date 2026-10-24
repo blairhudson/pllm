@@ -2804,3 +2804,10 @@ impl Builder {
         })
     }
 }
+
+// Pending E ACK: type re-export only, no constructor or field exposure.
+pub(in crate::replicated_decoder) use request_origin::compact_storage::EmissionContext;
+
+#[cfg(test)]
+#[path = "prepared_tensor_map/prepared_tensor_request_rescale_tests.rs"]
+pub(in crate::replicated_decoder) mod request_rescale_tests;

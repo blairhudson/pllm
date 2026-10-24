@@ -3327,6 +3327,9 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
     }
 
     fn prepare(&self, kind: MapKind, lanes: usize, input: Interval) -> Result<MapOwner, Error> {
+        if kind == MapKind::Rescale18 && self.request_admission.is_some() {
+            return self.prepare_request_rescale(lanes, input);
+        }
         for (slot, op) in self.ops.iter().enumerate() {
             if op
                 .prepared
@@ -5813,3 +5816,10 @@ mod constructor_quote_tests {
         ));
     }
 }
+
+#[path = "compact_lowering/compact_request_rescale.rs"]
+mod request_rescale;
+
+#[cfg(test)]
+#[path = "compact_lowering/compact_request_rescale_tests.rs"]
+mod request_rescale_tests;

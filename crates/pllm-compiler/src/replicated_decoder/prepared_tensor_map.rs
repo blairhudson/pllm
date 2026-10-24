@@ -570,3 +570,6 @@ impl PreparedTensorMap {
 #[cfg(test)]
 #[path = "prepared_activation_work_tests.rs"]
 mod activation_work_tests;
+
+#[path = "prepared_tensor_map/prepared_tensor_request_rescale.rs"]
+pub(in crate::replicated_decoder) mod request_rescale;
