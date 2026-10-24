@@ -9,6 +9,7 @@ mod code;
 mod memory;
 mod protocol;
 mod publication;
+pub mod window_plan;
 
 pub use code::CodeDescription;
 pub use memory::{AllocationPlan, MemoryStats, ALLOCATION_CEILING};
