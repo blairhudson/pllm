@@ -19,7 +19,7 @@ macro_rules! slots {
 // ConstructionSlots. Native children keep their complete existing owner types.
 #[allow(dead_code)]
 struct RetainedRole {
-    root: Option<CommonMaskedFor<C, Ring>>,
+    root: Option<RootValue<C>>,
     bindings: [Binding; 14],
     ledger: internal_use::Ledger<18>,
     role: u8,
@@ -63,7 +63,7 @@ struct RetainedTables {
     checked: tables::Verified,
     hashes: [[u8; 32]; 2],
     declaration: Declaration,
-    input: Input,
+    input: InputOrigin<C>,
     lease: LeaseFor<C>,
 }
 
@@ -257,7 +257,7 @@ fn independent_concrete_phase_and_retained_inventory_for_every_qualified_width()
             + slots![
                 [Frame<C>; 11],
                 [Step<C>; 11],
-                CommonMaskedFor<C, Ring>,
+                Option<RootValue<C>>,
                 Role<C>,
                 Output<C>,
                 [consuming::LookupValueFor<C>; 2],
@@ -310,7 +310,9 @@ fn check_original_storage(
     for work in &state.work {
         assert_eq!(work.len(), lanes); // Box payload: no spare capacity to omit.
     }
-    let original = state.root.as_ref().unwrap();
+    let RootValue::Clear(original) = state.root.as_ref().unwrap() else {
+        panic!("not original clear root")
+    };
     assert!(std::ptr::eq(original._lease.budget.budget(), root.budget()));
     match &original.backing {
         CommonBackingFor::Root(values) => {
@@ -451,13 +453,11 @@ fn actual_eleven_round_frames_and_handoffs_stay_with_original_admitted_counter()
             assert_eq!(state.phase, 255);
             assert!(state.root.is_none());
             assert!(state.work.iter().all(|work| work.len() == lanes));
-            assert!(
-                state
-                    .work
-                    .iter()
-                    .flat_map(|work| work.iter())
-                    .all(|word| *word == 0)
-            );
+            assert!(state
+                .work
+                .iter()
+                .flat_map(|work| work.iter())
+                .all(|word| *word == 0));
             assert!(std::ptr::eq(state.tables.input.budget(), root.budget()));
             assert!(std::ptr::eq(
                 state.output.as_ref().unwrap()._lease.budget.budget(),

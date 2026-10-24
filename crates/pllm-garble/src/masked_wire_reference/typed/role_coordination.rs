@@ -9,7 +9,9 @@ use std::sync::{atomic::AtomicUsize, Arc, Mutex, MutexGuard};
 
 pub(super) trait Retire {
     /// Erase output and cancel native continuation, synchronously. No caller
-    /// callback, metadata lock acquisition or account detachment is permitted.
+    /// callback, THIS coordinator's metadata-lock acquisition or account
+    /// detachment is permitted. A closed nested region may retire a strictly
+    /// downstream child registry with no parent backlink or user callbacks.
     fn retire(&mut self);
 }
 

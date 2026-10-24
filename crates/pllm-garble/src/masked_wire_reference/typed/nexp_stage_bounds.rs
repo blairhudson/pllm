@@ -202,6 +202,15 @@ pub(super) fn preflight(
     reads: [&EdgeDescriptor; READ_COUNT],
 ) -> Result<BindingIntervals, Error> {
     super::nexp::validate_nexp_clear_root(input, values)?;
+    declarations(input, verified, reads)
+}
+
+// Shared numerical metadata only; inherited authority comes from closed M-X.
+pub(super) fn declarations(
+    input: &EdgeDescriptor,
+    verified: &Verified,
+    reads: [&EdgeDescriptor; READ_COUNT],
+) -> Result<BindingIntervals, Error> {
     certified_ranges(verified)?;
     for (slot, edge) in reads.iter().enumerate() {
         let expected = read_bound(slot)?;

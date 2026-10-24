@@ -4,6 +4,9 @@ use crate::shared_allocation::{OwnedBudget, OwnedExternalCharge};
 use pllm_core::edge_contract::{EdgeIdentity, Shape};
 use std::sync::atomic::Ordering;
 
+#[path = "nexp_inherited_tests.rs"]
+mod inherited_entry;
+
 fn spec(source: SourceIdentity, n: usize) -> Spec {
     let types = [
         (50, 12, Interpretation::Signed),
@@ -132,7 +135,10 @@ fn genuine_dealer_entry_is_burned_before_protected_root_encoding() {
     // capabilities, not a synthesized parallel binding or post-recovery state.
     for party in &roles {
         let state = party.slot.state.lock().unwrap();
-        assert_eq!(observed, Some(state.root.as_ref().unwrap().binding));
+        let RootValue::Clear(root) = state.root.as_ref().unwrap() else {
+            panic!("not original clear root")
+        };
+        assert_eq!(observed, Some(root.binding));
         assert_eq!(state.ledger.next, 0); // roles burn their own entry on begin
     }
     drop((roles, coordinator, mask));
@@ -158,6 +164,7 @@ fn actual_stage_validation_call_slots_and_passes_are_preadmitted() {
             + size_of::<LeaseFor<OwnedBudgetContext>>()
             + size_of::<ConstructionSlots<'_, OwnedBudgetContext>>()
             + bounds::validation_slots_bytes()
+            + size_of::<inherited::Controls<'_, OwnedBudgetContext>>()
     );
     assert_eq!(q.work.input_validation_lanes, 6); // two whole-input validations
     assert_eq!(q.work.root_validation_lanes, 3); // later actual encode validation

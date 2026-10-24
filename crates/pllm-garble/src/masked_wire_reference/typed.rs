@@ -42,6 +42,15 @@ use std::{marker::PhantomData, mem::size_of};
 use zeroize::Zeroizing;
 
 mod activation;
+mod causal_softmax;
+mod softmax_coordinate;
+pub use causal_softmax::{
+    causal_softmax_bootstrap_bytes, causal_softmax_from_reserved, causal_softmax_resources,
+    CausalSoftmaxCoordinatorFor, CausalSoftmaxCreatedFor, CausalSoftmaxError,
+    CausalSoftmaxFrameFor, CausalSoftmaxInput, CausalSoftmaxMaskFor, CausalSoftmaxOutputFor,
+    CausalSoftmaxPublicFloorWork, CausalSoftmaxResources, CausalSoftmaxRoleFor, CausalSoftmaxSpec,
+    CausalSoftmaxStepFor, CausalSoftmaxWork, CausalSoftmaxWorkLimit,
+};
 mod internal_use;
 // D29's conditional implementation is not an activated/public product API.
 mod nexp;

@@ -9,6 +9,8 @@ use super::*;
 
 #[path = "certified_exp_lookup.rs"]
 pub(super) mod certified_exp_lookup;
+#[path = "certified_softmax_inverse.rs"]
+pub(super) mod certified_softmax_inverse;
 use crate::masked_wire_reference::source_lookup;
 use pllm_core::edge_contract::{
     ConsumerUse, EdgeContractResourceQuote, EdgeContractWorkspace, EdgeIdentity,

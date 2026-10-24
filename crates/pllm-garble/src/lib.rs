@@ -14,6 +14,7 @@ pub mod compact_product;
 mod exp_floor;
 mod fixed_activation_tables;
 mod fixed_exp_tables;
+mod fixed_inverse_table;
 pub mod fusefss;
 pub mod fusefss_backend;
 pub mod gated_multiply_q7;

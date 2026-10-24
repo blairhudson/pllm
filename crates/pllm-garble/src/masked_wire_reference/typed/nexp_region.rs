@@ -23,6 +23,51 @@ const DOMAIN: &[u8] = super::REGION_DOMAIN;
 const COORD: &[u8] = super::COORDINATE_DOMAIN;
 const EQUATION: &[u8] = super::EQUATION;
 pub type Input = OwnedCharged<Zeroizing<Vec<i64>>>;
+#[path = "nexp_inherited.rs"]
+pub(in crate::masked_wire_reference::typed) mod inherited;
+
+#[allow(clippy::large_enum_variant)] // Inline original owner, concretely quoted; boxing adds a factory.
+enum InputOrigin<C: AllocationContext> {
+    Clear(Input),
+    Inherited(super::super::causal_softmax::DifferenceMaskFor<C>),
+}
+
+// Preserve independent clear-root fixture observations without offering any
+// clear recovery/access path on inherited inputs.
+#[cfg(test)]
+impl<C: AllocationContext> InputOrigin<C> {
+    fn payload(&self) -> &Zeroizing<Vec<i64>> {
+        match self {
+            Self::Clear(input) => input.payload(),
+            Self::Inherited(_) => panic!("not a clear-root fixture"),
+        }
+    }
+    fn budget(&self) -> &Budget {
+        match self {
+            Self::Clear(input) => input.budget(),
+            Self::Inherited(input) => input.budget(),
+        }
+    }
+    fn charged_bytes(&self) -> usize {
+        match self {
+            Self::Clear(input) => input.charged_bytes(),
+            Self::Inherited(_) => panic!("not a clear-root fixture"),
+        }
+    }
+}
+
+enum RootValue<C: AllocationContext> {
+    Clear(CommonMaskedFor<C, Ring>),
+    Inherited(super::super::causal_softmax::DifferenceValueFor<C>),
+}
+impl<C: AllocationContext> RootValue<C> {
+    fn values(&self) -> &[u64] {
+        match self {
+            Self::Clear(value) => value.backing.values(),
+            Self::Inherited(value) => value.values(),
+        }
+    }
+}
 type Slot<C> = custody::RoleSlotFor<C, State<C>>;
 type Shared<C> = custody::CoordinationFor<C, State<C>>;
 pub type Created<C> = (Mask<C>, Coordinator<C>, [Role<C>; 2]);
@@ -39,7 +84,7 @@ pub struct Spec {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(super) enum BuildError {
+pub(in crate::masked_wire_reference::typed) enum BuildError {
     Native(Error),
     Floor(tables::Error),
     Quote(exp_floor::Error),
@@ -119,6 +164,14 @@ pub(super) fn preflight<C: AllocationContext>(
     dealer: &LocalDealerFor<C>,
     s: &Spec,
 ) -> Result<usize, Error> {
+    preflight_bindings(dealer, s, 14)
+}
+
+fn preflight_bindings<C: AllocationContext>(
+    dealer: &LocalDealerFor<C>,
+    s: &Spec,
+    new_bindings: u64,
+) -> Result<usize, Error> {
     let expect = [
         (50, 12, Interpretation::Signed),
         (40, 12, Interpretation::Signed),
@@ -142,7 +195,10 @@ pub(super) fn preflight<C: AllocationContext>(
     }
     // Fourteen independent bindings, including the consuming product's P.
     // Refuse exhaustion before floor/hash/factory/entropy or partial issuance.
-    dealer.counter.checked_add(14).ok_or(Error::Resource)?;
+    dealer
+        .counter
+        .checked_add(new_bindings)
+        .ok_or(Error::Resource)?;
     first
         .identity()
         .first_tensor_index()
@@ -199,6 +255,7 @@ pub(super) fn bootstrap_bytes<C: AllocationContext>() -> usize {
         + size_of::<[usize; 16]>()
         + size_of::<LeaseFor<C>>()
         + size_of::<ConstructionSlots<'_, C>>()
+        + size_of::<inherited::Controls<'_, C>>()
         + bounds::validation_slots_bytes()
 }
 
@@ -336,6 +393,31 @@ pub(super) fn resources<C: AllocationContext>(
         return Err(Error::Resource.into());
     }
     let root = dealer.root_reservation_bytes(s.edges[0], &BoundRange::new(0, 1i128 << 38)?)?;
+    resources_common(
+        dealer,
+        s,
+        n,
+        input.charged_bytes(),
+        root,
+        input
+            .payload()
+            .capacity()
+            .checked_add(input.payload().len())
+            .ok_or(Error::Resource)?,
+        true,
+    )
+}
+
+// Private layout terms, not an admission or an alternative source issuer.
+fn resources_common<C: AllocationContext>(
+    _dealer: &LocalDealerFor<C>,
+    _s: &Spec,
+    n: usize,
+    incoming_owner_bytes: usize,
+    root: usize,
+    input_retirement_words: usize,
+    clear: bool,
+) -> Result<Quote, BuildError> {
     let d =
         arithmetic::resources_for_context::<C>(arithmetic_spec(n, 40, arithmetic::Gate::Drelu))?;
     let v = selection::resources_reconstructed_for_context::<C>(selection::Spec {
@@ -367,7 +449,7 @@ pub(super) fn resources<C: AllocationContext>(
         5 * size_of::<u64>() * n,
         11 * size_of::<Frame<C>>(),
         11 * size_of::<Step<C>>(),
-        size_of::<CommonMaskedFor<C, Ring>>(),
+        size_of::<Option<RootValue<C>>>(),
         size_of::<Role<C>>(),
         size_of::<Output<C>>(),
         2 * size_of::<consuming::LookupValueFor<C>>(),
@@ -394,6 +476,7 @@ pub(super) fn resources<C: AllocationContext>(
         super::super::activation::selection_resource_calculation_bytes()?,
         super::super::activation::lookup_resource_calculation_bytes()?,
         2 * C::TRANSIENT_LINK_BYTES,
+        inherited::control_bytes::<C>()?,
     ])?;
     let child_bytes = [
         root,
@@ -415,7 +498,6 @@ pub(super) fn resources<C: AllocationContext>(
     ])?;
     // Actual ORIGINAL charge, including excess; never substitute a minimum
     // source-capacity estimate for already-retained authority.
-    let incoming_owner_bytes = input.charged_bytes();
     if sum(&[total, incoming_owner_bytes])? > MAX_ALLOCATION_BYTES {
         return Err(Error::Resource.into());
     }
@@ -435,18 +517,14 @@ pub(super) fn resources<C: AllocationContext>(
         public_resource_query_passes: 2,
         public_resource_descriptor_checks: 2 * 14,
         // Original whole-root validation, then the checked stage preflight.
-        input_validation_lanes: 2 * n,
+        input_validation_lanes: if clear { 2 * n } else { 0 },
         // Pinned zeroize Vec visits initialized len, clears, then full capacity.
-        input_retirement_words: input
-            .payload()
-            .capacity()
-            .checked_add(input.payload().len())
-            .ok_or(Error::Resource)?,
-        root_validation_lanes: n,
-        root_initialization_words: 3 * n,
-        root_encoding_word_writes: 2 * n,
-        root_mask_generation_words: n,
-        root_retirement_words: 6 * n,
+        input_retirement_words,
+        root_validation_lanes: if clear { n } else { 0 },
+        root_initialization_words: if clear { 3 * n } else { 0 },
+        root_encoding_word_writes: if clear { 2 * n } else { 0 },
+        root_mask_generation_words: if clear { n } else { 0 },
+        root_retirement_words: if clear { 6 * n } else { 0 },
         ordered_use_checks: 3 * N,
         public_table_range_checks: bounds::TABLE_WORDS,
         stage_bound_descriptor_checks: bounds::READ_COUNT,
@@ -485,7 +563,7 @@ pub(super) fn resources<C: AllocationContext>(
             g.evaluation_aes_blocks_per_party,
         ])?,
         random_byte_requests: sum(&[
-            8 * n,
+            if clear { 8 * n } else { 0 },
             32,
             d.random_bytes,
             v.random_bytes,
@@ -513,7 +591,7 @@ struct Tables<C: AllocationContext> {
     hashes: [[u8; 32]; 2],
     declaration: Declaration,
     // Actual immutable original input and its ORIGINAL charged owner, not a copy.
-    input: Input,
+    input: InputOrigin<C>,
     _lease: LeaseFor<C>,
 }
 
@@ -692,20 +770,35 @@ fn construct_with<C: AllocationContext>(
     dealer: &mut LocalDealerFor<C>,
     s: Spec,
     input: Input,
+    working: LeaseFor<C>,
+    fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> Result<Created<C>, BuildError> {
+    construct_input_with(dealer, s, InputOrigin::Clear(input), working, fill)
+}
+
+#[allow(clippy::arc_with_non_send_sync)]
+fn construct_input_with<C: AllocationContext>(
+    dealer: &mut LocalDealerFor<C>,
+    s: Spec,
+    input: InputOrigin<C>,
     mut working: LeaseFor<C>,
     mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
 ) -> Result<Created<C>, BuildError> {
     if working.bytes < bootstrap_bytes::<C>()
-        || !std::ptr::eq(input.budget(), dealer.budget.budget())
-        || !std::ptr::eq(working.budget.budget(), input.budget())
+        || !std::ptr::eq(working.budget.budget(), dealer.budget.budget())
     {
         return Err(Error::Resource.into());
     }
-    let q = resources(dealer, &s, &input)?;
-    if working.bytes != q.total || input.charged_bytes() < q.incoming_owner_bytes {
+    let q = match &input {
+        InputOrigin::Clear(input) => resources(dealer, &s, input)?,
+        InputOrigin::Inherited(input) => inherited::mask_resources(dealer, &s, input)?,
+    };
+    if working.bytes != q.total {
         return Err(Error::Resource.into());
     }
-    super::validate_nexp_clear_root(&s.edges[0], input.payload())?;
+    if let InputOrigin::Clear(input) = &input {
+        super::validate_nexp_clear_root(&s.edges[0], input.payload())?;
+    }
     let n = s.edges[0].shape().elements();
     let (checked, hashes) = {
         let mut scratch = exp_floor::Workspace::default();
@@ -714,12 +807,17 @@ fn construct_with<C: AllocationContext>(
     // Plain checked metadata from the ORIGINAL clear input and actual verified
     // static rows, before any root/private material or entropy. No caller range
     // assertion/certificate is accepted, and no new authority is minted here.
-    let intervals = bounds::preflight(
-        &s.edges[0],
-        input.payload(),
-        &checked,
-        MAP.map(|i| &s.edges[i]),
-    )?;
+    let intervals = match &input {
+        InputOrigin::Clear(input) => bounds::preflight(
+            &s.edges[0],
+            input.payload(),
+            &checked,
+            MAP.map(|i| &s.edges[i]),
+        )?,
+        InputOrigin::Inherited(_) => {
+            bounds::declarations(&s.edges[0], &checked, MAP.map(|i| &s.edges[i]))?
+        }
+    };
     let uses = usage(&s);
     let declaration = spec_digest(&s, hashes, dealer.session, &uses);
     let table_lease = working.split(q.table_bytes)?;
@@ -733,21 +831,30 @@ fn construct_with<C: AllocationContext>(
     });
     let mut child = [None, None, None, None, None, None, None, None];
     for (slot, bytes) in child.iter_mut().zip(q.child_bytes) {
-        *slot = Some(working.split(bytes)?);
+        if bytes != 0 {
+            *slot = Some(working.split(bytes)?);
+        }
     }
     let left_lease = working.split(q.state_bytes)?;
     let right_lease = working.split(q.state_bytes)?;
     let left_slot = working.split(q.slot_bytes)?;
     let right_slot = working.split(q.slot_bytes)?;
     let mask_lease = working.split(mask_charge_for::<C>())?;
-    let prepared = dealer.prepare_root_reserved_with(
-        s.edges[0],
-        BoundRange::new(0, 1i128 << 38)?,
-        s.operation,
-        child[0].take().ok_or(Error::Consumed)?,
-        &mut fill,
-    )?;
-    let mut bindings = [prepared.dealer.binding; 14];
+    let (prepared, input_binding) = match &tables.input {
+        InputOrigin::Clear(_) => {
+            let prepared = dealer.prepare_root_reserved_with(
+                s.edges[0],
+                BoundRange::new(0, 1i128 << 38)?,
+                s.operation,
+                child[0].take().ok_or(Error::Consumed)?,
+                &mut fill,
+            )?;
+            let binding = prepared.dealer.binding;
+            (Some(prepared), binding)
+        }
+        InputOrigin::Inherited(input) => (None, input.binding()),
+    };
+    let mut bindings = [input_binding; 14];
     for i in 1..12 {
         bindings[i] = dealer.binding(s.edges[i], s.operation, intervals[i])?;
     }
@@ -776,10 +883,25 @@ fn construct_with<C: AllocationContext>(
     // Enter with the ORIGINAL prepared root binding, before encoding reads the
     // protected clear input. Root preparation/draws already occurred as before;
     // neither declaration nor this ledger burn issues new material or entropy.
-    dealer_ledger.burn(0, prepared.dealer.binding, 2)?;
-    #[cfg(test)]
-    tests::observe_entry_encode(&dealer_ledger, prepared.dealer.binding);
-    let (original, [root0, root1]) = prepared.encode(tables.input.payload())?;
+    dealer_ledger.burn(0, input_binding, 2)?;
+    let (original, [root0, root1]) = match (prepared, &tables.input) {
+        (Some(prepared), InputOrigin::Clear(input)) => {
+            #[cfg(test)]
+            tests::observe_entry_encode(&dealer_ledger, input_binding);
+            let (mask, [left, right]) = prepared.encode(input.payload())?;
+            (
+                Some(mask),
+                [Some(RootValue::Clear(left)), Some(RootValue::Clear(right))],
+            )
+        }
+        (None, InputOrigin::Inherited(_)) => (None, [None, None]),
+        _ => return Err(Error::Context.into()),
+    };
+    let original_values = match (&original, &tables.input) {
+        (Some(mask), _) => mask.backing.values(),
+        (None, InputOrigin::Inherited(mask)) => mask.values(),
+        _ => return Err(Error::Context.into()),
+    };
     let ledger_hashes = [
         ledger_digest([c0, c1], &bindings, &left_ledger),
         ledger_digest([c0, c1], &bindings, &right_ledger),
@@ -793,7 +915,7 @@ fn construct_with<C: AllocationContext>(
     let mut r8 = box_zeros(n, &working)?;
     dealer_ledger.burn(1, bindings[0], 2)?;
     for i in 0..n {
-        r40[i] = original.backing.values()[i] & ring_mask(40);
+        r40[i] = original_values[i] & ring_mask(40);
     }
     dealer_ledger.burn(2, bindings[1], 2)?; // subtracting K does not change the mask
     let arithmetic_context = |ordinal, a: usize, b: usize| arithmetic::Context {
@@ -815,7 +937,7 @@ fn construct_with<C: AllocationContext>(
     dealer_ledger.burn(4, bindings[3], 2)?; // public XOR 1 preserves the predicate mask
     dealer_ledger.burn(5, bindings[1], 2)?;
     for i in 0..n {
-        r16[i] = original.backing.values()[i] & 65535;
+        r16[i] = original_values[i] & 65535;
     }
     dealer_ledger.burn(6, bindings[4], 2)?;
     dealer_ledger.burn(7, bindings[5], 2)?;
@@ -931,7 +1053,7 @@ fn construct_with<C: AllocationContext>(
             box_zeros(n, &lease)?,
         ];
         Ok(State {
-            root: Some(root),
+            root,
             bindings,
             ledger,
             role,
@@ -1030,7 +1152,7 @@ fn construct_with<C: AllocationContext>(
 }
 
 struct State<C: AllocationContext> {
-    root: Option<CommonMaskedFor<C, Ring>>,
+    root: Option<RootValue<C>>,
     bindings: [Binding; 14],
     ledger: internal_use::Ledger<N>,
     role: u8,
@@ -1096,7 +1218,7 @@ impl<C: AllocationContext> State<C> {
         self.burn(1)?;
         let root = self.root.as_ref().ok_or(Error::Consumed)?;
         for i in 0..self.work[0].len() {
-            self.work[0][i] = root.backing.values()[i] & ring_mask(40);
+            self.work[0][i] = root.values()[i] & ring_mask(40);
         }
         self.burn(2)?;
         for i in 0..self.work[0].len() {
