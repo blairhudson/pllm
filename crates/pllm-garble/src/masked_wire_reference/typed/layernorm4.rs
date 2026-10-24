@@ -8,6 +8,7 @@ use std::sync::Arc;
 #[cfg(test)]
 #[path = "layernorm4/norm13_tests.rs"]
 mod norm13_tests;
+pub(in crate::masked_wire_reference) mod parent;
 pub(in crate::masked_wire_reference) mod table;
 
 const SLOTS: usize = 18;

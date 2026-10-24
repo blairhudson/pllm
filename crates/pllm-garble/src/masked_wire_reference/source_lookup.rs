@@ -98,6 +98,7 @@ const HEADER: usize = 80;
 const ALLOCATOR: usize = 64;
 const WORKSPACE: usize = 8 << 10;
 
+pub(super) mod interval50;
 pub(super) mod norm13;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

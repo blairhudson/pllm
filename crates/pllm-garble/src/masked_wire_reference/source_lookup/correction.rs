@@ -1,6 +1,7 @@
 //! Private consuming scan-to-correction boundary. Not a raw-mask issuer.
 use super::*;
 use zeroize::Zeroize;
+mod interval50;
 
 #[cfg(test)]
 thread_local! {
@@ -515,7 +516,7 @@ impl<C: AllocationContext> CorrectionFor<C> {
         self.masks.zeroize();
         state.digest = digest;
         // Scan count backing retires before its original reservation.
-        if self.spec.index_bits == 13 {
+        if matches!(self.spec.index_bits, 13 | 50) {
             self.retained_counts = Some(counts);
         } else {
             drop(counts);
