@@ -19,6 +19,9 @@ mod request_acceptance;
 #[path = "request_origin.rs"]
 mod request_origin;
 
+#[path = "source_entry.rs"]
+pub(super) mod source_entry;
+
 /// Only this module can create the actual token-input emission event.
 pub(super) struct CreatedRequestInput {
     owner: usize,
@@ -440,6 +443,56 @@ impl Program {
 
 /// Compiler-minted, borrowed descriptor validation. This is not source-byte
 /// authentication or complete-program admission. Fields cannot be caller-built.
+pub(super) fn source_shapes_from_plan(
+    plan: &pllm_models::DecoderPlan,
+    weights: WeightMode,
+) -> Result<(BTreeMap<String, Vec<usize>>, usize), String> {
+    let vocabulary = plan
+        .prefill
+        .operations
+        .iter()
+        .find(|op| op.operator == Op::OutputHead)
+        .ok_or("missing complete head")?
+        .output_shape[1] as usize;
+    let mut shapes = BTreeMap::new();
+    let mut known = BTreeMap::new();
+    for op in &plan.prefill.operations {
+        if let Some(name) = op.attributes.get("weight").and_then(|v| v.as_str()) {
+            let shape = match op.operator {
+                Op::TokenLookup => vec![vocabulary, *op.output_shape.last().unwrap() as usize],
+                Op::RmsNorm => vec![*op.output_shape.last().unwrap() as usize],
+                Op::Linear | Op::OutputHead => vec![
+                    *op.output_shape.last().unwrap() as usize,
+                    *known.get(&op.inputs[0]).ok_or("missing linear input")?,
+                ],
+                _ => return Err("unsupported replicated source operator".into()),
+            };
+            if shapes.get(name).is_some_and(|s| s != &shape) {
+                return Err("conflicting replicated source shape".into());
+            }
+            shapes.insert(name.into(), shape);
+        }
+        if let Some(name) = op.attributes.get("bias").and_then(|v| v.as_str()) {
+            shapes.insert(name.into(), vec![*op.output_shape.last().unwrap() as usize]);
+        }
+        known.insert(op.id.clone(), *op.output_shape.last().unwrap() as usize);
+    }
+    let count = shapes.values().try_fold(0usize, |total, shape| {
+        let n = shape.iter().try_fold(1usize, |n, d| n.checked_mul(*d))?;
+        total.checked_add(n)
+    });
+    if count.is_none_or(|n| {
+        n > if weights == WeightMode::Public {
+            MAX_PUBLIC_SOURCE_VALUES
+        } else {
+            MAX_VALUES
+        }
+    }) {
+        return Err("replicated source payload limit".into());
+    }
+    Ok((shapes, vocabulary))
+}
+
 pub(super) struct ValidatedSourceDescriptors<'a> {
     sources: &'a BTreeMap<String, SourceTensor>,
     norms: &'a SourceNorms,
@@ -459,7 +512,7 @@ impl<'a> ValidatedSourceDescriptors<'a> {
 }
 
 /// Shared source-contract checks, before any expanded execution nodes exist.
-fn validate_source_records<'a>(
+pub(super) fn validate_source_records<'a>(
     graph: &DecoderGraph,
     shapes: &BTreeMap<String, Vec<usize>>,
     sources: &'a BTreeMap<String, SourceTensor>,
@@ -1970,56 +2023,9 @@ impl Program {
     ) -> Result<BTreeMap<String, Vec<usize>>, String> {
         execution.validate(weights)?;
         let plan = lower_with_weights(config, rows, outputs, weights)?;
-        let vocabulary = plan
-            .prefill
-            .operations
-            .iter()
-            .find(|op| op.operator == Op::OutputHead)
-            .ok_or("missing complete head")?
-            .output_shape[1] as usize;
-        let mut shapes = BTreeMap::new();
-        let mut known = BTreeMap::new();
-        for op in &plan.prefill.operations {
-            if let Some(name) = op.attributes.get("weight").and_then(|v| v.as_str()) {
-                let shape = match op.operator {
-                    Op::TokenLookup => vec![vocabulary, *op.output_shape.last().unwrap() as usize],
-                    Op::RmsNorm => vec![*op.output_shape.last().unwrap() as usize],
-                    Op::Linear | Op::OutputHead => vec![
-                        *op.output_shape.last().unwrap() as usize,
-                        *known.get(&op.inputs[0]).ok_or("missing linear input")?,
-                    ],
-                    _ => return Err("unsupported replicated source operator".into()),
-                };
-                if shapes.get(name).is_some_and(|s| s != &shape) {
-                    return Err("conflicting replicated source shape".into());
-                }
-                shapes.insert(name.into(), shape);
-            }
-            if let Some(name) = op.attributes.get("bias").and_then(|v| v.as_str()) {
-                shapes.insert(name.into(), vec![*op.output_shape.last().unwrap() as usize]);
-            }
-            known.insert(op.id.clone(), *op.output_shape.last().unwrap() as usize);
-        }
-        let source_values = shapes.values().try_fold(0usize, |total, shape| {
-            let n = shape
-                .iter()
-                .try_fold(1usize, |n, width| n.checked_mul(*width))?;
-            total.checked_add(n)
-        });
-        if source_values.is_none_or(|n| {
-            n > if weights == WeightMode::Public {
-                MAX_PUBLIC_SOURCE_VALUES
-            } else {
-                MAX_VALUES
-            }
-        }) {
-            return Err("replicated source payload limit".into());
-        }
-        // Construction views retire at last semantic use. Bound even the worst
-        // uncompressible strided descriptors, vector growth and construction
-        // copies at the largest live frontier. Persistent views remain charged
-        // until this full-prefix graph retires. The emitted program has its own
-        // independently checked MAX_PROGRAM_BYTES allowance.
+        let (shapes, vocabulary) = source_shapes_from_plan(&plan, weights)?;
+        // Construction views retire at last semantic use. Preserve the original
+        // final-prefix lower/admission on the legacy byte-config route only.
         let final_plan;
         let prefill = if outputs > 1 {
             final_plan = lower_with_weights(config, rows + outputs - 1, 1, weights)?;

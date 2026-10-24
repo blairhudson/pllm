@@ -12,6 +12,90 @@ pub const PUBLIC_NUMERIC: &str =
 pub const CHECKED_NUMERIC: &str =
     "puma.public-q18.checked-range.rmsnorm-epsilon1.full-prefix.final-greedy-ids.v1";
 
+/// Compiler-native opt-in only. Not a discoverable component, SDK route or a
+/// constructor from a compiled Program. Source config lineage is not checkpoint
+/// authentication: the actual immutable PublicSource is independently checked.
+#[doc(hidden)]
+pub struct SourceRequestProgram(std::sync::Arc<Program>);
+
+#[doc(hidden)]
+pub use program::source_entry::SourceRequestImport;
+
+impl SourceRequestProgram {
+    /// No plan copy/JSON roundtrip, guard extraction or manufactured request
+    /// permit. The complete call consumes its source/admission even on failure.
+    #[allow(clippy::too_many_arguments)]
+    pub fn construct(
+        original: crate::original_source::OriginalSourcePlan,
+        manifest: pllm_garble::shared_allocation::OwnedCharged<super::Manifest>,
+        public: std::sync::Arc<super::PublicSource>,
+        registry_guard: pllm_garble::shared_allocation::OwnedExternalCharge,
+        imports_guard: pllm_garble::shared_allocation::OwnedExternalCharge,
+        controller: pllm_garble::shared_allocation::OwnedExternalCharge,
+        limits: crate::original_source::Limits,
+        cap: usize,
+    ) -> Result<Self, super::Error> {
+        use super::source_registry::{self, SourceConstructionOwners};
+        use std::mem::size_of;
+        if !std::ptr::eq(manifest.budget(), original.budget()) {
+            return Err(super::Error::Binding);
+        }
+        let dto = manifest.payload();
+        let minimum = std::mem::size_of_val(manifest.payload())
+            .checked_add(dto.schema.capacity())
+            .and_then(|n| n.checked_add(dto.config.capacity()))
+            .and_then(|n| n.checked_add(size_of::<Self>()))
+            .ok_or(super::Error::Bounds)?;
+        let minimum = minimum
+            .checked_add(source_registry::source_metadata_bytes(
+                &dto.tensors,
+                &dto.norms,
+            )?)
+            .ok_or(super::Error::Bounds)?;
+        if manifest.charged_bytes() < minimum {
+            return Err(super::Error::Bounds);
+        }
+        let baseline = original
+            .budget()
+            .used_bytes()
+            .checked_sub(registry_guard.payload_bytes())
+            .ok_or(super::Error::Bounds)?;
+        let owners = SourceConstructionOwners {
+            manifest: dto,
+            incoming: None,
+            public: Some(&public),
+            retained_baseline_bytes: baseline,
+        };
+        let program = program::source_entry::compile(
+            original,
+            owners,
+            std::sync::Arc::clone(&public),
+            program::source_entry::EntryGuards {
+                registry: registry_guard,
+                imports: imports_guard,
+                controller,
+            },
+            limits,
+            cap,
+        )?;
+        Ok(Self(program))
+    }
+
+    pub fn program(&self) -> &std::sync::Arc<Program> {
+        &self.0
+    }
+
+    /// Existing original setup/runtime/PRSS are the only execution constructors.
+    /// Consuming this wrapper issues no BODY handoff or transport-drain proof.
+    pub fn worker(
+        self,
+        runtime: super::puma::multiply::PartyRuntime,
+        session: [u8; 32],
+    ) -> Result<super::Worker, super::Error> {
+        self.0.source_request_worker(runtime, session)
+    }
+}
+
 fn policy(document: &ExperimentDocument) -> Result<(WeightMode, ExecutionPolicy), String> {
     let params = &document
         .pipeline

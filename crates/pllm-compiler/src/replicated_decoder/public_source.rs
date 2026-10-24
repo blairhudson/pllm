@@ -1,8 +1,8 @@
 //! Source-certified public Q18 snapshots. Checkpoint bytes arrive in bounded
 //! frames; neither publication nor execution retains a resident weight matrix.
 use super::source_registry::{
-    SourceConstructionQuote, SourceRegistry, add_bytes, array_bytes, binding_workspace_bytes,
-    tree_entry_bytes,
+    add_bytes, array_bytes, binding_workspace_bytes, tree_entry_bytes, SourceConstructionQuote,
+    SourceRegistry,
 };
 use super::*;
 use pllm_core::public_file::{PublicFile, PublicFileWriter};
@@ -125,7 +125,6 @@ impl PublicSourceImport {
     /// This entry reuses that authority instead of rerunning allocating semantic
     /// lowering/shape maps. It does not validate a manifest execution digest.
     /// Legacy `new(&Manifest)` and its default routing remain unchanged.
-    #[cfg(test)]
     pub(super) fn new_checked(
         registry: &SourceRegistry<'_>,
         retained_baseline_bytes: usize,
@@ -464,7 +463,6 @@ fn public_file_arc_bytes() -> Result<usize, Error> {
     add_bytes(size_of::<std::fs::File>(), array_bytes::<usize>(2)?)
 }
 
-#[cfg(test)]
 fn copy_slice<T: Copy>(source: &[T]) -> Result<Vec<T>, Error> {
     let mut copy = Vec::new();
     copy.try_reserve_exact(source.len())
@@ -476,7 +474,6 @@ fn copy_slice<T: Copy>(source: &[T]) -> Result<Vec<T>, Error> {
     Ok(copy)
 }
 
-#[cfg(test)]
 fn copy_string(source: &str) -> Result<String, Error> {
     let mut copy = String::new();
     copy.try_reserve_exact(source.len())

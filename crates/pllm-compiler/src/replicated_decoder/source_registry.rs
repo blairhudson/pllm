@@ -401,6 +401,115 @@ impl Instance {
 }
 
 impl<'a> SourceRegistry<'a> {
+    /// Source-shape and validator temporaries BEFORE their factories. This uses
+    /// the actual factory plan, not a second config lower or a parsed plan DTO.
+    pub(super) fn original_construction_quote(
+        original: &crate::original_source::OriginalSourcePlan,
+        owners: &SourceConstructionOwners<'_>,
+        cap: usize,
+    ) -> Result<SourceConstructionQuote, Error> {
+        let graph = &original.plan().prefill;
+        let mut shape_bytes = size_of::<BTreeMap<String, Vec<usize>>>();
+        shape_bytes = add_bytes(shape_bytes, size_of::<BTreeMap<String, usize>>())?;
+        for op in &graph.operations {
+            shape_bytes = add_bytes(shape_bytes, tree_entry_bytes::<(String, usize)>()?)?;
+            shape_bytes = add_bytes(shape_bytes, op.id.capacity())?;
+            for field in ["weight", "bias"] {
+                if let Some(key) = op.attributes.get(field).and_then(|v| v.as_str()) {
+                    shape_bytes =
+                        add_bytes(shape_bytes, tree_entry_bytes::<(String, Vec<usize>)>()?)?;
+                    shape_bytes = add_bytes(shape_bytes, key.len())?;
+                    shape_bytes = add_bytes(shape_bytes, array_bytes::<usize>(2)?)?;
+                }
+            }
+        }
+        // Shared validator's new tree/set/staging peak is independent of shape
+        // contents. Its shape retained term is empty here; add the FULL bounded
+        // shape/known-map construction above before either phase allocates.
+        let mut q = descriptor_validation_quote(graph, &BTreeMap::new(), owners, cap)?;
+        for n in [
+            shape_bytes,
+            size_of::<Self>(),
+            size_of::<Result<Self, Error>>(),
+            crate::original_source::OriginalSourcePlan::compiler_metadata_control_bytes()
+                .map_err(|_| Error::Bounds)?,
+            1024, // bounded original validation error strings/control overlap
+        ] {
+            q.new_owned_peak_bytes = add_bytes(q.new_owned_peak_bytes, n)?;
+            q.peak_bytes = add_bytes(q.peak_bytes, n)?;
+        }
+        q.admit(cap)?;
+        Ok(q)
+    }
+
+    /// Pre-import descriptor validation is NOT file authentication. This closed
+    /// funnel exists so the checked importer can build the actual immutable
+    /// snapshot; request declaration still requires check_registry afterwards.
+    pub(super) fn from_original_records_checked(
+        original: &crate::original_source::OriginalSourcePlan,
+        owners: &SourceConstructionOwners<'a>,
+        guard: &pllm_garble::shared_allocation::OwnedExternalCharge,
+        cap: usize,
+    ) -> Result<Self, Error> {
+        let manifest = owners.manifest;
+        if !guard.is_for(original.budget())
+            || original.raw_configuration() != manifest.config
+            || original.workload().batch != 1
+            || original.workload().max_input_tokens != manifest.rows as u64
+            || original.workload().max_new_tokens != manifest.outputs as u64
+            || manifest.weights != super::WeightMode::Public
+        {
+            return Err(Error::Binding);
+        }
+        manifest
+            .execution
+            .validate(manifest.weights)
+            .map_err(|_| Error::Binding)?;
+        let q = Self::original_construction_quote(original, owners, cap)?;
+        if guard.payload_bytes() < q.new_owned_peak_bytes {
+            return Err(Error::Bounds);
+        }
+        let graph = &original.plan().prefill;
+        let visits = semantic_metadata_bytes(graph)?
+            .checked_add(source_metadata_bytes(&manifest.tensors, &manifest.norms)?)
+            .and_then(|n| n.checked_mul(graph.operations.len().checked_add(1)?))
+            .ok_or(Error::Bounds)?;
+        original
+            .prepay_compiler_metadata(guard, u64::try_from(visits).map_err(|_| Error::Bounds)?)
+            .map_err(|_| Error::Bounds)?;
+        let (shapes, _) = program::source_shapes_from_plan(original.plan(), manifest.weights)
+            .map_err(|_| Error::Binding)?;
+        let validated = program::validate_source_records(
+            graph,
+            &shapes,
+            &manifest.tensors,
+            manifest.weights,
+            manifest.execution,
+            &manifest.norms,
+        )
+        .map_err(|_| Error::Binding)?;
+        // Sole existing mint; preserve its identity and all bias owner checks.
+        Self::from_validated(validated)
+    }
+
+    pub(super) fn from_original_checked(
+        original: &crate::original_source::OriginalSourcePlan,
+        owners: &SourceConstructionOwners<'a>,
+        public: &Arc<super::PublicSource>,
+        guard: &pllm_garble::shared_allocation::OwnedExternalCharge,
+        cap: usize,
+    ) -> Result<Self, Error> {
+        if owners
+            .public
+            .is_none_or(|owner| !Arc::ptr_eq(owner, public))
+        {
+            return Err(Error::Binding);
+        }
+        let registry = Self::from_original_records_checked(original, owners, guard, cap)?;
+        public.check_registry(&registry)?;
+        Ok(registry)
+    }
+
     /// Original source-descriptor validation, not expanded Program compilation.
     /// Reuses allocating metadata/lowering validation, not the allocation-free
     /// borrowing step alone; see the module's construction-audit limitation.

@@ -260,7 +260,7 @@ impl Drop for Attempt {
 /// Uses the ONE original request driver and epilogue; no previously compiled
 /// Program, Manifest identity, or oracle qualification is accepted as input.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn compile(
+pub(in crate::replicated_decoder::program) fn compile(
     builder: Builder,
     permit: RequestInputPermit<'_>,
     inputs: &BTreeMap<String, SourceView>,

@@ -1,4 +1,5 @@
 //! Bounded party-local bindings; parse failures retire the complete owner.
+use pllm_compiler::replicated_decoder::sdk::{SourceRequestImport, SourceRequestProgram};
 use pllm_compiler::replicated_decoder::{
     ExecutionPolicy, LookupPolicy, Manifest, PeerTransport, Program, PublicSource,
     PublicSourceImport, Publisher, RangePolicy, SelectionPolicy, WeightMode, Worker,
@@ -257,13 +258,18 @@ impl NativePublisher {
 // infallible allocation when setup transfers into the decoder.
 #[allow(clippy::large_enum_variant)]
 enum State {
+    SourceRequest(SourceRequestImport),
+    SourceSetup {
+        setup: multiply::SetupParty,
+        request: SourceRequestProgram,
+    },
     PublicSource(PublicSourceImport),
     Setup(multiply::SetupParty),
     Run(Worker),
 }
 struct Owner {
     state: State,
-    program: Arc<Program>,
+    program: Option<Arc<Program>>,
     session: [u8; 32],
     party: Party,
     public: Option<PublicSource>,
@@ -307,7 +313,7 @@ impl NativeWorker {
                 };
                 Ok(Owner {
                     state,
-                    program,
+                    program: Some(program),
                     session,
                     party,
                     public: None,
@@ -316,6 +322,30 @@ impl NativeWorker {
             .map_err(error)?;
         Ok(Self {
             owner: Some(owner),
+            pid: std::process::id(),
+        })
+    }
+    /// Private opt-in. Python supplies immutable wire/config bytes and existing
+    /// role only; ALL factory/source/token/history authority is minted in Rust.
+    /// CPython allocator/RSS are not part of the compiler's logical admission.
+    #[staticmethod]
+    fn _from_source_request(
+        py: Python<'_>,
+        manifest: &Bound<'_, PyBytes>,
+        role: usize,
+    ) -> PyResult<Self> {
+        let party = party(role)?;
+        let raw = manifest.as_bytes();
+        let importer = py.detach(|| SourceRequestImport::new(raw)).map_err(error)?;
+        let session = importer.session().map_err(error)?;
+        Ok(Self {
+            owner: Some(Owner {
+                state: State::SourceRequest(importer),
+                program: None,
+                session,
+                party,
+                public: None,
+            }),
             pid: std::process::id(),
         })
     }
@@ -334,11 +364,15 @@ impl NativeWorker {
         }
         let offset = integer(&offset)?;
         let data = bytes(&data, 16384)?;
-        let State::PublicSource(importer) = &mut owner.state else {
-            return Err(error("public source import outside admitted phase"));
-        };
-        py.detach(|| importer.append(key, offset, data))
-            .map_err(error)?;
+        match &mut owner.state {
+            State::PublicSource(importer) => py
+                .detach(|| importer.append(key, offset, data))
+                .map_err(error)?,
+            State::SourceRequest(importer) => py
+                .detach(|| importer.append(key, offset, data))
+                .map_err(error)?,
+            _ => return Err(error("public source import outside admitted phase")),
+        }
         self.owner = Some(owner);
         Ok(())
     }
@@ -358,9 +392,24 @@ impl NativeWorker {
             party,
             ..
         } = owner;
-        let State::PublicSource(importer) = state else {
-            return Err(error("public source import outside admitted phase"));
+        let importer = match state {
+            State::SourceRequest(importer) => {
+                let request = py.detach(|| importer.finish()).map_err(error)?;
+                let program = Arc::clone(request.program());
+                let setup = py.detach(|| program.setup(session, party)).map_err(error)?;
+                self.owner = Some(Owner {
+                    state: State::SourceSetup { setup, request },
+                    program: Some(program),
+                    session,
+                    party,
+                    public: None,
+                });
+                return Ok(());
+            }
+            State::PublicSource(importer) => importer,
+            _ => return Err(error("public source import outside admitted phase")),
         };
+        let program = program.ok_or_else(|| error("missing original program"))?;
         let (public, setup) = py
             .detach(|| -> Result<_, String> {
                 let public = importer.finish()?;
@@ -370,7 +419,7 @@ impl NativeWorker {
             .map_err(error)?;
         self.owner = Some(Owner {
             state: State::Setup(setup),
-            program,
+            program: Some(program),
             session,
             party,
             public: Some(public),
@@ -393,28 +442,34 @@ impl NativeWorker {
             .detach(|| -> Result<_, String> {
                 let mut frames: Vec<(usize, Zeroizing<Vec<u8>>)> = vec![];
                 match (&mut owner.state, action) {
-                    (State::Setup(setup), "offer") if data.is_empty() => {
+                    (State::Setup(setup) | State::SourceSetup { setup, .. }, "offer")
+                        if data.is_empty() =>
+                    {
                         let frame = setup.contribution().map_err(|e| e.to_string())?.encode();
                         frames.push((owner.party as usize, Zeroizing::new(frame.to_vec())));
                     }
-                    (State::Setup(setup), "public") => setup
+                    (State::Setup(setup) | State::SourceSetup { setup, .. }, "public") => setup
                         .receive_public(
                             prss::PublicContribution::decode(data, sender)
                                 .map_err(|e| e.to_string())?,
                         )
                         .map_err(|e| e.to_string())?,
-                    (State::Setup(setup), "seed") if data.is_empty() => {
+                    (State::Setup(setup) | State::SourceSetup { setup, .. }, "seed")
+                        if data.is_empty() =>
+                    {
                         let message = setup.share_seed().map_err(|e| e.to_string())?;
                         let to = message.recipient();
                         let encoded = message.encode().map_err(|e| e.to_string())?;
                         frames.push((to as usize, Zeroizing::new(encoded.as_bytes().to_vec())));
                     }
-                    (State::Setup(setup), "receive_seed") => setup
-                        .receive_seed(
-                            prss::SeedMessage::decode(data, sender, owner.party)
-                                .map_err(|e| e.to_string())?,
-                        )
-                        .map_err(|e| e.to_string())?,
+                    (State::Setup(setup) | State::SourceSetup { setup, .. }, "receive_seed") => {
+                        setup
+                            .receive_seed(
+                                prss::SeedMessage::decode(data, sender, owner.party)
+                                    .map_err(|e| e.to_string())?,
+                            )
+                            .map_err(|e| e.to_string())?
+                    }
                     (State::Run(worker), "advance") if data.is_empty() => {
                         for (to, frame) in worker.advance().map_err(|e| e.to_string())? {
                             frames.push((to as usize, Zeroizing::new(frame.as_bytes().to_vec())));
@@ -486,17 +541,21 @@ impl NativeWorker {
             party,
             public,
         } = owner;
-        let State::Setup(mut setup) = state else {
-            return Err(error("replicated setup already consumed"));
-        };
+        let program = program.ok_or_else(|| error("missing original program"))?;
         let worker = py
-            .detach(|| {
-                Worker::new_with_source(Arc::clone(&program), setup.finish()?, session, public)
+            .detach(|| match state {
+                State::Setup(mut setup) => {
+                    Worker::new_with_source(Arc::clone(&program), setup.finish()?, session, public)
+                }
+                State::SourceSetup { mut setup, request } => {
+                    request.worker(setup.finish()?, session)
+                }
+                _ => Err(pllm_core::puma::Error::Retired),
             })
             .map_err(error)?;
         self.owner = Some(Owner {
             state: State::Run(worker),
-            program,
+            program: Some(program),
             session,
             party,
             public: None,
@@ -561,6 +620,10 @@ mod quality_rejection_tests {
         });
     }
 }
+
+#[cfg(test)]
+#[path = "replicated_source_entry_tests.rs"]
+mod source_entry_tests;
 
 #[pyfunction]
 fn replicated_source_contract(
