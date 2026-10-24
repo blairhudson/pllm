@@ -112,6 +112,19 @@ impl Profile {
                 .then(|| 2 * ((1usize << d) - 1)),
         }
     }
+
+    /// Private D43 full-scan permission. Default profiles/resources continue to
+    /// expose full expansion ONLY for index8/10. No source or range authority is
+    /// conferred: the closed LayerNorm issuer must bind its certified table.
+    pub(crate) fn layernorm13_resources(self) -> Result<Resources, Error> {
+        if self.bits != 13 {
+            return Err(Error::Domain);
+        }
+        let mut resources = self.resources();
+        resources.full_expansion_bytes = Some(1 << 13);
+        resources.full_expansion_aes_blocks = Some(2 * ((1 << self.depth()) - 1));
+        Ok(resources)
+    }
 }
 
 /// All corrections are inline: issuance and decode never allocate.
@@ -386,13 +399,37 @@ impl GpuKey {
     pub(crate) fn all_with_allocator(
         &self,
         allocation_limit: usize,
-        mut allocate: impl FnMut(usize) -> Result<Vec<u8>, Error>,
+        allocate: impl FnMut(usize) -> Result<Vec<u8>, Error>,
     ) -> Result<Zeroizing<Vec<u8>>, Error> {
         let count = self
             .profile
             .resources()
             .full_expansion_bytes
             .ok_or(Error::Resource)?;
+        self.all_with_count(count, allocation_limit, allocate)
+    }
+
+    /// Same walk/terminal/codec, restricted to the private LayerNorm13 profile.
+    /// Its enclosing issuer owns the certified public table and scratch charge.
+    pub(crate) fn all_layernorm13_with_allocator(
+        &self,
+        allocation_limit: usize,
+        allocate: impl FnMut(usize) -> Result<Vec<u8>, Error>,
+    ) -> Result<Zeroizing<Vec<u8>>, Error> {
+        let count = self
+            .profile
+            .layernorm13_resources()?
+            .full_expansion_bytes
+            .ok_or(Error::Resource)?;
+        self.all_with_count(count, allocation_limit, allocate)
+    }
+
+    fn all_with_count(
+        &self,
+        count: usize,
+        allocation_limit: usize,
+        mut allocate: impl FnMut(usize) -> Result<Vec<u8>, Error>,
+    ) -> Result<Zeroizing<Vec<u8>>, Error> {
         if count > allocation_limit {
             return Err(Error::Resource);
         }
@@ -479,3 +516,7 @@ impl GpuKey {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "gpu127_layernorm13_tests.rs"]
+mod layernorm13_tests;
