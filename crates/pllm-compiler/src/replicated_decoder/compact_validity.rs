@@ -442,12 +442,21 @@ pub(super) fn input_bounds(
                         && !matches!(
                             op.kind,
                             PublishedKind::Reshape
+                                | PublishedKind::KvInitialize { .. }
+                                | PublishedKind::CacheSuffix
                                 | PublishedKind::LastToken { .. }
                                 | PublishedKind::TokenFeedback
                         )
                 })
                 .ok_or(Error::Binding)?;
             match &op.kind {
+                PublishedKind::Rotary(rows) => {
+                    let offset = owner - op.first;
+                    if offset % 2 != 1 {
+                        return Err(Error::Binding);
+                    }
+                    rows.native.get(offset / 2).ok_or(Error::Binding)?.bounds
+                }
                 PublishedKind::RmsNorm {
                     program, checked, ..
                 } => {
@@ -555,7 +564,11 @@ pub(super) fn row_energy(
         return Ok(None);
     };
     match &graph.ops[slot].kind {
-        PublishedKind::Reshape | PublishedKind::LastToken { .. } | PublishedKind::TokenFeedback => {
+        PublishedKind::Reshape
+        | PublishedKind::LastToken { .. }
+        | PublishedKind::TokenFeedback
+        | PublishedKind::KvInitialize { .. }
+        | PublishedKind::CacheSuffix => {
             let Some((original, start)) = graph.alias_range(input, row * width, width)? else {
                 return Ok(None);
             };

@@ -146,6 +146,22 @@ pub(in crate::replicated_decoder) mod compact_admission;
 #[path = "compact_input_owner.rs"]
 mod input_owner;
 
+#[path = "compact_lowering/compact_request_rescale.rs"]
+mod request_rescale;
+
+#[cfg(test)]
+#[path = "compact_lowering/compact_request_rescale_tests.rs"]
+mod request_rescale_tests;
+
+#[path = "compact_lowering/compact_request_silu.rs"]
+mod request_silu;
+#[cfg(test)]
+#[path = "compact_lowering/compact_request_silu_tests.rs"]
+mod request_silu_tests;
+
+#[path = "compact_rotary.rs"]
+mod compact_rotary;
+
 #[cfg(test)]
 #[path = "compact_contraction_driver_tests.rs"]
 mod contraction_driver_tests;
@@ -722,6 +738,14 @@ impl ProjectionBias<'_> {
 }
 
 enum PublishedKind<'a> {
+    CacheSuffix,
+    /// Actual original cache declaration. Position-zero head concatenation is
+    /// the exact ordered input mapping, no new executable node or value slot.
+    KvInitialize {
+        layer: u64,
+        state: pllm_models::StateKind,
+    },
+    Rotary(compact_rotary::Rows),
     TokenLookup {
         weight: usize,
         source: &'a SourceTensor,
@@ -912,6 +936,15 @@ pub(in crate::replicated_decoder) struct ProjectionBiasLayout {
 }
 
 pub(in crate::replicated_decoder) enum DescriptorKind {
+    CacheSuffix,
+    KvInitialize {
+        layer: u64,
+        state: pllm_models::StateKind,
+    },
+    Rotary {
+        rows: usize,
+        width: usize,
+    },
     /// Original public PerToken recipe: equality loop, gather, transposed raw
     /// public product per token. Not a body emitter or token-domain certificate.
     TokenLookup {
@@ -968,6 +1001,15 @@ impl PublishedOp<'_> {
             virtual_start: self.first,
             virtual_end,
             kind: match &self.kind {
+                PublishedKind::CacheSuffix => DescriptorKind::CacheSuffix,
+                PublishedKind::KvInitialize { layer, state } => DescriptorKind::KvInitialize {
+                    layer: *layer,
+                    state: *state,
+                },
+                PublishedKind::Rotary(rows) => DescriptorKind::Rotary {
+                    rows: rows.native.len(),
+                    width: rows.width,
+                },
                 PublishedKind::TokenLookup { weight, plan, .. } => DescriptorKind::TokenLookup {
                     source_owner: *weight,
                     geometry: [self.input.lanes, plan.vocabulary, self.output.shape[2]],
@@ -1323,6 +1365,32 @@ struct NativeConstructionPeak {
 }
 
 impl NativeConstructionPeak {
+    fn include_repeated(
+        &mut self,
+        construction: tensor::Construction,
+        count: usize,
+    ) -> Result<(), Error> {
+        if count == 0 {
+            return Err(Error::Shape);
+        }
+        let quote = native_construction_quote(construction)?;
+        let previous = quote
+            .immutable_template_bytes
+            .checked_mul(count - 1)
+            .ok_or(Error::Bounds)?;
+        self.peak = self.peak.max(add_bytes(
+            add_bytes(self.retained, previous)?,
+            quote.new_peak_bytes,
+        )?);
+        self.retained = add_bytes(
+            self.retained,
+            quote
+                .immutable_template_bytes
+                .checked_mul(count)
+                .ok_or(Error::Bounds)?,
+        )?;
+        Ok(())
+    }
     fn include(&mut self, construction: tensor::Construction) -> Result<(), Error> {
         let quote = native_construction_quote(construction)?;
         self.peak = self
@@ -2578,7 +2646,10 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             };
             let op = self.ops.get(slot).ok_or(Error::Binding)?;
             match &op.kind {
-                PublishedKind::Reshape | PublishedKind::TokenFeedback => input = &op.input,
+                PublishedKind::Reshape
+                | PublishedKind::TokenFeedback
+                | PublishedKind::KvInitialize { .. }
+                | PublishedKind::CacheSuffix => input = &op.input,
                 PublishedKind::Argmax(plan) if plan.geometry.lanes == vocabulary => return Ok(()),
                 _ => return Err(Error::Binding),
             }
@@ -2692,6 +2763,15 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 _ => None,
             })
             .flat_map(|prepared| prepared.programs())
+            .chain(
+                self.ops
+                    .iter()
+                    .filter_map(|op| match &op.kind {
+                        PublishedKind::Rotary(rows) => Some(rows),
+                        _ => None,
+                    })
+                    .flat_map(|rows| rows.native.iter().map(|row| &row.program)),
+            )
             .chain(self.ops.iter().filter_map(|op| match &op.kind {
                 PublishedKind::RmsNorm {
                     program,
@@ -3137,6 +3217,21 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             2 * std::mem::size_of::<Result<Self, Error>>() + 2 * std::mem::size_of::<usize>(),
         )?;
         for op in &self.ops {
+            if let PublishedKind::Rotary(rows) = &op.kind {
+                bytes = add_bytes(
+                    bytes,
+                    array_bytes::<compact_rotary::NativeRow>(rows.native.capacity())?,
+                )?;
+                for row in &rows.native {
+                    bytes = add_bytes(
+                        bytes,
+                        add_bytes(
+                            row.program.resources()?.immutable_template_bytes,
+                            2 * std::mem::size_of::<usize>(),
+                        )?,
+                    )?;
+                }
+            }
             if let Some(MapOwner {
                 storage: MapStorage::Owned(prepared),
                 ..
@@ -3568,7 +3663,11 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         };
         if matches!(
             self.ops[slot].kind,
-            PublishedKind::Reshape | PublishedKind::TokenFeedback | PublishedKind::LastToken { .. }
+            PublishedKind::Reshape
+                | PublishedKind::TokenFeedback
+                | PublishedKind::LastToken { .. }
+                | PublishedKind::KvInitialize { .. }
+                | PublishedKind::CacheSuffix
         ) {
             let Some((original, start)) = self.alias_range(view, row * width, width)? else {
                 return Ok(None);
@@ -3604,7 +3703,12 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
     fn row_norm(&self, input: &PublishedView) -> Result<Option<u128>, Error> {
         self.validate_view(input)?;
         if let Some(slot) = input.slot {
-            if matches!(self.ops[slot].kind, PublishedKind::TokenFeedback) {
+            if matches!(
+                self.ops[slot].kind,
+                PublishedKind::TokenFeedback
+                    | PublishedKind::KvInitialize { .. }
+                    | PublishedKind::CacheSuffix
+            ) {
                 return self.row_norm(&self.ops[slot].input);
             }
             if matches!(self.ops[slot].kind, PublishedKind::Reshape) {
@@ -3654,6 +3758,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             if !matches!(
                 op.kind,
                 PublishedKind::Reshape
+                    | PublishedKind::KvInitialize { .. }
+                    | PublishedKind::CacheSuffix
                     | PublishedKind::TokenFeedback
                     | PublishedKind::LastToken { .. }
             ) {
@@ -3707,9 +3813,41 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         let Some(slot) = view.slot else {
             return Ok(None);
         };
+        if let PublishedKind::Rotary(rows) = &self.ops[slot].kind {
+            let op = &self.ops[slot];
+            let Some((original, offset)) = self.alias_range(view, start, count)? else {
+                return Ok(None);
+            };
+            let (owner, lane) = original.word(offset)?;
+            let Some(relative) = owner.checked_sub(op.first) else {
+                return Ok(None);
+            };
+            if relative % 2 != 1 || lane != 0 || count != rows.width {
+                return Ok(None);
+            }
+            let row = relative / 2;
+            let Some(native) = rows.native.get(row) else {
+                return Ok(None);
+            };
+            let first = row.checked_mul(rows.width).ok_or(Error::Bounds)?;
+            // Slot/width alone issue nothing: resolve actual caller order and
+            // offset against this ORIGINAL published output row. Its native
+            // owner is coupled to the equally ordered original input gather.
+            for i in 0..rows.width {
+                if original.word(offset + i)? != op.output.word(first + i)? {
+                    return Ok(None);
+                }
+                let _ = op.input.word(first + i)?;
+            }
+            return Ok(native.attention_energy);
+        }
         if matches!(
             self.ops[slot].kind,
-            PublishedKind::LastToken { .. } | PublishedKind::TokenFeedback | PublishedKind::Reshape
+            PublishedKind::LastToken { .. }
+                | PublishedKind::TokenFeedback
+                | PublishedKind::Reshape
+                | PublishedKind::KvInitialize { .. }
+                | PublishedKind::CacheSuffix
         ) {
             let Some((original, start)) = self.alias_range(view, start, count)? else {
                 return Ok(None);
@@ -3822,7 +3960,16 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         };
         let right = b.cloned();
         self.validate_view(&input)?;
-        let logical = ViewShape::semantic(&op.output_shape)?;
+        let mut logical = ViewShape::semantic(&op.output_shape)?;
+        if self.request_admission.is_some() {
+            let keys = usize::try_from(self.frontier.semantic_graph().query_sequence)
+                .map_err(|_| Error::Bounds)?;
+            graph::actual_key_shape(
+                op.operator,
+                keys,
+                &mut logical.dimensions[..usize::from(logical.rank)],
+            )?;
+        }
         let shape = logical.envelope()?;
         let lanes = logical.lanes()?;
         if lanes == 0 || lanes > MAX_VALUES {
@@ -3835,7 +3982,13 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             return Err(Error::Bounds);
         }
         self.admit_local(self.baseline()?)?;
-        if !matches!(op.operator, Op::Reshape | Op::TokenFeedback)
+        let rank_four = matches!(op.operator, Op::Reshape | Op::TokenFeedback)
+            || self.request_admission.is_some()
+                && matches!(
+                    op.operator,
+                    Op::RotaryEmbedding | Op::KvCacheAppend | Op::CacheSuffix
+                );
+        if !rank_four
             && (input.rank > 3 || logical.rank > 3 || input.shape[0] != 1 || shape[0] != 1)
         {
             return Err(Error::Shape);
@@ -3850,6 +4003,52 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             None
         };
         let (kind, prepared, mapping, bounds, nodes, work) = match op.operator {
+            Op::CacheSuffix if logical == input.logical => {
+                graph::driver::check_cache_suffix(op)?;
+                (
+                    PublishedKind::CacheSuffix,
+                    None,
+                    input.mapping,
+                    input.bounds,
+                    0,
+                    WorkBudget::default(),
+                )
+            }
+            Op::KvCacheAppend if logical == input.logical && input.rank == 4 => {
+                let ((layer, state), mode) = graph::attention_driver::cache_declaration(op)?;
+                let sequence = usize::try_from(self.frontier.semantic_graph().query_sequence)
+                    .map_err(|_| Error::Bounds)?;
+                if self.request_admission.is_none()
+                    || mode != "initialize"
+                    || input.logical.dimensions[0] != 1
+                    || input.logical.dimensions[2] != sequence
+                {
+                    return Err(Error::Binding);
+                }
+                (
+                    PublishedKind::KvInitialize { layer, state },
+                    None,
+                    input.mapping,
+                    input.bounds,
+                    0,
+                    WorkBudget::default(),
+                )
+            }
+            Op::RotaryEmbedding if input.logical == logical => {
+                let rows = self.lower_rotary(op, &input)?;
+                let nodes = rows.native.len().checked_mul(2).ok_or(Error::Bounds)?;
+                let bounds = rows.bounds;
+                let work = rows.work;
+                let width = rows.width;
+                (
+                    PublishedKind::Rotary(rows),
+                    None,
+                    Mapping::Rows { first, width },
+                    bounds,
+                    nodes,
+                    work,
+                )
+            }
             Op::TokenLookup if op.inputs.len() == 1 => {
                 if self.imports.lookup != LookupPolicy::PerToken {
                     return Err(Error::Binding);
@@ -3947,6 +4146,10 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 let mut sink = PublicationSink { first, next: first };
                 let product = op.operator == Op::Multiply;
                 let summary = binary(&mut sink, &input, &right, product)?;
+                if let Some(context) = self.request_admission {
+                    context.check_final_work(self.work)?;
+                    context.admit_protocol_work(summary.work)?;
+                }
                 let row_energy = if product {
                     None
                 } else {
@@ -4016,7 +4219,9 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 .start
                 .checked_add(input.lanes.checked_sub(lanes).ok_or(Error::Shape)?)
                 .ok_or(Error::Bounds)?,
-            PublishedKind::TokenFeedback => input.start,
+            PublishedKind::TokenFeedback
+            | PublishedKind::KvInitialize { .. }
+            | PublishedKind::CacheSuffix => input.start,
             PublishedKind::Reshape => reshape.ok_or(Error::Binding)?.1,
             _ => 0,
         };
@@ -4033,7 +4238,10 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             logical
         };
         let output_order = match kind {
-            PublishedKind::LastToken { .. } | PublishedKind::TokenFeedback => input.order,
+            PublishedKind::LastToken { .. }
+            | PublishedKind::TokenFeedback
+            | PublishedKind::KvInitialize { .. }
+            | PublishedKind::CacheSuffix => input.order,
             PublishedKind::Reshape => reshape.ok_or(Error::Binding)?.0,
             _ => LaneOrder::Linear,
         };
@@ -4104,6 +4312,20 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
     pub(super) fn hash_expanded_nodes(&self, hash: &mut Sha256) -> Result<(), Error> {
         for (slot, op) in self.ops.iter().enumerate() {
             match &op.kind {
+                PublishedKind::Rotary(rows) => {
+                    for (row, native) in rows.native.iter().enumerate() {
+                        let first = op.first + 2 * row;
+                        hash_node_header(hash, rows.width, native.incoming);
+                        hash_gather(
+                            hash,
+                            (row * rows.width..(row + 1) * rows.width).map(|i| {
+                                op.input.word(i).expect("validated original rotary gather")
+                            }),
+                        );
+                        hash_node_header(hash, rows.width, native.bounds);
+                        hash_tensor(hash, first, &native.program);
+                    }
+                }
                 PublishedKind::TokenLookup { weight, plan, .. } => {
                     let width = op.output.shape[2];
                     for token in 0..op.input.lanes {
@@ -4232,6 +4454,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                     }
                 }
                 PublishedKind::LastToken { .. }
+                | PublishedKind::KvInitialize { .. }
+                | PublishedKind::CacheSuffix
                 | PublishedKind::TokenFeedback
                 | PublishedKind::Reshape => {}
                 PublishedKind::Argmax(plan) => {
@@ -5871,16 +6095,3 @@ mod constructor_quote_tests {
         ));
     }
 }
-
-#[path = "compact_lowering/compact_request_rescale.rs"]
-mod request_rescale;
-
-#[cfg(test)]
-#[path = "compact_lowering/compact_request_rescale_tests.rs"]
-mod request_rescale_tests;
-
-#[path = "compact_lowering/compact_request_silu.rs"]
-mod request_silu;
-#[cfg(test)]
-#[path = "compact_lowering/compact_request_silu_tests.rs"]
-mod request_silu_tests;

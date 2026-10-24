@@ -3,7 +3,7 @@
 //! No constructor wraps an arbitrary Program or accepts an external row proof.
 //! The captured interval is a local compiler-declaration subset contract, not
 //! external proof or checkpoint/source authority.
-use super::{Error, Interval, MAX_VALUES, WorkBudget, puma, tensor};
+use super::{puma, tensor, Error, Interval, WorkBudget, MAX_VALUES};
 use sha2::{Digest, Sha256};
 use std::{mem::size_of, sync::Arc};
 

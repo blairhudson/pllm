@@ -301,6 +301,21 @@ impl<'a> FrozenRegion<'a> {
                         })?;
                     }
                 }
+                PublishedKind::Rotary(rows) => {
+                    for row in 0..rows.native.len() {
+                        if row == 0 && rows.width == op.input.lanes {
+                            continue;
+                        }
+                        visit(GatherSpan {
+                            ordinal: op.first + 2 * row,
+                            coordinates: Coordinates::View {
+                                view: &op.input,
+                                start: row * rows.width,
+                            },
+                            lanes: rows.width,
+                        })?;
+                    }
+                }
                 PublishedKind::RmsNorm { checked, .. } => {
                     let width = op.output.shape[2];
                     if let Some(rows) = checked {
@@ -484,6 +499,24 @@ impl<'a> FrozenRegion<'a> {
                     self.check_prepared(slot, op.output.lanes)?;
                     2
                 }
+                PublishedKind::Rotary(rows) => {
+                    if rows.width == 0
+                        || rows.native.len().checked_mul(rows.width) != Some(op.output.lanes)
+                        || op.input.lanes != op.output.lanes
+                        || op.output.logical.rank != 4
+                    {
+                        return Err(Error::Shape);
+                    }
+                    for row in &rows.native {
+                        if row.program.lanes() != rows.width
+                            || row.program.output_lanes() != rows.width
+                            || row.bounds != row.program.output_bounds()
+                        {
+                            return Err(Error::Binding);
+                        }
+                    }
+                    rows.native.len().checked_mul(2).ok_or(Error::Bounds)?
+                }
                 PublishedKind::RmsNorm {
                     program,
                     checked,
@@ -499,9 +532,13 @@ impl<'a> FrozenRegion<'a> {
                         return Err(Error::Shape);
                     }
                     let guards = if let Some(checked) = checked {
-                        if self._prebound_inputs.is_none()
-                            || self.imports_owner.checked_bound.is_none()
-                        {
+                        if self._prebound_inputs.is_none() {
+                            let context = self.source_context.ok_or(Error::Binding)?;
+                            context.check_imports(self.imports_owner)?;
+                            self.validity
+                                .check_frozen_owner(self.imports_owner, &self.origin)?;
+                        }
+                        if self.imports_owner.checked_bound.is_none() {
                             return Err(Error::Binding);
                         }
                         checked.validate(self.imports_owner, &op.input, op.first, width, sticky)?;
@@ -538,7 +575,9 @@ impl<'a> FrozenRegion<'a> {
                 }
                 PublishedKind::LastToken { .. }
                 | PublishedKind::TokenFeedback
-                | PublishedKind::Reshape => 0,
+                | PublishedKind::Reshape
+                | PublishedKind::KvInitialize { .. }
+                | PublishedKind::CacheSuffix => 0,
                 PublishedKind::Argmax(plan) => {
                     let expected = ArgmaxGeometry::new(op.input.lanes)?;
                     if plan.first != op.first
@@ -984,6 +1023,30 @@ impl BorrowedOrderedNodes for FrozenSchedule<'_, '_> {
                 ),
                 _ => return Err(Error::Binding),
             },
+            PublishedKind::Rotary(rows) => {
+                let row = rows.native.get(offset / 2).ok_or(Error::Binding)?;
+                if offset % 2 == 0 {
+                    (
+                        rows.width,
+                        row.incoming,
+                        self.view_gather(
+                            ordinal,
+                            &op.input,
+                            rows.width * (offset / 2),
+                            rows.width,
+                        )?,
+                    )
+                } else {
+                    (
+                        rows.width,
+                        row.bounds,
+                        BorrowedRecipe::Tensor {
+                            input: ordinal - 1,
+                            program: &row.program,
+                        },
+                    )
+                }
+            }
             PublishedKind::RmsNorm {
                 program,
                 checked,

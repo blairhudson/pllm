@@ -346,6 +346,26 @@ pub(super) fn dispatch<V: Clone>(
     traversal.output()
 }
 
+/// Original execution geometry: semantic cache declarations carry capacity;
+/// actual native consumers use the live key count. Storage sinks share this
+/// adjustment, not a second decoder shape convention.
+pub(super) fn actual_key_shape(
+    operator: Op,
+    keys: usize,
+    shape: &mut [usize],
+) -> Result<(), Error> {
+    if matches!(operator, Op::KvCacheAppend | Op::CacheSuffix) {
+        shape[2] = keys;
+    }
+    if matches!(
+        operator,
+        Op::AttentionScores | Op::AttentionScale | Op::CausalMask | Op::Softmax
+    ) {
+        *shape.last_mut().ok_or(Error::Shape)? = keys;
+    }
+    Ok(())
+}
+
 impl Builder {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn graph(
@@ -387,15 +407,7 @@ impl Builder {
             site.operator = Some(op.operator);
             site.layer = op.layer;
             site.inputs = [None; 2];
-            if matches!(op.operator, Op::KvCacheAppend | Op::CacheSuffix) {
-                shape[2] = keys;
-            }
-            if matches!(
-                op.operator,
-                Op::AttentionScores | Op::AttentionScale | Op::CausalMask | Op::Softmax
-            ) {
-                *shape.last_mut().ok_or(Error::Shape)? = keys;
-            }
+            actual_key_shape(op.operator, keys, &mut shape)?;
             for (target, view) in site.inputs.iter_mut().zip([a, b]) {
                 if let Some(view) = view {
                     let bounds = self.bounds(&view.words)?;

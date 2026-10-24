@@ -1,7 +1,6 @@
 //! Original attention/rotary/KV composition over storage-neutral views.
-//! Numeric recipes, native Arc interning, source/certificate authority and
-//! publication charging stay in the Builder adapter. No compact enablement or
-//! aggregate admission. Expanded adapter retains the original Words/View
+//! Native Arc ownership, source/certificate authority and publication charging
+//! stay in the concrete adapters. Expanded adapter retains original Words/View
 //! buffers; sink calls may allocate. No generic callback, compiled callframe or
 //! physical-memory bound follows from this traversal interface.
 use super::*;
@@ -52,14 +51,41 @@ pub(super) trait AttentionSink {
     fn softmax_row(&mut self, row: &Self::Words, width: usize) -> Result<Self::Owner, Error>;
 }
 
-pub(super) fn rotary<S: AttentionSink>(
-    sink: &mut S,
+/// Shared original rotary traversal, independent of Words/View storage. The
+/// adapter below preserves expanded behavior; compact emission supplies mapped
+/// rows and owning native recipes, never an expanded intermediate Builder.
+pub(in crate::replicated_decoder) trait RotarySink {
+    type View;
+    type Row;
+    type Owner;
+    type Output: Default;
+    type Produced;
+    fn begin(
+        &mut self,
+        op: &pllm_models::ModelOperation,
+        shape: &[usize],
+        input: &Self::View,
+        position: usize,
+        sequence: usize,
+        theta: f32,
+    ) -> Result<(), Error>;
+    fn rows<'a>(input: &'a Self::View, width: usize) -> impl Iterator<Item = Self::Row> + 'a
+    where
+        Self::Row: 'a;
+    fn emit(
+        &mut self,
+        row: &Self::Row,
+        theta: f32,
+        position: u32,
+        width: usize,
+    ) -> Result<Self::Owner, Error>;
+    fn append(output: &mut Self::Output, owner: Self::Owner, width: usize);
+    fn finish(&mut self, output: Self::Output, shape: &[usize]) -> Result<Self::Produced, Error>;
+}
+pub(in crate::replicated_decoder) fn rotary_geometry(
     op: &pllm_models::ModelOperation,
     shape: &[usize],
-    input: Option<&S::View>,
-    position: usize,
-    sequence: usize,
-) -> Result<S::View, Error> {
+) -> Result<(usize, f32), Error> {
     if shape.len() != 4
         || shape[3] > 128
         || op.attributes.get("frequency_scaling").is_some()
@@ -72,32 +98,91 @@ pub(super) fn rotary<S: AttentionSink>(
         .get("theta")
         .and_then(|v| v.as_u64())
         .ok_or(Error::Binding)? as f32;
-    let width = shape[3];
-    sink.begin_rotary(
-        op,
-        shape,
-        input.ok_or(Error::Binding)?,
-        position,
-        sequence,
-        theta,
-    )?;
-    let mut words = S::Words::default();
-    for (index, row) in S::rows(S::words(input.ok_or(Error::Binding)?), width).enumerate() {
-        let output = sink.rotary_row(&row, theta, (position + index % sequence) as u32, width)?;
-        S::append_owner(&mut words, output, width);
-    }
-    Ok(S::view(words, shape))
+    Ok((shape[3], theta))
 }
-
-pub(super) fn kv_append<S: AttentionSink>(
+pub(in crate::replicated_decoder) fn emit_rotary<S: RotarySink>(
+    sink: &mut S,
     op: &pllm_models::ModelOperation,
-    a: Option<&S::View>,
-    b: Option<&S::View>,
+    shape: &[usize],
+    input: Option<&S::View>,
     position: usize,
     sequence: usize,
-    keys: usize,
-    state: &mut BTreeMap<(u64, pllm_models::StateKind), S::View>,
+) -> Result<S::Produced, Error> {
+    let (width, theta) = rotary_geometry(op, shape)?;
+    let input = input.ok_or(Error::Binding)?;
+    sink.begin(op, shape, input, position, sequence, theta)?;
+    let mut output = S::Output::default();
+    for (index, row) in S::rows(input, width).enumerate() {
+        let owner = sink.emit(&row, theta, (position + index % sequence) as u32, width)?;
+        S::append(&mut output, owner, width);
+    }
+    sink.finish(output, shape)
+}
+struct OriginalRotary<'a, S>(&'a mut S);
+impl<S: AttentionSink> RotarySink for OriginalRotary<'_, S> {
+    type View = S::View;
+    type Row = S::Words;
+    type Owner = S::Owner;
+    type Output = S::Words;
+    type Produced = S::View;
+    fn begin(
+        &mut self,
+        op: &pllm_models::ModelOperation,
+        shape: &[usize],
+        input: &Self::View,
+        position: usize,
+        sequence: usize,
+        theta: f32,
+    ) -> Result<(), Error> {
+        self.0
+            .begin_rotary(op, shape, input, position, sequence, theta)
+    }
+    fn rows<'a>(input: &'a Self::View, width: usize) -> impl Iterator<Item = Self::Row> + 'a
+    where
+        Self::Row: 'a,
+    {
+        S::rows(S::words(input), width)
+    }
+    fn emit(
+        &mut self,
+        row: &Self::Row,
+        theta: f32,
+        position: u32,
+        width: usize,
+    ) -> Result<Self::Owner, Error> {
+        self.0.rotary_row(row, theta, position, width)
+    }
+    fn append(output: &mut Self::Output, owner: Self::Owner, width: usize) {
+        S::append_owner(output, owner, width)
+    }
+    fn finish(&mut self, output: Self::Output, shape: &[usize]) -> Result<Self::Produced, Error> {
+        Ok(S::view(output, shape))
+    }
+}
+
+pub(super) fn rotary<S: AttentionSink>(
+    sink: &mut S,
+    op: &pllm_models::ModelOperation,
+    shape: &[usize],
+    input: Option<&S::View>,
+    position: usize,
+    sequence: usize,
 ) -> Result<S::View, Error> {
+    emit_rotary(
+        &mut OriginalRotary(sink),
+        op,
+        shape,
+        input,
+        position,
+        sequence,
+    )
+}
+
+/// Original cache declaration, shared by expanded and exact-map alias sinks.
+/// Attributes alone confer no request/source/cache authority.
+pub(in crate::replicated_decoder) fn cache_declaration(
+    op: &pllm_models::ModelOperation,
+) -> Result<((u64, pllm_models::StateKind), &str), Error> {
     let key = (
         op.layer.ok_or(Error::Binding)?,
         op.state_kind.ok_or(Error::Binding)?,
@@ -107,6 +192,18 @@ pub(super) fn kv_append<S: AttentionSink>(
         .get("mode")
         .and_then(|v| v.as_str())
         .ok_or(Error::Binding)?;
+    Ok((key, mode))
+}
+pub(super) fn kv_append<S: AttentionSink>(
+    op: &pllm_models::ModelOperation,
+    a: Option<&S::View>,
+    b: Option<&S::View>,
+    position: usize,
+    sequence: usize,
+    keys: usize,
+    state: &mut BTreeMap<(u64, pllm_models::StateKind), S::View>,
+) -> Result<S::View, Error> {
+    let (key, mode) = cache_declaration(op)?;
     let input = if position == 0 {
         if mode != "initialize" {
             return Err(Error::Binding);

@@ -77,10 +77,17 @@ pub(in crate::replicated_decoder) fn cache_suffix<S: RankViewSink>(
     op: &pllm_models::ModelOperation,
     input: Option<&S::View>,
 ) -> Result<S::View, Error> {
+    check_cache_suffix(op)?;
+    Ok(S::alias(input.ok_or(Error::Binding)?))
+}
+
+pub(in crate::replicated_decoder) fn check_cache_suffix(
+    op: &pllm_models::ModelOperation,
+) -> Result<(), Error> {
     if op.attributes.get("semantics").and_then(|v| v.as_str()) != Some("visible_valid_prefix") {
         return Err(Error::Binding);
     }
-    Ok(S::alias(input.ok_or(Error::Binding)?))
+    Ok(())
 }
 
 impl RankViewSink for Builder {

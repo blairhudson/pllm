@@ -192,10 +192,7 @@ impl EmissionContext<'_> {
 
     /// Call only AFTER dead construction scratch/results have left scope. The
     /// actual recipe/native payload stays covered by this guard through freeze.
-    pub(in crate::replicated_decoder) fn retain(
-        &self,
-        new_retained: usize,
-    ) -> Result<(), Error> {
+    pub(in crate::replicated_decoder) fn retain(&self, new_retained: usize) -> Result<(), Error> {
         let retained = add(self.retained_payload.get(), new_retained)?;
         let guard = self.guard.borrow();
         if retained > guard.payload_bytes() {
@@ -264,6 +261,19 @@ impl EmissionContext<'_> {
         self.check_open()?;
         let work = WorkBudget::product(1, false)?
             .checked_mul(u64::try_from(count).map_err(|_| Error::Bounds)?)?;
+        self.admit_protocol_work(work)?;
+        attempt.commit();
+        Ok(())
+    }
+
+    /// Actual ordinary primitive summary from the single original composition
+    /// driver. Not native-ticket substitution or reconstructed prior debt.
+    pub(in crate::replicated_decoder::program) fn admit_protocol_work(
+        &self,
+        work: WorkBudget,
+    ) -> Result<(), Error> {
+        let mut attempt = self.attempt();
+        self.check_open()?;
         let mut ledger = self.work.borrow_mut();
         let next = ledger.checked_add(work)?;
         next.limits()?;

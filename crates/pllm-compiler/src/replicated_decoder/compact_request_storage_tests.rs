@@ -207,6 +207,89 @@ fn compact_request_first_instruction_constructs_original_lookup() {
 }
 
 #[test]
+fn genuine_compact_qkv_reshape_rotary_prefix_has_original_work_and_coordinates() {
+    let (importer, manifest) = importer(4);
+    importer
+        .with_created(|created, guard| {
+            let mut scope = compact_storage::EmissionScope::new(created, guard, MAX_PROGRAM_BYTES)?;
+            let (builder, context, _) = scope.parts();
+            let prefix = builder.nodes.len();
+            let mut graph = compact_lowering::CompactGraph::from_source_request(
+                builder,
+                context,
+                MAX_PROGRAM_BYTES,
+            )?;
+            let mut projections = 0;
+            let mut rotaries = 0;
+            let mut caches = 0;
+            for op in &context.plan().plan().prefill.operations {
+                if op.operator == Op::AttentionScores {
+                    // Current unsupported FAMILY, not successful whole storage.
+                    assert!(graph.lower_next().is_err());
+                    assert_eq!(graph.failure_site().unwrap().operator, Op::AttentionScores);
+                    break;
+                }
+                let output = graph.lower_next()?;
+                if op.operator == Op::KvCacheAppend {
+                    caches += 1;
+                }
+                if op.operator == Op::Linear {
+                    projections += 1;
+                }
+                if op.operator == Op::RotaryEmbedding {
+                    rotaries += 1;
+                    for lane in 0..op.output_shape.iter().product::<u64>() as usize {
+                        let _ = output.word(lane)?;
+                    }
+                }
+            }
+            assert_eq!((projections, rotaries, caches), (3, 2, 2));
+            assert_eq!(builder.nodes.len(), prefix, "no expanded candidate");
+            context.check_final_work(graph.work_budget())?;
+            let end = graph.descriptor_census().last().unwrap().virtual_end;
+            // Independent expanded control AFTER all candidate native issuance.
+            let oracle = Program::compile_with_norms(
+                &manifest.config,
+                4,
+                2,
+                &manifest.tensors,
+                WeightMode::Public,
+                manifest.execution,
+                &manifest.norms,
+            )
+            .map_err(|_| Error::Binding)?;
+            let expected = oracle.nodes[prefix + 2..end]
+                .iter()
+                .try_fold(WorkBudget::default(), |w, n| {
+                    w.checked_add(n.work_budget()?)
+                })?;
+            assert_eq!(expected, context.work());
+            for program in graph.owned_native_programs() {
+                assert!(oracle.nodes[prefix + 2..end]
+                    .iter()
+                    .any(|node| match &node.code {
+                        Code::Tensor {
+                            program: original, ..
+                        } =>
+                            original.digest() == program.digest()
+                                && original.work_budget() == program.work_budget(),
+                        Code::TensorLoop {
+                            program: original,
+                            tail,
+                            ..
+                        } => std::iter::once(original)
+                            .chain(tail.iter())
+                            .any(|original| original.digest() == program.digest()
+                                && original.work_budget() == program.work_budget()),
+                        _ => false,
+                    }));
+            }
+            Ok(())
+        })
+        .unwrap();
+}
+
+#[test]
 fn source_chain_temporary_retirement_preserves_original_admitted_peak() {
     let (importer, _) = importer(4);
     let (source, peak) = importer

@@ -85,6 +85,9 @@ pub(in crate::replicated_decoder) struct FrozenRegion<'a> {
     // Retain exact input seals and original plan/source owner borrows. A consuming
     // freeze is not permission to drop a still-borrowed original DecoderPlan.
     _prebound_inputs: Option<input_owner::InputOwner<'a>>,
+    // External genuine consumed request context, never a borrowed lens into
+    // this owner. Keeps exact source/plan/import reservation custody live.
+    source_context: Option<&'a request_origin::compact_storage::EmissionContext<'a>>,
     validity: compact_validity::RequestValidity<'a>,
 }
 
@@ -245,6 +248,12 @@ impl<'a> CompactGraph<'_, 'a> {
             native = add_bytes(native, census?.kernel_metadata_bytes)?;
         }
         for op in &self.ops {
+            if let PublishedKind::Rotary(rows) = &op.kind {
+                native = add_bytes(
+                    native,
+                    array_bytes::<compact_rotary::NativeRow>(rows.native.capacity())?,
+                )?;
+            }
             if let PublishedKind::RmsNorm {
                 checked: Some(rows),
                 ..
@@ -414,6 +423,7 @@ impl<'a> CompactGraph<'_, 'a> {
             work: self.work,
             resources,
             _prebound_inputs: self.prebound_inputs,
+            source_context: self.request_admission,
             validity: self.validity,
         })
     }
