@@ -1025,6 +1025,61 @@ Interval lookup/scan, index50, shared-key profiles, LUT13, LayerNorm and SDK
 activation are excluded. No full-row-fit, physical-fit or security qualification
 follows from this private extraction or its logical resource quote.
 
+## D43. Bounded paper SIGMA four-lane LayerNorm to party shares
+
+**Explicitly approved by the user on 25 October 2026 (user59771):** implement
+and qualify one native, process-local **LocalClearRoot** four-lane paper
+LayerNorm component ending in separately held additive party shares. This
+approves the reviewed `sigma-layernorm4-complete-proposed-packet.md` and its
+enumerated private adapters, not merely prerequisite extraction. The
+[paper/source audit](../../docs/research/sigma-normalization-softmax-audit.md#layernorm-explicit-paper-contract)
+remains the source distinction; the exact bounded choices approved here are:
+
+- Ring `2^50`, Q12 private `X`, `gamma` and `beta`; check all twelve input codes
+  in `[-4096,4095]` before material factories. Use integer arithmetic:
+  `mu=floor(sum(X)/4)`, `Z=X-mu`, `S=sum(Z²)+1`, with the `+1` an integer unit
+  in Q24 energy. No CPU-artifact omission or alternative rounding placement.
+- `e=floor(log2(S))`, `m=floor(128*S/2^e)-128`; certify all 8192 entries
+  `table[64*m+e]=isqrt(floor(2^57/((128+m)*2^e)))` for `m=0..127`, `e=0..63`
+  using checked integer arithmetic and both square inequalities before keys.
+  With `T=table[64*m+e]`, preserve both signed floors:
+  `Q_i=floor(Z_i*T/4096)` and `Y_i=floor(Q_i*gamma_i/4096)+beta_i`.
+
+The approved composition includes the private 51-interval GPU50 scanner with
+two independently masked correction/Select outputs, scoped LUT13 using unchanged
+GPU127 terminal arithmetic, same-input/two-use square, signed and modular
+products, and the unsigned structural coordinate adapter. In particular,
+`u=2^(49-e)`, `t=S*u mod 2^50`, unsigned `TR50,42`, reduction modulo128 and
+embedding by64 form the ring13 index with the independently masked exponent.
+`S=1`, `u=t=2^49` must not be relabeled as signed-range authority. These are
+consuming original-producer/counter/use ownership adapters, including the
+native-to-typed joins; no caller tuple, hash or clear readback issues authority.
+The existing [D39 terminal](#d39-bounded-sigma-private-party-share-terminal-extraction)
+performs the final private floor/beta step and returns party shares, not a
+public reconstruction or a matrix handoff.
+
+Before any factory, complete the **same-original-counter** resource and
+cumulative-work inventory: all roots, table generation/certification, native
+children, scan/correction/Select, masks, entropy/material, adapters, controls,
+coordinator, retained backing, frames and final shares. No double-counting credit,
+work reset or premature refund. Retain original custody through the last owner;
+failure/cancellation burns both roles and dependent uses and erases unpublished
+component-owned clear copies/outputs. Borrowed caller storage has **no erasure
+promise**. The unchanged **64 MiB cap** may refuse the fully instantiated quote;
+approval is neither a fit result nor permission to raise a limit or fall back.
+
+Sol implementation is limited to this bounded native composition and
+failure-custody qualification, followed by independent Astra review. Require
+independent integer/table and full four-lane final-share oracles, exact/one-short
+resource/work admission and retained-owner/failure tests. Existing profiles,
+public APIs/defaults, RNG ordering and goldens remain unchanged; new scoped
+profiles cannot silently widen existing lookup8/10 entry points. This decision
+does not claim implementation or passing tests.
+
+No wider rows, matrix consumer, inherited source/compiler/checkpoint authority,
+SDK or trained execution, joint privacy or whole-model security qualification
+is approved. No HE/FSS permission follows; **FSS remains preparation-only**.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1071,6 +1126,7 @@ follows from this private extraction or its logical resource quote.
 | D40 | Approved: server-bound scalar source policy for explicit checked-public ingress | Authenticated server Experiment/config derives finite source/workload geometry; toy defaults and all caps/refusals unchanged. Tests and metadata-only quote permitted, not client-manifest authority, tensor reads, checkpoint arithmetic compilation, inference, fallback or whole-checkpoint fit. |
 | D41 | Approved: private D19 scan-to-correction/Select ownership and exact-resource extraction | Original reservation split before allocation/RNG, continuous counter/source custody and failure burn; unchanged APIs, 8/10 gates, equations, draw order, masks and framing. Compatibility/resource/lifecycle tests only; no interval scan, shared-key profile, LUT13/LayerNorm, activation, security or physical/whole-Norm fit claim. |
 | D42 | Approved: private original-parent lookup8/10 correction-build/resource extraction | Parent-created sealed identity only, one original aggregate reserve split without refund/reacquisition or unsupported merge; output-mask owner retains both residual dealer charges payload-first. Exact control/transition quotes and golden/admission/failure/lifecycle qualification required; APIs/profiles/numerics/RNG/framing/D41 unchanged. No independent public issuer, interval/index50/shared-key/LUT13/LayerNorm/SDK or full-row/physical/security qualification. |
+| D43 | Approved: one LocalClearRoot paper LayerNorm4 to party shares | Ring50/Q12 bounded private X/gamma/beta, exact 8192 inverse table and both floors; enumerated interval/LUT13/product/unsigned-TR42 consuming adapters and D39 endpoint. Full same-counter storage/work admission before factories under unchanged 64 MiB, failure custody and independent review required; refusal valid. No matrix/wider-row/inherited-source/SDK/trained/joint-security or HE/FSS promotion. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
