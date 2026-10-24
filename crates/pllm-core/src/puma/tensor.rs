@@ -132,6 +132,9 @@ pub struct Program {
 
 pub struct Builder(Program);
 
+#[path = "tensor_scale_work.rs"]
+mod scale_work;
+
 // Shared by native tile construction and its allocation-free equality work
 // query. Keep both constructor geometry checks; no Program is needed to price it.
 fn validate_tile_lanes(lanes: usize) -> Result<(), Error> {

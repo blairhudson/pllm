@@ -35,6 +35,10 @@ pub enum FactoryParameters<'a> {
         input: Interval,
         shift: u8,
     },
+    Scale18 {
+        input: Interval,
+        coefficient: i64,
+    },
     CheckedRange {
         incoming: Interval,
         accepted: Interval,
@@ -107,7 +111,8 @@ pub struct ClosedFactory<'a> {
 
 impl Construction {
     /// Bind actual arguments once. This neither prices/adopts numeric work nor
-    /// admits resource bytes. Builder is accepted ONLY for closed single-rescale.
+    /// admits resource bytes. Builder accepts only the closed Rescale and Scale18
+    /// recipes, not a generic instruction builder or an admission callback.
     /// Uncovered constructors have a typed refusal, not a guessed work formula.
     pub fn bind(
         self,
@@ -119,6 +124,7 @@ impl Construction {
             | (Self::GuardedSilu { .. }, P::GuardedSilu { .. })
             | (Self::EqualZero { .. }, P::EqualZero { .. })
             | (Self::Builder { .. }, P::Rescale { .. })
+            | (Self::Builder { .. }, P::Scale18 { .. })
             | (Self::CheckedRange { .. }, P::CheckedRange { .. })
             | (Self::AllValid { .. }, P::AllValid)
             | (Self::SoftmaxCertified { .. }, P::SoftmaxCertified { .. }) => true,
@@ -291,6 +297,9 @@ impl<'a> ClosedFactory<'a> {
                 rescaled_bounds(*input, *shift)?;
                 WorkBudget::rescale(*lanes)?
             }
+            (Construction::Builder { lanes }, P::Scale18 { input, coefficient }) => {
+                Program::scale18_work(*lanes, *input, *coefficient, &mut workspace.softmax)?
+            }
             (
                 Construction::CheckedRange { lanes },
                 P::CheckedRange {
@@ -378,6 +387,10 @@ impl<'a> ClosedFactory<'a> {
                 let out = b.rescale(value, shift)?;
                 (b.finish(out)?, ProducedCertificate::None)
             }
+            (Construction::Builder { lanes }, P::Scale18 { input, coefficient }) => (
+                Program::scale18(lanes, input, coefficient)?,
+                ProducedCertificate::None,
+            ),
             (
                 Construction::CheckedRange { lanes },
                 P::CheckedRange {
