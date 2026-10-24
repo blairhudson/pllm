@@ -76,8 +76,11 @@ class ReplicatedSource(source_io.AdmittedSource):
             if cancelled():
                 raise ValueError("replicated source import cancelled")
             owner.seal_public_source()
-        except BaseException:
-            owner.close()
+        except BaseException as error:
+            try:
+                owner.close()
+            except BaseException as cleanup:
+                error.add_note(f"replicated public import cleanup failed: {type(cleanup).__name__}")
             raise
 
     def publisher(self, experiment, ids, outputs, cancelled):

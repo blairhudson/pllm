@@ -1,6 +1,9 @@
 """Explicit public-weight adaptation: private feedback, storage and ownership."""
 
 import json
+import asyncio
+from contextlib import AsyncExitStack
+from contextvars import ContextVar
 import math
 import os
 from pathlib import Path
@@ -9,8 +12,9 @@ import threading
 import numpy as np
 import psutil
 import pytest
+import httpx
 
-from pllm import Deployment, ExecutionBudget, Model, OpenAI, _native
+from pllm import AsyncOpenAI, Deployment, ExecutionBudget, Model, OpenAI, _native
 from pllm.configuration import Experiment
 from pllm.protocols import PumaThreePartyDecoder
 from pllm.profiles import PumaThreePartyCpu, resolve_runtime_composition
@@ -67,11 +71,15 @@ def test_public_weights_are_local_files_and_only_tokens_get_secret_share_frames(
     assert psutil.Process().num_fds() == before
 
 
-def test_public_file_import_rejects_value_substitution_and_burns_owner(tmp_path, monkeypatch):
+@pytest.mark.parametrize("checked", [False, True])
+def test_public_file_import_rejects_value_substitution_and_burns_owner(tmp_path, monkeypatch, checked):
     experiment = experiment_fixture(tmp_path, weights="public")
+    if checked:
+        experiment = experiment.with_params(pipeline__components__linear__range_policy="checked")
     source = admit_source(experiment)
     publisher, manifest = source.publisher(experiment, (3, 4), 2, lambda: False)
-    worker = _native.ReplicatedWorker(manifest, 0)
+    constructor = _native.ReplicatedWorker._from_source_request if checked else _native.ReplicatedWorker
+    worker = constructor(manifest, 0)
     before = psutil.Process().num_fds()
     original = source_io._source_float_frame
     changed = []
@@ -134,8 +142,12 @@ def test_public_matrix_bounds_match_independent_source_rows_and_bind_manifest(tm
         publisher.close()
 
 
-def test_public_sdk_three_workers_complete_two_private_branches(tmp_path):
+@pytest.mark.parametrize("checked", [False, True])
+def test_public_sdk_three_workers_complete_two_private_branches(tmp_path, checked):
     experiment = experiment_fixture(tmp_path, weights="public", active=True)
+    if checked:
+        experiment = experiment.with_params(pipeline__components__linear__range_policy="checked",
+            pipeline__components__linear__max_abs_activation=256)
     captured = []
     with OpenAI(experiment=experiment, timeout=300) as client:
         client._core._result_hook = captured.append
@@ -146,6 +158,255 @@ def test_public_sdk_three_workers_complete_two_private_branches(tmp_path):
             assert active_sessions(client._core) == [0, 0, 0]
         audit = client._core.audit.to_dict()
         assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
+
+
+@pytest.mark.parametrize("change", ["commitment", "row_bound", "path_key"])
+def test_checked_source_entry_rejects_manifest_tensor_substitution(tmp_path, change):
+    experiment = experiment_fixture(tmp_path, weights="public", active=True).with_params(
+        pipeline__components__linear__range_policy="checked")
+    source = admit_source(experiment)
+    publisher, manifest = source.publisher(experiment, (3, 4), 2, lambda: False)
+    owner = None
+    try:
+        # Entry begins import; intact bytes must also populate/seal successfully.
+        owner = _native.ReplicatedWorker._from_source_request(manifest, 0)
+        source.populate_public_worker(owner, lambda: False)
+        owner.close()
+        owner = None
+        value = json.loads(manifest)
+        original_source = value["source"][:]
+        key = "model.embed_tokens.weight"
+        if change == "commitment":
+            commitment = value["tensors"][key]["digest"]
+            assert isinstance(commitment, list) and len(commitment) == 32
+            commitment[0] ^= 1
+        elif change == "row_bound":
+            value["tensors"][key]["row_l1"] -= 1
+        else:
+            value["tensors"][str(tmp_path / "unrelated-host-file")] = value["tensors"].pop(key)
+        assert value["source"] == original_source
+        with pytest.raises(ValueError):
+            owner = _native.ReplicatedWorker._from_source_request(source_io._canonical(value), 0)
+            source.populate_public_worker(owner, lambda: False)
+    finally:
+        if owner is not None:
+            owner.close()
+        publisher.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("checked", [False, True])
+@pytest.mark.parametrize("phase", ["import", "execution"])
+async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch, checked, phase):
+    """Ordinary SDK/three worker apps; HTTP IO in-process, native algorithms real.
+
+    Never run on the old wheel: checked mode requires the installed I9 entry.
+    Transport substitution permits observing worker retirement, not changing
+    publisher acceptance, source import, native frames or execution algorithms.
+    """
+    from pllm.runtime import replicated_worker as worker
+    from pllm.runtime.replicated_protocol import ROLES
+    from test_replicated_policy_sdk import observe_publishers, assert_publishers_retired
+
+    experiment = experiment_fixture(tmp_path, weights="public", active=True)
+    if checked:
+        experiment = experiment.with_params(pipeline__components__linear__range_policy="checked",
+            pipeline__components__linear__max_abs_activation=256)
+    native_type = _native.ReplicatedWorker
+    if checked:
+        assert callable(native_type._from_source_request)  # No missing-method rejection oracle.
+    entered, release = threading.Event(), threading.Event()
+    async_entered = asyncio.Event()
+    errors = []
+    original_clear = worker.clear_failure_frames
+
+    def clear(error):
+        original_clear(error)
+        if not errors:
+            errors.append(f"{type(error).__name__}: {str(error)[:160]}")
+    events, created, gated = [], [], []
+    current_role = ContextVar("test_worker_role")
+    generations = [0, 0, 0]
+
+    def gate(role, action):
+        if role == 0 and action == phase and not gated:
+            gated.append(True)
+            entered.set()
+            loop.call_soon_threadsafe(async_entered.set)
+            assert release.wait(45), "native IO test gate not released"
+            events.append(("drained", created[0]))
+
+    class NativeProxy:
+        def __init__(self, owner, role, route):
+            self.owner, self.role = owner, role
+            self.key = (role, generations[role])
+            created.append(self.key)
+            events.append((route, self.key))
+
+        def __getattr__(self, name):
+            return getattr(self.owner, name)
+
+        def append_public_source(self, *args):
+            result = self.owner.append_public_source(*args)
+            gate(self.role, "import")
+            return result
+
+        def call(self, *args):
+            result = self.owner.call(*args)
+            if args[0] == "advance":
+                gate(self.role, "execution")
+            return result
+
+        def close(self):
+            self.owner.close()
+            events.append(("closed", self.key))
+
+    class Constructors:
+        def __new__(cls, manifest, role):
+            return NativeProxy(native_type(manifest, role), role, "legacy")
+
+        @staticmethod
+        def _from_source_request(manifest, role):
+            return NativeProxy(native_type._from_source_request(manifest, role), role, "source")
+
+    original_reserve = worker.reserve_incremental_memory
+    from pllm.runtime.replicated_source import ReplicatedSource
+    original_populate = ReplicatedSource.populate_public_worker
+
+    def populate(self, owner, cancelled):
+        try:
+            return original_populate(self, owner, cancelled)
+        finally:
+            events.append(("import_drained", owner.key))
+
+    def reserve(size):
+        role = current_role.get()
+        generations[role] += 1
+        key = (role, generations[role])
+        context = original_reserve(size)
+
+        class ObservedReservation:
+            def __enter__(self):
+                return context.__enter__()
+
+            def __exit__(self, *args):
+                result = context.__exit__(*args)
+                events.append(("refunded", key))
+                return result
+
+        return ObservedReservation()
+
+    # Reuse ordinary HTTP envelopes/ASGI worker endpoints, with no server process
+    # wrapper or PYTHONPATH injection into a child. Isolated installed package
+    # supplies both native and Python production code for this entire test.
+    loop = asyncio.get_running_loop()
+    ports = [31001, 31002, 31003]
+    origins = [f"http://127.0.0.1:{port}" for port in ports]
+    keys = [f"test-client-key-{i}-12345678" for i in range(3)]
+    apps = []
+    original_sync, original_async = httpx.Client, httpx.AsyncClient
+
+    class PeerIO(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, request):
+            async def serve():
+                role = ports.index(request.url.port)
+                token = current_role.set(role)
+                try:
+                    return await httpx.ASGITransport(apps[role]).handle_async_request(request)
+                finally:
+                    current_role.reset(token)
+
+            # SDK IO-owner loops deliberately prohibit executor work. Worker
+            # apps belong on the server loop, where their native_call can drain.
+            if asyncio.get_running_loop() is loop:
+                return await serve()
+            return await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(serve(), loop))
+
+    async def dispatch(request):
+        async with original_async(transport=PeerIO()) as client:
+            response = await client.request(request.method, request.url,
+                headers=request.headers, content=request.content)
+            events.append((f"http_{response.status_code}_{request.url.path.rsplit('/', 1)[-1]}",
+                           (ports.index(request.url.port), 0)))
+            return httpx.Response(response.status_code, headers=response.headers,
+                content=response.content, request=request)
+
+    def sync_io(request):
+        return asyncio.run_coroutine_threadsafe(dispatch(request), loop).result(timeout=90)
+
+    def sync_client(*args, **kwargs):
+        kwargs.setdefault("transport", httpx.MockTransport(sync_io))
+        return original_sync(*args, **kwargs)
+
+    def async_client(*args, **kwargs):
+        kwargs.setdefault("transport", PeerIO())
+        return original_async(*args, **kwargs)
+
+    owners = observe_publishers(monkeypatch)
+    monkeypatch.setattr(worker._native, "ReplicatedWorker", Constructors)
+    monkeypatch.setattr(worker, "clear_failure_frames", clear)
+    monkeypatch.setattr(ReplicatedSource, "populate_public_worker", populate)
+    monkeypatch.setattr(worker, "reserve_incremental_memory", reserve)
+    monkeypatch.setattr(httpx, "Client", sync_client)
+    monkeypatch.setattr(httpx._api, "Client", sync_client)
+    monkeypatch.setattr(httpx, "AsyncClient", async_client)
+    for i, role in enumerate(ROLES):
+        peers = {other: (origins[j], f"directed-{i}-{j}-12345678", f"directed-{j}-{i}-12345678")
+                 for j, other in enumerate(ROLES) if i != j}
+        apps.append(worker.create_replicated_worker_app(experiment, role, keys[i], peers))
+    captured = []
+    async with asyncio.timeout(300), AsyncExitStack() as stack:
+        for app in apps:
+            await stack.enter_async_context(app.router.lifespan_context(app))
+        sdk = await asyncio.to_thread(AsyncOpenAI, experiment=experiment,
+            role_connections={role: (origins[i], keys[i]) for i, role in enumerate(ROLES)}, timeout=120)
+        sdk = await stack.enter_async_context(sdk)
+        core = sdk.sync._core
+        core._result_hook = captured.append
+        task = asyncio.create_task(sdk.responses.create(input="hello hello", max_output_tokens=2))
+        gate_task = asyncio.create_task(async_entered.wait())
+        try:
+            await asyncio.wait({task, gate_task}, timeout=60, return_when=asyncio.FIRST_COMPLETED)
+            observed = entered.is_set()
+            if not observed and task.done():
+                try:
+                    await task  # Preserve the actual producer/transport exception.
+                except BaseException as error:
+                    error.add_note(f"public test phases: {events!r}; worker failure: {errors!r}")
+                    raise
+            assert observed, "request did not reach native cancellation gate"
+            key = created[0]
+            assert ("closed", key) not in events and ("refunded", key) not in events
+            task.cancel()
+            await asyncio.sleep(0)
+            assert not captured and not core.records
+            release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert core._active is None and not captured and not core.records
+            assert await asyncio.to_thread(active_sessions, core) == [0, 0, 0]
+            assert events.index(("drained", key)) < events.index(("closed", key)) < events.index(("refunded", key))
+            assert events.index(("import_drained", key)) < events.index(("closed", key))
+            assert owners and all(owner.finish_calls == 0 for owner in owners)
+            assert_publishers_retired(owners)
+            route = "source" if checked else "legacy"
+            assert not any(kind == ("legacy" if checked else "source") for kind, _ in events)
+            assert (route, key) in events
+            for prompt, expected in [("hello hello", (4, 4)), ("world hello", (1, 1))]:
+                response = await sdk.responses.create(input=prompt, max_output_tokens=2)
+                assert response.usage.output_tokens == 2 and captured[-1].selected == expected
+                assert await asyncio.to_thread(active_sessions, core) == [0, 0, 0]
+            assert {role for role, _ in created} == {0, 1, 2}
+            for owner in created:
+                assert events.index(("closed", owner)) < events.index(("refunded", owner))
+            audit = core.audit.to_dict()
+            assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
+            assert_publishers_retired(owners)
+        finally:
+            release.set()
+            task.cancel()
+            gate_task.cancel()
+            await asyncio.gather(task, gate_task, return_exceptions=True)
 
 
 @pytest.mark.parametrize("family", ["qwen2", "qwen3", "llama"])

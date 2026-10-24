@@ -35,12 +35,12 @@ from .replicated_source import admit_source
 from .replicated_peer import PeerStream, STREAM_MEMORY, TRANSPORT, binding, decode
 from .replicated_barrier import drain_peer_waves
 
-async def native_call(function, *args, _cancel=None):
+async def native_call(function, *args, _cancel=None, _discard=None):
     """Drain a cancelled native call before its caller can release admission."""
     task = asyncio.create_task(asyncio.to_thread(function, *args))
     try:
         return await asyncio.shield(task)
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as cancelled:
         if _cancel is not None:
             _cancel()
         while not task.done():
@@ -51,9 +51,12 @@ async def native_call(function, *args, _cancel=None):
             except Exception:
                 break
         try:
-            task.result()
+            result = task.result()
+            if _discard is not None:
+                _discard(result)
         except BaseException as error:
             clear_failure_frames(error)
+            cancelled.add_note(f"cancelled native cleanup: {type(error).__name__}")
         raise
     finally:
         function = args = task = None
@@ -479,7 +482,20 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
                     required = source.contract["public_weight_snapshot_bytes_per_worker"]
                     if required + (64 << 20) > shutil.disk_usage(tempfile.gettempdir()).free:
                         raise ValueError("replicated public snapshot disk headroom exhausted")
-                native = await native_call(_native.ReplicatedWorker, value["manifest"], ROLES.index(role))
+                # Local route comes only from the canonical server Experiment;
+                # the manifest confirms policy but cannot select an implementation.
+                policy = execution_policy(experiment)
+                constructor = _native.ReplicatedWorker
+                if (experiment.pipeline.components["linear"].params.get("weights", "private") == "public"
+                        and policy["range_policy"] == "checked"
+                        and policy["lookup"] == "per_token"
+                        and policy["selection"] == "expanded"
+                        and policy["peer_transport"] == "http"):
+                    constructor = getattr(constructor, "_from_source_request", None)
+                    if not callable(constructor):
+                        raise ValueError("replicated source-request native entrypoint unavailable")
+                native = await native_call(constructor, value["manifest"], ROLES.index(role),
+                                           _discard=lambda owner: owner.close())
                 attempt = _Attempt(native, reservation, request_id)
                 reservation = None
                 active = attempt
@@ -496,7 +512,11 @@ def create_replicated_worker_app(experiment, role, api_key, peers):
         except BaseException as error:
             raw = value = public = native = None
             clear_failure_frames(error)
-            await retire(attempt)
+            try:
+                await retire(attempt)
+            except BaseException as cleanup:
+                clear_failure_frames(cleanup)
+                error.add_note(f"replicated retirement failed: {type(cleanup).__name__}")
             if reservation is not None:
                 reservation.close()
             if not isinstance(error, Exception):
