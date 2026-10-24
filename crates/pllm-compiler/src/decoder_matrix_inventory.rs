@@ -28,7 +28,7 @@
 //! No tensor storage is allocated or read. Table and matrix artifact ownership
 //! is keyed by (artifact_kind, weight_id), even when their source IDs are tied.
 
-use crate::decoder_runtime_schedule::{RemoteGroupingError, RemoteGroupingQuote};
+use crate::decoder_runtime_schedule::{RemoteGroupingError, RemoteGroupingQuote, RemoteGroups};
 use pllm_models::bounded_canonical as model_canonical;
 use pllm_models::{DecoderGraph, DecoderMode, DecoderPlan, ModelOperation, ModelOperator};
 use pllm_types::bounded_canonical::{DomainHash, Session, StreamError, StreamFrame, StreamLimits};
@@ -152,6 +152,188 @@ fn plan_canonical_limits(max_work: usize) -> model_canonical::Limits {
     }
 }
 
+fn checked_inventory_sum(parts: &[usize]) -> Result<usize, &'static str> {
+    parts.iter().try_fold(0usize, |total, value| {
+        total
+            .checked_add(*value)
+            .ok_or("matrix inventory resource byte overflow")
+    })
+}
+
+/// GROUPING ONLY: this is not a quote for `lower_decoder_matrix_inventory`.
+/// Existing plan ownership is included (no caller-supplied baseline). Vec/String
+/// capacities are actual; opaque attribute objects use pllm-models' documented
+/// shared conservative owner policy, not an observed B-tree layout. Group keys
+/// and strings are borrowed; index buffers have exact module-owned layouts.
+/// Native/dependency call stacks, allocator headers and RSS are not quoted.
+/// Workspace fields cover grouping/identity replay, not a complete census of the
+/// allocation-free quote evaluator's own bookkeeping or other enclosing owners.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DecoderMatrixInventoryGroupingResources {
+    pub plan_owner_bound_bytes: usize,
+    pub grouping_workspace_bytes: usize,
+    pub canonical_workspace_bytes: usize,
+    pub admission_slots_bytes: usize,
+    pub grouping_heap_bytes: usize,
+    /// Index construction only, not canonical hashing or other enclosing work.
+    pub grouping_work_bound: u128,
+    pub peak_bytes: usize,
+}
+
+/// Immutable original-plan borrow prevents stale identity/capacity quotes in
+/// safe Rust. This partial seam deliberately cannot construct an inventory.
+///
+/// ```compile_fail
+/// use pllm_compiler::DecoderMatrixInventory;
+/// use pllm_models::DecoderPlan;
+/// fn stale_quote(plan: &mut DecoderPlan) {
+///     let quote = DecoderMatrixInventory::checked_grouping_quote(plan).unwrap();
+///     plan.prefill.output.push_str("changed");
+///     let _ = quote.resources();
+/// }
+/// ```
+///
+/// Spare capacities are frozen by the same original-owner borrow:
+/// ```compile_fail
+/// use pllm_compiler::DecoderMatrixInventory;
+/// use pllm_models::DecoderPlan;
+/// fn stale_capacity(plan: &mut DecoderPlan) {
+///     let quote = DecoderMatrixInventory::checked_grouping_quote(plan).unwrap();
+///     plan.prefill.operations[0].id.reserve(128);
+///     let _ = quote.resources();
+/// }
+/// ```
+#[derive(Debug)]
+pub struct DecoderMatrixInventoryGroupingQuote<'a> {
+    plan: &'a DecoderPlan,
+    identity: [u8; 32],
+    grouping: [RemoteGroupingQuote<'a>; 2],
+    resources: DecoderMatrixInventoryGroupingResources,
+}
+
+#[derive(Debug)]
+enum GroupingQuoteFailure<'a> {
+    Static(&'static str),
+    Owner(pllm_models::owned_backing::Error),
+    Canonical(model_canonical::Error),
+    Grouping(RemoteGroupingError<'a>),
+}
+
+#[derive(Debug)]
+pub struct DecoderMatrixInventoryGroupingError<'a>(GroupingQuoteFailure<'a>);
+
+impl fmt::Display for DecoderMatrixInventoryGroupingError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.0 {
+            GroupingQuoteFailure::Static(error) => f.write_str(error),
+            GroupingQuoteFailure::Owner(error) => fmt::Display::fmt(error, f),
+            GroupingQuoteFailure::Canonical(error) => fmt::Display::fmt(error, f),
+            GroupingQuoteFailure::Grouping(error) => fmt::Display::fmt(error, f),
+        }
+    }
+}
+
+impl std::error::Error for DecoderMatrixInventoryGroupingError<'_> {}
+
+/// A grouping view, not an inventory or an execution/trust authority.
+#[derive(Debug)]
+pub struct DecoderMatrixInventoryGrouping<'a> {
+    plan: &'a DecoderPlan,
+    identity: [u8; 32],
+    resources: DecoderMatrixInventoryGroupingResources,
+    views: [RemoteGroups<'a>; 2],
+}
+
+impl<'a> DecoderMatrixInventoryGroupingQuote<'a> {
+    pub fn resources(&self) -> DecoderMatrixInventoryGroupingResources {
+        self.resources
+    }
+
+    /// The caller MUST hold the original enclosing reservation across this call
+    /// and returned view/errors. A numeric cap is NOT a Budget guard or authority.
+    /// No downstream inventory construction is covered by this partial quote.
+    pub fn admit(
+        self,
+        reserved_capacity: usize,
+    ) -> Result<DecoderMatrixInventoryGrouping<'a>, DecoderMatrixInventoryGroupingError<'a>> {
+        let work = self.resources.grouping_work_bound;
+        self.admit_with_work_limit(reserved_capacity, work)
+    }
+
+    /// Same grouping-only construction with an explicit combined work ceiling.
+    /// Caller MUST retain the original real reservation through returned lifetime;
+    /// neither numeric argument creates Budget authority.
+    pub fn admit_with_work_limit(
+        self,
+        reserved_capacity: usize,
+        max_grouping_work: u128,
+    ) -> Result<DecoderMatrixInventoryGrouping<'a>, DecoderMatrixInventoryGroupingError<'a>> {
+        if self.resources.peak_bytes > reserved_capacity {
+            return Err(DecoderMatrixInventoryGroupingError(
+                GroupingQuoteFailure::Static("matrix inventory grouping capacity limit exceeded"),
+            ));
+        }
+        if max_grouping_work < self.resources.grouping_work_bound {
+            return Err(DecoderMatrixInventoryGroupingError(
+                GroupingQuoteFailure::Static("matrix inventory grouping work limit exceeded"),
+            ));
+        }
+        let Self {
+            plan,
+            identity,
+            grouping: [prefill, decode],
+            resources,
+        } = self;
+        let p = prefill.resources();
+        let prefill = prefill
+            .construct(p.workspace_bytes, p.work_bound)
+            .map_err(|error| {
+                DecoderMatrixInventoryGroupingError(GroupingQuoteFailure::Grouping(error))
+            })?;
+        let d = decode.resources();
+        let decode = decode
+            .construct(d.workspace_bytes, d.work_bound)
+            .map_err(|error| {
+                DecoderMatrixInventoryGroupingError(GroupingQuoteFailure::Grouping(error))
+            })?;
+        Ok(DecoderMatrixInventoryGrouping {
+            plan,
+            identity,
+            resources,
+            views: [prefill, decode],
+        })
+    }
+}
+
+impl<'a> DecoderMatrixInventoryGrouping<'a> {
+    pub fn plan(&self) -> &'a DecoderPlan {
+        self.plan
+    }
+    pub fn semantic_plan_identity(&self) -> [u8; 32] {
+        self.identity
+    }
+    pub fn group_counts(&self) -> [usize; 2] {
+        [self.views[0].len(), self.views[1].len()]
+    }
+    /// Members remain in original graph order and borrow the original owner.
+    /// `None` means the ID is not a remote group leader in this phase.
+    pub fn group_members(
+        &self,
+        mode: DecoderMode,
+        leader_id: &str,
+    ) -> Option<impl Iterator<Item = &'a ModelOperation> + '_> {
+        self.views[match mode {
+            DecoderMode::Prefill => 0,
+            DecoderMode::Decode => 1,
+        }]
+        .get(leader_id)
+        .map(|group| group.operations.iter())
+    }
+    pub fn resources(&self) -> DecoderMatrixInventoryGroupingResources {
+        self.resources
+    }
+}
+
 /// Immutable canonical metadata snapshot; no deserializer or mutation API.
 /// Guarded construction remains compiler-private, not an SDK admission route:
 /// This checks privacy only, not the original-owner lifetime proof.
@@ -176,6 +358,108 @@ pub struct DecoderMatrixInventory {
 }
 
 impl DecoderMatrixInventory {
+    /// Allocation-free partial quote over the genuine original owner. Bounded
+    /// identity has an explicit work cap; the shared owner census rejects JSON
+    /// attribute depth >16. These are new-path limits, not legacy behavior changes.
+    /// This quotes resources; indexed grouping validation runs during admit.
+    /// Grouping validity is NOT structural/geometry/source inventory validation.
+    pub fn checked_grouping_quote(
+        plan: &DecoderPlan,
+    ) -> Result<DecoderMatrixInventoryGroupingQuote<'_>, DecoderMatrixInventoryGroupingError<'_>>
+    {
+        let static_error =
+            |message| DecoderMatrixInventoryGroupingError(GroupingQuoteFailure::Static(message));
+        for graph in [&plan.prefill, &plan.decode] {
+            if graph.operations.len() > MAX_OPERATIONS
+                || graph.state_inputs.len() > MAX_STATES
+                || graph.state_outputs.len() > MAX_STATES
+            {
+                return Err(static_error(
+                    "matrix inventory operation or state limit exceeded",
+                ));
+            }
+            for op in &graph.operations {
+                if op.inputs.len() > MAX_INPUTS || op.output_shape.len() > 5 {
+                    return Err(static_error(
+                        "matrix inventory input count or rank limit exceeded",
+                    ));
+                }
+            }
+        }
+        let mut frames = [StreamFrame::empty(); CANONICAL_SLOTS];
+        let identity =
+            model_canonical::bounded_plan_digest(plan, plan_canonical_limits(1 << 28), &mut frames)
+                .map_err(|error| {
+                    DecoderMatrixInventoryGroupingError(GroupingQuoteFailure::Canonical(error))
+                })?;
+        let backing = plan
+            .checked_owned_backing_bytes(usize::MAX)
+            .map_err(|error| {
+                DecoderMatrixInventoryGroupingError(GroupingQuoteFailure::Owner(error))
+            })?;
+        let prefill = RemoteGroupingQuote::checked(&plan.prefill).map_err(|error| {
+            DecoderMatrixInventoryGroupingError(GroupingQuoteFailure::Grouping(error))
+        })?;
+        let decode = RemoteGroupingQuote::checked(&plan.decode).map_err(|error| {
+            DecoderMatrixInventoryGroupingError(GroupingQuoteFailure::Grouping(error))
+        })?;
+        let canonical =
+            model_canonical::resources::<DomainHash>(CANONICAL_SLOTS).map_err(|error| {
+                DecoderMatrixInventoryGroupingError(GroupingQuoteFailure::Canonical(error))
+            })?;
+        let sum = |parts: &[usize]| checked_inventory_sum(parts).map_err(static_error);
+        let plan_owner_bound_bytes = sum(&[std::mem::size_of::<DecoderPlan>(), backing])?;
+        let admission_slots_bytes = sum(&[
+            std::mem::size_of::<DecoderMatrixInventoryGroupingQuote<'_>>(),
+            std::mem::size_of::<
+                Result<
+                    DecoderMatrixInventoryGroupingQuote<'_>,
+                    DecoderMatrixInventoryGroupingError<'_>,
+                >,
+            >(),
+            std::mem::size_of::<
+                Result<DecoderMatrixInventoryGrouping<'_>, DecoderMatrixInventoryGroupingError<'_>>,
+            >(),
+            std::mem::size_of::<DecoderMatrixInventoryGroupingResources>(),
+            std::mem::size_of::<[u8; 32]>(),
+        ])?;
+        // Frames are present for the whole quote call, including grouping. The
+        // model quote already includes them; grouping needs them added explicitly.
+        let p = prefill.resources();
+        let d = decode.resources();
+        let grouping_heap_bytes = sum(&[p.heap_bytes, d.heap_bytes])?;
+        let grouping_work_bound = p
+            .work_bound
+            .checked_add(d.work_bound)
+            .ok_or_else(|| static_error("matrix inventory grouping work overflow"))?;
+        // Conservative sum retains BOTH indexed owners and all their concrete
+        // construction slots; no missing prefill-owner/decode-factory overlap.
+        let grouping_workspace_bytes = sum(&[
+            std::mem::size_of_val(&frames),
+            p.workspace_bytes,
+            d.workspace_bytes,
+        ])?;
+        let resources = DecoderMatrixInventoryGroupingResources {
+            plan_owner_bound_bytes,
+            grouping_workspace_bytes,
+            canonical_workspace_bytes: canonical.hash_workspace_bytes,
+            admission_slots_bytes,
+            grouping_heap_bytes,
+            grouping_work_bound,
+            peak_bytes: sum(&[
+                plan_owner_bound_bytes,
+                admission_slots_bytes,
+                grouping_workspace_bytes.max(canonical.hash_workspace_bytes),
+            ])?,
+        };
+        Ok(DecoderMatrixInventoryGroupingQuote {
+            plan,
+            identity,
+            grouping: [prefill, decode],
+            resources,
+        })
+    }
+
     pub fn canonical_bytes(&self) -> &[u8] {
         &self.bytes
     }

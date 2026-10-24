@@ -727,3 +727,37 @@ fn typed_and_bytes_count_keys_and_value_strings_at_boundary() {
         .push(json!("x"));
     assert_entry_point_rejection(&model, "string limit");
 }
+
+#[test]
+fn public_grouping_seam_keeps_original_plan_and_inventory_member_order() {
+    let model = plan("qwen2", true);
+    let snapshot = inventory(&model);
+    let quote = pllm_compiler::DecoderMatrixInventory::checked_grouping_quote(&model).unwrap();
+    let resources = quote.resources();
+    assert!(resources.grouping_heap_bytes > 0);
+    let grouping = quote.admit(resources.peak_bytes).unwrap();
+    assert!(std::ptr::eq(grouping.plan(), &model));
+    assert_eq!(
+        grouping.semantic_plan_identity(),
+        model.digest().as_sha256()
+    );
+    for (name, mode) in [
+        ("prefill", pllm_models::DecoderMode::Prefill),
+        ("decode", pllm_models::DecoderMode::Decode),
+    ] {
+        for group in snapshot[name]["groups"].as_array().unwrap() {
+            let expected: Vec<_> = group["members"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|member| member["operation_id"].as_str().unwrap())
+                .collect();
+            let actual: Vec<_> = grouping
+                .group_members(mode, expected[0])
+                .unwrap()
+                .map(|op| op.id.as_str())
+                .collect();
+            assert_eq!(actual, expected);
+        }
+    }
+}

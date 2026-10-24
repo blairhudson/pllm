@@ -243,3 +243,127 @@ fn metadata_uses_original_id_and_shape_backing_and_exact_buffer_layouts() {
     assert_eq!(exact, model.digest());
     assert_eq!(exact.backing_capacity_bytes(), 64);
 }
+
+use crate::decoder_runtime_schedule::GROUPING_ALLOCATIONS;
+
+#[test]
+fn grouping_quote_counts_original_capacities_without_normalizing_owners() {
+    let mut model = plan("llama", true);
+    let (old_bytes, old_identity) = {
+        let before = DecoderMatrixInventory::checked_grouping_quote(&model).unwrap();
+        (before.resources().plan_owner_bound_bytes, before.identity)
+    };
+    let mut increase = 0;
+    macro_rules! spare {
+        ($value:expr, $count:expr, $element:ty) => {{
+            let old = $value.capacity();
+            $value.reserve($count);
+            increase += ($value.capacity() - old) * std::mem::size_of::<$element>();
+        }};
+    }
+    spare!(model.model_family, 4096, u8);
+    spare!(model.transformations, 3, pllm_models::AppliedMethod);
+    spare!(model.prefill.operations, 29, ModelOperation);
+    spare!(model.prefill.operations[0].id, 2048, u8);
+    spare!(model.prefill.operations[0].inputs, 23, String);
+    spare!(model.prefill.operations[0].inputs[0], 2048, u8);
+    spare!(model.prefill.operations[0].output_shape, 29, u64);
+    let mut digest = String::with_capacity(8192);
+    digest.push_str(model.config_digest.as_str());
+    let old_digest_capacity = model.config_digest.backing_capacity_bytes();
+    model.config_digest = serde::Deserialize::deserialize(serde::de::value::StringDeserializer::<
+        serde::de::value::Error,
+    >::new(digest))
+    .unwrap();
+    increase += model.config_digest.backing_capacity_bytes() - old_digest_capacity;
+    let quoted = DecoderMatrixInventory::checked_grouping_quote(&model).unwrap();
+    assert_eq!(quoted.identity, old_identity);
+    assert_eq!(
+        quoted.resources().plan_owner_bound_bytes,
+        old_bytes + increase
+    );
+    assert!(quoted.resources().grouping_heap_bytes > 0);
+    let bound = quoted.resources().peak_bytes;
+    let admitted = quoted.admit(bound).unwrap();
+    assert!(std::ptr::eq(admitted.plan(), &model));
+    assert_eq!(admitted.semantic_plan_identity(), old_identity);
+    assert_eq!(admitted.group_counts(), [10, 10]);
+    let members: Vec<_> = admitted
+        .group_members(DecoderMode::Prefill, &model.prefill.operations[0].id)
+        .unwrap()
+        .collect();
+    assert!(std::ptr::eq(members[0], &model.prefill.operations[0]));
+}
+
+#[test]
+fn grouping_exact_fit_and_one_short_precede_real_workspace_factories() {
+    let model = plan("qwen2", true);
+    GROUPING_ALLOCATIONS.with(|count| count.set(0));
+    let quote = DecoderMatrixInventory::checked_grouping_quote(&model).unwrap();
+    let peak = quote.resources().peak_bytes;
+    let work = quote.resources().grouping_work_bound;
+    assert!(quote.admit(peak - 1).is_err());
+    GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 0));
+    assert!(DecoderMatrixInventory::checked_grouping_quote(&model)
+        .unwrap()
+        .admit_with_work_limit(peak, work - 1)
+        .is_err());
+    GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 0));
+    let admitted = DecoderMatrixInventory::checked_grouping_quote(&model)
+        .unwrap()
+        .admit(peak)
+        .unwrap();
+    GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 6));
+    assert_eq!(admitted.resources().peak_bytes, peak);
+    assert_eq!(
+        checked_inventory_sum(&[usize::MAX, 1]),
+        Err("matrix inventory resource byte overflow")
+    );
+}
+
+#[test]
+fn grouping_new_limits_do_not_change_legacy_inventory_admission() {
+    let mut model = plan("llama", true);
+    let mut nested = Value::Null;
+    for _ in 0..17 {
+        nested = json!([nested]);
+    }
+    model
+        .prefill
+        .operations
+        .iter_mut()
+        .find(|op| !remote(op.operator))
+        .unwrap()
+        .attributes["extra"] = nested;
+    assert!(lower_decoder_matrix_inventory(&model).is_ok());
+    assert!(DecoderMatrixInventory::checked_grouping_quote(&model)
+        .unwrap_err()
+        .to_string()
+        .contains("owned backing JSON depth"));
+    model.prefill.operations = vec![model.prefill.operations[0].clone(); MAX_OPERATIONS + 1];
+    assert!(DecoderMatrixInventory::checked_grouping_quote(&model)
+        .unwrap_err()
+        .to_string()
+        .contains("operation or state limit"));
+}
+
+#[test]
+fn grouping_quote_rejects_bounded_path_input_string_and_collection_caps() {
+    for case in 0..4 {
+        let mut model = plan("llama", true);
+        match case {
+            0 => model.prefill.operations[0].inputs = vec!["input.tokens".into(); 17],
+            1 => model.prefill.operations[0].id = "x".repeat(MAX_STRING_BYTES + 1),
+            2 => {
+                model.prefill.state_inputs =
+                    vec![model.decode.state_inputs[0].clone(); MAX_STATES + 1]
+            }
+            3 => model.prefill.operations[0].output_shape = vec![1; 6],
+            _ => unreachable!(),
+        }
+        assert!(
+            DecoderMatrixInventory::checked_grouping_quote(&model).is_err(),
+            "case {case}"
+        );
+    }
+}

@@ -41,6 +41,8 @@ pub mod verified_source;
 pub use decoder_boundary::{PrivateBoundaryContract, PrivateBoundaryPhase};
 pub use decoder_matrix_inventory::{
     decoder_matrix_inventory_bytes, lower_decoder_matrix_inventory, DecoderMatrixInventory,
+    DecoderMatrixInventoryGrouping, DecoderMatrixInventoryGroupingError,
+    DecoderMatrixInventoryGroupingQuote, DecoderMatrixInventoryGroupingResources,
     DECODER_MATRIX_INVENTORY_MAX_PLAN_BYTES, DECODER_MATRIX_INVENTORY_SCHEMA_VERSION,
 };
 pub use delegated_decoder::{
