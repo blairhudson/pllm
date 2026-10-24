@@ -1,10 +1,59 @@
-//! Original Builder publication contracts only; no finalizer/manifest/Worker
-//! capture or source/row authority is supplied by these local declarations.
+//! Staged expanded publication parity, not enabled decoder dispatch. Compare raw
+//! logical records and schedules, then exercise the shared original finalizer.
+//! The ten full-graph frozen snapshots remain independent.
 use super::*;
-use crate::replicated_decoder::prepared_tensor_map::{OneLoopScope, PreparedTensorMap};
+use crate::replicated_decoder::{
+    prepared_tensor_map::{OneLoopScope, PreparedTensorMap},
+    runtime::body,
+};
 
 fn domain() -> Interval {
     Interval::new(-ONE, ONE).unwrap()
+}
+
+#[test]
+fn protected_worker_variants_keep_original_templates_and_compiler_retirement() {
+    for lanes in [1, 128, 129, 257] {
+        for retained in [false, true] {
+            for sticky in [false, true] {
+                let (program, prepared, input, output, valid) =
+                    prepared_rescale18_protected_worker_fixture(lanes, domain(), retained, sticky)
+                        .unwrap();
+                assert_eq!(input, 0);
+                assert_eq!(valid.is_some(), sticky);
+                assert_eq!(
+                    program.nodes[output].bounds,
+                    prepared.output_bounds().unwrap()
+                );
+                let Code::TensorLoop {
+                    program: full,
+                    tail,
+                    input: owner,
+                } = &program.nodes[output].code
+                else {
+                    panic!("original prepared TensorLoop required");
+                };
+                assert!(matches!(owner, LoopInput::Slice(0)));
+                assert!(Arc::ptr_eq(full, prepared.program_at(0).unwrap()));
+                if let Some(tail) = tail {
+                    assert!(Arc::ptr_eq(
+                        tail,
+                        prepared.program_at(lanes - lanes % 128).unwrap()
+                    ));
+                }
+                assert!(matches!(
+                    program.nodes[output + 1].code,
+                    Code::Product { .. }
+                ));
+                assert_eq!(program.retire[output].contains(&input), !retained);
+                if let Some(valid) = valid {
+                    assert!(!program.retire[output].contains(&valid));
+                    assert!(program.outputs.contains(&(valid, 0)));
+                }
+                assert_ne!(program.work_budget(), prepared.work_budget().unwrap());
+            }
+        }
+    }
 }
 
 fn make(lanes: usize, bounds: Interval, silu: bool) -> tensor::Program {
@@ -89,7 +138,121 @@ fn assert_originals(b: &Builder, id: usize, prepared: &PreparedTensorMap) {
 }
 
 #[test]
-fn prepared_publication_matches_closure_full_and_tail_without_owner_substitution() {
+fn worker_fixture_preserves_factory_owners_identity_and_original_retirement() {
+    for lanes in [1, 128, 129, 257] {
+        let (program, prepared, input, output) =
+            prepared_rescale18_worker_fixture(lanes, domain()).unwrap();
+        assert_eq!((input, output), (0, 1));
+        assert_eq!(program.inputs, 1);
+        assert_eq!(program.inputs().collect::<Vec<_>>(), vec![("local", lanes)]);
+        assert_eq!(program.nodes.len(), output + 2);
+        assert_eq!(prepared.one_loop_scope(), Some(OneLoopScope::Rescale18));
+        prepared.validate().unwrap();
+
+        let Code::TensorLoop {
+            input: LoopInput::Slice(owner),
+            program: full,
+            tail,
+        } = &program.nodes[output].code
+        else {
+            panic!("fixture must publish an original Slice TensorLoop")
+        };
+        assert_eq!(*owner, input);
+        let originals: Vec<_> = prepared.programs().cloned().collect();
+        let stored: Vec<_> = std::iter::once(full).chain(tail).collect();
+        assert_eq!(stored.len(), originals.len());
+        for (stored, original) in stored.into_iter().zip(&originals) {
+            assert!(Arc::ptr_eq(stored, original));
+        }
+        assert_eq!(
+            program.nodes[output].bounds,
+            prepared.output_bounds().unwrap()
+        );
+        assert_eq!(program.work_budget(), prepared.work_budget().unwrap());
+        assert_eq!(
+            program.work_budget(),
+            schedule_work(&program.nodes).unwrap()
+        );
+
+        // Compare actual canonical loop bytes against the original closure path,
+        // independently of factory provenance and pointer-identity checks above.
+        let mut legacy = builder(lanes, domain());
+        let legacy_output = legacy
+            .tensor_loop(LoopInput::Slice(input), lanes, |n| {
+                Ok(make(n, domain(), false))
+            })
+            .unwrap();
+        assert_eq!(
+            logical_record(&program.nodes[output]),
+            logical_record(&legacy.nodes[legacy_output])
+        );
+        assert_eq!(
+            program.outputs,
+            (0..lanes).map(|index| (output, index)).collect::<Vec<_>>()
+        );
+        // Source's last use is the whole loop. A real downstream original node
+        // supplies its exact-end boundary without retaining source or dead result.
+        assert!(matches!(
+            program.nodes[output + 1].code,
+            Code::Affine { left, right: None, .. } if left == output
+        ));
+        assert_eq!(program.retire, vec![vec![], vec![input], vec![output + 1]]);
+        assert!(program.nodes[output + 1].inputs().contains(&output));
+        assert!(program.payload_bytes() > legacy.allocated);
+
+        // Independent builds have identical finalizer identities, NOT identical
+        // allocations. Neither may substitute for the captured original owners.
+        let (again, again_prepared, again_input, again_output) =
+            prepared_rescale18_worker_fixture(lanes, domain()).unwrap();
+        assert_eq!((again_input, again_output), (input, output));
+        assert_eq!(program.digest(), again.digest());
+        assert_eq!(program.source_binding, again.source_binding);
+        assert_eq!(program.payload_bytes(), again.payload_bytes());
+        assert!(!Arc::ptr_eq(&program, &again));
+        for (original, other) in originals.iter().zip(again_prepared.programs()) {
+            assert_eq!(original.digest(), other.digest());
+            assert!(!Arc::ptr_eq(original, other));
+        }
+
+        // Moving the SAME capability into the semantic sink leaves expanded
+        // ownership intact. No independently reconstructed template is accepted.
+        let mut semantic = body::layer::Builder::new(
+            WeightMode::Public,
+            &[body::Register {
+                lanes,
+                bounds: domain(),
+            }],
+        )
+        .unwrap();
+        let semantic_input = semantic.input(0).unwrap();
+        let semantic_output = semantic
+            .prepared_tensor_map(&semantic_input, prepared, program.payload_bytes())
+            .unwrap();
+        let plan = semantic.finish(&[semantic_output]).unwrap();
+        assert_eq!(plan.work_budget(), program.work_budget());
+        for (stored, original) in std::iter::once(full).chain(tail).zip(originals) {
+            assert!(Arc::ptr_eq(stored, &original));
+        }
+    }
+}
+
+#[test]
+fn worker_fixture_rejects_unqualified_lane_counts_before_native_construction() {
+    for lanes in [0, 2, 127, 130, 256, 258, MAX_VALUES + 1, usize::MAX] {
+        let attempts = super::super::prepared_tensor_map::native_attempts();
+        assert!(matches!(
+            prepared_rescale18_worker_fixture(lanes, domain()),
+            Err(Error::Bounds)
+        ));
+        assert_eq!(
+            super::super::prepared_tensor_map::native_attempts(),
+            attempts
+        );
+    }
+}
+
+#[test]
+fn prepared_publication_matches_closure_full_and_tail_and_remains_consumable() {
     for silu in [false, true] {
         for lanes in [1, 128, 129, 257] {
             let prepared = prepare(lanes, silu);
@@ -127,6 +290,26 @@ fn prepared_publication_matches_closure_full_and_tail_without_owner_substitution
                 schedule_work(&new.nodes).unwrap(),
                 prepared.work_budget().unwrap()
             );
+
+            // The SAME capability remains movable into the existing semantic
+            // sink, while expanded nodes continue to own its original Arcs.
+            let originals: Vec<_> = prepared.programs().cloned().collect();
+            let mut semantic = body::layer::Builder::new(
+                WeightMode::Public,
+                &[body::Register {
+                    lanes,
+                    bounds: domain(),
+                }],
+            )
+            .unwrap();
+            let input = semantic.input(0).unwrap();
+            let output = semantic
+                .prepared_tensor_map(&input, prepared, new.allocated)
+                .unwrap();
+            let _plan = semantic.finish(&[output]).unwrap();
+            for original in originals {
+                assert!(Arc::ptr_eq(&new.tensors[&original.digest()], &original));
+            }
         }
     }
 }
@@ -257,7 +440,7 @@ fn shared_tensor_loop_publication_rejects_full_and_tail_output_width_changes() {
 }
 
 #[test]
-fn prepared_publication_checks_local_owner_width_domain_and_caps() {
+fn prepared_publication_authenticates_owner_width_domain_and_caps() {
     for silu in [false, true] {
         let prepared = prepare(129, silu);
         assert_rejected_unchanged(&mut builder(129, domain()), 1, &prepared);

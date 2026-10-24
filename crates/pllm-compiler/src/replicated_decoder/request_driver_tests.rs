@@ -1,8 +1,9 @@
 //! Original-expanded controls only; none qualifies compact request execution.
 use super::*;
-#[path = "request_driver_cases.rs"]
-mod cases;
-use cases::{checked_case, early_rejection_case, nonzero_case, three_selection_case, DecoderCase};
+use crate::replicated_decoder::tests::complete_decoder_parity_tests::{
+    checked_case, early_rejection_case, nonzero_case, run_expanded, three_selection_case,
+    DecoderCase,
+};
 
 fn config(family: &str) -> Vec<u8> {
     // Same metadata as the existing shared complete-decoder fixture. Numeric
@@ -398,7 +399,10 @@ fn later_original_prefill_errors_preserve_site_ledger_and_stop_before_feedback_o
             finishes.set(finishes.get() + 1);
             panic!("failed original prefill reached finalization/publication boundary")
         })();
-        let error = result.expect_err("original second prefix must stop request");
+        let error = match result {
+            Err(error) => error,
+            Ok(_) => panic!("original second prefix must stop request"),
+        };
         assert_eq!(
             error,
             if pressure {
@@ -679,7 +683,10 @@ fn checked_final_acceptance_budget_failure_retains_sticky_site_and_never_publish
                     panic!("failed original acceptance reached finalization/publication boundary")
                 })();
                 assert_eq!(
-                    result.expect_err("real acceptance budget must reject"),
+                    match result {
+                        Err(error) => error,
+                        Ok(_) => panic!("real acceptance budget must reject"),
+                    },
                     Error::Bounds
                 );
                 assert_eq!(finishes.get(), 0);
@@ -811,6 +818,31 @@ fn original_expanded_request_canonical_selected_order_and_full_prefix_parity() {
     assert_original_loop_parity(&three_selection_case());
     assert_original_loop_parity(&early_rejection_case(false));
     assert_original_loop_parity(&early_rejection_case(true));
+}
+
+#[test]
+fn original_expanded_full_prefix_frames_components_sticky_validity_and_work() {
+    // Genuine complete-decoder helpers verify ordered wire, both private share
+    // components at feedback boundaries, full PRSS cursors and final frames.
+    // Ordinary-versus-ordinary control only, NOT compact execution evidence.
+    std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(|| {
+            for case in [
+                nonzero_case([0, 0]),
+                nonzero_case([1, 0]),
+                checked_case(false),
+                checked_case(true),
+                three_selection_case(),
+            ] {
+                let trace = run_expanded(&case);
+                assert_eq!(trace.outputs, case.expected);
+                assert_eq!(trace.work, case.program.work_budget());
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
 }
 
 /// Independent borrowed copy of the pre-extraction expanded node encoder and

@@ -2,6 +2,9 @@ use super::*;
 use puma::{prss::PublicContribution, Party};
 use std::collections::BTreeMap;
 
+#[path = "complete_decoder_parity_tests.rs"]
+pub(super) mod complete_decoder_parity_tests;
+
 const PUBLIC_CONFIG: &[u8] = br#"{"model_type":"llama","hidden_size":2,"intermediate_size":2,
     "num_hidden_layers":1,"num_attention_heads":1,"num_key_value_heads":1,
     "vocab_size":3,"max_position_embeddings":64,"rope_theta":10000,
