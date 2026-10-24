@@ -3,6 +3,10 @@
 use super::*;
 
 #[cfg(test)]
+#[path = "tensor_work_preflight_silu_tests.rs"]
+mod silu_tests;
+
+#[cfg(test)]
 thread_local! { static ROW_ENTRIES:std::cell::Cell<usize>=const {std::cell::Cell::new(0)}; }
 #[cfg(test)]
 pub(super) fn observed_row_entry() {
@@ -18,6 +22,9 @@ pub(super) fn row_entries() -> usize {
 /// the existing general-input-row obligation, NOT an attention proof conversion.
 #[derive(Debug)]
 pub enum FactoryParameters<'a> {
+    GuardedSilu {
+        input: Interval,
+    },
     Negative {
         input: Interval,
     },
@@ -109,6 +116,7 @@ impl Construction {
         use FactoryParameters as P;
         let compatible = match (&self, &parameters) {
             (Self::Negative { .. }, P::Negative { .. })
+            | (Self::GuardedSilu { .. }, P::GuardedSilu { .. })
             | (Self::EqualZero { .. }, P::EqualZero { .. })
             | (Self::Builder { .. }, P::Rescale { .. })
             | (Self::CheckedRange { .. }, P::CheckedRange { .. })
@@ -166,14 +174,15 @@ pub struct WorkPreflightResources {
     pub build_result_bytes: usize,
 }
 
-/// Caller-owned fixed work scratch. Quote resources() BEFORE empty(). Two
-/// explicit fixed native metadata stores, no growing buffer or Program storage.
+/// Caller-owned fixed work scratch. Quote resources() BEFORE empty(). Three
+/// RMS, softmax and activation fixed native stores; no growing buffer or Program storage.
 /// Success reuses storage; any error poisons until reset. Reset cannot refund a
 /// caller ledger. Public proof CPU/private callframes and caller input backing
 /// remain independently unpriced, not zero.
 pub struct WorkPreflightWorkspace {
     rms: RmsWorkWorkspace,
     softmax: SoftmaxWorkWorkspace,
+    activation: ActivationWorkWorkspace,
     poisoned: bool,
 }
 impl WorkPreflightWorkspace {
@@ -196,6 +205,7 @@ impl WorkPreflightWorkspace {
         Self {
             rms: RmsWorkWorkspace::empty(),
             softmax: SoftmaxWorkWorkspace::empty(),
+            activation: ActivationWorkWorkspace::empty(),
             poisoned: false,
         }
     }
@@ -205,6 +215,7 @@ impl WorkPreflightWorkspace {
     pub fn reset(&mut self) {
         self.rms.reset();
         self.softmax.clear();
+        self.activation.reset();
         self.poisoned = false;
     }
 }
@@ -261,6 +272,14 @@ impl<'a> ClosedFactory<'a> {
     ) -> Result<(WorkBudget, ConstructionQuote), WorkPreflightError> {
         use FactoryParameters as P;
         let work = match (&self.construction, &self.parameters) {
+            (Construction::GuardedSilu { lanes }, P::GuardedSilu { input }) => {
+                Program::activation_guarded_work(
+                    Activation::Silu,
+                    *lanes,
+                    *input,
+                    &mut workspace.activation,
+                )?
+            }
             (Construction::Negative { lanes }, P::Negative { input }) => {
                 Program::negative_work(*lanes, *input)?
             }
@@ -342,6 +361,10 @@ impl<'a> ClosedFactory<'a> {
     fn build(self) -> Result<FactoryOutput, Error> {
         use FactoryParameters as P;
         let (program, certificate) = match (self.construction, self.parameters) {
+            (Construction::GuardedSilu { lanes }, P::GuardedSilu { input }) => (
+                Program::activation_guarded(Activation::Silu, lanes, input)?,
+                ProducedCertificate::None,
+            ),
             (Construction::Negative { lanes }, P::Negative { input }) => {
                 (Program::negative(lanes, input)?, ProducedCertificate::None)
             }
