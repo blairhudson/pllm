@@ -584,6 +584,63 @@ Full semantic-body dispatch, compact-oracle boundary mapping, trained-checkpoint
 admission and SDK promotion remain separate gates. No automatic policy, numeric,
 security, quality or performance qualification follows from this native adapter.
 
+### D26 compact-execution foundations
+
+Expanded compilation uses the extracted ordered graph traversal. Bounded
+registry/expanded controls compare ordered frames, both replicated components
+and PRSS/AES cursors. The descriptor view borrows validated source/norm maps;
+this is not zero-cost request ownership. The committed
+[`SourceRequestImport`](../../crates/pllm-compiler/src/replicated_decoder/source_entry.rs)
+retains charged manifest/raw owners and registry/import/controller guards,
+alongside the original source plan and importer. Construction also allocates
+validation temporaries; no whole-request fit follows from borrowing descriptors.
+
+Semantic-body construction admits container/proof growth and overlap before
+allocation, and burns a partially failed builder. Native tensor factories use
+shared preconstruction quotes, with caller-owned buffers charged separately.
+RoPE fills exact caller-owned coefficient buffers without allocation; the legacy
+generated-Vec quote remains unsupported. Shared tensor execution borrows the
+original immutable Arc template without deep-copying public coefficient tables;
+standalone admission still charges full backing for each invocation.
+
+The closed [prepared-map capability](../../crates/pllm-compiler/src/replicated_decoder/prepared_tensor_map.rs)
+covers only rescale and guarded
+SiLU, retaining at most the original full and tail templates. Its local consuming
+tests cover full/tail parity, late failure, cancellation, retained frames and
+returned-output ownership. No arbitrary Program adoption, external numeric-proof
+authority or reconstructed template substitution is provided.
+
+A separate, still-gated one-loop rescale18 adapter has historical compiler-owned
+[fixture controls](../../crates/pllm-compiler/src/replicated_decoder/prepared_tensor_map_tests.rs)
+at 1, 128, 129 and 257 lanes. These bounded controls compare complete ordered
+frames, both stored share components, PRSS/AES cursors and work against the original
+expanded Worker, including a subsequent protected product, retained/last-use
+inputs, accepted/rejected sticky validity and final masking. Active-tail malformed
+receives and cancellation consume original owners while retained peer frames stay
+valid. The candidate entry is private and test-only; the committed
+[production parity gate](../../crates/pllm-compiler/src/replicated_decoder/body_tensor_integration.rs)
+still rejects explicitly. Historical fixture results do not validate current
+uncommitted prototypes, trained layer-six execution or a complete compact decoder.
+
+Staged finalization quotes the actual populated Builder and exact outputs before
+construction, adding the retained original owner baseline. Named adapter control
+and result slots use explicit already-priced destinations; native Plan allowance
+is not borrowed. Independent owner-capacity equality and exact/one-short gates
+cover the baseline and finalization boundary. This is a scoped logical-owner
+census, not recursive helper, ABI-stack, allocator or RSS certification.
+
+These are bounded logical owner/buffer envelopes, not measured RSS or a complete
+request-wide peak proof. Later landed source-owned checked-public SDK setup and
+creation-bound RoPE capture do not open production BODY dispatch or establish
+globally drained role handoff, complete-owner admission or trained-checkpoint
+execution. The [D26 phased-admission clarification](../../paper/methods/DECISIONS.md#d26-opt-in-compact-puma-semantic-outer-representation)
+permits same-counter phased construction; it does not say that construction is
+implemented or a whole compact request fits 64 MiB. The neutral admitted-peak
+counter alone is not compiler-instrumented phased-constructor evidence. Native
+Q18 probabilistic truncation, security/range/source-proof obligations, numeric
+identities, workload and protocol limits remain unchanged; this note adopts no
+new contract.
+
 ### Shared SDK interfaces
 
 Ordinary `OpenAI`/`AsyncOpenAI`, gateway Responses/Chat Completions,
