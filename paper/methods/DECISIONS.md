@@ -648,6 +648,38 @@ negative certificate mappings before another installed publisher retry. Approval
 does not establish source admission, complete-checkpoint execution, quality,
 serving performance, security qualification or SDK availability.
 
+**User-approved resource-contract clarification, 24 October 2026:** construction
+may use phased admission on the same original counter. This does not require an
+upfront assurance that the whole request will fit, and does not establish that
+phased construction is implemented or that a complete request fits 64 MiB.
+
+- Before each allocation or factory, price and reserve **all simultaneously live
+  owners**: retained native, source/import and history owners, metadata, slots,
+  transition/move/result overlap and scratch, together with the proposed phase's
+  new backing. Keep their original charges continuously live until actual
+  retirement; no reset, refund/reacquisition or phase-local counter supplies
+  credit for retained owners. The all-owner 64 MiB ceiling and global 65,536
+  stored-descriptor ceiling remain unchanged.
+- Debit cumulative native work before each factory. Include all construction and
+  execution work required by the existing contract; never reset or refund work
+  between phases. Phased storage admission does not narrow protected work,
+  ordinal, AES or cursor accounting.
+- Original source/import history still needs its all-owner historical-peak
+  issuer. A current `used` sample or a zero external baseline cannot replace that
+  provenance or erase earlier construction overlap. Logical peak accounting is
+  not an RSS bound; private allocator and stack coverage remain outside this
+  clarification's claim.
+- A late refusal burns the unpublished invocation: no expanded fallback or
+  partial success. Publish only **full owning sealed Storage**, after whole
+  identity, work and retirement validation and before Worker execution. Earlier
+  successful phases alone confer no execution or publication authority.
+
+This clarification changes no arithmetic profile, source binding, certificate,
+wire identity or cap. Expanded remains the default; production BODY/drain gates
+remain closed. A first-instruction Worker storage path does not issue
+`CoordinatorDrained` or establish a globally drained router. The original parity,
+certificate and lifecycle acceptance gates above still apply.
+
 ## D27. Bounded SIGMA D22 consuming role split
 
 **Explicitly approved by the user:** consume a fresh D22 run into two distinct
@@ -921,7 +953,7 @@ D36's separate bounded SIGMA composition and its existing limits are unchanged.
 | D23 | Approved: bounded PUMA mid-graph handoff and deterministic test support | Same original runtime/PRSS, drained router and complete-node boundary; unchanged numerics/ceilings/sticky validity, nondefault insecure test-only fresh setup, with exact parity and ownership validation still required. |
 | D24 | Approved: bounded NEXUS GELU numerical decision experiment | Fixed source-derived polynomial/selector candidate, separate endpoint oracle, research-only domain and honest sampled/enclosed error; no executable CKKS/profile adoption or automatic repair. |
 | D25 | Approved: bounded THOR multi-block frame-routing correction | Modular full-block routes, unchanged line-7 rotations and single-frame behavior; independent oracle and original counterexamples required, no HE/profile/decoder adoption. |
-| D26 | Approved: opt-in compact PUMA semantic outer representation | Stored-descriptor counting and audited whole-program peak ownership retain 65,536/64 MiB ceilings; same runtime/PRSS and complete-request work, certificate mapping and automatic semantic dispatch need validation; changed schedules/framing need separately approved identity. |
+| D26 | Approved: opt-in compact PUMA semantic outer representation | Phased same-counter construction permitted, not upfront whole-request-fit assurance; all-owner peak/global descriptors retain 64 MiB/65,536 ceilings, cumulative native work prepaid without resets; full owning sealed Storage and original provenance/parity/certificate/drain gates required. No implemented-fit or production BODY claim; changed schedules/framing need separately approved identity. |
 | D27 | Approved: bounded SIGMA D22 consuming role split | Distinct native/compiler role owners move original material, source backing and continuous reservations; unchanged coupled API, equations and eleven-exchange transcript; coordinator burns both siblings on failure; no Multiply, transport or SDK promotion. |
 | D28 | Approved: secure HE client sampling seam design/review | Cover original generation and all internal expansions; preserve distributions, arithmetic and D4 gates. RNG, implementation, revised pin and security/resource contract require separate approval before generation; no qualification-only randomness exception. |
 | D29 | Approved conditionally: bounded SIGMA nExp | Exact S-E local implementation; records, owner quotes, floor proofs and privacy gates remain; no full softmax/normalization, decoder or SDK promotion. |
