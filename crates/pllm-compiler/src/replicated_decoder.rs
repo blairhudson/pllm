@@ -22,6 +22,10 @@ mod source_norms;
 // remains staged. Keep dead-code checking enabled in the test configuration.
 #[cfg_attr(not(test), allow(dead_code))]
 mod source_registry;
+// Staged census at the already-lowered validation boundary. Aggregate request
+// construction remains unavailable; no production entry point uses this seam.
+#[allow(dead_code)]
+mod source_request_census;
 #[cfg(test)]
 mod tests;
 mod views;
