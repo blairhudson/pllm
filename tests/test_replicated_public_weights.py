@@ -195,9 +195,12 @@ def test_checked_source_entry_rejects_manifest_tensor_substitution(tmp_path, cha
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("checked", [False, True])
+@pytest.mark.parametrize("checked,family", [
+    (False, "qwen2"), (True, "qwen2"),
+    (True, "qwen3"),
+], ids=["False", "True", "checked_qwen3_qk_rope"])
 @pytest.mark.parametrize("phase", ["import", "execution"])
-async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch, checked, phase):
+async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch, checked, family, phase):
     """Ordinary SDK/three worker apps; HTTP IO in-process, native algorithms real.
 
     Never run on the old wheel: checked mode requires the installed I9 entry.
@@ -208,7 +211,61 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
     from pllm.runtime.replicated_protocol import ROLES
     from test_replicated_policy_sdk import observe_publishers, assert_publishers_retired
 
-    experiment = experiment_fixture(tmp_path, weights="public", active=True)
+    experiment = experiment_fixture(tmp_path, family=family, weights="public", active=True)
+    if family == "qwen3":
+        from safetensors.numpy import load_file, save_file
+
+        # Intentional NEW variant, not the committed active fixture (Q/K=0,
+        # O=-I/2). Freeze Q/K=I, O=+I/2 BEFORE source admission; norms, V, MLP,
+        # embeddings and head stay unchanged.
+        # Conditional sign oracle (Astra224), ALL floor/ceil choices, Q=262144:
+        # initial residual=40960 codes; all fixture dyadics are exact. RMS uses
+        # native epsilon=1 (not ideal real arithmetic). Its polynomial's
+        # normalized argument is [1/4,1/2]; Bernstein coefficients *256 are
+        # (134207745,117567898,108500846+2/3,100757960,94914064). Power errors
+        # <=1,3/2,7/4 codes give polynomial error <160, hence Q<P<3Q.
+        # h_j=(512 or724)*2**(17-floor((j+1)/2)), h_j<=I<=3*h_j+1.
+        # Checked inputs <=256Q imply d<=2**34+1 and I>=512; x_i**2<2Q(d+1)
+        # gives RMS magnitude <=3Q+257<4Q, sign preserved or zero, gamma=Q.
+        # Uniform prefix envelope (Astra236), n<=9: Q<=D<=nQ<=9Q. Normalize to
+        # C in [Q/2,Q], G=763940-2*C; AFTER factor multiplication, 0<W<Q.
+        # TR(DW/Q) differs from C*G/Q by <=12 codes (2+9+1), hence lies in
+        # [3Q/4,5Q/4], and reciprocal corrections give 0<=Irecip<2Q.
+        # Nonnegative probabilities have mass <=2*n*Q. V follows prompt sign/zero;
+        # weighted sum and O=+I/2 have opposing allowance ZERO. Attention is
+        # <4*n*Q+16<=36Q+16; residual plus MLP <37Q<256Q. Q/K norm and original
+        # RoPE only alter weights, with score magnitude <129Q. Native admission
+        # retains input cap8 plus one feedback<=9; no workload/cap change.
+        # Astra236 source-checked delegated_client._encode -> prompt_text:
+        # 'user: <text>', no assistant suffix/BOS; WordLevel maps user/colon to
+        # unknown ID2, whose fixture embedding is zero. These two-word prompts
+        # thus have 4 input/5 feedback tokens by SOURCE inspection, not a newly
+        # observed usage assertion. The proof uses n<=9, not that exact framing.
+        # Post-RMS <4Q gives gate/up <=32770 codes; SiLU powers |x2|<=4097,
+        # |x4|<=65, |x6|<=2 and coefficients 2229,131072,59806,-2913,71 give
+        # |SiLU|<=19551<Q/8. Gated product <=4097; two-column 1/64 down <=130,
+        # reserve132. Residual margin 40828 survives both same-sign feedback
+        # prefixes. Final positive rsqrt I>=512 gives magnitude >=79; +/-1
+        # and zero head rows select unique IDs. Not compiler/source authority
+        # or a general-model numeric claim; no expected ID comes from execution.
+        q = 1 << 18
+        assert 40960 - 132 == 40828
+        assert 40828 * 512 // q == 79
+        assert 19551 < q // 8 and 20 * q + 16 < 256 * q
+        path = Path(experiment.pipeline.model.source) / "model.safetensors"
+        values = load_file(path)
+        attention = "model.layers.0.self_attn."
+        assert np.array_equal(values[attention + "v_proj.weight"], np.eye(2))
+        assert np.array_equal(values[attention + "o_proj.weight"], -np.eye(2) / 2)
+        for projection in ("q", "k"):
+            assert np.array_equal(values[attention + projection + "_norm.weight"], np.ones(2))
+            assert np.array_equal(values[attention + projection + "_proj.weight"], np.zeros((2, 2)))
+            values[attention + projection + "_proj.weight"] = np.eye(2, dtype=np.float32)
+        values[attention + "o_proj.weight"] = np.eye(2, dtype=np.float32) / 2
+        for key, value in values.items():
+            if "mlp." in key:
+                assert np.all(value == 1 / 64)
+        save_file(values, path, metadata={"format": "pt"})
     if checked:
         experiment = experiment.with_params(pipeline__components__linear__range_policy="checked",
             pipeline__components__linear__max_abs_activation=256)
@@ -248,7 +305,13 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
 
         def append_public_source(self, *args):
             result = self.owner.append_public_source(*args)
+            events.append(("appended", self.key))
             gate(self.role, "import")
+            return result
+
+        def seal_public_source(self):
+            result = self.owner.seal_public_source()
+            events.append(("sealed", self.key))
             return result
 
         def call(self, *args):
@@ -267,6 +330,28 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
 
         @staticmethod
         def _from_source_request(manifest, role):
+            if family == "qwen3":
+                from pllm import lower_model
+
+                # Lower the actual admitted configuration/workload, not an
+                # alternate graph or a Python reimplementation of attention.
+                request = json.loads(manifest)
+                config = json.loads(bytes(request["config"]))
+                assert config["model_type"] == "qwen3"
+                plan = lower_model(config, batch=1, max_input_tokens=request["rows"],
+                    max_new_tokens=request["outputs"]).to_dict()
+                for phase in ("prefill", "decode"):
+                    operations = plan[phase]["operations"]
+                    nodes = {node["id"]: node for node in operations}
+                    order = {node["id"]: i for i, node in enumerate(operations)}
+                    for projection in ("q", "k"):
+                        norm_id = f"layer.0.{projection}_norm"
+                        rope_id = f"layer.0.rope_{projection}"
+                        assert nodes[norm_id]["operator"] == "rms_norm"
+                        assert nodes[norm_id]["attributes"]["weight"] == (
+                            f"model.layers.0.self_attn.{projection}_norm.weight")
+                        assert nodes[rope_id]["inputs"][0] == norm_id
+                        assert order[norm_id] < order[rope_id]
             return NativeProxy(native_type._from_source_request(manifest, role), role, "source")
 
     original_reserve = worker.reserve_incremental_memory
@@ -392,10 +477,25 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
             route = "source" if checked else "legacy"
             assert not any(kind == ("legacy" if checked else "source") for kind, _ in events)
             assert (route, key) in events
-            for prompt, expected in [("hello hello", (4, 4)), ("world hello", (1, 1))]:
+            # The conditional fixed-point bound above fixes these Qwen3 IDs:
+            # hello/eos embeddings stay positive; world feedback stays negative.
+            # Both native feedback steps must satisfy that independent oracle.
+            branches = ([("hello hello", (1, 1)), ("world world", (4, 4))]
+                        if family == "qwen3" else
+                        [("hello hello", (4, 4)), ("world hello", (1, 1))])
+            for prompt, expected in branches:
+                previous = set(created)
+                previous_publishers = len(owners)
                 response = await sdk.responses.create(input=prompt, max_output_tokens=2)
                 assert response.usage.output_tokens == 2 and captured[-1].selected == expected
                 assert await asyncio.to_thread(active_sessions, core) == [0, 0, 0]
+                admitted = set(created) - previous
+                assert {role for role, _ in admitted} == {0, 1, 2}
+                for owner in admitted:
+                    assert (route, owner) in events
+                    assert events.index(("appended", owner)) < events.index(("sealed", owner))
+                assert len(owners) == previous_publishers + 1
+                assert owners[-1].finish_calls == 1  # Original native final acceptance.
             assert {role for role, _ in created} == {0, 1, 2}
             for owner in created:
                 assert events.index(("closed", owner)) < events.index(("refunded", owner))
