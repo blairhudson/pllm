@@ -1,22 +1,25 @@
 # SIGMA protected normalization and causal softmax audit
 
 Current status, 24 October 2026: **D29 CONDITIONALLY APPROVED; BOUNDED nExp
-IMPLEMENTATION COMMITTED; BOUNDED SOFTMAX ROOT CONDITIONALLY APPROVED IN D36**.
+IMPLEMENTATION COMMITTED; D36 BOUNDED SOFTMAX IMPLEMENTATION COMMITTED**.
 The [nExp packet](../plans/sigma-nexp.md) received conditional local approval in
 [D29](../../paper/methods/DECISIONS.md#d29-conditional-bounded-sigma-nexp-implementation).
 Its private owning region landed in `ec68ad19`; Parent reported **755 / 43 / 35
 component checks passed**. The guarded public clear-root facade landed in
 `d6b6e910` with **95 checks passed**. Those results are not full softmax,
-normalization, checkpoint, decoder, SDK or security qualification. The inherited
-nExp entry needed below is still closed; clear-root component tests do not supply it.
+normalization, checkpoint, decoder, SDK or security qualification. D36's owning
+one-row composition landed in `73fcf446`: **804 unit, 51 integration and 42
+documentation checks passed**, with strict Clippy clean. Its private inherited
+nExp bridge is confined to genuine outer difference owners; no arbitrary
+inherited-input or wider-row entry is enabled. Independent source review cleared
+the scoped ownership/accounting paths, not joint-view privacy.
 
 The original read-only audit, recorded 22 October, is retained below, including
 its then-unapproved recommendations and paper/CPU conflicts. Its statements
-about missing implementations describe that date, not the current D29 status.
-No implementation code was changed; no tests, benchmarks or native/model imports
-or execution accompanied this update. D17/D19/D20/D22/D27/D29 do not authorize
-the proposed outer composition,
-broader numeric domains or decoder availability.
+about missing implementations describe that date, not current D29/D36 status.
+This status edit changes no implementation and reruns no tests or benchmarks.
+D36 authorizes only its bounded local composition; broader numeric domains,
+normalization and decoder availability remain outside that approval.
 
 ## Source identity and locations
 
@@ -456,7 +459,9 @@ independent table-hash bytes; both-role transcript/owner parity. Then real-facto
 zero-draw invalid/exhausted-work rejection, exact/one-short capacity/work limits,
 original-counter/source identity and repeated-read misuse, partial entropy/factory
 failures, retained frames, cancellation/replay/unwind and both-Ready negatives.
-Those tests are **not run or added here**. Independent joint-view review must
+The native implementation gate above passed, including independent canonical
+records and genuine late-parent-abort coverage. It is not checkpoint or wider
+row qualification. Independent joint-view review must
 cover max/Select, correlated E reduction and R broadcast, D19 corrections and
 product/GapARS; functional tests do not prove that composition private.
 
