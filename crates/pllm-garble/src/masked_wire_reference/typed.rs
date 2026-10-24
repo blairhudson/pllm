@@ -56,6 +56,7 @@ pub use causal_softmax::{
     CausalSoftmaxStepFor, CausalSoftmaxWork, CausalSoftmaxWorkLimit,
 };
 mod internal_use;
+pub(in crate::masked_wire_reference) mod layernorm4;
 // D29's conditional implementation is not an activated/public product API.
 mod nexp;
 #[allow(dead_code)]

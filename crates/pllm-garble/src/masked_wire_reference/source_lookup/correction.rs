@@ -28,6 +28,9 @@ pub(super) struct CorrectionState {
 pub(super) struct CorrectionFor<C: AllocationContext> {
     pub(super) masks: Zeroizing<Vec<[u64; 2]>>,
     pub(super) state: Option<CorrectionState>,
+    // Private Norm profiles retain consumed scan backing until outer retirement.
+    // Ordinary D19 retains its original immediate count retirement behavior.
+    retained_counts: Option<Zeroizing<Vec<i64>>>,
     pub(super) select: Option<selection::PartyFor<C>>,
     pub(super) scan_lease: Option<LeaseFor<C>>,
     pub(super) role: u8,
@@ -48,6 +51,29 @@ pub(super) struct Controls<'a, C: AllocationContext> {
 #[derive(Clone, Copy)]
 pub(super) struct CorrectionDescriptor {
     pub(super) wire_spec: Spec,
+}
+
+/// Checked numeric profile, NOT a source/key/scan receipt. Default callers can
+/// obtain this only through the unchanged index8/10 validation. Private D43
+/// scanners must additionally present their creation-issued source seal at the
+/// material finishing boundary; this resource token cannot issue an owner.
+#[derive(Clone, Copy)]
+pub(super) struct ValidatedDescriptor(CorrectionDescriptor);
+impl ValidatedDescriptor {
+    fn lookup(descriptor: CorrectionDescriptor) -> Result<Self, Error> {
+        descriptor.wire_spec.validate()?;
+        Ok(Self(descriptor))
+    }
+    pub(super) fn norm_inverse() -> Self {
+        Self(CorrectionDescriptor {
+            wire_spec: Spec {
+                index_bits: 13,
+                output_bits: 50,
+                lanes: 1,
+                boundary: Boundary::Reconstructed,
+            },
+        })
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -81,6 +107,8 @@ pub(super) struct CorrectionBuildFor<C: AllocationContext> {
 
 #[allow(dead_code)] // Explicit child factory call/move/result overlaps, not backings.
 pub(super) struct IssuanceControls<'a, C: AllocationContext> {
+    checked_descriptor: ValidatedDescriptor,
+    checked_result: Result<ValidatedDescriptor, Error>,
     quote: CorrectionResources,
     quote_result: Result<CorrectionResources, Error>,
     build: Option<CorrectionBuildFor<C>>,
@@ -126,8 +154,13 @@ struct FinishingFor<C: AllocationContext> {
 pub(super) fn resources<C: AllocationContext>(
     descriptor: CorrectionDescriptor,
 ) -> Result<CorrectionResources, Error> {
-    let spec = descriptor.wire_spec;
-    spec.validate()?;
+    resources_validated::<C>(ValidatedDescriptor::lookup(descriptor)?)
+}
+
+pub(super) fn resources_validated<C: AllocationContext>(
+    descriptor: ValidatedDescriptor,
+) -> Result<CorrectionResources, Error> {
+    let spec = descriptor.0.wire_spec;
     let select = selection::resources_for_context::<C>(spec.select(), spec.boundary)?;
     if select.combined_reservation_bytes
         != add(&[
@@ -180,9 +213,17 @@ pub(super) fn resources<C: AllocationContext>(
 
 pub(super) fn prepare_reserved<C: AllocationContext>(
     descriptor: CorrectionDescriptor,
+    reservation: LeaseFor<C>,
+) -> Result<CorrectionBuildFor<C>, Error> {
+    prepare_validated(ValidatedDescriptor::lookup(descriptor)?, reservation)
+}
+
+pub(super) fn prepare_validated<C: AllocationContext>(
+    descriptor: ValidatedDescriptor,
     mut reservation: LeaseFor<C>,
 ) -> Result<CorrectionBuildFor<C>, Error> {
-    let quote = resources::<C>(descriptor)?;
+    let quote = resources_validated::<C>(descriptor)?;
+    let descriptor = descriptor.0;
     if reservation.bytes != quote.combined {
         return Err(Error::Resource);
     }
@@ -253,13 +294,31 @@ impl<C: AllocationContext> CorrectionBuildFor<C> {
         lane: IssuedKeyLane,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
     ) -> Result<(), Error> {
+        self.push_index(lane.index, fill)
+    }
+    pub(super) fn push_norm13_keypair(
+        &mut self,
+        lane: Norm13KeyLane,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        if self.descriptor.wire_spec != ValidatedDescriptor::norm_inverse().0.wire_spec {
+            self.failed = true;
+            return Err(Error::Context);
+        }
+        self.push_index(lane.index, fill)
+    }
+    fn push_index(
+        &mut self,
+        index: usize,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<(), Error> {
         if self.failed {
             return Err(Error::Consumed);
         }
         self.failed = true;
         let guard = PushGuard { build: self };
         let spec = guard.build.descriptor.wire_spec;
-        if lane.index != guard.build.next_lane || lane.index >= spec.lanes {
+        if index != guard.build.next_lane || index >= spec.lanes {
             return Err(Error::Context);
         }
         // EXACT original draw order. Every partial/error/unwind wipes all build
@@ -268,8 +327,8 @@ impl<C: AllocationContext> CorrectionBuildFor<C> {
         let q = Zeroizing::new(draw(1, fill)?);
         let r0 = Zeroizing::new(draw(spec.output_bits, fill)?);
         let q0 = Zeroizing::new(draw(1, fill)?);
-        guard.build.arithmetic_masks[lane.index] = *r;
-        guard.build.predicate_masks[lane.index] = *q;
+        guard.build.arithmetic_masks[index] = *r;
+        guard.build.predicate_masks[index] = *q;
         guard.build.masks[0].push([*r0, *q0]);
         guard.build.masks[1].push([r.wrapping_sub(*r0) & mask(spec.output_bits), *q ^ *q0]);
         guard.build.next_lane += 1;
@@ -280,13 +339,32 @@ impl<C: AllocationContext> CorrectionBuildFor<C> {
     pub(super) fn finish(
         self,
         seal: LookupIssueSeal,
+        fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> CorrectionResult<C> {
+        self.finish_fields(seal.spec, seal.binding, seal.select_context, fill)
+    }
+    pub(super) fn finish_norm13(
+        self,
+        seal: Norm13IssueSeal,
+        fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> CorrectionResult<C> {
+        if seal.spec != ValidatedDescriptor::norm_inverse().0.wire_spec {
+            return Err(Error::Context);
+        }
+        self.finish_fields(seal.spec, seal.binding, seal.select_context, fill)
+    }
+    fn finish_fields(
+        self,
+        sealed_spec: Spec,
+        binding: [u8; 32],
+        select_context: selection::Context,
         mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
     ) -> CorrectionResult<C> {
         if self.failed {
             return Err(Error::Consumed);
         }
         if self.next_lane != self.descriptor.wire_spec.lanes
-            || seal.spec != self.descriptor.wire_spec
+            || sealed_spec != self.descriptor.wire_spec
         {
             return Err(Error::Context);
         }
@@ -304,7 +382,7 @@ impl<C: AllocationContext> CorrectionBuildFor<C> {
         let select_reservation = owner.select.take().ok_or(Error::Consumed)?;
         let (select_masks, [select0, select1]) = selection::issue_reserved_with(
             spec.select(),
-            seal.select_context,
+            select_context,
             &owner.predicate_masks,
             &owner.arithmetic_masks,
             spec.boundary,
@@ -328,6 +406,7 @@ impl<C: AllocationContext> CorrectionBuildFor<C> {
         } = owner;
         let make = |role, masks, correction, select, lease| CorrectionFor {
             masks,
+            retained_counts: None,
             state: Some(CorrectionState {
                 arithmetic: Zeroizing::new(Vec::new()),
                 correction,
@@ -338,7 +417,7 @@ impl<C: AllocationContext> CorrectionBuildFor<C> {
             scan_lease: None,
             role,
             spec,
-            binding: seal.binding,
+            binding,
             lease,
         };
         Ok((
@@ -382,6 +461,7 @@ pub(super) fn control_bytes<C: AllocationContext>() -> usize {
 impl<C: AllocationContext> CorrectionFor<C> {
     pub(super) fn cancel(&mut self) {
         self.state = None;
+        self.retained_counts = None;
         self.masks.zeroize();
         if let Some(select) = &mut self.select {
             select.cancel();
@@ -435,7 +515,11 @@ impl<C: AllocationContext> CorrectionFor<C> {
         self.masks.zeroize();
         state.digest = digest;
         // Scan count backing retires before its original reservation.
-        drop(counts);
+        if self.spec.index_bits == 13 {
+            self.retained_counts = Some(counts);
+        } else {
+            drop(counts);
+        }
         let frame = self.first_frame(&state)?;
         state.phase = 1;
         self.state = Some(state);

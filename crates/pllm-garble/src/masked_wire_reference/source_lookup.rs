@@ -30,6 +30,17 @@ struct LookupIssueSeal {
 struct IssuedKeyLane {
     index: usize,
 }
+
+// Distinct private family: never manufacture the ordinary D19 lane/seal from
+// a caller profile or table. Only issue_parts after real GPU13 key issuance.
+struct Norm13KeyLane {
+    index: usize,
+}
+struct Norm13IssueSeal {
+    spec: Spec,
+    binding: [u8; 32],
+    select_context: selection::Context,
+}
 type LookupResult<C> = Result<(OutputMasksFor<C>, [PartyFor<C>; 2]), Error>;
 
 #[allow(dead_code)] // Concrete quote-only simultaneous call/move/result slots.
@@ -86,6 +97,8 @@ const MAGIC: &[u8; 8] = b"PLLMLU01";
 const HEADER: usize = 80;
 const ALLOCATOR: usize = 64;
 const WORKSPACE: usize = 8 << 10;
+
+pub(super) mod norm13;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Spec {
@@ -218,6 +231,14 @@ pub(crate) fn resources_for_context<C: AllocationContext>(spec: Spec) -> Result<
         .map_err(gpu_error)?
         .resources();
     let child = correction::resources::<C>(CorrectionDescriptor { wire_spec: spec })?;
+    resources_parts::<C>(spec, gpu, child)
+}
+
+fn resources_parts<C: AllocationContext>(
+    spec: Spec,
+    gpu: gpu127::Resources,
+    child: correction::CorrectionResources,
+) -> Result<Resources, Error> {
     let select = child.select;
     let table = mul(8, spec.entries())?;
     let lane = mul(size_of::<LookupLane>(), spec.lanes)?;
@@ -471,10 +492,37 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     context: Context,
     table: &[u64],
     input_masks: &[u64],
-    mut reservation: LeaseFor<C>,
-    mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    reservation: LeaseFor<C>,
+    fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
 ) -> Result<(OutputMasksFor<C>, [PartyFor<C>; 2]), Error> {
     let cost = resources_for_context::<C>(spec)?;
+    let descriptor = CorrectionDescriptor { wire_spec: spec };
+    let child = correction::resources::<C>(descriptor)?;
+    issue_parts(
+        spec,
+        context,
+        table,
+        input_masks,
+        reservation,
+        fill,
+        cost,
+        child,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn issue_parts<C: AllocationContext>(
+    spec: Spec,
+    context: Context,
+    table: &[u64],
+    input_masks: &[u64],
+    mut reservation: LeaseFor<C>,
+    mut fill: impl FnMut(&mut [u8]) -> Result<(), Error>,
+    cost: Resources,
+    child: correction::CorrectionResources,
+    private: Option<correction::ValidatedDescriptor>,
+) -> Result<(OutputMasksFor<C>, [PartyFor<C>; 2]), Error> {
     context.validate(spec.lanes)?;
     validate_inputs(spec, table, input_masks)?;
     if reservation.bytes != cost.combined_reservation_bytes {
@@ -486,7 +534,6 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     // and allocation. Identity hashes full canonical bytes, not a caller label.
     let identity = table_identity(spec, context.numeric_contract, table);
     let descriptor = CorrectionDescriptor { wire_spec: spec };
-    let child = correction::resources::<C>(descriptor)?;
     let child_reservation = reservation.split(child.combined)?;
     let scanner_bytes = cost
         .party_reservation_bytes
@@ -504,7 +551,10 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     }
     // Declare all reservations before secret owners: reverse local drop order
     // erases backing before refunds on every early return.
-    let mut build = correction::prepare_reserved(descriptor, child_reservation)?;
+    let mut build = match private {
+        Some(profile) => correction::prepare_validated(profile, child_reservation)?,
+        None => correction::prepare_reserved(descriptor, child_reservation)?,
+    };
     let new_execution = || -> Result<Execution, Error> {
         let mut own_table = zeros(spec.entries(), budget)?;
         own_table.copy_from_slice(table);
@@ -523,12 +573,13 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     let mut right = new_execution()?;
     let mut nonce = [0; 32];
     fill(&mut nonce)?;
-    let binding = invocation_binding(spec, context, identity, nonce);
-    let seal = LookupIssueSeal {
-        spec,
-        binding,
-        select_context: select_context(context, binding),
-    };
+    let mut binding = invocation_binding(spec, context, identity, nonce);
+    if private.is_some() {
+        let mut hash = Sha256::new();
+        hash.update(b"pllm.sigma.layernorm4.inverse13.invocation.v1");
+        hash.update(binding);
+        binding = hash.finalize().into();
+    }
     let profile = Profile::new(spec.index_bits).map_err(gpu_error)?;
     for (i, &rin) in input_masks.iter().enumerate() {
         let [k0, k1] = GpuKey::issue_with(
@@ -540,7 +591,11 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
         left.lanes.push(LookupLane { key: k0 });
         right.lanes.push(LookupLane { key: k1 });
         // Only this original-key creation site mints the one-shot lane ticket.
-        build.push_after_keypair(IssuedKeyLane { index: i }, &mut fill)?;
+        if private.is_some() {
+            build.push_norm13_keypair(Norm13KeyLane { index: i }, &mut fill)?;
+        } else {
+            build.push_after_keypair(IssuedKeyLane { index: i }, &mut fill)?;
+        }
     }
     let (
         correction::CorrectionMasksFor {
@@ -549,7 +604,25 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
             dealer,
         },
         [correction0, correction1],
-    ) = build.finish(seal, &mut fill)?;
+    ) = if private.is_some() {
+        build.finish_norm13(
+            Norm13IssueSeal {
+                spec,
+                binding,
+                select_context: select_context(context, binding),
+            },
+            &mut fill,
+        )?
+    } else {
+        build.finish(
+            LookupIssueSeal {
+                spec,
+                binding,
+                select_context: select_context(context, binding),
+            },
+            &mut fill,
+        )?
+    };
     Ok((
         OutputMasksFor {
             values,
@@ -693,12 +766,18 @@ impl<C: AllocationContext> PartyFor<C> {
         let digest = hash.finalize().into();
         for (lane, &index) in masked_indices.iter().enumerate() {
             let material = &state.lanes[lane];
-            let expanded = material
-                .key
-                .all_with_allocator(self.spec.entries(), |n| {
+            let expanded = if self.spec.index_bits == 13 {
+                material
+                    .key
+                    .all_layernorm13_with_allocator(self.spec.entries(), |n| {
+                        allocate(n, self.lease.budget.budget()).map_err(allocation_error)
+                    })
+            } else {
+                material.key.all_with_allocator(self.spec.entries(), |n| {
                     allocate(n, self.lease.budget.budget()).map_err(allocation_error)
                 })
-                .map_err(gpu_error)?;
+            }
+            .map_err(gpu_error)?;
             let mut sum = Zeroizing::new(0u64);
             let mut count = Zeroizing::new(0i64);
             // GPU127 outputs already use ascending indices and LSB-first leaf
@@ -735,6 +814,13 @@ impl<C: AllocationContext> PartyFor<C> {
     }
 
     pub fn advance(&mut self, peer: &[u8]) -> Result<StepFor<C>, Error> {
+        self.advance_residency(peer, false)
+    }
+    fn advance_residency(
+        &mut self,
+        peer: &[u8],
+        retain_completed: bool,
+    ) -> Result<StepFor<C>, Error> {
         // Take locally, as before extraction: error/terminal/unwind retires the
         // actual scanner owners even when the caller catches a panic.
         let state = self.state.take().ok_or(Error::Consumed)?;
@@ -743,7 +829,7 @@ impl<C: AllocationContext> PartyFor<C> {
             armed: true,
         };
         let step = abort.correction.advance(peer)?;
-        if matches!(&step, StepFor::Frame(_)) {
+        if retain_completed || matches!(&step, StepFor::Frame(_)) {
             self.state = Some(state);
         }
         abort.armed = false;
