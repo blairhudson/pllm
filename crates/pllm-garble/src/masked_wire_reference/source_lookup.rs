@@ -15,6 +15,9 @@ use sha2::{Digest, Sha256};
 use std::mem::size_of;
 use zeroize::Zeroizing;
 
+mod correction;
+use correction::{CorrectionFor, CorrectionState, ScanResultFor};
+
 pub const DOMAIN: &str = "pllm.sigma.source-lookup.gpu127.v1";
 pub const MAX_LANES: usize = super::MAX_LANES;
 const MAGIC: &[u8; 8] = b"PLLMLU01";
@@ -167,7 +170,11 @@ pub(crate) fn resources_for_context<C: AllocationContext>(spec: Spec) -> Result<
         mul(16, spec.lanes)?, // local R/C backing, later output/C
         mul(8, spec.lanes)?,  // borrowed common masked indices
         4 * ALLOCATOR,        // lane, table, R, C vectors
-        spec.entries(),       // one lane-serial complete expansion
+        mul(size_of::<[u64; 2]>(), spec.lanes)?, // migrated mask backing
+        ALLOCATOR,
+        correction::scan_bytes::<C>(spec)?,
+        correction::control_bytes::<C>(),
+        spec.entries(), // one lane-serial complete expansion
         size_of::<Zeroizing<Vec<u8>>>() + ALLOCATOR,
         first_frame_bytes(spec),     // borrowed peer first frame
         select_frame,                // borrowed peer Select frame
@@ -189,6 +196,7 @@ pub(crate) fn resources_for_context<C: AllocationContext>(spec: Spec) -> Result<
         mul(16, spec.lanes)?, // transient Select predicate/arithmetic masks
         3 * ALLOCATOR,
         gpu.pair_owner_bytes,
+        correction::control_bytes::<C>(),
         WORKSPACE,
     ])?;
     let party = add(&[own_party, select.party_reservation_bytes])?;
@@ -263,18 +271,14 @@ fn boundary_byte(boundary: Boundary) -> u8 {
 
 struct LookupLane {
     key: GpuKey,
-    // One independent additive share of r, one XOR share of q.
-    masks: Zeroizing<[u64; 2]>,
 }
-// GpuKey and masks each erase on drop. No Zeroize bound is needed on Vec:
-// ordinary Vec drop invokes every initialized lane, including partial issuance.
+// GpuKey erases on drop; correction owns the separate zeroizing mask backing.
+// Ordinary Vec drop invokes every initialized key on partial issuance.
 struct Execution {
     lanes: Vec<LookupLane>,
     table: Zeroizing<Vec<u64>>,
-    arithmetic: Zeroizing<Vec<u64>>,
-    correction: Zeroizing<Vec<u64>>,
-    digest: [u8; 32],
-    phase: u8,
+    sums: Zeroizing<Vec<u64>>,
+    counts: Zeroizing<Vec<i64>>,
 }
 pub type Party<'a> = PartyFor<&'a Budget>;
 pub struct PartyFor<C: AllocationContext> {
@@ -282,9 +286,9 @@ pub struct PartyFor<C: AllocationContext> {
     spec: Spec,
     binding: [u8; 32],
     state: Option<Execution>,
-    // Keep this owner outside execution: cancellation burns its state without
-    // refunding retained Select metadata/material reservation before Party drop.
-    select: Option<selection::PartyFor<C>>,
+    // Cancellation burns correction state without refunding its retained Select
+    // metadata/material reservation before the original Party drops.
+    correction: CorrectionFor<C>,
     // Secret owners must drop before leases, including on error paths.
     lease: LeaseFor<C>,
 }
@@ -432,10 +436,12 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     let identity = table_identity(spec, context.numeric_contract, table);
     let select_cost = selection::resources_for_context::<C>(spec.select(), spec.boundary)?;
     let select_reservation = reservation.split(select_cost.combined_reservation_bytes)?;
-    let a =
+    let mut a =
         reservation.split(cost.party_reservation_bytes - select_cost.party_reservation_bytes)?;
-    let b =
+    let mut b =
         reservation.split(cost.party_reservation_bytes - select_cost.party_reservation_bytes)?;
+    let scanner_a = a.split(correction::scan_bytes::<C>(spec)?)?;
+    let scanner_b = b.split(correction::scan_bytes::<C>(spec)?)?;
     // Declare all reservations before secret owners: reverse local drop order
     // erases backing before refunds on every early return.
     let mut masks = zeros(spec.lanes, budget)?;
@@ -447,14 +453,20 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
         Ok(Execution {
             lanes: allocate(spec.lanes, budget)?,
             table: own_table,
-            arithmetic: zeros(spec.lanes, budget)?,
-            correction: zeros(spec.lanes, budget)?,
-            digest: [0; 32],
-            phase: 0,
+            sums: zeros(spec.lanes, budget)?,
+            counts: {
+                let mut counts = Zeroizing::new(allocate(spec.lanes, budget)?);
+                counts.resize(spec.lanes, 0i64);
+                counts
+            },
         })
     };
     let mut left = new_execution()?;
     let mut right = new_execution()?;
+    let mut left_masks = Zeroizing::new(allocate(spec.lanes, budget)?);
+    let mut right_masks = Zeroizing::new(allocate(spec.lanes, budget)?);
+    let left_correction = zeros(spec.lanes, budget)?;
+    let right_correction = zeros(spec.lanes, budget)?;
     let mut nonce = [0; 32];
     fill(&mut nonce)?;
     let binding = invocation_binding(spec, context, identity, nonce);
@@ -472,14 +484,10 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
         let q0 = Zeroizing::new(draw(1, &mut fill)?);
         arithmetic_masks[i] = *r;
         predicate_masks[i] = *q;
-        left.lanes.push(LookupLane {
-            key: k0,
-            masks: Zeroizing::new([*r0, *q0]),
-        });
-        right.lanes.push(LookupLane {
-            key: k1,
-            masks: Zeroizing::new([r.wrapping_sub(*r0) & mask(spec.output_bits), *q ^ *q0]),
-        });
+        left.lanes.push(LookupLane { key: k0 });
+        left_masks.push([*r0, *q0]);
+        right.lanes.push(LookupLane { key: k1 });
+        right_masks.push([r.wrapping_sub(*r0) & mask(spec.output_bits), *q ^ *q0]);
     }
     let select_context = select_context(context, binding);
     let (select_masks, [select0, select1]) = selection::issue_reserved_with(
@@ -497,6 +505,26 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
             .wrapping_sub(arithmetic_masks[i])
             & mask(spec.output_bits);
     }
+    let new_correction =
+        |role, masks, select, lease, correction| -> Result<CorrectionFor<C>, Error> {
+            Ok(CorrectionFor {
+                masks,
+                state: Some(CorrectionState {
+                    arithmetic: Zeroizing::new(Vec::new()),
+                    correction,
+                    digest: [0; 32],
+                    phase: 0,
+                }),
+                select: Some(select),
+                scan_lease: None,
+                role,
+                spec,
+                binding,
+                lease,
+            })
+        };
+    let correction0 = new_correction(0, left_masks, select0, a, left_correction)?;
+    let correction1 = new_correction(1, right_masks, select1, b, right_correction)?;
     Ok((
         OutputMasksFor {
             values: masks,
@@ -509,16 +537,16 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
                 spec,
                 binding,
                 state: Some(left),
-                select: Some(select0),
-                lease: a,
+                correction: correction0,
+                lease: scanner_a,
             },
             PartyFor {
                 role: 1,
                 spec,
                 binding,
                 state: Some(right),
-                select: Some(select1),
-                lease: b,
+                correction: correction1,
+                lease: scanner_b,
             },
         ],
     ))
@@ -604,9 +632,7 @@ impl<C: AllocationContext> PartyFor<C> {
     /// charged until drop. Sibling cancellation is caller's responsibility.
     pub fn cancel(&mut self) {
         self.state = None;
-        if let Some(select) = &mut self.select {
-            select.cancel();
-        }
+        self.correction.cancel();
     }
 
     pub fn begin(&mut self, masked_indices: &[u64]) -> Result<FrameFor<C>, Error> {
@@ -618,7 +644,11 @@ impl<C: AllocationContext> PartyFor<C> {
     }
     fn begin_inner(&mut self, masked_indices: &[u64]) -> Result<FrameFor<C>, Error> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
-        if state.phase != 0 {
+        let mut abort = correction::AbortOnDrop {
+            correction: &mut self.correction,
+            armed: true,
+        };
+        if state.sums.len() != self.spec.lanes || state.counts.len() != self.spec.lanes {
             return Err(Error::Consumed);
         }
         if masked_indices.len() != self.spec.lanes
@@ -634,7 +664,7 @@ impl<C: AllocationContext> PartyFor<C> {
         for &index in masked_indices {
             hash.update(index.to_le_bytes());
         }
-        state.digest = hash.finalize().into();
+        let digest = hash.finalize().into();
         for (lane, &index) in masked_indices.iter().enumerate() {
             let material = &state.lanes[lane];
             let expanded = material
@@ -658,17 +688,45 @@ impl<C: AllocationContext> PartyFor<C> {
                 *sum = 0u64.wrapping_sub(*sum);
                 *count = -*count;
             }
-            state.arithmetic[lane] =
-                sum.wrapping_add(material.masks[0]) & mask(self.spec.output_bits);
-            state.correction[lane] = correction(self.role, *count) ^ material.masks[1];
+            state.sums[lane] = *sum;
+            state.counts[lane] = *count;
         }
-        let frame = self.first_frame(&state)?;
-        state.phase = 1;
+        let scan = ScanResultFor {
+            sums: std::mem::take(&mut state.sums),
+            counts: std::mem::take(&mut state.counts),
+            role: self.role,
+            spec: self.spec,
+            binding: self.binding,
+            digest,
+            lease: self.lease.split(correction::scan_bytes::<C>(self.spec)?)?,
+        };
+        let frame = abort.correction.begin(scan)?;
+        // Only a successful correction handoff restores scanner custody. On
+        // error or unwind the local execution erases its keys/table immediately.
         self.state = Some(state);
+        abort.armed = false;
         Ok(frame)
     }
 
     pub fn advance(&mut self, peer: &[u8]) -> Result<StepFor<C>, Error> {
+        // Take locally, as before extraction: error/terminal/unwind retires the
+        // actual scanner owners even when the caller catches a panic.
+        let state = self.state.take().ok_or(Error::Consumed)?;
+        let mut abort = correction::AbortOnDrop {
+            correction: &mut self.correction,
+            armed: true,
+        };
+        let step = abort.correction.advance(peer)?;
+        if matches!(&step, StepFor::Frame(_)) {
+            self.state = Some(state);
+        }
+        abort.armed = false;
+        Ok(step)
+    }
+}
+
+impl<C: AllocationContext> CorrectionFor<C> {
+    fn advance(&mut self, peer: &[u8]) -> Result<StepFor<C>, Error> {
         let result = self.advance_inner(peer);
         if result.is_err() {
             self.cancel();
@@ -677,6 +735,12 @@ impl<C: AllocationContext> PartyFor<C> {
     }
     fn advance_inner(&mut self, peer: &[u8]) -> Result<StepFor<C>, Error> {
         let mut state = self.state.take().ok_or(Error::Consumed)?;
+        #[cfg(test)]
+        correction::PANIC_ADVANCE.with(|armed| {
+            if armed.replace(false) {
+                panic!("injected correction advance unwind");
+            }
+        });
         match state.phase {
             1 => {
                 self.validate_first(&state, peer)?;
@@ -747,7 +811,7 @@ impl<C: AllocationContext> PartyFor<C> {
             _ => Err(Error::Consumed),
         }
     }
-    fn first_frame(&mut self, state: &Execution) -> Result<FrameFor<C>, Error> {
+    fn first_frame(&mut self, state: &CorrectionState) -> Result<FrameFor<C>, Error> {
         let mut bytes = Zeroizing::new(allocate(
             first_frame_bytes(self.spec),
             self.lease.budget.budget(),
@@ -773,7 +837,7 @@ impl<C: AllocationContext> PartyFor<C> {
             _lease: lease,
         })
     }
-    fn validate_first(&self, state: &Execution, peer: &[u8]) -> Result<(), Error> {
+    fn validate_first(&self, state: &CorrectionState, peer: &[u8]) -> Result<(), Error> {
         if peer.len() != first_frame_bytes(self.spec)
             || &peer[..8] != MAGIC
             || peer[8..40] != self.binding

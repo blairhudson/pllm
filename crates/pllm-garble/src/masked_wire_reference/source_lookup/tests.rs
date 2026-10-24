@@ -2,6 +2,313 @@ use super::*;
 use std::sync::atomic::Ordering;
 
 #[test]
+fn extracted_advance_unwind_burns_scanner_and_correction_with_original_leases_retained() {
+    for (boundary, second_round) in [
+        (Boundary::Deferred, false),
+        (Boundary::Reconstructed, false),
+        (Boundary::Reconstructed, true),
+    ] {
+        let spec = spec(boundary);
+        let budget = Budget::new(resources(spec).unwrap().combined_reservation_bytes).unwrap();
+        let (masks, [mut a, mut b]) =
+            issue_with(spec, context(), &[0; 256], &[0, 1], &budget, rng(53)).unwrap();
+        let af = a.begin(&[3, 4]).unwrap();
+        let bf = b.begin(&[3, 4]).unwrap();
+        let second = if second_round {
+            let ao = a.advance(bf.as_bytes()).unwrap();
+            let bo = b.advance(af.as_bytes()).unwrap();
+            match (ao, bo) {
+                (StepFor::Frame(af), StepFor::Frame(bf)) => Some((af, bf)),
+                _ => panic!("reconstructed transition must retain both scanners"),
+            }
+        } else {
+            None
+        };
+        assert!(a.state.is_some() && b.state.is_some());
+        let before = budget.used_bytes();
+        let peer = second
+            .as_ref()
+            .map_or(bf.as_bytes(), |(_, bf)| bf.as_bytes());
+        correction::PANIC_ADVANCE.with(|armed| armed.set(true));
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| a.advance(peer)));
+        assert!(result.is_err());
+        assert!(a.state.is_none());
+        assert!(a.correction.state.is_none());
+        assert!(a.correction.masks.is_empty());
+        assert!(a.correction.scan_lease.is_some());
+        assert_eq!(budget.used_bytes(), before);
+        assert!(matches!(a.advance(peer), Err(Error::Consumed)));
+        assert!(matches!(a.begin(&[3, 4]), Err(Error::Consumed)));
+        assert!(b.state.is_some()); // no new sibling coordinator or policy
+        b.cancel();
+        drop((a, b, masks, second));
+        assert!(budget.used_bytes() > 0);
+        drop((af, bf));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+// Captured from unchanged pre-extraction 46dfa0d6 (both issue/material/codec paths).
+#[test]
+fn frozen_pre_extraction_material_and_complete_transcript_vectors() {
+    for bits in [8, 10] {
+        for boundary in [Boundary::Reconstructed, Boundary::Deferred] {
+            let mut spec = spec(boundary);
+            spec.index_bits = bits;
+            spec.output_bits = 50;
+            let table: Vec<_> = (0..spec.entries())
+                .map(|i| (i as u64 * 7919) & mask(50))
+                .collect();
+            let cost = resources(spec).unwrap().combined_reservation_bytes;
+            let mut hash = Sha256::new();
+            for material_only in [true, false] {
+                let budget = Budget::new(cost).unwrap();
+                let mut random = rng(8731);
+                let (masks, [mut a, mut b]) =
+                    issue_with(spec, context(), &table, &[0, 1], &budget, |bytes| {
+                        hash.update((bytes.len() as u64).to_le_bytes());
+                        random(bytes)
+                    })
+                    .unwrap();
+                for &word in masks.values() {
+                    hash.update(word.to_le_bytes());
+                }
+                if material_only {
+                    for party in [&mut a, &mut b] {
+                        for lane in party.state.as_mut().unwrap().lanes.drain(..) {
+                            hash.update(&*lane.key.into_material(4096).unwrap());
+                        }
+                    }
+                } else {
+                    let indices = [0, (spec.entries() - 1) as u64];
+                    let af = a.begin(&indices).unwrap();
+                    let bf = b.begin(&indices).unwrap();
+                    hash.update(af.as_bytes());
+                    hash.update(bf.as_bytes());
+                    let (ao, bo) = match (
+                        a.advance(bf.as_bytes()).unwrap(),
+                        b.advance(af.as_bytes()).unwrap(),
+                    ) {
+                        (StepFor::Frame(af), StepFor::Frame(bf)) => {
+                            hash.update(af.as_bytes());
+                            hash.update(bf.as_bytes());
+                            (
+                                a.advance(bf.as_bytes()).unwrap(),
+                                b.advance(af.as_bytes()).unwrap(),
+                            )
+                        }
+                        outputs => outputs,
+                    };
+                    for output in [ao, bo] {
+                        match output {
+                            StepFor::Deferred(o) => {
+                                for &v in o.values() {
+                                    hash.update(v.to_le_bytes());
+                                }
+                            }
+                            StepFor::Reconstructed(o) => {
+                                for &v in o.values() {
+                                    hash.update(v.to_le_bytes());
+                                }
+                            }
+                            _ => panic!("unexpected nonterminal output"),
+                        }
+                    }
+                }
+            }
+            let observed: [u8; 32] = hash.finalize().into();
+            let expected = match (bits, boundary) {
+                (8, Boundary::Reconstructed) => [
+                    46, 187, 193, 85, 216, 88, 195, 194, 85, 184, 17, 125, 195, 102, 116, 252, 252,
+                    179, 171, 23, 183, 37, 101, 224, 152, 159, 98, 201, 126, 172, 173, 153,
+                ],
+                (8, Boundary::Deferred) => [
+                    102, 112, 156, 179, 237, 61, 161, 93, 13, 203, 248, 189, 141, 204, 209, 65, 97,
+                    76, 21, 101, 17, 24, 41, 226, 148, 181, 159, 106, 253, 228, 203, 239,
+                ],
+                (10, Boundary::Reconstructed) => [
+                    207, 117, 231, 167, 25, 38, 40, 231, 104, 84, 212, 2, 72, 164, 8, 137, 100, 28,
+                    56, 214, 225, 232, 66, 173, 131, 100, 205, 169, 47, 124, 62, 129,
+                ],
+                (10, Boundary::Deferred) => [
+                    102, 68, 230, 72, 216, 166, 76, 68, 231, 243, 32, 255, 140, 42, 23, 181, 17,
+                    169, 206, 101, 57, 57, 6, 67, 184, 155, 195, 185, 35, 68, 149, 199,
+                ],
+                _ => unreachable!(),
+            };
+            assert_eq!(observed, expected);
+        }
+    }
+}
+
+#[test]
+fn extracted_terminal_outputs_retire_scanner_in_both_modes_with_frames_retained() {
+    for boundary in [Boundary::Deferred, Boundary::Reconstructed] {
+        let spec = spec(boundary);
+        let budget = Budget::new(resources(spec).unwrap().combined_reservation_bytes).unwrap();
+        let (masks, [mut a, mut b]) =
+            issue_with(spec, context(), &[0; 256], &[0, 1], &budget, rng(24)).unwrap();
+        let af = a.begin(&[3, 4]).unwrap();
+        let bf = b.begin(&[3, 4]).unwrap();
+        let ao = a.advance(bf.as_bytes()).unwrap();
+        let bo = b.advance(af.as_bytes()).unwrap();
+        let (aout, bout, second_frames) = match (ao, bo) {
+            (StepFor::Frame(af2), StepFor::Frame(bf2)) => {
+                assert!(a.state.is_some() && b.state.is_some());
+                let aout = a.advance(bf2.as_bytes()).unwrap();
+                let bout = b.advance(af2.as_bytes()).unwrap();
+                (aout, bout, Some((af2, bf2)))
+            }
+            (StepFor::Deferred(ao), StepFor::Deferred(bo)) => {
+                (StepFor::Deferred(ao), StepFor::Deferred(bo), None)
+            }
+            _ => panic!("unexpected boundary transition"),
+        };
+        assert!(a.state.is_none() && b.state.is_none());
+        assert!(a.correction.state.is_none() && b.correction.state.is_none());
+        assert!(matches!(a.advance(bf.as_bytes()), Err(Error::Consumed)));
+        assert!(matches!(b.advance(af.as_bytes()), Err(Error::Consumed)));
+        drop((a, b, masks, second_frames));
+        assert!(budget.used_bytes() > 0);
+        drop((aout, bout));
+        assert!(budget.used_bytes() > 0); // actual retained first frames, not Party
+        drop((af, bf));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn extracted_correction_begin_unwind_retires_scanner_and_burns_without_parent_refund() {
+    for boundary in [Boundary::Deferred, Boundary::Reconstructed] {
+        let spec = spec(boundary);
+        let budget = Budget::new(resources(spec).unwrap().combined_reservation_bytes).unwrap();
+        let (masks, [mut a, mut b]) =
+            issue_with(spec, context(), &[0; 256], &[0, 1], &budget, rng(29)).unwrap();
+        let retained = b.begin(&[3, 4]).unwrap();
+        let before = budget.used_bytes();
+        correction::PANIC_BEGIN.with(|armed| armed.set(true));
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| a.begin(&[3, 4])));
+        assert!(result.is_err());
+        assert!(a.state.is_none()); // actual local Execution unwound, not restored
+        assert!(a.correction.state.is_none());
+        assert!(a.correction.masks.is_empty());
+        assert!(a.correction.select.as_ref().is_some()); // original lease retained
+        assert_eq!(budget.used_bytes(), before);
+        assert!(matches!(a.begin(&[3, 4]), Err(Error::Consumed)));
+        assert!(matches!(
+            a.advance(retained.as_bytes()),
+            Err(Error::Consumed)
+        ));
+        drop((a, b, masks));
+        assert!(budget.used_bytes() > 0);
+        drop(retained);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn extracted_correction_rejects_foreign_counter_role_spec_and_invocation_and_burns() {
+    for fault in 0..4 {
+        let spec = spec(Boundary::Reconstructed);
+        let cost = resources(spec).unwrap().combined_reservation_bytes;
+        let budget = Budget::new(cost).unwrap();
+        let foreign = Budget::new(cost).unwrap();
+        let (masks, [mut a, b]) =
+            issue_with(spec, context(), &[0; 256], &[0, 1], &budget, rng(44)).unwrap();
+        match fault {
+            0 => a.correction.lease = foreign.reserve(a.correction.lease.bytes).unwrap(),
+            1 => a.correction.role ^= 1,
+            2 => a.correction.spec.output_bits -= 1,
+            3 => a.correction.binding[0] ^= 1,
+            _ => unreachable!(),
+        }
+        assert!(matches!(a.begin(&[3, 4]), Err(Error::Context)));
+        assert!(a.state.is_none());
+        assert!(a.correction.state.is_none());
+        assert!(a.correction.masks.is_empty());
+        assert!(matches!(a.begin(&[3, 4]), Err(Error::Consumed)));
+        drop((a, b, masks));
+        assert_eq!(budget.used_bytes(), 0);
+        assert_eq!(foreign.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn extracted_scan_moves_sums_and_keeps_original_parent_material_until_retirement() {
+    let spec = spec(Boundary::Reconstructed);
+    let budget = Budget::new(resources(spec).unwrap().combined_reservation_bytes).unwrap();
+    let (masks, [mut a, b]) =
+        issue_with(spec, context(), &[0; 256], &[0, 1], &budget, rng(19)).unwrap();
+    let scanner = a.state.as_ref().unwrap();
+    let sums = scanner.sums.as_ptr();
+    let keys = scanner.lanes.as_ptr();
+    let table = scanner.table.as_ptr();
+    let frame = a.begin(&[255, 0]).unwrap();
+    assert_eq!(
+        a.correction.state.as_ref().unwrap().arithmetic.as_ptr(),
+        sums
+    );
+    assert!(a.correction.masks.is_empty());
+    assert_eq!(a.state.as_ref().unwrap().lanes.as_ptr(), keys);
+    assert_eq!(a.state.as_ref().unwrap().table.as_ptr(), table);
+    a.cancel();
+    assert!(a.state.is_none());
+    drop((a, b, masks));
+    assert!(budget.used_bytes() > 0);
+    drop(frame);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn extracted_first_frames_match_original_point_scan_and_count_correction_equations() {
+    for boundary in [Boundary::Reconstructed, Boundary::Deferred] {
+        for bits in [8, 10] {
+            let mut spec = spec(boundary);
+            spec.index_bits = bits;
+            let table: Vec<_> = (0..spec.entries())
+                .map(|i| (i as u64 * 37) & mask(spec.output_bits))
+                .collect();
+            let budget = Budget::new(resources(spec).unwrap().combined_reservation_bytes).unwrap();
+            let (masks, [mut a, mut b]) =
+                issue_with(spec, context(), &table, &[0, 1], &budget, rng(91)).unwrap();
+            let indices = [0, (spec.entries() - 1) as u64];
+            for party in [&mut a, &mut b] {
+                let mut expected = Vec::new();
+                for (lane, &index) in indices.iter().enumerate() {
+                    let key = &party.state.as_ref().unwrap().lanes[lane].key;
+                    let mut sum = 0u64;
+                    let mut count = 0i64;
+                    for i in 0..spec.entries() {
+                        let bit = key.point(i as u64).unwrap();
+                        sum = sum.wrapping_add(
+                            table[(i + index as usize) & (spec.entries() - 1)]
+                                .wrapping_mul(u64::from(bit)),
+                        );
+                        count += i64::from(bit);
+                    }
+                    if party.role == 1 {
+                        sum = 0u64.wrapping_sub(sum);
+                        count = -count;
+                    }
+                    let local = party.correction.masks[lane];
+                    expected.extend_from_slice(
+                        &((sum.wrapping_add(local[0])) & mask(spec.output_bits)).to_le_bytes(),
+                    );
+                    expected.extend_from_slice(
+                        &(correction(party.role, count) ^ local[1]).to_le_bytes(),
+                    );
+                }
+                let frame = party.begin(&indices).unwrap();
+                assert_eq!(&frame.as_bytes()[HEADER..], expected);
+                party.cancel();
+            }
+            drop((a, b, masks));
+            assert_eq!(budget.used_bytes(), 0);
+        }
+    }
+}
+
+#[test]
 fn reserved_deferred_issuance_keeps_admission_draw_order_and_original_backing() {
     let spec = spec(Boundary::Deferred);
     let table: Vec<u64> = (0..256).map(|i| i & mask(spec.output_bits)).collect();
@@ -326,8 +633,8 @@ fn independently_inventoried_padded_owner_reservations() {
             let entries = 1usize << n;
             let compact_key_bytes = 18 + (129usize * usize::from(n - 7) + 255).div_ceil(8);
             assert!(size_of::<GpuKey>() > compact_key_bytes);
-            assert!(size_of::<LookupLane>() >= size_of::<GpuKey>() + size_of::<[u64; 2]>());
-            assert!(size_of::<LookupLane>() > compact_key_bytes + 16);
+            assert_eq!(size_of::<LookupLane>(), size_of::<GpuKey>());
+            assert!(size_of::<LookupLane>() > compact_key_bytes);
             for m in 3..=64 {
                 for lanes in 1..=MAX_LANES {
                     let spec = Spec {
@@ -350,6 +657,10 @@ fn independently_inventoried_padded_owner_reservations() {
                         8 * lanes,                       // local correction backing
                         8 * lanes,                       // borrowed masked indices
                         4 * allocator_allowance,         // lane/table/arithmetic/correction vectors
+                        32 * lanes,                      // split masks plus scan sum/count overlap
+                        3 * allocator_allowance,
+                        size_of::<ScanResultFor<&Budget>>(),
+                        size_of::<correction::Controls<'_, &Budget>>(),
                         entries, // lane-serial full expansion backing, not L*N
                         size_of::<Zeroizing<Vec<u8>>>(), // scratch vector owner
                         allocator_allowance, // scratch allocation
@@ -369,6 +680,7 @@ fn independently_inventoried_padded_owner_reservations() {
                         8 * lanes,   // transient arithmetic masks for Select
                         3 * allocator_allowance,
                         2 * size_of::<GpuKey>(), // transient paired issuance owners
+                        size_of::<correction::Controls<'_, &Budget>>(),
                         stack_allowance,
                     ];
                     let lookup_party: usize = party_inventory.iter().sum();
@@ -380,7 +692,10 @@ fn independently_inventoried_padded_owner_reservations() {
                         size_of::<Party<'static>>()
                             + size_of::<LookupLane>() * lanes
                             + 9 * entries
-                            + 64 * lanes
+                            + 96 * lanes
+                            + 3 * allocator_allowance
+                            + size_of::<ScanResultFor<&Budget>>()
+                            + size_of::<correction::Controls<'_, &Budget>>()
                             + frame_owner
                             + output_owner
                             + 8800
@@ -397,6 +712,7 @@ fn independently_inventoried_padded_owner_reservations() {
                             + 32 * lanes
                             + 8 * entries
                             + 2 * size_of::<GpuKey>()
+                            + size_of::<correction::Controls<'_, &Budget>>()
                             + 8384
                     );
                     // Select has its own independently tested inventory. Add it
@@ -658,9 +974,7 @@ fn deferred_exact_own_share_equations_and_dependent_output_mask() {
         let (_, [mut copy_a, mut copy_b]) =
             issue_with(spec, context(), &table, &[1, 255], &budget, rng(31)).unwrap();
         for i in 0..spec.lanes {
-            let r = a.state.as_ref().unwrap().lanes[i].masks[0]
-                .wrapping_add(b.state.as_ref().unwrap().lanes[i].masks[0])
-                & mask(m);
+            let r = a.correction.masks[i][0].wrapping_add(b.correction.masks[i][0]) & mask(m);
             let u = masks._select_masks.values()[i];
             assert_eq!(
                 masks.values()[i],
@@ -682,12 +996,14 @@ fn deferred_exact_own_share_equations_and_dependent_output_mask() {
             opened_c[i] = ac ^ bc;
         }
         let z0 = copy_a
+            .correction
             .select
             .take()
             .unwrap()
             .into_deferred(&opened_c, &opened_r)
             .unwrap();
         let z1 = copy_b
+            .correction
             .select
             .take()
             .unwrap()
