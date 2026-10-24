@@ -10,20 +10,19 @@
 //! Earlier graph/source-validation construction must be preadmitted by its owner;
 //! observing a finished CompactGraph cannot retroactively admit that allocation.
 use super::{
-    Code, CompactGraph, DecoderGraph, DescriptorKind, Error, MAX_NODES, MAX_PROGRAM_BYTES,
-    PhysicalLayout, PublishedOp, PublishedView, WorkBudget, frozen_region::FrozenRegion,
+    frozen_region::FrozenRegion, Code, CompactGraph, DecoderGraph, DescriptorKind, Error,
+    PhysicalLayout, PublishedOp, PublishedView, WorkBudget, MAX_NODES, MAX_PROGRAM_BYTES,
 };
 use crate::replicated_decoder::{
-    PublicSourceImport, Secret, SourceNorms, SourceTensor, Worker,
     multiply::PartyRuntime,
     runtime::body::{
-        Register,
         handoff::TRANSITION_INLINE_BYTES,
         layer::{self, Layout, LayoutQuote},
+        Register,
     },
     source_norms,
     source_registry::{SourceConstructionQuote, SourceRegistry},
-    tensor,
+    tensor, PublicSourceImport, Secret, SourceNorms, SourceTensor, Worker,
 };
 use std::{collections::BTreeMap, mem::size_of};
 
@@ -116,9 +115,14 @@ impl CompactOwnerCensus {
         for descriptor in graph.descriptor_census() {
             let alias = matches!(
                 &descriptor.kind,
-                DescriptorKind::LastToken | DescriptorKind::TokenFeedback | DescriptorKind::Reshape
+                DescriptorKind::LastToken
+                    | DescriptorKind::TokenFeedback
+                    | DescriptorKind::Reshape
+                    | DescriptorKind::CausalMask
             );
             let count = match descriptor.output.layout {
+                PhysicalLayout::CausalTensorRows { rows } => add(rows, 1)?,
+                PhysicalLayout::CausalProducts { products } => add(products, 1)?,
                 PhysicalLayout::Dense { .. } => 1,
                 PhysicalLayout::BinaryTiles { tile_lanes, .. } if tile_lanes > 0 => {
                     descriptor.output.lanes.div_ceil(tile_lanes)

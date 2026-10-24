@@ -222,14 +222,40 @@ fn genuine_compact_qkv_reshape_rotary_prefix_has_original_work_and_coordinates()
             let mut projections = 0;
             let mut rotaries = 0;
             let mut caches = 0;
+            let mut score_export = None;
+            let (mut scores, mut scales, mut softmaxes, mut values) = (0, 0, 0, 0);
             for op in &context.plan().plan().prefill.operations {
-                if op.operator == Op::AttentionScores {
-                    // Current unsupported FAMILY, not successful whole storage.
-                    assert!(graph.lower_next().is_err());
-                    assert_eq!(graph.failure_site().unwrap().operator, Op::AttentionScores);
-                    break;
-                }
                 let output = graph.lower_next()?;
+                if op.operator == Op::AttentionScores {
+                    scores += 1;
+                    let first = graph
+                        .descriptor_census()
+                        .last()
+                        .ok_or(Error::Binding)?
+                        .virtual_start;
+                    let end = graph
+                        .descriptor_census()
+                        .last()
+                        .ok_or(Error::Binding)?
+                        .virtual_end;
+                    score_export = Some((first, end, output.clone()));
+                    for start in (0..output.lanes()).step_by(128) {
+                        graph.ordered_chunk_bounds(
+                            &output,
+                            start,
+                            (output.lanes() - start).min(128),
+                        )?;
+                    }
+                }
+                if op.operator == Op::AttentionScale {
+                    scales += 1;
+                }
+                if op.operator == Op::Softmax {
+                    softmaxes += 1;
+                }
+                if op.operator == Op::AttentionValues {
+                    values += 1;
+                }
                 if op.operator == Op::KvCacheAppend {
                     caches += 1;
                 }
@@ -242,8 +268,12 @@ fn genuine_compact_qkv_reshape_rotary_prefix_has_original_work_and_coordinates()
                         let _ = output.word(lane)?;
                     }
                 }
+                if projections == 4 {
+                    break;
+                } // original attention projection consumer
             }
-            assert_eq!((projections, rotaries, caches), (3, 2, 2));
+            assert_eq!((projections, rotaries, caches), (4, 2, 2));
+            assert_eq!((scores, scales, softmaxes, values), (1, 1, 1, 1));
             assert_eq!(builder.nodes.len(), prefix, "no expanded candidate");
             context.check_final_work(graph.work_budget())?;
             let end = graph.descriptor_census().last().unwrap().virtual_end;
@@ -284,6 +314,53 @@ fn genuine_compact_qkv_reshape_rotary_prefix_has_original_work_and_coordinates()
                         _ => false,
                     }));
             }
+            // Actual publication/frozen reader, not a direct child helper. All
+            // original query/key gathers and private products remain ordinal-
+            // and proof-exact, including causal zero suffix export coordinates.
+            use schedule_finalization::{BorrowedOrderedNodes, BorrowedRecipe};
+            let (first, score_end, output) = score_export.ok_or(Error::Binding)?;
+            let coordinates = (0..output.lanes())
+                .map(|i| output.word(i))
+                .collect::<Result<Vec<_>, _>>()?;
+            let frozen = graph.freeze(vec![output], MAX_PROGRAM_BYTES)?;
+            let reader = frozen.borrow_schedule(MAX_PROGRAM_BYTES)?;
+            for ordinal in first..score_end {
+                let actual = reader.node(ordinal)?;
+                let expected = &oracle.nodes[ordinal];
+                assert_eq!(
+                    (actual.lanes, actual.bounds),
+                    (expected.lanes, expected.bounds)
+                );
+                match (actual.recipe, &expected.code) {
+                    (BorrowedRecipe::Gather(words), Code::Gather(original)) => {
+                        assert_eq!(words.len(), original.len());
+                        for i in 0..words.len() {
+                            assert_eq!(words.lane_ref(i)?, original.at(i));
+                        }
+                    }
+                    (
+                        BorrowedRecipe::Product {
+                            left,
+                            right,
+                            shape,
+                            rescale,
+                            norm,
+                        },
+                        Code::Product {
+                            left: l,
+                            right: r,
+                            shape: s,
+                            rescale: t,
+                            norm: n,
+                        },
+                    ) => {
+                        assert_eq!((left, right, shape, rescale), (*l, *r, *s, *t));
+                        assert_eq!(norm.map(|p| p.digest()), n.as_ref().map(|p| p.digest()));
+                    }
+                    _ => return Err(Error::Binding),
+                }
+            }
+            assert!(!coordinates.is_empty());
             Ok(())
         })
         .unwrap();
@@ -307,6 +384,37 @@ fn source_chain_temporary_retirement_preserves_original_admitted_peak() {
         "real manifest/import/permit temporaries retired"
     );
     assert_eq!(source.budget().admitted_peak_bytes(), peak);
+}
+
+#[test]
+fn consuming_pending_early_cap_refusal_retires_importer_before_original_charge() {
+    use source_entry::compact_pending as pending;
+    let (entry, _) = importer(4);
+    let hold = pending::test_hold_remaining(&entry);
+    pending::test_drop_record();
+    let result = entry.consume_compact(|_, _, _, _| -> Result<(), Error> {
+        panic!("factory entered after cap refusal")
+    });
+    assert!(matches!(result, Err(Error::Bounds)));
+    let (dead, used, charge) = pending::test_drop_record().unwrap();
+    assert!(dead && charge > 0 && used >= charge);
+    assert!(hold.budget().used_bytes() < used);
+}
+
+#[test]
+fn consuming_pending_early_unwind_retires_importer_before_original_charge() {
+    use source_entry::compact_pending as pending;
+    let (entry, _) = importer(4);
+    pending::test_drop_record();
+    pending::test_panic_before_box();
+    let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        entry.consume_compact(|_, _, _, _| -> Result<(), Error> {
+            panic!("factory entered before unwind")
+        })
+    }));
+    assert!(failed.is_err());
+    let (dead, used, charge) = pending::test_drop_record().unwrap();
+    assert!(dead && charge > 0 && used >= charge);
 }
 
 #[test]

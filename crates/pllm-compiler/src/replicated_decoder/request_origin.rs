@@ -306,6 +306,11 @@ pub(super) struct RequestInputPermit<'s> {
     tokens: View,
 }
 impl RequestInputPermit<'_> {
+    /// SAME creation-owned plan allocation, for the consuming source-custody
+    /// transfer. This borrow cannot mint/replay a permit or an operator owner.
+    pub(super) fn retained_original(&self) -> Result<&Arc<OriginalSourcePlan>, Error> {
+        self.history.epochs.first().ok_or(Error::Binding)
+    }
     pub(super) fn lowering_control_bytes(
         &self,
         limits: original_source::Limits,

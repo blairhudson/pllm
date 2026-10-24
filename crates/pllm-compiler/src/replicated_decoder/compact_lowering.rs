@@ -159,6 +159,14 @@ mod request_silu;
 #[path = "compact_lowering/compact_request_silu_tests.rs"]
 mod request_silu_tests;
 
+#[path = "compact_lowering/compact_attention_scale.rs"]
+mod attention_scale;
+#[path = "compact_lowering/compact_attention_scores.rs"]
+mod compact_attention_scores;
+#[path = "compact_lowering/compact_attention_softmax.rs"]
+mod compact_attention_softmax;
+#[path = "compact_lowering/compact_attention_values.rs"]
+mod compact_attention_values;
 #[path = "compact_rotary.rs"]
 mod compact_rotary;
 
@@ -492,10 +500,33 @@ thread_local! {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mapping {
+    AttentionValues {
+        first: usize,
+        layout: compact_attention_values::ValueLayout,
+        products: usize,
+    },
+    SoftmaxRows {
+        first: usize,
+        keys: usize,
+        sequence: usize,
+        position: usize,
+        zero: (usize, usize),
+    },
+    AttentionScores {
+        first: usize,
+        layout: compact_attention_scores::ScoreLayout,
+        products: usize,
+    },
     Dense(usize),
     Products(usize),
-    Rows { first: usize, width: usize },
-    LookupRows { first: usize, width: usize },
+    Rows {
+        first: usize,
+        width: usize,
+    },
+    LookupRows {
+        first: usize,
+        width: usize,
+    },
 }
 
 #[derive(Clone)]
@@ -630,6 +661,9 @@ struct BoundImport<'g> {
 }
 
 impl PublishedView {
+    pub(in crate::replicated_decoder) fn lanes(&self) -> usize {
+        self.lanes
+    }
     pub(super) fn word(&self, index: usize) -> Result<(usize, usize), Error> {
         if index >= self.lanes {
             return Err(Error::Shape);
@@ -638,6 +672,26 @@ impl PublishedView {
             .order
             .index(self.start.checked_add(index).ok_or(Error::Bounds)?)?;
         Ok(match self.mapping {
+            Mapping::AttentionValues { first, layout, .. } => layout.word(first, index)?,
+            Mapping::SoftmaxRows {
+                first,
+                keys,
+                sequence,
+                position,
+                zero,
+            } => {
+                if keys == 0 || sequence == 0 {
+                    return Err(Error::Binding);
+                }
+                let row = index / keys;
+                let column = index % keys;
+                if column < position + row % sequence + 1 {
+                    (first + 2 * row + 1, column)
+                } else {
+                    zero
+                }
+            }
+            Mapping::AttentionScores { first, layout, .. } => layout.word(first, index)?,
             Mapping::Dense(owner) => (owner, index),
             Mapping::Products(first) => (first + 3 * (index / 128) + 2, index % 128),
             Mapping::Rows { first, width } => (first + 2 * (index / width) + 1, index % width),
@@ -738,6 +792,11 @@ impl ProjectionBias<'_> {
 }
 
 enum PublishedKind<'a> {
+    AttentionValues(compact_attention_values::Values<'a>),
+    CausalMask,
+    AttentionSoftmax(compact_attention_softmax::Rows<'a>),
+    AttentionScale(Arc<attention_scale::Rows>),
+    AttentionScores(compact_attention_scores::Scores),
     CacheSuffix,
     /// Actual original cache declaration. Position-zero head concatenation is
     /// the exact ordered input mapping, no new executable node or value slot.
@@ -786,6 +845,32 @@ enum PublishedKind<'a> {
     },
 }
 
+/// Retains the actual native predecessor allocation, not an equal-digest
+/// reconstruction. Scale may have arbitrarily many ordered 128-lane chunks.
+#[derive(Clone)]
+enum SoftmaxPredecessor {
+    Imported,
+    Prepared([Option<Arc<tensor::Program>>; 2]),
+    Scale(Arc<attention_scale::Rows>),
+}
+impl SoftmaxPredecessor {
+    fn programs(&self) -> impl Iterator<Item = &Arc<tensor::Program>> {
+        let (prepared, scale): (
+            &[Option<Arc<tensor::Program>>],
+            Option<&attention_scale::Rows>,
+        ) = match self {
+            Self::Imported => (&[], None),
+            Self::Prepared(p) => (p, None),
+            Self::Scale(p) => (&[], Some(p)),
+        };
+        prepared.iter().flatten().chain(
+            scale
+                .into_iter()
+                .flat_map(|r| r.native.iter().map(|c| &c.program)),
+        )
+    }
+}
+
 struct PublishedOp<'a> {
     first: usize,
     input: PublishedView,
@@ -798,6 +883,13 @@ struct PublishedOp<'a> {
 /// IDs are original schedule coordinates, NOT allocated value/retirement slots.
 #[derive(Clone, Copy)]
 pub(in crate::replicated_decoder) enum PhysicalLayout {
+    CausalTensorRows {
+        rows: usize,
+    },
+    /// Nonuniform original product owners plus the sealed causal-zero owner.
+    CausalProducts {
+        products: usize,
+    },
     Dense {
         owner: usize,
     },
@@ -936,6 +1028,11 @@ pub(in crate::replicated_decoder) struct ProjectionBiasLayout {
 }
 
 pub(in crate::replicated_decoder) enum DescriptorKind {
+    AttentionValues,
+    CausalMask,
+    AttentionSoftmax,
+    AttentionScale,
+    AttentionScores,
     CacheSuffix,
     KvInitialize {
         layer: u64,
@@ -1001,6 +1098,11 @@ impl PublishedOp<'_> {
             virtual_start: self.first,
             virtual_end,
             kind: match &self.kind {
+                PublishedKind::AttentionValues(_) => DescriptorKind::AttentionValues,
+                PublishedKind::CausalMask => DescriptorKind::CausalMask,
+                PublishedKind::AttentionSoftmax(_) => DescriptorKind::AttentionSoftmax,
+                PublishedKind::AttentionScale(_) => DescriptorKind::AttentionScale,
+                PublishedKind::AttentionScores(_) => DescriptorKind::AttentionScores,
                 PublishedKind::CacheSuffix => DescriptorKind::CacheSuffix,
                 PublishedKind::KvInitialize { layer, state } => DescriptorKind::KvInitialize {
                     layer: *layer,
@@ -1122,6 +1224,15 @@ impl PublishedView {
     fn physical(&self) -> PhysicalView {
         PhysicalView {
             layout: match self.mapping {
+                Mapping::AttentionValues { products, .. } => {
+                    PhysicalLayout::CausalProducts { products }
+                }
+                Mapping::SoftmaxRows { keys, .. } => PhysicalLayout::CausalTensorRows {
+                    rows: self.lanes.div_ceil(keys),
+                },
+                Mapping::AttentionScores { products, .. } => {
+                    PhysicalLayout::CausalProducts { products }
+                }
                 Mapping::Dense(owner) => PhysicalLayout::Dense { owner },
                 Mapping::Products(first) => PhysicalLayout::BinaryTiles {
                     first,
@@ -2498,6 +2609,18 @@ impl graph::driver::ContractionSink for CompactContractionSink<'_, '_, '_> {
 }
 
 struct ContractionControls<'a>(&'a std::cell::Cell<usize>);
+fn publication_controls_bytes<T>() -> Result<usize, Error> {
+    [
+        std::mem::size_of::<PublishedOp<'_>>(),
+        3 * std::mem::size_of::<PublishedView>(),
+        2 * std::mem::size_of::<Result<T, Error>>(),
+        std::mem::size_of::<ViewShape>(),
+        std::mem::size_of::<Mapping>(),
+        std::mem::size_of::<(Interval, usize, WorkBudget)>(),
+    ]
+    .into_iter()
+    .try_fold(0, add_bytes)
+}
 impl Drop for ContractionControls<'_> {
     fn drop(&mut self) {
         self.0.set(0);
@@ -2649,7 +2772,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 PublishedKind::Reshape
                 | PublishedKind::TokenFeedback
                 | PublishedKind::KvInitialize { .. }
-                | PublishedKind::CacheSuffix => input = &op.input,
+                | PublishedKind::CacheSuffix
+                | PublishedKind::CausalMask => input = &op.input,
                 PublishedKind::Argmax(plan) if plan.geometry.lanes == vocabulary => return Ok(()),
                 _ => return Err(Error::Binding),
             }
@@ -2772,6 +2896,15 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                     })
                     .flat_map(|rows| rows.native.iter().map(|row| &row.program)),
             )
+            .chain(
+                self.ops
+                    .iter()
+                    .filter_map(|op| match &op.kind {
+                        PublishedKind::AttentionScale(rows) => Some(rows),
+                        _ => None,
+                    })
+                    .flat_map(|rows| rows.native.iter().map(|chunk| &chunk.program)),
+            )
             .chain(self.ops.iter().filter_map(|op| match &op.kind {
                 PublishedKind::RmsNorm {
                     program,
@@ -2780,6 +2913,15 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 } => Some(program),
                 _ => None,
             }))
+            .chain(
+                self.ops
+                    .iter()
+                    .filter_map(|op| match &op.kind {
+                        PublishedKind::AttentionSoftmax(rows) => Some(rows),
+                        _ => None,
+                    })
+                    .flat_map(|rows| rows.programs()),
+            )
             .chain(
                 self.ops
                     .iter()
@@ -3217,6 +3359,18 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             2 * std::mem::size_of::<Result<Self, Error>>() + 2 * std::mem::size_of::<usize>(),
         )?;
         for op in &self.ops {
+            if let PublishedKind::AttentionValues(values) = &op.kind {
+                bytes = add_bytes(bytes, values.retained_bytes()?)?;
+            }
+            if let PublishedKind::AttentionSoftmax(rows) = &op.kind {
+                bytes = add_bytes(bytes, rows.retained_bytes())?;
+            }
+            if let PublishedKind::AttentionScale(rows) = &op.kind {
+                bytes = add_bytes(bytes, rows.retained_bytes()?)?;
+            }
+            if let PublishedKind::AttentionScores(scores) = &op.kind {
+                bytes = add_bytes(bytes, scores.retained_bytes()?)?;
+            }
             if let PublishedKind::Rotary(rows) = &op.kind {
                 bytes = add_bytes(
                     bytes,
@@ -3708,6 +3862,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 PublishedKind::TokenFeedback
                     | PublishedKind::KvInitialize { .. }
                     | PublishedKind::CacheSuffix
+                    | PublishedKind::CausalMask
             ) {
                 return self.row_norm(&self.ops[slot].input);
             }
@@ -3760,6 +3915,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 PublishedKind::Reshape
                     | PublishedKind::KvInitialize { .. }
                     | PublishedKind::CacheSuffix
+                    | PublishedKind::CausalMask
                     | PublishedKind::TokenFeedback
                     | PublishedKind::LastToken { .. }
             ) {
@@ -3772,6 +3928,11 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         }
         let (owner, lane) = view.word(start)?;
         let absolute = match original.mapping {
+            Mapping::SoftmaxRows { first, keys, .. } => owner
+                .checked_sub(first)
+                .filter(|n| n % 2 == 1)
+                .and_then(|n| (n / 2).checked_mul(keys))
+                .and_then(|n| n.checked_add(lane)),
             Mapping::Dense(id) if owner == id => Some(lane),
             Mapping::Products(first) => owner
                 .checked_sub(first)
@@ -3800,6 +3961,189 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             }
         }
         Ok(Some((original, offset)))
+    }
+
+    /// Bounds of the ACTUAL ordered owner lanes, not the View's union. In
+    /// particular different score tiles/native rows retain different intervals.
+    /// Families without a stored exact output recipe refuse; no ancestry/value
+    /// scan or guessed union is used as native-construction input authority.
+    pub(super) fn ordered_chunk_bounds(
+        &self,
+        view: &PublishedView,
+        start: usize,
+        lanes: usize,
+    ) -> Result<Interval, Error> {
+        self.validate_view(view)?;
+        if lanes == 0 || start.checked_add(lanes).is_none_or(|n| n > view.lanes) {
+            return Err(Error::Shape);
+        }
+        let mut bounds: Option<Interval> = None;
+        for index in start..start + lanes {
+            let (owner, lane) = view.word(index)?;
+            let (width, current) = self.exact_output_bounds(owner)?;
+            if lane >= width {
+                return Err(Error::Binding);
+            }
+            bounds = Some(match bounds {
+                None => current,
+                Some(old) => Interval::new(
+                    old.lower().min(current.lower()),
+                    old.upper().max(current.upper()),
+                )?,
+            });
+        }
+        bounds.ok_or(Error::Shape)
+    }
+
+    fn softmax_predecessor(&self, input: &PublishedView) -> Result<SoftmaxPredecessor, Error> {
+        self.validate_view(input)?;
+        let (canonical, offset) = self
+            .alias_range(input, 0, input.lanes)?
+            .ok_or(Error::Binding)?;
+        if offset != 0 || canonical.lanes != input.lanes {
+            return Err(Error::Binding);
+        }
+        let Some(slot) = canonical.slot else {
+            return Ok(SoftmaxPredecessor::Imported);
+        };
+        if let PublishedKind::AttentionScale(rows) = &self.ops.get(slot).ok_or(Error::Binding)?.kind
+        {
+            if input.start != 0
+                || input.order != LaneOrder::Linear
+                || input.mapping != self.ops[slot].output.mapping
+            {
+                return Err(Error::Binding);
+            }
+            for i in 0..input.lanes {
+                if input.word(i)? != self.ops[slot].output.word(i)? {
+                    return Err(Error::Binding);
+                }
+            }
+            return Ok(SoftmaxPredecessor::Scale(Arc::clone(rows)));
+        }
+        let map = self.kernel(slot)?;
+        let mut programs = [None, None];
+        for (i, p) in map.programs().enumerate() {
+            *programs.get_mut(i).ok_or(Error::Binding)? = Some(Arc::clone(p));
+        }
+        Ok(SoftmaxPredecessor::Prepared(programs))
+    }
+
+    fn softmax_rows_for(
+        &self,
+        bound: &PublishedView,
+    ) -> Result<Option<&compact_attention_softmax::Rows<'a>>, Error> {
+        self.validate_view(bound)?;
+        let mut original = bound;
+        while let Some(slot) = original.slot {
+            let op = self.ops.get(slot).ok_or(Error::Binding)?;
+            if matches!(
+                op.kind,
+                PublishedKind::Reshape
+                    | PublishedKind::KvInitialize { .. }
+                    | PublishedKind::CacheSuffix
+                    | PublishedKind::CausalMask
+                    | PublishedKind::TokenFeedback
+                    | PublishedKind::LastToken { .. }
+            ) {
+                original = &op.input;
+                continue;
+            }
+            if let PublishedKind::AttentionSoftmax(rows) = &op.kind {
+                let (canonical, _) = self
+                    .alias_range(bound, 0, bound.lanes)?
+                    .ok_or(Error::Binding)?;
+                if canonical.slot != original.slot {
+                    return Err(Error::Binding);
+                }
+                return Ok(Some(rows));
+            }
+            break;
+        }
+        // A native softmax owner with a mismatched claimed publication is NOT
+        // an uncertified input and cannot select the ordinary fallback.
+        if bound.lanes > 0 {
+            let (owner, _) = bound.word(0)?;
+            for op in &self.ops {
+                if let PublishedKind::AttentionSoftmax(rows) = &op.kind {
+                    if owner >= op.first
+                        && owner
+                            < add_bytes(op.first, rows.len().checked_mul(2).ok_or(Error::Bounds)?)?
+                    {
+                        return Err(Error::Binding);
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    fn exact_output_bounds(&self, owner: usize) -> Result<(usize, Interval), Error> {
+        if let Some(node) = self.imports.nodes.get(owner) {
+            return Ok((node.lanes, node.bounds));
+        }
+        if let Some(prelude) = &self.request_prelude {
+            if owner >= prelude.first() && owner < add_bytes(prelude.first(), 2)? {
+                let node = prelude.node(owner)?;
+                return Ok((node.lanes, node.bounds));
+            }
+        }
+        if owner >= self.next {
+            return Err(Error::Binding);
+        }
+        let slot = self
+            .ops
+            .partition_point(|op| op.first <= owner)
+            .checked_sub(1)
+            .ok_or(Error::Binding)?;
+        let op = &self.ops[slot];
+        let offset = owner - op.first;
+        match &op.kind {
+            PublishedKind::AttentionScores(scores) => {
+                if let Some(row) = scores.rows.iter().find(|r| r.node_offset == offset) {
+                    return Ok((scores.width, row.query_bounds));
+                }
+                let tile = scores
+                    .tiles
+                    .iter()
+                    .find(|t| {
+                        t.right_offset == offset || t.right_offset.checked_add(1) == Some(offset)
+                    })
+                    .ok_or(Error::Binding)?;
+                if tile.right_offset == offset {
+                    Ok((
+                        scores.width.checked_mul(tile.count).ok_or(Error::Bounds)?,
+                        tile.inputs.right,
+                    ))
+                } else {
+                    Ok((tile.count, tile.bounds))
+                }
+            }
+            PublishedKind::AttentionScale(rows) if offset % 2 == 1 => {
+                let chunk = rows.native.get(offset / 2).ok_or(Error::Binding)?;
+                Ok((chunk.lanes, chunk.program.output_bounds()))
+            }
+            PublishedKind::Rotary(rows) if offset % 2 == 1 => {
+                let row = rows.native.get(offset / 2).ok_or(Error::Binding)?;
+                Ok((row.program.output_lanes(), row.program.output_bounds()))
+            }
+            PublishedKind::RmsNorm {
+                program, checked, ..
+            } => {
+                let first = checked.as_ref().map_or(op.first, |r| r.rows_first());
+                if owner < first || (owner - first) % 2 != 1 {
+                    return Err(Error::Binding);
+                }
+                Ok((program.output_lanes(), program.output_bounds()))
+            }
+            PublishedKind::Silu if offset == 1 => {
+                Ok((op.output.lanes, self.kernel(slot)?.output_bounds()?))
+            }
+            PublishedKind::Projection { .. } if offset == 2 => {
+                Ok((op.output.lanes, self.kernel(slot)?.output_bounds()?))
+            }
+            _ => Err(Error::Binding),
+        }
     }
 
     /// Attention-only source-block mapping, never used as a general row norm.
@@ -3986,7 +4330,14 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             || self.request_admission.is_some()
                 && matches!(
                     op.operator,
-                    Op::RotaryEmbedding | Op::KvCacheAppend | Op::CacheSuffix
+                    Op::RotaryEmbedding
+                        | Op::KvCacheAppend
+                        | Op::CacheSuffix
+                        | Op::AttentionScores
+                        | Op::AttentionScale
+                        | Op::AttentionValues
+                        | Op::Softmax
+                        | Op::CausalMask
                 );
         if !rank_four
             && (input.rank > 3 || logical.rank > 3 || input.shape[0] != 1 || shape[0] != 1)
@@ -4003,6 +4354,152 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             None
         };
         let (kind, prepared, mapping, bounds, nodes, work) = match op.operator {
+            Op::AttentionValues => {
+                let values = right.as_ref().ok_or(Error::Binding)?;
+                self.validate_view(values)?;
+                let controls =
+                    publication_controls_bytes::<compact_attention_values::Values<'_>>()?;
+                self.admit_local(add_bytes(self.baseline()?, controls)?)?;
+                if self.contraction_control_bytes.get() != 0 {
+                    return Err(Error::Binding);
+                }
+                self.contraction_control_bytes.set(controls);
+                let _controls = ContractionControls(&self.contraction_control_bytes);
+                let result = self.lower_attention_values(
+                    op,
+                    &logical.dimensions[..usize::from(logical.rank)],
+                    &input,
+                    values,
+                )?;
+                let mapping = Mapping::AttentionValues {
+                    first,
+                    layout: result.layout()?,
+                    products: result.tiles.len(),
+                };
+                let (bounds, nodes, work) = (result.bounds, result.nodes, result.work);
+                (
+                    PublishedKind::AttentionValues(result),
+                    None,
+                    mapping,
+                    bounds,
+                    nodes,
+                    work,
+                )
+            }
+            Op::CausalMask if logical == input.logical => (
+                PublishedKind::CausalMask,
+                None,
+                input.mapping,
+                input.bounds,
+                0,
+                WorkBudget::default(),
+            ),
+            Op::Softmax => {
+                let controls = publication_controls_bytes::<compact_attention_softmax::Rows<'_>>()?;
+                self.admit_local(add_bytes(self.baseline()?, controls)?)?;
+                if self.contraction_control_bytes.get() != 0 {
+                    return Err(Error::Binding);
+                }
+                self.contraction_control_bytes.set(controls);
+                let _controls = ContractionControls(&self.contraction_control_bytes);
+                let sequence = usize::try_from(self.frontier.semantic_graph().query_sequence)
+                    .map_err(|_| Error::Shape)?;
+                // Epoch-zero full-prefill only, as required by from_source_request.
+                let position = 0;
+                let rows = compact_attention_softmax::prepare(self, &input, sequence, position)?;
+                let (bounds, nodes, work) = (
+                    rows.bounds()?,
+                    rows.len().checked_mul(2).ok_or(Error::Bounds)?,
+                    rows.work(),
+                );
+                let zero = rows.row(0)?.zero_word();
+                (
+                    PublishedKind::AttentionSoftmax(rows),
+                    None,
+                    Mapping::SoftmaxRows {
+                        first,
+                        keys: sequence,
+                        sequence,
+                        position,
+                        zero,
+                    },
+                    bounds,
+                    nodes,
+                    work,
+                )
+            }
+            Op::AttentionScale => {
+                let controls = add_bytes(
+                    publication_controls_bytes::<attention_scale::Rows>()?,
+                    add_bytes(
+                        std::mem::size_of::<attention_scale::Rows>(),
+                        2 * std::mem::size_of::<usize>(),
+                    )?,
+                )?;
+                self.admit_local(add_bytes(self.baseline()?, controls)?)?;
+                if self.contraction_control_bytes.get() != 0 {
+                    return Err(Error::Binding);
+                }
+                self.contraction_control_bytes.set(controls);
+                let _controls = ContractionControls(&self.contraction_control_bytes);
+                let rows = self.lower_attention_scale(
+                    op,
+                    &input,
+                    &logical.dimensions[..usize::from(logical.rank)],
+                )?;
+                let (bounds, nodes, work) = (rows.bounds, rows.virtual_nodes()?, rows.work);
+                (
+                    PublishedKind::AttentionScale(Arc::new(rows)),
+                    None,
+                    Mapping::Rows { first, width: 128 },
+                    bounds,
+                    nodes,
+                    work,
+                )
+            }
+            Op::AttentionScores => {
+                let key = right.as_ref().ok_or(Error::Binding)?;
+                self.validate_view(key)?;
+                // Same caller publication frame as contraction lowering; child
+                // accounts its own controls on top exactly once.
+                let controls = [
+                    std::mem::size_of::<PublishedOp<'_>>(),
+                    3 * std::mem::size_of::<PublishedView>(),
+                    2 * std::mem::size_of::<Result<compact_attention_scores::Scores, Error>>(),
+                    std::mem::size_of::<ViewShape>(),
+                    std::mem::size_of::<Mapping>(),
+                    std::mem::size_of::<(Interval, usize, WorkBudget)>(),
+                ]
+                .into_iter()
+                .try_fold(0, add_bytes)?;
+                self.admit_local(add_bytes(self.baseline()?, controls)?)?;
+                if self.contraction_control_bytes.get() != 0 {
+                    return Err(Error::Binding);
+                }
+                self.contraction_control_bytes.set(controls);
+                let _controls = ContractionControls(&self.contraction_control_bytes);
+                let scores = self.lower_attention_scores(
+                    op,
+                    &logical.dimensions[..usize::from(logical.rank)],
+                    &input,
+                    key,
+                )?;
+                let layout = scores.layout()?;
+                let mapping = Mapping::AttentionScores {
+                    first,
+                    layout,
+                    products: scores.tiles.len(),
+                };
+                let (bounds, nodes, work) = (scores.bounds, scores.nodes, scores.work);
+                (
+                    PublishedKind::AttentionScores(scores),
+                    None,
+                    mapping,
+                    bounds,
+                    nodes,
+                    work,
+                )
+            }
             Op::CacheSuffix if logical == input.logical => {
                 graph::driver::check_cache_suffix(op)?;
                 (
@@ -4221,7 +4718,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 .ok_or(Error::Bounds)?,
             PublishedKind::TokenFeedback
             | PublishedKind::KvInitialize { .. }
-            | PublishedKind::CacheSuffix => input.start,
+            | PublishedKind::CacheSuffix
+            | PublishedKind::CausalMask => input.start,
             PublishedKind::Reshape => reshape.ok_or(Error::Binding)?.1,
             _ => 0,
         };
@@ -4241,7 +4739,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             PublishedKind::LastToken { .. }
             | PublishedKind::TokenFeedback
             | PublishedKind::KvInitialize { .. }
-            | PublishedKind::CacheSuffix => input.order,
+            | PublishedKind::CacheSuffix
+            | PublishedKind::CausalMask => input.order,
             PublishedKind::Reshape => reshape.ok_or(Error::Binding)?.0,
             _ => LaneOrder::Linear,
         };
@@ -4312,6 +4811,96 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
     pub(super) fn hash_expanded_nodes(&self, hash: &mut Sha256) -> Result<(), Error> {
         for (slot, op) in self.ops.iter().enumerate() {
             match &op.kind {
+                PublishedKind::AttentionValues(values) => {
+                    for row in &values.rows {
+                        hash_node_header(hash, row.inner, row.input_bounds);
+                        hash_gather(
+                            hash,
+                            (0..row.inner).map(|i| {
+                                row.gather
+                                    .lane_ref(i)
+                                    .expect("original Values probability gather")
+                            }),
+                        );
+                        for tile in &values.tiles[row.tile_start..row.tile_start + row.tile_count] {
+                            hash_node_header(hash, tile.gather.len(), tile.inputs.right);
+                            hash_gather(
+                                hash,
+                                (0..tile.gather.len()).map(|i| {
+                                    tile.gather.lane_ref(i).expect("original Values V gather")
+                                }),
+                            );
+                            hash_node_header(hash, tile.count, tile.bounds);
+                            hash_product(
+                                hash,
+                                op.first + tile.left_offset,
+                                op.first + tile.right_offset,
+                                Some(tile.shape),
+                                tile.rescale,
+                                tile.proof.as_ref(),
+                            );
+                        }
+                    }
+                }
+                PublishedKind::AttentionSoftmax(rows) => {
+                    for i in 0..rows.len() {
+                        let row = rows.row(i)?;
+                        hash_node_header(hash, row.native_width(), row.input_bounds());
+                        hash_gather(
+                            hash,
+                            (0..row.native_width())
+                                .map(|i| row.input_word(i).expect("creation-bound softmax prefix")),
+                        );
+                        hash_node_header(hash, row.native_width(), row.output_bounds());
+                        hash_tensor(hash, row.gather_ordinal(), row.program());
+                    }
+                }
+                PublishedKind::AttentionScale(rows) => {
+                    for (index, chunk) in rows.native.iter().enumerate() {
+                        hash_node_header(hash, chunk.lanes, chunk.incoming);
+                        hash_gather(
+                            hash,
+                            (chunk.start..chunk.start + chunk.lanes).map(|i| {
+                                op.input.word(i).expect("validated original scale gather")
+                            }),
+                        );
+                        hash_node_header(hash, chunk.lanes, chunk.program.output_bounds());
+                        hash_tensor(hash, op.first + 2 * index, &chunk.program);
+                    }
+                }
+                PublishedKind::AttentionScores(scores) => {
+                    for row in &scores.rows {
+                        hash_node_header(hash, scores.width, row.query_bounds);
+                        hash_gather(
+                            hash,
+                            (0..row.gather.len()).map(|i| {
+                                row.gather
+                                    .lane_ref(i)
+                                    .expect("validated original query gather")
+                            }),
+                        );
+                        for tile in &scores.tiles[row.tile_start..row.tile_start + row.tile_count] {
+                            hash_node_header(hash, tile.gather.len(), tile.inputs.right);
+                            hash_gather(
+                                hash,
+                                (0..tile.gather.len()).map(|i| {
+                                    tile.gather
+                                        .lane_ref(i)
+                                        .expect("validated original key gather")
+                                }),
+                            );
+                            hash_node_header(hash, tile.count, tile.bounds);
+                            hash_product(
+                                hash,
+                                op.first + tile.left_offset,
+                                op.first + tile.right_offset,
+                                Some(tile.shape),
+                                tile.rescale,
+                                tile.proof.as_ref(),
+                            );
+                        }
+                    }
+                }
                 PublishedKind::Rotary(rows) => {
                     for (row, native) in rows.native.iter().enumerate() {
                         let first = op.first + 2 * row;
@@ -4457,7 +5046,8 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 | PublishedKind::KvInitialize { .. }
                 | PublishedKind::CacheSuffix
                 | PublishedKind::TokenFeedback
-                | PublishedKind::Reshape => {}
+                | PublishedKind::Reshape
+                | PublishedKind::CausalMask => {}
                 PublishedKind::Argmax(plan) => {
                     plan.visit(&op.input, &mut |event| hash_argmax_event(hash, event))?;
                 }

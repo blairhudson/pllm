@@ -5,7 +5,7 @@
 //! physical-memory bound follows from this traversal interface.
 use super::*;
 
-pub(super) trait AttentionSink {
+pub(in crate::replicated_decoder) trait AttentionSink {
     type View: Clone;
     type Words: Default;
     type Word: Copy;
@@ -47,6 +47,11 @@ pub(super) trait AttentionSink {
         values: &Self::View,
     ) -> Result<Self::Words, Error>;
     fn scale_coefficient(head_dim: u64) -> i64;
+    fn scale_declaration(op: &pllm_models::ModelOperation) -> Result<ScaleDeclaration, Error> {
+        Ok(ScaleDeclaration {
+            coefficient: Self::scale_coefficient(scale_width(op)?),
+        })
+    }
     fn scale_chunk(&mut self, chunk: &Self::Words, coefficient: i64) -> Result<Self::Owner, Error>;
     fn softmax_row(&mut self, row: &Self::Words, width: usize) -> Result<Self::Owner, Error>;
 }
@@ -246,7 +251,7 @@ pub(super) fn kv_append<S: AttentionSink>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn scores<S: AttentionSink>(
+pub(in crate::replicated_decoder) fn scores<S: AttentionSink>(
     sink: &mut S,
     op: &pllm_models::ModelOperation,
     shape: &[usize],
@@ -292,28 +297,126 @@ pub(super) fn scores<S: AttentionSink>(
     Ok(S::view(words, shape))
 }
 
+/// Captured original binary32 scale coefficient. This is numeric metadata, not
+/// source, row, GENERAL, validity, mass or resource authority. Its constructor
+/// stays here; callers reuse this same declaration across preparation/emission.
+pub(in crate::replicated_decoder) struct ScaleDeclaration {
+    coefficient: i64,
+}
+
+impl ScaleDeclaration {
+    pub(in crate::replicated_decoder) fn coefficient(&self) -> i64 {
+        self.coefficient
+    }
+}
+
+fn scale_width(op: &pllm_models::ModelOperation) -> Result<u64, Error> {
+    op.attributes
+        .get("head_dim")
+        .and_then(|v| v.as_u64())
+        .ok_or(Error::Binding)
+}
+
+pub(in crate::replicated_decoder) fn scale_declaration(
+    op: &pllm_models::ModelOperation,
+) -> Result<ScaleDeclaration, Error> {
+    Ok(ScaleDeclaration {
+        coefficient: <Builder as AttentionSink>::scale_coefficient(scale_width(op)?),
+    })
+}
+
+/// Scale-only original chunk traversal. Preparation/emission may use different
+/// concrete sinks but never another chunk geometry or coefficient expression.
+/// All phase/ticket admission and original native ownership stay in the sink.
+pub(in crate::replicated_decoder) trait ScaleSink {
+    type View;
+    type Chunk;
+    type Owner;
+    type Output: Default;
+    type Produced;
+    fn begin(
+        &mut self,
+        input: &Self::View,
+        shape: &[usize],
+        declaration: &ScaleDeclaration,
+    ) -> Result<(), Error>;
+    fn chunks<'a>(input: &'a Self::View, width: usize) -> impl Iterator<Item = Self::Chunk> + 'a
+    where
+        Self::Chunk: 'a;
+    fn len(chunk: &Self::Chunk) -> usize;
+    fn native_chunk(
+        &mut self,
+        chunk: Self::Chunk,
+        declaration: &ScaleDeclaration,
+    ) -> Result<Self::Owner, Error>;
+    fn append(output: &mut Self::Output, owner: Self::Owner, lanes: usize);
+    fn finish(&mut self, output: Self::Output, shape: &[usize]) -> Result<Self::Produced, Error>;
+}
+
+pub(in crate::replicated_decoder) fn scale_chunks<S: ScaleSink>(
+    sink: &mut S,
+    declaration: &ScaleDeclaration,
+    shape: &[usize],
+    input: Option<&S::View>,
+) -> Result<S::Produced, Error> {
+    let input = input.ok_or(Error::Binding)?;
+    sink.begin(input, shape, declaration)?;
+    let mut output = S::Output::default();
+    for chunk in S::chunks(input, 128) {
+        let lanes = S::len(&chunk);
+        let owner = sink.native_chunk(chunk, declaration)?;
+        S::append(&mut output, owner, lanes);
+    }
+    sink.finish(output, shape)
+}
+
+struct OriginalScale<'a, S>(&'a mut S);
+impl<S: AttentionSink> ScaleSink for OriginalScale<'_, S> {
+    type View = S::View;
+    type Chunk = S::Words;
+    type Owner = S::Owner;
+    type Output = S::Words;
+    type Produced = S::View;
+    fn begin(&mut self, _: &S::View, _: &[usize], _: &ScaleDeclaration) -> Result<(), Error> {
+        Ok(())
+    }
+    fn chunks<'a>(input: &'a S::View, width: usize) -> impl Iterator<Item = S::Words> + 'a
+    where
+        Self::Chunk: 'a,
+    {
+        S::chunks(S::words(input), width)
+    }
+    fn len(chunk: &S::Words) -> usize {
+        S::len(chunk)
+    }
+    fn native_chunk(
+        &mut self,
+        chunk: S::Words,
+        declaration: &ScaleDeclaration,
+    ) -> Result<S::Owner, Error> {
+        self.0.scale_chunk(&chunk, declaration.coefficient())
+    }
+    fn append(output: &mut S::Words, owner: S::Owner, lanes: usize) {
+        S::append_owner(output, owner, lanes);
+    }
+    fn finish(&mut self, output: S::Words, shape: &[usize]) -> Result<S::View, Error> {
+        Ok(S::view(output, shape))
+    }
+}
+
 pub(super) fn scale<S: AttentionSink>(
     sink: &mut S,
     op: &pllm_models::ModelOperation,
     shape: &[usize],
     input: Option<&S::View>,
 ) -> Result<S::View, Error> {
-    let width = op
-        .attributes
-        .get("head_dim")
-        .and_then(|v| v.as_u64())
-        .ok_or(Error::Binding)?;
-    let coefficient = S::scale_coefficient(width);
-    let mut words = S::Words::default();
-    for chunk in S::chunks(S::words(input.ok_or(Error::Binding)?), 128) {
-        let lanes = S::len(&chunk);
-        let output = sink.scale_chunk(&chunk, coefficient)?;
-        S::append_owner(&mut words, output, lanes);
-    }
-    Ok(S::view(words, shape))
+    // Preserve the original adapter's coefficient call BEFORE missing-input
+    // rejection (including malformed/test-adapter panic precedence).
+    let declaration = S::scale_declaration(op)?;
+    scale_chunks(&mut OriginalScale(sink), &declaration, shape, input)
 }
 
-pub(super) fn softmax<S: AttentionSink>(
+pub(in crate::replicated_decoder) fn softmax<S: AttentionSink>(
     sink: &mut S,
     shape: &[usize],
     input: Option<&S::View>,
@@ -336,7 +439,7 @@ pub(super) fn softmax<S: AttentionSink>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) fn values<S: AttentionSink>(
+pub(in crate::replicated_decoder) fn values<S: AttentionSink>(
     sink: &mut S,
     op: &pllm_models::ModelOperation,
     shape: &[usize],
@@ -501,6 +604,9 @@ impl AttentionSink for Builder {
     }
     fn scale_coefficient(width: u64) -> i64 {
         ((1.0_f32 / (width as f32).sqrt()) * ONE as f32) as i64
+    }
+    fn scale_declaration(op: &pllm_models::ModelOperation) -> Result<ScaleDeclaration, Error> {
+        scale_declaration(op)
     }
     fn scale_chunk(&mut self, chunk: &Words, coefficient: i64) -> Result<usize, Error> {
         let input = self.gather(chunk)?;

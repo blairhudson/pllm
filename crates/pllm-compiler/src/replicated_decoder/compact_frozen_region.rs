@@ -248,6 +248,18 @@ impl<'a> CompactGraph<'_, 'a> {
             native = add_bytes(native, census?.kernel_metadata_bytes)?;
         }
         for op in &self.ops {
+            if let PublishedKind::AttentionValues(values) = &op.kind {
+                native = add_bytes(native, values.retained_bytes()?)?;
+            }
+            if let PublishedKind::AttentionSoftmax(rows) = &op.kind {
+                native = add_bytes(native, rows.metadata_bytes()?)?;
+            }
+            if let PublishedKind::AttentionScale(rows) = &op.kind {
+                native = add_bytes(native, rows.metadata_bytes()?)?;
+            }
+            if let PublishedKind::AttentionScores(scores) = &op.kind {
+                native = add_bytes(native, scores.retained_bytes()?)?;
+            }
             if let PublishedKind::Rotary(rows) = &op.kind {
                 native = add_bytes(
                     native,

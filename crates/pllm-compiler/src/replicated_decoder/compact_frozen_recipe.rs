@@ -266,6 +266,18 @@ impl<'a> FrozenRegion<'a> {
     ) -> Result<(), Error> {
         for op in &self.ops {
             match &op.kind {
+                PublishedKind::AttentionScale(rows) => {
+                    for (index, chunk) in rows.native.iter().enumerate() {
+                        visit(GatherSpan {
+                            ordinal: op.first + 2 * index,
+                            lanes: chunk.lanes,
+                            coordinates: Coordinates::View {
+                                view: &op.input,
+                                start: chunk.start,
+                            },
+                        })?;
+                    }
+                }
                 PublishedKind::TokenLookup { plan, .. } => {
                     for token in 0..op.input.lanes {
                         let first = op.first + 3 * token;
@@ -429,6 +441,61 @@ impl<'a> FrozenRegion<'a> {
                 return Err(Error::Binding);
             }
             let count = match &op.kind {
+                PublishedKind::AttentionValues(values) => {
+                    if op.output.mapping
+                        != (Mapping::AttentionValues {
+                            first: op.first,
+                            layout: values.layout()?,
+                            products: values.tiles.len(),
+                        })
+                    {
+                        return Err(Error::Binding);
+                    }
+                    values.nodes
+                }
+                PublishedKind::AttentionSoftmax(rows) => {
+                    if rows.first() != op.first {
+                        return Err(Error::Binding);
+                    }
+                    rows.len().checked_mul(2).ok_or(Error::Bounds)?
+                }
+                PublishedKind::AttentionScale(rows) => {
+                    if op.output.mapping
+                        != (Mapping::Rows {
+                            first: op.first,
+                            width: 128,
+                        })
+                        || rows.native.iter().enumerate().any(|(i, c)| {
+                            c.start != 128 * i
+                                || c.lanes != (op.input.lanes - c.start).min(128)
+                                || c.program.lanes() != c.lanes
+                                || c.program.output_lanes() != c.lanes
+                        })
+                    {
+                        return Err(Error::Binding);
+                    }
+                    rows.virtual_nodes()?
+                }
+                PublishedKind::AttentionScores(scores) => {
+                    let layout = scores.layout()?;
+                    if op.output.mapping
+                        != (Mapping::AttentionScores {
+                            first: op.first,
+                            layout,
+                            products: scores.tiles.len(),
+                        })
+                        || scores.work
+                            != scores
+                                .tiles
+                                .iter()
+                                .try_fold(WorkBudget::default(), |w, t| {
+                                    w.checked_add(WorkBudget::product(t.count, true)?)
+                                })?
+                    {
+                        return Err(Error::Binding);
+                    }
+                    scores.nodes
+                }
                 PublishedKind::TokenLookup {
                     weight,
                     source,
@@ -577,7 +644,8 @@ impl<'a> FrozenRegion<'a> {
                 | PublishedKind::TokenFeedback
                 | PublishedKind::Reshape
                 | PublishedKind::KvInitialize { .. }
-                | PublishedKind::CacheSuffix => 0,
+                | PublishedKind::CacheSuffix
+                | PublishedKind::CausalMask => 0,
                 PublishedKind::Argmax(plan) => {
                     let expected = ArgmaxGeometry::new(op.input.lanes)?;
                     if plan.first != op.first
@@ -895,6 +963,15 @@ fn replay_argmax_block(
     }
 }
 
+impl BorrowedLaneRefs for compact_attention_softmax::OwnedRow<'_> {
+    fn len(&self) -> usize {
+        self.native_width()
+    }
+    fn lane_ref(&self, index: usize) -> Result<(usize, usize), Error> {
+        self.input_word(index)
+    }
+}
+
 impl BorrowedOrderedNodes for FrozenSchedule<'_, '_> {
     fn node_count(&self) -> usize {
         self.owner.next
@@ -926,6 +1003,114 @@ impl BorrowedOrderedNodes for FrozenSchedule<'_, '_> {
         }
         let offset = ordinal - op.first;
         let (lanes, bounds, recipe) = match &op.kind {
+            PublishedKind::AttentionValues(values) => {
+                if let Some(row) = values.rows.iter().find(|r| r.gather_offset == offset) {
+                    (
+                        row.inner,
+                        row.input_bounds,
+                        BorrowedRecipe::Gather(&row.gather),
+                    )
+                } else {
+                    let tile = values
+                        .tiles
+                        .iter()
+                        .find(|t| {
+                            t.right_offset == offset
+                                || t.right_offset.checked_add(1) == Some(offset)
+                        })
+                        .ok_or(Error::Binding)?;
+                    if tile.right_offset == offset {
+                        (
+                            tile.gather.len(),
+                            tile.inputs.right,
+                            BorrowedRecipe::Gather(&tile.gather),
+                        )
+                    } else {
+                        (
+                            tile.count,
+                            tile.bounds,
+                            BorrowedRecipe::Product {
+                                left: op.first + tile.left_offset,
+                                right: op.first + tile.right_offset,
+                                shape: Some(tile.shape),
+                                rescale: tile.rescale,
+                                norm: tile.proof.as_ref(),
+                            },
+                        )
+                    }
+                }
+            }
+            PublishedKind::AttentionSoftmax(rows) => {
+                let row = rows.row(offset / 2)?;
+                if offset % 2 == 0 {
+                    (
+                        row.native_width(),
+                        row.input_bounds(),
+                        BorrowedRecipe::Gather(row),
+                    )
+                } else {
+                    (
+                        row.native_width(),
+                        row.output_bounds(),
+                        BorrowedRecipe::Tensor {
+                            input: row.gather_ordinal(),
+                            program: row.program(),
+                        },
+                    )
+                }
+            }
+            PublishedKind::AttentionScale(rows) => {
+                let chunk = rows.native.get(offset / 2).ok_or(Error::Binding)?;
+                if offset % 2 == 0 {
+                    (chunk.lanes, chunk.incoming, self.gather(ordinal)?)
+                } else {
+                    (
+                        chunk.lanes,
+                        chunk.program.output_bounds(),
+                        BorrowedRecipe::Tensor {
+                            input: ordinal - 1,
+                            program: &chunk.program,
+                        },
+                    )
+                }
+            }
+            PublishedKind::AttentionScores(scores) => {
+                if let Some(row) = scores.rows.iter().find(|r| r.node_offset == offset) {
+                    (
+                        scores.width,
+                        row.query_bounds,
+                        BorrowedRecipe::Gather(&row.gather),
+                    )
+                } else {
+                    let tile = scores
+                        .tiles
+                        .iter()
+                        .find(|t| {
+                            t.right_offset == offset
+                                || t.right_offset.checked_add(1) == Some(offset)
+                        })
+                        .ok_or(Error::Binding)?;
+                    if tile.right_offset == offset {
+                        (
+                            tile.gather.len(),
+                            tile.inputs.right,
+                            BorrowedRecipe::Gather(&tile.gather),
+                        )
+                    } else {
+                        (
+                            tile.count,
+                            tile.bounds,
+                            BorrowedRecipe::Product {
+                                left: op.first + tile.left_offset,
+                                right: op.first + tile.right_offset,
+                                shape: Some(tile.shape),
+                                rescale: tile.rescale,
+                                norm: tile.proof.as_ref(),
+                            },
+                        )
+                    }
+                }
+            }
             PublishedKind::TokenLookup { weight, plan, .. } => {
                 let first = ordinal - offset % 3;
                 match offset % 3 {
