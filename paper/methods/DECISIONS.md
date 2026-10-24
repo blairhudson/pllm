@@ -1080,6 +1080,29 @@ No wider rows, matrix consumer, inherited source/compiler/checkpoint authority,
 SDK or trained execution, joint privacy or whole-model security qualification
 is approved. No HE/FSS permission follows; **FSS remains preparation-only**.
 
+## D44. Maverick metadata-only partition, window and lifetime planner
+
+**Explicitly approved by the user on Sunday, 25 October 2026 (user60134):**
+implement and qualify **M-X-I only**, the shared metadata-only partition/window/
+lifetime planner described in [the existing candidate's separate next decisions](../../docs/plans/maverick-window-batch-candidate.md#9-separate-next-decisions-and-stop-conditions).
+Bound correctness tests to **4096 records, one process/thread, 30 seconds,
+64 MiB memory and 1 MiB output**. Ordinary native planner builds and qualification
+require a separately allocated, Parent-named existing validation slot; this
+decision grants no immediate build or execution slot.
+
+Preserve existing global caps and **both global challenge-fixation barriers**;
+unknown admission refuses rather than becoming zero. D31/D32/D34 mathematics
+and clear-oracle contracts remain unchanged. The M-X proposal's 449,460-batch
+full-window figures are not adopted as whole-execution evidence. The planner is
+metadata, not a live capability or source/security authority.
+
+No masks, tentative-output publication, numerical model, protocol-owner bridge,
+SDK or protected decoder activation is approved. This excludes M-X numerical
+failure-timing/adversarial-continuation work, output generation, checkpoint
+payload reads, native HE, key generation, model/FSS runs, and security/source
+qualification. No cap increase, implementation result or passing-test claim
+follows from this approval.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1127,6 +1150,7 @@ is approved. No HE/FSS permission follows; **FSS remains preparation-only**.
 | D41 | Approved: private D19 scan-to-correction/Select ownership and exact-resource extraction | Original reservation split before allocation/RNG, continuous counter/source custody and failure burn; unchanged APIs, 8/10 gates, equations, draw order, masks and framing. Compatibility/resource/lifecycle tests only; no interval scan, shared-key profile, LUT13/LayerNorm, activation, security or physical/whole-Norm fit claim. |
 | D42 | Approved: private original-parent lookup8/10 correction-build/resource extraction | Parent-created sealed identity only, one original aggregate reserve split without refund/reacquisition or unsupported merge; output-mask owner retains both residual dealer charges payload-first. Exact control/transition quotes and golden/admission/failure/lifecycle qualification required; APIs/profiles/numerics/RNG/framing/D41 unchanged. No independent public issuer, interval/index50/shared-key/LUT13/LayerNorm/SDK or full-row/physical/security qualification. |
 | D43 | Approved: one LocalClearRoot paper LayerNorm4 to party shares | Ring50/Q12 bounded private X/gamma/beta, exact 8192 inverse table and both floors; enumerated interval/LUT13/product/unsigned-TR42 consuming adapters and D39 endpoint. Full same-counter storage/work admission before factories under unchanged 64 MiB, failure custody and independent review required; refusal valid. No matrix/wider-row/inherited-source/SDK/trained/joint-security or HE/FSS promotion. |
+| D44 | Approved: M-X-I metadata-only shared partition/window/lifetime planner | At most 4096 records, one process/thread, 30 s, 64 MiB memory and 1 MiB output; native qualification only in a separately granted existing slot. Global caps, both challenge barriers and D31/D32/D34 unchanged; unknown admission refuses. No masks, tentative publication, protocol-owner/SDK/decoder activation, numerical failure-timing/continuation, payload/model/HE/FSS execution or source/security qualification. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
