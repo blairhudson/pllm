@@ -95,12 +95,16 @@ fn checked_public_permissions_come_from_exact_server_owner_not_client_caps() {
     assert_eq!(limits.max_work, SOURCE_WORK);
     assert_eq!(limits.factory.max_attribute_nodes, 32768);
     assert_eq!(limits.factory.max_operations_per_phase, 34);
-    assert_eq!(limits.expansion.max_tensor_elements, 32);
+    assert_eq!(limits.expansion.max_tensor_elements, 50);
     let mut short = limits.expansion;
     short.max_tensor_elements -= 1;
     assert!(pllm_models::ConfigLowererQuote::new(
         config.payload().value(),
-        workload(),
+        DecoderWorkload {
+            max_input_tokens: 5,
+            max_new_tokens: 1,
+            ..workload()
+        },
         short,
         limits.factory
     )
@@ -273,7 +277,7 @@ fn original_quote_exact_short_and_prior_json_work_no_construct() {
         SOURCE_WORK - deducted.max_work,
         u64::try_from(actual_server.payload().resources().work.total * 2).unwrap()
             + config.payload().raw().len() as u64
-            + pllm_models::SOURCE_SCALAR_SUMMARY_WORK
+            + workload().max_new_tokens * pllm_models::SOURCE_SCALAR_SUMMARY_WORK
     );
     let foreign_root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
     let foreign_server = import(&foreign_root, server_raw());
@@ -335,7 +339,15 @@ fn cached_qwen_config_scalar_policy_and_original_metadata_quote_only() {
     );
     assert_eq!(limits.factory.max_attribute_nodes, 32768);
     assert_eq!(limits.factory.max_operations_per_phase, 678);
-    assert_eq!(limits.expansion.max_tensor_elements, 4 * 151936);
+    assert_eq!(
+        pllm_models::source_scalar_summary(config.payload().value(), workload())
+            .unwrap()
+            .semantic_elements(),
+        607744
+    );
+    assert_eq!(limits.expansion.max_tensor_elements, 5 * 151936);
+    assert_eq!(limits.expansion.max_tensor_elements, 759680);
+    assert!(limits.expansion.max_tensor_elements < ORDINARY_LANES as u64);
     // The SAME registered, nonconstructing quote owns operation/shape formulas.
     // This does not invoke ConfigLowererQuote::construct, source file import,
     // Program/Manifest compile, tensor factories, Worker or any process launcher.
@@ -442,4 +454,142 @@ fn shared_summary_overflow_and_original_attribute_ceiling_refuse() {
         limits.factory
     )
     .is_err());
+}
+
+#[test]
+fn prefix_summary_prepayment_exact_short_invalid_and_overflow() {
+    let work = 2 * pllm_models::SOURCE_SCALAR_SUMMARY_WORK;
+    let prior = u128::from(SOURCE_WORK - work);
+    assert_eq!(prepay_summaries(prior, 2).unwrap(), 0);
+    assert!(prepay_summaries(prior + 1, 2).is_err());
+    assert!(prepay_summaries(u128::MAX, 2).is_err());
+    for outputs in [0, 9, u64::MAX] {
+        assert!(prepay_summaries(0, outputs).is_err());
+    }
+    assert_eq!(
+        prepay_summaries(17, 1).unwrap(),
+        SOURCE_WORK - 17 - pllm_models::SOURCE_SCALAR_SUMMARY_WORK
+    );
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let config = import(&root, raw());
+    for bad in [
+        DecoderWorkload {
+            max_input_tokens: u64::MAX,
+            ..workload()
+        },
+        DecoderWorkload {
+            max_new_tokens: 0,
+            ..workload()
+        },
+        DecoderWorkload {
+            max_new_tokens: 9,
+            ..workload()
+        },
+    ] {
+        assert!(ServerSourcePolicy::checked_public(
+            &experiment(),
+            &config,
+            bad,
+            WeightMode::Public,
+            execution()
+        )
+        .is_err());
+    }
+}
+
+#[test]
+fn actual_prefix_plan_growth_retains_origin_and_cumulative_source_debit() {
+    // Metadata/SSA construction ONLY. No tensor bytes, Program, arithmetic,
+    // Worker, token feedback issuer, or SDK request is constructed here.
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut doc: serde_json::Value = serde_json::from_slice(&server_raw()).unwrap();
+    doc["budget"]["max_input_tokens"] = json!(4);
+    let server = import(&root, serde_json::to_vec(&doc).unwrap());
+    let config = import(&root, raw());
+    let limits = admitted_limits(&server, &config, None, workload()).unwrap();
+    assert_eq!(limits.expansion.max_tensor_elements, 50);
+    let before = SOURCE_WORK - limits.max_work;
+    assert_eq!(
+        before,
+        u64::try_from(server.payload().resources().work.total * 2).unwrap()
+            + config.payload().raw().len() as u64
+            + 2 * pllm_models::SOURCE_SCALAR_SUMMARY_WORK
+    );
+    let boot = original_source::bootstrap_bytes(&config, limits).unwrap();
+    let first = original_source::quote(
+        config,
+        root.charge_external(boot).unwrap(),
+        workload(),
+        limits,
+    )
+    .unwrap()
+    .construct()
+    .unwrap();
+    let initial_work = first.resources().prepaid_work;
+    let next = DecoderWorkload {
+        max_input_tokens: 5,
+        max_new_tokens: 1,
+        ..workload()
+    };
+    let boot = first.lower_bootstrap_bytes(limits).unwrap();
+    let second = first
+        .lower(root.charge_external(boot).unwrap(), next, limits)
+        .unwrap();
+    assert_eq!(first.plan().prefill.query_sequence, 4);
+    assert_eq!(second.plan().prefill.query_sequence, 5);
+    assert!(first.same_origin(&second));
+    assert!(!first.same_plan(&second));
+    assert!(std::ptr::eq(first.budget(), second.budget()));
+    assert!(second.resources().prepaid_work > initial_work);
+    assert_eq!(limits.max_work, SOURCE_WORK - before); // Policy debit never refunded.
+    let boot = second.lower_bootstrap_bytes(limits).unwrap();
+    let exhausted = original_source::Limits {
+        max_work: second.resources().prepaid_work,
+        ..limits
+    };
+    assert!(first
+        .lower(root.charge_external(boot).unwrap(), next, exhausted)
+        .is_err());
+    assert!(second.lower_bootstrap_bytes(limits).is_err()); // Shared ledger burned, no sibling reset.
+}
+
+#[test]
+fn one_output_permissions_unchanged_and_no_server_maximum_row_substitution() {
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let config = import(&root, raw());
+    let once = DecoderWorkload {
+        max_new_tokens: 1,
+        ..workload()
+    };
+    let single = ServerSourcePolicy::checked_public(
+        &experiment(),
+        &config,
+        once,
+        WeightMode::Public,
+        execution(),
+    )
+    .unwrap()
+    .limits_for(&config, once)
+    .unwrap();
+    assert_eq!(single.expansion.max_tensor_elements, 32);
+    for max_input in [4, 8, 32] {
+        let mut server = experiment();
+        server.budget.max_input_tokens = max_input;
+        let policy = ServerSourcePolicy::checked_public(
+            &server,
+            &config,
+            workload(),
+            WeightMode::Public,
+            execution(),
+        )
+        .unwrap();
+        assert_eq!(
+            policy
+                .limits_for(&config, workload())
+                .unwrap()
+                .expansion
+                .max_tensor_elements,
+            50
+        );
+    }
 }

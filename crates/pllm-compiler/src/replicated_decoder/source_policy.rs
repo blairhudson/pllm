@@ -71,13 +71,38 @@ impl<'a> ServerSourcePolicy<'a> {
         }
         let document = configuration.payload().value();
         // SAME registered scalar preflight/defaults and phase-count formula.
-        // The production caller prepays SOURCE_SCALAR_SUMMARY_WORK first.
+        // The production caller prepays O*SOURCE_SCALAR_SUMMARY_WORK first.
         let summary =
             pllm_models::source_scalar_summary(document, workload).map_err(|_| Error::Bounds)?;
         if summary.operations_per_phase > DESCRIPTORS
             || summary.semantic_elements() > ORDINARY_LANES as u64
         {
             return Err(Error::Bounds);
+        }
+        // Permission covers this request's EXISTING feedback prefixes, not the
+        // server's maximum client-input rows. Reuse the registered seven-product
+        // summary for each (R+s,O-s), with no descriptors or tensor allocation.
+        let mut max_tensor_elements = summary.semantic_elements();
+        for step in 1..workload.max_new_tokens {
+            let next = DecoderWorkload {
+                max_input_tokens: workload
+                    .max_input_tokens
+                    .checked_add(step)
+                    .ok_or(Error::Bounds)?,
+                max_new_tokens: workload
+                    .max_new_tokens
+                    .checked_sub(step)
+                    .ok_or(Error::Bounds)?,
+                ..workload
+            };
+            let next =
+                pllm_models::source_scalar_summary(document, next).map_err(|_| Error::Bounds)?;
+            if next.operations_per_phase > DESCRIPTORS
+                || next.semantic_elements() > ORDINARY_LANES as u64
+            {
+                return Err(Error::Bounds);
+            }
+            max_tensor_elements = max_tensor_elements.max(next.semantic_elements());
         }
         Ok(Self {
             configuration,
@@ -88,7 +113,7 @@ impl<'a> ServerSourcePolicy<'a> {
                     max_feature_width: summary.feature_width(),
                     max_attention_heads: summary.attention_heads.max(summary.kv_heads),
                     max_vocabulary: summary.vocabulary,
-                    max_tensor_elements: summary.semantic_elements(),
+                    max_tensor_elements,
                 },
                 factory: ConfigLowererLimits {
                     max_operations_per_phase: summary.operations_per_phase,
@@ -177,6 +202,22 @@ impl<'a> ServerSourcePolicy<'a> {
     }
 }
 
+// Prepay the entire bounded summary loop BEFORE its first scalar visit. No
+// failed/short request receives a partial-summary refund or a fresh source cap.
+fn prepay_summaries(prior: u128, outputs: u64) -> Result<u64, Error> {
+    if !(1..=8).contains(&outputs) {
+        return Err(Error::Bounds);
+    }
+    let summary = outputs
+        .checked_mul(pllm_models::SOURCE_SCALAR_SUMMARY_WORK)
+        .ok_or(Error::Bounds)?;
+    let prior = prior
+        .checked_add(u128::from(summary))
+        .and_then(|n| u64::try_from(n).ok())
+        .ok_or(Error::Bounds)?;
+    SOURCE_WORK.checked_sub(prior).ok_or(Error::Bounds)
+}
+
 /// Actual immutable owners, not a caller numeric prior-work baseline. Both the
 /// real constructor and metadata-only query use this SAME nonrefundable debit.
 pub(super) fn admitted_limits(
@@ -220,12 +261,10 @@ pub(super) fn admitted_limits(
         .checked_mul(2)
         .and_then(|n| n.checked_add(manifest_work))
         .and_then(|n| n.checked_add(config.payload().raw().len() as u128))
-        .and_then(|n| n.checked_add(u128::from(pllm_models::SOURCE_SCALAR_SUMMARY_WORK)))
-        .and_then(|n| u64::try_from(n).ok())
         .ok_or(Error::Bounds)?;
     // Prepay BEFORE the shared scalar summary. Its permission stays reduced for
     // the first factory and all subsequent source-root epochs, no credit/reset.
-    let remaining = SOURCE_WORK.checked_sub(prior).ok_or(Error::Bounds)?;
+    let remaining = prepay_summaries(prior, workload.max_new_tokens)?;
     let policy = ServerSourcePolicy::from_server_json(
         server,
         config,
