@@ -773,6 +773,12 @@ B-S/Q, adopt a backend, or authorize implementation, source-code edits,
 execution, network access or keys. All other proposal and adoption gates remain
 unchanged.
 
+**Analysis complete:** the [source-only design delta](../research/bumblebee-coefficient-phase-analysis.md)
+records the twelve-case result: the proposed canonical Delta/full-share product
+and H2A graph's universal one-bit claim fails at a noiseless endpoint. This is
+not a claim against the paper or centered BFV. B-S/Q remains **NOT SELECTABLE**;
+no encoding, tuple or profile change, execution or adoption is authorized.
+
 This action commissions **Astra planning/analysis only**, not Attachment A/B
 adoption or B-S/Q. Existing numbers remain proposed; no tuple, sampler, profile,
 checkpoint or dependency may change to make an inequality pass. No implementation
