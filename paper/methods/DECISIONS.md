@@ -954,6 +954,35 @@ No LayerNorm, LUT13, numerical/backend/compiler/SDK/transport activation, final
 reconstruction, joint-privacy/security qualification or passing-test claim
 follows. D26 and the other historical decisions are unchanged.
 
+## D40. Server-bound scalar source policy for checked-public ingress
+
+**Explicitly approved by the user on 24 October 2026:** implement and test a
+server-bound scalar source policy for the explicit checked-public route, including
+a metadata-only source quote. Authenticated server Experiment/config supplies the
+finite source dimensions and workload; a client manifest cannot supply or enlarge
+that authority. Retain toy defaults. Previous source-owned SDK tests used toy
+vocabularies `V <= 128`; they did not qualify checkpoint-sized ingress or execution.
+
+Derive geometry and phase bounds from the existing model mappings, rather than a
+model-name shortcut. For the Qwen example, authenticated configuration yields 24
+layers, MLP width 4,864, 14 attention heads and vocabulary 151,936. Let hidden width
+be `D`, head width `d`, KV heads `G`, maximum input rows `I`, and requested output
+bound `O`. Existing dense-decoder mapping uses `S = I + O - 1`: prefill has query
+and maximum-key lengths `I`; decode has query length 1 and maximum-key length `S`;
+both retain state capacity `S`. With batch 1 and phase lengths `Q, K`, shapes are
+hidden `[1,Q,D]`, queries `[1,14,Q,d]`, KV state `[1,G,S,d]`, scores
+`[1,14,Q,K]`, MLP intermediate `[1,Q,4864]`, and last-hidden/output-head
+`[1,D]` / `[1,151936]`. Source/config validation and checked shape/phase arithmetic
+remain required; these formulas confer no source identity or historical custody.
+
+Unchanged limits include the 64 MiB all-owner ceiling, 65,536 descriptors, batch
+1, `I + O <= 40`, `O <= 8`, 16 KiB config, 1 MiB raw input, existing JSON/work
+ceilings and every downstream refusal. Policy is ingress permission, **not**
+whole-checkpoint-fit assurance. Metadata-only quoting must not read tensors;
+checkpoint arithmetic compilation, inference, fallback, budget resets and source
+authority inferred from policy are not authorized. No passing-test or completed
+implementation claim follows from this decision.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -997,6 +1026,7 @@ follows. D26 and the other historical decisions are unchanged.
 | D37 | Approved: seven design-only method-completion packets | Specify N-N/B-S/M-X/C-S/R-S/H-F/N-G separately; no numerical/backend/state/RNG adoption, implementation, model execution, cap increases or manufactured source evidence. |
 | D38 | Approved: three separately bounded D37 follow-ups | NEXUS clear prefix and conditional synthetic metadata only; isolated HE Layout patch preparation without adoption/build/tests; CacheMir's 66 synthetic N-Q cases within fixed limits. No full methods, HE/models, SDK or cap increases. |
 | D39 | Approved: four-lane SIGMA private party-share terminal extraction | Ring50 private GapARS12 plus private beta, existing carry/codec, one fresh independent split of combined rF+rBeta and preallocated original-counter custody; sibling burn/retention and enclosing state/layout pricing required. No final reconstruction, default/cap change, LayerNorm/LUT13 or compiler/SDK/transport/security qualification. |
+| D40 | Approved: server-bound scalar source policy for explicit checked-public ingress | Authenticated server Experiment/config derives finite source/workload geometry; toy defaults and all caps/refusals unchanged. Tests and metadata-only quote permitted, not client-manifest authority, tensor reads, checkpoint arithmetic compilation, inference, fallback or whole-checkpoint fit. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
