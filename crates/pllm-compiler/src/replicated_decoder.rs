@@ -26,6 +26,7 @@ mod source_registry;
 // construction remains unavailable; no production entry point uses this seam.
 #[allow(dead_code)]
 mod source_request_census;
+mod source_policy;
 #[cfg(test)]
 mod tests;
 mod views;

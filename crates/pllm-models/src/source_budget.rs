@@ -178,11 +178,7 @@ impl DecoderExpansionBudget {
         if workload.batch == 0 || workload.max_input_tokens == 0 || workload.max_new_tokens == 0 {
             return Err(rejected());
         }
-        let operations = layers
-            .checked_mul(per_layer)
-            .and_then(|n| n.checked_add(fixed_operations))
-            .ok_or_else(rejected)?;
-        let operations = usize::try_from(operations).map_err(|_| rejected())?;
+        let operations = checked_phase_operations(layers, per_layer, fixed_operations)?;
         if operations > max_operations {
             return Err(rejected());
         }
@@ -267,6 +263,75 @@ pub(super) enum HeadWidth {
     SourceField,
 }
 
+fn checked_phase_operations(layers: u64, per_layer: u64, fixed: u64) -> Result<usize, ModelError> {
+    scalar_phase_operations(layers, per_layer, fixed).map_err(|_| rejected())
+}
+fn scalar_phase_operations(
+    layers: u64,
+    per_layer: u64,
+    fixed: u64,
+) -> Result<usize, SourceScalarSummaryError> {
+    usize::try_from(
+        layers
+            .checked_mul(per_layer)
+            .and_then(|n| n.checked_add(fixed))
+            .ok_or(SourceScalarSummaryError::Overflow)?,
+    )
+    .map_err(|_| SourceScalarSummaryError::Overflow)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceScalarSummaryError {
+    Unsupported,
+    Invalid,
+    Overflow,
+}
+
+/// Bounded logical scalar-query visits, not CPU fuel/opaque std internals.
+/// Prepay before querying; this performs no source/model/native factory.
+pub const SOURCE_SCALAR_SUMMARY_WORK: u64 = 4096;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SourceScalarSummary {
+    pub layers: u64,
+    pub hidden: u64,
+    pub intermediate: u64,
+    pub attention_heads: u64,
+    pub kv_heads: u64,
+    pub head_dim: u64,
+    pub query_width: u64,
+    pub kv_width: u64,
+    pub vocabulary: u64,
+    pub shape_elements: [u64; 7],
+    pub operations_per_phase: usize,
+}
+impl SourceScalarSummary {
+    pub fn feature_width(&self) -> u64 {
+        self.hidden
+            .max(self.intermediate)
+            .max(self.query_width)
+            .max(self.kv_width)
+    }
+    pub fn semantic_elements(&self) -> u64 {
+        self.shape_elements.iter().copied().max().unwrap_or(0)
+    }
+}
+
+/// Exact scalar geometry using the registered preflight's head-width/default
+/// contract; no family dispatch here and no parsing, allocation or construction.
+pub fn source_scalar_summary(
+    document: &Value,
+    workload: DecoderWorkload,
+) -> Result<SourceScalarSummary, SourceScalarSummaryError> {
+    let mut summary = super::source_mappings::dense_scalar_summary(document, workload)?;
+    let (layer_key, per_layer, _, fixed) =
+        super::source_mappings::metadata_expansion_entry(document)
+            .ok_or(SourceScalarSummaryError::Unsupported)?;
+    summary.operations_per_phase =
+        scalar_phase_operations(scalar_field(document, layer_key)?, per_layer, fixed)?;
+    Ok(summary)
+}
+
 fn rejected() -> ModelError {
     ModelError::InvalidConfig("decoder source expansion budget exceeded or invalid".into())
 }
@@ -278,27 +343,41 @@ fn positive(value: u64, ceiling: u64) -> Result<u64, ModelError> {
     Ok(value)
 }
 
-fn field(document: &Value, key: &str) -> Result<u64, ModelError> {
-    document
-        .get(key)
-        .and_then(Value::as_u64)
-        .ok_or_else(rejected)
-}
-
-fn optional_field(document: &Value, key: &str, fallback: u64) -> Result<u64, ModelError> {
-    match document.get(key) {
-        None | Some(Value::Null) => Ok(fallback),
-        Some(value) => value.as_u64().ok_or_else(rejected),
+fn nonzero(value: u64) -> Result<u64, SourceScalarSummaryError> {
+    if value == 0 {
+        Err(SourceScalarSummaryError::Invalid)
+    } else {
+        Ok(value)
     }
 }
 
-fn product(values: &[u64], ceiling: u64) -> Result<(), ModelError> {
+fn field(document: &Value, key: &str) -> Result<u64, ModelError> {
+    scalar_field(document, key).map_err(|_| rejected())
+}
+fn scalar_field(document: &Value, key: &str) -> Result<u64, SourceScalarSummaryError> {
+    document
+        .get(key)
+        .and_then(Value::as_u64)
+        .ok_or(SourceScalarSummaryError::Invalid)
+}
+
+fn optional_field(
+    document: &Value,
+    key: &str,
+    fallback: u64,
+) -> Result<u64, SourceScalarSummaryError> {
+    match document.get(key) {
+        None | Some(Value::Null) => Ok(fallback),
+        Some(value) => value.as_u64().ok_or(SourceScalarSummaryError::Invalid),
+    }
+}
+
+fn checked_product(values: &[u64]) -> Result<u64, SourceScalarSummaryError> {
     let value = values
         .iter()
         .try_fold(1u64, |total, value| total.checked_mul(*value))
-        .ok_or_else(rejected)?;
-    positive(value, ceiling)?;
-    Ok(())
+        .ok_or(SourceScalarSummaryError::Overflow)?;
+    nonzero(value)
 }
 
 /// Dimension layout shared by the registered ordinary dense source readers.
@@ -309,43 +388,52 @@ pub(super) fn preflight_dense_source(
     budget: DecoderExpansionBudget,
     head_width: HeadWidth,
 ) -> Result<(), ModelError> {
-    positive(field(document, "num_hidden_layers")?, budget.max_layers)?;
-    let hidden = positive(field(document, "hidden_size")?, budget.max_feature_width)?;
-    let intermediate = positive(
-        field(document, "intermediate_size")?,
-        budget.max_feature_width,
-    )?;
-    let heads = positive(
-        field(document, "num_attention_heads")?,
-        budget.max_attention_heads,
-    )?;
-    let kv_heads = positive(
-        optional_field(document, "num_key_value_heads", heads)?,
-        budget.max_attention_heads,
-    )?;
-    let head_dim = positive(
-        match head_width {
-            HeadWidth::HiddenPerHead => hidden / heads,
-            HeadWidth::SourceField => field(document, "head_dim")?,
-        },
-        budget.max_feature_width,
-    )?;
-    let vocabulary = positive(field(document, "vocab_size")?, budget.max_vocabulary)?;
-    product(&[heads, head_dim], budget.max_feature_width)?;
-    product(&[kv_heads, head_dim], budget.max_feature_width)?;
+    let summary = dense_scalar_summary(document, workload, head_width).map_err(|_| rejected())?;
+    positive(summary.layers, budget.max_layers)?;
+    positive(summary.hidden, budget.max_feature_width)?;
+    positive(summary.intermediate, budget.max_feature_width)?;
+    positive(summary.attention_heads, budget.max_attention_heads)?;
+    positive(summary.kv_heads, budget.max_attention_heads)?;
+    positive(summary.head_dim, budget.max_feature_width)?;
+    positive(summary.vocabulary, budget.max_vocabulary)?;
+    positive(summary.query_width, budget.max_feature_width)?;
+    positive(summary.kv_width, budget.max_feature_width)?;
+    for elements in summary.shape_elements {
+        positive(elements, budget.max_tensor_elements)?;
+    }
+    Ok(())
+}
+
+pub(super) fn dense_scalar_summary(
+    document: &Value,
+    workload: DecoderWorkload,
+    head_width: HeadWidth,
+) -> Result<SourceScalarSummary, SourceScalarSummaryError> {
+    let layers = nonzero(scalar_field(document, "num_hidden_layers")?)?;
+    let hidden = nonzero(scalar_field(document, "hidden_size")?)?;
+    let intermediate = nonzero(scalar_field(document, "intermediate_size")?)?;
+    let heads = nonzero(scalar_field(document, "num_attention_heads")?)?;
+    let kv_heads = nonzero(optional_field(document, "num_key_value_heads", heads)?)?;
+    let head_dim = nonzero(match head_width {
+        HeadWidth::HiddenPerHead => hidden / heads,
+        HeadWidth::SourceField => scalar_field(document, "head_dim")?,
+    })?;
+    let vocabulary = nonzero(scalar_field(document, "vocab_size")?)?;
+    let query_width = checked_product(&[heads, head_dim])?;
+    let kv_width = checked_product(&[kv_heads, head_dim])?;
     if workload.batch == 0 || workload.max_input_tokens == 0 || workload.max_new_tokens == 0 {
-        return Err(rejected());
+        return Err(SourceScalarSummaryError::Invalid);
     }
     let capacity = workload
         .max_input_tokens
         .checked_add(workload.max_new_tokens)
         .and_then(|total| total.checked_sub(1))
-        .ok_or_else(rejected)?;
+        .ok_or(SourceScalarSummaryError::Overflow)?;
     let batch = workload.batch;
     let rows = workload.max_input_tokens;
     // Preflight is also used before an owned constructor has reserved its
     // payload. Shape inspection must not allocate temporary Vecs at that seam.
-    for shape in [
+    let shapes = [
         &[batch, rows, hidden][..],
         &[batch, rows, intermediate][..],
         &[batch, rows, vocabulary][..],
@@ -353,10 +441,24 @@ pub(super) fn preflight_dense_source(
         &[batch, heads, rows, rows][..],
         &[batch, heads, capacity][..],
         &[batch, kv_heads, capacity, head_dim][..],
-    ] {
-        product(shape, budget.max_tensor_elements)?;
+    ];
+    let mut shape_elements = [0; 7];
+    for (result, shape) in shape_elements.iter_mut().zip(shapes) {
+        *result = checked_product(shape)?;
     }
-    Ok(())
+    Ok(SourceScalarSummary {
+        layers,
+        hidden,
+        intermediate,
+        attention_heads: heads,
+        kv_heads,
+        head_dim,
+        query_width,
+        kv_width,
+        vocabulary,
+        shape_elements,
+        operations_per_phase: 0,
+    })
 }
 
 #[cfg(test)]

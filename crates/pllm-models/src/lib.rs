@@ -20,7 +20,10 @@ mod shared_kv_decoder;
 mod source_budget;
 mod source_mappings;
 
-pub use source_budget::{ConfigLowererLimits, ConfigLowererQuote, DecoderExpansionBudget};
+pub use source_budget::{
+    source_scalar_summary, ConfigLowererLimits, ConfigLowererQuote, DecoderExpansionBudget,
+    SourceScalarSummary, SourceScalarSummaryError, SOURCE_SCALAR_SUMMARY_WORK,
+};
 
 pub const DECODER_PLAN_SCHEMA_VERSION: &str = "pllm.decoder_plan.v1";
 

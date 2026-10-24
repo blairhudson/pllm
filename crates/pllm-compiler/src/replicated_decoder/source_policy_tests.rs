@@ -1,0 +1,445 @@
+use super::*;
+use pllm_garble::shared_allocation::OwnedBudget;
+use serde_json::json;
+
+fn experiment() -> ExperimentDocument {
+    serde_json::from_value(json!({"schema":"pllm.experiment.v1","name":"server-policy",
+        "pipeline":{"model":{"source":"server-owned-config"},"components":{}},
+        "deployment":{"kind":"local","root":"."},
+        "budget":{"requests":1,"max_input_tokens":32,"max_new_tokens":8}}))
+    .unwrap()
+}
+fn execution() -> ExecutionPolicy {
+    ExecutionPolicy {
+        range_policy: RangePolicy::Checked,
+        ..ExecutionPolicy::default()
+    }
+}
+fn workload() -> DecoderWorkload {
+    DecoderWorkload {
+        batch: 1,
+        max_input_tokens: 4,
+        max_new_tokens: 2,
+    }
+}
+fn raw() -> Vec<u8> {
+    serde_json::to_vec(&json!({"model_type":"qwen2","hidden_size":4,
+        "intermediate_size":8,"num_hidden_layers":1,"num_attention_heads":2,
+        "num_key_value_heads":1,"vocab_size":7,"max_position_embeddings":64,
+        "hidden_act":"silu","rms_norm_eps":0.000001,"rope_theta":10000,
+        "tie_word_embeddings":true,"use_sliding_window":false}))
+    .unwrap()
+}
+
+fn server_raw() -> Vec<u8> {
+    let mut server = serde_json::to_value(experiment()).unwrap();
+    server["pipeline"]["components"]["linear"] = json!({
+        "component":"pllm/puma-three-party-decoder/v1", "params":{
+            "weights":"public", "range_policy":"checked", "max_abs_activation":1}});
+    serde_json::to_vec(&server).unwrap()
+}
+
+fn client_raw(config: &[u8]) -> serde_json::Value {
+    json!({"config":config,"rows":4,"outputs":2,"weights":"public",
+        "execution":{"range_policy":"checked","max_abs_activation":1},"tensors":{}})
+}
+fn import(root: &OwnedBudget, raw: Vec<u8>) -> OwnedCharged<json::ImportedValue> {
+    let source = root
+        .charge_external(raw.capacity())
+        .unwrap()
+        .try_build(|_| Ok(raw))
+        .unwrap();
+    json::quote(
+        source,
+        root.charge_external(json::bootstrap_bytes().unwrap())
+            .unwrap(),
+        json::Limits {
+            max_source_bytes: 1 << 20,
+            max_nodes: 65536,
+            max_depth: 16,
+            max_string_bytes: 1 << 20,
+            max_number_bytes: 64,
+            max_number_work: 100_000_000,
+            max_work: 1_000_000_000,
+            max_payload_bytes: 8 << 20,
+        },
+    )
+    .unwrap()
+    .construct()
+    .unwrap()
+}
+
+#[test]
+fn checked_public_permissions_come_from_exact_server_owner_not_client_caps() {
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let config = import(&root, raw());
+    let server = experiment();
+    let policy = ServerSourcePolicy::checked_public(
+        &server,
+        &config,
+        workload(),
+        WeightMode::Public,
+        execution(),
+    )
+    .unwrap();
+    let limits = policy.limits_for(&config, workload()).unwrap();
+    assert_eq!(
+        (
+            limits.expansion.max_layers,
+            limits.expansion.max_feature_width,
+            limits.expansion.max_attention_heads,
+            limits.expansion.max_vocabulary
+        ),
+        (1, 8, 2, 7)
+    );
+    assert_eq!(limits.max_work, SOURCE_WORK);
+    assert_eq!(limits.factory.max_attribute_nodes, 32768);
+    assert_eq!(limits.factory.max_operations_per_phase, 34);
+    assert_eq!(limits.expansion.max_tensor_elements, 32);
+    let mut short = limits.expansion;
+    short.max_tensor_elements -= 1;
+    assert!(pllm_models::ConfigLowererQuote::new(
+        config.payload().value(),
+        workload(),
+        short,
+        limits.factory
+    )
+    .is_err());
+    let mut short = limits.factory;
+    short.max_operations_per_phase -= 1;
+    assert!(pllm_models::ConfigLowererQuote::new(
+        config.payload().value(),
+        workload(),
+        limits.expansion,
+        short
+    )
+    .is_err());
+    assert_eq!(limits.factory.max_factory_bytes, MAX_ALLOCATION_BYTES);
+    let client = json!({"source_policy":{"max_work":u64::MAX,"max_layers":u64::MAX}});
+    assert!(client["source_policy"]["max_work"].as_u64().unwrap() > limits.max_work);
+    // There is deliberately no client-policy argument or serde implementation.
+    assert_eq!(
+        policy
+            .limits_for(&config, workload())
+            .unwrap()
+            .expansion
+            .max_layers,
+        1
+    );
+    let foreign = import(&root, raw());
+    assert!(policy.limits_for(&foreign, workload()).is_err());
+    // Real entry rejects foreign SERVER configuration/client policy BEFORE the
+    // actual config factory. No token/history/source permit is invented here.
+    use super::super::program::source_entry::{PolicyFactoryTrap, SourceRequestImport};
+    let actual = raw();
+    let mut client = client_raw(&actual);
+    let _trap = PolicyFactoryTrap::arm();
+    client["source_policy"] = json!({"max_layers":u64::MAX});
+    assert!(matches!(
+        SourceRequestImport::new_checked_public(
+            &serde_json::to_vec(&client).unwrap(),
+            &server_raw(),
+            &actual
+        ),
+        Err(Error::Binding)
+    ));
+    client.as_object_mut().unwrap().remove("source_policy");
+    client["source_limits"] = json!({"max_attribute_nodes":65536});
+    assert!(matches!(
+        SourceRequestImport::new_checked_public(
+            &serde_json::to_vec(&client).unwrap(),
+            &server_raw(),
+            &actual
+        ),
+        Err(Error::Binding)
+    ));
+    client.as_object_mut().unwrap().remove("source_limits");
+    let mut foreign_config = actual.clone();
+    foreign_config.push(b' ');
+    assert!(matches!(
+        SourceRequestImport::new_checked_public(
+            &serde_json::to_vec(&client).unwrap(),
+            &server_raw(),
+            &foreign_config
+        ),
+        Err(Error::Binding)
+    ));
+    let foreign_root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let foreign = import(&foreign_root, raw());
+    assert!(policy.limits_for(&foreign, workload()).is_err());
+}
+
+#[test]
+fn workload_and_mode_gates_exact_and_short() {
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let config = import(&root, raw());
+    let server = experiment();
+    let maximum = DecoderWorkload {
+        batch: 1,
+        max_input_tokens: 32,
+        max_new_tokens: 8,
+    };
+    let policy = ServerSourcePolicy::checked_public(
+        &server,
+        &config,
+        maximum,
+        WeightMode::Public,
+        execution(),
+    )
+    .unwrap();
+    assert!(policy.limits_for(&config, workload()).is_err());
+    for bad in [
+        DecoderWorkload {
+            max_input_tokens: 33,
+            ..maximum
+        },
+        DecoderWorkload {
+            max_new_tokens: 9,
+            ..maximum
+        },
+        DecoderWorkload {
+            batch: 2,
+            ..maximum
+        },
+    ] {
+        assert!(ServerSourcePolicy::checked_public(
+            &server,
+            &config,
+            bad,
+            WeightMode::Public,
+            execution()
+        )
+        .is_err());
+    }
+    assert!(ServerSourcePolicy::checked_public(
+        &server,
+        &config,
+        maximum,
+        WeightMode::Private,
+        execution()
+    )
+    .is_err());
+    assert!(ServerSourcePolicy::checked_public(
+        &server,
+        &config,
+        maximum,
+        WeightMode::Public,
+        ExecutionPolicy::default()
+    )
+    .is_err());
+}
+
+#[test]
+fn configuration_bytes_exact_and_one_over_no_model_factory() {
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let server = experiment();
+    for (size, accept) in [(CONFIG_BYTES, true), (CONFIG_BYTES + 1, false)] {
+        let mut bytes = raw();
+        bytes.resize(size, b' ');
+        let config = import(&root, bytes);
+        assert_eq!(
+            ServerSourcePolicy::checked_public(
+                &server,
+                &config,
+                workload(),
+                WeightMode::Public,
+                execution()
+            )
+            .is_ok(),
+            accept
+        );
+    }
+}
+
+#[test]
+fn original_quote_exact_short_and_prior_json_work_no_construct() {
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let server = experiment();
+    let config = import(&root, raw());
+    let limits = ServerSourcePolicy::checked_public(
+        &server,
+        &config,
+        workload(),
+        WeightMode::Public,
+        execution(),
+    )
+    .unwrap()
+    .limits_for(&config, workload())
+    .unwrap();
+    let actual_server = import(&root, server_raw());
+    let deducted = admitted_limits(&actual_server, &config, None, workload()).unwrap();
+    assert!(deducted.max_work < SOURCE_WORK);
+    assert_eq!(
+        SOURCE_WORK - deducted.max_work,
+        u64::try_from(actual_server.payload().resources().work.total * 2).unwrap()
+            + config.payload().raw().len() as u64
+            + pllm_models::SOURCE_SCALAR_SUMMARY_WORK
+    );
+    let foreign_root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let foreign_server = import(&foreign_root, server_raw());
+    assert!(admitted_limits(&foreign_server, &config, None, workload()).is_err());
+    let boot = original_source::bootstrap_bytes(&config, limits).unwrap();
+    let quote = original_source::quote(
+        config,
+        root.charge_external(boot).unwrap(),
+        workload(),
+        limits,
+    )
+    .unwrap();
+    let required = quote.resources().prepaid_work;
+    assert!(required > 0);
+    drop(quote);
+    for (ceiling, accept) in [(required, true), (required - 1, false)] {
+        let config = import(&root, raw());
+        let bounded = original_source::Limits {
+            max_work: ceiling,
+            ..limits
+        };
+        let quote = original_source::bootstrap_bytes(&config, bounded).and_then(|boot| {
+            original_source::quote(
+                config,
+                root.charge_external(boot).unwrap(),
+                workload(),
+                bounded,
+            )
+        });
+        assert_eq!(quote.is_ok(), accept);
+        // NEVER construct, compile, read tensors or launch a child.
+    }
+}
+
+#[test]
+fn cached_qwen_config_scalar_policy_and_original_metadata_quote_only() {
+    // Actual repository-pinned cached configuration, never checkpoint payloads.
+    let raw = include_bytes!("../../../../tests/fixtures/qwen25_0_5b_config.json");
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let config = import(&root, raw.to_vec());
+    let server = experiment();
+    let policy = ServerSourcePolicy::checked_public(
+        &server,
+        &config,
+        workload(),
+        WeightMode::Public,
+        execution(),
+    )
+    .unwrap();
+    let limits = policy.limits_for(&config, workload()).unwrap();
+    assert_eq!(
+        (
+            limits.expansion.max_layers,
+            limits.expansion.max_feature_width,
+            limits.expansion.max_attention_heads,
+            limits.expansion.max_vocabulary
+        ),
+        (24, 4864, 14, 151936)
+    );
+    assert_eq!(limits.factory.max_attribute_nodes, 32768);
+    assert_eq!(limits.factory.max_operations_per_phase, 678);
+    assert_eq!(limits.expansion.max_tensor_elements, 4 * 151936);
+    // The SAME registered, nonconstructing quote owns operation/shape formulas.
+    // This does not invoke ConfigLowererQuote::construct, source file import,
+    // Program/Manifest compile, tensor factories, Worker or any process launcher.
+    let quote = pllm_models::ConfigLowererQuote::new(
+        config.payload().value(),
+        workload(),
+        limits.expansion,
+        limits.factory,
+    )
+    .unwrap();
+    assert!(quote.metadata().operations_per_phase > 256);
+    assert!(quote.metadata().operations_per_phase <= DESCRIPTORS);
+    assert!(quote.factory_bytes() <= MAX_ALLOCATION_BYTES);
+    use super::super::program::source_entry::{PolicyFactoryTrap, SourceRequestImport};
+    let _trap = PolicyFactoryTrap::arm();
+    match SourceRequestImport::quote_checked_public(&server_raw(), raw, 4, 2) {
+        Ok(resources) => {
+            eprintln!("pinned-config original source metadata quote ACCEPTED: {resources:?}");
+            assert!(resources.model_factory_bytes <= MAX_ALLOCATION_BYTES);
+            assert!(resources.prepaid_work <= SOURCE_WORK);
+        }
+        // A metadata quote is NOT permission to raise the physical/phase cap.
+        Err(Error::Bounds) => {
+            eprintln!("pinned-config original source metadata quote REFUSED: Bounds (unchanged finite phase/memory/work guards)");
+        }
+        other => panic!("unexpected metadata-only quotation: {other:?}"),
+    }
+    // Original conservative full-row logits, NEVER a last-token-only fit.
+    assert!(matches!(
+        SourceRequestImport::quote_checked_public(&server_raw(), raw, 8, 2),
+        Err(Error::Bounds)
+    ));
+}
+
+#[test]
+fn registered_wide_heads_and_defaults_share_the_original_validator() {
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let server = experiment();
+    let mut doc: serde_json::Value = serde_json::from_slice(&raw()).unwrap();
+    doc["model_type"] = json!("qwen3");
+    doc["head_dim"] = json!(8);
+    doc["num_attention_heads"] = json!(4);
+    doc["num_key_value_heads"] = json!(2);
+    let config = import(&root, serde_json::to_vec(&doc).unwrap());
+    let policy = ServerSourcePolicy::checked_public(
+        &server,
+        &config,
+        workload(),
+        WeightMode::Public,
+        execution(),
+    )
+    .unwrap();
+    let limits = policy.limits_for(&config, workload()).unwrap();
+    assert_eq!(limits.expansion.max_feature_width, 32); // A*D, not H/I/D.
+    assert_eq!(limits.factory.max_operations_per_phase, 36);
+    assert!(pllm_models::ConfigLowererQuote::new(
+        config.payload().value(),
+        workload(),
+        limits.expansion,
+        limits.factory
+    )
+    .is_ok());
+    doc["num_key_value_heads"] = json!(5);
+    let summary = pllm_models::source_scalar_summary(&doc, workload()).unwrap();
+    assert_eq!(summary.feature_width(), 40); // KV*D also retained, no semantic proof.
+    doc["model_type"] = json!("qwen2");
+    doc.as_object_mut().unwrap().remove("num_key_value_heads");
+    doc["head_dim"] = json!(999); // Qwen2 EXISTING HiddenPerHead ignores this field.
+    let summary = pllm_models::source_scalar_summary(&doc, workload()).unwrap();
+    assert_eq!(summary.head_dim, 1);
+    assert_eq!(summary.kv_heads, 4);
+    assert_eq!(summary.feature_width(), 8);
+}
+
+#[test]
+fn shared_summary_overflow_and_original_attribute_ceiling_refuse() {
+    let mut doc: serde_json::Value = serde_json::from_slice(&raw()).unwrap();
+    doc["model_type"] = json!("qwen3");
+    doc["head_dim"] = json!(2);
+    doc["num_attention_heads"] = json!(u64::MAX);
+    assert!(pllm_models::source_scalar_summary(&doc, workload()).is_err());
+    doc["num_attention_heads"] = json!(2);
+    doc["num_hidden_layers"] = json!(u64::MAX);
+    assert!(pllm_models::source_scalar_summary(&doc, workload()).is_err());
+    doc["num_hidden_layers"] = json!(50); // 50*384*2 exceeds ORIGINAL 32768 attrs.
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let server = experiment();
+    let config = import(&root, serde_json::to_vec(&doc).unwrap());
+    let limits = ServerSourcePolicy::checked_public(
+        &server,
+        &config,
+        workload(),
+        WeightMode::Public,
+        execution(),
+    )
+    .unwrap()
+    .limits_for(&config, workload())
+    .unwrap();
+    assert_eq!(limits.factory.max_attribute_nodes, 32768);
+    assert!(pllm_models::ConfigLowererQuote::new(
+        config.payload().value(),
+        workload(),
+        limits.expansion,
+        limits.factory
+    )
+    .is_err());
+}

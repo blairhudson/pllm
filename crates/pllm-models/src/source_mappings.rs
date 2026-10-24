@@ -96,17 +96,60 @@ pub(super) fn admitted_lowerer(
     let preflight = mapping.preflight.ok_or_else(|| {
         ModelError::Unsupported("source has no bounded expansion contract".into())
     })?;
-    preflight(document, workload, budget)?;
+    preflight.check(document, workload, budget)?;
     Ok(lower)
 }
-type SourcePreflight =
-    fn(&Value, DecoderWorkload, DecoderExpansionBudget) -> Result<(), ModelError>;
+#[derive(Clone, Copy)]
+enum SourcePreflight {
+    Dense(HeadWidth),
+    Other(fn(&Value, DecoderWorkload, DecoderExpansionBudget) -> Result<(), ModelError>),
+}
+impl SourcePreflight {
+    fn check(
+        self,
+        document: &Value,
+        workload: DecoderWorkload,
+        budget: DecoderExpansionBudget,
+    ) -> Result<(), ModelError> {
+        match self {
+            Self::Dense(width) => preflight_dense_source(document, workload, budget, width),
+            Self::Other(preflight) => preflight(document, workload, budget),
+        }
+    }
+}
+
+pub(super) fn dense_scalar_summary(
+    document: &Value,
+    workload: DecoderWorkload,
+) -> Result<super::source_budget::SourceScalarSummary, super::source_budget::SourceScalarSummaryError>
+{
+    use super::source_budget::SourceScalarSummaryError;
+    let source = document.get("model_type").and_then(Value::as_str);
+    let mapping = SOURCE_MAPPINGS
+        .iter()
+        .find(|m| Some(m.model_type) == source)
+        .ok_or(SourceScalarSummaryError::Unsupported)?;
+    // Only EXISTING allocation-free admitted dense contracts qualify. GPT's
+    // eager adapter and unsupported source formats remain untouched.
+    match (mapping.lower_admitted, mapping.preflight) {
+        (Some(_), Some(SourcePreflight::Dense(width))) => {
+            super::source_budget::dense_scalar_summary(document, workload, width)
+        }
+        _ => Err(SourceScalarSummaryError::Unsupported),
+    }
+}
 
 /// Declarative expansion contracts for the builders that opt in to bounded
 /// metadata admission. No graph construction or family-specific execution here.
 pub(super) fn metadata_expansion(
     document: &Value,
 ) -> Result<(&'static str, u64, u64, u64), ModelError> {
+    metadata_expansion_entry(document).ok_or_else(|| {
+        ModelError::Unsupported("source has no bounded metadata expansion contract".into())
+    })
+}
+
+pub(super) fn metadata_expansion_entry(document: &Value) -> Option<(&'static str, u64, u64, u64)> {
     // (source format, layer field, operations per layer, attribute nodes/layer).
     // Ordinary dense views have six fixed ops, learned-position views eight;
     // each has two KV states per layer. Counts are tested against graph builders.
@@ -121,9 +164,6 @@ pub(super) fn metadata_expansion(
         .iter()
         .find(|m| Some(m.0) == source)
         .map(|m| (m.1, m.2, m.3, m.4))
-        .ok_or_else(|| {
-            ModelError::Unsupported("source has no bounded metadata expansion contract".into())
-        })
 }
 
 pub(super) struct HybridSource<'a> {
@@ -331,7 +371,7 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
         // Its existing preflight eagerly parses/clones the configuration and
         // builds a JSON adapter. Do not enter that factory before reservation.
         lower_admitted: None,
-        preflight: Some(absolute_position_decoder::preflight),
+        preflight: Some(SourcePreflight::Other(absolute_position_decoder::preflight)),
     },
     SourceMapping {
         model_type: "qwen2",
@@ -342,9 +382,7 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
                 .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
             lower_qwen_decoder(&config, workload)
         }),
-        preflight: Some(|document, workload, budget| {
-            preflight_dense_source(document, workload, budget, HeadWidth::HiddenPerHead)
-        }),
+        preflight: Some(SourcePreflight::Dense(HeadWidth::HiddenPerHead)),
     },
     SourceMapping {
         model_type: "qwen3",
@@ -355,18 +393,14 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
                 .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
             lower_qwen3_decoder(&config, workload)
         }),
-        preflight: Some(|document, workload, budget| {
-            preflight_dense_source(document, workload, budget, HeadWidth::SourceField)
-        }),
+        preflight: Some(SourcePreflight::Dense(HeadWidth::SourceField)),
     },
     SourceMapping {
         model_type: "llama",
         semantic_family: "llama",
         lower: lower_dense_gated,
         lower_admitted: Some(dense_gated_source::lower_admitted_value),
-        preflight: Some(|document, workload, budget| {
-            preflight_dense_source(document, workload, budget, HeadWidth::HiddenPerHead)
-        }),
+        preflight: Some(SourcePreflight::Dense(HeadWidth::HiddenPerHead)),
     },
     SourceMapping {
         model_type: "gemma4",
@@ -455,7 +489,7 @@ fn lower_mapped(
         let preflight = mapping.preflight.ok_or_else(|| {
             ModelError::Unsupported("source has no bounded expansion contract".into())
         })?;
-        preflight(&document, workload, budget)?;
+        preflight.check(&document, workload, budget)?;
     }
     let plan = (mapping.lower)(bytes, document, workload)?;
     if plan.model_family != mapping.semantic_family {
@@ -618,9 +652,7 @@ mod tests {
             semantic_family: "sentinel",
             lower: lowering_sentinel,
             lower_admitted: None,
-            preflight: Some(|document, workload, budget| {
-                preflight_dense_source(document, workload, budget, HeadWidth::SourceField)
-            }),
+            preflight: Some(SourcePreflight::Dense(HeadWidth::SourceField)),
         };
         let budget = DecoderExpansionBudget {
             max_layers: 16,

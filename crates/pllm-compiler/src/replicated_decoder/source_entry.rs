@@ -234,6 +234,8 @@ pub(in crate::replicated_decoder) fn compile(
     limits: original_source::Limits,
     cap: usize,
 ) -> Result<Arc<Program>, Error> {
+    #[cfg(test)]
+    test_policy_factory_trap();
     let EntryGuards {
         registry: mut registry_guard,
         imports: mut imports_guard,
@@ -338,6 +340,48 @@ fn source_limits() -> original_source::Limits {
         max_work: 1_000_000_000_000,
         max_working_payload: MAX_ALLOCATION_BYTES,
     }
+}
+
+fn server_controller_bytes() -> usize {
+    size_of::<Option<(&[u8], &[u8])>>()
+        + size_of::<Option<OwnedCharged<json::ImportedValue>>>()
+        + size_of::<crate::replicated_decoder::source_policy::ServerSourcePolicy<'_>>()
+        + size_of::<Result<original_source::Limits, Error>>()
+        + size_of::<Result<original_source::SourceQuote, crate::original_source::Error>>()
+        + size_of::<original_source::Resources>()
+        + size_of::<pllm_models::SourceScalarSummary>()
+        + size_of::<Result<pllm_models::SourceScalarSummary, pllm_models::SourceScalarSummaryError>>(
+        )
+        + size_of::<std::iter::Zip<std::slice::Iter<'_, serde_json::Value>, std::slice::Iter<'_, u8>>>(
+        )
+        + size_of::<u128>()
+        + size_of::<Option<u64>>()
+}
+
+#[cfg(test)]
+thread_local! { static POLICY_FACTORY_TRAP: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
+#[cfg(test)]
+pub(in crate::replicated_decoder) struct PolicyFactoryTrap(bool);
+#[cfg(test)]
+impl PolicyFactoryTrap {
+    pub(in crate::replicated_decoder) fn arm() -> Self {
+        Self(POLICY_FACTORY_TRAP.with(|v| v.replace(true)))
+    }
+}
+#[cfg(test)]
+impl Drop for PolicyFactoryTrap {
+    fn drop(&mut self) {
+        POLICY_FACTORY_TRAP.with(|v| v.set(self.0));
+    }
+}
+#[cfg(test)]
+fn test_policy_factory_trap() {
+    POLICY_FACTORY_TRAP.with(|v| {
+        assert!(
+            !v.get(),
+            "metadata-only query entered source/payload/request factory"
+        )
+    });
 }
 fn import_json(root: &OwnedBudget, raw: &[u8]) -> Result<OwnedCharged<json::ImportedValue>, Error> {
     let original = root
@@ -534,13 +578,100 @@ impl SourceRequestImport {
     /// Fixed bounded opt-in admission, not a new numeric/protocol choice. Large
     /// or unknown shapes fail closed; old constructors never enter this route.
     pub fn new(raw: &[u8]) -> Result<Self, Error> {
+        Self::new_inner(raw, None)
+    }
+
+    /// Private native server opt-in. These bytes come from the server's trusted
+    /// Experiment/config path, NEVER a client Manifest policy selector. This is
+    /// resource permission only; original config factory and public snapshot
+    /// verification remain independent and unchanged.
+    #[doc(hidden)]
+    pub fn new_checked_public(
+        raw: &[u8],
+        server_experiment: &[u8],
+        server_config: &[u8],
+    ) -> Result<Self, Error> {
+        if server_experiment.is_empty()
+            || server_experiment.len() > 32 << 10
+            || server_config.is_empty()
+            || server_config.len() > crate::replicated_decoder::source_policy::CONFIG_BYTES
+        {
+            return Err(Error::Bounds);
+        }
+        Self::new_inner(raw, Some((server_experiment, server_config)))
+    }
+
+    /// Nonconstructing original source quote. No checkpoint/tensor reads, native
+    /// arithmetic factory, request, worker or child process is part of this API.
+    /// Finite memory/phase/work refusal remains a normal typed result.
+    /// Returns ORIGINAL source-owner resources only, not aggregate admission:
+    /// server C9/policy work is separately removed from its ledger ceiling and
+    /// same-counter server owners remain live during the entire query phase.
+    #[doc(hidden)]
+    pub fn quote_checked_public(
+        server_experiment: &[u8],
+        server_config: &[u8],
+        rows: usize,
+        outputs: usize,
+    ) -> Result<original_source::Resources, Error> {
+        use crate::replicated_decoder::source_policy;
+        if server_experiment.is_empty()
+            || server_experiment.len() > 32 << 10
+            || server_config.is_empty()
+            || server_config.len() > source_policy::CONFIG_BYTES
+        {
+            return Err(Error::Bounds);
+        }
+        let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).map_err(|_| Error::Bounds)?;
+        let _controls = root
+            .charge_external(server_controller_bytes())
+            .map_err(|_| Error::Bounds)?;
+        let server = import_json(&root, server_experiment)?;
+        let config = import_json(&root, server_config)?;
+        let workload = DecoderWorkload {
+            batch: 1,
+            max_input_tokens: u64::try_from(rows).map_err(|_| Error::Bounds)?,
+            max_new_tokens: u64::try_from(outputs).map_err(|_| Error::Bounds)?,
+        };
+        let limits = source_policy::admitted_limits(&server, &config, None, workload)?;
+        let bootstrap =
+            original_source::bootstrap_bytes(&config, limits).map_err(|_| Error::Bounds)?;
+        let quote = original_source::quote(
+            config,
+            root.charge_external(bootstrap).map_err(|_| Error::Bounds)?,
+            workload,
+            limits,
+        )
+        .map_err(|_| Error::Bounds)?;
+        Ok(quote.resources())
+    }
+
+    fn new_inner(raw: &[u8], server: Option<(&[u8], &[u8])>) -> Result<Self, Error> {
+        use crate::replicated_decoder::source_policy;
         if raw.is_empty() || raw.len() > 1 << 20 {
             return Err(Error::Bounds);
         }
         let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).map_err(|_| Error::Bounds)?;
+        // Additional named server controller/return slots BEFORE C9 factories.
+        // Caller CPython backing/allocator/RSS remains outside this logical
+        // counter; import_json preserves E11's explicit borrowed-copy window.
+        let _server_controls = server
+            .map(|_| {
+                root.charge_external(server_controller_bytes())
+                    .map_err(|_| Error::Bounds)
+            })
+            .transpose()?;
+        let server_document = server
+            .map(|(experiment, _)| import_json(&root, experiment))
+            .transpose()?;
         let imported = import_json(&root, raw)?;
         let counts = imported.payload().counts();
         let document = imported.payload().value();
+        if server.is_some()
+            && (document.get("source_policy").is_some() || document.get("source_limits").is_some())
+        {
+            return Err(Error::Binding);
+        }
         let config_values = document
             .get("config")
             .and_then(|v| v.as_array())
@@ -559,44 +690,62 @@ impl SourceRequestImport {
                 .and_then(|v| v.as_u64())
                 .ok_or(Error::Binding)?,
         };
-        let config = root
-            .charge_external(config_values.len())
-            .map_err(|_| Error::Bounds)?
-            .try_build(|_| {
-                // Config destination, source JSON owner, raw owner and result
-                // overlap are already represented by these live reservations.
-                root.budget().admit_peak(root.budget().used_bytes())?;
-                let mut bytes = Vec::new();
-                bytes
-                    .try_reserve_exact(config_values.len())
-                    .map_err(|_| pllm_garble::shared_allocation::Error::Resource)?;
-                if bytes.capacity() != config_values.len() {
-                    return Err(pllm_garble::shared_allocation::Error::Resource);
-                }
-                for value in config_values {
-                    bytes.push(
-                        value
-                            .as_u64()
-                            .and_then(|n| u8::try_from(n).ok())
-                            .ok_or(pllm_garble::shared_allocation::Error::Resource)?,
-                    );
-                }
-                Ok(bytes)
-            })
-            .map_err(|_| Error::Binding)?;
-        let config = import_json_owner(&root, config)?;
-        let limits = source_limits();
+        let config = if let Some((_, actual)) = server {
+            if config_values.len() != actual.len()
+                || !config_values
+                    .iter()
+                    .zip(actual)
+                    .all(|(value, byte)| value.as_u64() == Some(u64::from(*byte)))
+            {
+                return Err(Error::Binding);
+            }
+            // The actual SERVER configuration is the original factory input.
+            import_json(&root, actual)?
+        } else {
+            let config = root
+                .charge_external(config_values.len())
+                .map_err(|_| Error::Bounds)?
+                .try_build(|_| {
+                    // Config destination, source JSON owner, raw owner and result
+                    // overlap are already represented by these live reservations.
+                    root.budget().admit_peak(root.budget().used_bytes())?;
+                    let mut bytes = Vec::new();
+                    bytes
+                        .try_reserve_exact(config_values.len())
+                        .map_err(|_| pllm_garble::shared_allocation::Error::Resource)?;
+                    if bytes.capacity() != config_values.len() {
+                        return Err(pllm_garble::shared_allocation::Error::Resource);
+                    }
+                    for value in config_values {
+                        bytes.push(
+                            value
+                                .as_u64()
+                                .and_then(|n| u8::try_from(n).ok())
+                                .ok_or(pllm_garble::shared_allocation::Error::Resource)?,
+                        );
+                    }
+                    Ok(bytes)
+                })
+                .map_err(|_| Error::Binding)?;
+            import_json_owner(&root, config)?
+        };
+        let limits = if let Some(server_document) = &server_document {
+            source_policy::admitted_limits(server_document, &config, Some(&imported), workload)?
+        } else {
+            source_limits()
+        };
         let bootstrap =
             original_source::bootstrap_bytes(&config, limits).map_err(|_| Error::Bounds)?;
-        let original = original_source::quote(
+        let quote = original_source::quote(
             config,
             root.charge_external(bootstrap).map_err(|_| Error::Bounds)?,
             workload,
             limits,
         )
-        .map_err(|_| Error::Binding)?
-        .construct()
         .map_err(|_| Error::Binding)?;
+        #[cfg(test)]
+        test_policy_factory_trap();
+        let original = quote.construct().map_err(|_| Error::Binding)?;
         // Manifest DTO bound from the SAME admitted immutable C9 tree. Price a
         // complete typed tree node per JSON span (including staging/overwrite),
         // plus all decoded text. This is deliberately conservative, no MAX-cap
@@ -697,6 +846,8 @@ impl SourceRequestImport {
             .session)
     }
     pub fn append(&mut self, key: &str, offset: usize, bytes: &[u8]) -> Result<(), Error> {
+        #[cfg(test)]
+        test_policy_factory_trap();
         let mut owner = self.0.take().ok_or(Error::Retired)?;
         owner
             .importer

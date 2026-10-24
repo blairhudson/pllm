@@ -2,6 +2,47 @@ use super::*;
 use pyo3::types::PyList;
 
 #[test]
+fn private_server_policy_keyword_refuses_client_selector_without_activation() {
+    Python::initialize();
+    Python::attach(|py| {
+        let module = PyModule::new(py, "_source_policy_keyword_test").unwrap();
+        register(&module).unwrap();
+        let locals = PyDict::new(py);
+        locals
+            .set_item("Worker", module.getattr("ReplicatedWorker").unwrap())
+            .unwrap();
+        locals
+            .set_item(
+                "manifest",
+                PyBytes::new(
+                    py,
+                    br#"{"source_policy":{"max_layers":18446744073709551615}}"#,
+                ),
+            )
+            .unwrap();
+        locals
+            .set_item("experiment", PyBytes::new(py, b"{}"))
+            .unwrap();
+        locals.set_item("config", PyBytes::new(py, b"{}")).unwrap();
+        // No tensor bytes, source importer completion, Program/Worker activation
+        // or model invocation. TypeError would expose a broken native signature.
+        py.run(
+            c"\
+try:
+    Worker._from_source_request(manifest, 0, server_policy=(experiment, config))
+except ValueError:
+    pass
+else:
+    raise AssertionError('client policy selector accepted')
+",
+            None,
+            Some(&locals),
+        )
+        .unwrap();
+    });
+}
+
+#[test]
 fn actual_private_native_source_entry_two_accepted_ids_and_original_feedback() {
     let config=br#"{"model_type":"qwen2","hidden_size":2,"intermediate_size":2,"num_hidden_layers":1,"num_attention_heads":1,"num_key_value_heads":1,"vocab_size":3,"max_position_embeddings":16,"rms_norm_eps":0.000001,"hidden_act":"silu","tie_word_embeddings":false,"attention_bias":false,"rope_theta":10000.0}"#;
     let mut publisher = Publisher::new_with_policy(

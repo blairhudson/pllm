@@ -329,14 +329,30 @@ impl NativeWorker {
     /// role only; ALL factory/source/token/history authority is minted in Rust.
     /// CPython allocator/RSS are not part of the compiler's logical admission.
     #[staticmethod]
+    #[pyo3(signature = (manifest, role, *, server_policy=None))]
     fn _from_source_request(
         py: Python<'_>,
         manifest: &Bound<'_, PyBytes>,
         role: usize,
+        server_policy: Option<(Bound<'_, PyBytes>, Bound<'_, PyBytes>)>,
     ) -> PyResult<Self> {
         let party = party(role)?;
         let raw = manifest.as_bytes();
-        let importer = py.detach(|| SourceRequestImport::new(raw)).map_err(error)?;
+        // Only the canonical SERVER supplies this private tuple: authenticated
+        // Experiment then config bytes. Never read it from a client Manifest.
+        // Immutable PyBytes stay borrowed/alive across detach; no coefficient or
+        // source/epoch authority is minted by Python. No CPython capacity claim.
+        let borrowed_policy = server_policy
+            .as_ref()
+            .map(|(experiment, config)| (experiment.as_bytes(), config.as_bytes()));
+        let importer = py
+            .detach(|| match borrowed_policy {
+                Some((experiment, config)) => {
+                    SourceRequestImport::new_checked_public(raw, experiment, config)
+                }
+                None => SourceRequestImport::new(raw),
+            })
+            .map_err(error)?;
         let session = importer.session().map_err(error)?;
         Ok(Self {
             owner: Some(Owner {
