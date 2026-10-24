@@ -158,6 +158,59 @@ pub(super) struct ProjectionEvent<'a> {
     records: &'a BTreeMap<String, SourceTensor>,
     start: usize,
 }
+/// Exact live semantic publication. Constructor remains in original graph loop.
+pub(super) struct ProducedEvent<'a> {
+    graph: &'a DecoderGraph,
+    operation: &'a pllm_models::ModelOperation,
+    input: Option<&'a View>,
+    output: &'a View,
+    start: usize,
+}
+impl<'a> ProducedEvent<'a> {
+    pub(super) fn graph(&self) -> &'a DecoderGraph {
+        self.graph
+    }
+    pub(super) fn operation(&self) -> &'a pllm_models::ModelOperation {
+        self.operation
+    }
+    pub(super) fn input(&self) -> Option<&'a View> {
+        self.input
+    }
+    pub(super) fn output(&self) -> &'a View {
+        self.output
+    }
+    pub(super) fn start(&self) -> usize {
+        self.start
+    }
+}
+pub(super) struct RotaryEvent<'a> {
+    graph: &'a DecoderGraph,
+    operation: &'a pllm_models::ModelOperation,
+    input: &'a View,
+    shape: &'a [usize],
+    position: usize,
+    sequence: usize,
+}
+impl<'a> RotaryEvent<'a> {
+    pub(super) fn graph(&self) -> &'a DecoderGraph {
+        self.graph
+    }
+    pub(super) fn operation(&self) -> &'a pllm_models::ModelOperation {
+        self.operation
+    }
+    pub(super) fn input(&self) -> &'a View {
+        self.input
+    }
+    pub(super) fn shape(&self) -> &'a [usize] {
+        self.shape
+    }
+    pub(super) fn position(&self) -> usize {
+        self.position
+    }
+    pub(super) fn sequence(&self) -> usize {
+        self.sequence
+    }
+}
 pub(super) struct ReshapeEvent<'a> {
     graph: &'a DecoderGraph,
     operation: &'a pllm_models::ModelOperation,
@@ -279,6 +332,7 @@ impl Builder {
             }
             let emission_start = self.nodes.len();
             request_origin::source_bias::preflight(self, graph, op)?;
+            request_origin::rotary_creation::preflight(self, graph, op, &shape)?;
             let output = match op.operator {
                 Op::TokenLookup => {
                     driver::token_lookup(self, op, &shape, tokens, sources, vocabulary)?
@@ -438,6 +492,22 @@ impl Builder {
                         output: &output,
                     },
                 )?;
+            }
+            let event = || ProducedEvent {
+                graph,
+                operation: op,
+                input: a,
+                output: &output,
+                start: emission_start,
+            };
+            if matches!(op.operator, Op::Linear | Op::Reshape) {
+                request_origin::rotary_creation::produced(self, event())?;
+            }
+            if op.operator == Op::RotaryEmbedding {
+                request_origin::rotary_creation::completed(self, event())?;
+            }
+            if matches!(op.operator, Op::KvCacheAppend | Op::AttentionScores) {
+                request_origin::rotary_creation::consumed(self, event())?;
             }
             #[cfg(test)]
             if oracle_trace::enabled() {

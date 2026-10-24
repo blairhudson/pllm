@@ -6,6 +6,8 @@ use crate::replicated_decoder::{
     PeerBytes,
 };
 
+#[path = "rotary_creation_tests.rs"]
+mod rotary_creation_tests;
 #[path = "source_bias_tests.rs"]
 mod source_bias_tests;
 

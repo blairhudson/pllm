@@ -4,7 +4,7 @@ use puma::Party;
 
 type Frame = (Party, Party, Vec<u8>);
 type Pending = (Party, Party, PeerBytes);
-fn enqueue(
+pub(in crate::replicated_decoder) fn enqueue(
     from: Party,
     frames: Vec<(Party, PeerBytes)>,
     queue: &mut Vec<Pending>,
@@ -15,10 +15,18 @@ fn enqueue(
         queue.push((from, to, frame));
     }
 }
-fn boundary(workers: &mut [Worker; 3], end: usize, trace: &mut Vec<Frame>) {
+pub(in crate::replicated_decoder) fn boundary(
+    workers: &mut [Worker; 3],
+    end: usize,
+    trace: &mut Vec<Frame>,
+) {
     drive(workers, Some(end), trace)
 }
-fn drive(workers: &mut [Worker; 3], end: Option<usize>, trace: &mut Vec<Frame>) {
+pub(in crate::replicated_decoder) fn drive(
+    workers: &mut [Worker; 3],
+    end: Option<usize>,
+    trace: &mut Vec<Frame>,
+) {
     let mut queue = Vec::new();
     let mut reached = [false; 3];
     for _ in 0..100_000 {
@@ -52,7 +60,7 @@ fn drive(workers: &mut [Worker; 3], end: Option<usize>, trace: &mut Vec<Frame>) 
     }
     panic!("original three-role router failed to reach boundary");
 }
-fn same(a: &[Worker; 3], b: &[Worker; 3]) {
+pub(in crate::replicated_decoder) fn same(a: &[Worker; 3], b: &[Worker; 3]) {
     for (a, b) in a.iter().zip(b) {
         let (step_a, cursor_a, values_a) = a.test_boundary_state().unwrap();
         let (step_b, cursor_b, values_b) = b.test_boundary_state().unwrap();
@@ -61,7 +69,12 @@ fn same(a: &[Worker; 3], b: &[Worker; 3]) {
         assert_eq!(a.loop_test_state(), b.loop_test_state());
     }
 }
-fn reconstruct(workers: &[Worker; 3], program: &Program, owner: usize, lane: usize) -> i64 {
+pub(in crate::replicated_decoder) fn reconstruct(
+    workers: &[Worker; 3],
+    program: &Program,
+    owner: usize,
+    lane: usize,
+) -> i64 {
     let mut value = 0u64;
     for worker in workers {
         let (_, _, mut values) = worker.test_boundary_state().unwrap();

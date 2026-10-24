@@ -9,7 +9,7 @@ use std::io::Write;
 /// ordinary Worker, cancellation and consuming BODY handoff. Native nodes retire
 /// before this final field releases the original source/parameter guards.
 pub(in crate::replicated_decoder) struct Custody {
-    pub(super) projections: Vec<Option<source_bias::Creation>>,
+    pub(super) projections: Vec<Option<rotary_creation::CreatedOperator>>,
     pub(super) epochs: Vec<Arc<OriginalSourcePlan>>,
     pub(super) fragments: Vec<Fragment>,
     _tokens: View,

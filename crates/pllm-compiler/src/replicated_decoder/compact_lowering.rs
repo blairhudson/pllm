@@ -1539,6 +1539,42 @@ pub(in crate::replicated_decoder) struct CreationPublication {
     pub original_work: WorkBudget,
 }
 
+/// Rank-four original native rows. Mapping is (first + 2*row + 1, lane),
+/// independent of physical Worker slots and of the source projection's tiles.
+pub(in crate::replicated_decoder) struct RotaryCreationPublication {
+    pub owner: request_origin::rotary_creation::Creation,
+    pub work: WorkBudget,
+    pub shape: [usize; 4],
+}
+pub(in crate::replicated_decoder) fn publish_rotary_creation(
+    owner: request_origin::rotary_creation::Creation,
+    program: &Program,
+    registry: &super::super::source_registry::SourceRegistry<'_>,
+    retained: usize,
+    cap: usize,
+) -> Result<RotaryCreationPublication, Error> {
+    if add_bytes(retained, std::mem::size_of::<RotaryCreationPublication>())?
+        > cap.min(MAX_PROGRAM_BYTES)
+    {
+        return Err(Error::Bounds);
+    }
+    owner.check(program, registry)?;
+    let work = owner
+        .rows
+        .iter()
+        .try_fold(WorkBudget::default(), |w, row| {
+            w.checked_add(row.program.work_budget())
+        })?;
+    let emitted = (owner.first..owner.end).try_fold(WorkBudget::default(), |w, id| {
+        w.checked_add(schedule_finalization::BorrowedNode::from(program.recipe(id)).work_budget()?)
+    })?;
+    if work != emitted {
+        return Err(Error::Binding);
+    }
+    let shape = owner.shape();
+    Ok(RotaryCreationPublication { owner, work, shape })
+}
+
 pub(in crate::replicated_decoder) fn creation_publication_bytes() -> Result<usize, Error> {
     [
         std::mem::size_of::<CreationPublication>(),

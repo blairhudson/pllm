@@ -18,6 +18,8 @@ const OPEN: u8 = 0;
 const BURNED: u8 = 1;
 const COMPLETE: u8 = 2;
 
+#[path = "rotary_creation.rs"]
+pub(in crate::replicated_decoder) mod rotary_creation;
 #[path = "request_schedule.rs"]
 pub(super) mod schedule;
 #[path = "source_bias.rs"]
@@ -143,7 +145,11 @@ pub(super) fn quote(
         return Err(Error::Binding);
     }
     let max_operations = graph.operations.len();
-    let projection_slots = max_operations.checked_mul(outputs).ok_or(Error::Bounds)?;
+    // One semantic producer plus, at most, one specialized creation per op.
+    let projection_slots = max_operations
+        .checked_mul(outputs)
+        .and_then(|n| n.checked_mul(2))
+        .ok_or(Error::Bounds)?;
     let mut payload = 0;
     // Full existing creation-record capacity remains charged conservatively;
     // destination backing overlaps old backing during any required reserve.
@@ -165,6 +171,8 @@ pub(super) fn quote(
         bytes::<usize>(outputs.checked_mul(2).ok_or(Error::Bounds)?)?,
         bytes::<Fragment>(outputs)?,
         source_bias::creation_bytes(projection_slots, sources.registry.source_records())?,
+        // Same-counter metadata controllers moved into actual graph emission.
+        bytes::<OwnedExternalCharge>(outputs)?,
         bytes::<(usize, usize)>(add(outputs, 1)?)?,
         // Two preallocated pools: growing tokens and active epoch snapshot.
         Words::span_pool_bytes(add(outputs, 1)?)
@@ -317,7 +325,7 @@ impl RequestInputPermit<'_> {
 struct History<'s> {
     epochs: Vec<Arc<OriginalSourcePlan>>,
     fragments: Vec<Fragment>,
-    projections: Vec<Option<source_bias::Creation>>,
+    projections: Vec<Option<rotary_creation::CreatedOperator>>,
     scratch: Words,
     origin: HistoryOrigin,
     sources: RequestSources<'s>,
@@ -470,11 +478,19 @@ pub(super) struct Active {
     selected: Option<Selection>,
     feedback: Option<Fragment>,
     input_words: Words,
-    projections: Vec<Option<source_bias::Creation>>,
+    projections: Vec<Option<rotary_creation::CreatedOperator>>,
+    rotary: Option<rotary_creation::Emission>,
+    produced_charge: Option<OwnedExternalCharge>,
+    creation_charge: Option<OwnedExternalCharge>,
     source_records: usize,
     registry_identity: source_registry::Instance,
     snapshot_remaining: usize,
     committed: bool,
+}
+impl Active {
+    pub(in crate::replicated_decoder::program) fn semantic_plan(&self) -> &Arc<OriginalSourcePlan> {
+        &self.plan
+    }
 }
 
 impl Drop for Active {
@@ -1116,6 +1132,14 @@ impl request_driver::RequestSink for BoundExpanded<'_, '_> {
             feedback: None,
             input_words,
             projections: std::mem::take(&mut self.history.projections),
+            rotary: None,
+            produced_charge: None,
+            creation_charge: Some(
+                self.history
+                    .charge
+                    .split_owned(0)
+                    .map_err(|_| Error::Bounds)?,
+            ),
             source_records: std::ptr::from_ref(self.sources) as usize,
             registry_identity: self.history.sources.registry.instance(),
             snapshot_remaining: source_bias::snapshot_bytes(&plan.prefill)?,

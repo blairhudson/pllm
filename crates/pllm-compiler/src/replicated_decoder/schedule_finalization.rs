@@ -328,7 +328,7 @@ impl<'a> From<&'a Node> for BorrowedNode<'a> {
 impl BorrowedNode<'_> {
     /// Same primitive work rules as Node::work_budget; no caller-supplied totals.
     /// Dependency validation checks full/tail geometry before the division.
-    fn work_budget(self) -> Result<WorkBudget, Error> {
+    pub(super) fn work_budget(self) -> Result<WorkBudget, Error> {
         match self.recipe {
             BorrowedRecipe::Product { rescale, .. } => WorkBudget::product(self.lanes, rescale),
             BorrowedRecipe::Tensor { program, .. }

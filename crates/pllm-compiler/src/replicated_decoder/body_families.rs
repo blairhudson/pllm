@@ -172,6 +172,38 @@ impl Builder {
         }
         result
     }
+    /// Retain actual native row allocations without rebuilding/interning them.
+    /// This method confers NO source or certificate authority: the sealed caller
+    /// independently validates and retains its original execution owner.
+    pub(in crate::replicated_decoder) fn retained_native_rows<'a>(
+        &mut self,
+        input: &Layout,
+        width: usize,
+        rows: impl ExactSizeIterator<Item = &'a Arc<tensor::Program>>,
+    ) -> Result<Layout, Error> {
+        let result = (|| {
+            self.proof_admission_live()?;
+            let capacity = rows.len();
+            self.proof_preflight(
+                capacity
+                    .checked_mul(2 * size_of::<Arc<tensor::Program>>())
+                    .ok_or(Error::Bounds)?,
+            )?;
+            let mut programs = Vec::new();
+            programs
+                .try_reserve_exact(capacity)
+                .map_err(|_| Error::Allocation)?;
+            if programs.capacity() != capacity {
+                return Err(Error::Allocation);
+            }
+            programs.extend(rows.cloned());
+            self.tensors(input, width, programs, vec![], 0)
+        })();
+        if result.is_err() {
+            self.proof_admission_retired = true
+        }
+        result
+    }
     fn tensors(
         &mut self,
         input: &Layout,

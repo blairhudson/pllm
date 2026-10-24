@@ -23,6 +23,17 @@ pub(super) trait AttentionSink {
     fn repeat(words: &mut Self::Words, word: Self::Word, count: usize);
     fn append_owner(words: &mut Self::Words, owner: Self::Owner, lanes: usize);
     fn view(words: Self::Words, shape: &[usize]) -> Self::View;
+    fn begin_rotary(
+        &mut self,
+        _op: &pllm_models::ModelOperation,
+        _shape: &[usize],
+        _input: &Self::View,
+        _position: usize,
+        _sequence: usize,
+        _theta: f32,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
     fn rotary_row(
         &mut self,
         row: &Self::Words,
@@ -62,6 +73,14 @@ pub(super) fn rotary<S: AttentionSink>(
         .and_then(|v| v.as_u64())
         .ok_or(Error::Binding)? as f32;
     let width = shape[3];
+    sink.begin_rotary(
+        op,
+        shape,
+        input.ok_or(Error::Binding)?,
+        position,
+        sequence,
+        theta,
+    )?;
     let mut words = S::Words::default();
     for (index, row) in S::rows(S::words(input.ok_or(Error::Binding)?), width).enumerate() {
         let output = sink.rotary_row(&row, theta, (position + index % sequence) as u32, width)?;
@@ -314,6 +333,32 @@ impl AttentionSink for Builder {
             shape: shape.to_vec(),
         }
     }
+    fn begin_rotary(
+        &mut self,
+        op: &pllm_models::ModelOperation,
+        shape: &[usize],
+        input: &View,
+        position: usize,
+        sequence: usize,
+        theta: f32,
+    ) -> Result<(), Error> {
+        let Some(active) = &self.request_emission else {
+            return Ok(());
+        };
+        let plan = Arc::clone(active.semantic_plan());
+        request_origin::rotary_creation::begin(
+            self,
+            RotaryEvent {
+                graph: &plan.plan().prefill,
+                operation: op,
+                input,
+                shape,
+                position,
+                sequence,
+            },
+            theta,
+        )
+    }
     fn rotary_row(
         &mut self,
         row: &Words,
@@ -330,13 +375,23 @@ impl AttentionSink for Builder {
                 .map(|energy| norm_bounds::rotary_energy(energy, &cos, &sin, 18))
                 .transpose()?
         };
+        let factory = request_origin::rotary_creation::native_row(self, row, width, &cos, &sin)?;
         let input = self.gather(row)?;
-        let program = tensor::Program::rotary_half(1, width, self.nodes[input].bounds, &cos, &sin)?;
+        let program = if let Some(factory) = factory {
+            let (program, certificate) = factory.build()?.into_parts();
+            if certificate != tensor::ProducedCertificate::None {
+                return Err(Error::Binding);
+            }
+            program
+        } else {
+            tensor::Program::rotary_half(1, width, self.nodes[input].bounds, &cos, &sin)?
+        };
         let output = self.tensor(input, program)?;
         if let Some(energy) = energy {
             let row = (0..width).map(|i| (output, i)).collect();
             self.record_attention_energy(&row, energy)?;
         }
+        request_origin::rotary_creation::row_created(self, input, output, cos, sin, position)?;
         Ok(output)
     }
     fn scores(&mut self, query: &View, keys: &View) -> Result<Words, Error> {

@@ -13,7 +13,10 @@ pub(super) fn creation_bytes(
 ) -> Result<usize, Error> {
     let key = records.keys().map(String::len).max().unwrap_or(0);
     let per = add(
-        size_of::<Option<Creation>>(),
+        add(
+            size_of::<Option<rotary_creation::CreatedOperator>>(),
+            rotary_creation::roster_owner_bytes(),
+        )?,
         add(size_of::<layer::Source>(), add(key, bytes::<usize>(2)?)?)?,
     )?;
     add(
@@ -324,7 +327,11 @@ pub(in crate::replicated_decoder::program) fn created(
     };
     let active = builder.request_emission.as_mut().ok_or(Error::Binding)?;
     active.snapshot_remaining -= snapshot_bytes;
-    active.projections.push(Some(creation));
+    active
+        .projections
+        .push(Some(rotary_creation::CreatedOperator::Bias(Box::new(
+            creation,
+        ))));
     Ok(())
 }
 
@@ -348,7 +355,10 @@ pub(in crate::replicated_decoder::program) fn consumed(
     let Some(owner) = active
         .projections
         .iter_mut()
-        .filter_map(Option::as_mut)
+        .filter_map(|entry| match entry.as_mut() {
+            Some(rotary_creation::CreatedOperator::Bias(owner)) => Some(owner),
+            _ => None,
+        })
         .find(|owner| {
             owner.epoch == epoch
                 && owner.plan.plan().prefill.operations[owner.operation].id == op.inputs[0]
@@ -641,18 +651,25 @@ impl Program {
             .ok_or(Error::Binding)?
             .projections
             .get(index)
-            .and_then(Option::as_ref)
+            .and_then(|entry| match entry.as_ref() {
+                Some(rotary_creation::CreatedOperator::Bias(owner)) => Some(owner),
+                _ => None,
+            })
             .is_none()
         {
             return Err(Error::Retired);
         }
         let program = Arc::get_mut(self).ok_or(Error::Binding)?;
         let custody = program.request_custody.as_mut().ok_or(Error::Binding)?;
-        let mut owner = custody
+        let owner = custody
             .projections
             .get_mut(index)
             .and_then(Option::take)
             .ok_or(Error::Retired)?;
+        let rotary_creation::CreatedOperator::Bias(owner) = owner else {
+            return Err(Error::Binding);
+        };
+        let mut owner = *owner;
         owner.armed = true;
         owner.execution = Some(Arc::clone(self));
         Ok(owner)
