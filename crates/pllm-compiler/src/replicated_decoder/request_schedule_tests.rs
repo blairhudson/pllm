@@ -116,7 +116,12 @@ fn frames(
 
 /// Test routing only: both sides run the ordinary Worker directly. No Qualified,
 /// frozen loan, alternate executor or callback assertion supplies authority.
-fn paired(mut a: [Worker; 3], mut b: [Worker; 3], valid: (usize, usize)) {
+fn paired(
+    mut a: [Worker; 3],
+    mut b: [Worker; 3],
+    valid: (usize, usize),
+    outputs: [(usize, usize); 2],
+) {
     let (mut qa, mut qb) = (Vec::new(), Vec::new());
     let mut wire = 0;
     for round in 0..100_000 {
@@ -132,6 +137,17 @@ fn paired(mut a: [Worker; 3], mut b: [Worker; 3], valid: (usize, usize)) {
                 accepted = accepted.wrapping_add(first[lane]);
             }
             assert_eq!(accepted, 1, "genuine original checked epilogue must accept");
+            // Independent fixture result: original row2 selects 1; appended
+            // row1 selects 0. Equality with the oracle alone could hide zeros.
+            let mut selected = [0u64; 2];
+            for role in &b {
+                for (result, (owner, lane)) in selected.iter_mut().zip(outputs) {
+                    let (_, _, mut values) = role.test_boundary_state().unwrap();
+                    let (first, _) = values.nth(owner).unwrap().unwrap();
+                    *result = result.wrapping_add(first[lane]);
+                }
+            }
+            assert_eq!(selected, [1, 0], "literal original four-plus-two result");
             for (a, b) in a.into_iter().zip(b) {
                 same_state(&a, &b);
                 let x = a.finish_frame().unwrap();
@@ -237,6 +253,7 @@ fn genuine_source_four_plus_two_constructs_original_program_and_full_wire_withou
             fresh(expected, &case.fixture.public, false),
             fresh(Arc::clone(&program), &case.fixture.public, true),
             *program.outputs.last().unwrap(),
+            [program.outputs[0], program.outputs[1]],
         );
         drop(program);
         assert!(root_source.upgrade().is_none());
