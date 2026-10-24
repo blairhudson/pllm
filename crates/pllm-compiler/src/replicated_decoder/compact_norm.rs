@@ -40,6 +40,7 @@ struct NormSink<'s, 'g, 'a> {
     bounds: Option<Interval>,
     energy: Option<u128>,
     work: WorkBudget,
+    native_part: Option<tensor::AdmittedFactory<'a>>,
 }
 
 // Pending guard owners coexist with the RMS constructor and its return value.
@@ -54,12 +55,12 @@ impl Drop for Pending<'_> {
     }
 }
 
-impl NormSink<'_, '_, '_> {
-    fn prepare(&mut self, gamma: &SourceTensor, width: usize) -> Result<(), Error> {
+impl<'a> NormSink<'_, '_, 'a> {
+    fn prepare(&mut self, gamma: &'a SourceTensor, width: usize) -> Result<(), Error> {
         if self.prepared {
             return Ok(());
         }
-        let (checked, bounds, energy, work) =
+        let (checked, bounds, energy, work, native_part) =
             compact_validity::prepare(self.graph, self.input, width, gamma)?;
         self.graph.contraction_control_bytes.set(add_bytes(
             self.graph.contraction_control_bytes.get(),
@@ -69,6 +70,7 @@ impl NormSink<'_, '_, '_> {
         self.bounds = Some(bounds);
         self.energy = energy;
         self.work = work;
+        self.native_part = native_part;
         self.prepared = true;
         Ok(())
     }
@@ -195,6 +197,7 @@ impl<'s> RmsNormSink for NormSink<'s, '_, '_> {
                 self.bounds.ok_or(Error::Binding)?,
                 gamma,
                 input_energy,
+                self.native_part.take(),
             )?;
             self.template = Some(Template {
                 gamma,
@@ -270,6 +273,7 @@ impl<'a> CompactGraph<'_, 'a> {
             bounds: None,
             energy: None,
             work: WorkBudget::default(),
+            native_part: None,
         };
         let words = RowWords {
             view: input,

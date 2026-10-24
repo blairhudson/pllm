@@ -4,9 +4,29 @@ use super::super::source_entry::SourceRequestImport;
 use super::*;
 
 fn importer(vocabulary: usize) -> (SourceRequestImport, Manifest) {
-    let (config, _, clear) = crate::replicated_decoder::tests::fixture_sources("qwen2", false);
+    importer_with_unsafe_row(vocabulary, false)
+}
+fn importer_with_unsafe_row(
+    vocabulary: usize,
+    unsafe_row: bool,
+) -> (SourceRequestImport, Manifest) {
+    importer_geometry(vocabulary, unsafe_row, 2)
+}
+fn importer_geometry(
+    vocabulary: usize,
+    unsafe_row: bool,
+    width: usize,
+) -> (SourceRequestImport, Manifest) {
+    let (config, _, mut clear) = crate::replicated_decoder::tests::fixture_sources("qwen2", false);
+    if unsafe_row {
+        clear.get_mut("model.embed_tokens.weight").unwrap()[0] = 3 * ONE / 2;
+    }
     let mut config: serde_json::Value = serde_json::from_slice(&config).unwrap();
     config["vocab_size"] = serde_json::json!(vocabulary);
+    config["hidden_size"] = serde_json::json!(width);
+    if config.get("head_dim").is_some() {
+        config["head_dim"] = serde_json::json!(width);
+    }
     let config = serde_json::to_vec(&config).unwrap();
     let execution = ExecutionPolicy {
         range_policy: RangePolicy::Checked,
@@ -45,6 +65,78 @@ fn importer(vocabulary: usize) -> (SourceRequestImport, Manifest) {
         importer.append(&key, 0, &bytes).unwrap();
     }
     (importer, manifest)
+}
+
+#[test]
+fn source_lookup_to_compact_certified_rms_retains_original_guard_and_native_owners() {
+    for (width, guarded) in [(2, false), (2, true), (36, true)] {
+        let (importer, manifest) = importer_geometry(4, guarded, width);
+        importer
+            .with_created(|created, guard| {
+                let mut scope =
+                    compact_storage::EmissionScope::new(created, guard, MAX_PROGRAM_BYTES)?;
+                let (builder, context, _) = scope.parts();
+                let prefix = builder.nodes.len();
+                let mut graph = compact_lowering::CompactGraph::from_source_request(
+                    builder,
+                    context,
+                    MAX_PROGRAM_BYTES,
+                )?;
+                graph.lower_next()?;
+                let output = graph.lower_next()?;
+                assert_eq!(
+                    builder.nodes.len(),
+                    prefix,
+                    "no expanded request executable"
+                );
+                let (program, gamma, input_energy, output_energy, guard_tiles) =
+                    graph.test_rms_owner().unwrap();
+                assert_eq!(guard_tiles > 0, guarded);
+                assert!(
+                    input_energy.is_none(),
+                    "lookup must not invent GENERAL ancestry"
+                );
+                assert!(context
+                    .registry()
+                    .source_records()
+                    .values()
+                    .any(|source| std::ptr::eq(source, gamma)));
+                assert!(output_energy > 0);
+                context.check_final_work(graph.work_budget())?;
+                // Independent original control AFTER candidate owner/certificate.
+                let oracle = Program::compile_with_norms(
+                    &manifest.config,
+                    4,
+                    2,
+                    &manifest.tensors,
+                    WeightMode::Public,
+                    manifest.execution,
+                    &manifest.norms,
+                )
+                .unwrap();
+                let mut end = 0;
+                for lane in 0..4 * width {
+                    let (owner, index) = output.word(lane)?;
+                    let Code::Tensor {
+                        program: original, ..
+                    } = &oracle.nodes[owner].code
+                    else {
+                        panic!("original RMS consumer geometry")
+                    };
+                    assert_eq!(original.digest(), program.digest());
+                    assert_eq!(index, lane % width);
+                    end = end.max(owner + 1);
+                }
+                let expected = oracle.nodes[prefix + 2..end]
+                    .iter()
+                    .try_fold(WorkBudget::default(), |work, node| {
+                        work.checked_add(node.work_budget()?)
+                    })?;
+                assert_eq!(expected, context.work());
+                Ok(())
+            })
+            .unwrap();
+    }
 }
 
 #[test]

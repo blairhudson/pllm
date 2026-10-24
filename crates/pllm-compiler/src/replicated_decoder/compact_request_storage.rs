@@ -254,6 +254,23 @@ impl EmissionContext<'_> {
     pub(in crate::replicated_decoder::program) fn work(&self) -> WorkBudget {
         *self.work.borrow()
     }
+    /// Original scalar multiplication schedule, not a native factory query.
+    /// Sticky conjunctions consume this once BEFORE any checked-row factory.
+    pub(in crate::replicated_decoder::program) fn admit_products(
+        &self,
+        count: usize,
+    ) -> Result<(), Error> {
+        let mut attempt = self.attempt();
+        self.check_open()?;
+        let work = WorkBudget::product(1, false)?
+            .checked_mul(u64::try_from(count).map_err(|_| Error::Bounds)?)?;
+        let mut ledger = self.work.borrow_mut();
+        let next = ledger.checked_add(work)?;
+        next.limits()?;
+        *ledger = next;
+        attempt.commit();
+        Ok(())
+    }
     pub(in crate::replicated_decoder::program) fn check_final_work(
         &self,
         recomputed: WorkBudget,

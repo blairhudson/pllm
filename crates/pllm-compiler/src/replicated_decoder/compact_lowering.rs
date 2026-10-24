@@ -889,6 +889,15 @@ impl<'a> CompactGraph<'a, 'a> {
     }
 }
 
+#[cfg(test)]
+type RmsOwnerCensus<'s> = (
+    &'s Arc<tensor::Program>,
+    &'s SourceTensor,
+    Option<u128>,
+    u128,
+    usize,
+);
+
 /// Source-neutral BODY bias mapping. Source authority is the retained original
 /// import/source owner, never these numeric IDs, intervals or a copied digest.
 #[derive(Clone, Copy)]
@@ -2640,6 +2649,28 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         })
     }
 
+    /// Actual owning RMS publication metadata; never an input/source issuer.
+    #[cfg(test)]
+    pub(super) fn test_rms_owner(&self) -> Option<RmsOwnerCensus<'_>> {
+        self.ops.iter().rev().find_map(|op| match &op.kind {
+            PublishedKind::RmsNorm {
+                program,
+                gamma,
+                input_energy,
+                output_energy,
+                checked,
+                ..
+            } => Some((
+                program,
+                *gamma,
+                *input_energy,
+                *output_energy,
+                checked.as_ref().map_or(0, |rows| rows.guard_tiles()),
+            )),
+            _ => None,
+        })
+    }
+
     /// Actual immutable owners only. Reused capabilities do not invent another
     /// allocation; native resources/capacities remain inspectable on each Arc.
     pub(in crate::replicated_decoder) fn owned_prepared_programs(
@@ -3399,6 +3430,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         bounds: Interval,
         gamma: &'a SourceTensor,
         input_energy: Option<u128>,
+        native_part: Option<tensor::AdmittedFactory<'a>>,
     ) -> Result<(Arc<tensor::Program>, u128, bool), Error> {
         let coefficients = gamma.public_q18.as_ref().ok_or(Error::Binding)?;
         // Borrowed original backing stays live through both new construction
@@ -3470,7 +3502,18 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         )?;
         #[cfg(test)]
         RMS_NATIVE_ATTEMPTS.with(|count| count.set(count.get() + 1));
-        let (program, energy) = rms_norm_program(true, width, bounds, coefficients, input_energy)?;
+        let (program, energy) = if let Some(part) = native_part {
+            let (program, certificate) = part.build()?.into_parts();
+            let tensor::ProducedCertificate::GeneralOutputRowSquared(energy) = certificate else {
+                return Err(Error::Binding);
+            };
+            (program, Some(energy))
+        } else {
+            if self.request_admission.is_some() {
+                return Err(Error::Binding);
+            }
+            rms_norm_program(true, width, bounds, coefficients, input_energy)?
+        };
         let resources = program.resources()?;
         if resources.immutable_template_bytes > quote.immutable_template_bytes
             || resources.shared_admitted_bytes > puma::MAX_ADMITTED_BYTES
@@ -3482,12 +3525,21 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
         let energy = energy.ok_or(Error::Binding)?;
         // Same original Builder::tensor interning rule for a freshly constructed
         // native Program. No existing closed PreparedTensorMap owner is replaced.
-        let existing = self
-            .owned_native_programs()
-            .find(|old| old.digest() == program.digest())
-            .cloned();
+        let existing = if self.request_admission.is_some() {
+            None
+        } else {
+            self.owned_native_programs()
+                .find(|old| old.digest() == program.digest())
+                .cloned()
+        };
         let owns = existing.is_none();
         let program = existing.unwrap_or_else(|| Arc::new(program));
+        if let Some(context) = self.request_admission {
+            context.retain(add_bytes(
+                program.resources()?.immutable_template_bytes,
+                2 * std::mem::size_of::<usize>(),
+            )?)?;
+        }
         self.admit_total_with_source(
             add_bytes(
                 self.outside_owner_bytes,

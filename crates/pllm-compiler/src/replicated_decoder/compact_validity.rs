@@ -1,5 +1,7 @@
 //! Compiler-local checked-row custody. No prefix-export or request acceptance issuer.
 use super::*;
+#[path = "compact_rms_admission.rs"]
+mod request_rms;
 
 /// The original immutable import owner and its one continuing sticky scalar.
 /// Never initialized from a caller's numeric ID or a purported bit interval.
@@ -44,11 +46,23 @@ impl<'a> RequestValidity<'a> {
         if !std::ptr::eq(self.original, graph.imports)
             || !Arc::ptr_eq(&self.origin, &graph.origin)
             || self.original.validity.is_some()
-            || graph.prebound_inputs.is_none()
             || graph.cursor.checked_sub(graph.ops.len()) != Some(0)
         {
             // There is no genuine incoming prefix-export/sticky issuer yet.
             return Err(Error::Binding);
+        }
+        if graph.prebound_inputs.is_none() {
+            // Genuine consumed source request is the other ORIGINAL input
+            // issuer. It binds this live import allocation and semantic plan;
+            // an arbitrary View/coordinate/digest still cannot enter custody.
+            let context = graph.request_admission.ok_or(Error::Binding)?;
+            context.check_imports(self.original)?;
+            if !std::ptr::eq(
+                &context.plan().plan().prefill,
+                graph.frontier.semantic_graph(),
+            ) {
+                return Err(Error::Binding);
+            }
         }
         Ok(())
     }
@@ -140,8 +154,13 @@ pub(super) struct GuardEvent<'s> {
     pub(super) code: GuardCode<'s>,
 }
 
-pub(super) type PreparedTransition<'a> =
-    (Option<CheckedRows<'a>>, Interval, Option<u128>, WorkBudget);
+pub(super) type PreparedTransition<'a> = (
+    Option<CheckedRows<'a>>,
+    Interval,
+    Option<u128>,
+    WorkBudget,
+    Option<tensor::AdmittedFactory<'a>>,
+);
 
 fn control_slots() -> Result<usize, Error> {
     use std::mem::size_of;
@@ -177,6 +196,10 @@ fn same_view(a: &PublishedView, b: &PublishedView) -> bool {
 }
 
 impl<'a> CheckedRows<'a> {
+    #[cfg(test)]
+    pub(super) fn guard_tiles(&self) -> usize {
+        self.runs.iter().map(|run| run.tiles).sum()
+    }
     pub(super) fn nodes(&self) -> usize {
         if self.runs.is_empty() {
             0
@@ -729,7 +752,7 @@ pub(super) fn prepare<'a>(
     graph: &CompactGraph<'_, 'a>,
     input: &PublishedView,
     width: usize,
-    gamma: &SourceTensor,
+    gamma: &'a SourceTensor,
 ) -> Result<PreparedTransition<'a>, Error> {
     use std::mem::size_of;
     let checked = graph.imports.checked_bound;
@@ -772,13 +795,28 @@ pub(super) fn prepare<'a>(
             array_bytes::<i64>(gamma.public_q18.as_ref().map_or(0, |v| v.capacity()))?,
         )?,
     )?;
-    let controls = add_bytes(storage, control_slots()?)?;
+    let ticket_slots = if graph.request_admission.is_some() {
+        request_rms::slots(tiles)?
+    } else {
+        0
+    };
+    let controls = add_bytes(add_bytes(storage, control_slots()?)?, ticket_slots)?;
     let baseline = add_bytes(add_bytes(graph.baseline()?, gamma_bytes)?, controls)?;
     let admit = |extra| {
         graph.admit_total_with_source(
             add_bytes(graph.outside_owner_bytes, add_bytes(baseline, extra)?)?,
             gamma_bytes,
-        )
+        )?;
+        if let Some(context) = graph.request_admission {
+            context.admit_phase(
+                add_bytes(
+                    add_bytes(controls, graph.contraction_control_bytes.get())?,
+                    extra,
+                )?,
+                0,
+            )?;
+        }
+        Ok::<(), Error>(())
     };
     admit(add_bytes(
         compact_norm::driver_slots()?,
@@ -907,8 +945,25 @@ pub(super) fn prepare<'a>(
         compact_norm::factory_slots()?,
     )?;
     admit(guard_peak.max(rms_peak))?;
+    // Original guard/work validation above still precedes RMS binding. Capture
+    // and debit ALL guards, scalar sticky uses and RMS row invocations now,
+    // before GuardRun allocation or the FIRST native constructor below.
+    let mut tickets = request_rms::prepare(
+        graph,
+        input,
+        request_rms::RequestNorm {
+            width,
+            gamma,
+            accepted,
+            bounds,
+            energy,
+            tiles,
+            controls,
+        },
+    )?;
+    let rms_part = tickets.as_mut().and_then(|tickets| tickets.rms.take());
     if checked.is_none() {
-        return Ok((None, bounds, energy, work));
+        return Ok((None, bounds, energy, work, rms_part));
     }
     let mut rows = CheckedRows {
         original: graph.imports,
@@ -950,10 +1005,21 @@ pub(super) fn prepare<'a>(
         } else {
             #[cfg(test)]
             FACTORIES.with(|n| n.set(n.get() + 1));
-            (
-                Arc::new(tensor::Program::checked_range(n, incoming, accepted, 0)?),
-                true,
-            )
+            let program = if let Some(tickets) = tickets.as_mut() {
+                let (program, certificate) = tickets.guards[tile]
+                    .range
+                    .take()
+                    .ok_or(Error::Binding)?
+                    .build()?
+                    .into_parts();
+                if certificate != tensor::ProducedCertificate::None {
+                    return Err(Error::Binding);
+                }
+                program
+            } else {
+                tensor::Program::checked_range(n, incoming, accepted, 0)?
+            };
+            (Arc::new(program), true)
         };
         let old = rows
             .runs
@@ -965,7 +1031,21 @@ pub(super) fn prepare<'a>(
         } else {
             #[cfg(test)]
             FACTORIES.with(|n| n.set(n.get() + 1));
-            (Arc::new(tensor::Program::all_valid(n)?), true)
+            let program = if let Some(tickets) = tickets.as_mut() {
+                let (program, certificate) = tickets.guards[tile]
+                    .valid
+                    .take()
+                    .ok_or(Error::Binding)?
+                    .build()?
+                    .into_parts();
+                if certificate != tensor::ProducedCertificate::None {
+                    return Err(Error::Binding);
+                }
+                program
+            } else {
+                tensor::Program::all_valid(n)?
+            };
+            (Arc::new(program), true)
         };
         rows.runs.push(GuardRun {
             first_tile: tile,
@@ -988,7 +1068,21 @@ pub(super) fn prepare<'a>(
         width,
         graph.validity.current(),
     )?;
-    Ok((Some(rows), bounds, energy, work))
+    if let Some(context) = graph.request_admission {
+        let retained = rows
+            .programs()
+            .try_fold(rows.metadata_bytes()?, |bytes, program| {
+                add_bytes(
+                    bytes,
+                    add_bytes(
+                        program.resources()?.immutable_template_bytes,
+                        2 * size_of::<usize>(),
+                    )?,
+                )
+            })?;
+        context.retain(retained)?;
+    }
+    Ok((Some(rows), bounds, energy, work, rms_part))
 }
 
 #[cfg(test)]
