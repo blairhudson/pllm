@@ -2811,3 +2811,7 @@ pub(in crate::replicated_decoder) use request_origin::compact_storage::EmissionC
 #[cfg(test)]
 #[path = "prepared_tensor_map/prepared_tensor_request_rescale_tests.rs"]
 pub(in crate::replicated_decoder) mod request_rescale_tests;
+
+#[cfg(test)]
+#[path = "prepared_tensor_map/prepared_tensor_request_silu_tests.rs"]
+mod request_silu_tests;

@@ -573,3 +573,6 @@ mod activation_work_tests;
 
 #[path = "prepared_tensor_map/prepared_tensor_request_rescale.rs"]
 pub(in crate::replicated_decoder) mod request_rescale;
+
+#[path = "prepared_tensor_map/prepared_tensor_request_silu.rs"]
+pub(in crate::replicated_decoder) mod request_silu;
