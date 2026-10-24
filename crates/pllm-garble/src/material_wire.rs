@@ -123,6 +123,34 @@ pub(crate) fn open<'a>(
     Ok(&bytes[HEADER..bytes.len() - 32])
 }
 
+/// Decode a borrowed fixed little-endian record without heap/packet staging.
+/// Geometry is checked before reading any word; partial private output erases on
+/// error/unwind. The caller prices the fixed inline transient, retains the byte
+/// owner's charge, and still owns envelope/context/recipient/issuance validation.
+/// Width matches the existing arithmetic-material Reader (1..=50), not every
+/// algebraic ring supported elsewhere. No masking or alternate encoding occurs.
+pub(crate) fn decode_fixed_words<const N: usize>(
+    bytes: &[u8],
+    bits: u8,
+) -> Result<Zeroizing<[u64; N]>, Error> {
+    if bytes.len()
+        != N.checked_mul(std::mem::size_of::<u64>())
+            .ok_or(Error::Context)?
+        || !(1..=50).contains(&bits)
+    {
+        return Err(Error::Context);
+    }
+    let limit = 1u64 << bits;
+    let mut words = Zeroizing::new([0; N]);
+    for (word, encoded) in words.iter_mut().zip(bytes.chunks_exact(8)) {
+        *word = u64::from_le_bytes(encoded.try_into().unwrap());
+        if *word >= limit {
+            return Err(Error::Context);
+        }
+    }
+    Ok(words)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -504,3 +532,7 @@ mod tests {
 #[cfg(test)]
 #[path = "material_wire_queue_tests.rs"]
 mod queue_tests;
+
+#[cfg(test)]
+#[path = "material_wire_fixed_tests.rs"]
+mod fixed_tests;
