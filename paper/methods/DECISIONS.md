@@ -1003,6 +1003,28 @@ activation, joint privacy/security qualification and physical-fit claims are
 excluded. This decision authorizes implementation and tests, not a claim that
 either is complete or passing. D19's original boundaries remain unchanged.
 
+## D42. Private original-parent lookup correction construction
+
+**Explicitly approved by the user on 24 October 2026:** implement and qualify
+the reviewed private original-parent lookup8/10 correction-build and resource
+extraction. Accept only the original parent's sealed identity; do not create a
+public independent issuer. Existing public APIs, profiles, equations, RNG draw
+order, masks, framing and D41 retirement remain unchanged. This is not a new
+numerical policy or profile adoption.
+
+Split one original aggregate reservation before allocation/RNG, with no refund
+and reacquisition or unsupported charge merge. The output-mask owner retains
+**both residual dealer charges**, dropping payload before either final charge
+release. Preserve original-counter/source custody and failure burn. Quote exact
+concrete controls and transitions before their factories; existing caps remain
+unchanged. Qualification requires deterministic old goldens, exact/one-short
+admission, failure/unwind/cancellation and retained-output lifecycle tests; this
+decision does not claim those tests have run or passed.
+
+Interval lookup/scan, index50, shared-key profiles, LUT13, LayerNorm and SDK
+activation are excluded. No full-row-fit, physical-fit or security qualification
+follows from this private extraction or its logical resource quote.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1048,6 +1070,7 @@ either is complete or passing. D19's original boundaries remain unchanged.
 | D39 | Approved: four-lane SIGMA private party-share terminal extraction | Ring50 private GapARS12 plus private beta, existing carry/codec, one fresh independent split of combined rF+rBeta and preallocated original-counter custody; sibling burn/retention and enclosing state/layout pricing required. No final reconstruction, default/cap change, LayerNorm/LUT13 or compiler/SDK/transport/security qualification. |
 | D40 | Approved: server-bound scalar source policy for explicit checked-public ingress | Authenticated server Experiment/config derives finite source/workload geometry; toy defaults and all caps/refusals unchanged. Tests and metadata-only quote permitted, not client-manifest authority, tensor reads, checkpoint arithmetic compilation, inference, fallback or whole-checkpoint fit. |
 | D41 | Approved: private D19 scan-to-correction/Select ownership and exact-resource extraction | Original reservation split before allocation/RNG, continuous counter/source custody and failure burn; unchanged APIs, 8/10 gates, equations, draw order, masks and framing. Compatibility/resource/lifecycle tests only; no interval scan, shared-key profile, LUT13/LayerNorm, activation, security or physical/whole-Norm fit claim. |
+| D42 | Approved: private original-parent lookup8/10 correction-build/resource extraction | Parent-created sealed identity only, one original aggregate reserve split without refund/reacquisition or unsupported merge; output-mask owner retains both residual dealer charges payload-first. Exact control/transition quotes and golden/admission/failure/lifecycle qualification required; APIs/profiles/numerics/RNG/framing/D41 unchanged. No independent public issuer, interval/index50/shared-key/LUT13/LayerNorm/SDK or full-row/physical/security qualification. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
