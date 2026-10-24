@@ -557,7 +557,28 @@ impl<'a> AdmittedWorkSchedule<'a> {
 /// ```
 #[derive(Debug)]
 pub struct AdmittedFactory<'a>(Part<'a>);
-impl AdmittedFactory<'_> {
+impl<'a> AdmittedFactory<'a> {
+    /// Bind theorem only to the original admitted RMS arguments. The raw energy
+    /// is conditional, never a compiler input certificate. No replacement args.
+    pub fn prepare_rms_energy(
+        self,
+        workspace: &mut RmsEnergyWorkspace,
+    ) -> Result<PreparedRmsEnergy<'a>, Error> {
+        let (rows, width, input, gamma, energy) =
+            match (&self.0.factory.construction, &self.0.factory.parameters) {
+                (
+                    Construction::RmsNormWithInputNorm { rows, width, .. },
+                    FactoryParameters::RmsNormWithInputNorm {
+                        input,
+                        gamma,
+                        squared_norm,
+                    },
+                ) => (*rows, *width, *input, *gamma, *squared_norm),
+                _ => return Err(Error::Binding),
+            };
+        let parameters = RmsEnergyParameters::new(rows, width, input, gamma, energy)?;
+        rms_output_energy::prepare(self, parameters, workspace)
+    }
     pub fn summary(&self) -> FactoryWorkSummary {
         self.0.summary
     }

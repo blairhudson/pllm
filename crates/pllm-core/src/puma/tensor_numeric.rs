@@ -810,10 +810,7 @@ pub(super) fn rms_normalization<S: rms_work::RmsSink>(
         let upper = upper.min(ordinary.upper() as u128) as i64;
         b.refine(sum, Interval::new(ordinary.lower(), upper)?);
     }
-    let inverse_width = ((1.0_f32 / width as f32) * ONE as f32) as i64;
-    if inverse_width <= 0 {
-        return Err(Error::Bounds);
-    }
+    let inverse_width = rms_mean_coefficient(width)?;
     let raw_mean = b.affine(sum, None, affine(inverse_width, 0, 0))?;
     let mean = b.rescale(raw_mean, 18)?;
     let denominator = b.affine(mean, None, affine(1, 0, RMS_NORM_EPSILON_Q18))?;
@@ -885,6 +882,23 @@ pub(super) fn rms_normalization<S: rms_work::RmsSink>(
     }
     let normalized = Ranged { value: x, boxes }.product(b, &inverse, true)?.value;
     Ok((normalized, radius))
+}
+
+pub(super) fn rms_mean_coefficient(width: usize) -> Result<i64, Error> {
+    let coefficient = ((1.0_f32 / width as f32) * ONE as f32) as i64;
+    if coefficient <= 0 {
+        return Err(Error::Bounds);
+    }
+    Ok(coefficient)
+}
+
+pub(super) fn rms_energy_inverse_bounds(
+    domain: Interval,
+    workspace: &mut SoftmaxWorkWorkspace,
+) -> Result<Interval, Error> {
+    workspace.reset(1, domain);
+    let inverse = rsqrt_ranged(workspace, Value(0), domain, true)?;
+    hull(&inverse.boxes)
 }
 
 fn ceil_sqrt(value: u128) -> u128 {

@@ -1930,8 +1930,14 @@ pub use rotary_work::RotaryWorkResources;
 #[path = "tensor_rotary_work_tests.rs"]
 mod rotary_work_tests;
 
+#[path = "rms_output_energy.rs"]
+mod rms_output_energy;
 #[path = "tensor_work_preflight.rs"]
 mod work_preflight;
+pub use rms_output_energy::{
+    ConditionalRmsEnergy, OriginalRmsEnergyOwner, PreparedRmsEnergy, RmsEnergyLimits,
+    RmsEnergyParameters, RmsEnergyResources, RmsEnergyWorkspace,
+};
 pub use work_preflight::{
     AdmittedFactory, AdmittedWorkSchedule, CallerWorkLedger, ClosedFactory, FactoryOutput,
     FactoryParameters, FactoryWorkSummary, ProducedCertificate, WorkPreflight, WorkPreflightError,
