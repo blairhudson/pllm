@@ -2,7 +2,7 @@
 
 import json
 import asyncio
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, contextmanager
 from contextvars import ContextVar
 import math
 import os
@@ -194,6 +194,52 @@ def test_checked_source_entry_rejects_manifest_tensor_substitution(tmp_path, cha
         publisher.close()
 
 
+class _NativeUseObserver:
+    """Test-only use/close ordering, independent of populate's return/raise."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.active = 0
+        self.closed = False
+
+    @contextmanager
+    def operation(self):
+        with self.lock:
+            assert not self.closed, "native operation after close"
+            self.active += 1
+        try:
+            yield
+        finally:
+            with self.lock:
+                self.active -= 1
+
+    def close(self, close):
+        with self.lock:
+            assert self.active == 0, "native close while operation active"
+            self.closed = True
+        return close()  # Repeated cleanup close is legitimate; errors unchanged.
+
+
+def test_native_use_observer_rejects_close_while_active_and_use_after_close():
+    observer = _NativeUseObserver()
+    closed = []
+    original = ValueError("original operation failure")
+    with pytest.raises(ValueError) as caught:
+        with observer.operation():
+            with pytest.raises(AssertionError, match="while operation active"):
+                observer.close(lambda: closed.append(True))
+            assert not closed and not observer.closed
+            raise original
+    assert caught.value is original and observer.active == 0
+    observer.close(lambda: closed.append(True))
+    observer.close(lambda: closed.append(True))
+    assert closed == [True, True]
+    with pytest.raises(AssertionError, match="after close"):
+        with observer.operation():
+            pytest.fail("operation entered after close")
+    assert observer.active == 0
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("checked,family", [
     (False, "qwen2"), (True, "qwen2"),
@@ -296,6 +342,7 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
     class NativeProxy:
         def __init__(self, owner, role, route):
             self.owner, self.role = owner, role
+            self.use = _NativeUseObserver()
             self.key = (role, generations[role])
             created.append(self.key)
             events.append((route, self.key))
@@ -304,24 +351,27 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
             return getattr(self.owner, name)
 
         def append_public_source(self, *args):
-            result = self.owner.append_public_source(*args)
-            events.append(("appended", self.key))
-            gate(self.role, "import")
-            return result
+            with self.use.operation():
+                result = self.owner.append_public_source(*args)
+                events.append(("appended", self.key))
+                gate(self.role, "import")
+                return result
 
         def seal_public_source(self):
-            result = self.owner.seal_public_source()
-            events.append(("sealed", self.key))
-            return result
+            with self.use.operation():
+                result = self.owner.seal_public_source()
+                events.append(("sealed", self.key))
+                return result
 
         def call(self, *args):
-            result = self.owner.call(*args)
-            if args[0] == "advance":
-                gate(self.role, "execution")
-            return result
+            with self.use.operation():
+                result = self.owner.call(*args)
+                if args[0] == "advance":
+                    gate(self.role, "execution")
+                return result
 
         def close(self):
-            self.owner.close()
+            self.use.close(self.owner.close)
             events.append(("closed", self.key))
 
     class Constructors:
@@ -329,7 +379,7 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
             return NativeProxy(native_type(manifest, role), role, "legacy")
 
         @staticmethod
-        def _from_source_request(manifest, role):
+        def _from_source_request(manifest, role, *, server_policy):
             if family == "qwen3":
                 from pllm import lower_model
 
@@ -352,7 +402,8 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
                             f"model.layers.0.self_attn.{projection}_norm.weight")
                         assert nodes[rope_id]["inputs"][0] == norm_id
                         assert order[norm_id] < order[rope_id]
-            return NativeProxy(native_type._from_source_request(manifest, role), role, "source")
+            return NativeProxy(native_type._from_source_request(
+                manifest, role, server_policy=server_policy), role, "source")
 
     original_reserve = worker.reserve_incremental_memory
     from pllm.runtime.replicated_source import ReplicatedSource
@@ -362,7 +413,7 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
         try:
             return original_populate(self, owner, cancelled)
         finally:
-            events.append(("import_drained", owner.key))
+            events.append(("populate_returned", owner.key))
 
     def reserve(size):
         role = current_role.get()
@@ -471,7 +522,7 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
             assert core._active is None and not captured and not core.records
             assert await asyncio.to_thread(active_sessions, core) == [0, 0, 0]
             assert events.index(("drained", key)) < events.index(("closed", key)) < events.index(("refunded", key))
-            assert events.index(("import_drained", key)) < events.index(("closed", key))
+            assert events.index(("populate_returned", key)) < events.index(("refunded", key))
             assert owners and all(owner.finish_calls == 0 for owner in owners)
             assert_publishers_retired(owners)
             route = "source" if checked else "legacy"
@@ -499,6 +550,8 @@ async def test_public_sdk_cancel_drains_real_source_owners(tmp_path, monkeypatch
             assert {role for role, _ in created} == {0, 1, 2}
             for owner in created:
                 assert events.index(("closed", owner)) < events.index(("refunded", owner))
+                if ("populate_returned", owner) in events:
+                    assert events.index(("populate_returned", owner)) < events.index(("refunded", owner))
             audit = core.audit.to_dict()
             assert audit["plaintext_prompt_bytes_sent"] == audit["plaintext_token_ids_sent"] == 0
             assert_publishers_retired(owners)
