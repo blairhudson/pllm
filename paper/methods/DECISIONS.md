@@ -1249,6 +1249,21 @@ the approved isolated storage result, not full Poulpy, source/noise/admission or
 security qualification, consumer/Main/pin adoption, or crypto/key/NTT/RNG/
 transform execution.
 
+**Isolated consumer continuation, explicitly approved on 25 October 2026
+(user61243):** permit five HE consumer qualification tests against tested
+upstream `ca3532570ff62b96599a74f7adb85de7726b0446` plus D48 patch
+`c61b57b786657ab0bbbf3f5d4f7fd1958434b6923c8e5e2d360441d261aa530e`,
+using a temporary four-package path override and **isolated offline lock
+reconciliation only**. Main sources/dependencies and pins remain unchanged.
+Require at least 8 GiB host headroom and normal pressure; enforce 60 seconds and
+1 MiB output. Observed peak RSS must be at most 256 MiB with no increase in
+cumulative swapouts, not hard memory/swap isolation. Fixtures are limited to
+64 KiB and 16 backings. No keys, RNG, transforms, encrypted activation or adoption
+is permitted. This continuation authorizes only the isolated tests; results await
+independent O review and are not asserted as qualified here. Earlier storage-only
+scope, refusals and evidence remain distinct; no runtime/consumer activation is
+authorized by this test permission.
+
 This qualifies only original **owning capacity and alignment**, not a borrowed
 span, noise helpers, provenance or admission. No Main application, dependency
 adoption, consumer activation, RNG, keys, transforms, encryption, security or
