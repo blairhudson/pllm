@@ -1103,6 +1103,73 @@ payload reads, native HE, key generation, model/FSS runs, and security/source
 qualification. No cap increase, implementation result or passing-test claim
 follows from this approval.
 
+## D45. Maverick atomic two-batch native composition
+
+**Explicitly approved on 25 October 2026 (user60486):** implement two batches
+of two claims, each 64×64, under the unchanged **16 MiB** ceiling. Extend the
+[existing Maverick contracts](../../docs/plans/maverick-window-batch-candidate.md),
+not its unadopted full-decoder proposal. One exclusive lease consumes two
+existing attempt ordinals with fresh per-claim noise. Fix **all four originals
+before any primary challenge** and **all auxiliary replies before any secondary
+challenge**; release all four outputs atomically only if every check passes.
+Reuse existing equations, randomness contracts, default caps and `MAX_ATTEMPTS`.
+
+Native correctness, tamper, replay, drop and admission tests require a separately
+granted validation lane. Approval is not implementation or qualification evidence.
+No BF16/Q8 bridge, fixed-eight decoder, generation, SDK, security qualification
+or source-author proof is approved.
+
+## D46. Four bounded clear/operator and compiler-join adaptations
+
+**Explicitly approved on 25 October 2026 (user60494):** implement and qualify
+the following **four independent adaptations**, not whole methods or SDK routes:
+
+- **NEXUS:** [centered-energy prefix](../../docs/plans/nexus-centered-energy-prefix.md)
+  at width768, 32×1024, binary64 Equation5, **no epsilon**, zero-energy refusal,
+  public gamma/beta and explicit ordered, non-fused evaluation. This is
+  incompatible with ordinary f32/epsilon normalization; reject that substitution.
+  No CKKS inverse adoption follows.
+- **THOR:** [pinned artifact arithmetic](../../docs/research/thor-multiblock-indexing-audit.md)
+  for two rows of width4: LinearBias → exact pinned artifact `A[gelu]`, preserving
+  coefficient order/reversal, Stockmeyer evaluation, `/64` halving and final
+  multiplication → LinearBias. Stop **before residual/bootstrap**; no evaluated
+  run or source-evaluated build identity is claimed.
+- **CacheMir:** extend [existing paired append](../../docs/plans/cachemir-numeric-state-packet.md)
+  to shared ciphertext SSA/DAG analysis using **explicit synthetic capabilities**
+  and old-KV parent liveness. Qualification is bounded to 30 s, 64 MiB and 1 MiB
+  output; no encrypted ownership or refresh qualification follows.
+- **ROSETTA:** [proposed four-segment reference](../../docs/plans/rosetta-reciprocal-round-trip.md),
+  8192 pairs, rational ties-to-even, half-open domain and explicit coefficient/
+  index reference, bounded to 30 s, 64 MiB and 1 MiB output. No HomComp,
+  Quant4096/65536 switch, recovery, public-LUT substitution or cryptographic
+  error/backend adoption is approved.
+
+Default caps, source distinctions and unsupported-input refusals remain. Native
+tests/builds require new Parent lane grants; source implementation may proceed.
+Completed operator-region/compiler-join qualification must be reported separately
+from whole-method qualification: no SDK ranking or method-progress percentage
+increase follows from approval or these bounded results alone.
+
+## D47. BumbleBee clear whole-phase OLT/CRT composition
+
+**Explicitly approved on 25 October 2026 (user60505):** implement the clear
+whole-phase composition described by the [executable-profile proposal](../../docs/plans/bumblebee-executable-profile-d37.md):
+OLT pack → **`U(m)=floor(q*m/t)` over the full whole encoding** → actual products,
+D21 trace/merge → ParseMat → global CRT and exact Down, in **both cross
+directions**. Neither `floor(q/t)*m` (Delta encoding) nor nearest-Up may replace
+this U. Preserve the old Delta oracle and its counterexample.
+
+Use the proposal's ordered limbs, `N=8192`, `t=2^64`, shape `(3,65,129)` and
+window `(1,64,128)` as an **explicit separate clear-only geometry**; old public
+caps remain unchanged. Before allocation/factories, admit **32 MiB logical
+owners** and debit at most **2^28 cumulative arithmetic operations**, with refusal
+on unknown or insufficient admission and no work reset/refund. Native tests/builds
+require a separately granted lane; this approval supplies no passing evidence.
+
+The source-observed `fhe.rs` pin remains pinned but is not an adopted runtime.
+Approximate backend Down equivalence is **not proved**. No backend adoption,
+key/ciphertext/noise/security qualification or full B-N1 completion follows.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1151,6 +1218,9 @@ follows from this approval.
 | D42 | Approved: private original-parent lookup8/10 correction-build/resource extraction | Parent-created sealed identity only, one original aggregate reserve split without refund/reacquisition or unsupported merge; output-mask owner retains both residual dealer charges payload-first. Exact control/transition quotes and golden/admission/failure/lifecycle qualification required; APIs/profiles/numerics/RNG/framing/D41 unchanged. No independent public issuer, interval/index50/shared-key/LUT13/LayerNorm/SDK or full-row/physical/security qualification. |
 | D43 | Approved: one LocalClearRoot paper LayerNorm4 to party shares | Ring50/Q12 bounded private X/gamma/beta, exact 8192 inverse table and both floors; enumerated interval/LUT13/product/unsigned-TR42 consuming adapters and D39 endpoint. Full same-counter storage/work admission before factories under unchanged 64 MiB, failure custody and independent review required; refusal valid. No matrix/wider-row/inherited-source/SDK/trained/joint-security or HE/FSS promotion. |
 | D44 | Approved: M-X-I metadata-only shared partition/window/lifetime planner | At most 4096 records, one process/thread, 30 s, 64 MiB memory and 1 MiB output; native qualification only in a separately granted existing slot. Global caps, both challenge barriers and D31/D32/D34 unchanged; unknown admission refuses. No masks, tentative publication, protocol-owner/SDK/decoder activation, numerical failure-timing/continuation, payload/model/HE/FSS execution or source/security qualification. |
+| D45 | Approved: Maverick atomic two batches × two claims, 64×64 | One exclusive lease/two existing ordinals, fresh per-claim noise, all-original/all-aux global barriers and atomic four-output release; unchanged 16 MiB/defaults/MAX_ATTEMPTS. Separately granted native tests only; no decoder/SDK/bridge/security or author-proof qualification. |
+| D46 | Approved: four independent bounded clear/operator/compiler adaptations | Exact NEXUS binary64/no-epsilon prefix; pinned THOR two-row LinearBias/artifact-GELU/LinearBias; synthetic CacheMir shared-SSA append/liveness; proposed ROSETTA four-segment rational reference. Preserve caps/refusals/source distinctions; separate lane qualification, no whole-method/SDK/backend/security adoption or ranking. |
+| D47 | Approved: BumbleBee clear whole-phase full-U OLT/product/trace/ParseMat/CRT/Down | Proposed N8192/t2^64 limbs, separate (3,65,129)/(1,64,128) geometry, 32 MiB logical owners and 2^28 cumulative arithmetic before factories; both cross directions, old Delta counterexample retained. No runtime/backend/key/cipher/noise/security or full B-N1 qualification; approximate Down equivalence unproved. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
