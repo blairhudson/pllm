@@ -1173,6 +1173,19 @@ owners** and debit at most **2^28 cumulative arithmetic operations**, with refus
 on unknown or insufficient admission and no work reset/refund. Native tests/builds
 require a separately granted lane; this approval supplies no passing evidence.
 
+**Qualification-only amendment, explicitly approved on 25 October 2026
+(user60726):** before launching the nine ordinary tests, check the **complete
+aggregate declared arithmetic inventory is at most `2^30`**. It includes two
+complete `Q=258503359` runs covering both cross directions and one invalid-mask
+nonrefundable Q reservation: **`3Q=775510077` before all helper/control costs**.
+That subtotal is not permission to omit helpers; the complete checked sum must
+fit before any run. Two legitimate compile-fail docs are allowed, with compiler
+resources separately admitted. Per-invocation `2^28` work and 32 MiB logical-owner
+limits remain unchanged: no automatic counter reset, budget escape or cap raise.
+All preconstruction checks, full-U numerics and closed backend/key/noise/model/
+SDK/security gates remain. This records permission, not inventory proof or passing
+tests.
+
 The source-observed `fhe.rs` pin remains pinned but is not an adopted runtime.
 Approximate backend Down equivalence is **not proved**. No backend adoption,
 key/ciphertext/noise/security qualification or full B-N1 completion follows.

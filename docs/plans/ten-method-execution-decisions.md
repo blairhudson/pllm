@@ -1,6 +1,6 @@
 # Ten-method execution: bounded decision packet
 
-**D29/D30/D31 approved on 23 October 2026; later scopes are recorded in D32–D42.**
+**D29/D30/D31 approved on 23 October 2026; later scopes are recorded in D32–D47.**
 Selected actions: S-E conditional local implementation, T-S bounded study, and
 M-N mathematical map/quality criteria only. No completed-method claim follows.
 Later approvals permit exact BF16-scale promotion (D32), bounded HE compilation
@@ -15,11 +15,17 @@ The remaining implementation/adoption choices and missing evidence stay open.
 D39's private party-share terminal (`ba59`) and D41's private ownership/resource
 extraction (`c938`) have landed; neither enables LUT13, LayerNorm or security
 qualification. D42's private original-parent correction issuer landed as
-`f0cb9ed0` (936 package checks and strict Clippy); LayerNorm, LUT13 and SDK
-activation remain unapproved. No activation
+`f0cb9ed0` (936 package checks and strict Clippy); it did not itself authorize
+LayerNorm, LUT13 or SDK activation. No activation
 or new numerical/profile adoption follows from these ownership slices.
-The S-N row below remains a proposal for normalization and wider-row scope,
-not a request to renew D36. Other unselected rows remain proposals.
+D43 subsequently authorized the bounded LocalClearRoot4 component; wider/inherited
+normalization and SDK scope remain unselected. The table retains historical
+D37/D38 commissions. Its M-X implementation-unselected and N-N full-clear-
+normalization-closed descriptions are superseded only by the D44–D46 landings
+below; protected-decoder/adoption gates remain intact. D47 separately approves
+clear BumbleBee whole-phase composition, not backend adoption or a fit result.
+The remaining S-N scope is wider normalization/causal softmax, not renewal of
+D36 or D43. Other unselected scopes remain proposals.
 Governing authority: [decision register](../../paper/methods/DECISIONS.md).
 Already-approved work is not up for renewal here. Original protocols and secure
 randomness remain requirements; missing author code alone does not require adaptation permission.
@@ -51,6 +57,24 @@ Links are normative scope references, not claims that every linked audit is a co
 | **H-F — specify / defer; NOT RNG approval** | [HE remaining blockers](he-secure-sampling-next-step.md#exact-blockers-no-inferred-permission), [sampling design](he-secure-sampling-design.md): **implementation/security freeze incomplete**. | **Specify the next implementation decision**, retaining D28 design-only: exact fallible entropy/parent/child byte contract, algorithm/crate/features, complete expansion coverage, explicit shuffle-law disposition P versus U, and reviewed constructor-copy erasure solution. Recommend no Source/ChaCha8 exception and no compressed-seed imports. No sampler code/pin change permitted by this row. | Return an immutable implementation/security/resource contract covering all 76 parent fills/496 children, chosen finite sampling bounds, constructor/temporary cleanup, owner continuity and whole-epoch fail-burn; unresolved fields stay blocking, not defaults. | ChaCha20 design is not implementation approval. Trusted client export, opaque capacities, finite bigint/setup, full owner/host bounds, parameter security and second-refresh numerics remain independent gates. |
 
 ## Evidence is not an approval choice
+
+**Later bounded landings (baseline `3f9cca4a`).** D44 metadata admission remains
+non-executable. D45's native Maverick two-batch request (`213e1929`) adds four
+raw-field claims and both global barriers, not numerical continuation or
+failure-timing/adversarial-continuation permission. D43 adds LocalClearRoot4
+private party-share outputs only. D46 adds NEXUS explicit clear Eq.5 row-head
+normalization (`3f9cca4a`) and THOR artifact-call clear FFN (`0e8d809f`);
+ROSETTA's coefficient reference (`dbe7beae`) does not implement HomComp/conversions.
+Source/tests and separate correctness counts are recorded in the
+[claim matrix](../../paper/CLAIMS-AND-EVIDENCE.md#framework-claim-to-evidence-matrix),
+not a combined execution campaign. Combined regression remains in progress.
+
+**Pending evidence stays pending.** PUMA reader's 14 passing controls do not
+complete History/Storage/Worker. CacheMir append SOURCE03 remains HOLD (eight
+passes, six failures; manifest arity unresolved). BumbleBee v2 is source-review
+clear; its nine-unit/two-doc qualification has a separately granted lane but no
+terminal result here. D47's aggregate allowance still requires a checked complete
+prelaunch inventory. Neither unlanded candidate is a passing method gate.
 
 **Current execution boundary.** FSS remains **prepare-only**, not a completed
 trained request. PUMA's checked-public native SDK slices (`c05`/`923`) have landed,
@@ -84,5 +108,5 @@ landings do not remove source/security blockers or establish comparative ranks.
 All later implementation must reuse shared source/component/admission/ownership,
 transport and scheduling contracts. Completion still requires actual independent
 correctness, lifecycle, quality/resource evidence and ordinary SDK qualification;
-this document runs no code, builds or tests. D29–D42 record only their selected
+this document runs no code, builds or tests. D29–D47 record only their selected
 individual scopes; all remaining proposals and evidence gates stay unchanged.
