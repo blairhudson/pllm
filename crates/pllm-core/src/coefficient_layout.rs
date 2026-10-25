@@ -10,6 +10,8 @@
 /// Preserve the existing coefficient-repacking degree and input-count bounds.
 pub const MAX_DEGREE: usize = 4096;
 pub const MAX_INTERLEAVE_INPUTS: usize = 256;
+pub mod coordinates;
+pub(crate) mod trace;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LayoutError {
@@ -58,27 +60,7 @@ impl CoefficientRing {
     }
 
     fn neg(self, v: u64) -> u64 {
-        if v == 0 {
-            0
-        } else {
-            self.modulus - v
-        }
-    }
-
-    fn add(self, a: u64, b: u64) -> u64 {
-        (a + b) % self.modulus
-    }
-
-    fn sub(self, a: u64, b: u64) -> u64 {
-        if a >= b {
-            a - b
-        } else {
-            self.modulus - (b - a)
-        }
-    }
-
-    fn mul(self, a: u64, b: u64) -> u64 {
-        (u128::from(a) * u128::from(b) % u128::from(self.modulus)) as u64
+        if v == 0 { 0 } else { self.modulus - v }
     }
 
     /// Exact inverse in the odd coefficient ring, never ring-2^ell division.
@@ -88,11 +70,7 @@ impl CoefficientRing {
         }
         // Same repeated inverse-of-two law as coefficient_repacking; no prime
         // assumption is needed (odd composite moduli also work).
-        let mut inverse = 1;
-        for _ in 0..divisor.trailing_zeros() {
-            inverse = self.mul(inverse, self.modulus.div_ceil(2));
-        }
-        Ok(inverse)
+        Ok(trace::inverse_power_two(self.modulus, divisor))
     }
 
     /// Multiply by X^exponent modulo X^N+1, including negative exponents.
@@ -154,60 +132,16 @@ impl CoefficientRing {
         output: &mut [u64],
         scratch: &mut [u64],
     ) -> Result<(), LayoutError> {
-        let padded = self.interleave_geometry(stride, count)?;
-        if input.len() != count * self.degree
-            || output.len() != self.degree
-            || scratch.len() != (padded + 1) * self.degree
-        {
-            return Err(LayoutError::BufferLength);
-        }
-        self.canonical(input)?;
-        let inverse = self.inverse_power_two(stride)?;
-        let (values, temp) = scratch.split_at_mut(padded * self.degree);
-        values.fill(0);
-        for (v, &a) in values.iter_mut().zip(input) {
-            *v = self.mul(a, inverse);
-        }
-        // Partial groups first trace from padded lanes up to the full stride.
-        // This is the same generalized trace used by coefficient_repacking.py.
-        for value in values.chunks_exact_mut(self.degree) {
-            let mut h = padded;
-            while h < stride {
-                temp.copy_from_slice(value);
-                self.add_automorphism(value, temp, self.degree / h + 1);
-                h *= 2;
-            }
-        }
-        let mut h = padded / 2;
-        while h != 0 {
-            let (left, right) = values.split_at_mut(h * self.degree);
-            for (a, b) in left
-                .chunks_exact_mut(self.degree)
-                .zip(right.chunks_exact(self.degree))
-            {
-                for i in 0..self.degree {
-                    let shifted = if i >= h {
-                        b[i - h]
-                    } else {
-                        self.neg(b[self.degree + i - h])
-                    };
-                    temp[i] = self.sub(a[i], shifted);
-                    a[i] = self.add(a[i], shifted);
-                }
-                self.add_automorphism(a, temp, self.degree / h + 1);
-            }
-            h /= 2;
-        }
-        output.copy_from_slice(&values[..self.degree]);
-        Ok(())
-    }
-
-    fn add_automorphism(self, output: &mut [u64], input: &[u64], element: usize) {
-        for (i, &v) in input.iter().enumerate() {
-            let at = (i * element) % (2 * self.degree);
-            let v = if at < self.degree { v } else { self.neg(v) };
-            output[at % self.degree] = self.add(output[at % self.degree], v);
-        }
+        trace::interleave(
+            self.degree,
+            self.modulus,
+            MAX_DEGREE,
+            input,
+            stride,
+            count,
+            output,
+            scratch,
+        )
     }
 }
 
@@ -245,6 +179,9 @@ fn product(a: usize, b: usize) -> Result<usize, LayoutError> {
 }
 
 impl CoefficientLayout {
+    fn coordinates(self) -> Result<coordinates::Coordinates, LayoutError> {
+        coordinates::Coordinates::bounded(self.ring.degree, self.shape, self.window, MAX_DEGREE)
+    }
     /// Explicit caller-byte admission, not an allocation. Degree <=4096 and
     /// mw<=256 preserve existing repacking bounds; no HE capacity is increased.
     pub fn new(
@@ -354,19 +291,9 @@ impl CoefficientLayout {
         }
         self.ring.canonical(matrix)?;
         output.fill(0);
-        let [kw, mw, nw] = self.window;
-        let row_start = row_block * kw;
-        let inner_start = inner_block * mw;
-        for r in 0..kw.min(self.shape[0] - row_start) {
-            for h in 0..mw.min(self.shape[1] - inner_start) {
-                let v = matrix[(row_start + r) * self.shape[1] + inner_start + h];
-                let base = r * nw * mw;
-                if base >= h {
-                    output[base - h] = v;
-                } else {
-                    output[self.ring.degree - (h - base)] = self.ring.neg(v);
-                }
-            }
+        for at in self.coordinates()?.lhs(row_block, inner_block)? {
+            let v = matrix[at.matrix];
+            output[at.coefficient] = if at.negative { self.ring.neg(v) } else { v };
         }
         Ok(())
     }
@@ -387,13 +314,8 @@ impl CoefficientLayout {
         }
         self.ring.canonical(matrix)?;
         output.fill(0);
-        let [_, mw, nw] = self.window;
-        let inner_start = inner_block * mw;
-        let col_start = col_block * nw;
-        for h in 0..mw.min(self.shape[1] - inner_start) {
-            for c in 0..nw.min(self.shape[2] - col_start) {
-                output[c * mw + h] = matrix[(inner_start + h) * self.shape[2] + col_start + c];
-            }
+        for at in self.coordinates()?.rhs(inner_block, col_block)? {
+            output[at.coefficient] = matrix[at.matrix];
         }
         Ok(())
     }
@@ -403,9 +325,7 @@ impl CoefficientLayout {
         if row >= self.shape[0] || col >= self.shape[2] {
             return Err(LayoutError::Index);
         }
-        let [kw, mw, nw] = self.window;
-        let t = (row / kw) * self.blocks[2] + col / nw;
-        Ok((t / mw, ((row % kw) * nw + col % nw) * mw + t % mw))
+        self.coordinates()?.address(row, col)
     }
 
     /// ParseMat with global t=alpha*n_prime+gamma and unrotated lane t%mw.

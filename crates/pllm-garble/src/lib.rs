@@ -4,6 +4,7 @@
 
 pub mod boolean;
 pub mod boolean_stream;
+pub mod coefficient_phase_reference;
 pub mod compact;
 pub mod compact_coordinate;
 mod compact_dcf;

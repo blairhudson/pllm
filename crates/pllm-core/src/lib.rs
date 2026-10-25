@@ -15,6 +15,7 @@ pub mod coded_linear;
 pub mod coefficient_compression;
 pub mod coefficient_conversion;
 pub mod coefficient_layout;
+pub mod coefficient_phase_reference;
 pub mod coefficient_repacking;
 pub mod segmented_affine_reference;
 pub mod compact;
