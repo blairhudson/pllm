@@ -67,14 +67,25 @@ normalization (`3f9cca4a`) and THOR artifact-call clear FFN (`0e8d809f`);
 ROSETTA's coefficient reference (`dbe7beae`) does not implement HomComp/conversions.
 Source/tests and separate correctness counts are recorded in the
 [claim matrix](../../paper/CLAIMS-AND-EVIDENCE.md#framework-claim-to-evidence-matrix),
-not a combined execution campaign. Combined regression remains in progress.
+not a combined benchmark or SDK campaign. Separately, exact revision
+`3f9cca4ad6d1455728bce58eee4c3023b75bfa39` passed four-package core/garble/
+compiler/python regression: 3,423 unit/integration executions, 162 doctests,
+17 normal ignores and one explicit legacy N-N six-map exclusion; strict
+four-package `--lib --tests` Clippy passed without source fixes/tracked changes.
+This excludes later BumbleBee `8afefb0c`, docs `0fb00b2f`, unlanded CacheMir
+SOURCE04 and unfinished PUMA sealed execution. It is not latest-HEAD, SDK,
+performance, quality, security or release-CI qualification.
 
 **Pending evidence stays pending.** PUMA reader's 14 passing controls do not
 complete History/Storage/Worker. CacheMir append SOURCE03 remains HOLD (eight
-passes, six failures; manifest arity unresolved). BumbleBee v2 is source-review
-clear; its nine-unit/two-doc qualification has a separately granted lane but no
-terminal result here. D47's aggregate allowance still requires a checked complete
-prelaunch inventory. Neither unlanded candidate is a passing method gate.
+passes, six failures; manifest arity unresolved); SOURCE04 is not included in the
+combined gate. BumbleBee's separate clear coefficient phase landed `8afefb0c`
+after nine ordinary tests and two E0616 compile-fail docs, with 780,444,118
+declared campaign arithmetic under D47's qualification allowance; 32 MiB logical
+owners/per-invocation `2^28` remain unchanged. The old Delta oracle/counterexample
+is retained. This is not ciphertext/backend, private-share, approximate RNS Down,
+source-authentication, security or whole-method qualification. Neither this clear
+component nor pending candidates supply an additional completed method.
 
 **Current execution boundary.** FSS remains **prepare-only**, not a completed
 trained request. PUMA's checked-public native SDK slices (`c05`/`923`) have landed,

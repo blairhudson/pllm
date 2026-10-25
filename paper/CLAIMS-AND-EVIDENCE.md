@@ -43,6 +43,7 @@ document their own execution identities. None supplies another category by itsel
 | NEXUS complete clear normalization? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D](manuscript.md#appendix-d-implementation-contracts-and-controls) | D46: [row normalization](../crates/pllm-core/src/row_normalization_reference.rs), [core tests](../crates/pllm-core/src/row_normalization_reference_tests.rs), [compiler controls](../crates/pllm-compiler/src/row_normalization_reference_tests.rs); explicit Eq.5 width-768, 32×1024 row-head binary64 contract, no epsilon, zero-energy refusal; 11 new and seven legacy checks | Clear reference, not CKKS profile adoption or an encrypted decoder |
 | THOR clear FFN composition? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D](manuscript.md#appendix-d-implementation-contracts-and-controls) | D46: [polynomial schedule](../crates/pllm-core/src/polynomial_schedule.rs), [clear FFN](../crates/pllm-compiler/src/clear_ffn_region.rs), [tests](../crates/pllm-compiler/src/clear_ffn_region_tests.rs); 2×4 artifact-call composition before residual/bootstrap; nine unit, one doc and 20 legacy layout checks | No evaluated-author identity, HE execution or complete encoder qualification |
 | ROSETTA coefficient reference? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D](manuscript.md#appendix-d-implementation-contracts-and-controls) | [Segmented affine reference](../crates/pllm-core/src/segmented_affine_reference.rs), [tests](../crates/pllm-core/src/segmented_affine_reference_tests.rs); explicit 8,192-coordinate coefficient grid, six clear-reference tests | Not HomComp, conversion, a protected kernel or a complete round trip |
+| BumbleBee clear coefficient phase? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D](manuscript.md#appendix-d-implementation-contracts-and-controls) | Separately landed `8afefb0c`: [clear phase](../crates/pllm-core/src/coefficient_phase_reference.rs), [core tests](../crates/pllm-core/src/coefficient_phase_reference/tests.rs), [adapter tests](../crates/pllm-garble/src/coefficient_phase_reference/tests.rs). Nine ordinary tests and two E0616 compile-fail controls; 780,444,118 declared campaign arithmetic, 32 MiB logical owners and per-invocation `2^28` work. Old Delta oracle/counterexample retained | Clear algebra only; no ciphertext/backend, private-share, security, approximate RNS Down equivalence, source authentication or full-method qualification. Excluded from the earlier `3f9cca4a` combined gate |
 | Does one configuration reach the public execution surfaces? | [§3.1](manuscript.md#31-experiment-interface); [Appendix D.1, Listing 1](manuscript.md#d1-experiment-interface) | `../python/pllm/configuration.py`: `Pipeline`, `Experiment`, canonical serialization and digests. `methods/sdk-integration.md`; `artifacts/listing1/qwen-fresh-v2/` records the pinned prepared SDK/gateway example | `resolve()` is composition resolution, not checkpoint execution, memory admission or security qualification. Not every method supports every entry point |
 | Does the compiler preserve semantic and execution identity? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D.2](manuscript.md#d2-model-representation-and-components) | `../crates/pllm-compiler/src/decoder_runtime_schedule.rs`, `../python/pllm/runtime/model_binding.py`: phase steps, source-plan/composition digests, state handoff and bound runtime stages | Schedule completeness does not prove a protected decoder, numerical fidelity or protocol privacy |
 | Can a reusable extension preserve decoder state? | [§3.3](manuscript.md#33-an-extension-and-its-tests); [Appendix D.3](manuscript.md#d3-an-extension-and-its-tests) | `../crates/pllm-compiler/src/mlp_tiling.rs`; `IMPLEMENTATION-EVIDENCE.md`; historical outputs in `artifacts/conformance/`. Source/schedule/composition/tile binding, exclusive consumers, generated exact-state and independent FP32 controls | Generated fixtures and the separate Listing 1 functionality replay do not establish task quality or matched runtime performance |
@@ -57,13 +58,20 @@ document their own execution identities. None supplies another category by itsel
 The manuscript's title does not establish high performance or autonomous research
 productivity. A matched runtime comparison and any claimed automation evaluation
 need their own evidence. This revision adds no measurements or method ranks.
-These individual component gates coexist at `3f9cca4a`; they are not a combined
+The five earlier component gates coexist at `3f9cca4a`; they are not a combined
 SDK/native benchmark or performance, quality or security comparison. Trained
 response coverage remains 1/10 and publication qualification 0/10; the matched
 ten-method campaign is unknown/unmeasured and tenfold performance is unmeasured.
-Combined regression is in progress, not a passing result here. Pending PUMA
-owning-reader/history work and unlanded BumbleBee/CacheMir source gates supply no
-additional completed-method evidence.
+At exact revision `3f9cca4ad6d1455728bce58eee4c3023b75bfa39`, a separate
+four-package core/garble/compiler/python regression passed **3,423 unit/integration
+executions and 162 doctests**, with 17 normal ignores and **one explicit legacy
+N-N six-map exclusion**. Strict four-package `--lib --tests` Clippy passed;
+no source fixes or tracked changes were made. This is regression qualification,
+not a performance, quality, SDK, security or release-CI result. It excludes later
+BumbleBee `8afefb0c`, documentation `0fb00b2f`, unlanded CacheMir SOURCE04 and
+the unfinished PUMA sealed path; it is not latest-Main qualification. Pending
+PUMA owning-reader/history work and CacheMir source gates supply no additional
+completed-method evidence. The later BumbleBee row remains separate.
 The six-page main-text target and 20-page total guard are distinct layout
 requirements. Passing the total-page guard does not establish main-text compliance.
 
