@@ -97,6 +97,19 @@ D49 registration, 76 pure/scanner tests and gateway test definitions do not
 establish execution of the ordinary compact SDK. This evidence qualifies the
 committed revision, not the dirty ROOT compiler drafts or latest working tree.
 
+**Isolated HE consumer storage evidence (D48, O850 reviewed).** Upstream
+`ca353257` plus Layout patch `c61b57b7`, with four coherent Poulpy v0.9 path
+substitutions in isolation, passed five key-free storage tests, 31 filtered;
+Main pins remain unchanged. Compilation took 63 s; tests took 0.460 s, output
+1353 bytes, observed peak RSS 8,437,760 bytes and cumulative `Swapouts`
+104232280 unchanged. Time (60 s) and output (1 MiB) were enforced; memory/swap
+were observational, not hard isolation. Typed raw/prepared consumers compile,
+but these tests do **not** execute rotation-key adoption. No keys, transforms,
+trusted export, full-resource, runtime, security or backend-adoption claim follows.
+Ordinary evidence remains under the approved temporary root at
+`he-layout-d38-consumer/benchmarks/native/poulpy_refresh/target/d48-61243-*`;
+this is not a new complete-method or publication result.
+
 The six-page main-text target and 20-page total guard are distinct layout
 requirements. Passing the total-page guard does not establish main-text compliance.
 
