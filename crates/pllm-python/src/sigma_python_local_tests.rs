@@ -447,3 +447,6 @@ fn known_controls_exact_one_short_are_real_reservations_not_complete_python_quot
         Err(BridgeError::UnadmittedPython)
     );
 }
+
+#[path = "sigma_python_raw_plan_tests.rs"]
+mod raw_plan_vertical;
