@@ -76,8 +76,8 @@ This excludes later BumbleBee `8afefb0c`, docs `0fb00b2f`, unlanded CacheMir
 SOURCE04 and unfinished PUMA sealed execution. It is not latest-HEAD, SDK,
 performance, quality, security or release-CI qualification.
 
-**Pending evidence stays pending.** PUMA reader's 14 passing controls do not
-complete History/Storage/Worker. CacheMir append SOURCE03 remains HOLD (eight
+**Historical pending evidence.** PUMA reader's earlier 14 passing controls alone
+did not complete History/Storage/Worker. CacheMir append SOURCE03 remained HOLD (eight
 passes, six failures; manifest arity unresolved); SOURCE04 is not included in the
 combined gate. BumbleBee's separate clear coefficient phase landed `8afefb0c`
 after nine ordinary tests and two E0616 compile-fail docs, with 780,444,118
@@ -90,10 +90,23 @@ component nor pending candidates supply an additional completed method.
 **Current execution boundary.** FSS remains **prepare-only**, not a completed
 trained request. PUMA's checked-public native SDK slices (`c05`/`923`) have landed,
 as have compact lookup (`9fd`), RMS (`06`), request rescale (`e92`), guarded SiLU
-(`6b`) and RoPE/KV continuity (`4721`). Complete two-epoch owning Storage/Worker
-execution and production BODY/coordinator drain remain unfinished. D40 (`ca7`)
+(`6b`) and RoPE/KV continuity (`4721`). The bounded private two-epoch owning
+Storage/original-Worker path subsequently landed `0d9dcaaa`; ordinary compact SDK
+execution and production BODY/coordinator drain remain unqualified. D40 (`ca7`)
 covers every authorized `(R+s, O-s)` prefix, but policy permission supplies
 neither source authority nor whole-checkpoint fit.
+
+**Scoped postlanding PUMA gate.** At exact revision
+`0d9dcaaa7628c2f364fbeb39e6fe696560a62c92`, module-filtered tests passed 780 compiler
+and three Python boundary cases, zero failures/ignores, with 540/60 respective
+module exclusions; four-package strict `--lib --tests` Clippy passed. No BB replay
+occurred. Python entry was expanded, not compact SDK. The prior 1,615-pass
+candidate gate separately exercised native compact four-to-five-token original
+Worker execution (`[1,0]`, validity 1) and early/later sticky masking; do not add
+its counts to 783. See the [committed runtime controls](../../crates/pllm-compiler/src/replicated_decoder/compact_request_storage_tests.rs).
+D49 approval, registration, 76 pure/scanner tests and gateway definitions do not
+establish ordinary compact SDK execution. Dirty ROOT compiler drafts are outside
+this revision-bound gate; no trained, full-fit or whole-method claim follows.
 
 **Installed evidence stays separate.** The older installed `923` run's 269 passes
 are historical. The broader installed `c938` rerun recorded 171 passes, four startup-admission refusals (the exact triggering predicate remains unresolved)

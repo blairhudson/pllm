@@ -82,6 +82,21 @@ BumbleBee's nine ordinary tests ran once each; its two compile-fail controls are
 already included in 164. Its D47 `2^30` repeat allowance covers only that subset
 (780,444,118 declared work); `2^28` per invocation and 32 MiB owner caps are unchanged.
 This supersedes the earlier source coverage, not its historical results; counts are not additive. It supplies no SDK, trained-model, physical-memory, performance, security or release-CI qualification, and does not complete PUMA sealed execution. Local raw evidence is retained under the review worktree's `target/multi-paper-post-cache-bb-slot-a-{tests,docs,clippy}.log`; these are development logs, not published campaign measurements.
+**Later scoped PUMA integration at `0d9dcaaa7628c2f364fbeb39e6fe696560a62c92`:**
+raw module-filtered logs record 780 compiler and three Python boundary passes
+(783 total), zero failures/ignores, with 540 compiler and 60 Python tests excluded
+by those filters. Four-package core/garble/compiler/python strict `--lib --tests`
+Clippy passed; no BumbleBee campaign replay occurred. The Python entry exercised
+expanded execution, not the D49 compact SDK route. Separately, the prior 1,615-pass
+candidate gate includes [sealed runtime controls](../crates/pllm-compiler/src/replicated_decoder/compact_request_storage_tests.rs):
+native compact four-to-five-token execution through the original Worker produces
+`[1,0]` and validity 1; early/later sticky rejection masks both outputs. Those
+counts are not added to 783. The [owning sealed path](../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs)
+is a bounded private native vertical, not trained/full-fit/SDK qualification.
+D49 registration, 76 pure/scanner tests and gateway test definitions do not
+establish execution of the ordinary compact SDK. This evidence qualifies the
+committed revision, not the dirty ROOT compiler drafts or latest working tree.
+
 The six-page main-text target and 20-page total guard are distinct layout
 requirements. Passing the total-page guard does not establish main-text compliance.
 
