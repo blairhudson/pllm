@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import shutil
 import subprocess
 import sys
@@ -11,7 +12,7 @@ import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest import mock
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILD = ROOT / "docs/build/papers"
@@ -239,6 +240,36 @@ class PaperFigureIntegrationTests(unittest.TestCase):
         self.builder = importlib.util.module_from_spec(spec)
         with mock.patch.dict(sys.modules, {spec.name: self.builder}):
             spec.loader.exec_module(self.builder)
+
+    def test_main_source_archive_includes_claims_sibling(self) -> None:
+        (ROOT / "target").mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=ROOT / "target", prefix="paper-source-sibling-") as temporary:
+            with mock.patch.object(self.builder, "DOWNLOADS", Path(temporary)):
+                output = self.builder.source_archive("paper", self.builder.PAPERS["paper"])
+                first = output.read_bytes()
+                with ZipFile(output) as archive:
+                    names = archive.namelist()
+                    self.assertEqual(names.count("paper/CLAIMS-AND-EVIDENCE.md"), 1)
+                    manuscript = archive.read("paper/manuscript.md")
+                    self.assertEqual(manuscript, (ROOT / "paper/manuscript.md").read_bytes())
+                    link = re.search(
+                        r"\[the claim-to-evidence matrix\]\(([^)]+)\)",
+                        manuscript.decode(),
+                    )
+                    self.assertIsNotNone(link)
+                    sibling = Path("paper/manuscript.md").parent / link.group(1).split("#")[0]
+                    self.assertEqual(sibling.as_posix(), "paper/CLAIMS-AND-EVIDENCE.md")
+                    self.assertEqual(archive.read(sibling.as_posix()), (ROOT / sibling).read_bytes())
+                    self.assertEqual(names, sorted(names))
+                    self.assertEqual(len(names), len(set(names)))
+                    for member in archive.infolist():
+                        self.assertEqual(member.date_time, (1980, 1, 1, 0, 0, 0))
+                        self.assertEqual(member.external_attr, 0o100644 << 16)
+                        self.assertEqual(member.compress_type, ZIP_DEFLATED)
+                self.assertEqual(
+                    self.builder.source_archive("paper", self.builder.PAPERS["paper"]).read_bytes(),
+                    first,
+                )
 
     def test_low_memory_assets_reach_web_downloads_and_both_archives(self) -> None:
         (ROOT / "target").mkdir(exist_ok=True)

@@ -500,6 +500,8 @@ def source_archive(name: str, spec: Paper, *, result_tex: str | None = None) -> 
         Path("paper/web.lua"),
         Path("paper/web.template.md"),
     ]
+    if name == "paper":
+        files.append(Path("paper/CLAIMS-AND-EVIDENCE.md"))
     if spec.bibliography:
         files.extend((Path("paper/header.tex"), Path("paper/pdf.lua"), Path("paper/references.bib")))
     if name == "whitepaper":
