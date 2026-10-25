@@ -1359,11 +1359,44 @@ of the ordinary corrected request.
 
 **Validation scope:** pure weights-free correctness tests first, and only those
 tests are authorized by this approval. No model/source loading, factories,
-checkpoint/trained inference, native gateway or wheel run is authorized here;
-matching-wheel regression requires later approval. D49's bounded compact SDK
+checkpoint/trained inference, native gateway or wheel run was authorized by that
+initial approval. D49's bounded compact SDK
 qualification, D50's source-only preparation and FSS prepare-only status remain
 unchanged. This decision records permission, not implementation evidence or a
 new production, proof, security, quality, fit or readiness claim.
+
+**Additional validation approved on 26 October 2026 (user61768):** after pure
+weights-free correctness tests, permit matching-wheel regressions and bounded
+generated ordinary SDK/gateway tests with independently derived corrected-prompt
+oracles. These tests must not reuse the legacy role-prefix cohort as parity
+evidence. This does not authorize trained-model/checkpoint runs or loading,
+establish source authentication/security, or qualify ordinary 30-token fit;
+individual execution slots and unchanged resource admission still apply.
+
+## D52. Registered decoder readout-summary correction
+
+**Explicitly approved on 26 October 2026 (user61768):** correct the allocation-free
+source summary to match each proven registered decoder readout contract. The
+existing dense decoder computes full-prefix final normalization, selects
+`LastToken [B,H]`, then emits `OutputHead [B,V]` and greedy selection; its source
+summary must not invent full-prefix `[B,R,V]` logits. Use a typed mapping contract,
+not model-family execution branches or a caller boolean. Unverified mappings and
+full-logits/quality paths retain their actual full shapes or conservative bounds.
+
+Retain all full-prefix activation/intermediate, normalization, attention, cache
+and product terms. Ordinary 1,048,576-lane, 64 MiB, descriptor and cumulative-work
+guards remain unchanged. No execution optimization, arithmetic, Program/context,
+PRSS/order, checked-range elimination, weight accounting, wire, source pin or new
+public mode is authorized by this correction.
+
+Validate weights-free symbolic emitted-graph shape parity across supported
+prefill/decode/feedback, batch, row and vocabulary boundaries; separately quote
+the actual cached-config 30/31-row metadata with factories trapped. Preserve the
+historical four-row quote as historical scope, not evidence for the corrected
+ordinary request. Whole metadata admission may still refuse another unchanged
+guard; neither summary parity nor a passing metadata quote establishes source
+collection, checkpoint compilation, complete request fit or runtime qualification.
+No trained/model/HE/FSS campaign or SDK/wheel/gateway run follows from D52 alone.
 
 ## Decision record
 
@@ -1419,7 +1452,8 @@ new production, proof, security, quality, fit or readiness claim.
 | D48 | Approved: isolated pinned Poulpy owning-Layout qualification | Offline apply/compile and two storage tests, 12 tiny cases/backing ≤4096 B; 60 s/256 MiB/zero new swap/1 MiB output with refusal on unavailable dependencies/guards. Single-job D33 compile headroom; no Main/dependency adoption, consumer activation, RNG/keys/transforms/encryption, security or fit qualification. |
 | D49 | Approved: explicit compact PUMA SDK source integration | Immutable opt-in storage, unchanged expanded defaults/digests; trusted-server Experiment policy and original-counter source-owned publisher/all-worker compilation before Manifest/seal. Bounded matching-wheel/gateway tests required, no fallback, cap change, trained run, BODY drain or automatic SDK/security qualification. |
 | D50 | Approved: isolated source-only ChaCha20-v1 preparation | Opt-in typed version/domain child seeds across secret/noise/uniform descendants; no bare-seed downgrade, unchanged legacy ChaCha8/APIs/laws, compressed creation refuses before writes. Finite key-free test definitions only; no compilation/execution, adoption, keys/transforms/encryption/RNG activation or security qualification. |
-| D51 | Approved: source-bound prompt preparation correction | One private source/request/template/tokenizer-bound, one-use result shared by admission/execution and the same weights-free direct-client renderer; absent-template admission fallback only, present-template/errors refuse. Intentional 3-to-30-token Qwen ChatML semantic correction, not parity/cohort reuse; historical legacy reports stay unranked. Pure weights-free tests first only; no model/source loading, factories, checkpoint/inference, native gateway/wheel run or new fit/security/readiness qualification. |
+| D51 | Approved: source-bound prompt preparation correction | One private source/request/template/tokenizer-bound, one-use result shared by admission/execution and the same weights-free direct-client renderer; absent-template admission fallback only, present-template/errors refuse. Intentional 3-to-30-token Qwen ChatML semantic correction, not parity/cohort reuse; historical legacy reports stay unranked. Pure weights-free tests first; user61768 additionally permits separately scheduled matching-wheel/generated SDK/gateway regressions with independent corrected-prompt oracles. No trained/source-model loading or new fit/security/readiness qualification. |
+| D52 | Approved: registered decoder readout-summary correction | Typed proven last-token readout uses [B,V], not fictitious full-prefix logits; retain all other full-prefix shapes and unchanged lane/memory/descriptor/work guards. Symbolic shape parity plus trapped 30/31-row metadata quotes required; no execution/arithmetic/PRSS/profile/pin change or whole-request/checkpoint/runtime-fit claim. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
