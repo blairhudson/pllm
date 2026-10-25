@@ -1,7 +1,7 @@
 //! Source-format discovery. The registry selects a validated architectural
 //! capability set; lowering modules never dispatch on a model family name.
 
-use super::source_budget::{preflight_dense_source, HeadWidth};
+use super::source_budget::{preflight_dense_readout_source, HeadWidth, ReadoutContract};
 use super::{
     absolute_position_decoder, dense_gated_source, fused_dense_decoder, hybrid_text_decoder,
     lower_qwen3_decoder, lower_qwen_decoder, shared_kv_decoder, DecoderExpansionBudget,
@@ -101,7 +101,7 @@ pub(super) fn admitted_lowerer(
 }
 #[derive(Clone, Copy)]
 enum SourcePreflight {
-    Dense(HeadWidth),
+    Dense(HeadWidth, ReadoutContract),
     Other(fn(&Value, DecoderWorkload, DecoderExpansionBudget) -> Result<(), ModelError>),
 }
 impl SourcePreflight {
@@ -112,7 +112,9 @@ impl SourcePreflight {
         budget: DecoderExpansionBudget,
     ) -> Result<(), ModelError> {
         match self {
-            Self::Dense(width) => preflight_dense_source(document, workload, budget, width),
+            Self::Dense(width, readout) => {
+                preflight_dense_readout_source(document, workload, budget, width, readout)
+            }
             Self::Other(preflight) => preflight(document, workload, budget),
         }
     }
@@ -132,8 +134,8 @@ pub(super) fn dense_scalar_summary(
     // Only EXISTING allocation-free admitted dense contracts qualify. GPT's
     // eager adapter and unsupported source formats remain untouched.
     match (mapping.lower_admitted, mapping.preflight) {
-        (Some(_), Some(SourcePreflight::Dense(width))) => {
-            super::source_budget::dense_scalar_summary(document, workload, width)
+        (Some(_), Some(SourcePreflight::Dense(width, readout))) => {
+            super::source_budget::dense_scalar_summary(document, workload, width, readout)
         }
         _ => Err(SourceScalarSummaryError::Unsupported),
     }
@@ -382,7 +384,11 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
                 .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
             lower_qwen_decoder(&config, workload)
         }),
-        preflight: Some(SourcePreflight::Dense(HeadWidth::HiddenPerHead)),
+        // lower_qwen_decoder -> shared lower_graph: final_norm -> LastToken -> OutputHead.
+        preflight: Some(SourcePreflight::Dense(
+            HeadWidth::HiddenPerHead,
+            ReadoutContract::LastToken,
+        )),
     },
     SourceMapping {
         model_type: "qwen3",
@@ -393,14 +399,22 @@ const SOURCE_MAPPINGS: &[SourceMapping] = &[
                 .map_err(|error| ModelError::InvalidJson(error.to_string()))?;
             lower_qwen3_decoder(&config, workload)
         }),
-        preflight: Some(SourcePreflight::Dense(HeadWidth::SourceField)),
+        // lower_qwen3_decoder uses the same last-token graph, with Q/K normalization.
+        preflight: Some(SourcePreflight::Dense(
+            HeadWidth::SourceField,
+            ReadoutContract::LastToken,
+        )),
     },
     SourceMapping {
         model_type: "llama",
         semantic_family: "llama",
         lower: lower_dense_gated,
         lower_admitted: Some(dense_gated_source::lower_admitted_value),
-        preflight: Some(SourcePreflight::Dense(HeadWidth::HiddenPerHead)),
+        // dense_gated_source -> lower_dense_decoder -> the same last-token graph.
+        preflight: Some(SourcePreflight::Dense(
+            HeadWidth::HiddenPerHead,
+            ReadoutContract::LastToken,
+        )),
     },
     SourceMapping {
         model_type: "gemma4",
@@ -652,7 +666,10 @@ mod tests {
             semantic_family: "sentinel",
             lower: lowering_sentinel,
             lower_admitted: None,
-            preflight: Some(SourcePreflight::Dense(HeadWidth::SourceField)),
+            preflight: Some(SourcePreflight::Dense(
+                HeadWidth::SourceField,
+                ReadoutContract::FullPrefix,
+            )),
         };
         let budget = DecoderExpansionBudget {
             max_layers: 16,

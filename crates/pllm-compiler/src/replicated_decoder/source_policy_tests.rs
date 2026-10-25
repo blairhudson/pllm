@@ -343,10 +343,9 @@ fn cached_qwen_config_scalar_policy_and_original_metadata_quote_only() {
         pllm_models::source_scalar_summary(config.payload().value(), workload())
             .unwrap()
             .semantic_elements(),
-        607744
+        151936
     );
-    assert_eq!(limits.expansion.max_tensor_elements, 5 * 151936);
-    assert_eq!(limits.expansion.max_tensor_elements, 759680);
+    assert_eq!(limits.expansion.max_tensor_elements, 151936);
     assert!(limits.expansion.max_tensor_elements < ORDINARY_LANES as u64);
     // The SAME registered, nonconstructing quote owns operation/shape formulas.
     // This does not invoke ConfigLowererQuote::construct, source file import,
@@ -375,9 +374,23 @@ fn cached_qwen_config_scalar_policy_and_original_metadata_quote_only() {
         }
         other => panic!("unexpected metadata-only quotation: {other:?}"),
     }
-    // Original conservative full-row logits, NEVER a last-token-only fit.
+    // Full-prefix intermediate/attention still participates; readout is the
+    // original LastToken -> OutputHead, not fictitious full-row logits.
+    let eight = DecoderWorkload {
+        max_input_tokens: 8,
+        ..workload()
+    };
+    let summary = pllm_models::source_scalar_summary(config.payload().value(), eight).unwrap();
+    assert_eq!(summary.shape_elements[1], 8 * 4864);
+    assert_eq!(summary.shape_elements[2], 151936);
+    match SourceRequestImport::quote_checked_public(&server_raw(), raw, 8, 2) {
+        Ok(resources) => eprintln!("corrected eight-row metadata quote ACCEPTED: {resources:?}; NOT full request fit"),
+        Err(Error::Bounds) => eprintln!("corrected eight-row metadata quote REFUSED by another unchanged guard; NOT full request fit"),
+        other => panic!("unexpected corrected metadata-only quotation: {other:?}"),
+    }
+    // Actual server input ceiling is unchanged.
     assert!(matches!(
-        SourceRequestImport::quote_checked_public(&server_raw(), raw, 8, 2),
+        SourceRequestImport::quote_checked_public(&server_raw(), raw, 33, 2),
         Err(Error::Bounds)
     ));
 }
@@ -441,8 +454,9 @@ fn cached_qwen_compact_metadata_quote_only() {
     let limits = admitted_limits(&admitted_server, &config, None, workload()).unwrap();
     // The unchanged original policy covers both request epochs, 4 -> 5 rows.
     let summary = pllm_models::source_scalar_summary(config.payload().value(), workload()).unwrap();
-    assert_eq!(summary.semantic_elements(), 4 * 151936);
-    assert_eq!(limits.expansion.max_tensor_elements, 5 * 151936);
+    assert_eq!(summary.semantic_elements(), 151936);
+    assert_eq!(summary.shape_elements[1], 4 * 4864);
+    assert_eq!(limits.expansion.max_tensor_elements, 151936);
     assert_eq!(limits.expansion.max_layers, 24);
     assert_eq!(limits.expansion.max_feature_width, 4864);
     assert_eq!(limits.expansion.max_attention_heads, 14);
@@ -464,6 +478,114 @@ fn cached_qwen_compact_metadata_quote_only() {
         }
         Err(Error::Bounds) => eprintln!("compact original-source metadata quote REFUSED: Bounds; unchanged guards, factory trap remained armed/unentered; NOT whole-request fit"),
         other => panic!("unexpected compact metadata-only quotation: {other:?}"),
+    }
+}
+
+#[test]
+fn cached_qwen_compact_30_and_31_rows_metadata_quote_only() {
+    use super::super::program::source_entry::{PolicyFactoryTrap, SourceRequestImport};
+    use super::super::sdk::SourceStorage;
+    use super::super::{LookupPolicy, PeerTransport, SelectionPolicy};
+    use sha2::Digest as _;
+    use std::io::Read as _;
+
+    // Same bounded CONFIG-only source choice as the four-row control. Explicit
+    // missing/oversize cache input fails; never download or silently substitute.
+    let (raw, origin) = match std::env::var_os("PLLM_TEST_QWEN25_CONFIG_PATH") {
+        Some(path) => {
+            let mut raw = Vec::new();
+            std::fs::File::open(&path)
+                .expect("explicit config-only path must exist")
+                .take((CONFIG_BYTES + 1) as u64)
+                .read_to_end(&mut raw)
+                .expect("bounded config-only read");
+            (
+                raw,
+                format!("actual override {}", std::path::Path::new(&path).display()),
+            )
+        }
+        None => (
+            include_bytes!("../../../../tests/fixtures/qwen25_0_5b_config.json").to_vec(),
+            "repository config fixture (not actual cached bytes)".to_owned(),
+        ),
+    };
+    assert!(!raw.is_empty() && raw.len() <= CONFIG_BYTES);
+    eprintln!(
+        "corrected compact CONFIG {origin}; bytes={}; sha256={:x}",
+        raw.len(),
+        sha2::Sha256::digest(&raw)
+    );
+    let _trap = PolicyFactoryTrap::arm();
+    let execution = execution();
+    assert_eq!(execution.lookup, LookupPolicy::PerToken);
+    assert_eq!(execution.selection, SelectionPolicy::Expanded);
+    assert_eq!(execution.peer_transport, PeerTransport::Http);
+    let mut params = execution.component_params(WeightMode::Public);
+    params["storage"] = json!("compact");
+    assert_eq!(
+        SourceStorage::from_params(&params).unwrap(),
+        SourceStorage::Compact
+    );
+    let mut server: serde_json::Value = serde_json::from_slice(&server_raw()).unwrap();
+    server["pipeline"]["components"]["linear"]["params"] = params;
+    server["budget"] = json!({"requests":1,"max_input_tokens":30,"max_new_tokens":2});
+    let server: ExperimentDocument = serde_json::from_value(server).unwrap();
+    let server = pllm_types::canonical_bytes(&server);
+    let workload = DecoderWorkload {
+        batch: 1,
+        max_input_tokens: 30,
+        max_new_tokens: 2,
+    };
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let config = import(&root, raw.clone());
+    let admitted_server = import(&root, server.clone());
+    assert!(std::ptr::eq(config.budget(), admitted_server.budget()));
+    let limits = admitted_limits(&admitted_server, &config, None, workload).unwrap();
+    assert_eq!(MAX_ALLOCATION_BYTES, 64 << 20);
+    assert_eq!(DESCRIPTORS, 65536);
+    assert_eq!(ORDINARY_LANES, 1048576);
+    assert!(limits.max_work < SOURCE_WORK);
+    assert_eq!(limits.factory.max_factory_bytes, MAX_ALLOCATION_BYTES);
+    assert_eq!(limits.expansion.max_tensor_elements, 151936);
+    assert_eq!(limits.factory.max_operations_per_phase, 678);
+    let first = pllm_models::source_scalar_summary(config.payload().value(), workload).unwrap();
+    let next_workload = DecoderWorkload {
+        max_input_tokens: 31,
+        max_new_tokens: 1,
+        ..workload
+    };
+    let next = pllm_models::source_scalar_summary(config.payload().value(), next_workload).unwrap();
+    for (rows, summary) in [(30, first), (31, next)] {
+        assert_eq!(summary.shape_elements[0], rows * 896); // Full hidden/final norm.
+        assert_eq!(summary.shape_elements[1], rows * 4864); // Full intermediate.
+        assert_eq!(summary.shape_elements[2], 151936); // Actual [B,V] readout.
+        assert_eq!(summary.shape_elements[4], 14 * rows * rows); // Full attention.
+        assert_eq!(summary.semantic_elements(), 151936);
+        assert!(summary.semantic_elements() < ORDINARY_LANES as u64);
+    }
+    // Original public quotation, not factory construction or request fit. Its
+    // real owners/ledger remain on the same counter throughout this phase.
+    match SourceRequestImport::quote_checked_public(&server, &raw, 30, 2) {
+        Ok(resources) => {
+            assert!(resources.model_factory_bytes <= MAX_ALLOCATION_BYTES);
+            assert!(resources.prepaid_work <= limits.max_work);
+            eprintln!("corrected 30-row original metadata ACCEPTED: {resources:?}; factory entries=0 (armed trap); NOT whole-request fit");
+        }
+        Err(Error::Bounds) => eprintln!("corrected 30-row original metadata REFUSED: Bounds after scalar lane permission; another unchanged source-quote guard, NOT a lane or whole-request fit claim"),
+        other => panic!("unexpected corrected 30-row quotation: {other:?}"),
+    }
+    // The authenticated 30+2 permission covers the derived (31,1) prefix. Do not
+    // replace the server budget with a fresh 31-input request or construct/lower
+    // a model to ask this question: quote under the SAME actual config/limits.
+    let bootstrap = original_source::bootstrap_bytes(&config, limits).unwrap();
+    match original_source::quote(config, root.charge_external(bootstrap).unwrap(), next_workload, limits) {
+        Ok(quote) => {
+            let resources = quote.resources();
+            assert!(resources.model_factory_bytes <= MAX_ALLOCATION_BYTES);
+            assert!(resources.prepaid_work <= limits.max_work);
+            eprintln!("corrected derived 31-row original metadata ACCEPTED: {resources:?}; factory entries=0 (armed trap); NOT request-history/runtime qualification");
+        }
+        Err(error) => panic!("derived 31-row original metadata refused after scalar permission: {error:?}; preserve this failure, do not raise a cap"),
     }
 }
 

@@ -388,7 +388,32 @@ pub(super) fn preflight_dense_source(
     budget: DecoderExpansionBudget,
     head_width: HeadWidth,
 ) -> Result<(), ModelError> {
-    let summary = dense_scalar_summary(document, workload, head_width).map_err(|_| rejected())?;
+    // Legacy/nonregistered adapters retain the original conservative envelope.
+    preflight_dense_readout_source(
+        document,
+        workload,
+        budget,
+        head_width,
+        ReadoutContract::FullPrefix,
+    )
+}
+
+/// Registered mapping evidence, not an execution mode or caller permission.
+#[derive(Clone, Copy)]
+pub(super) enum ReadoutContract {
+    FullPrefix,
+    LastToken,
+}
+
+pub(super) fn preflight_dense_readout_source(
+    document: &Value,
+    workload: DecoderWorkload,
+    budget: DecoderExpansionBudget,
+    head_width: HeadWidth,
+    readout: ReadoutContract,
+) -> Result<(), ModelError> {
+    let summary =
+        dense_scalar_summary(document, workload, head_width, readout).map_err(|_| rejected())?;
     positive(summary.layers, budget.max_layers)?;
     positive(summary.hidden, budget.max_feature_width)?;
     positive(summary.intermediate, budget.max_feature_width)?;
@@ -408,6 +433,7 @@ pub(super) fn dense_scalar_summary(
     document: &Value,
     workload: DecoderWorkload,
     head_width: HeadWidth,
+    readout: ReadoutContract,
 ) -> Result<SourceScalarSummary, SourceScalarSummaryError> {
     let layers = nonzero(scalar_field(document, "num_hidden_layers")?)?;
     let hidden = nonzero(scalar_field(document, "hidden_size")?)?;
@@ -431,12 +457,16 @@ pub(super) fn dense_scalar_summary(
         .ok_or(SourceScalarSummaryError::Overflow)?;
     let batch = workload.batch;
     let rows = workload.max_input_tokens;
+    let readout_rows = match readout {
+        ReadoutContract::FullPrefix => rows,
+        ReadoutContract::LastToken => 1,
+    };
     // Preflight is also used before an owned constructor has reserved its
     // payload. Shape inspection must not allocate temporary Vecs at that seam.
     let shapes = [
         &[batch, rows, hidden][..],
         &[batch, rows, intermediate][..],
-        &[batch, rows, vocabulary][..],
+        &[batch, readout_rows, vocabulary][..],
         &[batch, rows, heads, head_dim][..],
         &[batch, heads, rows, rows][..],
         &[batch, heads, capacity][..],
@@ -460,6 +490,10 @@ pub(super) fn dense_scalar_summary(
         operations_per_phase: 0,
     })
 }
+
+#[cfg(test)]
+#[path = "source_readout_shape_tests.rs"]
+mod source_readout_shape_tests;
 
 #[cfg(test)]
 mod factory_quote_tests {
