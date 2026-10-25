@@ -1186,6 +1186,19 @@ All preconstruction checks, full-U numerics and closed backend/key/noise/model/
 SDK/security gates remain. This records permission, not inventory proof or passing
 tests.
 
+**One postlanding regression grant, explicitly approved on 25 October 2026
+(user60824):** after CacheMir lands, permit one new combined four-package
+correctness/doctest regression and strict Clippy run, including the BumbleBee
+nine-test campaign **once**, under an additional `2^30` aggregate qualification
+allowance separate from initial qualification. The unchanged source supplies the
+same checked **780444118** BumbleBee-subset inventory; admit the complete run
+before execution rather than treating that subset as unpriced remaining work.
+Per-invocation `2^28` work and 32 MiB logical owners remain unchanged. Explicitly
+skip the historical legacy N-N six-map campaign. Additional full-region retries
+are not automatic. No production cap increase, counter escape, model execution,
+HE/backend adoption, benchmark or FSS inference is authorized; all prior D47
+denials remain. This grants a run, not a latest-revision passing result.
+
 The source-observed `fhe.rs` pin remains pinned but is not an adopted runtime.
 Approximate backend Down equivalence is **not proved**. No backend adoption,
 key/ciphertext/noise/security qualification or full B-N1 completion follows.
