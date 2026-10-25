@@ -1,4 +1,4 @@
-# CacheMir: proposed numerical and retained-state completion
+# CacheMir: numerical and retained-state specification packet
 
 **Status: DESIGN ONLY, not an adopted profile or an executable method.** This
 packet implements the user's C-S specification request (D37), against
@@ -7,6 +7,15 @@ are separately selectable; neither selects a backend, changes caps, or resolves
 output disclosure. No calibration, model, HE, build, or network test ran here.
 The cached governing PDF was read and its hash checked; artifact findings below
 are inherited from the linked immutable-source audit, not fresh artifact retrieval.
+
+**26 October 2026, user62077 C-NP update:** specification approval selects base
+Meta-Llama-3-8B / WikiText-2 raw-v1 calibration protocol below, preserving standard
+Goldschmidt. Coefficients, certified domains, backend and execution remain
+unapproved. See [source → capability integration contract](cachemir-source-capability-join.md)
+for candidate public revision pins, HTTP-401 descriptor gaps, concrete operator
+dependencies, GQA/physical-layout refusals, original-owner/admission requirements
+and remaining decisions. This update does not adopt §4 state policy, numerical
+evaluation conventions, disclosure or any private decoder completion.
 
 **D38 update:** only the 66 N-Q synthetic numeric cases in §5 may be implemented
 and checked within their stated limits. S-Q, calibration and numerical/state or
@@ -83,8 +92,8 @@ calibration protocol does **not** identify the authors' evaluated run.
 
 | Field | Proposed selection / mandatory pin before numerical adoption |
 | --- | --- |
-| Model/source | `meta-llama/Meta-Llama-3-8B`; exact immutable revision, config/tokenizer bytes, tensor index, all shard hashes and verified source mapping: **UNKNOWN/BLOCKED**. Bind actual norm/epsilon, activation, RoPE, tied head, Q/KV heads and precision from that source, not the artifact. |
-| Corpus | Proposed WikiText-2 raw-v1: train for calibration, validation for candidate selection, test held out for quality. Dataset repository revision, split byte hashes/order and license: **UNKNOWN/BLOCKED**; this is not asserted to be the paper's preprocessing. |
+| Model/source | Selected base `meta-llama/Meta-Llama-3-8B`; public repository candidate revision `8cde5ca8380496c9a6cc7ef3a8b46a0372a1d920`. Pinned config/tokenizer descriptors returned HTTP 401; exact bytes, tensor/index/shard identities and verified source mapping: **MISSING/BLOCKED**. No tensor/index body acquired. Bind actual norm/epsilon, activation, RoPE, head tying, Q/KV heads and precision from original source, not artifact or repository identity. See [pin/conflict table](cachemir-source-capability-join.md#1-immutable-identities-conflicts-and-missing-fields). |
+| Corpus | Selected WikiText-2 raw-v1: train for calibration, validation for candidate selection, test held out for quality. Public candidate `Salesforce/wikitext@b08601e04326c79dfdd32d625aee71d232d685c3`, config `wikitext-2-raw-v1`; card lists CC-BY-SA-3.0/GFDL. Exact split bytes/hashes/order, loader identity and applicable data-use review **MISSING/BLOCKED**; no rows acquired. This is not asserted to be paper preprocessing. |
 | Calibration procedure | Proposed batch one; strict UTF-8 text rows in pinned split order, joined with two LF characters, no shuffle, chat template or Unicode normalization. Tokenize with special-token insertion disabled; form the first 128 disjoint complete 511-ID stream segments and prepend the pinned model BOS ID to each, giving 512 IDs/window. Insert no EOS; retain any IDs naturally produced by the pinned tokenizer. Pin row/segment offsets and BOS identity; discard an incomplete final segment and reject fewer than 128 rather than change the protocol. Record every semantic-node input/output, not only three exemplar layers. No execution of this procedure is approved here. |
 | Held-out separation | Never tune coefficients/ranges on the test split. Freeze calibration records, fitting program/version, input digest and full coefficient bytes before validation/quality. Actual observations and fitted coefficients: **UNKNOWN/BLOCKED**. |
 | Per-node numerical record | Actual source operator ID, layer/phase/active geometry, approximation target, input interval, scaling/shift, positive denominator bounds `a_i,b_i`, integer `m_i`, polynomial stages/coefficient bytes/order, CKKS schedule and output error budget. **No node record is populated yet.** All must be complete before adoption. |
@@ -298,7 +307,7 @@ supply exact primes, security, CKKS precision or original native capacities.
 | Separate choice | Exact scope; no bundled adoption |
 | --- | --- |
 | C-N: retain evaluated-source requirement | Wait for the actual standard-Goldschmidt numeric/calibration manifest and trained driver. Do not substitute released aSOR. |
-| C-NP: specify independent paper-aligned completion | Select the proposed model/corpus/calibration procedure and coefficient evaluation convention in §3, subject to resolving every blocking pin and per-node certificate. This acknowledges a disclosed completion, not recovered evaluated numerics; no coefficients or encrypted execution are adopted by the selection. |
+| C-NP: specify independent paper-aligned completion | User62077 selects base Meta-Llama-3-8B / WikiText-2 raw-v1 calibration protocol in §3, subject to every blocking source pin and certificate. This is a disclosed independent completion, not recovered evaluated numerics. Coefficient/evaluation choices, certified domains, backend and execution remain unapproved; do not bundle them with protocol approval. |
 | C-ST: select retained-state specification | Select §4's request-local immutable-parent/paired-commit policy separately from numerics. Native ownership, exact levels/errors/refresh horizon and capacity feasibility must still be supplied before implementation/adoption. |
 | N-Q and/or S-Q: request bounded contract implementation | Separately approve the corresponding non-HE qualification cells in §5. Neither approval activates the other attachment or the full method. |
 
@@ -332,3 +341,12 @@ The following evidence cannot be approved into existence and remains outstanding
 This packet supplies neither a full Attention/decoder implementation nor a
 performance/security result. C-S design approval and successful metadata tests
 cannot close those remaining gates.
+
+Current integration handoff is [source → capability contract](cachemir-source-capability-join.md#6-calibration-attachment-and-earliest-executable-original-region):
+earliest candidate original region is block0 RMSNorm → Q/K/V projections → RoPE
+and fresh paired K/V staging, still blocked by original input/source ownership,
+verified configuration/tensor mapping, numerical certificates, GQA/physical
+kernels and real admission. **Current next native/Python command: NONE.** Existing
+`22bbf91f` / `2ace0da2` synthetic append/control coverage is reused, not rerun or
+reported as new method progress. Fresh metadata recovery used five requests and
+23,784 response bytes; no model/calibration/build/encrypted execution occurred.
