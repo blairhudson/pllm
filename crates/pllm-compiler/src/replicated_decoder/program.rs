@@ -1483,22 +1483,7 @@ impl Builder {
         self.affine(anchor, None, affine(0, 0, value))
     }
     fn select(&mut self, bit: usize, yes: usize, no: usize) -> Result<usize, Error> {
-        let bounds = Interval::new(
-            self.nodes[yes]
-                .bounds
-                .lower()
-                .min(self.nodes[no].bounds.lower()),
-            self.nodes[yes]
-                .bounds
-                .upper()
-                .max(self.nodes[no].bounds.upper()),
-        )?;
-        let difference = self.affine(yes, Some(no), affine(1, -1, 0))?;
-        let product = self.product(bit, difference, None, false)?;
-        let out = self.affine(no, Some(product), affine(1, 1, 0))?;
-        // Only constructed for the native comparison circuit's arithmetic bit.
-        self.nodes[out].bounds = bounds;
-        Ok(out)
+        compact_lowering::select(self, bit, yes, no)
     }
 
     fn argmax_tree(&mut self, logits: &View) -> Result<View, Error> {
