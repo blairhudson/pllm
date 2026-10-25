@@ -594,6 +594,23 @@ fn whole_fixture(
         AppendDescriptor,
     ),
 ) {
+    whole_fixture_with_backing_count(active, |f, q, b, c, cache, a, _| run(f, q, b, c, cache, a));
+}
+
+// Expose only the ACTUAL independently declared backing census to boundary
+// tests. Original setup, quote, source owner and clear-cache coverage unchanged.
+fn whole_fixture_with_backing_count(
+    active: usize,
+    run: impl FnOnce(
+        &Fixture,
+        &PublicCiphertextConstructionQuote<'_>,
+        &OwnedBudget,
+        &mut ControlLedger<'_>,
+        &mut RetainedCache<'_>,
+        AppendDescriptor,
+        usize,
+    ),
+) {
     let mut work = WorkLedger::new(1 << 28, 1 << 20);
     let mut control = ControlLedger::new(&mut work);
     // Independently granted upstream source/manifest region BEFORE acquisition.
@@ -679,7 +696,152 @@ fn whole_fixture(
         &mut control,
         &mut cache,
         append_at(active),
+        manifest.backings.len(),
     );
+}
+
+#[test]
+fn public_constructor_exact_total_control_succeeds_through_final_validation() {
+    for active in [7, 8, 31, 32] {
+        whole_fixture_with_backing_count(
+            active,
+            |f, quote, budget, control, _cache, a, backings| {
+                let (k, v) = f.parents();
+                let p = Parents {
+                    keys: &k,
+                    values: &v,
+                };
+                let r = f.replacements();
+                let c = capacity();
+                let construction =
+                    control_allowance(&f.original, &p, &r, c.trace.max_records).unwrap();
+                let validation = 1024usize
+                    .checked_add(4usize.checked_mul(backings).unwrap())
+                    .unwrap();
+                let required = construction.checked_add(validation).unwrap();
+                // Exact constructor allowance AFTER real source/quote acquisition.
+                // Successful zero remainder proves actual consumption, not just a quote.
+                // Simulated prior quota consumption, NOT actual CPU work.
+                // Keep the original cumulative post-setup ledger; never reset it.
+                let excess = control
+                    .core_work()
+                    .control_remaining()
+                    .checked_sub(required)
+                    .unwrap();
+                control.core_work().debit(0, excess).unwrap();
+                assert_eq!(control.core_work().control_remaining(), required);
+                let initial_work = control.core_work().remaining();
+                let mut metadata =
+                    MetadataLedger::new(c.max_work.checked_add(quote.trace_work()).unwrap());
+                let before = budget.budget().used_bytes();
+                GRAPH_FACTORIES.with(|n| n.set(0));
+                let analysis = analyze_append(
+                    geometry(),
+                    a,
+                    &f.original,
+                    &p,
+                    &r,
+                    quote,
+                    budget,
+                    &mut metadata,
+                    control,
+                    c,
+                )
+                .unwrap();
+                assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 1);
+                assert_eq!(control.core_work().control_remaining(), 0);
+                assert_eq!(control.core_work().remaining(), initial_work - required);
+                assert_eq!(metadata.remaining(), 0);
+                assert!(std::ptr::eq(analysis.original(), &f.original));
+                assert_eq!(analysis.graph.operations.len(), 5);
+                for (i, op) in analysis.graph.operations.iter().enumerate() {
+                    assert_eq!(op.inputs.last(), Some(&f.incoming[i]));
+                }
+                for id in k.iter().chain(&v) {
+                    assert!(analysis.graph.retained_inputs.iter().any(|s|s==id));
+                    assert!(analysis.graph.outputs.iter().any(|s|s==id));
+                }
+                assert_eq!(
+                    validate_public_ciphertext_trace(
+                        &analysis.graph,
+                        &analysis.solution.ledger.trace,
+                        c.trace
+                    )
+                    .unwrap(),
+                    analysis.solution.trace_summary
+                );
+                assert!(budget.budget().used_bytes() > before);
+                drop(analysis);
+                assert_eq!(budget.budget().used_bytes(), before);
+                // Successful cleanup does not replenish either cumulative work ledger.
+                assert_eq!(control.core_work().control_remaining(), 0);
+                assert_eq!(metadata.remaining(), 0);
+            },
+        );
+    }
+}
+
+#[test]
+fn public_constructor_total_control_one_short_refuses_late_without_publication() {
+    for active in [7, 8, 31, 32] {
+        whole_fixture_with_backing_count(
+            active,
+            |f, quote, budget, control, _cache, a, backings| {
+                let (k, v) = f.parents();
+                let p = Parents {
+                    keys: &k,
+                    values: &v,
+                };
+                let r = f.replacements();
+                let c = capacity();
+                let construction =
+                    control_allowance(&f.original, &p, &r, c.trace.max_records).unwrap();
+                let validation = 1024usize
+                    .checked_add(4usize.checked_mul(backings).unwrap())
+                    .unwrap();
+                let required = construction.checked_add(validation).unwrap();
+                // Simulated prior quota consumption on the SAME setup ledger;
+                // no replacement meter, refund, or claim of actual CPU work.
+                let excess = control
+                    .core_work()
+                    .control_remaining()
+                    .checked_sub(required - 1)
+                    .unwrap();
+                control.core_work().debit(0, excess).unwrap();
+                assert_eq!(control.core_work().control_remaining(), required - 1);
+                let initial_work = control.core_work().remaining();
+                let mut metadata =
+                    MetadataLedger::new(c.max_work.checked_add(quote.trace_work()).unwrap());
+                let before = budget.budget().used_bytes();
+                GRAPH_FACTORIES.with(|n| n.set(0));
+                assert!(matches!(
+                    analyze_append(
+                        geometry(),
+                        a,
+                        &f.original,
+                        &p,
+                        &r,
+                        quote,
+                        budget,
+                        &mut metadata,
+                        control,
+                        c
+                    ),
+                    Err(Refusal::Trace)
+                ));
+                // Construction/search occurred. Validation's own control gate refused;
+                // its rejected debit is atomic, not spent and not mislabelled pre-entry.
+                assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 1);
+                assert_eq!(control.core_work().control_remaining(), validation - 1);
+                assert_eq!(control.core_work().remaining(), initial_work - construction);
+                assert_eq!(metadata.remaining(), 0);
+                assert_eq!(budget.budget().used_bytes(), before);
+                // No AppendAnalysis returned; existing graph/solution-before-charge drop
+                // order is source proof, not an empirical allocation/free observer here.
+                assert_eq!(f.original.inputs.len(), k.len() + v.len() + 5);
+            },
+        );
+    }
 }
 
 fn verify_clear_boundary(
