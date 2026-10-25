@@ -16,6 +16,10 @@ use super::{
 mod dependent;
 pub use dependent::{DependentBatch, DependentRequest};
 
+#[path = "request.rs"]
+mod request;
+pub use request::{AcceptedRequest, ChallengedRequest, Protocol2Request};
+
 const BATCH_SLOT: u8 = u8::MAX;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -192,7 +196,7 @@ pub struct ChallengedBatch {
     encoded: [Words; BATCH_SIZE],
     primary: [Sparse; REPETITIONS],
     header: Header,
-    _lease: Lease,
+    _lease: Option<Lease>,
 }
 
 pub struct AcceptedOutput {
@@ -298,11 +302,15 @@ impl Client {
     }
 
     fn reserve(&self, mode: Mode) -> Result<(Header, Lease)> {
+        self.reserve_ordinals(mode, 1)
+    }
+
+    fn reserve_ordinals(&self, mode: Mode, count: u32) -> Result<(Header, Lease)> {
         let attempt = self
             .control
             .issued
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |n| {
-                (n < MAX_ATTEMPTS).then_some(n + 1)
+                n.checked_add(count).filter(|&end| end <= MAX_ATTEMPTS)
             })
             .map_err(|_| Error::Attempts)?;
         self.control
@@ -479,19 +487,27 @@ impl Client {
         responses: &[ReplyView<'_>],
         challenges: impl FnOnce(&Memory) -> Result<[Sparse; REPETITIONS]>,
     ) -> Result<(ChallengedBatch, PrimaryChallenge)> {
+        let outputs = self.fix_originals(&batch.claims, responses)?;
+        self.begin_fixed_outputs(batch, outputs, challenges)
+    }
+
+    fn fix_originals(
+        &self,
+        claims: &[Claim; BATCH_SIZE],
+        responses: &[ReplyView<'_>],
+    ) -> Result<[Words; BATCH_SIZE]> {
         if responses.len() != BATCH_SIZE {
             return Err(Error::Shape);
         }
-        for (claim, response) in batch.claims.iter().zip(responses) {
+        for (claim, response) in claims.iter().zip(responses) {
             self.check_header(response.header, claim.header)?;
             canonical(response.values, DIMENSION)?;
         }
         let m = &self.material;
-        let outputs = [
+        Ok([
             Words::copy(&m.memory, responses[0].values)?,
             Words::copy(&m.memory, responses[1].values)?,
-        ];
-        self.begin_fixed_outputs(batch, outputs, challenges)
+        ])
     }
 
     // Both callers validate and own every original before entering this shared
@@ -502,6 +518,24 @@ impl Client {
         outputs: [Words; BATCH_SIZE],
         challenges: impl FnOnce(&Memory) -> Result<[Sparse; REPETITIONS]>,
     ) -> Result<(ChallengedBatch, PrimaryChallenge)> {
+        let lease = batch.lease;
+        let claims = batch.claims;
+        let (mut prepared, disclosed) = self.prepare_batch(claims, outputs, challenges)?;
+        prepared._lease = Some(lease);
+        Ok((prepared, disclosed))
+    }
+
+    fn prepare_batch(
+        &self,
+        claims: [Claim; BATCH_SIZE],
+        outputs: [Words; BATCH_SIZE],
+        challenges: impl FnOnce(&Memory) -> Result<[Sparse; REPETITIONS]>,
+    ) -> Result<(ChallengedBatch, PrimaryChallenge)> {
+        let encoded = self.encode_originals(&outputs)?;
+        self.prepare_encoded_batch(claims, outputs, encoded, challenges)
+    }
+
+    fn encode_originals(&self, outputs: &[Words; BATCH_SIZE]) -> Result<[Words; BATCH_SIZE]> {
         let m = &self.material;
         let encoded = [
             m.gy.encode(&m.memory, outputs[0].as_slice())?,
@@ -510,8 +544,19 @@ impl Client {
         // Only after both copies and code encodings are fixed.
         #[cfg(test)]
         super::testing::record(super::testing::FixationEvent::OriginalsFixed);
+        Ok(encoded)
+    }
+
+    fn prepare_encoded_batch(
+        &self,
+        claims: [Claim; BATCH_SIZE],
+        outputs: [Words; BATCH_SIZE],
+        encoded: [Words; BATCH_SIZE],
+        challenges: impl FnOnce(&Memory) -> Result<[Sparse; REPETITIONS]>,
+    ) -> Result<(ChallengedBatch, PrimaryChallenge)> {
+        let m = &self.material;
         let primary = challenges(&m.memory)?;
-        let mut header = batch.claims[0].header;
+        let mut header = claims[0].header;
         header.slot = BATCH_SLOT;
         let disclosed = PrimaryChallenge {
             header,
@@ -519,12 +564,12 @@ impl Client {
         };
         Ok((
             ChallengedBatch {
-                claims: batch.claims,
+                claims,
                 outputs,
                 encoded,
                 primary,
                 header,
-                _lease: batch.lease,
+                _lease: None,
             },
             disclosed,
         ))
@@ -547,13 +592,36 @@ impl Client {
         auxiliary: AuxiliaryReplyView<'_>,
         challenges: impl FnOnce(&Memory) -> Result<[Sparse; REPETITIONS]>,
     ) -> Result<(AcceptedBatch, BatchTrace)> {
+        let fixed = self.fix_auxiliary(&batch, auxiliary)?;
+        let secondary = challenges(&self.material.memory)?;
+        let (mismatch, trace) = self.check_equations(&batch, &fixed, &secondary)?;
+        if mismatch != 0 {
+            return Err(Error::Rejected);
+        }
+        Ok((self.accept_batch(&batch)?, trace))
+    }
+
+    fn fix_auxiliary(
+        &self,
+        batch: &ChallengedBatch,
+        auxiliary: AuxiliaryReplyView<'_>,
+    ) -> Result<Words> {
         self.check_header(auxiliary.header, batch.header)?;
         canonical(auxiliary.values, REPETITIONS * SECONDARY_DIMENSION)?;
         let m = &self.material;
         let fixed = Words::copy(&m.memory, auxiliary.values)?;
         #[cfg(test)]
         super::testing::record(super::testing::FixationEvent::AuxiliaryFixed);
-        let secondary = challenges(&m.memory)?;
+        Ok(fixed)
+    }
+
+    fn check_equations(
+        &self,
+        batch: &ChallengedBatch,
+        fixed: &Words,
+        secondary: &[Sparse; REPETITIONS],
+    ) -> Result<(u32, BatchTrace)> {
+        let m = &self.material;
         let mut mismatch = 0;
         let mut trace = BatchTrace {
             original: Zeroizing::new([[0; 2]; 4]),
@@ -592,18 +660,17 @@ impl Client {
                 mismatch |= left ^ right;
             }
         }
-        if mismatch != 0 {
-            return Err(Error::Rejected);
-        }
-        Ok((
-            AcceptedBatch {
-                outputs: [
-                    decrypt(&m.memory, &batch.claims[0], batch.outputs[0].as_slice())?,
-                    decrypt(&m.memory, &batch.claims[1], batch.outputs[1].as_slice())?,
-                ],
-            },
-            trace,
-        ))
+        Ok((mismatch, trace))
+    }
+
+    fn accept_batch(&self, batch: &ChallengedBatch) -> Result<AcceptedBatch> {
+        let m = &self.material;
+        Ok(AcceptedBatch {
+            outputs: [
+                decrypt(&m.memory, &batch.claims[0], batch.outputs[0].as_slice())?,
+                decrypt(&m.memory, &batch.claims[1], batch.outputs[1].as_slice())?,
+            ],
+        })
     }
 }
 

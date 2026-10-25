@@ -12,11 +12,12 @@ mod publication;
 pub mod window_plan;
 
 pub use code::CodeDescription;
-pub use memory::{AllocationPlan, MemoryStats, ALLOCATION_CEILING};
+pub use memory::{AllocationPlan, MemoryStats, RequestAllocationPlan, ALLOCATION_CEILING};
 pub use protocol::{
-    AcceptedBatch, AcceptedOutput, AuxiliaryReply, AuxiliaryReplyView, Batch, ChallengedBatch,
-    Client, DependentBatch, DependentRequest, Header, Mode, PrimaryChallenge, PrimaryChallengeView,
-    Query, Reply, ReplyView, Request, RequestView, Server,
+    AcceptedBatch, AcceptedOutput, AcceptedRequest, AuxiliaryReply, AuxiliaryReplyView, Batch,
+    ChallengedBatch, ChallengedRequest, Client, DependentBatch, DependentRequest, Header, Mode,
+    PrimaryChallenge, PrimaryChallengeView, Protocol2Request, Query, Reply, ReplyView, Request,
+    RequestView, Server,
 };
 pub use publication::{
     preprocess, PublicationParts, PublicationView, SetupInputs, UnvalidatedPublication,

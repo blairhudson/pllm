@@ -3,7 +3,73 @@ use std::sync::Arc;
 
 use zeroize::Zeroizing;
 
-use super::{Error, Result, BATCH_SIZE, DIMENSION, MAX_ATTEMPTS};
+use super::{
+    Error, Result, BATCH_SIZE, CHECK_WEIGHT, DIMENSION, LENGTH, MAX_ATTEMPTS, PRIVACY_WEIGHT,
+    REPETITIONS, SECONDARY_DIMENSION, SECONDARY_LENGTH,
+};
+
+/// Complete additional overlap envelope for one two-batch request. This is
+/// checked against the SAME live meter, not two independent batch reservations.
+/// Its conservative union retains even mutually-exclusive scratch terms.
+#[derive(Debug, Clone, Copy)]
+pub struct RequestAllocationPlan {
+    additional_bytes: usize,
+    quoted_peak_bytes: usize,
+}
+
+impl RequestAllocationPlan {
+    pub fn additional_bytes(&self) -> usize {
+        self.additional_bytes
+    }
+    pub fn quoted_peak_bytes(&self) -> usize {
+        self.quoted_peak_bytes
+    }
+    pub(super) fn quote(memory: &Memory) -> Result<Self> {
+        let mut extra = 4096_usize; // charged request controls/stack/trace allowance
+                                    // All four claims (input+correction), requests, server originals,
+                                    // private fixed originals and atomic output staging: 7*4 buffers.
+                                    // Fixed encodings plus encode temporary; privacy dense/first/result;
+                                    // sparse pools/noises; both owned/disclosed primary sets; both fixed
+                                    // and server auxiliary replies; both secondary sets and syndrome
+                                    // dense/first/result scratch. No reuse or early refund credit.
+        for (count, words) in [
+            (28, DIMENSION),
+            (5, LENGTH),
+            (4, 2 * PRIVACY_WEIGHT),
+            (4, LENGTH),
+            (2, DIMENSION),
+            (4 * REPETITIONS, 2 * CHECK_WEIGHT),
+            (4, REPETITIONS * SECONDARY_DIMENSION),
+            (2 * REPETITIONS, 2 * CHECK_WEIGHT),
+            (4, SECONDARY_LENGTH),
+            (2, SECONDARY_DIMENSION),
+            (1, 2 * CHECK_WEIGHT), // server's sparse challenge validation copy
+        ] {
+            let bytes = words
+                .checked_mul(4)
+                .and_then(|n| n.checked_add(BUFFER_OVERHEAD))
+                .and_then(|n| n.checked_mul(count))
+                .ok_or(Error::Allocation)?;
+            extra = extra.checked_add(bytes).ok_or(Error::Allocation)?;
+        }
+        let stats = memory.stats();
+        let peak = stats
+            .charged_live_bytes
+            .checked_add(extra)
+            .ok_or(Error::Allocation)?;
+        Self::check_fit(peak, stats.ceiling_bytes)?;
+        Ok(Self {
+            additional_bytes: extra,
+            quoted_peak_bytes: peak,
+        })
+    }
+    pub(super) fn check_fit(peak: usize, ceiling: usize) -> Result<()> {
+        if ceiling > ALLOCATION_CEILING || peak > ceiling {
+            return Err(Error::Allocation);
+        }
+        Ok(())
+    }
+}
 
 pub const ALLOCATION_CEILING: usize = 16 << 20;
 const BUFFER_OVERHEAD: usize = 128;
@@ -161,7 +227,7 @@ impl Memory {
         }
     }
 
-    fn reserve(&self, bytes: usize) -> Result<Reservation> {
+    pub(super) fn reserve(&self, bytes: usize) -> Result<Reservation> {
         let previous = self
             .0
             .used
@@ -177,7 +243,7 @@ impl Memory {
     }
 }
 
-struct Reservation {
+pub(super) struct Reservation {
     memory: Memory,
     bytes: usize,
 }
