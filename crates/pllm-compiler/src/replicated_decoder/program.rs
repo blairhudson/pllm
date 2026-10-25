@@ -35,16 +35,20 @@ impl CreatedRequestInput {
     }
 }
 
-// Compiler-private compact metadata; default expanded routing is unchanged.
-#[allow(dead_code)]
-#[path = "compact_lowering.rs"]
-pub(super) mod compact_lowering;
-
-// Borrowed canonical vocabulary is needed by frozen recipe publication too.
-// This does not replace original production finalization or admit a request.
+// Shared canonical vocabulary also serves sealed compact recipe publication.
+// The candidate finalizer remains comparison-only: `allocated` is not the full
+// retained-owner baseline. Production uses the original Builder::finish loop;
+// candidate adoption still requires baseline, identity and new-owner admission.
 #[allow(dead_code)]
 #[path = "schedule_finalization.rs"]
 mod schedule_finalization;
+
+// Compiler-private shared numeric sinks and compact output publication.
+// Used by the existing bounded sealed compact request route; this does not
+// qualify separate publication drafts or establish complete-program admission.
+#[allow(dead_code)]
+#[path = "compact_lowering.rs"]
+pub(super) mod compact_lowering;
 
 #[cfg(test)]
 #[path = "linear_tests.rs"]
@@ -308,6 +312,9 @@ pub struct Program {
 #[path = "schedule_access.rs"]
 pub(super) mod schedule_access;
 
+// Storage-neutral schedule seam over expanded or sealed compact custody.
+// Keep the Program and its retained owners authoritative; these borrows neither
+// copy recipes nor mint hash/work authority or qualify unmounted drafts.
 impl Program {
     /// Read-only backend witness. This reports the actual retained storage,
     /// never a requested selector, digest, or admission permission.
@@ -2211,206 +2218,31 @@ impl Program {
             if execution.range_policy == RangePolicy::Checked {
                 builder.final_acceptance(input, outputs, &mut selected)?;
             }
-            let mut last: Vec<_> = (0..builder.nodes.len()).collect();
-            site.step = None;
-            site.operator = None;
-            site.layer = None;
-            site.inputs = [None; 2];
-            builder.admission_stage = "complete_schedule_work";
-            let work = schedule_work(&builder.nodes)?;
-            let mut h = Sha256::new();
-            h.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
-            if weights == WeightMode::Public {
-                h.update(b"public-source-paged-ring64.v1");
-            }
-            if !execution.is_default() {
-                h.update(b"explicit-public-execution-policy.v1");
-                h.update(serde_json::to_vec(&execution).map_err(|_| Error::Binding)?);
-            }
-            h.update(config);
-            h.update((rows as u64).to_le_bytes());
-            h.update((outputs as u64).to_le_bytes());
-            h.update(serde_json::to_vec(sources).map_err(|_| Error::Binding)?);
-            if !norms.is_empty() {
-                h.update(b"public-head-row-norms.v1");
-                h.update(source_norms::digest(norms));
-            }
-            for (id, node) in builder.nodes.iter().enumerate() {
-                for input in node.inputs() {
-                    last[input] = id;
-                }
-                h.update((node.lanes as u64).to_le_bytes());
-                h.update(node.bounds.lower().to_le_bytes());
-                h.update(node.bounds.upper().to_le_bytes());
-                match &node.code {
-                    Code::Input(key) => {
-                        h.update([0]);
-                        h.update((key.len() as u64).to_le_bytes());
-                        h.update(key);
+            builder.finish(
+                count,
+                selected,
+                &mut site,
+                |h| {
+                    h.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
+                    if weights == WeightMode::Public {
+                        h.update(b"public-source-paged-ring64.v1");
                     }
-                    Code::PublicInput { key, digest, .. } => {
-                        h.update([5]);
-                        h.update((key.len() as u64).to_le_bytes());
-                        h.update(key);
-                        h.update(digest);
+                    if !execution.is_default() {
+                        h.update(b"explicit-public-execution-policy.v1");
+                        h.update(serde_json::to_vec(&execution).map_err(|_| Error::Binding)?);
                     }
-                    Code::PublicValues(values) => {
-                        h.update([7]);
-                        for n in values {
-                            h.update(n.to_le_bytes());
-                        }
+                    h.update(config);
+                    h.update((rows as u64).to_le_bytes());
+                    h.update((outputs as u64).to_le_bytes());
+                    h.update(serde_json::to_vec(sources).map_err(|_| Error::Binding)?);
+                    if !norms.is_empty() {
+                        h.update(b"public-head-row-norms.v1");
+                        h.update(source_norms::digest(norms));
                     }
-                    Code::PublicProduct {
-                        input,
-                        weight,
-                        rows,
-                        inner,
-                        columns,
-                        transposed,
-                    } => {
-                        h.update([6, u8::from(*transposed)]);
-                        for n in [input, weight, rows, inner, columns] {
-                            h.update((*n as u64).to_le_bytes());
-                        }
-                    }
-                    Code::PublicLookup {
-                        input,
-                        weight,
-                        plan,
-                    } => {
-                        h.update([10]);
-                        for n in [*input, *weight] {
-                            h.update((n as u64).to_le_bytes());
-                        }
-                        h.update(plan.digest());
-                    }
-                    Code::Selection { input, plan } => {
-                        h.update([11]);
-                        h.update((*input as u64).to_le_bytes());
-                        h.update(plan.digest());
-                    }
-                    Code::TrieLookup {
-                        input,
-                        weight,
-                        plan,
-                    } => {
-                        h.update([12]);
-                        h.update((*input as u64).to_le_bytes());
-                        h.update((*weight as u64).to_le_bytes());
-                        h.update(plan.digest());
-                    }
-                    Code::CheckedRange { input, program } => {
-                        h.update([9]);
-                        h.update((*input as u64).to_le_bytes());
-                        h.update(program.digest());
-                    }
-                    Code::Gather(items) => {
-                        h.update([1]);
-                        for (a, b) in items.iter() {
-                            h.update((a as u64).to_le_bytes());
-                            h.update((b as u64).to_le_bytes());
-                        }
-                    }
-                    Code::SourceGather(view) => {
-                        // Hash the same logical gather as the original expanded
-                        // list. Compact storage changes neither PRSS contexts nor
-                        // the ordered primitive schedule.
-                        h.update([1]);
-                        for index in view.indices() {
-                            h.update((view.owner as u64).to_le_bytes());
-                            h.update((index as u64).to_le_bytes());
-                        }
-                    }
-                    Code::Affine {
-                        left,
-                        right,
-                        coefficients: c,
-                    } => {
-                        h.update([2]);
-                        h.update((*left as u64).to_le_bytes());
-                        h.update(right.map_or(u64::MAX, |v| v as u64).to_le_bytes());
-                        for v in [c.left, c.right, c.constant] {
-                            h.update(v.to_le_bytes());
-                        }
-                    }
-                    Code::Product {
-                        left,
-                        right,
-                        shape,
-                        rescale,
-                        norm,
-                    } => {
-                        // Legacy products retain their original identity. A
-                        // certified complete dot binds the public obligations
-                        // alongside exact ordered operand owners and shape.
-                        h.update([if norm.is_some() { 13 } else { 3 }, u8::from(*rescale)]);
-                        h.update((*left as u64).to_le_bytes());
-                        h.update((*right as u64).to_le_bytes());
-                        for n in shape.map_or([0, 0, 0], MatrixShape::dimensions) {
-                            h.update((n as u64).to_le_bytes());
-                        }
-                        if let Some(proof) = norm {
-                            h.update(proof.digest());
-                        }
-                    }
-                    Code::Tensor { input, program } => {
-                        h.update([4]);
-                        h.update((*input as u64).to_le_bytes());
-                        h.update(program.digest());
-                    }
-                    Code::TensorLoop {
-                        input,
-                        program,
-                        tail,
-                    } => {
-                        h.update([8]);
-                        match input {
-                            LoopInput::Slice(id) => {
-                                h.update([0]);
-                                h.update((*id as u64).to_le_bytes());
-                            }
-                            LoopInput::TokenOffsets { owner, index } => {
-                                h.update([1]);
-                                h.update((*owner as u64).to_le_bytes());
-                                h.update((*index as u64).to_le_bytes());
-                            }
-                        }
-                        h.update(program.digest());
-                        h.update([tail.is_some() as u8]);
-                        if let Some(tail) = tail {
-                            h.update(tail.digest());
-                        }
-                    }
-                }
-            }
-            if work.operations() == 0 {
-                return Err(Error::Bounds);
-            }
-            site.complete_work = Some((work.operations(), work.cursors().aes_work));
-            builder.admission_stage = "complete_work_limits";
-            work.limits()?;
-            for &(id, index) in &selected {
-                last[id] = builder.nodes.len();
-                h.update((id as u64).to_le_bytes());
-                h.update((index as u64).to_le_bytes());
-            }
-            let mut retire = vec![vec![]; builder.nodes.len()];
-            for (id, end) in last.into_iter().enumerate() {
-                if end < retire.len() {
-                    retire[end].push(id);
-                }
-            }
-            Ok(Self {
-                nodes: std::mem::take(&mut builder.nodes),
-                inputs: count,
-                outputs: selected,
-                retire,
-                digest: h.finalize().into(),
-                payload_bytes: builder.allocated,
-                work,
-                source_binding: source_binding_with_norms(sources, norms),
-                request_custody: None,
-            })
+                    Ok(())
+                },
+                || source_binding_with_norms(sources, norms),
+            )
         })();
         result.map_err(|e| {
             format!(
@@ -2419,224 +2251,8 @@ impl Program {
             )
         })
     }
-
-    pub fn digest(&self) -> [u8; 32] {
-        self.digest
-    }
-    pub(super) fn bind(&mut self, source: [u8; 32], composition: [u8; 32]) {
-        let mut h = Sha256::new();
-        h.update(b"pllm.replicated-decoder.source-composition.v1");
-        h.update(self.digest);
-        h.update(source);
-        h.update(composition);
-        self.digest = h.finalize().into();
-    }
-    pub fn payload_bytes(&self) -> usize {
-        self.payload_bytes
-    }
-    pub fn operation_limit(&self) -> u64 {
-        self.work.operations()
-    }
-    pub fn work_budget(&self) -> WorkBudget {
-        self.work
-    }
-    pub fn inputs(&self) -> impl Iterator<Item = (&str, usize)> {
-        self.nodes[..self.inputs]
-            .iter()
-            .filter_map(|n| match &n.code {
-                Code::Input(key) => Some((key.as_str(), n.lanes)),
-                Code::PublicInput { .. } => None,
-                _ => unreachable!(),
-            })
-    }
-    pub fn setup(
-        &self,
-        session: [u8; 32],
-        party: puma::Party,
-    ) -> Result<multiply::SetupParty, Error> {
-        let limits = self.work.limits()?;
-        multiply::SetupParty::new(puma::Context::new(session, self.digest, 0)?, party, limits)
-    }
 }
 
-/// Source-schedule operations and per-party AES upper bounds for lookup alone,
-/// not timing or complete-decoder costs. D9 pays for every complete prefix.
-/// Reject known impossible work before importing any checkpoint values.
-fn public_lookup_work_floor_with_policy(
-    rows: usize,
-    outputs: usize,
-    vocabulary: usize,
-    lookup: LookupPolicy,
-) -> Result<WorkBudget, Error> {
-    if rows == 0 || outputs == 0 || vocabulary == 0 {
-        return Err(Error::Shape);
-    }
-    if lookup == LookupPolicy::Trie {
-        let mut work = WorkBudget::default();
-        for selection in 0..outputs {
-            let n = rows.checked_add(selection).ok_or(Error::Bounds)?;
-            for start in (0..n).step_by(8) {
-                work = work.checked_add(runtime::trie::Plan::work_for_geometry(
-                    8.min(n - start),
-                    vocabulary,
-                )?)?;
-            }
-        }
-        return Ok(work);
-    }
-    let bounds = Interval::new(-(vocabulary as i64 - 1), vocabulary as i64 - 1)?;
-    let width = vocabulary.min(128);
-    let equality = match lookup {
-        LookupPolicy::PerToken => tensor::Program::equal_zero,
-        LookupPolicy::Tiled => tensor::Program::equal_zero_bounded,
-        LookupPolicy::Trie => unreachable!("trie work returned above"),
-    };
-    let program = equality(width, bounds)?;
-    let mut charge = program
-        .work_budget()
-        .checked_mul((vocabulary / width) as u64)?;
-    if vocabulary % width != 0 {
-        charge = charge.checked_add(equality(vocabulary % width, bounds)?.work_budget())?;
-    }
-    let prefixes = (0..outputs)
-        .try_fold(0usize, |n, i| n.checked_add(rows.checked_add(i)?))
-        .ok_or(Error::Bounds)?;
-    charge.checked_mul(prefixes as u64)
-}
-
-pub(super) fn lower_with_weights(
-    config: &[u8],
-    rows: usize,
-    outputs: usize,
-    weights: WeightMode,
-) -> Result<pllm_models::DecoderPlan, String> {
-    if config.is_empty()
-        || config.len() > 16384
-        || rows == 0
-        || outputs == 0
-        || rows.checked_add(outputs).is_none_or(|n| n > 40)
-        || outputs > 8
-    {
-        return Err("replicated configuration/workload bound".into());
-    }
-    pllm_models::lower_model_json_with_budget(
-        config,
-        DecoderWorkload {
-            batch: 1,
-            max_input_tokens: rows as u64,
-            max_new_tokens: outputs as u64,
-        },
-        DecoderExpansionBudget {
-            max_layers: if weights == WeightMode::Public { 64 } else { 4 },
-            max_feature_width: 8192,
-            max_attention_heads: 16,
-            max_vocabulary: if weights == WeightMode::Public {
-                262144
-            } else {
-                4096
-            },
-            max_tensor_elements: if weights == WeightMode::Public {
-                MAX_PUBLIC_SOURCE_VALUES
-            } else {
-                MAX_VALUES
-            } as u64,
-        },
-    )
-    .map_err(|e| e.to_string())
-}
-
-// Canonical expanded encoding, shared with allocation-free candidate lowering.
-// These helpers do not assign a new identity or admit a compact executable.
-fn hash_node_header(h: &mut Sha256, lanes: usize, bounds: Interval) {
-    h.update((lanes as u64).to_le_bytes());
-    h.update(bounds.lower().to_le_bytes());
-    h.update(bounds.upper().to_le_bytes());
-}
-
-fn hash_affine(h: &mut Sha256, left: usize, right: Option<usize>, c: Affine) {
-    h.update([2]);
-    h.update((left as u64).to_le_bytes());
-    h.update(right.map_or(u64::MAX, |v| v as u64).to_le_bytes());
-    for v in [c.left, c.right, c.constant] {
-        h.update(v.to_le_bytes());
-    }
-}
-
-fn hash_public_product(
-    h: &mut Sha256,
-    input: usize,
-    weight: usize,
-    rows: usize,
-    inner: usize,
-    columns: usize,
-    transposed: bool,
-) {
-    h.update([6, u8::from(transposed)]);
-    for n in [input, weight, rows, inner, columns] {
-        h.update((n as u64).to_le_bytes());
-    }
-}
-
-fn hash_tensor_loop(
-    h: &mut Sha256,
-    input: LoopInput,
-    program: &Arc<tensor::Program>,
-    tail: Option<&Arc<tensor::Program>>,
-) {
-    h.update([8]);
-    match input {
-        LoopInput::Slice(id) => {
-            h.update([0]);
-            h.update((id as u64).to_le_bytes());
-        }
-        LoopInput::TokenOffsets { owner, index } => {
-            h.update([1]);
-            h.update((owner as u64).to_le_bytes());
-            h.update((index as u64).to_le_bytes());
-        }
-    }
-    h.update(program.digest());
-    h.update([tail.is_some() as u8]);
-    if let Some(tail) = tail {
-        h.update(tail.digest());
-    }
-}
-
-fn hash_tensor(h: &mut Sha256, input: usize, program: &Arc<tensor::Program>) {
-    h.update([4]);
-    h.update((input as u64).to_le_bytes());
-    h.update(program.digest());
-}
-
-fn hash_gather(h: &mut Sha256, words: impl IntoIterator<Item = (usize, usize)>) {
-    h.update([1]);
-    for (owner, index) in words {
-        h.update((owner as u64).to_le_bytes());
-        h.update((index as u64).to_le_bytes());
-    }
-}
-
-fn hash_product(
-    h: &mut Sha256,
-    left: usize,
-    right: usize,
-    shape: Option<MatrixShape>,
-    rescale: bool,
-    norm: Option<&puma::multiply::norm::RowEnergyProof>,
-) {
-    // A certified complete dot binds its obligations as well as operand owners.
-    h.update([if norm.is_some() { 13 } else { 3 }, u8::from(rescale)]);
-    h.update((left as u64).to_le_bytes());
-    h.update((right as u64).to_le_bytes());
-    for n in shape.map_or([0, 0, 0], MatrixShape::dimensions) {
-        h.update((n as u64).to_le_bytes());
-    }
-    if let Some(proof) = norm {
-        h.update(proof.digest());
-    }
-}
-
-#[allow(dead_code)]
 impl Builder {
     /// Original expanded finalization, shared with compiler-private fixtures.
     /// The caller supplies only the identity prefix/source binding; ordered node
@@ -2823,3 +2439,220 @@ pub(in crate::replicated_decoder) mod request_rescale_tests;
 #[cfg(test)]
 #[path = "prepared_tensor_map/prepared_tensor_request_silu_tests.rs"]
 mod request_silu_tests;
+
+// Canonical expanded encoding, shared with allocation-free candidate lowering.
+// These helpers do not assign a new identity or admit a compact executable.
+fn hash_node_header(h: &mut Sha256, lanes: usize, bounds: Interval) {
+    h.update((lanes as u64).to_le_bytes());
+    h.update(bounds.lower().to_le_bytes());
+    h.update(bounds.upper().to_le_bytes());
+}
+
+fn hash_affine(h: &mut Sha256, left: usize, right: Option<usize>, c: Affine) {
+    h.update([2]);
+    h.update((left as u64).to_le_bytes());
+    h.update(right.map_or(u64::MAX, |v| v as u64).to_le_bytes());
+    for v in [c.left, c.right, c.constant] {
+        h.update(v.to_le_bytes());
+    }
+}
+
+fn hash_public_product(
+    h: &mut Sha256,
+    input: usize,
+    weight: usize,
+    rows: usize,
+    inner: usize,
+    columns: usize,
+    transposed: bool,
+) {
+    h.update([6, u8::from(transposed)]);
+    for n in [input, weight, rows, inner, columns] {
+        h.update((n as u64).to_le_bytes());
+    }
+}
+
+fn hash_tensor_loop(
+    h: &mut Sha256,
+    input: LoopInput,
+    program: &Arc<tensor::Program>,
+    tail: Option<&Arc<tensor::Program>>,
+) {
+    h.update([8]);
+    match input {
+        LoopInput::Slice(id) => {
+            h.update([0]);
+            h.update((id as u64).to_le_bytes());
+        }
+        LoopInput::TokenOffsets { owner, index } => {
+            h.update([1]);
+            h.update((owner as u64).to_le_bytes());
+            h.update((index as u64).to_le_bytes());
+        }
+    }
+    h.update(program.digest());
+    h.update([tail.is_some() as u8]);
+    if let Some(tail) = tail {
+        h.update(tail.digest());
+    }
+}
+
+fn hash_tensor(h: &mut Sha256, input: usize, program: &Arc<tensor::Program>) {
+    h.update([4]);
+    h.update((input as u64).to_le_bytes());
+    h.update(program.digest());
+}
+
+fn hash_gather(h: &mut Sha256, words: impl IntoIterator<Item = (usize, usize)>) {
+    h.update([1]);
+    for (owner, index) in words {
+        h.update((owner as u64).to_le_bytes());
+        h.update((index as u64).to_le_bytes());
+    }
+}
+
+fn hash_product(
+    h: &mut Sha256,
+    left: usize,
+    right: usize,
+    shape: Option<MatrixShape>,
+    rescale: bool,
+    norm: Option<&puma::multiply::norm::RowEnergyProof>,
+) {
+    // A certified complete dot binds its obligations as well as operand owners.
+    h.update([if norm.is_some() { 13 } else { 3 }, u8::from(rescale)]);
+    h.update((left as u64).to_le_bytes());
+    h.update((right as u64).to_le_bytes());
+    for n in shape.map_or([0, 0, 0], MatrixShape::dimensions) {
+        h.update((n as u64).to_le_bytes());
+    }
+    if let Some(proof) = norm {
+        h.update(proof.digest());
+    }
+}
+
+impl Program {
+    pub fn digest(&self) -> [u8; 32] {
+        self.digest
+    }
+    pub(super) fn bind(&mut self, source: [u8; 32], composition: [u8; 32]) {
+        let mut h = Sha256::new();
+        h.update(b"pllm.replicated-decoder.source-composition.v1");
+        h.update(self.digest);
+        h.update(source);
+        h.update(composition);
+        self.digest = h.finalize().into();
+    }
+    pub fn payload_bytes(&self) -> usize {
+        self.payload_bytes
+    }
+    pub fn operation_limit(&self) -> u64 {
+        self.work.operations()
+    }
+    pub fn work_budget(&self) -> WorkBudget {
+        self.work
+    }
+    pub fn inputs(&self) -> impl Iterator<Item = (&str, usize)> {
+        self.nodes[..self.inputs]
+            .iter()
+            .filter_map(|n| match &n.code {
+                Code::Input(key) => Some((key.as_str(), n.lanes)),
+                Code::PublicInput { .. } => None,
+                _ => unreachable!(),
+            })
+    }
+    pub fn setup(
+        &self,
+        session: [u8; 32],
+        party: puma::Party,
+    ) -> Result<multiply::SetupParty, Error> {
+        let limits = self.work.limits()?;
+        multiply::SetupParty::new(puma::Context::new(session, self.digest, 0)?, party, limits)
+    }
+}
+
+/// Source-schedule operations and per-party AES upper bounds for lookup alone,
+/// not timing or complete-decoder costs. D9 pays for every complete prefix.
+/// Reject known impossible work before importing any checkpoint values.
+fn public_lookup_work_floor_with_policy(
+    rows: usize,
+    outputs: usize,
+    vocabulary: usize,
+    lookup: LookupPolicy,
+) -> Result<WorkBudget, Error> {
+    if rows == 0 || outputs == 0 || vocabulary == 0 {
+        return Err(Error::Shape);
+    }
+    if lookup == LookupPolicy::Trie {
+        let mut work = WorkBudget::default();
+        for selection in 0..outputs {
+            let n = rows.checked_add(selection).ok_or(Error::Bounds)?;
+            for start in (0..n).step_by(8) {
+                work = work.checked_add(runtime::trie::Plan::work_for_geometry(
+                    8.min(n - start),
+                    vocabulary,
+                )?)?;
+            }
+        }
+        return Ok(work);
+    }
+    let bounds = Interval::new(-(vocabulary as i64 - 1), vocabulary as i64 - 1)?;
+    let width = vocabulary.min(128);
+    let equality = match lookup {
+        LookupPolicy::PerToken => tensor::Program::equal_zero,
+        LookupPolicy::Tiled => tensor::Program::equal_zero_bounded,
+        LookupPolicy::Trie => unreachable!("trie work returned above"),
+    };
+    let program = equality(width, bounds)?;
+    let mut charge = program
+        .work_budget()
+        .checked_mul((vocabulary / width) as u64)?;
+    if vocabulary % width != 0 {
+        charge = charge.checked_add(equality(vocabulary % width, bounds)?.work_budget())?;
+    }
+    let prefixes = (0..outputs)
+        .try_fold(0usize, |n, i| n.checked_add(rows.checked_add(i)?))
+        .ok_or(Error::Bounds)?;
+    charge.checked_mul(prefixes as u64)
+}
+
+pub(super) fn lower_with_weights(
+    config: &[u8],
+    rows: usize,
+    outputs: usize,
+    weights: WeightMode,
+) -> Result<pllm_models::DecoderPlan, String> {
+    if config.is_empty()
+        || config.len() > 16384
+        || rows == 0
+        || outputs == 0
+        || rows.checked_add(outputs).is_none_or(|n| n > 40)
+        || outputs > 8
+    {
+        return Err("replicated configuration/workload bound".into());
+    }
+    pllm_models::lower_model_json_with_budget(
+        config,
+        DecoderWorkload {
+            batch: 1,
+            max_input_tokens: rows as u64,
+            max_new_tokens: outputs as u64,
+        },
+        DecoderExpansionBudget {
+            max_layers: if weights == WeightMode::Public { 64 } else { 4 },
+            max_feature_width: 8192,
+            max_attention_heads: 16,
+            max_vocabulary: if weights == WeightMode::Public {
+                262144
+            } else {
+                4096
+            },
+            max_tensor_elements: if weights == WeightMode::Public {
+                MAX_PUBLIC_SOURCE_VALUES
+            } else {
+                MAX_VALUES
+            } as u64,
+        },
+    )
+    .map_err(|e| e.to_string())
+}
