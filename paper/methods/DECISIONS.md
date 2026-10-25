@@ -1203,6 +1203,25 @@ The source-observed `fhe.rs` pin remains pinned but is not an adopted runtime.
 Approximate backend Down equivalence is **not proved**. No backend adoption,
 key/ciphertext/noise/security qualification or full B-N1 completion follows.
 
+## D48. Isolated pinned Poulpy owning-Layout qualification
+
+**Explicitly approved on 25 October 2026 (user61032):** apply in isolation the
+two owning `Layout` accessors against frozen Poulpy base
+`ca3532570ff62b96599a74f7adb85de7726b0446`, using reviewed patch SHA256
+`c61b57b786657ab0bbbf3f5d4f7fd1958434b6923c8e5e2d360441d261aa530e`.
+The [existing HE Layout/source proposal](../../docs/research/he-secure-seam-implementation-packet.md)
+retains its other closed gates. Offline source application/compilation and only
+two storage tests covering 12 tiny cases with backing at most 4096 bytes are
+permitted. The test envelope is **60 seconds, 256 MiB, zero new swap and 1 MiB
+output**; unavailable dependencies or guard admission refuse execution.
+Single-job compilation uses existing D33 headroom, separately from test limits.
+
+This qualifies only original **owning capacity and alignment**, not a borrowed
+span, noise helpers, provenance or admission. No Main application, dependency
+adoption, consumer activation, RNG, keys, transforms, encryption, security or
+fit claim follows. This approval records permission, not completed compilation
+or passing tests; other source/runtime gates remain closed.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1254,6 +1273,7 @@ key/ciphertext/noise/security qualification or full B-N1 completion follows.
 | D45 | Approved: Maverick atomic two batches × two claims, 64×64 | One exclusive lease/two existing ordinals, fresh per-claim noise, all-original/all-aux global barriers and atomic four-output release; unchanged 16 MiB/defaults/MAX_ATTEMPTS. Separately granted native tests only; no decoder/SDK/bridge/security or author-proof qualification. |
 | D46 | Approved: four independent bounded clear/operator/compiler adaptations | Exact NEXUS binary64/no-epsilon prefix; pinned THOR two-row LinearBias/artifact-GELU/LinearBias; synthetic CacheMir shared-SSA append/liveness; proposed ROSETTA four-segment rational reference. Preserve caps/refusals/source distinctions; separate lane qualification, no whole-method/SDK/backend/security adoption or ranking. |
 | D47 | Approved: BumbleBee clear whole-phase full-U OLT/product/trace/ParseMat/CRT/Down | Proposed N8192/t2^64 limbs, separate (3,65,129)/(1,64,128) geometry, 32 MiB logical owners and 2^28 cumulative arithmetic before factories; both cross directions, old Delta counterexample retained. No runtime/backend/key/cipher/noise/security or full B-N1 qualification; approximate Down equivalence unproved. |
+| D48 | Approved: isolated pinned Poulpy owning-Layout qualification | Offline apply/compile and two storage tests, 12 tiny cases/backing ≤4096 B; 60 s/256 MiB/zero new swap/1 MiB output with refusal on unavailable dependencies/guards. Single-job D33 compile headroom; no Main/dependency adoption, consumer activation, RNG/keys/transforms/encryption, security or fit qualification. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
