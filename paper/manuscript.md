@@ -810,6 +810,8 @@ coverage includes lookup, body, head or declared output function, token feedback
 persistent state, and failure behavior. A component cannot replace an incomplete
 method in the serving comparison.
 
+Later bounded implementations include Maverick’s two-batch raw-field protocol owner, SIGMA’s local four-lane LayerNorm, NEXUS’s explicit row-head binary64 reference, THOR’s artifact-call clear FFN, BumbleBee’s clear coefficient phase, CacheMir’s public DAG analysis, and ROSETTA’s coefficient reference. Their distinct execution scopes and correctness evidence are recorded in [the claim-to-evidence matrix](CLAIMS-AND-EVIDENCE.md#framework-claim-to-evidence-matrix). These are component or analytical references, not reproductions of complete author systems or encrypted decoders; the combined regression at `98bedd49` does not change that classification.
+
 The current evidence includes a trained-checkpoint GKM response through the
 ordinary SDK and benchmark. Its declared source-derived arithmetic uses signed
 16-bit weights, 11 fractional bits, and arithmetic modulo $2^{64}$.
