@@ -1222,6 +1222,39 @@ adoption, consumer activation, RNG, keys, transforms, encryption, security or
 fit claim follows. This approval records permission, not completed compilation
 or passing tests; other source/runtime gates remain closed.
 
+## D49. Explicit compact PUMA SDK source integration
+
+**Explicitly approved on 25 October 2026 (user61089):** implement immutable
+`PumaThreePartyDecoder(storage='compact')`. Omitted, default and explicit
+`expanded` canonical serialization/digests remain unchanged. Storage is distinct
+from argmax selection and stays outside arithmetic `ExecutionPolicy` and wire
+formats. Admitted client/server Experiment composition/config binds agreement;
+workers select storage **only from their retained trusted server Experiment**,
+never a client manifest, request or storage boolean. Support is bounded to public
+weights, checked ranges, per-token lookup, expanded argmax and HTTP. Unknown or
+unsupported choices refuse; compact failure never falls back to expanded.
+
+Both publisher and all three workers must use **source-owned compilation before
+Manifest/seal**. Reuse the [original source entry](../../crates/pllm-compiler/src/replicated_decoder/source_entry.rs)
+and [owning sealed request](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs),
+with original counter/work/binding/source owners and snapshot disk backing charged
+through transitions. No legacy expanded Publisher transplant into a fresh counter.
+D26's phased same-counter admission and safe late refusal retain the 64 MiB,
+descriptor, work and global caps; complete identity/work/retirement checks precede
+execution. Reuse the existing Worker/PRSS. Default SDK behavior is unchanged; no
+BODY handoff or drain issuer is authorized. The private 31-file sealed path landed
+`0d9dcaaa`, but does **not** establish ordinary SDK qualification.
+
+Qualification requires bounded native/component tests, a matching wheel and the
+ordinary gateway generated tiny four-to-five-token V3 example: accepted `[1,0]`
+with validity 1; early/later sticky rejection releases no IDs. Cover cancellation
+in both snapshot phases, seal/run/retire/role drop, config/source/composition
+tampering, unknown policy and default compatibility. Public serving claims require
+that exact normal gateway example to pass; approval itself supplies no result.
+This is not permission for unbounded snapshots, caller-controlled admission,
+trained-checkpoint/tensor-model jobs or downloads, numerical/wire/profile changes,
+cap increases, HE keys, FSS inference, or joint-privacy/source-authentication upgrades.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1274,6 +1307,7 @@ or passing tests; other source/runtime gates remain closed.
 | D46 | Approved: four independent bounded clear/operator/compiler adaptations | Exact NEXUS binary64/no-epsilon prefix; pinned THOR two-row LinearBias/artifact-GELU/LinearBias; synthetic CacheMir shared-SSA append/liveness; proposed ROSETTA four-segment rational reference. Preserve caps/refusals/source distinctions; separate lane qualification, no whole-method/SDK/backend/security adoption or ranking. |
 | D47 | Approved: BumbleBee clear whole-phase full-U OLT/product/trace/ParseMat/CRT/Down | Proposed N8192/t2^64 limbs, separate (3,65,129)/(1,64,128) geometry, 32 MiB logical owners and 2^28 cumulative arithmetic before factories; both cross directions, old Delta counterexample retained. No runtime/backend/key/cipher/noise/security or full B-N1 qualification; approximate Down equivalence unproved. |
 | D48 | Approved: isolated pinned Poulpy owning-Layout qualification | Offline apply/compile and two storage tests, 12 tiny cases/backing ≤4096 B; 60 s/256 MiB/zero new swap/1 MiB output with refusal on unavailable dependencies/guards. Single-job D33 compile headroom; no Main/dependency adoption, consumer activation, RNG/keys/transforms/encryption, security or fit qualification. |
+| D49 | Approved: explicit compact PUMA SDK source integration | Immutable opt-in storage, unchanged expanded defaults/digests; trusted-server Experiment policy and original-counter source-owned publisher/all-worker compilation before Manifest/seal. Bounded matching-wheel/gateway tests required, no fallback, cap change, trained run, BODY drain or automatic SDK/security qualification. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
