@@ -500,6 +500,7 @@ thread_local! {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mapping {
+    History(request_origin::compact_storage::compact_history::HistoryInput),
     AttentionValues {
         first: usize,
         layout: compact_attention_values::ValueLayout,
@@ -672,6 +673,7 @@ impl PublishedView {
             .order
             .index(self.start.checked_add(index).ok_or(Error::Bounds)?)?;
         Ok(match self.mapping {
+            Mapping::History(history) => history.word(index)?,
             Mapping::AttentionValues { first, layout, .. } => layout.word(first, index)?,
             Mapping::SoftmaxRows {
                 first,
@@ -883,6 +885,11 @@ struct PublishedOp<'a> {
 /// IDs are original schedule coordinates, NOT allocated value/retirement slots.
 #[derive(Clone, Copy)]
 pub(in crate::replicated_decoder) enum PhysicalLayout {
+    TokenHistory {
+        original: usize,
+        rows: usize,
+        selected: (usize, usize),
+    },
     CausalTensorRows {
         rows: usize,
     },
@@ -935,6 +942,43 @@ pub(in crate::replicated_decoder) enum PhysicalLaneOrder {
 }
 
 impl<'a> CompactGraph<'a, 'a> {
+    pub(in crate::replicated_decoder::program) fn from_pending_history(
+        history: &'a request_origin::compact_storage::compact_history::PendingCompactHistory<'a>,
+    ) -> Result<Self, Error> {
+        let (imports, context, previous) = history.checked_graph_parts()?;
+        let mut graph = Self::from_source_request(imports, context, context.program_cap())?;
+        graph.previous_epoch = Some(previous);
+        Ok(graph)
+    }
+    #[cfg(test)]
+    pub(in crate::replicated_decoder::program) fn test_softmax_programs(
+        &self,
+    ) -> Vec<std::sync::Weak<tensor::Program>> {
+        self.ops
+            .iter()
+            .filter_map(|op| match &op.kind {
+                PublishedKind::AttentionSoftmax(rows) => Some(rows),
+                _ => None,
+            })
+            .flat_map(|rows| rows.programs().map(Arc::downgrade))
+            .collect()
+    }
+    #[cfg(test)]
+    pub(in crate::replicated_decoder::program) fn test_hold_softmax_alias(
+        &self,
+    ) -> Result<impl Sized + 'a, Error> {
+        let context = self.request_admission.ok_or(Error::Binding)?;
+        let bytes = std::mem::size_of::<compact_attention_softmax::RowView<'_>>();
+        context.admit_phase(bytes, 0)?;
+        context.retain(bytes)?;
+        self.ops
+            .iter()
+            .find_map(|op| match &op.kind {
+                PublishedKind::AttentionSoftmax(rows) => Some(rows.prefix(0)),
+                _ => None,
+            })
+            .ok_or(Error::Binding)?
+    }
     /// Genuine ORIGINAL declaration -> native compact emission. The source
     /// context, not a recovered input View / digest / expanded executable,
     /// supplies the initial import, exact source registry and native admission.
@@ -962,7 +1006,9 @@ impl<'a> CompactGraph<'a, 'a> {
         let view = PublishedView {
             origin: graph.origin.clone(),
             slot: None,
-            mapping: Mapping::Dense(owner),
+            mapping: context
+                .history_input()
+                .map_or(Mapping::Dense(owner), Mapping::History),
             start: 0,
             lanes: rows,
             shape: logical.envelope()?,
@@ -970,7 +1016,9 @@ impl<'a> CompactGraph<'a, 'a> {
             logical,
             order: LaneOrder::Linear,
             import_slot: Some(0),
-            bounds,
+            bounds: context
+                .history_input()
+                .map_or(bounds, |history| history.bounds()),
         };
         if graph.bound_imports.len() == graph.bound_imports.capacity() {
             return Err(Error::Bounds);
@@ -995,11 +1043,21 @@ impl<'a> CompactGraph<'a, 'a> {
             },
         )?;
         let prelude = prelude.ok_or(Error::Binding)?;
-        if prelude.first() != imports.nodes.len() {
+        if prelude.first()
+            != context
+                .history_input()
+                .map_or(imports.nodes.len(), |history| history.first())
+        {
             return Err(Error::Binding);
         }
         graph.next = add_bytes(prelude.first(), 2)?;
         graph.request_prelude = Some(prelude);
+        graph.work = context.work();
+        graph.validity = compact_validity::RequestValidity::source_request(
+            imports,
+            graph.origin.clone(),
+            context,
+        )?;
         attempt.commit();
         Ok(graph)
     }
@@ -1224,6 +1282,14 @@ impl PublishedView {
     fn physical(&self) -> PhysicalView {
         PhysicalView {
             layout: match self.mapping {
+                Mapping::History(history) => {
+                    let (original, rows, selected) = history.physical();
+                    PhysicalLayout::TokenHistory {
+                        original,
+                        rows,
+                        selected,
+                    }
+                }
                 Mapping::AttentionValues { products, .. } => {
                     PhysicalLayout::CausalProducts { products }
                 }
@@ -1314,6 +1380,7 @@ pub(in crate::replicated_decoder) struct CompactGraph<'g, 'a> {
     outside_owner_bytes: usize,
     request_admission: Option<&'a request_origin::compact_storage::EmissionContext<'a>>,
     request_prelude: Option<request_origin::compact_storage::Prelude>,
+    previous_epoch: Option<&'a frozen_region::owning::OwnedEpoch>,
     prebound_inputs: Option<input_owner::InputOwner<'a>>,
     validity: compact_validity::RequestValidity<'a>,
     contraction_control_bytes: std::cell::Cell<usize>,
@@ -2751,6 +2818,23 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                     .bound_imports
                     .get(input.import_slot.ok_or(Error::Binding)?)
                     .ok_or(Error::Binding)?;
+                if let Mapping::History(history) = input.mapping {
+                    self.validate_view(input)?;
+                    let context = self.request_admission.ok_or(Error::Binding)?;
+                    context.check_imports(self.imports)?;
+                    return if bound.semantic == "input.tokens"
+                        && context.history_input() == Some(history)
+                        && input.bounds
+                            == Interval::new(
+                                0,
+                                i64::try_from(vocabulary).map_err(|_| Error::Bounds)? - 1,
+                            )?
+                    {
+                        Ok(())
+                    } else {
+                        Err(Error::Binding)
+                    };
+                }
                 let Mapping::Dense(owner) = input.mapping else {
                     return Err(Error::Binding);
                 };
@@ -3332,6 +3416,7 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
             outside_owner_bytes,
             request_admission: admission,
             request_prelude: None,
+            previous_epoch: None,
             prebound_inputs: None,
             validity,
             contraction_control_bytes: std::cell::Cell::new(0),
@@ -3474,6 +3559,18 @@ impl<'g, 'a> CompactGraph<'g, 'a> {
                 || bound.import_slot != view.import_slot
             {
                 return Err(Error::Binding);
+            }
+            if let Mapping::History(history) = view.mapping {
+                let context = self.request_admission.ok_or(Error::Binding)?;
+                if context.history_input() != Some(history)
+                    || view.start != 0
+                    || view.order != LaneOrder::Linear
+                    || view.lanes != history.rows()
+                    || view.bounds != history.bounds()
+                {
+                    return Err(Error::Binding);
+                }
+                return Ok(());
             }
             let Mapping::Dense(owner) = view.mapping else {
                 return Err(Error::Binding);
@@ -5264,6 +5361,9 @@ pub(in crate::replicated_decoder) struct ArgmaxCensus {
     pub construction_peak_bytes: usize,
 }
 
+#[path = "compact_lowering/compact_request_argmax.rs"]
+mod compact_request_argmax;
+
 struct CompactArgmax {
     first: usize,
     geometry: ArgmaxGeometry,
@@ -5364,6 +5464,9 @@ impl CompactArgmax {
         input: &PublishedView,
         first: usize,
     ) -> Result<Self, Error> {
+        if graph.request_admission.is_some() {
+            return compact_request_argmax::prepare_request_argmax(graph, input, first);
+        }
         let (geometry, local_peak) = Self::quote(input.lanes, graph.baseline()?)?;
         graph.admit_local(local_peak)?; // BEFORE metadata reservation or ANY native factory
                                         // Replay the SAME complete tree with scalar work state only. No native
@@ -5480,6 +5583,7 @@ thread_local! { static ARGMAX_NATIVE_ATTEMPTS: std::cell::Cell<usize> = const { 
 enum NegativePrograms<'s> {
     /// Work-only traversal, never an executable native owner or publication.
     Count,
+    RequestCount(&'s mut compact_request_argmax::RequestCount),
     Build {
         programs: &'s mut Vec<NegativeProgram>,
         prior: &'s dyn Fn([u8; 32]) -> Option<Arc<tensor::Program>>,
@@ -5490,7 +5594,7 @@ enum NegativePrograms<'s> {
 impl NegativePrograms<'_> {
     fn get(&mut self, lanes: usize, bounds: Interval) -> Result<&Arc<tensor::Program>, Error> {
         match self {
-            Self::Count => Err(Error::Binding),
+            Self::Count | Self::RequestCount(_) => Err(Error::Binding),
             Self::Borrowed(programs) => programs
                 .iter()
                 .find(|program| program.lanes == lanes && program.bounds == bounds)
@@ -5557,7 +5661,11 @@ impl<'s, 'v> ArgmaxNumeric<'s, 'v> {
         programs: NegativePrograms<'s>,
         visitor: Option<ArgmaxVisitor<'v>>,
     ) -> Result<Self, Error> {
-        if matches!(&programs, NegativePrograms::Count) && visitor.is_some() {
+        if matches!(
+            &programs,
+            NegativePrograms::Count | NegativePrograms::RequestCount(_)
+        ) && visitor.is_some()
+        {
             return Err(Error::Binding);
         }
         Ok(Self {
@@ -5651,6 +5759,10 @@ impl SelectSink for ArgmaxNumeric<'_, '_> {
             false,
             None,
         )?;
+        let work = WorkBudget::product(left.lanes, false)?;
+        if let NegativePrograms::RequestCount(observer) = &mut self.programs {
+            observer.product(work)?;
+        }
         self.emit(
             left.lanes,
             bounds,
@@ -5658,7 +5770,7 @@ impl SelectSink for ArgmaxNumeric<'_, '_> {
                 left: left.id,
                 right: right.id,
             },
-            WorkBudget::product(left.lanes, false)?,
+            work,
         )
     }
     fn selected_affine(
@@ -5735,8 +5847,14 @@ impl ArgmaxSink for ArgmaxNumeric<'_, '_> {
         self.affine_value(left, right, affine(1, -1, 0), None)
     }
     fn negative(&mut self, difference: Value) -> Result<Value, Error> {
-        if matches!(&self.programs, NegativePrograms::Count) {
+        if matches!(
+            &self.programs,
+            NegativePrograms::Count | NegativePrograms::RequestCount(_)
+        ) {
             let work = tensor::Program::negative_work(difference.lanes, difference.bounds)?;
+            if let NegativePrograms::RequestCount(observer) = &mut self.programs {
+                observer.negative(difference.lanes, difference.bounds, work)?;
+            }
             // Native Negative's arithmetic-bit envelope, used only by this
             // private counting traversal. No proof or executable owner is minted.
             return self.record(difference.lanes, Interval::new(0, 1)?, work);

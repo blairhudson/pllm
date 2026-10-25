@@ -33,6 +33,7 @@ pub(in crate::replicated_decoder) enum Kind {
 #[derive(Clone, Copy)]
 enum Storage<'s> {
     Expanded(&'s Program),
+    Compact(&'s source_entry::compact_pending::sealed::SealedOwnedStorage),
     #[allow(dead_code)] // FrozenSchedule is currently a test-only metadata loan.
     Frozen(&'s dyn BorrowedOrderedNodes),
     // Installed only by consuming test custody from an internally created loan.
@@ -50,6 +51,11 @@ impl<'s> PrivateScheduleRef<'s> {
     pub(super) fn expanded(program: &'s Program) -> Self {
         Self(Storage::Expanded(program))
     }
+    pub(super) fn compact(
+        owner: &'s source_entry::compact_pending::sealed::SealedOwnedStorage,
+    ) -> Self {
+        Self(Storage::Compact(owner))
+    }
     #[cfg(test)]
     pub(in crate::replicated_decoder) fn frozen(schedule: &'s FrozenSchedule<'_, '_>) -> Self {
         Self(Storage::Frozen(schedule))
@@ -65,6 +71,9 @@ impl<'s> PrivateScheduleRef<'s> {
         self,
         ordinal: usize,
     ) -> Result<usize, Error> {
+        if let Storage::Compact(owner) = self.0 {
+            return owner.generated_len(ordinal);
+        }
         let Storage::OwnedFrozen(_, owner) = self.0 else {
             return Err(Error::Binding);
         };
@@ -79,6 +88,9 @@ impl<'s> PrivateScheduleRef<'s> {
         ordinal: usize,
         index: usize,
     ) -> Result<i64, Error> {
+        if let Storage::Compact(owner) = self.0 {
+            return owner.generated_element(ordinal, index);
+        }
         let Storage::OwnedFrozen(_, owner) = self.0 else {
             return Err(Error::Binding);
         };
@@ -116,12 +128,14 @@ impl<'s> PrivateScheduleRef<'s> {
     pub(in crate::replicated_decoder) fn len(self) -> usize {
         match self.0 {
             Storage::Expanded(p) => p.nodes.len(),
+            Storage::Compact(p) => p.logical_len(),
             Storage::Frozen(s) | Storage::OwnedFrozen(s, _) => s.node_count(),
         }
     }
     pub(in crate::replicated_decoder) fn node(self, ordinal: usize) -> Result<ReadNode<'s>, Error> {
         let node = match self.0 {
             Storage::Expanded(p) => p.nodes.as_slice().node(ordinal)?,
+            Storage::Compact(p) => p.read_recipe(ordinal)?,
             Storage::Frozen(s) | Storage::OwnedFrozen(s, _) => s.node(ordinal)?,
         };
         Ok(ReadNode(node))
@@ -129,6 +143,7 @@ impl<'s> PrivateScheduleRef<'s> {
     pub(in crate::replicated_decoder) fn input_count(self) -> Result<usize, Error> {
         match self.0 {
             Storage::Expanded(p) => Ok(p.inputs),
+            Storage::Compact(p) => Ok(p.input_count()),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -150,6 +165,7 @@ impl<'s> PrivateScheduleRef<'s> {
     pub(in crate::replicated_decoder) fn value_slot_count(self) -> Result<usize, Error> {
         match self.0 {
             Storage::Expanded(p) => Ok(p.nodes.len()),
+            Storage::Compact(p) => Ok(p.value_slot_count()),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -158,6 +174,7 @@ impl<'s> PrivateScheduleRef<'s> {
             // Preserve the legacy identity mapping, including caller-side bounds
             // checks. Never infer this map for virtual frozen recipe ordinals.
             Storage::Expanded(_) => Ok(logical),
+            Storage::Compact(p) => p.value_slot(logical),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -166,6 +183,7 @@ impl<'s> PrivateScheduleRef<'s> {
         ordinal: usize,
     ) -> Result<&'s [usize], Error> {
         match self.0 {
+            Storage::Compact(p) => p.retirement(ordinal),
             Storage::Expanded(p) => p
                 .retire
                 .get(ordinal)
@@ -177,12 +195,14 @@ impl<'s> PrivateScheduleRef<'s> {
     pub(in crate::replicated_decoder) fn outputs(self) -> Result<&'s [(usize, usize)], Error> {
         match self.0 {
             Storage::Expanded(p) => Ok(&p.outputs),
+            Storage::Compact(p) => Ok(p.outputs()),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
     pub(in crate::replicated_decoder) fn source_binding(self) -> Result<[u8; 32], Error> {
         match self.0 {
             Storage::Expanded(p) => Ok(p.source_binding),
+            Storage::Compact(p) => Ok(p.source_binding()),
             Storage::Frozen(_) | Storage::OwnedFrozen(_, _) => Err(Error::Binding),
         }
     }
@@ -194,6 +214,7 @@ impl<'s> PrivateScheduleRef<'s> {
         ordinal: usize,
     ) -> Result<&'s Arc<runtime::trie::Plan>, Error> {
         match self.0 {
+            Storage::Compact(p) => p.trie_owner(ordinal),
             Storage::Expanded(p) => match &p.nodes.get(ordinal).ok_or(Error::Binding)?.code {
                 Code::TrieLookup { plan, .. } => Ok(plan),
                 _ => Err(Error::Binding),
@@ -206,6 +227,7 @@ impl<'s> PrivateScheduleRef<'s> {
         ordinal: usize,
     ) -> Result<&'s Arc<runtime::selection::Plan>, Error> {
         match self.0 {
+            Storage::Compact(p) => p.selection_owner(ordinal),
             Storage::Expanded(p) => match &p.nodes.get(ordinal).ok_or(Error::Binding)?.code {
                 Code::Selection { plan, .. } => Ok(plan),
                 _ => Err(Error::Binding),

@@ -309,8 +309,18 @@ pub struct Program {
 pub(super) mod schedule_access;
 
 impl Program {
+    pub(super) fn compact_storage(
+        &self,
+    ) -> Option<&source_entry::compact_pending::sealed::SealedOwnedStorage> {
+        self.request_custody
+            .as_deref()
+            .and_then(request_origin::schedule::Custody::compact)
+    }
     pub(super) fn schedule_access(&self) -> schedule_access::PrivateScheduleRef<'_> {
-        schedule_access::PrivateScheduleRef::expanded(self)
+        match self.compact_storage() {
+            Some(owner) => schedule_access::PrivateScheduleRef::compact(owner),
+            None => schedule_access::PrivateScheduleRef::expanded(self),
+        }
     }
 
     /// Actual retained expanded owner census for the TEST-ONLY frozen oracle.
@@ -401,6 +411,9 @@ impl Program {
     }
 
     /// Return the logical owner and its borrowed original import recipe.
+    // Legacy expanded Node lens retained for existing debug/test callers. New
+    // startup/runtime access uses the storage-neutral recipe lens instead.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(super) fn input_at(&self, position: usize) -> (usize, &Node) {
         (position, &self.nodes[..self.inputs][position])
     }

@@ -8,8 +8,10 @@ use super::*;
 use crate::replicated_decoder::program::EmissionContext;
 use std::mem::size_of;
 use std::rc::Rc;
+#[path = "compact_attention_owned_rows.rs"]
+pub(super) mod owning;
 
-struct Certified {
+pub(super) struct Certified {
     program: Arc<tensor::Program>,
     input: Interval,
     width: usize,

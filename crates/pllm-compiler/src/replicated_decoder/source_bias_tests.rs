@@ -29,15 +29,27 @@ fn fixture(width: usize) -> (Fixture, Vec<i64>, Vec<i64>) {
                 if key.contains("norm") {
                     ONE
                 } else if key == "model.embed_tokens.weight" {
-                    if i % width % 2 == 0 { ONE / 4 } else { ONE / 8 }
+                    if i % width % 2 == 0 {
+                        ONE / 4
+                    } else {
+                        ONE / 8
+                    }
                 } else if key.ends_with("q_proj.weight") {
                     if i % width == i / width {
-                        if i / width % 2 == 0 { -1 } else { 1 }
+                        if i / width % 2 == 0 {
+                            -1
+                        } else {
+                            1
+                        }
                     } else {
                         0
                     }
                 } else if key.ends_with("q_proj.bias") {
-                    if i % 2 == 0 { -7 } else { 3 }
+                    if i % 2 == 0 {
+                        -7
+                    } else {
+                        3
+                    }
                 } else {
                     0
                 }
@@ -168,6 +180,8 @@ fn creation_rejects_foreign_same_digest_registry_and_program_without_minting_a_r
                 .request_custody
                 .as_ref()
                 .unwrap()
+                .expanded()
+                .unwrap()
                 .origin
                 .payload()
                 .state
@@ -194,6 +208,8 @@ fn source_bias_preparation_one_short_retained_baseline_rejects_before_body_alloc
             program
                 .request_custody
                 .as_ref()
+                .unwrap()
+                .expanded()
                 .unwrap()
                 .origin
                 .payload()
@@ -246,19 +262,22 @@ fn prior_source_work_refusal_and_unwind_burn_before_publication_without_early_re
                 }));
                 assert!(result.is_err());
             } else {
-                let custody = program.request_custody.as_ref().unwrap();
+                let custody = program
+                    .request_custody
+                    .as_ref()
+                    .unwrap()
+                    .expanded()
+                    .unwrap();
                 let guard = case
                     .root
                     .charge_external(OriginalSourcePlan::compiler_metadata_control_bytes().unwrap())
                     .unwrap();
-                assert!(
-                    custody
-                        .origin
-                        .payload()
-                        .source
-                        .prepay_compiler_metadata(&guard, u64::MAX)
-                        .is_err()
-                );
+                assert!(custody
+                    .origin
+                    .payload()
+                    .source
+                    .prepay_compiler_metadata(&guard, u64::MAX)
+                    .is_err());
                 assert!(matches!(
                     Compiled::prepare(
                         Arc::clone(&program),
@@ -276,6 +295,8 @@ fn prior_source_work_refusal_and_unwind_burn_before_publication_without_early_re
                 program
                     .request_custody
                     .as_ref()
+                    .unwrap()
+                    .expanded()
                     .unwrap()
                     .origin
                     .payload()

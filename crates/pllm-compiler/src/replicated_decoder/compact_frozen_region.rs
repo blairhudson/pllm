@@ -2,13 +2,14 @@
 //! request completion, certificate publication or finalization authority.
 use super::*;
 use std::mem::size_of;
+#[path = "compact_owned_epoch.rs"]
+pub(in crate::replicated_decoder::program) mod owning;
 
 #[path = "compact_prefix_custody.rs"]
 pub(in crate::replicated_decoder) mod prefix_custody;
 
-// Shared finalization remains a test-only seam. This does not open production
-// routing, complete-request admission, dispatch or completion authority.
-#[cfg(test)]
+// Shared canonical inspection helpers. No production route, complete-request
+// admission, execution dispatch or completion authority is opened here.
 #[path = "compact_frozen_recipe.rs"]
 pub(in crate::replicated_decoder) mod recipe;
 
@@ -172,7 +173,7 @@ impl<'a> CompactGraph<'_, 'a> {
                 self.validate_view(right)?;
             }
         }
-        let mut sticky = self.imports.validity;
+        let mut sticky = self.validity.initial();
         for op in &self.ops {
             if let PublishedKind::RmsNorm {
                 checked: Some(rows),

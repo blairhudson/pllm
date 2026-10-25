@@ -742,6 +742,46 @@ fn check_source_inputs(
 }
 
 impl History<'_> {
+    /// Same original source-plan factory for expanded and compact histories.
+    /// Caller prepays the bootstrap and retains every preceding epoch first.
+    fn lower_original_epoch(
+        &mut self,
+        selection: usize,
+        guard: OwnedExternalCharge,
+        limits: original_source::Limits,
+    ) -> Result<(), Error> {
+        if self.origin.payload().state.load(Ordering::Acquire) != OPEN
+            || selection == 0
+            || selection != self.epochs.len()
+            || selection >= self.resources.outputs
+            || !guard.is_for(self.origin.payload().source.budget())
+        {
+            return Err(Error::Binding);
+        }
+        let workload = pllm_models::DecoderWorkload {
+            batch: 1,
+            max_input_tokens: u64::try_from(add(self.resources.rows, selection)?)
+                .map_err(|_| Error::Bounds)?,
+            max_new_tokens: u64::try_from(self.resources.outputs - selection)
+                .map_err(|_| Error::Bounds)?,
+        };
+        let plan = self
+            .origin
+            .payload()
+            .source
+            .lower(guard, workload, limits)
+            .map_err(|_| Error::Bounds)?;
+        if plan.plan().prefill.operations.len() > self.resources.max_operations
+            || !plan.same_origin(&self.origin.payload().source)
+        {
+            return Err(Error::Binding);
+        }
+        if self.epochs.len() == self.epochs.capacity() {
+            return Err(Error::Bounds);
+        }
+        self.epochs.push(Arc::new(plan));
+        Ok(())
+    }
     /// Logical metadata visits through actual retained owners, not a native work
     /// formula/opaque CPU bound. Future plan construction has its own original
     /// guarded factory quote; it does not borrow this admission.
@@ -1050,13 +1090,6 @@ pub(super) fn drive_context<'s>(
                 return Err(Error::Binding);
             }
             if selection != 0 {
-                let workload = pllm_models::DecoderWorkload {
-                    batch: 1,
-                    max_input_tokens: u64::try_from(add(rows, selection)?)
-                        .map_err(|_| Error::Bounds)?,
-                    max_new_tokens: u64::try_from(outputs - selection)
-                        .map_err(|_| Error::Bounds)?,
-                };
                 let required = sink
                     .history
                     .origin
@@ -1068,19 +1101,8 @@ pub(super) fn drive_context<'s>(
                     return Err(Error::Bounds);
                 }
                 let guard = lowering.split_owned(bootstrap).map_err(|_| Error::Bounds)?;
-                let plan = sink
-                    .history
-                    .origin
-                    .payload()
-                    .source
-                    .lower(guard, workload, limits)
-                    .map_err(|_| Error::Bounds)?;
-                if plan.plan().prefill.operations.len() > sink.history.resources.max_operations
-                    || !plan.same_origin(&sink.history.origin.payload().source)
-                {
-                    return Err(Error::Binding);
-                }
-                sink.history.epochs.push(Arc::new(plan));
+                sink.history
+                    .lower_original_epoch(selection, guard, limits)?;
             }
             sink.history.prepay_epoch(selection)?;
             Ok(request_driver::Plan::Original(Arc::clone(

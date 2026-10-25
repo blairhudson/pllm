@@ -52,6 +52,7 @@ mod public_constants {
     // compiler-owned recipe owners can back these deterministic public values.
     trait Owner {}
     impl Owner for compact_lowering::frozen_region::FrozenRegion<'_> {}
+    impl Owner for compact_lowering::frozen_region::owning::OwnedEpoch {}
 
     #[derive(Clone, Copy)]
     enum Sequence {
@@ -68,6 +69,38 @@ mod public_constants {
     }
 
     impl<'a> GeneratedPublicValues<'a> {
+        pub(in super::super) fn retained_argmax_indices(
+            loan: &'a compact_lowering::frozen_region::owning::recipe::RetainedEpoch,
+            descriptor: usize,
+        ) -> Result<Self, Error> {
+            let owner = loan.epoch();
+            let lanes = owner.argmax_lanes(descriptor)?;
+            let values = Self {
+                _owner: owner,
+                sequence: Sequence::Iota { lanes },
+            };
+            values.validate(
+                lanes,
+                Interval::new(0, i64::try_from(lanes).map_err(|_| Error::Bounds)? - 1)?,
+            )?;
+            Ok(values)
+        }
+        pub(in super::super) fn owned_argmax_indices(
+            loan: &compact_lowering::frozen_region::owning::InspectionLoan<'a>,
+            descriptor: usize,
+        ) -> Result<Self, Error> {
+            let owner = loan.epoch();
+            let lanes = owner.argmax_lanes(descriptor)?;
+            let values = Self {
+                _owner: owner,
+                sequence: Sequence::Iota { lanes },
+            };
+            values.validate(
+                lanes,
+                Interval::new(0, i64::try_from(lanes).map_err(|_| Error::Bounds)? - 1)?,
+            )?;
+            Ok(values)
+        }
         pub(in super::super) fn argmax_indices(
             owner: &'a compact_lowering::frozen_region::FrozenRegion<'_>,
             descriptor: usize,
@@ -137,6 +170,28 @@ mod public_constants {
                 return Err(Error::Shape);
             }
             Ok(())
+        }
+        pub(in super::super) fn retained_element(
+            self,
+            lanes: usize,
+            bounds: Interval,
+            index: usize,
+        ) -> Result<i64, Error> {
+            self.validate(lanes, bounds)?;
+            if index >= lanes {
+                return Err(Error::Shape);
+            }
+            match self.sequence {
+                Sequence::Iota { .. } => i64::try_from(index).map_err(|_| Error::Bounds),
+            }
+        }
+        pub(in super::super) fn retained_len(
+            self,
+            lanes: usize,
+            bounds: Interval,
+        ) -> Result<usize, Error> {
+            self.validate(lanes, bounds)?;
+            Ok(lanes)
         }
 
         // Only called after validate by quote/finalize. Bounds make this cast
@@ -642,7 +697,7 @@ pub(super) fn quote<S: BorrowedOrderedNodes + ?Sized>(
 
 /// Canonical original bytes, using the SAME program helpers as Builder::finish.
 /// Borrow programs/proofs/plans directly; never clone or substitute Arc owners.
-fn hash_node(hash: &mut Sha256, node: BorrowedNode<'_>) -> Result<(), Error> {
+pub(super) fn hash_node(hash: &mut Sha256, node: BorrowedNode<'_>) -> Result<(), Error> {
     hash_node_header(hash, node.lanes, node.bounds);
     match node.recipe {
         BorrowedRecipe::Input(key) => {

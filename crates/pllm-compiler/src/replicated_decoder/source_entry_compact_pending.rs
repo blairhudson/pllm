@@ -2,6 +2,12 @@
 //! not an executable schedule. Only the complete storage finalizer may publish.
 use super::*;
 
+#[path = "source_entry_compact_handles.rs"]
+pub(in crate::replicated_decoder::program) mod handles;
+#[path = "compact_request_sealed.rs"]
+pub(in crate::replicated_decoder::program) mod sealed;
+use handles::SourceCatalog;
+
 // Nonfallible assembly immediately after Pending extraction. Both ordinary
 // failure and unwind retire importer payload BEFORE its ORIGINAL reservation.
 // Private staging only until the complete owning request publisher is wired.
@@ -55,15 +61,11 @@ pub(in crate::replicated_decoder::program) fn test_hold_remaining(
     guard.resize_payload(remaining).unwrap();
     guard
 }
-
-/// Catalog positions are issued only while borrowing the actual authenticated
-/// registry. They are not source authority without this whole private owner.
-// Replaced by the reviewed all-tensor handle catalog in the next separate unit.
-#[cfg_attr(not(test), allow(dead_code))]
-pub(in crate::replicated_decoder::program) struct SourceRecord {
-    source: usize,
-    file: Option<usize>,
-    norm: Option<usize>,
+#[cfg(test)]
+pub(in crate::replicated_decoder::program) fn test_root(
+    entry: &SourceRequestImport,
+) -> OwnedBudget {
+    entry.0.as_ref().unwrap().root.try_clone().unwrap()
 }
 
 /// Payloads precede reservations in field drop order. No borrowed registry,
@@ -76,7 +78,7 @@ pub(in crate::replicated_decoder::program) struct SourceCustody<R> {
     public: PublicSnapshotOwner,
     manifest: Box<OwnedCharged<Manifest>>,
     raw: OwnedCharged<json::ImportedValue>,
-    records: Vec<SourceRecord>,
+    catalog: SourceCatalog,
     instance: source_registry::Instance,
     binding: [u8; 32],
     registry_charge: OwnedExternalCharge,
@@ -86,6 +88,30 @@ pub(in crate::replicated_decoder::program) struct SourceCustody<R> {
 }
 
 impl<R> SourceCustody<R> {
+    pub(in crate::replicated_decoder::program) fn check_emission(
+        &self,
+        emission: &request_origin::compact_storage::owning::OwnedEmission<impl Sized>,
+    ) -> Result<(), Error> {
+        self.check_ingress(self.instance, self.binding)?;
+        emission.check_source_custody(self.manifest.payload(), &self.public.public, self.instance)
+    }
+    /// Reader ingress checks the actual epoch's retained instance/source root;
+    /// neither a binding digest nor a caller-provided Manifest can replace it.
+    pub(in crate::replicated_decoder::program) fn check_source_epoch(
+        &self,
+        instance: source_registry::Instance,
+        plan: &OriginalSourcePlan,
+    ) -> Result<(), Error> {
+        self.check_ingress(instance, self.binding)?;
+        if !self.original.same_origin(plan) || !std::ptr::eq(plan.budget(), self.root.budget()) {
+            return Err(Error::Binding);
+        }
+        Ok(())
+    }
+    /// Borrow only; no payload extraction or reservation detachment.
+    pub(in crate::replicated_decoder::program) fn produced(&self) -> &R {
+        &self.produced
+    }
     // Called by staged ingress, with genuine source lifecycle coverage in tests.
     #[cfg_attr(not(test), allow(dead_code))]
     fn check_ingress(
@@ -103,39 +129,14 @@ impl<R> SourceCustody<R> {
             || !self.registry_charge.is_for(budget)
             || !self.manifest_box_charge.is_for(budget)
             || !self.catalog_charge.is_for(budget)
-            || self.records.len() != self.manifest.payload().tensors.len()
         {
             return Err(Error::Binding);
         }
-        let mut file = 0;
-        for (i, ((key, source), record)) in self
-            .manifest
-            .payload()
-            .tensors
-            .iter()
-            .zip(&self.records)
-            .enumerate()
-        {
-            if record.source != i {
-                return Err(Error::Binding);
-            }
-            let expected = if source.public_q18.is_none() {
-                let owner = file;
-                file += 1;
-                Some(owner)
-            } else {
-                None
-            };
-            if record.file != expected {
-                return Err(Error::Binding);
-            }
-            match record.norm {
-                Some(index) if self.manifest.payload().norms.keys().nth(index) == Some(key) => {}
-                None if !self.manifest.payload().norms.contains_key(key) => {}
-                _ => return Err(Error::Binding),
-            }
-        }
-        Ok(())
+        self.catalog.check_owned(
+            self.manifest.payload(),
+            &self.original,
+            &self.catalog_charge,
+        )
     }
     #[cfg(test)]
     pub(super) fn into_test_payload(self) -> R {
@@ -143,7 +144,54 @@ impl<R> SourceCustody<R> {
     }
 }
 
+impl
+    SourceCustody<
+        request_origin::compact_storage::owning::OwnedEmission<
+            request_origin::compact_storage::compact_history::CompletionLoan,
+        >,
+    >
+{
+    pub(in crate::replicated_decoder::program) fn compact_canonical_prefix(
+        &self,
+    ) -> Result<sha2::Sha256, Error> {
+        self.check_emission(&self.produced)?;
+        let (rows, outputs) = self.produced.original_request_shape();
+        request_origin::schedule::canonical_prefix(
+            &self.original,
+            rows,
+            outputs,
+            self.manifest.payload(),
+        )
+    }
+}
+
 impl SourceRequestImport {
+    /// Compiler-private opt-in. The default SDK route remains unchanged. This
+    /// consumes the actual authenticated import, not a detached manifest seal.
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub(in crate::replicated_decoder::program) fn compile_compact(
+        self,
+    ) -> Result<Arc<Program>, Error> {
+        let limits = self.0.as_ref().ok_or(Error::Retired)?.limits;
+        let custody=self.consume_compact(|created,guard,_,_,source|{
+            let mut scope=request_origin::compact_storage::EmissionScope::new(created,guard,MAX_PROGRAM_BYTES)?;
+            let first={
+                let(imports,context,_)=scope.parts();
+                let mut graph=compact_lowering::CompactGraph::from_source_request(imports,context,MAX_PROGRAM_BYTES)?;
+                for _ in &context.plan().plan().prefill.operations{graph.lower_next()?;}
+                graph.freeze_owned(Vec::new(),source)?
+            };
+            let history=request_origin::compact_storage::compact_history::PendingCompactHistory::continue_original(scope,first,limits)?;
+            let second={
+                let count=history.checked_graph_parts()?.1.plan().plan().prefill.operations.len();
+                let mut graph=compact_lowering::CompactGraph::from_pending_history(&history)?;
+                for _ in 0..count{graph.lower_next()?;}
+                graph.freeze_owned(Vec::new(),source)?
+            };
+            history.finish(second)
+        })?;
+        custody.seal_compact()?.into_program()
+    }
     /// One consuming entry. Conversion sees the SAME genuine registry and all
     /// actual source/norm associations. HRTB prevents any lexical borrow escaping
     /// in R; conversion must produce owning records/handles. Then those borrows
@@ -156,7 +204,8 @@ impl SourceRequestImport {
             CreatedInputs<'s>,
             OwnedExternalCharge,
             &'s SourceRegistry<'s>,
-            &'s [SourceRecord],
+            &'s SourceCatalog,
+            &'s handles::SourceScope<'s>,
         ) -> Result<R, Error>,
     ) -> Result<SourceCustody<R>, Error> {
         let Pending {
@@ -215,7 +264,7 @@ impl SourceRequestImport {
                 .resize_payload(context)
                 .map_err(|_| Error::Bounds)?;
         }
-        let (produced, retained_original, records, instance, binding, catalog_charge) = {
+        let (produced, retained_original, catalog, instance, binding, catalog_charge) = {
             let public = &outer.public;
             let owners = SourceConstructionOwners {
                 manifest: manifest.payload(),
@@ -249,111 +298,21 @@ impl SourceRequestImport {
                 return Err(Error::Binding);
             }
             public.check_registry(&registry)?;
-            let count = registry.source_records().len();
-            let catalog_bytes = add(
-                2 * size_of::<SourceCustody<R>>(),
-                count
-                    .checked_mul(size_of::<SourceRecord>())
-                    .ok_or(Error::Bounds)?,
-            )?;
-            let phase = add(root.budget().used_bytes(), catalog_bytes)?;
-            if phase > MAX_PROGRAM_BYTES {
+            let quote =
+                SourceCatalog::quote::<R>(&registry, manifest.payload(), &original, &controller)?;
+            if add(root.budget().used_bytes(), quote.bytes)? > MAX_PROGRAM_BYTES {
                 return Err(Error::Bounds);
             }
             let catalog_charge = root
-                .charge_external(catalog_bytes)
+                .charge_external(quote.bytes)
                 .map_err(|_| Error::Bounds)?;
-            original
-                .prepay_compiler_metadata(
-                    &controller,
-                    u64::try_from(
-                        add(count, registry.source_norms().len())?
-                            .checked_mul(8)
-                            .ok_or(Error::Bounds)?,
-                    )
-                    .map_err(|_| Error::Bounds)?,
-                )
-                .map_err(|_| Error::Bounds)?;
-            let key_bytes = manifest
-                .payload()
-                .tensors
-                .keys()
-                .chain(manifest.payload().norms.keys())
-                .try_fold(0usize, |sum, key| add(sum, add(key.len(), 1)?))?;
-            // Two bounded map lookups per source plus the ordered norm merge;
-            // charge a complete finite key-comparison envelope BEFORE lookups.
-            let comparisons = add(count, 1)?
-                .checked_mul(add(count, registry.source_norms().len())?)
-                .and_then(|n| n.checked_mul(add(key_bytes, 1).ok()?))
-                .ok_or(Error::Bounds)?;
-            original
-                .prepay_compiler_metadata(
-                    &controller,
-                    u64::try_from(comparisons).map_err(|_| Error::Bounds)?,
-                )
-                .map_err(|_| Error::Bounds)?;
-            let mut records = Vec::new();
-            records
-                .try_reserve_exact(count)
-                .map_err(|_| Error::Allocation)?;
-            if records.capacity() != count {
-                return Err(Error::Bounds);
-            }
-            let mut norms = manifest.payload().norms.iter().enumerate().peekable();
-            let mut files = registry.records();
-            for (index, (key, source)) in registry.source_records().iter().enumerate() {
-                let norm = registry.source_norms().get(key);
-                let file = if source.public_q18.is_none() {
-                    let (owner, actual_key, actual_source, actual_norm) =
-                        files.next().ok_or(Error::Binding)?;
-                    if actual_key != key
-                        || !std::ptr::eq(actual_source, source)
-                        || match (actual_norm, norm) {
-                            (None, None) => false,
-                            (Some(a), Some(b)) => !std::ptr::eq(a, b),
-                            _ => true,
-                        }
-                    {
-                        return Err(Error::Binding);
-                    }
-                    Some(owner)
-                } else {
-                    None
-                };
-                if index != records.len()
-                    || !std::ptr::eq(
-                        source,
-                        manifest.payload().tensors.get(key).ok_or(Error::Binding)?,
-                    )
-                {
-                    return Err(Error::Binding);
-                }
-                let association = match norms.peek() {
-                    Some((norm_index, (norm_key, value))) if *norm_key == key => {
-                        if !norm.is_some_and(|actual| std::ptr::eq(actual, *value)) {
-                            return Err(Error::Binding);
-                        }
-                        let ordinal = *norm_index;
-                        norms.next();
-                        Some(ordinal)
-                    }
-                    Some((_, (norm_key, _))) if *norm_key < key => return Err(Error::Binding),
-                    _ => {
-                        if norm.is_some() {
-                            return Err(Error::Binding);
-                        }
-                        None
-                    }
-                };
-                records.push(SourceRecord {
-                    source: index,
-                    file,
-                    norm: association,
-                });
-            }
-            if norms.next().is_some() || files.next().is_some() {
-                return Err(Error::Binding);
-            }
+            let catalog = SourceCatalog::build(
+                &registry,
+                manifest.payload(),
+                &original,
+                &catalog_charge,
+                quote,
+            )?;
             let import_guard = importing.charge.as_mut().ok_or(Error::Retired)?;
             let q = quote_imports(
                 &original,
@@ -375,11 +334,18 @@ impl SourceRequestImport {
                 importing.charge.take().ok_or(Error::Retired)?,
             )?;
             let retained_original = Arc::clone(created.permit.retained_original()?);
-            let produced = emit(created, controller, &registry, &records)?;
+            let scope = handles::SourceScope::new(
+                &catalog,
+                &registry,
+                manifest.payload(),
+                &retained_original,
+                &catalog_charge,
+            )?;
+            let produced = emit(created, controller, &registry, &catalog, &scope)?;
             (
                 produced,
                 retained_original,
-                records,
+                catalog,
                 registry.instance(),
                 registry.binding(),
                 catalog_charge,
@@ -391,7 +357,7 @@ impl SourceRequestImport {
             public: outer,
             manifest,
             raw,
-            records,
+            catalog,
             instance,
             binding,
             registry_charge: registry_guard,

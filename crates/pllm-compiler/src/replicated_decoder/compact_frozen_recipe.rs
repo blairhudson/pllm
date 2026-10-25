@@ -695,7 +695,7 @@ impl<'a> FrozenRegion<'a> {
     }
 }
 
-fn check_loop(
+pub(super) fn check_loop(
     lanes: usize,
     full: &Arc<tensor::Program>,
     tail: Option<&Arc<tensor::Program>>,
@@ -761,32 +761,16 @@ impl FrozenSchedule<'_, '_> {
     ) -> Result<BorrowedNode<'s>, Error> {
         let mut found = None;
         rows.visit(&mut |event| {
-            use compact_validity::{GuardCode, GuardGather};
+            use compact_validity::GuardGather;
             if event.owner != ordinal {
                 return Ok(());
             }
-            let recipe = match event.code {
-                GuardCode::Gather(GuardGather::Original { start }) => {
-                    self.view_gather(ordinal, &op.input, start, event.lanes)?
+            found = Some(guard_event_node(event, |gather, lanes| match gather {
+                GuardGather::Original { start } => {
+                    self.view_gather(ordinal, &op.input, start, lanes)
                 }
-                GuardCode::Gather(GuardGather::Native { .. }) => self.gather(ordinal)?,
-                GuardCode::Checked { input, program } => {
-                    BorrowedRecipe::CheckedRange { input, program }
-                }
-                GuardCode::AllValid { input, program } => BorrowedRecipe::Tensor { input, program },
-                GuardCode::Product { left, right } => BorrowedRecipe::Product {
-                    left,
-                    right,
-                    shape: None,
-                    rescale: false,
-                    norm: None,
-                },
-            };
-            found = Some(BorrowedNode {
-                lanes: event.lanes,
-                bounds: event.bounds,
-                recipe,
-            });
+                GuardGather::Native { .. } => self.gather(ordinal),
+            })?);
             Ok(())
         })?;
         found.ok_or(Error::Binding)
@@ -856,6 +840,31 @@ impl FrozenSchedule<'_, '_> {
     }
 }
 
+/// Same guard-event vocabulary for borrowed and moved checked-row records.
+pub(super) fn guard_event_node<'a>(
+    event: compact_validity::GuardEvent<'a>,
+    mut gather: impl FnMut(compact_validity::GuardGather, usize) -> Result<BorrowedRecipe<'a>, Error>,
+) -> Result<BorrowedNode<'a>, Error> {
+    use compact_validity::GuardCode;
+    let recipe = match event.code {
+        GuardCode::Gather(mapping) => gather(mapping, event.lanes)?,
+        GuardCode::Checked { input, program } => BorrowedRecipe::CheckedRange { input, program },
+        GuardCode::AllValid { input, program } => BorrowedRecipe::Tensor { input, program },
+        GuardCode::Product { left, right } => BorrowedRecipe::Product {
+            left,
+            right,
+            shape: None,
+            rescale: false,
+            norm: None,
+        },
+    };
+    Ok(BorrowedNode {
+        lanes: event.lanes,
+        bounds: event.bounds,
+        recipe,
+    })
+}
+
 /// Replay one original 12-node compare/select block through the SAME traversal
 /// and numeric sink. Indexing skips earlier blocks, not their ordinals/carries.
 /// No per-node recipe table or quadratic whole-tree replay is needed.
@@ -920,7 +929,7 @@ impl ArgmaxSink for ArgmaxBlockReplay<'_, '_> {
     }
 }
 
-fn replay_argmax_block(
+pub(super) fn replay_argmax_block(
     plan: &CompactArgmax,
     input: &PublishedView,
     block: usize,

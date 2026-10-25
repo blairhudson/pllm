@@ -410,12 +410,12 @@ impl PublicSource {
         self.check_files(
             program.source_binding,
             (0..program.input_count()).filter_map(|position| {
-                let (_, node) = program.input_at(position);
-                if let Code::PublicInput { key, digest, .. } = &node.code {
+                let node = program.read_recipe(position);
+                if let Ok((key, digest)) = node.public_input() {
                     Some(super::source_registry::FileDescriptor {
                         key,
                         digest: *digest,
-                        lanes: node.lanes,
+                        lanes: node.lanes(),
                     })
                 } else {
                     None

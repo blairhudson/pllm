@@ -114,6 +114,99 @@ pub(super) struct Values<'s> {
     pub(super) work: WorkBudget,
     pub(super) bounds: Interval,
 }
+
+pub(super) struct OwnedValueRow {
+    pub(super) gather: ScoreGather,
+    pub(super) gather_offset: usize,
+    pub(super) input_bounds: Interval,
+    pub(super) inner: usize,
+    pub(super) probability_start: usize,
+    pub(super) value_start: usize,
+    pub(super) tile_start: usize,
+    pub(super) tile_count: usize,
+    pub(super) probability: Option<super::compact_attention_softmax::owning::RowIndex>,
+}
+pub(super) struct OwnedValues {
+    pub(super) probabilities: PublishedView,
+    pub(super) values: PublishedView,
+    pub(super) rows: Vec<OwnedValueRow>,
+    pub(super) tiles: Vec<ScoreTile>,
+    pub(super) width: usize,
+    pub(super) keys: usize,
+    pub(super) sequence: usize,
+    pub(super) nodes: usize,
+    pub(super) work: WorkBudget,
+    pub(super) bounds: Interval,
+}
+impl<'s> Values<'s> {
+    pub(super) fn into_owned(
+        self,
+        context: &EmissionContext<'s>,
+        conversion: &super::compact_attention_softmax::owning::Conversion<'_, 's>,
+    ) -> Result<OwnedValues, Error> {
+        let retained = add_bytes(
+            array_bytes::<OwnedValueRow>(self.rows.len())?,
+            2 * size_of::<OwnedValues>(),
+        )?;
+        #[cfg(test)]
+        let _outside_pressure =
+            super::frozen_region::owning::conversion_probe::pressure(context, retained)?;
+        context.admit_phase(retained, 0)?;
+        context.retain(retained)?;
+        let visits = self
+            .rows
+            .iter()
+            .try_fold(self.rows.len(), |n, row| add_bytes(n, row.inner))?;
+        context
+            .plan()
+            .prepay_compiler_metadata(
+                &context.reservation(),
+                u64::try_from(visits.checked_mul(8).ok_or(Error::Bounds)?)
+                    .map_err(|_| Error::Bounds)?,
+            )
+            .map_err(|_| Error::Bounds)?;
+        let mut rows = Vec::new();
+        #[cfg(test)]
+        super::frozen_region::owning::conversion_probe::allocation();
+        rows.try_reserve_exact(self.rows.len())
+            .map_err(|_| Error::Allocation)?;
+        if rows.capacity() != self.rows.len() {
+            return Err(Error::Bounds);
+        }
+        for row in self.rows {
+            let probability = match row.probability {
+                None => None,
+                Some(probability) => {
+                    probability.check()?;
+                    Some(conversion.index(probability.native)?)
+                }
+            };
+            rows.push(OwnedValueRow {
+                gather: row.gather,
+                gather_offset: row.gather_offset,
+                input_bounds: row.input_bounds,
+                inner: row.inner,
+                probability_start: row.probability_start,
+                value_start: row.value_start,
+                tile_start: row.tile_start,
+                tile_count: row.tile_count,
+                probability,
+            });
+        }
+        Ok(OwnedValues {
+            probabilities: self.probabilities,
+            values: self.values,
+            rows,
+            tiles: self.tiles,
+            width: self.width,
+            keys: self.keys,
+            sequence: self.sequence,
+            nodes: self.nodes,
+            work: self.work,
+            bounds: self.bounds,
+        })
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct ValueLayout {
     rows: usize,

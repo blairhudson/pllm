@@ -8,7 +8,11 @@ use std::io::Write;
 /// Owned, non-borrowed creation custody follows the SAME Program Arc through
 /// ordinary Worker, cancellation and consuming BODY handoff. Native nodes retire
 /// before this final field releases the original source/parameter guards.
-pub(in crate::replicated_decoder) struct Custody {
+pub(in crate::replicated_decoder) enum Custody {
+    Expanded(ExpandedCustody),
+    Compact(super::super::source_entry::compact_pending::sealed::SealedOwnedStorage),
+}
+pub(in crate::replicated_decoder) struct ExpandedCustody {
     pub(super) projections: Vec<Option<rotary_creation::CreatedOperator>>,
     pub(super) epochs: Vec<Arc<OriginalSourcePlan>>,
     pub(super) fragments: Vec<Fragment>,
@@ -21,7 +25,7 @@ pub(in crate::replicated_decoder) struct Custody {
     schedule_charge: OwnedExternalCharge,
 }
 
-impl Custody {
+impl ExpandedCustody {
     pub(super) fn prepay_bias_metadata(&self, visits: usize) -> Result<(), Error> {
         self.origin
             .payload()
@@ -37,6 +41,45 @@ impl Custody {
     }
     pub(in crate::replicated_decoder) fn retained_bytes(&self) -> usize {
         self.named_retained_bytes
+    }
+}
+impl Custody {
+    pub(in crate::replicated_decoder) fn expanded(&self) -> Result<&ExpandedCustody, Error> {
+        match self {
+            Self::Expanded(c) => Ok(c),
+            Self::Compact(_) => Err(Error::Binding),
+        }
+    }
+    pub(in crate::replicated_decoder) fn expanded_mut(
+        &mut self,
+    ) -> Result<&mut ExpandedCustody, Error> {
+        match self {
+            Self::Expanded(c) => Ok(c),
+            Self::Compact(_) => Err(Error::Binding),
+        }
+    }
+    pub(in crate::replicated_decoder) fn compact(
+        &self,
+    ) -> Option<&super::super::source_entry::compact_pending::sealed::SealedOwnedStorage> {
+        match self {
+            Self::Compact(c) => Some(c),
+            Self::Expanded(_) => None,
+        }
+    }
+    pub(in crate::replicated_decoder) fn public(&self) -> &Arc<PublicSource> {
+        match self {
+            Self::Expanded(c) => c.public(),
+            Self::Compact(c) => c.public(),
+        }
+    }
+    pub(in crate::replicated_decoder) fn retained_bytes(&self) -> usize {
+        match self {
+            Self::Expanded(c) => c.retained_bytes(),
+            Self::Compact(c) => c.retained_bytes(),
+        }
+    }
+    pub(super) fn prepay_bias_metadata(&self, visits: usize) -> Result<(), Error> {
+        self.expanded()?.prepay_bias_metadata(visits)
     }
 }
 
@@ -225,6 +268,21 @@ impl Write for HashWriter<'_> {
 fn prefix(complete: &LogicalComplete<'_>) -> Result<Sha256, Error> {
     let history = &complete.pending.history;
     let manifest = history.sources.manifest;
+    canonical_prefix(
+        &history.origin.payload().source,
+        history.resources.rows,
+        history.resources.outputs,
+        manifest,
+    )
+}
+/// Pure original encoder prefix, shared by both storage finalizers. A hash is
+/// not construction or execution authority; each caller retains real custody.
+pub(in crate::replicated_decoder::program) fn canonical_prefix(
+    source: &OriginalSourcePlan,
+    rows: usize,
+    outputs: usize,
+    manifest: &Manifest,
+) -> Result<Sha256, Error> {
     let mut hash = Sha256::new();
     hash.update(b"pllm.replicated-decoder.source-q18.full-prefix-final-ids.v1");
     hash.update(b"public-source-paged-ring64.v1");
@@ -233,9 +291,9 @@ fn prefix(complete: &LogicalComplete<'_>) -> Result<Sha256, Error> {
         serde_json::to_writer(HashWriter(&mut hash), &manifest.execution)
             .map_err(|_| Error::Binding)?;
     }
-    hash.update(history.origin.payload().source.raw_configuration());
-    hash.update((history.resources.rows as u64).to_le_bytes());
-    hash.update((history.resources.outputs as u64).to_le_bytes());
+    hash.update(source.raw_configuration());
+    hash.update((rows as u64).to_le_bytes());
+    hash.update((outputs as u64).to_le_bytes());
     serde_json::to_writer(HashWriter(&mut hash), &manifest.tensors).map_err(|_| Error::Binding)?;
     if !manifest.norms.is_empty() {
         hash.update(b"public-head-row-norms.v1");
@@ -244,9 +302,15 @@ fn prefix(complete: &LogicalComplete<'_>) -> Result<Sha256, Error> {
     Ok(hash)
 }
 
-struct Attempt {
-    origin: Arc<OwnedCharged<Origin>>,
-    committed: bool,
+pub(in crate::replicated_decoder::program) struct Attempt {
+    pub(super) origin: Arc<OwnedCharged<Origin>>,
+    pub(super) committed: bool,
+}
+impl Attempt {
+    /// Final private publication only, after canonical and startup checks.
+    pub(in crate::replicated_decoder::program) fn commit_publication(&mut self) {
+        self.committed = true;
+    }
 }
 impl Drop for Attempt {
     fn drop(&mut self) {
@@ -372,7 +436,7 @@ pub(super) fn finish(
         charge,
         ..
     } = history;
-    let custody = Box::new(Custody {
+    let custody = Box::new(Custody::Expanded(ExpandedCustody {
         projections,
         epochs,
         fragments,
@@ -382,7 +446,7 @@ pub(super) fn finish(
         _history_charge: charge,
         named_retained_bytes: resources.peak_bytes,
         schedule_charge: guard,
-    });
+    }));
     let program = Arc::new(Program {
         nodes: std::mem::take(&mut builder.nodes),
         inputs,
@@ -413,7 +477,16 @@ impl Program {
         session: [u8; 32],
     ) -> Result<Worker, Error> {
         let owner = self.request_custody.as_ref().ok_or(Error::Binding)?;
-        if owner.origin.payload().state.load(Ordering::Acquire) != COMPLETE {
+        if let Some(compact) = owner.compact() {
+            compact.check_completed()?;
+        } else if owner
+            .expanded()?
+            .origin
+            .payload()
+            .state
+            .load(Ordering::Acquire)
+            != COMPLETE
+        {
             return Err(Error::Retired);
         }
         Worker::new_with_shared_source(

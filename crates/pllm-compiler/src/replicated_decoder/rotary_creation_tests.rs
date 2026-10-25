@@ -2,8 +2,8 @@
 //! fixture bytes. No expanded executable exists until AFTER candidate issuance.
 use super::*;
 use rotary_creation::{
+    handoff::{tests as route, Compiled},
     CreatedOperator,
-    handoff::{Compiled, tests as route},
 };
 use source_bias::handoff::route_tests as original_route;
 
@@ -46,12 +46,20 @@ fn fixture_kind(heads: usize, width: usize, bias: bool, qk_norm: bool) -> Fixtur
                     }
                 } else if key.ends_with("q_proj.weight") || key.ends_with("k_proj.weight") {
                     if i % hidden == i / hidden {
-                        if i / hidden % 2 == 0 { -1 } else { 1 }
+                        if i / hidden % 2 == 0 {
+                            -1
+                        } else {
+                            1
+                        }
                     } else {
                         0
                     }
                 } else if key.ends_with("q_proj.bias") || key.ends_with("k_proj.bias") {
-                    if i % 2 == 0 { -7 } else { 3 }
+                    if i % 2 == 0 {
+                        -7
+                    } else {
+                        3
+                    }
                 } else {
                     0
                 }
@@ -113,6 +121,8 @@ fn slot(program: &Program, nth: usize) -> usize {
         .request_custody
         .as_ref()
         .unwrap()
+        .expanded()
+        .unwrap()
         .projections
         .iter()
         .enumerate()
@@ -129,15 +139,15 @@ fn genuine_qk_rms_lineage_keeps_original_source_recipes_work_frames_and_no_rotar
     let mut case = Case::new(&fixture, &registry);
     let done = complete(&mut case);
     let program = finalize(&mut case, done);
-    assert!(
-        program
-            .request_custody
-            .as_ref()
-            .unwrap()
-            .projections
-            .iter()
-            .all(|e| !matches!(e, Some(CreatedOperator::Rotary(_))))
-    );
+    assert!(program
+        .request_custody
+        .as_ref()
+        .unwrap()
+        .expanded()
+        .unwrap()
+        .projections
+        .iter()
+        .all(|e| !matches!(e, Some(CreatedOperator::Rotary(_)))));
     let expected = original(&fixture);
     assert_eq!(program.digest(), expected.digest());
     assert_eq!(program.work_budget(), expected.work_budget());
@@ -159,7 +169,15 @@ fn unsupported_extraction_is_binding_and_eligible_missing_producer_never_falls_b
     let mut case = Case::new(&fixture, &registry);
     let done = complete(&mut case);
     let mut program = finalize(&mut case, done);
-    for index in 0..program.request_custody.as_ref().unwrap().projections.len() {
+    for index in 0..program
+        .request_custody
+        .as_ref()
+        .unwrap()
+        .expanded()
+        .unwrap()
+        .projections
+        .len()
+    {
         assert!(matches!(program.take_rotary(index), Err(Error::Binding)));
     }
     with_case(|mut case| {
@@ -330,6 +348,8 @@ fn retained_baseline_refusal_precedes_any_rotary_body_owner_allocation() {
                 .request_custody
                 .as_ref()
                 .unwrap()
+                .expanded()
+                .unwrap()
                 .origin
                 .payload()
                 .state
@@ -350,17 +370,17 @@ fn prior_original_source_metadata_refusal_cannot_enter_rotary_body() {
             .root
             .charge_external(OriginalSourcePlan::compiler_metadata_control_bytes().unwrap())
             .unwrap();
-        assert!(
-            program
-                .request_custody
-                .as_ref()
-                .unwrap()
-                .origin
-                .payload()
-                .source
-                .prepay_compiler_metadata(&guard, u64::MAX)
-                .is_err()
-        );
+        assert!(program
+            .request_custody
+            .as_ref()
+            .unwrap()
+            .expanded()
+            .unwrap()
+            .origin
+            .payload()
+            .source
+            .prepay_compiler_metadata(&guard, u64::MAX)
+            .is_err());
         assert!(matches!(
             Compiled::prepare(
                 Arc::clone(&program),
@@ -374,6 +394,8 @@ fn prior_original_source_metadata_refusal_cannot_enter_rotary_body() {
             program
                 .request_custody
                 .as_ref()
+                .unwrap()
+                .expanded()
                 .unwrap()
                 .origin
                 .payload()

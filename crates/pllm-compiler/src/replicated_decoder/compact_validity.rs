@@ -8,16 +8,32 @@ mod request_rms;
 pub(super) struct RequestValidity<'a> {
     original: &'a Builder,
     origin: Arc<()>,
+    initial: Option<usize>,
     current: Option<usize>,
     // Compiler continuation epoch, not a runtime drain/copy assertion.
     epoch: usize,
 }
 
 impl<'a> RequestValidity<'a> {
+    pub(super) fn source_request(
+        original: &'a Builder,
+        origin: Arc<()>,
+        context: &request_origin::compact_storage::EmissionContext<'_>,
+    ) -> Result<Self, Error> {
+        context.check_imports(original)?;
+        Ok(Self {
+            original,
+            origin,
+            initial: context.history_input().and_then(|history| history.sticky()),
+            current: context.history_input().and_then(|history| history.sticky()),
+            epoch: context.request_epoch(),
+        })
+    }
     pub(super) fn original(original: &'a Builder, origin: Arc<()>) -> Self {
         Self {
             original,
             origin,
+            initial: original.validity,
             current: original.validity,
             epoch: 0,
         }
@@ -25,6 +41,9 @@ impl<'a> RequestValidity<'a> {
 
     pub(super) fn current(&self) -> Option<usize> {
         self.current
+    }
+    pub(super) fn initial(&self) -> Option<usize> {
+        self.initial
     }
 
     pub(super) fn epoch(&self) -> usize {
@@ -94,14 +113,39 @@ pub(super) struct GuardRun {
 
 pub(super) struct CheckedRows<'a> {
     original: &'a Builder,
-    input: PublishedView,
-    width: usize,
+    data: OwnedCheckedRows,
+}
+impl std::ops::Deref for CheckedRows<'_> {
+    type Target = OwnedCheckedRows;
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+impl std::ops::DerefMut for CheckedRows<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+/// Same guarded native owners, with the lexical import borrow discharged only
+/// after exact original-owner validation during consuming custody transfer.
+pub(super) struct OwnedCheckedRows {
+    pub(super) input: PublishedView,
+    pub(super) width: usize,
     pub(super) accepted: Interval,
-    first: usize,
+    pub(super) first: usize,
     pub(super) incoming: Option<usize>,
     pub(super) outgoing: Option<usize>,
-    runs: Vec<GuardRun>,
+    pub(super) runs: Vec<GuardRun>,
     pub(super) work: WorkBudget,
+}
+impl CheckedRows<'_> {
+    pub(super) fn into_owned(self, original: &Builder) -> Result<OwnedCheckedRows, Error> {
+        if !std::ptr::eq(self.original, original) {
+            return Err(Error::Binding);
+        }
+        Ok(self.data)
+    }
 }
 
 /// Sealed ordered LOCAL row binding, not runtime acceptance or an energy proof.
@@ -195,7 +239,7 @@ fn same_view(a: &PublishedView, b: &PublishedView) -> bool {
         && a.rank == b.rank
 }
 
-impl<'a> CheckedRows<'a> {
+impl OwnedCheckedRows {
     #[cfg(test)]
     pub(super) fn guard_tiles(&self) -> usize {
         self.runs.iter().map(|run| run.tiles).sum()
@@ -218,7 +262,8 @@ impl<'a> CheckedRows<'a> {
     fn tile_first(&self, tile: usize) -> usize {
         self.first + 6 * tile - usize::from(tile > 0 && self.incoming.is_none())
     }
-
+}
+impl<'a> CheckedRows<'a> {
     pub(super) fn row<'s>(
         &'s self,
         original: &Builder,
@@ -226,17 +271,24 @@ impl<'a> CheckedRows<'a> {
         start: usize,
         width: usize,
     ) -> Result<SafeRow<'s, 'a>, Error> {
-        if !std::ptr::eq(self.original, original)
-            || !same_view(&self.input, input)
+        if !std::ptr::eq(self.original, original) {
+            return Err(Error::Binding);
+        }
+        self.data.validate_row(input, start, width)?;
+        Ok(SafeRow { rows: self, start })
+    }
+}
+impl OwnedCheckedRows {
+    fn validate_row(&self, input: &PublishedView, start: usize, width: usize) -> Result<(), Error> {
+        if !same_view(&self.input, input)
             || width != self.width
             || start % width != 0
             || start.checked_add(width).is_none_or(|end| end > input.lanes)
         {
             return Err(Error::Binding);
         }
-        Ok(SafeRow { rows: self, start })
+        Ok(())
     }
-
     pub(super) fn word(&self, lane: usize) -> Result<(usize, usize), Error> {
         if lane >= self.input.lanes {
             return Err(Error::Shape);
@@ -268,7 +320,8 @@ impl<'a> CheckedRows<'a> {
                 add_bytes(bytes, program.resources()?.immutable_template_bytes)
             })
     }
-
+}
+impl CheckedRows<'_> {
     pub(super) fn validate(
         &self,
         original: &Builder,
@@ -277,7 +330,24 @@ impl<'a> CheckedRows<'a> {
         width: usize,
         incoming: Option<usize>,
     ) -> Result<(), Error> {
-        self.row(original, input, 0, width)?;
+        if !std::ptr::eq(self.original, original) {
+            return Err(Error::Binding);
+        }
+        self.data.validate_owned(input, first, width, incoming)
+    }
+}
+impl OwnedCheckedRows {
+    /// Same original validator after consuming transfer discharged its Builder
+    /// borrow. Input identity, geometry, guard Arcs, sticky links and work remain
+    /// checked; this read-only method issues no proof or invocation authority.
+    pub(super) fn validate_owned(
+        &self,
+        input: &PublishedView,
+        first: usize,
+        width: usize,
+        incoming: Option<usize>,
+    ) -> Result<(), Error> {
+        self.validate_row(input, 0, width)?;
         if first != self.first || incoming != self.incoming {
             return Err(Error::Binding);
         }
@@ -335,7 +405,8 @@ impl<'a> CheckedRows<'a> {
         }
         Ok(())
     }
-
+}
+impl OwnedCheckedRows {
     /// One original traversal shared by hashing and frozen schedule publication.
     /// All these events precede every RMS row event, including heterogeneous runs.
     pub(super) fn visit<'s>(
@@ -980,14 +1051,16 @@ pub(super) fn prepare<'a>(
     }
     let mut rows = CheckedRows {
         original: graph.imports,
-        input: input.clone(),
-        width,
-        accepted: bounds,
-        first: graph.next,
-        incoming: graph.validity.current(),
-        outgoing: graph.validity.current(),
-        runs: Vec::new(),
-        work: guard_work,
+        data: OwnedCheckedRows {
+            input: input.clone(),
+            width,
+            accepted: bounds,
+            first: graph.next,
+            incoming: graph.validity.current(),
+            outgoing: graph.validity.current(),
+            runs: Vec::new(),
+            work: guard_work,
+        },
     };
     if tiles != 0 {
         #[cfg(test)]

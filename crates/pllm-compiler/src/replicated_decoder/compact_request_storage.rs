@@ -3,7 +3,11 @@
 //! Construction is admitted phase by phase on the ORIGINAL counter. Historical
 //! admission is not current retention, RSS, source authority, or execution.
 use super::*;
+#[path = "compact_request_history.rs"]
+pub(in crate::replicated_decoder::program) mod compact_history;
 use std::cell::{Cell, RefCell};
+#[path = "compact_request_owned.rs"]
+pub(in crate::replicated_decoder::program) mod owning;
 
 /// Lexical source context shared by future compact and RMS emission. It owns
 /// actual origin/plan/public-source roots and a same-counter reservation; source
@@ -21,6 +25,7 @@ pub(in crate::replicated_decoder) struct EmissionContext<'s> {
     retained_payload: Cell<usize>,
     registered_builder: Cell<usize>,
     cap: usize,
+    history_input: Option<compact_history::HistoryInput>,
     work: RefCell<WorkBudget>,
     // The ONLY token permit stays consumed here. No &permit -> fresh ledger.
     request: RequestInputPermit<'s>,
@@ -117,10 +122,17 @@ impl EmissionContext<'_> {
             self.origin.payload().bounds,
         )
     }
+    #[cfg(test)]
+    pub(in crate::replicated_decoder::program) fn token_words_for_tests(&self) -> &Words {
+        &self.request.tokens.words
+    }
     pub(in crate::replicated_decoder::program) fn prelude(&self) -> Result<Prelude, Error> {
         Ok(Prelude {
             origin: Arc::clone(&self.origin),
-            first: add(self.origin.payload().input.owner(), 1)?,
+            first: self.history_input.map_or_else(
+                || add(self.origin.payload().input.owner(), 1),
+                |history| Ok(history.first()),
+            )?,
         })
     }
     pub(in crate::replicated_decoder::program) fn manifest(&self) -> &Manifest {
@@ -139,6 +151,10 @@ impl EmissionContext<'_> {
         &self,
     ) -> std::cell::Ref<'_, OwnedExternalCharge> {
         self.guard.borrow()
+    }
+    #[cfg(test)]
+    pub(in crate::replicated_decoder::program) fn test_retained_payload(&self) -> usize {
+        self.retained_payload.get()
     }
     pub(in crate::replicated_decoder::program) fn historical_peak(&self) -> usize {
         self.historical_peak
@@ -479,6 +495,7 @@ impl<'s> EmissionScope<'s> {
             retained_payload: Cell::new(guard.payload_bytes()),
             registered_builder: Cell::new(0),
             cap,
+            history_input: None,
             work: RefCell::new(WorkBudget::default()),
             request: permit,
             guard: RefCell::new(guard),

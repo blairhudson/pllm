@@ -522,7 +522,11 @@ impl Creation {
         program: &Program,
         registry: &SourceRegistry<'_>,
     ) -> Result<(), Error> {
-        let custody = program.request_custody.as_ref().ok_or(Error::Binding)?;
+        let custody = program
+            .request_custody
+            .as_ref()
+            .ok_or(Error::Binding)?
+            .expanded()?;
         if self
             .execution
             .as_ref()
@@ -649,6 +653,7 @@ impl Program {
             .request_custody
             .as_ref()
             .ok_or(Error::Binding)?
+            .expanded()?
             .projections
             .get(index)
             .and_then(|entry| match entry.as_ref() {
@@ -660,7 +665,11 @@ impl Program {
             return Err(Error::Retired);
         }
         let program = Arc::get_mut(self).ok_or(Error::Binding)?;
-        let custody = program.request_custody.as_mut().ok_or(Error::Binding)?;
+        let custody = program
+            .request_custody
+            .as_mut()
+            .ok_or(Error::Binding)?
+            .expanded_mut()?;
         let owner = custody
             .projections
             .get_mut(index)

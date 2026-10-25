@@ -6,10 +6,10 @@ use crate::replicated_decoder::{
     PeerBytes,
 };
 
-#[path = "rotary_creation_tests.rs"]
-mod rotary_creation_tests;
 #[path = "compact_request_storage_tests.rs"]
 mod compact_request_storage_tests;
+#[path = "rotary_creation_tests.rs"]
+mod rotary_creation_tests;
 #[path = "source_bias_tests.rs"]
 mod source_bias_tests;
 
@@ -51,7 +51,15 @@ fn original(fixture: &Fixture) -> Arc<Program> {
 }
 
 fn fresh(program: Arc<Program>, public: &Arc<PublicSource>, sealed: bool) -> [Worker; 3] {
-    let session = [92; 32];
+    fresh_input(program, public, sealed, TOKENS, [92; 32])
+}
+fn fresh_input(
+    program: Arc<Program>,
+    public: &Arc<PublicSource>,
+    sealed: bool,
+    tokens: [u32; 4],
+    session: [u8; 32],
+) -> [Worker; 3] {
     let context = Context::new(session, program.digest(), 0).unwrap();
     let runtimes = puma::prss::insecure_test_support::fresh_compound_parties(
         context,
@@ -71,7 +79,7 @@ fn fresh(program: Arc<Program>, public: &Arc<PublicSource>, sealed: bool) -> [Wo
             .unwrap()
         }
     });
-    let tokens = TOKENS.map(u64::from);
+    let tokens = tokens.map(u64::from);
     let a = [0x13u64, 0x47, 0x39, 0x81];
     let b = [0x71u64, 0x53, 0x92, 0x31];
     let c: [u64; 4] = std::array::from_fn(|i| tokens[i].wrapping_sub(a[i]).wrapping_sub(b[i]));

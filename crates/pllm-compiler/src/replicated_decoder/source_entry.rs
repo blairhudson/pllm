@@ -506,7 +506,7 @@ impl SourceRequestImport {
         self,
         emit: impl FnOnce(CreatedInputs<'_>, OwnedExternalCharge) -> Result<R, Error>,
     ) -> Result<R, Error> {
-        self.consume_compact(|created, guard, _, _| emit(created, guard))
+        self.consume_compact(|created, guard, _, _, _| emit(created, guard))
             .map(compact_pending::SourceCustody::into_test_payload)
     }
 
