@@ -1335,6 +1335,36 @@ work, noise and security remain unresolved. Implementation is incomplete; this
 records preparation permission, not a passing result, available source capability
 or completed method.
 
+## D51. Source-bound prompt preparation correction
+
+**Explicitly approved on 26 October 2026 (user61712):** implement one private,
+source-bound prepared-token result shared by admission and replicated execution.
+Direct clients use the same weights-free renderer. Preserve the actual source
+chat template, default system message, BOS handling and generation marker, and
+reuse the existing admission fallback only when the template is absent. A present
+but broken template, or a rendering/tokenization error, must refuse rather than
+fall back to the legacy role-prefix renderer.
+
+Retain request/source/template/tokenizer association and one-use ownership in the
+original request scope. Do not expose a public token vector or accept a caller
+receipt as authority. Component serialization, source pins, wire formats, the
+64 MiB ceiling and cumulative work/admission guards remain unchanged.
+
+The Qwen `hello` correction from the legacy three-token role prefix to the
+30-token ChatML prompt is intentional semantic correction, **not** same-cohort
+or bit-parity evidence. Prior unmatched role-prefix reports remain historical,
+legacy and unranked; do not relabel their measurements. Admission for the actual
+30-token request may refuse. Earlier three/four-row quotes do not establish fit
+of the ordinary corrected request.
+
+**Validation scope:** pure weights-free correctness tests first, and only those
+tests are authorized by this approval. No model/source loading, factories,
+checkpoint/trained inference, native gateway or wheel run is authorized here;
+matching-wheel regression requires later approval. D49's bounded compact SDK
+qualification, D50's source-only preparation and FSS prepare-only status remain
+unchanged. This decision records permission, not implementation evidence or a
+new production, proof, security, quality, fit or readiness claim.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1389,6 +1419,7 @@ or completed method.
 | D48 | Approved: isolated pinned Poulpy owning-Layout qualification | Offline apply/compile and two storage tests, 12 tiny cases/backing ≤4096 B; 60 s/256 MiB/zero new swap/1 MiB output with refusal on unavailable dependencies/guards. Single-job D33 compile headroom; no Main/dependency adoption, consumer activation, RNG/keys/transforms/encryption, security or fit qualification. |
 | D49 | Approved: explicit compact PUMA SDK source integration | Immutable opt-in storage, unchanged expanded defaults/digests; trusted-server Experiment policy and original-counter source-owned publisher/all-worker compilation before Manifest/seal. Bounded matching-wheel/gateway tests required, no fallback, cap change, trained run, BODY drain or automatic SDK/security qualification. |
 | D50 | Approved: isolated source-only ChaCha20-v1 preparation | Opt-in typed version/domain child seeds across secret/noise/uniform descendants; no bare-seed downgrade, unchanged legacy ChaCha8/APIs/laws, compressed creation refuses before writes. Finite key-free test definitions only; no compilation/execution, adoption, keys/transforms/encryption/RNG activation or security qualification. |
+| D51 | Approved: source-bound prompt preparation correction | One private source/request/template/tokenizer-bound, one-use result shared by admission/execution and the same weights-free direct-client renderer; absent-template admission fallback only, present-template/errors refuse. Intentional 3-to-30-token Qwen ChatML semantic correction, not parity/cohort reuse; historical legacy reports stay unranked. Pure weights-free tests first only; no model/source loading, factories, checkpoint/inference, native gateway/wheel run or new fit/security/readiness qualification. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
