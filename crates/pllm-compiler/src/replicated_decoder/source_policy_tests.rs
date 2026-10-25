@@ -383,6 +383,91 @@ fn cached_qwen_config_scalar_policy_and_original_metadata_quote_only() {
 }
 
 #[test]
+fn cached_qwen_compact_metadata_quote_only() {
+    use super::super::program::source_entry::{PolicyFactoryTrap, SourceRequestImport};
+    use super::super::sdk::SourceStorage;
+    use super::super::{LookupPolicy, PeerTransport, SelectionPolicy};
+    use sha2::Digest as _;
+    use std::io::Read as _;
+
+    // Portable default is CONFIG metadata, not a claim of cached-byte identity.
+    // An explicit override is mandatory for the actual-cache qualification run:
+    // missing/oversize input fails, never silently falls back or downloads.
+    let (raw, origin) = match std::env::var_os("PLLM_TEST_QWEN25_CONFIG_PATH") {
+        Some(path) => {
+            let mut raw = Vec::new();
+            std::fs::File::open(&path)
+                .expect("explicit config-only path must exist")
+                .take((CONFIG_BYTES + 1) as u64)
+                .read_to_end(&mut raw)
+                .expect("bounded config-only read");
+            (
+                raw,
+                format!("actual override {}", std::path::Path::new(&path).display()),
+            )
+        }
+        None => (
+            include_bytes!("../../../../tests/fixtures/qwen25_0_5b_config.json").to_vec(),
+            "repository config fixture (not actual cached bytes)".to_owned(),
+        ),
+    };
+    assert!(!raw.is_empty() && raw.len() <= CONFIG_BYTES);
+    eprintln!(
+        "compact metadata CONFIG {origin}; bytes={}; sha256={:x}",
+        raw.len(),
+        sha2::Sha256::digest(&raw)
+    );
+
+    let _trap = PolicyFactoryTrap::arm();
+    let execution = execution();
+    assert_eq!(execution.lookup, LookupPolicy::PerToken);
+    assert_eq!(execution.selection, SelectionPolicy::Expanded);
+    assert_eq!(execution.peer_transport, PeerTransport::Http);
+    let mut params = execution.component_params(WeightMode::Public);
+    params["storage"] = json!("compact");
+    assert_eq!(
+        SourceStorage::from_params(&params).unwrap(),
+        SourceStorage::Compact
+    );
+    let mut server: serde_json::Value = serde_json::from_slice(&server_raw()).unwrap();
+    server["pipeline"]["components"]["linear"]["params"] = params;
+    server["budget"] = json!({"requests":1,"max_input_tokens":4,"max_new_tokens":2});
+    let server: ExperimentDocument = serde_json::from_value(server).unwrap();
+    let server = pllm_types::canonical_bytes(&server);
+
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let config = import(&root, raw.clone());
+    let admitted_server = import(&root, server.clone());
+    let limits = admitted_limits(&admitted_server, &config, None, workload()).unwrap();
+    // The unchanged original policy covers both request epochs, 4 -> 5 rows.
+    let summary = pllm_models::source_scalar_summary(config.payload().value(), workload()).unwrap();
+    assert_eq!(summary.semantic_elements(), 4 * 151936);
+    assert_eq!(limits.expansion.max_tensor_elements, 5 * 151936);
+    assert_eq!(limits.expansion.max_layers, 24);
+    assert_eq!(limits.expansion.max_feature_width, 4864);
+    assert_eq!(limits.expansion.max_attention_heads, 14);
+    assert_eq!(limits.expansion.max_vocabulary, 151936);
+    assert_eq!(limits.factory.max_operations_per_phase, 678);
+    assert_eq!(DESCRIPTORS, 65536);
+    assert_eq!(MAX_ALLOCATION_BYTES, 64 << 20);
+    assert!(limits.max_work <= SOURCE_WORK);
+    assert_eq!(limits.factory.max_factory_bytes, MAX_ALLOCATION_BYTES);
+
+    // Never construct any model/source/payload factory, publisher, scanner,
+    // seal, Program, request history or arithmetic. The armed trap panics if a
+    // guarded factory is entered. Bounds refusal remains a legitimate outcome.
+    match SourceRequestImport::quote_checked_public(&server, &raw, 4, 2) {
+        Ok(resources) => {
+            assert!(resources.model_factory_bytes <= MAX_ALLOCATION_BYTES);
+            assert!(resources.prepaid_work <= SOURCE_WORK);
+            eprintln!("compact original-source metadata quote ACCEPTED: {resources:?}; factory trap remained armed/unentered; NOT whole request/import/header/history/finalizer/runtime fit");
+        }
+        Err(Error::Bounds) => eprintln!("compact original-source metadata quote REFUSED: Bounds; unchanged guards, factory trap remained armed/unentered; NOT whole-request fit"),
+        other => panic!("unexpected compact metadata-only quotation: {other:?}"),
+    }
+}
+
+#[test]
 fn registered_wide_heads_and_defaults_share_the_original_validator() {
     let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
     let server = experiment();
