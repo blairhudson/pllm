@@ -1216,6 +1216,15 @@ permitted. The test envelope is **60 seconds, 256 MiB, zero new swap and 1 MiB
 output**; unavailable dependencies or guard admission refuse execution.
 Single-job compilation uses existing D33 headroom, separately from test limits.
 
+**Narrow amendment, explicitly approved on 25 October 2026 (user61165):** permit
+one standard `cargo fetch --locked --target aarch64-apple-darwin` in the exact
+frozen Poulpy workspace to populate the missing cache, followed by an offline
+compilation retry. No source, lock or pin changes, Main application or consumer
+adoption are permitted. The initial missing-`f128` refusal remains historical;
+this amendment claims no tests ran. Original D33 admission (at least 8 GiB
+available and normal pressure) and the 60 s/256 MiB/zero-new-swap/1 MiB test
+guards remain unchanged. Permission to fill the cache is not qualification.
+
 This qualifies only original **owning capacity and alignment**, not a borrowed
 span, noise helpers, provenance or admission. No Main application, dependency
 adoption, consumer activation, RNG, keys, transforms, encryption, security or
