@@ -231,6 +231,10 @@ pub(super) struct TerminalLocalFor<C: AllocationContext> {
     _lease: LeaseFor<C>,
 }
 impl<C: AllocationContext> TerminalLocalFor<C> {
+    // Actual one-party share, lent only by the closed both-ready parent.
+    pub(super) fn share_values(&self) -> &[u64] {
+        &self.values
+    }
     pub(super) fn add_beta(
         &mut self,
         material: &mut super::typed::gapars_terminal::MaterialFor<C>,

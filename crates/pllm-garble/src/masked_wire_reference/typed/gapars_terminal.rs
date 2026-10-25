@@ -46,11 +46,17 @@ pub(super) struct PartyFor<C: AllocationContext> {
     arithmetic: ArithmeticPartyFor<C, Ring>,
     material: MaterialFor<C>,
 }
+pub(super) type RetainedResult<C> = Result<(DealerMaskFor<C, Ring>, [PartyFor<C>; 2]), Error>;
 pub(super) struct ShareFor<C: AllocationContext> {
     local: arithmetic::TerminalLocalFor<C>,
     _beta: CommonMaskedFor<C, Ring>,
     _material: MaterialFor<C>,
     _typed: LeaseFor<C>,
+}
+impl<C: AllocationContext> ShareFor<C> {
+    pub(super) fn values(&self) -> &[u64] {
+        self.local.share_values()
+    }
 }
 
 // Concrete query/issuance/move-result controls. No second coordinator: parent
@@ -124,9 +130,60 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     beta: DealerMaskFor<C, Ring>,
     output: EdgeDescriptor,
     next: [u8; 32],
-    mut reservation: LeaseFor<C>,
+    reservation: LeaseFor<C>,
     fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
 ) -> Result<[PartyFor<C>; 2], Error> {
+    issue_reserved_borrowed_with(
+        dealer,
+        operation,
+        &input,
+        beta,
+        output,
+        next,
+        reservation,
+        fill,
+    )
+}
+
+// Genuine native product input remains owned by the D43 parent. No word-slice,
+// Binding-only or digest constructor; reuse exactly the original terminal body.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn issue_reserved_borrowed_with<C: AllocationContext>(
+    dealer: &mut LocalDealerFor<C>,
+    operation: [u8; 32],
+    input: &DealerMaskFor<C, Ring>,
+    beta: DealerMaskFor<C, Ring>,
+    output: EdgeDescriptor,
+    next: [u8; 32],
+    reservation: LeaseFor<C>,
+    fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> Result<[PartyFor<C>; 2], Error> {
+    issue_retained_with(
+        dealer,
+        operation,
+        input,
+        &beta,
+        output,
+        next,
+        reservation,
+        fill,
+    )
+    .map(|(_, parties)| parties)
+}
+
+// Complete D43 parent retains BOTH original masks and the native floor output
+// mask. The default owned entry above preserves its original retirement.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn issue_retained_with<C: AllocationContext>(
+    dealer: &mut LocalDealerFor<C>,
+    operation: [u8; 32],
+    input: &DealerMaskFor<C, Ring>,
+    beta: &DealerMaskFor<C, Ring>,
+    output: EdgeDescriptor,
+    next: [u8; 32],
+    mut reservation: LeaseFor<C>,
+    fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+) -> RetainedResult<C> {
     let q = resources::<C>()?;
     if reservation.bytes != q.reservation_bytes
         || !std::ptr::eq(reservation.budget.budget(), dealer.budget.budget())
@@ -146,8 +203,16 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
     }
     let native = reservation.split(q.typed_native_bytes)?;
     let left = reservation.split(q.extra_bytes / 2)?;
-    let (floor, [a, b]) =
-        dealer.gap_ars_reserved_with(operation, input, 12, output, next, native, fill)?;
+    let (floor, [a, b]) = dealer.arithmetic_with_borrowed(
+        operation,
+        input,
+        arithmetic::Gate::GapArs { shift: 12 },
+        output,
+        next,
+        false,
+        Some(native),
+        fill,
+    )?;
     let (aid, abinding) = a
         .native
         .as_ref()
@@ -173,28 +238,31 @@ pub(super) fn issue_reserved_with<C: AllocationContext>(
         h1[i] = split[1];
     }
     let binding = beta.binding;
-    Ok([
-        PartyFor {
-            arithmetic: a,
-            material: MaterialFor {
-                h: h0,
-                role: 0,
-                native_binding: abinding,
-                beta_binding: binding,
-                lease: left,
+    Ok((
+        floor,
+        [
+            PartyFor {
+                arithmetic: a,
+                material: MaterialFor {
+                    h: h0,
+                    role: 0,
+                    native_binding: abinding,
+                    beta_binding: binding,
+                    lease: left,
+                },
             },
-        },
-        PartyFor {
-            arithmetic: b,
-            material: MaterialFor {
-                h: h1,
-                role: 1,
-                native_binding: bbinding,
-                beta_binding: binding,
-                lease: reservation,
+            PartyFor {
+                arithmetic: b,
+                material: MaterialFor {
+                    h: h1,
+                    role: 1,
+                    native_binding: bbinding,
+                    beta_binding: binding,
+                    lease: reservation,
+                },
             },
-        },
-    ])
+        ],
+    ))
 }
 
 impl<C: AllocationContext> MaterialFor<C> {
@@ -243,11 +311,20 @@ impl<C: AllocationContext> MaterialFor<C> {
 }
 
 impl<C: AllocationContext> PartyFor<C> {
+    pub(super) fn cancel(&mut self) {
+        self.arithmetic.cancel();
+    }
     pub(super) fn begin(
         &mut self,
         input: CommonMaskedFor<C, Ring>,
     ) -> Result<arithmetic::FrameFor<C>, Error> {
         self.arithmetic.begin(input)
+    }
+    pub(super) fn begin_borrowed(
+        &mut self,
+        input: &CommonMaskedFor<C, Ring>,
+    ) -> Result<arithmetic::FrameFor<C>, Error> {
+        self.arithmetic.begin_borrowed(input)
     }
     /// Consuming native terminal. Parent must run inside its existing operation
     /// guard, store this secret in its role slot, then require BOTH ready.

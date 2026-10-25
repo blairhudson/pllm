@@ -75,6 +75,9 @@ pub(in crate::masked_wire_reference) struct MasksFor<C: AllocationContext> {
 }
 #[cfg_attr(not(test), allow(dead_code))] // Private native mask loan, no parent activation.
 impl<C: AllocationContext> MasksFor<C> {
+    pub(in crate::masked_wire_reference) fn source_is(&self, source: &Arc<SourceFor<C>>) -> bool {
+        Arc::ptr_eq(source, &self.source.source)
+    }
     pub(in crate::masked_wire_reference) fn output(&self, index: usize) -> Result<&[u64], Error> {
         Ok(&self.children.get(index).ok_or(Error::Domain)?.values)
     }
@@ -109,9 +112,13 @@ pub(in crate::masked_wire_reference) struct ValuesFor<C: AllocationContext> {
     bodies: [MaskedOutputFor<C>; 2],
     source: Arc<DeclarationFor<C>>,
     lease: LeaseFor<C>,
+    role: u8,
 }
 #[cfg_attr(not(test), allow(dead_code))] // Native component result loan, not whole-parent publication.
 impl<C: AllocationContext> ValuesFor<C> {
+    pub(in crate::masked_wire_reference) fn is_for(&self, masks: &MasksFor<C>, role: u8) -> bool {
+        self.role == role && Arc::ptr_eq(&self.source, &masks.source)
+    }
     pub(in crate::masked_wire_reference) fn output<'a>(
         &'a self,
         source: &Arc<SourceFor<C>>,
@@ -139,6 +146,44 @@ pub(in crate::masked_wire_reference) struct Resources {
     child: [correction::CorrectionResources; 2],
     scan_bytes: [usize; 2],
     evaluator_controls: usize,
+}
+impl Resources {
+    pub(in crate::masked_wire_reference) fn frames_per_party(&self) -> Result<usize, Error> {
+        add(&[
+            1, // Each correction first opens its native scan share.
+            self.child[0].select.frames_per_party,
+            1,
+            self.child[1].select.frames_per_party,
+        ])
+    }
+    pub(in crate::masked_wire_reference) fn original_native_workspace_bytes(
+        &self,
+    ) -> Result<usize, Error> {
+        mul(3, WORKSPACE)
+    }
+    // Same original nonce/pair/four-draw/Select issuance; expose counters rather
+    // than duplicate the correction or DPF algorithm in the containing parent.
+    pub(in crate::masked_wire_reference) fn work_counts(&self) -> Result<[usize; 3], Error> {
+        Ok([
+            add(&[
+                32,
+                32,
+                2 * 4 * 8,
+                self.child[0].select.random_bytes,
+                self.child[1].select.random_bytes,
+            ])?,
+            add(&[
+                self.paired_gpu_aes,
+                self.child[0].select.paired_issue_aes_blocks,
+                self.child[1].select.paired_issue_aes_blocks,
+            ])?,
+            add(&[
+                self.scan.work.aes_blocks,
+                self.child[0].select.evaluation_aes_blocks_per_party,
+                self.child[1].select.evaluation_aes_blocks_per_party,
+            ])?,
+        ])
+    }
 }
 #[allow(dead_code)] // Concrete simultaneous issuance/move slots included in original reservation.
 struct IssueControls<'a, C: AllocationContext> {
@@ -465,6 +510,7 @@ impl<C: AllocationContext> PartyFor<C> {
                     bodies: [a, b],
                     source: Arc::clone(&p.source),
                     lease,
+                    role: p.role,
                 })
             }
             _ => return Err(Error::Context),

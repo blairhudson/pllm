@@ -241,6 +241,7 @@ enum CommonBackingFor<C: AllocationContext> {
     Arithmetic(arithmetic::MaskedOutputFor<C>),
     Matrix(matrix::party::MaskedOutputFor<C>),
     Selection(selection::MaskedOutputFor<C>),
+    Elementwise(super::elementwise_product::OutputFor<C>),
 }
 impl<C: AllocationContext> CommonBackingFor<C> {
     fn values(&self) -> &[u64] {
@@ -249,6 +250,7 @@ impl<C: AllocationContext> CommonBackingFor<C> {
             Self::Arithmetic(v) => v.values(),
             Self::Matrix(v) => v.values(),
             Self::Selection(v) => v.values(),
+            Self::Elementwise(v) => v.values(),
         }
     }
 }
@@ -256,6 +258,7 @@ enum MaskBackingFor<C: AllocationContext> {
     Fresh(Zeroizing<Vec<u64>>),
     Arithmetic(arithmetic::OutputMasksFor<C>),
     Selection(selection::OutputMasksFor<C>),
+    Elementwise(super::elementwise_product::MasksFor<C>),
 }
 impl<C: AllocationContext> MaskBackingFor<C> {
     fn values(&self) -> &[u64] {
@@ -263,6 +266,7 @@ impl<C: AllocationContext> MaskBackingFor<C> {
             Self::Fresh(v) => v,
             Self::Arithmetic(v) => v.values(),
             Self::Selection(v) => v.values(),
+            Self::Elementwise(v) => v.values(),
         }
     }
 }
@@ -503,18 +507,7 @@ impl<C: AllocationContext> LocalDealerFor<C> {
         promise: &BoundRange<LocalAssumption>,
     ) -> Result<usize, Error> {
         self.validate(descriptor, false)?;
-        let interval = Interval {
-            lower: promise.lower,
-            upper: promise.upper,
-        };
-        if !interval.fits(descriptor.numeric().ring_bits()) {
-            return Err(Error::Domain);
-        }
-        let lanes = descriptor.shape().elements();
-        let common_bytes = 8 * lanes + ALLOCATOR + common_charge_for::<C>();
-        let dealer_bytes =
-            8 * lanes + ALLOCATOR + mask_charge_for::<C>() + size_of::<RootInputFor<C>>();
-        Ok(2 * common_bytes + dealer_bytes)
+        root_geometry_bytes::<C>(descriptor, promise)
     }
 
     /// Consume an exact original aggregate slice, without refund/reacquire.
@@ -571,6 +564,40 @@ impl<C: AllocationContext> LocalDealerFor<C> {
     }
 }
 
+// Original geometry quotation, shared with pre-namespace aggregate admission.
+fn root_geometry_bytes<C: AllocationContext>(
+    descriptor: EdgeDescriptor,
+    promise: &BoundRange<LocalAssumption>,
+) -> Result<usize, Error> {
+    if !(Interval {
+        lower: promise.lower,
+        upper: promise.upper,
+    })
+    .fits(descriptor.numeric().ring_bits())
+    {
+        return Err(Error::Domain);
+    }
+    root_payload_bytes::<C>(descriptor.shape().elements())
+}
+// Original storage formula also usable BEFORE source/namespace/hash creation.
+// It is a byte quote, never a descriptor/source/input capability constructor.
+fn root_payload_bytes<C: AllocationContext>(lanes: usize) -> Result<usize, Error> {
+    let payload = lanes
+        .checked_mul(8)
+        .and_then(|v| v.checked_add(ALLOCATOR))
+        .ok_or(Error::Resource)?;
+    let common = payload
+        .checked_add(common_charge_for::<C>())
+        .ok_or(Error::Resource)?;
+    let dealer = payload
+        .checked_add(mask_charge_for::<C>())
+        .and_then(|v| v.checked_add(size_of::<RootInputFor<C>>()))
+        .ok_or(Error::Resource)?;
+    common
+        .checked_mul(2)
+        .and_then(|v| v.checked_add(dealer))
+        .ok_or(Error::Resource)
+}
 type EncodedRootFor<C> = (DealerMaskFor<C, Ring>, [CommonMaskedFor<C, Ring>; 2]);
 type MatrixIssuedFor<C> = (DealerMaskFor<C, Ring>, [MatrixPartyFor<C>; 2]);
 type ArithmeticIssuedFor<C, K> = (DealerMaskFor<C, K>, [ArithmeticPartyFor<C, K>; 2]);
@@ -1188,6 +1215,32 @@ impl<C: AllocationContext> LocalDealerFor<C> {
         reservation: Option<LeaseFor<C>>,
         fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
     ) -> Result<ArithmeticIssuedFor<C, K>, Error> {
+        self.arithmetic_with_borrowed(
+            operation,
+            &input,
+            gate,
+            output,
+            next_consumer,
+            predicate,
+            reservation,
+            fill,
+        )
+    }
+
+    // D43 retains original producer masks through outer retirement. The legacy
+    // consuming entry above still drops its input at precisely the old return.
+    #[allow(clippy::too_many_arguments)]
+    fn arithmetic_with_borrowed<K>(
+        &mut self,
+        operation: [u8; 32],
+        input: &DealerMaskFor<C, Ring>,
+        gate: arithmetic::Gate,
+        output: EdgeDescriptor,
+        next_consumer: [u8; 32],
+        predicate: bool,
+        reservation: Option<LeaseFor<C>>,
+        fill: &mut impl FnMut(&mut [u8]) -> Result<(), Error>,
+    ) -> Result<ArithmeticIssuedFor<C, K>, Error> {
         self.input(input.binding, operation)?;
         self.validate(output, predicate)?;
         let descriptor = input.binding.descriptor;
@@ -1315,6 +1368,13 @@ impl<C: AllocationContext, K> ArithmeticPartyFor<C, K> {
     pub fn begin(
         &mut self,
         input: CommonMaskedFor<C, Ring>,
+    ) -> Result<arithmetic::FrameFor<C>, Error> {
+        self.begin_borrowed(&input)
+    }
+    // Existing native entry; the closed parent keeps the actual producer owner.
+    fn begin_borrowed(
+        &mut self,
+        input: &CommonMaskedFor<C, Ring>,
     ) -> Result<arithmetic::FrameFor<C>, Error> {
         let result = (|| {
             if input.binding != self.input || input.role != self.role {

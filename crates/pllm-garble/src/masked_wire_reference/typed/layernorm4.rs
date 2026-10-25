@@ -6,6 +6,8 @@ use pllm_core::edge_contract::ConsumerUse;
 use std::sync::Arc;
 
 #[cfg(test)]
+mod native_oracle_cases;
+#[cfg(test)]
 #[path = "layernorm4/norm13_tests.rs"]
 mod norm13_tests;
 pub(in crate::masked_wire_reference) mod parent;
@@ -45,12 +47,16 @@ pub(in crate::masked_wire_reference) struct SourceFor<C: AllocationContext> {
 enum MaskBacking<C: AllocationContext> {
     Original(DealerMaskFor<C, Ring>),
     Local(Zeroizing<Vec<u64>>),
+    Arithmetic(arithmetic::OutputMasksFor<C>),
+    Inverse(super::super::source_lookup::norm13::MasksFor<C>),
 }
 impl<C: AllocationContext> MaskBacking<C> {
     fn values(&self) -> &[u64] {
         match self {
             Self::Original(v) => v.backing.values(),
             Self::Local(v) => v,
+            Self::Arithmetic(v) => v.values(),
+            Self::Inverse(v) => v.values(),
         }
     }
 }
@@ -59,12 +65,16 @@ impl<C: AllocationContext> MaskBacking<C> {
 enum ValueBacking<C: AllocationContext> {
     Original(CommonMaskedFor<C, Ring>),
     Local(Zeroizing<Vec<u64>>),
+    Arithmetic(arithmetic::MaskedOutputFor<C>),
+    Inverse(super::super::source_lookup::norm13::ValueFor<C>),
 }
 impl<C: AllocationContext> ValueBacking<C> {
     fn values(&self) -> &[u64] {
         match self {
             Self::Original(v) => v.backing.values(),
             Self::Local(v) => v,
+            Self::Arithmetic(v) => v.values(),
+            Self::Inverse(v) => v.values(),
         }
     }
 }

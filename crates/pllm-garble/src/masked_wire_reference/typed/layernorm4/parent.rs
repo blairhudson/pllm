@@ -1,6 +1,8 @@
 //! Owning D43 parent implementation. Native interval ingress is kept closed
 //! here: neither a raw scan nor a caller Binding/interval constructs a loan.
 use super::*;
+mod coordinate;
+mod issuer;
 
 #[cfg(test)]
 #[path = "parent/interval_tests.rs"]
