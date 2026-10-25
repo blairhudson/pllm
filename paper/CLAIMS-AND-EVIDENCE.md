@@ -97,6 +97,20 @@ D49 registration, 76 pure/scanner tests and gateway test definitions do not
 establish execution of the ordinary compact SDK. This evidence qualifies the
 committed revision, not the dirty ROOT compiler drafts or latest working tree.
 
+**26 October 2026 — bounded compact SDK at `c6341b3ed16934769ebfa1aa85f188b0788a8882`.**
+Explicit public-weight, checked-range, per-token lookup, expanded-Argmax HTTP
+execution now passes the [generated-source gateway controls](../tests/test_replicated_compact_gateway.py):
+the admitted client publisher and all three workers witness retained compact
+storage, with two accepted outputs/private feedback and execution cancellation.
+This is a trusted local client gateway receiving plaintext; external workers
+retain the existing share boundary. Default expanded identities and fail-closed
+compact selection remain covered by [storage controls](../tests/test_replicated_compact_storage.py).
+Installed gates: two compact route tests, seven expanded SDK controls and 58 pure
+disk/custody checks; earlier 815 native/211 installed-pure checks and strict Clippy
+are separate overlapping evidence, not additive totals or native failure-teardown proof.
+Qualification binds the `c6341b3e` production postimages, not the later `6a4d4a9`
+select refactor. No trained-source fit, wider-model, malicious-source, security or matched-cost claim follows.
+
 **Isolated HE consumer storage evidence (D48, O850 reviewed).** Upstream
 `ca353257` plus Layout patch `c61b57b7`, with four coherent Poulpy v0.9 path
 substitutions in isolation, passed five key-free storage tests, 31 filtered;
@@ -158,7 +172,7 @@ cost windows and source availability before setting a disposition.
 | NEXUS/THOR | Bounded encrypted softmax, no complete decoder/bootstrap | Review full-system applicability and assumptions; bounded-range rejection is not a proof their complete systems lose |
 | BumbleBee/FastQuery | Bounded packing/lookup adaptations | Check closest full-system and boundary-placement prior art; charge tied head, conversions, setup and model-quality changes |
 | Compact/Curl/LogRow | Bounded nonlinear operators with explicit conversions | Use scoped mechanism comparisons; determine relevant full-system prior art separately |
-| PUMA | Bounded generated three-worker SDK composition and public-weight/checked-range work; no accepted trained-Qwen response | Complete native-owner integration, trained admission/execution, quality and matched costs. Generated output and owner-map validation do not close method acceptance |
+| PUMA | Bounded generated three-worker SDK composition, including explicit compact checked-public execution at `c6341b3e`; no accepted trained-Qwen response | Complete trained-source admission/execution, wider coverage, quality and matched costs. Bounded generated-route integration does not close method acceptance |
 | Maverick, CacheMir and ROSETTA | Selected study rows with source-locked contracts; Maverick has bounded native delegation evidence | Complete source-faithful decoders and ordinary public execution paths; primitive references do not substitute |
 | Additional contemporary systems | Dated review includes CipherGPT and recent SoKs | Refresh comparison coverage before submission; do not replace the approved ten methods without author decision |
 

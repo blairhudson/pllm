@@ -92,8 +92,8 @@ trained request. PUMA's checked-public native SDK slices (`c05`/`923`) have land
 as have compact lookup (`9fd`), RMS (`06`), request rescale (`e92`), guarded SiLU
 (`6b`) and RoPE/KV continuity (`4721`). The bounded private two-epoch owning
 Storage/original-Worker path subsequently landed `0d9dcaaa`; ordinary compact SDK
-execution and production BODY/coordinator drain remain unqualified. D40 (`ca7`)
-covers every authorized `(R+s, O-s)` prefix, but policy permission supplies
+execution was unqualified at that revision and is covered only by the later bounded gate below.
+D40 (`ca7`) covers every authorized `(R+s, O-s)` prefix, but policy permission supplies
 neither source authority nor whole-checkpoint fit.
 
 **Scoped postlanding PUMA gate.** At exact revision
@@ -107,6 +107,18 @@ its counts to 783. See the [committed runtime controls](../../crates/pllm-compil
 D49 approval, registration, 76 pure/scanner tests and gateway definitions do not
 establish ordinary compact SDK execution. Dirty ROOT compiler drafts are outside
 this revision-bound gate; no trained, full-fit or whole-method claim follows.
+
+**26 October 2026 — D49 bounded compact SDK landed `c6341b3e`.** Explicit public
+weights, checked range, per-token lookup, expanded Argmax and HTTP now execute
+the [generated two-output route](../../tests/test_replicated_compact_gateway.py)
+with retained compact storage witnessed on client publisher and all three workers,
+native final acceptance/private feedback, cancellation and retirement. The local
+gateway is the trusted plaintext client boundary, not an opaque untrusted relay.
+Two compact route tests, seven expanded SDK controls and 58 pure disk/custody
+checks passed; earlier 815 native/211 installed-pure checks and strict Clippy
+remain separate overlapping gates. Default expanded identity/no-fallback controls remain.
+This qualifies `c6341b3e` production postimages, not later `6a4d4a9` select reuse;
+trained-source execution, wider coverage, quality, security and matched costs remain open.
 
 **Installed evidence stays separate.** The older installed `923` run's 269 passes
 are historical. The broader installed `c938` rerun recorded 171 passes, four startup-admission refusals (the exact triggering predicate remains unresolved)
