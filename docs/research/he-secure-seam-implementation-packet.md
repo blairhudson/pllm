@@ -542,7 +542,10 @@ For both raw and prepared rotations require:
    authorizes neither. Existing consuming release observes actual allocator
    deltas and failure counters; failed release provides no credit.
 
-### 6.3 Bounded later qualification specification (execution NOT granted)
+### 6.3 Bounded later qualification specification (preparation-era scope)
+
+Execution was not granted during this preparation. The later D48 isolated
+storage-only result below does not qualify this entire proposed suite.
 
 All limits below are **proposed test limits**, not measured bounds or increases
 to D4 runtime allowances. Ordinary targeted tests only; no benchmark harness,
@@ -570,7 +573,8 @@ seeking execution permission. No test is run during patch preparation.
 **Completion of patch preparation:** the two normal patches implement precisely
 the specified accessors/bindings and encode the bounded checks above; Astra's
 source review confirms no extra authority/dependency/runtime change. Compilability
-and passing qualification remain unverified until separately authorized checks.
+and passing qualification were unverified at preparation completion; the later
+D48 result below covers only the isolated accessor storage tests.
 This closes a selectable patch-authoring decision, not the backing proof itself.
 
 ### 6.4 Approved preparation wording, retained as the scope boundary
@@ -596,10 +600,40 @@ engine/law/version, dependency closure and bounded ownership proof. A source
 class without these real delegates is not an acceptable substitute. No original
 generation should be enabled while the UNKNOWN gates below remain.
 
+### 6.5 D48 isolated storage evidence, 25 October 2026
+
+HE1290's user-approved observational run, independently reviewed by W632, passed
+**two test methods covering 12 sequential tiny cases**, exit 0, wall 0.438 s and
+1148 bytes output. Owners supplied capacities 128/512/4096 bytes and alignments
+64/128; cases covered truncation to 64 bytes, metadata reduction and moves.
+**There was no empty-backing test:** zero metadata does not mean an empty
+allocation. Original owning capacity/alignment, not a borrowed span, is the
+tested property.
+
+The 60 s and 1 MiB output bounds were enforced. Observed peak RSS was
+**2,342,912 bytes <256 MiB**; cumulative `Swapouts` was unchanged at
+**104224387 → 104224387**, with 16384-byte pages. These readings are **not hard
+memory/swap isolation**. Earlier hard-guard refusal, offline missing-`f128`
+refusal, explicitly approved locked cache fill and compilation history remain
+historical; no earlier refusal is recast as a passing run.
+
+The worker record identifies upstream `ca3532570ff62b96599a74f7adb85de7726b0446`,
+patch `c61b57b786657ab0bbbf3f5d4f7fd1958434b6923c8e5e2d360441d261aa530e`
+and unchanged lock hash prefix `4f841f88`; the review did not independently
+rehash those identities. Ordinary local logs/results remain under
+`he-layout-d38-upstream/target/d48-61208-*` (including `d48-61208-tests.log` and
+the worker result), not a new evidence archive.
+
+This does not adopt a dependency/pin or Main/consumer path, or qualify crypto,
+keys, Module/NTT/RNG, transforms, solver/refresh, noise, source provenance,
+admission, resource completeness, security or a complete HE method. See the
+[D48 record](../../paper/methods/DECISIONS.md#d48-isolated-pinned-poulpy-owning-layout-qualification)
+for the distinct permissions and retained exclusions.
+
 | Contract | Present status / required disposition |
 | --- | --- |
 | Frozen original calls and four portable re-expansion sites | KNOWN source; existing legacy path unqualified for secure generation. |
-| Minimal owning Layout seam and exact adapter consumers | SPECIFIED proposal; upstream API absent, revision/adoption unapproved. |
+| Minimal owning Layout seam and exact adapter consumers | D48 isolated patched-accessor storage tests passed under observational guards; Main/dependency adoption and actual consumer activation remain unapproved/unqualified. |
 | Secure source/fork, full fallible delegate cut and codec separation | SPECIFIED proposed signatures; engine/version/constructor erasure and implementation UNKNOWN. |
 | Governing secret shuffle law/features | UNRESOLVED decision; no correction adopted. |
 | Original same-dense / once-sparse serial sink and fail-burn epoch | SPECIFIED lifecycle; client/constructor/commit admission not implemented or qualified. |
