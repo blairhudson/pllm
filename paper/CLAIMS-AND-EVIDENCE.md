@@ -38,6 +38,7 @@ document their own execution identities. None supplies another category by itsel
 
 | Question or proposed claim | Manuscript location | Existing evidence and exact scope | Remaining boundary |
 | --- | --- | --- | --- |
+| CacheMir immutable cache append? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D](manuscript.md#appendix-d-implementation-contracts-and-controls) | Landed `22bbf91f`: [shared append constructor](../crates/pllm-compiler/src/interleaved_cache_append.rs), [tests](../crates/pllm-compiler/src/interleaved_cache_append_tests.rs); immutable retained parents, staged paired K/V, checked graph/solver/trace admission and independent clear geometry controls; included in the `98bedd49` combined regression | No trained calibration, encrypted kernel/backend, private decoder or complete-method qualification |
 | Maverick request-global verification? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D](manuscript.md#appendix-d-implementation-contracts-and-controls) | D45: [request owner](../crates/pllm-core/src/maverick_batch/request.rs), [tests](../crates/pllm-core/src/maverick_batch/request_tests.rs); two ordered batches, four masked 64×64 claims, both global fixation barriers and atomic outputs. 15 request tests, 20 existing integration cases and three compile-fail controls | Raw-field ownership/correctness only; no BF16/Q8 decoder, generation, SDK or security qualification |
 | SIGMA width-four LayerNorm? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D](manuscript.md#appendix-d-implementation-contracts-and-controls) | D43 LocalClearRoot4: [native parent](../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/parent/runtime.rs), [controls](../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/norm13_tests.rs), [literal records](../crates/pllm-garble/src/masked_wire_reference/typed/layernorm4/native_oracle_cases.rs); private party-share outputs, 22 literal records (21 distinct triples), within a broader 976-check package gate, not 976 cases | No wider/inherited-input or SDK activation; joint-transcript privacy remains unqualified |
 | NEXUS complete clear normalization? | [§3.2](manuscript.md#32-model-representation-and-components); [Appendix D](manuscript.md#appendix-d-implementation-contracts-and-controls) | D46: [row normalization](../crates/pllm-core/src/row_normalization_reference.rs), [core tests](../crates/pllm-core/src/row_normalization_reference_tests.rs), [compiler controls](../crates/pllm-compiler/src/row_normalization_reference_tests.rs); explicit Eq.5 width-768, 32×1024 row-head binary64 contract, no epsilon, zero-energy refusal; 11 new and seven legacy checks | Clear reference, not CKKS profile adoption or an encrypted decoder |
@@ -71,7 +72,16 @@ not a performance, quality, SDK, security or release-CI result. It excludes late
 BumbleBee `8afefb0c`, documentation `0fb00b2f`, unlanded CacheMir SOURCE04 and
 the unfinished PUMA sealed path; it is not latest-Main qualification. Pending
 PUMA owning-reader/history work and CacheMir source gates supply no additional
-completed-method evidence. The later BumbleBee row remains separate.
+completed-method evidence. Those exclusions describe that earlier gate only.
+On 25 October 2026, the later gate at exact revision
+`98bedd49bfda3d2bd00f3b3e7a480f298b72791a` included landed BumbleBee and CacheMir:
+**3,451 unit/integration executions plus 164 doctests = 3,615 checks**, zero failures,
+17 existing ignores and the same single explicit N-N six-map exclusion; strict
+four-package core/garble/compiler/python `--lib --tests` Clippy passed.
+BumbleBee's nine ordinary tests ran once each; its two compile-fail controls are
+already included in 164. Its D47 `2^30` repeat allowance covers only that subset
+(780,444,118 declared work); `2^28` per invocation and 32 MiB owner caps are unchanged.
+This supersedes the earlier source coverage, not its historical results; counts are not additive. It supplies no SDK, trained-model, physical-memory, performance, security or release-CI qualification, and does not complete PUMA sealed execution. Local raw evidence is retained under the review worktree's `target/multi-paper-post-cache-bb-slot-a-{tests,docs,clippy}.log`; these are development logs, not published campaign measurements.
 The six-page main-text target and 20-page total guard are distinct layout
 requirements. Passing the total-page guard does not establish main-text compliance.
 
