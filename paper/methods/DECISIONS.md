@@ -1264,6 +1264,21 @@ independent O review and are not asserted as qualified here. Earlier storage-onl
 scope, refusals and evidence remain distinct; no runtime/consumer activation is
 authorized by this test permission.
 
+**Isolated consumer evidence, 25 October 2026 (HE1290; O850 evidence-clear):**
+the exact `ca353257` upstream plus D48's `c61b57b7` Layout patch passed **five
+key-free consumer storage tests**, zero failures/ignores, **31 filtered**.
+Four coherent Poulpy 0.9 path substitutions reconciled only the isolated lock;
+Main source/dependency pins were not adopted or changed. Compilation finished in
+63 s (separate compile admission); tests took 0.460 s, exit 0, output 1353 bytes.
+The 60 s/output-1-MiB limits were enforced. Observed peak RSS was **8,437,760
+bytes** and cumulative `Swapouts` stayed **104232280 → 104232280** (16384-byte
+pages), not hard memory/swap isolation. Fixtures remained within 64 KiB/16
+allocations. Ordinary retained `d48-61243-tests.log`, `d48-61243-result.json` and
+compile/lock-diff logs record this isolated result; no private absolute path or
+unlanded test is presented as a Main source reference. Earlier refusals and
+storage-only evidence remain distinct. No keys/transforms, rotation-key adoption,
+trusted-key provenance or complete resource/security/runtime qualification follows.
+
 This qualifies only original **owning capacity and alignment**, not a borrowed
 span, noise helpers, provenance or admission. No Main application, dependency
 adoption, consumer activation, RNG, keys, transforms, encryption, security or
