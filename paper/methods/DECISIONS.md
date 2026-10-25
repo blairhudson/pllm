@@ -1237,6 +1237,18 @@ remain historical, not retroactively satisfied. No keys, NTT, RNG, transforms,
 consumer activation, Main/dependency adoption, encryption or security proof is
 authorized. This amendment records permission, not a passing test result.
 
+**Isolated storage evidence, 25 October 2026 (HE1290):** the frozen upstream
+`ca3532570ff62b96599a74f7adb85de7726b0446` plus the exact D48 patch above passed
+two storage-method executions covering 12 tiny cases (backing at most 4 KiB),
+exit 0, wall 0.438 s, output 1148 bytes; the lock remained unchanged (reported
+hash prefix `4f841f88`). The 60 s/1 MiB limits were enforced; peak RSS was
+**2,342,912 bytes**, and cumulative `Swapouts` stayed **104224387 → 104224387**
+with 16384-byte pages. RSS/swap predicates were observational, **not hard
+isolation**. Earlier refusals/compile/cache history remains intact. This is only
+the approved isolated storage result, not full Poulpy, source/noise/admission or
+security qualification, consumer/Main/pin adoption, or crypto/key/NTT/RNG/
+transform execution.
+
 This qualifies only original **owning capacity and alignment**, not a borrowed
 span, noise helpers, provenance or admission. No Main application, dependency
 adoption, consumer activation, RNG, keys, transforms, encryption, security or
