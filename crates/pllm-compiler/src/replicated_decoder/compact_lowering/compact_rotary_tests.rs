@@ -20,6 +20,15 @@ fn with_source<T>(
     width: usize,
     run: impl for<'a> FnOnce(&'a Builder, &'a EmissionContext<'a>, &Manifest) -> Result<T, Error>,
 ) -> Result<T, Error> {
+    with_source_profile(heads, width, false, run)
+}
+
+fn with_source_profile<T>(
+    heads: usize,
+    width: usize,
+    signed_qkv: bool,
+    run: impl for<'a> FnOnce(&'a Builder, &'a EmissionContext<'a>, &Manifest) -> Result<T, Error>,
+) -> Result<T, Error> {
     let (config, _, clear) = crate::replicated_decoder::tests::fixture_sources("qwen2", false);
     let mut config: serde_json::Value = serde_json::from_slice(&config).unwrap();
     config["hidden_size"] = serde_json::json!(heads * width);
@@ -44,10 +53,28 @@ fn with_source<T>(
     let mut payloads = BTreeMap::new();
     for (key, shape) in shapes {
         let values = &clear[&key];
+        let signed_projection = signed_qkv
+            && ["q_proj.", "k_proj.", "v_proj."]
+                .iter()
+                .any(|name| key.contains(name));
         let bytes = (0..shape.iter().product())
-            .flat_map(|i| (values[i % values.len()] as f32 / ONE as f32).to_le_bytes())
+            .flat_map(|i| {
+                let value = if signed_projection {
+                    let magnitude = if key.ends_with(".bias") { 1 } else { ONE / 64 };
+                    if i % 2 == 0 {
+                        -magnitude
+                    } else {
+                        magnitude
+                    }
+                } else {
+                    values[i % values.len()]
+                };
+                (value as f32 / ONE as f32).to_le_bytes()
+            })
             .collect::<Vec<_>>();
-        publisher.append(&key, 0, &bytes).unwrap();
+        for (chunk, frame) in bytes.chunks(4096).enumerate() {
+            publisher.append(&key, chunk * 1024, frame).unwrap();
+        }
         payloads.insert(key, bytes);
     }
     publisher.seal(&[1, 2, 1, 2]).unwrap();
@@ -55,7 +82,9 @@ fn with_source<T>(
     manifest.program = [0; 32];
     let mut importer = SourceRequestImport::new(&serde_json::to_vec(&manifest).unwrap())?;
     for (key, bytes) in payloads {
-        importer.append(&key, 0, &bytes)?;
+        for (chunk, frame) in bytes.chunks(4096).enumerate() {
+            importer.append(&key, chunk * 1024, frame)?;
+        }
     }
     importer.with_created(|created, guard| {
         let mut scope = EmissionScope::new(created, guard, MAX_PROGRAM_BYTES)?;
@@ -85,7 +114,7 @@ fn at_rotary<'a>(
 
 #[test]
 fn genuine_projection_reshape_rotary_matches_original_coordinates_bounds_digest_work() {
-    for (heads, width) in [(1, 2), (2, 4), (2, 8)] {
+    for (heads, width) in [(1, 2), (2, 4), (2, 8), (1, 36)] {
         with_source(heads, width, |builder, context, manifest| {
             let mut graph = at_rotary(builder, context)?;
             let prefix = builder.nodes.len();
@@ -146,6 +175,126 @@ fn genuine_projection_reshape_rotary_matches_original_coordinates_bounds_digest_
             assert!(graph.complete_row(&output, 0)?.is_none());
             assert!(graph.attention_energy(&output, 1, width)?.is_none());
             assert!(graph.attention_energy(&output, 0, width - 1)?.is_none());
+            Ok(())
+        })
+        .unwrap();
+    }
+}
+
+#[test]
+fn genuine_biased_width36_row_crosses_product_tile_with_original_rope_owner() {
+    use crate::replicated_decoder::program::schedule_finalization::{
+        BorrowedOrderedNodes, BorrowedRecipe,
+    };
+    with_source_profile(1, 36, true, |builder, context, manifest| {
+        let mut graph = at_rotary(builder, context)?;
+        let operation = graph.frontier.operations().nth(graph.cursor).unwrap().1;
+        let input = graph.frontier.inputs(operation).0.unwrap().clone();
+        assert_eq!(input.logical.dimensions(), &[1, 1, 4, 36]);
+        let (publication, start) = graph.alias_range(&input, 108, 36)?.ok_or(Error::Binding)?;
+        let publication_slot = publication.slot.ok_or(Error::Binding)?;
+        assert!(matches!(
+            graph.ops[publication_slot].kind,
+            PublishedKind::Projection { bias: Some(_), .. }
+        ));
+        let Mapping::Products(first) = publication.mapping else {
+            panic!("actual bias triples");
+        };
+        assert_eq!(start, 108);
+        assert_eq!(input.word(108)?, (first + 2, 108));
+        assert_eq!(input.word(128)?, (first + 5, 0));
+        let before = context.work();
+        let output = graph.lower_next()?;
+        let op = graph.ops.last().unwrap();
+        let PublishedKind::Rotary(rows) = &op.kind else {
+            panic!("rotary");
+        };
+        assert_eq!(rows.native.len(), 4);
+        assert_eq!(context.work(), before.checked_add(rows.work)?);
+        let row = &rows.native[3];
+        let authority = row.premise.as_ref().expect("genuine attention ancestry");
+        assert_eq!(authority.family, EnergyFamily::Attention);
+        assert_eq!(authority.producer_slot, publication_slot);
+        assert_eq!(authority.start, start);
+        assert_eq!(authority.width, 36);
+        assert_eq!(authority.first_word, input.word(108)?);
+        assert!(row.incoming.lower() < 0, "signed original interval");
+        assert!(graph.row_norm(&output)?.is_none(), "never GENERAL");
+        let native = Arc::clone(&row.program);
+        let ordinal = op.first + 7;
+        // Independent expanded control only AFTER source-created publication.
+        let original = Program::compile_with_norms(
+            &manifest.config,
+            4,
+            2,
+            &manifest.tensors,
+            WeightMode::Public,
+            manifest.execution,
+            &manifest.norms,
+        )
+        .unwrap();
+        let Code::Tensor { program, .. } = &original.nodes[ordinal].code else {
+            panic!("original row");
+        };
+        assert_eq!(native.digest(), program.digest());
+        assert_eq!(native.work_budget(), program.work_budget());
+        assert_eq!(native.output_bounds(), program.output_bounds());
+        let Code::Gather(words) = &original.nodes[ordinal - 1].code else {
+            panic!("original gather");
+        };
+        for j in 0..36 {
+            assert_eq!(words.at(j), input.word(108 + j)?);
+        }
+        let frozen = graph.freeze(vec![output], MAX_PROGRAM_BYTES)?;
+        let reader = frozen.borrow_schedule(MAX_PROGRAM_BYTES)?;
+        let BorrowedRecipe::Tensor { program, .. } = reader.node(ordinal)?.recipe else {
+            panic!("frozen same native");
+        };
+        assert!(Arc::ptr_eq(program, &native));
+        Ok(())
+    })
+    .unwrap();
+}
+
+#[test]
+fn cross_tile_rotary_rejects_reordered_and_foreign_publications_before_factory() {
+    let foreign = with_source(1, 36, |builder, context, _| {
+        let graph = at_rotary(builder, context)?;
+        let op = graph.frontier.operations().nth(graph.cursor).unwrap().1;
+        Ok(graph.frontier.inputs(op).0.unwrap().clone())
+    })
+    .unwrap();
+    for wrong_order in [true, false] {
+        with_source(1, 36, |builder, context, _| {
+            let graph = at_rotary(builder, context)?;
+            let op = graph
+                .frontier
+                .operations()
+                .nth(graph.cursor)
+                .unwrap()
+                .1
+                .clone();
+            let mut input = graph.frontier.inputs(&op).0.unwrap().clone();
+            if wrong_order {
+                input.order = LaneOrder::HeadsSequence {
+                    heads: 2,
+                    rows: 2,
+                    width: 36,
+                    to_heads: true,
+                    base_start: 0,
+                };
+            } else {
+                input = foreign.clone();
+            }
+            let factories = FACTORIES.with(|n| n.get());
+            let work = context.work();
+            assert!(matches!(
+                graph.lower_rotary(&op, &input),
+                Err(Error::Binding)
+            ));
+            assert_eq!(FACTORIES.with(|n| n.get()), factories);
+            assert_eq!(context.work(), work);
+            assert!(context.check_open().is_err());
             Ok(())
         })
         .unwrap();
@@ -447,8 +596,9 @@ fn only_attention_survives_complete_ordered_output_rows() {
             if let Some(bound) = row.attention_energy {
                 assert_eq!(graph.attention_energy(&output, r * 4, 4)?, Some(bound));
                 let premise = row.premise.as_ref().expect("never retain a bare bound");
-                assert_eq!(premise.producer_slot, op.input.slot.unwrap());
-                assert_eq!(premise.start, r * 4);
+                let (producer, start) = graph.alias_range(&op.input, r * 4, 4)?.unwrap();
+                assert_eq!(premise.producer_slot, producer.slot.unwrap());
+                assert_eq!(premise.start, start);
                 assert_eq!(premise.width, 4);
                 assert_eq!(premise.first_word, op.input.word(r * 4)?);
                 assert!(premise.input_squared > 0);

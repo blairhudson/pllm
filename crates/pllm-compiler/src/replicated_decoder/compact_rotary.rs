@@ -95,22 +95,17 @@ fn premise(
     else {
         return Ok(None);
     };
-    let producer_slot = input.slot.ok_or(Error::Binding)?;
+    // A logical row may cross physical product tiles (e.g. 108..144).
+    // Authenticate against its actual ordered publication, not one value slot.
+    let (producer, original_start) = graph
+        .alias_range(input, start, width)?
+        .ok_or(Error::Binding)?;
+    let producer_slot = producer.slot.ok_or(Error::Binding)?;
     let first_word = input.word(start)?;
-    for j in 0..width {
-        if input.word(start + j)?
-            != (
-                first_word.0,
-                first_word.1.checked_add(j).ok_or(Error::Bounds)?,
-            )
-        {
-            return Err(Error::Binding);
-        }
-    }
     Ok(Some(RotaryEnergyPremise {
         family,
         producer_slot,
-        start,
+        start: original_start,
         first_word,
         width,
         input_squared,
@@ -277,6 +272,7 @@ fn control_bytes(rows: usize, lanes: usize, attempt: usize) -> Result<(usize, us
     pair!(size_of::<tensor::WorkPreflightResources>());
     pair!(size_of::<Option<RotaryEnergyPremise>>());
     pair!(size_of::<Result<Option<RotaryEnergyPremise>, Error>>());
+    pair!(size_of::<Result<Option<(&PublishedView, usize)>, Error>>());
     slot!(size_of::<(&CompactGraph<'_, '_>, &PublishedView, &usize)>()); // GENERAL closure
     slot!(size_of::<(
         &CompactGraph<'_, '_>,
@@ -374,9 +370,23 @@ impl CompactGraph<'_, '_> {
             .and_then(|n| n.checked_mul(depth))
             .and_then(|n| n.checked_mul(16))
             .ok_or(Error::Bounds)?;
+        // Additional alias_range pass: <= depth alias links per row, two
+        // ordered coordinate resolutions per lane. Pay explicitly, rather than
+        // assuming spare allowance in the existing proof/mapping census.
+        let alias_visits = rows
+            .checked_mul(depth)
+            .and_then(|n| n.checked_mul(4))
+            .and_then(|n| {
+                input
+                    .lanes
+                    .checked_mul(32)
+                    .and_then(|lanes| n.checked_add(lanes))
+            })
+            .ok_or(Error::Bounds)?;
         let visits = rows
             .checked_mul(tensor::MAX_NODES * 36)
             .and_then(|n| n.checked_add(mapping_visits))
+            .and_then(|n| n.checked_add(alias_visits))
             .ok_or(Error::Bounds)?;
         context
             .plan()
