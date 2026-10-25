@@ -1318,6 +1318,23 @@ This is not permission for unbounded snapshots, caller-controlled admission,
 trained-checkpoint/tensor-model jobs or downloads, numerical/wire/profile changes,
 cap increases, HE keys, FSS inference, or joint-privacy/source-authentication upgrades.
 
+## D50. Isolated versioned sampling Source preparation
+
+**Explicitly approved on 25 October 2026 (user61296):** source-only preparation
+of an opt-in, versioned **ChaCha20-v1 Source** covering original-client secret,
+noise and uniform descendants. Require typed version/domain child seeds with no
+bare-seed downgrade. Legacy `Source::new`, existing APIs, ChaCha8 bytes and sampler
+laws remain unchanged. Candidate compressed creation must refuse **before writes**;
+no new compressed codec is authorized.
+
+Only finite, key-free test **definitions** are permitted: no compilation or test
+execution, Main/pin/dependency adoption, keys, transforms, encryption or RNG
+activation. D28/D38 source gates and D48's distinct Layout/consumer qualification
+remain intact. Erasure and internal copies, potentially unbounded rejection/setup
+work, noise and security remain unresolved. Implementation is incomplete; this
+records preparation permission, not a passing result, available source capability
+or completed method.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1371,6 +1388,7 @@ cap increases, HE keys, FSS inference, or joint-privacy/source-authentication up
 | D47 | Approved: BumbleBee clear whole-phase full-U OLT/product/trace/ParseMat/CRT/Down | Proposed N8192/t2^64 limbs, separate (3,65,129)/(1,64,128) geometry, 32 MiB logical owners and 2^28 cumulative arithmetic before factories; both cross directions, old Delta counterexample retained. No runtime/backend/key/cipher/noise/security or full B-N1 qualification; approximate Down equivalence unproved. |
 | D48 | Approved: isolated pinned Poulpy owning-Layout qualification | Offline apply/compile and two storage tests, 12 tiny cases/backing ≤4096 B; 60 s/256 MiB/zero new swap/1 MiB output with refusal on unavailable dependencies/guards. Single-job D33 compile headroom; no Main/dependency adoption, consumer activation, RNG/keys/transforms/encryption, security or fit qualification. |
 | D49 | Approved: explicit compact PUMA SDK source integration | Immutable opt-in storage, unchanged expanded defaults/digests; trusted-server Experiment policy and original-counter source-owned publisher/all-worker compilation before Manifest/seal. Bounded matching-wheel/gateway tests required, no fallback, cap change, trained run, BODY drain or automatic SDK/security qualification. |
+| D50 | Approved: isolated source-only ChaCha20-v1 preparation | Opt-in typed version/domain child seeds across secret/noise/uniform descendants; no bare-seed downgrade, unchanged legacy ChaCha8/APIs/laws, compressed creation refuses before writes. Finite key-free test definitions only; no compilation/execution, adoption, keys/transforms/encryption/RNG activation or security qualification. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
