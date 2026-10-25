@@ -166,6 +166,50 @@ impl MetadataLedger {
     pub fn remaining(&self) -> usize {
         self.remaining
     }
+    /// Consume an independently supplied finite metadata-scan allowance before
+    /// construction/search. This neither increases a local solver limit nor
+    /// grants allocation or elapsed/cryptographic work. Successful debit is
+    /// never refunded, including when its caller subsequently fails.
+    pub fn prepay_work(&mut self, allowance: usize) -> Result<(), Refusal> {
+        self.remaining = self
+            .remaining
+            .checked_sub(allowance)
+            .ok_or(Refusal::MetadataWorkRefused)?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod metadata_prepayment_tests {
+    use super::*;
+    #[test]
+    fn finite_cumulative_prepayment_exact_short_and_failed_debit_preserves_remaining() {
+        let mut ledger = MetadataLedger::new(10);
+        ledger.prepay_work(7).unwrap();
+        assert_eq!(ledger.remaining(), 3);
+        assert_eq!(ledger.prepay_work(4), Err(Refusal::MetadataWorkRefused));
+        assert_eq!(ledger.remaining(), 3);
+        ledger.prepay_work(3).unwrap();
+        assert_eq!(ledger.remaining(), 0);
+    }
+    #[test]
+    fn excessive_allowance_refuses_without_wrapping_or_resetting_original_ledger() {
+        let mut ledger = MetadataLedger::new(19);
+        assert_eq!(
+            ledger.prepay_work(usize::MAX),
+            Err(Refusal::MetadataWorkRefused)
+        );
+        assert_eq!(ledger.remaining(), 19);
+    }
+    #[test]
+    fn abandoning_successful_prepayment_does_not_refund() {
+        let mut ledger = MetadataLedger::new(20);
+        {
+            ledger.prepay_work(13).unwrap();
+        }
+        assert_eq!(ledger.remaining(), 7);
+        assert!(ledger.prepay_work(8).is_err());
+    }
 }
 
 /// Computed evidence is immutable to callers; never an ambient grant.
@@ -176,11 +220,37 @@ impl MetadataLedger {
 /// ```
 pub struct PublicCiphertextConstructionQuote<'a> {
     manifest: &'a PublicCiphertextConstructionManifest<'a>,
+    boundary: BoundaryPolicy,
     records: usize,
     trace_work: usize,
     validator_payload_bytes: usize,
     metadata_peak: usize,
     owner_peak: usize,
+}
+
+/// Private computed graph-boundary contract. The legacy entry remains unary;
+/// the DAG entry derives output/retained limits from actual declared inputs and
+/// operations, under the unchanged 149-owner / 128-operation ceilings.
+#[derive(Clone, Copy)]
+enum BoundaryPolicy {
+    Unary,
+    Dag { outputs: usize, retained: usize },
+}
+impl BoundaryPolicy {
+    fn limits(self) -> (usize, usize, usize) {
+        match self {
+            Self::Unary => (1, 1, 1),
+            Self::Dag { outputs, retained } => (149, outputs, retained),
+        }
+    }
+    fn check(self, inputs: usize, outputs: usize, retained: usize) -> Result<(), Refusal> {
+        let (i, o, r) = self.limits();
+        if inputs > i || outputs > o || retained > r {
+            Err(Refusal::IncompleteConstructionManifest)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 /// One already-debited validation, not new allocation/native authority. Opaque,
@@ -199,8 +269,16 @@ pub struct TraceAdmission<'q, 'm, 'l> {
 
 // Enumerate exactly the allocations demanded by the structural manifest. The
 // same sequence is checked against actual graph capacities before validation.
+#[cfg(test)]
 fn inventory(
     m: &PublicCiphertextConstructionManifest<'_>,
+    visit: impl FnMut(Element, Option<usize>, usize) -> Result<(), Refusal>,
+) -> Result<(), Refusal> {
+    inventory_with_boundary(m, BoundaryPolicy::Unary, visit)
+}
+fn inventory_with_boundary(
+    m: &PublicCiphertextConstructionManifest<'_>,
+    boundary: BoundaryPolicy,
     mut visit: impl FnMut(Element, Option<usize>, usize) -> Result<(), Refusal>,
 ) -> Result<(), Refusal> {
     fn state(
@@ -225,14 +303,15 @@ fn inventory(
     }
     visit(Element::Byte, None, 64)?;
     visit(Element::Byte, None, 64)?;
+    let (input_limit, output_limit, retained_limit) = boundary.limits();
     for (e, n, cap) in [
         (Element::Owner, m.owners, 149),
         (Element::String, m.persistent_owners, 22),
-        (Element::Value, m.input_ranks.len(), 1),
+        (Element::Value, m.input_ranks.len(), input_limit),
         (Element::Operation, m.operations.len(), 128),
         (Element::Capability, m.capabilities.len(), 128),
-        (Element::String, m.outputs, 1),
-        (Element::String, m.retained_inputs, 1),
+        (Element::String, m.outputs, output_limit),
+        (Element::String, m.retained_inputs, retained_limit),
         (Element::Step, m.release_lengths.len(), 128),
     ] {
         visit(e, Some(n), cap)?;
@@ -288,16 +367,39 @@ pub fn quote_public_ciphertext_construction<'a>(
     m: &'a PublicCiphertextConstructionManifest<'a>,
     control: &mut ControlLedger,
 ) -> Result<PublicCiphertextConstructionQuote<'a>, Refusal> {
+    quote_with_boundary(m, control, BoundaryPolicy::Unary)
+}
+
+/// Explicit bounded DAG boundary analysis. No ciphertext/source issuer or
+/// allocator authority: all ordinary SSA, backing, work and trace checks remain.
+pub fn quote_public_ciphertext_dag_construction<'a>(
+    m: &'a PublicCiphertextConstructionManifest<'a>,
+    control: &mut ControlLedger,
+) -> Result<PublicCiphertextConstructionQuote<'a>, Refusal> {
+    let boundary = BoundaryPolicy::Dag {
+        outputs: m
+            .input_ranks
+            .len()
+            .checked_add(m.operations.len())
+            .ok_or(Refusal::ArithmeticOverflow)?,
+        retained: m.input_ranks.len(),
+    };
+    quote_with_boundary(m, control, boundary)
+}
+
+fn quote_with_boundary<'a>(
+    m: &'a PublicCiphertextConstructionManifest<'a>,
+    control: &mut ControlLedger,
+    boundary: BoundaryPolicy,
+) -> Result<PublicCiphertextConstructionQuote<'a>, Refusal> {
     // Bound every traversal before entering it. Prepay quote + actual-capacity
     // checking; no refund on malformed manifests or repeated attempts.
     control.debit(256)?;
+    boundary.check(m.input_ranks.len(), m.outputs, m.retained_inputs)?;
     if m.owners > 149
         || m.persistent_owners > 22
-        || m.input_ranks.len() > 1
         || m.operations.len() > 128
         || m.capabilities.len() > 128
-        || m.outputs > 1
-        || m.retained_inputs > 1
         || m.release_lengths.len() > 128
         || m.backings.len() > 8192
         || m.other_owners.len() > 8192
@@ -373,7 +475,7 @@ pub fn quote_public_ciphertext_construction<'a>(
         return Err(Refusal::MetadataWorkRefused);
     }
     let mut index = 0;
-    inventory(m, |element, length, cap| {
+    inventory_with_boundary(m, boundary, |element, length, cap| {
         let b = m
             .backings
             .get(index)
@@ -473,6 +575,7 @@ pub fn quote_public_ciphertext_construction<'a>(
     }
     Ok(PublicCiphertextConstructionQuote {
         manifest: m,
+        boundary,
         records,
         trace_work,
         validator_payload_bytes,
@@ -577,6 +680,8 @@ impl<'m> PublicCiphertextConstructionQuote<'m> {
         ] {
             return Err(Refusal::IncompleteConstructionManifest);
         }
+        self.boundary
+            .check(g.inputs.len(), g.outputs.len(), g.retained_inputs.len())?;
         let mut index = 0;
         let mut actual =
             |element: Element, length: usize, capacity: usize| -> Result<(), Refusal> {
@@ -713,3 +818,67 @@ impl<'m> PublicCiphertextConstructionQuote<'m> {
 #[cfg(test)]
 #[path = "encrypted_trace_construction_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod boundary_policy_tests {
+    use super::*;
+    fn header(
+        inputs: &[usize],
+        outputs: usize,
+        retained: usize,
+    ) -> PublicCiphertextConstructionManifest<'_> {
+        PublicCiphertextConstructionManifest {
+            owners: 149,
+            persistent_owners: 0,
+            input_ranks: inputs,
+            operations: &[],
+            capabilities: &[],
+            outputs,
+            retained_inputs: retained,
+            release_lengths: &[],
+            backings: &[],
+            other_owners: &[],
+            phases: 2,
+            manifest_original_bytes: Some(256),
+        }
+    }
+    #[test]
+    fn dag_boundary_oversized_inputs_outputs_and_retained_refuse_before_inventory() {
+        let inputs = [1; 150];
+        for m in [
+            header(&inputs, 0, 0),
+            header(&inputs[..2], 3, 0),
+            header(&inputs[..2], 0, 3),
+        ] {
+            let mut work = WorkLedger::new(1 << 28, 1 << 20);
+            let mut control = ControlLedger::new(&mut work);
+            let before = control.core_work().control_remaining();
+            assert!(matches!(
+                quote_public_ciphertext_dag_construction(&m, &mut control),
+                Err(Refusal::IncompleteConstructionManifest)
+            ));
+            assert_eq!(
+                control.core_work().control_remaining(),
+                before - 256,
+                "boundary fails before inventory visits"
+            );
+        }
+    }
+    #[test]
+    fn legacy_entry_keeps_unary_input_output_and_retained_policy() {
+        for m in [
+            header(&[1, 1], 0, 0),
+            header(&[1], 2, 0),
+            header(&[1], 0, 2),
+        ] {
+            let mut work = WorkLedger::new(1 << 28, 1 << 20);
+            let mut control = ControlLedger::new(&mut work);
+            let before = control.core_work().control_remaining();
+            assert!(matches!(
+                quote_public_ciphertext_construction(&m, &mut control),
+                Err(Refusal::IncompleteConstructionManifest)
+            ));
+            assert_eq!(control.core_work().control_remaining(), before - 256);
+        }
+    }
+}
