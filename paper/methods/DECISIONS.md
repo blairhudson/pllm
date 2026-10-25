@@ -1225,6 +1225,18 @@ this amendment claims no tests ran. Original D33 admission (at least 8 GiB
 available and normal pressure) and the 60 s/256 MiB/zero-new-swap/1 MiB test
 guards remain unchanged. Permission to fill the cache is not qualification.
 
+**Observational amendment, explicitly approved on 25 October 2026 (user61208):**
+the original hard memory/swap enforcement is unavailable; permit one observational
+qualification attempt for the two storage methods' 12 tiny cases, each backing
+at most 4 KiB. Keep the at-least-8-GiB host floor and normal-pressure admission.
+Enforce 60 seconds and 1 MiB output; require measured peak RSS at most 256 MiB
+and before/after cumulative `Swapouts` not to increase. These measured predicates
+are **not hard isolation**. Missing readings, refusal or failure yield no
+qualification; no automatic retry. Earlier guard refusals and cache-fill history
+remain historical, not retroactively satisfied. No keys, NTT, RNG, transforms,
+consumer activation, Main/dependency adoption, encryption or security proof is
+authorized. This amendment records permission, not a passing test result.
+
 This qualifies only original **owning capacity and alignment**, not a borrowed
 span, noise helpers, provenance or admission. No Main application, dependency
 adoption, consumer activation, RNG, keys, transforms, encryption, security or
