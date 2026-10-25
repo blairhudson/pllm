@@ -120,6 +120,28 @@ remain separate overlapping gates. Default expanded identity/no-fallback control
 This qualifies `c6341b3e` production postimages, not later `6a4d4a9` select reuse;
 trained-source execution, wider coverage, quality, security and matched costs remain open.
 
+**26 October 2026 — D52 metadata correction landed `9e9ade9b`.** Typed registered
+LastToken readout now matches actual `[B,V]`, not a new arithmetic optimization;
+full-prefix normalization/attention/KV and all other products, overflow checks
+and existing 64-MiB/work/descriptor/lane caps remain. Five symbolic emitted-shape
+tests and 12 policy tests (including the exact cached-config 30/31 case, not 13)
+plus strict models/compiler lib+tests Clippy pass. Each prefix's 659-byte-config
+quote accepted with factory 33,443,680 bytes, working charge 33,451,425 bytes,
+owner peak 33,500,519 bytes, prepaid work 8,160,144,615 and zero arithmetic-factory
+entries. This is not SourceTensor collection, whole-request peak/fit, installed
+SDK or checkpoint execution. The older 30-row Bounds baseline is **unrun**.
+
+**26 October 2026 — prompt/oracle evidence is not a new SDK qualification.** D51's
+eight-production-Python-file correction remains **unlanded** (115 pure passes,
+source clear); c634's older prompt cohort does not qualify it. The single pure
+integer-oracle file landed `2308ca1f`: five tests plus Ruff, with six authorings
+and six replays internal, not 12 extra passes. Explicit residue tapes produce
+complete accepted `world` `(0,0)`/`(1,1)`; `hello` `(4,4)` holds for three observed
+schedules, not universally. SemanticTape enforces name uniqueness, shapes,
+residues and exhaustion, not native chronological carry. Universal SDK proof is
+**in progress**; no new wheel/gateway/trained result, publication readiness or
+tenfold-memory measurement is established. Existing campaign estimates remain.
+
 **Installed evidence stays separate.** The older installed `923` run's 269 passes
 are historical. The broader installed `c938` rerun recorded 171 passes, four startup-admission refusals (the exact triggering predicate remains unresolved)
 and one observer failure. Astra333/336 cleared the repaired observer's

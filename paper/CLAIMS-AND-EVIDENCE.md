@@ -111,6 +111,34 @@ are separate overlapping evidence, not additive totals or native failure-teardow
 Qualification binds the `c6341b3e` production postimages, not the later `6a4d4a9`
 select refactor. No trained-source fit, wider-model, malicious-source, security or matched-cost claim follows.
 
+**26 October 2026 — D52 readout admission at `9e9ade9b12fc7194116796cafb4629ba20c9039c`.**
+The typed registered LastToken mapping corrects the metadata readout envelope to
+`[B,V]`; it is not a new arithmetic optimization. Five
+[actual symbolic emitted-shape tests](../crates/pllm-models/src/source_readout_shape_tests.rs)
+and 12 [source-policy tests](../crates/pllm-compiler/src/replicated_decoder/source_policy_tests.rs)
+passed, including the exact 30/31-prefix case within those 12; strict
+models/compiler lib+tests Clippy passed. With the actual cached 659-byte config,
+each prefix's metadata quote accepted: factory 33,443,680 bytes, working charge
+33,451,425 bytes, owner peak 33,500,519 bytes and prepaid work 8,160,144,615;
+arithmetic factory entries were zero. Full-prefix normalization, attention, KV,
+other shape products, checked overflow and existing 64-MiB/work/descriptor/lane
+guards remain. These are metadata quotes, not SourceTensor collection,
+whole-request peak/fit, installed SDK or checkpoint execution. The old 30-row
+Bounds baseline was **unrun**, not an executed before/after result.
+
+**26 October 2026 — D51 candidate and bounded stochastic oracle, separate scopes.**
+The eight-production-Python-file prompt correction remains **unlanded**, with
+115 pure passes and source review; the older c634 prompt cohort is not its proof.
+Main `2308ca1ffb4faed12e5b0d4dbf6c60acb3bea39b` adds one pure integer-oracle test
+file: five tests and Ruff pass; six authorings and six replays are internal work,
+not 12 additional test passes. Explicit residue tapes give complete accepted
+`world` results `(0,0)` and `(1,1)`; `hello` gives `(4,4)` in three observed
+schedules, not universally. SemanticTape checks name uniqueness, shapes,
+residues and exhaustion, not native chronological-carry conformance. Universal
+SDK proof work remains **in progress**; no new wheel/gateway or trained-result
+qualification follows. Campaign, publication and tenfold-memory estimates are
+unchanged.
+
 **Isolated HE consumer storage evidence (D48, O850 reviewed).** Upstream
 `ca353257` plus Layout patch `c61b57b7`, with four coherent Poulpy v0.9 path
 substitutions in isolation, passed five key-free storage tests, 31 filtered;
