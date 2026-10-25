@@ -1398,6 +1398,23 @@ guard; neither summary parity nor a passing metadata quote establishes source
 collection, checkpoint compilation, complete request fit or runtime qualification.
 No trained/model/HE/FSS campaign or SDK/wheel/gateway run follows from D52 alone.
 
+## D53. Bounded unbiased rejection sampler design
+
+**Design only, explicitly approved on 26 October 2026 (user61892):** choose
+unbiased rejection for future bounded HE Source preparation. Before separately
+approved implementation, review a bounded fallible sampling law, public failure
+budget and typed exhaustion that burns without biased fallback. This does not
+authorize implementation now, compilation/tests, key generation, encrypted
+execution, backend adoption or security qualification. D50's ChaCha20 candidate
+remains uncompiled/unrun; the `rand_chacha 0.10.0` / `rand 0.10.3` sampler versus
+original-proposal distinction is not adopted and needs separate identity review,
+not a PRG/subdependency-version claim. Choosing a law does not close
+constructor-copy seed/noise/secret-state erasure, original secret/encryption/keygen
+typed propagation or the whole-closure finite child schedule. Preserve legacy
+outputs; no global rand/unbiased feature toggle may change default Source.
+D48 Layout and Main pins remain unchanged; no 600-second/8-GiB execution-plan
+adoption, new HE packet, model/FSS run or readiness claim follows.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1454,6 +1471,7 @@ No trained/model/HE/FSS campaign or SDK/wheel/gateway run follows from D52 alone
 | D50 | Approved: isolated source-only ChaCha20-v1 preparation | Opt-in typed version/domain child seeds across secret/noise/uniform descendants; no bare-seed downgrade, unchanged legacy ChaCha8/APIs/laws, compressed creation refuses before writes. Finite key-free test definitions only; no compilation/execution, adoption, keys/transforms/encryption/RNG activation or security qualification. |
 | D51 | Approved: source-bound prompt preparation correction | One private source/request/template/tokenizer-bound, one-use result shared by admission/execution and the same weights-free direct-client renderer; absent-template admission fallback only, present-template/errors refuse. Intentional 3-to-30-token Qwen ChatML semantic correction, not parity/cohort reuse; historical legacy reports stay unranked. Pure weights-free tests first; user61768 additionally permits separately scheduled matching-wheel/generated SDK/gateway regressions with independent corrected-prompt oracles. No trained/source-model loading or new fit/security/readiness qualification. |
 | D52 | Approved: registered decoder readout-summary correction | Typed proven last-token readout uses [B,V], not fictitious full-prefix logits; retain all other full-prefix shapes and unchanged lane/memory/descriptor/work guards. Symbolic shape parity plus trapped 30/31-row metadata quotes required; no execution/arithmetic/PRSS/profile/pin change or whole-request/checkpoint/runtime-fit claim. |
+| D53 | Approved: unbiased rejection design only | Future bounded fallible law, public failure budget and typed exhaustion/burn without biased fallback require review and separate implementation approval. Preserve legacy outputs/pins; no implementation, tests/keys/encrypted execution, version/backend adoption or security qualification authorized. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
