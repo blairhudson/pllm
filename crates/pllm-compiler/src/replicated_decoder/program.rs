@@ -309,6 +309,16 @@ pub struct Program {
 pub(super) mod schedule_access;
 
 impl Program {
+    /// Read-only backend witness. This reports the actual retained storage,
+    /// never a requested selector, digest, or admission permission.
+    #[doc(hidden)]
+    pub fn storage_kind(&self) -> &'static str {
+        if self.compact_storage().is_some() {
+            "compact"
+        } else {
+            "expanded"
+        }
+    }
     pub(super) fn compact_storage(
         &self,
     ) -> Option<&source_entry::compact_pending::sealed::SealedOwnedStorage> {

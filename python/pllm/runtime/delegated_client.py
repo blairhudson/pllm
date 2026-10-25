@@ -386,6 +386,8 @@ class DelegatedClient:
         self._lock = threading.RLock()
         self._closing = False
         self._active = None
+        self._compact_cleanup = None
+        self._failed_request_cleanup = None
         self._fss_failure_observer = None
         self._tokenizer_owner = ContextVar("pllm_gkm_tokenizer_owner", default=None)
         self._tokenizer_scopes = set()
@@ -404,6 +406,9 @@ class DelegatedClient:
     def _check_open(self):
         if self._closing:
             raise ProtocolError("GKM client is closed", 409)
+        failed = getattr(self, "_failed_request_cleanup", None)
+        if failed is not None and failed.pending_retirement:
+            raise ProtocolError("client has pending request cleanup", 409)
 
     def _fss_control_snapshot(self):
         if not self._lock.acquire(blocking=False):
@@ -622,6 +627,9 @@ class DelegatedClient:
     def events(self, body):
         with self._lock:
             self._check_open()
+            cleanup = getattr(self, "_compact_cleanup", None)
+            if cleanup is not None and not cleanup.closed:
+                raise ProtocolError("client has pending compact cleanup", 409)
             if self._active is not None:
                 raise ProtocolError("GKM client already owns an exclusive request", 409)
             attempt = _Attempt(self, self._admit(body))
@@ -702,6 +710,38 @@ class DelegatedClient:
         self._model(model)
         raise _unsupported("prepared_rows_for_response", "GKM has no preparation inventory")
 
+    def _new_compact_cleanup_scope(self, attempt):
+        from pllm.deployment.resources import reserve_cleanup_slot
+
+        with self._lock:
+            self._check_open()
+            if type(attempt) is not _Attempt or self._active is not attempt or attempt.owner is not self or attempt.closed:
+                raise ProtocolError("compact cleanup requires the active request seat", 409)
+            previous = getattr(self, "_compact_cleanup", None)
+            if previous is not None and not previous.closed:
+                raise ProtocolError("client has pending compact cleanup", 409)
+            scope = reserve_cleanup_slot()
+            self._compact_cleanup = scope
+            return scope
+
+    def _retain_failed_request_reservation(self, attempt, reservation):
+        from pllm.deployment.resources import _MemoryReservation
+
+        with self._lock:
+            # Handoff is allowed WHILE closing: close() waits for this active
+            # producer first, then reads/drains the retained cleanup handle.
+            if (type(attempt) is not _Attempt or attempt.owner is not self
+                    or self._active is not attempt or attempt.closed):
+                raise ProtocolError("failed cleanup requires the active request seat", 409)
+            if type(reservation) is not _MemoryReservation or not reservation.pending_retirement:
+                raise ProtocolError("failed cleanup requires actual retained admission", 409)
+            previous = getattr(self, "_failed_request_cleanup", None)
+            if previous is not None and previous is not reservation and previous.pending_retirement:
+                raise ProtocolError("client already owns pending request cleanup", 409)
+            # ONE handle for this exclusive seat; real root remains its admitted
+            # module ledger token, not this client/callback/exception reference.
+            self._failed_request_cleanup = reservation
+
     def close(self):
         with self._lock:
             self._closing = True
@@ -713,10 +753,34 @@ class DelegatedClient:
             active.close()  # Cancellation is signalled before waiting for execution to drain.
             if active.running_thread == threading.get_ident():
                 return
+        # Producer/attempt drained first. Never invoke native cleanup while
+        # holding the client, attempt, admission or slot lock.
+        errors = []  # bounded2: both owners attempted, no callback under locks
+        cleanup = getattr(self, "_compact_cleanup", None)
+        failed = getattr(self, "_failed_request_cleanup", None)
+        for owner, method in ((cleanup, "drain"), (failed, "drain_failed")):
+            if owner is not None:
+                try:
+                    getattr(owner, method)()
+                except BaseException as error:
+                    errors.append(error)
+        if errors:
+            first = errors[0]
+            for error in errors[1:]:
+                first.add_note(f"request cleanup also failed: {type(error).__name__}")
+            raise first  # failed retirement stays visible and ledger-rooted
         self._clear_owned_state()
 
     def _clear_owned_state(self):
         with self._lock:
+            cleanup = getattr(self, "_compact_cleanup", None)
+            if cleanup is not None and not cleanup.closed:
+                return  # _Attempt retirement cannot erase failed cleanup custody.
+            failed = getattr(self, "_failed_request_cleanup", None)
+            if failed is not None and failed.pending_retirement:
+                return
+            self._compact_cleanup = None
+            self._failed_request_cleanup = None
             try:
                 for owner in self._tokenizer_scopes:
                     owner.close()

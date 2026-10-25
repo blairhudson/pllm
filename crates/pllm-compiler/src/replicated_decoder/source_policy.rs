@@ -20,6 +20,7 @@ pub(super) struct ServerSourcePolicy<'a> {
     configuration: &'a OwnedCharged<json::ImportedValue>,
     workload: DecoderWorkload,
     limits: original_source::Limits,
+    storage: super::sdk::SourceStorage,
 }
 
 impl<'a> ServerSourcePolicy<'a> {
@@ -107,6 +108,7 @@ impl<'a> ServerSourcePolicy<'a> {
         Ok(Self {
             configuration,
             workload,
+            storage: super::sdk::SourceStorage::Expanded,
             limits: original_source::Limits {
                 expansion: DecoderExpansionBudget {
                     max_layers: summary.layers,
@@ -161,6 +163,12 @@ impl<'a> ServerSourcePolicy<'a> {
         }
         let server = server.payload().value();
         let params = &server["pipeline"]["components"]["linear"]["params"];
+        let storage = super::sdk::SourceStorage::from_params(params).map_err(|_| Error::Binding)?;
+        // The current sealed compact backend authenticates exactly two output
+        // epochs. Other workloads refuse prospectively, never expanded fallback.
+        if storage == super::sdk::SourceStorage::Compact && workload.max_new_tokens != 2 {
+            return Err(Error::Binding);
+        }
         if params["weights"].as_str() != Some("public")
             || params["range_policy"].as_str() != Some("checked")
         {
@@ -175,6 +183,9 @@ impl<'a> ServerSourcePolicy<'a> {
             .and_then(|n| u32::try_from(n).ok())
             .ok_or(Error::Binding)?;
         if let Some(manifest) = manifest {
+            if manifest.get("storage").is_some() {
+                return Err(Error::Binding);
+            }
             if manifest["weights"].as_str() != Some("public")
                 || manifest["execution"]["range_policy"].as_str() != Some("checked")
                 || manifest["execution"]["max_abs_activation"].as_u64()
@@ -182,8 +193,17 @@ impl<'a> ServerSourcePolicy<'a> {
             {
                 return Err(Error::Binding);
             }
+            if storage == super::sdk::SourceStorage::Compact
+                && (manifest["execution"]["lookup"].as_str() != Some("per_token")
+                    || manifest["execution"]
+                        .get("selection")
+                        .is_some_and(|v| v.as_str() != Some("expanded"))
+                    || manifest["execution"]["peer_transport"].as_str() != Some("http"))
+            {
+                return Err(Error::Binding);
+            }
         }
-        Self::bounded(
+        let mut policy = Self::bounded(
             server["budget"]["max_input_tokens"]
                 .as_u64()
                 .ok_or(Error::Binding)?,
@@ -198,7 +218,9 @@ impl<'a> ServerSourcePolicy<'a> {
                 max_abs_activation: activation,
                 ..ExecutionPolicy::default()
             },
-        )
+        )?;
+        policy.storage = storage;
+        Ok(policy)
     }
 }
 
@@ -226,6 +248,17 @@ pub(super) fn admitted_limits(
     manifest: Option<&OwnedCharged<json::ImportedValue>>,
     workload: DecoderWorkload,
 ) -> Result<original_source::Limits, Error> {
+    Ok(admitted_choice(server, config, manifest, workload)?.0)
+}
+
+/// Same one cumulative permission computation; the selector follows the SAME
+/// retained admitted server/config owners, never client Manifest bytes.
+pub(super) fn admitted_choice(
+    server: &OwnedCharged<json::ImportedValue>,
+    config: &OwnedCharged<json::ImportedValue>,
+    manifest: Option<&OwnedCharged<json::ImportedValue>>,
+    workload: DecoderWorkload,
+) -> Result<(original_source::Limits, super::sdk::SourceStorage), Error> {
     if !std::ptr::eq(server.budget(), config.budget()) {
         return Err(Error::Binding);
     }
@@ -273,7 +306,7 @@ pub(super) fn admitted_limits(
     )?;
     let mut limits = policy.limits_for(config, workload)?;
     limits.max_work = remaining;
-    Ok(limits)
+    Ok((limits, policy.storage))
 }
 
 #[cfg(test)]

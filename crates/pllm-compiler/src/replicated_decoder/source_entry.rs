@@ -300,12 +300,29 @@ pub(in crate::replicated_decoder) fn compile(
 /// error takes/drops the entire owner, so neither a failed seal nor input can be
 /// retried. No reference into an owned field is stored across calls.
 pub struct SourceRequestImport(Option<Pending>);
+#[path = "source_entry_ingress.rs"]
+pub(in crate::replicated_decoder) mod ingress;
+#[path = "source_snapshot_directory.rs"]
+pub(in crate::replicated_decoder) mod snapshot_directory;
+pub(super) enum SourceIngressRaw {
+    Wire(OwnedCharged<json::ImportedValue>),
+    CollectedHeader(OwnedCharged<json::ImportedValue>),
+}
+impl SourceIngressRaw {
+    fn budget(&self) -> &pllm_garble::shared_allocation::Budget {
+        match self {
+            Self::Wire(raw) | Self::CollectedHeader(raw) => raw.budget(),
+        }
+    }
+}
 struct Pending {
+    directory: Option<Arc<snapshot_directory::OwnedSnapshotDirectory>>,
     importer: PublicSourceImport,
     original: OriginalSourcePlan,
     manifest: OwnedCharged<Manifest>,
-    raw: OwnedCharged<json::ImportedValue>,
+    raw: SourceIngressRaw,
     limits: original_source::Limits,
+    storage: crate::replicated_decoder::sdk::SourceStorage,
     registry: OwnedExternalCharge,
     imports: OwnedExternalCharge,
     controller: OwnedExternalCharge,
@@ -359,6 +376,22 @@ fn server_controller_bytes() -> usize {
         )
         + size_of::<u128>()
         + size_of::<Option<u64>>()
+        + size_of::<
+            Result<
+                (
+                    original_source::Limits,
+                    crate::replicated_decoder::sdk::SourceStorage,
+                ),
+                Error,
+            >,
+        >()
+}
+
+fn pending_controller_bytes() -> usize {
+    3 * size_of::<Pending>()
+        + size_of::<SourceRequestImport>()
+        + size_of::<Result<SourceRequestImport, Error>>()
+        + size_of::<Result<crate::replicated_decoder::sdk::SourceRequestProgram, Error>>()
 }
 
 #[cfg(test)]
@@ -587,6 +620,11 @@ impl SourceRequestImport {
             return Err(Error::Bounds);
         }
         let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).map_err(|_| Error::Bounds)?;
+        // Full actual Pending/control layouts, before all source factories.
+        // SAME guard subsequently transfers into emission/finalization.
+        let controller = root
+            .charge_external(pending_controller_bytes())
+            .map_err(|_| Error::Bounds)?;
         // Additional named server controller/return slots BEFORE C9 factories.
         // Caller CPython backing/allocator/RSS remains outside this logical
         // counter; import_json preserves E11's explicit borrowed-copy window.
@@ -602,6 +640,9 @@ impl SourceRequestImport {
         let imported = import_json(&root, raw)?;
         let counts = imported.payload().counts();
         let document = imported.payload().value();
+        if document.get("storage").is_some() {
+            return Err(Error::Binding);
+        }
         if server.is_some()
             && (document.get("source_policy").is_some() || document.get("source_limits").is_some())
         {
@@ -664,10 +705,13 @@ impl SourceRequestImport {
                 .map_err(|_| Error::Binding)?;
             import_json_owner(&root, config)?
         };
-        let limits = if let Some(server_document) = &server_document {
-            source_policy::admitted_limits(server_document, &config, Some(&imported), workload)?
+        let (limits, storage) = if let Some(server_document) = &server_document {
+            source_policy::admitted_choice(server_document, &config, Some(&imported), workload)?
         } else {
-            source_limits()
+            (
+                source_limits(),
+                crate::replicated_decoder::sdk::SourceStorage::Expanded,
+            )
         };
         let bootstrap =
             original_source::bootstrap_bytes(&config, limits).map_err(|_| Error::Bounds)?;
@@ -719,10 +763,111 @@ impl SourceRequestImport {
                     .map_err(|_| pllm_garble::shared_allocation::Error::Resource)
             })
             .map_err(|_| Error::Binding)?;
+        ingress::OwnedSourceIngress {
+            directory: None,
+            original,
+            raw: SourceIngressRaw::Wire(imported),
+            limits,
+            storage,
+            controller,
+            root,
+        }
+        .into_pending(manifest)
+    }
+
+    pub fn session(&self) -> Result<[u8; 32], Error> {
+        Ok(self
+            .0
+            .as_ref()
+            .ok_or(Error::Retired)?
+            .manifest
+            .payload()
+            .session)
+    }
+    pub fn append(&mut self, key: &str, offset: usize, bytes: &[u8]) -> Result<(), Error> {
+        #[cfg(test)]
+        test_policy_factory_trap();
+        let mut owner = self.0.take().ok_or(Error::Retired)?;
+        owner
+            .importer
+            .append(key, offset, bytes)
+            .map_err(|_| Error::Binding)?;
+        self.0 = Some(owner);
+        Ok(())
+    }
+    pub fn finish(mut self) -> Result<crate::replicated_decoder::sdk::SourceRequestProgram, Error> {
+        if self.0.as_ref().ok_or(Error::Retired)?.storage
+            == crate::replicated_decoder::sdk::SourceStorage::Compact
+        {
+            return crate::replicated_decoder::sdk::SourceRequestProgram::finish_compact(self);
+        }
+        let Pending {
+            directory: _,
+            importer,
+            original,
+            manifest,
+            raw,
+            limits,
+            storage: _,
+            registry,
+            imports,
+            controller,
+            root,
+        } = self.0.take().ok_or(Error::Retired)?;
+        root.budget()
+            .admit_peak(root.budget().used_bytes())
+            .map_err(|_| Error::Bounds)?;
+        let public = Arc::new(importer.finish().map_err(|_| Error::Binding)?);
+        let result = crate::replicated_decoder::sdk::SourceRequestProgram::construct(
+            original,
+            manifest,
+            public,
+            registry,
+            imports,
+            controller,
+            limits,
+            MAX_PROGRAM_BYTES,
+        );
+        drop(raw);
+        drop(root);
+        result
+    }
+}
+
+impl ingress::OwnedSourceIngress {
+    // Shared worker/publisher transition; never constructs a Budget or reparses
+    // raw configuration. All inputs are owned fields of the genuine ingress.
+    fn into_pending(self, manifest: OwnedCharged<Manifest>) -> Result<SourceRequestImport, Error> {
+        let Self {
+            directory,
+            original,
+            raw,
+            limits,
+            storage,
+            controller,
+            root,
+        } = self;
+        if !std::ptr::eq(manifest.budget(), root.budget())
+            || !std::ptr::eq(original.budget(), root.budget())
+            || !std::ptr::eq(raw.budget(), root.budget())
+            || !controller.is_for(root.budget())
+        {
+            return Err(Error::Binding);
+        }
         check_source(&original, manifest.payload())?;
+        let directory = match (storage, directory) {
+            (crate::replicated_decoder::sdk::SourceStorage::Compact, Some(owner)) => {
+                owner.check_budget(root.budget())?;
+                Some(owner)
+            }
+            (crate::replicated_decoder::sdk::SourceStorage::Compact, None) => Some(
+                snapshot_directory::OwnedSnapshotDirectory::create(&original, &controller, &root)?,
+            ),
+            (crate::replicated_decoder::sdk::SourceStorage::Expanded, None) => None,
+            _ => return Err(Error::Binding),
+        };
         let mut registry = root.charge_external(0).map_err(|_| Error::Bounds)?;
         let mut imports = root.charge_external(0).map_err(|_| Error::Bounds)?;
-        let controller = root.charge_external(0).map_err(|_| Error::Bounds)?;
         let owners = SourceConstructionOwners {
             manifest: manifest.payload(),
             incoming: None,
@@ -751,75 +896,30 @@ impl SourceRequestImport {
         root.budget()
             .admit_peak(root.budget().used_bytes())
             .map_err(|_| Error::Bounds)?;
-        let importer = PublicSourceImport::new_checked(
+        let importer = PublicSourceImport::new_checked_location(
             &descriptors,
             root.budget()
                 .used_bytes()
                 .checked_sub(imports.payload_bytes())
                 .ok_or(Error::Bounds)?,
             MAX_PROGRAM_BYTES,
+            directory.as_ref().map(|owner| {
+                Arc::clone(owner) as Arc<dyn pllm_core::public_file::SnapshotDirectory>
+            }),
         )?;
-        Ok(Self(Some(Pending {
-            importer,
-            original,
-            manifest,
-            raw: imported,
-            limits,
-            registry,
-            imports,
-            controller,
-            root,
-        })))
-    }
-    pub fn session(&self) -> Result<[u8; 32], Error> {
-        Ok(self
-            .0
-            .as_ref()
-            .ok_or(Error::Retired)?
-            .manifest
-            .payload()
-            .session)
-    }
-    pub fn append(&mut self, key: &str, offset: usize, bytes: &[u8]) -> Result<(), Error> {
-        #[cfg(test)]
-        test_policy_factory_trap();
-        let mut owner = self.0.take().ok_or(Error::Retired)?;
-        owner
-            .importer
-            .append(key, offset, bytes)
-            .map_err(|_| Error::Binding)?;
-        self.0 = Some(owner);
-        Ok(())
-    }
-    pub fn finish(mut self) -> Result<crate::replicated_decoder::sdk::SourceRequestProgram, Error> {
-        let Pending {
+        Ok(SourceRequestImport(Some(Pending {
+            directory,
             importer,
             original,
             manifest,
             raw,
             limits,
+            storage,
             registry,
             imports,
             controller,
             root,
-        } = self.0.take().ok_or(Error::Retired)?;
-        root.budget()
-            .admit_peak(root.budget().used_bytes())
-            .map_err(|_| Error::Bounds)?;
-        let public = Arc::new(importer.finish().map_err(|_| Error::Binding)?);
-        let result = crate::replicated_decoder::sdk::SourceRequestProgram::construct(
-            original,
-            manifest,
-            public,
-            registry,
-            imports,
-            controller,
-            limits,
-            MAX_PROGRAM_BYTES,
-        );
-        drop(raw);
-        drop(root);
-        result
+        })))
     }
 }
 

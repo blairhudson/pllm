@@ -236,6 +236,12 @@ impl Root {
 }
 
 impl SealedOwnedStorage {
+    pub(in crate::replicated_decoder) fn snapshot_directory(
+        &self,
+    ) -> Result<&Arc<source_entry::snapshot_directory::OwnedSnapshotDirectory>, Error> {
+        self.check_completed()?;
+        self.owner.root.directory()
+    }
     #[cfg(test)]
     pub(in crate::replicated_decoder::program) fn test_argmax_reuse(
         &self,
@@ -315,13 +321,38 @@ impl SealedOwnedStorage {
             .check_completed_attempt(&self.attempt)
     }
     pub(in crate::replicated_decoder::program) fn into_program(
-        mut self,
+        self,
     ) -> Result<Arc<Program>, Error> {
+        self.publish(false)
+    }
+    pub(in crate::replicated_decoder) fn into_source_program(self) -> Result<Arc<Program>, Error> {
+        self.publish(true)
+    }
+    pub(in crate::replicated_decoder) fn collection_phase(
+        &self,
+        guard: &mut OwnedExternalCharge,
+        bytes: usize,
+        visits: u64,
+    ) -> Result<(), Error> {
+        self.check_completed()?;
+        crate::replicated_decoder::program::source_entry::ingress::resize(
+            &self.owner.root.original,
+            guard,
+            bytes,
+            visits,
+        )
+    }
+    pub(in crate::replicated_decoder) fn source_manifest(
+        &self,
+    ) -> Result<&crate::replicated_decoder::Manifest, Error> {
+        self.check_completed()?;
+        Ok(self.owner.root.manifest.payload())
+    }
+    fn publish(mut self, source_bound: bool) -> Result<Arc<Program>, Error> {
         self.check_completed()?;
         let declared = self.owner.root.manifest.payload().program;
-        if declared != [0; 32] && declared != self.digest() {
-            return Err(Error::Binding);
-        }
+        let source = self.owner.root.manifest.payload().source;
+        let composition = self.owner.root.manifest.payload().composition;
         let (layout, _) = Layout::new::<[std::sync::atomic::AtomicUsize; 2]>()
             .extend(Layout::new::<Program>())
             .map_err(|_| Error::Bounds)?;
@@ -375,6 +406,14 @@ impl SealedOwnedStorage {
             source_binding: binding,
             request_custody: Some(custody),
         });
+        if source_bound {
+            Arc::get_mut(&mut program)
+                .ok_or(Error::Binding)?
+                .bind(source, composition);
+        }
+        if declared != [0; 32] && declared != program.digest() {
+            return Err(Error::Binding);
+        }
         // Adapter must read this actual owner before startup/publication. Until
         // its private delegation is mounted this is a typed refusal, not fallback.
         if program.schedule_access().len() != expected_len {

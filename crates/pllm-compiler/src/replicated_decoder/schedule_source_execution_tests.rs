@@ -457,8 +457,7 @@ fn pair(
             * (source_registry::tree_entry_bytes::<(String, pllm_core::public_file::PublicFile)>()
                 .unwrap()
                 + key.len()
-                + size_of::<std::fs::File>()
-                + 2 * size_of::<usize>());
+                + pllm_core::public_file::backing_bytes().unwrap());
     }
     retained += 6 * size_of::<PublicSource>();
     // Manifest config/schema inline/heap owner lies outside frozen source maps.

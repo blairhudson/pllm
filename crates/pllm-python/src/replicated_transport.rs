@@ -79,6 +79,95 @@ impl NativePublisher {
 
 #[pymethods]
 impl NativePublisher {
+    /// Same opaque owner as the ordinary constructor. Compiler admission owns
+    /// policy, config/source custody and all collection; no Python storage flag.
+    #[staticmethod]
+    #[pyo3(signature=(*args,**kwargs))]
+    fn _from_compact_source_request(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Self> {
+        let [experiment, config, rows, outputs, source, composition] = arguments(
+            args,
+            kwargs,
+            [
+                "experiment",
+                "config",
+                "rows",
+                "outputs",
+                "source",
+                "composition",
+            ],
+        )?;
+        // Immutable exact bytes remain rooted through detach. Their original
+        // admission belongs to SourceHeaderEntry, before any source collection.
+        let experiment = experiment.cast_exact::<PyBytes>()?.as_bytes();
+        let config = config.cast_exact::<PyBytes>()?.as_bytes();
+        let rows = integer(&rows)?;
+        let outputs = integer(&outputs)?;
+        let source = pin(source.cast_exact::<PyBytes>()?.as_bytes())?;
+        let composition = pin(composition.cast_exact::<PyBytes>()?.as_bytes())?;
+        let owner = py
+            .detach(|| {
+                Publisher::from_compact_source_request(
+                    experiment,
+                    config,
+                    rows,
+                    outputs,
+                    source,
+                    composition,
+                )
+            })
+            .map_err(error)?;
+        Ok(Self {
+            owner: Some(owner),
+            pid: std::process::id(),
+        })
+    }
+    #[getter]
+    fn _storage_kind(&self) -> PyResult<Option<&'static str>> {
+        let owner = self
+            .owner
+            .as_ref()
+            .ok_or_else(|| error("replicated publisher retired"))?;
+        if self.pid != std::process::id() {
+            return Err(error("replicated publisher cannot cross fork"));
+        }
+        Ok(owner.storage_kind())
+    }
+    /// Disk permission is supplied/retained by the caller, not by this native
+    /// memory counter. Observe the actual total BEFORE any coefficient append.
+    #[getter]
+    fn collection_disk_bytes(&self) -> PyResult<usize> {
+        let owner = self
+            .owner
+            .as_ref()
+            .ok_or_else(|| error("replicated publisher retired"))?;
+        if self.pid != std::process::id() {
+            return Err(error("replicated publisher cannot cross fork"));
+        }
+        Ok(owner.collection_disk_bytes())
+    }
+    /// Location observation only, not a disk lease or source authority. The
+    /// PyO3 self borrow keeps the actual native directory owner alive until the
+    /// returned borrowed str has been converted to a Python string. No native
+    /// path copy/cache or ambient temporary-directory lookup is involved.
+    #[getter]
+    fn collection_disk_directory(&self) -> PyResult<&str> {
+        let owner = self
+            .owner
+            .as_ref()
+            .ok_or_else(|| error("replicated publisher retired"))?;
+        if self.pid != std::process::id() {
+            return Err(error("replicated publisher cannot cross fork"));
+        }
+        owner
+            .collection_disk_directory()
+            .map_err(error)?
+            .to_str()
+            .ok_or_else(|| error("replicated snapshot directory is not UTF-8"))
+    }
     #[new]
     #[pyo3(signature=(config, rows, outputs, source, composition, weights="private", *, range_policy="static", max_abs_activation=256, lookup="per_token", selection="expanded", peer_transport="http"))]
     #[allow(clippy::too_many_arguments)]
@@ -197,7 +286,7 @@ impl NativePublisher {
         let manifest = py
             .detach(|| {
                 owner.seal(&ids)?;
-                owner.manifest()
+                owner.manifest_checked()
             })
             .map_err(error)?;
         let result = PyBytes::new(py, &manifest).unbind();
@@ -293,6 +382,20 @@ impl NativeWorker {
 }
 #[pymethods]
 impl NativeWorker {
+    /// Private qualification observation only. Read the actual retained schedule
+    /// owner; never the requested policy, Manifest field or a cached flag.
+    /// An unsealed importer has no Program. Retirement destroys the observation.
+    #[getter]
+    fn _storage_kind(&self) -> PyResult<Option<&'static str>> {
+        let owner = self
+            .owner
+            .as_ref()
+            .ok_or_else(|| error("replicated worker retired"))?;
+        if self.pid != std::process::id() {
+            return Err(error("replicated worker cannot cross fork"));
+        }
+        Ok(owner.program.as_ref().map(|program| program.storage_kind()))
+    }
     #[new]
     fn new(py: Python<'_>, manifest: &Bound<'_, PyBytes>, role: usize) -> PyResult<Self> {
         let raw = manifest.as_bytes();
@@ -640,6 +743,10 @@ mod quality_rejection_tests {
 #[cfg(test)]
 #[path = "replicated_source_entry_tests.rs"]
 mod source_entry_tests;
+
+#[cfg(test)]
+#[path = "replicated_compact_entry_tests.rs"]
+mod compact_entry_tests;
 
 #[pyfunction]
 fn replicated_source_contract(

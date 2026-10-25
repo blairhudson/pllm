@@ -249,6 +249,13 @@ impl<'s> PendingCompactHistory<'s> {
             None
         };
         let valid = incoming_sticky.unwrap_or_else(|| fallback.as_ref().unwrap().first + 1);
+        // The genuine fallback is constant one; authenticated checked-row
+        // sticky remains boolean, regardless of any observed successful run.
+        let valid_bounds = if fallback.is_some() {
+            Interval::new(1, 1)?
+        } else {
+            Interval::new(0, 1)?
+        };
         let first = feedback
             .next()
             .checked_add(if fallback.is_some() { 2 } else { 0 })
@@ -263,7 +270,7 @@ impl<'s> PendingCompactHistory<'s> {
         let product_bounds = crate::replicated_decoder::program::compact_lowering::product_bounds(
             InputBounds {
                 left: bounds,
-                right: Interval::new(0, 1)?,
+                right: valid_bounds,
             },
             1,
             false,
@@ -277,6 +284,7 @@ impl<'s> PendingCompactHistory<'s> {
             selected: Gather([self.selected, feedback.word()]),
             flags: Gather([(valid, 0); 2]),
             bounds,
+            valid_bounds,
             product_bounds,
             valid,
             fallback,
@@ -309,6 +317,7 @@ struct Acceptance {
     selected: Gather,
     flags: Gather,
     bounds: Interval,
+    valid_bounds: Interval,
     product_bounds: Interval,
     valid: usize,
     fallback: Option<ValidFallback>,
@@ -410,7 +419,7 @@ impl CompletionLoan {
         }
         let (bounds, recipe) = match ordinal.checked_sub(owner.first).ok_or(Error::Binding)? {
             0 => (owner.bounds, BorrowedRecipe::Gather(&owner.selected)),
-            1 => (Interval::new(0, 1)?, BorrowedRecipe::Gather(&owner.flags)),
+            1 => (owner.valid_bounds, BorrowedRecipe::Gather(&owner.flags)),
             2 => (
                 owner.product_bounds,
                 BorrowedRecipe::Product {

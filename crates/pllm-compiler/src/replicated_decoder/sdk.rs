@@ -2,6 +2,7 @@
 use super::{program, ExecutionPolicy, PeerTransport, Program, RangePolicy, WeightMode};
 use crate::{ExperimentDeployment, ExperimentDocument, ExperimentPipeline};
 use pllm_types::canonical_bytes;
+use std::sync::Arc;
 
 pub const PROTOCOL: &str = "pllm/puma-three-party-decoder/v1";
 pub const TOPOLOGY: &str = "pllm/three-party-replicated/v1";
@@ -21,7 +22,123 @@ pub struct SourceRequestProgram(std::sync::Arc<Program>);
 #[doc(hidden)]
 pub use program::source_entry::SourceRequestImport;
 
+/// Private construction choice, not an arithmetic policy or Manifest field.
+/// Canonical expanded components omit it, preserving their original identity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SourceStorage {
+    Expanded,
+    Compact,
+}
+impl SourceStorage {
+    pub(crate) fn from_params(params: &serde_json::Value) -> Result<Self, String> {
+        match params.get("storage") {
+            None => Ok(Self::Expanded),
+            Some(value) if value.as_str() == Some("compact") => {
+                if params["weights"].as_str() != Some("public")
+                    || params["range_policy"].as_str() != Some("checked")
+                    || !params["max_abs_activation"]
+                        .as_u64()
+                        .is_some_and(|v| (1..=1024).contains(&v))
+                    || params.get("lookup").is_some()
+                    || params.get("selection").is_some()
+                    || params.get("peer_transport").is_some()
+                {
+                    return Err("unsupported compact replicated storage composition".into());
+                }
+                Ok(Self::Compact)
+            }
+            _ => Err("noncanonical replicated storage choice".into()),
+        }
+    }
+    fn component_params(
+        self,
+        weights: WeightMode,
+        execution: ExecutionPolicy,
+    ) -> serde_json::Value {
+        let mut value = execution.component_params(weights);
+        if self == Self::Compact {
+            value
+                .as_object_mut()
+                .expect("component object")
+                .insert("storage".into(), serde_json::json!("compact"));
+        }
+        value
+    }
+}
+
+fn component_policy(
+    mut params: serde_json::Value,
+) -> Result<(WeightMode, ExecutionPolicy, SourceStorage), String> {
+    let storage = SourceStorage::from_params(&params)?;
+    params
+        .as_object_mut()
+        .ok_or("invalid replicated component")?
+        .remove("storage");
+    let (weights, execution) = ExecutionPolicy::from_component(params)?;
+    Ok((weights, execution, storage))
+}
+
+/// Read only the already authenticated/admitted Experiment's construction mode.
+/// This grants no source, input, Program or public snapshot authority.
+pub(crate) fn source_storage(document: &ExperimentDocument) -> Result<SourceStorage, String> {
+    let params = &document
+        .pipeline
+        .components
+        .get("linear")
+        .ok_or("missing replicated linear component")?
+        .params;
+    Ok(
+        component_policy(
+            serde_json::to_value(params).map_err(|_| "invalid replicated component")?,
+        )?
+        .2,
+    )
+}
+
 impl SourceRequestProgram {
+    pub(in crate::replicated_decoder) fn snapshot_directory(
+        &self,
+    ) -> Result<
+        &Arc<super::program::source_entry::snapshot_directory::OwnedSnapshotDirectory>,
+        super::Error,
+    > {
+        self.0
+            .compact_storage()
+            .ok_or(super::Error::Binding)?
+            .snapshot_directory()
+    }
+    // The only compact wrapper constructor consumes the genuine pending source
+    // funnel. There is deliberately no constructor taking an arbitrary Program.
+    pub(super) fn finish_compact(import: SourceRequestImport) -> Result<Self, super::Error> {
+        Ok(Self(
+            import.compile_compact_storage()?.into_source_program()?,
+        ))
+    }
+    pub(crate) fn collection_phase(
+        &self,
+        guard: &mut pllm_garble::shared_allocation::OwnedExternalCharge,
+        bytes: usize,
+        visits: u64,
+    ) -> Result<(), super::Error> {
+        self.0
+            .compact_storage()
+            .ok_or(super::Error::Binding)?
+            .collection_phase(guard, bytes, visits)
+    }
+    pub(crate) fn input_count(&self) -> usize {
+        self.0.input_count()
+    }
+    /// Test-only wrapper lens; production borrows the actual retained Program
+    /// during its mutable collection phase to avoid overlapping owner borrows.
+    /// Actual retained unpublished header, not a rebuilt descriptor. Publisher
+    /// serializes final `program().digest()` in its wire Manifest, not zero here.
+    #[cfg(test)]
+    pub(crate) fn source_manifest(&self) -> Result<&super::Manifest, super::Error> {
+        self.0
+            .compact_storage()
+            .ok_or(super::Error::Binding)?
+            .source_manifest()
+    }
     /// No plan copy/JSON roundtrip, guard extraction or manufactured request
     /// permit. The complete call consumes its source/admission even on failure.
     #[allow(clippy::too_many_arguments)]
@@ -96,14 +213,17 @@ impl SourceRequestProgram {
     }
 }
 
-fn policy(document: &ExperimentDocument) -> Result<(WeightMode, ExecutionPolicy), String> {
+pub(crate) fn policy(
+    document: &ExperimentDocument,
+) -> Result<(WeightMode, ExecutionPolicy), String> {
     let params = &document
         .pipeline
         .components
         .get("linear")
         .ok_or("missing replicated linear component")?
         .params;
-    ExecutionPolicy::from_component(serde_json::to_value(params).unwrap())
+    let (weights, execution, _) = component_policy(serde_json::to_value(params).unwrap())?;
+    Ok((weights, execution))
 }
 
 pub(crate) fn selected(pipeline: &ExperimentPipeline) -> bool {
@@ -114,8 +234,13 @@ pub(crate) fn selected(pipeline: &ExperimentPipeline) -> bool {
 }
 pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     let (weights, execution) = policy(document)?;
+    let storage = source_storage(document)?;
     let expected = [
-        ("linear", PROTOCOL, execution.component_params(weights)),
+        (
+            "linear",
+            PROTOCOL,
+            storage.component_params(weights, execution),
+        ),
         ("topology", TOPOLOGY, serde_json::json!({})),
         ("state", STATE, serde_json::json!({})),
         ("kernels", "pllm/cpu", serde_json::json!({"threads":1})),
@@ -223,4 +348,60 @@ pub fn source_contract(
         contract["peer_stream_workspace_bytes_per_worker"] = serde_json::json!(8usize << 20);
     }
     Ok(canonical_bytes(&contract))
+}
+
+#[cfg(test)]
+mod storage_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn storage_omission_preserves_canonical_component_bytes() {
+        for params in [
+            json!({}),
+            json!({"weights":"public"}),
+            json!({"weights":"public","range_policy":"checked","max_abs_activation":1}),
+        ] {
+            let before = canonical_bytes(&params);
+            let (weights, execution, storage) = component_policy(params.clone()).unwrap();
+            assert_eq!(storage, SourceStorage::Expanded);
+            assert_eq!(
+                canonical_bytes(&storage.component_params(weights, execution)),
+                before
+            );
+        }
+    }
+    #[test]
+    fn compact_is_composition_bound_not_arithmetic_policy() {
+        let params = json!({"weights":"public","range_policy":"checked","max_abs_activation":1,"storage":"compact"});
+        let (weights, execution, storage) = component_policy(params.clone()).unwrap();
+        assert_eq!(storage, SourceStorage::Compact);
+        assert_eq!(storage.component_params(weights, execution), params);
+        assert!(serde_json::to_value(execution)
+            .unwrap()
+            .get("storage")
+            .is_none());
+        assert_ne!(
+            canonical_bytes(&params),
+            canonical_bytes(&execution.component_params(weights))
+        );
+    }
+    #[test]
+    fn unsupported_or_redundant_storage_choices_refuse() {
+        let base = json!({"weights":"public","range_policy":"checked","max_abs_activation":1,"storage":"compact"});
+        for (key, value) in [
+            ("storage", json!("expanded")),
+            ("storage", json!(true)),
+            ("storage", json!("unknown")),
+            ("weights", json!("private")),
+            ("range_policy", json!("static")),
+            ("lookup", json!("trie")),
+            ("selection", json!("tiled")),
+            ("peer_transport", json!("streams")),
+            ("max_abs_activation", json!(0)),
+        ] {
+            let mut candidate = base.clone();
+            candidate[key] = value;
+            assert!(component_policy(candidate).is_err(), "{key}");
+        }
+    }
 }

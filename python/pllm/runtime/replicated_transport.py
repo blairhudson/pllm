@@ -20,6 +20,7 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
     reservation = reserve_incremental_memory(REQUEST_MEMORY)
     reservation.__enter__()
     peers = publisher = result = manifest = chunk = shares = frame = frames = raw = value = None
+    operation_error = None
     try:
         peers = _Peers(connections, timeout, attempt, roles=ROLES, namespace="replicated")
         publisher, manifest = source.publisher(experiment, ids, outputs, attempt)
@@ -86,25 +87,64 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
         result = ReplicatedResult(tuple(publisher.finish(*frames)))
         return result
     except BaseException as error:
+        operation_error = error
         chunk = shares = frame = frames = raw = value = None
         clear_failure_frames(error)
         raise
     finally:
         chunk = shares = frame = frames = raw = value = None
+        cleanup_errors = []  # finite: publisher, peers, audit, outer reservation
+        unretired = []  # finite2; still covered by OUTER reservation unless rooted elsewhere
         if publisher is not None:
-            publisher.close()
+            try:
+                publisher.close()
+            except BaseException as error:
+                cleanup_errors.append(error)
+                from .replicated_source import _independently_rooted_compact_publisher
+                if not _independently_rooted_compact_publisher(publisher):
+                    unretired.append(publisher)
         if peers is not None:
-            peers.close()
+            try:
+                peers.close()
+            except BaseException as error:
+                cleanup_errors.append(error)
+                unretired.append(peers)
             # Buffered final tokens cannot identify prefill/decode body windows.
-            audit = peers.audit()
-            for key in ("generation_prefill_online_body_bytes", "generation_decode_online_body_bytes",
-                        "prefill_remote_linear_calls", "decode_remote_linear_calls",
-                        "prefill_remote_linear_server_seconds", "decode_remote_linear_server_seconds"):
-                audit.pop(key, None)
-            for key in ("online_steps", "inference_stage_calls", "inference_server_ns"):
-                audit.pop(key, None)
-            record = getattr(attempt, "record_audit", None)
-            if record is not None:
-                record(audit)
+            try:
+                audit = peers.audit()
+                for key in ("generation_prefill_online_body_bytes", "generation_decode_online_body_bytes",
+                            "prefill_remote_linear_calls", "decode_remote_linear_calls",
+                            "prefill_remote_linear_server_seconds", "decode_remote_linear_server_seconds"):
+                    audit.pop(key, None)
+                for key in ("online_steps", "inference_stage_calls", "inference_server_ns"):
+                    audit.pop(key, None)
+                record = getattr(attempt, "record_audit", None)
+                if record is not None:
+                    record(audit)
+            except BaseException as error:
+                cleanup_errors.append(error)
         publisher = manifest = result = peers = None
-        reservation.__exit__(None, None, None)
+        if unretired:
+            # Existing expanded/peer ownership remains charged in the actual
+            # original token, durable even if error/caller references disappear.
+            # No compact-policy flag authorizes refund of these owners.
+            reservation.retain_failed(tuple(unretired))
+            try:
+                attempt.owner._retain_failed_request_reservation(attempt, reservation)
+            except BaseException as error:
+                # Admission root remains intact even if boundary handoff fails.
+                # Never replace an original work exception with cleanup failure.
+                cleanup_errors.append(error)
+        else:
+            try:
+                reservation.__exit__(None, None, None)
+            except BaseException as error:
+                cleanup_errors.append(error)
+        if cleanup_errors:
+            target = operation_error if operation_error is not None else cleanup_errors[0]
+            for error in cleanup_errors:
+                if error is not target:
+                    target.add_note(f"replicated cleanup failed: {type(error).__name__}")
+            if operation_error is None:
+                clear_failure_frames(target)
+                raise target

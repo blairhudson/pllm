@@ -1,7 +1,7 @@
 //! Immutable, file-backed signed-i8 matrices with bounded exact page execution.
 //! A verified private anonymous snapshot severs subsequent source-file mutation.
 use crate::kernels::{Executor, Matrix};
-use crate::public_file::{read_at, PublicFile};
+use crate::public_file::{read_at, PublicFile, PublicFileBacking};
 use flate2::{write::ZlibEncoder, Compression, Decompress, FlushDecompress, Status};
 use sha2::{Digest, Sha256};
 use std::{
@@ -200,7 +200,7 @@ fn decode(file: &File, page: Page) -> Result<Vec<u8>, String> {
 }
 
 pub struct PagedMatrix {
-    file: Arc<File>,
+    file: Arc<PublicFileBacking>,
     pages: Vec<Page>,
     executor: Arc<Executor>,
     rows: usize,
@@ -332,7 +332,7 @@ impl PagedMatrix {
             })
             .collect();
         Ok(Self {
-            file: Arc::new(file),
+            file: Arc::new(PublicFileBacking::anonymous(file)),
             pages,
             executor,
             rows,
@@ -407,7 +407,7 @@ impl PagedMatrix {
             return Err("paged decoded weight digest differs".into());
         }
         Ok(Self {
-            file: Arc::new(file),
+            file: Arc::new(PublicFileBacking::anonymous(file)),
             pages,
             executor,
             rows,

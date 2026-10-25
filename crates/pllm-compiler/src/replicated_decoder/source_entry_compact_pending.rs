@@ -77,7 +77,8 @@ pub(in crate::replicated_decoder::program) struct SourceCustody<R> {
     original: Arc<OriginalSourcePlan>,
     public: PublicSnapshotOwner,
     manifest: Box<OwnedCharged<Manifest>>,
-    raw: OwnedCharged<json::ImportedValue>,
+    raw: SourceIngressRaw,
+    directory: Option<Arc<snapshot_directory::OwnedSnapshotDirectory>>,
     catalog: SourceCatalog,
     instance: source_registry::Instance,
     binding: [u8; 32],
@@ -88,6 +89,13 @@ pub(in crate::replicated_decoder::program) struct SourceCustody<R> {
 }
 
 impl<R> SourceCustody<R> {
+    pub(in crate::replicated_decoder::program) fn directory(
+        &self,
+    ) -> Result<&Arc<snapshot_directory::OwnedSnapshotDirectory>, Error> {
+        let owner = self.directory.as_ref().ok_or(Error::Binding)?;
+        owner.check_budget(self.root.budget())?;
+        Ok(owner)
+    }
     pub(in crate::replicated_decoder::program) fn check_emission(
         &self,
         emission: &request_origin::compact_storage::owning::OwnedEmission<impl Sized>,
@@ -172,6 +180,11 @@ impl SourceRequestImport {
     pub(in crate::replicated_decoder::program) fn compile_compact(
         self,
     ) -> Result<Arc<Program>, Error> {
+        self.compile_compact_storage()?.into_program()
+    }
+    pub(in crate::replicated_decoder) fn compile_compact_storage(
+        self,
+    ) -> Result<sealed::SealedOwnedStorage, Error> {
         let limits = self.0.as_ref().ok_or(Error::Retired)?.limits;
         let custody=self.consume_compact(|created,guard,_,_,source|{
             let mut scope=request_origin::compact_storage::EmissionScope::new(created,guard,MAX_PROGRAM_BYTES)?;
@@ -190,7 +203,7 @@ impl SourceRequestImport {
             };
             history.finish(second)
         })?;
-        custody.seal_compact()?.into_program()
+        custody.seal_compact()
     }
     /// One consuming entry. Conversion sees the SAME genuine registry and all
     /// actual source/norm associations. HRTB prevents any lexical borrow escaping
@@ -209,11 +222,13 @@ impl SourceRequestImport {
         ) -> Result<R, Error>,
     ) -> Result<SourceCustody<R>, Error> {
         let Pending {
+            directory,
             importer,
             original,
             manifest,
             raw,
             limits: _,
+            storage: _,
             registry: mut registry_guard,
             imports: import_guard,
             mut controller,
@@ -352,6 +367,7 @@ impl SourceRequestImport {
             )
         }; // all Manifest/registry/catalog lenses end BEFORE their owners move.
         let custody = SourceCustody {
+            directory,
             produced,
             original: retained_original,
             public: outer,

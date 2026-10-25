@@ -5,7 +5,7 @@ use super::source_registry::{
     SourceRegistry,
 };
 use super::*;
-use pllm_core::public_file::{PublicFile, PublicFileWriter};
+use pllm_core::public_file::{PublicFile, PublicFileWriter, SnapshotDirectory};
 use pllm_core::streamed_matrix::{self, MatrixGeometry, MatrixLayout, SelectionGeometry};
 use std::collections::BTreeMap;
 use std::mem::size_of;
@@ -43,6 +43,7 @@ struct Pending {
     binding: [u8; 32],
     norms: SourceNorms,
     norm_scan: Option<source_norms::BlockScan>,
+    directory: Option<Arc<dyn SnapshotDirectory>>, // after all dependent files
 }
 
 /// Any invalid append consumes the incomplete source and closes its files.
@@ -97,6 +98,10 @@ impl PublicSourceImport {
         }
         owned = add_bytes(owned, envelope.total_bytes)?;
         owned = add_bytes(owned, binding_workspace_bytes()?)?;
+        owned = add_bytes(
+            owned,
+            pllm_core::public_file::writer_creation_bytes().map_err(|_| Error::Bounds)?,
+        )?;
         for bytes in [
             2 * 16384, // existing maximum encoded frame, NOT source length
             size_of::<Pending>(),
@@ -113,6 +118,7 @@ impl PublicSourceImport {
             size_of::<source_norms::ImportEnvelope>(),
             // One cloned record/key may coexist with its destination slot.
             size_of::<(String, SourceTensor)>(),
+            4 * size_of::<Arc<dyn SnapshotDirectory>>(),
         ] {
             owned = add_bytes(owned, bytes)?;
         }
@@ -125,10 +131,19 @@ impl PublicSourceImport {
     /// This entry reuses that authority instead of rerunning allocating semantic
     /// lowering/shape maps. It does not validate a manifest execution digest.
     /// Legacy `new(&Manifest)` and its default routing remain unchanged.
+    #[cfg(test)] // Anonymous-location convenience for existing compiler tests.
     pub(super) fn new_checked(
         registry: &SourceRegistry<'_>,
         retained_baseline_bytes: usize,
         cap: usize,
+    ) -> Result<Self, Error> {
+        Self::new_checked_location(registry, retained_baseline_bytes, cap, None)
+    }
+    pub(super) fn new_checked_location(
+        registry: &SourceRegistry<'_>,
+        retained_baseline_bytes: usize,
+        cap: usize,
+        directory: Option<Arc<dyn SnapshotDirectory>>,
     ) -> Result<Self, Error> {
         Self::construction_quote(registry, retained_baseline_bytes)?.admit(cap)?;
         #[cfg(test)]
@@ -170,6 +185,7 @@ impl PublicSourceImport {
             binding: registry.binding(),
             norms: registry.source_norms().clone(),
             norm_scan: None,
+            directory,
         })))
     }
 
@@ -228,6 +244,7 @@ impl PublicSourceImport {
             binding: program::source_binding_with_norms(&manifest.tensors, &manifest.norms),
             norms: manifest.norms.clone(),
             norm_scan: None,
+            directory: None,
         })))
     }
 
@@ -250,7 +267,14 @@ impl PublicSourceImport {
             return Err("invalid ordered public source frame".into());
         }
         if offset == 0 && tensor.public_q18.is_none() {
-            pending.writer = Some(PublicFileWriter::new(count as u64 * 8, tensor.digest)?);
+            pending.writer = Some(match &pending.directory {
+                Some(directory) => PublicFileWriter::new_in(
+                    count as u64 * 8,
+                    tensor.digest,
+                    Arc::clone(directory),
+                )?,
+                None => PublicFileWriter::new(count as u64 * 8, tensor.digest)?,
+            });
         }
         if offset == 0 {
             pending.norm_scan = pending
@@ -460,7 +484,7 @@ impl PublicSource {
 
 #[cfg_attr(not(test), allow(dead_code))]
 fn public_file_arc_bytes() -> Result<usize, Error> {
-    add_bytes(size_of::<std::fs::File>(), array_bytes::<usize>(2)?)
+    pllm_core::public_file::backing_bytes().map_err(|_| Error::Bounds)
 }
 
 fn copy_slice<T: Copy>(source: &[T]) -> Result<Vec<T>, Error> {

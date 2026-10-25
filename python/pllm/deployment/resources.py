@@ -128,6 +128,43 @@ class _ClientCapacity:
     def __init__(self):
         self.lock = threading.RLock()
         self._owners = {}
+        self._cleanup = {}
+
+    def _cleanup_control_bytes(self):
+        # Charge full current dictionary backing plus conservative 4x growth
+        # and fixed transition scratch, NOT credit for already covered maps.
+        # The ordinary memory ledger may contain non-cleanup reservations too.
+        return (64 << 10) + 5 * (self._owners.__sizeof__() + self._cleanup.__sizeof__()) + 1024
+
+    def cleanup_slot(self):
+        # Slot/lock/callback allowance plus actual old/new bookkeeping backing.
+        # One slot per exclusive client seat, bounded process ceiling.
+        with self.lock:
+            if len(self._cleanup) >= 1024:
+                raise NetworkError("CLIENT_CLEANUP_CAPACITY")
+            amount = self._cleanup_control_bytes()
+            integer(amount, "cleanup_control_bytes", minimum=1)
+            if amount > self.observe().headroom_bytes:
+                raise NetworkError("CLIENT_MEMORY_CAPACITY_CHANGED")
+            token = object()
+            self._owners[token] = amount
+            try:
+                slot = _CleanupSlot(self, token)
+                self._cleanup[token] = slot
+            except BaseException:
+                self._owners.pop(token, None)
+                raise
+        return slot
+
+    def release_cleanup(self, token, slot):
+        with self.lock:
+            if self._cleanup.get(token) is not slot:
+                raise NetworkError("CLIENT_CLEANUP_OWNER_CHANGED")
+            retained = self._cleanup.pop(token)
+            self._owners.pop(token)
+        # Keep the popped strong reference alive until AFTER releasing the
+        # admission lock. No payload destructor/callback runs under that lock.
+        del retained
 
     def observe(self):
         import psutil
@@ -152,14 +189,14 @@ class _ClientCapacity:
             return resources
 
     @contextmanager
-    def hold_bytes(self, incremental_bytes):
+    def hold_bytes(self, incremental_bytes, *, _token=None):
         """Reserve already-priced incremental owners without a planning record.
 
         Share the SDK reservation ledger and atomic live host/cgroup observation.
         Resident allocations never receive speculative reuse credit.
         """
         integer(incremental_bytes, "incremental_memory_bytes", minimum=1)
-        token = object()
+        token = object() if _token is None else _token
         with self.lock:
             resources = self.observe()
             if incremental_bytes > resources.headroom_bytes:
@@ -169,7 +206,8 @@ class _ClientCapacity:
             yield resources
         finally:
             with self.lock:
-                self._owners.pop(token, None)
+                if getattr(token, "retained", None) is None:
+                    self._owners.pop(token, None)
 
     @contextmanager
     def hold(self, select):
@@ -217,7 +255,156 @@ _capacity = _ClientCapacity()
 
 def reserve_incremental_memory(incremental_bytes):
     """Hold a conservative byte price through the lifetime of its local owners."""
-    return _capacity.hold_bytes(incremental_bytes)
+    return _MemoryReservation(_capacity, incremental_bytes)
+
+
+class _MemoryToken:
+    __slots__ = ("retained",)
+
+    def __init__(self):
+        self.retained = None
+
+
+class _MemoryReservation:
+    """Ordinary byte reservation, with bounded explicit failed-retirement custody.
+
+    Failed ownership is rooted by the SAME admitted ledger token, not a second
+    uncharged registry. At most two owners; fixed controls use the existing role
+    allowance (minimum64KiB). No background retry/finalizer; explicit drain only.
+    Successful ordinary context-manager behavior/amount remains unchanged.
+    """
+    def __init__(self, capacity, amount):
+        self._capacity, self._amount = capacity, amount
+        self._token = _MemoryToken()
+        self._manager = capacity.hold_bytes(amount, _token=self._token)
+        self._failed = ()
+        self._exited = self._draining = False
+        self._finish_lock = threading.Lock()
+
+    def __enter__(self):
+        return self._manager.__enter__()
+
+    def __exit__(self, *exc):
+        with self._finish_lock:
+            if self._token.retained is not None:
+                return False  # failure is NOT retirement, including on caller GC
+            if not self._exited:
+                result = self._manager.__exit__(*exc)
+                self._exited = True
+                return result
+            return False
+
+    def retain_failed(self, owners):
+        if type(owners) is not tuple or not 1 <= len(owners) <= 2 or self._amount < 64 << 10:
+            raise NetworkError("CLIENT_FAILED_RETIREMENT_CUSTODY_INVALID")
+        with self._capacity.lock:
+            if (self._capacity is not _capacity or self._exited
+                    or self._token not in self._capacity._owners or self._token.retained is not None):
+                raise NetworkError("CLIENT_FAILED_RETIREMENT_CUSTODY_INVALID")
+            self._failed = owners
+            self._token.retained = self  # actual module admission-token root
+
+    @property
+    def pending_retirement(self):
+        with self._capacity.lock:
+            return (self._capacity is _capacity and self._token in self._capacity._owners
+                    and self._token.retained is self and bool(self._failed))
+
+    def drain_failed(self):
+        with self._capacity.lock:
+            if self._exited:
+                return
+            if self._draining or self._token.retained is not self:
+                raise NetworkError("CLIENT_FAILED_RETIREMENT_NOT_DRAINABLE")
+            self._draining = True
+            owners = self._failed
+        remaining, errors = [], []
+        for owner in owners:
+            try:
+                owner.close()  # outside admission lock; explicit ONE attempt
+            except BaseException as error:
+                remaining.append(owner)
+                errors.append(error)
+        with self._capacity.lock:
+            self._failed = tuple(remaining)
+            self._draining = False
+            if not remaining:
+                self._token.retained = None
+        # Retired payload references cleared BEFORE refund; no destructor under
+        # admission lock. A failed payload remains rooted/fully charged.
+        owners = owner = None
+        if errors:
+            first = errors[0]
+            for error in errors[1:]:
+                first.add_note(f"retirement also failed: {type(error).__name__}")
+            raise first
+        self.__exit__(None, None, None)
+
+
+class _CleanupSlot:
+    """Admission-rooted failed cleanup custody; explicit drain only, no finalizer.
+
+    Callers must drain executing producers before drain(). Failure retains the
+    payload, callback and reservation in the module-owned capacity ledger even
+    after all caller/client/traceback references disappear. No automatic retry
+    or timeout-as-retirement; the caller must report shutdown failure.
+    """
+    __slots__ = ("_capacity", "_token", "_lock", "_payload", "_retire", "_closed", "_draining")
+
+    def __init__(self, capacity, token):
+        self._capacity, self._token = capacity, token
+        self._lock = threading.Lock()
+        self._payload = self._retire = None
+        self._closed = self._draining = False
+
+    @property
+    def closed(self):
+        with self._lock:
+            return self._closed
+
+    def owns(self, payload):
+        with self._capacity.lock:
+            if (self._capacity is not _capacity or self._capacity._cleanup.get(self._token) is not self
+                    or self._token not in self._capacity._owners):
+                return False
+            with self._lock:
+                return not self._closed and self._payload is payload
+
+    def retain(self, payload, retire):
+        with self._capacity.lock:
+            if self._capacity is not _capacity or self._capacity._cleanup.get(self._token) is not self:
+                raise NetworkError("CLIENT_CLEANUP_SLOT_UNAVAILABLE")
+            with self._lock:
+                if self._closed or self._draining or self._payload is not None or not callable(retire):
+                    raise NetworkError("CLIENT_CLEANUP_SLOT_UNAVAILABLE")
+                self._payload, self._retire = payload, retire
+
+    def drain(self):
+        with self._lock:
+            if self._closed:
+                return
+            if self._draining:
+                raise NetworkError("CLIENT_CLEANUP_ALREADY_DRAINING")
+            self._draining = True
+            retire = self._retire
+        try:
+            if retire is not None:
+                retire()  # OUTSIDE slot/admission locks; may fail without refund.
+        except BaseException:
+            with self._lock:
+                self._draining = False
+            raise
+        with self._lock:
+            payload = self._payload
+            self._payload = self._retire = None
+            self._closed, self._draining = True, False
+        self._capacity.release_cleanup(self._token, self)
+        del payload, retire  # callbacks/destructors outside all reservation locks
+
+
+def reserve_cleanup_slot():
+    """Admit one bounded durable cleanup slot before native owner construction."""
+    return _capacity.cleanup_slot()
 
 
 @dataclass(frozen=True, slots=True)

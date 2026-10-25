@@ -536,7 +536,8 @@ class PumaThreePartyDecoder(ProtocolMethod):
                 "range_policy": {"type": "string", "enum": ["checked"]},
                 "max_abs_activation": {"type": "integer", "minimum": 1, "maximum": 1024},
                 "lookup": {"type": "string", "enum": ["tiled", "trie"]},
-                "selection": {"type": "string", "enum": ["tiled"]},
+                 "selection": {"type": "string", "enum": ["tiled"]},
+                 "storage": {"type": "string", "enum": ["compact"]},
                 "peer_transport": {"type": "string", "enum": ["streams"]}}},
         capabilities=("bounded-replicated-q18", "protected-full-prefix-recomputation", "private-greedy-feedback",
                       "public-checked-range-policy", "public-tiled-lookup", "public-trie-lookup", "public-tiled-stable-argmax", "bounded-peer-streams"),
@@ -548,9 +549,15 @@ class PumaThreePartyDecoder(ProtocolMethod):
                  range_policy: Literal["static", "checked"] = "static", max_abs_activation: int = 256,
                  lookup: Literal["per_token", "tiled", "trie"] = "per_token",
                  selection: Literal["expanded", "tiled"] = "expanded",
-                 peer_transport: Literal["http", "streams"] = "http"):
+                 peer_transport: Literal["http", "streams"] = "http",
+                 storage: Literal["expanded", "compact"] = "expanded"):
         if type(weights) is not str or weights not in {"private", "public"}:
             raise ConfigurationError("PUMA weights must be private or public")
+        if type(storage) is not str or storage not in {"expanded", "compact"}:
+            raise ConfigurationError("PUMA storage must be expanded or compact")
+        if storage == "compact" and (weights != "public" or range_policy != "checked"
+                or lookup != "per_token" or selection != "expanded" or peer_transport != "http"):
+            raise ConfigurationError("compact PUMA storage requires public checked per-token expanded-selection HTTP")
         if (type(range_policy) is not str or range_policy not in {"static", "checked"}
                 or type(max_abs_activation) is not int or not 1 <= max_abs_activation <= 1024
                 or range_policy == "static" and max_abs_activation != 256
@@ -569,7 +576,13 @@ class PumaThreePartyDecoder(ProtocolMethod):
             params["selection"] = selection
         if peer_transport != "http":
             params["peer_transport"] = peer_transport
+        if storage != "expanded":
+            params["storage"] = storage
         super().__init__(self.descriptor.component, params)
+
+    @property
+    def storage(self):
+        return self.params.get("storage", "expanded")
 
     def get_params(self, deep=True):
         return {"weights": self.params.get("weights", "private"),
@@ -577,7 +590,8 @@ class PumaThreePartyDecoder(ProtocolMethod):
                 "max_abs_activation": self.params.get("max_abs_activation", 256),
                 "lookup": self.params.get("lookup", "per_token"),
                 "selection": self.params.get("selection", "expanded"),
-                "peer_transport": self.params.get("peer_transport", "http")}
+                "peer_transport": self.params.get("peer_transport", "http"),
+                "storage": self.storage}
 
     @classmethod
     def describe(cls):

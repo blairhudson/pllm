@@ -22,7 +22,18 @@ def execution_policy(experiment):
         raise ValueError("noncanonical replicated execution parameters")
     params = selected.get_params()
     params.pop("weights")
+    # Storage is bound by the canonical Experiment/composition, never the
+    # ArithmeticExecutionPolicy or peer envelope.
+    params.pop("storage")
     return params
+
+
+def storage_policy(experiment):
+    """Read storage only from the same validated canonical server/client component."""
+    from pllm.protocols import PumaThreePartyDecoder
+
+    execution_policy(experiment)
+    return PumaThreePartyDecoder.from_params(experiment.pipeline.components["linear"].params).storage
 
 
 def execution_binding(experiment):

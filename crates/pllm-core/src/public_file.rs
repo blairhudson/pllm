@@ -6,8 +6,60 @@
 //! instead commit the digest computed over their output. That does not authenticate
 //! the producer's source.
 use sha2::{Digest, Sha256};
-use std::{fs::File, io::Write, sync::Arc};
+use std::{fs::File, io::Write, path::Path, sync::Arc};
 
+/// Retained location only, not coefficient/source/admission authority.
+pub trait SnapshotDirectory: Send + Sync {
+    fn path(&self) -> &Path;
+    /// Receives genuine local fstat observation, NEVER a writable descriptor.
+    fn check_file(&self, file: FileBacking) -> Result<(), String>;
+}
+
+/// Every escaped reader retains this whole backing. File must close BEFORE the
+/// directory (and its covering lease), including when only a paged reader lives.
+pub(crate) struct PublicFileBacking {
+    file: File,
+    _directory: Option<Arc<dyn SnapshotDirectory>>,
+}
+impl PublicFileBacking {
+    pub(crate) fn anonymous(file: File) -> Self {
+        Self {
+            file,
+            _directory: None,
+        }
+    }
+}
+impl std::ops::Deref for PublicFileBacking {
+    type Target = File;
+    fn deref(&self) -> &File {
+        &self.file
+    }
+}
+/// Actual shared backing layout, including the retained optional location handle.
+pub fn backing_bytes() -> Result<usize, String> {
+    let (layout, _) = std::alloc::Layout::new::<[std::sync::atomic::AtomicUsize; 2]>()
+        .extend(std::alloc::Layout::new::<PublicFileBacking>())
+        .map_err(|e| e.to_string())?;
+    Ok(layout.pad_to_align().size())
+}
+
+/// Explicit-directory setup/return/path-copy overlap, not coefficient backing.
+pub fn writer_creation_bytes() -> Result<usize, String> {
+    let mut bytes = 8usize
+        .checked_mul(MAX_DIRECTORY_PATH_BYTES)
+        .ok_or("file setup quote overflow")?;
+    for n in [
+        std::mem::size_of::<Pending>(),
+        std::mem::size_of::<PublicFileWriter>(),
+        std::mem::size_of::<Result<PublicFileWriter, String>>(),
+        std::mem::size_of::<Result<File, std::io::Error>>(),
+        2 * std::mem::size_of::<std::path::PathBuf>(),
+    ] {
+        bytes = bytes.checked_add(n).ok_or("file setup quote overflow")?;
+    }
+    Ok(bytes)
+}
+pub const MAX_DIRECTORY_PATH_BYTES: usize = 256;
 pub const MAX_BYTES: u64 = 4 << 30;
 pub const MAX_CHUNK_BYTES: usize = 1 << 20;
 
@@ -24,7 +76,7 @@ pub struct FileBacking {
 }
 
 pub struct PublicFile {
-    file: Arc<File>,
+    file: Arc<PublicFileBacking>,
     size: u64,
     digest: [u8; 32],
     max_i8: u32,
@@ -43,7 +95,7 @@ impl PublicFile {
     pub fn backing(&self) -> Result<Option<FileBacking>, String> {
         observe_backing(&self.file)
     }
-    pub(crate) fn file(&self) -> Arc<File> {
+    pub(crate) fn file(&self) -> Arc<PublicFileBacking> {
         Arc::clone(&self.file)
     }
     pub(crate) fn max_i8(&self) -> u32 {
@@ -87,6 +139,7 @@ fn observe_backing(file: &File) -> Result<Option<FileBacking>, String> {
 
 struct Pending {
     file: File,
+    directory: Option<Arc<dyn SnapshotDirectory>>,
     size: u64,
     expected: Option<[u8; 32]>,
     written: u64,
@@ -108,13 +161,49 @@ impl PublicFileWriter {
     pub fn new_computed(size: u64) -> Result<Self, String> {
         Self::with_expected(size, None)
     }
+    pub fn new_in(
+        size: u64,
+        expected: [u8; 32],
+        directory: Arc<dyn SnapshotDirectory>,
+    ) -> Result<Self, String> {
+        Self::with_directory(size, Some(expected), Some(directory))
+    }
+    pub fn new_computed_in(
+        size: u64,
+        directory: Arc<dyn SnapshotDirectory>,
+    ) -> Result<Self, String> {
+        Self::with_directory(size, None, Some(directory))
+    }
     fn with_expected(size: u64, expected: Option<[u8; 32]>) -> Result<Self, String> {
+        Self::with_directory(size, expected, None)
+    }
+    fn with_directory(
+        size: u64,
+        expected: Option<[u8; 32]>,
+        directory: Option<Arc<dyn SnapshotDirectory>>,
+    ) -> Result<Self, String> {
         if size == 0 || size > MAX_BYTES {
             return Err("public snapshot size exceeds bounds".into());
         }
+        let file = match &directory {
+            Some(owner) => {
+                if !owner.path().is_absolute()
+                    || owner.path().as_os_str().len() > MAX_DIRECTORY_PATH_BYTES - 32
+                {
+                    return Err("snapshot directory exceeds explicit path policy".into());
+                }
+                let file = tempfile::tempfile_in(owner.path()).map_err(|e| e.to_string())?;
+                owner.check_file(
+                    observe_backing(&file)?.ok_or("snapshot filesystem observation unsupported")?,
+                )?;
+                file
+            }
+            None => tempfile::tempfile().map_err(|e| e.to_string())?,
+        };
         Ok(Self {
             pending: Some(Pending {
-                file: tempfile::tempfile().map_err(|e| e.to_string())?,
+                file,
+                directory,
                 size,
                 expected,
                 written: 0,
@@ -161,7 +250,10 @@ impl PublicFileWriter {
             return Err("public snapshot digest or size differs".into());
         }
         Ok(PublicFile {
-            file: Arc::new(pending.file),
+            file: Arc::new(PublicFileBacking {
+                file: pending.file,
+                _directory: pending.directory,
+            }),
             size: pending.size,
             digest,
             max_i8: pending.max_i8,
@@ -195,6 +287,61 @@ pub(crate) fn read_at(file: &File, data: &mut [u8], offset: u64) -> Result<(), S
 #[cfg(test)]
 mod tests {
     use super::*;
+    struct Location {
+        directory: tempfile::TempDir,
+        reject: bool,
+    }
+    impl SnapshotDirectory for Location {
+        fn path(&self) -> &Path {
+            self.directory.path()
+        }
+        fn check_file(&self, file: FileBacking) -> Result<(), String> {
+            if self.reject {
+                return Err("foreign filesystem".into());
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                if file.device != self.directory.path().metadata().unwrap().dev() {
+                    return Err("foreign filesystem".into());
+                }
+            }
+            Ok(())
+        }
+    }
+    #[test]
+    fn explicit_directory_checks_actual_file_and_retains_last_backing() {
+        let owner = Arc::new(Location {
+            directory: tempfile::tempdir().unwrap(),
+            reject: false,
+        });
+        let path = owner.path().to_path_buf();
+        let mut writer = PublicFileWriter::new_computed_in(4, owner.clone()).unwrap();
+        writer.write(b"abcd").unwrap();
+        let snapshot = writer.finish().unwrap();
+        let escaped = snapshot.file();
+        owner
+            .check_file(snapshot.backing().unwrap().unwrap())
+            .unwrap();
+        drop(owner);
+        drop(snapshot);
+        assert!(path.is_dir());
+        let mut bytes = [0; 4];
+        read_at(&escaped, &mut bytes, 0).unwrap();
+        assert_eq!(&bytes, b"abcd");
+        drop(escaped);
+        assert!(!path.exists());
+    }
+    #[test]
+    fn explicit_directory_refuses_failed_filesystem_predicate() {
+        let owner = Arc::new(Location {
+            directory: tempfile::tempdir().unwrap(),
+            reject: true,
+        });
+        assert!(PublicFileWriter::new_computed_in(4, owner.clone()).is_err());
+        assert!(PublicFileWriter::new_in(4, [0; 32], owner).is_err());
+        assert!(PublicFileWriter::new_computed(4).is_ok());
+    }
 
     #[test]
     fn backing_observations_share_identity_without_retaining_file_ownership() {
