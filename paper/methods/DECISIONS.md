@@ -1125,10 +1125,17 @@ or source-author proof is approved.
 the following **four independent adaptations**, not whole methods or SDK routes:
 
 - **NEXUS:** [centered-energy prefix](../../docs/plans/nexus-centered-energy-prefix.md)
-  at width768, 32×1024, binary64 Equation5, **no epsilon**, zero-energy refusal,
-  public gamma/beta and explicit ordered, non-fused evaluation. This is
-  incompatible with ordinary f32/epsilon normalization; reject that substitution.
-  No CKKS inverse adoption follows.
+  at width768, 32×1024, binary64 Equation5, **no epsilon**. Explicit user
+  clarification on 25 October 2026 (user60570) selects a row-head-rooted
+  ascending-tree sum broadcast to every row lane, followed by a row-head-rooted
+  ascending-tree centered-square energy broadcast, under the clear
+  `row_head_ascending_tree...reference_v1` policy. This resolves O603's binary64
+  cancellation mismatch (3.875 versus 4.0); it is **not a bitwise continuation**
+  of the unchanged legacy per-lane cyclic-prefix execution. Reject `v<=0` and
+  nonfinite values; preserve ordered, non-fused public gamma/beta float
+  evaluation. Ordinary f32-plus-epsilon attributes remain incompatible and must
+  be rejected. This user-selected clear reference does not adopt a source/HE
+  profile or CKKS inverse.
 - **THOR:** [pinned artifact arithmetic](../../docs/research/thor-multiblock-indexing-audit.md)
   for two rows of width4: LinearBias → exact pinned artifact `A[gelu]`, preserving
   coefficient order/reversal, Stockmeyer evaluation, `/64` halving and final
