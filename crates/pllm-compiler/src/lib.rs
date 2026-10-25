@@ -7747,3 +7747,5 @@ pub fn execute_wrap32(
     let executor = pllm_core::Executor::new(threads, simd)?;
     matrix.wrap32(&executor, input, batch)
 }
+
+pub mod clear_ffn_region;
