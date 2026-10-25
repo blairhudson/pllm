@@ -85,6 +85,45 @@ def _channels(role, api_key, connections, credentials):
     return outgoing, incoming
 
 
+async def _sample_progress(attempt):
+    """At most ten best-effort opportunities within the original deadline.
+
+    Reuse the expiry task, not callback traffic. Skip missed/unrepresentable
+    opportunities rather than bursting stale samples. Clock/recording faults
+    disable sampling only; the caller still owns the original expiry wait.
+    Decoder admission clamps this attempt deadline to the caller's remaining
+    lifetime. Other capacities have only the local attempt TTL; neither grants
+    a synchronized end-to-end client deadline or a sampling-delivery guarantee.
+    """
+    try:
+        origin = previous = time.monotonic()
+        expires = attempt.expires
+        if not math.isfinite(origin) or not math.isfinite(expires) or expires <= origin:
+            return
+        duration = expires - origin
+        sampling_end = duration - min(10, duration / 16)
+        for index in range(1, PROGRESS_SAMPLES + 1):
+            now = time.monotonic()
+            if (not math.isfinite(now) or now < previous or now >= expires
+                    or attempt.retiring or attempt.stop.is_set()):
+                return
+            previous = now
+            due = origin + sampling_end * index / PROGRESS_SAMPLES
+            if not now < due < expires:
+                continue
+            await asyncio.sleep(due - now)
+            now = time.monotonic()
+            if (not math.isfinite(now) or now < previous or now >= expires
+                    or attempt.retiring or attempt.stop.is_set()):
+                return
+            previous = now
+            attempt.progress_sample()
+    except asyncio.CancelledError:
+        raise
+    except BaseException:
+        pass  # Diagnostics do not replace real errors or invent a deadline.
+
+
 class _Attempt:
     """Single retirement owner; leases outlive handlers and exported HTTP bodies."""
 
@@ -810,20 +849,8 @@ def create_fss_worker_app(experiment, role, api_key, *, peer_connections,
             raise ValueError("FuseFSS source admission retired")
         attempt.phase = "admitted"
         async def expire():
-            # Reuse this existing expiry task. Exactly 10 coalesced opportunities,
-            # regardless of callback count. Last sample precedes the unchanged
-            # expiry by <=10s; no renewal, extra thread/task or HTTP observation.
-            try:
-                origin = time.monotonic()
-                duration = max(0, attempt.expires - origin)
-                sampling_end = max(0, duration - min(10, duration / 16))
-                for index in range(1, PROGRESS_SAMPLES + 1):
-                    await asyncio.sleep(max(0, origin + sampling_end * index / PROGRESS_SAMPLES - time.monotonic()))
-                    attempt.progress_sample()
-            except asyncio.CancelledError:
-                raise
-            except BaseException:
-                pass  # Sampling faults cannot bypass the original expiry below.
+            # Same fixed deadline, task and lifecycle samples; no renewal or RPC.
+            await _sample_progress(attempt)
             await asyncio.sleep(max(0, attempt.expires-time.monotonic()))
             attempt.timer = None
             schedule_retire(attempt)

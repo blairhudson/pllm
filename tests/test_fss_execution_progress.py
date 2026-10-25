@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -300,7 +301,13 @@ def test_fixed_owner_inventory_with_full_copy_overlap():
         if isinstance(value, dict): total += sum(size(k) + size(v) for k, v in value.items())
         elif isinstance(value, tuple): total += sum(size(v) for v in value)
         return total
-    assert 3 * size(point) + 4 * size(sample) + 4 * size(encoded) + 2048 < status.PROGRESS_WORKER_BYTES
+    timer = worker._sample_progress(None)
+    try:
+        timer_bytes = sys.getsizeof(timer) + sys.getsizeof(timer.cr_frame)
+    finally:
+        timer.close()
+    assert (3 * size(point) + 4 * size(sample) + 4 * size(encoded) + 2048
+            + timer_bytes < status.PROGRESS_WORKER_BYTES)
     sample["sample_age_seconds"] = 1.2345678901234567e-100
     assert 4 * size(sample) + 4 * size(encoded) + 4096 < status.PROGRESS_SUPERVISOR_BYTES
     assert len(encoded) == 88
@@ -422,3 +429,236 @@ async def test_existing_expiry_task_samples_blocked_job_without_http_polling(clu
         *(cluster.post(r, "finish") for r in ("worker_a", "worker_b"))), .25))
     # Includes the one explicit stage-barrier sample above. No per-record send.
     assert attempt._test_samples <= status.PROGRESS_SAMPLES + 4
+
+
+class ProgressClock:
+    """Only the sampler/gauge see this clock; pytest's loop remains untouched."""
+
+    def __init__(self, origin):
+        self.now = origin
+        self.sleeps = []
+        self.after_sleep = None
+
+    def monotonic(self):
+        return self.now
+
+    async def sleep(self, delay):
+        assert math.isfinite(delay) and delay > 0
+        self.sleeps.append(delay)
+        self.now += delay
+        if self.after_sleep is not None:
+            self.after_sleep()
+
+
+@pytest.fixture
+def progress_timer(monkeypatch):
+    def make(ttl=1800, *, origin=1000, writer=None):
+        clock = ProgressClock(origin)
+        monkeypatch.setattr(worker, "time", SimpleNamespace(monotonic=clock.monotonic))
+        monkeypatch.setattr(worker, "asyncio", SimpleNamespace(
+            sleep=clock.sleep, CancelledError=asyncio.CancelledError))
+        monkeypatch.setattr(status, "time", SimpleNamespace(
+            monotonic_ns=lambda: int(clock.now * 1_000_000_000),
+            process_time_ns=lambda: int(clock.now * 1_000_000)))
+        attempt = SimpleNamespace(expires=origin + ttl, retiring=False,
+            stop=threading.Event(), peer_sent=0, peer_received=0,
+            progress=status.ExecutionProgress(writer))
+        samples = []
+        def sample(kind=status._UPDATE):
+            worker._Attempt.progress_sample(attempt, kind)
+            samples.append((clock.now, kind))
+        attempt.progress_sample = sample
+        return clock, attempt, samples
+    return make
+
+
+@pytest.mark.asyncio
+async def test_progress_timer_spans_remaining_deadline_and_observes_late_phases(progress_timer):
+    clock, attempt, samples = progress_timer()
+    def change_phase():
+        elapsed = clock.now - 1000
+        attempt.progress.enter("tape" if elapsed < 600 else
+                               "outbound_ack" if elapsed < 1200 else "mailbox")
+    clock.after_sleep = change_phase
+    await worker._sample_progress(attempt)
+    assert samples == [(1000 + 179 * index, status._UPDATE) for index in range(1, 11)]
+    assert attempt.progress.cached["stage"] == "mailbox"
+    assert attempt.progress.cached["elapsed_seconds"] == 1790
+    assert attempt.expires == 2800 and not attempt.stop.is_set()
+    assert len(clock.sleeps) == status.PROGRESS_SAMPLES
+
+
+@pytest.mark.asyncio
+async def test_progress_timer_uses_remaining_time_without_renewing_after_admission(progress_timer):
+    clock, attempt, samples = progress_timer(origin=500)
+    clock.now = 1000  # Time already spent admitting/importing this same attempt.
+    await worker._sample_progress(attempt)
+    assert attempt.expires == 2300
+    assert samples == [(1000 + 129 * index, status._UPDATE) for index in range(1, 11)]
+    assert clock.now == 2290
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ttl", [.001, .5])
+async def test_progress_timer_short_ttl_uses_same_fraction_without_minimum_delay(progress_timer, ttl):
+    clock, attempt, samples = progress_timer(ttl, origin=0)
+    await worker._sample_progress(attempt)
+    assert len(samples) == status.PROGRESS_SAMPLES
+    assert all(0 < at < ttl for at, _ in samples)
+    assert samples[-1][0] == pytest.approx(ttl * 15 / 16)
+    assert sum(clock.sleeps) == pytest.approx(samples[-1][0])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ttl", [0, -1])
+async def test_progress_timer_already_expired_has_no_samples(progress_timer, ttl):
+    clock, attempt, samples = progress_timer(ttl)
+    await worker._sample_progress(attempt)
+    assert samples == clock.sleeps == []
+
+
+@pytest.mark.asyncio
+async def test_progress_timer_insufficient_representable_ttl_does_not_burst(progress_timer):
+    origin = 1_000_000_000.0
+    ttl = math.nextafter(origin, math.inf) - origin
+    clock, attempt, samples = progress_timer(ttl, origin=origin)
+    await worker._sample_progress(attempt)
+    assert samples == clock.sleeps == []
+    assert attempt.expires == origin + ttl
+
+
+@pytest.mark.asyncio
+async def test_progress_timer_skips_missed_slots_without_zero_delay_catchup(progress_timer):
+    clock, attempt, samples = progress_timer()
+    def stalled_loop():
+        if len(clock.sleeps) == 1:
+            clock.now = 1900
+    clock.after_sleep = stalled_loop
+    await worker._sample_progress(attempt)
+    assert [at for at, _ in samples] == [1900, 2074, 2253, 2432, 2611, 2790]
+    assert len(clock.sleeps) == 6 < status.PROGRESS_SAMPLES
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reason", ["expired", "stopped", "retiring"])
+async def test_progress_timer_rechecks_expiry_and_owner_after_waking(progress_timer, reason):
+    clock, attempt, samples = progress_timer()
+    def end_attempt():
+        if reason == "expired": clock.now = attempt.expires
+        elif reason == "stopped": attempt.stop.set()
+        else: attempt.retiring = True
+    clock.after_sleep = end_attempt
+    await worker._sample_progress(attempt)
+    assert samples == [] and len(clock.sleeps) == 1
+
+
+@pytest.mark.asyncio
+async def test_progress_timer_task_cancel_propagates_without_sampling_or_retirement(progress_timer, monkeypatch):
+    clock, attempt, samples = progress_timer()
+    entered, release = asyncio.Event(), asyncio.Event()
+    async def blocked_sleep(delay):
+        assert delay > 0
+        entered.set()
+        await release.wait()
+    monkeypatch.setattr(worker.asyncio, "sleep", blocked_sleep)
+    task = asyncio.create_task(worker._sample_progress(attempt))
+    await entered.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert samples == clock.sleeps == []
+    assert not attempt.retiring and not attempt.stop.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure_at", [1, 2, 3])
+@pytest.mark.parametrize("fault", ["raise", "nan", "inf", "backwards"])
+async def test_progress_timer_clock_fault_disables_sampling_without_guessing_deadline(
+        progress_timer, monkeypatch, failure_at, fault):
+    clock, attempt, samples = progress_timer()
+    reads = 0
+    def broken_clock():
+        nonlocal reads
+        reads += 1
+        if reads == failure_at:
+            if fault == "raise": raise OSError("diagnostic clock unavailable")
+            return {"nan": math.nan, "inf": math.inf, "backwards": 999}[fault]
+        return clock.now
+    monkeypatch.setattr(worker.time, "monotonic", broken_clock)
+    await worker._sample_progress(attempt)
+    # A bad first reading has no earlier origin against which to prove a
+    # regression. Later failures stop at the affected read, without retry.
+    if fault == "backwards" and failure_at == 1:
+        assert len(samples) <= status.PROGRESS_SAMPLES
+    else:
+        assert samples == []
+    assert attempt.expires == 2800 and not attempt.retiring and not attempt.stop.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field", ["monotonic_ns", "process_time_ns"])
+async def test_progress_timer_gauge_clock_fault_keeps_last_snapshot_and_sample_cap(
+        progress_timer, monkeypatch, field):
+    clock, attempt, samples = progress_timer()
+    attempt.progress_sample()
+    cached = attempt.progress.cached.copy()
+    def broken_clock(): raise OSError("optional gauge clock unavailable")
+    monkeypatch.setattr(status.time, field, broken_clock)
+    await worker._sample_progress(attempt)
+    assert attempt.progress.cached == cached
+    assert len(samples) == status.PROGRESS_SAMPLES + 1
+    assert clock.now == 2790 and not attempt.stop.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fault", ["blocked", "partial", "lock"])
+async def test_progress_timer_backpressure_never_retries_and_cache_stays_latest(progress_timer, fault):
+    class Channel:
+        sends = 0
+        def send(self, raw):
+            assert len(raw) == status._PROGRESS_RECORD.size
+            self.sends += 1
+            if fault == "blocked": raise BlockingIOError()
+            return len(raw) - 1
+        def close(self): pass
+    writer = object.__new__(status.StatusWriter)
+    writer.channel, writer.lock = Channel(), threading.Lock()
+    writer.closed, writer.current, writer.generation = False, None, 1
+    writer.progress_generation = writer.progress_sequence = 0
+    clock, attempt, samples = progress_timer(writer=writer)
+    if fault == "lock": writer.lock.acquire()
+    try:
+        await worker._sample_progress(attempt)
+    finally:
+        if fault == "lock": writer.lock.release()
+    assert len(samples) == status.PROGRESS_SAMPLES
+    assert writer.channel.sends == (0 if fault == "lock" else 1)
+    assert writer.closed == (fault != "lock")
+    assert attempt.progress.cached["elapsed_seconds"] == 1790
+    assert clock.now < attempt.expires and not attempt.stop.is_set()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", [status._END, status._FAIL])
+async def test_progress_timer_preserves_separate_initial_and_terminal_samples(progress_timer, kind):
+    _, attempt, samples = progress_timer()
+    attempt.progress_sample()
+    assert samples == [(1000, status._UPDATE)]
+    await worker._sample_progress(attempt)
+    attempt.progress.enter("retiring")
+    attempt.progress_sample(kind)
+    assert len(samples) == status.PROGRESS_SAMPLES + 2
+    assert samples[-1] == (2790, kind)
+    assert attempt.progress.cached["stage"] == "retiring" and attempt.progress.ended
+    cached = attempt.progress.cached.copy()
+    attempt.progress.enter("complete")
+    worker._Attempt.progress_sample(attempt)
+    assert attempt.progress.cached == cached
+
+
+@pytest.mark.asyncio
+async def test_progress_timer_missing_deadline_has_no_authoritative_fallback(progress_timer):
+    clock, attempt, samples = progress_timer()
+    del attempt.expires
+    await worker._sample_progress(attempt)
+    assert samples == clock.sleeps == []
