@@ -53,6 +53,7 @@ pub mod rms_norm;
 pub mod rope;
 pub mod row_memo;
 pub mod row_fold;
+pub mod row_normalization_reference;
 pub mod slot_matrix_layout;
 mod softmax;
 pub mod streamed_matrix;

@@ -137,6 +137,9 @@ pub enum Kernel {
     Rotate(isize),
     Add,
     Subtract,
+    /// Ordered row-scalar broadcast subtraction, clear continuation only.
+    /// The right operand is the row-head scalar of the declared value.
+    SubtractRowHead,
     Square,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -242,6 +245,9 @@ pub struct Invocation<'a> {
     cursor: usize,
     output: Option<usize>,
 }
+// Crate-private, non-Clone prepayment for a complete clear continuation. Its
+// geometry cannot be changed by the consumer; this is not an ambient grant.
+pub(crate) struct PrefixPrepayment(Geometry);
 impl<'a> Invocation<'a> {
     pub fn new(
         g: Geometry,
@@ -265,6 +271,57 @@ impl<'a> Invocation<'a> {
             return Err(Error::WorkRefused);
         }
         ledger.debit(q.array_work, q.control_work)?;
+        Self::initialize(g, input, public, pool, state)
+    }
+    pub(crate) fn prepay_continuation(
+        g: Geometry,
+        ledger: &mut WorkLedger,
+        extra_work: usize,
+        extra_control: usize,
+    ) -> Result<PrefixPrepayment, Error> {
+        let q = g.quote()?;
+        let work = q
+            .array_work
+            .checked_add(extra_work)
+            .ok_or(Error::ArithmeticOverflow)?;
+        let control = q
+            .control_work
+            .checked_add(extra_control)
+            .ok_or(Error::ArithmeticOverflow)?;
+        if work > MAX_INVOCATION_WORK {
+            return Err(Error::WorkRefused);
+        }
+        ledger.debit(work, control)?;
+        Ok(PrefixPrepayment(g))
+    }
+    pub(crate) fn new_prepaid(
+        payment: PrefixPrepayment,
+        input: &'a [f64],
+        public: &'a mut [f64],
+        pool: &'a mut [f64],
+        state: &'a mut State,
+    ) -> Result<Self, Error> {
+        let g = payment.0;
+        let q = g.quote()?;
+        if *state != State::Fresh {
+            return Err(Error::Poisoned);
+        }
+        if input.len() != q.slots
+            || public.len() != q.public_cells
+            || pool.len() != q.workspace_cells
+        {
+            return Err(Error::ShortStorage);
+        }
+        Self::initialize(g, input, public, pool, state)
+    }
+    fn initialize(
+        g: Geometry,
+        input: &'a [f64],
+        public: &'a mut [f64],
+        pool: &'a mut [f64],
+        state: &'a mut State,
+    ) -> Result<Self, Error> {
+        let q = g.quote()?;
         *state = State::Poisoned; // Remains poisoned through errors and unwinding.
         let (instructions, count) = program(g);
         let mut result = Self {
@@ -326,6 +383,42 @@ impl<'a> Invocation<'a> {
     /// Runs once. Failure never exposes a partial output. Returned borrow pins
     /// invocation, original input, public vectors and the ENTIRE physical pool.
     pub fn execute(&mut self) -> Result<&[f64], Error> {
+        self.execute_program(false)?;
+        let slot = self.output.ok_or(Error::LifetimeMismatch)?;
+        let s = self.geometry.slots;
+        Ok(&self.pool[slot * s..(slot + 1) * s])
+    }
+    /// Consume this invocation, retaining the actual centered vector and final
+    /// energy from one ordered program. No replay or algebraic substitute.
+    /// This scalar-row continuation binds s to the row-head Fold(A) result:
+    /// cyclic floating reductions need not round identically at every lane.
+    /// Exactly one subtraction uses an explicit row-scalar broadcast view;
+    /// legacy execute retains its original per-lane subtraction and ordering.
+    /// The continuation pins one additional logical value in the same six-buffer
+    /// pool. Legacy `execute` still retires it immediately after square.
+    pub fn into_centered_energy(mut self) -> Result<CenteredEnergy<'a>, Error> {
+        let subtract = self.instructions[..self.count]
+            .iter_mut()
+            .find(|op| op.kernel == Kernel::Subtract)
+            .ok_or(Error::LifetimeMismatch)?;
+        subtract.kernel = Kernel::SubtractRowHead;
+        self.execute_program(true)?;
+        *self.state = State::Poisoned;
+        let ordinal = self.instructions[..self.count]
+            .iter()
+            .find(|op| op.kernel == Kernel::Square)
+            .ok_or(Error::LifetimeMismatch)?
+            .left;
+        let centered_slot = self.locations[ordinal].ok_or(Error::LifetimeMismatch)?;
+        let energy_slot = self.output.ok_or(Error::LifetimeMismatch)?;
+        Ok(CenteredEnergy {
+            invocation: self,
+            centered_slot,
+            energy_slot,
+            normalized_slot: None,
+        })
+    }
+    fn execute_program(&mut self, retain_centered: bool) -> Result<(), Error> {
         if self.cursor != 0 || self.output.is_some() {
             return Err(Error::Poisoned);
         }
@@ -353,6 +446,10 @@ impl<'a> Invocation<'a> {
                     Kernel::Subtract => {
                         left - self.read(op.right.ok_or(Error::LifetimeMismatch)?, j)?
                     }
+                    Kernel::SubtractRowHead => {
+                        let head = (j / self.geometry.block) * self.geometry.block;
+                        left - self.read(op.right.ok_or(Error::LifetimeMismatch)?, head)?
+                    }
                     Kernel::Square => left * left,
                 };
                 self.pool[slot * s + j] = value;
@@ -365,7 +462,10 @@ impl<'a> Invocation<'a> {
             }
             self.locations[i + 1] = Some(slot);
             for ordinal in 1..=i {
-                if self.last_use[ordinal] == i {
+                let centered = retain_centered
+                    && self.instructions[i].kernel == Kernel::Square
+                    && self.instructions[i].left == ordinal;
+                if self.last_use[ordinal] == i && !centered {
                     let old = self.locations[ordinal]
                         .take()
                         .ok_or(Error::LifetimeMismatch)?;
@@ -377,7 +477,67 @@ impl<'a> Invocation<'a> {
         let slot = self.locations[self.count].ok_or(Error::LifetimeMismatch)?;
         self.output = Some(slot);
         *self.state = State::Complete;
-        Ok(&self.pool[slot * s..(slot + 1) * s])
+        Ok(())
+    }
+}
+
+/// Consuming clear continuation state. Full input/public/pool borrows remain
+/// bound to the original invocation. Not a ciphertext or tensor-source proof.
+pub struct CenteredEnergy<'a> {
+    invocation: Invocation<'a>,
+    centered_slot: usize,
+    energy_slot: usize,
+    normalized_slot: Option<usize>,
+}
+pub(crate) type ContinuationParts<'a> = (&'a [f64], &'a [f64], &'a mut [f64]);
+impl CenteredEnergy<'_> {
+    pub fn geometry(&self) -> Geometry {
+        self.invocation.geometry
+    }
+    pub fn centered(&self) -> &[f64] {
+        let s = self.invocation.geometry.slots;
+        &self.invocation.pool[self.centered_slot * s..(self.centered_slot + 1) * s]
+    }
+    pub fn energy(&self) -> &[f64] {
+        let s = self.invocation.geometry.slots;
+        &self.invocation.pool[self.energy_slot * s..(self.energy_slot + 1) * s]
+    }
+    pub(crate) fn continuation_parts(&mut self) -> Result<ContinuationParts<'_>, Error> {
+        if self.normalized_slot.is_some() {
+            return Err(Error::Poisoned);
+        }
+        let run = &mut self.invocation;
+        let output = run
+            .live
+            .iter()
+            .position(|&v| !v)
+            .ok_or(Error::LifetimeMismatch)?;
+        run.live[output] = true;
+        self.normalized_slot = Some(output);
+        let (mut z, mut v, mut y) = (None, None, None);
+        for (slot, part) in run.pool.chunks_exact_mut(run.geometry.slots).enumerate() {
+            if slot == self.centered_slot {
+                z = Some(part);
+            } else if slot == self.energy_slot {
+                v = Some(part);
+            } else if slot == output {
+                y = Some(part);
+            }
+        }
+        Ok((
+            z.ok_or(Error::LifetimeMismatch)?,
+            v.ok_or(Error::LifetimeMismatch)?,
+            y.ok_or(Error::LifetimeMismatch)?,
+        ))
+    }
+    pub(crate) fn finish_normalized(&mut self) {
+        *self.invocation.state = State::Complete;
+    }
+    pub(crate) fn normalized(&self) -> &[f64] {
+        let s = self.invocation.geometry.slots;
+        // Only the successful continuation can publish this view.
+        let slot = self.normalized_slot.expect("completed clear continuation");
+        &self.invocation.pool[slot * s..(slot + 1) * s]
     }
 }
 impl Drop for Invocation<'_> {

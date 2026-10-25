@@ -5,7 +5,25 @@
 
 use crate::encrypted_level_schedule::construction::ControlLedger;
 use pllm_core::row_fold::{Error, Geometry, Invocation, State};
+use pllm_core::row_normalization_reference as normalization;
 use pllm_garble::shared_allocation::{Budget, ExternalCharge};
+use pllm_models::{ModelOperation, ModelOperator};
+
+fn check_original_guards<const N: usize>(
+    guards: [&ExternalCharge<'_>; N],
+    requirements: [usize; N],
+    budget: &Budget,
+) -> Result<(), Error> {
+    for (i, g) in guards.iter().enumerate() {
+        if !g.is_for(budget)
+            || g.payload_bytes() < requirements[i]
+            || guards[..i].iter().any(|old| std::ptr::eq(*old, *g))
+        {
+            return Err(Error::LifetimeMismatch);
+        }
+    }
+    Ok(())
+}
 
 pub struct BorrowedClearBuffers<'a> {
     pub input: &'a [f64],
@@ -44,14 +62,7 @@ impl<'a> ChargedRowFold<'a> {
             buffers.workspace.len() * 8,
             quote.control_bytes + std::mem::size_of::<Self>(),
         ];
-        for (i, g) in guards.iter().enumerate() {
-            if !g.is_for(budget)
-                || g.payload_bytes() < requirements[i]
-                || guards[..i].iter().any(|old| std::ptr::eq(*old, *g))
-            {
-                return Err(Error::LifetimeMismatch);
-            }
-        }
+        check_original_guards(guards, requirements, budget)?;
         let invocation = Invocation::new(
             geometry,
             buffers.input,
@@ -70,6 +81,203 @@ impl<'a> ChargedRowFold<'a> {
         self.invocation.execute()
     }
 }
+
+/// Explicit CLEAR reference policy, never implicit reinterpretation of decoder
+/// LayerNorm attrs or activation of any source/model/SDK/native HE path.
+pub const CENTERED_ENERGY_REFERENCE_POLICY: &str =
+    "row_head_ascending_tree_binary64_no_epsilon_reference_v1";
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReferenceStatus {
+    ResearchReference,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NormalizationRefusal {
+    IncompatibleOperatorPolicy,
+    UnknownOriginalCapacity,
+    OriginalOwnerRefused,
+    ControlStorageRefused,
+    Arithmetic(normalization::Error),
+}
+impl From<normalization::Error> for NormalizationRefusal {
+    fn from(e: normalization::Error) -> Self {
+        Self::Arithmetic(e)
+    }
+}
+/// Immutable operation capture retained with the output. IDs/digests confer no
+/// tensor authenticity. Gamma/beta are original immutable PUBLIC affine owners.
+/// Positional bindings are operation.inputs[0]=clear.input, [1]=gamma, [2]=beta;
+/// no source lookup, clone, import, or authenticated-tensor upgrade occurs here.
+pub struct BorrowedNormalizationBuffers<'a> {
+    pub clear: BorrowedClearBuffers<'a>,
+    pub gamma: &'a [f64],
+    pub beta: &'a [f64],
+    pub affine_guards: [&'a ExternalCharge<'a>; 2],
+    /// Separate upstream admission for the FULL original DTO allocation region,
+    /// including nested capacities/staging; not just its visible field lengths.
+    /// This declaration is not source authentication or retrospective acquisition.
+    pub operation_guard: &'a ExternalCharge<'a>,
+    pub operation_original_bytes: Option<usize>,
+}
+pub struct ChargedNormalization<'a> {
+    reference: normalization::Reference<'a>,
+    operation: &'a ModelOperation,
+    guards: [&'a ExternalCharge<'a>; 7],
+    budget: &'a Budget,
+}
+pub struct RetainedNormalization<'a> {
+    output: normalization::Output<'a>,
+    operation: &'a ModelOperation,
+    _guards: [&'a ExternalCharge<'a>; 7],
+    _budget: &'a Budget,
+}
+impl RetainedNormalization<'_> {
+    pub fn values(&self) -> &[f64] {
+        self.output.values()
+    }
+    pub fn operation(&self) -> &ModelOperation {
+        self.operation
+    }
+    pub fn status(&self) -> ReferenceStatus {
+        ReferenceStatus::ResearchReference
+    }
+}
+fn check_normalization_policy(op: &ModelOperation) -> Result<(), NormalizationRefusal> {
+    let bad = NormalizationRefusal::IncompatibleOperatorPolicy;
+    if op.operator != ModelOperator::LayerNorm
+        || op.output_shape.as_slice() != [32, 1024]
+        || op.inputs.len() != 3
+        || op.id.is_empty()
+        || op.id.len() > 64
+        || op.layer.is_some()
+        || op.state_kind.is_some()
+    {
+        return Err(bad);
+    }
+    if op.inputs.iter().any(|s| s.is_empty() || s.len() > 64)
+        || op.inputs[0] == op.inputs[1]
+        || op.inputs[0] == op.inputs[2]
+        || op.inputs[1] == op.inputs[2]
+    {
+        return Err(bad);
+    }
+    let attrs = op.attributes.as_object().ok_or(bad)?;
+    // Exact bounded key set. Numeric epsilon (including zero), float32,
+    // inside-sqrt epsilon, alternate variance or fusion cannot be elided.
+    if attrs.len() != 11
+        || attrs.get("axis").and_then(|v| v.as_i64()) != Some(-1)
+        || attrs.get("active_width").and_then(|v| v.as_u64()) != Some(768)
+    {
+        return Err(bad);
+    }
+    for (key, expected) in [
+        ("reference_policy", CENTERED_ENERGY_REFERENCE_POLICY),
+        ("dtype", "float64"),
+        ("layout", "rows32_block1024_active768"),
+        ("epsilon_policy", "none_reject_zero_energy"),
+        ("variance", "centered_energy"),
+        ("affine_order", "normalize_multiply_add"),
+        (
+            "arithmetic",
+            "ordered_nonfused_binary64_row_head_ascending_tree",
+        ),
+        ("sqrt", "clear_sqrt"),
+        ("status", "research_reference"),
+    ] {
+        if attrs.get(key).and_then(|v| v.as_str()) != Some(expected) {
+            return Err(bad);
+        }
+    }
+    Ok(())
+}
+impl<'a> ChargedRowFold<'a> {
+    /// Narrow whole-region constructor using this module's existing original-
+    /// owner checks and the core consuming row-fold continuation, not another
+    /// centered kernel. Complete policy+prefix+affine work prepaid before loops.
+    pub fn normalization_reference(
+        operation: &'a ModelOperation,
+        buffers: BorrowedNormalizationBuffers<'a>,
+        state: &'a mut State,
+        control: &mut ControlLedger,
+        budget: &'a Budget,
+    ) -> Result<ChargedNormalization<'a>, NormalizationRefusal> {
+        let geometry = Geometry::new(32, 1024, 768).map_err(normalization::Error::from)?;
+        let payment = normalization::prepay(geometry, control.core_work(), 1024)?;
+        check_normalization_policy(operation)?;
+        let operation_bytes = buffers
+            .operation_original_bytes
+            .ok_or(NormalizationRefusal::UnknownOriginalCapacity)?;
+        if operation_bytes < std::mem::size_of::<ModelOperation>()
+            || operation_bytes > super::encrypted_level_schedule::construction::METADATA_BYTES
+        {
+            return Err(NormalizationRefusal::OriginalOwnerRefused);
+        }
+        let clear = buffers.clear;
+        let guards = [
+            clear.original_guards[0],
+            clear.original_guards[1],
+            clear.original_guards[2],
+            clear.control_guard,
+            buffers.affine_guards[0],
+            buffers.affine_guards[1],
+            buffers.operation_guard,
+        ];
+        let control_bytes = normalization::control_bytes(geometry)?
+            + std::mem::size_of::<ChargedNormalization<'static>>()
+            + std::mem::size_of::<RetainedNormalization<'static>>()
+            + std::mem::size_of::<BorrowedNormalizationBuffers<'static>>();
+        if control_bytes > pllm_core::row_fold::CONTROL_BYTES {
+            return Err(NormalizationRefusal::ControlStorageRefused);
+        }
+        if budget.used_bytes() > super::encrypted_level_schedule::construction::OWNER_BYTES {
+            return Err(NormalizationRefusal::OriginalOwnerRefused);
+        }
+        let requirements = [
+            clear.input.len().checked_mul(8),
+            clear.public.len().checked_mul(8),
+            clear.workspace.len().checked_mul(8),
+            Some(control_bytes),
+            buffers.gamma.len().checked_mul(8),
+            buffers.beta.len().checked_mul(8),
+            Some(operation_bytes),
+        ];
+        let mut bytes = [0; 7];
+        for (n, b) in requirements.into_iter().zip(&mut bytes) {
+            *b = n.ok_or(NormalizationRefusal::OriginalOwnerRefused)?;
+        }
+        check_original_guards(guards, bytes, budget)
+            .map_err(|_| NormalizationRefusal::OriginalOwnerRefused)?;
+        let reference = normalization::Reference::new_prepaid(
+            payment,
+            clear.input,
+            buffers.gamma,
+            buffers.beta,
+            clear.public,
+            clear.workspace,
+            state,
+        )?;
+        Ok(ChargedNormalization {
+            reference,
+            operation,
+            guards,
+            budget,
+        })
+    }
+}
+impl<'a> ChargedNormalization<'a> {
+    pub fn execute(self) -> Result<RetainedNormalization<'a>, NormalizationRefusal> {
+        let output = self.reference.execute()?;
+        Ok(RetainedNormalization {
+            output,
+            operation: self.operation,
+            _guards: self.guards,
+            _budget: self.budget,
+        })
+    }
+}
+
+#[cfg(test)]
+#[path = "row_normalization_reference_tests.rs"]
+mod normalization_tests;
 
 #[cfg(test)]
 mod tests {
