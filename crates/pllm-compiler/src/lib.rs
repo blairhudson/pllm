@@ -23,6 +23,10 @@ mod bounded_index;
 #[doc(hidden)]
 pub mod plan_input;
 mod compact_protected;
+pub mod clear_attention_prefix;
+pub mod clear_input_owner;
+pub mod coefficient_extraction_reference;
+pub mod column_product_reference;
 mod decoder_boundary;
 mod decoder_continuation;
 mod decoder_matrix_inventory;
