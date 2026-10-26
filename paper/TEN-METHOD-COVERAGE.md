@@ -66,6 +66,73 @@ A failed adaptation does not establish failure of its source system.
 All ten methods therefore retain an unresolved serving rank and unresolved client-tier eligibility.
 Slalom, SmoothQuant, and easier operator studies do not replace the selected methods.
 
+## Current trained-execution round — 26 October 2026
+
+All ten Astra reviews are complete. This section updates execution coverage, not
+the 17 October audit, table, or measured claims below. Latest scoped commits are
+`2ff454b` (shared-owner THOR/NEXUS/ROSETTA Rust references) and `4ac1cfb` (Python
+experiment). Passing component tests and strict lib/tests Clippy were run on the
+stated **dirty working baseline**, not isolated committed HEAD. They do not
+qualify unfinished drafts, trained execution, or whole-method security.
+**Zero of ten methods qualifies for a public complete-system ranking; serving
+ranks and client-tier eligibility remain unresolved.** No whole-method security
+claim follows from source recovery, approval, primitives, or generated fixtures.
+
+The ordinary SDK completion target is checkpoint → actual source-bound prepared
+tokens → import/lowering → protected body/head → required state/feedback (or
+BERT classification) → accepted output → ordinary `Experiment` report.
+Source descriptors, bookkeeping and generated correctness controls alone do not
+complete this chain. The table names the first executable gap, not merely the
+next approval. Factory paths are relative to the repository root.
+
+| Method | Actual entry point and current status | First executable gap / distinct approval gates |
+| --- | --- | --- |
+| GKM | `examples/papers/gkm.py:experiment` / `seeded`, `compiled_gkm_v1`; existing complete ordinary two-worker SDK/benchmark chain. `examples/papers/gkm_quality.py:experiment` / `seeded` configures paired quality. | Obtain a coherent matching wheel and prepared-prompt integration: completed Sol61 preflight found the installed 18 October native lacks `lookup_batch`/`linear_batch`/`accept_batch` required by `4ac1cfb`. No launch/resource fit is established. Then resource-admit the **unrun** twelve-prompt FP32 diagnostic. Historical 4+2 full/seeded Q11 state checks and three-prompt FP32 smoke remain bounded; this is not a garbling/security hold or broader publication qualification. |
+| Maverick | `MaverickDelegatedLinear` and bounded batch primitives; no complete method SDK factory. | Implement source-bound fixed-eight protected continuation, including client-local nonlinear operations and original-dot window lifecycle with Protocol 2 trust. M-X/M-D adoption, actual-code security and no-wrap gates remain separate. |
+| SIGMA | Bounded native arithmetic/activation/normalization components; no trained method executor. | Implement the frozen four-lane LayerNorm → private-matrix handoff with consuming leases; current clarifications are source/design only. This is neither joint-view security qualification nor complete trained execution. |
+| FuseFSS | `examples/papers/fusefss.py:experiment` and checked smoke factories; complete generated dealer/two-holder SDK path. Three selections already have generic decoder support (limit four). | Integrate D51's corrected cohort and ordinary oversize refusal under unchanged caps. Cached source-template `hello` has 30 tokens: default `fss_decoder` sequence ≤16 and `fss_source._contract` rows+outputs−1 ≤16 reject before tape pricing; no new trained attempt fits this cohort. Historical legacy `user: hi` had three tokens; corrected `hi` is unknown. The old one-selection pressure stop never accepted and supplies no corrected-cohort evidence. |
+| BumbleBee | `PrivateEmbeddingLookup(repacking="interleave")` is a bounded component; no complete method SDK factory. | Supply full encrypted OLT, distributed OT and nonlinear execution; B-N1 source/numerical mapping and backend/security selection remain held. Lookup controls do not complete the transformer. |
+| PUMA | `examples/papers/puma.py:experiment`; complete compact three-worker generated SDK/gateway path, not trained-qualified pinned full-prefix execution. | Execute an admitted actual trained prefix through accepted private feedback/output. Expanded private-fixture second-RMS refusal is valid for its propagated interval, not a proved propagation bug; compact gateway success does not remove trained-source/range gates. |
+| NEXUS | Bounded `PackedEncryptedSoftmax(method="repeated_squaring")` and clear Algorithm 5/shared-owner controls; no trained method SDK factory. | Build the confidential-server-weight dual-key whole executor with its numeric and selection profile. Clear Algorithm 5 is not encrypted trained execution; profile, key/security and lifecycle gates remain held. |
+| THOR | Bounded `PackedEncryptedSoftmax(method="square_normalize")` and FFN custody work; no complete encoder SDK factory. | Implement source-bound full BERT encoder/classification with numerical contracts and CKKS backend. FFN custody migration is not the whole method. Use a separate compatible BERT workload, not forced Qwen2 autoregressive generation. |
+| CacheMir | Source/calibration descriptors and bounded state/numeric studies; no encrypted-KV method SDK factory. | Supply encrypted KV executor/backend with GQA mapping and numeric certificates. Source/calibration authority, encrypted kernels and complete feedback/selection remain independent held gates. |
+| ROSETTA | Source/placement/shared-owner references and clear algebra only; conversion specifications are not implemented encrypted conversion. No full encrypted method SDK factory. | Implement CKKS/LWE conversion and HomComp inside the complete encrypted executor. Conversion key/error graph, numeric/backend and author-parameter gates remain unresolved. |
+
+D51's prepared-prompt candidate is **not landed**; GKM/FSS/PUMA inherit the legacy
+`DelegatedClient._encode` path (`FssClient` inherits it). Cached Qwen `hello`
+produces **30 tokens under the source template**, versus legacy three; this is
+not a count for every text or corrected `hi`. D51’s unlanded eight-file candidate
+passed 115 pure checks; matching SDK checks passed 5/6, including both compact
+cases. Expanded private-fixture second-RMS refusal is sound for its declared
+interval; trained execution remains unqualified.
+Actual GKM/FSS descriptor-parity correction remains pending: zero BOS/EOS false
+fallback and FSS missing-BOS/template fallback repairs/tests are unapplied source work.
+D52's readout/summary
+metadata now matches the **already-existing LastToken graph**; it changes no
+arithmetic or execution optimizer and proves no checkpoint execution/whole fit.
+Do not substitute legacy three-token or four-token metadata for actual 30-token
+admission. Prompt changes invalidate old cohort comparisons; source quotations
+alone cannot authorize another checkpoint.
+
+ROSETTA's recovered citation is [HE3DB (CCS 2023)](https://github.com/zhouzhangwalker/HE3DB),
+commit `1d8d7827baf32b4094b7547aeeaa9faf59253b26`: **source oracle only**, not a
+dependency. HE3DB's integer encoding was recovered, but ROSETTA's actual 53-bit
+port, scales, noise and key graph remain unknown; the D37 grid is a proposal,
+not recovered author parameters.
+
+Reuse existing `DecoderPlan`, coverage/inventory and SSA bookkeeping; the rejected
+duplicate SIGMA/BumbleBee obligation inventory has no immediate backend consumer.
+Do not add another inventory or planning layer. Native, resource, security and
+author-parameter gates remain distinct; no cap increase is authorized. FuseFSS's
+64 MiB native ceiling, 32 GiB tape ceiling and default sequence limit 16 are
+distinct and unchanged. Execution recipes and scoped evidence:
+[paper experiments](../examples/papers/README.md),
+[current implementation status](IMPLEMENTATION-STATUS.md),
+[execution decisions](../docs/plans/ten-method-execution-decisions.md),
+[GKM SDK](../docs/research/gkm-sdk-reference.md),
+[FuseFSS SDK](../docs/research/fusefss-sdk-reference.md), and
+[PUMA SDK](../docs/research/puma-truncation-reference.md#bounded-sdk-composition).
+
 ## Manuscript-ready coverage table
 
 A complete decoder must cover token lookup, the model body, output selection, persistent state, and failure behavior.
