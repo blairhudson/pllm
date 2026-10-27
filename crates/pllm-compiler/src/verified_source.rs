@@ -12,6 +12,8 @@ use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use zeroize::Zeroize;
 
+pub(crate) mod raw;
+
 /// Internal failures borrow static messages: no owned error metadata or allocator
 /// call. Public compatibility APIs allocate String only at their outer boundary.
 /// Successful import still allocates its fixed source backing, AFTER caller
@@ -460,21 +462,11 @@ fn checked_decode_with_workspace(
     bytes: &[u8],
     workspace: &mut SourceDecodeWorkspace,
 ) -> Result<f64, SourceError> {
-    if bytes.len() != dtype.bytes() {
-        return Err("source scalar width");
-    }
-    workspace.bytes.fill(0);
-    workspace.bytes[..bytes.len()].copy_from_slice(bytes);
-    let value = match dtype {
-        SourceDtype::Bf16 => f64::from(f32::from_bits(
-            u32::from(u16::from_le_bytes([workspace.bytes[0], workspace.bytes[1]])) << 16,
-        )),
-        SourceDtype::F32 => f64::from(f32::from_le_bytes(workspace.bytes)),
+    let dtype = match dtype {
+        SourceDtype::Bf16 => raw::RawScalarType::Bf16Le,
+        SourceDtype::F32 => raw::RawScalarType::F32Le,
     };
-    if !value.is_finite() {
-        return Err("nonfinite source scalar");
-    }
-    Ok(value)
+    raw::decode_finite(dtype, bytes, workspace).map(f64::from)
 }
 
 pub fn verify_selected_source(
