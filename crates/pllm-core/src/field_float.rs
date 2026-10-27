@@ -12,6 +12,15 @@ use crate::{
     fixed_point::div_round_ties_even_i128,
 };
 
+mod rsqrt;
+pub use rsqrt::{rsqrt_rn32, RSQRT_WORK};
+
+mod finite_r32;
+pub use finite_r32::{add_rn32, div_rn32, mul_rn32, FINITE_R32_WORK};
+
+mod rms_norm;
+pub use rms_norm::{rms_norm_bf16_row_into, rms_norm_bf16_row_work};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
     NonFinite,
@@ -22,6 +31,7 @@ pub enum Error {
     Length,
     TieMismatch,
     Allocation,
+    WorkLimit,
 }
 
 impl std::fmt::Display for Error {
