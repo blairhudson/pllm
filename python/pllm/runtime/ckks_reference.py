@@ -7,6 +7,8 @@ check, not authenticated transport or malicious-computation verification.
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
+from fractions import Fraction
 import hashlib
 import json
 import math
@@ -311,3 +313,239 @@ def diagonal_linear(arithmetic, x, diagonals, key_policy, *, batch_size=1):
         # Public zero weights still follow the same output-level contract.
         result = arithmetic.multiply_plain(arithmetic.zero(), 1.0)
     return result
+
+
+# Unqualified, source-only metadata contract. Deliberately not used by Arithmetic,
+# Client, Provider, setup, or diagonal_linear above. Legacy normalization stays put.
+# Public source basis, NOT installed-library/build identity:
+# TenSEAL v0.3.17 tenseal/sealapi/sealapi_encrypt.cpp (overloads and has_key);
+# SEAL v4.3.3 native/src/seal/{evaluator.cpp,util/galois.cpp,kswitchkeys.h}.
+# Multiplication updates double scale first; rescaling divides that double by
+# double(coeff_modulus.back().value()). Fraction arithmetic is a separate oracle.
+# No tolerance, CKKS parameter set, key generation, or backend adapter is adopted.
+SCALE_STATE_QUALIFICATION = "Unqualified"
+
+# S=4096, N=8192, generator 3 modulo 2*N. Positive means left rotation.
+# Tuple entries: (signed step, residue modulo S, uint32 Galois element).
+# Future public-binding call: create_galois_keys([-3,-2,-1,1,2,3], dst).
+# Negative entries reject vector<uint32_t> conversion, selecting vector<int>.
+# has_key receives ELEMENT, not step/residue/index; size counts nonempty entries,
+# not the outer data vector length. No call or key allocation occurs here.
+SIGNED_ROTATION_MANIFEST = (
+    (-3, 4093, 6675), (-2, 4094, 3641), (-1, 4095, 10923),
+    (1, 1, 3), (2, 2, 9), (3, 3, 27),
+)
+
+
+def _scale_float(value):
+    if type(value) is not float or not math.isfinite(value) or value <= 0:
+        raise ValueError("Unqualified scale metadata requires a positive finite float")
+    return value
+
+
+def _parms_id(value):
+    if (type(value) is not tuple or len(value) != 4
+            or any(type(word) is not int or not 0 <= word < 2**64 for word in value)
+            or not any(value)):
+        raise ValueError("Unqualified parms_id requires four nonzero-as-a-whole uint64 words")
+
+
+@dataclass(frozen=True)
+class ScaleLevel:
+    """Unqualified snapshot of one DATA context, never the key context.
+
+    Moduli are metadata, not asserted primes or an admitted parameter set.
+    A future binding must read parms_id, chain_index and coefficient moduli from
+    successive first_context_data()/next_context_data() records, not bit counts
+    or symbolic placeholders. Snapshot validation cannot prove that happened.
+    """
+
+    parms_id: tuple[int, int, int, int]
+    chain_index: int
+    coefficient_moduli: tuple[int, ...]
+
+    def __post_init__(self):
+        _parms_id(self.parms_id)
+        if type(self.chain_index) is not int or self.chain_index < 0:
+            raise ValueError("Unqualified invalid chain index")
+        moduli = self.coefficient_moduli
+        if (type(moduli) is not tuple or not moduli
+                or any(type(p) is not int or not 2 < p < 2**64 or p % 2 == 0 for p in moduli)
+                or len(set(moduli)) != len(moduli)):
+            raise ValueError("Unqualified malformed coefficient modulus metadata")
+
+
+@dataclass(frozen=True)
+class ScaleContext:
+    """Unqualified context binding; caller identity is NOT authority/provenance.
+
+    No ciphertext, keys, numeric/security qualification or native allocation
+    guarantee. Workspace accounting can only describe LOGICAL reference storage:
+    evaluator pools and Python/vector conversions remain hidden allocations.
+    """
+
+    identity: bytes
+    delta: float
+    levels: tuple[ScaleLevel, ...]
+
+    def __post_init__(self):
+        if type(self.identity) is not bytes or not self.identity:
+            raise ValueError("Unqualified context identity must be nonempty bytes")
+        _scale_float(self.delta)
+        if (type(self.levels) is not tuple or not self.levels
+                or any(type(level) is not ScaleLevel for level in self.levels)):
+            raise ValueError("Unqualified data context chain required")
+        if len({level.parms_id for level in self.levels}) != len(self.levels):
+            raise ValueError("Unqualified repeated parms_id")
+        for current, following in zip(self.levels, self.levels[1:]):
+            if (following.chain_index != current.chain_index - 1
+                    or following.coefficient_moduli != current.coefficient_moduli[:-1]):
+                raise ValueError("Unqualified chain must drop exactly its last modulus")
+        if self.levels[-1].chain_index != 0 or len(self.levels[-1].coefficient_moduli) != 1:
+            raise ValueError("Unqualified complete data context chain required")
+
+    def initial_state(self, parms_id, actual_scale):
+        """Unqualified observed metadata gate before immutable publication."""
+        if parms_id != self.levels[0].parms_id:
+            raise ValueError("Unqualified initial level mismatch")
+        _parms_id(parms_id)
+        return ScaleState(self, 0, ScaleExpression(1, ()), actual_scale)
+
+
+@dataclass(frozen=True)
+class ScaleExpression:
+    """Unqualified symbolic Delta**power / product(ordered dropped moduli).
+
+    Narrow reusable contract: repeated multiply-at-Delta then rescale, without
+    manual retagging. Not a general expression simplifier or noise certificate.
+    """
+
+    delta_power: int
+    dropped_primes: tuple[int, ...]
+
+    def __post_init__(self):
+        if (type(self.delta_power) is not int or self.delta_power < 1
+                or type(self.dropped_primes) is not tuple
+                or self.delta_power != len(self.dropped_primes) + 1
+                or any(type(p) is not int or not 2 < p < 2**64 or p % 2 == 0
+                       for p in self.dropped_primes)):
+            raise ValueError("Unqualified invalid symbolic scale expression")
+
+
+@dataclass(frozen=True)
+class ScaleState:
+    """Unqualified immutable metadata, never ciphertext authority.
+
+    actual_scale is checked against operation-ordered floating metadata, NOT the
+    rounded exact Fraction. Exact equality here is intentionally stricter than
+    SEAL's approximate scale compatibility. Neither establishes numeric accuracy.
+    Constructor validation also rejects forged level/expression/scale pairings;
+    it cannot authenticate observations, ciphertext ancestry or backend execution.
+    """
+
+    context: ScaleContext
+    level: int
+    expression: ScaleExpression
+    actual_scale: float
+
+    def __post_init__(self):
+        if (type(self.context) is not ScaleContext or type(self.level) is not int
+                or not 0 <= self.level < len(self.context.levels)
+                or type(self.expression) is not ScaleExpression):
+            raise ValueError("Unqualified invalid typed scale state")
+        dropped = tuple(level.coefficient_moduli[-1]
+                        for level in self.context.levels[:self.level])
+        if self.expression != ScaleExpression(self.level + 1, dropped):
+            raise ValueError("Unqualified level or symbolic scale mismatch")
+        expected = self.context.delta
+        for prime in dropped:
+            expected = _scale_float(expected * self.context.delta)
+            expected = _scale_float(expected / float(prime))
+        if _scale_float(self.actual_scale) != expected:
+            raise ValueError("Unqualified operation-ordered scale mismatch; retagging forbidden")
+
+    @property
+    def parms_id(self):
+        return self.context.levels[self.level].parms_id
+
+    @property
+    def exact_scale(self):
+        """Unqualified rational oracle for binary-float Delta, not CKKS error."""
+        return (Fraction.from_float(self.context.delta) ** self.expression.delta_power
+                / math.prod(self.expression.dropped_primes))
+
+    def multiply_delta_rescale(self, observed_parms_id, observed_scale):
+        """Unqualified publication after BOTH next-level and float checks pass.
+
+        Represents multiply_plain at Delta (or a matching-scale first product)
+        then rescale_to_next. No native operation, implicit switch or retag.
+        Parents remain unchanged on all failures; no native-output atomicity claim.
+        """
+        following = self.level + 1
+        if following >= len(self.context.levels):
+            raise ValueError("Unqualified rescale chain exhausted")
+        _parms_id(observed_parms_id)
+        if observed_parms_id != self.context.levels[following].parms_id:
+            raise ValueError("Unqualified rescale must use the exact next parms_id")
+        prime = self.context.levels[self.level].coefficient_moduli[-1]
+        expression = ScaleExpression(self.expression.delta_power + 1,
+                                     self.expression.dropped_primes + (prime,))
+        return ScaleState(self.context, following, expression, observed_scale)
+
+    def require_add_compatible(self, other):
+        """Unqualified refusal gate, not SEAL's are_close numeric certificate."""
+        if (type(other) is not ScaleState or self.context != other.context
+                or self.parms_id != other.parms_id or self.level != other.level
+                or self.expression != other.expression or self.actual_scale != other.actual_scale):
+            raise ValueError("Unqualified branch context, level, expression or scale mismatch")
+
+
+@dataclass(frozen=True)
+class ProductScaleBranches:
+    """Unqualified support/wrap/remainder and SEPARATE full-support a0 states.
+
+    Each child must descend one scale transition from ORIGINAL product P, never
+    from a previously masked child. This checks declared metadata only; it cannot
+    prove which ciphertext an evaluator actually masked. No support geometry or
+    mask coefficient validity is inferred from scale metadata.
+    """
+
+    product: ScaleState
+    support: ScaleState
+    wrap: ScaleState
+    remainder: ScaleState
+    a0_full_support: ScaleState
+
+    def __post_init__(self):
+        if type(self.product) is not ScaleState:
+            raise ValueError("Unqualified original product scale state required")
+        for child in (self.support, self.wrap, self.remainder, self.a0_full_support):
+            if type(child) is not ScaleState:
+                raise ValueError("Unqualified typed branch required")
+            expected = self.product.multiply_delta_rescale(child.parms_id, child.actual_scale)
+            expected.require_add_compatible(child)
+
+    def bias_encoding_state(self):
+        """Unqualified encode bias at resulting beta parms_id AND actual scale.
+
+        Returned metadata is an encoding requirement, not an encoded plaintext.
+        In particular, do not encode at Delta and overwrite plaintext.scale.
+        """
+        return self.a0_full_support
+
+
+def publish_product_scale_branches(product, observations):
+    """Unqualified atomic metadata publication; all four branches or no result.
+
+    Observations are a tuple of (parms_id, actual_scale), ordered support, wrap,
+    remainder, a0_full_support. All derive independently from original P.
+    At P=alpha=Delta**2/p1 every child is beta=Delta**3/(p1*p2).
+    No ciphertext operations or externally visible partial publication occur.
+    """
+    if (type(product) is not ScaleState or type(observations) is not tuple
+            or len(observations) != 4
+            or any(type(item) is not tuple or len(item) != 2 for item in observations)):
+        raise ValueError("Unqualified four branch metadata observations required")
+    children = tuple(product.multiply_delta_rescale(parms_id, scale)
+                     for parms_id, scale in observations)
+    return ProductScaleBranches(product, *children)
