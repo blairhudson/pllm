@@ -82,7 +82,80 @@ I/O and setup-inclusive final disclosure. Buffered output supplies neither strea
 TTFT nor model decode throughput. No receipt archive or copied build/source tree
 is required.
 
-## Next blocking slice
+## Current blocking slice: joint exact signed-SiLU FSS specification only
+
+Source-derived specification and independent numerical review are consistent:
+a **SPEC STUB**, not a construction, security proof, implemented layout or achieved
+cost. Only specification and independent review are authorized; no crypto implementation, keys, trained
+inference, cap or sequence increase, or adoption is approved.
+Corrected ordinary ChatML workload is **30 prefill + 2 output tokens**: it still
+requires prefixes **30 and 31**, both over source cap 16, and remains over the
+unchanged full-cost material budget. No silent sequence-32 change or cap rise.
+All 1+1, 3+1 and 4+1 prompt/admission results below are **HISTORICAL**, unchanged;
+`user: hi` = 3 there is not current ordinary corrected-30 ChatML fit or proof.
+
+### Frozen numeric and composition contract (D14)
+
+- Interpret canonical ring50 input `X` as signed Q12; accepted interval is
+  `[-2^37, 2^37-1]`. Set `Y = floor(X/64)`; sign-extend before `abs(Y)`,
+  especially at `Y = -2^31`. Define `D = [Y >= 0]`, `A = abs(Y)`,
+  `B = [A < 1024]`, `J = min(A, 1023)`, `Z = D*X - T[J] mod 2^50`.
+  Multiplicand is **original X**, never Y. Preserve negative-floor corners
+  `(-65, -64, -1, 0, 63, 64)` and clamp changes at X `-65473/-65472`
+  and `65535/65536`, although adjacent A=1023/1024 select the same index.
+- Existing owners: [composition/gates.rs](../../crates/pllm-garble/src/fusefss_backend/composition/gates.rs),
+  [composition/source_tables.rs](../../crates/pllm-garble/src/fusefss_backend/composition/source_tables.rs),
+  [fixed_activation_tables.rs](../../crates/pllm-garble/src/fixed_activation_tables.rs).
+  `fixed_activation_tables::silu_q12` is the rational-certified frozen oracle;
+  no floating regeneration or new table. Reuse existing Descriptor/Plan/Party,
+  tape/import, conversions, predicates and lookup owners, not parallel machinery.
+- Public declared interval `InputRange` is **not secret membership proof**. Existing
+  certificate or protected check must precede unsafe narrowing/arithmetic. D14 requires safe
+  substitution, sticky validity and full schedule; client-only aggregate acceptance,
+  no invalid tokens, reusable state or failing-location disclosure. Optional helpers
+  `n,b` require fixed public descriptor and internal shares, never adaptive or clear disclosure.
+- Shared masked opening already exists but queries fresh keys. `VectorComparison`
+  is one-threshold/multi-payload, **not multipoint compression**. No compact key
+  layout is asserted and no speculative compression is claimed.
+
+### Construction, security and lifecycle obligations (missing)
+
+- Supply concrete generation/evaluation equations and key format, plus joint
+  simulator for one corrupted holder's keys, input/output shares, openings,
+  prior/downstream conversions, and access/failure metadata. Simulator uses only
+  prescribed holder input/output shares and public descriptor/leakage consistent
+  with D14, not actual secret helper values or client-only aggregate acceptance.
+- Trust: independent trusted dealer; at most one semi-honest online holder.
+  Context binding is not authenticated transport. Output-ring masks must be
+  full-ring uniform; joint masking of Booleans must be proved, not presumed.
+- Fresh material per invocation/context/lane/epoch. Begun instances burn on
+  failure/cancellation/replay; public preadmission without material invents no burn.
+  Secret-invalid inputs still execute full schedule before aggregate acceptance.
+- Independent numerical review found the target consistent. **NEW CONSTRUCTION
+  SECURITY REVIEW NOT PERFORMABLE**: construction/layout/simulator absent; security has not passed.
+  The reusable [public integer experiment](../../examples/papers/fusefss_silu_integer_campaign.py)
+  and [ordinary regression tests](../reproduction-contracts/test_fusefss_silu_integer_campaign.py)
+  cover finite floor/clamp/endpoints, frozen-table equality and public models of
+  invalid safe substitution, sticky validity and full-schedule rejection.
+  Neither was run in this source-only finishing pass; no new passing result is claimed.
+  Public arithmetic/control checks are not protected membership or lifecycle evidence.
+  The protected lifecycle/security campaign remains **UNRUN**: secret-invalid
+  safe substitution and full-schedule rejection, failure/cancellation/replay burn,
+  fresh-request isolation and joint-transcript security.
+
+### Conditional cost only; no achieved bound
+
+- Proposed projection **25,601,495,040 B/holder** is **UNIMPLEMENTED/UNAPPROVED**,
+  not verified achieved bound. It leaves **8,758,243,328 B** of 32 GiB for
+  **7,120,896 SiLU lanes plus all other operations**; **1229.936 B/lane** is only
+  optimistic ceiling, not achieved gate cost or lower bound.
+- Require complete ledger: projection/embedding/norm/attention/FFN products/RoPE,
+  head/selection/checks/output masks, tape/frame/envelope, work and live owners.
+  Retirement never refunds cumulative one-use bytes. Preserve **32 GiB material
+  per holder**, existing **64 MiB native-resident budget**, separate host RSS guards,
+  descriptors and work caps unchanged. No cost/admission substitution between them.
+
+## Next blocking slice (historical record; not corrected-30 ChatML evidence)
 
 Prioritize pinned Qwen benchmarking. Exact-key indexed replay owners and
 framing-derived tape admission now support the larger generated Qwen SDK control,
