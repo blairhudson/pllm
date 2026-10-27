@@ -475,6 +475,13 @@ impl SourceQuote {
                 })
             })
             .map_err(|native| failure.unwrap_or(Error::Native(native)))?;
+        #[cfg(test)]
+        {
+            // The model factory and census completed successfully. Release the
+            // slot borrow before abandoning a genuine same-root sibling.
+            let sibling = PREINSTALL_SIBLING_BURN.with(|slot| slot.borrow_mut().take());
+            drop(sibling);
+        }
         attempt.install(charged)
     }
 }
@@ -1144,6 +1151,11 @@ thread_local! { static FACTORIES: std::cell::Cell<usize> = const { std::cell::Ce
 
 #[cfg(test)]
 thread_local! { static PANIC_FACTORY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
+
+#[cfg(test)]
+thread_local! {
+    static PREINSTALL_SIBLING_BURN: std::cell::RefCell<Option<PrimitiveAttempt>> = const { std::cell::RefCell::new(None) };
+}
 
 #[cfg(test)]
 thread_local! {

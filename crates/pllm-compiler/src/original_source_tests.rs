@@ -965,6 +965,194 @@ fn native_prepared(
     phase.prepare_configuration(raw, budget.charge_external(json::bootstrap_bytes().unwrap()).unwrap()).unwrap()
 }
 
+struct PreinstallSiblingBurnGuard;
+
+impl PreinstallSiblingBurnGuard {
+    fn arm(sibling: PrimitiveAttempt) -> Self {
+        PREINSTALL_SIBLING_BURN.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            assert!(slot.is_none());
+            *slot = Some(sibling);
+        });
+        Self
+    }
+}
+
+impl Drop for PreinstallSiblingBurnGuard {
+    fn drop(&mut self) {
+        let sibling = PREINSTALL_SIBLING_BURN.with(|slot| slot.borrow_mut().take());
+        drop(sibling);
+    }
+}
+
+#[test]
+fn native_bootstrap_postfactory_sibling_burn_prevents_install() {
+    PREINSTALL_SIBLING_BURN.with(|slot| assert!(slot.borrow().is_none()));
+    let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let baseline = budget.budget().used_bytes();
+    let mut limits = limits();
+    limits.max_working_payload = MAX_ALLOCATION_BYTES;
+    let mut admission = native_admission(&budget);
+    let actual_root = Arc::clone(&admission.root);
+    let prepared = native_prepared(&budget, &mut admission, RAW, 7);
+    let preconfig = 8 + u64::try_from(bootstrap_json_limits().max_work).unwrap();
+    let control_bytes = OriginalSourcePlan::primitive_attempt_control_bytes().unwrap();
+
+    // An unconfigured root has no published plan. Commit a genuine primitive
+    // control, not a plan, and retain it across the later sibling failure.
+    let committed_attempt = begin_attempt(
+        &actual_root,
+        budget.charge_external(control_bytes).unwrap(),
+        3,
+    ).unwrap();
+    assert!(Arc::ptr_eq(&committed_attempt.root, &actual_root));
+    let committed = committed_attempt.commit().unwrap();
+    let committed_charge = committed.charged_bytes();
+    let sibling = begin_attempt(
+        &actual_root,
+        budget.charge_external(control_bytes).unwrap(),
+        11,
+    ).unwrap();
+    assert!(Arc::ptr_eq(&sibling.root, &actual_root));
+    assert!(sibling.controller.as_ref().unwrap().is_for(budget.budget()));
+    let prepaid = preconfig + 4 + 12;
+    {
+        let ledger = actual_root.payload().ledger.as_ref().unwrap().lock().unwrap();
+        assert_eq!(ledger.used, prepaid);
+        assert!(!ledger.burned);
+        assert_eq!(ledger.limit, BOOTSTRAP_SOURCE_WORK);
+    }
+    assert!(actual_root.payload().configured.get().is_none());
+
+    // Quote against the actual remaining ledger after both primitive controls
+    // have been charged and debited, before arming the interleave.
+    let bytes = prepared.bootstrap_bytes(limits).unwrap();
+    let working = budget.charge_external(bytes).unwrap();
+    let before = attempts();
+    let hook = PreinstallSiblingBurnGuard::arm(sibling);
+    assert!(matches!(
+        admission.configure(prepared, working, limits),
+        Err(Error::Burned)
+    ));
+    assert_eq!(attempts(), before + 1);
+    // Consumption is possible only after the real factory AND census returned
+    // success, immediately before installation; the counter alone is not proof.
+    PREINSTALL_SIBLING_BURN.with(|slot| assert!(slot.borrow().is_none()));
+    assert!(actual_root.payload().configured.get().is_none());
+    let used = {
+        let ledger = actual_root.payload().ledger.as_ref().unwrap().lock().unwrap();
+        assert!(ledger.burned);
+        assert!(ledger.used > prepaid);
+        ledger.used
+    };
+    assert!(matches!(
+        begin_attempt(&actual_root, budget.charge_external(control_bytes).unwrap(), 0),
+        Err(Error::Burned)
+    ));
+    {
+        let ledger = actual_root.payload().ledger.as_ref().unwrap().lock().unwrap();
+        assert!(ledger.burned);
+        assert_eq!(ledger.used, used);
+    }
+    assert!(committed.is_for(budget.budget()));
+    assert_eq!(committed.payload_bytes(), control_bytes);
+    assert_eq!(committed.charged_bytes(), committed_charge);
+    assert_eq!(
+        budget.budget().used_bytes(),
+        baseline + actual_root.charged_bytes() + committed_charge
+    );
+    drop(hook);
+    drop(committed);
+    assert_eq!(budget.budget().used_bytes(), baseline + actual_root.charged_bytes());
+    drop(actual_root);
+    assert_eq!(budget.budget().used_bytes(), baseline);
+}
+
+#[test]
+fn native_bootstrap_exact_raw_cap_accepts_and_one_over_burns() {
+    let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let baseline = budget.budget().used_bytes();
+    let mut limits = limits();
+    limits.max_working_payload = MAX_ALLOCATION_BYTES;
+    assert_eq!(limits.max_work, BOOTSTRAP_SOURCE_WORK);
+    assert_eq!(BOOTSTRAP_CONFIG_BYTES, 16384);
+    assert_eq!(bootstrap_json_limits().max_depth, 16);
+
+    for raw_bytes in [16384, 16385] {
+        let mut admission = native_admission(&budget);
+        let actual_root = Arc::clone(&admission.root);
+        let phase = admission.reserve_bootstrap_phase(
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(),
+            19,
+        ).unwrap();
+        let raw = budget.charge_external(raw_bytes).unwrap().try_build(|_| {
+            let mut raw = Vec::with_capacity(raw_bytes);
+            raw.extend_from_slice(RAW);
+            raw.resize(raw_bytes, b' ');
+            Ok(raw)
+        }).unwrap();
+        let raw_backing = raw.payload().as_ptr();
+        assert!(std::ptr::eq(raw.budget(), actual_root.budget()));
+        let working = budget.charge_external(json::bootstrap_bytes().unwrap()).unwrap();
+        assert!(working.is_for(actual_root.budget()));
+        let before = attempts();
+        let prepared = phase.prepare_configuration(raw, working);
+        if raw_bytes == 16385 {
+            assert!(matches!(prepared, Err(Error::Capacity)));
+            assert_eq!(attempts(), before);
+            assert!(actual_root.payload().configured.get().is_none());
+            {
+                let ledger = actual_root.payload().ledger.as_ref().unwrap().lock().unwrap();
+                assert_eq!(ledger.used, 20);
+                assert!(ledger.burned);
+                assert_eq!(ledger.limit, BOOTSTRAP_SOURCE_WORK);
+            }
+            assert!(matches!(admission.reserve_bootstrap_phase(
+                budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(),
+                0,
+            ), Err(Error::Burned)));
+            {
+                let ledger = actual_root.payload().ledger.as_ref().unwrap().lock().unwrap();
+                assert!(ledger.burned);
+                assert_eq!(ledger.used, 20);
+            }
+            assert_eq!(attempts(), before);
+            drop(admission);
+        } else {
+            let prepared = prepared.unwrap();
+            let preconfig = 20 + u64::try_from(bootstrap_json_limits().max_work).unwrap();
+            assert!(Arc::ptr_eq(&prepared.attempt.root, &actual_root));
+            assert!(std::ptr::eq(prepared.source.budget(), actual_root.budget()));
+            assert_eq!(prepared.source.payload().raw().as_ptr(), raw_backing);
+            assert_eq!(actual_root.payload().ledger.as_ref().unwrap().lock().unwrap().used, preconfig);
+            let bytes = prepared.bootstrap_bytes(limits).unwrap();
+            let source = admission.configure(
+                prepared,
+                budget.charge_external(bytes).unwrap(),
+                limits,
+            ).unwrap();
+            assert_eq!(attempts(), before + 1);
+            assert!(Arc::ptr_eq(source.root(), &actual_root));
+            assert!(std::ptr::eq(source.budget(), budget.budget()));
+            assert!(actual_root.payload().configured.get().is_some());
+            assert_eq!(source.raw_configuration().len(), 16384);
+            assert_eq!(source.raw_configuration().as_ptr(), raw_backing);
+            assert_eq!(&source.raw_configuration()[..RAW.len()], RAW);
+            assert!(source.raw_configuration()[RAW.len()..].iter().all(|byte| *byte == b' '));
+            {
+                let ledger = actual_root.payload().ledger.as_ref().unwrap().lock().unwrap();
+                assert!(!ledger.burned);
+                assert!(ledger.used > preconfig);
+                assert_eq!(ledger.used, source.resources().prepaid_work);
+                assert_eq!(ledger.limit, BOOTSTRAP_SOURCE_WORK);
+            }
+            drop(source);
+        }
+        drop(actual_root);
+        assert_eq!(budget.budget().used_bytes(), baseline);
+    }
+}
+
 #[test]
 fn native_bootstrap_root_and_phase_exact_short_foreign_preserve_unentered_ledger() {
     let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
