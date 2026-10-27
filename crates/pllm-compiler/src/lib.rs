@@ -26,6 +26,7 @@ pub mod plan_input;
 mod compact_protected;
 pub mod clear_attention_prefix;
 pub mod clear_input_owner;
+mod clear_value_binding;
 pub mod coefficient_extraction_reference;
 pub mod column_product_reference;
 mod decoder_boundary;
