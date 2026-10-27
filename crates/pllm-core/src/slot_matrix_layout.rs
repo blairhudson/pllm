@@ -821,6 +821,249 @@ pub fn rectangular_block_pc_mm(
     Ok(())
 }
 
+/// Proposed derived physical embedding, NOT a printed THOR specification or an
+/// executable CKKS plan. In particular, the current positive-key backend cannot
+/// execute these signed keys. Exact slot identities establish packing only.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhysicalScaleStatus {
+    /// Delta=2^40; weight products have scale Delta^2, and the declared partial
+    /// sum boundary would yield Delta^2/p1. Mask scale 1 is not proven exact;
+    /// mask scale Delta makes P-U incompatible. Depth two alone does not fix it.
+    /// No executable level DAG, accuracy, noise, or security claim follows.
+    Unqualified,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhysicalOp {
+    WeightProduct { input_frame: usize },
+    /// Symbolic boundary only: no rescale implementation or qualified scale.
+    ProductSumBoundary,
+    Mask,
+    SubtractMasked,
+    /// R_r(v)[s] = v[(s+r) mod 4096].
+    RotateMasked { shift: i32 },
+    RotateRemainder { shift: i32 },
+    AddAligned,
+    Accumulate,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PhysicalStage {
+    pub output_frame: usize,
+    pub displacement: usize,
+    pub op: PhysicalOp,
+}
+
+/// Bounded, model-neutral physical address/schedule description. No evaluator,
+/// allocation, compiler/source authority, or encrypted admission. X is token by
+/// input, W is input by output (paper B=X^T, A=W^T). Both output directions keep
+/// virtual H=4 stride, including 8->4; there is no implicit H=2 repacking.
+#[derive(Clone, Copy, Debug)]
+pub struct BlockPcPhysicalPlan {
+    input: Layout,
+    out: Layout,
+    stages: [PhysicalStage; 64],
+}
+
+fn physical_limits(limits: Limits) -> Limits {
+    Limits {
+        max_buffer_elements: limits.max_buffer_elements.min(2_000_000),
+        max_work: limits.max_work.min(100_000_000),
+    }
+}
+
+/// Initially ONLY n=2, c=1, S=4096, block rows 2->4 or 4->2. Logical capacity
+/// two remains supported by the separate clear reference, not this embedding.
+pub fn block_pc_physical_plan(
+    input: Layout,
+    out: Layout,
+    slots: usize,
+    limits: Limits,
+) -> Result<BlockPcPhysicalPlan, Error> {
+    let _ = rectangular_block_pc_schedule(input, out)?;
+    if slots != 4096
+        || input.rows != 2
+        || out.rows != 2
+        || input.capacity != 1
+        || !matches!((input.heads, out.heads), (2, 4) | (4, 2))
+    {
+        return Err(Error::Geometry);
+    }
+    let limits = physical_limits(limits);
+    buffer(mul(2, slots)?, mul(2, slots)?, limits)?;
+    work(64, limits)?;
+    // One construction pass, without first filling then overwriting descriptors.
+    let stages = std::array::from_fn(|index| {
+        let q = index / 32;
+        let local = index % 32;
+        let (a, position) = if local < 5 { (0, local) }
+            else { (1 + (local - 5) / 9, (local - 5) % 9) };
+        let op = match position {
+            0 => PhysicalOp::WeightProduct { input_frame: 0 },
+            1 => PhysicalOp::WeightProduct { input_frame: 1 },
+            2 => PhysicalOp::ProductSumBoundary,
+            3 => PhysicalOp::Mask,
+            4 if a == 0 => PhysicalOp::Accumulate,
+            4 => PhysicalOp::SubtractMasked,
+            5 => PhysicalOp::RotateMasked { shift: (4 - a) as i32 },
+            6 => PhysicalOp::RotateRemainder { shift: -(a as i32) },
+            7 => PhysicalOp::AddAligned,
+            _ => PhysicalOp::Accumulate,
+        };
+        PhysicalStage { output_frame: q, displacement: a, op }
+    });
+    Ok(BlockPcPhysicalPlan { input, out, stages })
+}
+
+impl BlockPcPhysicalPlan {
+    pub const SLOTS: usize = 4096;
+    pub const FRAMES: usize = 2;
+    pub const ELEMENTS: usize = 8192;
+    /// Separate logical clear-reference work, never a physical/HE resource quote.
+    pub const LOGICAL_REFERENCE_WORK: usize = 224;
+    /// Construction visits 64 descriptors; materialization costs are separate.
+    pub const CONSTRUCTION_WORK: usize = 64;
+    pub const WEIGHT_PRODUCTS: usize = 16;
+    pub const ALIGNMENT_MASK_PRODUCTS: usize = 8;
+    pub const SIGNED_KEYS: [i32; 6] = [-3, -2, -1, 1, 2, 3];
+    pub const KEY_RESIDUES: [usize; 6] = [4093, 4094, 4095, 1, 2, 3];
+
+    pub fn scale_status(self) -> PhysicalScaleStatus {
+        PhysicalScaleStatus::Unqualified
+    }
+    pub fn stages(&self) -> &[PhysicalStage] {
+        &self.stages
+    }
+    pub fn schedule(self) -> Schedule {
+        Schedule {
+            plaintext_products: 24, // 16 weights + 8 masks (including a=0).
+            output_rotations: 12,
+            rescale_after_product_sums: 8,
+            ..Schedule::default()
+        }
+    }
+    /// Checked physical output lane -> (token, output feature). Padding is None.
+    pub fn output_coordinate(self, frame: usize, slot: usize) -> Result<Option<(usize, usize)>, Error> {
+        if frame >= 2 || slot >= Self::SLOTS {
+            return Err(Error::Geometry);
+        }
+        let t = slot / 4;
+        let i = slot % 4;
+        Ok(if t < self.out.valid_columns && i < self.out.heads {
+            Some((t, 2 * i + (t + frame) % 2))
+        } else {
+            None
+        })
+    }
+    /// Dense token-major X address -> physical frame/slot. No logical pack used.
+    pub fn input_address(self, token: usize, feature: usize) -> Result<(usize, usize), Error> {
+        if token >= self.input.valid_columns || feature >= 2 * self.input.heads {
+            return Err(Error::Geometry);
+        }
+        Ok(((feature % 2 + 2 - token) % 2, 4 * token + feature / 2))
+    }
+    /// At pre-alignment slot 4t+k, return W[input,output] coordinate. The output
+    /// coordinate is i=(k+a)%4 HERE, not k; bias uses post-alignment coordinates.
+    pub fn weight_coordinate(
+        self, q: usize, a: usize, j: usize, slot: usize,
+    ) -> Result<Option<(usize, usize)>, Error> {
+        if q >= 2 || a >= 4 || j >= 2 || slot >= Self::SLOTS {
+            return Err(Error::Geometry);
+        }
+        let t = slot / 4;
+        let k = slot % 4;
+        let i = (k + a) % 4;
+        Ok(if t < self.input.valid_columns && k < self.input.heads && i < self.out.heads {
+            Some((2 * k + (t + j) % 2, 2 * i + (t + q) % 2))
+        } else {
+            None
+        })
+    }
+    /// Identity support mask for a=0; wrap partition for nonzero a. Tail zero.
+    pub fn mask_value(self, a: usize, slot: usize) -> Result<bool, Error> {
+        if a >= 4 || slot >= Self::SLOTS {
+            return Err(Error::Geometry);
+        }
+        Ok(slot < 8 && (a == 0 || slot % 4 >= 4 - a))
+    }
+    pub fn input_materialization_work(self) -> Result<usize, Error> {
+        add(mul(self.input.valid_columns, mul(2, self.input.heads)?)?, Self::ELEMENTS)
+    }
+    pub fn weight_materialization_work(self) -> Result<usize, Error> {
+        add(mul(mul(2, self.input.heads)?, mul(2, self.out.heads)?)?, Self::SLOTS)
+    }
+    pub fn bias_materialization_work(self) -> Result<usize, Error> {
+        add(mul(2, self.out.heads)?, Self::ELEMENTS)
+    }
+    /// All validation precedes writes; caller suffix remains untouched. Only
+    /// live token rows read; padding (even NaN) is not an operand.
+    pub fn materialize_input(self, x: &[f64], output: &mut [f64], limits: Limits) -> Result<(), Error> {
+        let limits = physical_limits(limits);
+        let width = mul(2, self.input.heads)?;
+        let live = mul(self.input.valid_columns, width)?;
+        buffer(x.len(), mul(2, width)?, limits)?;
+        buffer(output.len(), Self::ELEMENTS, limits)?;
+        work(self.input_materialization_work()?, limits)?;
+        finite(&x[..live])?;
+        for q in 0..2 {
+            for s in 0..Self::SLOTS {
+                let t = s / 4;
+                let k = s % 4;
+                output[q * Self::SLOTS + s] = if t < self.input.valid_columns && k < self.input.heads {
+                    x[t * width + 2 * k + (t + q) % 2]
+                } else { 0.0 };
+            }
+        }
+        Ok(())
+    }
+    pub fn materialize_weight(
+        self, q: usize, a: usize, j: usize, weights: &[f64], output: &mut [f64], limits: Limits,
+    ) -> Result<(), Error> {
+        self.weight_coordinate(q, a, j, 0)?;
+        let limits = physical_limits(limits);
+        let width = mul(2, self.out.heads)?;
+        let len = mul(mul(2, self.input.heads)?, width)?;
+        buffer(weights.len(), len, limits)?;
+        buffer(output.len(), Self::SLOTS, limits)?;
+        work(self.weight_materialization_work()?, limits)?;
+        finite(&weights[..len])?;
+        for (s, value) in output[..Self::SLOTS].iter_mut().enumerate() {
+            *value = match self.weight_coordinate(q, a, j, s).expect("checked coordinates") {
+                Some((input, out)) => weights[input * width + out],
+                None => 0.0,
+            };
+        }
+        Ok(())
+    }
+    pub fn materialize_mask(self, a: usize, output: &mut [f64], limits: Limits) -> Result<(), Error> {
+        self.mask_value(a, 0)?;
+        let limits = physical_limits(limits);
+        buffer(output.len(), Self::SLOTS, limits)?;
+        work(Self::SLOTS, limits)?;
+        for (s, value) in output[..Self::SLOTS].iter_mut().enumerate() {
+            *value = if self.mask_value(a, s).expect("checked coordinates") { 1.0 } else { 0.0 };
+        }
+        Ok(())
+    }
+    pub fn materialize_bias(self, bias: &[f64], output: &mut [f64], limits: Limits) -> Result<(), Error> {
+        let limits = physical_limits(limits);
+        let len = mul(2, self.out.heads)?;
+        buffer(bias.len(), len, limits)?;
+        buffer(output.len(), Self::ELEMENTS, limits)?;
+        work(self.bias_materialization_work()?, limits)?;
+        finite(&bias[..len])?;
+        for q in 0..2 {
+            for s in 0..Self::SLOTS {
+                output[q * Self::SLOTS + s] = match self.output_coordinate(q, s).expect("checked coordinates") {
+                    Some((_, feature)) => bias[feature],
+                    None => 0.0,
+                };
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Source §4.4 / p.9 complexification control, restricted to Proposition 3.6:
 /// A is n*m upper, B is m*n lower, n divisible by even m. One diagonal per
 /// frame, independent heads. No claim about unspecified packed lower-lower

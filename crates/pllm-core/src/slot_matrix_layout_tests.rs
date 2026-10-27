@@ -1,5 +1,305 @@
 use super::*;
 
+// Proposed physical embedding only. This test interpreter uses exact integer
+// numerators, NOT ciphertexts or a CKKS numerical simulation. Expected values
+// come from separately indexed token-major X, input-major W and output bias;
+// expected contraction never calls candidate packing, decoding or staging.
+fn physical_layouts(i: usize, o: usize, tokens: usize, capacity: usize) -> (Layout, Layout) {
+    (
+        Layout::new(2, 2, 2, tokens, i / 2, capacity, Diagonal::Lower, LIMITS).unwrap(),
+        Layout::new(2, 2, 2, tokens, o / 2, capacity, Diagonal::Lower, LIMITS).unwrap(),
+    )
+}
+
+fn physical_oracle_case(iw: usize, ow: usize, tokens: usize, x: &[i64], w: &[i64], bias: &[i64]) {
+    let (input, out) = physical_layouts(iw, ow, tokens, 1);
+    let plan = block_pc_physical_plan(input, out, 4096, LIMITS).unwrap();
+    let mut expected = vec![0_i64; 2 * ow];
+    for token in 0..tokens {
+        for feature in 0..ow {
+            let mut numerator = 16 * bias[feature];
+            for inner in 0..iw {
+                numerator += x[token * iw + inner] * w[inner * ow + feature];
+            }
+            expected[token * ow + feature] = numerator;
+        }
+    }
+    let mut dense_x: Vec<f64> = x.iter().map(|v| *v as f64 / 16.0).collect();
+    dense_x[tokens * iw..].fill(f64::NAN);
+    let weights: Vec<f64> = w.iter().map(|v| *v as f64 / 16.0).collect();
+    let biases: Vec<f64> = bias.iter().map(|v| *v as f64 / 16.0).collect();
+    let mut packed = vec![SENTINEL; 8192 + 3];
+    plan.materialize_input(&dense_x, &mut packed, LIMITS).unwrap();
+    assert!(packed[8192..].iter().all(|v| *v == SENTINEL));
+    for q in 0..2 {
+        for s in 0..4096 {
+            let t = s / 4;
+            let k = s % 4;
+            let want = if t < tokens && k < iw / 2 {
+                x[t * iw + 2 * k + (t + q) % 2] as f64 / 16.0
+            } else { 0.0 };
+            assert_eq!(packed[q * 4096 + s], want);
+        }
+    }
+    for t in 0..tokens {
+        for f in 0..iw {
+            let (q, s) = plan.input_address(t, f).unwrap();
+            assert_eq!(packed[q * 4096 + s], x[t * iw + f] as f64 / 16.0);
+        }
+    }
+    let mut partial = vec![0_i64; 4096];
+    let mut masked = partial.clone();
+    let mut remainder = partial.clone();
+    let mut aligned = partial.clone();
+    let mut result = vec![0_i64; 8192];
+    let mut plain = vec![SENTINEL; 4099];
+    for stage in plan.stages() {
+        let q = stage.output_frame;
+        let a = stage.displacement;
+        match stage.op {
+            PhysicalOp::WeightProduct { input_frame: j } => {
+                if j == 0 { partial.fill(0); }
+                plan.materialize_weight(q, a, j, &weights, &mut plain, LIMITS).unwrap();
+                assert!(plain[4096..].iter().all(|v| *v == SENTINEL));
+                for s in 0..4096 {
+                    partial[s] += (packed[j * 4096 + s] * 16.0) as i64
+                        * (plain[s] * 16.0) as i64;
+                }
+            }
+            PhysicalOp::ProductSumBoundary => {} // No numerical rescale claim.
+            PhysicalOp::Mask => {
+                plan.materialize_mask(a, &mut plain, LIMITS).unwrap();
+                for s in 0..4096 {
+                    masked[s] = partial[s] * plain[s] as i64;
+                }
+                if a == 0 { aligned.copy_from_slice(&masked); }
+            }
+            PhysicalOp::SubtractMasked => {
+                for s in 0..4096 { remainder[s] = partial[s] - masked[s]; }
+            }
+            PhysicalOp::RotateMasked { shift } => {
+                masked = (0..4096).map(|s| masked[(s as i32 + shift).rem_euclid(4096) as usize]).collect();
+            }
+            PhysicalOp::RotateRemainder { shift } => {
+                remainder = (0..4096).map(|s| remainder[(s as i32 + shift).rem_euclid(4096) as usize]).collect();
+            }
+            PhysicalOp::AddAligned => {
+                for s in 0..4096 { aligned[s] = masked[s] + remainder[s]; }
+            }
+            PhysicalOp::Accumulate => {
+                for s in 0..4096 { result[q * 4096 + s] += aligned[s]; }
+            }
+        }
+    }
+    let mut bias_slots = vec![SENTINEL; 8195];
+    plan.materialize_bias(&biases, &mut bias_slots, LIMITS).unwrap();
+    assert!(bias_slots[8192..].iter().all(|v| *v == SENTINEL));
+    for q in 0..2 {
+        // Check EVERY physical lane, independently of candidate output decode.
+        for s in 0..4096 {
+            let t = s / 4;
+            let block = s % 4;
+            let feature = 2 * block + (t + q) % 2;
+            let want = if t < tokens && block < ow / 2 { expected[t * ow + feature] } else { 0 };
+            let actual = result[q * 4096 + s] + (bias_slots[q * 4096 + s] * 256.0) as i64;
+            assert_eq!(actual, want, "q={q}, slot={s}, {iw}->{ow}, tokens={tokens}");
+            let decoded = plan.output_coordinate(q, s).unwrap();
+            if t < tokens && block < ow / 2 {
+                assert_eq!(decoded, Some((t, feature)));
+                let (token, output) = decoded.unwrap();
+                assert_eq!(actual, expected[token * ow + output]);
+            } else { assert_eq!(decoded, None); }
+        }
+    }
+}
+
+#[test]
+fn physical_pc_exact_integer_asymmetric_zero_and_basis_oracles() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        for tokens in [0, 1, 2] {
+            let x = rect_integers(2 * iw, 7, 33);
+            let w = rect_integers(iw * ow, 11, 33);
+            let bias = rect_integers(ow, 13, 33);
+            physical_oracle_case(iw, ow, tokens, &x, &w, &bias);
+            physical_oracle_case(iw, ow, tokens, &vec![0; 2 * iw], &vec![0; iw * ow], &bias);
+            // Each input coordinate and both token rows; distinctive signed
+            // weights/bias catch transpose, alignment and post-alignment bias bugs.
+            for t in 0..2 {
+                for f in 0..iw {
+                    let mut basis = vec![0; 2 * iw];
+                    basis[t * iw + f] = if f % 2 == 0 { 16 } else { -16 };
+                    physical_oracle_case(iw, ow, tokens, &basis, &w, &bias);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn physical_pc_order_masks_signed_wrap_counts_and_unqualified_contract() {
+    let (input, out) = physical_layouts(4, 8, 2, 1);
+    let plan = block_pc_physical_plan(input, out, 4096, LIMITS).unwrap();
+    assert_eq!(plan.scale_status(), PhysicalScaleStatus::Unqualified);
+    assert_eq!(BlockPcPhysicalPlan::LOGICAL_REFERENCE_WORK, 224);
+    assert_eq!(BlockPcPhysicalPlan::CONSTRUCTION_WORK, 64);
+    assert_eq!(plan.input_materialization_work(), Ok(8200));
+    assert_eq!(plan.weight_materialization_work(), Ok(4128));
+    assert_eq!(plan.bias_materialization_work(), Ok(8200));
+    assert_eq!(plan.schedule(), Schedule {
+        plaintext_products: 24, output_rotations: 12,
+        rescale_after_product_sums: 8, ..Schedule::default()
+    });
+    assert_eq!(BlockPcPhysicalPlan::SIGNED_KEYS, [-3, -2, -1, 1, 2, 3]);
+    assert_eq!(BlockPcPhysicalPlan::KEY_RESIDUES, [4093, 4094, 4095, 1, 2, 3]);
+    let mut expected = Vec::new();
+    for q in 0..2 {
+        for a in 0..4 {
+            let mut ops = vec![PhysicalOp::WeightProduct { input_frame: 0 },
+                PhysicalOp::WeightProduct { input_frame: 1 }, PhysicalOp::ProductSumBoundary,
+                PhysicalOp::Mask];
+            if a > 0 {
+                ops.extend([PhysicalOp::SubtractMasked,
+                    PhysicalOp::RotateMasked { shift: (4 - a) as i32 },
+                    PhysicalOp::RotateRemainder { shift: -(a as i32) }, PhysicalOp::AddAligned]);
+            }
+            ops.push(PhysicalOp::Accumulate);
+            expected.extend(ops.into_iter().map(|op| PhysicalStage { output_frame: q, displacement: a, op }));
+            let mut mask = vec![SENTINEL; 4097];
+            plan.materialize_mask(a, &mut mask, LIMITS).unwrap();
+            for s in 0..4096 {
+                assert_eq!(mask[s], if s < 8 && (a == 0 || s % 4 >= 4 - a) { 1.0 } else { 0.0 });
+            }
+            assert_eq!(mask[4096], SENTINEL);
+            if a > 0 {
+                // One-hot probes include signed cyclic wrap and physical tail;
+                // rotation convention is source=destination+signed shift.
+                for source in [0_usize, 3, 4, 7, 8, 4095] {
+                    for shift in [-(a as i32), (4 - a) as i32] {
+                        let destination = (source as i32 - shift).rem_euclid(4096) as usize;
+                        assert_eq!((destination as i32 + shift).rem_euclid(4096) as usize, source);
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(plan.stages(), expected.as_slice());
+}
+
+#[test]
+fn physical_pc_geometry_caps_invalid_addresses_and_overflow() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        let (input, out) = physical_layouts(iw, ow, 2, 2);
+        // Logical capacity two stays valid and retains its full virtual count.
+        assert_eq!(rectangular_block_pc_schedule(input, out).unwrap().plaintext_products, 12);
+        assert!(matches!(block_pc_physical_plan(input, out, 4096, LIMITS), Err(Error::Geometry)));
+        let (input, out) = physical_layouts(iw, ow, 2, 1);
+        for slots in [0, 8, 2048, 8192, usize::MAX] {
+            assert!(matches!(block_pc_physical_plan(input, out, slots, LIMITS), Err(Error::Geometry)));
+        }
+        let plan = block_pc_physical_plan(input, out, 4096, LIMITS).unwrap();
+        assert_eq!(plan.input_address(2, 0), Err(Error::Geometry));
+        assert_eq!(plan.input_address(0, iw), Err(Error::Geometry));
+        assert_eq!(plan.output_coordinate(2, 0), Err(Error::Geometry));
+        assert_eq!(plan.output_coordinate(0, 4096), Err(Error::Geometry));
+        assert_eq!(plan.weight_coordinate(0, 4, 0, 0), Err(Error::Geometry));
+        assert_eq!(plan.weight_coordinate(0, 0, 2, 0), Err(Error::Geometry));
+        assert_eq!(plan.mask_value(usize::MAX, 0), Err(Error::Geometry));
+        assert!(matches!(block_pc_physical_plan(input, out, 4096,
+            Limits { max_work: 63, ..LIMITS }), Err(Error::WorkLimit)));
+        assert!(matches!(block_pc_physical_plan(input, out, 4096,
+            Limits { max_buffer_elements: 8191, ..LIMITS }), Err(Error::Buffer)));
+    }
+    let huge = Limits { max_buffer_elements: usize::MAX, max_work: usize::MAX };
+    assert_eq!(Layout::new(2, 2, 2, 2, usize::MAX, 1, Diagonal::Lower, huge), Err(Error::Overflow));
+    assert_eq!(mul(usize::MAX, 2), Err(Error::Overflow));
+    assert_eq!(add(usize::MAX, 1), Err(Error::Overflow));
+    let (input, _) = physical_layouts(4, 8, 2, 1);
+    assert!(matches!(block_pc_physical_plan(input, input, 4096, LIMITS), Err(Error::Geometry)));
+}
+
+#[test]
+fn physical_pc_logical_capacity_one_and_two_keep_independent_dense_identity() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        for capacity in [1, 2] {
+            for tokens in [0, 1, 2] {
+                let (input, out) = physical_layouts(iw, ow, tokens, capacity);
+                let x = rect_integers(2 * iw, 7, 33);
+                let w = rect_integers(iw * ow, 11, 33);
+                let mut transposed_x = vec![0; 2 * iw];
+                let mut transposed_w = vec![0.0; iw * ow];
+                for f in 0..iw {
+                    for t in 0..2 { transposed_x[f * 2 + t] = x[t * iw + f]; }
+                    for o in 0..ow { transposed_w[o * iw + f] = w[f * ow + o] as f64; }
+                }
+                let mut output = vec![SENTINEL; out.elements() + 3];
+                rectangular_block_pc_mm(input, &transposed_w,
+                    &rect_slots(2, iw / 2, capacity, tokens, &transposed_x),
+                    out, &mut output, LIMITS).unwrap();
+                let mut expected = vec![0_i64; ow * 2];
+                for t in 0..tokens {
+                    for o in 0..ow {
+                        for f in 0..iw { expected[o * 2 + t] += x[t * iw + f] * w[f * ow + o]; }
+                    }
+                }
+                rect_assert_slots(2, ow / 2, capacity, &output, &expected);
+                if capacity == 2 {
+                    assert!(matches!(block_pc_physical_plan(input, out, 4096, LIMITS), Err(Error::Geometry)));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn physical_pc_materialization_prewrite_atomicity_and_work_one_short() {
+    let (input, out) = physical_layouts(4, 8, 2, 1);
+    let plan = block_pc_physical_plan(input, out, 4096, LIMITS).unwrap();
+    let mut destination = vec![SENTINEL; 8195];
+    let unchanged = destination.clone();
+    let x = vec![0.0; 8];
+    let w = vec![0.0; 32];
+    let b = vec![0.0; 8];
+    for short in [0, 8191] {
+        assert_eq!(plan.materialize_input(&x, &mut destination[..short], LIMITS), Err(Error::Buffer));
+        assert_eq!(plan.materialize_bias(&b, &mut destination[..short], LIMITS), Err(Error::Buffer));
+    }
+    assert_eq!(plan.materialize_input(&x[..7], &mut destination, LIMITS), Err(Error::Buffer));
+    assert_eq!(plan.materialize_weight(0, 0, 0, &w[..31], &mut destination, LIMITS), Err(Error::Buffer));
+    assert_eq!(plan.materialize_bias(&b[..7], &mut destination, LIMITS), Err(Error::Buffer));
+    assert_eq!(plan.materialize_weight(2, 0, 0, &w, &mut destination, LIMITS), Err(Error::Geometry));
+    assert_eq!(plan.materialize_mask(4, &mut destination, LIMITS), Err(Error::Geometry));
+    assert_eq!(plan.materialize_mask(0, &mut destination[..4095], LIMITS), Err(Error::Buffer));
+    assert_eq!(plan.materialize_weight(0, 0, 0, &w, &mut destination[..4095], LIMITS), Err(Error::Buffer));
+    assert_eq!(plan.materialize_input(&x, &mut destination,
+        Limits { max_work: plan.input_materialization_work().unwrap() - 1, ..LIMITS }), Err(Error::WorkLimit));
+    assert_eq!(plan.materialize_weight(0, 0, 0, &w, &mut destination,
+        Limits { max_work: plan.weight_materialization_work().unwrap() - 1, ..LIMITS }), Err(Error::WorkLimit));
+    assert_eq!(plan.materialize_bias(&b, &mut destination,
+        Limits { max_work: plan.bias_materialization_work().unwrap() - 1, ..LIMITS }), Err(Error::WorkLimit));
+    assert_eq!(plan.materialize_mask(0, &mut destination,
+        Limits { max_work: 4095, ..LIMITS }), Err(Error::WorkLimit));
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        let mut bad_x = x.clone(); bad_x[7] = bad;
+        let mut bad_w = w.clone(); bad_w[31] = bad;
+        let mut bad_b = b.clone(); bad_b[7] = bad;
+        assert_eq!(plan.materialize_input(&bad_x, &mut destination, LIMITS), Err(Error::NonFinite));
+        assert_eq!(plan.materialize_weight(0, 0, 0, &bad_w, &mut destination, LIMITS), Err(Error::NonFinite));
+        assert_eq!(plan.materialize_bias(&bad_b, &mut destination, LIMITS), Err(Error::NonFinite));
+    }
+    assert_eq!(plan.materialize_mask(0, &mut destination,
+        Limits { max_buffer_elements: 8194, ..LIMITS }), Err(Error::Buffer));
+    assert_eq!(destination, unchanged);
+    // Exact budgets succeed; no hidden use of the logical work=224 quote.
+    plan.materialize_input(&x, &mut destination,
+        Limits { max_work: plan.input_materialization_work().unwrap(), ..LIMITS }).unwrap();
+    plan.materialize_weight(0, 0, 0, &w, &mut destination,
+        Limits { max_work: plan.weight_materialization_work().unwrap(), ..LIMITS }).unwrap();
+    plan.materialize_bias(&b, &mut destination,
+        Limits { max_work: plan.bias_materialization_work().unwrap(), ..LIMITS }).unwrap();
+    plan.materialize_mask(0, &mut destination, Limits { max_work: 4096, ..LIMITS }).unwrap();
+    assert!(destination[8192..].iter().all(|v| *v == SENTINEL));
+}
+
 // Rectangular oracle: signed modular integer fixtures, ordinary integer dense
 // contraction (no modular reduction of results). No candidate/layout indexing.
 fn rect_integers(n: usize, factor: usize, modulus: usize) -> Vec<i64> {
