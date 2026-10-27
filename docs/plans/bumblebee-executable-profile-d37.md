@@ -185,6 +185,36 @@ endpoint behavior are **P**; the interval/coefficient list alone does not define
 them. The wide four-segment GeLU and its Eq.(2)/Alg.3 epsilon discrepancy are
 excluded. No ±3 or artifact SiLU path is implicitly enabled.
 
+**Independent printed-literal checks:** 2 isolated pure tests passed, covering
+seven literal subcases and two toward-zero controls; no protocol/profile
+qualification.
+`BumblebeePrintedLiteralTests` in
+[`tests/test_sigma_exp_floor_oracle.py`](../../tests/test_sigma_exp_floor_oracle.py)
+is separately named literal arithmetic coverage, **not SIGMA or BumbleBee
+protocol coverage**. It reuses `rational_reference()` and the unchanged
+`paper/reproduction-contracts/fusefss/gate-set/reference.py:certified_floor`.
+For each decimal string, `s=Fraction(text)*2**f` is checked with
+`certified_floor(s,s)` against an independently hardcoded integer `k`, and with
+the independent integer certificate `k*den <= num*2**f < (k+1)*den`:
+
+| Printed literal | f | k |
+| --- | --- | --- |
+| -2.7 | 12 | -11060 |
+| +2.7 | 12 | 11059 |
+| c0 = 0.001620808531841547 | 24 | 27192 |
+| c1 = -0.03798164612714154 | 12 | -156 |
+| c2 = 0.5410550166368381 | 12 | 2216 |
+| c3 = -0.18352506127082727 | 12 | -752 |
+| c4 = 0.020848611754127593 | 12 | 85 |
+
+Negative integer toward-zero controls are -155/-751 for c1/c3; no binary-float
+oracle is used. Source citations remain final §II.B and §V.C/App.D, under the
+final-PDF hash recorded above. The printed strings are source facts; their
+**exact-decimal interpretation and Q24 accumulation placement remain D37
+interpretations, not author-evaluated encoding**. Protected endpoint branch
+membership remains **UNRESOLVED**. These checks adopt no profile, predicates,
+T/cast/order/extension/tail choices and supply no new author-source evidence.
+
 Required range records cover mixed entry/exit, pivot differences, the safe core
 including quantization/pivot slack, every error-bearing power, each signed
 coefficient product and the **partial Q24 accumulation**, not only the selected

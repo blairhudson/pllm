@@ -114,5 +114,42 @@ class SigmaExpFloorOracleTests(unittest.TestCase):
             reference.certified_floor(Fraction(4095, 4096), Fraction(1))
 
 
+class BumblebeePrintedLiteralTests(unittest.TestCase):
+    """D37 exact-decimal interpretation only; not SIGMA/protocol coverage."""
+
+    def test_printed_decimal_floors_have_independent_integer_certificates(self):
+        reference = rational_reference()
+        # Printed strings and independent integer ratios/floors; no float oracle.
+        cases = (
+            ("lower pivot", "-2.7", -27, 10, 12, -11060),
+            ("upper pivot", "2.7", 27, 10, 12, 11059),
+            ("c0", "0.001620808531841547", 1620808531841547, 10**18, 24, 27192),
+            ("c1", "-0.03798164612714154", -3798164612714154, 10**17, 12, -156),
+            ("c2", "0.5410550166368381", 5410550166368381, 10**16, 12, 2216),
+            ("c3", "-0.18352506127082727", -18352506127082727, 10**17, 12, -752),
+            ("c4", "0.020848611754127593", 20848611754127593, 10**18, 12, 85),
+        )
+        for name, text, num, den, f, k in cases:
+            with self.subTest(literal=name, fractional=f):
+                value = Fraction(text)
+                self.assertEqual(value, Fraction(num, den))
+                s = value * 2**f
+                self.assertEqual(reference.certified_floor(s, s), k)
+                self.assertLessEqual(k * den, num * 2**f)
+                self.assertLess(num * 2**f, (k + 1) * den)
+
+    def test_negative_floor_is_not_toward_zero_integer_control(self):
+        reference = rational_reference()
+        for name, text, floor, toward_zero in (
+            ("c1", "-0.03798164612714154", -156, -155),
+            ("c3", "-0.18352506127082727", -752, -751),
+        ):
+            with self.subTest(literal=name):
+                s = Fraction(text) * 2**12
+                self.assertEqual(int(s), toward_zero)
+                self.assertEqual(reference.certified_floor(s, s), floor)
+                self.assertNotEqual(floor, toward_zero)
+
+
 if __name__ == "__main__":
     unittest.main()
