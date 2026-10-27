@@ -1415,6 +1415,112 @@ outputs; no global rand/unbiased feature toggle may change default Source.
 D48 Layout and Main pins remain unchanged; no 600-second/8-GiB execution-plan
 adoption, new HE packet, model/FSS run or readiness claim follows.
 
+## D54. Fail-closed asynchronous request cleanup
+
+**Historical approval (user63343, selected “Fail closed”):** implement request-bound
+asynchronous ownership repair, not resumable cleanup. A cleanup failure retains
+the request's prepared owner, references and busy state, keeps its lease
+unavailable, preserves the cleanup error, and permits no automatic retry or
+reservation refund. Capture the request-owner handoff for exactly-once retirement;
+bind cleanup to the exact postactivation core and request identities and drain
+abort/accept work before identity-checked release. Closing an asynchronous
+stream that never began must still retain cleanup ownership rather than silently
+releasing the request.
+
+The production fix assigned to worker C is **not qualified** by this decision.
+Failure, cancellation, stream-close and identity/retention checks remain required;
+native reruns require a separate grant. No matching-wheel result, retry permission, SDK activation or completed
+cleanup claim is inferred. Existing resource ceilings and other lifecycle gates
+remain unchanged.
+
+## D55. Format-neutral authenticated raw source binding to CLEAR
+
+**Historical approval (user63360, selected “Approve raw binding”):** implement generic sealed
+source/import ownership for authenticated raw FP8/BF16 binding to the CLEAR adapter,
+limited to the selected D31/D32 map. Require independent trusted-commitment
+premises, verification of the exact E4M3FN/BF16 bytes and 128×128 block-scale
+geometry, and sealed semantic, source, request and producer-BF16 custody. Basic
+codec correctness or a byte quote alone grants neither publication authority nor
+authentication of a real publisher.
+
+Reuse existing primitives, source-ledger admission and opaque ownership. Preserve
+D31/D32 arithmetic, numerical caps, source weights, work-count definitions and
+resource ceilings. Existing F32-to-Q18 import, source identities and default legacy
+behavior remain unchanged: source-owned raw binding must not reinterpret stored
+Q18 bytes. Require a genuine producer-BF16 input owner; reject BF16-only
+substitution and forged or reconstructed owners. A BF16-only checkpoint is not
+converted to FP8 under this approval.
+
+Raw-source payload inventory, head ties, sealed custody, tests and independent
+qualification remain gates, not established facts. This authorizes implementation,
+not checkpoint body/payload reads, trained-checkpoint execution, protected execution,
+privacy, SDK activation or a cap increase. No quality, security, no-wrap or
+paper-fidelity claim follows. This records no geometry/getter decision and changes
+none of the prior source-pinned mask decisions or recorded privacy failures.
+Raw-prefix logical HOLD, missing full CLEAR MPC, unresolved paper-fidelity and
+payload-validation gates, and unrun matching-wheel validation remain unchanged.
+
+### Amendment: independently provisioned expected-file authority
+
+**Historical approval (user63459, selected “Approve host pin input”):** the existing admitted
+host-side source-header path may receive separately provisioned immutable
+expected-files/inventory, bound to original custody. Payloads and worker messages
+must not supply or replace these expectations; absent independent authority, the
+path refuses. Conditional pin integrity is not publisher authentication.
+
+Complete-file verification must precede tensor subrange exposure in the same
+immutable backing. The selected shard1 is **4,412,140,424 bytes**, exceeding
+`PublicFile`'s `MAX_BYTES` (**4,294,967,296 bytes**). The current whole-file route
+must refuse this shard; no bypass, segmentation or cap change is authorized.
+
+This amendment authorizes source implementation and synthetic test authoring
+only, not test execution, builds, payload reads or SDK activation. Existing Q18
+behavior and all caps remain unchanged. Bounded registration is conditional on
+Maverick's interface freeze and handoff, with exact source ownership assigned
+before implementation proceeds; it is not permission to bypass that dependency.
+
+## D56. Bounded NEXUS dual-key clear algebra
+
+**Historical approval (user65755, selected “NEXUS dual-key algebra”):** source and test
+authoring for `N-DK-CLEAR`: deterministic caller-buffered exact-ring Appendix B
+add/remove-key algebra and projection identity with explicit noise polynomials.
+Reuse `CoefficientRing` and compression; require independent negacyclic and dense
+clear oracles under unchanged limits. The proposed
+`commutable_projection_reference.rs` is a clear reference, not a backend profile.
+
+Independent review precedes any execution. No sampling, ciphertexts, encrypted
+backend, trained execution, security authority, backend adoption or increased
+limits are authorized; source authoring does not establish paper completion.
+
+## D57. Bounded THOR rectangular PC-MM
+
+**Historical approval (user65755, selected “THOR rectangular matrix”):** source and test
+authoring for `T-PC-RECT`, clear rectangular Algorithm 1 PC-MM. Reuse `Layout`,
+packing, order, padding and D25 routing; preserve the square API. Require bounded
+independent 4→8→4 tests within existing ceilings, with review before execution.
+
+No nonlinear operation, refresh, profile adoption, full-size BERT, compiler FFN
+expansion, runtime, trained or HE execution is authorized. Native exact-slot
+execution requires a separate grant. Limits and backend-adoption gates remain
+unchanged; this decision establishes no complete-method result.
+
+## D58. Separately labelled small FuseFSS source cohort
+
+**Historical approval (user65755, selected “FuseFSS small-source cohort”):** plan and author
+weights-free source/tokenizer-count tests for a separately labelled cached
+`HuggingFaceTB/SmolLM2-135M-Instruct` cohort at
+`12fd25f77366fa6b3b4b768ec3050bf629380bac`. Astra must freeze an explicit
+source-template/BOS/generation-preserving request, for example system `Hi`, user
+`hello`. The actual count is unknown and has not been run: require sequence
+length ≤16 and `row + outputs - 1 ≤ 16`, preserving the 64 MiB native and 32 GiB
+tape ceilings. Count alone is not complete admission; a runtime count command
+requires a later bounded, exact parent grant.
+
+This cohort neither replaces the Qwen comparison nor authenticates the source
+checkpoint. No tensor/body reads, native program, RNG, inventory, tape or trained
+run, HE execution, backend adoption or increased limits are authorized. Preserve
+historical cohorts; no execution or paper-completion claim follows.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1472,6 +1578,11 @@ adoption, new HE packet, model/FSS run or readiness claim follows.
 | D51 | Approved: source-bound prompt preparation correction | One private source/request/template/tokenizer-bound, one-use result shared by admission/execution and the same weights-free direct-client renderer; absent-template admission fallback only, present-template/errors refuse. Intentional 3-to-30-token Qwen ChatML semantic correction, not parity/cohort reuse; historical legacy reports stay unranked. Pure weights-free tests first; user61768 additionally permits separately scheduled matching-wheel/generated SDK/gateway regressions with independent corrected-prompt oracles. No trained/source-model loading or new fit/security/readiness qualification. |
 | D52 | Approved: registered decoder readout-summary correction | Typed proven last-token readout uses [B,V], not fictitious full-prefix logits; retain all other full-prefix shapes and unchanged lane/memory/descriptor/work guards. Symbolic shape parity plus trapped 30/31-row metadata quotes required; no execution/arithmetic/PRSS/profile/pin change or whole-request/checkpoint/runtime-fit claim. |
 | D53 | Approved: unbiased rejection design only | Future bounded fallible law, public failure budget and typed exhaustion/burn without biased fallback require review and separate implementation approval. Preserve legacy outputs/pins; no implementation, tests/keys/encrypted execution, version/backend adoption or security qualification authorized. |
+| D54 | Approved: fail-closed asynchronous cleanup | Historical user63343 selection: retain failed request owner/references/busy state, unavailable lease and cleanup error; no automatic retry/refund. Captured request-owner handoff, exactly-once retirement, exact core/request identity and drain-before-release required. Fix remains unqualified; native rerun needs separate grant. |
+| D55 | Approved: format-neutral authenticated raw source-to-CLEAR binding | Historical user63360 selection: D31/D32 only, exact FP8/BF16/scales, independent commitments and genuine semantic/source/request/producer-BF16 custody; reject BF16-only substitution and forged/reconstructed owners. Legacy Q18 unchanged. User63459 amendment permits immutable independent host pins and bounded registration after Maverick freeze/handoff; missing authority or oversized whole-file route refuses. Conditional pin integrity is not publisher authentication. Raw-prefix HOLD, missing full CLEAR MPC, payload/paper-fidelity gates and unrun wheel validation remain; no payload/model/protected/SDK execution, cap increase or qualification claim. |
+| D56 | Approved: bounded NEXUS dual-key clear algebra source authoring | Caller-buffered exact-ring Appendix B add/remove-key and projection identity with explicit noise polynomials, shared ring/compression and independent clear oracles; review before execution, no sampling/encrypted backend/trained/security authority or increased limits. |
+| D57 | Approved: bounded THOR rectangular PC-MM source authoring | Clear Algorithm 1, shared Layout/packing/order/padding/D25 routing, stable square API and independent 4→8→4 tests within existing ceilings; no runtime/HE/trained execution, profile or backend adoption, FFN expansion or cap increase. |
+| D58 | Approved: separately labelled small FuseFSS source-cohort planning/authoring | Pinned cached SmolLM2-135M-Instruct, explicit request/template/BOS/generation freeze and weights-free count tests; actual count unknown, sequence and row/output bounds ≤16, unchanged native/tape caps. Count command needs separate exact grant; no Qwen replacement, checkpoint authentication, body/native/RNG/tape/trained/HE execution or backend adoption. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
