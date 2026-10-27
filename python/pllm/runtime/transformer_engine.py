@@ -1539,10 +1539,11 @@ class MaskedTransformerEngine:
         eos_value = config.get("eos_token_id", 1)
         if isinstance(eos_value, list):
             eos_value = eos_value[0] if eos_value else 1
+        bos_value = config.get("bos_token_id", 2)
         common = {
             "vocab_size": manifest.vocab_size,
-            "bos_token_id": int(config.get("bos_token_id", 2) or 2),
-            "eos_token_id": int(eos_value or 1),
+            "bos_token_id": int(2 if bos_value is None else bos_value),
+            "eos_token_id": int(1 if eos_value is None else eos_value),
             "chat_template": tokenizer_config.get("chat_template") or manifest.chat_template,
             "bos_token": tokenizer_config.get("bos_token", ""),
             "eos_token": tokenizer_config.get("eos_token", ""),

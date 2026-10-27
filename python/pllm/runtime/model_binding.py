@@ -1169,8 +1169,8 @@ def _tokenizer_digest(descriptor: Any, runtime_config: dict[str, Any]) -> str:
     ):
         raise RuntimeBindingError("tokenizer vocabulary does not match the model config")
     expected = {
-        "bos_token_id": int(runtime_config["bos_token_id"] or 2),
-        "eos_token_id": int(runtime_config["eos_token_id"] or 1),
+        "bos_token_id": int(2 if runtime_config["bos_token_id"] is None else runtime_config["bos_token_id"]),
+        "eos_token_id": int(1 if runtime_config["eos_token_id"] is None else runtime_config["eos_token_id"]),
     }
     for key, wanted in expected.items():
         present = descriptor.get(key)
