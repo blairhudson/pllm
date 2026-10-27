@@ -3,6 +3,7 @@
 use super::*;
 use std::cell::Cell;
 use std::rc::Rc;
+use std::sync::{Mutex, MutexGuard};
 
 fn begin() -> SourceHeaderEntry {
     let config = br#"{"model_type":"qwen2","hidden_size":2,"intermediate_size":2,"num_hidden_layers":1,"num_attention_heads":1,"num_key_value_heads":1,"vocab_size":3,"max_position_embeddings":16,"rms_norm_eps":0.000001,"hidden_act":"silu","tie_word_embeddings":false,"attention_bias":false,"rope_theta":10000.0}"#;
@@ -87,22 +88,42 @@ struct PayloadDrop {
 
 struct DropTrace {
     counter: OwnedBudget,
-    next: Cell<usize>,
-    covering_lease_live: Cell<bool>,
-    header_live: Cell<bool>,
-    payload: Cell<Option<PayloadDrop>>,
-    lease_retiring_at: Cell<Option<usize>>,
-    header_retiring_at: Cell<Option<usize>>,
-    before_guard_used: Cell<Option<usize>>,
-    at_header_used: Cell<Option<usize>>,
-    after_guard_used: Cell<Option<usize>>,
-    lease_retired_at: Cell<Option<usize>>,
+    state: Mutex<DropTraceState>,
+}
+#[derive(Clone, Copy)]
+struct DropTraceState {
+    next: usize,
+    covering_lease_live: bool,
+    header_live: bool,
+    payload: Option<PayloadDrop>,
+    lease_retiring_at: Option<usize>,
+    header_retiring_at: Option<usize>,
+    before_guard_used: Option<usize>,
+    at_header_used: Option<usize>,
+    after_guard_used: Option<usize>,
+    lease_retired_at: Option<usize>,
+}
+impl DropTraceState {
+    fn tick(&mut self) -> usize {
+        let at = self.next;
+        self.next = at + 1;
+        at
+    }
 }
 impl DropTrace {
+    fn lock(&self) -> MutexGuard<'_, DropTraceState> {
+        // Observation-only state: a prior failed assertion must not introduce a
+        // poison panic in a destructor and mask the original error/unwind.
+        // No guard escapes an observation or spans owner/lease destruction.
+        self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn snapshot(&self) -> DropTraceState {
+        *self.lock()
+    }
+
     fn tick(&self) -> usize {
-        let at = self.next.get();
-        self.next.set(at + 1);
-        at
+        self.lock().tick()
     }
 }
 
@@ -118,25 +139,27 @@ enum ProbeKind {
 /// guard's destructor cannot have begun. Ingress moves it with the actual guard,
 /// not with the replacement zero lease. No aggregate budget inequality is used.
 pub(super) struct DropProbe {
-    trace: Rc<DropTrace>,
+    trace: Arc<DropTrace>,
     kind: ProbeKind,
 }
 impl Drop for DropProbe {
     fn drop(&mut self) {
+        let used = self.trace.counter.budget().used_bytes();
+        let mut trace = self.trace.lock();
         match self.kind {
             ProbeKind::Header => {
-                self.trace.at_header_used.set(Some(self.trace.counter.budget().used_bytes()));
-                assert!(self.trace.header_live.replace(false));
-                self.trace.header_retiring_at.set(Some(self.trace.tick()));
+                trace.at_header_used = Some(used);
+                assert!(std::mem::replace(&mut trace.header_live, false));
+                trace.header_retiring_at = Some(trace.tick());
             }
             ProbeKind::CoveringLease => {
-                self.trace.before_guard_used.set(Some(self.trace.counter.budget().used_bytes()));
-                assert!(self.trace.covering_lease_live.replace(false));
-                self.trace.lease_retiring_at.set(Some(self.trace.tick()));
+                trace.before_guard_used = Some(used);
+                assert!(std::mem::replace(&mut trace.covering_lease_live, false));
+                trace.lease_retiring_at = Some(trace.tick());
             }
             ProbeKind::AfterCoveringLease => {
-                self.trace.after_guard_used.set(Some(self.trace.counter.budget().used_bytes()));
-                self.trace.lease_retired_at.set(Some(self.trace.tick()));
+                trace.after_guard_used = Some(used);
+                trace.lease_retired_at = Some(trace.tick());
             }
         }
     }
@@ -144,40 +167,44 @@ impl Drop for DropProbe {
 
 struct Observe {
     directory: std::sync::Weak<snapshot_directory::OwnedSnapshotDirectory>,
-    trace: Rc<DropTrace>,
+    trace: Arc<DropTrace>,
 }
 impl Drop for Observe {
     fn drop(&mut self) {
-        assert!(self.trace.payload.get().is_none());
-        self.trace.payload.set(Some(PayloadDrop {
-            at: self.trace.tick(),
-            covering_lease_live: self.trace.covering_lease_live.get(),
-            header_live: self.trace.header_live.get(),
-            directory_live: self.directory.upgrade().is_some(),
-        }));
+        let directory_live = self.directory.upgrade().is_some();
+        let mut trace = self.trace.lock();
+        assert!(trace.payload.is_none());
+        trace.payload = Some(PayloadDrop {
+            at: trace.tick(),
+            covering_lease_live: trace.covering_lease_live,
+            header_live: trace.header_live,
+            directory_live,
+        });
     }
 }
 
-fn observed() -> (SourceCollector<Observe>, OwnedBudget, Rc<DropTrace>) {
+fn observed() -> (SourceCollector<Observe>, OwnedBudget, Arc<DropTrace>) {
     let mut header = begin();
     let counter = header.root.try_clone().unwrap();
     let directory = Arc::downgrade(header.directory());
-    let trace = Rc::new(DropTrace {
+    let trace = Arc::new(DropTrace {
         counter: counter.try_clone().unwrap(),
-        next: Cell::new(0),
-        covering_lease_live: Cell::new(true),
-        header_live: Cell::new(true),
-        payload: Cell::new(None),
-        lease_retiring_at: Cell::new(None),
-        header_retiring_at: Cell::new(None),
-        before_guard_used: Cell::new(None),
-        at_header_used: Cell::new(None),
-        after_guard_used: Cell::new(None),
-        lease_retired_at: Cell::new(None),
+        state: Mutex::new(DropTraceState {
+            next: 0,
+            covering_lease_live: true,
+            header_live: true,
+            payload: None,
+            lease_retiring_at: None,
+            header_retiring_at: None,
+            before_guard_used: None,
+            at_header_used: None,
+            after_guard_used: None,
+            lease_retired_at: None,
+        }),
     });
-    header.header_drop_probe = Some(DropProbe { trace: Rc::clone(&trace), kind: ProbeKind::Header });
-    header.collection_drop_probe = Some(DropProbe { trace: Rc::clone(&trace), kind: ProbeKind::CoveringLease });
-    let observed = Rc::clone(&trace);
+    header.header_drop_probe = Some(DropProbe { trace: Arc::clone(&trace), kind: ProbeKind::Header });
+    header.collection_drop_probe = Some(DropProbe { trace: Arc::clone(&trace), kind: ProbeKind::CoveringLease });
+    let observed = Arc::clone(&trace);
     let collector = header.collect(1024, 4096, 1, |_, _| Ok(Observe {
         directory, trace: observed,
     })).unwrap();
@@ -186,10 +213,11 @@ fn observed() -> (SourceCollector<Observe>, OwnedBudget, Rc<DropTrace>) {
 }
 
 fn assert_payload_preceded_covering_guard(trace: &DropTrace) -> PayloadDrop {
-    let payload = trace.payload.get().expect("payload destructor was observed");
+    let trace = trace.snapshot();
+    let payload = trace.payload.expect("payload destructor was observed");
     assert!(payload.covering_lease_live, "exact covering guard must still be LIVE");
-    assert!(payload.at < trace.lease_retiring_at.get().unwrap());
-    assert!(!trace.covering_lease_live.get());
+    assert!(payload.at < trace.lease_retiring_at.unwrap());
+    assert!(!trace.covering_lease_live);
     payload
 }
 
@@ -205,7 +233,7 @@ fn handoff_refusal_drops_payload_before_header_and_original_lease() {
     assert!(payload.header_live);
     // Header's first-field witness has not retired when payload runs; its
     // controller/charges are later fields and therefore have not retired either.
-    assert!(payload.at < trace.header_retiring_at.get().unwrap());
+    assert!(payload.at < trace.snapshot().header_retiring_at.unwrap());
     drop(outside);
 }
 
@@ -215,7 +243,7 @@ fn capsule_only_unwind_drops_payload_before_header_and_original_lease() {
     let retained = collector.into_retained().unwrap();
     assert!(retained.retained.charge.is_for(counter.budget()));
     assert!(retained.retained.charge_drop_probe.is_some());
-    assert!(Rc::ptr_eq(&retained.retained.charge_drop_probe.as_ref().unwrap().trace, &trace));
+    assert!(Arc::ptr_eq(&retained.retained.charge_drop_probe.as_ref().unwrap().trace, &trace));
     assert!(retained.header.collection_drop_probe.is_none());
     assert_eq!(retained.header.collection_charge.payload_bytes(), 0);
     let exact_covering_charge = retained.retained.charge.charged_bytes();
@@ -227,13 +255,14 @@ fn capsule_only_unwind_drops_payload_before_header_and_original_lease() {
     let payload = assert_payload_preceded_covering_guard(&trace);
     assert!(payload.directory_live);
     assert!(payload.header_live);
-    assert!(payload.at < trace.header_retiring_at.get().unwrap());
-    assert!(trace.lease_retiring_at.get().unwrap() < trace.header_retiring_at.get().unwrap());
+    let trace = trace.snapshot();
+    assert!(payload.at < trace.header_retiring_at.unwrap());
+    assert!(trace.lease_retiring_at.unwrap() < trace.header_retiring_at.unwrap());
     // These probes are adjacent to the one actual guard: PayloadLease's last
     // field drops, then the header's first-field probe runs. No header fields,
     // controller or other reservations retire between these two observations.
     assert_eq!(
-        trace.before_guard_used.get().unwrap().checked_sub(trace.at_header_used.get().unwrap()),
+        trace.before_guard_used.unwrap().checked_sub(trace.at_header_used.unwrap()),
         Some(exact_covering_charge),
     );
 }
@@ -254,7 +283,7 @@ fn real_finish_pre_feed_failure_retains_lease_not_header_until_payload_drop() {
     let payload = assert_payload_preceded_covering_guard(&trace);
     assert!(!payload.header_live, "ordinary finish does not retain the header capsule on error");
     assert!(!payload.directory_live, "this test payload owns no directory reference");
-    assert!(trace.header_retiring_at.get().unwrap() < payload.at);
+    assert!(trace.snapshot().header_retiring_at.unwrap() < payload.at);
     // Actual Collection retains its own directory. That separate ownership is
     // not a guarantee that future projection outputs retain header/controller.
 }
@@ -279,7 +308,7 @@ struct PendingAllocations {
 
 struct RealFeedState {
     fault: FeedFault,
-    trace: std::cell::RefCell<Option<Rc<DropTrace>>>,
+    trace: std::cell::RefCell<Option<Arc<DropTrace>>>,
     norm_names: std::cell::RefCell<std::collections::BTreeSet<String>>,
     reached: Cell<bool>,
     allocations: Cell<Option<PendingAllocations>>,
@@ -362,20 +391,22 @@ pub(in crate::replicated_decoder) fn observe_real_collector<T>(owner: &mut Sourc
         let state = slot.borrow().as_ref().map(Rc::clone);
         let Some(state) = state else { return };
         assert!(state.trace.borrow().is_none(), "one real collector per fixture");
-        let trace = Rc::new(DropTrace {
+        let trace = Arc::new(DropTrace {
             // This real same-counter handle's control charge stays in both sides
             // of every measured baseline; it is not free capacity or a new root.
             counter: owner.header.clone_collection_budget().unwrap(),
-            next: Cell::new(0),
-            covering_lease_live: Cell::new(true),
-            header_live: Cell::new(true),
-            payload: Cell::new(None),
-            lease_retiring_at: Cell::new(None),
-            header_retiring_at: Cell::new(None),
-            before_guard_used: Cell::new(None),
-            at_header_used: Cell::new(None),
-            after_guard_used: Cell::new(None),
-            lease_retired_at: Cell::new(None),
+            state: Mutex::new(DropTraceState {
+                next: 0,
+                covering_lease_live: true,
+                header_live: true,
+                payload: None,
+                lease_retiring_at: None,
+                header_retiring_at: None,
+                before_guard_used: None,
+                at_header_used: None,
+                after_guard_used: None,
+                lease_retired_at: None,
+            }),
         });
         let names = owner.header.original.plan().prefill.operations.iter()
             .filter(|op| op.operator == pllm_models::ModelOperator::RmsNorm)
@@ -383,9 +414,9 @@ pub(in crate::replicated_decoder) fn observe_real_collector<T>(owner: &mut Sourc
             .collect();
         *state.norm_names.borrow_mut() = names;
         *state.directory.borrow_mut() = Some(Arc::downgrade(owner.header.directory()));
-        owner.header.header_drop_probe = Some(DropProbe { trace: Rc::clone(&trace), kind: ProbeKind::Header });
-        owner.header.collection_drop_probe = Some(DropProbe { trace: Rc::clone(&trace), kind: ProbeKind::CoveringLease });
-        owner.header.collection_after_drop_probe = Some(DropProbe { trace: Rc::clone(&trace), kind: ProbeKind::AfterCoveringLease });
+        owner.header.header_drop_probe = Some(DropProbe { trace: Arc::clone(&trace), kind: ProbeKind::Header });
+        owner.header.collection_drop_probe = Some(DropProbe { trace: Arc::clone(&trace), kind: ProbeKind::CoveringLease });
+        owner.header.collection_after_drop_probe = Some(DropProbe { trace: Arc::clone(&trace), kind: ProbeKind::AfterCoveringLease });
         *state.trace.borrow_mut() = Some(trace);
     });
 }
@@ -480,15 +511,18 @@ pub(in crate::replicated_decoder) fn observe_real_payload_drop(
     state.dropped_snapshot_heap.set(Some(heap));
     let trace = state.trace.borrow();
     let trace = trace.as_ref().unwrap();
-    assert!(trace.payload.get().is_none());
-    trace.payload.set(Some(PayloadDrop {
+    // Release the temporary directory owner before taking the observation lock.
+    let directory_live = state.directory.borrow().as_ref().and_then(std::sync::Weak::upgrade).is_some();
+    let mut trace = trace.lock();
+    assert!(trace.payload.is_none());
+    trace.payload = Some(PayloadDrop {
         at: trace.tick(),
-        covering_lease_live: trace.covering_lease_live.get(),
-        header_live: trace.header_live.get(),
+        covering_lease_live: trace.covering_lease_live,
+        header_live: trace.header_live,
         // Actual Collection and its snapshots retain their directory, unlike
         // the generic pre-feed fixture. No header-custody inference follows.
-        directory_live: state.directory.borrow().as_ref().and_then(std::sync::Weak::upgrade).is_some(),
-    }));
+        directory_live,
+    });
 }
 
 struct PendingRetiredProbe(Rc<RealFeedState>);
@@ -559,15 +593,16 @@ fn assert_real_feed_failure(scope: &RealFeedScope) {
     let trace = state.trace.borrow();
     let trace = trace.as_ref().unwrap();
     let payload = assert_payload_preceded_covering_guard(trace);
+    let trace = trace.snapshot();
     assert!(!payload.header_live);
     assert!(payload.directory_live, "Collection independently retains its own directory");
-    assert!(trace.header_retiring_at.get().unwrap() < payload.at);
+    assert!(trace.header_retiring_at.unwrap() < payload.at);
     assert!(state.pending_retired_at.get().unwrap() < payload.at,
         "real Pending/config/raw/controller retire before payload: custody limitation");
-    assert!(trace.header_retiring_at.get().unwrap() < state.pending_retired_at.get().unwrap());
-    assert!(payload.at < trace.lease_retired_at.get().unwrap());
-    assert!(trace.lease_retiring_at.get().unwrap() < trace.lease_retired_at.get().unwrap());
-    assert_eq!(trace.before_guard_used.get().unwrap().checked_sub(trace.after_guard_used.get().unwrap()),
+    assert!(trace.header_retiring_at.unwrap() < state.pending_retired_at.get().unwrap());
+    assert!(payload.at < trace.lease_retired_at.unwrap());
+    assert!(trace.lease_retiring_at.unwrap() < trace.lease_retired_at.unwrap());
+    assert_eq!(trace.before_guard_used.unwrap().checked_sub(trace.after_guard_used.unwrap()),
         state.exact_covering_charge.get());
     assert!(state.exact_covering_charge.get().unwrap() > 0);
     let before = state.used_before_debit.get().unwrap();

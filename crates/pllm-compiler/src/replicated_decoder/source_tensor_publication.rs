@@ -6,10 +6,11 @@
 //! sticky bit, or complete request. Those obligations cannot be inferred from
 //! the input interval, source digest, or the closed factory classification.
 use super::*;
+use super::compact_lowering::compact_admission;
 use super::original_import::{InputRecord, OriginalImportedView};
 use crate::replicated_decoder::{
     prepared_tensor_map::PreparedTensorMap,
-    source_registry::{decoder_plan_metadata_bytes, source_metadata_bytes},
+    source_registry::{decoder_plan_metadata_bytes, source_metadata_bytes, SourceRegistry},
     PublicSource,
 };
 use std::cell::Cell;

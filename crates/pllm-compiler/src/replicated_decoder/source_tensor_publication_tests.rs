@@ -1,5 +1,6 @@
 use super::*;
 use crate::replicated_decoder::{PublicSourceImport, SourceNorms, SourceTensor};
+use pllm_models::DecoderPlan;
 
 // Descriptor validation and authenticated PublicFile import, NOT Manifest::compile
 // or a captured/reconstructed native program. All commitments cover these actual

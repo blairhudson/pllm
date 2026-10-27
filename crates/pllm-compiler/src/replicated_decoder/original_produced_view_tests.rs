@@ -1,5 +1,6 @@
 use super::*;
 use crate::replicated_decoder::{PublicSourceImport, SourceNorms, SourceTensor};
+use pllm_models::DecoderPlan;
 
 // Genuine model lowering + free source validation + authenticated source files.
 // No Manifest::compile/Program finalizer, synthetic producer ID, incoming row

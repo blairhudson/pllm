@@ -3,6 +3,9 @@
 //! Creation is conditional on the original declared input domains. It does NOT
 //! prove runtime range, complete rows, sticky validity or request admission.
 use super::*;
+use crate::replicated_decoder::{
+    program::compact_lowering::compact_admission, source_registry::SourceRegistry,
+};
 use pllm_models::ModelOperation;
 pub(in crate::replicated_decoder::program) use super::custody::{
     BindingRef, Geometry, OrderedCoordinate, OriginalInputBinding,
