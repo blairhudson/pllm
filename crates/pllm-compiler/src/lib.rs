@@ -20,6 +20,7 @@ use std::fmt;
 use std::sync::{Mutex, OnceLock};
 
 mod bounded_index;
+mod json_bytes_codec;
 #[doc(hidden)]
 pub mod plan_input;
 mod compact_protected;

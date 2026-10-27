@@ -492,34 +492,51 @@ impl OriginalSourcePlan {
     /// its Arc header is additionally covered here, not newly allocated/adopted.
     /// Not a physical stack, allocator, parser, factory, or CPU-fuel quotation.
     pub(crate) fn primitive_attempt_control_bytes() -> Result<usize, Error> {
-        let slots = [
-            4 * size_of::<PrimitiveAttempt>(),
-            3 * size_of::<Result<PrimitiveAttempt, Error>>(),
-            4 * size_of::<OwnedExternalCharge>(),
-            2 * size_of::<Option<OwnedExternalCharge>>(),
-            2 * size_of::<Result<OwnedExternalCharge, Error>>(),
-            3 * size_of::<Arc<OwnedCharged<Context>>>(),
-            3 * size_of::<&Arc<OwnedCharged<Context>>>(),
-            2 * size_of::<&OriginalSourcePlan>(),
-            2 * size_of::<&Mutex<Ledger>>(),
-            size_of::<Option<&Mutex<Ledger>>>(),
-            2 * size_of::<MutexGuard<'_, Ledger>>(),
-            size_of::<LockResult<MutexGuard<'_, Ledger>>>(),
-            size_of::<std::sync::PoisonError<MutexGuard<'_, Ledger>>>(),
-            size_of::<Result<(), Error>>(),
-            3 * size_of::<Result<u64, Error>>(),
-            2 * size_of::<Option<u64>>(),
-            4 * size_of::<u64>(),
-            4 * size_of::<usize>(),
-            2 * size_of::<Result<usize, Error>>(),
-            2 * size_of::<Option<usize>>(),
-            2 * size_of::<bool>(),
-        ];
-        let mut iter = slots.into_iter();
-        let bytes = add(std::mem::size_of_val(&slots), std::mem::size_of_val(&iter))?;
-        let bytes = add(bytes, arc_header_bytes::<OwnedCharged<Context>>()?)?;
-        let bytes = add(bytes, 3 * size_of::<AttemptDebit>())?;
-        iter.try_fold(bytes, add)
+        // This inventory is needed even BEFORE entering a funded attempt. Its
+        // walk must therefore be const evaluation, not lazy/runtime quotation.
+        // Preserve the former array/iterator/AttemptDebit allowances exactly;
+        // removing runtime visits does not reduce any caller's capacity quote.
+        const BASE: Result<usize, Error> = {
+            let slots = [
+                4 * size_of::<PrimitiveAttempt>(),
+                3 * size_of::<Result<PrimitiveAttempt, Error>>(),
+                4 * size_of::<OwnedExternalCharge>(),
+                2 * size_of::<Option<OwnedExternalCharge>>(),
+                2 * size_of::<Result<OwnedExternalCharge, Error>>(),
+                3 * size_of::<Arc<OwnedCharged<Context>>>(),
+                3 * size_of::<&Arc<OwnedCharged<Context>>>(),
+                2 * size_of::<&OriginalSourcePlan>(),
+                2 * size_of::<&Mutex<Ledger>>(),
+                size_of::<Option<&Mutex<Ledger>>>(),
+                2 * size_of::<MutexGuard<'_, Ledger>>(),
+                size_of::<LockResult<MutexGuard<'_, Ledger>>>(),
+                size_of::<std::sync::PoisonError<MutexGuard<'_, Ledger>>>(),
+                size_of::<Result<(), Error>>(),
+                3 * size_of::<Result<u64, Error>>(),
+                2 * size_of::<Option<u64>>(),
+                4 * size_of::<u64>(),
+                4 * size_of::<usize>(),
+                2 * size_of::<Result<usize, Error>>(),
+                2 * size_of::<Option<usize>>(),
+                2 * size_of::<bool>(),
+            ];
+            let mut bytes = size_of::<[usize; 21]>()
+                .checked_add(size_of::<std::array::IntoIter<usize, 21>>());
+            bytes = match bytes {
+                Some(n) => n.checked_add(3 * size_of::<AttemptDebit>()),
+                None => None,
+            };
+            let mut i = 0;
+            while i < 21 {
+                bytes = match bytes {
+                    Some(n) => n.checked_add(slots[i]),
+                    None => None,
+                };
+                i += 1;
+            }
+            match bytes { Some(n) => Ok(n), None => Err(Error::Overflow) }
+        };
+        add(BASE?, arc_header_bytes::<OwnedCharged<Context>>()?)
     }
 
     /// Debit visits plus a positive one-unit attempt fee under the original
@@ -546,6 +563,42 @@ impl OriginalSourcePlan {
     pub(crate) fn compiler_metadata_control_bytes() -> Result<usize, Error> {
         metadata_control_bytes()
     }
+}
+
+#[cfg(test)]
+#[test]
+fn primitive_attempt_control_bytes_matches_old_layout_inventory() {
+    // Independent literal old inventory and runtime old fold, TEST ONLY.
+    // Production BASE is not inspected/reused by this comparison. Tests UNRUN.
+    let slots = [
+        4 * size_of::<PrimitiveAttempt>(),
+        3 * size_of::<Result<PrimitiveAttempt, Error>>(),
+        4 * size_of::<OwnedExternalCharge>(),
+        2 * size_of::<Option<OwnedExternalCharge>>(),
+        2 * size_of::<Result<OwnedExternalCharge, Error>>(),
+        3 * size_of::<Arc<OwnedCharged<Context>>>(),
+        3 * size_of::<&Arc<OwnedCharged<Context>>>(),
+        2 * size_of::<&OriginalSourcePlan>(),
+        2 * size_of::<&Mutex<Ledger>>(),
+        size_of::<Option<&Mutex<Ledger>>>(),
+        2 * size_of::<MutexGuard<'_, Ledger>>(),
+        size_of::<LockResult<MutexGuard<'_, Ledger>>>(),
+        size_of::<std::sync::PoisonError<MutexGuard<'_, Ledger>>>(),
+        size_of::<Result<(), Error>>(),
+        3 * size_of::<Result<u64, Error>>(),
+        2 * size_of::<Option<u64>>(),
+        4 * size_of::<u64>(),
+        4 * size_of::<usize>(),
+        2 * size_of::<Result<usize, Error>>(),
+        2 * size_of::<Option<usize>>(),
+        2 * size_of::<bool>(),
+    ];
+    let mut iter = slots.into_iter();
+    let bytes = add(std::mem::size_of_val(&slots), std::mem::size_of_val(&iter)).unwrap();
+    let bytes = add(bytes, arc_header_bytes::<OwnedCharged<Context>>().unwrap()).unwrap();
+    let bytes = add(bytes, 3 * size_of::<AttemptDebit>()).unwrap();
+    let old = iter.try_fold(bytes, add);
+    assert_eq!(OriginalSourcePlan::primitive_attempt_control_bytes(), old);
 }
 
 fn begin_attempt(
