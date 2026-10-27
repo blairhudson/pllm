@@ -175,17 +175,20 @@ pub struct SourceCounts {
     scan_work: u128,
 }
 
-struct Scanner<'a, 'm, 's> {
+// The default policy retains C9's container-count depth semantics and 32 slots.
+// Lexical snapshots count VALUE depth from root zero (keys are not values).
+// A container at depth 64 needs slot 65 even when it is empty.
+struct Scanner<'a, 'm, 's, const SLOTS: usize = DEPTH, const LEXICAL: bool = false> {
     raw: &'a [u8],
     position: usize,
-    stack: [Frame; DEPTH],
+    stack: [Frame; SLOTS],
     active: usize,
     stats: SourceCounts,
     meter: &'m mut Meter,
     output: Option<&'s mut [Span]>,
     limits: Limits,
 }
-impl Scanner<'_, '_, '_> {
+impl<const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL> {
     fn peek(&mut self) -> Result<Option<u8>, Error> {
         self.meter.pay(1)?;
         Ok(self.raw.get(self.position).copied())
@@ -283,6 +286,12 @@ impl Scanner<'_, '_, '_> {
         Ok(value)
     }
     fn value(&mut self) -> Result<(), Error> {
+        if LEXICAL {
+            if self.active > self.limits.max_depth.min(64) {
+                return Err(Error::DepthLimit);
+            }
+            self.stats.depth = self.stats.depth.max(self.active);
+        }
         self.whitespace()?;
         let start = self.position;
         let byte = self.peek()?.ok_or(Error::Syntax)?;
@@ -301,7 +310,9 @@ impl Scanner<'_, '_, '_> {
                 start,
                 ..Span::EMPTY
             })?;
-            if self.active >= self.limits.max_depth.min(DEPTH) {
+            if self.active >= SLOTS
+                || (!LEXICAL && self.active >= self.limits.max_depth.min(DEPTH))
+            {
                 return Err(Error::DepthLimit);
             }
             self.stack[self.active] = Frame {
@@ -311,7 +322,9 @@ impl Scanner<'_, '_, '_> {
                 children: 0,
             };
             self.active += 1;
-            self.stats.depth = self.stats.depth.max(self.active);
+            if !LEXICAL {
+                self.stats.depth = self.stats.depth.max(self.active);
+            }
             if kind == Kind::Object {
                 self.stats.objects = add(self.stats.objects, 1)?;
             }
@@ -463,7 +476,7 @@ impl Scanner<'_, '_, '_> {
         Ok(self.stats)
     }
 }
-impl Drop for Scanner<'_, '_, '_> {
+impl<const SLOTS: usize, const LEXICAL: bool> Drop for Scanner<'_, '_, '_, SLOTS, LEXICAL> {
     fn drop(&mut self) {
         for frame in &mut self.stack {
             *frame = Frame::EMPTY;
@@ -1204,13 +1217,22 @@ fn scan_original(
     bootstrap: usize,
     charge: &OwnedExternalCharge,
 ) -> Result<(SourceCounts, Meter), Error> {
+    scan_original_policy::<DEPTH, false>(original, limits, bootstrap, charge)
+}
+
+fn scan_original_policy<const SLOTS: usize, const LEXICAL: bool>(
+    original: &OwnedCharged<Vec<u8>>,
+    limits: Limits,
+    bootstrap: usize,
+    charge: &OwnedExternalCharge,
+) -> Result<(SourceCounts, Meter), Error> {
     if charge.payload_bytes() < bootstrap {
         return Err(Error::Bootstrap);
     }
     if bootstrap > limits.max_payload_bytes {
         return Err(Error::Capacity);
     }
-    if limits.max_number_bytes > SAFE_NUMBER_BYTES {
+    if !LEXICAL && limits.max_number_bytes > SAFE_NUMBER_BYTES {
         return Err(Error::NumberLimit);
     }
     let raw = original.payload();
@@ -1221,13 +1243,13 @@ fn scan_original(
         used: 0,
         limit: limits.max_work,
     };
-    meter.pay((2 * DEPTH) as u128)?; // fixed scanner initialization AND retirement
+    meter.pay((2 * SLOTS) as u128)?; // fixed scanner initialization AND retirement
     meter.pay(raw.len() as u128)?; // complete UTF8 pass, BEFORE call
     std::str::from_utf8(raw).map_err(|_| Error::Syntax)?;
-    let counts = Scanner {
+    let counts = Scanner::<SLOTS, LEXICAL> {
         raw,
         position: 0,
-        stack: [Frame::EMPTY; DEPTH],
+        stack: [Frame::EMPTY; SLOTS],
         active: 0,
         stats: SourceCounts::default(),
         meter: &mut meter,
@@ -1298,6 +1320,14 @@ fn replay(
     counts: SourceCounts,
     limits: Limits,
 ) -> Result<Vec<Span>, Error> {
+    replay_policy::<DEPTH, false>(original, counts, limits)
+}
+
+fn replay_policy<const SLOTS: usize, const LEXICAL: bool>(
+    original: &OwnedCharged<Vec<u8>>,
+    counts: SourceCounts,
+    limits: Limits,
+) -> Result<Vec<Span>, Error> {
     let mut buffer = exact::<Span>(counts.spans)?;
     for _ in 0..counts.spans {
         push(&mut buffer, Span::EMPTY)?;
@@ -1309,10 +1339,10 @@ fn replay(
         // has its own prepaid construction credit, never lent to this walker.
         limit: counts.scan_work,
     };
-    Scanner {
+    Scanner::<SLOTS, LEXICAL> {
         raw: original.payload(),
         position: 0,
-        stack: [Frame::EMPTY; DEPTH],
+        stack: [Frame::EMPTY; SLOTS],
         active: 0,
         stats: SourceCounts::default(),
         meter: &mut prepaid,
