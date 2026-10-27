@@ -25,6 +25,13 @@ struct Correction<W: Word> {
 
 impl<W: Word> Drop for Correction<W> {
     fn drop(&mut self) {
+        #[cfg(test)]
+        crate::shared_affine_lookup_reference::joint_basis_test_hooks::observe(
+            crate::shared_affine_lookup_reference::joint_basis_test_hooks::Event {
+                kind: crate::shared_affine_lookup_reference::joint_basis_test_hooks::Kind::CorrectionDrop,
+                amount: std::mem::size_of::<Self>(),
+            },
+        );
         self.seed.zeroize();
         self.value.zeroize();
         self.control.zeroize();
@@ -36,6 +43,20 @@ pub(crate) struct Key<W: Word> {
     root: Zeroizing<[u8; 16]>,
     words: Vec<Correction<W>>,
     final_word: Zeroizing<W>,
+}
+
+// ENTRY only. Automatic root/words/final_word field destruction retains its
+// original order; no claim of completed erasure/deallocation is made here.
+#[cfg(test)]
+impl<W: Word> Drop for Key<W> {
+    fn drop(&mut self) {
+        crate::shared_affine_lookup_reference::joint_basis_test_hooks::observe(
+            crate::shared_affine_lookup_reference::joint_basis_test_hooks::Event {
+                kind: crate::shared_affine_lookup_reference::joint_basis_test_hooks::Kind::KeyDrop,
+                amount: self.words.len(),
+            },
+        );
+    }
 }
 
 pub(crate) type Comparison = Key<u32>;
@@ -273,9 +294,21 @@ fn generate_with_setup<W: Word, R: FnMut(&mut [u8]) -> Result<(), Error>>(
     let mut words: [Vec<Correction<W>>; 2] = [Vec::new(), Vec::new()];
     for party in &mut words {
         before_reserve(usize::from(bits) * std::mem::size_of::<Correction<W>>())?;
+        #[cfg(test)]
+        crate::shared_affine_lookup_reference::joint_basis_test_hooks::reserve(
+            crate::shared_affine_lookup_reference::joint_basis_test_hooks::Kind::DcfReserve,
+            usize::from(bits) * std::mem::size_of::<Correction<W>>(),
+        )?;
         party
             .try_reserve_exact(usize::from(bits))
             .map_err(|_| Error::Resource)?;
+        #[cfg(test)]
+        crate::shared_affine_lookup_reference::joint_basis_test_hooks::observe(
+            crate::shared_affine_lookup_reference::joint_basis_test_hooks::Event {
+                kind: crate::shared_affine_lookup_reference::joint_basis_test_hooks::Kind::DcfCapacity,
+                amount: party.capacity() * std::mem::size_of::<Correction<W>>(),
+            },
+        );
     }
     if resources::<W>(bits, owner_bytes, words.each_ref().map(|w| w.capacity()))
         .combined_allocation_bytes
@@ -288,6 +321,15 @@ fn generate_with_setup<W: Word, R: FnMut(&mut [u8]) -> Result<(), Error>>(
     let payload = Zeroizing::new(payload);
     let mut roots = Zeroizing::new([[0; 16]; 2]);
     for root in roots.iter_mut() {
+        #[cfg(test)]
+        if let Some(result) = crate::shared_affine_lookup_reference::joint_basis_test_hooks::fill(
+            crate::shared_affine_lookup_reference::joint_basis_test_hooks::Kind::DcfEntropy, root,
+        ) {
+            result?;
+        } else {
+            random(root)?;
+        }
+        #[cfg(not(test))]
         random(root)?;
     }
     let mut seeds = Zeroizing::new(*roots);

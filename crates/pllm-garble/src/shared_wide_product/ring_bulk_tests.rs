@@ -31,6 +31,9 @@ struct Source {
 struct SourceGuard;
 impl SourceGuard {
     fn install(fail_call: Option<usize>, prefix: usize, panic: bool) -> Self {
+        // Reject same-thread joint controllers BEFORE this source is modified.
+        assert!(!crate::shared_affine_lookup_reference::joint_basis_test_hooks::active());
+        assert!(!crate::shared_affine_lookup_reference::joint_basis::test_source_active());
         SOURCE.with(|source| {
             assert!(source.borrow().is_none());
             *source.borrow_mut() = Some(Source {
@@ -50,6 +53,9 @@ impl Drop for SourceGuard {
     fn drop(&mut self) {
         SOURCE.with(|source| *source.borrow_mut() = None);
     }
+}
+pub(super) fn source_active() -> bool {
+    SOURCE.with(|source| source.try_borrow().map_or(true, |source| source.is_some()))
 }
 pub(super) fn fill_override(bytes: &mut [u8]) -> Option<Result<(), Error>> {
     SOURCE.with(|source| {
@@ -313,4 +319,46 @@ fn real_native_issuance_uses_one_fill_per_lane_and_retains_cancel_replay_burns()
     ));
     drop((own, peer, left, right));
     assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn joint_and_triple_controllers_reject_conflicts_before_modifying_either() {
+    use crate::{shared_affine_lookup_reference::joint_basis_test_hooks as hooks,
+        shared_allocation::{OwnedBudget, MAX_ALLOCATION_BYTES}};
+    let owned = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let (identity, bootstrap) = owned.budget().test_snapshot();
+    let weak = owned.test_counter_weak();
+    let config = || hooks::Config { counter: owned.test_counter_weak(),
+        expected_identity: identity, expected_charge: bootstrap,
+        expected_updates: owned.budget().test_accounting_updates(), fault: None };
+    {
+        let triple = SourceGuard::install(None, 0, false);
+        hooks::assert_install_conflict(std::panic::catch_unwind(AssertUnwindSafe(|| hooks::install(config()))),
+            "assertion failed: !crate::shared_wide_product::ring::test_source_active()");
+        assert!(!hooks::active());
+        assert!(source_active());
+        assert!(triple.calls().is_empty());
+        // Existing triple source still works. No joint observation/admission
+        // claim is made for this standalone primitive issuance.
+        drop(issue(50).unwrap());
+        assert_eq!(triple.calls(), [40]);
+    }
+    {
+        let guard = hooks::install(config());
+        hooks::assert_install_conflict(std::panic::catch_unwind(|| SourceGuard::install(None, 0, false)),
+            "assertion failed: !crate::shared_affine_lookup_reference::joint_basis_test_hooks::active()");
+        assert!(!source_active());
+        assert!(hooks::active());
+        assert!(!guard.snapshot().failed);
+        assert_eq!(guard.snapshot().len, 0);
+    }
+    assert_eq!(owned.budget().used_bytes(), bootstrap);
+    let quote = OwnedBudget::resources().unwrap();
+    let fixed = bootstrap.checked_sub(quote.owner_metadata_bytes).unwrap();
+    assert_eq!(fixed, quote.arc_backing_bytes.checked_add(quote.bootstrap_transition_bytes).unwrap());
+    let observer = weak.upgrade().unwrap();
+    drop(owned);
+    assert_eq!(observer.used_bytes(), fixed);
+    drop(observer);
+    assert!(weak.upgrade().is_none());
 }

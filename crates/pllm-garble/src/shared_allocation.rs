@@ -49,6 +49,15 @@ impl Budget {
     pub fn used_bytes(&self) -> usize {
         self.used.load(Ordering::SeqCst)
     }
+    #[cfg(test)]
+    pub(crate) fn test_snapshot(&self) -> (usize, usize) {
+        (self as *const Self as usize, self.used_bytes())
+    }
+    #[cfg(test)]
+    pub(crate) fn test_accounting_updates(&self) -> usize {
+        self.accounting_updates.load(Ordering::SeqCst)
+    }
+
     /// Highest successfully admitted numeric total, including reservations.
     ///
     /// Numeric admission evidence only, not measured storage or RSS. This does
@@ -369,6 +378,11 @@ impl OwnedBudget {
 
     pub fn budget(&self) -> &Budget {
         &self.budget
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_counter_weak(&self) -> std::sync::Weak<Budget> {
+        Arc::downgrade(&self.budget)
     }
 
     /// Each additional root handle pays for its inline Arc pointer before clone.

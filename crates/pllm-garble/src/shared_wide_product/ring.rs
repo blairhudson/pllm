@@ -27,6 +27,19 @@ pub(crate) struct TripleShare {
     mask: u64,
 }
 
+// ENTRY only; automatic Zeroizing field destruction is unchanged.
+#[cfg(test)]
+impl Drop for TripleShare {
+    fn drop(&mut self) {
+        crate::shared_affine_lookup_reference::joint_basis_test_hooks::observe(
+            crate::shared_affine_lookup_reference::joint_basis_test_hooks::Event {
+                kind: crate::shared_affine_lookup_reference::joint_basis_test_hooks::Kind::TripleDrop,
+                amount: TRIPLE_BYTES,
+            },
+        );
+    }
+}
+
 fn mask(bits: u8) -> Result<u64, Error> {
     if !(1..=64).contains(&bits) {
         return Err(Error::Domain);
@@ -43,6 +56,12 @@ fn mask(bits: u8) -> Result<u64, Error> {
 /// retried here; Zeroizing erases the entire buffer on error or unwind.
 pub(crate) fn issue(bits: u8) -> Result<[TripleShare; 2], Error> {
     issue_from_fill(bits, |bytes| {
+        #[cfg(test)]
+        if let Some(result) = crate::shared_affine_lookup_reference::joint_basis_test_hooks::fill(
+            crate::shared_affine_lookup_reference::joint_basis_test_hooks::Kind::TripleEntropy, bytes,
+        ) {
+            return result;
+        }
         #[cfg(test)]
         if let Some(result) = bulk_tests::fill_override(bytes) {
             return result;
@@ -171,6 +190,11 @@ mod tests;
 #[cfg(test)]
 #[path = "ring_bulk_tests.rs"]
 mod bulk_tests;
+
+#[cfg(test)]
+pub(crate) fn test_source_active() -> bool {
+    bulk_tests::source_active()
+}
 
 // Preserve the older word-injection tests without retaining a five-call
 // production path. Their adapter feeds the very same bulk decoder/algebra.

@@ -119,10 +119,26 @@ fn copy_public(
     }
     let mut b = Vec::new();
     let mut c = Vec::new();
+    #[cfg(test)]
+    super::joint_basis_test_hooks::reserve(
+        super::joint_basis_test_hooks::Kind::BoundaryReserve, boundaries.len() * 8,
+    )?;
     b.try_reserve_exact(boundaries.len())
         .map_err(|_| Error::Resource)?;
+    #[cfg(test)]
+    super::joint_basis_test_hooks::observe(super::joint_basis_test_hooks::Event {
+        kind: super::joint_basis_test_hooks::Kind::BoundaryCapacity, amount: b.capacity() * 8,
+    });
+    #[cfg(test)]
+    super::joint_basis_test_hooks::reserve(
+        super::joint_basis_test_hooks::Kind::CoefficientReserve, coefficients.len() * 16,
+    )?;
     c.try_reserve_exact(coefficients.len())
         .map_err(|_| Error::Resource)?;
+    #[cfg(test)]
+    super::joint_basis_test_hooks::observe(super::joint_basis_test_hooks::Event {
+        kind: super::joint_basis_test_hooks::Kind::CoefficientCapacity, amount: c.capacity() * 16,
+    });
     if size_of::<RingTable>() + b.capacity() * 8 + c.capacity() * 16 > limit {
         return Err(Error::Resource);
     }
@@ -458,6 +474,15 @@ fn issue_with_tables<T: Borrow<RingTable>>(
         }
     }
     let mut raw = Zeroizing::new([0; 16]);
+    #[cfg(test)]
+    if let Some(result) = super::joint_basis_test_hooks::fill(
+        super::joint_basis_test_hooks::Kind::RingEntropy, &mut *raw,
+    ) {
+        result?;
+    } else {
+        random(&mut *raw)?;
+    }
+    #[cfg(not(test))]
     random(&mut *raw)?;
     let left = Zeroizing::new([
         u64::from_le_bytes(raw[..8].try_into().unwrap()) & mask,

@@ -17,6 +17,10 @@ const MAGIC: &[u8; 8] = b"PLLMAF01";
 
 mod ring;
 pub(crate) use ring::{issue_ring, RingParty, RingResources, RingTable};
+pub(crate) mod joint_basis;
+
+#[cfg(test)]
+pub(crate) mod joint_basis_test_hooks;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Layout {
