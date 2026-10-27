@@ -83,10 +83,22 @@ fn guarded_original_legacy_bytes_digest_and_owner_binding() {
 fn guarded_quote_prices_actual_spare_capacities_not_lengths_or_clones() {
     let root = root();
     let mut plan = model();
-    plan.prefill.operations.reserve_exact(23);
-    plan.prefill.operations[0].id.reserve_exact(4096);
-    plan.prefill.operations[0].output_shape.reserve_exact(19);
-    plan.decode.state_inputs.reserve_exact(11);
+    let before = {
+        let source = input(&root, model());
+        let resources = prepare(&source, work(&root)).resources;
+        resources
+    };
+    // Compare actual original backing before/after, not a clone's capacities.
+    let old_backing = plan.checked_owned_backing_bytes(usize::MAX).unwrap();
+    let old = plan.prefill.operations.capacity();
+    plan.prefill.operations.reserve(31);
+    let mut delta = (plan.prefill.operations.capacity() - old) * size_of::<ModelOperation>();
+    let old = plan.prefill.operations[0].id.capacity();
+    plan.prefill.operations[0].id.reserve(8192);
+    delta += plan.prefill.operations[0].id.capacity() - old;
+    let old = plan.prefill.operations[0].output_shape.capacity();
+    plan.prefill.operations[0].output_shape.reserve(17);
+    delta += (plan.prefill.operations[0].output_shape.capacity() - old) * size_of::<u64>();
     let source = input(&root, plan);
     let quote = prepare(&source, work(&root));
     assert_eq!(
@@ -98,8 +110,198 @@ fn guarded_quote_prices_actual_spare_capacities_not_lengths_or_clones() {
                 .unwrap()
     );
     assert_eq!(quote.resources.input_reserved_bytes, source.charged_bytes());
+    assert_eq!(quote.resources.input_owner_bytes,
+        size_of::<OwnedCharged<DecoderPlan>>() + old_backing + delta);
+    assert_eq!(quote.resources.row_backing_bytes, before.row_backing_bytes);
+    assert_eq!(quote.resources.index_workspace_bytes, before.index_workspace_bytes);
+    assert_eq!(quote.resources.grouping_workspace_bytes, before.grouping_workspace_bytes);
+    assert_eq!(quote.resources.metadata_backing_bytes, before.metadata_backing_bytes);
     assert!(std::ptr::eq(quote.input.payload(), source.payload()));
     assert!(quote.resources.output_and_digest_bytes >= MAX_OUTPUT_BYTES + 64);
+}
+
+#[test]
+fn guarded_independent_row_census_all_three_indices_and_both_groupings() {
+    let root = root();
+    let source = input(&root, model());
+    let plan = source.payload();
+    let mut context = Context::new(true, limits().max_work).unwrap();
+    let mut row_bytes = 0;
+    let mut index_bytes = 0;
+    let mut grouping_bytes = 0;
+    let mut metadata_bytes = 0;
+    for graph in [&plan.prefill, &plan.decode] {
+        // Independent namespace census; never read candidate quote counts.
+        let remote_count = graph.operations.iter().filter(|op| remote(op.operator)).count();
+        let count = 3 * PUBLIC_INPUTS.len() + 4 * graph.state_inputs.len()
+            + 3 * graph.state_outputs.len() + 3 * graph.operations.len() + remote_count;
+        row_bytes += std::alloc::Layout::array::<PhaseEntry<'_>>(count).unwrap().size();
+        let rows = PhaseRows::build(graph, &mut context).unwrap();
+        assert_eq!(rows.rows.len(), count);
+        let index = rows.index(&mut context).unwrap();
+        let resources = index.index.resources();
+        assert_eq!(resources.heap_bytes, count * size_of::<usize>());
+        index_bytes += resources.workspace_bytes;
+        grouping_bytes += RemoteGroupingQuote::checked(graph).unwrap().resources().workspace_bytes;
+        metadata_bytes += std::alloc::Layout::array::<Group<'_>>(graph.operations.len()).unwrap().size()
+            + std::alloc::Layout::array::<Member<'_>>(graph.operations.len()).unwrap().size();
+    }
+    let source_count = [&plan.prefill, &plan.decode].iter().flat_map(|graph| &graph.operations)
+        .filter(|op| remote(op.operator))
+        .map(|op| ["weight", "bias"].iter()
+            .filter(|field| op.attributes.get(**field).and_then(Value::as_str).is_some()).count())
+        .sum::<usize>();
+    row_bytes += std::alloc::Layout::array::<SourceEntry<'_>>(source_count).unwrap().size();
+    let stats = source_stats(plan, &mut context).unwrap();
+    assert_eq!(stats.count(), source_count);
+    let resources = stats.resources().unwrap();
+    assert_eq!(resources.heap_bytes, source_count * size_of::<usize>());
+    index_bytes += resources.workspace_bytes;
+    let quote = prepare(&source, work(&root));
+    assert_eq!(quote.context.factories, 0);
+    assert_eq!(quote.resources.row_backing_bytes, row_bytes);
+    assert_eq!(quote.resources.index_workspace_bytes, index_bytes);
+    assert_eq!(quote.resources.grouping_workspace_bytes, grouping_bytes);
+    assert_eq!(quote.resources.metadata_backing_bytes, metadata_bytes);
+    assert!(quote.construct().unwrap().payload().result.is_ok());
+}
+
+#[test]
+fn guarded_original_metadata_backing_is_inspected_before_serialization() {
+    let root = root();
+    let source = input(&root, super::super::preconstruction_tests::plan("llama", true));
+    let mut quote = prepare(&source, work(&root));
+    quote.context.inspect_metadata = true;
+    let outcome = quote.construct().unwrap();
+    assert!(outcome.payload().result.is_ok());
+    assert!(std::ptr::eq(outcome.payload().input, &source));
+    assert!(std::ptr::eq(outcome.budget(), source.budget()));
+}
+
+#[test]
+fn source_scan_one_short_refuses_before_any_field_visit_or_factory() {
+    let plan = model();
+    let scan = 3 * (plan.prefill.operations.len() + plan.decode.operations.len()) as u128;
+    let pool = Context::pool_work().unwrap();
+    let mut context = Context::new(true, pool + scan - 1).unwrap();
+    SOURCE_VISITS.with(|visits| visits.set(0));
+    assert!(source_stats(&plan, &mut context).is_err());
+    SOURCE_VISITS.with(|visits| assert_eq!(visits.get(), 0));
+    assert_eq!(context.factories, 0);
+    let mut context = Context::new(true, limits().max_work).unwrap();
+    let stats = source_stats(&plan, &mut context).unwrap();
+    SOURCE_VISITS.with(|visits| assert!(visits.get() > 0));
+    assert!(stats.count() > 0);
+    // Row emission has a separate scan prepayment, even after a valid census.
+    let mut context = Context::new(true, pool + scan - 1).unwrap();
+    SOURCE_VISITS.with(|visits| visits.set(0));
+    assert!(prepay_source_scan(&plan, &mut context).is_err());
+    SOURCE_VISITS.with(|visits| assert_eq!(visits.get(), 0));
+    assert_eq!(context.factories, 0);
+}
+
+#[test]
+fn existing_inventory_caps_remain_fixed_and_enforced() {
+    assert_eq!((MAX_OPERATIONS, MAX_STATES, MAX_INPUTS), (4096, 1024, 16));
+    assert_eq!((MAX_OBJECT_FIELDS, MAX_STRING_BYTES), (64, 1024));
+    assert_eq!((MAX_TOTAL_STRING_BYTES, MAX_NODES, MAX_DEPTH), (1 << 20, 131072, 24));
+    assert_eq!(DECODER_MATRIX_INVENTORY_MAX_PLAN_BYTES, 8 << 20);
+    assert_eq!(MAX_OUTPUT_BYTES, 8 << 20);
+    assert_eq!(plan_canonical_limits(1 << 28).canonical.max_bytes, 8 << 20);
+    assert_eq!(inventory_stream_limits().max_bytes, 8 << 20);
+    for case in 0..4 {
+        let mut plan = model();
+        match case {
+            0 => plan.prefill.operations.resize(MAX_OPERATIONS + 1, plan.prefill.operations[0].clone()),
+            1 => plan.decode.state_inputs.resize(MAX_STATES + 1, plan.decode.state_inputs[0].clone()),
+            2 => plan.decode.state_outputs.resize(MAX_STATES + 1, plan.decode.state_outputs[0].clone()),
+            _ => plan.prefill.operations[0].inputs.resize(MAX_INPUTS + 1, "input.tokens".into()),
+        }
+        assert!(preflight_with_work(&plan, limits().max_work as usize).is_err());
+    }
+    let mut budget = MetadataBudget {
+        nodes: MAX_NODES - 1,
+        work_limit: limits().max_work,
+        ..Default::default()
+    };
+    assert!(budget.node(MAX_DEPTH).is_ok());
+    assert!(budget.node(MAX_DEPTH).is_err());
+    let mut budget = MetadataBudget { work_limit: limits().max_work, ..Default::default() };
+    assert!(budget.node(MAX_DEPTH + 1).is_err());
+    let text = "x".repeat(MAX_STRING_BYTES);
+    let mut budget = MetadataBudget {
+        strings: MAX_TOTAL_STRING_BYTES - MAX_STRING_BYTES,
+        work_limit: limits().max_work,
+        ..Default::default()
+    };
+    assert!(budget.string(&text).is_ok());
+    assert!(budget.string("x").is_err());
+    let mut budget = MetadataBudget { work_limit: limits().max_work, ..Default::default() };
+    assert!(budget.string(&(text + "x")).is_err());
+    let mut fields = serde_json::Map::new();
+    for index in 0..MAX_OBJECT_FIELDS { fields.insert(format!("key.{index}"), Value::Null); }
+    let mut value = Value::Object(fields);
+    let mut budget = MetadataBudget { work_limit: limits().max_work, ..Default::default() };
+    assert!(budget.value(&value, 0).is_ok());
+    value.as_object_mut().unwrap().insert("one.more".into(), Value::Null);
+    assert!(budget.value(&value, 0).is_err());
+}
+
+#[test]
+fn shared_exact_buffer_error_and_finish_paths_drop_initialized_owners_once() {
+    use std::rc::Rc;
+    struct Probe(Rc<Cell<usize>>);
+    impl Drop for Probe {
+        fn drop(&mut self) { self.0.set(self.0.get() + 1); }
+    }
+    let drops = Rc::new(Cell::new(0));
+    let mut partial = bounded::ExactBuffer::new(2).unwrap();
+    partial.push(Probe(drops.clone())).unwrap();
+    assert!(partial.finish().is_err());
+    assert_eq!(drops.get(), 1);
+    let mut full = bounded::ExactBuffer::new(1).unwrap();
+    full.push(Probe(drops.clone())).unwrap();
+    assert!(full.push(Probe(drops.clone())).is_err());
+    assert_eq!(drops.get(), 2);
+    let owners = full.finish().unwrap();
+    assert_eq!(drops.get(), 2);
+    drop(owners);
+    assert_eq!(drops.get(), 3);
+}
+
+#[test]
+fn shared_layout_overflow_and_charged_borrowed_errors_keep_original_backing() {
+    assert!(bounded::ExactBuffer::<[u64; 2]>::new(usize::MAX).is_err());
+    assert!(bounded::layout_bytes::<SourceEntry<'_>>(usize::MAX).is_err());
+    assert!(bounded::checked_add(u128::MAX, 1).is_err());
+    assert!(bounded::checked_mul(u128::MAX, 2).is_err());
+    for unbound in [false, true] {
+        let root = root();
+        let mut plan = model();
+        plan.prefill.operations.iter_mut().find(|op| remote(op.operator))
+            .unwrap().attributes["unsupported-λ"] = Value::Null;
+        if unbound { plan.prefill.operations[0].inputs[0] = "not.bound".into(); }
+        let source = input(&root, plan);
+        let quote = prepare(&source, work(&root));
+        assert_eq!(quote.context.factories, 0);
+        let outcome = quote.construct().unwrap();
+        let failure = outcome.payload().result.as_ref().unwrap_err();
+        if unbound {
+            assert_eq!(failure.to_string(), "matrix inventory unbound operation input ID");
+        } else {
+            match failure {
+                InventoryFailure::Attribute(key) => {
+                    let original = source.payload().prefill.operations.iter()
+                        .find(|op| remote(op.operator)).unwrap().attributes.as_object().unwrap()
+                        .keys().find(|key| *key == "unsupported-λ").unwrap();
+                    assert_eq!(key.as_ptr(), original.as_ptr());
+                }
+                _ => panic!("expected original borrowed attribute key"),
+            }
+        }
+        assert!(std::ptr::eq(outcome.budget(), source.budget()));
+        assert!(outcome.charged_bytes() > 0);
+    }
 }
 
 #[test]
@@ -154,6 +356,8 @@ fn guarded_exact_and_one_short_counter_boundaries_precede_factories() {
         let source = input(&root, model());
         let quote = prepare(&source, work(&root));
         assert_eq!(quote.resources.total_original_counter_bytes, required);
+        assert!(std::ptr::eq(quote.input, &source));
+        assert_eq!(quote.context.factories, 0);
         let result = quote.construct();
         if short {
             match result {
@@ -161,12 +365,16 @@ fn guarded_exact_and_one_short_counter_boundaries_precede_factories() {
                 Ok(outcome) => {
                     assert!(outcome.payload().result.is_err());
                     assert_eq!(outcome.payload().factories, 0);
+                    assert!(std::ptr::eq(outcome.budget(), source.budget()));
+                    assert!(outcome.charged_bytes() > 0);
                 }
                 _ => panic!("wrong short admission result"),
             }
         } else {
             let outcome = result.unwrap();
             assert!(outcome.payload().result.is_ok());
+            assert!(std::ptr::eq(outcome.payload().input, &source));
+            assert!(std::ptr::eq(outcome.budget(), source.budget()));
             assert_eq!(outcome.budget().used_bytes(), required);
         }
     }
@@ -241,7 +449,7 @@ fn indexed_references_match_original_forward_duplicate_and_directional_errors() 
             _ => (),
         }
         let expected = validate_references(graph).map_err(|error| error.to_string());
-        let mut context = Context::new(false, u128::MAX).unwrap();
+        let mut context = Context::new(true, limits().max_work).unwrap();
         let rows = PhaseRows::build(graph, &mut context).unwrap();
         let lookup = rows.index(&mut context).unwrap();
         let actual = lookup
@@ -333,18 +541,24 @@ fn indexed_source_ledger_alias_per_use_sum_and_conflict_precedence() {
         .operations
         .iter()
         .find_map(|op| op.attributes.get("weight").and_then(Value::as_str))
-        .unwrap()
-        .to_owned();
+        .unwrap();
     let graph = &plan.prefill;
-    let mut context = Context::new(false, u128::MAX).unwrap();
+    let mut context = Context::new(true, limits().max_work).unwrap();
     let rows = PhaseRows::build(graph, &mut context).unwrap();
     let lookup = rows.index(&mut context).unwrap();
     let stats = source_stats(&plan, &mut context).unwrap();
     let mut entries = context.buffer(stats.count()).unwrap();
-    source_entries(&plan, |entry| entries.push(entry).map_err(index_error)).unwrap();
+    prepay_source_scan(&plan, &mut context).unwrap();
+    source_entries(&plan, |entry| {
+        context.step()?;
+        entries.push(entry).map_err(index_error)
+    }).unwrap();
     let entries = entries.finish().unwrap();
-    let quote = Quote::checked(&entries, u128::MAX).unwrap();
+    let quote = Quote::checked(&entries, context.remaining()).unwrap();
     let resources = quote.resources();
+    context.charge(resources.quote_work).unwrap();
+    context.charge(resources.construction_work).unwrap();
+    context.factory().unwrap();
     let mut ledger = SourceLedger {
         index: quote
             .construct(resources.workspace_bytes, resources.construction_work)
@@ -352,15 +566,24 @@ fn indexed_source_ledger_alias_per_use_sum_and_conflict_precedence() {
         elements: 0,
     };
     ledger
-        .bind(&id, &[4, 8], graph, &lookup, &mut context)
+        .bind(id, &[4, 8], graph, &lookup, &mut context)
         .unwrap();
+    let bound = ledger.index.resources().lookup_work;
+    context.charge(bound).unwrap();
+    let found = ledger.index.matches(&id, &mut bounded::Usage::default(), bound).unwrap();
+    let cell = &found.first().unwrap().value;
+    let original_cell = cell as *const _;
+    assert_eq!(cell.get().unwrap().dimensions, [4, 8]);
     ledger
-        .bind(&id, &[4, 8], graph, &lookup, &mut context)
+        .bind(id, &[4, 8], graph, &lookup, &mut context)
         .unwrap();
+    context.charge(bound).unwrap();
+    let found = ledger.index.matches(&id, &mut bounded::Usage::default(), bound).unwrap();
+    assert_eq!(&found.first().unwrap().value as *const _, original_cell);
     assert_eq!(ledger.elements, 64);
     assert_eq!(
         ledger
-            .bind(&id, &[8, 4], graph, &lookup, &mut context)
+            .bind(id, &[8, 4], graph, &lookup, &mut context)
             .unwrap_err()
             .to_string(),
         "matrix inventory inconsistent source artifact shape"
@@ -375,7 +598,7 @@ fn indexed_source_ledger_alias_per_use_sum_and_conflict_precedence() {
     );
     assert_eq!(
         ledger
-            .bind(&id, &[8, 4], graph, &lookup, &mut context)
+            .bind(id, &[8, 4], graph, &lookup, &mut context)
             .unwrap_err()
             .to_string(),
         "matrix inventory source size sum overflow"
@@ -383,7 +606,7 @@ fn indexed_source_ledger_alias_per_use_sum_and_conflict_precedence() {
     ledger.elements = MAX_TOTAL_ELEMENTS;
     assert_eq!(
         ledger
-            .bind(&id, &[8, 4], graph, &lookup, &mut context)
+            .bind(id, &[8, 4], graph, &lookup, &mut context)
             .unwrap_err()
             .to_string(),
         "matrix inventory source size sum exceeds limit"
@@ -395,10 +618,12 @@ fn guarded_depth_work_and_layout_overflow_never_fall_back_to_legacy_census() {
     let root = root();
     let mut plan = model();
     let mut nested = Value::Null;
-    for _ in 0..18 {
+    for _ in 0..17 {
         nested = serde_json::json!([nested]);
     }
-    plan.prefill.operations[1].attributes["deep"] = nested;
+    plan.prefill.operations.iter_mut().find(|op| !remote(op.operator))
+        .unwrap().attributes["extra"] = nested;
+    assert!(lower_decoder_matrix_inventory(&plan).is_ok());
     // A deliberately generous upstream reservation permits testing bounded depth
     // rejection without invoking the legacy depth-16 census in fixture setup.
     let source = root

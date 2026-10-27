@@ -11,6 +11,7 @@ use crate::bounded_index::{
 use pllm_models::{StateKind, StateTensor};
 use pllm_types::bounded_canonical::borrowed as json;
 use std::cell::Cell;
+use std::mem::{size_of, MaybeUninit};
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 enum Namespace {
@@ -294,6 +295,11 @@ struct Shape {
 type SourceEntry<'p> = Entry<&'p str, Cell<Option<Shape>>>;
 const SOURCE_FIELDS: [&str; 2] = ["weight", "bias"];
 
+#[cfg(test)]
+thread_local! {
+    static SOURCE_VISITS: Cell<usize> = const { Cell::new(0) };
+}
+
 fn prepay_source_scan(
     plan: &DecoderPlan,
     context: &mut Context<'_>,
@@ -317,8 +323,12 @@ fn source_entries<'p>(
     let mut position = 0;
     for graph in [&plan.prefill, &plan.decode] {
         for op in &graph.operations {
+            #[cfg(test)]
+            SOURCE_VISITS.with(|visits| visits.set(visits.get() + 1));
             if remote(op.operator) {
                 for field in SOURCE_FIELDS {
+                    #[cfg(test)]
+                    SOURCE_VISITS.with(|visits| visits.set(visits.get() + 1));
                     if let Some(id) = op.attributes.get(field).and_then(Value::as_str) {
                         put(Entry {
                             key: id,
@@ -434,6 +444,8 @@ pub(super) struct Context<'p> {
     #[cfg(test)]
     metadata_events: usize,
     #[cfg(test)]
+    inspect_metadata: bool,
+    #[cfg(test)]
     drop_observer: Option<DropObserver<'p>>,
     #[cfg(test)]
     fail_after: Option<usize>,
@@ -473,6 +485,8 @@ impl<'p> Context<'p> {
             first_metadata_work: None,
             #[cfg(test)]
             metadata_events: 0,
+            #[cfg(test)]
+            inspect_metadata: false,
             #[cfg(test)]
             drop_observer: None,
             #[cfg(test)]
@@ -555,8 +569,6 @@ impl<'p> Context<'p> {
             }
         }
         self.factories += 1;
-        #[cfg(test)]
-        METADATA_FACTORIES.with(|count| count.set(count.get() + 1));
         Ok(())
     }
     pub(super) fn buffer<T>(
@@ -1330,6 +1342,10 @@ fn finish<'p>(
     context: &mut Context<'p>,
 ) -> Result<DecoderMatrixInventory, InventoryFailure<'p>> {
     let inventory = metadata(plan, context)?;
+    #[cfg(test)]
+    if context.inspect_metadata {
+        inspect_original_metadata(plan, &inventory);
+    }
     let usage = controlled_pass(&inventory, context, &mut io::sink())?;
     context.charge(usage.bytes as u128)?; // initialize exact final backing
     context.charge(usage.bytes as u128)?; // final output hash
@@ -1366,6 +1382,45 @@ fn finish<'p>(
         semantic_plan_identity,
         config_identity,
     })
+}
+
+/// Runs only inside the charged finish path, before any metadata serialization.
+#[cfg(test)]
+fn inspect_original_metadata(plan: &DecoderPlan, inventory: &Inventory<'_>) {
+    let mut live = 0;
+    let mut admitted = 0;
+    for (phase, graph) in [
+        (&inventory.prefill, &plan.prefill),
+        (&inventory.decode, &plan.decode),
+    ] {
+        admitted += bounded::layout_bytes::<Group<'_>>(graph.operations.len()).unwrap()
+            + bounded::layout_bytes::<Member<'_>>(graph.operations.len()).unwrap();
+        assert!(phase.groups.len() <= graph.operations.len());
+        live += bounded::layout_bytes::<Group<'_>>(phase.groups.len()).unwrap();
+        let mut members = 0;
+        for group in phase.groups.iter() {
+            let leader = graph.operations.iter()
+                .find(|op| op.id == group.members[0].operation_id).unwrap();
+            assert_eq!(group.input_id.as_ptr(), leader.inputs[0].as_ptr());
+            if let InputShape::Produced(shape) = group.input_shape {
+                let producer = graph.operations.iter()
+                    .find(|op| op.id == group.input_id).unwrap();
+                assert_eq!(shape.as_ptr(), producer.output_shape.as_ptr());
+            }
+            members += group.members.len();
+            live += bounded::layout_bytes::<Member<'_>>(group.members.len()).unwrap();
+            for member in group.members.iter() {
+                let op = graph.operations.iter()
+                    .find(|op| op.id == member.operation_id).unwrap();
+                assert_eq!(member.operation_id.as_ptr(), op.id.as_ptr());
+                assert_eq!(member.weight_id.as_ptr(),
+                    op.attributes["weight"].as_str().unwrap().as_ptr());
+                assert_eq!(member.output_shape.as_ptr(), op.output_shape.as_ptr());
+            }
+        }
+        assert_eq!(members, graph.operations.iter().filter(|op| remote(op.operator)).count());
+    }
+    assert!(live <= admitted);
 }
 
 /// Concrete owning-return slots, added to the unchanged checked construction

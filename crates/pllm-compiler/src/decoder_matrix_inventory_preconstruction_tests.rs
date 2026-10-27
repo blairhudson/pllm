@@ -1,4 +1,6 @@
 use super::*;
+use crate::decoder_runtime_schedule::checked_remote_groups;
+use crate::decoder_runtime_schedule::{GroupingAccess, GROUPING_ACCESS, GROUPING_ALLOCATIONS};
 use pllm_models::{lower_model_json, DecoderWorkload};
 use pllm_types::canonical_bytes;
 use serde_json::json;
@@ -165,6 +167,84 @@ pub(super) fn legacy_inventory_json(model: &DecoderPlan) -> Value {
 }
 
 #[test]
+fn borrowed_groups_match_original_algorithm_and_original_owners() {
+    for family in ["llama", "qwen2", "qwen3"] {
+        let mut model = plan(family, true);
+        for graph in [&mut model.prefill, &mut model.decode] {
+            let mut table = graph.operations[0].clone();
+            table.id = "nonadjacent-table".into();
+            graph.operations.insert(2, table);
+            let expected = legacy_groups(graph).unwrap();
+            let actual = checked_remote_groups(graph).unwrap();
+            assert_eq!(actual.len(), expected.len());
+            for (index, op) in graph.operations.iter().enumerate() {
+                assert_eq!(actual.is_remote(index), remote(op.operator));
+                match (actual.get(&op.id), expected.get(op.id.as_str())) {
+                    (Some(actual), Some(expected)) => {
+                        assert_eq!(actual.operations.len(), expected.len());
+                        for (a, b) in actual.operations.iter().zip(expected) {
+                            assert!(std::ptr::eq(a, *b));
+                        }
+                    }
+                    (None, None) => (),
+                    _ => panic!("leader mismatch: {}", op.id),
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn malformed_grouping_preserves_original_error_winner_without_error_allocation() {
+    for case in 0..8 {
+        let mut model = plan("qwen2", true);
+        let graph = &mut model.prefill;
+        match case {
+            0 => graph.operations.iter_mut().for_each(|op| op.layer = None),
+            1 => graph
+                .operations
+                .iter_mut()
+                .filter(|op| op.layer == Some(1))
+                .for_each(|op| op.layer = Some(3)),
+            2 => graph.operations[0].attributes["weight"] = Value::Null,
+            3 => graph
+                .operations
+                .retain(|op| op.operator != ModelOperator::TokenLookup),
+            4 => {
+                let head = graph
+                    .operations
+                    .iter()
+                    .find(|op| op.operator == ModelOperator::OutputHead)
+                    .unwrap()
+                    .clone();
+                graph.operations.push(head);
+            }
+            5..=7 => {
+                let indices: Vec<_> = graph
+                    .operations
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, op)| op.operator == ModelOperator::Linear)
+                    .map(|(i, _)| i)
+                    .collect();
+                graph.operations[indices[1]].id = graph.operations[indices[0]].id.clone();
+                if case >= 6 {
+                    graph.operations[indices[4]].id = graph.operations[indices[3]].id.clone();
+                }
+                if case == 7 {
+                    graph.operations[indices[1]].inputs = vec!["different-input".into()];
+                }
+            }
+            _ => unreachable!(),
+        }
+        assert_eq!(
+            checked_remote_groups(graph).unwrap_err().to_string(),
+            legacy_groups(graph).unwrap_err()
+        );
+    }
+}
+
+#[test]
 fn stream_bytes_and_digests_match_original_canonical_implementation() {
     for family in ["llama", "qwen2", "qwen3"] {
         for tied in [false, true] {
@@ -198,53 +278,6 @@ fn stream_bytes_and_digests_match_original_canonical_implementation() {
         }
     }
 }
-
-#[test]
-fn metadata_uses_original_id_and_shape_backing_and_exact_buffer_layouts() {
-    let model = plan("llama", true);
-    let metadata = lower_inventory(&model).unwrap();
-    for (phase, graph) in [
-        (&metadata.prefill, &model.prefill),
-        (&metadata.decode, &model.decode),
-    ] {
-        assert!(phase.groups.len() <= graph.operations.len());
-        for group in phase.groups.iter() {
-            let leader = graph
-                .operations
-                .iter()
-                .find(|op| op.id == group.members[0].operation_id)
-                .unwrap();
-            assert_eq!(group.input_id.as_ptr(), leader.inputs[0].as_ptr());
-            if let InputShape::Produced(shape) = group.input_shape {
-                let producer = graph
-                    .operations
-                    .iter()
-                    .find(|op| op.id == group.input_id)
-                    .unwrap();
-                assert_eq!(shape.as_ptr(), producer.output_shape.as_ptr());
-            }
-            for member in group.members.iter() {
-                let op = graph
-                    .operations
-                    .iter()
-                    .find(|op| op.id == member.operation_id)
-                    .unwrap();
-                assert_eq!(member.operation_id.as_ptr(), op.id.as_ptr());
-                assert_eq!(
-                    member.weight_id.as_ptr(),
-                    op.attributes["weight"].as_str().unwrap().as_ptr()
-                );
-                assert_eq!(member.output_shape.as_ptr(), op.output_shape.as_ptr());
-            }
-        }
-    }
-    let raw = model.digest().as_sha256();
-    let exact = HexDigest::new(raw).into_digest();
-    assert_eq!(exact, model.digest());
-    assert_eq!(exact.backing_capacity_bytes(), 64);
-}
-
-use crate::decoder_runtime_schedule::GROUPING_ALLOCATIONS;
 
 #[test]
 fn grouping_quote_counts_original_capacities_without_normalizing_owners() {
@@ -366,4 +399,264 @@ fn grouping_quote_rejects_bounded_path_input_string_and_collection_caps() {
             "case {case}"
         );
     }
+}
+
+fn grouping_scale_graph(count: usize, shared_key: bool) -> DecoderGraph {
+    let model = plan("llama", true);
+    let mut graph = model.prefill;
+    let table = graph
+        .operations
+        .iter()
+        .find(|op| op.operator == ModelOperator::TokenLookup)
+        .unwrap()
+        .clone();
+    let linear = graph
+        .operations
+        .iter()
+        .find(|op| op.operator == ModelOperator::Linear)
+        .unwrap()
+        .clone();
+    let head = graph
+        .operations
+        .iter()
+        .find(|op| op.operator == ModelOperator::OutputHead)
+        .unwrap()
+        .clone();
+    graph.operations = vec![table];
+    for index in 0..count {
+        let mut op = linear.clone();
+        op.id = format!("matrix.{index:08}");
+        op.layer = Some(if shared_key { 0 } else { index as u64 });
+        op.inputs = vec!["shared.semantic.input".into()];
+        graph.operations.push(op);
+    }
+    graph.operations[1..].reverse();
+    graph.operations.push(head);
+    graph
+}
+
+#[test]
+fn indexed_grouping_work_and_accesses_scale_n_log_n_not_pairs() {
+    for shared_key in [false, true] {
+        let mut previous_bound = None;
+        for count in [32, 64, 128, 256, 512, 1024, 2048] {
+            let graph = grouping_scale_graph(count, shared_key);
+            let quote = RemoteGroupingQuote::checked(&graph).unwrap();
+            let resources = quote.resources();
+            let groups = quote
+                .construct(resources.workspace_bytes, resources.work_bound)
+                .unwrap();
+            assert_eq!(groups.retained_index_bytes(), resources.heap_bytes);
+            assert!(groups.usage().work <= resources.work_bound);
+            assert!(groups.usage().comparisons <= resources.comparison_bound);
+            if count >= 128 {
+                assert!(groups.usage().comparisons < (count as u128) * (count as u128));
+            }
+            if let Some(previous) = previous_bound {
+                // IDs/input lengths fixed; doubling n grows the explicit
+                // heapsort + linear reserve by <3x, never a quadratic 4x.
+                assert!(resources.work_bound < 3 * previous);
+            }
+            previous_bound = Some(resources.work_bound);
+            assert_eq!(groups.len(), if shared_key { 3 } else { count + 2 });
+            GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+            for index in 0..graph.operations.len() {
+                if groups.is_remote(index) {
+                    if let Some(group) = groups.at(index) {
+                        let cached = group.operations.len();
+                        assert_eq!(group.operations.iter().count(), cached);
+                    }
+                }
+            }
+            GROUPING_ACCESS.with(|counts| {
+                let counts = counts.get();
+                assert_eq!(counts.positional_probes, graph.operations.len());
+                assert_eq!(counts.id_probes, 0);
+                assert_eq!(counts.member_visits, graph.operations.len());
+            });
+            GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+            for op in &graph.operations {
+                let _ = groups.get(&op.id);
+            }
+            GROUPING_ACCESS.with(|counts| {
+                assert!(
+                    counts.get().id_probes
+                        <= graph.operations.len()
+                            * (usize::BITS - graph.operations.len().leading_zeros()) as usize
+                )
+            });
+        }
+    }
+}
+
+#[test]
+fn indexed_grouping_workspace_and_work_one_short_precede_all_three_factories() {
+    let graph = grouping_scale_graph(128, true);
+    GROUPING_ALLOCATIONS.with(|count| count.set(0));
+    let quote = RemoteGroupingQuote::checked(&graph).unwrap();
+    let resources = quote.resources();
+    assert!(matches!(
+        quote.construct(resources.workspace_bytes - 1, resources.work_bound),
+        Err(RemoteGroupingError::Capacity)
+    ));
+    GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 0));
+    let quote = RemoteGroupingQuote::checked(&graph).unwrap();
+    assert!(matches!(
+        quote.construct(resources.workspace_bytes, resources.work_bound - 1),
+        Err(RemoteGroupingError::WorkLimit)
+    ));
+    GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 0));
+    let groups = RemoteGroupingQuote::checked(&graph)
+        .unwrap()
+        .construct(resources.workspace_bytes, resources.work_bound)
+        .unwrap();
+    GROUPING_ALLOCATIONS.with(|count| assert_eq!(count.get(), 3));
+    assert_eq!(groups.retained_index_bytes(), resources.heap_bytes);
+    let expected = legacy_groups(&graph).unwrap();
+    for op in &graph.operations {
+        let actual = groups.get(&op.id).map(|group| {
+            group
+                .operations
+                .iter()
+                .map(|op| op.id.as_str())
+                .collect::<Vec<_>>()
+        });
+        let expected = expected
+            .get(op.id.as_str())
+            .map(|members| members.iter().map(|op| op.id.as_str()).collect::<Vec<_>>());
+        assert_eq!(actual, expected);
+    }
+}
+
+#[test]
+fn indexed_grouping_preserves_shadowed_ids_empty_ids_and_error_precedence() {
+    for case in 0..5 {
+        let mut model = plan("qwen2", true);
+        let graph = &mut model.prefill;
+        match case {
+            0 => {
+                let mut local = graph
+                    .operations
+                    .iter()
+                    .find(|op| !remote(op.operator))
+                    .unwrap()
+                    .clone();
+                local.id = graph
+                    .operations
+                    .iter()
+                    .find(|op| op.operator == ModelOperator::Linear)
+                    .unwrap()
+                    .id
+                    .clone();
+                graph.operations.push(local);
+            }
+            1 => graph
+                .operations
+                .iter_mut()
+                .find(|op| op.operator == ModelOperator::Linear)
+                .unwrap()
+                .id
+                .clear(),
+            2 => {
+                graph.operations[0].attributes["weight"] = Value::Null;
+                graph.operations.iter_mut().for_each(|op| op.layer = None);
+            }
+            3 => {
+                graph.operations[0].attributes["weight"] = Value::Null;
+                graph
+                    .operations
+                    .retain(|op| op.operator != ModelOperator::OutputHead);
+            }
+            4 => {
+                let indices: Vec<_> = graph
+                    .operations
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, op)| op.operator == ModelOperator::Linear)
+                    .map(|(index, _)| index)
+                    .collect();
+                for &index in &indices {
+                    graph.operations[index].id = "duplicate.remote".into();
+                }
+            }
+            _ => unreachable!(),
+        }
+        match (checked_remote_groups(graph), legacy_groups(graph)) {
+            (Err(actual), Err(expected)) => assert_eq!(actual.to_string(), expected),
+            (Ok(actual), Ok(expected)) => {
+                assert_eq!(actual.len(), expected.len());
+                for op in &graph.operations {
+                    let actual = actual.get(&op.id).map(|group| {
+                        group
+                            .operations
+                            .iter()
+                            .map(|op| op.id.as_str())
+                            .collect::<Vec<_>>()
+                    });
+                    let expected = expected
+                        .get(op.id.as_str())
+                        .map(|members| members.iter().map(|op| op.id.as_str()).collect::<Vec<_>>());
+                    assert_eq!(actual, expected);
+                }
+            }
+            (actual, expected) => panic!("oracle mismatch: {actual:?} / {expected:?}"),
+        }
+    }
+}
+
+#[test]
+fn indexed_grouping_retains_existing_legacy_schedule_golden_digest() {
+    // Same fixture/domain/composition and known digest as the pre-existing
+    // delegation_publication_inventory legacy schedule regression; not rebaselined.
+    let model = plan("qwen2", true);
+    let composition = canonical_bytes(&json!({
+        "components": {
+            "inference": {"component": "pllm/inference", "params": {}},
+            "kernels": {"component": "pllm/cpu", "params": {"threads": 1}},
+            "linear": {"component": "pllm/masked-linear", "params": {}},
+            "preparation": {"component": "pllm/model-aware-corrections", "params": {}}
+        },
+        "model": {"source": "model.fixture"}
+    }));
+    GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+    let schedule =
+        crate::decoder_runtime_schedule::lower_decoder_runtime_schedule(&model, &composition)
+            .unwrap();
+    GROUPING_ACCESS.with(|counts| assert_eq!(counts.get().id_probes, 0));
+    assert_eq!(
+        schedule.digest().as_str(),
+        "9b2f3bed2dff2d83598bebff5cabf5a22f0ed30f470d8b7d35215d1aaa57719d"
+    );
+    assert_eq!(
+        lower_decoder_matrix_inventory(&model)
+            .unwrap()
+            .canonical_bytes(),
+        canonical_bytes(&legacy_inventory_json(&model))
+    );
+}
+
+#[test]
+fn indexed_id_lookup_does_not_walk_duplicate_nonremote_id_runs() {
+    let mut graph = grouping_scale_graph(32, false);
+    let id = graph.operations[1].id.clone();
+    let mut local = graph.operations[1].clone();
+    local.operator = ModelOperator::RmsNorm;
+    local.layer = None;
+    graph.operations.extend((0..1024).map(|_| local.clone()));
+    let groups = checked_remote_groups(&graph).unwrap();
+    let original = legacy_groups(&graph).unwrap();
+    GROUPING_ACCESS.with(|counts| counts.set(GroupingAccess::default()));
+    for _ in 0..256 {
+        let actual = groups.get(&id).unwrap();
+        assert!(std::ptr::eq(
+            actual.operations.first(),
+            original[id.as_str()][0]
+        ));
+    }
+    GROUPING_ACCESS.with(|counts| {
+        assert!(
+            counts.get().id_probes
+                <= 256 * (usize::BITS - graph.operations.len().leading_zeros()) as usize
+        )
+    });
 }

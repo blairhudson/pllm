@@ -41,7 +41,6 @@ use serde_json::Value;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::io::{self, Write};
-use std::mem::{size_of, MaybeUninit};
 
 #[path = "decoder_matrix_inventory_construction.rs"]
 #[allow(
@@ -124,11 +123,6 @@ impl serde::ser::Error for InventoryFailure<'static> {
     fn custom<T: fmt::Display>(_: T) -> Self {
         Self::Static("matrix inventory unsupported metadata enum serialization")
     }
-}
-
-#[cfg(test)]
-thread_local! {
-    static METADATA_FACTORIES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 fn plan_canonical_limits(max_work: usize) -> model_canonical::Limits {
