@@ -19,6 +19,7 @@ pub mod coefficient_layout;
 pub mod coefficient_phase_reference;
 pub mod coefficient_repacking;
 pub mod column_product_reference;
+pub mod commutable_projection_reference;
 pub mod segmented_affine_reference;
 pub mod compact;
 pub mod compact_product;
