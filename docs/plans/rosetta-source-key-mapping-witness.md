@@ -1,33 +1,33 @@
 # ROSETTA source/key mapping: bounded refusal witness
 
 **Astra67597 / ONEHE-R-MAP; 27 October 2026; baseline `23d691c6f0d353d988bcb405305bf4a9a1674479`.**
-Root and `docs/AGENTS.md` read; HEAD matches. Contract only, pending parent's
+Root and `docs/AGENTS.md` read; HEAD matched at the original inspection. Contract only, pending parent's
 independent Astra review before implementation. D62 permits reusable layers over
 **qualified** general Rust crypto conditionally; current candidate is not qualified.
 No backend/pin adoption, runtime adapter, encrypted execution, key generation,
 parameter default, build/test result, or completed-method claim follows.
 
-## 1. Local source boundary and reusable owners
+## 1. Historical local source boundary and reusable owners
 
 Poulpy checkout `~/.cargo/git/checkouts/poulpy-66ed1d416543fd59/ca35325/`
 has HEAD→master→`ca3532570ff62b96599a74f7adb85de7726b0446`.
-Actual API/reference files below were read locally; checkout ref is not a new
-whole-tree integrity/security attestation. Immutable links are locators, not fetches.
+At the original 27 October 2026 local-only inspection, API/reference files below
+were read locally; checkout ref is not a new whole-tree integrity/security
+attestation. In that inspection, immutable links were locators, not fetches.
 HE3DB `1d8d7827baf32b4094b7547aeeaa9faf59253b26` and Lattigo
 `37a34b4676e987795949a795f0ce9d0893763c96` source were **not found** in repository,
 `target/`, workspace or approved OpenCode temporary-root filename searches;
-Lattigo also absent from searched local Go module cache. No network used.
-**SOURCE-MISSING-H / SOURCE-MISSING-L:** cannot independently inspect their actual
-pinned arithmetic, signs, keys or schedules. Supply existing local pinned content
-with identity binding; do not replace it with summaries, another revision or fetch.
+Lattigo also absent from searched local Go module cache. No network was used in
+that historical search. **SOURCE-MISSING-H / SOURCE-MISSING-L** described that
+local-only scope, not current global source availability; §1.1 supersedes those
+missing-file blockers for the six recovered files only.
 
 Existing [F6](../../paper/reproduction-contracts/encrypted-inference.md#f6--rosetta-requires-blind-rotation-of-encrypted-accumulators-not-generic-public-lut-pbs)
-and `benchmarks/research/torus_comparison.py:3–28` are secondary leads only:
-HE3DB needs `src/HEDB/comparison/{extract_msb.cpp,tfhepp_utils.cpp,tfhepp_utils.h,HomCompare.h}`
-and pinned TFHEpp parameter/bootstrapping headers; Lattigo needs
-`core/rgsw/blindrot/evaluator.go` plus its called ring/RLWE/RGSW and CKKS recovery
-owners. Reported `BlindRotateCore` capability and odd-adjusting modulus switch
-are **not newly verified here**, nor a qualified bridge. Research oracles are not
+and `benchmarks/research/torus_comparison.py:3–28` remain secondary leads only.
+The original missing-file list included the comparison and blind-rotation files
+now recovered in §1.1. Their called TFHEpp parameter/key/bootstrapping and
+ring/RLWE/RGSW/CKKS recovery dependencies are still not all recovered or qualified.
+Research oracles are not
 runtime dependencies/adoption and cannot certify source-evaluated parameters.
 
 Reuse `crates/pllm-core/src/coefficient_layout.rs:1–11,29–74` (clear odd-ring
@@ -36,6 +36,50 @@ contracts, and compiler `encrypted_level_schedule.rs` / shared SSA and trace bri
 None supplies encrypted ring conversion, sampling, custody or a noise proof.
 Reuse native `staged_storage`, `staged_preparation`, `staged_identity` admission/
 owner boundaries; do not create paper-specific parallel ledgers or samplers.
+
+### 1.1. Source-recovery addendum — 27 October 2026, after local-only inspection
+
+Parent-authorized bounded read-only web research by **Astra12** recovered six
+pinned source files: eight HTTP bodies, 53,255 bytes, six source-file HTTP 200
+responses. This addendum records that review, not a new fetch by this author.
+No copied upstream source/archive, backend/pin adoption, runtime, parameter,
+RNG authority or cryptographic security qualification follows.
+
+HE3DB comparison files at [the pinned directory][H] have reviewed blob identities:
+
+| File | Blob identity |
+| --- | --- |
+| `extract_msb.cpp` | `48d0bbd8360f26988dc05db75fc44597dcdbe837` |
+| `tfhepp_utils.cpp` | `74495a7b9b55f79826585bc05af58aac2992ea6f` |
+| `tfhepp_utils.h` | `384bd91ab842052cdec0dc6e330a9b44d92956e5` |
+| `HomCompare.h` | `1101ad25250a8f0e77cfec2f68002c232745e4b0` |
+
+The source phase is `b-<a,s>`, requiring mask negation versus this proposal's
+plus convention. `greater_than(A,B)=MSB(B-A)`; `>=` is `NOT(MSB(A-B))`, with
+optional `LOG_to_ARI`. `HomMSB` supports ≤10 plaintext bits at lvl1 and ≤33
+via lvl2→lvl1; comparison requires `plain_bits+1`. Actual paths include
+lvl1→lvl0→lvl1, lvl2→lvl0→lvl2 and improved lvl2→lvl1, not a proof of the
+proposed named L→same-L return. PBS offsets `2^(w-6)` / `2^(w-7)`,
+`mu_polygen` filling `-mu`, and ARI doubling `mu` plus adding after PBS do not
+prove the proposed `RNE(q0/4096)` output encoding.
+
+Lattigo [blind-rotation evaluator][LBR] and [RLWE automorphism evaluator][LA]
+were recovered at the exact commit. The latter's actual filename is
+`evaluator_automorphism.go` (HTTP 200); `automorphism.go` returned 404.
+No Lattigo blob SHA was available; immutable commit URLs bind this provenance.
+`Evaluate` resets to public LUT `(sigma_-g(f*X^b),0)` and documents
+`f(X)X^(b+<a,s>)`; `BlindRotateCore` retains an encrypted accumulator through
+keyed automorphisms and external products with `RGSW(X^s[j])`. The wrapper's
+pretransform/key map for this proposal remains UNPROVEN. Modulus switching is
+`round(2N*x/Q) mod 2N`, then nonzero even **mask** residues `r` become `r+1`;
+the body receives no such odd adjustment. This is not whole-phase Quant4096.
+Automorphism key switching occurs **before** `sigma_g`, with source-key direction
+`S→sigma_g^-1(S)`: algebraically equivalent to post-action `sigma_g(S)→S`,
+but with different error placement, not an interchangeable noise proof.
+
+These source bodies are RECOVERED; remaining blockers are concrete conversion,
+key-return, error and dependency contracts. TFHEpp parameter/key and recovery
+bodies are not all recovered; the exact encrypted chain remains unqualified.
 
 ## 2. Frozen proposal, not recovered author identity
 
@@ -73,7 +117,7 @@ decomposition and temporary layouts remain charged and unqualified.
 | Entry trace in S | Q1/scale36/level1, rank1/degree1 under S. Ideal `Tr0(C)=2048^-1*sum(g odd mod4096)sigma_g(C)`. Execution order requires `z=2048^-1*C` on **BOTH ciphertext components FIRST**, before any automorphism/key-switch accumulation. Keys `sigma_g(S)→S`; g=-1 then `5^(2^k) mod4096`, k=0..9, each stage `z=z+KeySwitch_to_S(sigma_g(z))` using preceding z. The ideal sum alone does not prove equivalent execution order: post-dividing fresh key-switch errors differs. No relin. Modular inverse exact; switch-error propagation in this order is U(TRACE-ERROR), not real division by2048. **Direct torus substitution INCOMPATIBLE; stop below.** |
 | S→extraction2048 | Companion Q1→q0 is restriction, not divide/rescale: level1→0, scale36 unchanged. Constant LWE vector `(a0,-a2047,…,-a1)` under `vec(S)` preserves `b+<a,s>` algebraically, no rounding/rotation/relin. Nonconstant selection first needs shift. Poulpy [P3] exposes conversion but its raw sample routine copies masks in its own convention; U(EXTRACT-SIGN) and odd-modulus transport, no invented adapter. |
 | extraction2048→L1024 | At q0/scale36, client decomposed switch `vec(S)→L`, independent binary L1024. Same scalar phase plus U(LWE-KS-ERROR), including gadgets/rounding. Linear vector2048→1024, no polynomial tensor/relin/rotation. **Never truncate/pad a secret or ciphertext.** [P3] API is not proof of this parameterized switch. |
-| L→HomComp/S | Three comparisons of `2*C_X-2*2^16*K_j+2^16`, K_j=`2^20*tau_j`; output phase `beta*bit`, beta=RNE(q0/4096), under named L, level0. Sum yields S. Proposed decoded **INTEGER-X** error≤1/64 means ciphertext **PHASE** error≤`2**16/64`, **BEFORE comparison doubling**; this bound is not proven. U(HOMCOMP): SOURCE-MISSING-H, exact domains/key directions, phase signs, PBS/rotation/rounding, output-bit conversion, temporary rank/tensor and **every** internal relin. Generic PBS is not this proof. |
+| L→HomComp/S | Three proposed comparisons of `2*C_X-2*2^16*K_j+2^16`, K_j=`2^20*tau_j`; proposed output phase `beta*bit`, beta=RNE(q0/4096), under named L, level0. Sum would yield S. Proposed decoded **INTEGER-X** error≤1/64 means ciphertext **PHASE** error≤`2**16/64`, **BEFORE comparison doubling**; this bound is not proven. U(HOMCOMP), after §1.1 source recovery: odd-q↔torus transport, mask-sign conversion and comparison complement, plaintext-bit domain, named-key return, PBS/rotation/rounding/noise and output-bit encoding remain unproved, including temporary rank/tensor and **every** internal relin. Recovered HE3DB paths do not establish L→same-L or this output encoding. Generic PBS is not this proof. |
 | S→phase index I | Retained C_x at Q1: coefficients `A_s=RNE(q1*q0*(4096/B_s)/2^40)`, `Bidx_s=RNE(q1*q0*(4096/B_s)*(-2*K_s-B_s+1)/2^25)`; B_s=`2^(9+s)`. Affine plaintext multiply then centered nearest rescale q1 gives q0/level0 index phase. BR by S selects coefficient; extract2048 and KS→L1024. Rank1/degree1, no ct×ct relin. U(INDEX): BR keys/conversion/errors, whole-phase `Quant4096`, not component rounding. |
 | encrypted affine BR/trace | `P_s=Rescale_q1(C_x*sum_i RNE(q1*2^8*aHat_si)Y^i + sum_i RNE(q1*2^44*bHat_si)Y^i)`; Q1/36→q0/44, rank1/degree1 under S. `BR(P_s,I)=Y^-I*P_s`, trace each, gather `sum_s Y^s*c_s`, BR by S, trace. Client BR material relates L→S; [P1/P2] instead takes **GGSW index bits under S**. U(PHASE-TO-BITS), scale/error and gadget schedule; external products/CMux are not free tensor/relin steps. Trace keys as above at q0. Public LUT replacement [P4] invalid. |
 | S→H | Embed Y=T^32 at q0/scale44/level0; client switch `S(T^32)→H`. Rank1/degree1, no ct×ct relin; U(RING-UP): rotation/switch schedule, error/rounding, complete H-mask distribution. Embedding occupies proper subspace; it does not restore uniform full-ring masks. |
@@ -147,7 +191,8 @@ bounds are still UNKNOWN.
 
 Acceptance: independent reviewer traces **each edge** to actual pinned primitive
 and numeric/key/owner attachment, or records concrete UNSUPPORTED/INCOMPATIBLE
-edge. Current result is **source-resolution refusal witness, not HE execution**.
+edge. After §1.1 recovery, current result remains a **bounded source-resolution
+refusal witness, not HE execution**; no HomComp output encoding is adopted.
 Exact primes, HomComp and recovery approximation are not recovered author identity.
 Small next user decision, if source cannot supply them: explicitly commission a
 separately named alternative trace/index/recovery derivation with fixed endpoints,
@@ -161,10 +206,14 @@ Next mathematically supported neutral unit, after review/separate authorization:
 extend existing bounded coefficient-layout regression coverage for odd-limb
 inverse2048/trace and explicit even-modulus refusal; no HE adapter or large ring.
 Genuine blocker for next encrypted unit remains missing trace construction,
-phase-to-index conversion, pinned source attachments, custody and complete bound.
+phase-to-index conversion, remaining pinned dependency/key/error attachments,
+custody and complete bound. Source inspection is not whole-method execution.
 
 [P0]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/docs/bootstrapping.md#L33-L51
 [P1]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-bin-fhe/src/api/bdd/glwe_blind_rotation.rs
 [P2]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-bin-fhe/src/reference/bdd/glwe_blind_rotation.rs
 [P3]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-core/src/reference/conversion.rs#L30-L96
 [P4]: https://github.com/poulpy-fhe/poulpy/blob/ca3532570ff62b96599a74f7adb85de7726b0446/poulpy-bin-fhe/src/reference/blind_rotation/algorithm.rs#L845-L861
+[H]: https://github.com/zhouzhangwalker/HE3DB/tree/1d8d7827baf32b4094b7547aeeaa9faf59253b26/src/HEDB/comparison
+[LBR]: https://github.com/tuneinsight/lattigo/blob/37a34b4676e987795949a795f0ce9d0893763c96/core/rgsw/blindrot/evaluator.go
+[LA]: https://github.com/tuneinsight/lattigo/blob/37a34b4676e987795949a795f0ce9d0893763c96/core/rlwe/evaluator_automorphism.go
