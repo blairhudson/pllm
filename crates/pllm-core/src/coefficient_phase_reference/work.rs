@@ -60,6 +60,16 @@ const MERGE: u64 = LOOP + 1 + 3 + 3 + 2 + 2 + 4 + 2;
 // Coordinate iterators, including public min/edge arithmetic, nested cursors,
 // fields and destination/index-plane writes. No iterator visit inside PAIR.
 const COORDINATE: u64 = 2 * LOOP + 12 + 3 + 3 + 4 + 4;
+// Shared InterleaveSchedule: <=256 units for repeated degree/geometry gates,
+// power-of-two padding, length arithmetic, descriptor/cursor initialization and
+// scratch split checks. Each next/dispatch/slice setup costs <=128 units:
+// <=16 arithmetic/comparison operations, <=8 cursor writes, <=6 returned enum
+// words, <=8 slice arithmetic/bounds checks, loop/dispatch and terminal paths.
+// These are conservative scalar envelopes, not one-unit iterator calls.
+// Fixed (8192,64,6): Normalize + 24 Trace + 7 Merge + Finish + terminal next.
+const SCHEDULE_SETUP: u64 = 256;
+const SCHEDULE_NEXT: u64 = 128;
+const SCHEDULE_CALL: u64 = SCHEDULE_SETUP + 34 * SCHEDULE_NEXT;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Term {
@@ -150,7 +160,7 @@ impl Inventory {
         // quote(1), short evaluate(2), invalid-mask evaluation(3). A push pays two checked arithmetics,
         // bounds + four field-word writes, checked cursor/write and Result (13).
         // Four initializer words per Term. Constructor expressions have at most
-        // thirteen times/sum calls per term (helper observer is maximal), each
+        // fourteen times/sum calls per term (helper observer is maximal), each
         // with <=16 scalar arguments. Each fold visit pays checked arithmetic
         // (2), cursor (2), and state write (1). One extra term covers preamble.
         // The final 128 are Quote's field products/sums and <=TERMS find visits.
@@ -159,7 +169,7 @@ impl Inventory {
             3 + 1 + 3 + 1 + 2 + 3,
             sum(&[
                 times(&[TERMS as u64, 13 + 4])?,
-                times(&[TERMS as u64 + 1, 13, 16, 2 + LOOP + 1])?,
+                times(&[TERMS as u64 + 1, 14, 16, 2 + LOOP + 1])?,
                 128,
             ])?,
         )?;
@@ -277,9 +287,9 @@ impl Inventory {
         out.push("seven merge prepasses", times(&[planes, 7, n])?, MERGE)?;
         out.push("trace final copy", times(&[planes, n])?, COPY)?;
         out.push(
-            "trace block/control transitions",
-            times(&[planes, 8 * 3 + 7 + 8 + 3])?,
-            12,
+            "trace schedule construction/iterator/control",
+            planes,
+            SCHEDULE_CALL,
         )?;
         out.push(
             "public visible/tail coordinate predicate",
@@ -354,6 +364,9 @@ impl Inventory {
             times(&[8 + 16 + 32, 15, 7, MERGE])?,
             times(&[8 + 16 + 32, 15, 8 + 6 + 24 + 1, COPY])?,
             times(&[2, 32, 31, AUTOMORPHISM + MERGE + COPY])?,
+            // Existing 45 tiny calls plus two legacy/extracted comparisons.
+            // Their schedules are shorter than the fixed 34-next envelope.
+            times(&[3 * 15 + 2, SCHEDULE_CALL])?,
         ])?;
         let slow_down = sum(&[
             times(&[65, CMP + SUB + HALF + LOOP + 2])?,

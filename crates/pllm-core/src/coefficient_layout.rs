@@ -11,6 +11,7 @@
 pub const MAX_DEGREE: usize = 4096;
 pub const MAX_INTERLEAVE_INPUTS: usize = 256;
 pub mod coordinates;
+pub mod schedule;
 pub(crate) mod trace;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -98,14 +99,7 @@ impl CoefficientRing {
     }
 
     fn interleave_geometry(self, stride: usize, count: usize) -> Result<usize, LayoutError> {
-        if !stride.is_power_of_two()
-            || stride > self.degree
-            || count == 0
-            || count > stride.min(MAX_INTERLEAVE_INPUTS)
-        {
-            return Err(LayoutError::InvalidGeometry);
-        }
-        Ok(count.next_power_of_two())
+        Ok(schedule::InterleaveSchedule::bounded(self.degree, stride, count, MAX_DEGREE)?.padded())
     }
 
     /// Scratch contains padded input polynomials plus one temporary polynomial.

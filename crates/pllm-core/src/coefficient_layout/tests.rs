@@ -425,3 +425,286 @@ fn invalid_buffers_are_atomic_including_noncanonical_padding() {
     );
     assert_eq!(parsed, [99; 21]);
 }
+
+#[test]
+fn schedule_tiny_all_partial_groups_match_independent_signed_selector() {
+    // For output a, lane=a%stride and source coefficient=a-lane. The lane's
+    // polynomial starts at lane*N (not lane*stride); absent lanes select zero.
+    for degree in [1, 2, 4, 8, 16, 32] {
+        for q in [9, 15, 257, (1 << 61) - 1] {
+            let ring = CoefficientRing::new(degree, q).unwrap();
+            for stride in (0..=degree.trailing_zeros()).map(|bit| 1 << bit) {
+                for count in 1..=stride {
+                    // Near-modulus values force signed negacyclic wrap during
+                    // traces/merges; irrelevant coefficients must cancel too.
+                    let input: Vec<_> = (0..count * degree)
+                        .map(|i| (-(i as i128 * 17 + 1)).rem_euclid(q.into()) as u64)
+                        .collect();
+                    let mut output = vec![q - 1; degree];
+                    let mut scratch =
+                        vec![q - 2; ring.interleave_scratch_words(stride, count).unwrap()];
+                    ring.interleave(&input, stride, count, &mut output, &mut scratch)
+                        .unwrap();
+                    let expected: Vec<_> = (0..degree)
+                        .map(|a| {
+                            let lane = a % stride;
+                            if lane < count {
+                                input[lane * degree + a - lane]
+                            } else {
+                                0
+                            }
+                        })
+                        .collect();
+                    assert_eq!(
+                        output, expected,
+                        "N={degree}, stride={stride}, count={count}, q={q}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn schedule_tiny_basis_inputs_remove_every_irrelevant_coefficient() {
+    // Every input coordinate independently, including those not retained by
+    // the selector. No production coordinates, inverses or automorphism oracle.
+    for degree in [1, 2, 4, 8] {
+        let ring = CoefficientRing::new(degree, 15).unwrap();
+        for stride in (0..=degree.trailing_zeros()).map(|bit| 1 << bit) {
+            for count in 1..=stride {
+                let mut input = vec![0; count * degree];
+                let mut output = vec![0; degree];
+                let mut scratch = vec![0; ring.interleave_scratch_words(stride, count).unwrap()];
+                for source in 0..input.len() {
+                    input[source] = 14; // -1 in an odd composite ring
+                    ring.interleave(&input, stride, count, &mut output, &mut scratch)
+                        .unwrap();
+                    for (a, &actual) in output.iter().enumerate() {
+                        let lane = a % stride;
+                        let expected = if lane < count && source == lane * degree + a - lane {
+                            14
+                        } else {
+                            0
+                        };
+                        assert_eq!(
+                            actual, expected,
+                            "N={degree}, stride={stride}, count={count}, source={source}, a={a}"
+                        );
+                    }
+                    input[source] = 0;
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn schedule_tiny_matches_pre_extraction_output_and_scratch_bit_for_bit() {
+    // Frozen pre-extraction loop order, intentionally not schedule-driven. This
+    // checks intermediate scratch/temporary contents as well as final output;
+    // independent selector/basis tests above check the mathematical contract.
+    fn legacy(
+        n: usize,
+        q: u64,
+        input: &[u64],
+        stride: usize,
+        count: usize,
+    ) -> (Vec<u64>, Vec<u64>) {
+        fn multiply(a: u64, b: u64, q: u64) -> u64 {
+            (u128::from(a) * u128::from(b) % u128::from(q)) as u64
+        }
+        fn subtract(a: u64, b: u64, q: u64) -> u64 {
+            if a >= b {
+                a - b
+            } else {
+                q - (b - a)
+            }
+        }
+        fn automorphism(n: usize, q: u64, output: &mut [u64], input: &[u64], element: usize) {
+            for (i, &v) in input.iter().enumerate() {
+                let at = i * element % (2 * n);
+                let v = if at < n { v } else { subtract(0, v, q) };
+                output[at % n] = (output[at % n] + v) % q;
+            }
+        }
+        let padded = count.next_power_of_two();
+        let mut scratch = vec![q - 2; (padded + 1) * n];
+        let (values, temp) = scratch.split_at_mut(padded * n);
+        let mut inverse = 1;
+        for _ in 0..stride.trailing_zeros() {
+            inverse = multiply(inverse, q.div_ceil(2), q);
+        }
+        values.fill(0);
+        for (v, &a) in values.iter_mut().zip(input) {
+            *v = multiply(a, inverse, q);
+        }
+        for value in values.chunks_exact_mut(n) {
+            let mut h = padded;
+            while h < stride {
+                temp.copy_from_slice(value);
+                automorphism(n, q, value, temp, n / h + 1);
+                h *= 2;
+            }
+        }
+        let mut h = padded / 2;
+        while h != 0 {
+            let (left, right) = values.split_at_mut(h * n);
+            for (a, b) in left.chunks_exact_mut(n).zip(right.chunks_exact(n)) {
+                for i in 0..n {
+                    let shifted = if i >= h {
+                        b[i - h]
+                    } else {
+                        subtract(0, b[n + i - h], q)
+                    };
+                    temp[i] = subtract(a[i], shifted, q);
+                    a[i] = (a[i] + shifted) % q;
+                }
+                automorphism(n, q, a, temp, n / h + 1);
+            }
+            h /= 2;
+        }
+        let output = values[..n].to_vec();
+        (output, scratch)
+    }
+    for degree in [1, 2, 4, 8, 16] {
+        for q in [9, 15, (1 << 61) - 1] {
+            let ring = CoefficientRing::new(degree, q).unwrap();
+            for stride in (0..=degree.trailing_zeros()).map(|bit| 1 << bit) {
+                for count in 1..=stride {
+                    let input: Vec<_> = values(count * degree, 7, q)
+                        .into_iter()
+                        .map(|v| q - 1 - v)
+                        .collect();
+                    let expected = legacy(degree, q, &input, stride, count);
+                    let mut output = vec![77; degree];
+                    let mut scratch =
+                        vec![q - 2; ring.interleave_scratch_words(stride, count).unwrap()];
+                    ring.interleave(&input, stride, count, &mut output, &mut scratch)
+                        .unwrap();
+                    assert_eq!(
+                        (output, scratch),
+                        expected,
+                        "N={degree}, stride={stride}, count={count}, q={q}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn schedule_8192_exact_order_padding_and_read_before_overwrite() {
+    use schedule::{InterleaveSchedule, InterleaveStep};
+    use InterleaveStep::*;
+    let schedule = InterleaveSchedule::bounded(8192, 64, 6, 8192).unwrap();
+    assert_eq!(schedule.padded(), 8);
+    assert_eq!(schedule.scratch_words(), 9 * 8192);
+    assert!(!std::mem::needs_drop::<InterleaveSchedule>());
+    assert!(!std::mem::needs_drop::<schedule::InterleaveSteps>());
+    assert!(
+        std::mem::size_of::<InterleaveSchedule>()
+            + std::mem::size_of::<schedule::InterleaveSteps>()
+            < 1024
+    );
+    let mut steps = schedule.steps();
+    assert_eq!(
+        steps.next(),
+        Some(Normalize {
+            count: 6,
+            padded: 8,
+            divisor: 64
+        })
+    );
+    // No coefficient execution at this degree. Track source dependencies and
+    // structural zeros symbolically; every padded lane still gets all traces.
+    let mut dependencies = [1_u16, 2, 4, 8, 16, 32, 0, 0];
+    let mut automorphisms = 0;
+    for lane in 0..8 {
+        for element in [1025, 513, 257] {
+            assert_eq!(steps.next(), Some(Trace { lane, element }));
+            automorphisms += 1;
+        }
+    }
+    for (shift, element) in [(4, 2049), (2, 4097), (1, 8193)] {
+        for left in 0..shift {
+            let right = left + shift;
+            assert_eq!(
+                steps.next(),
+                Some(Merge {
+                    left,
+                    right,
+                    shift,
+                    element
+                })
+            );
+            // Right is outside this level's destinations, remains readable,
+            // and contains no dependency already consumed by left.
+            assert!(right >= shift);
+            let before = dependencies[right];
+            assert_eq!(dependencies[left] & before, 0);
+            dependencies[left] |= before;
+            assert_eq!(dependencies[right], before);
+            automorphisms += 1;
+        }
+    }
+    assert_eq!(dependencies[0], 0b11_1111);
+    assert_eq!(automorphisms, 31);
+    assert_eq!(steps.next(), Some(Finish));
+    assert_eq!(steps.next(), None);
+    assert_eq!(steps.next(), None);
+}
+
+#[test]
+fn schedule_invalid_geometry_and_kernel_errors_leave_both_buffers_unchanged() {
+    use schedule::InterleaveSchedule;
+    for (degree, stride, count, maximum, error) in [
+        (0, 1, 1, 8192, LayoutError::InvalidDegree),
+        (3, 1, 1, 8192, LayoutError::InvalidDegree),
+        (16384, 1, 1, 16384, LayoutError::InvalidDegree),
+        (8192, 64, 6, 4096, LayoutError::InvalidDegree),
+        (16, 0, 1, 16, LayoutError::InvalidGeometry),
+        (16, 3, 1, 16, LayoutError::InvalidGeometry),
+        (16, 32, 1, 16, LayoutError::InvalidGeometry),
+        (16, 2, 0, 16, LayoutError::InvalidGeometry),
+        (16, 2, 3, 16, LayoutError::InvalidGeometry),
+        (8192, 512, 257, 8192, LayoutError::InvalidGeometry),
+        (16, usize::MAX, usize::MAX, 16, LayoutError::InvalidGeometry),
+    ] {
+        assert_eq!(
+            InterleaveSchedule::bounded(degree, stride, count, maximum),
+            Err(error)
+        );
+        let mut output = [77; 16];
+        let mut scratch = [88; 48];
+        assert_eq!(
+            trace::interleave(
+                degree,
+                15,
+                maximum,
+                &[0; 32],
+                stride,
+                count,
+                &mut output,
+                &mut scratch
+            ),
+            Err(error)
+        );
+        assert_eq!(output, [77; 16]);
+        assert_eq!(scratch, [88; 48]);
+    }
+    // Preserve legacy error precedence and validate every input before writes.
+    for (modulus, input, expected) in [
+        (4, [0; 32], LayoutError::InvalidModulus),
+        (15, [15; 32], LayoutError::NonCanonical),
+    ] {
+        let mut output = [77; 16];
+        let mut scratch = [88; 48];
+        assert_eq!(
+            trace::interleave(16, modulus, 16, &input, 2, 2, &mut output, &mut scratch),
+            Err(expected)
+        );
+        assert_eq!(output, [77; 16]);
+        assert_eq!(scratch, [88; 48]);
+    }
+}
