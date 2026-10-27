@@ -3,7 +3,8 @@
 //! token IDs may be reconstructed after the fixed full-prefix feedback loop.
 
 mod checked_row_energy;
-// Compiler-private ownership bridge; no default dispatch or drain issuer.
+// Private staged adapter; default routing remains unchanged and execution
+// remains held pending retained-owner semantic finalization admission.
 #[allow(dead_code)]
 mod body_tensor_integration;
 pub mod cost;
