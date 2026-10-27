@@ -46,7 +46,7 @@ pub const PREFLIGHT_CONTROL: usize = 12 * 1024;
 // unpacks48; bias16 arithmetic+checks; reversal32 + eight outer read/halves56;
 // polynomial
 // arithmetic+finite checks2*8*(74+65); polynomial inputs/coefficients8*62;
-// four wrapper arithmetic+checks per scalar; 197 float cells across all three
+// four wrapper arithmetic+checks per scalar; 285 float cells across all three
 // payloads, eight visits each for initialization/moves/redundant all-path wipes.
 pub const CLEAR_WORK: usize = 24
     + 96
@@ -58,7 +58,15 @@ pub const CLEAR_WORK: usize = 24
     + 2 * 8 * (74 + 65)
     + 8 * 62
     + 8 * 8
-    + 8 * 197;
+    + 8 * 285;
+
+// Two n=2,H=4 virtual square contractions (432 each: operand census64,
+// input validation16, zero16, products/adds256, block sums64, output stores16),
+// actual input/output extents 8/16,
+// two transposed 32-cell weights, 16 activation lanes. Full fixed capacities
+// (including unused tails) are paid, initialized and wiped for BOTH shapes.
+pub const RECTANGULAR_CLEAR_WORK: usize = 48 + 2 * 432 + 24 + 64 + 24 + 48
+    + 32 + 16 * 56 + 2 * 16 * (74 + 65) + 16 * 62 + 16 * 8 + 8 * 285;
 
 /// Select ORIGINAL descriptors and tensors, never caller-provided numeric views.
 #[derive(Clone, Copy)]
@@ -88,20 +96,20 @@ pub struct Quote {
     pub schedules: [matrix::Schedule; 2],
 }
 struct Affine {
-    a: [f64; 8],
-    w: [f64; 16],
+    a: [f64; 16],
+    w: [f64; 32],
     mm: [f64; 16],
-    packed: [f64; 8],
-    output: [f64; 8],
+    packed: [f64; 16],
+    output: [f64; 16],
 }
 impl Affine {
     fn empty() -> Self {
         Self {
-            a: [0.; 8],
-            w: [0.; 16],
+            a: [0.; 16],
+            w: [0.; 32],
             mm: [0.; 16],
-            packed: [0.; 8],
-            output: [0.; 8],
+            packed: [0.; 16],
+            output: [0.; 16],
         }
     }
 }
@@ -134,7 +142,7 @@ impl Zeroize for Affine {
     }
 }
 struct Activation {
-    output: [f64; 8],
+    output: [f64; 16],
     inner: [f64; 32],
     outer: [f64; 28],
     poly: poly::Workspace,
@@ -142,7 +150,7 @@ struct Activation {
 impl Activation {
     fn empty() -> Self {
         Self {
-            output: [0.; 8],
+            output: [0.; 16],
             inner: [0.; 32],
             outer: [0.; 28],
             poly: poly::Workspace::empty(),
@@ -216,12 +224,18 @@ impl RetainedProducer for Activated<'_> {
 pub struct Output<'a> {
     inner: BorrowedOutput<'a, Zeroizing<Affine>>,
     binding: BoundValue<'a, Activated<'a>>,
+    width: usize,
 }
 impl Output<'_> {
     pub fn values(&self) -> &[f64; 8] {
-        &self.inner.values().output
+        self.inner.values().output[..8].try_into().unwrap()
     }
+    /// Square compatibility getter. For rectangular intermediates use
+    /// `first_affine_values`; this getter refuses rather than truncates.
     pub fn first_affine(&self) -> &[f64; 8] {
+        self.first_affine_values().try_into().expect("square intermediate; use first_affine_values")
+    }
+    pub fn first_affine_values(&self) -> &[f64] {
         &self
             .binding
             .producer()
@@ -229,10 +243,14 @@ impl Output<'_> {
             .producer()
             .inner
             .values()
-            .output
+            .output[..2 * self.width]
     }
+    /// Square compatibility getter; use `activated_values` for width eight.
     pub fn activated(&self) -> &[f64; 8] {
-        &self.binding.producer().inner.values().output
+        self.activated_values().try_into().expect("square intermediate; use activated_values")
+    }
+    pub fn activated_values(&self) -> &[f64] {
+        &self.binding.producer().inner.values().output[..2 * self.width]
     }
     pub fn original(&self) -> &ClearInputs {
         self.inner.original()
@@ -254,6 +272,38 @@ impl RetainedProducer for Output<'_> {
 fn add(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_add(b).ok_or(Error::Resource)
 }
+fn mul(a: usize, b: usize) -> Result<usize, Error> {
+    a.checked_mul(b).ok_or(Error::Resource)
+}
+
+// Derive virtual kernel work and actual adapter extents before full debit or
+// any numeric factory. This inventory is logical work, not physical stack/RSS.
+fn numeric_work(width: usize) -> Result<usize, Error> {
+    if width == 4 {
+        return Ok(CLEAR_WORK);
+    }
+    if width != 8 {
+        return Err(Error::Shape);
+    }
+    let n = 2;
+    let heads = width / n;
+    let virtual_rows = mul(n, heads)?;
+    let virtual_weights = mul(virtual_rows, virtual_rows)?;
+    let virtual_cells = mul(mul(n, n)?, heads)?;
+    // Core admission's 224-unit traversal quote is not the whole adapter's
+    // arithmetic inventory: include product AND add, block sums and stores.
+    let kernel = add(add(virtual_weights, mul(3, virtual_cells)?)?,
+        add(mul(2, mul(virtual_cells, virtual_rows)?)?, mul(virtual_cells, heads)?)?)?;
+    let lanes = mul(2, width)?;
+    let boundary_cells = add(mul(2, 4)?, lanes)?;
+    let weight_cells = mul(2, mul(4, width)?)?;
+    let payload_cells = add(mul(2, size_of::<Affine>() / size_of::<f64>())?,
+        size_of::<Activation>() / size_of::<f64>())?;
+    [48, mul(2, kernel)?, boundary_cells, weight_cells, boundary_cells,
+        mul(2, boundary_cells)?, 32, mul(lanes, 56)?,
+        mul(mul(2, lanes)?, 74 + 65)?, mul(lanes, 62)?, mul(lanes, 8)?,
+        mul(8, payload_cells)?].into_iter().try_fold(0, add)
+}
 fn finite(x: f64) -> Result<f64, Error> {
     if x.is_finite() {
         Ok(x)
@@ -270,7 +320,7 @@ fn mat(e: matrix::Error) -> Error {
 }
 fn limits() -> matrix::Limits {
     matrix::Limits {
-        max_buffer_elements: 16,
+        max_buffer_elements: 64,
         max_work: 2048,
     }
 }
@@ -280,7 +330,20 @@ fn layouts() -> Result<(matrix::Layout, matrix::Layout), Error> {
         matrix::Layout::new(4, 4, 4, 4, 1, 1, matrix::Diagonal::Lower, limits()).map_err(mat)?,
     ))
 }
-fn validate(input: &ClearInputs, ids: Selection) -> Result<[ValueEdge<'_>; 2], Error> {
+// Read only bounded original shape metadata under the prepaid census allowance.
+// No family/paper switch and no caller-provided numeric view.
+fn hidden_width(input: &ClearInputs, ids: Selection) -> Result<usize, Error> {
+    let tensors = input.tensors();
+    let shape = tensors.get(ids.tensors[1]).ok_or(Error::Shape)?.shape();
+    match shape {
+        [4, width] if matches!(*width, 4 | 8) => Ok(*width),
+        _ => Err(Error::Shape),
+    }
+}
+fn block_layout(width: usize) -> Result<matrix::Layout, Error> {
+    matrix::Layout::new(2, 2, 2, 2, width / 2, 1, matrix::Diagonal::Lower, limits()).map_err(mat)
+}
+fn validate(input: &ClearInputs, ids: Selection, width: usize) -> Result<[ValueEdge<'_>; 2], Error> {
     let all = input.operations();
     let tensors = input.tensors();
     let [up, activation, down] = ids.operations;
@@ -312,7 +375,9 @@ fn validate(input: &ClearInputs, ids: Selection) -> Result<[ValueEdge<'_>; 2], E
         let t = tensors.get(id).ok_or(Error::Shape)?;
         let shape: &[usize] = match i {
             0 => &[2, 4],
-            1 | 3 => &[4, 4],
+            1 => &[4, width],
+            2 => &[width],
+            3 => &[width, 4],
             _ => &[4],
         };
         if t.shape() != shape || input.f64_tensor(id)?.len() != shape.iter().product::<usize>() {
@@ -321,7 +386,8 @@ fn validate(input: &ClearInputs, ids: Selection) -> Result<[ValueEdge<'_>; 2], E
     }
     let input_name = tensors[ids.tensors[0]].name();
     for (i, op) in ops.iter().enumerate() {
-        if op.state_kind.is_some() || op.output_shape != [2, 4] || op.inputs.len() != 1 {
+        let output_width = if i == 2 { 4 } else { width };
+        if op.state_kind.is_some() || op.output_shape != [2, output_width as u64] || op.inputs.len() != 1 {
             return Err(Error::Shape);
         }
         if op.layer != ops[0].layer || ops.iter().take(i).any(|other| other.id == op.id) {
@@ -358,9 +424,10 @@ fn validate(input: &ClearInputs, ids: Selection) -> Result<[ValueEdge<'_>; 2], E
             {
                 return Err(Error::Policy);
             }
+            let (from, to) = if i == 0 { (4, width) } else { (width, 4) };
             for (key, expected) in [
-                ("weight_shape", &[4u64, 4][..]),
-                ("bias_shape", &[4u64][..]),
+                ("weight_shape", &[from as u64, to as u64][..]),
+                ("bias_shape", &[to as u64][..]),
             ] {
                 let arr = attrs
                     .get(key)
@@ -387,6 +454,7 @@ fn validate(input: &ClearInputs, ids: Selection) -> Result<[ValueEdge<'_>; 2], E
 /// All three LIVE phases are reserved before any numeric factory. No output is
 /// published until both private operation bindings and all kernels finish.
 pub struct Admitted<'a> {
+    width: usize,
     edges: [ValueEdge<'a>; 2],
     ids: Selection,
     resources: Quote,
@@ -470,11 +538,13 @@ pub fn quote(
             .and_then(|n| n.checked_add(t.name().len()))
             .ok_or(Error::Work)
     })?;
+    let width = hidden_width(input, ids)?;
+    let clear_work = numeric_work(width)?;
     let remaining = input
         .operations()
         .len()
         .checked_mul(names)
-        .and_then(|census| census.checked_add(CLEAR_WORK))
+        .and_then(|census| census.checked_add(clear_work))
         .ok_or(Error::Work)?;
     check_work(input, cap, remaining)?;
     let (_, activation_prepared) = activation_ticket.with_ledger(|ledger| {
@@ -483,14 +553,18 @@ pub fn quote(
             .map_err(|_| owner::Error::Work)
     })?;
     let (_, final_prepared) = final_ticket.with_ledger(|_| Ok(()))?;
-    let edges = validate(input, ids)?;
+    let edges = validate(input, ids, width)?;
     if input.charged_bytes() > cap.max_owner_bytes {
         return Err(Error::Resource);
     }
     // All numeric initialization/kernel/retirement work was paid on the SAME
     // original ledger before any descriptor validation or numeric factory.
     let (left, _) = layouts()?;
-    let schedule = matrix::optimized_lower_schedule(left).map_err(mat)?;
+    let schedule = if width == 4 {
+        matrix::optimized_lower_schedule(left).map_err(mat)?
+    } else {
+        matrix::rectangular_block_pc_schedule(block_layout(4)?, block_layout(width)?).map_err(mat)?
+    };
     let metadata = size_of::<Admitted<'_>>()
         + 2 * size_of::<Output<'_>>()
         + size_of::<Result<Output<'_>, Error>>()
@@ -511,7 +585,7 @@ pub fn quote(
     let resources = Quote {
         original_bytes: input.charged_bytes(),
         phase_bytes,
-        clear_work: CLEAR_WORK,
+        clear_work,
         additional_work: input.consumed_work() - before,
         cumulative_work: input.consumed_work(),
         schedules: [schedule, schedule],
@@ -520,6 +594,7 @@ pub fn quote(
     let activation = activation_prepared.reserve(activation_bytes())?;
     let final_affine = final_prepared.reserve(affine_bytes())?;
     Ok(Admitted {
+        width,
         edges,
         ids,
         resources,
@@ -531,21 +606,21 @@ pub fn quote(
 
 fn affine(x: &[f64], weights: &[f64], bias: &[f64], p: &mut Affine) -> Result<(), Error> {
     let (left, right) = layouts()?;
-    left.pack(x, &mut p.a, limits()).map_err(mat)?;
-    right.pack(weights, &mut p.w, limits()).map_err(mat)?;
+    left.pack(x, &mut p.a[..8], limits()).map_err(mat)?;
+    right.pack(weights, &mut p.w[..16], limits()).map_err(mat)?;
     // Split fixed fields explicitly: no products/masks/replicated RHS allocation.
     matrix::optimized_lower_mm(
         left,
-        &p.a,
+        &p.a[..8],
         right,
-        &p.w,
+        &p.w[..16],
         left,
         &mut p.mm,
-        &mut p.packed,
+        &mut p.packed[..8],
         limits(),
     )
     .map_err(mat)?;
-    left.unpack(&p.packed, &mut p.output, limits())
+    left.unpack(&p.packed[..8], &mut p.output[..8], limits())
         .map_err(mat)?;
     for i in 0..8 {
         p.output[i] = finite(p.output[i] + bias[i % 4])?;
@@ -553,13 +628,47 @@ fn affine(x: &[f64], weights: &[f64], bias: &[f64], p: &mut Affine) -> Result<()
     Ok(())
 }
 
-fn activate(x: &[f64; 8], p: &mut Activation) -> Result<(), Error> {
+fn rectangular_affine(x: &[f64], weights: &[f64], bias: &[f64], p: &mut Affine) -> Result<(), Error> {
+    let from = x.len() / 2;
+    let to = bias.len();
+    if !matches!((from, to), (4, 8) | (8, 4))
+        || x.len() != mul(2, from)? || weights.len() != mul(from, to)? {
+        return Err(Error::Shape);
+    }
+    let input = block_layout(from)?;
+    let output = block_layout(to)?;
+    for token in 0..2 {
+        for feature in 0..from {
+            p.a[input.address(feature / 2, feature % 2, token).map_err(mat)?] = x[token * from + feature];
+        }
+    }
+    // Existing core consumes output-by-input weights; original IR is XW.
+    for i in 0..from {
+        for j in 0..to {
+            p.w[j * from + i] = weights[i * to + j];
+        }
+    }
+    matrix::rectangular_block_pc_mm(input, &p.w[..from * to], &p.a[..2 * from],
+        output, &mut p.packed[..2 * to], limits()).map_err(mat)?;
+    for token in 0..2 {
+        for feature in 0..to {
+            let value = p.packed[output.address(feature / 2, feature % 2, token).map_err(mat)?];
+            p.output[token * to + feature] = finite(value + bias[feature])?;
+        }
+    }
+    Ok(())
+}
+
+fn activate(x: &[f64], p: &mut Activation) -> Result<(), Error> {
+    if !matches!(x.len(), 8 | 16) {
+        return Err(Error::Shape);
+    }
     // Pinned cached A tuples converted to binary64 by Rust literals. Reverse
     // BEFORE evaluation, halve OUTER coefficients BEFORE its polynomial call.
     for i in 0..32 {
         p.inner[i] = A_FIRST[31 - i];
     }
-    for i in 0..8 {
+    for i in 0..x.len() {
         let u = finite(x[i] / 64.)?;
         let inner = poly::stockmeyer(&p.inner, u, &mut p.poly).map_err(|_| Error::NonFinite)?;
         for j in 0..28 {
@@ -585,6 +694,7 @@ fn activate(x: &[f64; 8], p: &mut Activation) -> Result<(), Error> {
 /// ```
 pub fn execute(admitted: Admitted<'_>) -> Result<Output<'_>, Error> {
     let Admitted {
+        width,
         edges: [first_edge, final_edge],
         ids,
         first,
@@ -601,7 +711,8 @@ pub fn execute(admitted: Admitted<'_>) -> Result<Output<'_>, Error> {
     #[cfg(test)]
     observe::factory();
     let mut up = Zeroizing::new(Affine::empty());
-    affine(&x, &w1, &b1, &mut up)?;
+    if width == 4 { affine(&x, &w1, &b1, &mut up)?; }
+    else { rectangular_affine(&x, &w1, &b1, &mut up)?; }
     let up = First {
         inner: first.finish(up),
         operation: ids.operations[0],
@@ -610,7 +721,7 @@ pub fn execute(admitted: Admitted<'_>) -> Result<Output<'_>, Error> {
     #[cfg(test)]
     observe::factory();
     let mut active = Zeroizing::new(Activation::empty());
-    activate(&binding.producer().inner.values().output, &mut active)?;
+    activate(&binding.producer().inner.values().output[..2 * width], &mut active)?;
     let active = Activated {
         inner: activation.finish(active),
         binding,
@@ -619,15 +730,17 @@ pub fn execute(admitted: Admitted<'_>) -> Result<Output<'_>, Error> {
     #[cfg(test)]
     observe::factory();
     let mut down = Zeroizing::new(Affine::empty());
-    affine(
-        &binding.producer().inner.values().output,
+    let x = &binding.producer().inner.values().output[..2 * width];
+    if width == 4 { affine(
+        x,
         &w2,
         &b2,
         &mut down,
-    )?;
+    )?; } else { rectangular_affine(x, &w2, &b2, &mut down)?; }
     Ok(Output {
         inner: final_affine.finish(down),
         binding,
+        width,
     })
 }
 

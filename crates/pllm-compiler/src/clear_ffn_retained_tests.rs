@@ -623,7 +623,7 @@ fn dense_ascending_order_is_explicitly_not_binary64_bit_proof() {
     assert_ne!(bits(&dense(&x, &w, &b)), bits(&expected));
     let mut scratch = Zeroizing::new(Affine::empty());
     affine(&x, &w, &b, &mut scratch).unwrap();
-    assert_eq!(bits(&scratch.output), bits(&expected));
+    assert_eq!(bits(scratch.output[..8].try_into().unwrap()), bits(&expected));
 }
 
 // Existing cached reconciliation remains an independent literal-table control.
@@ -730,10 +730,10 @@ fn legacy_complete_region_python_boundary_magnitude_bound_and_payload_inventory(
         cap(&input),
     ).unwrap();
     let q = admission.resources();
-    // New retained owner splits the former 181-double Scratch into two live
-    // 56-double affine payloads and one 85-double activation payload (197 total).
-    assert_eq!(size_of::<Affine>(), 56 * size_of::<f64>());
-    assert_eq!(size_of::<Activation>(), 85 * size_of::<f64>());
+    // Bounded shared capacities: two 96-double affine payloads and one
+    // 93-double activation payload (285 total), including square-unused tails.
+    assert_eq!(size_of::<Affine>(), 96 * size_of::<f64>());
+    assert_eq!(size_of::<Activation>(), 93 * size_of::<f64>());
     assert!(q.phase_bytes >= 2 * size_of::<Output<'_>>()
         + size_of::<Result<Output<'_>, Error>>()
         + 2 * (2 * size_of::<Affine>() + size_of::<Activation>()));
@@ -759,6 +759,9 @@ fn legacy_complete_region_python_boundary_magnitude_bound_and_payload_inventory(
     assert_eq!(root.budget().used_bytes(), base);
     assert_eq!(input.consumed_work(), paid);
 }
+
+#[path = "clear_ffn_region_tests.rs"]
+mod rectangular;
 
 #[test]
 fn legacy_nonfinite_input_is_rejected_by_original_builder_not_adopted() {
