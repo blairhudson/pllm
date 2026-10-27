@@ -244,6 +244,18 @@ pub(crate) struct ReserveBootstrapPhase {
     workload: DecoderWorkload,
 }
 
+/// Payment/custody proof for the private byte codec, not configured authority.
+/// Only quote_decoding constructs it, after debiting this exact phase's ledger.
+/// No extraction, commit, install, or conversion to prepared C9 input exists.
+pub(crate) struct ReservedDecodeFunding {
+    phase: ReserveBootstrapPhase,
+}
+
+impl ReservedDecodeFunding {
+    pub(crate) fn codec_attempt(&self) -> &PrimitiveAttempt { &self.phase.attempt }
+    pub(crate) fn check_usable(&self) -> Result<(), Error> { self.phase.attempt.check_usable() }
+}
+
 /// Only the admission-owned C9 path below can construct this type. The root in
 /// its existing guard is admission identity, not a counter/byte equivalence.
 pub(crate) struct PrivatePreparedConfiguration {
@@ -351,6 +363,47 @@ impl Drop for SourceAdmission {
 }
 
 impl ReserveBootstrapPhase {
+    /// Inert preconfiguration step. Retains this SAME uncommitted phase; the
+    /// already-paid reservation fee is neither repeated nor refunded. Errors,
+    /// quote abandonment and pending-output abandonment burn the actual root.
+    pub(crate) fn quote_decoding(
+        self, raw: OwnedCharged<Vec<u8>>, working: OwnedExternalCharge,
+        limits: crate::json_bytes_codec::Limits,
+    ) -> Result<crate::json_bytes_codec::ReservedCodecQuote, crate::json_bytes_codec::Error> {
+        use crate::json_bytes_codec::{self as codec, Error as CodecError};
+        // Aggregate custody is bound before any fallible check. Raw retires
+        // before the existing attempt/controller, all before working coverage.
+        struct Incoming {
+            raw: OwnedCharged<Vec<u8>>,
+            phase: ReserveBootstrapPhase,
+            working: OwnedExternalCharge,
+        }
+        let incoming = Incoming { raw, phase: self, working };
+        // This new inert step cannot enlarge the closed bootstrap envelope.
+        let limits = codec::Limits {
+            max_source_bytes: limits.max_source_bytes.min(BOOTSTRAP_CONFIG_BYTES),
+            max_work: limits.max_work.min(BOOTSTRAP_SOURCE_WORK),
+            max_working_payload: limits.max_working_payload.min(MAX_ALLOCATION_BYTES),
+            ..limits
+        };
+        let controller = incoming.phase.attempt.controller.as_ref()
+            .ok_or(CodecError::Source(Error::Burned))?;
+        if !controller.is_for(incoming.phase.attempt.root.budget()) {
+            return Err(CodecError::Counter);
+        }
+        if controller.payload_bytes() < OriginalSourcePlan::primitive_attempt_control_bytes()
+            .map_err(CodecError::Source)? { return Err(CodecError::Capacity); }
+        let admission = codec::reserve_decode_admission(
+            &incoming.raw, &incoming.working, incoming.phase.attempt.root.budget(),
+            controller.charged_bytes(),
+        )?;
+        // BEFORE detection/content reads. Existing phase visits/fee remain in
+        // Ledger.used; this adds only codec visits and new transition controls.
+        incoming.phase.attempt.debit(admission.visits()).map_err(CodecError::Source)?;
+        let Incoming { raw, phase, working } = incoming;
+        codec::quote_reserved(raw, working, ReservedDecodeFunding { phase }, admission, limits)
+    }
+
     pub(crate) fn prepare_configuration(
         self, raw: OwnedCharged<Vec<u8>>, working: OwnedExternalCharge,
     ) -> Result<PrivatePreparedConfiguration, Error> {

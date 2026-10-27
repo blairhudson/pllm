@@ -33,9 +33,12 @@
 //! Retained capacity/logical controls only; allocator internals, CPU, physical
 //! stack, RSS, legacy C9 depth-16 compatibility and whole-request fit unclaimed.
 
-use crate::original_source::{Error as SourceError, OriginalSourcePlan, PrimitiveAttempt};
+use crate::original_source::{
+    Error as SourceError, OriginalSourcePlan, PrimitiveAttempt, ReserveBootstrapPhase,
+    ReservedDecodeFunding,
+};
 use pllm_garble::shared_allocation::{
-    Error as NativeError, OwnedCharged, OwnedExternalCharge,
+    Budget, Error as NativeError, OwnedCharged, OwnedExternalCharge,
 };
 use std::{mem::size_of, sync::OnceLock};
 
@@ -79,7 +82,9 @@ pub(crate) struct Resources {
     pub required_working_payload: usize,
     pub working_charge_bytes: usize,
     pub controller_charge_bytes: usize,
-    /// Includes begin_primitive_attempt's positive fee, not just visits.
+    /// Configured path includes begin_primitive_attempt's positive fee. Reserved
+    /// path reports incremental codec/transition visits ONLY: its phase already
+    /// paid its fee and earlier visits, which remain in the SAME root ledger.
     pub prepaid_work: u64,
 }
 
@@ -170,6 +175,181 @@ fn work(n: usize) -> Result<u64, Error> {
         .and_then(|n| n.checked_add(FIXED_WORK)).ok_or(Error::Overflow)
 }
 
+// Private borrowed payment marker, created ONLY after begin/debit succeeded.
+// A real attempt/root/controller stays alive throughout count, quote and replay;
+// neither a bool, a Budget reference nor this borrow can create source authority.
+// Its one pointer fits one of codec_control_bytes' eight fat-borrow slots; the
+// tuple return fits the existing Detection/usize slots. Old quotes are unchanged.
+struct FundedDecode<'a> { _attempt: &'a PrimitiveAttempt }
+
+impl FundedDecode<'_> {
+    fn count(self, bytes: &[u8], limits: Limits) -> Result<(Detection, usize), Error> {
+        let detection = detect(bytes);
+        let mut decoder = Decoder::new(bytes, detection);
+        let mut points = 0usize;
+        while decoder.next()?.is_some() {
+            points = points.checked_add(1).ok_or(Error::Overflow)?;
+            if points > limits.max_points { return Err(Error::Resource); }
+        }
+        Ok((detection, points))
+    }
+}
+
+/// New transition ONLY: conservative fixed logical events, no inventory walk.
+/// 24 aggregate moves: entry raw/phase/working (3), admission/result (2), funding
+/// wrapper (1), quote factory/raw/funding/working/detection/resources (6), count
+/// payment/borrow/tuple (3), construct self/factory/working/capture (4), factory
+/// decoder/funding/decoded/result (4), publication return (1).
+/// 16 metadata predicates (controller association/capacity, original coverage,
+/// counter/working association/control floor, length/local-work/payload limits,
+/// growth/inline/reserve/capacity/replay/ledger guards; conservative overlaps).
+/// 8 quote/layout groups; 4 entry/terminal pairs (source, quote, construct,
+/// factory); 3 ledger debit/usable operations; 9 owner/control retirements.
+/// These 64 events are ADDED to existing 7N+60, without a second attempt fee.
+/// No new per-byte/unit loop. Allocator/physical frame/CPU/RSS still unqualified.
+const RESERVED_TRANSITION_WORK: u64 = 24 + 16 + 8 + 4 + 3 + 9;
+
+/// Pending payload and its uncommitted phase share the enclosing working guard.
+/// Decoded Vec/raw/guard retire first, phase/root/controller next, working last.
+/// No method releases phase, commits it, retypes points or installs configuration.
+pub(crate) struct PendingDecodedCustody {
+    decoded: DecodedJsonText,
+    funding: ReservedDecodeFunding,
+}
+
+impl PendingDecodedCustody {
+    pub(crate) fn decoded(&self) -> &DecodedJsonText { &self.decoded }
+}
+
+struct PendingFactory {
+    decoder: Factory,
+    funding: ReservedDecodeFunding,
+}
+
+impl PendingFactory {
+    fn build(self) -> Result<PendingDecodedCustody, NativeError> {
+        let Self { decoder, funding } = self;
+        // Existing replay, allocation and partial-output unwind implementation.
+        // Its decoded/raw owners retire before this outer funding on failure.
+        let decoded = decoder.build()?;
+        Ok(PendingDecodedCustody { decoded, funding })
+    }
+}
+
+pub(crate) struct ReservedCodecQuote {
+    factory: PendingFactory,
+    working: OwnedExternalCharge,
+}
+
+/// Metadata-only calculation, NOT an attempt or authority. Its fields cannot be
+/// asserted by callers; only the genuine phase can supply ReservedDecodeFunding.
+pub(crate) struct ReservedDecodeAdmission {
+    n: usize,
+    controls: usize,
+    visits: u64,
+    controller_charge_bytes: usize,
+}
+
+impl ReservedDecodeAdmission {
+    pub(crate) fn visits(&self) -> u64 { self.visits }
+}
+
+/// Additional named move/result/inline overlap for the new transition. Baseline
+/// codec, context, phase and primitive-attempt quotations are NOT changed.
+/// Actual local Incoming layout is raw/phase/working; sum plus 9 alignment quanta
+/// conservatively covers padding, without naming/exposing that local type.
+pub(crate) fn reserved_codec_control_bytes() -> Result<usize, Error> {
+    let n = codec_control_bytes()?;
+    let n = add(n, mul(3, size_of::<ReservedCodecQuote>())?)?;
+    let n = add(n, mul(2, size_of::<Result<ReservedCodecQuote, Error>>())?)?;
+    let n = add(n, mul(3, size_of::<PendingFactory>())?)?;
+    let n = add(n, mul(3, size_of::<PendingDecodedCustody>())?)?;
+    let n = add(n, mul(2, size_of::<OwnedCharged<PendingDecodedCustody>>())?)?;
+    let n = add(n, size_of::<Result<OwnedCharged<PendingDecodedCustody>, NativeError>>())?;
+    let n = add(n, mul(3, size_of::<ReservedDecodeFunding>())?)?;
+    let n = add(n, mul(3, size_of::<ReserveBootstrapPhase>())?)?;
+    let n = add(n, mul(3, size_of::<ReservedDecodeAdmission>())?)?;
+    let n = add(n, size_of::<Result<ReservedDecodeAdmission, Error>>())?;
+    let n = add(n, mul(3, size_of::<OwnedCharged<Vec<u8>>>())?)?;
+    let n = add(n, mul(3, size_of::<OwnedExternalCharge>())?)?;
+    let alignment = std::mem::align_of::<ReserveBootstrapPhase>()
+        .max(std::mem::align_of::<OwnedCharged<Vec<u8>>>())
+        .max(std::mem::align_of::<OwnedExternalCharge>());
+    let n = add(n, mul(9, alignment)?)?; // three copies, three padding gaps each
+    let n = add(n, mul(2, size_of::<Limits>())?)?; // source clamp/argument overlap
+    let n = add(n, mul(8, size_of::<usize>())?)?;
+    let n = add(n, mul(4, size_of::<u64>())?)?;
+    add(n, mul(4, size_of::<&PrimitiveAttempt>())?)
+}
+
+pub(crate) fn reserve_decode_admission(
+    raw: &OwnedCharged<Vec<u8>>, working: &OwnedExternalCharge, budget: &Budget,
+    controller_charge_bytes: usize,
+) -> Result<ReservedDecodeAdmission, Error> {
+    if raw.charged_bytes() < add(size_of::<OwnedCharged<Vec<u8>>>(), raw.payload().capacity())? {
+        return Err(Error::Capacity);
+    }
+    if !std::ptr::eq(raw.budget(), budget) || !working.is_for(budget) { return Err(Error::Counter); }
+    let controls = reserved_codec_control_bytes()?;
+    if working.payload_bytes() < controls { return Err(Error::Capacity); }
+    let n = raw.payload().len();
+    let visits = work(n)?.checked_add(RESERVED_TRANSITION_WORK).ok_or(Error::Overflow)?;
+    Ok(ReservedDecodeAdmission { n, controls, visits, controller_charge_bytes })
+}
+
+pub(crate) fn quote_reserved(
+    original: OwnedCharged<Vec<u8>>, working: OwnedExternalCharge,
+    funding: ReservedDecodeFunding, admission: ReservedDecodeAdmission, limits: Limits,
+) -> Result<ReservedCodecQuote, Error> {
+    // Bind aggregate BEFORE any local limit/error/content work.
+    let mut quote = ReservedCodecQuote {
+        factory: PendingFactory {
+            decoder: Factory { original, detection: Detection { encoding: Encoding::Utf8,
+                bom_bytes: 0, error_input_base: 0 }, resources: Resources {
+                original_owner_bytes: 0, point_count: 0, point_capacity_bytes: 0,
+                required_working_payload: 0, working_charge_bytes: 0,
+                controller_charge_bytes: admission.controller_charge_bytes, prepaid_work: admission.visits,
+            } }, funding,
+        }, working,
+    };
+    if admission.n > limits.max_source_bytes || admission.visits > limits.max_work { return Err(Error::Work); }
+    let (detection, point_count) = FundedDecode {
+        _attempt: quote.factory.funding.codec_attempt(),
+    }.count(quote.factory.decoder.original.payload(), limits)?;
+    let point_capacity_bytes = mul(point_count, size_of::<u32>())?;
+    let required_working_payload = add(admission.controls, point_capacity_bytes)?;
+    let actual_payload = quote.working.payload_bytes().max(required_working_payload);
+    if actual_payload > limits.max_working_payload { return Err(Error::Resource); }
+    let inline = size_of::<OwnedCharged<PendingDecodedCustody>>()
+        .checked_sub(size_of::<OwnedExternalCharge>()).ok_or(Error::Overflow)?;
+    quote.factory.decoder.detection = detection;
+    quote.factory.decoder.resources = Resources {
+        original_owner_bytes: quote.factory.decoder.original.charged_bytes(), point_count,
+        point_capacity_bytes, required_working_payload,
+        working_charge_bytes: add(add(actual_payload, inline)?, size_of::<OwnedExternalCharge>())?,
+        controller_charge_bytes: admission.controller_charge_bytes, prepaid_work: admission.visits,
+    };
+    Ok(quote)
+}
+
+impl ReservedCodecQuote {
+    pub(crate) fn resources(&self) -> &Resources { &self.factory.decoder.resources }
+    pub(crate) fn construct(mut self) -> Result<OwnedCharged<PendingDecodedCustody>, Error> {
+        self.factory.funding.check_usable().map_err(Error::Source)?;
+        let required = self.resources().required_working_payload;
+        if self.working.payload_bytes() < required {
+            self.working.resize_payload(required).map_err(Error::Native)?;
+        }
+        // Aggregate field order covers growth failure. try_build covers inline
+        // refusal, factory failure and unwind before working charge retirement.
+        let Self { factory, working } = self;
+        let output = working.try_build(move |_| factory.build()).map_err(Error::Native)?;
+        // Sticky check only, NOT commit/install or a future publication permit.
+        output.payload().funding.check_usable().map_err(Error::Source)?;
+        Ok(output)
+    }
+}
+
 pub(crate) fn quote_codec(
     original: OwnedCharged<Vec<u8>>,
     working: OwnedExternalCharge,
@@ -200,13 +380,8 @@ pub(crate) fn quote_codec(
     let attempt = root.begin_primitive_attempt(incoming.controller.take().ok_or(Error::Capacity)?, visits).map_err(Error::Source)?;
     // Failures after this point burn the actual source-wide ledger.
     if n > limits.max_source_bytes || prepaid_work > limits.max_work { return Err(Error::Work); }
-    let detection = detect(incoming.original.payload());
-    let mut decoder = Decoder::new(incoming.original.payload(), detection);
-    let mut point_count = 0usize;
-    while decoder.next()?.is_some() {
-        point_count = point_count.checked_add(1).ok_or(Error::Overflow)?;
-        if point_count > limits.max_points { return Err(Error::Resource); }
-    }
+    let (detection, point_count) = FundedDecode { _attempt: &attempt }
+        .count(incoming.original.payload(), limits)?;
     let point_capacity_bytes = mul(point_count, size_of::<u32>())?;
     let required_working_payload = add(controls, point_capacity_bytes)?;
     let actual_payload = incoming.working.payload_bytes().max(required_working_payload);
@@ -237,6 +412,10 @@ impl Factory {
         factory_entry();
         // self (original) was bound before points, so partial points retire first.
         let mut points = Vec::new();
+        // Scoped, test-only refusal at the actual shared reservation boundary;
+        // not an allocator replacement or evidence of a real allocation failure.
+        #[cfg(test)]
+        refuse_point_allocation()?;
         points.try_reserve_exact(self.resources.point_count).map_err(|_| NativeError::Allocation)?;
         if points.capacity() != self.resources.point_count { return Err(NativeError::Resource); }
         let mut decoder = Decoder::new(self.original.payload(), self.detection);
@@ -408,6 +587,46 @@ thread_local! {
     static PANIC_FACTORY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static FAIL_AFTER_POINT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static PANIC_AFTER_POINT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static REFUSE_POINT_ALLOCATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(crate) enum ReplayRefusal { PartialResource, PartialPanic, FactoryPanic, Allocation }
+
+/// Thread-scoped fixture, restores even during unwind; no production hook/API.
+#[cfg(test)]
+pub(crate) struct ReplayRefusalGuard {
+    previous: [bool; 4],
+    _thread: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+#[cfg(test)]
+impl ReplayRefusalGuard {
+    pub(crate) fn arm(mode: ReplayRefusal) -> Self {
+        let previous = [
+            FAIL_AFTER_POINT.with(|flag| flag.replace(matches!(mode, ReplayRefusal::PartialResource))),
+            PANIC_AFTER_POINT.with(|flag| flag.replace(matches!(mode, ReplayRefusal::PartialPanic))),
+            PANIC_FACTORY.with(|flag| flag.replace(matches!(mode, ReplayRefusal::FactoryPanic))),
+            REFUSE_POINT_ALLOCATION.with(|flag| flag.replace(matches!(mode, ReplayRefusal::Allocation))),
+        ];
+        Self { previous, _thread: std::marker::PhantomData }
+    }
+}
+
+#[cfg(test)]
+impl Drop for ReplayRefusalGuard {
+    fn drop(&mut self) {
+        FAIL_AFTER_POINT.with(|flag| flag.set(self.previous[0]));
+        PANIC_AFTER_POINT.with(|flag| flag.set(self.previous[1]));
+        PANIC_FACTORY.with(|flag| flag.set(self.previous[2]));
+        REFUSE_POINT_ALLOCATION.with(|flag| flag.set(self.previous[3]));
+    }
+}
+
+#[cfg(test)]
+fn refuse_point_allocation() -> Result<(), NativeError> {
+    if REFUSE_POINT_ALLOCATION.with(|flag| flag.replace(false)) { Err(NativeError::Allocation) }
+    else { Ok(()) }
 }
 #[cfg(test)]
 fn factory_entry() {

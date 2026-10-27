@@ -955,6 +955,331 @@ fn native_admission(budget: &OwnedBudget) -> SourceAdmission {
     SourceAdmission::new(budget.charge_external(SourceAdmission::root_control_bytes().unwrap()).unwrap(), workload(4)).unwrap()
 }
 
+fn decode_limits() -> crate::json_bytes_codec::Limits {
+    crate::json_bytes_codec::Limits {
+        max_source_bytes: BOOTSTRAP_CONFIG_BYTES, max_points: BOOTSTRAP_CONFIG_BYTES,
+        max_work: 1_000_000, max_working_payload: 8 << 20,
+    }
+}
+
+fn decode_raw(budget: &OwnedBudget, bytes: &[u8]) -> OwnedCharged<Vec<u8>> {
+    budget.charge_external(bytes.len()).unwrap().try_build(|_| Ok(bytes.to_vec())).unwrap()
+}
+
+#[test]
+fn native_reserved_decode_same_root_uncommitted_payment_drop_burn_and_committed_survival() {
+    use crate::json_bytes_codec::reserved_codec_control_bytes;
+    let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let baseline = budget.budget().used_bytes();
+    let mut admission = native_admission(&budget);
+    let root = Arc::clone(&admission.root);
+    let committed = begin_attempt(&root,
+        budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 3)
+        .unwrap().commit().unwrap();
+    let retained = budget.budget().used_bytes();
+    let phase = admission.reserve_bootstrap_phase(
+        budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 7).unwrap();
+    let before = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+    assert_eq!(before, 4 + 8); // genuine earlier sibling + phase visits/fees
+    let raw = decode_raw(&budget, b"a");
+    let ptr = raw.payload().as_ptr();
+    let q = phase.quote_decoding(raw,
+        budget.charge_external(reserved_codec_control_bytes().unwrap()).unwrap(), decode_limits()).unwrap();
+    assert_eq!(q.resources().prepaid_work, 131); // literal INCREMENT, no second fee
+    assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, before + 131);
+    let pending = q.construct().unwrap();
+    assert!(root.payload().configured.get().is_none());
+    assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, before + 131);
+    assert!(!root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+    assert_eq!(pending.payload().decoded().original_owner().payload().as_ptr(), ptr);
+    assert!(std::ptr::eq(pending.budget(), root.budget()));
+    drop(pending);
+    assert_eq!(budget.budget().used_bytes(), retained);
+    let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+    assert!(ledger.burned);
+    assert_eq!(ledger.used, before + 131);
+    drop(ledger);
+    assert!(matches!(begin_attempt(&root,
+        budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0), Err(Error::Burned)));
+    assert!(committed.is_for(budget.budget()));
+    assert_eq!(budget.budget().used_bytes(), retained);
+    drop(admission);
+    drop(committed);
+    drop(root);
+    assert_eq!(budget.budget().used_bytes(), baseline);
+}
+
+#[test]
+fn native_reserved_decode_literal_cumulative_exact_and_one_short_preserve_paid_baseline() {
+    use crate::json_bytes_codec::{self as codec, reserved_codec_control_bytes};
+    for (bytes, increment) in [(&b""[..], 124u64), (&b"a"[..], 131), (&b"abc"[..], 145)] {
+        for short in [false, true] {
+            let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let mut admission = native_admission(&budget);
+            let root = Arc::clone(&admission.root);
+            let phase = admission.reserve_bootstrap_phase(
+                budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 19).unwrap();
+            let paid = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+            assert_eq!(paid, 20);
+            let remaining = increment - u64::from(short);
+            phase.attempt.debit(BOOTSTRAP_SOURCE_WORK - paid - remaining).unwrap();
+            let before = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+            assert_eq!(before, BOOTSTRAP_SOURCE_WORK - remaining);
+            let q = phase.quote_decoding(decode_raw(&budget, bytes),
+                budget.charge_external(reserved_codec_control_bytes().unwrap()).unwrap(), decode_limits());
+            if short {
+                assert_eq!(q.err(), Some(codec::Error::Source(Error::Work)));
+                let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+                assert!(ledger.burned);
+                assert_eq!(ledger.used, before); // failed addition did not refund/change baseline
+            } else {
+                let q = q.unwrap();
+                assert_eq!(q.resources().prepaid_work, increment);
+                let pending = q.construct().unwrap();
+                {
+                    let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+                    assert_eq!(ledger.used, BOOTSTRAP_SOURCE_WORK);
+                    assert!(!ledger.burned);
+                }
+                drop(pending);
+                assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+            }
+            assert!(root.payload().configured.get().is_none());
+            assert!(matches!(begin_attempt(&root,
+                budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0), Err(Error::Burned)));
+        }
+    }
+}
+
+#[test]
+fn native_reserved_decode_quote_abandonment_and_foreign_refusals_burn_only_actual_root() {
+    use crate::json_bytes_codec::{self as codec, reserved_codec_control_bytes};
+    for mode in 0..4 {
+        let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let foreign = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&budget);
+        let other = native_admission(&foreign);
+        let root = Arc::clone(&admission.root);
+        let baseline = budget.budget().used_bytes();
+        let phase = admission.reserve_bootstrap_phase(
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 5).unwrap();
+        let raw = decode_raw(if mode == 1 { &foreign } else { &budget }, b"a");
+        let working_budget = if mode == 2 { &foreign } else { &budget };
+        let working = working_budget.charge_external(
+            reserved_codec_control_bytes().unwrap() - usize::from(mode == 3)).unwrap();
+        let result = phase.quote_decoding(raw, working, decode_limits());
+        if mode == 0 { drop(result.unwrap()); }
+        else { assert_eq!(result.err(), Some(if mode == 3 { codec::Error::Capacity } else { codec::Error::Counter })); }
+        let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+        assert!(ledger.burned);
+        assert_eq!(ledger.used, if mode == 0 { 6 + 131 } else { 6 });
+        drop(ledger);
+        assert!(!other.root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+        assert_eq!(other.root.payload().ledger.as_ref().unwrap().lock().unwrap().used, 0);
+        assert_eq!(budget.budget().used_bytes(), baseline);
+        assert!(root.payload().configured.get().is_none());
+    }
+}
+
+#[test]
+fn native_reserved_decode_late_sibling_burn_cannot_be_cleared_by_construct() {
+    use crate::json_bytes_codec::{self as codec, reserved_codec_control_bytes};
+    let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut admission = native_admission(&budget);
+    let root = Arc::clone(&admission.root);
+    let baseline = budget.budget().used_bytes();
+    let phase = admission.reserve_bootstrap_phase(
+        budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
+    let q = phase.quote_decoding(decode_raw(&budget, b"a"),
+        budget.charge_external(reserved_codec_control_bytes().unwrap()).unwrap(), decode_limits()).unwrap();
+    let sibling = begin_attempt(&root,
+        budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
+    drop(sibling);
+    assert_eq!(q.construct().err(), Some(codec::Error::Source(Error::Burned)));
+    assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+    assert!(root.payload().configured.get().is_none());
+    assert_eq!(budget.budget().used_bytes(), baseline);
+}
+
+#[test]
+fn native_reserved_decode_every_late_failure_burns_actual_root_retains_work_and_committed_control() {
+    use crate::json_bytes_codec::{self as codec, ReplayRefusal, ReplayRefusalGuard};
+    // 0 partial Resource; 1 partial panic; 2 factory panic; 3 malformed count;
+    // 4 working growth; 5 pending inline admission; 6 injected Allocation.
+    // Literal work: ab => 7*2+124 = 138; FF => 7*1+124 = 131.
+    for mode in 0..7 {
+        let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let baseline = budget.budget().used_bytes();
+        let mut admission = native_admission(&budget);
+        let root = Arc::clone(&admission.root);
+        let committed = begin_attempt(&root,
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 3)
+            .unwrap().commit().unwrap();
+        let committed_bytes = committed.charged_bytes();
+        let retained = budget.budget().used_bytes();
+        assert_eq!(retained, baseline + root.charged_bytes() + committed_bytes);
+        let phase = admission.reserve_bootstrap_phase(
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 7).unwrap();
+        let prior = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+        assert_eq!(prior, 4 + 8);
+        let bytes: &[u8] = if mode == 3 { &[0xff] } else { b"ab" };
+        let q = phase.quote_decoding(decode_raw(&budget, bytes),
+            budget.charge_external(codec::reserved_codec_control_bytes().unwrap()).unwrap(), decode_limits());
+        if mode == 3 {
+            assert_eq!(q.err(), Some(codec::Error::Decode(codec::DecodeError {
+                kind: codec::DecodeFailure::InvalidStart, start: 0, end: 1, error_input_base: 0,
+            })));
+        } else {
+            let q = q.unwrap();
+            assert_eq!(q.resources().prepaid_work, 138);
+            let ballast = if mode == 4 || mode == 5 {
+                // Quote has control-floor working payload, two points => eight
+                // growth bytes. Pending inline is its ACTUAL declared layout.
+                let needed = if mode == 4 { 8 } else {
+                    8 + size_of::<OwnedCharged<codec::PendingDecodedCustody>>()
+                        - size_of::<OwnedExternalCharge>()
+                };
+                Some(budget.charge_external(MAX_ALLOCATION_BYTES - budget.budget().used_bytes()
+                    - size_of::<OwnedExternalCharge>() - (needed - 1)).unwrap())
+            } else { None };
+            let hook = match mode {
+                0 => Some(ReplayRefusalGuard::arm(ReplayRefusal::PartialResource)),
+                1 => Some(ReplayRefusalGuard::arm(ReplayRefusal::PartialPanic)),
+                2 => Some(ReplayRefusalGuard::arm(ReplayRefusal::FactoryPanic)),
+                6 => Some(ReplayRefusalGuard::arm(ReplayRefusal::Allocation)),
+                _ => None,
+            };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| q.construct()));
+            if mode == 1 || mode == 2 { assert!(result.is_err()); }
+            else {
+                assert_eq!(result.unwrap().err(), Some(codec::Error::Native(
+                    if mode == 6 { NativeError::Allocation } else { NativeError::Resource })));
+            }
+            drop(hook); // thread-local flags restored after success/error/unwind
+            drop(ballast);
+        }
+        let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+        assert!(ledger.burned); // NOT SourceAdmission.reserved
+        assert_eq!(ledger.used, prior + if mode == 3 { 131 } else { 138 });
+        assert_eq!(ledger.limit, BOOTSTRAP_SOURCE_WORK);
+        drop(ledger);
+        assert!(root.payload().configured.get().is_none());
+        assert_eq!(budget.budget().used_bytes(), retained);
+        assert!(committed.is_for(budget.budget()));
+        assert_eq!(committed.charged_bytes(), committed_bytes);
+        assert!(matches!(begin_attempt(&root,
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0), Err(Error::Burned)));
+        assert_eq!(budget.budget().used_bytes(), retained);
+        drop(admission);
+        drop(committed);
+        drop(root);
+        assert_eq!(budget.budget().used_bytes(), baseline);
+    }
+}
+
+#[test]
+fn native_reserved_decode_work_precedes_malformed_count_with_literal_paid_baseline() {
+    use crate::json_bytes_codec::{self as codec, reserved_codec_control_bytes};
+    for cumulative_short in [false, true] {
+        let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let baseline = budget.budget().used_bytes();
+        let mut admission = native_admission(&budget);
+        let root = Arc::clone(&admission.root);
+        let committed = begin_attempt(&root,
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 3)
+            .unwrap().commit().unwrap();
+        let retained = budget.budget().used_bytes();
+        let phase = admission.reserve_bootstrap_phase(
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 7).unwrap();
+        assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, 12);
+        let mut limits = decode_limits();
+        if cumulative_short {
+            phase.attempt.debit(BOOTSTRAP_SOURCE_WORK - 12 - 130).unwrap();
+        } else {
+            limits.max_work = 130; // local cap short of literal FF debit 131
+        }
+        let prior = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+        let result = phase.quote_decoding(decode_raw(&budget, &[0xff]),
+            budget.charge_external(reserved_codec_control_bytes().unwrap()).unwrap(), limits);
+        // InvalidStart would win if malformed count took precedence. This is
+        // error-order coverage, not a detector counter or an inference from
+        // replay factory counters; detection ordering also rests on source order.
+        assert_eq!(result.err(), Some(if cumulative_short {
+            codec::Error::Source(Error::Work)
+        } else { codec::Error::Work }));
+        let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+        assert!(ledger.burned);
+        assert_eq!(ledger.used, if cumulative_short { prior } else { prior + 131 });
+        assert_eq!(ledger.limit, BOOTSTRAP_SOURCE_WORK);
+        drop(ledger);
+        assert!(root.payload().configured.get().is_none());
+        assert!(committed.is_for(budget.budget()));
+        assert_eq!(budget.budget().used_bytes(), retained);
+        drop(admission);
+        drop(committed);
+        drop(root);
+        assert_eq!(budget.budget().used_bytes(), baseline);
+    }
+}
+
+#[test]
+fn native_reserved_decode_distinct_backings_and_oversized_working_coverage_are_retained() {
+    use crate::json_bytes_codec::{self as codec, reserved_codec_control_bytes};
+    let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let baseline = budget.budget().used_bytes();
+    let mut admission = native_admission(&budget);
+    let root = Arc::clone(&admission.root);
+    let committed = begin_attempt(&root,
+        budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 3)
+        .unwrap().commit().unwrap();
+    let retained = budget.budget().used_bytes();
+    let phase = admission.reserve_bootstrap_phase(
+        budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 7).unwrap();
+    let bytes = [0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80];
+    let raw = budget.charge_external(37).unwrap().try_build(|_| {
+        let mut raw = Vec::new();
+        raw.try_reserve_exact(37).map_err(|_| NativeError::Allocation)?;
+        if raw.capacity() != 37 { return Err(NativeError::Resource); }
+        raw.extend_from_slice(&bytes);
+        Ok(raw)
+    }).unwrap();
+    let raw_ptr = raw.payload().as_ptr();
+    let raw_charge = raw.charged_bytes();
+    let controls = reserved_codec_control_bytes().unwrap();
+    let working = budget.charge_external(controls + 4096).unwrap();
+    let working_charge = working.charged_bytes();
+    let before_quote = budget.budget().used_bytes();
+    let q = phase.quote_decoding(raw, working, decode_limits()).unwrap();
+    assert_eq!(q.resources().prepaid_work, 166); // literal 7*6+124
+    assert_eq!(q.resources().required_working_payload, controls + 8);
+    assert_eq!(budget.budget().used_bytes(), before_quote); // no excess refund
+    let inline = size_of::<OwnedCharged<codec::PendingDecodedCustody>>() - size_of::<OwnedExternalCharge>();
+    assert_eq!(q.resources().working_charge_bytes, working_charge + inline);
+    let pending = q.construct().unwrap();
+    let decoded = pending.payload().decoded();
+    assert_eq!(decoded.codepoints(), [0xd800, 0xdc00]);
+    assert_eq!(decoded.original_owner().payload().as_ptr(), raw_ptr);
+    assert_eq!(decoded.original_owner().payload().len(), 6);
+    assert_eq!(decoded.original_owner().payload().capacity(), 37);
+    assert_eq!(decoded.original_owner().payload().as_slice(), bytes);
+    assert_eq!(decoded.original_owner().charged_bytes(), raw_charge);
+    assert_ne!(decoded.codepoints().as_ptr().cast::<u8>(), raw_ptr);
+    assert_eq!(decoded.resources().point_capacity_bytes, 8);
+    assert_eq!(pending.charged_bytes(), working_charge + inline);
+    assert_eq!(budget.budget().used_bytes(), before_quote + inline);
+    assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, 12 + 166);
+    assert!(!root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+    drop(pending);
+    assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+    assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, 12 + 166);
+    assert_eq!(budget.budget().used_bytes(), retained);
+    assert!(committed.is_for(budget.budget()));
+    drop(admission);
+    drop(committed);
+    drop(root);
+    assert_eq!(budget.budget().used_bytes(), baseline);
+}
+
 fn native_prepared(
     budget: &OwnedBudget, admission: &mut SourceAdmission, raw: &[u8], visits: u64,
 ) -> PrivatePreparedConfiguration {

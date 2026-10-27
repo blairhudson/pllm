@@ -532,3 +532,218 @@ fn shared_owner_seam_charge_visible_during_partial_unwind_and_payload_drop() {
         assert_eq!(b.budget().used_bytes(), baseline);
     }
 }
+
+// New seam fixtures use ACTUAL unconfigured SourceAdmission, never root()'s
+// configured model. No production ledger/root constructor or test backdoor.
+fn unconfigured(b: &OwnedBudget) -> original_source::SourceAdmission {
+    original_source::SourceAdmission::new(
+        b.charge_external(original_source::SourceAdmission::root_control_bytes().unwrap()).unwrap(),
+        DecoderWorkload { batch: 1, max_input_tokens: 4, max_new_tokens: 2 },
+    ).unwrap()
+}
+
+fn reserved_quote(
+    b: &OwnedBudget, admission: &mut original_source::SourceAdmission, bytes: &[u8],
+) -> Result<ReservedCodecQuote, Error> {
+    let phase = admission.reserve_bootstrap_phase(controller(b), 0).unwrap();
+    phase.quote_decoding(raw(b, bytes, 11),
+        b.charge_external(reserved_codec_control_bytes().unwrap()).unwrap(), limits())
+}
+
+#[test]
+fn unconfigured_pending_retains_raw_and_literal_codec_semantics_without_commit() {
+    use Encoding::*;
+    for (bytes, encoding, skip, points) in [
+        (&b""[..], Utf8, 0, &[][..]),
+        (&[0][..], Utf8, 0, &[0][..]),
+        (&[0, 0][..], Utf16Be, 0, &[0][..]),
+        (&[0, 0, 0][..], Utf8, 0, &[0, 0, 0][..]),
+        (&[0, 0, 0, 0][..], Utf32Be, 0, &[0][..]),
+        (&[0, 65, 0][..], Utf8, 0, &[0, 65, 0][..]),
+        (&[0, 0, 0, 65][..], Utf32Be, 0, &[65][..]),
+        (&[65, 0, 0, 0][..], Utf32Le, 0, &[65][..]),
+        (&[0, 65, 0, 66][..], Utf16Be, 0, &[65, 66][..]),
+        (&[65, 0, 66, 0][..], Utf16Le, 0, &[65, 66][..]),
+        (&[65, 66, 67, 68][..], Utf8, 0, &[65, 66, 67, 68][..]),
+        (&[0xef, 0xbb, 0xbf][..], Utf8, 3, &[][..]),
+        (&[0xff, 0xfe][..], Utf16Le, 2, &[][..]),
+        (&[0xfe, 0xff][..], Utf16Be, 2, &[][..]),
+        (&[0xff, 0xfe, 0, 0][..], Utf32Le, 4, &[][..]),
+        (&[0, 0, 0xfe, 0xff][..], Utf32Be, 4, &[][..]),
+        // Same literal strip-ONE/repeated/interior vectors as lower-level tests;
+        // here BOTH passes run through genuine pending unconfigured custody.
+        (&[0xef, 0xbb, 0xbf, 0xef, 0xbb, 0xbf, 65, 0xef, 0xbb, 0xbf][..], Utf8, 3, &[0xfeff, 65, 0xfeff][..]),
+        (&[0xff, 0xfe, 0xff, 0xfe, 65, 0, 0xff, 0xfe][..], Utf16Le, 2, &[0xfeff, 65, 0xfeff][..]),
+        (&[0xfe, 0xff, 0xfe, 0xff, 0, 65, 0xfe, 0xff][..], Utf16Be, 2, &[0xfeff, 65, 0xfeff][..]),
+        (&[0xff, 0xfe, 0, 0, 0xff, 0xfe, 0, 0, 65, 0, 0, 0, 0xff, 0xfe, 0, 0][..], Utf32Le, 4, &[0xfeff, 65, 0xfeff][..]),
+        (&[0, 0, 0xfe, 0xff, 0, 0, 0xfe, 0xff, 0, 0, 0, 65, 0, 0, 0xfe, 0xff][..], Utf32Be, 4, &[0xfeff, 65, 0xfeff][..]),
+        (&[65, 0xef, 0xbb, 0xbf, 66][..], Utf8, 0, &[65, 0xfeff, 66][..]),
+        (&[0xed, 0xa0, 0x80, 0xed, 0xb0, 0x80][..], Utf8, 0, &[0xd800, 0xdc00][..]),
+        (&[0xff, 0xfe, 0, 0xd8, 1, 0xd8, 0, 0xdc][..], Utf16Le, 2, &[0xd800, 0x10400][..]),
+        (&[0xfe, 0xff, 0xd8, 0, 0xd8, 1, 0xdc, 0][..], Utf16Be, 2, &[0xd800, 0x10400][..]),
+        (&[0xff, 0xfe, 0, 0, 0, 0xd8, 0, 0][..], Utf32Le, 4, &[0xd800][..]),
+        (&[0, 0, 0xfe, 0xff, 0, 0, 0xd8, 0][..], Utf32Be, 4, &[0xd800][..]),
+    ] {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = unconfigured(&b);
+        let baseline = b.budget().used_bytes();
+        let owner = raw(&b, bytes, 31);
+        let ptr = owner.payload().as_ptr();
+        let cap = owner.payload().capacity();
+        let phase = admission.reserve_bootstrap_phase(controller(&b), 17).unwrap();
+        let q = phase.quote_decoding(owner,
+            b.charge_external(reserved_codec_control_bytes().unwrap()).unwrap(), limits()).unwrap();
+        let resources = *q.resources();
+        let pending = q.construct().unwrap();
+        let decoded = pending.payload().decoded();
+        assert_eq!(decoded.codepoints(), points);
+        assert_eq!(decoded.encoding(), encoding);
+        assert_eq!(decoded.bom_bytes(), skip);
+        assert_eq!(decoded.points.capacity(), points.len());
+        assert_eq!(decoded.original_owner().payload().as_ptr(), ptr);
+        assert_eq!(decoded.original_owner().payload().len(), bytes.len());
+        assert_eq!(decoded.original_owner().payload().capacity(), cap);
+        assert_eq!(decoded.original_owner().payload().as_slice(), bytes);
+        assert!(std::ptr::eq(pending.budget(), b.budget()));
+        assert_eq!(decoded.resources(), &resources);
+        assert_eq!(pending.charged_bytes(), resources.working_charge_bytes);
+        assert!(decoded.controller.get().is_none()); // NOT a committed output
+        assert_eq!(b.budget().used_bytes(), baseline + resources.original_owner_bytes
+            + resources.controller_charge_bytes + resources.working_charge_bytes);
+        drop(pending);
+        assert_eq!(b.budget().used_bytes(), baseline);
+        drop(admission);
+    }
+}
+
+#[test]
+fn unconfigured_metadata_refusals_never_enter_factory_and_retire_all_new_guards() {
+    for mode in 0..4 {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let other = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = unconfigured(&b);
+        let baseline = b.budget().used_bytes();
+        let foreign_baseline = other.budget().used_bytes();
+        let phase = admission.reserve_bootstrap_phase(controller(&b), 0).unwrap();
+        let owner = if mode == 0 {
+            b.charge_external(0).unwrap().try_build(|_| Ok(vec![0xff; 32])).unwrap()
+        } else { raw(if mode == 1 { &other } else { &b }, &[0xff], 0) };
+        let controls = reserved_codec_control_bytes().unwrap() - usize::from(mode == 3);
+        let working_budget = if mode == 2 { &other } else { &b };
+        let working = working_budget.charge_external(controls).unwrap();
+        let entries = FACTORY_ENTRIES.with(|n| n.get());
+        let result = phase.quote_decoding(owner, working, limits());
+        assert_eq!(result.err(), Some(if mode == 1 || mode == 2 { Error::Counter } else { Error::Capacity }));
+        assert_eq!(FACTORY_ENTRIES.with(|n| n.get()), entries);
+        assert_eq!(b.budget().used_bytes(), baseline);
+        assert_eq!(other.budget().used_bytes(), foreign_baseline);
+    }
+}
+
+#[test]
+fn unconfigured_literal_work_and_payload_exact_one_short_precede_factory() {
+    for payload_short in [false, true] {
+        for work_short in [false, true] {
+            let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let mut admission = unconfigured(&b);
+            let baseline = b.budget().used_bytes();
+            let phase = admission.reserve_bootstrap_phase(controller(&b), 0).unwrap();
+            let mut l = limits();
+            l.max_work = 131 - u64::from(work_short); // 7*1+60+64; fee ALREADY paid
+            l.max_working_payload = reserved_codec_control_bytes().unwrap() + 4 - usize::from(payload_short);
+            let entries = FACTORY_ENTRIES.with(|n| n.get());
+            let q = phase.quote_decoding(raw(&b, b"a", 0),
+                b.charge_external(reserved_codec_control_bytes().unwrap()).unwrap(), l);
+            if work_short || payload_short {
+                assert_eq!(q.err(), Some(if work_short { Error::Work } else { Error::Resource }));
+                assert_eq!(FACTORY_ENTRIES.with(|n| n.get()), entries);
+            } else {
+                let q = q.unwrap();
+                assert_eq!(q.resources().prepaid_work, 131);
+                drop(q.construct().unwrap());
+            }
+            assert_eq!(b.budget().used_bytes(), baseline);
+        }
+    }
+}
+
+#[test]
+fn unconfigured_growth_inline_and_factory_refusal_are_separate_prefunded_seams() {
+    for mode in 0..3 {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = unconfigured(&b);
+        let baseline = b.budget().used_bytes();
+        let q = reserved_quote(&b, &mut admission, b"ab").unwrap();
+        let growth = q.resources().required_working_payload - q.working.payload_bytes();
+        let total = q.resources().working_charge_bytes - q.working.charged_bytes();
+        let headroom = match mode { 0 => growth - 1, 1 => total - 1, _ => total };
+        let ballast = b.charge_external(MAX_ALLOCATION_BYTES - b.budget().used_bytes()
+            - size_of::<OwnedExternalCharge>() - headroom).unwrap();
+        let entries = FACTORY_ENTRIES.with(|n| n.get());
+        if mode == 2 { FAIL_AFTER_POINT.with(|flag| flag.set(true)); }
+        assert!(matches!(q.construct(), Err(Error::Native(NativeError::Resource))));
+        assert_eq!(FACTORY_ENTRIES.with(|n| n.get()), entries + usize::from(mode == 2));
+        drop(ballast);
+        assert_eq!(b.budget().used_bytes(), baseline);
+    }
+}
+
+#[test]
+fn unconfigured_quote_pending_partial_replay_and_unwind_cleanup() {
+    for mode in 0..5 {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = unconfigured(&b);
+        let baseline = b.budget().used_bytes();
+        let q = reserved_quote(&b, &mut admission, b"ab").unwrap();
+        match mode {
+            0 => drop(q),
+            1 => drop(q.construct().unwrap()),
+            2 => {
+                FAIL_AFTER_POINT.with(|flag| flag.set(true));
+                assert!(matches!(q.construct(), Err(Error::Native(NativeError::Resource))));
+            }
+            3 => {
+                PANIC_AFTER_POINT.with(|flag| flag.set(true));
+                assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| q.construct())).is_err());
+            }
+            _ => {
+                PANIC_FACTORY.with(|flag| flag.set(true));
+                assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| q.construct())).is_err());
+            }
+        }
+        assert_eq!(b.budget().used_bytes(), baseline);
+        // Only guard cleanup is asserted here. Actual root burn/retained work
+        // for every refusal/unwind seam is checked in original_source_tests;
+        // the already-set one-shot reserved flag is NOT a burn observation.
+    }
+}
+
+#[test]
+fn unconfigured_literal_malformed_offsets_preserved_in_shared_count_pass() {
+    use DecodeFailure::*;
+    for (bytes, kind, start, end, base) in [
+        (&[0xef, 0xbb, 0xbf, 0x41, 0xff][..], InvalidStart, 1, 2, 3),
+        (&[0xff, 0xfe, 0x41, 0, 0x42][..], TruncatedUnit, 4, 5, 0),
+        (&[0xff, 0xfe, 0, 0, 0x41, 0, 0, 0, 0x42][..], TruncatedUnit, 8, 9, 0),
+        (&[0xff, 0xfe, 0, 0xd8, 1, 0xd8, 0, 0xdc, 0x41][..], TruncatedUnit, 8, 9, 0),
+        (&[0xff, 0xfe, 0, 0, 0x41, 0, 0, 0, 0, 0, 0x11, 0][..], OutOfRange, 8, 12, 0),
+        // Six-pin final-decoder literals, not detect()/decoded() expectations.
+        (&[0xfe, 0xff, 0, 0x41, 0x42][..], TruncatedUnit, 4, 5, 0),
+        (&[0xfe, 0xff, 0xd8, 0, 0xd8, 1, 0xdc, 0, 0x41][..], TruncatedUnit, 8, 9, 0),
+        (&[0, 0, 0xfe, 0xff, 0, 0, 0, 0x41, 0x42][..], TruncatedUnit, 8, 9, 0),
+        (&[0, 0, 0xfe, 0xff, 0, 0, 0, 0x41, 0, 0x11, 0, 0][..], OutOfRange, 8, 12, 0),
+        (&[0xed, 0xa0][..], InvalidContinuation, 0, 1, 0),
+        (&[0xed, 0xa0, 65][..], InvalidContinuation, 0, 1, 0),
+        (&[0xef, 0xbb, 0xbf, 0xed, 0xa0][..], InvalidContinuation, 0, 1, 3),
+        (&[0xef, 0xbb, 0xbf, 0xe2, 0x82][..], UnexpectedEnd, 0, 2, 3),
+    ] {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = unconfigured(&b);
+        let baseline = b.budget().used_bytes();
+        let entries = FACTORY_ENTRIES.with(|n| n.get());
+        let result = reserved_quote(&b, &mut admission, bytes);
+        assert_eq!(result.err(), Some(Error::Decode(DecodeError { kind, start, end, error_input_base: base })));
+        assert_eq!(FACTORY_ENTRIES.with(|n| n.get()), entries);
+        assert_eq!(b.budget().used_bytes(), baseline);
+    }
+}
