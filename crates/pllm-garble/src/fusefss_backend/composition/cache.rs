@@ -106,8 +106,19 @@ pub struct SourceTableCache<'a> {
     state: RefCell<State<'a>>,
     lease: Lease<'a>,
 }
+
+/// Allocation-free bootstrap facts. No table acquisition or revision hashing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BootstrapDescriptor {
+    pub metadata_reservation_bytes: usize,
+    pub numeric_revision_hash_bytes: usize,
+}
+
 impl<'a> SourceTableCache<'a> {
-    pub fn new(namespace: [u8; 32], limits: Limits, budget: &'a Budget) -> Result<Self, Error> {
+    pub fn bootstrap_descriptor(
+        namespace: [u8; 32],
+        limits: Limits,
+    ) -> Result<BootstrapDescriptor, Error> {
         if namespace == [0; 32]
             || limits.max_entries == 0
             || limits.max_entries > MAX_ENTRIES
@@ -116,7 +127,19 @@ impl<'a> SourceTableCache<'a> {
         {
             return Err(Error::Domain);
         }
-        let metadata = size_of::<Self>() + limits.max_entries * size_of::<Entry<'_>>() + 4096;
+        let metadata = limits.max_entries.checked_mul(size_of::<Entry<'_>>())
+            .and_then(|n| n.checked_add(size_of::<Self>()))
+            .and_then(|n| n.checked_add(4096))
+            .ok_or(Error::Resource)?;
+        Ok(BootstrapDescriptor {
+            metadata_reservation_bytes: metadata,
+            numeric_revision_hash_bytes: source_tables::source_lock_bytes(),
+        })
+    }
+
+    pub fn new(namespace: [u8; 32], limits: Limits, budget: &'a Budget) -> Result<Self, Error> {
+        let descriptor = Self::bootstrap_descriptor(namespace, limits)?;
+        let metadata = descriptor.metadata_reservation_bytes;
         let lease = budget.reserve(metadata)?;
         let entries = allocate(limits.max_entries, budget)?;
         // Fixed source lock/numeric revision is hashed once per cache, not per
@@ -130,7 +153,7 @@ impl<'a> SourceTableCache<'a> {
                 entries,
                 stats: Stats {
                     metadata_reservation_bytes: metadata,
-                    numeric_revision_hash_bytes: source_tables::source_lock_bytes(),
+                    numeric_revision_hash_bytes: descriptor.numeric_revision_hash_bytes,
                     ..Stats::default()
                 },
             }),

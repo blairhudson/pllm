@@ -1,6 +1,7 @@
-//! Arithmetic for supplied, already constructed public resource records only.
-//! This borrows the live schedule counters; it is not a second ledger, Plan
-//! builder, cache validator, or preconstruction/physical-memory authority.
+//! Arithmetic for public resource records and fixed cache bootstrap facts.
+//! Bootstrap admits only an initial floor, not complete construction/peak cost.
+//! Schedule phases borrow the live counters; no second ledger or Plan builder.
+//! Logical accounting only, not physical-memory or full-capacity authority.
 use super::{cache, wavefront, Capacity, Error, Limits, Resources};
 use pllm_garble::fusefss_backend::composition;
 
@@ -22,6 +23,53 @@ pub(super) struct Quote<'a> {
 }
 
 impl<'a> Quote<'a> {
+    pub(super) fn compiler_reservation(metadata: usize, live: usize) -> Result<usize, Error> {
+        add(mul(metadata, 3)?, mul(live, 2)?)
+    }
+
+    pub(super) fn available_per_role(metadata: usize, live: usize) -> Result<usize, Error> {
+        let compiler = Self::compiler_reservation(metadata, live)?;
+        let available = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
+            .checked_sub(compiler).filter(|&n| n > 0).ok_or(Error::Resource)?;
+        let per_role = available / 3;
+        if per_role == 0 { return Err(Error::Resource); }
+        Ok(per_role)
+    }
+
+    // All inputs are already retained scalars or allocation-free cache facts.
+    // The closure is the private construction boundary: refusal never calls it.
+    pub(super) fn bootstrap<T>(
+        metadata: usize,
+        live: usize,
+        source_reservation: usize,
+        descriptor: cache::BootstrapDescriptor,
+        limits: Limits,
+        factory: impl FnOnce(Resources) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        let cache = descriptor.metadata_reservation_bytes;
+        let work = add(add(mul(metadata, 3)?, mul(cache, 3)?)?,
+            mul(descriptor.numeric_revision_hash_bytes, 3)?)?;
+        let copies = mul(source_reservation, 3)?;
+        let compiler = Self::compiler_reservation(metadata, live)?;
+        let floor = add(compiler, mul(cache, 3)?)?;
+        let per_role = Self::available_per_role(metadata, live)?;
+        if work > limits.max_work || copies > limits.max_public_copy_bytes
+            || floor > pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
+            || cache > per_role
+        {
+            return Err(Error::Resource);
+        }
+        factory(Resources {
+            work,
+            metadata_bytes: metadata,
+            live_array_bytes_per_party: live,
+            source_table_cache_bytes_per_role: cache,
+            public_copy_bytes: copies,
+            // A bootstrap floor is deliberately not the full native peak.
+            ..Resources::default()
+        })
+    }
+
     // Mutations and early copy-limit checks deliberately precede runtime's
     // cache-delta validation, just as before extraction. Failure is not rollback.
     pub(super) fn begin(

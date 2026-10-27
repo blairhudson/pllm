@@ -307,35 +307,106 @@ fn word(v: i64) -> u64 {
 // Stack-bound request owners: Budget outlives cache and every short-lived Plan.
 // No self-reference, global cache, private material reuse, or lifetime extension.
 fn request_budget(program: &Program) -> Result<Budget, Error> {
-    let compiler = checked_add(
-        program
-            .resources
-            .metadata_bytes
-            .checked_mul(3)
-            .ok_or(Error::Resource)?,
-        program
-            .resources
-            .live_array_bytes_per_party
-            .checked_mul(2)
-            .ok_or(Error::Resource)?,
-    )?;
-    let available = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
-        .checked_sub(compiler)
-        .filter(|&n| n > 0)
-        .ok_or(Error::Resource)?;
-    Budget::new(available / 3)
+    Budget::new(resource_quote::Quote::available_per_role(
+        program.resources.metadata_bytes, program.resources.live_array_bytes_per_party,
+    )?)
 }
+
+struct RequestTables<'b> {
+    cache: SourceTableCache<'b>,
+    // One preconstruction ledger seed, retained across the constructor boundary.
+    // Schedule copies it once; no retrospective cache-stat repricing/reset.
+    bootstrap: Resources,
+}
+impl<'b> std::ops::Deref for RequestTables<'b> {
+    type Target = SourceTableCache<'b>;
+    fn deref(&self) -> &Self::Target { &self.cache }
+}
+
+trait ScheduleTables<'b> {
+    fn cache(&self) -> &SourceTableCache<'b>;
+    fn bootstrap(&self) -> Result<Resources, Error>;
+}
+impl<'b> ScheduleTables<'b> for RequestTables<'b> {
+    fn cache(&self) -> &SourceTableCache<'b> { &self.cache }
+    fn bootstrap(&self) -> Result<Resources, Error> { Ok(self.bootstrap) }
+}
+// Existing negative namespace test supplies a raw cache. It must never become
+// an unadmitted fixture path for constructing a valid Schedule.
+#[cfg(test)]
+impl<'b> ScheduleTables<'b> for SourceTableCache<'b> {
+    fn cache(&self) -> &SourceTableCache<'b> { self }
+    fn bootstrap(&self) -> Result<Resources, Error> { Err(Error::Context) }
+}
+
+// Thread-scoped constructor-boundary instrumentation only. Never production
+// admission authority; the guard cannot escape or migrate between test threads.
+#[cfg(test)]
+mod cache_constructor_probe {
+    use super::Error;
+
+    thread_local! {
+        static ENTRIES: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+    }
+
+    struct Reset {
+        previous: Option<usize>,
+        _thread: std::marker::PhantomData<std::rc::Rc<()>>,
+    }
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            ENTRIES.with(|entries| entries.set(self.previous));
+        }
+    }
+
+    pub(super) fn scoped<T>(f: impl FnOnce() -> T) -> (T, usize) {
+        let _reset = Reset {
+            previous: ENTRIES.with(|entries| entries.replace(Some(0))),
+            _thread: std::marker::PhantomData,
+        };
+        let result = f();
+        let count = ENTRIES.with(|entries| entries.get().expect("scoped constructor probe"));
+        (result, count)
+    }
+
+    pub(super) fn enter() -> Result<(), Error> {
+        ENTRIES.with(|entries| match entries.get() {
+            None => Ok(()),
+            Some(count) => {
+                entries.set(Some(count.checked_add(1).expect("constructor probe count")));
+                // Deliberate test sentinel, distinct from Resource and Domain.
+                // Stop before constructor reservation, Vec allocation or hash.
+                Err(Error::Unsupported)
+            }
+        })
+    }
+}
+
 fn request_tables<'b>(
     program: &Program,
     budget: &'b Budget,
-) -> Result<SourceTableCache<'b>, Error> {
-    SourceTableCache::new(
-        program.digest,
-        cache::Limits {
-            max_entries: cache::MAX_ENTRIES,
-            max_retained_bytes: cache::MAX_RETAINED_BYTES,
+) -> Result<RequestTables<'b>, Error> {
+    let limits = cache::Limits {
+        max_entries: cache::MAX_ENTRIES,
+        max_retained_bytes: cache::MAX_RETAINED_BYTES,
+    };
+    let descriptor = SourceTableCache::bootstrap_descriptor(program.digest, limits)?;
+    // Source::reservation_bytes is an already admitted resident-owner count
+    // (including bounded file-read workspace), not disk payload or a new walk.
+    resource_quote::Quote::bootstrap(
+        program.resources.metadata_bytes,
+        program.resources.live_array_bytes_per_party,
+        program.source.reservation_bytes(),
+        descriptor,
+        program.limits,
+        |bootstrap| {
+            #[cfg(test)]
+            cache_constructor_probe::enter()?;
+            Ok(RequestTables {
+                cache: SourceTableCache::new(program.digest, limits, budget)?,
+                bootstrap,
+            })
         },
-        budget,
     )
 }
 
@@ -359,31 +430,16 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         context: Context,
         role: u8,
         driver: Option<&'d mut dyn Driver>,
-        tables: &'c SourceTableCache<'b>,
+        owner: &'c impl ScheduleTables<'b>,
     ) -> Result<Self, Error> {
-        let compiler = checked_add(
-            program
-                .resources
-                .metadata_bytes
-                .checked_mul(3)
-                .ok_or(Error::Resource)?,
-            program
-                .resources
-                .live_array_bytes_per_party
-                .checked_mul(2)
-                .ok_or(Error::Resource)?,
-        )?;
-        let available = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
-            .checked_sub(compiler)
-            .filter(|&n| n > 0)
-            .ok_or(Error::Resource)?;
+        let tables = owner.cache();
         let mut hash = Sha256::new();
         hash.update(b"pllm.fss-decoder.kernel-obligations.v1\0");
         hash.update(program.digest);
-        let _ = Budget::new(available / 3)?;
         if tables.namespace() != program.digest {
             return Err(Error::Context);
         }
+        let resources = owner.bootstrap()?;
         let table_stats = tables.stats();
         hash.update(b"request-local-shared-source-tables.v1\0");
         hash.update(tables.numeric_revision());
@@ -395,24 +451,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             visitor: None,
             tables,
             accounted_tables: table_stats,
-            resources: Resources {
-                work: program
-                    .resources
-                    .metadata_bytes
-                    .checked_mul(3)
-                    .and_then(|n| n.checked_add(table_stats.metadata_reservation_bytes.checked_mul(3)?))
-                    .and_then(|n| n.checked_add(table_stats.numeric_revision_hash_bytes.checked_mul(3)?))
-                    .ok_or(Error::Resource)?,
-                metadata_bytes: program.resources.metadata_bytes,
-                live_array_bytes_per_party: program.resources.live_array_bytes_per_party,
-                source_table_cache_bytes_per_role: table_stats.metadata_reservation_bytes,
-                public_copy_bytes: program
-                    .source
-                    .reservation_bytes()
-                    .checked_mul(3)
-                    .ok_or(Error::Resource)?,
-                ..Resources::default()
-            },
+            resources,
             hash,
             selection: 0,
             node: 0,

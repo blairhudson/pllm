@@ -734,3 +734,200 @@ fn quote_extraction_preserves_small_schedule_resources_and_obligations() {
         }
     }
 }
+
+#[test]
+fn bootstrap_descriptor_matches_cache_stats() {
+    // Retain the actual source/Program owner and ordinary admitted request cache.
+    // Descriptor inspection itself neither reserves budget nor acquires tables.
+    let p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 1);
+    let budget = request_budget(&p).unwrap();
+    let limits = cache::Limits {
+        max_entries: cache::MAX_ENTRIES,
+        max_retained_bytes: cache::MAX_RETAINED_BYTES,
+    };
+    let descriptor = SourceTableCache::bootstrap_descriptor(p.digest, limits).unwrap();
+    // Independent two-slot layout census; no production descriptor arithmetic
+    // used as its oracle. Entry holds one aligned Identity and one Arc pointer.
+    let slot = std::mem::size_of::<cache::Identity>() + std::mem::size_of::<usize>();
+    for entries in [1, 2] {
+        let small = SourceTableCache::bootstrap_descriptor(p.digest,
+            cache::Limits { max_entries: entries, ..limits }).unwrap();
+        assert_eq!(small.metadata_reservation_bytes,
+            std::mem::size_of::<SourceTableCache<'_>>() + entries * slot + 4096);
+    }
+    assert_eq!(descriptor.numeric_revision_hash_bytes,
+        include_bytes!("../../../../paper/reproduction-contracts/fusefss/gate-set/source-lock.json").len());
+    assert_eq!(budget.used_bytes(), 0);
+    let tables = request_tables(&p, &budget).unwrap();
+    let stats = tables.stats();
+    assert_eq!(stats, cache::Stats {
+        metadata_reservation_bytes: descriptor.metadata_reservation_bytes,
+        numeric_revision_hash_bytes: descriptor.numeric_revision_hash_bytes,
+        ..cache::Stats::default()
+    });
+    assert_eq!(budget.used_bytes(), stats.metadata_reservation_bytes);
+    assert!(stats.metadata_reservation_bytes >= 4096);
+    assert!(stats.numeric_revision_hash_bytes > 0);
+    assert_eq!(tables.bootstrap.work, 3 * p.resources.metadata_bytes
+        + 3 * stats.metadata_reservation_bytes + 3 * stats.numeric_revision_hash_bytes);
+    assert_eq!(tables.bootstrap.public_copy_bytes, 3 * p.source.reservation_bytes());
+    let state = Schedule::new(&p, context(&p), 0, None, &tables).unwrap();
+    assert_eq!(resource_fields(state.resources), resource_fields(tables.bootstrap));
+    drop(state);
+    drop(tables);
+    assert_eq!(budget.used_bytes(), 0);
+
+    // Shared validation retains Domain precedence even for enormous limits.
+    for (namespace, entries, retained) in [
+        ([0; 32], 1, 1), ([1; 32], 0, 1), ([1; 32], usize::MAX, 1),
+        ([1; 32], 1, 0), ([1; 32], 1, usize::MAX),
+    ] {
+        let limits = cache::Limits { max_entries: entries, max_retained_bytes: retained };
+        assert_eq!(SourceTableCache::bootstrap_descriptor(namespace, limits),
+            Err(pllm_garble::fusefss_backend::Error::Domain));
+        assert!(matches!(SourceTableCache::new(namespace, limits, &budget),
+            Err(pllm_garble::fusefss_backend::Error::Domain)));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn bootstrap_exact_and_one_short() {
+    // Independent small literal oracle: 3*7 + 3*13 + 3*17 = 111;
+    // copies=3*19=57; compiler=3*7+2*11=43; floor=43+39=82.
+    let descriptor = cache::BootstrapDescriptor {
+        metadata_reservation_bytes: 13, numeric_revision_hash_bytes: 17,
+    };
+    for (work, copies, accepted) in [(111, 57, true), (110, 57, false), (111, 56, false)] {
+        let mut factories = 0;
+        let result = resource_quote::Quote::bootstrap(7, 11, 19, descriptor,
+            Limits { max_work: work, max_public_copy_bytes: copies, ..Limits::default() },
+            |resources| {
+                // Same private boundary used immediately before real constructor.
+                // Synthetic metadata only: no keys, tables, RNG, or placeholders.
+                factories += 1;
+                assert_eq!(resources.work, 111);
+                assert_eq!(resources.public_copy_bytes, 57);
+                assert_eq!(resources.source_table_cache_bytes_per_role, 13);
+                assert_eq!(resources.metadata_bytes, 7);
+                assert_eq!(resources.live_array_bytes_per_party, 11);
+                assert_eq!(resources.peak_native_bytes, 0);
+                assert_eq!(resources.combined_reservation_bytes, 0);
+                Ok(())
+            });
+        assert_eq!(result, if accepted { Ok(()) } else { Err(Error::Resource) });
+        assert_eq!(factories, usize::from(accepted));
+    }
+
+    let maximum = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
+    // Exact floor: compiler=maximum-39, per-role available=13. Raise the
+    // floor by exactly one byte using +3 cache bytes and -2 live bytes.
+    let live = (maximum - 60) / 2;
+    for short in [false, true] {
+        let mut factories = 0;
+        assert_eq!(resource_quote::Quote::available_per_role(7,
+            live - usize::from(short)).unwrap(), 13);
+        let result = resource_quote::Quote::bootstrap(7, live - usize::from(short), 19,
+            cache::BootstrapDescriptor {
+                metadata_reservation_bytes: 13 + usize::from(short),
+                numeric_revision_hash_bytes: 17,
+            }, Limits { max_work: usize::MAX, max_public_copy_bytes: usize::MAX,
+                ..Limits::default() }, |_| { factories += 1; Ok(()) });
+        assert_eq!(result, if short { Err(Error::Resource) } else { Ok(()) });
+        assert_eq!(factories, usize::from(!short));
+    }
+
+    // Actual request_tables path, not the synthetic Quote closure above.
+    // Independent layout/source-length oracle, already checked against ordinary
+    // cache Stats in bootstrap_descriptor_matches_cache_stats.
+    // Exact thresholds prove bootstrap admission to the constructor boundary,
+    // NOT acceptance/construction of the whole Tables owner. Unsupported is the
+    // deliberate probe sentinel: no real constructor/hash runs in these scopes.
+    for meter in [0, 1, 2] {
+        let mut p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 1);
+        let slot = std::mem::size_of::<cache::Identity>() + std::mem::size_of::<usize>();
+        let metadata = std::mem::size_of::<SourceTableCache<'_>>()
+            + cache::MAX_ENTRIES * slot + 4096;
+        let revision = include_bytes!(
+            "../../../../paper/reproduction-contracts/fusefss/gate-set/source-lock.json").len();
+        p.limits.max_work = 3 * p.resources.metadata_bytes + 3 * metadata + 3 * revision;
+        p.limits.max_public_copy_bytes = 3 * p.source.reservation_bytes();
+        if meter == 1 { p.limits.max_work -= 1; }
+        if meter == 2 { p.limits.max_public_copy_bytes -= 1; }
+        let budget = request_budget(&p).unwrap();
+        let (result, entries) = cache_constructor_probe::scoped(|| {
+            request_tables(&p, &budget).map(drop)
+        });
+        assert_eq!(result, Err(if meter == 0 { Error::Unsupported } else { Error::Resource }));
+        assert_eq!(entries, usize::from(meter == 0));
+        assert_eq!(budget.used_bytes(), 0);
+        assert_eq!(budget.admitted_peak_bytes(), 0);
+    }
+}
+
+#[test]
+fn bootstrap_overflow_precedes_factory() {
+    let huge = usize::MAX;
+    let maximum = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
+    // (metadata, live, source reservation, cache metadata, revision bytes).
+    // Each checked multiply/add and cap/available-budget refusal has its own
+    // isolated case; factory trap must stay untouched for every refusal.
+    for (metadata, live, source, cache, revision) in [
+        (huge, 0, 0, 0, 0),             // 3*metadata
+        (0, 0, 0, huge, 0),             // 3*cache
+        (huge / 3, 0, 0, 1, 0),         // metadata + cache work
+        (0, 0, 0, 0, huge),             // 3*revision
+        (0, 0, 0, 1, huge / 3),         // revision + prior work
+        (0, 0, huge, 0, 0),             // 3*source copies
+        (0, huge, 0, 0, 0),             // 2*live
+        (huge / 3 - 1, 2, 0, 0, 0),    // compiler addition
+        (0, huge / 2, 0, 1, 0),         // compiler + 3*cache floor
+        (0, maximum / 2 + 1, 0, 0, 0),  // available subtraction
+        (0, maximum / 2, 0, 0, 0),      // no available bytes
+        (1, (maximum - 4) / 2, 0, 0, 0), // available / 3 is zero
+        (0, 0, 0, maximum / 3 + 1, 0),  // cache exceeds per-role cap
+    ] {
+        let mut factories = 0;
+        let result = resource_quote::Quote::bootstrap(metadata, live, source,
+            cache::BootstrapDescriptor {
+                metadata_reservation_bytes: cache, numeric_revision_hash_bytes: revision,
+            }, Limits { max_work: huge, max_public_copy_bytes: huge, ..Limits::default() },
+            |_| { factories += 1; Ok(()) });
+        assert_eq!(result, Err(Error::Resource),
+            "metadata={metadata} live={live} source={source} cache={cache} revision={revision}");
+        assert_eq!(factories, 0);
+    }
+
+    // Exercise the actual request_tables input arithmetic, using a real Budget
+    // obtained before deliberately overflowing the retained metadata scalar.
+    // This is a private-boundary robustness case, not a claim that public Program
+    // construction admits such metadata: request_budget also rejects it earlier.
+    // Existing FuseFSS checked-arithmetic contract returns Resource, not a new
+    // Source/Overflow error or a fabricated overflowing source reservation.
+    let mut p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 1);
+    let budget = request_budget(&p).unwrap();
+    let original_metadata = p.resources.metadata_bytes;
+    p.resources.metadata_bytes = usize::MAX;
+    assert!(matches!(request_budget(&p), Err(Error::Resource)));
+    let (result, entries) = cache_constructor_probe::scoped(|| {
+        request_tables(&p, &budget).map(drop)
+    });
+    assert_eq!(result, Err(Error::Resource));
+    assert_eq!(entries, 0);
+    assert_eq!(budget.used_bytes(), 0);
+    assert_eq!(budget.admitted_peak_bytes(), 0);
+
+    // Shared constructor validation keeps Domain precedence over exhausted work
+    // and copy caps; the actual constructor boundary must remain unentered.
+    p.resources.metadata_bytes = original_metadata;
+    p.digest = [0; 32];
+    p.limits.max_work = 0;
+    p.limits.max_public_copy_bytes = 0;
+    let (result, entries) = cache_constructor_probe::scoped(|| {
+        request_tables(&p, &budget).map(drop)
+    });
+    assert_eq!(result, Err(Error::Domain));
+    assert_eq!(entries, 0);
+    assert_eq!(budget.used_bytes(), 0);
+    assert_eq!(budget.admitted_peak_bytes(), 0);
+}
