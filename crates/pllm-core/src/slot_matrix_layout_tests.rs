@@ -14,6 +14,13 @@ fn physical_layouts(i: usize, o: usize, tokens: usize, capacity: usize) -> (Layo
 fn physical_oracle_case(iw: usize, ow: usize, tokens: usize, x: &[i64], w: &[i64], bias: &[i64]) {
     let (input, out) = physical_layouts(iw, ow, tokens, 1);
     let plan = block_pc_physical_plan(input, out, 4096, LIMITS).unwrap();
+    physical_oracle_with_plan(plan, iw, ow, tokens, x, w, bias);
+}
+
+fn physical_oracle_with_plan(
+    plan: BlockPcPhysicalPlan, iw: usize, ow: usize, tokens: usize,
+    x: &[i64], w: &[i64], bias: &[i64],
+) {
     let mut expected = vec![0_i64; 2 * ow];
     for token in 0..tokens {
         for feature in 0..ow {
@@ -74,6 +81,15 @@ fn physical_oracle_case(iw: usize, ow: usize, tokens: usize, x: &[i64], w: &[i64
                 }
                 if a == 0 { aligned.copy_from_slice(&masked); }
             }
+            PhysicalOp::SupportMask { branch } => {
+                plan.materialize_branch_mask(a, branch, &mut plain, LIMITS).unwrap();
+                // Each branch reads the original P. In particular, Remainder
+                // must NOT read masked (which would make every lane zero).
+                let target = if branch == PhysicalMaskBranch::Remainder { &mut remainder } else { &mut masked };
+                for s in 0..4096 { target[s] = partial[s] * plain[s] as i64; }
+                if branch == PhysicalMaskBranch::Support { aligned.copy_from_slice(&masked); }
+            }
+            PhysicalOp::MaskRescale { .. } => {} // Exact ideal identity only.
             PhysicalOp::SubtractMasked => {
                 for s in 0..4096 { remainder[s] = partial[s] - masked[s]; }
             }
@@ -298,6 +314,249 @@ fn physical_pc_materialization_prewrite_atomicity_and_work_one_short() {
         Limits { max_work: plan.bias_materialization_work().unwrap(), ..LIMITS }).unwrap();
     plan.materialize_mask(0, &mut destination, Limits { max_work: 4096, ..LIMITS }).unwrap();
     assert!(destination[8192..].iter().all(|v| *v == SENTINEL));
+}
+
+#[test]
+fn physical_pc_scaled_support_partition_all_slots() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        let (input, out) = physical_layouts(iw, ow, 2, 1);
+        let plan = block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS).unwrap();
+        let mut support = vec![SENTINEL; 4099];
+        plan.materialize_branch_mask(0, PhysicalMaskBranch::Support, &mut support, LIMITS).unwrap();
+        for a in 1..4 {
+            let mut wrap = vec![SENTINEL; 4099];
+            let mut rest = vec![SENTINEL; 4099];
+            plan.materialize_branch_mask(a, PhysicalMaskBranch::Wrap, &mut wrap, LIMITS).unwrap();
+            plan.materialize_branch_mask(a, PhysicalMaskBranch::Remainder, &mut rest, LIMITS).unwrap();
+            for s in 0..4096 {
+                let f = s < 8;
+                let m = f && s % 4 >= 4 - a;
+                assert_eq!(support[s], if f { 1.0 } else { 0.0 });
+                assert_eq!(wrap[s], if m { 1.0 } else { 0.0 });
+                assert_eq!(rest[s], if f && !m { 1.0 } else { 0.0 });
+                assert_eq!(wrap[s] + rest[s], support[s]);
+                assert_eq!(wrap[s] * rest[s], 0.0);
+                assert_eq!(plan.branch_mask_value(a, PhysicalMaskBranch::Wrap, s), Ok(m));
+                assert_eq!(plan.branch_mask_value(a, PhysicalMaskBranch::Remainder, s), Ok(f && !m));
+                // Global 1-M would incorrectly leave 4088 unit tail lanes.
+                if s >= 8 { assert_eq!((wrap[s], rest[s]), (0.0, 0.0)); }
+            }
+            for values in [&support, &wrap, &rest] {
+                assert!(values[4096..].iter().all(|v| *v == SENTINEL));
+            }
+        }
+    }
+}
+
+#[test]
+fn scaled_support_integer_oracle() {
+    for (iw, ow) in [(4, 8), (8, 4)] {
+        for tokens in [0, 1, 2] {
+            let (input, out) = physical_layouts(iw, ow, tokens, 1);
+            let plan = block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS).unwrap();
+            let x = rect_integers(2 * iw, 7, 33);
+            let w = rect_integers(iw * ow, 11, 33);
+            let bias = rect_integers(ow, 13, 33);
+            // Shared exact test interpreter, separately indexed dense oracle:
+            // sum(X*W)+16*b over 256. No CKKS rescale/rounding simulation.
+            physical_oracle_with_plan(plan, iw, ow, tokens, &x, &w, &bias);
+            physical_oracle_with_plan(plan, iw, ow, tokens, &vec![0; 2 * iw], &vec![0; iw * ow], &bias);
+            physical_oracle_with_plan(plan, iw, ow, tokens, &vec![0; 2 * iw], &vec![0; iw * ow], &vec![0; ow]);
+            for t in 0..2 {
+                for f in 0..iw {
+                    let mut basis = vec![0; 2 * iw];
+                    basis[t * iw + f] = if f % 2 == 0 { 16 } else { -16 };
+                    physical_oracle_with_plan(plan, iw, ow, tokens, &basis, &w, &bias);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn scaled_support_order_counts_and_scale_states() {
+    let (input, out) = physical_layouts(4, 8, 2, 1);
+    let legacy = block_pc_physical_plan(input, out, 4096, LIMITS).unwrap();
+    let plan = block_pc_physical_plan_scaled_support(input, out, 4096, LIMITS).unwrap();
+    assert_eq!(legacy.stages().len(), 64);
+    assert_eq!(legacy.construction_work(), 64);
+    assert_eq!(legacy.schedule().plaintext_products, 24);
+    assert_eq!(legacy.schedule().rescale_after_product_sums, 8);
+    assert_eq!(legacy.scale_contract(), PhysicalScaleContract::LegacyUnresolved);
+    assert_eq!(legacy.scale_contract().state(PhysicalScalePoint::Partial), None);
+    assert_eq!(legacy.scale_status(), PhysicalScaleStatus::Unqualified);
+    assert_eq!(plan.scale_status(), PhysicalScaleStatus::Unqualified);
+    assert_eq!(plan.stages().len(), 78);
+    assert_eq!(plan.construction_work(), 78);
+    assert_eq!(BlockPcPhysicalPlan::LOGICAL_REFERENCE_WORK, 224);
+    assert_eq!(plan.operation_counts(), PhysicalOperationCounts {
+        weight_products: 16, mask_products: 14, product_sum_rescales: 8,
+        mask_rescales: 14, total_rescales: 22, input_rotations: 0,
+        output_rotations: 12, multiplicative_depth: Some(2),
+    });
+    assert_eq!(plan.schedule().plaintext_products, 30);
+    assert_eq!(plan.schedule().rescale_after_product_sums, 8);
+    assert_eq!(plan.scheduled_mask_materialization_work(), Ok(57344));
+    assert_eq!(legacy.scheduled_mask_materialization_work(), Ok(32768));
+    assert_eq!(BlockPcPhysicalPlan::SIGNED_KEYS, [-3, -2, -1, 1, 2, 3]);
+    assert_eq!(BlockPcPhysicalPlan::KEY_RESIDUES, [4093, 4094, 4095, 1, 2, 3]);
+    assert!(std::mem::size_of::<PhysicalStages>() <=
+        std::mem::size_of::<[PhysicalStage; 78]>() + std::mem::align_of::<PhysicalStages>());
+    let contract = plan.scale_contract();
+    assert_eq!(contract, PhysicalScaleContract::ScaledSupport);
+    let input_scale = contract.state(PhysicalScalePoint::Input).unwrap();
+    assert_eq!(input_scale.expression(), PhysicalScaleExpression::Delta);
+    assert_eq!(input_scale.dropped_primes(), PhysicalDroppedPrimes::None);
+    assert_eq!(contract.state(PhysicalScalePoint::WeightPlaintext), Some(input_scale));
+    assert_eq!(contract.state(PhysicalScalePoint::MaskPlaintext), Some(input_scale));
+    let weight = contract.state(PhysicalScalePoint::WeightProduct).unwrap();
+    assert_eq!(weight.expression(), PhysicalScaleExpression::DeltaSquared);
+    assert_eq!(weight.dropped_primes(), PhysicalDroppedPrimes::None);
+    let partial = contract.state(PhysicalScalePoint::Partial).unwrap();
+    assert_eq!(partial.expression(), PhysicalScaleExpression::Alpha);
+    assert_eq!(partial.dropped_primes(), PhysicalDroppedPrimes::P1);
+    let beta = contract.state(PhysicalScalePoint::Aligned).unwrap();
+    assert_eq!(beta.expression(), PhysicalScaleExpression::Beta);
+    assert_eq!(beta.dropped_primes(), PhysicalDroppedPrimes::P1ThenP2);
+    assert_eq!(contract.state(PhysicalScalePoint::Accumulator), Some(beta));
+    assert_eq!(contract.state(PhysicalScalePoint::Bias), Some(beta));
+    for branch in [PhysicalMaskBranch::Support, PhysicalMaskBranch::Wrap, PhysicalMaskBranch::Remainder] {
+        let product = contract.state(PhysicalScalePoint::MaskProduct { branch }).unwrap();
+        assert_eq!(product.expression(), PhysicalScaleExpression::AlphaDelta);
+        assert_eq!(product.dropped_primes(), PhysicalDroppedPrimes::P1);
+        assert_eq!(contract.state(PhysicalScalePoint::MaskRescaled { branch }), Some(beta));
+        assert_ne!(product, partial);
+        assert_ne!(product, beta);
+    }
+    // Internal negative equality witness; private fields have no public
+    // constructor/retag API. Equal expression alone is insufficient.
+    let different_sequence = PhysicalSymbolicScale {
+        expression: PhysicalScaleExpression::Beta, dropped_primes: PhysicalDroppedPrimes::P1,
+    };
+    assert_ne!(beta, different_sequence);
+    let mut expected = Vec::new();
+    for q in 0..2 {
+        for a in 0..4 {
+            let first = if a == 0 { PhysicalMaskBranch::Support } else { PhysicalMaskBranch::Wrap };
+            let mut ops = vec![PhysicalOp::WeightProduct { input_frame: 0 },
+                PhysicalOp::WeightProduct { input_frame: 1 }, PhysicalOp::ProductSumBoundary,
+                PhysicalOp::SupportMask { branch: first }, PhysicalOp::MaskRescale { branch: first }];
+            if a > 0 {
+                // Remainder is another original-P product, NOT P-U.
+                ops.extend([PhysicalOp::SupportMask { branch: PhysicalMaskBranch::Remainder },
+                    PhysicalOp::MaskRescale { branch: PhysicalMaskBranch::Remainder },
+                    PhysicalOp::RotateMasked { shift: (4 - a) as i32 },
+                    PhysicalOp::RotateRemainder { shift: -(a as i32) }, PhysicalOp::AddAligned]);
+            }
+            ops.push(PhysicalOp::Accumulate);
+            expected.extend(ops.into_iter().map(|op| PhysicalStage { output_frame: q, displacement: a, op }));
+        }
+    }
+    assert_eq!(plan.stages(), expected.as_slice());
+    assert!(!plan.stages().iter().any(|s| matches!(s.op, PhysicalOp::Mask | PhysicalOp::SubtractMasked)));
+    assert_eq!(plan.stages().iter().filter(|s| matches!(s.op, PhysicalOp::SupportMask { .. })).count(), 14);
+    assert_eq!(plan.stages().iter().filter(|s| matches!(s.op, PhysicalOp::MaskRescale { .. })).count(), 14);
+}
+
+#[test]
+fn physical_pc_actual_scale_not_retaggable() {
+    // Exact rational ALGEBRA fixture only. Deliberately composite denominators,
+    // not backend primes/parameters; never instantiate or relabel a ciphertext.
+    let delta = 16_u128;
+    let p1 = 15_u128;
+    let p2 = 9_u128;
+    let alpha = (delta * delta, p1);
+    let mask_product = (delta * delta * delta, p1);
+    let beta = (delta * delta * delta, p1 * p2);
+    let input = (delta, 1_u128);
+    let equal_rational = |left: (u128, u128), right: (u128, u128)|
+        left.0 * right.1 == right.0 * left.1;
+    assert_ne!(p1, delta);
+    assert!(!equal_rational(alpha, input)); // Delta^2/p1 != Delta.
+    assert!(!equal_rational(mask_product, alpha)); // Legacy P-U incompatible.
+    assert!(!equal_rational(beta, input)); // No scale overwrite to Delta.
+    assert!(!equal_rational(beta, alpha));
+    // Both independent branches apply exactly the SAME second denominator.
+    let wrap = (mask_product.0, mask_product.1 * p2);
+    let remainder = (mask_product.0, mask_product.1 * p2);
+    assert!(equal_rational(wrap, beta));
+    assert!(equal_rational(remainder, beta));
+}
+
+#[test]
+fn physical_pc_scale_one_sparse_mask_rounds_zero() {
+    // Ideal normalized inverse-transform coefficient bound by triangle
+    // inequality: |coefficient| <= m/4096 for m unit slot entries. At scale
+    // ONE all exact coefficients lie strictly inside (-1/2,1/2), hence round
+    // to zero. No upstream encoder/FFT/noise claim or backend execution.
+    for m in [2_u128, 4, 6, 8] { // Wrap, remainder and full support F.
+        assert!(2 * m < 4096);
+        let positive_nearest_integer = (2 * m + 4096) / (2 * 4096);
+        assert_eq!(positive_nearest_integer, 0);
+        // Negative coefficient bound has the same absolute rounding result.
+        assert_eq!(-(positive_nearest_integer as i128), 0);
+    }
+}
+
+#[test]
+fn scaled_support_prewrite_atomicity_and_work_limits() {
+    let (input, out) = physical_layouts(4, 8, 2, 1);
+    assert!(matches!(block_pc_physical_plan_scaled_support(input, out, 4096,
+        Limits { max_work: 77, ..LIMITS }), Err(Error::WorkLimit)));
+    let plan = block_pc_physical_plan_scaled_support(input, out, 4096,
+        Limits { max_work: 78, ..LIMITS }).unwrap();
+    assert!(matches!(block_pc_physical_plan_scaled_support(input, out, 4096,
+        Limits { max_buffer_elements: 8191, ..LIMITS }), Err(Error::Buffer)));
+    assert!(matches!(block_pc_physical_plan_scaled_support(input, out, 8192, LIMITS), Err(Error::Geometry)));
+    let (c2_input, c2_out) = physical_layouts(4, 8, 2, 2);
+    assert!(matches!(block_pc_physical_plan_scaled_support(c2_input, c2_out, 4096, LIMITS), Err(Error::Geometry)));
+    let mut output = vec![SENTINEL; 4099];
+    let unchanged = output.clone();
+    for (a, branch) in [(0, PhysicalMaskBranch::Wrap), (0, PhysicalMaskBranch::Remainder),
+        (1, PhysicalMaskBranch::Support), (3, PhysicalMaskBranch::Support),
+        (4, PhysicalMaskBranch::Wrap), (usize::MAX, PhysicalMaskBranch::Support)] {
+        assert_eq!(plan.materialize_branch_mask(a, branch, &mut output, LIMITS), Err(Error::Geometry));
+        assert_eq!(output, unchanged);
+    }
+    for slot in [4096, usize::MAX] {
+        assert_eq!(plan.branch_mask_value(0, PhysicalMaskBranch::Support, slot), Err(Error::Geometry));
+        assert_eq!(plan.branch_mask_value(1, PhysicalMaskBranch::Remainder, slot), Err(Error::Geometry));
+    }
+    for (a, branch) in [(0, PhysicalMaskBranch::Support), (1, PhysicalMaskBranch::Wrap),
+        (3, PhysicalMaskBranch::Remainder)] {
+        assert_eq!(plan.materialize_branch_mask(a, branch, &mut output[..4095], LIMITS), Err(Error::Buffer));
+        assert_eq!(plan.materialize_branch_mask(a, branch, &mut output,
+            Limits { max_work: 4095, ..LIMITS }), Err(Error::WorkLimit));
+        assert_eq!(plan.materialize_branch_mask(a, branch, &mut output,
+            Limits { max_buffer_elements: 4098, ..LIMITS }), Err(Error::Buffer));
+        assert_eq!(output, unchanged);
+    }
+    for (a, branch) in [(0, PhysicalMaskBranch::Support), (1, PhysicalMaskBranch::Wrap),
+        (3, PhysicalMaskBranch::Remainder)] {
+        plan.materialize_branch_mask(a, branch, &mut output, Limits { max_work: 4096, ..LIMITS }).unwrap();
+        assert!(output[4096..].iter().all(|v| *v == SENTINEL));
+    }
+    // Shared limits and all existing materializer validations remain in force.
+    let caps = physical_limits(Limits { max_buffer_elements: usize::MAX, max_work: usize::MAX });
+    assert_eq!(caps.max_buffer_elements, 2_000_000);
+    assert_eq!(caps.max_work, 100_000_000);
+    let mut physical_output = vec![SENTINEL; 8195];
+    let physical_unchanged = physical_output.clone();
+    assert_eq!(plan.materialize_input(&[0.0; 8], &mut physical_output,
+        Limits { max_work: 8199, ..LIMITS }), Err(Error::WorkLimit));
+    assert_eq!(plan.materialize_weight(0, 0, 0, &[0.0; 32], &mut physical_output,
+        Limits { max_work: 4127, ..LIMITS }), Err(Error::WorkLimit));
+    assert_eq!(plan.materialize_bias(&[0.0; 8], &mut physical_output,
+        Limits { max_work: 8199, ..LIMITS }), Err(Error::WorkLimit));
+    assert_eq!(plan.materialize_bias(&[f64::NAN; 8], &mut physical_output, LIMITS), Err(Error::NonFinite));
+    assert_eq!(physical_output, physical_unchanged);
+    plan.materialize_input(&[0.0; 8], &mut physical_output,
+        Limits { max_work: 8200, ..LIMITS }).unwrap();
+    plan.materialize_weight(0, 0, 0, &[0.0; 32], &mut physical_output,
+        Limits { max_work: 4128, ..LIMITS }).unwrap();
+    plan.materialize_bias(&[0.0; 8], &mut physical_output,
+        Limits { max_work: 8200, ..LIMITS }).unwrap();
+    assert!(physical_output[8192..].iter().all(|v| *v == SENTINEL));
 }
 
 // Rectangular oracle: signed modular integer fixtures, ordinary integer dense

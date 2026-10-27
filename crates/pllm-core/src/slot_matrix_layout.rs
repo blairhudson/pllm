@@ -834,11 +834,134 @@ pub enum PhysicalScaleStatus {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhysicalMaskBranch {
+    Support,
+    Wrap,
+    Remainder,
+}
+
+/// Closed symbolic expressions, never actual encoder scales or caller labels.
+/// Delta=2^40 is a candidate symbol only, NOT a qualified backend parameter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhysicalScaleExpression {
+    Delta,
+    DeltaSquared,
+    /// alpha = Delta^2/p1.
+    Alpha,
+    /// alpha*Delta = Delta^3/p1.
+    AlphaDelta,
+    /// beta = Delta^3/(p1*p2).
+    Beta,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhysicalDroppedPrimes {
+    None,
+    P1,
+    P1ThenP2,
+}
+
+/// Equality includes BOTH expression and ordered dropped-prime sequence.
+/// Private fields: no public numeric-prime constructor, retagging or overwrite.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PhysicalSymbolicScale {
+    expression: PhysicalScaleExpression,
+    dropped_primes: PhysicalDroppedPrimes,
+}
+
+impl PhysicalSymbolicScale {
+    pub fn expression(self) -> PhysicalScaleExpression { self.expression }
+    pub fn dropped_primes(self) -> PhysicalDroppedPrimes { self.dropped_primes }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhysicalScalePoint {
+    Input,
+    WeightPlaintext,
+    WeightProduct,
+    Partial,
+    MaskPlaintext,
+    MaskProduct { branch: PhysicalMaskBranch },
+    MaskRescaled { branch: PhysicalMaskBranch },
+    Aligned,
+    Accumulator,
+    Bias,
+}
+
+/// Symbolic compatibility only. No upstream encoder, native owner, source
+/// authority, numeric qualification or encrypted admission is created.
+///
+/// Conditional error sketch (ASSUMPTIONS, not established bounds): assume
+/// |X|<=Xmax, |W|<=Wmax, input/weight errors <=epsilon_X, epsilon_W,
+/// encoded-mask slot error <=epsilon_m (εX, εW, εm), each rescale adds <=rho
+/// (ρ), and each key rotation adds <=kappa (κ). Let eta (η) bound each
+/// encoded-weight/product arithmetic error. One partial has ideal magnitude
+/// Pmax=2*Xmax*Wmax and error
+/// E_P<=2*(Wmax*epsilon_X+Xmax*epsilon_W+epsilon_X*epsilon_W+eta)+rho.
+/// Each rescaled branch then has
+/// E_B<=E_P+(Pmax+E_P)*epsilon_m+eta+rho. Under exact additions and the
+/// stated rotation bounds, four aligned partials contribute <=7*E_B+6*kappa
+/// per output frame; add independently bounded bias encoding error. These are
+/// absolute worst-case symbolic inequalities, not accepted tolerances.
+/// Assume also encoder coefficient/slot norm amplification bounded by Kenc,
+/// rounding <=1/2 per coefficient and normalized FFT error <=delta_FFT (δFFT),
+/// giving a
+/// candidate epsilon_m<=Kenc*(1/(2*Delta)+delta_FFT). Kenc, delta_FFT, all
+/// other bounds, actual primes/scales, and their applicability remain unproved.
+/// Exact algebraic zero tails do NOT establish zero CKKS tails. Legacy P-U
+/// remains unresolved; scale-one sparse-mask rounding is not repaired by fiat.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PhysicalScaleContract {
+    LegacyUnresolved,
+    ScaledSupport,
+}
+
+impl PhysicalScaleContract {
+    pub fn state(self, point: PhysicalScalePoint) -> Option<PhysicalSymbolicScale> {
+        if self == Self::LegacyUnresolved { return None; }
+        let (expression, dropped_primes) = match point {
+            PhysicalScalePoint::Input | PhysicalScalePoint::WeightPlaintext
+                | PhysicalScalePoint::MaskPlaintext =>
+                (PhysicalScaleExpression::Delta, PhysicalDroppedPrimes::None),
+            PhysicalScalePoint::WeightProduct =>
+                (PhysicalScaleExpression::DeltaSquared, PhysicalDroppedPrimes::None),
+            PhysicalScalePoint::Partial =>
+                (PhysicalScaleExpression::Alpha, PhysicalDroppedPrimes::P1),
+            PhysicalScalePoint::MaskProduct { .. } =>
+                (PhysicalScaleExpression::AlphaDelta, PhysicalDroppedPrimes::P1),
+            PhysicalScalePoint::MaskRescaled { .. } | PhysicalScalePoint::Aligned
+                | PhysicalScalePoint::Accumulator | PhysicalScalePoint::Bias =>
+                (PhysicalScaleExpression::Beta, PhysicalDroppedPrimes::P1ThenP2),
+        };
+        Some(PhysicalSymbolicScale { expression, dropped_primes })
+    }
+}
+
+/// Declared symbolic operations only, not executed HE calls or scalar work.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PhysicalOperationCounts {
+    pub weight_products: usize,
+    pub mask_products: usize,
+    pub product_sum_rescales: usize,
+    pub mask_rescales: usize,
+    pub total_rescales: usize,
+    pub input_rotations: usize,
+    pub output_rotations: usize,
+    /// Symbolic multiplicative depth, not a qualified level DAG.
+    pub multiplicative_depth: Option<usize>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PhysicalOp {
     WeightProduct { input_frame: usize },
     /// Symbolic boundary only: no rescale implementation or qualified scale.
     ProductSumBoundary,
     Mask,
+    /// Both Wrap and Remainder multiply the SAME original complete partial P;
+    /// never derive Remainder from the already masked/scaled Wrap branch.
+    SupportMask { branch: PhysicalMaskBranch },
+    /// Symbolic p2 boundary only, not an implemented or qualified rescale.
+    MaskRescale { branch: PhysicalMaskBranch },
     SubtractMasked,
     /// R_r(v)[s] = v[(s+r) mod 4096].
     RotateMasked { shift: i32 },
@@ -862,7 +985,15 @@ pub struct PhysicalStage {
 pub struct BlockPcPhysicalPlan {
     input: Layout,
     out: Layout,
-    stages: [PhysicalStage; 64],
+    stages: PhysicalStages,
+}
+
+// Closed bounded storage. Construction visits only the selected array's lanes;
+// maximum inline storage is 78 descriptors, never owned 4096-lane masks.
+#[derive(Clone, Copy, Debug)]
+enum PhysicalStages {
+    Legacy64([PhysicalStage; 64]),
+    Scaled78([PhysicalStage; 78]),
 }
 
 fn physical_limits(limits: Limits) -> Limits {
@@ -880,18 +1011,7 @@ pub fn block_pc_physical_plan(
     slots: usize,
     limits: Limits,
 ) -> Result<BlockPcPhysicalPlan, Error> {
-    let _ = rectangular_block_pc_schedule(input, out)?;
-    if slots != 4096
-        || input.rows != 2
-        || out.rows != 2
-        || input.capacity != 1
-        || !matches!((input.heads, out.heads), (2, 4) | (4, 2))
-    {
-        return Err(Error::Geometry);
-    }
-    let limits = physical_limits(limits);
-    buffer(mul(2, slots)?, mul(2, slots)?, limits)?;
-    work(64, limits)?;
+    physical_plan_geometry(input, out, slots, limits, 64)?;
     // One construction pass, without first filling then overwriting descriptors.
     let stages = std::array::from_fn(|index| {
         let q = index / 32;
@@ -912,7 +1032,57 @@ pub fn block_pc_physical_plan(
         };
         PhysicalStage { output_frame: q, displacement: a, op }
     });
-    Ok(BlockPcPhysicalPlan { input, out, stages })
+    Ok(BlockPcPhysicalPlan { input, out, stages: PhysicalStages::Legacy64(stages) })
+}
+
+fn physical_plan_geometry(
+    input: Layout, out: Layout, slots: usize, limits: Limits, construction_work: usize,
+) -> Result<(), Error> {
+    let _ = rectangular_block_pc_schedule(input, out)?;
+    if slots != 4096
+        || input.rows != 2
+        || out.rows != 2
+        || input.capacity != 1
+        || !matches!((input.heads, out.heads), (2, 4) | (4, 2))
+    {
+        return Err(Error::Geometry);
+    }
+    let limits = physical_limits(limits);
+    buffer(mul(2, slots)?, mul(2, slots)?, limits)?;
+    work(construction_work, limits)
+}
+
+/// Proposed scaled-support adaptation of the SAME physical embedding, not a
+/// newly executable CKKS path. F=[0,8); use F*P for a=0, M_a*P and
+/// (F-M_a)*P for a>0, each followed by its own symbolic mask rescale.
+/// Bias is at beta AFTER alignment. No global 1-M, P-U, or scale retagging.
+pub fn block_pc_physical_plan_scaled_support(
+    input: Layout, out: Layout, slots: usize, limits: Limits,
+) -> Result<BlockPcPhysicalPlan, Error> {
+    physical_plan_geometry(input, out, slots, limits, 78)?;
+    let stages = std::array::from_fn(|index| {
+        let q = index / 39;
+        let local = index % 39;
+        let (a, position) = if local < 6 { (0, local) }
+            else { (1 + (local - 6) / 11, (local - 6) % 11) };
+        let first = if a == 0 { PhysicalMaskBranch::Support } else { PhysicalMaskBranch::Wrap };
+        let op = match position {
+            0 => PhysicalOp::WeightProduct { input_frame: 0 },
+            1 => PhysicalOp::WeightProduct { input_frame: 1 },
+            2 => PhysicalOp::ProductSumBoundary,
+            3 => PhysicalOp::SupportMask { branch: first },
+            4 => PhysicalOp::MaskRescale { branch: first },
+            5 if a == 0 => PhysicalOp::Accumulate,
+            5 => PhysicalOp::SupportMask { branch: PhysicalMaskBranch::Remainder },
+            6 => PhysicalOp::MaskRescale { branch: PhysicalMaskBranch::Remainder },
+            7 => PhysicalOp::RotateMasked { shift: (4 - a) as i32 },
+            8 => PhysicalOp::RotateRemainder { shift: -(a as i32) },
+            9 => PhysicalOp::AddAligned,
+            _ => PhysicalOp::Accumulate,
+        };
+        PhysicalStage { output_frame: q, displacement: a, op }
+    });
+    Ok(BlockPcPhysicalPlan { input, out, stages: PhysicalStages::Scaled78(stages) })
 }
 
 impl BlockPcPhysicalPlan {
@@ -921,9 +1091,11 @@ impl BlockPcPhysicalPlan {
     pub const ELEMENTS: usize = 8192;
     /// Separate logical clear-reference work, never a physical/HE resource quote.
     pub const LOGICAL_REFERENCE_WORK: usize = 224;
-    /// Construction visits 64 descriptors; materialization costs are separate.
+    /// Legacy construction visits 64 descriptors; use construction_work() for
+    /// the selected profile (scaled: 78). Materialization costs are separate.
     pub const CONSTRUCTION_WORK: usize = 64;
     pub const WEIGHT_PRODUCTS: usize = 16;
+    /// Legacy count only; operation_counts() reports 14 for scaled support.
     pub const ALIGNMENT_MASK_PRODUCTS: usize = 8;
     pub const SIGNED_KEYS: [i32; 6] = [-3, -2, -1, 1, 2, 3];
     pub const KEY_RESIDUES: [usize; 6] = [4093, 4094, 4095, 1, 2, 3];
@@ -932,12 +1104,40 @@ impl BlockPcPhysicalPlan {
         PhysicalScaleStatus::Unqualified
     }
     pub fn stages(&self) -> &[PhysicalStage] {
-        &self.stages
+        match &self.stages {
+            PhysicalStages::Legacy64(stages) => stages,
+            PhysicalStages::Scaled78(stages) => stages,
+        }
+    }
+    pub fn construction_work(self) -> usize {
+        match self.stages { PhysicalStages::Legacy64(_) => 64, PhysicalStages::Scaled78(_) => 78 }
+    }
+    pub fn scale_contract(self) -> PhysicalScaleContract {
+        match self.stages {
+            PhysicalStages::Legacy64(_) => PhysicalScaleContract::LegacyUnresolved,
+            PhysicalStages::Scaled78(_) => PhysicalScaleContract::ScaledSupport,
+        }
+    }
+    pub fn operation_counts(self) -> PhysicalOperationCounts {
+        let scaled = self.scale_contract() == PhysicalScaleContract::ScaledSupport;
+        PhysicalOperationCounts {
+            weight_products: 16, mask_products: if scaled { 14 } else { 8 },
+            product_sum_rescales: 8, mask_rescales: if scaled { 14 } else { 0 },
+            total_rescales: if scaled { 22 } else { 8 }, input_rotations: 0,
+            output_rotations: 12, multiplicative_depth: if scaled { Some(2) } else { None },
+        }
+    }
+    /// Full mask-construction lane visits, NOT HE operation counts or admission.
+    /// Scaled profile: 14*4096=57344; each individual materializer costs 4096.
+    pub fn scheduled_mask_materialization_work(self) -> Result<usize, Error> {
+        mul(self.operation_counts().mask_products, Self::SLOTS)
     }
     pub fn schedule(self) -> Schedule {
         Schedule {
-            plaintext_products: 24, // 16 weights + 8 masks (including a=0).
+            plaintext_products: self.operation_counts().weight_products + self.operation_counts().mask_products,
             output_rotations: 12,
+            // This existing field counts partial boundaries ONLY. The scaled
+            // profile's additional 14 mask rescales are in operation_counts().
             rescale_after_product_sums: 8,
             ..Schedule::default()
         }
@@ -985,6 +1185,29 @@ impl BlockPcPhysicalPlan {
             return Err(Error::Geometry);
         }
         Ok(slot < 8 && (a == 0 || slot % 4 >= 4 - a))
+    }
+    pub fn branch_mask_value(
+        self, a: usize, branch: PhysicalMaskBranch, slot: usize,
+    ) -> Result<bool, Error> {
+        let wrap = self.mask_value(a, slot)?;
+        match (a, branch) {
+            (0, PhysicalMaskBranch::Support) => Ok(slot < 8),
+            (1..=3, PhysicalMaskBranch::Wrap) => Ok(wrap),
+            (1..=3, PhysicalMaskBranch::Remainder) => Ok(slot < 8 && !wrap),
+            _ => Err(Error::Geometry),
+        }
+    }
+    pub fn materialize_branch_mask(
+        self, a: usize, branch: PhysicalMaskBranch, output: &mut [f64], limits: Limits,
+    ) -> Result<(), Error> {
+        self.branch_mask_value(a, branch, 0)?;
+        let limits = physical_limits(limits);
+        buffer(output.len(), Self::SLOTS, limits)?;
+        work(Self::SLOTS, limits)?;
+        for (s, value) in output[..Self::SLOTS].iter_mut().enumerate() {
+            *value = if self.branch_mask_value(a, branch, s).expect("checked coordinates") { 1.0 } else { 0.0 };
+        }
+        Ok(())
     }
     pub fn input_materialization_work(self) -> Result<usize, Error> {
         add(mul(self.input.valid_columns, mul(2, self.input.heads)?)?, Self::ELEMENTS)
