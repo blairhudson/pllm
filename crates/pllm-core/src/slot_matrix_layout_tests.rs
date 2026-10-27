@@ -102,7 +102,7 @@ fn rectangular_pc_asymmetric_4_to_8_to_4_has_independent_integer_oracle() {
 fn rectangular_pc_both_orientations_virtual_tail_blocks_and_counts() {
     // Unequal and non-multiple block-row counts exercise zero virtual tail blocks.
     // Physical blocks stay full; nondividing diagonal capacity remains rejected.
-    for n in [1, 2, 4, 6] {
+    for n in [1_usize, 2, 4, 6] {
         for (ih, oh) in [(1, 3), (3, 1), (2, 3), (3, 2)] {
             for capacity in (1..=n).filter(|c| n % c == 0) {
                 let vc = n.saturating_sub(1);
