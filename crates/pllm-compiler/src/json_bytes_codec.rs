@@ -219,6 +219,13 @@ pub(crate) struct PendingDecodedCustody {
 
 impl PendingDecodedCustody {
     pub(crate) fn decoded(&self) -> &DecodedJsonText { &self.decoded }
+    pub(crate) fn point_capacity(&self) -> usize { self.decoded.points.capacity() }
+    pub(crate) fn lexical_identity(&self, budget: &Budget) -> Result<(), SourceError> {
+        self.funding.lexical_identity(budget)
+    }
+    pub(crate) fn lexical_debit(&self, amount: u128) -> Result<(), SourceError> {
+        self.funding.lexical_debit(amount)
+    }
 }
 
 struct PendingFactory {

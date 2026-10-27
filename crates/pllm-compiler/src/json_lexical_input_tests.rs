@@ -51,6 +51,50 @@ fn lexical(root: &OwnedBudget, raw: &[u8]) -> OwnedCharged<LexicalValue> {
 const FIXTURE: &[u8] = br#"{"z":[-0,-0.0,1E9],"a":{"x":"\u03bb","y":["one","two"]}}"#;
 
 #[test]
+fn lexical_byte_domain_and_nested_closing_replay_floor_literal_controls() {
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    reset();
+    let raw = b"\"\xf0\x9f\xa6\x80\""; // quoted U+1F980, six UTF-8 bytes, three points
+    let q = quote_lexical(incoming(&root, raw, 0), working(&root), limits()).unwrap();
+    assert_eq!(q.counts().scan_work, 10); // 6 byte reads + 3 peeks + 1 emit
+    assert_eq!(q.resources().work.quotation, 146); // 130 frames + 6 UTF-8 + 10
+    assert_eq!(q.counts().decoded_string_bytes, 4); // NOT a point-count field
+    let output = q.construct().unwrap();
+    assert_eq!(output.payload().node(0).unwrap().raw_range(), 0..6);
+    assert_eq!(output.payload().node(0).unwrap().decoded_string(), Some("🦀"));
+    drop(output);
+    let baseline = root.budget().used_bytes();
+    // [[]]: 17 peek/read/emit events; two span slots; two closing updates.
+    // Replay 17 + 2 init + 2 closing/finalization + 130 frames + 4 finish = 155.
+    // Neither old 2S nor +4 may disappear into the measured scan counter.
+    for (replay_cap, success) in [(155, true), (154, false)] {
+        reset();
+        let mut capped = limits();
+        capped.work.replay = replay_cap;
+        let result = quote_lexical(incoming(&root, b"[[]]", 0), working(&root), capped);
+        if success {
+            let q = result.unwrap();
+            assert_eq!(q.counts().spans, 2);
+            assert_eq!(q.counts().scan_work, 17);
+            assert_eq!(q.resources().work.quotation, 151); // 130 + UTF-8 4 + 17
+            assert_eq!(q.resources().work.replay, 155);
+            let output = q.construct().unwrap();
+            for (index, range, end, children) in [(0, 0..4, 2, 1), (1, 1..3, 2, 0)] {
+                let node = output.payload().node(index).unwrap();
+                assert_eq!(node.raw_range(), range);
+                assert_eq!(node.subtree_end(), end);
+                assert_eq!(node.immediate_child_count(), children);
+            }
+            drop(output);
+        } else {
+            assert!(matches!(result, Err(Error::WorkLimit)));
+            assert_eq!(factories(), 0);
+        }
+        assert_eq!(root.budget().used_bytes(), baseline);
+    }
+}
+
+#[test]
 fn lexical_exact_numbers_and_ordered_subtrees() {
     let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
     reset();

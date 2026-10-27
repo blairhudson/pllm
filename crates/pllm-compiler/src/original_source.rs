@@ -254,7 +254,30 @@ pub(crate) struct ReservedDecodeFunding {
 impl ReservedDecodeFunding {
     pub(crate) fn codec_attempt(&self) -> &PrimitiveAttempt { &self.phase.attempt }
     pub(crate) fn check_usable(&self) -> Result<(), Error> { self.phase.attempt.check_usable() }
+    // Borrowed private funding facade; never returns the phase/controller/root.
+    pub(crate) fn lexical_identity(&self, budget: &Budget) -> Result<(), Error> {
+        self.phase.attempt.check_usable()?;
+        let controller = self.phase.attempt.controller.as_ref().ok_or(Error::Burned)?;
+        if !std::ptr::eq(budget, self.phase.attempt.root.budget()) || !controller.is_for(budget) {
+            return Err(Error::Counter);
+        }
+        if controller.payload_bytes() < OriginalSourcePlan::primitive_attempt_control_bytes()? {
+            return Err(Error::Capacity);
+        }
+        Ok(())
+    }
+    pub(crate) fn lexical_debit(&self, amount: u128) -> Result<(), Error> {
+        self.phase.attempt.debit(u64::try_from(amount).map_err(|_| Error::Overflow)?).map(|_| ())
+    }
 }
+
+// Consuming point-lexical entry has an explicitly bounded metadata-only refusal
+// envelope: identity/coverage/length/checked-layout arithmetic and one debit; no
+// point/raw content reads, growth, factory, callback, retry or owner return.
+// Failed entry is NOT prepaid. Success pays its named entry/control events before
+// scanner creation. This is per invocation, not CPU/lock fuel or a physical stack
+// bound, and does NOT exempt successful admission metadata from logical charges.
+// Later slices debit this SAME attempt without a fee, escrow or decoder credit.
 
 /// Only the admission-owned C9 path below can construct this type. The root in
 /// its existing guard is admission identity, not a counter/byte equivalence.

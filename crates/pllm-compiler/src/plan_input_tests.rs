@@ -14,6 +14,63 @@ fn limits() -> Limits {
         max_payload_bytes: 64 << 20,
     }
 }
+
+#[test]
+fn byte_scanner_failed_surrogate_suffix_reads_are_metered_legacy_controls() {
+    // Existing byte/scalar policy ONLY, not the unimplemented preserving point
+    // policy. Two leading peeks, consumed escape bytes, and failed EOF byte()
+    // all count. Scanner frame init/retirement is paid independently below.
+    for (raw, events) in [
+        (b"\"\\ud800".as_slice(), 10u128),
+        (b"\"\\ud800\\u".as_slice(), 12),
+        (b"\"\\ud800\\u00".as_slice(), 14),
+    ] {
+        let mut meter = Meter { used: 0, limit: 1 << 20 };
+        meter.pay(130).unwrap(); // real 65-slot initialization AND Drop loop
+        let result = Scanner::<65, true> {
+            raw, position: 0, stack: [Frame::EMPTY; 65], active: 0,
+            stats: SourceCounts::default(), meter: &mut meter, output: None,
+            limits: Limits { max_depth: 64, ..limits() },
+        }.run();
+        assert!(matches!(result, Err(Error::Syntax)));
+        assert_eq!(meter.used, 130 + events);
+    }
+}
+
+#[test]
+fn point_scanner_surrogate_probe_eof_and_non_bmp_literal_event_controls() {
+    let limits = PointScanLimits { nodes: 64, depth: 64, string_points: 64, number_points: 64 };
+    // First high escape consumed six points BEFORE probe. Truncated probe is
+    // paid, then the normal continuation/failed EOF is independently paid.
+    for (raw, events) in [(b"\"\\ud800".as_slice(), 11u128),
+        (b"\"\\ud800\\u".as_slice(), 15), (b"\"\\ud800\\u00".as_slice(), 19)] {
+        let points: Vec<u32> = raw.iter().copied().map(u32::from).collect();
+        for short in [false, true] {
+            let mut meter = Meter { used: 0, limit: 130 + events - u128::from(short) };
+            meter.pay(130).unwrap();
+            let result = Scanner::<65, true, u32> { raw: &points, position: 0,
+                stack: [Frame::EMPTY; 65], active: 0, stats: SourceCounts::default(),
+                meter: &mut meter, output: None, limits }.run();
+            assert_eq!(result.err(), Some(if short { Error::WorkLimit } else { Error::Syntax }));
+            assert_eq!(meter.used, 130 + events - u128::from(short));
+        }
+    }
+    for (points, events, decoded) in [
+        (vec![0x22, 0x1f980, 0x22], 7, 1),
+        (vec![0x22, 0xd800, 0xdc00, 0x22], 8, 2),
+        (b"\"\\ud800\\udc00\"".iter().copied().map(u32::from).collect(), 24, 1),
+    ] {
+        let mut meter = Meter { used: 0, limit: 1024 };
+        meter.pay(130).unwrap();
+        let counts = Scanner::<65, true, u32> { raw: &points, position: 0,
+            stack: [Frame::EMPTY; 65], active: 0, stats: SourceCounts::default(),
+            meter: &mut meter, output: None, limits }.run().unwrap();
+        assert_eq!(counts.scan_work, events);
+        assert_eq!(counts.decoded_string_bytes, decoded); // PRIVATE policy units = points
+        assert_eq!(meter.used, 130 + events);
+    }
+}
+
 fn fixture() -> Vec<u8> {
     let operation = serde_json::json!({"id":"λ", "operator":"linear", "layer":null,
         "state_kind":null,"inputs":["x"],"output_shape":[1,2],

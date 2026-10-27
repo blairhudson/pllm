@@ -178,24 +178,65 @@ pub struct SourceCounts {
 // The default policy retains C9's container-count depth semantics and 32 slots.
 // Lexical snapshots count VALUE depth from root zero (keys are not values).
 // A container at depth 64 needs slot 65 even when it is empty.
-struct Scanner<'a, 'm, 's, const SLOTS: usize = DEPTH, const LEXICAL: bool = false> {
-    raw: &'a [u8],
+trait ScanLimits: Copy {
+    fn nodes(self) -> usize;
+    fn depth(self) -> usize;
+    fn string_units(self) -> usize;
+    fn number_units(self) -> usize;
+}
+impl ScanLimits for Limits {
+    fn nodes(self) -> usize { self.max_nodes }
+    fn depth(self) -> usize { self.max_depth }
+    fn string_units(self) -> usize { self.max_string_bytes }
+    fn number_units(self) -> usize { self.max_number_bytes }
+}
+#[derive(Clone, Copy)]
+struct PointScanLimits {
+    nodes: usize, depth: usize, string_points: usize, number_points: usize,
+}
+impl ScanLimits for PointScanLimits {
+    fn nodes(self) -> usize { self.nodes }
+    fn depth(self) -> usize { self.depth }
+    fn string_units(self) -> usize { self.string_points }
+    fn number_units(self) -> usize { self.number_points }
+}
+trait ScanUnit: Copy {
+    type Limits: ScanLimits;
+    const POINTS: bool;
+    fn point(self) -> u32;
+    fn grammar(self) -> u8 { u8::try_from(self.point()).unwrap_or(0xff) }
+}
+impl ScanUnit for u8 {
+    type Limits = Limits;
+    const POINTS: bool = false;
+    fn point(self) -> u32 { u32::from(self) }
+}
+impl ScanUnit for u32 {
+    type Limits = PointScanLimits;
+    const POINTS: bool = true;
+    fn point(self) -> u32 { self }
+}
+
+// Default specialization retains exactly the original slice/limits field types.
+// Grammar sees a non-ASCII sentinel, never a truncated point aliased to ASCII.
+struct Scanner<'a, 'm, 's, const SLOTS: usize = DEPTH, const LEXICAL: bool = false, T: ScanUnit = u8> {
+    raw: &'a [T],
     position: usize,
     stack: [Frame; SLOTS],
     active: usize,
     stats: SourceCounts,
     meter: &'m mut Meter,
     output: Option<&'s mut [Span]>,
-    limits: Limits,
+    limits: T::Limits,
 }
-impl<const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL> {
+impl<T: ScanUnit, const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL, T> {
     fn peek(&mut self) -> Result<Option<u8>, Error> {
         self.meter.pay(1)?;
-        Ok(self.raw.get(self.position).copied())
+        Ok(self.raw.get(self.position).copied().map(ScanUnit::grammar))
     }
     fn byte(&mut self) -> Result<u8, Error> {
         self.meter.pay(1)?;
-        let byte = *self.raw.get(self.position).ok_or(Error::Syntax)?;
+        let byte = self.raw.get(self.position).copied().ok_or(Error::Syntax)?.grammar();
         self.position += 1;
         Ok(byte)
     }
@@ -209,17 +250,27 @@ impl<const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL
         self.meter.pay(1)?;
         let index = self.stats.spans;
         self.stats.spans = add(index, 1)?;
-        if self.stats.spans > self.limits.max_nodes {
+        if self.stats.spans > self.limits.nodes() {
             return Err(Error::NodeLimit);
         }
         span.next = self.stats.spans;
         if let Some(out) = &mut self.output {
             *out.get_mut(index).ok_or(Error::Capacity)? = span;
+            #[cfg(test)]
+            if T::POINTS { json::point_replay_emitted()?; }
         }
         Ok(index)
     }
     fn string(&mut self) -> Result<(), Error> {
         let start = self.position;
+        if T::POINTS {
+            let decoded = point_string(self.raw, &mut self.position, self.meter, None,
+                self.limits.string_units())?;
+            self.stats.decoded_string_bytes = add(self.stats.decoded_string_bytes, decoded)?;
+            self.stats.largest_string = self.stats.largest_string.max(decoded);
+            self.emit(Span { kind: Kind::String, start, end: self.position, decoded, ..Span::EMPTY })?;
+            return Ok(());
+        }
         if self.byte()? != b'"' {
             return Err(Error::Syntax);
         }
@@ -257,7 +308,7 @@ impl<const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL
                 _ => decoded = add(decoded, 1)?,
             }
         }
-        if decoded > self.limits.max_string_bytes {
+        if decoded > self.limits.string_units() {
             return Err(Error::StringLimit);
         }
         self.stats.decoded_string_bytes = add(self.stats.decoded_string_bytes, decoded)?;
@@ -287,7 +338,7 @@ impl<const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL
     }
     fn value(&mut self) -> Result<(), Error> {
         if LEXICAL {
-            if self.active > self.limits.max_depth.min(64) {
+            if self.active > self.limits.depth().min(64) {
                 return Err(Error::DepthLimit);
             }
             self.stats.depth = self.stats.depth.max(self.active);
@@ -311,7 +362,7 @@ impl<const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL
                 ..Span::EMPTY
             })?;
             if self.active >= SLOTS
-                || (!LEXICAL && self.active >= self.limits.max_depth.min(DEPTH))
+                || (!LEXICAL && self.active >= self.limits.depth().min(DEPTH))
             {
                 return Err(Error::DepthLimit);
             }
@@ -409,7 +460,7 @@ impl<const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL
             }
         }
         let length = self.position - start;
-        if length > self.limits.max_number_bytes {
+        if length > self.limits.number_units() {
             return Err(Error::NumberLimit);
         }
         // No Number/serde/helper construction in this allocation-free pass.
@@ -476,12 +527,79 @@ impl<const SLOTS: usize, const LEXICAL: bool> Scanner<'_, '_, '_, SLOTS, LEXICAL
         Ok(self.stats)
     }
 }
-impl<const SLOTS: usize, const LEXICAL: bool> Drop for Scanner<'_, '_, '_, SLOTS, LEXICAL> {
+impl<T: ScanUnit, const SLOTS: usize, const LEXICAL: bool> Drop for Scanner<'_, '_, '_, SLOTS, LEXICAL, T> {
     fn drop(&mut self) {
         for frame in &mut self.stack {
             *frame = Frame::EMPTY;
         }
     }
+}
+
+// ONE preserving point-string implementation for quote/replay and fact fill.
+// Each read (including failed EOF) pays once. A high escape has consumed six
+// distinct points before its <=six paid probes; no retry at that escape.
+fn point_read<T: ScanUnit>(raw: &[T], position: &mut usize, meter: &mut Meter) -> Result<u32, Error> {
+    meter.pay(1)?;
+    let point = raw.get(*position).copied().ok_or(Error::Syntax)?.point();
+    *position = add(*position, 1)?;
+    Ok(point)
+}
+fn point_hex_digit(point: u32) -> Option<u32> {
+    match point { 0x30..=0x39 => Some(point - 0x30), 0x61..=0x66 => Some(point - 0x61 + 10),
+        0x41..=0x46 => Some(point - 0x41 + 10), _ => None }
+}
+fn point_hex<T: ScanUnit>(raw: &[T], position: &mut usize, meter: &mut Meter) -> Result<u32, Error> {
+    let mut value = 0;
+    for _ in 0..4 { value = value * 16 + point_hex_digit(point_read(raw, position, meter)?).ok_or(Error::Syntax)?; }
+    Ok(value)
+}
+fn point_low_probe<T: ScanUnit>(raw: &[T], position: usize, meter: &mut Meter) -> Result<Option<u32>, Error> {
+    let mut low = 0;
+    for offset in 0..6 {
+        meter.pay(1)?; // missing/truncated probes ALSO paid
+        let Some(point) = raw.get(add(position, offset)?).copied().map(ScanUnit::point) else { return Ok(None); };
+        match offset {
+            0 if point != 0x5c => return Ok(None),
+            1 if point != 0x75 => return Ok(None),
+            2..=5 => match point_hex_digit(point) { Some(d) => low = low * 16 + d, None => return Ok(None) },
+            _ => (),
+        }
+    }
+    Ok(if (0xdc00..=0xdfff).contains(&low) { Some(low) } else { None })
+}
+fn point_string<T: ScanUnit>(raw: &[T], position: &mut usize, meter: &mut Meter,
+    mut output: Option<&mut Vec<u32>>, limit: usize) -> Result<usize, Error> {
+    if point_read(raw, position, meter)? != 0x22 { return Err(Error::Syntax); }
+    let mut decoded = 0;
+    loop {
+        let point = match point_read(raw, position, meter)? {
+            0x22 => break,
+            0..=31 => return Err(Error::Syntax),
+            0x5c => match point_read(raw, position, meter)? {
+                p @ (0x22 | 0x5c | 0x2f) => p,
+                0x62 => 8, 0x66 => 12, 0x6e => 10, 0x72 => 13, 0x74 => 9,
+                0x75 => {
+                    let first = point_hex(raw, position, meter)?;
+                    if (0xd800..=0xdbff).contains(&first) {
+                        if let Some(low) = point_low_probe(raw, *position, meter)? {
+                            for _ in 0..6 { point_read(raw, position, meter)?; }
+                            0x10000 + ((first - 0xd800) << 10) + low - 0xdc00
+                        } else { first }
+                    } else { first }
+                }
+                _ => return Err(Error::Syntax),
+            },
+            literal => literal, // includes EACH literal surrogate, never paired
+        };
+        decoded = add(decoded, 1)?;
+        if decoded > limit { return Err(Error::StringLimit); }
+        if let Some(out) = &mut output {
+            meter.pay(1)?; // actual D writes; no fictitious D destruction pass
+            if out.len() == out.capacity() { return Err(Error::Capacity); }
+            out.push(point);
+        }
+    }
+    Ok(decoded)
 }
 
 struct CensusPool<'a>([NativeFrame<'a>; CENSUS_SLOTS]);

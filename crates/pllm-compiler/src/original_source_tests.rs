@@ -1280,6 +1280,463 @@ fn native_reserved_decode_distinct_backings_and_oversized_working_coverage_are_r
     assert_eq!(budget.budget().used_bytes(), baseline);
 }
 
+#[test]
+fn native_point_bridge_terminal_entry_refusal_has_no_fictitious_payment() {
+    use crate::json_bytes_codec::reserved_codec_control_bytes;
+    // Retained policy-review regression: the now-approved bounded terminal
+    // refusal has no fictional payment. ANY positive debit fails in these states.
+    // Probe/breaker are genuine separately charged sibling attempts, not bridge
+    // controllers, replacement authority, new ledgers or a configured shortcut.
+    for already_burned in [true, false] {
+        let budget = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let baseline = budget.budget().used_bytes();
+        let mut admission = native_admission(&budget);
+        let root = Arc::clone(&admission.root);
+        let probe = begin_attempt(&root,
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
+        let mut breaker = Some(begin_attempt(&root,
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap());
+        let phase = admission.reserve_bootstrap_phase(
+            budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
+        let pending = phase.quote_decoding(decode_raw(&budget, b"null"),
+            budget.charge_external(reserved_codec_control_bytes().unwrap()).unwrap(), decode_limits())
+            .unwrap().construct().unwrap();
+        assert_eq!(pending.payload().decoded().codepoints(), [110, 117, 108, 108]);
+        let used = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+        assert_eq!(used, 1 + 1 + 1 + 152); // codec literal 7*4+124, three real fees
+        assert!(Arc::ptr_eq(&probe.root, &root));
+        if already_burned {
+            drop(breaker.take());
+        } else {
+            probe.debit(BOOTSTRAP_SOURCE_WORK - used).unwrap();
+        }
+        let before = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+        let bytes = budget.budget().used_bytes();
+        assert_eq!(probe.debit(1), Err(if already_burned { Error::Burned } else { Error::Work }));
+        {
+            let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+            assert!(ledger.burned);
+            assert_eq!(ledger.used, before); // no entry payment was made
+            assert_eq!(ledger.limit, BOOTSTRAP_SOURCE_WORK);
+        }
+        assert_eq!(probe.debit(1), Err(Error::Burned));
+        assert_eq!(budget.budget().used_bytes(), bytes); // actual custody retained
+        assert_eq!(pending.payload().decoded().original_owner().payload().as_slice(), b"null");
+        assert!(root.payload().configured.get().is_none());
+        drop(pending);
+        drop(breaker);
+        drop(probe);
+        assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+        assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, before);
+        assert_eq!(budget.budget().used_bytes(), baseline + root.charged_bytes());
+        drop(admission);
+        drop(root);
+        assert_eq!(budget.budget().used_bytes(), baseline);
+    }
+}
+
+fn point_limits() -> crate::plan_input::json::PointLexicalLimits {
+    use crate::plan_input::json::{PointLexicalLimits, PointWork};
+    PointLexicalLimits { max_raw_capacity_bytes: 1 << 20, max_points: 1 << 20,
+        max_nodes: 4096, max_depth: 64, max_string_points: 1 << 16,
+        max_total_string_points: 1 << 18, max_number_points: 4096,
+        max_payload_bytes: 8 << 20, max_work: 1_000_000,
+        work: PointWork { quotation: 1_000_000, replay: 1_000_000, strings: 1_000_000,
+            classify: 1_000_000, deduplicate: 1_000_000, cleanup: 1_000_000,
+            transition: 1_000_000, total: 1_000_000 } }
+}
+fn point_pending(budget: &OwnedBudget, admission: &mut SourceAdmission, bytes: &[u8])
+    -> OwnedCharged<crate::json_bytes_codec::PendingDecodedCustody> {
+    let phase = admission.reserve_bootstrap_phase(
+        budget.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
+    phase.quote_decoding(decode_raw(budget, bytes),
+        budget.charge_external(crate::json_bytes_codec::reserved_codec_control_bytes().unwrap()).unwrap(), decode_limits())
+        .unwrap().construct().unwrap()
+}
+
+#[test]
+fn native_point_entry_refusal_is_consuming_metadata_only_actual_root_burn() {
+    use crate::plan_input::json::{quote_pending_lexical, point_lexical_control_bytes, point_test_counts, PointError};
+    for mode in 0..6 {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let baseline = b.budget().used_bytes();
+        let foreign = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&b);
+        let root = Arc::clone(&admission.root);
+        let probe = begin_attempt(&root,
+            b.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
+        let pending = point_pending(&b, &mut admission, b"null");
+        let mut limits = point_limits();
+        let controls = point_lexical_control_bytes().unwrap();
+        let working = if mode == 0 { foreign.charge_external(controls).unwrap() }
+            else { b.charge_external(controls - usize::from(mode == 1)).unwrap() };
+        // Mode 2 burn is produced by a GENUINE sibling's abandonment.
+        if mode == 2 {
+            drop(begin_attempt(&root, b.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap());
+        }
+        if mode == 3 {
+            let used = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+            probe.debit(BOOTSTRAP_SOURCE_WORK - used).unwrap();
+        }
+        if mode == 4 { limits.work.quotation = 238; } // literal null entry 239
+        if mode == 5 { limits.max_raw_capacity_bytes = 0; }
+        let paid = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+        let counts = point_test_counts();
+        let result = quote_pending_lexical(pending, working, limits);
+        let expected = match mode {
+            0 => PointError::Input(crate::plan_input::Error::Counter),
+            1 => PointError::Input(crate::plan_input::Error::Bootstrap),
+            2 => PointError::Source(Error::Burned), 3 => PointError::Source(Error::Work),
+            4 => PointError::Input(crate::plan_input::Error::WorkLimit),
+            _ => PointError::Input(crate::plan_input::Error::SourceLimit),
+        };
+        assert_eq!(result.err(), Some(expected));
+        assert_eq!(point_test_counts(), counts); // ZERO scan/factory delta
+        let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+        assert!(ledger.burned); assert_eq!(ledger.used, paid); drop(ledger);
+        assert_eq!(probe.debit(0), Err(Error::Burned));
+        assert!(root.payload().configured.get().is_none());
+        drop(probe); drop(admission);
+        assert_eq!(b.budget().used_bytes(), baseline + root.charged_bytes());
+        drop(root); assert_eq!(b.budget().used_bytes(), baseline);
+    }
+}
+
+#[test]
+fn native_point_literal_entry_and_complete_work_exact_one_short_same_ledger() {
+    use crate::plan_input::json::{quote_pending_lexical, point_lexical_control_bytes, point_test_counts, PointError};
+    for remaining in [238, 239, 415, 416] {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&b);
+        let root = Arc::clone(&admission.root);
+        let probe = begin_attempt(&root, b.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
+        let pending = point_pending(&b, &mut admission, b"null");
+        let used = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+        assert_eq!(used, 1 + 1 + 152); // probe fee, phase fee, unchanged decoder
+        probe.debit(BOOTSTRAP_SOURCE_WORK - used - remaining).unwrap();
+        let before = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+        let counts = point_test_counts();
+        let q = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits());
+        if remaining == 238 {
+            assert_eq!(q.err(), Some(PointError::Source(Error::Work)));
+            assert_eq!(point_test_counts(), counts);
+            assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, before);
+        } else {
+            let q = q.unwrap();
+            assert_eq!(q.resources().work.quotation, 239); // Q(4)=219 + E20
+            assert_eq!(q.resources().work.replay, 144);
+            assert_eq!(q.resources().work.strings, 10);
+            assert_eq!(q.resources().work.classify, 1);
+            assert_eq!(q.resources().work.deduplicate, 1);
+            assert_eq!(q.resources().work.cleanup, 8);
+            assert_eq!(q.resources().work.transition, 13);
+            assert_eq!(q.resources().work.total, 416);
+            assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, before + 239);
+            if remaining == 239 { drop(q); }
+            else {
+                let output = q.construct();
+                if remaining == 415 {
+                    assert_eq!(output.err(), Some(PointError::Source(Error::Work)));
+                    assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, before + 239);
+                    assert_eq!(point_test_counts(), (counts.0 + 1, counts.1));
+                } else {
+                    let output = output.unwrap();
+                    assert_eq!(output.payload().node(0).unwrap().point_range(), 0..4);
+                    assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, before + 416);
+                    assert!(root.payload().configured.get().is_none());
+                    drop(output);
+                }
+            }
+        }
+        assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+    }
+    // An unrelated REAL sibling can burn an already funded quote. No second
+    // scan/factory or future payment can reset that terminal root.
+    let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut admission = native_admission(&b);
+    let root = Arc::clone(&admission.root);
+    let pending = point_pending(&b, &mut admission, b"null");
+    let q = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits()).unwrap();
+    drop(begin_attempt(&root, b.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap());
+    let paid = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+    let counters = point_test_counts();
+    assert_eq!(q.construct().err(), Some(PointError::Source(Error::Burned)));
+    assert_eq!(point_test_counts(), counters);
+    assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, paid);
+}
+
+#[test]
+fn native_point_custody_distinct_backings_excess_charge_and_fact_retirement() {
+    use crate::plan_input::json::{quote_pending_lexical, point_lexical_control_bytes, point_test_retirement};
+    let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let baseline = b.budget().used_bytes();
+    let mut admission = native_admission(&b);
+    let root = Arc::clone(&admission.root);
+    let pending = point_pending(&b, &mut admission, b"\"\xf0\x9f\xa6\x80\"");
+    let point_ptr = pending.payload().decoded().codepoints().as_ptr();
+    let point_capacity = pending.payload().point_capacity();
+    let raw_ptr = pending.payload().decoded().original_owner().payload().as_ptr();
+    let raw_capacity = pending.payload().decoded().original_owner().payload().capacity();
+    assert_ne!(point_ptr.cast::<u8>(), raw_ptr);
+    let extra = point_lexical_control_bytes().unwrap() + 4096;
+    let q = quote_pending_lexical(pending, b.charge_external(extra).unwrap(), point_limits()).unwrap();
+    assert_eq!(q.resources().work.quotation, 221); // P3, Q201 + E20
+    assert_eq!(q.resources().work.replay, 143); // scan7 + 2 + 134
+    assert_eq!(q.resources().work.total, 397);
+    assert_eq!(q.resources().working_charge_bytes, extra + size_of::<OwnedCharged<crate::plan_input::json::PointLexicalCustody>>());
+    let output = q.construct().unwrap();
+    assert_eq!(output.charged_bytes(), extra + size_of::<OwnedCharged<crate::plan_input::json::PointLexicalCustody>>());
+    assert_eq!(output.payload().points().as_ptr(), point_ptr);
+    assert_eq!(output.payload().decoded_owner().payload().point_capacity(), point_capacity);
+    assert_eq!(output.payload().raw_owner().payload().as_ptr(), raw_ptr);
+    assert_eq!(output.payload().raw_owner().payload().capacity(), raw_capacity);
+    assert_eq!(output.payload().node(0).unwrap().point_range(), 0..3);
+    assert_eq!(output.payload().node(0).unwrap().string_points(), Some([0x1f980].as_slice()));
+    let live = b.budget().used_bytes();
+    drop(output);
+    assert_eq!(point_test_retirement(), Some((std::ptr::from_ref(b.budget()) as usize, live)));
+    assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+    drop(admission); drop(root);
+    assert_eq!(b.budget().used_bytes(), baseline);
+}
+
+#[test]
+fn native_point_refusal_partial_unwind_sibling_survival_and_paid_cleanup() {
+    use crate::plan_input::json::{quote_pending_lexical, point_lexical_control_bytes,
+        point_test_counts, point_test_retirement, PointRefusal, PointError};
+    for mode in 0..9 {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let baseline = b.budget().used_bytes();
+        let mut admission = native_admission(&b);
+        let root = Arc::clone(&admission.root);
+        let committed = begin_attempt(&root, b.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 3).unwrap().commit().unwrap();
+        let probe = begin_attempt(&root, b.charge_external(OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 0).unwrap();
+        let held = b.budget().used_bytes();
+        let pending = point_pending(&b, &mut admission, b"[\"a\",\"b\"]");
+        assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, 4 + 1 + 1 + 187);
+        let q = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits()).unwrap();
+        assert_eq!(q.resources().work.quotation, 335);
+        assert_eq!(q.resources().work.total, 564);
+        let growth = q.resources().required_working_payload - point_lexical_control_bytes().unwrap();
+        let inline = size_of::<OwnedCharged<crate::plan_input::json::PointLexicalCustody>>() - size_of::<OwnedExternalCharge>();
+        let ballast = if mode == 4 || mode == 5 {
+            let room = if mode == 4 { growth - 1 } else { growth + inline - 1 };
+            Some(b.charge_external(MAX_ALLOCATION_BYTES - b.budget().used_bytes() - room - size_of::<OwnedExternalCharge>()).unwrap())
+        } else { None };
+        let counters = point_test_counts();
+        let covered = b.budget().used_bytes() + growth + inline;
+        let _hook = PointRefusal::arm(match mode { 0..=3 => mode + 1, 6 => 5, 7 => 6, 8 => 7, _ => 0 });
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| q.construct()));
+        if mode == 2 || mode == 3 || mode == 7 { assert!(result.is_err()); }
+        else {
+            let error = result.unwrap().err().unwrap();
+            assert_eq!(error, PointError::Input(if mode == 8 { crate::plan_input::Error::Factory }
+                else { crate::plan_input::Error::Native(if mode == 0 { NativeError::Allocation } else { NativeError::Resource }) }));
+        }
+        if mode == 4 || mode == 5 { assert_eq!(point_test_counts(), counters); }
+        if matches!(mode, 0 | 1 | 2 | 6 | 7) {
+            assert_eq!(point_test_retirement(), Some((std::ptr::from_ref(b.budget()) as usize, covered)));
+        }
+        let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+        assert!(ledger.burned); assert_eq!(ledger.used, 193 + 564); drop(ledger);
+        assert_eq!(probe.debit(0), Err(Error::Burned));
+        assert!(committed.is_for(b.budget()));
+        drop(ballast); assert_eq!(b.budget().used_bytes(), held);
+        drop(probe); drop(committed); drop(admission); drop(root);
+        assert_eq!(b.budget().used_bytes(), baseline);
+    }
+}
+
+#[test]
+fn native_point_literal_strings_surrogates_encodings_numbers_and_duplicates() {
+    use crate::plan_input::json::{quote_pending_lexical, point_lexical_control_bytes, PointError, LexicalNumberClass};
+    for (raw, expected) in [
+        (b"\"\\ud800\"".as_slice(), vec![0xd800]), (b"\"\\udc00\"".as_slice(), vec![0xdc00]),
+        (b"\"\\ud800\\udc00\"".as_slice(), vec![0x10000]),
+        (b"\"\\ud800\\ud800\\udc00\"".as_slice(), vec![0xd800, 0x10000]),
+        (b"\"\\ud800X\"".as_slice(), vec![0xd800, 88]),
+        (b"\"\\ud800\\u0041\"".as_slice(), vec![0xd800, 65]),
+        (b"\"\\u0000\"".as_slice(), vec![0]),
+        (b"\"\xed\xa0\x80\xed\xb0\x80\"".as_slice(), vec![0xd800, 0xdc00]),
+        (b"\"\xf0\x9f\xa6\x80\"".as_slice(), vec![0x1f980]),
+        (b"\xef\xbb\xbf\"A\"".as_slice(), vec![65]),
+        (b"\xff\xfe\x22\x00\x41\x00\x22\x00".as_slice(), vec![65]),
+        (b"\x00\x00\xfe\xff\x00\x00\x00\x22\x00\x00\x00\x41\x00\x00\x00\x22".as_slice(), vec![65]),
+    ] {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&b);
+        let root = Arc::clone(&admission.root);
+        let pending = point_pending(&b, &mut admission, raw);
+        let output = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits()).unwrap().construct().unwrap();
+        assert_eq!(output.payload().node(0).unwrap().string_points(), Some(expected.as_slice()));
+        assert!(root.payload().configured.get().is_none());
+    }
+    for raw in [b"{\"a\":0,\"\\u0061\":1}".as_slice(), b"{\"\\ud800\":0,\"\\uD800\":1}".as_slice()] {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&b);
+        let root = Arc::clone(&admission.root);
+        let pending = point_pending(&b, &mut admission, raw);
+        let result = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits()).unwrap().construct();
+        assert_eq!(result.err(), Some(PointError::Input(crate::plan_input::Error::DuplicateField)));
+        assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+    }
+    // Canonically equivalent spellings are DISTINCT decoded point keys.
+    {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&b);
+        let pending = point_pending(&b, &mut admission, b"{\"\\u00e9\":0,\"e\\u0301\":1}");
+        let output = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits()).unwrap().construct().unwrap();
+        assert_eq!(output.payload().node(0).unwrap().immediate_child_count(), 2);
+    }
+    let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut admission = native_admission(&b);
+    let pending = point_pending(&b, &mut admission, b"[-0,1E+09,0.0]");
+    let output = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits()).unwrap().construct().unwrap();
+    assert_eq!(output.payload().node(0).unwrap().point_range(), 0..14);
+    assert_eq!(output.payload().node(0).unwrap().subtree_end(), 4);
+    assert_eq!(output.payload().node(0).unwrap().immediate_child_count(), 3);
+    for (index, range, spelling, class) in [(1, 1..3, vec![45,48], LexicalNumberClass::Integer),
+        (2, 4..9, vec![49,69,43,48,57], LexicalNumberClass::Float), (3, 10..13, vec![48,46,48], LexicalNumberClass::Float)] {
+        let node = output.payload().node(index).unwrap();
+        assert_eq!(node.point_range(), range);
+        assert_eq!(node.number_points(), Some((spelling.as_slice(), class)));
+    }
+}
+
+#[test]
+fn native_point_empty_malformed_lookahead_nested_closing_and_depth_boundaries() {
+    use crate::plan_input::json::{quote_pending_lexical, point_lexical_control_bytes, PointError};
+    for raw in [b"".as_slice(), b"\xef\xbb\xbf".as_slice(), b"\xef\xbb\xbf\xef\xbb\xbfnull".as_slice(),
+        b"\"\\ud800".as_slice(), b"\"\\ud800\\u".as_slice(), b"\"\\ud800\\u00".as_slice()] {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&b);
+        let root = Arc::clone(&admission.root);
+        let pending = point_pending(&b, &mut admission, raw);
+        let empty = pending.payload().decoded().codepoints().is_empty();
+        let paid = root.payload().ledger.as_ref().unwrap().lock().unwrap().used;
+        let q = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits());
+        assert_eq!(q.err(), Some(PointError::Input(crate::plan_input::Error::Syntax)));
+        if empty { assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, paid + 167); }
+        assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+    }
+    for cap in [155, 154] {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&b);
+        let pending = point_pending(&b, &mut admission, b"[[]]");
+        let mut limits = point_limits(); limits.work.replay = cap;
+        let q = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), limits);
+        if cap == 154 { assert_eq!(q.err(), Some(PointError::Input(crate::plan_input::Error::WorkLimit))); }
+        else {
+            let q = q.unwrap(); assert_eq!(q.resources().work.replay, 155);
+            assert_eq!(q.resources().work.quotation, 239); assert_eq!(q.resources().work.total, 435);
+            let output = q.construct().unwrap();
+            assert_eq!(output.payload().node(0).unwrap().point_range(), 0..4);
+            assert_eq!(output.payload().node(1).unwrap().point_range(), 1..3);
+        }
+    }
+    for containers in [65, 66] {
+        let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let mut admission = native_admission(&b);
+        let mut raw = vec![b'['; containers]; raw.extend(vec![b']'; containers]);
+        let pending = point_pending(&b, &mut admission, &raw);
+        let q = quote_pending_lexical(pending, b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits());
+        if containers == 65 { assert!(q.unwrap().construct().is_ok()); }
+        else { assert_eq!(q.err(), Some(PointError::Input(crate::plan_input::Error::DepthLimit))); }
+    }
+}
+
+#[test]
+fn native_point_isolated_local_string_classify_dedup_exact_and_short_paid_meters() {
+    use crate::plan_input::json::{quote_pending_lexical, point_lexical_control_bytes,
+        point_test_counts, PointError, PointPass, PointPassLimit};
+    // Independent literals, not point_work():
+    // "a": P3 S1 D1 => 1 slot + 1 dispatch + 2 partial + 3 reads + 1 write + 2 = 10.
+    // [12]: two span dispatches + two integer spelling reads = 4.
+    // {"a":0,"b":1}: S5 + 2E=4 + ONE comparison*(L1+3)=4 => actual 13;
+    // its separately paid m^2 dedup bound remains 5 + 4*4 + 4 = 25.
+    for (pass, raw, exact, prior, quotation, funded, total) in [
+        (PointPass::Strings, b"\"a\"".as_slice(), 10u128, 146u64, 221u128, 10u128, 397u64),
+        (PointPass::Classify, b"[12]".as_slice(), 4, 153, 239, 4, 440),
+        (PointPass::Deduplicate, b"{\"a\":0,\"b\":1}".as_slice(), 13, 216, 413, 25, 710),
+    ] {
+        for short in [false, true] {
+            let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let baseline = b.budget().used_bytes();
+            let mut admission = native_admission(&b);
+            let root = Arc::clone(&admission.root);
+            let pending = point_pending(&b, &mut admission, raw);
+            assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, prior);
+            let counts = point_test_counts();
+            let q = quote_pending_lexical(pending,
+                b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), point_limits()).unwrap();
+            assert_eq!(q.resources().work.quotation, quotation);
+            assert_eq!(q.resources().work.total, u128::from(total));
+            assert_eq!(match pass { PointPass::Strings => q.resources().work.strings,
+                PointPass::Classify => q.resources().work.classify,
+                PointPass::Deduplicate => q.resources().work.deduplicate }, funded);
+            assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, prior + quotation as u64);
+            let _scope = PointPassLimit::arm(pass, exact - u128::from(short));
+            let result = q.construct();
+            if short { assert_eq!(result.err(), Some(PointError::Input(crate::plan_input::Error::WorkLimit))); }
+            else { drop(result.unwrap()); }
+            // These are LATE local paid-meter failures, not preflight refusals:
+            // replay and factory legitimately occurred. FULL bound stayed paid,
+            // including dedup's unused m^2 comparison allowance; no root override.
+            assert_eq!(point_test_counts(), (counts.0 + 2, counts.1 + 1));
+            let ledger = root.payload().ledger.as_ref().unwrap().lock().unwrap();
+            assert!(ledger.burned); assert_eq!(ledger.used, prior + total); drop(ledger);
+            assert!(root.payload().configured.get().is_none());
+            drop(admission); drop(root);
+            assert_eq!(b.budget().used_bytes(), baseline);
+        }
+    }
+}
+
+#[test]
+fn native_point_isolated_cleanup_and_construct_transition_admission_caps() {
+    use crate::plan_input::json::{quote_pending_lexical, point_lexical_control_bytes,
+        point_test_counts, point_test_retirement, PointError};
+    // Cleanup null: 1 string slot + 1 span + six control retirements = 8.
+    // Construct: C01..C12 plus explicit C13 size+alignment group = 13.
+    // These test REAL admission caps, NOT a fabricated failable Drop meter or
+    // a measurement of compiled closure layout/CPU operations.
+    for cleanup in [true, false] {
+        for short in [false, true] {
+            let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let baseline = b.budget().used_bytes();
+            let mut admission = native_admission(&b);
+            let root = Arc::clone(&admission.root);
+            let pending = point_pending(&b, &mut admission, b"null");
+            assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, 153);
+            let mut limits = point_limits();
+            if cleanup { limits.work.cleanup = 8 - u128::from(short); }
+            else { limits.work.transition = 13 - u128::from(short); }
+            let counts = point_test_counts();
+            let q = quote_pending_lexical(pending,
+                b.charge_external(point_lexical_control_bytes().unwrap()).unwrap(), limits);
+            if short {
+                assert_eq!(q.err(), Some(PointError::Input(crate::plan_input::Error::WorkLimit)));
+                assert_eq!(point_test_counts(), (counts.0 + 1, counts.1));
+                assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, 153 + 239);
+            } else {
+                let q = q.unwrap();
+                assert_eq!(q.resources().work.cleanup, 8);
+                assert_eq!(q.resources().work.transition, 13);
+                assert_eq!(q.resources().work.total, 416);
+                let output = q.construct().unwrap();
+                let covering = b.budget().used_bytes();
+                assert_eq!(root.payload().ledger.as_ref().unwrap().lock().unwrap().used, 153 + 416);
+                drop(output);
+                assert_eq!(point_test_retirement(), Some((std::ptr::from_ref(b.budget()) as usize, covering)));
+                assert_eq!(point_test_counts(), (counts.0 + 2, counts.1 + 1));
+            }
+            assert!(root.payload().ledger.as_ref().unwrap().lock().unwrap().burned);
+            drop(admission); drop(root);
+            assert_eq!(b.budget().used_bytes(), baseline);
+        }
+    }
+}
+
 fn native_prepared(
     budget: &OwnedBudget, admission: &mut SourceAdmission, raw: &[u8], visits: u64,
 ) -> PrivatePreparedConfiguration {

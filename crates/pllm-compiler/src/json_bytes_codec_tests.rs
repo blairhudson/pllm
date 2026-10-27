@@ -617,6 +617,22 @@ fn unconfigured_pending_retains_raw_and_literal_codec_semantics_without_commit()
 }
 
 #[test]
+fn unconfigured_pending_non_bmp_point_domain_not_byte_cursor_authority() {
+    let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut admission = unconfigured(&b);
+    let raw_bytes = b"\"\xf0\x9f\xa6\x80\"";
+    let q = reserved_quote(&b, &mut admission, raw_bytes).unwrap();
+    assert_eq!(q.resources().prepaid_work, 166); // byte codec 7*6+124 stays unchanged
+    let output = q.construct().unwrap();
+    assert_eq!(output.payload().decoded().codepoints(), [0x22, 0x1f980, 0x22]);
+    assert_eq!(output.payload().decoded().original_owner().payload().as_slice(), raw_bytes);
+    assert_eq!(output.payload().decoded().codepoints().len(), 3);
+    assert_eq!(output.payload().decoded().original_owner().payload().len(), 6);
+    // No point scanner is implemented here. This proves its proposed P=3 input
+    // domain, not P+1 consuming events, lookahead funding, Q or a bridge grant.
+}
+
+#[test]
 fn unconfigured_metadata_refusals_never_enter_factory_and_retire_all_new_guards() {
     for mode in 0..4 {
         let b = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();

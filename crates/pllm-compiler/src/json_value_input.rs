@@ -441,15 +441,7 @@ pub(crate) struct LexicalNodeRef<'a> {
 }
 impl LexicalNodeRef<'_> {
     pub(crate) fn kind(&self) -> LexicalKind {
-        match self.value.spans[self.index].kind {
-            super::Kind::Object => LexicalKind::Object,
-            super::Kind::Array => LexicalKind::Array,
-            super::Kind::String => LexicalKind::String,
-            super::Kind::Number => LexicalKind::Number,
-            super::Kind::True => LexicalKind::True,
-            super::Kind::False => LexicalKind::False,
-            super::Kind::Null => LexicalKind::Null,
-        }
+        lexical_kind(self.value.spans[self.index].kind)
     }
     pub(crate) fn raw_range(&self) -> std::ops::Range<usize> {
         let span = self.value.spans[self.index];
@@ -753,29 +745,38 @@ impl LexicalRun<'_> {
             super::push(&mut strings, string)?;
         }
         partial.strings = super::finish(strings)?;
-        for span in &mut partial.spans {
-            if span.kind == super::Kind::Number {
-                // For lexical NUMBER spans only, decoded is the immutable class
-                // bit. Strings continue to use it as their exact decoded length.
-                span.decoded = usize::from(self.utf8.payload()[span.start..span.end]
-                    .iter().any(|byte| matches!(*byte, b'.' | b'e' | b'E')));
-            }
-        }
-        lexical_deduplicate(&partial.spans, &partial.strings)?;
+        lexical_classify(&mut partial.spans, self.utf8.payload(), None)?;
+        lexical_deduplicate(&partial.spans, &partial.strings, None)?;
         Ok((std::mem::take(&mut partial.spans), std::mem::take(&mut partial.strings)))
     }
 }
 
-fn lexical_deduplicate(spans: &[Span], strings: &[Option<String>]) -> Result<(), Error> {
+fn lexical_classify<T: super::ScanUnit>(spans: &mut [Span], raw: &[T], mut meter: Option<&mut Meter>) -> Result<(), Error> {
+    for span in spans {
+        if let Some(m) = meter.as_deref_mut() { m.pay(1)?; }
+        if span.kind == super::Kind::Number {
+            span.decoded = 0;
+            for unit in &raw[span.start..span.end] {
+                if let Some(m) = meter.as_deref_mut() { m.pay(1)?; }
+                if matches!(unit.point(), 0x2e | 0x65 | 0x45) { span.decoded = 1; break; }
+            }
+        }
+    }
+    Ok(())
+}
+fn lexical_deduplicate<T: PartialEq>(spans: &[Span], strings: &[Option<T>], mut payment: Option<(&mut Meter, usize)>) -> Result<(), Error> {
     for (object, span) in spans.iter().enumerate() {
+        if let Some((meter, _)) = &mut payment { meter.pay(1)?; }
         if span.kind != super::Kind::Object {
             continue;
         }
         let mut left = object + 1;
         while left < span.next {
+            if let Some((meter, _)) = &mut payment { meter.pay(2)?; }
             let left_value = spans[left].next;
             let mut right = spans[left_value].next;
             while right < span.next {
+                if let Some((meter, largest)) = &mut payment { meter.pay(wide_add(*largest as u128, 3)?)?; }
                 if strings[left] == strings[right] {
                     return Err(Error::DuplicateField);
                 }
@@ -785,6 +786,472 @@ fn lexical_deduplicate(spans: &[Span], strings: &[Option<String>]) -> Result<(),
         }
     }
     Ok(())
+}
+
+// Private point lexical bridge. Not selected by any parser/configuration path.
+// Explicit domains: capacities below are raw BYTES, source/string/number POINTS;
+// Span ranges and number spellings below always index immutable decoded points.
+use crate::json_bytes_codec::PendingDecodedCustody;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PointError { Source(crate::original_source::Error), Input(Error) }
+impl From<Error> for PointError { fn from(error: Error) -> Self { Self::Input(error) } }
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct PointWork {
+    pub quotation: u128, pub replay: u128, pub strings: u128,
+    pub classify: u128, pub deduplicate: u128, pub cleanup: u128,
+    pub transition: u128, pub total: u128,
+}
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PointLexicalLimits {
+    pub max_raw_capacity_bytes: usize, pub max_points: usize, pub max_nodes: usize,
+    pub max_depth: usize, pub max_string_points: usize, pub max_total_string_points: usize,
+    pub max_number_points: usize, pub max_payload_bytes: usize, pub max_work: u128,
+    /// Each field independently caps its named slice; total is also capped.
+    pub work: PointWork,
+}
+impl PointLexicalLimits {
+    fn scanner(self) -> super::PointScanLimits {
+        super::PointScanLimits { nodes: self.max_nodes, depth: self.max_depth,
+            string_points: self.max_string_points, number_points: self.max_number_points }
+    }
+}
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct PointResources {
+    pub points: usize, pub spans: usize, pub string_points: usize, pub largest_string_points: usize,
+    pub number_points: usize, pub pending_owner_bytes: usize, pub raw_owner_bytes: usize,
+    pub decoded_capacity_bytes: usize, pub required_working_payload: usize,
+    pub working_charge_bytes: usize, pub work: PointWork,
+}
+
+// E01 incoming move; E02 pending coverage; E03 point coverage; E04 raw coverage;
+// E05 root/controller identity; E06 working identity; E07 controls floor;
+// E08 explicit length/limit checks; E09 checked Q/layout/u64 preparation;
+// E10 original debit; E11 quote move; E12 scanner entry; E13 scanner return;
+// E14 payload quote; E15 future-work quote/caps; E16 resources finalization;
+// E17 quote return; E18 incoming retirement; E19 quote retirement; E20 working
+// retirement. Success pays ALL 20; pre-debit refusal has ONLY the explicitly
+// approved bounded metadata envelope, no fictional charge or content access.
+const POINT_ENTRY_WORK: u128 = 20;
+// C01 sticky check; C02 slice/aggregate check; C03 future debit; C04 growth;
+// C05 capture move; C06 inline/factory entry; C07 run entry; C08 run return;
+// C09 output assembly; C10 sticky check; C11 outcome move; C12 capture retirement.
+// C13 closure-layout validation: BOTH size and alignment against the single
+// admitted PointCapture slot. One qualified layout operation group, NOT CPU ops;
+// prepaid separately rather than silently folding this check into C05 or old 12.
+const POINT_TRANSITION_WORK: u128 = 13;
+// R01 partial, R02 run, R03 quote, R04 output, R05 retained-owner wrapper,
+// R06 working retirement. S string slots + S spans, NO D-point erase traversal.
+const POINT_RETIRE_WORK: u128 = 6;
+
+struct PointIncoming {
+    pending: OwnedCharged<PendingDecodedCustody>,
+    working: OwnedExternalCharge,
+}
+pub(crate) struct PointLexicalQuote {
+    incoming: PointIncoming,
+    limits: PointLexicalLimits,
+    counts: SourceCounts, // private policy units: decoded_string_bytes means POINTS
+    resources: PointResources,
+}
+struct PointFacts { strings: Vec<Option<Vec<u32>>>, spans: Vec<Span> }
+struct PointPartial<'a> { facts: PointFacts, budget: &'a Budget }
+impl Drop for PointPartial<'_> {
+    fn drop(&mut self) {
+        #[cfg(test)]
+        let had_facts = !self.facts.spans.is_empty();
+        drop(std::mem::take(&mut self.facts.strings));
+        drop(std::mem::take(&mut self.facts.spans));
+        #[cfg(test)]
+        if had_facts { lexical_retired(self.budget); }
+        #[cfg(not(test))]
+        let _ = self.budget;
+    }
+}
+/// Facts retire before the WHOLE pending owner, its raw/point backing, original
+/// phase/controller and codec guard. The enclosing lexical guard retires last.
+/// Borrowed views confer no source authority. Subsequent traversal/consumption
+/// needs its own admission; construction funding is not reusable downstream fuel.
+pub(crate) struct PointLexicalCustody {
+    facts: PointFacts,
+    counts: SourceCounts,
+    resources: PointResources,
+    pending: OwnedCharged<PendingDecodedCustody>,
+}
+impl Drop for PointLexicalCustody {
+    fn drop(&mut self) {
+        drop(std::mem::take(&mut self.facts.strings));
+        drop(std::mem::take(&mut self.facts.spans));
+        #[cfg(test)]
+        lexical_retired(self.pending.budget());
+    }
+}
+pub(crate) struct PointNodeRef<'a> { owner: &'a PointLexicalCustody, index: usize }
+impl PointNodeRef<'_> {
+    pub(crate) fn point_range(&self) -> std::ops::Range<usize> {
+        let span = self.owner.facts.spans[self.index]; span.start..span.end
+    }
+    pub(crate) fn kind(&self) -> LexicalKind { lexical_kind(self.owner.facts.spans[self.index].kind) }
+    pub(crate) fn subtree_end(&self) -> usize { self.owner.facts.spans[self.index].next }
+    pub(crate) fn immediate_child_count(&self) -> usize { self.owner.facts.spans[self.index].children }
+    pub(crate) fn string_points(&self) -> Option<&[u32]> { self.owner.facts.strings[self.index].as_deref() }
+    /// Scanner established ASCII JSON spelling, returned without conversion or
+    /// revalidation traversal. Downstream repeated use needs its own payment.
+    pub(crate) fn number_points(&self) -> Option<(&[u32], LexicalNumberClass)> {
+        let span = self.owner.facts.spans[self.index];
+        if span.kind != super::Kind::Number { return None; }
+        Some((&self.owner.points()[span.start..span.end], if span.decoded == 0 {
+            LexicalNumberClass::Integer
+        } else { LexicalNumberClass::Float }))
+    }
+}
+fn lexical_kind(kind: super::Kind) -> LexicalKind {
+    match kind { super::Kind::Object => LexicalKind::Object, super::Kind::Array => LexicalKind::Array,
+        super::Kind::String => LexicalKind::String, super::Kind::Number => LexicalKind::Number,
+        super::Kind::True => LexicalKind::True, super::Kind::False => LexicalKind::False,
+        super::Kind::Null => LexicalKind::Null }
+}
+impl PointLexicalCustody {
+    pub(crate) fn points(&self) -> &[u32] { self.pending.payload().decoded().codepoints() }
+    pub(crate) fn raw_owner(&self) -> &OwnedCharged<Vec<u8>> { self.pending.payload().decoded().original_owner() }
+    pub(crate) fn decoded_owner(&self) -> &OwnedCharged<PendingDecodedCustody> { &self.pending }
+    pub(crate) fn resources(&self) -> &PointResources { &self.resources }
+    pub(crate) fn node(&self, index: usize) -> Option<PointNodeRef<'_>> {
+        self.facts.spans.get(index)?; Some(PointNodeRef { owner: self, index })
+    }
+}
+
+struct PointRun<'a> {
+    pending: &'a OwnedCharged<PendingDecodedCustody>, counts: SourceCounts,
+    limits: PointLexicalLimits, work: PointWork,
+}
+struct PointFactory {
+    pending: OwnedCharged<PendingDecodedCustody>, counts: SourceCounts,
+    limits: PointLexicalLimits, resources: PointResources,
+}
+struct PointCapture<'a> { factory: PointFactory, failure: &'a Cell<Option<Error>> }
+impl PointCapture<'_> {
+    fn build(self) -> Result<PointLexicalCustody, NativeError> {
+        let result = (PointRun { pending: &self.factory.pending, counts: self.factory.counts,
+            limits: self.factory.limits, work: self.factory.resources.work }).run();
+        match result {
+            Ok(facts) => Ok(PointLexicalCustody { facts, counts: self.factory.counts,
+                resources: self.factory.resources, pending: self.factory.pending }),
+            Err(error) => { self.failure.set(Some(error)); Err(NativeError::Resource) }
+        }
+    }
+}
+
+/// Named inventory, evaluated at compile time: no runtime inventory traversal.
+/// Each entry is an actual body/return/capture slot, not a blanket multiplier.
+/// Backings are separate. Physical stack/allocator internals remain excluded.
+pub(crate) fn point_lexical_control_bytes() -> Result<usize, Error> {
+    const BYTES: Option<usize> = {
+        let slots = [
+            size_of::<PointIncoming>(), // E01 entry owner
+            size_of::<OwnedCharged<PendingDecodedCustody>>(), // argument move
+            size_of::<OwnedExternalCharge>(), // working argument move
+            size_of::<PointLexicalLimits>(), // argument
+            size_of::<PointLexicalQuote>(), // E11 quote construction
+            size_of::<Result<PointLexicalQuote, PointError>>(), // E17 result move
+            size_of::<PointLexicalQuote>(), // C01 consuming self
+            size_of::<PointFactory>(), // C05 factory destination
+            size_of::<PointCapture<'_>>(), // C05 capture origin
+            size_of::<PointCapture<'_>>(), // C06 single-by-value closure slot; checked
+            size_of::<PointRun<'_>>(), // C07 run frame
+            size_of::<PointPartial<'_>>(), // R01 partial
+            size_of::<PointFacts>(), // C08 return facts
+            size_of::<PointLexicalCustody>(), // C09 output construction
+            size_of::<Result<PointLexicalCustody, NativeError>>(), // factory result
+            size_of::<OwnedCharged<PointLexicalCustody>>(), // C11 output owner
+            size_of::<Result<OwnedCharged<PointLexicalCustody>, NativeError>>(),
+            size_of::<Result<OwnedCharged<PointLexicalCustody>, PointError>>(),
+            size_of::<Scanner<'_, '_, '_, 65, true, u32>>(), // shared sequential passes
+            size_of::<PointLexicalLimits>(), // run/quote overlap
+            size_of::<PointResources>(), // E16 resource origin
+            size_of::<PointWork>(), // E15 work origin
+            size_of::<SourceCounts>(), // count return
+            size_of::<Result<SourceCounts, Error>>(),
+            size_of::<ExactBuffer<Span>>(), // replay slots
+            size_of::<ExactBuffer<Option<Vec<u32>>>>(), // string slots
+            size_of::<Vec<u32>>(), // ONE partial string
+            size_of::<Result<Vec<u32>, Error>>(), // partial string move
+            size_of::<Result<PointFacts, Error>>(),
+            size_of::<Cell<Option<Error>>>(), // failure channel
+            size_of::<(Meter, Meter, Meter, Meter, Meter)>(), // quote/replay/string/classify/dedup
+            size_of::<(&[u32], &[Span], &[Option<Vec<u32>>], &Budget)>(), // run borrows
+            size_of::<(&mut usize, &mut Meter, Option<&mut Vec<u32>>)>(), // string call
+            size_of::<(usize, usize, usize, usize, Span, Span)>(), // dedup cursor
+            size_of::<(usize, usize, usize, u32, u32, u32)>(), // string/probe cursor
+            size_of::<(usize, usize, usize, u128, u128, u128, u128)>(), // quote/layout
+            size_of::<Result<u128, Error>>(), size_of::<Result<usize, Error>>(),
+            size_of::<Result<(), crate::original_source::Error>>(),
+            size_of::<std::ops::Range<usize>>(), // number cursor
+        ];
+        let mut total = Some(0usize);
+        let mut i = 0;
+        while i < slots.len() {
+            total = match total { Some(n) => n.checked_add(slots[i]), None => None };
+            i += 1;
+        }
+        total
+    };
+    BYTES.ok_or(Error::Overflow)
+}
+
+fn point_q(p: usize) -> Result<u128, Error> {
+    let p = p as u128;
+    let u = wide_add(p, 1)?;
+    wide_add(130, wide_add(super::wide_mul(2, p)?, wide_add(super::wide_mul(16, u)?,
+        wide_add(1, super::wide_mul(6, p / 6)?)?)?)?)
+}
+fn point_work(counts: SourceCounts, p: usize, quotation: u128) -> Result<PointWork, Error> {
+    let s = counts.spans as u128;
+    let replay = wide_add(counts.scan_work, wide_add(super::wide_mul(2, s)?, 134)?)?;
+    let strings = wide_add(p as u128, wide_add(super::wide_mul(6, (p / 6) as u128)?,
+        wide_add(counts.decoded_string_bytes as u128, wide_add(super::wide_mul(4, s)?, 2)?)?)?)?;
+    let classify = wide_add(counts.number_bytes as u128, s)?;
+    let deduplicate = wide_add(s, wide_add(super::wide_mul(counts.map_squares,
+        wide_add(counts.largest_string as u128, 3)?)?, super::wide_mul(2, counts.map_entries as u128)?)?)?;
+    let cleanup = wide_add(super::wide_mul(2, s)?, POINT_RETIRE_WORK)?;
+    let transition = POINT_TRANSITION_WORK;
+    let total = wide_add(quotation, wide_add(replay, wide_add(strings,
+        wide_add(classify, wide_add(deduplicate, wide_add(cleanup, transition)?)?)?)?)?)?;
+    Ok(PointWork { quotation, replay, strings, classify, deduplicate, cleanup, transition, total })
+}
+fn point_check(work: PointWork, limits: PointLexicalLimits) -> Result<(), Error> {
+    // Seven named slice caps + two aggregate caps, no runtime inventory/fold.
+    // This scalar admission
+    // group is E15/C02, NOT an extra unpriced span/content traversal.
+    let cap = limits.work;
+    if work.quotation > cap.quotation || work.replay > cap.replay || work.strings > cap.strings
+        || work.classify > cap.classify || work.deduplicate > cap.deduplicate
+        || work.cleanup > cap.cleanup || work.transition > cap.transition
+        || work.total > cap.total || work.total > limits.max_work { return Err(Error::WorkLimit); }
+    Ok(())
+}
+fn point_payload(counts: SourceCounts) -> Result<usize, Error> {
+    let n = add(point_lexical_control_bytes()?, layout_bytes::<Span>(counts.spans).map_err(|_| Error::Overflow)?)?;
+    let n = add(n, layout_bytes::<Option<Vec<u32>>>(counts.spans).map_err(|_| Error::Overflow)?)?;
+    let n = add(n, layout_bytes::<u32>(counts.decoded_string_bytes).map_err(|_| Error::Overflow)?)?;
+    add(n, layout_bytes::<u32>(counts.largest_string).map_err(|_| Error::Overflow)?)
+}
+
+pub(crate) fn quote_pending_lexical(pending: OwnedCharged<PendingDecodedCustody>,
+    working: OwnedExternalCharge, limits: PointLexicalLimits) -> Result<PointLexicalQuote, PointError> {
+    let incoming = PointIncoming { pending, working }; // E01; fixed refusal envelope
+    let pending = incoming.pending.payload();
+    let decoded = pending.decoded();
+    let raw = decoded.original_owner();
+    // E02-E07 metadata ONLY; no points or bytes inspected.
+    if incoming.pending.charged_bytes() < decoded.resources().working_charge_bytes {
+        return Err(Error::OriginalOwner.into());
+    }
+    let capacity_bytes = layout_bytes::<u32>(pending.point_capacity()).map_err(|_| Error::Overflow)?;
+    if capacity_bytes > decoded.resources().point_capacity_bytes
+        || raw.charged_bytes() < add(size_of::<OwnedCharged<Vec<u8>>>(), raw.payload().capacity())? {
+        return Err(Error::OriginalOwner.into());
+    }
+    pending.lexical_identity(incoming.pending.budget()).map_err(PointError::Source)?;
+    if !std::ptr::eq(raw.budget(), incoming.pending.budget())
+        || !incoming.working.is_for(incoming.pending.budget()) { return Err(Error::Counter.into()); }
+    let controls = point_lexical_control_bytes()?;
+    if incoming.working.payload_bytes() < controls { return Err(Error::Bootstrap.into()); }
+    let p = decoded.codepoints().len(); // slice length ONLY, never content
+    if raw.payload().capacity() > limits.max_raw_capacity_bytes || p > limits.max_points {
+        return Err(Error::SourceLimit.into());
+    }
+    if incoming.working.payload_bytes() > limits.max_payload_bytes { return Err(Error::Capacity.into()); }
+    let q = point_q(p)?;
+    let quotation = wide_add(q, POINT_ENTRY_WORK)?;
+    if quotation > limits.work.quotation || quotation > limits.max_work || quotation > limits.work.total {
+        return Err(Error::WorkLimit.into());
+    }
+    // E08-E10: ONE original attempt debit; refusal consumes custody, no retry.
+    pending.lexical_debit(quotation).map_err(PointError::Source)?;
+    // All scanner controls were admitted and success entry funded BEFORE here.
+    let mut quote = PointLexicalQuote { incoming, limits, counts: SourceCounts::default(), resources: PointResources::default() };
+    let mut meter = Meter { used: 0, limit: q };
+    meter.pay(130)?; // 65 init + actual Drop's 65 retirement visits
+    #[cfg(test)]
+    POINT_SCANS.with(|n| n.set(n.get() + 1));
+    let counts = Scanner::<65, true, u32> {
+        raw: quote.incoming.pending.payload().decoded().codepoints(), position: 0,
+        stack: [super::Frame::EMPTY; 65], active: 0, stats: SourceCounts::default(),
+        meter: &mut meter, output: None, limits: limits.scanner(),
+    }.run()?;
+    if counts.decoded_string_bytes > limits.max_total_string_points { return Err(Error::StringLimit.into()); }
+    let required = point_payload(counts)?;
+    let actual_payload = required.max(quote.incoming.working.payload_bytes());
+    if actual_payload > limits.max_payload_bytes { return Err(Error::Capacity.into()); }
+    let work = point_work(counts, p, quotation)?;
+    point_check(work, limits)?;
+    quote.counts = counts;
+    quote.resources = PointResources { points: p, spans: counts.spans,
+        string_points: counts.decoded_string_bytes, largest_string_points: counts.largest_string,
+        number_points: counts.number_bytes, pending_owner_bytes: quote.incoming.pending.charged_bytes(),
+        raw_owner_bytes: quote.incoming.pending.payload().decoded().original_owner().charged_bytes(),
+        decoded_capacity_bytes: capacity_bytes, required_working_payload: required,
+        working_charge_bytes: add(actual_payload, size_of::<OwnedCharged<PointLexicalCustody>>())?, work };
+    Ok(quote)
+}
+impl PointLexicalQuote {
+    pub(crate) fn resources(&self) -> &PointResources { &self.resources }
+    pub(crate) fn construct(mut self) -> Result<OwnedCharged<PointLexicalCustody>, PointError> {
+        // Same bounded consuming metadata-only refusal rule as quote entry.
+        // C01-C03 are paid on SUCCESS, never fictitiously on terminal refusal.
+        self.incoming.pending.payload().lexical_identity(self.incoming.pending.budget()).map_err(PointError::Source)?;
+        point_check(self.resources.work, self.limits)?;
+        let future = self.resources.work.total.checked_sub(self.resources.work.quotation).ok_or(Error::Overflow)?;
+        // ALL future slices and cleanup BEFORE growth/capture/inline/factory.
+        self.incoming.pending.payload().lexical_debit(future).map_err(PointError::Source)?;
+        let payload = self.resources.required_working_payload.max(self.incoming.working.payload_bytes());
+        self.incoming.working.resize_payload(payload).map_err(Error::Native)?;
+        let Self { incoming: PointIncoming { pending, working }, counts, limits, resources } = self;
+        let failure = Cell::new(None);
+        let capture = PointCapture { factory: PointFactory { pending, counts, limits, resources }, failure: &failure };
+        let build = move |_: &Budget| capture.build();
+        // Actual closure has ONE by-value named capture. Refuse if compiler's
+        // concrete closure exceeds its admitted named slot; no ABI claim.
+        if std::mem::size_of_val(&build) > size_of::<PointCapture<'_>>()
+            || std::mem::align_of_val(&build) > std::mem::align_of::<PointCapture<'_>>() {
+            drop(build); return Err(Error::Capacity.into());
+        }
+        let output = working.try_build(build).map_err(|native| PointError::Input(failure.get().unwrap_or(Error::Native(native))))?;
+        output.payload().pending.payload().lexical_identity(output.budget()).map_err(PointError::Source)?;
+        Ok(output)
+    }
+}
+
+impl PointRun<'_> {
+    fn run(self) -> Result<PointFacts, Error> {
+        #[cfg(test)]
+        point_factory_entry()?;
+        let points = self.pending.payload().decoded().codepoints();
+        let mut partial = PointPartial { facts: PointFacts { strings: Vec::new(), spans: Vec::new() }, budget: self.pending.budget() };
+        let mut spans = super::exact::<Span>(self.counts.spans)?;
+        for _ in 0..self.counts.spans { super::push(&mut spans, Span::EMPTY)?; }
+        partial.facts.spans = super::finish(spans)?;
+        let mut meter = Meter { used: 0, limit: self.work.replay };
+        meter.pay(wide_add(super::wide_mul(2, self.counts.spans as u128)?, 134)?)?;
+        #[cfg(test)]
+        POINT_SCANS.with(|n| n.set(n.get() + 1));
+        let replay = Scanner::<65, true, u32> {
+            raw: points, position: 0, stack: [super::Frame::EMPTY; 65], active: 0,
+            stats: SourceCounts::default(), meter: &mut meter,
+            output: Some(&mut partial.facts.spans), limits: self.limits.scanner(),
+        }.run()?;
+        if replay.spans != self.counts.spans || replay.scan_work != self.counts.scan_work { return Err(Error::Capacity); }
+        let mut strings = super::exact::<Option<Vec<u32>>>(self.counts.spans)?;
+        let string_limit = self.work.strings;
+        #[cfg(test)]
+        let string_limit = point_test_pass_limit(PointPass::Strings, string_limit);
+        let mut meter = Meter { used: 0, limit: string_limit };
+        for _ in 0..self.counts.spans { meter.pay(1)?; super::push(&mut strings, None)?; }
+        partial.facts.strings = super::finish(strings)?;
+        meter.pay(2)?; // string-array entry/finish controls
+        for index in 0..partial.facts.spans.len() {
+            meter.pay(1)?; // dispatch (plus S init above)
+            let span = partial.facts.spans[index];
+            if span.kind == super::Kind::String {
+                meter.pay(2)?; // partial-string init/return
+                let mut string = Vec::new();
+                #[cfg(test)]
+                point_allocation_boundary()?;
+                string.try_reserve_exact(span.decoded).map_err(|_| Error::Native(NativeError::Allocation))?;
+                if string.capacity() != span.decoded { return Err(Error::Capacity); }
+                let mut position = span.start;
+                let decoded = super::point_string(points, &mut position, &mut meter, Some(&mut string), self.limits.max_string_points)?;
+                if decoded != span.decoded || position != span.end { return Err(Error::Capacity); }
+                partial.facts.strings[index] = Some(string);
+                #[cfg(test)]
+                point_after_string()?;
+            }
+        }
+        let classify_limit = self.work.classify;
+        #[cfg(test)]
+        let classify_limit = point_test_pass_limit(PointPass::Classify, classify_limit);
+        let mut classify = Meter { used: 0, limit: classify_limit };
+        lexical_classify(&mut partial.facts.spans, points, Some(&mut classify))?;
+        let dedup_limit = self.work.deduplicate;
+        #[cfg(test)]
+        let dedup_limit = point_test_pass_limit(PointPass::Deduplicate, dedup_limit);
+        let mut dedup = Meter { used: 0, limit: dedup_limit };
+        lexical_deduplicate(&partial.facts.spans, &partial.facts.strings,
+            Some((&mut dedup, self.counts.largest_string)))?;
+        Ok(PointFacts { strings: std::mem::take(&mut partial.facts.strings), spans: std::mem::take(&mut partial.facts.spans) })
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static POINT_SCANS: Cell<usize> = const { Cell::new(0) };
+    static POINT_FACTORIES: Cell<usize> = const { Cell::new(0) };
+    static POINT_REFUSAL: Cell<u8> = const { Cell::new(0) };
+    static POINT_PASS_LIMIT: Cell<Option<(PointPass, u128)>> = const { Cell::new(None) };
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum PointPass { Strings, Classify, Deduplicate }
+#[cfg(test)]
+pub(crate) struct PointPassLimit(Option<(PointPass, u128)>, std::marker::PhantomData<std::rc::Rc<()>>);
+#[cfg(test)]
+impl PointPassLimit {
+    // Only lowers an existing local paid meter; NEVER changes quote prices,
+    // root debits, pending identity, resources or production ceilings.
+    pub(crate) fn arm(pass: PointPass, limit: u128) -> Self {
+        Self(POINT_PASS_LIMIT.with(|f| f.replace(Some((pass, limit)))), std::marker::PhantomData)
+    }
+}
+#[cfg(test)]
+impl Drop for PointPassLimit {
+    fn drop(&mut self) { POINT_PASS_LIMIT.with(|f| f.set(self.0)); }
+}
+#[cfg(test)]
+fn point_test_pass_limit(pass: PointPass, paid: u128) -> u128 {
+    POINT_PASS_LIMIT.with(|f| match f.get() {
+        Some((selected, limit)) if selected == pass => paid.min(limit), _ => paid,
+    })
+}
+#[cfg(test)]
+pub(crate) struct PointRefusal(u8, std::marker::PhantomData<std::rc::Rc<()>>);
+#[cfg(test)]
+impl PointRefusal {
+    // 1 injected allocation, 2 partial string Err, 3 partial panic, 4 factory panic,
+    // 5 partial replay Err, 6 partial replay panic, 7 factory refusal.
+    // Thread-scoped, not allocator proof.
+    pub(crate) fn arm(mode: u8) -> Self { Self(POINT_REFUSAL.with(|f| f.replace(mode)), std::marker::PhantomData) }
+}
+#[cfg(test)]
+impl Drop for PointRefusal { fn drop(&mut self) { POINT_REFUSAL.with(|f| f.set(self.0)); } }
+#[cfg(test)]
+pub(crate) fn point_test_counts() -> (usize, usize) { (POINT_SCANS.with(Cell::get), POINT_FACTORIES.with(Cell::get)) }
+#[cfg(test)]
+pub(crate) fn point_test_retirement() -> Option<(usize, usize)> { LEXICAL_RETIREMENTS.with(|v| v.borrow().last().copied()) }
+#[cfg(test)]
+fn point_factory_entry() -> Result<(), Error> {
+    POINT_FACTORIES.with(|n| n.set(n.get() + 1));
+    if POINT_REFUSAL.with(Cell::get) == 4 { panic!("point factory injected panic"); }
+    if POINT_REFUSAL.with(Cell::get) == 7 { return Err(Error::Factory); }
+    Ok(())
+}
+#[cfg(test)]
+fn point_allocation_boundary() -> Result<(), Error> {
+    if POINT_REFUSAL.with(Cell::get) == 1 { return Err(Error::Native(NativeError::Allocation)); }
+    Ok(())
+}
+#[cfg(test)]
+fn point_after_string() -> Result<(), Error> {
+    match POINT_REFUSAL.with(Cell::get) {
+        2 => Err(Error::Native(NativeError::Resource)), 3 => panic!("point partial injected panic"), _ => Ok(())
+    }
+}
+#[cfg(test)]
+pub(super) fn point_replay_emitted() -> Result<(), Error> {
+    match POINT_REFUSAL.with(Cell::get) {
+        5 => Err(Error::Native(NativeError::Resource)), 6 => panic!("point replay injected panic"), _ => Ok(())
+    }
 }
 
 #[cfg(test)]
