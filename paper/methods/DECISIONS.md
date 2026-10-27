@@ -1521,6 +1521,107 @@ checkpoint. No tensor/body reads, native program, RNG, inventory, tape or traine
 run, HE execution, backend adoption or increased limits are authorized. Preserve
 historical cohorts; no execution or paper-completion claim follows.
 
+## D59. Parent-issued bounded compiler and SDK campaign grants
+
+**Explicitly approved on 27 October 2026 (user67562–user67563, all six batch
+decisions approved):** Parent may issue fresh revision/command/stage/slot grants
+for compiler repairs, builds, tests, wheels, local SDK/gateway work and admitted
+cached-checkpoint requests with at most **32 input tokens and 2 output tokens**,
+without asking the user for each command. This is grant authority, not an
+immediate execution slot or proof of request admission.
+
+Require **one native job globally**, not ten concurrent native jobs; **8 GiB
+aggregate process-tree RSS**, monitored with automatic stop; **16 GiB host
+reserve**; stop on swap growth; **15 minutes per command**, **2 hours per
+campaign**, and **20 GiB temporary disk**. Sampling is **not hard OS containment**;
+workloads requiring stronger containment remain held. Preserve every existing
+tighter cap, numerical/security/source-faithfulness gate and fail-closed refusal;
+no silent clear fallback. Fresh grants and preflight are required before execution.
+
+No paid infrastructure, new checkpoint downloads, production deployment or
+publication approval follows. Prior 15 pure tests and the compile failure are
+not retroactively qualified or cleared. D1/D3/D5 remain approved and unchanged;
+this records no build, test, wheel, gateway, checkpoint or complete-method result.
+
+## D60. Separately labelled common-Qwen decoder/generation extensions
+
+**Explicitly approved on 27 October 2026 (user67562–user67563):** pursue separately
+labelled Qwen decoder/generation extensions for **Maverick, NEXUS and THOR**.
+Derive explicit numerical, protected-operation and state/lifecycle contracts and
+obtain independent review **before implementation**. Reuse shared contracts and
+preserve each original model/source identity and original-model validation.
+
+Extension approval does not relabel an encoder or fixed-request source workload
+as source-evaluated generation, resolve missing numerical evidence, weaken
+security/disclosure, or authorize silent clear fallback. D3's approved common
+comparison remains unchanged. Implementation, admission, bounded execution,
+source-faithfulness, security, SDK and complete-method qualification remain gates,
+not results supplied by this approval.
+
+## D61. Source-supported numerical derivation and independent review
+
+**Explicitly approved on 27 October 2026 (user67562–user67563):** Astra derives
+and reviews source-supported numerical parameters for **BumbleBee, Maverick,
+NEXUS, THOR and CacheMir**; Sol implements and tests the reviewed contracts,
+subject to fresh execution grants and unchanged admission limits.
+
+**Return to the user** for missing source tolerances, novel approximations,
+relaxed acceptance or changed trust/disclosure. Do not invent defaults or silently
+repair an unresolved source contract. Preserve selected profiles, original source
+identities, historical measurements and independent numerical/security checks.
+This assigns derivation/review and implementation work; it does not supply missing
+source evidence, adopt arbitrary parameters or establish passing tests, quality,
+security, source fidelity or completed methods.
+
+## D62. Reusable method layers over qualified native Rust cryptography
+
+**Explicitly approved on 27 October 2026 (user67562–user67563):** build reusable
+method layers over **qualified general-purpose native Rust cryptographic
+primitives**, including refresh, conversion, encrypted selection and custody.
+Audit and extend shared primitives, ownership, scheduling, transport and admission
+rather than creating parallel paper-specific implementations.
+
+Method mappings require **independent capability, security and numerical review
+before adoption**. Poulpy qualification is not a method implementation or method
+qualification; research implementations remain reference-only. No backend pin or
+backend adoption is implicit. Missing capability/security/source evidence keeps
+the mapping held; no weaker protocol or silent clear substitute is authorized.
+Existing backend, sampling, custody, numerical and resource gates remain; this
+approval supplies no encrypted-execution or completed-method evidence.
+
+## D63. Conditional SIGMA exact-share to common-mask consuming contract
+
+**Explicitly approved on 27 October 2026 (user67562–user67563):** first specify
+SIGMA's **exact-share → common-mask consuming contract**, then obtain independent
+protocol/security review, then conditionally implement and run bounded tests only
+after that review and fresh grants/admission. Reuse shared consuming ownership
+contracts and preserve the exact arithmetic, source bindings and role custody.
+
+Charge every opening, fresh randomness/material owner, custody transition and
+cleanup, including retained owners through failure/cancellation retirement under
+unchanged caps. No implicit reconstruction, material/share reuse, privacy
+weakening or unreviewed activation is authorized. Contract approval is neither
+joint-transcript/security qualification nor compiler/SDK/decoder activation;
+unresolved security or source-faithfulness gates must refuse, not fall back clear.
+
+## D64. Fully costed FuseFSS prefix support for actual request envelopes
+
+**Explicitly approved on 27 October 2026 (user67562–user67563):** pursue fully
+costed FuseFSS prefix support for the **actual 30-token corrected prompt plus
+feedback** and the **configured request envelope**. A 32-input/2-output request
+may require **33 prefix positions** (`I + O - 1`); do not blindly cap at 31 based
+on the smaller 30-token example. Derive actual phase lengths from the admitted
+configuration, not a hard-coded example.
+
+Preserve approved arithmetic, security, source-faithfulness, private feedback,
+fresh material and all global/tighter caps. Complete cost admission and independent
+review precede activation/execution; include full-prefix protected work, source
+and material owners, tape, transport and cleanup. This does **not bypass the
+signed-SiLU construction gate**, authorize silent clear fallback or prove fit.
+D58's separately labelled cohort and historical measurements retain their scope.
+Approval establishes neither implemented prefix support, admitted cached-checkpoint
+execution nor SDK, security, quality or complete-method qualification.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1583,6 +1684,12 @@ historical cohorts; no execution or paper-completion claim follows.
 | D56 | Approved: bounded NEXUS dual-key clear algebra source authoring | Caller-buffered exact-ring Appendix B add/remove-key and projection identity with explicit noise polynomials, shared ring/compression and independent clear oracles; review before execution, no sampling/encrypted backend/trained/security authority or increased limits. |
 | D57 | Approved: bounded THOR rectangular PC-MM source authoring | Clear Algorithm 1, shared Layout/packing/order/padding/D25 routing, stable square API and independent 4→8→4 tests within existing ceilings; no runtime/HE/trained execution, profile or backend adoption, FFN expansion or cap increase. |
 | D58 | Approved: separately labelled small FuseFSS source-cohort planning/authoring | Pinned cached SmolLM2-135M-Instruct, explicit request/template/BOS/generation freeze and weights-free count tests; actual count unknown, sequence and row/output bounds ≤16, unchanged native/tape caps. Count command needs separate exact grant; no Qwen replacement, checkpoint authentication, body/native/RNG/tape/trained/HE execution or backend adoption. |
+| D59 | Approved: Parent-issued fresh bounded campaign grants | Compiler/build/test/wheel/local SDK/gateway and admitted cached requests ≤32 input/2 output; one native job globally, monitored automatic-stop 8 GiB aggregate process-tree RSS, 16 GiB reserve, stop on swap growth, 15 min/command, 2 h/campaign, 20 GiB temporary disk. Sampling is not hard containment; tighter caps, preflight and fresh grants required, no retroactive qualification or paid infrastructure/download/deploy/publication approval. |
+| D60 | Approved: separately labelled Maverick/NEXUS/THOR Qwen decoder/generation extensions | Derived numerical/protected/state contracts need independent review before implementation; original model/source identity and validation remain distinct. No source-evaluated-generation, security, SDK or complete-method claim. |
+| D61 | Approved: Astra source-supported numerical derivation/review, Sol implementation/tests | BumbleBee/Maverick/NEXUS/THOR/CacheMir; missing source tolerances, novel approximation, relaxed acceptance or changed trust/disclosure return to user, never invented defaults. Fresh execution grants and independent qualification still required. |
+| D62 | Approved: reusable method layers over qualified general-purpose native Rust crypto | Refresh/conversion/encrypted selection/custody; independent capability/security/numerical review before method mapping. Poulpy qualification is not a method; research implementations reference-only, no implicit backend pin/adoption. |
+| D63 | Approved conditionally: SIGMA exact-share to common-mask consuming contract | Contract first, independent protocol/security review next, conditional implementation/bounded tests after gates and fresh grants; charge openings/randomness/custody/cleanup. No implicit reconstruction, reuse, privacy weakening or unreviewed activation. |
+| D64 | Approved: fully costed FuseFSS actual/configured prefix support | Actual 30-token prompt plus feedback and configured ≤32+2 envelope, potentially 33 prefix positions, not blind cap31. Preserve arithmetic/security/global caps; complete admission and independent review, no signed-SiLU construction-gate bypass or fit/execution claim. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still
