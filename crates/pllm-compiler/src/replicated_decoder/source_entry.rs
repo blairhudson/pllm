@@ -376,6 +376,10 @@ fn server_controller_bytes() -> usize {
         )
         + size_of::<u128>()
         + size_of::<Option<u64>>()
+        + 3 * size_of::<original_source::SourceAdmission>()
+        + 3 * size_of::<original_source::PrivatePreparedConfiguration>()
+        + 3 * size_of::<OriginalSourcePlan>()
+        + 3 * size_of::<Result<(OriginalSourcePlan, original_source::Limits, super::sdk::SourceStorage), Error>>()
         + size_of::<
             Result<
                 (
@@ -459,6 +463,29 @@ fn import_json_owner(
     .map_err(|_| Error::Binding)?
     .construct()
     .map_err(|_| Error::Binding)
+}
+
+/// Staged native unit, deliberately NOT wired into ingress. Caller has one
+/// admission from before C9 config import, never a loaded-config adoption path.
+/// Server/manifest authentication remains the existing independent obligation.
+/// Not a replacement for ordinary-serde SDK/Python configuration acceptance;
+/// C9 numeric/duplicate faithfulness and that full domain remain unestablished.
+pub(in crate::replicated_decoder) fn configure_bootstrap(
+    admission: original_source::SourceAdmission,
+    prepared: original_source::PrivatePreparedConfiguration,
+    server: &OwnedCharged<json::ImportedValue>,
+    manifest: Option<&OwnedCharged<json::ImportedValue>>,
+    mut working: OwnedExternalCharge,
+) -> Result<(OriginalSourcePlan, original_source::Limits, super::sdk::SourceStorage), Error> {
+    admission.check_prepared(&prepared).map_err(|_| Error::Binding)?;
+    if !working.is_for(prepared.configuration().budget())
+        || working.payload_bytes() < server_controller_bytes()
+    { return Err(Error::Bounds); }
+    let (limits, storage) = super::source_policy::bootstrap_choice(server, &prepared, manifest, prepared.workload())?;
+    let bytes = prepared.bootstrap_bytes(limits).map_err(|_| Error::Bounds)?;
+    working.resize_payload(working.payload_bytes().max(bytes)).map_err(|_| Error::Bounds)?;
+    let original = admission.configure(prepared, working, limits).map_err(|_| Error::Bounds)?;
+    Ok((original, limits, storage))
 }
 #[cfg(test)]
 thread_local! {

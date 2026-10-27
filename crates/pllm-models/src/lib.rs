@@ -676,6 +676,91 @@ pub mod owned_backing {
             pub completed_passes: usize,
         }
 
+        /// Actual structural totals, not admission or source authority. Only a
+        /// successful Census pass constructs this data; callers cannot adopt it
+        /// into an original source owner. No Copy, Clone or Default is provided.
+        ///
+        /// The public type supports moves and borrowed queries:
+        ///
+        /// ```no_run
+        /// use pllm_models::owned_backing::bounded::Header;
+        /// fn assert_copy<T: Copy>() {}
+        /// fn assert_clone<T: Clone>() {}
+        /// assert_copy::<usize>();
+        /// assert_clone::<usize>();
+        /// fn move_header(h: Header) -> Header { h }
+        /// fn borrow_header(h: &Header) -> usize { h.json_values() }
+        /// let _ = std::mem::size_of::<Header>();
+        /// ```
+        ///
+        /// Header is not Copy:
+        ///
+        /// ```compile_fail
+        /// use pllm_models::owned_backing::bounded::Header;
+        /// fn assert_copy<T: Copy>() {}
+        /// assert_copy::<Header>();
+        /// ```
+        ///
+        /// Header is not Clone:
+        ///
+        /// ```compile_fail
+        /// use pllm_models::owned_backing::bounded::Header;
+        /// fn assert_clone<T: Clone>() {}
+        /// assert_clone::<Header>();
+        /// ```
+        ///
+        /// All fields remain private, including in a complete external literal:
+        ///
+        /// ```compile_fail
+        /// use pllm_models::owned_backing::bounded::Header;
+        /// let _ = Header {
+        ///     graphs: 0,
+        ///     methods: 0,
+        ///     states: 0,
+        ///     operations: 0,
+        ///     input_refs: 0,
+        ///     dimensions: 0,
+        ///     containers: 0,
+        ///     entries: 0,
+        ///     text_bytes: 0,
+        ///     key_bytes: 0,
+        ///     json_values: 0,
+        /// };
+        /// ```
+        #[derive(Debug)]
+        pub struct Header {
+            graphs: usize,
+            methods: usize,
+            states: usize,
+            operations: usize,
+            input_refs: usize,
+            dimensions: usize,
+            containers: usize,
+            entries: usize,
+            text_bytes: usize,
+            key_bytes: usize,
+            json_values: usize,
+        }
+
+        impl Header {
+            pub fn graphs(&self) -> usize { self.graphs }
+            pub fn methods(&self) -> usize { self.methods }
+            pub fn states(&self) -> usize { self.states }
+            pub fn operations(&self) -> usize { self.operations }
+            pub fn input_refs(&self) -> usize { self.input_refs }
+            pub fn dimensions(&self) -> usize { self.dimensions }
+            /// Charged DTO collection headers and JSON arrays/objects. Shape
+            /// vectors contribute dimensions, not another collection event.
+            pub fn containers(&self) -> usize { self.containers }
+            /// JSON array elements/object members; excludes DTO vector elements.
+            pub fn entries(&self) -> usize { self.entries }
+            /// DTO strings/digests and JSON string values, excluding keys.
+            pub fn text_bytes(&self) -> usize { self.text_bytes }
+            pub fn key_bytes(&self) -> usize { self.key_bytes }
+            /// Every Value event, including null/scalars, but never Key events.
+            pub fn json_values(&self) -> usize { self.json_values }
+        }
+
         /// Successful full pass, bound to its original owner. `backing_bytes`
         /// resets per pass; usage/work do NOT. No partial success on errors.
         #[derive(Debug)]
@@ -683,6 +768,7 @@ pub mod owned_backing {
             input: Input<'a>,
             backing_bytes: usize,
             usage: Usage,
+            header: Header,
         }
 
         impl<'a> Report<'a> {
@@ -694,6 +780,12 @@ pub mod owned_backing {
             }
             pub fn usage(&self) -> Usage {
                 self.usage
+            }
+            pub fn header(&self) -> &Header {
+                &self.header
+            }
+            pub fn into_header(self) -> Header {
+                self.header
             }
         }
 
@@ -787,7 +879,7 @@ pub mod owned_backing {
                             size_of::<(&mut Census<'_, '_>, &DecoderGraph, &mut Backing)>(),
                             add(
                                 size_of::<(&mut Census<'_, '_>, &Value, &mut Backing)>(),
-                                size_of::<(&mut Backing, Event<'_>)>(),
+                                size_of::<(&mut Backing, &mut Option<Header>, Event<'_>)>(),
                             )?,
                         )?,
                     )?,
@@ -847,7 +939,10 @@ pub mod owned_backing {
                         )?,
                     )?,
                 )?,
-                completion_bytes: add(size_of::<Report<'_>>(), twice(size_of::<Input<'_>>())?)?,
+                completion_bytes: add(
+                    add(size_of::<Report<'_>>(), twice(size_of::<Input<'_>>())?)?,
+                    header_slots_bytes()?,
+                )?,
                 logical_workspace_bytes: 0,
                 dependency_buffer_bytes: None,
                 compiled_callframe_bytes: None,
@@ -868,6 +963,32 @@ pub mod owned_backing {
             total = add(total, quote.completion_bytes)?;
             quote.logical_workspace_bytes = total;
             Ok(quote)
+        }
+
+        fn header_slots_bytes() -> Result<usize, Error> {
+            // Initializer Header; new's None and run's Some temporaries; take's
+            // replacement None operand and complete Option result. Also price
+            // consuming Report argument/moved Header return, run's extracted
+            // Some pattern/local Header bindings, and Report field operand.
+            let mut bytes = size_of::<Header>();
+            bytes = add(bytes, size_of::<Option<Header>>()
+                .checked_mul(4).ok_or(Error::Overflow)?)?;
+            bytes = add(bytes, size_of::<Report<'_>>())?;
+            bytes = add(bytes, size_of::<Header>())?;
+            bytes = add(bytes, size_of::<Header>())?;
+            bytes = add(bytes, size_of::<Header>())?;
+            bytes = add(bytes, size_of::<Header>())?;
+            // Ten DTO match scrutinee references (plan, methods collection,
+            // method, graph, operations collection, operation, inputs collection,
+            // input, states collection, state), JSON caller reference, take's
+            // &mut Option argument, and charge_event's direct match scrutinee.
+            bytes = add(bytes, size_of::<&mut Option<Header>>()
+                .checked_mul(13).ok_or(Error::Overflow)?)?;
+            // Ten DTO Some bindings plus JSON Some binding. These are distinct
+            // source slots, summed without a register/compiled-frame claim.
+            bytes = add(bytes, size_of::<&mut Header>()
+                .checked_mul(11).ok_or(Error::Overflow)?)?;
+            Ok(bytes)
         }
 
         /// Caller retains the original plan/graphs/values until the workspace
@@ -935,6 +1056,7 @@ pub mod owned_backing {
             limits: Limits,
             usage: Usage,
             input: Option<Input<'a>>,
+            header: Option<Header>,
             json_workspace_bytes: usize,
             failed: bool,
         }
@@ -951,6 +1073,7 @@ pub mod owned_backing {
                     limits,
                     usage: Usage::default(),
                     input: None,
+                    header: None,
                     json_workspace_bytes: quote.json.logical_workspace_bytes,
                     failed: false,
                 })
@@ -996,17 +1119,30 @@ pub mod owned_backing {
                 self.input = Some(input);
                 let mut backing = Backing::new(self.limits.max_backing_bytes);
                 self.step()?;
+                // Exactly one initialization per admitted pass, including reuse.
+                self.header = Some(Header {
+                    graphs: 0, methods: 0, states: 0, operations: 0,
+                    input_refs: 0, dimensions: 0, containers: 0, entries: 0,
+                    text_bytes: 0, key_bytes: 0, json_values: 0,
+                });
                 match input {
                     Input::Value(value) => self.json_body(value, &mut backing)?,
                     Input::Graph(graph) => self.graph_body(graph, &mut backing)?,
                     Input::Plan(plan) => self.plan_body(plan, &mut backing)?,
                 }
                 self.usage.completed_passes = add(self.usage.completed_passes, 1)?;
+                // Complete every fallible counter transition before take. No
+                // replacement zero header and no extra Option adapter/tag read.
+                let header = match self.header.take() {
+                    Some(header) => header,
+                    None => return Err(Error::Poisoned),
+                };
                 self.failed = false;
                 Ok(Report {
                     input,
                     backing_bytes: backing.bytes,
                     usage: self.usage,
+                    header,
                 })
             }
 
@@ -1025,6 +1161,15 @@ pub mod owned_backing {
                     decode,
                     token_feedback: _,
                 } = plan;
+                // Dispatch's existing charged step: tag + four lengths + R/W.
+                match &mut self.header {
+                    Some(header) => {
+                        header.text_bytes = add(header.text_bytes,
+                            add(add(schema_version.len(), model_family.len())?,
+                                add(adapter.len(), config_digest.as_str().len())?)?)?;
+                    }
+                    None => return Err(Error::Poisoned),
+                }
                 backing
                     .add(schema_version.capacity())
                     .map_err(backing_error)?;
@@ -1039,6 +1184,10 @@ pub mod owned_backing {
                     .array::<AppliedMethod>(transformations.capacity())
                     .map_err(backing_error)?;
                 self.step()?;
+                match &mut self.header {
+                    Some(header) => header.containers = add(header.containers, 1)?,
+                    None => return Err(Error::Poisoned),
+                }
                 for method in transformations {
                     self.step()?;
                     let AppliedMethod {
@@ -1048,6 +1197,17 @@ pub mod owned_backing {
                         input_digest,
                         configuration_digest,
                     } = method;
+                    // tag + five lengths + two counter reads/two writes = 10.
+                    match &mut self.header {
+                        Some(header) => {
+                            header.methods = add(header.methods, 1)?;
+                            header.text_bytes = add(header.text_bytes,
+                                add(add(component.len(), implementation.len())?,
+                                    add(method_id.len(), add(input_digest.as_str().len(),
+                                        configuration_digest.as_str().len())?)?)?)?;
+                        }
+                        None => return Err(Error::Poisoned),
+                    }
                     backing.add(component.capacity()).map_err(backing_error)?;
                     backing
                         .add(implementation.capacity())
@@ -1080,11 +1240,22 @@ pub mod owned_backing {
                     output,
                 } = graph;
                 self.step()?;
+                match &mut self.header {
+                    Some(header) => {
+                        header.graphs = add(header.graphs, 1)?;
+                        header.text_bytes = add(header.text_bytes, output.len())?;
+                    }
+                    None => return Err(Error::Poisoned),
+                }
                 backing.add(output.capacity()).map_err(backing_error)?;
                 backing
                     .array::<ModelOperation>(operations.capacity())
                     .map_err(backing_error)?;
                 self.step()?;
+                match &mut self.header {
+                    Some(header) => header.containers = add(header.containers, 1)?,
+                    None => return Err(Error::Poisoned),
+                }
                 for operation in operations {
                     self.step()?;
                     let ModelOperation {
@@ -1096,13 +1267,32 @@ pub mod owned_backing {
                         output_shape,
                         attributes,
                     } = operation;
+                    match &mut self.header {
+                        Some(header) => {
+                            header.operations = add(header.operations, 1)?;
+                            header.text_bytes = add(header.text_bytes, id.len())?;
+                            header.dimensions = add(header.dimensions, output_shape.len())?;
+                        }
+                        None => return Err(Error::Poisoned),
+                    }
                     backing.add(id.capacity()).map_err(backing_error)?;
                     backing
                         .array::<String>(inputs.capacity())
                         .map_err(backing_error)?;
                     self.step()?;
+                    match &mut self.header {
+                        Some(header) => header.containers = add(header.containers, 1)?,
+                        None => return Err(Error::Poisoned),
+                    }
                     for input in inputs {
                         self.step()?;
+                        match &mut self.header {
+                            Some(header) => {
+                                header.input_refs = add(header.input_refs, 1)?;
+                                header.text_bytes = add(header.text_bytes, input.len())?;
+                            }
+                            None => return Err(Error::Poisoned),
+                        }
                         backing.add(input.capacity()).map_err(backing_error)?;
                     }
                     backing
@@ -1112,6 +1302,10 @@ pub mod owned_backing {
                 }
                 for states in [state_inputs, state_outputs] {
                     self.step()?;
+                    match &mut self.header {
+                        Some(header) => header.containers = add(header.containers, 1)?,
+                        None => return Err(Error::Poisoned),
+                    }
                     backing
                         .array::<StateTensor>(states.capacity())
                         .map_err(backing_error)?;
@@ -1124,6 +1318,14 @@ pub mod owned_backing {
                             shape,
                             maximum_sequence: _,
                         } = state;
+                        match &mut self.header {
+                            Some(header) => {
+                                header.states = add(header.states, 1)?;
+                                header.text_bytes = add(header.text_bytes, id.len())?;
+                                header.dimensions = add(header.dimensions, shape.len())?;
+                            }
+                            None => return Err(Error::Poisoned),
+                        }
                         backing.add(id.capacity()).map_err(backing_error)?;
                         backing
                             .array::<u64>(shape.capacity())
@@ -1158,10 +1360,11 @@ pub mod owned_backing {
                 };
                 let mut walk =
                     Traversal::new_native(value, &mut *self.frames, limits).map_err(json_error)?;
+                let header = &mut self.header;
                 let outcome = loop {
                     match walk.next_event() {
                         Ok(Some(event)) => {
-                            if let Err(error) = charge_event(backing, event) {
+                            if let Err(error) = charge_event(backing, header, event) {
                                 break Err(error);
                             }
                         }
@@ -1183,29 +1386,54 @@ pub mod owned_backing {
             }
         }
 
-        fn charge_event(backing: &mut Backing, event: Event<'_>) -> Result<(), Error> {
-            match event {
-                Event::Key { key, .. } => backing.add(key.capacity()).map_err(backing_error),
-                Event::Value { value, .. } => match value {
-                    Value::String(text) => backing.add(text.capacity()).map_err(backing_error),
-                    Value::Array(values) => backing
-                        .array::<Value>(values.capacity())
-                        .map_err(backing_error),
-                    Value::Object(values) => {
-                        let bytes = values
-                            .len()
-                            .max(1)
-                            .checked_mul(
-                                super::checked_tree_node_bytes::<(String, Value)>()
-                                    .map_err(backing_error)?,
-                            )
-                            .ok_or(Error::Backing(super::Error::Overflow))?;
-                        backing.add(bytes).map_err(backing_error)
+        fn charge_event(
+            backing: &mut Backing,
+            header: &mut Option<Header>,
+            event: Event<'_>,
+        ) -> Result<(), Error> {
+            // One direct Option tag read per event, no accessor/adaptor scan.
+            match header {
+                Some(header) => match event {
+                    Event::Key { key, .. } => {
+                        header.key_bytes = add(header.key_bytes, key.len())?;
+                        backing.add(key.capacity()).map_err(backing_error)
                     }
-                    Value::Null | Value::Bool(_) | Value::Number(_) => Ok(()),
+                    Event::Value { value, .. } => {
+                        header.json_values = add(header.json_values, 1)?;
+                        match value {
+                            Value::String(text) => {
+                                header.text_bytes = add(header.text_bytes, text.len())?;
+                                backing.add(text.capacity()).map_err(backing_error)
+                            }
+                            Value::Array(values) => {
+                                header.containers = add(header.containers, 1)?;
+                                header.entries = add(header.entries, values.len())?;
+                                backing.array::<Value>(values.capacity()).map_err(backing_error)
+                            }
+                            Value::Object(values) => {
+                                header.containers = add(header.containers, 1)?;
+                                header.entries = add(header.entries, values.len())?;
+                                let bytes = values
+                                    .len()
+                                    .max(1)
+                                    .checked_mul(
+                                        super::checked_tree_node_bytes::<(String, Value)>()
+                                            .map_err(backing_error)?,
+                                    )
+                                    .ok_or(Error::Backing(super::Error::Overflow))?;
+                                backing.add(bytes).map_err(backing_error)
+                            }
+                            Value::Null | Value::Bool(_) | Value::Number(_) => Ok(()),
+                        }
+                    }
                 },
+                None => Err(Error::Poisoned),
             }
         }
+
+        #[cfg(test)]
+        #[path = "constructor_header_tests.rs"]
+        mod constructor_header_tests;
     }
 
     #[cfg(test)]

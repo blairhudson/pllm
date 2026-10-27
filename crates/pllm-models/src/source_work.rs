@@ -55,6 +55,8 @@ pub struct SourceWorkSlices {
     pub requote: u64,
     pub factory: u64,
     pub cleanup: u64,
+    /// Raw census C plus prepaid structural-header work 10*C + 16. The
+    /// post-census cursor still receives precisely the original raw C cap.
     pub census: u64,
 }
 
@@ -156,6 +158,14 @@ fn add(a: u64, b: u64) -> Result<u64, SourceWorkError> {
 }
 fn mul(a: u64, b: u64) -> Result<u64, SourceWorkError> {
     a.checked_mul(b).ok_or(SourceWorkError::Overflow)
+}
+fn header_work(census_work: u64) -> Result<u64, SourceWorkError> {
+    // Per admitted pass: <=10 structural reads/writes per old charged step,
+    // plus None/init/Some/take/extraction/retirement's fixed 16 accesses.
+    add(mul(10, census_work)?, 16)
+}
+fn census_work_with_header(census_work: u64) -> Result<u64, SourceWorkError> {
+    add(census_work, header_work(census_work)?)
 }
 fn sum(values: &[u64]) -> Result<u64, SourceWorkError> {
     values.iter().try_fold(0, |a, &b| add(a, b))
@@ -393,7 +403,7 @@ pub fn quote<'a>(
         requote: resources.requote_work,
         factory,
         cleanup,
-        census: census_work,
+        census: census_work_with_header(census_work)?,
     };
     let total = slices.total_work()?;
     if total > input_limits.max_total_work {

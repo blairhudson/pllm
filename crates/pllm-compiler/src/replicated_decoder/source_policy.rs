@@ -8,11 +8,11 @@ use crate::{original_source, plan_input::json};
 use pllm_garble::shared_allocation::{OwnedCharged, MAX_ALLOCATION_BYTES};
 use pllm_models::{ConfigLowererLimits, DecoderExpansionBudget, DecoderWorkload};
 
-pub(super) const CONFIG_BYTES: usize = 16 << 10;
+pub(super) const CONFIG_BYTES: usize = original_source::BOOTSTRAP_CONFIG_BYTES;
 pub(super) const PUBLIC_ELEMENTS: u64 = 1 << 29;
 pub(super) const ORDINARY_LANES: usize = 1 << 20;
 pub(super) const DESCRIPTORS: usize = 65536;
-pub(super) const SOURCE_WORK: u64 = 1_000_000_000_000;
+pub(super) const SOURCE_WORK: u64 = original_source::BOOTSTRAP_SOURCE_WORK;
 
 /// Borrowed permission tied to the exact SERVER config owner, not its digest.
 /// No Clone/Deserialize or constructor accepting a client policy/Manifest.
@@ -259,6 +259,32 @@ pub(super) fn admitted_choice(
     manifest: Option<&OwnedCharged<json::ImportedValue>>,
     workload: DecoderWorkload,
 ) -> Result<(original_source::Limits, super::sdk::SourceStorage), Error> {
+    let visits = policy_work(server, config, manifest, workload)?;
+    let remaining = SOURCE_WORK.checked_sub(visits).ok_or(Error::Bounds)?;
+    choice_at_limit(server, config, manifest, workload, remaining)
+}
+
+/// Native bootstrap pays the SAME policy fee on its existing original ledger.
+/// C9 config work was conservatively prepaid before parsing; no second reported
+/// JSON debit and no synthetic reduced/new ledger is used here.
+pub(super) fn bootstrap_choice(
+    server: &OwnedCharged<json::ImportedValue>,
+    prepared: &original_source::PrivatePreparedConfiguration,
+    manifest: Option<&OwnedCharged<json::ImportedValue>>,
+    workload: DecoderWorkload,
+) -> Result<(original_source::Limits, super::sdk::SourceStorage), Error> {
+    let config = prepared.configuration();
+    let visits = policy_work(server, config, manifest, workload)?;
+    prepared.prepay_policy(visits).map_err(|_| Error::Bounds)?;
+    choice_at_limit(server, config, manifest, workload, SOURCE_WORK)
+}
+
+fn policy_work(
+    server: &OwnedCharged<json::ImportedValue>,
+    config: &OwnedCharged<json::ImportedValue>,
+    manifest: Option<&OwnedCharged<json::ImportedValue>>,
+    workload: DecoderWorkload,
+) -> Result<u64, Error> {
     if !std::ptr::eq(server.budget(), config.budget()) {
         return Err(Error::Binding);
     }
@@ -271,14 +297,6 @@ pub(super) fn admitted_choice(
         Some(m) => {
             if !std::ptr::eq(m.budget(), config.budget()) {
                 return Err(Error::Binding);
-            }
-            if m.payload().value()["tensors"]
-                .as_object()
-                .ok_or(Error::Binding)?
-                .len()
-                > DESCRIPTORS
-            {
-                return Err(Error::Bounds);
             }
             m.payload().resources().work.total
         }
@@ -298,6 +316,21 @@ pub(super) fn admitted_choice(
     // Prepay BEFORE the shared scalar summary. Its permission stays reduced for
     // the first factory and all subsequent source-root epochs, no credit/reset.
     let remaining = prepay_summaries(prior, workload.max_new_tokens)?;
+    SOURCE_WORK.checked_sub(remaining).ok_or(Error::Bounds)
+}
+
+fn choice_at_limit(
+    server: &OwnedCharged<json::ImportedValue>,
+    config: &OwnedCharged<json::ImportedValue>,
+    manifest: Option<&OwnedCharged<json::ImportedValue>>,
+    workload: DecoderWorkload,
+    remaining: u64,
+) -> Result<(original_source::Limits, super::sdk::SourceStorage), Error> {
+    if let Some(m) = manifest {
+        if m.payload().value()["tensors"].as_object().ok_or(Error::Binding)?.len() > DESCRIPTORS {
+            return Err(Error::Bounds);
+        }
+    }
     let policy = ServerSourcePolicy::from_server_json(
         server,
         config,

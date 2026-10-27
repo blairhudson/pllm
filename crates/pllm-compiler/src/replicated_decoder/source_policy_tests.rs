@@ -70,6 +70,50 @@ fn import(root: &OwnedBudget, raw: Vec<u8>) -> OwnedCharged<json::ImportedValue>
 }
 
 #[test]
+fn native_bootstrap_policy_fee_matches_legacy_without_json_recharge_or_ledger_reset() {
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let baseline = root.budget().used_bytes();
+    let config_bytes = raw();
+    let server = import(&root, server_raw());
+    let mut admission = original_source::SourceAdmission::new(
+        root.charge_external(original_source::SourceAdmission::root_control_bytes().unwrap()).unwrap(), workload(),
+    ).unwrap();
+    let phase = admission.reserve_bootstrap_phase(
+        root.charge_external(original_source::OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 23,
+    ).unwrap();
+    let original = root.charge_external(config_bytes.len()).unwrap()
+        .try_build(|_| Ok(config_bytes)).unwrap();
+    let prepared = phase.prepare_configuration(original,
+        root.charge_external(json::bootstrap_bytes().unwrap()).unwrap()).unwrap();
+    let config = prepared.configuration();
+    let fee = policy_work(&server, config, None, workload()).unwrap();
+    let (legacy_limits, legacy_storage) = admitted_choice(&server, config, None, workload()).unwrap();
+    assert_eq!(legacy_limits.max_work, SOURCE_WORK - fee);
+    let bytes = original_source::bootstrap_bytes(config, legacy_limits).unwrap();
+    let source = super::super::program::source_entry::configure_bootstrap(
+        admission, prepared, &server, None,
+        root.charge_external(bytes).unwrap(),
+    ).unwrap();
+    let (source, native_limits, native_storage) = source;
+    assert_eq!(native_limits.max_work, SOURCE_WORK);
+    assert_eq!(native_storage, legacy_storage);
+    let preconfig = 24 + u64::try_from(original_source::bootstrap_json_limits().max_work).unwrap() + fee;
+    // Legacy native factory/quote fee excludes the already separately accounted
+    // C9 import; new route carries its conservative C9 maximum plus phase fee.
+    let imported = import(&root, raw());
+    let reported_json = u64::try_from(imported.payload().resources().work.total).unwrap();
+    let bytes = original_source::bootstrap_bytes(&imported, native_limits).unwrap();
+    let quoted = original_source::quote(imported, root.charge_external(bytes).unwrap(), workload(), native_limits).unwrap();
+    let model_work = quoted.resources().prepaid_work - reported_json;
+    assert_eq!(source.resources().prepaid_work, preconfig + model_work);
+    drop(quoted);
+    drop(source);
+    drop(server);
+    // Native bootstrap controls retire, not the live OwnedBudget's own charge.
+    assert_eq!(root.budget().used_bytes(), baseline);
+}
+
+#[test]
 fn checked_public_permissions_come_from_exact_server_owner_not_client_caps() {
     let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
     let config = import(&root, raw());

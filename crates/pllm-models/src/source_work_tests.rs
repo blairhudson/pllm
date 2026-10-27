@@ -146,6 +146,7 @@ fn registered_factories_match_original_byte_lowerers_and_independent_census() {
                     .unwrap()
             );
             assert!(report.usage().work as u64 <= work.census_work());
+            assert!(report.usage().work <= work.post_census_limits().max_work);
             // Independent DTO/node oracle, not the quote's own phase fields.
             let nodes: usize = [&plan.prefill, &plan.decode]
                 .into_iter()
@@ -415,6 +416,59 @@ fn actual_spare_backing_and_utf8_are_not_zero_or_caller_baselines() {
         work.resources().bootstrap_bytes >= work.post_census_resources().logical_workspace_bytes
     );
     assert!(captured.construct().is_ok());
+}
+
+#[test]
+fn structural_header_prepays_delta_without_raising_raw_census_cap() {
+    let source = document("llama", 1);
+    let attempts = crate::source_budget::factory_attempts();
+    let (captured, work) = quoted(&source, lowerer(), limits());
+    let metadata = captured.metadata();
+    let operations = 2 * metadata.operations_per_phase as u64;
+    let states = 3 * metadata.states_per_phase as u64;
+    let attributes = metadata.attribute_nodes as u64;
+    // Historical raw formula is unchanged; only prepaid external work grows.
+    let raw = 10 + 5 * operations + states + 5 * attributes
+        + 2 * operations + 32 * attributes;
+    assert_eq!(work.post_census_limits().max_work as u64, raw);
+    assert_eq!(work.slices().census, raw + 10 * raw + 16);
+    let slices = work.slices();
+    let prior_formula = slices.quote + slices.requote + slices.factory
+        + slices.cleanup + raw;
+    assert_eq!(work.total_work(), prior_formula + 10 * raw + 16);
+    let mut exact = limits();
+    exact.max_total_work = work.total_work();
+    let (_, accepted) = quoted(&source, lowerer(), exact);
+    assert_eq!(accepted.post_census_limits().max_work as u64, raw);
+    let mut short = exact;
+    short.max_total_work -= 1;
+    let mut frames = [const { NativeFrame::empty() }; 17];
+    assert!(matches!(quote(&source, workload(), expansion(), lowerer(), short,
+        &mut frames), Err(SourceWorkError::WorkLimit)));
+    assert_eq!(crate::source_budget::factory_attempts(), attempts);
+    // Each separately admitted pass pays its own fixed prefix, not one/session.
+    assert_eq!(2 * work.slices().census, 22 * raw + 32);
+}
+
+#[test]
+fn header_delta_and_full_augmented_slice_overflow_before_any_factory() {
+    let attempts = crate::source_budget::factory_attempts();
+    assert!(matches!(header_work(u64::MAX / 10 + 1), Err(SourceWorkError::Overflow)));
+    assert!(matches!(header_work(u64::MAX / 10), Err(SourceWorkError::Overflow)));
+    let raw = (u64::MAX - 16) / 10;
+    assert!(header_work(raw).is_ok());
+    assert!(matches!(census_work_with_header(raw), Err(SourceWorkError::Overflow)));
+    let slices = SourceWorkSlices {
+        quote: u64::MAX - 16,
+        requote: 0,
+        factory: 0,
+        cleanup: 0,
+        census: census_work_with_header(0).unwrap(),
+    };
+    assert_eq!(slices.total_work().unwrap(), u64::MAX);
+    assert!(matches!(SourceWorkSlices { requote: 1, ..slices }.total_work(),
+        Err(SourceWorkError::Overflow)));
+    assert_eq!(crate::source_budget::factory_attempts(), attempts);
 }
 
 #[test]
