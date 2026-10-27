@@ -24,25 +24,66 @@ from .dashboard import _sampling_choice, _validate_request_temperature, client_b
 from .http_gateway import resource_dict
 
 
+def _diagnostic_client(client, lease=None):
+    """Resolve afresh, without consulting a pending facade's private attrs."""
+    return client if lease is None else lease._diagnostic_client()
+
+
+def _body_diagnostics(client, model_id, lease=None):
+    if client is None:
+        return None, None
+    core = client._core
+    state_lock = getattr(core, "_transformer_state_lock", None)
+    if state_lock is None or getattr(core, "_closed", False):
+        return None, None
+    with state_lock:
+        state = core._transformer_states.get(model_id)
+        fingerprint = state.bundle.privacy.get("body_fingerprint") if state is not None else None
+    # Shared sampler takes its own state/bundle locks. Missing protected-client
+    # body state stays unknown, not a fabricated empty body or zero allocation.
+    placement = client_body_placement_snapshot(client, model_id)
+    if (getattr(core, "_closed", False)
+            or (lease is not None and lease._diagnostic_client() is not client)):
+        return None, None
+    if placement is not None:
+        placement["sample_boundary"] = "after-bounded-response-before-client-disposal"
+    return fingerprint, placement
+
+
 def _worker_metrics(client, lease=None):
     """Authenticated existing worker CPU endpoint; values are process-wide samples."""
+    if client is None:
+        return {}
     import httpx
 
     values = {}
-    connections = {role: (http, key, "/v1/offset-reference/metrics")
-                   for role, (http, key) in client._core._offset_workers.items()}
+    core = client._core
+    if getattr(core, "_closed", False):
+        return {}
+    # Existing worker maps have no source/body side effects. Copy endpoints
+    # before network calls; they may close concurrently and then yield unknown.
+    connections = {role: (http, key, "/v1/offset-reference/metrics", False)
+                   for role, (http, key) in dict(getattr(core, "_offset_workers", {})).items()}
     if lease is not None:
-        for role, (root, key) in getattr(lease._topology, "_connections", {}).items():
+        with lease._lock:
+            if lease._closed or lease._state != "active" or lease._client is not client:
+                return {}
+            endpoints = dict(getattr(lease._topology, "_connections", {}))
+        for role, (root, key) in endpoints.items():
             if role in {"inference", "preparation"}:
-                connections[role] = (httpx.Client(base_url=root, timeout=5), key, "/v1/party/metrics")
-    for role, (http, key, path) in connections.items():
+                connections[role] = (httpx.Client(base_url=root, timeout=5), key, "/v1/party/metrics", True)
+    for role, (http, key, path, owned) in connections.items():
         try:
             value = http.get(path, headers={"authorization": f"Bearer {key}"}).raise_for_status().json()
             values[role] = {name: value.get(name) for name in ("cpu_ns", "peak_rss_bytes")}
         except (httpx.HTTPError, ValueError):
             values[role] = {"cpu_ns": None, "peak_rss_bytes": None}
+        except RuntimeError:
+            if not getattr(http, "is_closed", False):
+                raise
+            values[role] = {"cpu_ns": None, "peak_rss_bytes": None}
         finally:
-            if role in {"inference", "preparation"}:
+            if owned:
                 http.close()
     return values
 
@@ -142,7 +183,8 @@ def _attempt(result, network, *, credentials, prompt, cap, temperature, timeout,
     with open_execution(result, network=network, credentials=credentials,
                         ttl_seconds=min(300, max(5, int(timeout)))) as lease:
         with OpenAI(execution=lease) as client:
-            worker_before = _worker_metrics(client, lease)
+            before_client = _diagnostic_client(client, lease)
+            worker_before = _worker_metrics(before_client, lease)
             online = time.monotonic()
             source = client.responses.create(input=prompt, max_output_tokens=cap, stream=True,
                                              **({"temperature": temperature} if temperature is not None else {}))
@@ -160,13 +202,12 @@ def _attempt(result, network, *, credentials, prompt, cap, temperature, timeout,
             finally:
                 source.close()
             audit = client.privacy_audit.to_dict()
-            worker_after = _worker_metrics(client, lease)
-            # Exact locked body fingerprint, not a prompt/output fingerprint.
-            state = client._core._transformer_states.get(result.experiment.resolve().model)
-            fingerprint = state.bundle.privacy.get("body_fingerprint") if state is not None else None
-            body_placement = client_body_placement_snapshot(client, result.experiment.resolve().model)
-            if body_placement is not None:
-                body_placement["sample_boundary"] = "after-bounded-response-before-client-disposal"
+            after_client = _diagnostic_client(client, lease)
+            worker_after = _worker_metrics(after_client, lease)
+            # Resolve again AFTER activation/response. No pending facade state
+            # is cached or promoted into a body/storage observation.
+            fingerprint, body_placement = _body_diagnostics(
+                after_client, result.experiment.resolve().model, lease)
     end = time.monotonic()
     if terminal is None:
         raise RuntimeError("response stream ended without authoritative usage")

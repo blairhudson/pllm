@@ -195,3 +195,148 @@ def test_local_selected_backend_uses_same_driver_and_gateway(tmp_path, profile_n
             json={"model": "local-selected-tiny", "input": "Hi", "max_output_tokens": 2, "temperature": 0})
         assert response.status_code == 200, response.text
         assert response.json()["usage"]["output_tokens"] == 2
+
+
+def test_pending_unknown_before_activation_and_real_client_after_response(monkeypatch):
+    """Real diagnostic seams/attempt; response and planning metadata are doubles.
+
+    No model, source authentication, provider runtime or numeric result evidence.
+    Existing eager/live tests above are deliberately unchanged.
+    """
+    import threading
+    from types import SimpleNamespace
+    from pllm.deployment.execution import ExecutionLease, _LEASE_KEY
+    from pllm.runtime import network_benchmark as benchmark
+    from pllm.runtime import client as client_module
+    from pllm.search import performance
+
+    sampled = []
+
+    class Endpoint:
+        def get(self, path, **kwargs):
+            sampled.append(path)
+            return SimpleNamespace(raise_for_status=lambda: self,
+                                   json=lambda: {"cpu_ns": 123, "peak_rss_bytes": 456})
+
+        def raise_for_status(self):
+            return self
+
+        def json(self):
+            return {"cpu_ns": 123, "peak_rss_bytes": 456}
+
+    bundle = SimpleNamespace(privacy={"body_fingerprint": "a" * 64}, stages={},
+        _local_lock=threading.Lock(), _local_matrices={}, _body_metal_matrices={})
+    core = SimpleNamespace(_closed=False, _local_engine=None,
+        _transformer_state_lock=threading.Lock(),
+        _transformer_states={"fixture": SimpleNamespace(bundle=bundle)},
+        _offset_workers={"provider": (Endpoint(), "fixture-key")})
+    actual = SimpleNamespace(_core=core)
+    result = SimpleNamespace(experiment=SimpleNamespace(resolve=lambda: SimpleNamespace(model="fixture")),
+        snapshot=None, validate=lambda **kw: None,
+        native_placement={"roles": [{"role_id": "client", "party_id": "c"},
+                                     {"role_id": "provider", "party_id": "p"}]},
+        to_spec=lambda: {"selection": {"costs": {}}})
+    lease = ExecutionLease(result, SimpleNamespace(backend="local"), lambda: 0,
+        SimpleNamespace(close=lambda: None), None, None, _key=_LEASE_KEY,
+        _pending_factory=lambda *a: None)
+
+    class Stream:
+        def __iter__(self):
+            yield {"type": "response.output_text.delta", "delta": "fixture"}
+            yield {"type": "response.completed", "response": {"status": "completed",
+                "usage": {"input_tokens": 6, "output_tokens": 2}}}
+
+        def close(self):
+            pass
+
+    class Facade:
+        @property
+        def _core(self):
+            pytest.fail("diagnostics must not inspect facade private attributes")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        @property
+        def responses(self):
+            def create(**kwargs):
+                assert not sampled and lease._diagnostic_client() is None
+                lease._client = actual
+                lease._state = "active"  # Diagnostic fixture, not an admission proof.
+                return Stream()
+            return SimpleNamespace(create=create)
+
+        @property
+        def privacy_audit(self):
+            return SimpleNamespace(to_dict=lambda: {})
+
+    class Scope:
+        def __enter__(self):
+            return lease
+
+        def __exit__(self, *args):
+            lease._closed = True
+            lease._state = "closed"
+
+    monkeypatch.setattr(benchmark, "open_execution", lambda *a, **kw: Scope())
+    monkeypatch.setattr(client_module, "OpenAI", lambda **kw: Facade())
+    monkeypatch.setattr(performance, "performance_binding", lambda value: {})
+    assert benchmark._diagnostic_client(Facade(), lease) is None
+    assert benchmark._worker_metrics(None, lease) == {} and sampled == []
+    run = benchmark._attempt(result, SimpleNamespace(), credentials=None, prompt="fixture",
+        cap=2, temperature=0, timeout=10, capture_output_digest=False)
+    values = run["network_audit"]["worker_process_samples"]["provider"]
+    assert values == {"before": None, "after": {"cpu_ns": 123, "peak_rss_bytes": 456}}
+    assert json.loads(json.dumps(values))["before"] is None
+    assert run["model_fingerprint"] == "a" * 64
+    assert run["network_audit"]["client_body_placement"]["schema"] == "pllm.client_body_placement.v1"
+    assert sampled == ["/v1/offset-reference/metrics"]
+    assert lease._diagnostic_client() is None
+
+
+def test_closed_and_protected_no_body_diagnostics_stay_unknown(monkeypatch):
+    import threading
+    from types import SimpleNamespace
+    from pllm.runtime import network_benchmark as benchmark
+
+    protected = SimpleNamespace(_core=SimpleNamespace(_closed=False))
+    assert benchmark._diagnostic_client(protected) is protected
+    assert benchmark._body_diagnostics(protected, "fixture") == (None, None)
+    assert benchmark._worker_metrics(protected) == {}
+    closed = SimpleNamespace(_core=SimpleNamespace(_closed=True,
+        _transformer_state_lock=threading.Lock(), _transformer_states={}))
+    monkeypatch.setattr(benchmark, "client_body_placement_snapshot",
+                        lambda *a: pytest.fail("closed client must not reach body sampler"))
+    assert benchmark._body_diagnostics(closed, "fixture") == (None, None)
+    assert benchmark._worker_metrics(closed) == {}
+
+
+def test_diagnostic_close_race_discards_body_and_reports_unknown_worker(monkeypatch):
+    import threading
+    from types import SimpleNamespace
+    from pllm.runtime import network_benchmark as benchmark
+
+    class ClosingEndpoint:
+        is_closed = False
+
+        def get(self, *args, **kwargs):
+            self.is_closed = True
+            raise RuntimeError("Cannot send a request, as the client has been closed.")
+
+    core = SimpleNamespace(_closed=False, _offset_workers={"provider": (ClosingEndpoint(), "fixture")},
+        _transformer_state_lock=threading.Lock(),
+        _transformer_states={"fixture": SimpleNamespace(bundle=SimpleNamespace(
+            privacy={"body_fingerprint": "a" * 64}))})
+    client = SimpleNamespace(_core=core)
+    assert benchmark._worker_metrics(client) == {"provider": {"cpu_ns": None, "peak_rss_bytes": None}}
+
+    def close_during_snapshot(actual, model):
+        assert actual is client and model == "fixture"
+        core._closed = True
+        return {"schema": "pllm.client_body_placement.v1"}
+
+    monkeypatch.setattr(benchmark, "client_body_placement_snapshot", close_during_snapshot)
+    assert benchmark._body_diagnostics(client, "fixture") == (None, None)

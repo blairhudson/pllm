@@ -445,15 +445,8 @@ def _manifest(root, model, raw, identities):
 
 
 def _tokenizer(root, manifest, config, contract):
-    from tokenizers import Tokenizer as HFTokenizer
-
     expanded = _capacity(contract) == "decoder"
     raw = _read_bounded(root / "tokenizer.json", _DECODER_TOKENIZER_BYTES if expanded else _MAX_TOKENIZER_BYTES)
-    document = _json(raw, "tokenizer.json")
-    tokenizer_admission.validate_document(
-        document, vocabulary=contract["vocabulary"],
-        max_entries=contract["vocabulary"] if expanded else 256,
-        error=DelegatedSourceError, label="GKM")
     options = {}
     if (root / "tokenizer_config.json").exists():
         options = _json(_read_bounded(root / "tokenizer_config.json", _MAX_CONFIG_BYTES),
@@ -462,37 +455,12 @@ def _tokenizer(root, manifest, config, contract):
     if (type(context) is not int or context < contract["input_rows"] + contract["decode_steps"]
             or manifest.context_length < contract["input_rows"] + contract["decode_steps"]):
         raise DelegatedSourceError("GKM workload exceeds source/tokenizer context")
-    if type(options.get("add_bos_token", True)) is not bool:
-        raise DelegatedSourceError("GKM add_bos_token must be boolean")
-    if config.get("pllm_test_tokenizer") is not None:
-        raise DelegatedSourceError("GKM requires genuine tokenizer.json source semantics")
-    # Preserve ID zero rather than the ordinary descriptor's historical fallback.
-    bos = config.get("bos_token_id", 2)
-    eos = config.get("eos_token_id", 1)
-    eos_ids = eos if type(eos) is list else [eos]
-    if not eos_ids or any(type(i) is not int or not 0 <= i < contract["vocabulary"]
-                          for i in [bos, *eos_ids]):
-        raise DelegatedSourceError("GKM tokenizer special token IDs are outside the vocabulary")
-    try:
-        inner = HFTokenizer.from_buffer(raw)
-    except Exception as exc:
-        raise DelegatedSourceError("GKM invalid tokenizer.json model") from exc
-    expected_size = tokenizer_admission.validate_vocabulary(
-        inner, vocabulary=contract["vocabulary"], allow_model_padding=expanded,
+    return tokenizer_admission._source_descriptor(raw, config, options,
+        policy=tokenizer_admission._DescriptorPolicy.DELEGATED,
+        vocabulary=contract["vocabulary"],
+        max_entries=contract["vocabulary"] if expanded else 256,
+        allow_model_padding=expanded, manifest_template=manifest.chat_template,
         error=DelegatedSourceError, label="GKM")
-    if any(i >= expected_size for i in [bos, *eos_ids]):
-        raise DelegatedSourceError("GKM special tokens require original tokenizer entries")
-    if inner.truncation is not None:
-        raise DelegatedSourceError("GKM tokenizer must not silently truncate source input")
-    # Same descriptor/wrapper contract as the ordinary client, built entirely
-    # from bounded snapshots instead of re-reading tokenizer files unboundedly.
-    return {
-        "type": "tokenizer_json", "model": raw, "vocab_size": contract["vocabulary"],
-        "bos_token_id": bos, "eos_token_id": eos_ids[0],
-        "chat_template": options.get("chat_template") or manifest.chat_template,
-        "bos_token": options.get("bos_token", ""), "eos_token": options.get("eos_token", ""),
-        "add_bos_token": options.get("add_bos_token", True),
-    }
 
 
 @dataclass(frozen=True, slots=True)

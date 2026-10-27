@@ -13,12 +13,16 @@ class ReplicatedClient(DelegatedClient):
         super().__init__(*args, **kwargs)
         self.audit = _DelegatedAudit(self._lock, self.counter_fields)
 
-    def _ensure_source(self):
+    @classmethod
+    def _resolve_prompt_source(cls, declaration):
         from .replicated_source import admit_source
+        return admit_source(declaration)
+
+    def _ensure_source(self):
         with self._lock:
             self._check_open()
             if not self._source_checked:
-                source = self._source or admit_source(self._declaration)
+                source = self._source or self._resolve_prompt_source(self._declaration)
                 source.runtime_contract(self._declaration, self._experiment_budget.max_input_tokens,
                                         self._experiment_budget.max_new_tokens)
                 self._source, self._source_checked = source, True

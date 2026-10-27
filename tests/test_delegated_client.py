@@ -48,6 +48,7 @@ class Source:
                          "decode_steps": experiment.budget.max_new_tokens - 1, "vocabulary": 8}
         self.config = {"model_type": "qwen2", "num_hidden_layers": 2, "num_attention_heads": 2,
                        "num_key_value_heads": 1, "hidden_size": 4}
+        self.config_source_bytes = json.dumps(self.config).encode()
         self.source_float32_bytes = 128
         self.source = SimpleNamespace(manifest=SimpleNamespace(context_length=128))
         self.tokenizer_descriptor = {"add_bos_token": False}
@@ -95,7 +96,115 @@ def accepted(ids, count):
     logits = tuple(struct.pack("<8f", *range(8)) for _ in selected)
     state = ((position, 1, 2), bytes(position * 8), bytes(position * 8))
     return GkmDecoderResult(logits, (state, state), selected,
-                            ids + selected[:-1], position, b"test-native-finish-receipt")
+                             ids + selected[:-1], position, b"test-native-finish-receipt")
+
+
+def prompt_lease(h):
+    """Ordinary lease with pure topology/result doubles; no planning/native calls."""
+    from pllm.deployment.execution import ExecutionLease, _LEASE_KEY, _LeaseResponses
+
+    result = SimpleNamespace(experiment=h.experiment, snapshot=None, validate=lambda **kw: None)
+    topology = SimpleNamespace(close=lambda: None, cleanup_complete=True)
+    view = SimpleNamespace(tokenizer_descriptor=h.source.tokenizer_descriptor,
+        original_config=h.source.config, manifest={"chat_template": None},
+        tokenizer=h.source.tokenizer, source_lock_digest=h.source.source_lock_digest)
+    lease = ExecutionLease(result, SimpleNamespace(backend="local", snapshot=None),
+        lambda: 0, topology, view, "pure-test", _key=_LEASE_KEY)
+    lease._client = SimpleNamespace(_core=h.core)
+    return lease, _LeaseResponses(lease, h.responses)
+
+
+def test_prepared_admission_and_execution_share_one_encode(harness):
+    h = harness
+    lease, resource = prompt_lease(h)
+    response = resource.create(input="hello")
+    assert response.usage.input_tokens == 5
+    assert h.source.encodings == [("user: hello\nassistant:", False)]
+    assert h.calls == [((3, 4, 5, 2, 4), 3)]
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 1
+    assert lease._requests == 1
+
+
+def test_prepared_admission_refuses_actual_rendered_count_without_source_or_attempt(harness):
+    from pllm.deployment.execution import NetworkError
+    h = harness
+    lease, resource = prompt_lease(h)
+    lease._result.experiment = replace(h.experiment,
+        budget=replace(h.experiment.budget, max_input_tokens=4))
+    with pytest.raises(NetworkError, match="input exceeds"):
+        resource.create(input="hello")
+    assert len(h.source.encodings) == 1 and h.source.tokenizers_closed == 1
+    assert h.admitted == [] and h.calls == [] and h.core._active is None
+    assert lease._requests == 0
+
+
+def test_prepared_unstarted_iterator_keeps_owner_until_cancellation(harness):
+    h = harness
+    _, resource = prompt_lease(h)
+    stream = resource.create(input="hello", stream=True)
+    payload = h.core._active._prepared_prompt._payload
+    assert payload.ids == (3, 4, 5, 2, 4)
+    assert h.source.tokenizers_closed == 0 and h.admitted == []
+    stream.close()
+    assert h.source.tokenizers_closed == 1
+    assert h.core._active is None and h.calls == []
+
+
+@pytest.mark.asyncio
+async def test_prepared_async_scope_survives_creation_until_retirement(harness):
+    from pllm.deployment.execution import _LeaseResponses
+    h = harness
+    lease, _ = prompt_lease(h)
+    resource = _LeaseResponses(lease, AsyncResponsesResource(h.responses))
+    stream = await resource.create(input="hello", stream=True)
+    assert h.source.tokenizers_closed == 0
+    assert h.core._active._prepared_prompt._payload.ids == (3, 4, 5, 2, 4)
+    await stream.aclose()
+    assert h.source.tokenizers_closed == 1 and h.calls == []
+
+
+def test_prepared_changed_source_refuses_before_transport(harness):
+    h = harness
+    _, resource = prompt_lease(h)
+    stream = resource.create(input="hello", stream=True)
+    h.source.tokenizer_descriptor["chat_template"] = "changed"
+    with pytest.raises(GatewayError, match="association"):
+        list(stream)
+    assert h.calls == [] and h.core._active is None
+    assert h.source.tokenizers_closed == 1
+
+
+def test_reference_input_witness_uses_same_prepared_cohort(harness):
+    from pllm.runtime.reference_benchmark import _source_ids
+    h = harness
+    assert _source_ids(h.source, ("hello",)) == ((3, 4, 5, 2, 4),)
+    assert h.source.encodings == [("user: hello\nassistant:", False)]
+    assert h.source.tokenizers_created == h.source.tokenizers_closed == 1
+    assert h.calls == [] and h.admitted == []
+
+
+@pytest.mark.asyncio
+async def test_prepared_async_execution_cancel_drains_before_owner_retirement(harness, monkeypatch):
+    from pllm.deployment.execution import _LeaseResponses
+    h = harness
+    lease, _ = prompt_lease(h)
+    entered = threading.Event()
+    def execute(*args):
+        cancelled = args[-1]
+        entered.set()
+        assert h.source.tokenizers_closed == 0
+        assert cancelled.cancelled.wait(2)
+        assert h.source.tokenizers_closed == 0
+        raise ProtocolError("cancelled", 499)
+    monkeypatch.setattr(adapter, "_execute_request", execute)
+    resource = _LeaseResponses(lease, AsyncResponsesResource(h.responses))
+    task = asyncio.create_task(resource.create(input="hello"))
+    assert await asyncio.to_thread(entered.wait, 2)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert h.source.tokenizers_closed == 1
+    assert h.core._active is None
 
 
 def transport_counters():
@@ -136,7 +245,9 @@ def harness(monkeypatch):
 
     def execute(value, loaded, ids, count, connections, timeout, cancelled):
         assert value is experiment and loaded is source
-        assert type(ids) is tuple and ids == (3, 4, 5)
+        # Independent WordLevel fixture: user/:/hello/<unk assistant>/:.
+        # The no-template admission fallback includes its assistant marker.
+        assert type(ids) is tuple and ids == (3, 4, 5, 2, 4)
         assert dict(connections) == CONNECTIONS and timeout == 0.5
         assert not cancelled()
         calls.append((ids, count))
@@ -160,11 +271,11 @@ def test_resource_compatibility_fixed_count_eos_and_local_rendering(harness):
     response = h.responses.create(input="hello", metadata={"case": "fixed-eos"})
     assert response.output_text == "world after"
     assert h.source.decodings == [[1, 6, 7]]  # EOS did not stop token selection.
-    assert h.source.encodings == [("user: hello", False)]
-    assert h.calls == [((3, 4, 5), 3)]
+    assert h.source.encodings == [("user: hello\nassistant:", False)]
+    assert h.calls == [((3, 4, 5, 2, 4), 3)]
     assert h.admitted == [h.experiment]
     assert response.usage.to_dict() == {
-        "input_tokens": 3, "output_tokens": 3, "total_tokens": 6,
+        "input_tokens": 5, "output_tokens": 3, "total_tokens": 8,
         "input_tokens_details": {"cached_tokens": 0},
         "output_tokens_details": {"reasoning_tokens": 0},
     }
@@ -330,9 +441,9 @@ def test_input_snapshot_and_shared_normalization(harness, monkeypatch):
     stream = h.core.create(body)
     body["input"][1]["content"] = "changed"
     body["instructions"] = "changed"
-    h.source.ids_override = [3, 4, 5]
+    h.source.ids_override = [3, 4, 5, 2, 4]
     list(stream)
-    assert h.source.encodings == [("system: after\ndeveloper: world\nuser: hello", False)]
+    assert h.source.encodings == [("system: after\nsystem: world\nuser: hello\nassistant:", False)]
 
 
 def test_unstarted_stream_owns_one_seat_and_close_allocates_no_source(harness):
@@ -530,10 +641,13 @@ def test_result_owner_is_hook_only_and_retired_before_first_event(harness):
     gc.collect()
     assert references[0]() is None
     assert h.core._active.body is None
-    assert h.source.tokenizers_closed == 1
+    # Accepted logits/KV are gone, but the prepared public prompt owner follows
+    # the iterator until terminal delivery/cancellation, not merely construction.
+    assert h.source.tokenizers_closed == 0
     assert first.response["id"] in h.core.records
     stream.close()  # Buffered, undelivered response is no longer retained.
     assert not h.core.records and h.core._active is None
+    assert h.source.tokenizers_closed == 1
 
 
 @pytest.mark.parametrize("change", [
@@ -655,9 +769,11 @@ def test_source_listing_tokenizer_scopes_and_inventory_controls(harness):
     assert runtime["source_lock_digest"] == h.source.source_lock_digest
     with h.core.tokenizer_scope():
         with h.core.tokenizer_scope():
-            assert h.core._response_input_tokens("gkm-fixture", "hello") == 3
+            assert h.core._response_input_tokens("gkm-fixture", "hello") == 5
         h.responses.create(input="hello")
-        assert h.source.tokenizers_created == 1 and h.source.tokenizers_closed == 0
+        # Generation transferred custody from this sizing scope to its attempt;
+        # the terminal response already retired that exact public tokenizer.
+        assert h.source.tokenizers_created == 1 and h.source.tokenizers_closed == 1
     assert h.source.tokenizers_closed == 1
     assert h.core.prepared_inventory_status("gkm-fixture") == {
         "status": "not-applicable", "capacity": 0, "available": 0, "reserved": 0, "burned": 0,

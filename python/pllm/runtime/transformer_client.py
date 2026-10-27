@@ -985,49 +985,11 @@ class ClientBundle:
         add_generation_prompt: bool = True,
         tools: list[dict[str, Any]] | None = None,
     ) -> str:
-        rows: list[dict[str, Any]] = []
-        for item in messages:
-            if hasattr(item, "to_prompt_dict"):
-                row = dict(item.to_prompt_dict())
-            elif isinstance(item, dict):
-                row = dict(item)
-            else:
-                row = {"role": "user", "content": str(item)}
-            row["role"] = "system" if row.get("role") == "developer" else str(row.get("role"))
-            row["content"] = str(row.get("content", ""))
-            rows.append(row)
-        template = self.tokenizer_descriptor.get("chat_template") or self.manifest.get(
-            "chat_template"
-        )
-        if not template:
-            suffix = "\nassistant:" if add_generation_prompt else ""
-            return "\n".join(f"{row['role']}: {row['content']}" for row in rows) + suffix
-        try:
-            from jinja2 import StrictUndefined
-            from jinja2.sandbox import SandboxedEnvironment
+        from .responses import _render_prompt
 
-            environment = SandboxedEnvironment(
-                undefined=StrictUndefined, trim_blocks=True, lstrip_blocks=True
-            )
-
-            def raise_exception(message: str) -> None:
-                raise TransformerClientError(str(message))
-
-            environment.globals["raise_exception"] = raise_exception
-            return str(
-                environment.from_string(str(template)).render(
-                    messages=rows,
-                    add_generation_prompt=bool(add_generation_prompt),
-                    bos_token=self.tokenizer_descriptor.get("bos_token", ""),
-                    eos_token=self.tokenizer_descriptor.get("eos_token", ""),
-                    tools=tools,
-                )
-            )
-        except BaseException:
-            # Custom Transformers templates may require extensions such as the
-            # ``generation`` tag. Falling back remains deterministic and local.
-            suffix = "\nassistant:" if add_generation_prompt else ""
-            return "\n".join(f"{row['role']}: {row['content']}" for row in rows) + suffix
+        return _render_prompt(messages, self.tokenizer_descriptor,
+                              template=self.manifest.get("chat_template"),
+                              add_generation_prompt=add_generation_prompt, tools=tools)
 
     def tokenizer(self) -> Tokenizer:
         kind = str(self.tokenizer_descriptor.get("kind", self.tokenizer_descriptor.get("type", "")))

@@ -309,44 +309,21 @@ def _rotary_frames(shape, theta):
 
 
 def _tokenizer(root, config, contract):
-    from tokenizers import Tokenizer
-
     expanded = _capacity(contract) == "decoder"
     tokenizer_limit = io._DECODER_TOKENIZER_BYTES if expanded else io._MAX_TOKENIZER_BYTES
     raw = io._read_bounded(root / "tokenizer.json", tokenizer_limit)
-    doc = _document(raw, "tokenizer.json", tokenizer_limit)
-    maximum = contract["vocabulary"]
-    tokenizer_admission.validate_document(
-        doc, vocabulary=maximum, max_entries=maximum, error=FssSourceError, label="FuseFSS")
-    # The validated JSON tree is no longer needed. Retire its complete vocabulary
-    # and merge strings before native parsing/reverse-index construction overlaps.
-    # Original bytes and the full metadata reservation remain unchanged.
-    del doc
-    inner = Tokenizer.from_buffer(raw)
-    actual_size = tokenizer_admission.validate_vocabulary(
-        inner, vocabulary=maximum, allow_model_padding=expanded,
-        error=FssSourceError, label="FuseFSS")
     options = {}
     if (root / "tokenizer_config.json").exists():
         options = _document(io._read_bounded(root / "tokenizer_config.json", 16384), "tokenizer options", 16384)
-    if type(options.get("add_bos_token", True)) is not bool:
-        raise FssSourceError("FuseFSS add_bos_token must be boolean")
     context = options.get("model_max_length", contract["maximum_sequence"])
     if type(context) is not int or context < contract["maximum_sequence"]:
         raise FssSourceError("FuseFSS tokenizer context is too small")
-    bos, eos = config.get("bos_token_id", 0), config.get("eos_token_id", 1)
-    eos = eos if type(eos) is list else [eos]
-    if not eos or any(type(i) is not int or not 0 <= i < maximum for i in [bos, *eos]):
-        raise FssSourceError("FuseFSS special token IDs exceed complete vocabulary")
-    if expanded and any(i >= actual_size for i in [bos, *eos]):
-        raise FssSourceError("FuseFSS special tokens require original tokenizer entries")
-    # Descriptor retains the complete model vocabulary. Unmapped model IDs remain
-    # valid final IDs; ordinary TokenizersJSONTokenizer delegates text rendering
-    # to tokenizers.decode (which omits unmapped IDs), without rewriting feedback.
-    descriptor = {"type": "tokenizer_json", "vocab_size": maximum, "bos_token_id": bos,
-                  "eos_token_id": eos[0], "chat_template": options.get("chat_template"),
-                  "bos_token": options.get("bos_token", ""), "eos_token": options.get("eos_token", ""),
-                  "add_bos_token": options.get("add_bos_token", True)}
+    descriptor = tokenizer_admission._source_descriptor(raw, config, options,
+        policy=tokenizer_admission._DescriptorPolicy.FSS,
+        vocabulary=contract["vocabulary"], max_entries=contract["vocabulary"],
+        allow_model_padding=expanded, manifest_template=None,
+        error=FssSourceError, label="FuseFSS")
+    del descriptor["model"]
     return raw, io._canonical(descriptor)
 
 

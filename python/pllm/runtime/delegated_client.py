@@ -35,7 +35,8 @@ from .delegated_decoder import GkmDecoderResult, result_payload_limit
 from .delegated_protocol import BATCH_EXECUTION, clear_failure_frames
 from .http_gateway import GatewayError, validate_response_body
 from .prepared_queue import PreparedCancellation, prepared_cancellation
-from .responses import normalize_input, prompt_text
+from .responses import (normalize_input, _owned_prompt_source, _prepare_prompt,
+                        _prepared_prompt_request, ResponsesError)
 from .types import Response, response_events
 
 
@@ -216,6 +217,8 @@ class _Attempt:
         self.transport_audit = None
         self._fss_control_boundary = self._fss_control_origin = None
         self._fss_control_failed = False
+        prepared = _prepared_prompt_request.get()
+        self._prepared_prompt = None if prepared is None else prepared.claim()
 
     def record_control_boundary(self, role, action, status):
         """Best-effort one-slot diagnostic, relative to first control boundary."""
@@ -317,6 +320,9 @@ class _Attempt:
     def _retire(self, *, delivered):
         if self.closed:
             return
+        if self._prepared_prompt is not None:
+            self._prepared_prompt.close()
+            self._prepared_prompt = None
         self.closed = True
         self._fss_control_boundary = self._fss_control_origin = None
         self.body = self.buffer = self.transport_audit = None
@@ -345,6 +351,8 @@ class DelegatedClient:
     request_body_limit_bytes = _BODY_BYTES
     runtime_id = "compiled_gkm_v1"
     role_names = ("worker_a", "worker_b")
+    from .tokenizer_admission import _DescriptorPolicy
+    _prompt_descriptor_policy = _DescriptorPolicy.DELEGATED
     counter_fields = _COUNTER_FIELDS
 
     def __init__(self, experiment: Experiment, role_connections, timeout=60.0, source=None):
@@ -463,11 +471,15 @@ class DelegatedClient:
         normalize_input(body["input"], instructions=body.get("instructions"))
         return body
 
+    @classmethod
+    def _resolve_prompt_source(cls, declaration):
+        return _admit_source(declaration)
+
     def _ensure_source(self):
         with self._lock:
             self._check_open()
             if not self._source_checked:
-                source = self._source if self._source is not None else _admit_source(self._declaration)
+                source = self._source if self._source is not None else self._resolve_prompt_source(self._declaration)
                 contract = source.contract
                 expanded = self._capacity == "decoder"
                 if (source.model != self._declaration.pipeline.model
@@ -481,6 +493,74 @@ class DelegatedClient:
                 self._source, self._source_checked = source, True
             return self._source
 
+    def _prompt_metadata_owner(self):
+        """Borrow ONLY an already checked owner. Never lazily resolve here."""
+        with self._lock:
+            self._check_open()
+            return self._source if self._source_checked else None
+
+    def _prepare_request_prompt(self, body, *, attempt=None, messages=None, tools=None,
+                                metadata_view=None, source=None):
+        from contextlib import ExitStack
+        from . import tokenizer_admission
+        from .responses import ResponsesError, _prepare_prompt, _owned_prompt_source
+
+        if attempt is not None and attempt._prepared_prompt is not None:
+            return attempt._prepared_prompt
+        source = self._prompt_metadata_owner() if source is None else source
+        metadata_owner = None
+        tokenizer = snapshot = view = prepared = None
+        try:
+            if source is not None:
+                if metadata_view is not None:
+                    metadata_view._check_owned_prompt_metadata(source, self._declaration.pipeline.model)
+                descriptor = source.tokenizer_descriptor
+                tokenizer = source.tokenizer()
+                association = _owned_prompt_source(source)
+            else:
+                # Existing metadata allowances, held until the prepared owner
+                # retires. No source inventory/contract/payload admission yet.
+                from pllm.deployment.resources import reserve_incremental_memory
+                from pllm.deployment.execution import _TokenizerView
+
+                metadata_owner = ExitStack()
+                metadata_owner.enter_context(reserve_incremental_memory(
+                    tokenizer_admission.DECODER_METADATA_MEMORY_BYTES
+                    if self._capacity == "decoder" else 1 << 20))
+                snapshot = tokenizer_admission._capture_prompt_metadata(
+                    self._declaration.pipeline.model, policy=self._prompt_descriptor_policy,
+                    capacity=self._capacity, input_rows=self._experiment_budget.max_input_tokens,
+                    outputs=self._experiment_budget.max_new_tokens,
+                    manifest_template=None if metadata_view is None else metadata_view.manifest.get("chat_template"),
+                    expected_source_lock=None if metadata_view is None else metadata_view.source_lock_digest)
+                if metadata_view is not None:
+                    metadata_view._check_prompt_snapshot(snapshot, self._declaration.pipeline.model)
+                view = _TokenizerView._from_prompt_snapshot(snapshot)
+                descriptor = view.tokenizer_descriptor
+                tokenizer = view.tokenizer()
+                association = snapshot.association()
+            prepared = _prepare_prompt(body, descriptor=descriptor, tokenizer=tokenizer,
+                source=association, messages=messages, tools=tools,
+                _pending_source=snapshot, _metadata_owner=metadata_owner)
+            ids = prepared._payload.ids
+            if (not 1 <= len(ids) <= self._experiment_budget.max_input_tokens
+                    or any(i >= descriptor["vocab_size"] for i in ids)):
+                raise GatewayError("request input exceeds selected budget", param="input")
+            if attempt is not None:
+                attempt._prepared_prompt = prepared.claim()
+            return prepared
+        except BaseException:
+            if prepared is not None:
+                tokenizer = snapshot = view = descriptor = association = None
+                prepared.close()
+            else:
+                close = getattr(tokenizer, "close", None)
+                if close is not None:
+                    close()
+                tokenizer = snapshot = view = None
+                if metadata_owner is not None:
+                    metadata_owner.close()
+            raise
     @contextmanager
     def tokenizer_scope(self):
         existing = self._tokenizer_owner.get()
@@ -505,14 +585,37 @@ class DelegatedClient:
                 with self._lock:
                     self._tokenizer_scopes.discard(owner)
 
-    def _encode(self, body, source):
+    def _encode(self, body, source, *, attempt=None):
+        prepared = None if attempt is None else attempt._prepared_prompt
+        if prepared is not None:
+            try:
+                prepared._bind_owned_source(body, source)
+                tokenizer, ids = prepared.consume(body, _owned_prompt_source(source))
+            except ResponsesError as error:
+                raise GatewayError(str(error), param="input") from error
+            if not 1 <= len(ids) <= self._experiment_budget.max_input_tokens or any(
+                    token >= source.contract["vocabulary"] for token in ids):
+                raise GatewayError("prepared input exceeds source/input budget", param="input")
+            return tokenizer, ids
         tokenizer = self._tokenizer_owner.get().get(source)
-        rendered = prompt_text(normalize_input(body["input"], instructions=body.get("instructions")))
-        ids = tokenizer.encode(rendered, add_bos=source.tokenizer_descriptor.get("add_bos_token", True))
+        descriptor = source.tokenizer_descriptor
+        try:
+            prepared = _prepare_prompt(body, descriptor=descriptor, tokenizer=tokenizer,
+                                       source=_owned_prompt_source(source))
+        except ResponsesError as error:
+            raise GatewayError(str(error), param="input") from error
+        # Direct callers already have an owned tokenizer scope. The immutable
+        # payload is used here too, without transferring/closing its borrowed tokenizer.
+        _, ids = prepared.consume(body, _owned_prompt_source(source))
         if (type(ids) not in (list, tuple) or not 1 <= len(ids) <= self._experiment_budget.max_input_tokens
                 or any(type(token) is not int or not 0 <= token < source.contract["vocabulary"]
                        for token in ids)):
             raise GatewayError("GKM tokenized input exceeds its complete-table/input budget", param="input")
+        if attempt is not None:
+            # The generator's lexical tokenizer scope ends before event delivery.
+            # Transfer actual custody to the attempt until acceptance/cancellation retires it.
+            self._tokenizer_owner.get()._detach(source)
+            attempt._prepared_prompt = prepared.claim()
         return tokenizer, tuple(ids)
 
     def _response_input_tokens(self, model, input):
@@ -562,8 +665,10 @@ class DelegatedClient:
         try:
             attempt.check_cancelled()
             with self.tokenizer_scope():
+                self._prepare_request_prompt(body, attempt=attempt)
+                attempt.check_cancelled()
                 source = self._ensure_source()
-                tokenizer, ids = self._encode(body, source)
+                tokenizer, ids = self._encode(body, source, attempt=attempt)
                 count = body["max_output_tokens"]
                 attempt.check_cancelled()
                 with self._lock:

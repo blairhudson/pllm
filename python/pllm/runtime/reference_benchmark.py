@@ -80,6 +80,8 @@ def _final_token_runtime(runtime):
 
 
 def _source_ids(source, prompts, *, runtime=None):
+    from .responses import _owned_prompt_source, _prepare_prompt
+
     if runtime == "compiled_fss_v1":
         from tokenizers import Tokenizer
         from .transformer_client import TokenizersJSONTokenizer
@@ -89,8 +91,20 @@ def _source_ids(source, prompts, *, runtime=None):
             descriptor["bos_token_id"], descriptor["eos_token_id"])
     else:
         tokenizer = source.tokenizer()
-    return tuple(tuple(tokenizer.encode(prompt,
-        add_bos=source.tokenizer_descriptor.get("add_bos_token", True))) for prompt in prompts)
+    try:
+        identity = _owned_prompt_source(source)
+        values = []
+        for prompt in prompts:
+            body = {"model": str(source.model.source), "input": prompt,
+                    "max_output_tokens": source.contract["decode_steps"] + 1}
+            prepared = _prepare_prompt(body, descriptor=source.tokenizer_descriptor,
+                                       tokenizer=tokenizer, source=identity)
+            values.append(prepared._payload.ids)
+        return tuple(values)
+    finally:
+        close = getattr(tokenizer, "close", None)
+        if close is not None:
+            close()
 
 
 def _fss_numeric(experiment, source):

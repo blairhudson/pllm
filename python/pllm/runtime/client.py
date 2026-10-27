@@ -142,6 +142,15 @@ class _ScopedTokenizer:
             assert self._tokenizer is not None
             return self._tokenizer
 
+    def _detach(self, bundle):
+        """Transfer this exact tokenizer to an existing exclusive request owner."""
+        with self._lock:
+            if self._closed or self._bundle is not bundle or self._tokenizer is None:
+                raise RuntimeError("tokenizer scope cannot transfer a different owner")
+            tokenizer = self._tokenizer
+            self._bundle = self._tokenizer = None
+            return tokenizer
+
     def close(self) -> None:
         with self._lock:
             self._closed = True
@@ -5547,6 +5556,17 @@ class RuntimeResource:
         return self.core.audit
 
 
+def _protected_client_type(profile):
+    """Map recognized composition metadata to a class; this is not admission."""
+    if (profile is None or profile.client_runtime not in
+            {"compiled_gkm_v1", "compiled_replicated_v1", "compiled_fss_v1"}):
+        return None
+    from .delegated_client import DelegatedClient
+    from .replicated_client import ReplicatedClient
+    from .fss_client import FssClient
+    return {"compiled_gkm_v1": DelegatedClient,
+            "compiled_replicated_v1": ReplicatedClient,
+            "compiled_fss_v1": FssClient}.get(profile.client_runtime)
 class OpenAI:
     def conversation(self, *, max_state_bytes: int = 32 << 20, **defaults: Any) -> Conversation:
         """Own a bounded exact multi-turn chain; use as a context manager."""
@@ -5704,13 +5724,8 @@ class OpenAI:
             raise ValueError("resource planning requires a configured network")
 
         profile = experiment.resolve() if isinstance(experiment, Experiment) else experiment
-        if profile is not None and profile.client_runtime in {"compiled_gkm_v1", "compiled_replicated_v1", "compiled_fss_v1"}:
-            from .delegated_client import DelegatedClient
-            from .fss_client import FssClient
-            from .replicated_client import ReplicatedClient
-
-            buffered_client = {"compiled_gkm_v1": DelegatedClient, "compiled_replicated_v1": ReplicatedClient,
-                               "compiled_fss_v1": FssClient}[profile.client_runtime]
+        buffered_client = _protected_client_type(profile)
+        if buffered_client is not None:
 
             if not isinstance(experiment, Experiment):
                 raise ValueError("buffered protected execution requires the complete bounded Experiment source")
@@ -6055,20 +6070,45 @@ class AsyncResponsesResource:
             with lock:
                 return context.run(function, *args, **options)
 
+        def create_delivery():
+            value = self.resource.create(**kwargs)
+            try:
+                # Pending facades have no core before create. Capture the real
+                # post-activation owner in this SAME owned worker/context and
+                # retain it with the value, never look it up during iteration.
+                marker = object()
+                owner = getattr(self.resource, "_delivery_owner", marker)
+                if owner is marker:
+                    owner = getattr(self.resource, "core", None)
+                if (owner is None or not callable(getattr(owner, "_accept_decode_response", None))
+                        or not callable(getattr(owner, "_abort_decode_response", None))):
+                    raise RuntimeError("response has no actual delivery owner")
+                return value, owner
+            except BaseException as error:
+                calls = []
+                close = getattr(value, "close", None)
+                if close is not None:
+                    calls.append(close)
+                close_failed = getattr(self.resource, "_close_failed_delivery", None)
+                if close_failed is not None:
+                    calls.append(close_failed)
+                _cleanup_calls(calls, primary=error)
+                raise
+
         if kwargs.get("stream"):
             created = []
 
             def create_stream():
-                value = owned_call(self.resource.create, **kwargs)
-                created.append(value)
-                return value
+                delivery = owned_call(create_delivery)
+                created.append(delivery)
+                return delivery
 
             try:
-                stream = await _owned_thread(create_stream, cancel=cancellation.cancel)
+                stream, delivery_core = await _owned_thread(create_stream, cancel=cancellation.cancel)
             except BaseException:
                 # Creation may have reserved a seat immediately before the
                 # awaiting caller was cancelled, without exposing the stream.
-                for value in created:
+                for value, _ in created:
                     await _owned_thread(owned_call, value.close, cancel=cancellation.cancel)
                 raise
             assert isinstance(stream, ResponseStream)
@@ -6094,7 +6134,7 @@ class AsyncResponsesResource:
                         if event is sentinel:
                             break
                         if event.type in {"response.completed", "response.incomplete"}:
-                            core._accept_decode_response(response_id)
+                            delivery_core._accept_decode_response(response_id)
                         yield event
                 finally:
                     primary = sys.exception()
@@ -6105,7 +6145,7 @@ class AsyncResponsesResource:
                         close_error = error
                     finally:
                         if cancellation.event.is_set() and response_id is not None:
-                            core._abort_decode_response(response_id, primary=primary or close_error)
+                            delivery_core._abort_decode_response(response_id, primary=primary or close_error)
                     if close_error is not None:
                         _raise_cleanup_errors([close_error], primary)
 
@@ -6113,19 +6153,19 @@ class AsyncResponsesResource:
         completed = []
 
         def create():
-            response = owned_call(self.resource.create, **kwargs)
-            completed.append(response)
-            return response
+            delivery = owned_call(create_delivery)
+            completed.append(delivery)
+            return delivery
 
         try:
-            response = await _owned_thread(create, cancel=cancellation.cancel)
-            core._accept_decode_response(response.id)
+            response, delivery_core = await _owned_thread(create, cancel=cancellation.cancel)
+            delivery_core._accept_decode_response(response.id)
             return response
         except asyncio.CancelledError as error:
             # Cancellation can race the final commit. The drained worker's
             # otherwise-unobservable completed response remains ours to retire.
-            for response in completed:
-                core._abort_decode_response(response.id, primary=error)
+            for response, delivery_core in completed:
+                delivery_core._abort_decode_response(response.id, primary=error)
             raise
 
     async def retrieve(self, response_id: str) -> Response:

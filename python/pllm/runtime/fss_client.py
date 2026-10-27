@@ -20,6 +20,8 @@ class _FssAudit(_DelegatedAudit):
 class FssClient(DelegatedClient):
     runtime_id = "compiled_fss_v1"
     role_names = ROLES
+    from .tokenizer_admission import _DescriptorPolicy
+    _prompt_descriptor_policy = _DescriptorPolicy.FSS
     counter_fields = _counter_fields(role_names) | PEER_COUNTERS | _STORAGE
 
     def __init__(self, *args, **kwargs):
@@ -31,13 +33,18 @@ class FssClient(DelegatedClient):
         self.audit = _FssAudit(self._lock, self.counter_fields)
         self._completed_program = None
 
+    @classmethod
+    def _resolve_prompt_source(cls, declaration):
+        from .fss_source import resolve_client_source
+        return resolve_client_source(declaration)
+
     def _ensure_source(self):
-        from .fss_source import FrozenFssSource, resolve_client_source
+        from .fss_source import FrozenFssSource
         from .fss_transport import transport_capacity
         with self._lock:
             self._check_open()
             if not self._source_checked:
-                source = self._source or resolve_client_source(self._declaration)
+                source = self._source or self._resolve_prompt_source(self._declaration)
                 if not isinstance(source, FrozenFssSource):
                     raise TypeError("FuseFSS requires its admitted source metadata")
                 if transport_capacity(source.contract) != self._capacity:
