@@ -13,6 +13,9 @@ use pllm_garble::{
 use sha2::{Digest, Sha256};
 use zeroize::{Zeroize, Zeroizing};
 
+#[path = "resource_quote.rs"]
+mod resource_quote;
+
 /// External, role-local native executor. Implementations must return exactly one
 /// party's Plan output, drive consuming Runtime through externally supplied fresh
 /// material and peer frames, and abort their transport on any error. Never issue
@@ -397,8 +400,8 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
                     .resources
                     .metadata_bytes
                     .checked_mul(3)
-                    .and_then(|n| n.checked_add(3 * table_stats.metadata_reservation_bytes))
-                    .and_then(|n| n.checked_add(3 * table_stats.numeric_revision_hash_bytes))
+                    .and_then(|n| n.checked_add(table_stats.metadata_reservation_bytes.checked_mul(3)?))
+                    .and_then(|n| n.checked_add(table_stats.numeric_revision_hash_bytes.checked_mul(3)?))
                     .ok_or(Error::Resource)?,
                 metadata_bytes: program.resources.metadata_bytes,
                 live_array_bytes_per_party: program.resources.live_array_bytes_per_party,
@@ -473,33 +476,10 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         } else {
             None
         };
-        self.resources.kernels = checked_add(self.resources.kernels, 1)?;
-        self.resources.primitive_requests_per_party =
-            checked_add(self.resources.primitive_requests_per_party, r.secret_steps)?;
-        self.resources.work = checked_add(
-            self.resources.work,
-            r.cumulative_work.checked_mul(2).ok_or(Error::Resource)?,
+        let mut quote = resource_quote::Quote::begin(
+            &mut self.resources, self.program.limits, self.program.capacity(),
+            r, wave, input.len(), cached_tables,
         )?;
-        if r.template_copy_bytes != 0 {
-            let copies = r
-                .template_copy_bytes
-                .checked_mul(3)
-                .ok_or(Error::Resource)?;
-            self.public_copy(copies)?;
-            self.resources.work = checked_add(self.resources.work, copies)?;
-        }
-        if let Some(wave) = wave {
-            // Each of three roles builds a schedule for the public obligation
-            // walk and again for its concrete material/runtime owner. These
-            // bounded public copies/sorts remain work, not free transport.
-            self.resources.work = checked_add(
-                self.resources.work,
-                wave.construction_work
-                    .checked_mul(6)
-                    .ok_or(Error::Resource)?,
-            )?;
-            self.public_copy(wave.metadata_bytes.checked_mul(6).ok_or(Error::Resource)?)?;
-        }
         let tables = self.tables.stats();
         let delta = |now: usize, before: usize| now.checked_sub(before).ok_or(Error::Context);
         let references = delta(tables.references, self.accounted_tables.references)?;
@@ -521,57 +501,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         if cached_tables && (references == 0 || r.public_table_reservation_bytes == 0) {
             return Err(Error::Context);
         }
-        // Only actual newly constructed owners receive generation/validation/
-        // content-hash cost. Cached references still charge bounded structural
-        // identity checks, Arc/metadata copies, Plan digest updates, and resource
-        // geometry walks on both workers and dealer. Actual primitive work is
-        // unchanged; lookup resources distinguish copied payload from shared
-        // public handles, whose independently leased backing is in the cache.
-        let table_lowering = if cached_tables {
-            let chunks = r.public_table_reservation_bytes.div_ceil(256 * 8);
-            let per_reference = 4096usize
-                .checked_add(
-                    tables
-                        .retained_entries
-                        .checked_mul(64)
-                        .ok_or(Error::Resource)?,
-                )
-                .ok_or(Error::Resource)?;
-            retained
-                .checked_mul(48)
-                .and_then(|n| n.checked_add(references.checked_mul(per_reference)?.checked_mul(3)?))
-                .and_then(|n| n.checked_add(chunks.checked_mul(192)?))
-                .ok_or(Error::Resource)?
-        } else {
-            r.public_table_reservation_bytes
-                .checked_mul(48)
-                .ok_or(Error::Resource)?
-        };
-        let lowering = table_lowering
-            .checked_add(plan.input_bits().len() * 32)
-            .and_then(|n| n.checked_add(r.instructions * 4))
-            // Cache stats snapshot/deltas and counter commitments are also
-            // performed on kernels with no table references; never free work.
-            .and_then(|n| n.checked_add(1024))
-            .ok_or(Error::Resource)?;
-        self.resources.work = checked_add(self.resources.work, lowering)?;
-        self.resources.work = checked_add(self.resources.work, lowered_metadata)?;
-        // Fixed miss allowance covers raw Table/cache identity metadata only.
-        // Lowered chunk headers/counters/handles scale with actual construction,
-        // independently of retained backing and per-issuance/import handles.
-        let metadata_copies = references
-            .checked_mul(24)
-            .and_then(|n| n.checked_add(misses.checked_mul(512)?))
-            .and_then(|n| n.checked_add(lowered_metadata))
-            .and_then(|n| n.checked_add(3 * std::mem::size_of::<cache::Stats>()))
-            .ok_or(Error::Resource)?;
-        self.resources.public_copy_bytes = checked_add(
-            self.resources.public_copy_bytes,
-            copied
-                .checked_mul(3)
-                .and_then(|n| n.checked_add(metadata_copies))
-                .ok_or(Error::Resource)?,
-        )?;
+        quote.tables(tables, references, misses, retained, copied, lowered_metadata)?;
         for count in [
             tables.references,
             tables.hits,
@@ -591,74 +521,7 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
             self.hash.update((count as u64).to_le_bytes());
         }
         self.accounted_tables = tables;
-        self.resources.source_table_cache_bytes_per_role =
-            checked_add(tables.retained_bytes, tables.metadata_reservation_bytes)?;
-        self.resources.material_bytes = checked_add(
-            self.resources.material_bytes,
-            r.private_material_bytes_total,
-        )?;
-        self.resources.frame_bytes = checked_add(
-            self.resources.frame_bytes,
-            wave.map_or(r.frame_bytes_total, |w| 2 * w.frame_bytes_per_party),
-        )?;
-        self.resources.public_copy_bytes = checked_add(
-            self.resources.public_copy_bytes,
-            // Cached lowered chunks allocate no party payload copies. Count
-            // handle writes at dealer issuance AND receiving-role import; the
-            // process-local canonical backings were constructed/charged above.
-            r.public_table_copy_bytes_total
-                .checked_mul(if cached_tables { 2 } else { 1 })
-                .ok_or(Error::Resource)?,
-        )?;
-        // Two independent worker Plans and a separate dealer Plan may coexist.
-        // The primitive combined envelope already includes one Plan, two native
-        // role registers, paired issuance and retained frame overlap. Add the
-        // other two immutable Plans explicitly; no shared-address-space discount.
-        self.resources.peak_native_bytes = self.resources.peak_native_bytes.max(
-            r.combined_reservation_bytes
-                .checked_add(wave.map_or(0, |w| w.additional_reservation_bytes))
-                .ok_or(Error::Resource)?
-                .checked_add(
-                    r.plan_reservation_bytes
-                        .checked_mul(2)
-                        .ok_or(Error::Resource)?,
-                )
-                .map(|n| n.max(3 * r.template_construction_bytes))
-                .and_then(|n| {
-                    n.checked_add(
-                        tables
-                            .retained_bytes
-                            .checked_add(tables.metadata_reservation_bytes)?
-                            .checked_mul(3)?,
-                    )
-                })
-                .ok_or(Error::Resource)?,
-        );
-        // Conservatively retain referenced table reservations inside each Plan's
-        // envelope as well as the complete request cache. This covers miss-time
-        // generated-value/Table overlap without a shared-address-space discount.
-        self.resources.combined_reservation_bytes = checked_add(
-            checked_add(
-                3 * self.resources.metadata_bytes,
-                2 * self.resources.live_array_bytes_per_party,
-            )?,
-            self.resources.peak_native_bytes,
-        )?;
-        let l = self.program.limits;
-        let kernel_limit = match self.program.capacity() {
-            Capacity::Capsule => 32768,
-            Capacity::Decoder => 1 << 22,
-        };
-        if self.resources.kernels > kernel_limit
-            || self.resources.work > l.max_work
-            || self.resources.material_bytes > l.max_material_bytes
-            || self.resources.frame_bytes > l.max_frame_bytes
-            || self.resources.public_copy_bytes > l.max_public_copy_bytes
-            || self.resources.combined_reservation_bytes
-                > pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
-        {
-            return Err(Error::Resource);
-        }
+        quote.finish(tables)?;
         self.hash.update((self.selection as u64).to_le_bytes());
         self.hash.update((self.node as u64).to_le_bytes());
         self.hash.update(plan.digest());

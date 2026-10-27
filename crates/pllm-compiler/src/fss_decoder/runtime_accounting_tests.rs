@@ -378,3 +378,359 @@ fn copy_charge_checked_addition_rejects_overflow() {
     state.resources.public_copy_bytes = usize::MAX;
     assert_eq!(state.public_copy(1), Err(Error::Resource));
 }
+
+// Supplied-record census: no Plan/cache construction or native execution here.
+fn quote_seed() -> Resources {
+    Resources {
+        kernels: 2, primitive_requests_per_party: 3, work: 5,
+        material_bytes: 7, frame_bytes: 11, public_copy_bytes: 13,
+        metadata_bytes: 17, live_array_bytes_per_party: 19,
+        source_table_cache_bytes_per_role: 23, peak_native_bytes: 29,
+        combined_reservation_bytes: 31,
+    }
+}
+fn quote_native() -> pllm_garble::fusefss_backend::composition::Resources {
+    pllm_garble::fusefss_backend::composition::Resources {
+        instructions: 2, secret_steps: 3, cumulative_work: 5,
+        private_material_bytes_total: 7, frame_bytes_total: 11,
+        public_table_copy_bytes_total: 13, plan_reservation_bytes: 17,
+        template_construction_bytes: 19, template_copy_bytes: 23,
+        public_table_reservation_bytes: 2049, combined_reservation_bytes: 29,
+        ..Default::default()
+    }
+}
+fn quote_wave() -> wavefront::Resources {
+    wavefront::Resources {
+        construction_work: 31, metadata_bytes: 37,
+        frame_bytes_per_party: 41, additional_reservation_bytes: 43,
+        ..Default::default()
+    }
+}
+fn quote_stats() -> cache::Stats {
+    cache::Stats {
+        references: 3, hits: 2, misses: 1, table_payload_copy_bytes: 7,
+        lowered_construction_metadata_bytes: 7,
+        retained_bytes: 47, metadata_reservation_bytes: 53, retained_entries: 2,
+        ..Default::default()
+    }
+}
+fn resource_fields(r: Resources) -> [usize; 11] {
+    [r.kernels, r.primitive_requests_per_party, r.work, r.material_bytes,
+        r.frame_bytes, r.public_copy_bytes, r.metadata_bytes,
+        r.live_array_bytes_per_party, r.source_table_cache_bytes_per_role,
+        r.peak_native_bytes, r.combined_reservation_bytes]
+}
+fn small_quote(resources: &mut Resources, limits: Limits, cached: bool, wave: bool) -> Result<(), Error> {
+    let mut q = resource_quote::Quote::begin(resources, limits, Capacity::Capsule,
+        quote_native(), wave.then(quote_wave), 2, cached)?;
+    // Runtime supplies reference/miss/retained/payload deltas 3/1/5/7 and
+    // lowered metadata already priced across three roles: 3*7=21.
+    if cached {
+        q.tables(quote_stats(), 3, 1, 5, 7, 21)?;
+    } else {
+        // Uncached kernels may coexist with an existing retained cache, but
+        // runtime requires NO new cache references (and hence no cache deltas).
+        q.tables(quote_stats(), 0, 0, 0, 0, 0)?;
+    }
+    q.finish(quote_stats())
+}
+
+#[test]
+fn quote_small_census_preserves_role_and_cache_multipliers() {
+    // Small literal census, independent of Quote's arithmetic. Stats has 16
+    // usize counters on this supported 64-bit target: three copies = 384 bytes.
+    assert_eq!(std::mem::size_of::<cache::Stats>(), 128);
+    // Cached lowering: 5*48 + 3*(4096+2*64)*3 + ceil(2049/2048)*192
+    // =38640. Uncached lowering=2049*48=98352. Both add 64+8+1024.
+    // Template copies=69; wave work=186 and copies=222. Table metadata copies
+    // =72+512+21+384=989, payload copies=21; uncached snapshot copies=384.
+    // Issuance/import=26 vs 13; no cache deltas on uncached kernels.
+    // Native peaks: max(29+34,57)+300=363; wave adds 43 ->406.
+    for (cached, wave, expected) in [
+        (false, false, [3, 6, 99532, 14, 22, 479, 17, 19, 100, 363, 452]),
+        (true, false, [3, 6, 39841, 14, 22, 1118, 17, 19, 100, 363, 452]),
+        (false, true, [3, 6, 99718, 14, 93, 701, 17, 19, 100, 406, 495]),
+        (true, true, [3, 6, 40027, 14, 93, 1340, 17, 19, 100, 406, 495]),
+    ] {
+        let mut resources = quote_seed();
+        small_quote(&mut resources, Limits::default(), cached, wave).unwrap();
+        assert_eq!(resource_fields(resources), expected, "cached={cached} wave={wave}");
+    }
+    // Previous peaks survive smaller later kernels. Construction peaks are not
+    // interchangeable with combined-reservation or retained-cache envelopes.
+    for (previous, construction, peak, combined) in [(900, 19, 900, 989), (29, 100, 600, 689)] {
+        let mut resources = Resources { peak_native_bytes: previous, ..quote_seed() };
+        let native = pllm_garble::fusefss_backend::composition::Resources {
+            template_construction_bytes: construction, ..quote_native()
+        };
+        let mut q = resource_quote::Quote::begin(&mut resources, Limits::default(),
+            Capacity::Capsule, native, None, 2, true).unwrap();
+        q.tables(quote_stats(), 3, 1, 5, 7, 21).unwrap();
+        q.finish(quote_stats()).unwrap();
+        assert_eq!(resources.peak_native_bytes, peak);
+        assert_eq!(resources.combined_reservation_bytes, combined);
+    }
+}
+
+#[test]
+fn quote_limits_accept_exact_reject_one_short() {
+    for (cached, wave, work, frames, copies) in [
+        (false, false, 99532, 22, 479), (true, false, 39841, 22, 1118),
+        (false, true, 99718, 93, 701), (true, true, 40027, 93, 1340),
+    ] {
+        let exact = Limits { max_work: work, max_material_bytes: 14,
+            max_frame_bytes: frames, max_public_copy_bytes: copies, ..Limits::default() };
+        small_quote(&mut quote_seed(), exact, cached, wave).unwrap();
+        for field in 0..4 {
+            let mut short = exact;
+            match field {
+                0 => short.max_work -= 1,
+                1 => short.max_material_bytes -= 1,
+                2 => short.max_frame_bytes -= 1,
+                _ => short.max_public_copy_bytes -= 1,
+            }
+            let mut resources = quote_seed();
+            assert_eq!(small_quote(&mut resources, short, cached, wave), Err(Error::Resource));
+            // These are final-phase refusals, not rollback to an earlier census.
+            assert_eq!(resources.kernels, 3);
+            assert_eq!(resources.work, work);
+            assert_eq!(resources.public_copy_bytes, copies);
+        }
+    }
+    for (capacity, limit) in [(Capacity::Capsule, 32768), (Capacity::Decoder, 1 << 22)] {
+        for short in [false, true] {
+            let mut resources = Resources { kernels: limit - usize::from(!short), ..quote_seed() };
+            let mut q = resource_quote::Quote::begin(&mut resources, Limits::default(),
+                capacity, quote_native(), None, 2, true).unwrap();
+            q.tables(quote_stats(), 3, 1, 5, 7, 21).unwrap();
+            assert_eq!(q.finish(quote_stats()), if short { Err(Error::Resource) } else { Ok(()) });
+            assert_eq!(resources.kernels, limit + usize::from(short));
+        }
+    }
+    let maximum = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
+    for short in [false, true] {
+        let mut resources = Resources { metadata_bytes: 0, live_array_bytes_per_party: 0, ..quote_seed() };
+        // +2*17 Plan bytes and +3*(47+53) cache bytes exactly reach ceiling.
+        let native = pllm_garble::fusefss_backend::composition::Resources {
+            combined_reservation_bytes: maximum - 334 + usize::from(short), ..quote_native()
+        };
+        let mut q = resource_quote::Quote::begin(&mut resources, Limits::default(),
+            Capacity::Capsule, native, None, 2, true).unwrap();
+        q.tables(quote_stats(), 3, 1, 5, 7, 21).unwrap();
+        assert_eq!(q.finish(quote_stats()), if short { Err(Error::Resource) } else { Ok(()) });
+        assert_eq!(resources.combined_reservation_bytes, maximum + usize::from(short));
+    }
+}
+
+#[test]
+fn quote_overflow_returns_resource() {
+    // All cases supply records directly: even impossible records must fail
+    // checked arithmetic, not debug panic, release wrapping or saturation.
+    for field in 0..9 {
+        let mut resources = quote_seed();
+        let mut native = quote_native();
+        let mut wave = quote_wave();
+        match field {
+            0 => resources.kernels = usize::MAX,
+            1 => resources.primitive_requests_per_party = usize::MAX,
+            2 => resources.work = usize::MAX,
+            3 => native.cumulative_work = usize::MAX / 2 + 1,
+            4 => native.template_copy_bytes = usize::MAX / 3 + 1,
+            5 => resources.public_copy_bytes = usize::MAX,
+            6 => wave.construction_work = usize::MAX / 6 + 1,
+            7 => wave.metadata_bytes = usize::MAX / 6 + 1,
+            _ => native.secret_steps = usize::MAX,
+        }
+        assert!(matches!(resource_quote::Quote::begin(&mut resources, Limits::default(),
+            Capacity::Capsule, native, Some(wave), 2, true), Err(Error::Resource)), "begin {field}");
+    }
+    for field in 0..11 {
+        let mut resources = quote_seed();
+        let mut native = quote_native();
+        let mut stats = quote_stats();
+        let (mut inputs, mut references, mut misses, mut retained, mut copied, mut lowered) =
+            (2, 3, 1, 5, 7, 21);
+        match field {
+            0 => inputs = usize::MAX / 32 + 1,
+            1 => native.instructions = usize::MAX / 4 + 1,
+            2 => stats.retained_entries = usize::MAX / 64 + 1,
+            3 => references = usize::MAX,
+            4 => misses = usize::MAX / 512 + 1,
+            5 => retained = usize::MAX / 48 + 1,
+            6 => copied = usize::MAX / 3 + 1,
+            7 => lowered = usize::MAX,
+            8 => native.public_table_reservation_bytes = usize::MAX,
+            9 => stats.retained_entries = usize::MAX / 64,
+            _ => references = usize::MAX / 4224,
+        }
+        let mut q = resource_quote::Quote::begin(&mut resources, Limits::default(),
+            Capacity::Capsule, native, None, inputs, field != 8).unwrap();
+        assert_eq!(q.tables(stats, references, misses, retained, copied, lowered),
+            Err(Error::Resource), "tables {field}");
+    }
+    for field in 0..14 {
+        let mut resources = quote_seed();
+        let mut native = quote_native();
+        let mut stats = quote_stats();
+        let mut wave = quote_wave();
+        match field {
+            0 => resources.material_bytes = usize::MAX,
+            1 => resources.frame_bytes = usize::MAX,
+            2 => wave.frame_bytes_per_party = usize::MAX / 2 + 1,
+            3 => native.public_table_copy_bytes_total = usize::MAX / 2 + 1,
+            4 => native.combined_reservation_bytes = usize::MAX,
+            5 => native.plan_reservation_bytes = usize::MAX / 2 + 1,
+            6 => native.template_construction_bytes = usize::MAX / 3 + 1,
+            7 => stats.retained_bytes = usize::MAX,
+            8 => stats.retained_bytes = usize::MAX / 3 + 1,
+            9 => resources.metadata_bytes = usize::MAX / 3 + 1,
+            10 => resources.live_array_bytes_per_party = usize::MAX / 2 + 1,
+            11 => resources.peak_native_bytes = usize::MAX,
+            12 => native.private_material_bytes_total = usize::MAX,
+            _ => stats.metadata_reservation_bytes = usize::MAX,
+        }
+        let mut q = resource_quote::Quote::begin(&mut resources, Limits::default(),
+            Capacity::Capsule, native, Some(wave), 2, true).unwrap();
+        q.tables(stats, 3, 1, 5, 7, 21).unwrap();
+        assert_eq!(q.finish(stats), Err(Error::Resource), "finish {field}");
+    }
+    // Early public-copy refusal mutates the copied total but does not charge
+    // template-copy work or proceed to any cache phase, preserving old ordering.
+    let mut resources = quote_seed();
+    let limits = Limits { max_public_copy_bytes: 81, ..Limits::default() };
+    assert!(matches!(resource_quote::Quote::begin(&mut resources, limits,
+        Capacity::Capsule, quote_native(), None, 2, true), Err(Error::Resource)));
+    assert_eq!(resources.work, 15);
+    assert_eq!(resources.public_copy_bytes, 82);
+    assert_eq!(resources.kernels, 3);
+    assert_eq!(resources.source_table_cache_bytes_per_role, 23);
+}
+
+// Specialized pre-extraction census for exactly I=1,O=2,P=2,V=2,width=2.
+// Four padded-row one-hots and two argmaxes; Last once per epoch, one feedback
+// gap. No cache references, lowered tables, templates, material or native driver.
+// This does not call Quote, Schedule::run, or Schedule::execute as its oracle.
+fn small_legacy_obligations(p: &Program) -> (Resources, [u8; 32], [u8; 32]) {
+    let budget = request_budget(p).unwrap();
+    let tables = request_tables(p, &budget).unwrap();
+    let stats = tables.stats();
+    let binding = kernels::Binding { source_digest: p.source.digest(), contract_digest: p.digest };
+    let hot = kernels::token_one_hot(binding, Range::new(0, 1).unwrap().gate(), 2, &budget).unwrap().0;
+    let maximum = if p.online == OnlineSchedule::WavefrontV1 {
+        // Two leaves require exactly one stable-max lane, no further tree level.
+        let plan = kernels::stable_max(binding, [p.nodes[1].range.gate(); 2],
+            Range::new(0, 1).unwrap().gate(), &budget).unwrap().0;
+        p.online.repeat(plan, 1).unwrap()
+    } else {
+        kernels::argmax(binding, &ranges(2, p.nodes[1].range).unwrap(), &budget).unwrap().0
+    };
+    let mut expected = Resources {
+        metadata_bytes: p.resources.metadata_bytes,
+        live_array_bytes_per_party: p.resources.live_array_bytes_per_party,
+        source_table_cache_bytes_per_role: stats.metadata_reservation_bytes,
+        public_copy_bytes: 3 * p.source.reservation_bytes(),
+        work: 3 * p.resources.metadata_bytes + 3 * stats.metadata_reservation_bytes
+            + 3 * stats.numeric_revision_hash_bytes,
+        ..Resources::default()
+    };
+    let mut hash = Sha256::new();
+    hash.update(b"pllm.fss-decoder.kernel-obligations.v1\0");
+    hash.update(p.digest);
+    hash.update(b"request-local-shared-source-tables.v1\0");
+    hash.update(tables.numeric_revision());
+    let mut refused = [0; 32];
+    for selection in 0..2u64 {
+        for (node, plan) in [(0u64, &hot), (0, &hot), (2, &maximum)] {
+            let r = plan.resources();
+            assert_eq!(r.public_table_reservation_bytes, 0);
+            assert_eq!(r.public_table_copy_bytes_total, 0);
+            assert_eq!(r.template_construction_bytes, 0);
+            assert_eq!(r.template_copy_bytes, 0);
+            let wave = if p.online == OnlineSchedule::WavefrontV1 {
+                let wave = wavefront::Schedule::new(plan).unwrap();
+                hash.update(wave.digest());
+                Some(wave.resources())
+            } else { None };
+            // The unchanged scalar no-table formula, specialized to this tiny
+            // schedule. Source-copy/geometry controls remain separate above.
+            expected.kernels += 1;
+            expected.primitive_requests_per_party += r.secret_steps;
+            expected.work += 2 * r.cumulative_work + 32 * plan.input_bits().len()
+                + 4 * r.instructions + 1024;
+            expected.public_copy_bytes += 3 * std::mem::size_of::<cache::Stats>();
+            expected.material_bytes += r.private_material_bytes_total;
+            expected.frame_bytes += wave.map_or(r.frame_bytes_total, |w| 2 * w.frame_bytes_per_party);
+            if let Some(wave) = wave {
+                expected.work += 6 * wave.construction_work;
+                expected.public_copy_bytes += 6 * wave.metadata_bytes;
+            }
+            let native = r.combined_reservation_bytes + 2 * r.plan_reservation_bytes
+                + wave.map_or(0, |w| w.additional_reservation_bytes)
+                + 3 * stats.metadata_reservation_bytes;
+            expected.peak_native_bytes = expected.peak_native_bytes.max(native);
+            // Exact old table-obligation order is 14 zero cumulative counters,
+            // then selection, node, Plan. A final admission refusal commits the
+            // table counters but MUST NOT commit that final invocation tuple.
+            for _ in 0..14 { hash.update(0u64.to_le_bytes()); }
+            if selection == 1 && node == 2 { refused = hash.clone().finalize().into(); }
+            hash.update(selection.to_le_bytes());
+            hash.update(node.to_le_bytes());
+            hash.update(plan.digest());
+        }
+    }
+    // Per epoch: embedding local=2*P*V*width=16, Last local=2*width=4.
+    expected.work += 40;
+    expected.combined_reservation_bytes = 3 * expected.metadata_bytes
+        + 2 * expected.live_array_bytes_per_party + expected.peak_native_bytes;
+    (expected, hash.finalize().into(), refused)
+}
+
+#[test]
+fn quote_extraction_preserves_small_schedule_resources_and_obligations() {
+    for online in [OnlineSchedule::Serial, OnlineSchedule::WavefrontV1] {
+        let mut p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 2);
+        p.online = online;
+        let (expected, obligations, refused) = small_legacy_obligations(&p);
+        assert_eq!(expected.kernels, 6); // P, not growing prefixes 1+2.
+        assert_ne!(obligations, refused);
+        let exact = Limits {
+            max_work: expected.work, max_material_bytes: expected.material_bytes,
+            max_frame_bytes: expected.frame_bytes, max_public_copy_bytes: expected.public_copy_bytes,
+            ..Limits::default()
+        };
+        p.limits = exact;
+        for role in [0, 1] {
+            for driven in [false, true] {
+                let (actual, hash) = walk(&p, role, driven);
+                assert_eq!(resource_fields(actual), resource_fields(expected));
+                assert_eq!(hash, obligations);
+            }
+        }
+        preflight(&mut p).unwrap();
+        assert_eq!(resource_fields(p.resources), resource_fields(expected));
+        assert_eq!(p.obligations, obligations);
+        for field in 0..4 {
+            p.limits = exact;
+            match field {
+                0 => p.limits.max_work -= 1,
+                1 => p.limits.max_material_bytes -= 1,
+                2 => p.limits.max_frame_bytes -= 1,
+                _ => p.limits.max_public_copy_bytes -= 1,
+            }
+            for role in [0, 1] {
+                for driven in [false, true] {
+                    let budget = request_budget(&p).unwrap();
+                    let tables = request_tables(&p, &budget).unwrap();
+                    let mut driver = ZeroDriver::default();
+                    let mut state = Schedule::new(&p, context(&p), role, None, &tables).unwrap();
+                    if driven { state.driver = Some(&mut driver); }
+                    assert!(matches!(state.execute(&[0]), Err(Error::Resource)));
+                    assert_eq!(resource_fields(state.resources), resource_fields(expected));
+                    assert_eq!(<[u8; 32]>::from(state.hash.clone().finalize()), refused);
+                    drop(state);
+                    assert_eq!(driver.calls, if driven { 5 } else { 0 });
+                }
+            }
+        }
+    }
+}
