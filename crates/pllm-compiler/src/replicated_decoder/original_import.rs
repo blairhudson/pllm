@@ -44,6 +44,19 @@ pub(super) struct OriginalImportedView<'s> {
 }
 
 impl<'s> OriginalImportedView<'s> {
+    /// Retain the checked declaration allocation only, never runtime buffers or
+    /// source-read authority. Callers admit the view/result move overlap first.
+    pub(super) fn retain_checked(&self, builder: &Builder) -> Result<Self, Error> {
+        self.check(builder, self.registry, self.plan, self.graph)?;
+        Ok(Self {
+            record: Arc::clone(&self.record),
+            registry: self.registry,
+            plan: self.plan,
+            graph: self.graph,
+            semantic: self.semantic,
+        })
+    }
+
     pub(super) fn owner(&self) -> usize {
         self.record.owner
     }

@@ -645,6 +645,10 @@ struct View {
 #[allow(dead_code)]
 mod original_import;
 
+#[path = "source_tensor_publication.rs"]
+#[allow(dead_code)]
+mod source_tensor_publication;
+
 struct SourceView {
     owner: usize,
     shape: Vec<usize>,
