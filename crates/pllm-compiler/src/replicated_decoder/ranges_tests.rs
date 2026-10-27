@@ -1,5 +1,22 @@
 use super::*;
 
+#[test]
+fn ordinary_private_lookup_rms_scalar_inference_never_mints_energy() {
+    // Exact scalar input/width of the original 6->7-row diagnostic's lookup
+    // parents (51/396), not a substitute fixture or a full-constructor pass.
+    // The unchanged diagnostic remains responsible for all 26 actual sites
+    // and for reporting the first subsequent declared refusal, if any.
+    let input = Interval::new(-40960, 40960).unwrap();
+    let gamma = [262144; 2];
+    let (program, energy) = rms_norm_program(false, 2, input, &gamma, None).unwrap();
+    assert_eq!(energy, None);
+    assert!(program.output_bounds().lower() > -2811009);
+    assert!(program.output_bounds().upper() < 2811009);
+    let (same, still_private) = rms_norm_program(false, 2, input, &gamma, Some(1)).unwrap();
+    assert_eq!(still_private, None);
+    assert_eq!(same.digest(), program.digest());
+}
+
 fn input(builder: &mut Builder, lanes: usize, bounds: Interval) -> Words {
     let id = builder
         .push(Code::Input("x".into()), lanes, bounds)

@@ -7,6 +7,12 @@ use super::*;
 pub(super) const ONE: i64 = 1 << 18;
 const DOMAINS: usize = 36;
 
+#[path = "tensor_numeric_rsqrt_static.rs"]
+mod rsqrt_static;
+
+// Actual encoded Q18 polynomial, shared by emission and both bound proofs.
+const RSQRT_COEFFICIENTS: [i64; 5] = [1086023, -4057974, 10085068, -13072088, 6823457];
+
 #[cfg(test)]
 thread_local! {
     static EQUAL_ZERO_FACTORY_ATTEMPTS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
@@ -815,7 +821,7 @@ pub(super) fn rms_normalization<S: rms_work::RmsSink>(
     let mean = b.rescale(raw_mean, 18)?;
     let denominator = b.affine(mean, None, affine(1, 0, RMS_NORM_EPSILON_Q18))?;
     let bounds = b.node(denominator, false)?.bounds;
-    let mut inverse = rsqrt_ranged(b, denominator, bounds, partitioned)?;
+    let mut inverse = rsqrt_ranged::<_, true>(b, denominator, bounds, partitioned)?;
     inverse.value = b.row_map(inverse.value, width, RowMap::Broadcast)?;
     // Correlate each row value with its own denominator before multiplying.
     // For Q=2^18, c=E(1/width)>0, S=sum(TR(x_i^2)), d=TR(S*c)+epsilon:
@@ -897,7 +903,7 @@ pub(super) fn rms_energy_inverse_bounds(
     workspace: &mut SoftmaxWorkWorkspace,
 ) -> Result<Interval, Error> {
     workspace.reset(1, domain);
-    let inverse = rsqrt_ranged(workspace, Value(0), domain, true)?;
+    let inverse = rsqrt_ranged::<_, true>(workspace, Value(0), domain, true)?;
     hull(&inverse.boxes)
 }
 
@@ -986,10 +992,12 @@ fn reciprocal_cell(d: Interval, exponent: usize) -> Result<Interval, Error> {
 }
 
 pub(super) fn rsqrt(b: &mut Builder, input: Value, bounds: Interval) -> Result<Value, Error> {
-    Ok(rsqrt_ranged(b, input, bounds, false)?.value)
+    Ok(rsqrt_ranged::<_, true>(b, input, bounds, false)?.value)
 }
 
-fn rsqrt_ranged<S: attention_work::SoftmaxSink>(
+// The false monomorphization is used only by the old-sequence regression.
+// No branch or instruction is added to the executable tensor program.
+fn rsqrt_ranged<S: attention_work::SoftmaxSink, const STATIC: bool>(
     b: &mut S,
     input: Value,
     bounds: Interval,
@@ -1005,16 +1013,30 @@ fn rsqrt_ranged<S: attention_work::SoftmaxSink>(
     let u2 = u.product(b, &u, true)?;
     let u3 = u2.product(b, &u, true)?;
     let u4 = u3.product(b, &u, true)?;
-    let mut raw = u.affine(b, None, affine(-4057974, 0, 0))?;
-    for (power, coefficient) in [(&u2, 10085068), (&u3, -13072088), (&u4, 6823457)] {
+    let mut raw = u.affine(b, None, affine(RSQRT_COEFFICIENTS[1], 0, 0))?;
+    for (power, coefficient) in [
+        (&u2, RSQRT_COEFFICIENTS[2]),
+        (&u3, RSQRT_COEFFICIENTS[3]),
+        (&u4, RSQRT_COEFFICIENTS[4]),
+    ] {
         raw = raw.affine(b, Some(power), affine(1, coefficient, 0))?;
     }
-    let mut p = raw.rescale(b, 18)?.affine(b, None, affine(1, 0, 1086023))?;
+    let scaled = raw.rescale(b, 18)?;
+    let mut p;
     if partitioned {
+        p = scaled.affine(b, None, affine(1, 0, RSQRT_COEFFICIENTS[0]))?;
         for (slot, domain) in p.boxes.iter_mut().zip(u.boxes) {
             *slot = domain.map(rsqrt_polynomial_bounds).transpose()?;
         }
         b.refine(p.value, hull(&p.boxes)?);
+    } else {
+        // STATIC is monomorphized: the admission-only legacy branch exists
+        // solely for the test oracle, not as a selectable runtime policy.
+        p = if STATIC {
+            rsqrt_static::finish(b, &scaled, &u)?
+        } else {
+            scaled.affine(b, None, affine(1, 0, RSQRT_COEFFICIENTS[0]))?
+        };
     }
 
     // XOR-linear pair folding and parity work on shares; the one-hot invariant
@@ -1046,17 +1068,21 @@ fn rsqrt_polynomial_bounds(input: Interval) -> Result<Interval, Error> {
         let u3 = InputBounds { left: u2, right: u }.output()?;
         let u4 = InputBounds { left: u3, right: u }.output()?;
         let zero = Interval::new(0, 0)?;
-        let mut raw = affine(-4057974, 0, 0).output_bounds(InputBounds {
+        let mut raw = affine(RSQRT_COEFFICIENTS[1], 0, 0).output_bounds(InputBounds {
             left: u,
             right: zero,
         })?;
-        for (power, coefficient) in [(u2, 10085068), (u3, -13072088), (u4, 6823457)] {
+        for (power, coefficient) in [
+            (u2, RSQRT_COEFFICIENTS[2]),
+            (u3, RSQRT_COEFFICIENTS[3]),
+            (u4, RSQRT_COEFFICIENTS[4]),
+        ] {
             raw = affine(1, coefficient, 0).output_bounds(InputBounds {
                 left: raw,
                 right: power,
             })?;
         }
-        let p = affine(1, 0, 1086023).output_bounds(InputBounds {
+        let p = affine(1, 0, RSQRT_COEFFICIENTS[0]).output_bounds(InputBounds {
             left: rescaled_bounds(raw, 18)?,
             right: zero,
         })?;
