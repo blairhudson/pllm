@@ -23,6 +23,72 @@ fn factory(lanes: usize, input: Interval, coefficient: i64) -> ClosedFactory<'st
         .unwrap()
 }
 
+// Independent literal map recipe; no shared rescale emitter/query.
+fn original_rescale(lanes: usize, input: Interval, shift: u8) -> Result<Program, Error> {
+    let mut builder = Builder::new(lanes, input)?;
+    let output = builder.rescale(builder.input(), shift)?;
+    builder.finish(output)
+}
+
+#[test]
+fn rescale_query_matches_literal_native_metadata_work_and_full_tail_widths() {
+    let mut workspace = SoftmaxWorkWorkspace::empty();
+    for input in [
+        Interval::new(-ONE, ONE).unwrap(),
+        Interval::new(-3, 5).unwrap(),
+        Interval::new(0, 0).unwrap(),
+    ] {
+        for lanes in [1, 3, 4, 64, 127, 128] {
+            for shift in [1, 18, 31, 62] {
+                let before = (entries(), work_preflight::row_entries());
+                let work = Program::rescale_work(lanes, input, shift, &mut workspace).unwrap();
+                assert_eq!((entries(), work_preflight::row_entries()), before);
+                let expected = original_rescale(lanes, input, shift).unwrap();
+                workspace.assert_native_metadata(&expected);
+                let actual = Program::rescale(lanes, input, shift).unwrap();
+                assert_eq!(actual.digest(), expected.digest());
+                assert_eq!(actual.instructions(), 2, "input plus rescale only");
+                assert_eq!(actual.output_lanes(), lanes);
+                assert_eq!(actual.validity_lanes(), None);
+                assert_eq!(actual.output_bounds(), expected.output_bounds());
+                assert_eq!(work, expected.work_budget());
+                assert_eq!(actual.work_budget(), work);
+                assert_eq!(work, WorkBudget::rescale(lanes).unwrap());
+            }
+        }
+    }
+}
+
+#[test]
+fn rescale_invalid_shifts_domains_geometry_reset_without_factory_entries() {
+    let mut workspace = SoftmaxWorkWorkspace::empty();
+    let good = Interval::new(-ONE, ONE).unwrap();
+    for (lanes, input, shift) in [
+        (0, good, 18),
+        (129, good, 18),
+        (usize::MAX, good, 0),
+        (1, good, 0),
+        (1, good, 63),
+        (1, good, u8::MAX),
+        (1, Interval::new(i64::MIN, i64::MIN).unwrap(), 18),
+        (1, Interval::new(i64::MAX, i64::MAX).unwrap(), 18),
+        (1, Interval::new(i64::MIN, i64::MAX).unwrap(), 18),
+    ] {
+        let before = (entries(), work_preflight::row_entries());
+        let query = Program::rescale_work(lanes, input, shift, &mut workspace);
+        assert_eq!((entries(), work_preflight::row_entries()), before);
+        let expected = original_rescale(lanes, input, shift).err().unwrap();
+        assert_eq!(query, Err(expected));
+        assert_eq!(Program::rescale(lanes, input, shift).err(), Some(expected));
+        let before = (entries(), work_preflight::row_entries());
+        let work = Program::rescale_work(3, good, 18, &mut workspace).unwrap();
+        assert_eq!((entries(), work_preflight::row_entries()), before);
+        let native = original_rescale(3, good, 18).unwrap();
+        workspace.assert_native_metadata(&native);
+        assert_eq!(work, native.work_budget());
+    }
+}
+
 #[test]
 fn exact_original_composition_for_binary32_attention_coefficients_and_signed_constants() {
     let mut workspace = SoftmaxWorkWorkspace::empty();

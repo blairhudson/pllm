@@ -19,7 +19,36 @@ fn emit<S: SoftmaxSink>(sink: &mut S, coefficient: i64) -> Result<Value, Error> 
     sink.rescale(scaled, 18)
 }
 
+// Literal ordinary map recipe, distinct from affine scaling above.
+fn emit_rescale<S: SoftmaxSink>(sink: &mut S, shift: u8) -> Result<Value, Error> {
+    let input = sink.input();
+    sink.rescale(input, shift)
+}
+
 impl Program {
+    /// Exact ordinary Builder composition: input -> rescale(shift).
+    pub fn rescale(lanes: usize, input: Interval, shift: u8) -> Result<Self, Error> {
+        let mut builder = Builder::new(lanes, input)?;
+        let output = emit_rescale(&mut builder, shift)?;
+        builder.finish(output)
+    }
+
+    /// Factory-free work query over the same rescale emission and native cost
+    /// authority. Caller quotes the existing workspace before construction.
+    /// No admission, execution ledger or input/source authority is granted.
+    pub fn rescale_work(
+        lanes: usize,
+        input: Interval,
+        shift: u8,
+        workspace: &mut SoftmaxWorkWorkspace,
+    ) -> Result<WorkBudget, Error> {
+        workspace.clear();
+        validate_tile_lanes(lanes)?;
+        workspace.reset(lanes, input);
+        let output = emit_rescale(workspace, shift)?;
+        workspace.finish_work(output)
+    }
+
     /// Exact existing Builder composition: input -> affine(coefficient,0,0)
     /// -> rescale18. Caller retains the original coefficient calculation.
     pub fn scale18(lanes: usize, input: Interval, coefficient: i64) -> Result<Self, Error> {
