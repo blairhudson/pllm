@@ -672,6 +672,155 @@ pub fn block_pc_mm(
     Ok(())
 }
 
+/// Algorithm 1 clear rectangular block extension via a zero-padded square grid.
+/// `input.heads()` and `out.heads()` are explicit input/output block-row counts,
+/// not independent attention heads. Both retain full physical n*n blocks and
+/// identical valid columns/capacity. Missing block rows in the virtual grid of
+/// H=max(input.heads(), out.heads()) are zero; no padded buffer is allocated.
+/// Counts describe that square Algorithm 1 schedule, including zero blocks,
+/// NOT a new rectangular ciphertext packing or a claim of fewer HE operations.
+pub fn rectangular_block_pc_schedule(input: Layout, out: Layout) -> Result<Schedule, Error> {
+    let input_schedule = block_pc_schedule(input)?;
+    let output_schedule = block_pc_schedule(out)?;
+    if input.rows != out.rows
+        || input.capacity != out.capacity
+        || input.valid_columns != out.valid_columns
+    {
+        return Err(Error::Geometry);
+    }
+    let heads = input.heads.max(out.heads);
+    // Check the virtual square geometry as well as the borrowed real extents.
+    // No virtual allocation or broader backend-slot admission follows from this.
+    let d = mul(input.rows, heads)?;
+    let _ = mul(d, d)?;
+    let _ = mul(mul(input.capacity, input.rows)?, heads)?;
+    let _ = mul(mul(input.rows, input.rows)?, heads)?;
+    Ok(if input.heads >= out.heads {
+        input_schedule
+    } else {
+        output_schedule
+    })
+}
+
+/// Algorithm 1 rectangular clear reference, not the legacy flattened square
+/// f64 evaluation. Lines 2–10 complete each block-diagonal product in j,ell
+/// order; lines 11–16 then align k to (a+k) mod H and aggregate in ascending a.
+/// Capacity > 1 permutes the inner diagonals: lambda=c*j+((q mod c+ell) mod c).
+/// Each partial sum is completed BEFORE adding to the output accumulator.
+/// Weights are row-major (n*out.heads()) by (n*input.heads()); all virtual
+/// square-grid validation, zeroing and contraction iterations actually run.
+/// Exact work is n²H² + 2n²H + n³H², H=max(input.heads(),out.heads()).
+/// For n=2 and block-row counts 2,4 (either direction), work is 224, not 120.
+/// Actual slices and virtual extents obey caller limits capped at 2M elements
+/// and 100M work. Padding is never read; all finite LIVE operand checks precede
+/// mutation. No scratch/allocation. Direct routing is logical masked alignment,
+/// not physical HE rotation, rescaling, compiler/FFN admission or source binding.
+pub fn rectangular_block_pc_mm(
+    input: Layout,
+    weights: &[f64],
+    b: &[f64],
+    out: Layout,
+    output: &mut [f64],
+    limits: Limits,
+) -> Result<(), Error> {
+    let _ = rectangular_block_pc_schedule(input, out)?;
+    let limits = Limits {
+        max_buffer_elements: limits.max_buffer_elements.min(2_000_000),
+        max_work: limits.max_work.min(100_000_000),
+    };
+    let n = input.rows;
+    let heads = input.heads.max(out.heads);
+    let virtual_rows = mul(n, heads)?;
+    let virtual_weights = mul(virtual_rows, virtual_rows)?;
+    let virtual_elements = mul(mul(n, n)?, heads)?;
+    let virtual_frame = mul(mul(input.capacity, n)?, heads)?;
+    let required_work = add(
+        add(virtual_weights, mul(2, virtual_elements)?)?,
+        mul(virtual_elements, virtual_rows)?,
+    )?;
+    let input_rows = mul(input.rows, input.heads)?;
+    let output_rows = mul(out.rows, out.heads)?;
+    let weights_len = mul(output_rows, input_rows)?;
+    buffer(weights.len(), weights_len, limits)?;
+    buffer(b.len(), input.elements, limits)?;
+    buffer(output.len(), out.elements, limits)?;
+    buffer(virtual_weights, virtual_weights, limits)?;
+    buffer(virtual_elements, virtual_elements, limits)?;
+    buffer(virtual_frame, virtual_frame, limits)?;
+    work(required_work, limits)?;
+    for row in 0..virtual_rows {
+        for column in 0..virtual_rows {
+            let value = if row < output_rows && column < input_rows {
+                weights[row * input_rows + column]
+            } else {
+                0.0
+            };
+            if !value.is_finite() {
+                return Err(Error::NonFinite);
+            }
+        }
+    }
+    for q in 0..n {
+        for t in 0..n {
+            for k in 0..heads {
+                let value = if k < input.heads && t < input.valid_columns {
+                    b[input.raw(q, t, k)]
+                } else {
+                    0.0
+                };
+                if !value.is_finite() {
+                    return Err(Error::NonFinite);
+                }
+            }
+        }
+    }
+    for q in 0..n {
+        for t in 0..n {
+            for i in 0..heads {
+                if i < out.heads {
+                    output[out.raw(q, t, i)] = 0.0;
+                }
+            }
+        }
+    }
+    for q in 0..n {
+        for t in 0..n {
+            for i in 0..heads {
+                let row = plus(t, q, n);
+                let mut sum = 0.0;
+                for a in 0..heads {
+                    let k = minus(i, a, heads);
+                    let mut partial = 0.0;
+                    for j in 0..input.frames() {
+                        for ell in 0..input.capacity {
+                            // Products are bounded by checked n and grid extents.
+                            let lambda =
+                                j * input.capacity + plus(q % input.capacity, ell, input.capacity);
+                            let inner = plus(t, lambda, n);
+                            let av = if i < out.heads && k < input.heads {
+                                weights[(i * n + row) * input_rows + k * n + inner]
+                            } else {
+                                0.0
+                            };
+                            let bv = if k < input.heads && t < input.valid_columns {
+                                b[input.raw(lambda, t, k)]
+                            } else {
+                                0.0
+                            };
+                            partial += av * bv;
+                        }
+                    }
+                    sum += partial;
+                }
+                if i < out.heads && t < out.valid_columns {
+                    output[out.raw(q, t, i)] = sum;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Source §4.4 / p.9 complexification control, restricted to Proposition 3.6:
 /// A is n*m upper, B is m*n lower, n divisible by even m. One diagonal per
 /// frame, independent heads. No claim about unspecified packed lower-lower

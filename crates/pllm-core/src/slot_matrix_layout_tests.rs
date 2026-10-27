@@ -1,5 +1,561 @@
 use super::*;
 
+// Rectangular oracle: signed modular integer fixtures, ordinary integer dense
+// contraction (no modular reduction of results). No candidate/layout indexing.
+fn rect_integers(n: usize, factor: usize, modulus: usize) -> Vec<i64> {
+    (0..n)
+        .map(|i| ((i * factor + i / 3) % modulus) as i64 - (modulus / 2) as i64)
+        .collect()
+}
+
+fn rect_dense_oracle(
+    weights: &[i64],
+    b: &[i64],
+    rows: usize,
+    inner: usize,
+    n: usize,
+    valid_columns: usize,
+) -> Vec<i64> {
+    let mut result = vec![0; rows * n];
+    for row in 0..rows {
+        for column in 0..valid_columns {
+            for k in 0..inner {
+                result[row * n + column] += weights[row * inner + k] * b[k * n + column];
+            }
+        }
+    }
+    result
+}
+
+// Independent Eq. (7) encoder/checker. Padding and suffix inputs are poisoned;
+// expected output comes solely from dense integer contraction, not pack/unpack.
+fn rect_slots(n: usize, heads: usize, capacity: usize, vc: usize, b: &[i64]) -> Vec<f64> {
+    let mut slots = vec![f64::NAN; n * n * heads + 3];
+    for d in 0..n {
+        for t in 0..vc {
+            for h in 0..heads {
+                let x =
+                    (d / capacity) * capacity * n * heads + ((d % capacity) * n + t) * heads + h;
+                slots[x] = b[(h * n + (d + t) % n) * n + t] as f64;
+            }
+        }
+    }
+    slots
+}
+
+fn rect_assert_slots(n: usize, heads: usize, capacity: usize, values: &[f64], expected: &[i64]) {
+    for d in 0..n {
+        for t in 0..n {
+            for h in 0..heads {
+                let x =
+                    (d / capacity) * capacity * n * heads + ((d % capacity) * n + t) * heads + h;
+                assert_eq!(values[x], expected[(h * n + (d + t) % n) * n + t] as f64);
+            }
+        }
+    }
+    assert!(values[n * n * heads..].iter().all(|v| *v == SENTINEL));
+}
+
+#[test]
+fn rectangular_pc_asymmetric_4_to_8_to_4_has_independent_integer_oracle() {
+    for n in [1, 2, 4] {
+        for capacity in (1..=n).filter(|c| n % c == 0) {
+            for vc in [0, 1, n - 1, n] {
+                let input =
+                    Layout::new(n, n, n, vc, 4 / n, capacity, Diagonal::Lower, LIMITS).unwrap();
+                let expanded =
+                    Layout::new(n, n, n, vc, 8 / n, capacity, Diagonal::Lower, LIMITS).unwrap();
+                let b = rect_integers(4 * n, 7, 19);
+                let up = rect_integers(8 * 4, 11, 23);
+                let down = rect_integers(4 * 8, 13, 29);
+                let expected_up = rect_dense_oracle(&up, &b, 8, 4, n, vc);
+                // Second oracle consumes independent first oracle, never candidate.
+                let expected_down = rect_dense_oracle(&down, &expected_up, 4, 8, n, vc);
+                let mut first = vec![SENTINEL; expanded.elements() + 3];
+                rectangular_block_pc_mm(
+                    input,
+                    &up.iter().map(|v| *v as f64).collect::<Vec<_>>(),
+                    &rect_slots(n, 4 / n, capacity, vc, &b),
+                    expanded,
+                    &mut first,
+                    LIMITS,
+                )
+                .unwrap();
+                rect_assert_slots(n, 8 / n, capacity, &first, &expected_up);
+                let mut second = vec![SENTINEL; input.elements() + 3];
+                rectangular_block_pc_mm(
+                    expanded,
+                    &down.iter().map(|v| *v as f64).collect::<Vec<_>>(),
+                    &first,
+                    input,
+                    &mut second,
+                    LIMITS,
+                )
+                .unwrap();
+                rect_assert_slots(n, 4 / n, capacity, &second, &expected_down);
+            }
+        }
+    }
+}
+
+#[test]
+fn rectangular_pc_both_orientations_virtual_tail_blocks_and_counts() {
+    // Unequal and non-multiple block-row counts exercise zero virtual tail blocks.
+    // Physical blocks stay full; nondividing diagonal capacity remains rejected.
+    for n in [1, 2, 4, 6] {
+        for (ih, oh) in [(1, 3), (3, 1), (2, 3), (3, 2)] {
+            for capacity in (1..=n).filter(|c| n % c == 0) {
+                let vc = n.saturating_sub(1);
+                let input =
+                    Layout::new(n, n, n, vc, ih, capacity, Diagonal::Lower, LIMITS).unwrap();
+                let out = Layout::new(n, n, n, vc, oh, capacity, Diagonal::Lower, LIMITS).unwrap();
+                let weights = rect_integers(n * oh * n * ih, 17, 31);
+                let b = rect_integers(n * ih * n, 7, 19);
+                let expected = rect_dense_oracle(&weights, &b, n * oh, n * ih, n, vc);
+                let mut output = vec![SENTINEL; out.elements() + 3];
+                rectangular_block_pc_mm(
+                    input,
+                    &weights.iter().map(|v| *v as f64).collect::<Vec<_>>(),
+                    &rect_slots(n, ih, capacity, vc, &b),
+                    out,
+                    &mut output,
+                    LIMITS,
+                )
+                .unwrap();
+                rect_assert_slots(n, oh, capacity, &output, &expected);
+                let h = ih.max(oh);
+                let frames = n / capacity;
+                assert_eq!(
+                    rectangular_block_pc_schedule(input, out).unwrap(),
+                    Schedule {
+                        plaintext_products: h * frames * n + h * frames,
+                        input_rotations: frames * (capacity - 1),
+                        output_rotations: 2 * (h - 1) * frames,
+                        rescale_after_product_sums: h * frames,
+                        ..Schedule::default()
+                    }
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn rectangular_pc_preflight_exact_limits_and_atomic_rejections() {
+    let input = layout(2, 2, 2, 1, Diagonal::Lower);
+    let out = layout(2, 2, 4, 1, Diagonal::Lower);
+    let weights = vec![1.0; 32];
+    let b = vec![2.0; input.elements()];
+    let mut output = vec![SENTINEL; out.elements()];
+    let before = output.clone();
+    // n=2,H=4: 64 virtual weights + 2*16 virtual lanes + 128 terms.
+    let required_work = 224;
+    let exact = Limits {
+        max_buffer_elements: 64,
+        max_work: required_work,
+    };
+    let mut bad_weights = weights.clone();
+    bad_weights[31] = f64::NAN;
+    let mut bad_b = b.clone();
+    bad_b[input.elements() - 1] = f64::INFINITY;
+    for (w, bv, olen, limits, error) in [
+        (
+            &weights[..31],
+            &bad_b[..],
+            out.elements(),
+            exact,
+            Error::Buffer,
+        ),
+        (
+            &bad_weights[..],
+            &b[..b.len() - 1],
+            out.elements(),
+            exact,
+            Error::Buffer,
+        ),
+        (
+            &bad_weights[..],
+            &b[..],
+            out.elements() - 1,
+            exact,
+            Error::Buffer,
+        ),
+        (
+            &bad_weights[..],
+            &b[..],
+            out.elements(),
+            Limits {
+                max_work: required_work - 1,
+                ..exact
+            },
+            Error::WorkLimit,
+        ),
+        (
+            &bad_weights[..],
+            &b[..],
+            out.elements(),
+            Limits {
+                max_buffer_elements: 63,
+                ..exact
+            },
+            Error::Buffer,
+        ),
+        (
+            &bad_weights[..],
+            &b[..],
+            out.elements(),
+            exact,
+            Error::NonFinite,
+        ),
+        (
+            &weights[..],
+            &bad_b[..],
+            out.elements(),
+            exact,
+            Error::NonFinite,
+        ),
+    ] {
+        assert_eq!(
+            rectangular_block_pc_mm(input, w, bv, out, &mut output[..olen], limits),
+            Err(error)
+        );
+        assert_eq!(output, before);
+    }
+    // Oversized supplied slices are charged in full, even unused suffixes.
+    let oversized = vec![1.0; 65];
+    for (w, bv) in [(&oversized[..], &b[..]), (&weights[..], &oversized[..])] {
+        assert_eq!(
+            rectangular_block_pc_mm(input, w, bv, out, &mut output, exact),
+            Err(Error::Buffer)
+        );
+        assert_eq!(output, before);
+    }
+    let mut oversized_output = vec![SENTINEL; 65];
+    assert_eq!(
+        rectangular_block_pc_mm(input, &weights, &b, out, &mut oversized_output, exact),
+        Err(Error::Buffer)
+    );
+    assert!(oversized_output.iter().all(|v| *v == SENTINEL));
+    rectangular_block_pc_mm(input, &weights, &b, out, &mut output, exact).unwrap();
+    assert_eq!(output, vec![8.0; out.elements()]);
+    // Reverse rectangle pays the SAME full virtual traversal, not real extents.
+    let reverse_b = vec![2.0; out.elements()];
+    let mut reverse_output = vec![SENTINEL; input.elements() + 3];
+    let reverse_before = reverse_output.clone();
+    assert_eq!(
+        rectangular_block_pc_mm(
+            out,
+            &weights,
+            &reverse_b,
+            input,
+            &mut reverse_output,
+            Limits {
+                max_work: 223,
+                ..exact
+            }
+        ),
+        Err(Error::WorkLimit)
+    );
+    assert_eq!(reverse_output, reverse_before);
+    rectangular_block_pc_mm(out, &weights, &reverse_b, input, &mut reverse_output, exact).unwrap();
+    assert!(
+        reverse_output[..input.elements()]
+            .iter()
+            .all(|v| *v == 16.0)
+    );
+    assert!(
+        reverse_output[input.elements()..]
+            .iter()
+            .all(|v| *v == SENTINEL)
+    );
+
+    let layout_exact = Limits {
+        max_buffer_elements: 16,
+        max_work: 16,
+    };
+    assert_eq!(
+        Layout::new(2, 2, 2, 2, 4, 1, Diagonal::Lower, layout_exact),
+        Ok(out)
+    );
+    assert_eq!(
+        Layout::new(
+            2,
+            2,
+            2,
+            2,
+            4,
+            1,
+            Diagonal::Lower,
+            Limits {
+                max_buffer_elements: 15,
+                ..layout_exact
+            }
+        ),
+        Err(Error::Buffer)
+    );
+    assert_eq!(
+        Layout::new(
+            2,
+            2,
+            2,
+            2,
+            4,
+            1,
+            Diagonal::Lower,
+            Limits {
+                max_work: 15,
+                ..layout_exact
+            }
+        ),
+        Err(Error::WorkLimit)
+    );
+
+    // Exactly full capacity and one-short nondividing capacity; no widening.
+    let full = layout(4, 4, 2, 4, Diagonal::Lower);
+    assert!(rectangular_block_pc_schedule(full, full).is_ok());
+    let partial_frame = layout(4, 4, 2, 3, Diagonal::Lower);
+    let before = output.clone();
+    for invalid in [
+        partial_frame,
+        layout(4, 4, 2, 4, Diagonal::Upper),
+        Layout::new(4, 4, 3, 4, 2, 4, Diagonal::Lower, LIMITS).unwrap(),
+    ] {
+        assert_eq!(
+            rectangular_block_pc_schedule(invalid, full),
+            Err(Error::Geometry)
+        );
+        assert_eq!(
+            rectangular_block_pc_mm(invalid, &[], &[], full, &mut output, LIMITS),
+            Err(Error::Geometry)
+        );
+        assert_eq!(
+            rectangular_block_pc_schedule(full, invalid),
+            Err(Error::Geometry)
+        );
+        assert_eq!(
+            rectangular_block_pc_mm(full, &[], &[], invalid, &mut output, LIMITS),
+            Err(Error::Geometry)
+        );
+        assert_eq!(output, before);
+    }
+    assert_eq!(
+        rectangular_block_pc_schedule(input, full),
+        Err(Error::Geometry)
+    );
+    let wrong_columns = Layout::new(2, 2, 2, 1, 4, 1, Diagonal::Lower, LIMITS).unwrap();
+    assert_eq!(
+        rectangular_block_pc_schedule(input, wrong_columns),
+        Err(Error::Geometry)
+    );
+    let wrong_capacity = layout(2, 2, 4, 2, Diagonal::Lower);
+    assert_eq!(
+        rectangular_block_pc_schedule(input, wrong_capacity),
+        Err(Error::Geometry)
+    );
+    let unlimited = Limits {
+        max_buffer_elements: usize::MAX,
+        max_work: usize::MAX,
+    };
+    let huge = Layout::new(1, 1, 1, 1, usize::MAX / 4, 1, Diagonal::Lower, unlimited).unwrap();
+    assert_eq!(
+        rectangular_block_pc_schedule(huge, huge),
+        Err(Error::Overflow)
+    );
+    let before = output.clone();
+    assert_eq!(
+        rectangular_block_pc_mm(huge, &[], &[], huge, &mut output, unlimited),
+        Err(Error::Overflow)
+    );
+    assert_eq!(output, before);
+
+    // Caller cannot widen the rectangular owner's 2M virtual-storage ceiling.
+    let small = layout(1, 1, 1, 1, Diagonal::Lower);
+    let virtual_over_cap = Layout::new(1, 1, 1, 1, 1415, 1, Diagonal::Lower, unlimited).unwrap();
+    let mut cap_output = vec![SENTINEL; 1415];
+    assert_eq!(
+        rectangular_block_pc_mm(
+            small,
+            &[f64::NAN; 1415],
+            &[f64::NAN],
+            virtual_over_cap,
+            &mut cap_output,
+            unlimited
+        ),
+        Err(Error::Buffer)
+    );
+    assert!(cap_output.iter().all(|v| *v == SENTINEL));
+
+    // Virtual extents fit 2M but 135,528,448 work exceeds the fixed 100M cap.
+    // Real slices stay bounded; rejection must precede poisoned operand scans.
+    let work_input = layout(128, 128, 1, 128, Diagonal::Lower);
+    let work_out = layout(128, 128, 8, 128, Diagonal::Lower);
+    let work_weights = vec![f64::NAN; 128 * 128 * 8];
+    let work_b = vec![f64::NAN; work_input.elements()];
+    let mut work_output = vec![SENTINEL; work_out.elements()];
+    assert_eq!(
+        rectangular_block_pc_mm(
+            work_input,
+            &work_weights,
+            &work_b,
+            work_out,
+            &mut work_output,
+            unlimited
+        ),
+        Err(Error::WorkLimit)
+    );
+    assert!(work_output.iter().all(|v| *v == SENTINEL));
+}
+
+fn rect_vector_rotate(values: &[f64], shift: usize) -> Vec<f64> {
+    (0..values.len())
+        .map(|x| values[(x + shift) % values.len()])
+        .collect()
+}
+
+// Independent test-only Algorithm 1 simulation. Materialize packed vectors,
+// rotated B, plaintext products, COMPLETED block products, then head masks and
+// two alignment rotations. No production Layout/address/modular helpers.
+#[allow(clippy::too_many_arguments)]
+fn rect_algorithm1_vector_oracle(
+    n: usize,
+    ih: usize,
+    oh: usize,
+    c: usize,
+    vc: usize,
+    weights: &[f64],
+    dense_b: &[f64],
+) -> Vec<f64> {
+    let h = ih.max(oh);
+    let frames = n / c;
+    let extent = c * n * h;
+    let mut rotated = vec![vec![Vec::new(); c]; frames];
+    for (j, rotations) in rotated.iter_mut().enumerate() {
+        let mut frame = vec![0.0; extent];
+        for (x, value) in frame.iter_mut().enumerate() {
+            let k = x % h;
+            let t = x / h % n;
+            let diagonal = c * j + x / (n * h);
+            if k < ih && t < vc {
+                *value = dense_b[(k * n + (diagonal + t) % n) * n + t];
+            }
+        }
+        for (ell, rotation) in rotations.iter_mut().enumerate() {
+            *rotation = rect_vector_rotate(&frame, n * h * ell);
+        }
+    }
+    let mut completed = vec![vec![vec![0.0; extent]; frames]; h];
+    for (a, partial_frames) in completed.iter_mut().enumerate() {
+        for (r, partial) in partial_frames.iter_mut().enumerate() {
+            for (j, rotations) in rotated.iter().enumerate() {
+                for (ell, operand) in rotations.iter().enumerate() {
+                    let plaintext: Vec<_> = (0..extent)
+                        .map(|x| {
+                            let k = x % h;
+                            let i = (a + k) % h;
+                            let t = x / h % n;
+                            let local_diagonal = x / (n * h);
+                            let q = c * r + local_diagonal;
+                            let rotated_diagonal = c * j + (local_diagonal + ell) % c;
+                            if i < oh && k < ih {
+                                weights[(i * n + (q + t) % n) * (n * ih)
+                                    + k * n
+                                    + (rotated_diagonal + t) % n]
+                            } else {
+                                0.0
+                            }
+                        })
+                        .collect();
+                    let products: Vec<_> =
+                        plaintext.iter().zip(operand).map(|(a, b)| a * b).collect();
+                    for (acc, product) in partial.iter_mut().zip(products) {
+                        *acc += product;
+                    }
+                }
+            }
+        }
+    }
+    let mut aligned = vec![vec![0.0; extent]; frames];
+    for (a, partial_frames) in completed.iter().enumerate() {
+        for (partial, acc) in partial_frames.iter().zip(&mut aligned) {
+            let right: Vec<_> = partial
+                .iter()
+                .enumerate()
+                .map(|(x, v)| if x % h >= h - a { *v } else { 0.0 })
+                .collect();
+            let left: Vec<_> = partial
+                .iter()
+                .zip(&right)
+                .map(|(v, masked)| v - masked)
+                .collect();
+            let right_aligned = rect_vector_rotate(&right, h - a);
+            let left_aligned = rect_vector_rotate(&left, (extent - a) % extent);
+            for ((acc, right), left) in acc.iter_mut().zip(right_aligned).zip(left_aligned) {
+                *acc += right + left;
+            }
+        }
+    }
+    let mut result = vec![SENTINEL; n * n * oh + 3];
+    for (r, frame) in aligned.iter().enumerate() {
+        for local in 0..c {
+            for t in 0..n {
+                for i in 0..oh {
+                    result[r * c * n * oh + (local * n + t) * oh + i] = if t < vc {
+                        frame[(local * n + t) * h + i]
+                    } else {
+                        0.0
+                    };
+                }
+            }
+        }
+    }
+    result
+}
+
+#[test]
+fn rectangular_pc_algorithm1_stages_preserve_grouping_and_alignment() {
+    for (n, ih, oh, c, vc) in [
+        (2, 2, 1, 1, 2),
+        (2, 1, 2, 2, 1),
+        (2, 2, 2, 2, 2),
+        (4, 2, 3, 2, 3),
+        (4, 3, 2, 4, 4),
+        (4, 3, 3, 2, 4),
+    ] {
+        let input = Layout::new(n, n, n, vc, ih, c, Diagonal::Lower, LIMITS).unwrap();
+        let out = Layout::new(n, n, n, vc, oh, c, Diagonal::Lower, LIMITS).unwrap();
+        let weights: Vec<_> = rect_integers(n * oh * n * ih, 11, 23)
+            .iter()
+            .map(|v| *v as f64 / 7.0)
+            .collect();
+        let b = rect_integers(n * n * ih, 7, 19);
+        let dense_b: Vec<_> = b.iter().map(|v| *v as f64 / 11.0).collect();
+        let mut slots = rect_slots(n, ih, c, vc, &b);
+        for value in &mut slots[..input.elements()] {
+            if value.is_finite() {
+                *value /= 11.0;
+            }
+        }
+        let expected = rect_algorithm1_vector_oracle(n, ih, oh, c, vc, &weights, &dense_b);
+        let mut output = vec![SENTINEL; out.elements() + 3];
+        rectangular_block_pc_mm(input, &weights, &slots, out, &mut output, LIMITS).unwrap();
+        assert_eq!(
+            output.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+            expected.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+        );
+    }
+    let input = layout(2, 2, 2, 1, Diagonal::Lower);
+    let out = layout(2, 2, 1, 1, Diagonal::Lower);
+    let weights = [1e16, 0.0, -1e16, 1.0, 0.0, 0.0, 0.0, 0.0];
+    let expected = rect_algorithm1_vector_oracle(2, 2, 1, 1, 2, &weights, &[1.0; 8]);
+    let mut output = vec![SENTINEL; out.elements() + 3];
+    rectangular_block_pc_mm(input, &weights, &[1.0; 8], out, &mut output, LIMITS).unwrap();
+    assert_eq!(expected[0], 0.0);
+    assert_eq!(output[0], 0.0);
+    let flattened = weights[..4].iter().fold(0.0, |sum, weight| sum + weight);
+    assert_eq!(flattened, 1.0);
+    assert_eq!(output, expected);
+}
+
 const LIMITS: Limits = Limits {
     max_buffer_elements: 2_000_000,
     max_work: 100_000_000,
