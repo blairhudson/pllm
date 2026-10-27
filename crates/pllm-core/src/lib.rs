@@ -65,6 +65,7 @@ pub mod streamed_matrix;
 pub mod tensor;
 mod token_lookup;
 pub mod token_pruning;
+pub mod torus_cmux;
 pub mod wavelet_gated_reference;
 pub use activation::{silu_quadratic_q7, silu_quadratic_q7_tensor};
 pub use attention::{
