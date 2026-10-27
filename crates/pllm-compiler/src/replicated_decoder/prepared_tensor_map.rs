@@ -76,6 +76,17 @@ struct AssemblyInventory {
     owner: usize,
 }
 
+// Local construction quote, not an execution/work permit. Native quotes remain
+// Construction::quote values; assembly names separate construction phases.
+struct MapInventory {
+    width: usize,
+    remainder: usize,
+    full_quote: tensor::ConstructionQuote,
+    tail_quote: Option<tensor::ConstructionQuote>,
+    assembly: AssemblyInventory,
+    peak: usize,
+}
+
 impl AssemblyInventory {
     fn for_callback<F>() -> Result<Self, Error> {
         // Checked scalar sums without introducing an array/iterator owner.
@@ -174,7 +185,120 @@ impl AssemblyInventory {
     }
 }
 
+fn construction_inventory<F, G: WorkGate>(
+    lanes: usize,
+    factory: Factory,
+    caller_baseline: usize,
+) -> Result<MapInventory, Error> {
+    if lanes == 0 || lanes > MAX_VALUES {
+        return Err(Error::Bounds);
+    }
+    let width = lanes.min(tensor::MAX_TILE_LANES);
+    let remainder = lanes % width;
+    let full_quote = factory.quote(width)?;
+    let tail_quote = if remainder != 0 {
+        Some(factory.quote(remainder)?)
+    } else {
+        None
+    };
+    let mut assembly = AssemblyInventory::for_callback::<F>()?;
+    // Helper return, Result bridge and prepare binding are named logical move
+    // positions, not a physical-stack/allocator claim.
+    let inventory_moves = add(
+        size_of::<MapInventory>()
+            .checked_mul(2)
+            .ok_or(Error::Bounds)?,
+        size_of::<Result<MapInventory, Error>>(),
+    )?;
+    assembly.quote = add(assembly.quote, inventory_moves)?;
+    assembly.full = add(assembly.full, inventory_moves)?;
+    assembly.tail = add(assembly.tail, inventory_moves)?;
+    assembly.owner = add(assembly.owner, inventory_moves)?;
+    if matches!(factory, Factory::Rescale(_)) {
+        // New Program::rescale return -> existing Factory::make return bridge.
+        // Keep the native Construction::quote unchanged; price this wrapper here.
+        let native_bridge = size_of::<Result<tensor::Program, Error>>();
+        assembly.full = add(assembly.full, native_bridge)?;
+        assembly.tail = add(assembly.tail, native_bridge)?;
+    }
+    let mut peak = assembly
+        .quote
+        .max(add(assembly.full, full_quote.new_peak_bytes)?);
+    let mut templates = full_quote.immutable_template_bytes;
+    if let Some(quote) = tail_quote {
+        peak = peak.max(add(
+            assembly.tail,
+            add(full_quote.immutable_template_bytes, quote.new_peak_bytes)?,
+        )?);
+        templates = add(templates, quote.immutable_template_bytes)?;
+    }
+    peak = peak.max(add(assembly.owner, templates)?);
+    peak = peak.max(add(assembly.quote, G::workspace_phase_bytes()?)?);
+    // Original prior argument, gate expression, prepare parameter and receiver.
+    peak = add(
+        add(caller_baseline, peak)?,
+        size_of::<G>().checked_mul(4).ok_or(Error::Bounds)?,
+    )?;
+    Ok(MapInventory {
+        width,
+        remainder,
+        full_quote,
+        tail_quote,
+        assembly,
+        peak,
+    })
+}
+
+// Caller supplies already-admitted workspace; neither branch constructs it or
+// enters a native factory. Rescale's existing NoWorkGate remains unchanged.
+enum MapWorkWorkspace<'a> {
+    #[cfg_attr(not(test), allow(dead_code))]
+    Rescale(&'a mut tensor::SoftmaxWorkWorkspace),
+    GuardedSilu(&'a mut tensor::ActivationWorkWorkspace),
+}
+
+fn scheduled_work(
+    factory: Factory,
+    lanes: usize,
+    input: Interval,
+    mut workspace: MapWorkWorkspace<'_>,
+) -> Result<WorkBudget, Error> {
+    if lanes == 0 || lanes > MAX_VALUES {
+        return Err(Error::Bounds);
+    }
+    let width = lanes.min(tensor::MAX_TILE_LANES);
+    let remainder = lanes % width;
+    let mut scheduled = factory.query_work(width, input, &mut workspace)?
+        .checked_mul(u64::try_from(lanes / width).map_err(|_| Error::Bounds)?)?;
+    if remainder != 0 {
+        scheduled = scheduled.checked_add(factory.query_work(remainder, input, &mut workspace)?)?;
+    }
+    Ok(scheduled)
+}
+
 impl Factory {
+    fn query_work(
+        self,
+        lanes: usize,
+        input: Interval,
+        workspace: &mut MapWorkWorkspace<'_>,
+    ) -> Result<WorkBudget, Error> {
+        match (self, workspace) {
+            (Self::Rescale(shift), MapWorkWorkspace::Rescale(workspace)) => {
+                tensor::Program::rescale_work(lanes, input, shift, workspace)
+            }
+            (Self::GuardedSilu, MapWorkWorkspace::GuardedSilu(workspace)) => {
+                tensor::Program::activation_guarded_work(
+                    tensor::Activation::Silu,
+                    lanes,
+                    input,
+                    workspace,
+                )
+            }
+            _ => Err(Error::Shape),
+        }
+    }
+
     fn quote(self, lanes: usize) -> Result<tensor::ConstructionQuote, Error> {
         let construction = match self {
             Self::Rescale(_) => tensor::Construction::Builder { lanes },
@@ -188,11 +312,7 @@ impl Factory {
 
     fn make(self, lanes: usize, input: Interval) -> Result<tensor::Program, Error> {
         match self {
-            Self::Rescale(shift) => {
-                let mut b = tensor::Builder::new(lanes, input)?;
-                let output = b.rescale(b.input(), shift)?;
-                b.finish(output)
-            }
+            Self::Rescale(shift) => tensor::Program::rescale(lanes, input, shift),
             Self::GuardedSilu => {
                 tensor::Program::activation_guarded(tensor::Activation::Silu, lanes, input)
             }
@@ -236,44 +356,43 @@ impl WorkGate for ActivationWorkGate {
         let values = size_of::<WorkBudget>()
             // full query/mul receiver; scheduled_work; tail; scheduled-add
             // receiver/argument; final-add receiver/argument; total; limits receiver
-            .checked_mul(9)
+            .checked_mul(10) // includes scheduled_work's returned aggregate
             .ok_or(Error::Bounds)?;
         let returns = size_of::<Result<WorkBudget, Error>>()
-            .checked_mul(3) // native query, checked_mul, checked_add bridge slots
+            .checked_mul(5) // native/mul/add, query_work and scheduled_work bridges
             .ok_or(Error::Bounds)?;
+        let scheduled_query = add(
+            size_of::<MapWorkWorkspace<'_>>()
+                .checked_mul(2) // argument expression and helper parameter
+                .ok_or(Error::Bounds)?,
+            size_of::<&mut MapWorkWorkspace<'_>>(), // query_work parameter
+        )?;
         add(
             add(add(workspace, values)?, returns)?,
             add(
-                size_of::<Result<puma::prss::PrssLimits, Error>>(),
-                size_of::<Result<(), Error>>(),
+                scheduled_query,
+                add(
+                    size_of::<Result<puma::prss::PrssLimits, Error>>(),
+                    size_of::<Result<(), Error>>(),
+                )?,
             )?,
         )
     }
     fn check(
         self,
         lanes: usize,
-        width: usize,
-        remainder: usize,
+        _: usize,
+        _: usize,
         input: Interval,
     ) -> Result<(), Error> {
         let mut workspace = tensor::ActivationWorkWorkspace::empty();
-        let mut scheduled_work = tensor::Program::activation_guarded_work(
-            tensor::Activation::Silu,
-            width,
+        let scheduled = scheduled_work(
+            Factory::GuardedSilu,
+            lanes,
             input,
-            &mut workspace,
-        )?
-        .checked_mul(u64::try_from(lanes / width).map_err(|_| Error::Bounds)?)?;
-        if remainder != 0 {
-            let tail = tensor::Program::activation_guarded_work(
-                tensor::Activation::Silu,
-                remainder,
-                input,
-                &mut workspace,
-            )?;
-            scheduled_work = scheduled_work.checked_add(tail)?;
-        }
-        let total = self.prior.checked_add(scheduled_work)?;
+            MapWorkWorkspace::GuardedSilu(&mut workspace),
+        )?;
+        let total = self.prior.checked_add(scheduled)?;
         total.limits()?;
         Ok(())
     }
@@ -350,61 +469,29 @@ impl PreparedTensorMap {
         mut admit: F,
         work_gate: G,
     ) -> Result<Self, Error> {
-        if lanes == 0 || lanes > MAX_VALUES {
-            return Err(Error::Bounds);
-        }
-        let width = lanes.min(tensor::MAX_TILE_LANES);
-        let remainder = lanes % width;
-        let full_quote = factory.quote(width)?;
-        let tail_quote = if remainder != 0 {
-            Some(factory.quote(remainder)?)
-        } else {
-            None
-        };
-        let assembly = AssemblyInventory::for_callback::<F>()?;
-        let mut peak = assembly
-            .quote
-            .max(add(assembly.full, full_quote.new_peak_bytes)?);
-        let mut templates = full_quote.immutable_template_bytes;
-        if let Some(quote) = tail_quote {
-            peak = peak.max(add(
-                assembly.tail,
-                add(full_quote.immutable_template_bytes, quote.new_peak_bytes)?,
-            )?);
-            templates = add(templates, quote.immutable_template_bytes)?;
-        }
-        peak = peak.max(add(assembly.owner, templates)?);
-        peak = peak.max(add(assembly.quote, G::workspace_phase_bytes()?)?);
-        // Prior argument, gate expression, prepare parameter and check receiver:
-        // four actual inline gate/value positions, no heap backing. The gate
-        // Result shares the already-priced Result<(),Error>
-        // callback phase slot; it is consumed before any native construction.
-        peak = add(
-            add(caller_baseline, peak)?,
-            size_of::<G>().checked_mul(4).ok_or(Error::Bounds)?,
-        )?;
+        let inventory = construction_inventory::<F, G>(lanes, factory, caller_baseline)?;
         // Admit BOTH constructions before the first native factory can allocate.
-        admit(peak)?;
+        admit(inventory.peak)?;
         // Preserve the original first-callback error/unwind precedence, but do
         // not enter a numeric factory with its known-invalid shift parameter.
         if matches!(factory, Factory::Rescale(shift) if !(1..=62).contains(&shift)) {
             return Err(Error::Bounds);
         }
-        work_gate.check(lanes, width, remainder, input)?;
-        let full = Self::make_admitted(factory, width, input, full_quote)?;
-        let tail = if let Some(quote) = tail_quote {
+        work_gate.check(lanes, inventory.width, inventory.remainder, input)?;
+        let full = Self::make_admitted(factory, inventory.width, input, inventory.full_quote)?;
+        let tail = if let Some(quote) = inventory.tail_quote {
             // Repeat with actual retained capacity, not just constructor's bound.
             admit(add(
                 caller_baseline,
                 add(
-                    assembly.tail,
+                    inventory.assembly.tail,
                     add(
                         full.resources()?.immutable_template_bytes,
                         quote.new_peak_bytes,
                     )?,
                 )?,
             )?)?;
-            Some(Self::make_admitted(factory, remainder, input, quote)?)
+            Some(Self::make_admitted(factory, inventory.remainder, input, quote)?)
         } else {
             None
         };
@@ -418,7 +505,7 @@ impl PreparedTensorMap {
         prepared.validate()?;
         admit(add(
             caller_baseline,
-            add(assembly.owner, prepared.template_bytes()?)?,
+            add(inventory.assembly.owner, prepared.template_bytes()?)?,
         )?)?;
         Ok(prepared)
     }
@@ -576,3 +663,255 @@ pub(in crate::replicated_decoder) mod request_rescale;
 
 #[path = "prepared_tensor_map/prepared_tensor_request_silu.rs"]
 pub(in crate::replicated_decoder) mod request_silu;
+
+#[cfg(test)]
+mod stage_a_tests {
+    use super::*;
+
+    const ONE: i64 = 1 << 18;
+
+    // Literal old recipe, independent of Program::rescale and both queries.
+    fn old_rescale(lanes: usize, input: Interval, shift: u8) -> tensor::Program {
+        let mut builder = tensor::Builder::new(lanes, input).unwrap();
+        let output = builder.rescale(builder.input(), shift).unwrap();
+        builder.finish(output).unwrap()
+    }
+
+    #[test]
+    fn scheduled_queries_match_full_tail_native_work_without_map_factories() {
+        let input = Interval::new(-ONE, ONE).unwrap();
+        // Tests supply workspace explicitly; this is not an admission witness.
+        let mut rescale = tensor::SoftmaxWorkWorkspace::empty();
+        let mut activation = tensor::ActivationWorkWorkspace::empty();
+        for lanes in [1, 3, 127, 128, 129, 256, 257, 260] {
+            let before = native_attempts();
+            observe_native_owners();
+            let rescale_work = scheduled_work(
+                Factory::Rescale(18),
+                lanes,
+                input,
+                MapWorkWorkspace::Rescale(&mut rescale),
+            )
+            .unwrap();
+            let activation_work = scheduled_work(
+                Factory::GuardedSilu,
+                lanes,
+                input,
+                MapWorkWorkspace::GuardedSilu(&mut activation),
+            )
+            .unwrap();
+            assert_eq!(native_attempts(), before);
+            assert!(take_native_owners().is_empty());
+            let width = lanes.min(tensor::MAX_TILE_LANES);
+            let remainder = lanes % width;
+            for (factory, work) in [
+                (Factory::Rescale(18), rescale_work),
+                (Factory::GuardedSilu, activation_work),
+            ] {
+                let native = |width| match factory {
+                    Factory::Rescale(shift) => old_rescale(width, input, shift),
+                    Factory::GuardedSilu => tensor::Program::activation_guarded(
+                        tensor::Activation::Silu,
+                        width,
+                        input,
+                    )
+                    .unwrap(),
+                };
+                let full = native(width);
+                let mut expected = full
+                    .work_budget()
+                    .checked_mul((lanes / width) as u64)
+                    .unwrap();
+                if remainder != 0 {
+                    expected = expected
+                        .checked_add(native(remainder).work_budget())
+                        .unwrap();
+                }
+                assert_eq!(work, expected);
+                let gate = match factory {
+                    Factory::Rescale(_) => None,
+                    Factory::GuardedSilu => Some(ActivationWorkGate {
+                        prior: WorkBudget::default(),
+                    }),
+                };
+                let map = if let Some(gate) = gate {
+                    PreparedTensorMap::prepare(lanes, input, factory, 0, |_| Ok(()), gate)
+                } else {
+                    PreparedTensorMap::prepare(lanes, input, factory, 0, |_| Ok(()), NoWorkGate)
+                }
+                .unwrap();
+                assert_eq!(map.work_budget().unwrap(), work);
+                assert_eq!(map.full.digest(), full.digest());
+                if let Some(tail) = &map.tail {
+                    assert_eq!(tail.digest(), native(remainder).digest());
+                }
+            }
+        }
+    }
+
+    fn quoted_prepare<F: FnMut(usize) -> Result<(), Error>, G: WorkGate>(
+        lanes: usize,
+        input: Interval,
+        factory: Factory,
+        baseline: usize,
+        admit: F,
+        gate: G,
+    ) -> (MapInventory, PreparedTensorMap) {
+        let before = native_attempts();
+        let inventory = construction_inventory::<F, G>(lanes, factory, baseline).unwrap();
+        assert_eq!(native_attempts(), before);
+        assert_eq!(inventory.full_quote, factory.quote(inventory.width).unwrap());
+        assert_eq!(
+            inventory.tail_quote,
+            if inventory.remainder == 0 {
+                None
+            } else {
+                Some(factory.quote(inventory.remainder).unwrap())
+            }
+        );
+        let prepared =
+            PreparedTensorMap::prepare(lanes, input, factory, baseline, admit, gate).unwrap();
+        assert_eq!(
+            native_attempts() - before,
+            1 + usize::from(inventory.remainder != 0)
+        );
+        (inventory, prepared)
+    }
+
+    #[test]
+    fn construction_inventory_is_shared_with_prepare_and_preserves_native_quotes() {
+        let input = Interval::new(-ONE, ONE).unwrap();
+        for lanes in [1, 128, 129, 256, 257] {
+            let mut first = 0;
+            let mut peak = 0;
+            let mut calls = 0;
+            let (inventory, prepared) = quoted_prepare(
+                lanes,
+                input,
+                Factory::Rescale(18),
+                73,
+                |bytes| {
+                    if calls == 0 {
+                        first = bytes;
+                    }
+                    calls += 1;
+                    peak = peak.max(bytes);
+                    Ok(())
+                },
+                NoWorkGate,
+            );
+            assert_eq!(first, inventory.peak);
+            assert_eq!(peak, first);
+            assert_eq!(calls, 2 + usize::from(inventory.remainder != 0));
+            assert_eq!(prepared.full.lanes(), inventory.width);
+            assert_eq!(prepared.tail.is_some(), inventory.tail_quote.is_some());
+            let mut first = 0;
+            let mut peak = 0;
+            let mut calls = 0;
+            let (inventory, _) = quoted_prepare(
+                lanes,
+                input,
+                Factory::GuardedSilu,
+                73,
+                |bytes| {
+                    if calls == 0 {
+                        first = bytes;
+                    }
+                    calls += 1;
+                    peak = peak.max(bytes);
+                    Ok(())
+                },
+                ActivationWorkGate {
+                    prior: WorkBudget::local(),
+                },
+            );
+            assert_eq!(first, inventory.peak);
+            assert_eq!(peak, first);
+            assert_eq!(calls, 2 + usize::from(inventory.remainder != 0));
+        }
+    }
+
+    #[test]
+    fn local_queries_reject_geometry_domain_shift_and_workspace_mismatch_before_factories() {
+        let good = Interval::new(-ONE, ONE).unwrap();
+        let mut rescale = tensor::SoftmaxWorkWorkspace::empty();
+        let mut activation = tensor::ActivationWorkWorkspace::empty();
+        let before = native_attempts();
+        for lanes in [0, MAX_VALUES + 1, usize::MAX] {
+            assert_eq!(
+                scheduled_work(
+                    Factory::Rescale(18), lanes, good,
+                    MapWorkWorkspace::Rescale(&mut rescale),
+                ),
+                Err(Error::Bounds)
+            );
+            assert_eq!(
+                construction_inventory::<fn(usize) -> Result<(), Error>, NoWorkGate>(
+                    lanes, Factory::Rescale(18), 0,
+                ).err(),
+                Some(Error::Bounds)
+            );
+        }
+        assert_eq!(
+            construction_inventory::<fn(usize) -> Result<(), Error>, NoWorkGate>(
+                129, Factory::Rescale(18), usize::MAX,
+            ).err(),
+            Some(Error::Bounds)
+        );
+        for shift in [0, 63, u8::MAX] {
+            assert_eq!(
+                scheduled_work(
+                    Factory::Rescale(shift), 129, good,
+                    MapWorkWorkspace::Rescale(&mut rescale),
+                ),
+                Err(Error::Bounds)
+            );
+        }
+        assert_eq!(
+            scheduled_work(
+                Factory::GuardedSilu, 129, good,
+                MapWorkWorkspace::Rescale(&mut rescale),
+            ),
+            Err(Error::Shape)
+        );
+        assert_eq!(
+            scheduled_work(
+                Factory::Rescale(18), 129, good,
+                MapWorkWorkspace::GuardedSilu(&mut activation),
+            ),
+            Err(Error::Shape)
+        );
+        let extreme = Interval::new(i64::MIN, i64::MAX).unwrap();
+        assert_eq!(
+            scheduled_work(
+                Factory::GuardedSilu, 129, extreme,
+                MapWorkWorkspace::GuardedSilu(&mut activation),
+            ),
+            Err(Error::Bounds)
+        );
+        assert_eq!(
+            scheduled_work(
+                Factory::GuardedSilu, 129, good,
+                MapWorkWorkspace::GuardedSilu(&mut activation),
+            ),
+            Err(Error::Phase)
+        );
+        activation.reset();
+        assert!(scheduled_work(
+            Factory::GuardedSilu, 129, good,
+            MapWorkWorkspace::GuardedSilu(&mut activation),
+        ).is_ok());
+        assert_eq!(
+            scheduled_work(
+                Factory::Rescale(18), 129, extreme,
+                MapWorkWorkspace::Rescale(&mut rescale),
+            ),
+            Err(Error::Bounds)
+        );
+        assert!(scheduled_work(
+            Factory::Rescale(18), 129, good,
+            MapWorkWorkspace::Rescale(&mut rescale),
+        ).is_ok());
+        assert_eq!(native_attempts(), before);
+    }
+}
