@@ -1371,3 +1371,7 @@ mod tests;
 /// Model-neutral immutable JSON import; same scanner, builder and qualifications.
 #[path = "json_value_input.rs"]
 pub mod json;
+
+// Inert, unqualified borrowed conversion; not the C9 builder or an export path.
+#[path = "plan_input/json_float_input.rs"]
+mod json_float_input;
