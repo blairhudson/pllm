@@ -12,6 +12,8 @@ use crate::{
     fixed_point::div_round_ties_even_i128,
 };
 
+pub mod window_linear;
+
 mod rsqrt;
 pub use rsqrt::{rsqrt_rn32, RSQRT_WORK};
 
@@ -31,7 +33,11 @@ pub enum Error {
     Length,
     TieMismatch,
     Allocation,
+    Capacity,
     WorkLimit,
+    Coverage,
+    Incomplete,
+    SessionMismatch,
 }
 
 impl std::fmt::Display for Error {
@@ -200,9 +206,41 @@ pub fn import_bf16_q8(words: &[u16]) -> Result<Vec<i64>, Error> {
         .try_reserve_exact(words.len())
         .map_err(|_| Error::Allocation)?;
     for &word in words {
-        output.push(quantize_q8(promote_bf16(word)?)?);
+        output.push(bf16_q8(word)?);
     }
     Ok(output)
+}
+
+/// Caller-buffered version of `import_bf16_q8`, with identical scalar semantics.
+/// Validate every coefficient before writing; errors leave `output` unchanged.
+/// Work counts scalar visits, not CPU instructions or serving admission.
+pub fn import_bf16_q8_into(
+    words: &[u16],
+    output: &mut [i64],
+    work_limit: usize,
+) -> Result<(), Error> {
+    if output.len() < words.len() {
+        return Err(Error::Capacity);
+    }
+    let work = words.len().checked_mul(2).ok_or(Error::WorkLimit)?;
+    if work > work_limit {
+        return Err(Error::WorkLimit);
+    }
+    for &word in words {
+        bf16_q8(word)?;
+    }
+    for (&word, slot) in words.iter().zip(output) {
+        *slot = bf16_q8(word)?;
+    }
+    Ok(())
+}
+
+fn bf16_q8(word: u16) -> Result<i64, Error> {
+    quantize_q8(promote_bf16(word)?)
+}
+
+fn fp8_q8(byte: u8, scale: u16) -> Result<i64, Error> {
+    quantize_q8(dequantize_e4m3fn(byte, scale)?)
 }
 
 /// All supplied values must be finite and both logical BF16 copies bit-identical.
@@ -286,7 +324,7 @@ impl Block128Geometry {
             let row = index / self.columns;
             let column = index % self.columns;
             let scale = scales[(row / 128) * (self.columns / 128) + column / 128];
-            output.push(quantize_q8(dequantize_e4m3fn(byte, scale)?)?);
+            output.push(fp8_q8(byte, scale)?);
         }
         Ok(output)
     }
@@ -303,7 +341,7 @@ pub fn linear_bf16(weights: &[i64], rows: usize, input: &[u16]) -> Result<Vec<u1
         .try_reserve_exact(input.len())
         .map_err(|_| Error::Allocation)?;
     for &word in input {
-        encoded.push(q8_to_field(quantize_q8(promote_bf16(word)?)?));
+        encoded.push(q8_to_field(bf16_q8(word)?));
     }
     let mut output = Vec::new();
     output
