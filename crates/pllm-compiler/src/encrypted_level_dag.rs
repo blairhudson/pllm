@@ -249,7 +249,7 @@ fn declarations(g: &PublicCiphertextGraph) -> Result<(), String> {
     Ok(())
 }
 
-fn matches(
+pub(crate) fn matches(
     g: &PublicCiphertextGraph,
     op: &PublicCiphertextGraphOperation,
     cap: &PublicCiphertextCapability,

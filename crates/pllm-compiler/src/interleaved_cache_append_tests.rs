@@ -758,8 +758,8 @@ fn public_constructor_exact_total_control_succeeds_through_final_validation() {
                     assert_eq!(op.inputs.last(), Some(&f.incoming[i]));
                 }
                 for id in k.iter().chain(&v) {
-                    assert!(analysis.graph.retained_inputs.iter().any(|s|s==id));
-                    assert!(analysis.graph.outputs.iter().any(|s|s==id));
+                    assert!(analysis.graph.retained_inputs.iter().any(|s| s == id));
+                    assert!(analysis.graph.outputs.iter().any(|s| s == id));
                 }
                 assert_eq!(
                     validate_public_ciphertext_trace(
@@ -1353,5 +1353,1118 @@ fn dag_entry_rejects_missing_retained_id_backing_in_independent_manifest() {
         GRAPH_FACTORIES.with(|n| n.set(0));
         assert!(quote_public_ciphertext_dag_construction(&manifest, control).is_err());
         assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+    });
+}
+
+// AstraC41: source-only synthetic producer composition. No encrypted producer
+// implementation, generated prefix activation or numeric certificate is implied.
+fn produced_geometry() -> Geometry {
+    Geometry::new(64, 1, 1, 65).unwrap()
+}
+fn produced_descriptor() -> AppendDescriptor {
+    AppendDescriptor {
+        token: 7,
+        key_tile: 0,
+        key_lane: 7,
+        new_key_ciphertexts: 0,
+        value_group: 0,
+        new_value_ciphertexts: 0,
+    }
+}
+fn produced_fixture() -> Fixture {
+    let mut f = Fixture::new(7);
+    f.keys.truncate(1);
+    f.values.truncate(1);
+    f.incoming.truncate(2);
+    f.outputs.truncate(2);
+    f.owners.truncate(2);
+    f.caps.truncate(2);
+    for (i, c) in f.caps.iter_mut().enumerate() {
+        c.kernel_identity = format!("cachemir_append_v1:64:1:1:65:7:{i}");
+    }
+    let mut original = empty();
+    original.inputs = vec![
+        val(f.keys[0].clone()),
+        val(f.values[0].clone()),
+        val("seed".into()),
+    ];
+    for id in [
+        &f.keys[0],
+        &f.values[0],
+        &"seed".to_string(),
+        &f.incoming[0],
+        &f.incoming[1],
+    ] {
+        original.owners.push(PublicCiphertextOwner {
+            identity: id.clone(),
+            bytes: Some(512),
+        });
+    }
+    // Deliberately reverse producer declaration order. V depends on K, so DAG
+    // must not treat either result as an already-live original input.
+    for i in [1, 0] {
+        let mut cap = f.caps[i].clone();
+        cap.identity = format!("producer_cap_{i}");
+        cap.kernel_identity = format!("synthetic_projection_{i}");
+        cap.inputs = vec![state()];
+        cap.join = PublicCiphertextJoin::Unary;
+        original.operations.push(PublicCiphertextGraphOperation {
+            identity: format!("produce_{i}"),
+            kernel_identity: cap.kernel_identity.clone(),
+            primitive: PublicPrimitive::Arithmetic,
+            inputs: vec![if i == 0 {
+                "seed".into()
+            } else {
+                f.incoming[0].clone()
+            }],
+            output: val(f.incoming[i].clone()),
+        });
+        original.capabilities.push(cap);
+    }
+    f.original = original;
+    f
+}
+fn produced_replacements(f: &Fixture) -> Vec<Replacement<'_>> {
+    (0..2)
+        .map(|i| Replacement {
+            incoming: &f.incoming[i],
+            output: &f.outputs[i],
+            owner: &f.owners[i],
+            capability: &f.caps[i],
+        })
+        .collect()
+}
+fn produced_updates(f: &Fixture) -> Vec<ProducedUpdate<'_>> {
+    [1, 0]
+        .into_iter()
+        .map(|i| ProducedUpdate {
+            producer: &f.original.operations[i],
+            capability: &f.original.capabilities[i],
+        })
+        .collect()
+}
+
+/// Hand-authored expected four-operation graph; never calls append emission.
+fn produced_expected(f: &Fixture) -> PublicCiphertextGraph {
+    let mut graph = f.original.clone();
+    for i in 0..2 {
+        graph.owners.push(f.owners[i].clone());
+        graph.capabilities.push(f.caps[i].clone());
+        graph.operations.push(PublicCiphertextGraphOperation {
+            identity: f.outputs[i].identity.clone(),
+            kernel_identity: f.caps[i].kernel_identity.clone(),
+            primitive: PublicPrimitive::Arithmetic,
+            inputs: vec![
+                if i == 0 {
+                    f.keys[0].clone()
+                } else {
+                    f.values[0].clone()
+                },
+                f.incoming[i].clone(),
+            ],
+            output: f.outputs[i].clone(),
+        });
+    }
+    graph.outputs = vec![
+        f.keys[0].clone(),
+        f.values[0].clone(),
+        f.outputs[0].identity.clone(),
+        f.outputs[1].identity.clone(),
+    ];
+    graph.retained_inputs = vec![f.keys[0].clone(), f.values[0].clone()];
+    graph.owners.shrink_to_fit();
+    graph.operations.shrink_to_fit();
+    graph.capabilities.shrink_to_fit();
+    graph
+}
+
+// Independent source graph census, not production emission/search output. The
+// expected trace is literal [K producer,V producer,K append,V append].
+fn produced_manifest(f: &Fixture) -> ManifestFixture {
+    fn backing(v: &mut Vec<Backing>, element: Element, length: usize) {
+        v.push(Backing {
+            element,
+            length,
+            capacity: Some(length),
+            first_phase: 0,
+            end_phase: 2,
+        });
+    }
+    fn text(v: &mut Vec<Backing>, s: &str) {
+        backing(v, Element::Byte, s.len());
+    }
+    fn state(v: &mut Vec<Backing>, s: &PublicCiphertextState) {
+        for s in [
+            &s.scheme,
+            &s.key_domain,
+            &s.layout,
+            &s.scale,
+            &s.error.model_identity,
+        ] {
+            text(v, s);
+        }
+        backing(v, Element::Shape, s.shape.len());
+    }
+    fn value(v: &mut Vec<Backing>, x: &PublicCiphertextValue) {
+        text(v, &x.identity);
+        text(v, &x.owner);
+        state(v, &x.state);
+    }
+    let g = produced_expected(f);
+    let mut b = Vec::new();
+    text(&mut b, &g.cost_model_identity);
+    text(&mut b, &g.cost_unit);
+    for (e, n) in [
+        (Element::Owner, 7),
+        (Element::String, 0),
+        (Element::Value, 3),
+        (Element::Operation, 4),
+        (Element::Capability, 4),
+        (Element::String, 4),
+        (Element::String, 2),
+        (Element::Step, 4),
+    ] {
+        backing(&mut b, e, n);
+    }
+    for o in &g.owners {
+        text(&mut b, &o.identity);
+    }
+    for x in &g.inputs {
+        value(&mut b, x);
+    }
+    for o in &g.operations {
+        text(&mut b, &o.identity);
+        text(&mut b, &o.kernel_identity);
+        backing(&mut b, Element::String, o.inputs.len());
+        for s in &o.inputs {
+            text(&mut b, s);
+        }
+        value(&mut b, &o.output);
+    }
+    for c in &g.capabilities {
+        text(&mut b, &c.identity);
+        text(&mut b, &c.kernel_identity);
+        backing(&mut b, Element::State, c.inputs.len());
+        for s in &c.inputs {
+            state(&mut b, s);
+        }
+        state(&mut b, &c.output);
+        text(&mut b, c.error_assumption.as_ref().unwrap());
+        let PublicCiphertextExecution::Ckks {
+            compute,
+            transition,
+            ..
+        } = &c.execution
+        else {
+            unreachable!()
+        };
+        text(&mut b, &compute.cost.identity);
+        text(&mut b, &transition.cost.identity);
+    }
+    for s in g.outputs.iter().chain(&g.retained_inputs) {
+        text(&mut b, s);
+    }
+    for (op, cap, release) in [
+        ("produce_0", "producer_cap_0", Some("seed")),
+        ("produce_1", "producer_cap_1", None),
+        ("next_0", "append_cap_0", Some("delta_0")),
+        ("next_1", "append_cap_1", Some("delta_1")),
+    ] {
+        text(&mut b, op);
+        text(&mut b, cap);
+        backing(&mut b, Element::String, usize::from(release.is_some()));
+        if let Some(s) = release {
+            text(&mut b, s);
+        }
+    }
+    ManifestFixture {
+        input_ranks: vec![1; 3],
+        operations: g
+            .operations
+            .iter()
+            .map(|o| OperationCount {
+                inputs: o.inputs.len(),
+                output_rank: 1,
+            })
+            .collect(),
+        cap_ranks: g
+            .capabilities
+            .iter()
+            .map(|c| vec![1; c.inputs.len()])
+            .collect(),
+        backings: b,
+        releases: vec![1, 0, 1, 1],
+        other: vec![OtherOwner {
+            bytes: Some(128 << 10),
+            metadata: true,
+            first_phase: 0,
+            end_phase: 2,
+        }],
+    }
+}
+fn produced_capacity() -> PublicEncryptedDagCapacity {
+    PublicEncryptedDagCapacity {
+        max_operations: 4,
+        max_states: 32,
+        max_frontier: 32,
+        // Independently finite fixture ceiling, tighter than the legacy input
+        // fixture's 1024. Keep repeated-fault cumulative control within the SAME
+        // original ledger; never increase its grant to make regressions pass.
+        trace: PublicCiphertextTraceCapacity {
+            max_records: 256,
+            ..capacity().trace
+        },
+        ..capacity()
+    }
+}
+fn with_produced_quote(
+    run: impl FnOnce(
+        &Fixture,
+        &PublicCiphertextConstructionQuote<'_>,
+        &OwnedBudget,
+        &mut ControlLedger<'_>,
+        usize,
+    ),
+) {
+    let mut work = WorkLedger::new(1 << 28, 1 << 20);
+    let mut control = ControlLedger::new(&mut work);
+    control.core_work().debit(0, 8192).unwrap();
+    let budget = OwnedBudget::new(64 << 20).unwrap();
+    let _source = budget.charge_external(128 << 10).unwrap();
+    let f = produced_fixture();
+    let mf = produced_manifest(&f);
+    let caps = mf
+        .cap_ranks
+        .iter()
+        .map(|r| CapabilityCount {
+            input_ranks: r,
+            output_rank: 1,
+            execution: Execution::Ckks,
+        })
+        .collect::<Vec<_>>();
+    let manifest = PublicCiphertextConstructionManifest {
+        owners: 7,
+        persistent_owners: 0,
+        input_ranks: &mf.input_ranks,
+        operations: &mf.operations,
+        capabilities: &caps,
+        outputs: 4,
+        retained_inputs: 2,
+        release_lengths: &mf.releases,
+        backings: &mf.backings,
+        other_owners: &mf.other,
+        phases: 2,
+        manifest_original_bytes: Some(mf.original_bytes(&caps)),
+    };
+    let (k, v) = f.parents();
+    assert!(
+        factory_bytes(
+            &f.original,
+            &Parents {
+                keys: &k,
+                values: &v
+            },
+            &produced_replacements(&f)
+        )
+        .unwrap()
+            + mf.original_bytes(&caps)
+            < 128 << 10
+    );
+    let quote = quote_public_ciphertext_dag_construction(&manifest, &mut control).unwrap();
+    run(&f, &quote, &budget, &mut control, mf.backings.len());
+}
+
+#[test]
+fn produced_ambiguous_capability_refuses_before_factory_and_burns_binding() {
+    // Authored regressions, UNRUN: equal execution/cost/state, distinct identity
+    // in original inventory; then appended inventory, including repeated borrow.
+    for (fault, short) in (0..3).flat_map(|fault| [false, true].map(|short| (fault, short))) {
+        with_produced_quote(|_, quote, budget, control, _| {
+            let mut f = produced_fixture();
+            if fault == 0 {
+                let mut competing = f.original.capabilities[1].clone();
+                competing.identity = "competing_producer_cap_0".into();
+                f.original.capabilities.push(competing);
+            } else {
+                // Same aligned producer geometry as K append: appended K cap
+                // now matches producer too, without changing any numeric bits.
+                let mut cap = f.caps[0].clone();
+                cap.identity = f.original.capabilities[1].identity.clone();
+                f.original.operations[1].kernel_identity = cap.kernel_identity.clone();
+                f.original.operations[1].inputs = vec![f.keys[0].clone(), "seed".into()];
+                f.original.capabilities[1] = cap;
+            }
+            let (k, v) = f.parents();
+            let p = Parents {
+                keys: &k,
+                values: &v,
+            };
+            let mut r = produced_replacements(&f);
+            let mut updates = produced_updates(&f);
+            if fault == 0 {
+                // Bind clone at index 2, not existing equal-cost match at 1.
+                updates[0].capability = &f.original.capabilities[2];
+            } else if fault == 2 {
+                // Same pointer still emits a second capability occurrence.
+                r[0].capability = updates[0].capability;
+            }
+            assert!(schedule::dag::matches(
+                &f.original,
+                updates[0].producer,
+                updates[0].capability
+            ));
+            let competitor = if fault == 0 {
+                &f.original.capabilities[1]
+            } else {
+                r[0].capability
+            };
+            assert!(schedule::dag::matches(
+                &f.original,
+                updates[0].producer,
+                competitor
+            ));
+            assert_eq!(competitor.execution, updates[0].capability.execution);
+            // Collision is not a stale/invalid replacement witness.
+            preflight_sources(
+                produced_geometry(),
+                produced_descriptor(),
+                &f.original,
+                &p,
+                &r,
+                true,
+            )
+            .unwrap();
+            let c = produced_capacity();
+            let construction = control_allowance(&f.original, &p, &r, c.trace.max_records).unwrap();
+            let mut binding = bind_produced_updates(
+                produced_geometry(),
+                produced_descriptor(),
+                &f.original,
+                p,
+                &r,
+                &updates,
+            );
+            let bound = binding.pending.as_ref().unwrap();
+            produced_preflight(bound).unwrap();
+            let matching = produced_matching_work(bound).unwrap();
+            let required = construction + matching;
+            // Same original setup ledger; exact Q reaches ambiguity, Q-1
+            // refuses atomically before any shared matching predicate visit.
+            let excess =
+                control.core_work().control_remaining() - (required - usize::from(short));
+            control.core_work().debit(0, excess).unwrap();
+            let mut metadata = MetadataLedger::new(c.max_work + quote.trace_work());
+            let before = budget.budget().used_bytes();
+            let work_before = control.core_work().remaining();
+            let control_before = control.core_work().control_remaining();
+            GRAPH_FACTORIES.with(|n| n.set(0));
+            MATCH_PREDICATES.with(|n| n.set(0));
+            let refusal = if short {
+                Refusal::Work
+            } else {
+                Refusal::Capability
+            };
+            assert!(matches!(
+                analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+                Err(error) if error == refusal
+            ));
+            let predicates = MATCH_PREDICATES.with(|n| n.get());
+            assert_eq!(predicates == 0, short);
+            let spent = construction + if short { 0 } else { matching };
+            assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+            assert_eq!(budget.budget().used_bytes(), before);
+            assert_eq!(metadata.remaining(), 0);
+            assert_eq!(control.core_work().remaining(), work_before - spent);
+            assert_eq!(
+                control.core_work().control_remaining(),
+                control_before - spent
+            );
+            assert!(matches!(
+                analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+                Err(Refusal::Consumed)
+            ));
+            assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+            assert_eq!(budget.budget().used_bytes(), before);
+            assert_eq!(metadata.remaining(), 0);
+            assert_eq!(MATCH_PREDICATES.with(|n| n.get()), predicates);
+            assert_eq!(control.core_work().remaining(), work_before - spent);
+            assert_eq!(
+                control.core_work().control_remaining(),
+                control_before - spent
+            );
+        });
+    }
+}
+
+#[test]
+fn produced_unique_capability_selects_bound_original() {
+    with_produced_quote(|f, quote, budget, control, backings| {
+        let (k, v) = f.parents();
+        let r = produced_replacements(f);
+        let updates = produced_updates(f);
+        let mut binding = bind_produced_updates(
+            produced_geometry(),
+            produced_descriptor(),
+            &f.original,
+            Parents {
+                keys: &k,
+                values: &v,
+            },
+            &r,
+            &updates,
+        );
+        let c = produced_capacity();
+        let bound = binding.pending.as_ref().unwrap();
+        produced_preflight(bound).unwrap();
+        let matching = produced_matching_work(bound).unwrap();
+        assert_eq!(matching, 8720, "U=2, C=4, V=5, S=2");
+        let construction =
+            control_allowance(&f.original, &bound.parents, &r, c.trace.max_records).unwrap();
+        let required = construction + matching + 1024 + 4 * backings;
+        let work_before = control.core_work().remaining();
+        let control_before = control.core_work().control_remaining();
+        let mut metadata = MetadataLedger::new(c.max_work + quote.trace_work());
+        let before = budget.budget().used_bytes();
+        GRAPH_FACTORIES.with(|n| n.set(0));
+        MATCH_PREDICATES.with(|n| n.set(0));
+        let plan = analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c)
+            .unwrap();
+        assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 1);
+        let predicates = MATCH_PREDICATES.with(|n| n.get());
+        assert!(predicates > 0);
+        assert_eq!(control.core_work().remaining(), work_before - required);
+        assert_eq!(
+            control.core_work().control_remaining(),
+            control_before - required
+        );
+        assert!(std::ptr::eq(plan.original(), &f.original));
+        for update in &updates {
+            let operation_index = f
+                .original
+                .operations
+                .iter()
+                .position(|op| std::ptr::eq(op, update.producer))
+                .unwrap();
+            let capability_index = f
+                .original
+                .capabilities
+                .iter()
+                .position(|cap| std::ptr::eq(cap, update.capability))
+                .unwrap();
+            let selected = plan
+                .solution()
+                .ledger
+                .selections
+                .iter()
+                .find(|selected| selected.operation_index == operation_index)
+                .unwrap();
+            assert_eq!(selected.capability_index, capability_index);
+            assert_eq!(
+                &plan.graph().operations[selected.operation_index],
+                update.producer
+            );
+            assert_eq!(
+                &plan.graph().capabilities[selected.capability_index],
+                update.capability
+            );
+            assert_eq!(
+                plan.graph().capabilities[selected.capability_index].identity,
+                update.capability.identity
+            );
+        }
+        drop(plan);
+        assert_eq!(metadata.remaining(), 0);
+        assert_eq!(budget.budget().used_bytes(), before);
+        assert!(matches!(
+            analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+            Err(Refusal::Consumed)
+        ));
+        assert_eq!(control.core_work().remaining(), work_before - required);
+        assert_eq!(
+            control.core_work().control_remaining(),
+            control_before - required
+        );
+        assert_eq!(metadata.remaining(), 0);
+        assert_eq!(MATCH_PREDICATES.with(|n| n.get()), predicates);
+        assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 1);
+        assert_eq!(budget.budget().used_bytes(), before);
+    });
+}
+
+#[test]
+fn produced_pair_public_analysis_matches_hand_graph_and_all_legal_schedules() {
+    with_produced_quote(|f, quote, budget, control, _| {
+        let (k, v) = f.parents();
+        let r = produced_replacements(f);
+        let updates = produced_updates(f);
+        let mut binding = bind_produced_updates(
+            produced_geometry(),
+            produced_descriptor(),
+            &f.original,
+            Parents {
+                keys: &k,
+                values: &v,
+            },
+            &r,
+            &updates,
+        );
+        let c = produced_capacity();
+        let mut metadata = MetadataLedger::new(c.max_work + quote.trace_work());
+        let before = budget.budget().used_bytes();
+        let plan = analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c)
+            .unwrap();
+        assert_eq!(plan.graph(), &produced_expected(f));
+        assert!(std::ptr::eq(plan.original(), &f.original));
+        assert_eq!(
+            plan.descriptor(),
+            (produced_geometry(), produced_descriptor())
+        );
+        // All 24 distinct permutations reach the shared validator. Dependency
+        // inequalities below describe an independent oracle, NEVER a prefilter.
+        // Capabilities, edges and retirement names are hand-authored, not copied
+        // from the solver trace. Both consumers must finish before K retirement.
+        let expected = produced_expected(f);
+        let trace_capacity = c.trace;
+        let mut legal = Vec::new();
+        let (mut submitted, mut rejected) = (0, 0);
+        for a in 0..4 {
+            for b in 0..4 {
+                for c in 0..4 {
+                    for d in 0..4 {
+                        let order = [a, b, c, d];
+                        if (0..4).any(|i| order[..i].contains(&order[i])) {
+                            continue;
+                        }
+                        let pos = |n| order.iter().position(|x| *x == n).unwrap();
+                        let dependencies_hold =
+                            pos(1) < pos(0) && pos(1) < pos(2) && pos(0) < pos(3);
+                        let mut trace = Vec::new();
+                        for op in order {
+                            let (operation, capability) = [
+                                ("produce_1", "producer_cap_1"),
+                                ("produce_0", "producer_cap_0"),
+                                ("next_0", "append_cap_0"),
+                                ("next_1", "append_cap_1"),
+                            ][op];
+                            let mut release = Vec::new();
+                            if op == 1 {
+                                release.push("seed".into());
+                            }
+                            if op == 3 {
+                                release.push("delta_1".into());
+                            }
+                            if (op == 0 && pos(2) < pos(0)) || (op == 2 && pos(0) < pos(2)) {
+                                release.push("delta_0".into());
+                            }
+                            trace.push(PublicCiphertextTraceStep {
+                                operation: operation.into(),
+                                capability: capability.into(),
+                                release,
+                            });
+                        }
+                        submitted += 1;
+                        let summary = match validate_public_ciphertext_trace(
+                            &expected,
+                            &trace,
+                            trace_capacity,
+                        ) {
+                            Ok(summary) => {
+                                assert!(
+                                    dependencies_hold,
+                                    "validator accepted dependency violation: {order:?}"
+                                );
+                                summary
+                            }
+                            Err(error) => {
+                                assert!(
+                                    !dependencies_hold,
+                                    "validator rejected legal order {order:?}: {error}"
+                                );
+                                assert_eq!(
+                                    error,
+                                    "unavailable parent (cycle, early release or type mismatch)",
+                                    "wrong rejection category for {order:?}"
+                                );
+                                rejected += 1;
+                                continue;
+                            }
+                        };
+                        let mut live = [true, true, true, false, false, false, false];
+                        let mut peak = 1536;
+                        for op in order {
+                            let output = [4, 3, 5, 6][op];
+                            live[output] = true;
+                            peak = peak.max(live.iter().filter(|b| **b).count() * 512);
+                            if op == 1 {
+                                live[2] = false;
+                            }
+                            if op == 3 {
+                                live[4] = false;
+                            }
+                            if (op == 0 && pos(2) < pos(0)) || (op == 2 && pos(0) < pos(2)) {
+                                live[3] = false;
+                            }
+                            assert!(live[0] && live[1], "complete old parents never die");
+                        }
+                        assert_eq!(summary.peak_live_owner_bytes, peak as u64);
+                        assert_eq!(summary.final_live_backing_bytes, 2048);
+                        assert_eq!(summary.total_cost, 4);
+                        legal.push((order, peak, summary.total_cost));
+                    }
+                }
+            }
+        }
+        // Same objective (cost then lexical operation order), derived from all
+        // validator-accepted traces, not hardcoded readiness or selected trace.
+        legal.sort_by_key(|(order, _, cost)| (*cost, *order));
+        assert_eq!(submitted, 24);
+        assert_eq!(legal.len(), 3);
+        assert_eq!(rejected, 21);
+        let selected = plan
+            .solution()
+            .ledger
+            .selections
+            .iter()
+            .map(|s| s.operation_index)
+            .collect::<Vec<_>>();
+        assert_eq!(selected, legal[0].0);
+        assert_eq!(plan.solution().ledger.total_cost, legal[0].2);
+        assert_eq!(
+            plan.solution().trace_summary.peak_live_owner_bytes,
+            legal[0].1 as u64
+        );
+        assert_eq!(plan.solution().trace_summary.final_live_backing_bytes, 2048);
+        for step in &plan.solution().ledger.trace {
+            assert!(
+                !step.release.contains(&k[0].to_owned())
+                    && !step.release.contains(&v[0].to_owned())
+            );
+        }
+        drop(plan);
+        assert_eq!(budget.budget().used_bytes(), before);
+        assert_eq!(metadata.remaining(), 0);
+        assert!(matches!(
+            analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+            Err(Refusal::Consumed)
+        ));
+    });
+}
+
+#[test]
+fn produced_binding_foreign_same_names_swaps_duplicates_stale_and_incomplete_refuse_before_factory()
+{
+    with_produced_quote(|f, quote, budget, control, _| {
+        let foreign = produced_fixture();
+        let (k, v) = f.parents();
+        let r = produced_replacements(f);
+        let c = produced_capacity();
+        let mut metadata = MetadataLedger::new(6 * (c.max_work + quote.trace_work()));
+        for fault in 0..6 {
+            let mut updates = produced_updates(f);
+            let mut descriptor = produced_descriptor();
+            match fault {
+                0 => updates[0].producer = &foreign.original.operations[1],
+                1 => updates.swap(0, 1),
+                2 => updates[1].producer = updates[0].producer,
+                3 => descriptor.token += 1,
+                4 => {
+                    updates.pop();
+                }
+                _ => updates[0].capability = &foreign.original.capabilities[1],
+            }
+            let mut binding = bind_produced_updates(
+                produced_geometry(),
+                descriptor,
+                &f.original,
+                Parents {
+                    keys: &k,
+                    values: &v,
+                },
+                &r,
+                &updates,
+            );
+            let before = budget.budget().used_bytes();
+            GRAPH_FACTORIES.with(|n| n.set(0));
+            assert!(
+                analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c)
+                    .is_err()
+            );
+            assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+            assert_eq!(budget.budget().used_bytes(), before);
+            assert!(matches!(
+                analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+                Err(Refusal::Consumed)
+            ));
+        }
+        assert_eq!(metadata.remaining(), 0);
+    });
+}
+
+#[test]
+fn produced_unknown_cost_error_missing_capability_ambiguous_output_and_parent_refuse_before_factory()
+ {
+    with_produced_quote(|_, quote, budget, control, _| {
+        let c = produced_capacity();
+        let mut metadata = MetadataLedger::new(8 * (c.max_work + quote.trace_work()));
+        for fault in 0..8 {
+            let mut f = produced_fixture();
+            match fault {
+                0 => {
+                    let PublicCiphertextExecution::Ckks { compute, .. } =
+                        &mut f.original.capabilities[0].execution
+                    else {
+                        unreachable!()
+                    };
+                    compute.cost.units = None;
+                }
+                1 => f.original.operations[0].output.state.error.bound = None,
+                2 => f.original.capabilities[0].kernel_identity = "missing_capability".into(),
+                3 => f
+                    .original
+                    .inputs
+                    .push(f.original.operations[1].output.clone()),
+                4 => {
+                    f.values.clear();
+                }
+                5 => f.original.capabilities[0].inputs[0].key_domain = "wrong_domain".into(),
+                6 => f.original.capabilities[0].join = PublicCiphertextJoin::Aligned,
+                _ => f.original.owners[2].bytes = None,
+            }
+            let (k, v) = f.parents();
+            let r = produced_replacements(&f);
+            let updates = produced_updates(&f);
+            let mut binding = bind_produced_updates(
+                produced_geometry(),
+                produced_descriptor(),
+                &f.original,
+                Parents {
+                    keys: &k,
+                    values: &v,
+                },
+                &r,
+                &updates,
+            );
+            GRAPH_FACTORIES.with(|n| n.set(0));
+            assert!(
+                analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c)
+                    .is_err()
+            );
+            assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+        }
+        assert_eq!(metadata.remaining(), 0);
+    });
+}
+
+#[test]
+fn produced_append_retains_complete_old_families_including_unchanged_tiles() {
+    let mut f = produced_fixture();
+    f.original.outputs.push(f.incoming[0].clone());
+    f.original.retained_inputs.push("seed".into());
+    for (names, id) in [(&mut f.keys, "old_k_1"), (&mut f.values, "old_v_1")] {
+        names.push(id.into());
+        f.original.inputs.push(val(id.into()));
+        f.original.owners.push(PublicCiphertextOwner {
+            identity: id.into(),
+            bytes: Some(512),
+        });
+    }
+    for (i, cap) in f.caps.iter_mut().enumerate() {
+        cap.kernel_identity = format!("cachemir_append_v1:64:1:1:129:65:{i}");
+    }
+    let g = Geometry::new(64, 1, 1, 129).unwrap();
+    let a = AppendDescriptor {
+        token: 65,
+        key_tile: 1,
+        key_lane: 1,
+        value_group: 1,
+        new_key_ciphertexts: 0,
+        new_value_ciphertexts: 0,
+    };
+    let (k, v) = f.parents();
+    let r = produced_replacements(&f);
+    let updates = produced_updates(&f);
+    let bound = ProducedAppend {
+        geometry: g,
+        append: a,
+        original: &f.original,
+        parents: Parents {
+            keys: &k,
+            values: &v,
+        },
+        replacements: &r,
+        updates: &updates,
+    };
+    produced_preflight(&bound).unwrap();
+    assert!(
+        preflight(g, a, &f.original, &bound.parents, &r).is_err(),
+        "legacy prepacked-input API must not silently acquire producer authority"
+    );
+    let graph = emit_graph(g, a, &f.original, &bound.parents, &r).unwrap();
+    assert_eq!(graph.operations[2].inputs[0], "old_k_1");
+    assert_eq!(graph.operations[3].inputs[0], "old_v_1");
+    let solution = solve_public_encrypted_dag(&graph, produced_capacity()).unwrap();
+    for id in k.iter().chain(&v) {
+        assert!(graph.outputs.iter().any(|s| s == id));
+        assert!(graph.retained_inputs.iter().any(|s| s == id));
+        assert!(
+            solution
+                .ledger
+                .trace
+                .iter()
+                .all(|s| !s.release.iter().any(|r| r == id))
+        );
+    }
+    assert!(graph.outputs.contains(&f.incoming[0]));
+    assert!(graph.retained_inputs.iter().any(|id| id == "seed"));
+    assert!(
+        solution.ledger.trace.iter().all(
+            |s| !s.release.contains(&f.incoming[0]) && !s.release.iter().any(|id| id == "seed")
+        )
+    );
+    assert_eq!(solution.trace_summary.final_live_backing_bytes, 8 * 512);
+}
+
+#[test]
+fn produced_cumulative_admission_exact_fit_and_one_short_keep_original_ledgers() {
+    for fault in 0..5 {
+        with_produced_quote(|f, quote, budget, control, backings| {
+            let (k, v) = f.parents();
+            let p = Parents {
+                keys: &k,
+                values: &v,
+            };
+            let r = produced_replacements(f);
+            let updates = produced_updates(f);
+            let c = produced_capacity();
+            let construction = control_allowance(&f.original, &p, &r, c.trace.max_records).unwrap();
+            let validation = 1024 + 4 * backings;
+            let bound = ProducedAppend {
+                geometry: produced_geometry(),
+                append: produced_descriptor(),
+                original: &f.original,
+                parents: Parents {
+                    keys: &k,
+                    values: &v,
+                },
+                replacements: &r,
+                updates: &updates,
+            };
+            produced_preflight(&bound).unwrap();
+            let matching = produced_matching_work(&bound).unwrap();
+            let required = 2 * (construction + matching + validation);
+            let remaining = control.core_work().control_remaining();
+            control
+                .core_work()
+                .debit(0, remaining - required + usize::from(fault == 1))
+                .unwrap();
+            let total = c.max_work + quote.trace_work();
+            let mut metadata = MetadataLedger::new(2 * total - usize::from(fault == 2));
+            let bytes = owner_bytes(quote, c, factory_bytes(&f.original, &p, &r).unwrap()).unwrap();
+            let _headroom = if fault >= 3 {
+                Some(
+                    budget
+                        .charge_external(
+                            (64 << 20)
+                                - budget.budget().used_bytes()
+                                - bytes
+                                - 2 * size_of::<OwnedExternalCharge>()
+                                + usize::from(fault == 4),
+                        )
+                        .unwrap(),
+                )
+            } else {
+                None
+            };
+            let before = budget.budget().used_bytes();
+            for attempt in 0..2 {
+                let mut binding = bind_produced_updates(
+                    produced_geometry(),
+                    produced_descriptor(),
+                    &f.original,
+                    Parents {
+                        keys: &k,
+                        values: &v,
+                    },
+                    &r,
+                    &updates,
+                );
+                GRAPH_FACTORIES.with(|n| n.set(0));
+                MATCH_PREDICATES.with(|n| n.set(0));
+                let result =
+                    analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c);
+                let fails = fault == 4 || attempt == 1 && (fault == 1 || fault == 2);
+                assert_eq!(result.is_err(), fails);
+                if fault == 3 {
+                    assert_eq!(budget.budget().used_bytes(), 64 << 20);
+                }
+                if fault == 2 && attempt == 1 || fault == 4 {
+                    assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+                }
+                if fault == 2 && attempt == 1 {
+                    assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+                } else {
+                    assert!(MATCH_PREDICATES.with(|n| n.get()) > 0);
+                }
+                if fault == 1 && attempt == 1 {
+                    // Final validation refuses late, after emission/search.
+                    assert!(matches!(result, Err(Refusal::Trace)));
+                    assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 1);
+                }
+                drop(result);
+                assert_eq!(budget.budget().used_bytes(), before);
+                let metadata_after = metadata.remaining();
+                let work_after = control.core_work().remaining();
+                let control_after = control.core_work().control_remaining();
+                let factories_after = GRAPH_FACTORIES.with(|n| n.get());
+                let predicates_after = MATCH_PREDICATES.with(|n| n.get());
+                assert!(matches!(
+                    analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+                    Err(Refusal::Consumed)
+                ));
+                assert_eq!(budget.budget().used_bytes(), before);
+                assert_eq!(metadata.remaining(), metadata_after);
+                assert_eq!(control.core_work().remaining(), work_after);
+                assert_eq!(control.core_work().control_remaining(), control_after);
+                assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), factories_after);
+                assert_eq!(MATCH_PREDICATES.with(|n| n.get()), predicates_after);
+            }
+            if fault == 0 || fault == 3 {
+                assert_eq!(metadata.remaining(), 0);
+                assert_eq!(control.core_work().control_remaining(), 0);
+            }
+            if fault == 1 {
+                assert_eq!(control.core_work().control_remaining(), validation - 1);
+            }
+            if fault == 2 {
+                assert_eq!(metadata.remaining(), quote.trace_work() - 1);
+            }
+        });
+    }
+}
+
+#[test]
+fn produced_foreign_original_substitution_refuses_original_record_references_before_factory() {
+    with_produced_quote(|f, quote, budget, control, _| {
+        let foreign = produced_fixture();
+        assert_eq!(
+            foreign.original, f.original,
+            "equal content, distinct graph allocation"
+        );
+        assert!(!std::ptr::eq(&foreign.original, &f.original));
+        let (k, v) = f.parents();
+        let r = produced_replacements(f);
+        let updates = produced_updates(f);
+        // Reverse direction of the foreign-record cases: substituted original,
+        // but the producer AND capability references still belong to f.original.
+        let mut binding = bind_produced_updates(
+            produced_geometry(),
+            produced_descriptor(),
+            &foreign.original,
+            Parents {
+                keys: &k,
+                values: &v,
+            },
+            &r,
+            &updates,
+        );
+        let c = produced_capacity();
+        let mut metadata = MetadataLedger::new(c.max_work + quote.trace_work());
+        let _other_live_owner = budget.charge_external(4096).unwrap();
+        let before = budget.budget().used_bytes();
+        GRAPH_FACTORIES.with(|n| n.set(0));
+        MATCH_PREDICATES.with(|n| n.set(0));
+        assert!(matches!(
+            analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+            Err(Refusal::StaleParents)
+        ));
+        assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+        assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+        assert_eq!(budget.budget().used_bytes(), before);
+        assert_eq!(metadata.remaining(), 0);
+        let work_after = control.core_work().remaining();
+        let control_after = control.core_work().control_remaining();
+        assert!(matches!(
+            analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+            Err(Refusal::Consumed)
+        ));
+        assert_eq!(budget.budget().used_bytes(), before);
+        assert_eq!(metadata.remaining(), 0);
+        assert_eq!(control.core_work().remaining(), work_after);
+        assert_eq!(control.core_work().control_remaining(), control_after);
+        assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+        assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+        // Other guard remains in scope through every observation. Assertions
+        // concern unchanged ownership only, not intermediate refund timing.
+        drop(_other_live_owner);
+    });
+}
+
+#[test]
+fn produced_checked_header_overflow_spends_handle_without_factory_or_owner_changes() {
+    with_produced_quote(|f, quote, budget, control, _| {
+        let (k, v) = f.parents();
+        let r = produced_replacements(f);
+        let updates = produced_updates(f);
+        let mut binding = bind_produced_updates(
+            produced_geometry(),
+            produced_descriptor(),
+            &f.original,
+            Parents {
+                keys: &k,
+                values: &v,
+            },
+            &r,
+            &updates,
+        );
+        let normal = produced_capacity();
+        let mut metadata = MetadataLedger::new(normal.max_work + quote.trace_work());
+        let _other_live_owner = budget.charge_external(4096).unwrap();
+        let before = budget.budget().used_bytes();
+        let metadata_before = metadata.remaining();
+        let work_before = control.core_work().remaining();
+        let control_before = control.core_work().control_remaining();
+        // Malformed boundary probe, NOT an admitted larger grant. No budget,
+        // work allowance, or successful-path cap is increased. Header admission
+        // must checked-reject R*128 overflow before debiting or visiting records.
+        let malformed_records = usize::MAX;
+        assert!(malformed_records.checked_mul(128).is_none());
+        let malformed = PublicEncryptedDagCapacity {
+            trace: PublicCiphertextTraceCapacity {
+                max_records: malformed_records,
+                ..normal.trace
+            },
+            ..normal
+        };
+        GRAPH_FACTORIES.with(|n| n.set(0));
+        MATCH_PREDICATES.with(|n| n.set(0));
+        assert!(matches!(
+            analyze_produced_append(
+                &mut binding,
+                quote,
+                budget,
+                &mut metadata,
+                control,
+                malformed
+            ),
+            Err(Refusal::Capacity)
+        ));
+        assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+        assert_eq!(budget.budget().used_bytes(), before);
+        assert_eq!(metadata.remaining(), metadata_before);
+        assert_eq!(control.core_work().remaining(), work_before);
+        assert_eq!(control.core_work().control_remaining(), control_before);
+        assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+        // Even retry with ordinary bounded inputs cannot replay failed handle.
+        assert!(matches!(
+            analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, normal),
+            Err(Refusal::Consumed)
+        ));
+        assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+        assert_eq!(budget.budget().used_bytes(), before);
+        assert_eq!(metadata.remaining(), metadata_before);
+        assert_eq!(control.core_work().remaining(), work_before);
+        assert_eq!(control.core_work().control_remaining(), control_before);
+        assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+        drop(_other_live_owner);
     });
 }

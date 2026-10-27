@@ -21,6 +21,7 @@ pub enum Refusal {
     Work,
     Allocation,
     Trace,
+    Consumed,
 }
 
 /// Names already declared in ORIGINAL graph. Old arrays are complete, ordered
@@ -37,6 +38,81 @@ pub struct Replacement<'a> {
     pub output: &'a PublicCiphertextValue,
     pub owner: &'a PublicCiphertextOwner,
     pub capability: &'a PublicCiphertextCapability,
+}
+
+/// Ordered synthetic producer declarations: K, then each V replacement. Both
+/// references must be records INSIDE the same borrowed original graph. This is
+/// graph membership, not evidence of packing, E3/RoPE/GQA or numeric correctness.
+/// Role order is an explicit caller-supplied SYNTHETIC declaration. Neither an
+/// operation label nor a method/kernel selector can certify semantic K/V roles.
+pub struct ProducedUpdate<'a> {
+    pub producer: &'a PublicCiphertextGraphOperation,
+    pub capability: &'a PublicCiphertextCapability,
+}
+
+struct ProducedAppend<'a> {
+    geometry: Geometry,
+    append: AppendDescriptor,
+    original: &'a PublicCiphertextGraph,
+    parents: Parents<'a>,
+    replacements: &'a [Replacement<'a>],
+    updates: &'a [ProducedUpdate<'a>],
+}
+
+/// Non-cloneable, borrowed, one-attempt ANALYSIS metadata handle. Construction
+/// performs no scans or allocations; analysis validates under existing ledgers.
+/// Consumption prevents replay of THIS handle only. Callers can declare another
+/// handle: no response/source/key-epoch/cancellation custody or logical commit.
+/// Shared borrows prevent original graph/parent/capability mutation while bound.
+///
+/// ```compile_fail,E0599
+/// use pllm_compiler::interleaved_cache_append::ProducedUpdateBinding;
+/// fn duplicate(b: ProducedUpdateBinding<'_>) { let _second = b.clone(); }
+/// ```
+/// ```compile_fail,E0502
+/// use pllm_compiler::{interleaved_cache_append::*, encrypted_level_schedule::*};
+/// use pllm_core::interleaved_kv_layout::{Geometry, AppendDescriptor};
+/// fn mutate(g: &mut PublicCiphertextGraph, geometry: Geometry, a: AppendDescriptor) {
+///     let binding = bind_produced_updates(geometry, a, g,
+///         Parents { keys: &[], values: &[] }, &[], &[]);
+///     g.operations.clear();
+///     drop(binding);
+/// }
+/// ```
+/// Ordinary compile-pass control: the graph can be mutated after the borrowed
+/// handle is dropped. This exercises borrow usage, not append qualification.
+/// ```
+/// use pllm_compiler::{interleaved_cache_append::*, encrypted_level_schedule::*};
+/// use pllm_core::interleaved_kv_layout::{Geometry, AppendDescriptor};
+/// fn release_then_mutate(g: &mut PublicCiphertextGraph, geometry: Geometry, a: AppendDescriptor) {
+///     let binding = bind_produced_updates(geometry, a, g,
+///         Parents { keys: &[], values: &[] }, &[], &[]);
+///     drop(binding);
+///     g.operations.clear();
+/// }
+/// ```
+pub struct ProducedUpdateBinding<'a> {
+    pending: Option<ProducedAppend<'a>>,
+}
+
+pub fn bind_produced_updates<'a>(
+    geometry: Geometry,
+    append: AppendDescriptor,
+    original: &'a PublicCiphertextGraph,
+    parents: Parents<'a>,
+    replacements: &'a [Replacement<'a>],
+    updates: &'a [ProducedUpdate<'a>],
+) -> ProducedUpdateBinding<'a> {
+    ProducedUpdateBinding {
+        pending: Some(ProducedAppend {
+            geometry,
+            append,
+            original,
+            parents,
+            replacements,
+            updates,
+        }),
+    }
 }
 
 /// Payload first, guard last: all solution/graph storage dies before refund.
@@ -218,6 +294,7 @@ fn factory_bytes(
                 size_of::<PublicCiphertextCapability>(),
                 size_of::<String>(),
                 size_of::<Replacement<'_>>(),
+                size_of::<ProducedUpdate<'_>>(),
                 x.owner.identity.capacity(),
                 value_bytes(x.output)?,
                 cap_bytes(x.capability)?,
@@ -248,6 +325,8 @@ fn factory_bytes(
         size_of::<Result<AppendAnalysis<'_>, Refusal>>(),
         size_of::<OwnedExternalCharge>(),
         size_of::<PublicEncryptedDagSolution>(),
+        size_of::<ProducedUpdateBinding<'_>>(),
+        size_of::<ProducedAppend<'_>>(),
     ])
 }
 fn preserve(cap: &PublicCiphertextCapability) -> bool {
@@ -459,6 +538,17 @@ fn preflight(
     p: &Parents<'_>,
     r: &[Replacement<'_>],
 ) -> Result<(), Refusal> {
+    preflight_sources(g, a, old, p, r, false)
+}
+
+fn preflight_sources(
+    g: Geometry,
+    a: AppendDescriptor,
+    old: &PublicCiphertextGraph,
+    p: &Parents<'_>,
+    r: &[Replacement<'_>],
+    produced: bool,
+) -> Result<(), Refusal> {
     descriptor(g, a)?;
     if p.keys.len()
         != g.key_layout()
@@ -494,11 +584,10 @@ fn preflight(
         }
     }
     for (i, record) in r.iter().enumerate() {
-        let incoming = old
-            .inputs
-            .iter()
-            .find(|v| v.identity == record.incoming)
-            .ok_or(Refusal::StaleParents)?;
+        let incoming = value(old, record.incoming)?;
+        if !produced && !old.inputs.iter().any(|v| std::ptr::eq(v, incoming)) {
+            return Err(Refusal::StaleParents);
+        }
         let parent = if i == 0 {
             if a.new_key_ciphertexts == 0 {
                 Some(p.keys[a.key_tile])
@@ -568,6 +657,160 @@ fn preflight(
     Ok(())
 }
 
+// Deliberately narrow synthetic producer qualification, not a second DAG
+// planner: known preserving arithmetic CKKS, unary/aligned typed joins. Other
+// execution families need their own explicit qualification, not free authority.
+fn produced_preflight(bound: &ProducedAppend<'_>) -> Result<(), Refusal> {
+    let old = bound.original;
+    if bound.updates.len() != bound.replacements.len() {
+        return Err(Refusal::StaleParents);
+    }
+    for (i, update) in bound.updates.iter().enumerate() {
+        let op = update.producer;
+        let cap = update.capability;
+        if !old.operations.iter().any(|p| std::ptr::eq(p, op))
+            || !old.capabilities.iter().any(|c| std::ptr::eq(c, cap))
+            || bound.updates[..i]
+                .iter()
+                .any(|u| std::ptr::eq(u.producer, op))
+            || op.output.identity != bound.replacements[i].incoming
+            || !std::ptr::eq(value(old, &op.output.identity)?, &op.output)
+            || old
+                .operations
+                .iter()
+                .filter(|p| p.identity == op.identity)
+                .count()
+                != 1
+        {
+            return Err(Refusal::StaleParents);
+        }
+    }
+    // Check complete upstream inventory before factory entry, including dormant
+    // alternatives. The shared solver/validator remains final legality authority.
+    for cap in &old.capabilities {
+        if !known(&cap.output)
+            || cap.inputs.iter().any(|s| !known(s))
+            || cap.scratch_bytes.is_none()
+            || cap.recovery_overlap_bytes.is_none()
+            || cap.error_assumption.as_ref().is_none_or(|s| s.is_empty())
+            || !preserve(cap)
+        {
+            return Err(Refusal::Unknown);
+        }
+        if cap.primitive != PublicPrimitive::Arithmetic
+            || !(cap.join == PublicCiphertextJoin::Unary && cap.inputs.len() == 1
+                || cap.join == PublicCiphertextJoin::Aligned && cap.inputs.len() >= 2)
+            || cap.inputs.iter().any(|s| {
+                s.scheme != cap.output.scheme
+                    || s.key_domain != cap.output.key_domain
+                    || s.scale != cap.output.scale
+                    || s.layout != cap.output.layout
+                    || s.shape != cap.output.shape
+                    || s.level != cap.output.level
+            })
+        {
+            return Err(Refusal::Capability);
+        }
+    }
+    for declaration in old
+        .inputs
+        .iter()
+        .chain(old.operations.iter().map(|o| &o.output))
+    {
+        let output = value(old, &declaration.identity)?;
+        if !known(&output.state)
+            || old
+                .owners
+                .iter()
+                .filter(|o| o.identity == output.owner)
+                .count()
+                != 1
+            || !old
+                .owners
+                .iter()
+                .any(|o| o.identity == output.owner && o.bytes.is_some_and(|b| b > 0))
+        {
+            return Err(Refusal::Unknown);
+        }
+    }
+    for op in &old.operations {
+        let matches =
+            |cap: &PublicCiphertextCapability| {
+                cap.kernel_identity == op.kernel_identity
+                    && cap.primitive == op.primitive
+                    && cap.output == op.output.state
+                    && cap.inputs.len() == op.inputs.len()
+                    && op.inputs.iter().zip(&cap.inputs).all(|(id, s)| {
+                        value(old, id).is_ok_and(|v| known(&v.state) && v.state == *s)
+                    })
+            };
+        if !old.capabilities.iter().any(matches)
+            || bound
+                .updates
+                .iter()
+                .any(|u| std::ptr::eq(u.producer, op) && !matches(u.capability))
+        {
+            return Err(Refusal::Capability);
+        }
+    }
+    preflight_sources(
+        bound.geometry,
+        bound.append,
+        old,
+        &bound.parents,
+        bound.replacements,
+        true,
+    )
+}
+
+// Length-only quote AFTER structural membership/metadata checks. The baseline
+// allowance covers this update-header walk; never inspect foreign headers here.
+fn produced_matching_work(bound: &ProducedAppend<'_>) -> Result<usize, Refusal> {
+    let mul = |a: usize, b: usize| a.checked_mul(b).ok_or(Refusal::Capacity);
+    let u = bound.updates.len();
+    let c = add(bound.original.capabilities.len(), bound.replacements.len())?;
+    let v = add(bound.original.inputs.len(), bound.original.operations.len())?;
+    let s = bound
+        .updates
+        .iter()
+        .try_fold(0, |n, update| add(n, update.producer.inputs.len()))?;
+    // T=65: length + 64 byte pairs; E=332: entry + five T + level,
+    // shape (at most two entries) + error option. Source probe <=67;
+    // each input <=336+67V; candidate overhead/output <=415. These
+    // envelopes include chain/filter/zip visits and final pointer/next checks.
+    add(
+        mul(16, u)?,
+        mul(c, add(mul(415, u)?, mul(add(336, mul(67, v)?)?, s)?)?)?,
+    )
+}
+
+fn unique_produced_capabilities(bound: &ProducedAppend<'_>) -> Result<(), Refusal> {
+    let old = bound.original;
+    // Emission preserves original operations and their input states; the source
+    // preflight above forbids replacement outputs from shadowing original values.
+    // Match the solver's complete emitted inventory, including appended records.
+    // Occurrences count separately even when replacement borrows the same cap.
+    for update in bound.updates {
+        let mut matching = old
+            .capabilities
+            .iter()
+            .chain(bound.replacements.iter().map(|r| r.capability))
+            .filter(|cap| {
+                #[cfg(test)]
+                MATCH_PREDICATES.with(|n| n.set(n.get() + 1));
+                schedule::dag::matches(old, update.producer, cap)
+            });
+        if !matching
+            .next()
+            .is_some_and(|cap| std::ptr::eq(cap, update.capability))
+            || matching.next().is_some()
+        {
+            return Err(Refusal::Capability);
+        }
+    }
+    Ok(())
+}
+
 /// The manifest quote MUST cover original graph/binding/capability capacities,
 /// clone/old-new/control slots and the actual final graph + chosen trace. It is
 /// borrowed evidence, not allocator authority: the independent original Budget
@@ -581,6 +824,62 @@ pub fn analyze_append<'a>(
     original: &'a PublicCiphertextGraph,
     parents: &Parents<'_>,
     replacements: &[Replacement<'_>],
+    quote: &PublicCiphertextConstructionQuote<'_>,
+    budget: &OwnedBudget,
+    metadata: &mut MetadataLedger,
+    control: &mut ControlLedger<'_>,
+    capacity: PublicEncryptedDagCapacity,
+) -> Result<AppendAnalysis<'a>, Refusal> {
+    analyze_append_inner(
+        geometry,
+        append,
+        original,
+        parents,
+        replacements,
+        None,
+        quote,
+        budget,
+        metadata,
+        control,
+        capacity,
+    )
+}
+
+/// Consume binding before ANY fallible admission. Failed attempts remain spent;
+/// successful result borrows original graph, and drops graph/solution before its
+/// overlap charge. Insertion is exactly [descriptor.token, descriptor.token+1).
+pub fn analyze_produced_append<'a>(
+    binding: &mut ProducedUpdateBinding<'a>,
+    quote: &PublicCiphertextConstructionQuote<'_>,
+    budget: &OwnedBudget,
+    metadata: &mut MetadataLedger,
+    control: &mut ControlLedger<'_>,
+    capacity: PublicEncryptedDagCapacity,
+) -> Result<AppendAnalysis<'a>, Refusal> {
+    let bound = binding.pending.take().ok_or(Refusal::Consumed)?;
+    analyze_append_inner(
+        bound.geometry,
+        bound.append,
+        bound.original,
+        &bound.parents,
+        bound.replacements,
+        Some(&bound),
+        quote,
+        budget,
+        metadata,
+        control,
+        capacity,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn analyze_append_inner<'a>(
+    geometry: Geometry,
+    append: AppendDescriptor,
+    original: &'a PublicCiphertextGraph,
+    parents: &Parents<'_>,
+    replacements: &[Replacement<'_>],
+    produced: Option<&ProducedAppend<'_>>,
     quote: &PublicCiphertextConstructionQuote<'_>,
     budget: &OwnedBudget,
     metadata: &mut MetadataLedger,
@@ -604,7 +903,17 @@ pub fn analyze_append<'a>(
         .admit_trace(Some(capacity.trace), metadata)
         .map_err(|_| Refusal::Work)?;
     bounded_metadata(original, parents, replacements, capacity.trace.max_records)?;
-    preflight(geometry, append, original, parents, replacements)?;
+    if let Some(bound) = produced {
+        produced_preflight(bound)?;
+        let matching_work = produced_matching_work(bound)?;
+        control
+            .core_work()
+            .debit(0, matching_work)
+            .map_err(|_| Refusal::Work)?;
+        unique_produced_capabilities(bound)?;
+    } else {
+        preflight(geometry, append, original, parents, replacements)?;
+    }
     let n = add(original.operations.len(), replacements.len())?;
     if n > capacity.max_operations || capacity.max_states == 0 || capacity.max_frontier == 0 {
         return Err(Refusal::Capacity);
@@ -742,6 +1051,8 @@ fn emit_graph(
 
 #[cfg(test)]
 thread_local! {static GRAPH_FACTORIES:std::cell::Cell<usize>=const{std::cell::Cell::new(0)};}
+#[cfg(test)]
+thread_local! {static MATCH_PREDICATES:std::cell::Cell<usize>=const{std::cell::Cell::new(0)};}
 #[cfg(test)]
 #[path = "interleaved_cache_append_tests.rs"]
 mod tests;
