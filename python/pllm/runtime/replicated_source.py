@@ -4,12 +4,16 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import threading
 from contextlib import ExitStack
 from pathlib import Path
 
 from pllm import _native, model_loader
 from pllm.configuration import Experiment
-from pllm.deployment.resources import _CleanupSlot, reserve_incremental_disk, reserve_incremental_memory
+from pllm.deployment.resources import (
+    _CleanupSlot, _admit_raw_disk_lease, _clear_raw_disk_backing,
+    reserve_incremental_disk, reserve_incremental_memory,
+)
 from . import delegated_source as source_io
 from .replicated_protocol import execution_binding, storage_policy, validate_execution_binding, STREAM_MEMORY, REQUEST_MEMORY
 
@@ -79,6 +83,184 @@ class _CompactPublisherOwner:
             self.close()
         except BaseException as cleanup:
             error.add_note(f"compact publisher cleanup failed: {type(cleanup).__name__}")
+
+
+class _RawPublisherOwner:
+    """Private synchronous raw-host custody, not source authentication/activation.
+
+    Register empty FIRST; adopt native pending owner BEFORE reservation. Keep the
+    actual disk CM (not just its yielded observation) through explicit retirement.
+    No finalizer, consuming native calls, backing credit, or automatic cleanup
+    retry. A failed slot stays rooted by the process admission ledger. One local
+    gate covers preparation/ingestion/retirement; busy drain defers WITHOUT a
+    sticky cleanup failure. No gate mutex spans a CM/native callback.
+    """
+    __slots__ = ("_owner", "_cleanup_scope", "_disk_cm", "_lease", "_entered",
+                 "_closed", "_stopped", "_cleanup_failure", "_gate", "_busy", "__weakref__")
+
+    def __init__(self, cleanup_scope):
+        if type(cleanup_scope) is not _CleanupSlot or cleanup_scope.closed:
+            raise ValueError("raw host requires an admitted cleanup scope")
+        self._owner = self._disk_cm = self._lease = self._cleanup_failure = None
+        self._entered = self._closed = self._stopped = False
+        self._gate = threading.Lock()
+        # Armed BEFORE publishing the empty holder. Keep armed across the native
+        # factory, pending adoption, quote, CM entry and native start: no gap in
+        # which drain could discard a not-yet-returned producer result/lease.
+        self._busy = True
+        self._cleanup_scope = cleanup_scope
+        cleanup_scope.retain(self, self._retire)
+
+    def _retain(self, owner):
+        with self._gate:
+            if (not self._busy or self._owner is not None or self._closed or self._stopped
+                    or type(owner) is not _native.ReplicatedPublisher):
+                raise ValueError("invalid pending native raw host")
+            self._owner = owner
+
+    def _begin_operation(self):
+        with self._gate:
+            if self._busy:
+                raise ValueError("raw host operation in flight")
+            if self._closed or self._stopped:
+                raise ValueError("raw host ingestion stopped")
+            self._busy = True
+
+    def _end_operation(self):
+        with self._gate:
+            self._busy = False
+
+    def _admit_disk(self):
+        self._begin_operation()
+        try:
+            self._admit_disk_inflight()
+        finally:
+            self._end_operation()
+
+    def _admit_disk_inflight(self):
+        # Caller owns the preparation/admission gate, NOT its mutex.
+        if (self._owner is None or self._disk_cm is not None or self._stopped
+                or not _CleanupSlot.owns(self._cleanup_scope, self)):
+            raise ValueError("invalid raw host disk admission")
+        amount, directory = self._owner._raw_disk_bytes, self._owner._raw_disk_directory
+        if type(amount) is not int or amount <= 0 or type(directory) is not str or not directory:
+            raise ValueError("invalid native raw disk quote")
+        # Durable reference BEFORE __enter__, including ambiguous entry failure.
+        self._disk_cm = reserve_incremental_disk(amount, directory=directory)
+        try:
+            self._lease = self._disk_cm.__enter__()
+            self._entered = True
+        except BaseException as error:
+            self._stopped = True
+            self._cleanup_failure = error  # cannot prove whether entry completed
+            raise
+        try:
+            with _admit_raw_disk_lease(self._lease, self, amount, directory) as device:
+                self._owner._raw_start(device)
+        except BaseException:
+            self._stopped = True
+            raise
+
+    def append(self, file, offset, data):
+        self._begin_operation()
+        try:
+            if not self._entered:
+                raise ValueError("raw host ingestion stopped")
+            self._owner._raw_append(file, offset, data)
+        except BaseException:
+            self._stopped = True
+            raise
+        finally:
+            self._end_operation()
+
+    def finish(self):
+        self._begin_operation()
+        try:
+            if not self._entered:
+                raise ValueError("raw host ingestion stopped")
+            self._owner._raw_finish()
+        finally:
+            self._stopped = True
+            self._end_operation()
+
+    def close(self):
+        self._cleanup_scope.drain()
+
+    def _retire(self):
+        with self._gate:
+            # Refusal MUST precede all cleanup and the sticky-failure try block.
+            # CleanupSlot keeps its payload/callback on error and resets draining;
+            # a legitimate drain after producer join may therefore proceed.
+            if self._busy:
+                raise ValueError("raw host operation in flight")
+            if self._cleanup_failure is not None:
+                raise self._cleanup_failure
+            if self._closed:
+                return
+            self._busy = True
+        try:
+            try:
+                # Native reserves retirement atomically against reader claims
+                # and ingestion. This is an ownership transition, not authority
+                # supplied by Python. No gate mutex spans this callback.
+                ready = True if self._owner is None else self._owner._raw_begin_retire()
+                if type(ready) is not bool:
+                    raise TypeError("invalid raw host retirement readiness")
+                if ready:
+                    self._stopped = True
+                    if self._lease is not None:
+                        _clear_raw_disk_backing(self._lease, self)
+                    if self._owner is not None:
+                        self._owner._raw_retire()  # consume reservation, then fallible remove_dir
+                    if self._entered:
+                        # A thrown exit is ambiguous. The sticky failure below forbids
+                        # ANY retry, final-charge release, or reference discard.
+                        self._disk_cm.__exit__(None, None, None)
+                        self._entered = False
+                    if self._owner is not None:
+                        self._owner._raw_release_final_charges()
+                    self._owner = self._lease = self._disk_cm = None
+                    self._closed = True
+            except BaseException as error:
+                # Begin/Ready may already have reserved retirement. Protect the
+                # branch and stopped assignment too, not just cleanup callbacks.
+                self._stopped = True
+                self._cleanup_failure = error
+                raise
+            if not ready:
+                # Exact native Busy is mutation-free. Outside sticky catch:
+                # preserve stopped/backing/charges and permit explicit retry.
+                raise ValueError("raw host readers in flight")
+        finally:
+            self._end_operation()
+
+    def _close_preserving(self, error):
+        try:
+            self.close()
+        except BaseException as cleanup:
+            error.add_note(f"raw host cleanup failed: {type(cleanup).__name__}")
+
+
+def _prepare_raw_owner(cleanup_scope, *args):
+    """Private ownership bridge for startup-provisioned host expectations.
+
+    Native preparation selects independent expectations from the existing provider.
+    Absent expectations refuse before any raw header/FS factory.
+    No production reader-facing operation is exposed.
+    Never feed SDK source locks, reread metadata, or caller pins as expectations.
+    Not called by publisher(), workers, or public SDK dispatch.
+    """
+    owner = _RawPublisherOwner(cleanup_scope)
+    try:
+        try:
+            owner._retain(_native.ReplicatedPublisher._raw_prepare(*args))
+            owner._admit_disk_inflight()
+        finally:
+            owner._end_operation()
+        return owner
+    except BaseException as error:
+        owner._close_preserving(error)
+        raise
 
 
 def _compact_snapshot_directory(owner):

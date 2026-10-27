@@ -1782,6 +1782,8 @@ fn capabilities(py: Python<'_>) -> PyResult<Bound<'_, PyDict>> {
 }
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    pllm_compiler::replicated_decoder::Publisher::initialize_raw_host_from_startup()
+        .map_err(|error| invalid(error.into()))?;
     logrow::register(module)?;
     projected_polynomial::register(module)?;
     private_pages::register(module)?;

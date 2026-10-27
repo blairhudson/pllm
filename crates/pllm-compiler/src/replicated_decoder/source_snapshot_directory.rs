@@ -10,7 +10,7 @@ use std::{
 
 // A fixed native parent avoids an environment change between admission and file
 // creation. There is deliberately no client/server path selector or fallback.
-fn parent() -> Result<&'static Path, Error> {
+pub(in crate::replicated_decoder) fn parent() -> Result<&'static Path, Error> {
     #[cfg(target_os = "macos")]
     {
         Ok(Path::new("/private/tmp"))
@@ -188,5 +188,116 @@ impl SnapshotDirectory for OwnedSnapshotDirectory {
             let _ = file;
             Err("snapshot filesystem identity unsupported".into())
         }
+    }
+}
+
+/// Raw-only two-phase location. This object is adopted before its first factory;
+/// every partial factory result stays here until explicit fallible retirement.
+/// Legacy OwnedSnapshotDirectory/drop behavior above is deliberately unchanged.
+pub(in crate::replicated_decoder) struct RawSnapshotDirectory {
+    path: std::sync::OnceLock<PathBuf>,
+    state: std::sync::Mutex<RawDirectoryState>,
+    charge: OwnedExternalCharge,
+}
+struct RawDirectoryState {
+    anchor: Option<File>,
+    directory: Option<tempfile::TempDir>,
+    // Explicit retention, not TempDir::drop or a fabricated cleanup receipt.
+    // Broken only after successful nonrecursive removal. A lost caller handle
+    // cannot turn a failed retire into recursive cleanup/refund.
+    retained: Option<Arc<RawSnapshotDirectory>>,
+    attempted: bool,
+    retire_attempted: bool,
+    retired: bool,
+}
+impl RawSnapshotDirectory {
+    pub(in crate::replicated_decoder) fn prepare(
+        original: &OriginalSourcePlan, controller: &OwnedExternalCharge, root: &OwnedBudget,
+    ) -> Result<Arc<Self>, Error> {
+        if !std::ptr::eq(root.budget(), original.budget()) || !controller.is_for(root.budget()) {
+            return Err(Error::Binding);
+        }
+        let bytes = add(OwnedSnapshotDirectory::quote()?, size_of::<Self>())?;
+        if add(root.budget().used_bytes(), bytes)? > MAX_PROGRAM_BYTES { return Err(Error::Bounds); }
+        original.prepay_compiler_metadata(controller, 64).map_err(|_| Error::Bounds)?;
+        let charge = root.charge_external(bytes).map_err(|_| Error::Bounds)?;
+        Ok(Arc::new(Self { path: std::sync::OnceLock::new(),
+            state: std::sync::Mutex::new(RawDirectoryState {
+                anchor: None, directory: None, retained: None, attempted: false,
+                retire_attempted: false, retired: false,
+            }), charge }))
+    }
+    pub(in crate::replicated_decoder) fn parent_device() -> Result<u64, Error> {
+        #[cfg(unix)] {
+            use std::os::unix::fs::MetadataExt;
+            let metadata = parent()?.metadata().map_err(|_| Error::Binding)?;
+            if !metadata.is_dir() { return Err(Error::Binding); }
+            Ok(metadata.dev())
+        }
+        #[cfg(not(unix))] { Err(Error::Binding) }
+    }
+    pub(in crate::replicated_decoder) fn start(self: &Arc<Self>, device: u64) -> Result<(), Error> {
+        let mut state = self.state.lock().map_err(|_| Error::Binding)?;
+        if state.attempted || state.retired { return Err(Error::Retired); }
+        state.attempted = true;
+        state.retained = Some(Arc::clone(self));
+        if Self::parent_device()? != device { return Err(Error::Binding); }
+        #[cfg(test)] FACTORIES.with(|n| n.set(n.get() + 1));
+        // Store the directory BEFORE path-copy/anchor/fstat, so errors cannot
+        // accidentally turn TempDir::drop into a retirement proof.
+        state.directory = Some(tempfile::Builder::new().prefix(PREFIX)
+            .rand_bytes(RANDOM_BYTES).tempdir_in(parent()?).map_err(|_| Error::Binding)?);
+        let directory = state.directory.as_ref().ok_or(Error::Binding)?;
+        self.path.set(directory.path().to_path_buf()).map_err(|_| Error::Binding)?;
+        state.anchor = Some(tempfile::tempfile_in(self.path()).map_err(|_| Error::Binding)?);
+        #[cfg(unix)] {
+            use std::os::unix::fs::MetadataExt;
+            let anchor = state.anchor.as_ref().ok_or(Error::Binding)?.metadata().map_err(|_| Error::Binding)?;
+            if anchor.dev() != device || anchor.len() != 0 { return Err(Error::Binding); }
+        }
+        Ok(())
+    }
+    pub(in crate::replicated_decoder) fn retire(&self) -> Result<(), Error> {
+        let mut state = self.state.lock().map_err(|_| Error::Binding)?;
+        if state.retired { return Ok(()); }
+        if state.retire_attempted { return Err(Error::Retired); }
+        state.retire_attempted = true;
+        if let Some(directory) = state.directory.as_ref() {
+            // A successful explicit syscall is proof; Drop is not. Failed
+            // removal leaves the exact directory object and charge retained.
+            std::fs::remove_dir(directory.path()).map_err(|_| Error::Binding)?;
+        }
+        if let Some(directory) = state.directory.take() { let _ = directory.keep(); }
+        // Keep anchor on every remove_dir failure. Its disappearance alone is
+        // never a filesystem retirement certificate.
+        drop(state.anchor.take());
+        state.retired = true;
+        drop(state.retained.take());
+        Ok(())
+    }
+    fn path(&self) -> &Path { self.path.get().expect("raw snapshot started").as_path() }
+    pub(in crate::replicated_decoder) fn check_budget(&self, budget: &pllm_garble::shared_allocation::Budget) -> Result<(), Error> {
+        if !self.charge.is_for(budget) { return Err(Error::Binding); }
+        Ok(())
+    }
+    #[cfg(test)]
+    pub(in crate::replicated_decoder) fn retention_for_tests(&self) -> (bool, bool, bool) {
+        let state = self.state.lock().unwrap();
+        (state.anchor.is_some(), state.directory.is_some(), state.retire_attempted)
+    }
+}
+impl SnapshotDirectory for RawSnapshotDirectory {
+    fn path(&self) -> &Path { Self::path(self) }
+    fn check_file(&self, file: pllm_core::public_file::FileBacking) -> Result<(), String> {
+        let state = self.state.lock().map_err(|_| "raw directory poisoned")?;
+        if state.retired || state.retire_attempted { return Err("raw directory retired".into()); }
+        #[cfg(unix)] {
+            use std::os::unix::fs::MetadataExt;
+            let anchor = state.anchor.as_ref().ok_or("raw directory not started")?
+                .metadata().map_err(|e| e.to_string())?;
+            if file.device != anchor.dev() { return Err("raw snapshot device differs".into()); }
+            Ok(())
+        }
+        #[cfg(not(unix))] { let _ = file; Err("raw filesystem unsupported".into()) }
     }
 }

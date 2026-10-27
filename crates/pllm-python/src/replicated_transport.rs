@@ -66,6 +66,11 @@ type PeerBatch = (bool, Vec<(usize, Py<PyBytes>)>);
 
 impl NativePublisher {
     fn take(&mut self) -> PyResult<Publisher> {
+        // A raw host is borrowed in place through BOTH explicit cleanup phases.
+        // Legacy consuming paths may never discard it, even on an error/fork.
+        if self.owner.as_ref().is_some_and(Publisher::has_raw_host) {
+            return Err(error("raw host requires explicit retained-owner cleanup"));
+        }
         let owner = self
             .owner
             .take()
@@ -75,10 +80,139 @@ impl NativePublisher {
         }
         Ok(owner)
     }
+
+    fn raw_owner(&self) -> PyResult<&Publisher> {
+        if self.pid != std::process::id() {
+            return Err(error("replicated publisher cannot cross fork"));
+        }
+        self.owner
+            .as_ref()
+            .filter(|owner| owner.has_raw_host())
+            .ok_or_else(|| error("publisher has no retained raw host"))
+    }
 }
 
 #[pymethods]
 impl NativePublisher {
+    // These hooks add no Python owner/guard class. Native SOURCE logical slots
+    // prepay before Publisher construction on its ORIGINAL ledger. Returned
+    // Python scalars/bytes are not a whole-Python allocation or fit claim.
+    #[cfg(feature = "lifecycle-test-support")]
+    #[staticmethod]
+    fn _test_raw_prepare_fixture(py: Python<'_>) -> PyResult<Self> {
+        let owner = py.detach(Publisher::test_raw_prepare_fixture).map_err(error)?;
+        Ok(Self { owner: Some(owner), pid: std::process::id() })
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    fn _test_hold_reader(&mut self) -> PyResult<()> {
+        self.raw_owner()?;
+        self.owner.as_mut().ok_or_else(|| error("publisher retired"))?
+            .test_hold_reader().map_err(error)
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    fn _test_release_reader(&mut self) -> PyResult<()> {
+        self.raw_owner()?;
+        self.owner.as_mut().ok_or_else(|| error("publisher retired"))?
+            .test_release_reader().map_err(error)
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    fn _test_raw_snapshot(&self) -> PyResult<[usize; 10]> {
+        self.raw_owner()?.test_raw_snapshot().map_err(error)
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    fn _test_raw_inventory<'py>(&self, py: Python<'py>, file: usize)
+        -> PyResult<(u64, Bound<'py, PyBytes>, usize)>
+    {
+        let (size, digest, descriptors) = self.raw_owner()?.test_raw_inventory(file).map_err(error)?;
+        Ok((size, PyBytes::new(py, &digest), descriptors))
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    fn _test_raw_chunk<'py>(&self, py: Python<'py>, file: usize, offset: usize)
+        -> PyResult<Bound<'py, PyBytes>>
+    {
+        let (chunk, len) = self.raw_owner()?.test_raw_chunk(file, offset).map_err(error)?;
+        Ok(PyBytes::new(py, &chunk[..len]))
+    }
+    /// No Python value can supply HostRawExpectations. The compiler facade uses
+    /// its startup-configured host provider; absent-provider calls refuse before
+    /// header/filesystem factories. This does not activate SDK raw publication.
+    #[staticmethod]
+    #[pyo3(signature=(*args,**kwargs))]
+    fn _raw_prepare(
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Self> {
+        let [experiment, config, rows, outputs, session, source, composition] = arguments(
+            args,
+            kwargs,
+            ["experiment", "config", "rows", "outputs", "session", "source", "composition"],
+        )?;
+        let experiment = experiment.cast_exact::<PyBytes>()?.as_bytes();
+        let config = config.cast_exact::<PyBytes>()?.as_bytes();
+        let rows = integer(&rows)?;
+        let outputs = integer(&outputs)?;
+        let session = pin(session.cast_exact::<PyBytes>()?.as_bytes())?;
+        let source = pin(source.cast_exact::<PyBytes>()?.as_bytes())?;
+        let composition = pin(composition.cast_exact::<PyBytes>()?.as_bytes())?;
+        let owner = py
+            .detach(|| Publisher::prepare_raw_host(
+                experiment, config, rows, outputs, session, source, composition,
+            ))
+            .map_err(error)?;
+        Ok(Self {
+            owner: Some(owner),
+            pid: std::process::id(),
+        })
+    }
+    #[getter]
+    fn _raw_disk_bytes(&self) -> PyResult<usize> {
+        self.raw_owner()?.raw_disk_bytes().map_err(error)
+    }
+    #[getter]
+    fn _raw_disk_directory(&self) -> PyResult<&str> {
+        self.raw_owner()?
+            .raw_disk_directory()
+            .map_err(error)?
+            .to_str()
+            .ok_or_else(|| error("raw snapshot parent is not UTF-8"))
+    }
+    fn _raw_start(&self, py: Python<'_>, device: &Bound<'_, PyAny>) -> PyResult<()> {
+        let device = u64::try_from(integer(device)?).map_err(error)?;
+        let owner = self.raw_owner()?;
+        py.detach(|| owner.raw_start(device)).map_err(error)
+    }
+    fn _raw_append(
+        &self,
+        py: Python<'_>,
+        file: &Bound<'_, PyAny>,
+        offset: &Bound<'_, PyAny>,
+        data: &Bound<'_, PyAny>,
+    ) -> PyResult<()> {
+        let file = integer(file)?;
+        let offset = u64::try_from(integer(offset)?).map_err(error)?;
+        let data = bytes(data, pllm_core::public_file::MAX_CHUNK_BYTES)?;
+        let owner = self.raw_owner()?;
+        py.detach(|| owner.raw_append(file, offset, data)).map_err(error)
+    }
+    fn _raw_finish(&self, py: Python<'_>) -> PyResult<()> {
+        let owner = self.raw_owner()?;
+        py.detach(|| owner.raw_finish()).map_err(error)
+    }
+    // Ownership reservation only; no Python-supplied source authority.
+    // Source-only handoff: requires CompilerPublisher::raw_begin_retire.
+    fn _raw_begin_retire(&self, py: Python<'_>) -> PyResult<bool> {
+        let owner = self.raw_owner()?;
+        py.detach(|| owner.raw_begin_retire()).map_err(error)
+    }
+    fn _raw_retire(&self, py: Python<'_>) -> PyResult<()> {
+        let owner = self.raw_owner()?;
+        py.detach(|| owner.raw_retire()).map_err(error)
+    }
+    fn _raw_release_final_charges(&self, py: Python<'_>) -> PyResult<()> {
+        let owner = self.raw_owner()?;
+        py.detach(|| owner.raw_release_final_charges()).map_err(error)
+    }
     /// Same opaque owner as the ordinary constructor. Compiler admission owns
     /// policy, config/source custody and all collection; no Python storage flag.
     #[staticmethod]
@@ -337,6 +471,9 @@ impl NativePublisher {
         args: &Bound<'_, PyTuple>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
+        if self.owner.as_ref().is_some_and(Publisher::has_raw_host) {
+            return Err(error("raw host requires explicit retained-owner cleanup"));
+        }
         self.owner = None;
         arguments(args, kwargs, [])?;
         Ok(())

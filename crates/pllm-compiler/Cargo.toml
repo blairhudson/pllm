@@ -8,6 +8,11 @@ authors.workspace = true
 description = "Deterministic plan compiler for private LLM inference"
 publish = false
 
+[features]
+default = []
+# Isolated synthetic lifecycle authoring only; never forwards insecure primitives.
+lifecycle-test-support = []
+
 [dependencies]
 pllm-core.workspace = true
 pllm-garble.workspace = true

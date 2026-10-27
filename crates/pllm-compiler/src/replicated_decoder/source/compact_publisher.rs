@@ -2,7 +2,7 @@
 use super::compact_publisher_scan::Scan;
 use super::*;
 use crate::replicated_decoder::program::source_entry::ingress::{
-    CompiledSource, SourceCollector, SourceHeaderEntry,
+    CompiledSource, HostRawExpectations, RawHost, SourceCollector, SourceHeaderEntry,
 };
 use crate::replicated_decoder::source_registry;
 use pllm_core::public_file::{PublicFile, PublicFileWriter};
@@ -48,6 +48,21 @@ struct Collection {
     vocabulary: usize,
     root: OwnedBudget,
 }
+#[cfg(test)]
+impl Drop for Collection {
+    fn drop(&mut self) {
+        use crate::replicated_decoder::program::source_entry::ingress::handoff_tests;
+        if handoff_tests::real_payload_probe_armed(self.root.budget()) {
+            // Observe the actual retained file and heap, without retaining either.
+            let backing = self.snapshots.first().and_then(|snapshot| snapshot.raw.backing().ok().flatten());
+            handoff_tests::observe_real_payload_drop(
+                self.root.budget(),
+                backing,
+                (self.snapshots.as_ptr() as usize, self.snapshots.len(), self.snapshots.capacity()),
+            );
+        }
+    }
+}
 enum Stage {
     Collecting(SourceCollector<Collection>),
     Sealed(CompiledSource<Collection>),
@@ -62,6 +77,26 @@ pub(super) struct CompactPublisher {
 }
 
 impl CompactPublisher {
+    /// Host-only provisioned expectations, NOT a worker/payload/SDK entrypoint.
+    /// Session is supplied by the admitted host; no new randomness or activation.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn prepare_raw_host(
+        experiment: &[u8],
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        session: [u8; 32],
+        source: [u8; 32],
+        composition: [u8; 32],
+        expected: Option<HostRawExpectations<'_>>,
+    ) -> Result<RawHost, String> {
+        let header = SourceHeaderEntry::begin_raw_host(
+            experiment, config, rows, outputs, session, source, composition, expected,
+        )
+        .map_err(native)?;
+        RawHost::prepare(header).map_err(native)
+    }
+
     pub(super) fn new(
         experiment: &[u8],
         config: &[u8],
@@ -247,6 +282,10 @@ impl CompactPublisher {
                 })
             })
             .map_err(native)?;
+        #[cfg(test)]
+        let mut owner = owner;
+        #[cfg(test)]
+        crate::replicated_decoder::program::source_entry::ingress::handoff_tests::observe_real_collector(&mut owner);
         let mut words = 0usize;
         for (_, shape) in &owner.payload().map_err(native)?.shapes {
             let n = shape.iter().try_fold(1usize, |n, d| mul(n, *d))?;
@@ -504,6 +543,19 @@ impl CompactPublisher {
                             .read((offset * 4) as u64, &mut frame[..n * 4])
                             .map_err(allocation)?;
                         import.append(key, offset, &frame[..n * 4])?;
+                        #[cfg(test)]
+                        {
+                            use crate::replicated_decoder::program::source_entry::ingress::handoff_tests;
+                            if handoff_tests::real_fixture_matches(state.root.budget()) {
+                                // Only the first successful genuine raw read +
+                                // importer append may reach the injected failure.
+                                handoff_tests::after_real_import_append(
+                                    import,
+                                    snapshot.raw.backing().unwrap().unwrap(),
+                                    (state.snapshots.as_ptr() as usize, state.snapshots.len(), state.snapshots.capacity()),
+                                )?;
+                            }
+                        }
                     }
                 }
                 Ok(())

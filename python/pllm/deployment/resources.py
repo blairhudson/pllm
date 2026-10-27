@@ -444,13 +444,14 @@ class DiskLease:
     """
 
     __slots__ = ("_capacity", "_token", "_directory", "_bound", "_minimum_free",
-                 "_observation", "_backing", "_closed")
+                 "_observation", "_backing", "_closed", "_raw_holder")
 
     def __init__(self, capacity, token, directory, bound, minimum_free, observation):
         self._capacity, self._token, self._directory = capacity, token, directory
         self._bound, self._minimum_free = bound, minimum_free
         self._observation = observation
         self._backing, self._closed = None, False
+        self._raw_holder = None
 
     @property
     def observation(self):
@@ -468,6 +469,7 @@ class DiskLease:
     def bind_backing(self, local_callable):
         with self._capacity.lock:
             if (self._closed or self._capacity._owners.get(self._token) is not self
+                    or self._raw_holder is not None
                     or self._backing is not None or not callable(local_callable)):
                 raise NetworkError("DISK_BACKING_BINDING_INVALID")
             self._backing = local_callable
@@ -574,9 +576,45 @@ class _DiskCapacity:
             with self.lock:
                 self._owners.pop(token, None)
                 lease._closed, lease._backing = True, None
+                lease._raw_holder = None
 
 
 _disk_capacity = _DiskCapacity()
+
+
+def _check_raw_disk_lease(lease, holder):
+    # Called only with the process ledger lock held. Neither observation/device
+    # equality nor a duck-typed token establishes live reservation membership.
+    if (type(lease) is not DiskLease or lease._capacity is not _disk_capacity
+            or lease._closed or _disk_capacity._owners.get(lease._token) is not lease
+            or lease._raw_holder is not holder):
+        raise NetworkError("RAW_DISK_LEASE_OWNER_CHANGED")
+
+
+@contextmanager
+def _admit_raw_disk_lease(lease, holder, amount, directory):
+    """Associate the actual live lease with one retained host; keep ingestion unbound.
+
+    Caller retains the REAL reservation context manager before entering it. The
+    returned device is only a native filesystem predicate. Hold the ledger lock
+    through start so concurrent lease exit cannot invalidate the membership check.
+    """
+    with _disk_capacity.lock:
+        if (type(lease) is not DiskLease or lease._capacity is not _disk_capacity
+                or lease._closed or _disk_capacity._owners.get(lease._token) is not lease
+                or lease._raw_holder is not None or lease._backing is not None
+                or type(amount) is not int or amount <= 0 or lease._bound != amount
+                or lease._directory != Path(directory)):
+            raise NetworkError("RAW_DISK_LEASE_INVALID")
+        lease._raw_holder = holder
+        yield lease._observation.device
+
+
+def _clear_raw_disk_backing(lease, holder):
+    """Clear under the same ledger lock BEFORE any native file retirement."""
+    with _disk_capacity.lock:
+        _check_raw_disk_lease(lease, holder)
+        lease._backing = None
 
 
 def reserve_incremental_disk(incremental_bytes, *, directory, minimum_free_bytes=1 << 20):

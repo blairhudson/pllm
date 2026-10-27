@@ -2,6 +2,19 @@
 use super::*;
 use crate::replicated_decoder::sdk::{SourceRequestProgram, SourceStorage};
 
+#[path = "../verified_source/raw_owner.rs"]
+mod raw_owner;
+// Lifecycle fixture stays mounted beneath ORIGINAL ingress custody. This alias
+// adds no ordinary-build reader visibility or public reader/window interface.
+#[cfg(feature = "lifecycle-test-support")]
+pub(in crate::replicated_decoder) use raw_owner::RawReader as LifecycleReader;
+pub(in crate::replicated_decoder) use raw_owner::{
+    HostRawExpectations, RawHost, RawGraph, RawReader, RawTensor, RawWindow,
+    AdmittedRawInput, PrivateSourceInstance, RawLookupActivation,
+};
+#[cfg(test)]
+thread_local! { static HEADER_FACTORIES:std::cell::Cell<usize>=const {std::cell::Cell::new(0)}; }
+
 /// Private common move capsule. Only this module and original worker ingress
 /// construct it; no constructor accepts a caller Budget or source/registry seal.
 pub(super) struct OwnedSourceIngress {
@@ -17,13 +30,24 @@ pub(super) struct OwnedSourceIngress {
 /// Born BEFORE the collector's first record or coefficient. Manifest is an
 /// unpublished descriptor; its program stays zero until real compilation.
 pub(in crate::replicated_decoder) struct SourceHeaderEntry {
+    // Observation only: first field marks intact-header destruction; consuming
+    // header transitions retire this witness too, not the moved resources.
+    #[cfg(test)]
+    header_drop_probe: Option<handoff_tests::DropProbe>,
+    // Child-private provisioner; legacy begin never supplies raw authority.
+    raw_premise: Option<raw_owner::TrustedRawPremise>,
     manifest: Manifest,
-    directory: Arc<snapshot_directory::OwnedSnapshotDirectory>,
+    directory: Option<Arc<snapshot_directory::OwnedSnapshotDirectory>>,
     original: OriginalSourcePlan,
     experiment: OwnedCharged<json::ImportedValue>,
     limits: original_source::Limits,
     manifest_charge: OwnedExternalCharge,
+    // The non-cloneable probe retires immediately BEFORE this exact guard.
+    #[cfg(test)]
+    collection_drop_probe: Option<handoff_tests::DropProbe>,
     collection_charge: OwnedExternalCharge,
+    #[cfg(test)]
+    collection_after_drop_probe: Option<handoff_tests::DropProbe>,
     controller: OwnedExternalCharge,
     root: OwnedBudget,
     failed: bool,
@@ -38,12 +62,27 @@ pub(in crate::replicated_decoder) struct SourceCollector<T> {
 pub(in crate::replicated_decoder) struct CompiledSource<T> {
     payload: Option<T>,
     program: SourceRequestProgram,
+    #[cfg(test)]
+    charge_drop_probe: Option<handoff_tests::DropProbe>,
     charge: OwnedExternalCharge,
+    #[cfg(test)]
+    charge_after_drop_probe: Option<handoff_tests::DropProbe>,
     failed: bool,
 }
 struct PayloadLease<T> {
     payload: T,
+    #[cfg(test)]
+    charge_drop_probe: Option<handoff_tests::DropProbe>,
     charge: OwnedExternalCharge,
+    #[cfg(test)]
+    charge_after_drop_probe: Option<handoff_tests::DropProbe>,
+}
+/// Private consuming move, not an owner-adoption or projection-binding API.
+/// Keep the original header beside the original payload/lease until the next
+/// ingress-owned transition. Field order also covers cancellation and unwind.
+struct CollectedSource<T> {
+    retained: PayloadLease<T>,
+    header: SourceHeaderEntry,
 }
 struct CollectorAttempt<'a, T> {
     owner: &'a mut SourceCollector<T>,
@@ -129,6 +168,13 @@ impl SourceHeaderEntry {
         source: [u8; 32],
         composition: [u8; 32],
     ) -> Result<Self, Error> {
+        Self::begin_mode(experiment, config, rows, outputs, session, source, composition, false)
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn begin_mode(
+        experiment: &[u8], config: &[u8], rows: usize, outputs: usize,
+        session: [u8; 32], source: [u8; 32], composition: [u8; 32], raw: bool,
+    ) -> Result<Self, Error> {
         if experiment.is_empty()
             || experiment.len() > 32 << 10
             || config.is_empty()
@@ -139,6 +185,8 @@ impl SourceHeaderEntry {
         {
             return Err(Error::Binding);
         }
+        #[cfg(test)]
+        HEADER_FACTORIES.with(|n| n.set(n.get() + 1));
         let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).map_err(|_| Error::Bounds)?;
         let controller = root
             .charge_external(plus(
@@ -223,9 +271,19 @@ impl SourceHeaderEntry {
             program: [0; 32],
         };
         let collection_charge = root.charge_external(0).map_err(|_| Error::Bounds)?;
-        let directory =
-            snapshot_directory::OwnedSnapshotDirectory::create(&original, &controller, &root)?;
+        // Raw admission must end BEFORE mkdir/anchor creation. Legacy Q18 keeps
+        // its existing eager directory contract.
+        let directory = if raw { None } else {
+            Some(snapshot_directory::OwnedSnapshotDirectory::create(&original, &controller, &root)?)
+        };
         Ok(Self {
+            #[cfg(test)]
+            header_drop_probe: None,
+            #[cfg(test)]
+            collection_drop_probe: None,
+            #[cfg(test)]
+            collection_after_drop_probe: None,
+            raw_premise: None,
             manifest,
             directory,
             original,
@@ -247,7 +305,7 @@ impl SourceHeaderEntry {
     pub(in crate::replicated_decoder) fn directory(
         &self,
     ) -> &Arc<snapshot_directory::OwnedSnapshotDirectory> {
-        &self.directory
+        self.directory.as_ref().expect("legacy header owns its directory")
     }
     /// One actually-needed owned disk/snapshot counter handle; never a fresh
     /// counter or an ingress constructor accepting a caller's Budget identity.
@@ -318,6 +376,9 @@ impl SourceHeaderEntry {
         visits: u64,
         build: impl FnOnce(&OriginalSourcePlan, SourceRecords<'_>) -> Result<T, Error>,
     ) -> Result<SourceCollector<T>, Error> {
+        if self.raw_premise.is_some() {
+            return Err(Error::Binding);
+        }
         self.admit_collection(
             manifest_bytes,
             plus(
@@ -341,6 +402,9 @@ impl SourceHeaderEntry {
         })
     }
     fn into_compact_import(self) -> Result<SourceRequestImport, Error> {
+        if self.raw_premise.is_some() {
+            return Err(Error::Binding);
+        }
         if self.failed {
             return Err(Error::Retired);
         }
@@ -391,7 +455,7 @@ impl SourceHeaderEntry {
         // its full actual lease to PayloadLease BEFORE entering this transition.
         drop(collection_charge);
         OwnedSourceIngress {
-            directory: Some(directory),
+            directory,
             original,
             raw: SourceIngressRaw::CollectedHeader(experiment),
             limits,
@@ -449,30 +513,95 @@ impl<T> SourceCollector<T> {
     /// Retains T and its SAME lease through EVERY import/compile error. feed uses
     /// R's actual collected snapshot, never a reparsed/fresh-budget publisher.
     pub(in crate::replicated_decoder) fn finish(
-        mut self,
+        self,
         feed: impl FnOnce(&mut T, &mut SourceRequestImport) -> Result<(), Error>,
     ) -> Result<CompiledSource<T>, Error> {
-        if self.header.failed {
-            return Err(Error::Retired);
-        }
-        let zero = self
-            .header
-            .root
-            .charge_external(0)
-            .map_err(|_| Error::Bounds)?;
-        let charge = std::mem::replace(&mut self.header.collection_charge, zero);
-        let payload = self.payload.take().ok_or(Error::Retired)?;
-        let Self { payload: _, header } = self;
-        let mut retained = PayloadLease { payload, charge };
+        let CollectedSource {
+            mut retained,
+            header,
+        } = self.into_retained()?;
         let mut import = header.into_compact_import()?;
         feed(&mut retained.payload, &mut import)?;
         let program = import.finish()?;
-        let PayloadLease { payload, charge } = retained;
+        let PayloadLease {
+            payload,
+            charge,
+            #[cfg(test)]
+            charge_drop_probe,
+            #[cfg(test)]
+            charge_after_drop_probe,
+        } = retained;
         Ok(CompiledSource {
             payload: Some(payload),
             program,
+            #[cfg(test)]
+            charge_drop_probe,
             charge,
+            #[cfg(test)]
+            charge_after_drop_probe,
             failed: false,
+        })
+    }
+
+    /// Only ingress may detach collector fields. No caller supplies a header,
+    /// payload, budget, ledger or replacement backing. In particular this move
+    /// grants no scanner provenance and cannot mint a projection binding.
+    fn into_retained(mut self) -> Result<CollectedSource<T>, Error> {
+        if self.header.failed {
+            return Err(Error::Retired);
+        }
+        if self.header.raw_premise.is_some()
+            || !std::ptr::eq(self.header.root.budget(), self.header.original.budget())
+            || !self.header.controller.is_for(self.header.original.budget())
+            || !self.header.manifest_charge.is_for(self.header.original.budget())
+            || !self.header.collection_charge.is_for(self.header.original.budget())
+        {
+            return Err(Error::Binding);
+        }
+        // Prepay old/new move overlap before detaching either field. Carve the
+        // replacement zero lease from this allowance rather than opening another
+        // root reservation after the MAX_PROGRAM_BYTES check. Original payload
+        // allowance remains covered in full after carving its control metadata.
+        let controls = plus(
+            size_of::<OwnedExternalCharge>(),
+            plus(
+                size_of::<Self>(),
+                plus(size_of::<CollectedSource<T>>(), size_of::<CompiledSource<T>>())?,
+            )?
+            .checked_mul(3)
+            .ok_or(Error::Bounds)?,
+        )?;
+        let collection_bytes = plus(self.header.collection_charge.payload_bytes(), controls)?;
+        self.header.admit_collection(
+            self.header.manifest_charge.payload_bytes(),
+            collection_bytes,
+            u64::try_from(controls).map_err(|_| Error::Bounds)?,
+        )?;
+        let zero = self
+            .header
+            .collection_charge
+            .split_owned(0)
+            .map_err(|_| Error::Bounds)?;
+        let charge = std::mem::replace(&mut self.header.collection_charge, zero);
+        // Test witness follows the actual moved guard, never the zero substitute.
+        #[cfg(test)]
+        let charge_drop_probe = self.header.collection_drop_probe.take();
+        #[cfg(test)]
+        let charge_after_drop_probe = self.header.collection_after_drop_probe.take();
+        #[cfg(test)]
+        handoff_tests::note_real_covering_charge(&charge);
+        let payload = self.payload.take().ok_or(Error::Retired)?;
+        let Self { payload: _, header } = self;
+        Ok(CollectedSource {
+            retained: PayloadLease {
+                payload,
+                #[cfg(test)]
+                charge_drop_probe,
+                charge,
+                #[cfg(test)]
+                charge_after_drop_probe,
+            },
+            header,
         })
     }
 }
@@ -517,6 +646,10 @@ impl<T> CompiledSource<T> {
         result
     }
 }
+
+#[cfg(test)]
+#[path = "source_entry_ingress_handoff_tests.rs"]
+pub(in crate::replicated_decoder) mod handoff_tests;
 
 #[cfg(test)]
 mod tests {

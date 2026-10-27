@@ -3,6 +3,8 @@ use super::*;
 mod compact_publisher;
 #[path = "source/compact_publisher_scan.rs"]
 mod compact_publisher_scan;
+#[path = "host_source_config.rs"]
+mod host_source_config;
 
 // Layout evidence for the original begin owner's precollection quote. Not a
 // reservation, factory permission, complete publisher peak or native API.
@@ -12,6 +14,7 @@ pub(super) const fn compact_publisher_scan_bytes() -> usize {
 }
 
 use serde::{Deserialize, Serialize};
+use crate::replicated_decoder::program::source_entry::ingress::RawHost;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
 
@@ -82,6 +85,10 @@ pub struct SourceChunk {
 /// commitments, uniform fresh replicated components, and consuming final reveal.
 pub struct Publisher {
     compact: Option<Box<compact_publisher::CompactPublisher>>,
+    // Drop actual reader before its host. No host -> publisher edge or cycle.
+    #[cfg(feature = "lifecycle-test-support")]
+    lifecycle_reader: Option<crate::replicated_decoder::program::source_entry::ingress::LifecycleReader>,
+    raw_host: Option<RawHost>,
     manifest: Manifest,
     shapes: Vec<(String, Vec<usize>)>,
     values: Vec<Zeroizing<Vec<i64>>>,
@@ -124,10 +131,20 @@ impl Publisher {
             source,
             composition,
         )?;
+        Ok(Self::empty(Some(Box::new(compact)), None))
+    }
+
+    fn empty(
+        compact: Option<Box<compact_publisher::CompactPublisher>>,
+        raw_host: Option<RawHost>,
+    ) -> Self {
         // Empty legacy shell has no source data/authority or factory side effect.
         // Its inline/boxing transition is included in original collection lease.
-        Ok(Self {
-            compact: Some(Box::new(compact)),
+        Self {
+            compact,
+            #[cfg(feature = "lifecycle-test-support")]
+            lifecycle_reader: None,
+            raw_host,
             manifest: Manifest {
                 schema: String::new(),
                 weights: WeightMode::Public,
@@ -161,7 +178,111 @@ impl Publisher {
             row_l1_squared_sum: 0,
             norm_requests: BTreeMap::new(),
             norm_scan: None,
-        })
+        }
+    }
+    /// Native module startup only; no Python setter or expectation constructor.
+    /// Missing configuration leaves raw publication unavailable, without changing Q18.
+    #[doc(hidden)]
+    pub fn initialize_raw_host_from_startup() -> Result<(), &'static str> {
+        host_source_config::initialize_from_startup()
+    }
+
+    /// Select only an independently approved immutable host entry. Request bytes,
+    /// SDK locks and candidate checksums never provision expectations.
+    #[doc(hidden)]
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_raw_host(
+        experiment: &[u8],
+        config: &[u8],
+        rows: usize,
+        outputs: usize,
+        session: [u8; 32],
+        source: [u8; 32],
+        composition: [u8; 32],
+    ) -> Result<Self, String> {
+        let host = host_source_config::with_expected(source, |expected| {
+            compact_publisher::CompactPublisher::prepare_raw_host(
+                experiment, config, rows, outputs, session, source, composition, expected,
+            )
+        })?;
+        Ok(Self::empty(None, Some(host)))
+    }
+    #[doc(hidden)]
+    pub fn has_raw_host(&self) -> bool {
+        self.raw_host.is_some()
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    #[doc(hidden)]
+    pub fn test_raw_prepare_fixture() -> Result<Self, String> {
+        Ok(Self::empty(None, Some(RawHost::test_fixture().map_err(|e| e.to_string())?)))
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    #[doc(hidden)]
+    pub fn test_hold_reader(&mut self) -> Result<(), String> {
+        if self.lifecycle_reader.is_some() { return Err("raw reader already held".into()); }
+        let reader = self.raw_host()?.claim_reader().map_err(|e| e.to_string())?;
+        self.lifecycle_reader = Some(reader);
+        Ok(())
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    #[doc(hidden)]
+    pub fn test_release_reader(&mut self) -> Result<(), String> {
+        let reader = self.lifecycle_reader.take().ok_or("raw reader not held")?;
+        drop(reader);
+        Ok(())
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    #[doc(hidden)]
+    pub fn test_raw_snapshot(&self) -> Result<[usize; 10], String> {
+        self.raw_host()?.test_snapshot().map_err(|e| e.to_string())
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    #[doc(hidden)]
+    pub fn test_raw_inventory(&self, file: usize) -> Result<(u64, [u8; 32], usize), String> {
+        self.raw_host()?.test_inventory(file).map_err(|e| e.to_string())
+    }
+    #[cfg(feature = "lifecycle-test-support")]
+    #[doc(hidden)]
+    pub fn test_raw_chunk(&self, file: usize, offset: usize) -> Result<([u8; 17], usize), String> {
+        self.raw_host()?.test_chunk(file, offset).map_err(|e| e.to_string())
+    }
+    fn raw_host(&self) -> Result<&RawHost, String> {
+        self.raw_host
+            .as_ref()
+            .ok_or_else(|| "publisher has no retained raw host".into())
+    }
+    #[doc(hidden)]
+    pub fn raw_disk_bytes(&self) -> Result<usize, String> {
+        self.raw_host()?.disk_bytes().map_err(|e| e.to_string())
+    }
+    #[doc(hidden)]
+    pub fn raw_disk_directory(&self) -> Result<&std::path::Path, String> {
+        self.raw_host()?.disk_directory().map_err(|e| e.to_string())
+    }
+    #[doc(hidden)]
+    pub fn raw_start(&self, device: u64) -> Result<(), String> {
+        self.raw_host()?.start(device).map_err(|e| e.to_string())
+    }
+    #[doc(hidden)]
+    pub fn raw_append(&self, file: usize, offset: u64, bytes: &[u8]) -> Result<(), String> {
+        self.raw_host()?.append(file, offset, bytes).map_err(|e| e.to_string())
+    }
+    #[doc(hidden)]
+    pub fn raw_finish(&self) -> Result<(), String> {
+        self.raw_host()?.finish().map_err(|e| e.to_string())
+    }
+    #[doc(hidden)]
+    pub fn raw_begin_retire(&self) -> Result<bool, String> {
+        self.raw_host()?.begin_retire().map(|ready| ready.is_ready()).map_err(|e| e.to_string())
+    }
+
+    #[doc(hidden)]
+    pub fn raw_retire(&self) -> Result<(), String> {
+        self.raw_host()?.retire().map_err(|e| e.to_string())
+    }
+    #[doc(hidden)]
+    pub fn raw_release_final_charges(&self) -> Result<(), String> {
+        self.raw_host()?.release_final_charges().map_err(|e| e.to_string())
     }
     pub fn storage_kind(&self) -> Option<&'static str> {
         if let Some(c) = &self.compact {
@@ -272,6 +393,9 @@ impl Publisher {
             .collect::<Result<_, String>>()?;
         Ok(Self {
             compact: None,
+            #[cfg(feature = "lifecycle-test-support")]
+            lifecycle_reader: None,
+            raw_host: None,
             manifest: Manifest {
                 schema: "pllm.replicated-decoder.manifest.v1".into(),
                 weights,
@@ -314,6 +438,11 @@ impl Publisher {
         &self.shapes
     }
     pub fn cancel(&mut self) {
+        // Raw cleanup MUST be explicit and fallible, with the actual outer lease
+        // still retained. Neither legacy cancel nor Drop certifies retirement.
+        if self.raw_host.is_some() {
+            return;
+        }
         if let Some(mut c) = self.compact.take() {
             c.cancel();
         }
