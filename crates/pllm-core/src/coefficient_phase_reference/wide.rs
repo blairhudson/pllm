@@ -121,20 +121,11 @@ impl Wide {
 }
 
 pub(super) fn inverse(a: u64, p: u64) -> Result<u64, Error> {
-    let (mut r, mut s, mut x, mut y) = (i128::from(p), i128::from(a), 0_i128, 1_i128);
-    for _ in 0..128 {
-        if s == 0 {
-            return if r == 1 {
-                Ok(x.rem_euclid(i128::from(p)) as u64)
-            } else {
-                Err(Error::Unsupported)
-            };
-        }
-        let d = r / s;
-        (r, s) = (s, r - d * s);
-        (x, y) = (y, x - d * y);
-    }
-    Err(Error::Capacity)
+    use crate::coefficient_layout::modular::{InverseError, inverse as shared_inverse};
+    shared_inverse(a, p).map_err(|error| match error {
+        InverseError::NotCoprime => Error::Unsupported,
+        InverseError::Capacity => Error::Capacity,
+    })
 }
 
 /// Three ordered, pairwise-coprime odd limbs. Composite coprime limbs work too.

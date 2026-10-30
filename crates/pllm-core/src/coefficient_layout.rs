@@ -1,7 +1,9 @@
 //! Bounded, exact coefficient-ring algebra with caller-owned storage.
 //!
 //! This is not an HE backend or an executable secure-multiplication capability.
-//! No keys, encryption, H2A, OT, noise, rounding, or numerical profile are supplied.
+//! Public coefficient rounding is supplied, not qualified encrypted/ciphertext
+//! rounding or integration. No keys, encryption, H2A, OT, noise, or numerical
+//! profile are supplied.
 //! The inverse-power-of-two and negacyclic trace/merge algebra extends the existing
 //! `coefficient_repacking` primitives without changing their serialized API.
 //! Matrix indexing uses the explicitly approved paper-derived corrections, not
@@ -14,8 +16,11 @@ pub const MAX_PUBLIC_DEGREE: usize = 8192;
 pub const MAX_INTERLEAVE_INPUTS: usize = 256;
 pub mod coordinates;
 pub(crate) mod modular;
+pub mod rns_drop;
 pub mod schedule;
 pub(crate) mod trace;
+
+pub use rns_drop::RoundedLimbDrop;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LayoutError {
