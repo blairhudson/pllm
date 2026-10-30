@@ -500,6 +500,116 @@ impl OwnedExternalCharge {
         Ok(child)
     }
 
+    /// Transfer a child and its inline metadata into an already-empty caller slot.
+    ///
+    /// The slot must already reside outside the operation that may fail or unwind,
+    /// and the child must remain there until its associated backing retires. This
+    /// guard is capacity/accounting only, not proof of actual backing custody or
+    /// whole-payload retention. Persistent owners should use this owned variant.
+    /// The parent retains its own metadata and any residual payload; exact fit is
+    /// allowed, but even a zero-payload child needs its own metadata capacity.
+    ///
+    /// An occupied slot (even a guard on this same counter) rejects first, then
+    /// payload-plus-child-metadata overflow, then insufficient parent payload.
+    /// Every rejection leaves both guards, usage, peak and update count unchanged.
+    /// Success transfers existing capacity without reserving or releasing bytes.
+    /// The existing Arc is cloned before subtraction; strong-count overflow may
+    /// abort separately. This is not an allocator-failure rollback guarantee.
+    pub fn split_owned_into(
+        &mut self,
+        payload_bytes: usize,
+        dst: &mut Option<Self>,
+    ) -> Result<(), Error> {
+        if dst.is_some() {
+            return Err(Error::Resource);
+        }
+        let bytes = payload_bytes
+            .checked_add(size_of::<Self>())
+            .ok_or(Error::Resource)?;
+        if bytes > self.payload_bytes() {
+            return Err(Error::Resource);
+        }
+        let child = Self {
+            budget: Arc::clone(&self.budget),
+            bytes,
+        };
+        self.bytes -= bytes;
+        *dst = Some(child);
+        Ok(())
+    }
+
+    /// Scoped capacity/accounting transfer into an already-empty caller slot.
+    ///
+    /// The slot must already reside outside the failing/unwinding operation and
+    /// outlive the associated backing. This does not establish backing custody or
+    /// whole-payload retention. Retire backing before dropping the child charge.
+    /// For persistent owners use `split_owned_into` instead.
+    ///
+    /// Rejection order is occupied slot (including same-counter guards), checked
+    /// payload-plus-ExternalCharge-metadata overflow, then insufficient parent
+    /// payload. Rejection changes neither guard nor usage, peak or update count.
+    /// Success keeps the original counter without reservation/release; the parent
+    /// retains its metadata and any residual payload, including an exact-fit zero
+    /// residual. A zero-payload child still consumes its own metadata capacity.
+    ///
+    /// The mutable parent borrow lasts while the child or a derived lease remains
+    /// active: the parent cannot be resized, dropped, moved or split again then.
+    ///
+    /// ```compile_fail
+    /// use pllm_garble::shared_allocation::OwnedBudget;
+    /// let root = OwnedBudget::new(4096).unwrap();
+    /// let mut parent = root.charge_external(256).unwrap();
+    /// let mut child = None;
+    /// parent.split_external_into(8, &mut child).unwrap();
+    /// parent.resize_payload(0).unwrap();
+    /// assert_eq!(child.as_ref().unwrap().payload_bytes(), 8);
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use pllm_garble::shared_allocation::OwnedBudget;
+    /// let root = OwnedBudget::new(4096).unwrap();
+    /// let mut parent = root.charge_external(256).unwrap();
+    /// let mut child = None;
+    /// parent.split_external_into(8, &mut child).unwrap();
+    /// drop(parent);
+    /// assert_eq!(child.as_ref().unwrap().payload_bytes(), 8);
+    /// ```
+    ///
+    /// ```compile_fail
+    /// use pllm_garble::shared_allocation::OwnedBudget;
+    /// let root = OwnedBudget::new(4096).unwrap();
+    /// let mut parent = root.charge_external(256).unwrap();
+    /// let mut first = None;
+    /// let mut second = None;
+    /// parent.split_external_into(8, &mut first).unwrap();
+    /// parent.split_external_into(8, &mut second).unwrap();
+    /// assert_eq!(first.as_ref().unwrap().payload_bytes(), 8);
+    /// ```
+    pub fn split_external_into<'a>(
+        &'a mut self,
+        payload_bytes: usize,
+        dst: &mut Option<ExternalCharge<'a>>,
+    ) -> Result<(), Error> {
+        if dst.is_some() {
+            return Err(Error::Resource);
+        }
+        let bytes = payload_bytes
+            .checked_add(size_of::<ExternalCharge<'a>>())
+            .ok_or(Error::Resource)?;
+        if bytes > self.payload_bytes() {
+            return Err(Error::Resource);
+        }
+        let child = ExternalCharge {
+            lease: Lease {
+                budget: &self.budget,
+                bytes,
+            },
+        };
+        self.bytes -= bytes;
+        *dst = Some(child);
+        Ok(())
+    }
+
     /// Scoped handoff to the unchanged borrowed API, including destination guard
     /// metadata in the transferred payload. Source metadata stays charged. The
     /// result cannot escape its original owning counter's borrow.
@@ -569,6 +679,226 @@ impl<T> OwnedCharged<T> {
     }
 }
 
+// No custom Drop: ordinary enum destruction releases its one resident guard.
+enum ResidentAdmissionState {
+    Empty,
+    Pending {
+        charge: OwnedExternalCharge,
+        backing_bytes: usize,
+        quoted_bytes: usize,
+    },
+    Admitted {
+        charge: OwnedExternalCharge,
+        backing_bytes: usize,
+        quoted_bytes: usize,
+    },
+    Sealed,
+}
+
+/// Resident reservation for an eventual `OwnedCharged<T>`, not backing custody.
+///
+/// Keep this slot outside failing work. Abandoning an attempt only ends its
+/// exclusive borrow; the slot retains the actual guard. Caller-owned backing
+/// must retire BEFORE this slot drops unless successfully sealed into the output.
+/// The exact guard proves a budget reservation, not ownership of that backing.
+/// Caller attempt policy must independently forbid unauthorized retries; Pending
+/// admission may retry on the same counter after legitimate capacity release.
+/// No root immortality, global burn, work payment or execution authority follows.
+///
+/// The type parameter is invariant, but the marker neither stores T nor binds
+/// backing auto traits. Slot/state/handle/Option storage, move overlap and
+/// cumulative work are not included in the payload quote or funded here.
+///
+/// ```compile_fail
+/// use pllm_garble::shared_allocation::ResidentAdmission;
+/// fn shorten<'a>(slot: ResidentAdmission<&'static str>, _: &'a str)
+///     -> ResidentAdmission<&'a str> { slot }
+/// ```
+pub struct ResidentAdmission<T> {
+    state: ResidentAdmissionState,
+    invariant: std::marker::PhantomData<fn(T) -> T>,
+}
+
+impl<T> ResidentAdmission<T> {
+    /// Construct an empty slot without allocating or changing accounting.
+    pub fn empty() -> Self {
+        Self {
+            state: ResidentAdmissionState::Empty,
+            invariant: std::marker::PhantomData,
+        }
+    }
+
+    /// Borrow this slot exclusively; creating or dropping the handle is inert.
+    pub fn attempt(&mut self) -> AdmissionAttempt<'_, T> {
+        AdmissionAttempt { resident: self }
+    }
+
+    // B includes conservative external excess, but excludes the new inline T
+    // increment. Full wrapper layout includes padding, even for aligned ZSTs.
+    fn quote(backing_bytes: usize) -> Result<(usize, usize), Error> {
+        let metadata = size_of::<OwnedExternalCharge>();
+        let inline = size_of::<OwnedCharged<T>>()
+            .checked_sub(metadata)
+            .ok_or(Error::Resource)?;
+        let source = metadata.checked_add(backing_bytes).ok_or(Error::Resource)?;
+        let quoted = source.checked_add(inline).ok_or(Error::Resource)?;
+        Ok((source, quoted))
+    }
+
+    /// Move an exact existing reservation into an empty resident slot.
+    ///
+    /// Rejection order: occupied state, missing source, checked quote, exact
+    /// source bytes (positive excess also rejects). No fallible work follows take;
+    /// no accounting, Arc clone, allocation or payload operation occurs.
+    pub fn enter_into(
+        source: &mut Option<OwnedExternalCharge>,
+        backing_bytes: usize,
+        dst: &mut Self,
+    ) -> Result<(), Error> {
+        if !matches!(&dst.state, ResidentAdmissionState::Empty) {
+            return Err(Error::Resource);
+        }
+        let charge = source.as_ref().ok_or(Error::Resource)?;
+        let (source_bytes, quoted_bytes) = Self::quote(backing_bytes)?;
+        if charge.bytes != source_bytes {
+            return Err(Error::Resource);
+        }
+        // Exclusive prechecks and no intervening callbacks prove Some. The
+        // defensive None arm owns no charge and cannot discard an owner.
+        match source.take() {
+            Some(charge) => {
+                dst.state = ResidentAdmissionState::Pending {
+                    charge,
+                    backing_bytes,
+                    quoted_bytes,
+                };
+            }
+            None => {}
+        }
+        Ok(())
+    }
+}
+
+/// Exclusive borrowed operations on a resident reservation; no owned guard,
+/// counter clone, permission, attempt token or Drop accounting lives here.
+///
+/// ```compile_fail
+/// use pllm_garble::shared_allocation::ResidentAdmission;
+/// let mut slot = ResidentAdmission::<u64>::empty();
+/// let mut first = slot.attempt();
+/// let mut second = slot.attempt();
+/// first.admit_inline().unwrap();
+/// second.admit_inline().unwrap();
+/// ```
+///
+/// ```compile_fail
+/// use pllm_garble::shared_allocation::{AdmissionAttempt, ResidentAdmission};
+/// fn escape<'a>() -> AdmissionAttempt<'a, u64> {
+///     let mut slot = ResidentAdmission::empty();
+///     slot.attempt()
+/// }
+/// ```
+pub struct AdmissionAttempt<'a, T> {
+    resident: &'a mut ResidentAdmission<T>,
+}
+
+impl<T> AdmissionAttempt<'_, T> {
+    /// Reserve only the positive inline increment on the guard's original
+    /// counter. Failure retains Pending and its unchanged guard/metadata.
+    /// Repeated valid Admitted calls perform no accounting update.
+    pub fn admit_inline(&mut self) -> Result<(), Error> {
+        match &mut self.resident.state {
+            ResidentAdmissionState::Pending {
+                charge,
+                backing_bytes,
+                quoted_bytes,
+            } => {
+                let (source, quoted) = ResidentAdmission::<T>::quote(*backing_bytes)?;
+                if charge.bytes != source || *quoted_bytes != quoted {
+                    return Err(Error::Resource);
+                }
+                let delta = quoted.checked_sub(charge.bytes).ok_or(Error::Resource)?;
+                if delta != 0 {
+                    charge.budget.reserve_bytes(delta)?;
+                }
+                // No fallibility remains after successful reservation.
+                charge.bytes = quoted;
+            }
+            ResidentAdmissionState::Admitted {
+                charge,
+                backing_bytes,
+                quoted_bytes,
+            } => {
+                let (_, quoted) = ResidentAdmission::<T>::quote(*backing_bytes)?;
+                if charge.bytes != quoted || *quoted_bytes != quoted {
+                    return Err(Error::Resource);
+                }
+                return Ok(());
+            }
+            ResidentAdmissionState::Empty | ResidentAdmissionState::Sealed => {
+                return Err(Error::Resource);
+            }
+        }
+        let old = std::mem::replace(&mut self.resident.state, ResidentAdmissionState::Empty);
+        self.resident.state = match old {
+            ResidentAdmissionState::Pending {
+                charge,
+                backing_bytes,
+                quoted_bytes,
+            } => ResidentAdmissionState::Admitted {
+                charge,
+                backing_bytes,
+                quoted_bytes,
+            },
+            other => other,
+        };
+        Ok(())
+    }
+
+    /// Seal the whole payload and actual guard into an empty output slot.
+    /// Rejection leaves all owners unchanged. Prechecks precede both moves;
+    /// commit has no allocation, callback, fallible operation or owner drop.
+    /// Output's existing field order destroys payload before releasing charge.
+    pub fn seal_into(
+        &mut self,
+        payload: &mut Option<T>,
+        dst: &mut Option<OwnedCharged<T>>,
+    ) -> Result<(), Error> {
+        if dst.is_some() || payload.is_none() {
+            return Err(Error::Resource);
+        }
+        match &self.resident.state {
+            ResidentAdmissionState::Admitted {
+                charge,
+                backing_bytes,
+                quoted_bytes,
+            } => {
+                let (_, quoted) = ResidentAdmission::<T>::quote(*backing_bytes)?;
+                if charge.bytes != quoted || *quoted_bytes != quoted {
+                    return Err(Error::Resource);
+                }
+            }
+            _ => return Err(Error::Resource),
+        }
+        let old = std::mem::replace(&mut self.resident.state, ResidentAdmissionState::Sealed);
+        // Private exclusive preconditions prove the first arm. The defensive
+        // fallback restores BOTH complete owners into Sealed/None slots.
+        match (old, payload.take()) {
+            (ResidentAdmissionState::Admitted { charge, .. }, Some(value)) => {
+                *dst = Some(OwnedCharged {
+                    payload: value,
+                    charge,
+                });
+            }
+            (state, value) => {
+                self.resident.state = state;
+                *payload = value;
+            }
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn allocate<T>(capacity: usize, budget: &Budget) -> Result<Vec<T>, Error> {
     budget.allocation()?;
     let mut values = Vec::new();
@@ -587,6 +917,14 @@ pub(crate) fn exact_capacity<T>(values: Vec<T>, capacity: usize) -> Result<Vec<T
 #[cfg(test)]
 #[path = "shared_allocation_peak_tests.rs"]
 mod peak_tests;
+
+#[cfg(test)]
+#[path = "shared_allocation_split_into_tests.rs"]
+mod split_into_tests;
+
+#[cfg(test)]
+#[path = "shared_allocation_resident_admission_tests.rs"]
+mod resident_admission_tests;
 
 #[cfg(test)]
 mod tests {
