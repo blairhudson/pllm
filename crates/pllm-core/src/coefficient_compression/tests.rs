@@ -109,6 +109,15 @@ fn maximum_degree_constructor_checks_work_and_storage_without_allocation() {
 }
 
 #[test]
+fn public_expanded_ring_is_refused_before_quadratic_cost_or_work_admission() {
+    use crate::coefficient_layout::DegreeBound;
+    let ring = CoefficientRing::bounded(8192, 65537, DegreeBound::Public8192).unwrap();
+    for cap in [0, MAX_COMPRESSION_WORK, usize::MAX] {
+        assert_eq!(CoefficientCompression::new(ring, cap), Err(LayoutError::InvalidDegree));
+    }
+}
+
+#[test]
 fn source_geometry_is_address_algebra_not_backend_admission() {
     // Source §VI ring degree and 768 x 768 weights. Caller supplies scalar order;
     // no claim about an unresolved matrix-to-slot conversion chain.

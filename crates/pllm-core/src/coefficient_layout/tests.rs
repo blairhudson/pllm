@@ -368,6 +368,67 @@ fn invalid_domains_overflow_and_resource_bounds_are_rejected() {
 }
 
 #[test]
+fn explicit_public_bound_preserves_legacy_constructor_and_method_gates() {
+    assert_eq!(MAX_DEGREE, 4096);
+    assert_eq!(DegreeBound::Legacy4096.maximum(), 4096);
+    assert_eq!(DegreeBound::Public8192.maximum(), 8192);
+    for degree in [1, 2, 16, 4096] {
+        for q in [3, 15, 65537, (1_u64 << 61) - 1] {
+            let legacy = CoefficientRing::new(degree, q);
+            assert_eq!(CoefficientRing::bounded(degree, q, DegreeBound::Legacy4096), legacy);
+            assert_eq!(CoefficientRing::bounded(degree, q, DegreeBound::Public8192), legacy);
+        }
+    }
+    // Degree validation still precedes modulus validation for mixed failures.
+    for degree in [0, 3, 8193, 16384, usize::MAX] {
+        for q in [0, 2, 65537, u64::MAX] {
+            assert_eq!(CoefficientRing::new(degree, q), Err(LayoutError::InvalidDegree));
+            for bound in [DegreeBound::Legacy4096, DegreeBound::Public8192] {
+                assert_eq!(CoefficientRing::bounded(degree, q, bound), Err(LayoutError::InvalidDegree));
+            }
+        }
+    }
+    for q in [0, 1, 2, 4, 1_u64 << 61, u64::MAX] {
+        assert_eq!(CoefficientRing::new(8192, q), Err(LayoutError::InvalidDegree));
+        assert_eq!(CoefficientRing::bounded(8192, q, DegreeBound::Public8192), Err(LayoutError::InvalidModulus));
+    }
+    assert_eq!(CoefficientRing::new(8192, 65537), Err(LayoutError::InvalidDegree));
+    assert_eq!(CoefficientRing::bounded(8192, 65537, DegreeBound::Legacy4096), Err(LayoutError::InvalidDegree));
+    let ring = CoefficientRing::bounded(8192, 65537, DegreeBound::Public8192).unwrap();
+    assert_eq!((ring.degree(), ring.modulus()), (8192, 65537));
+    for divisor in [0, 1, 3, 4096, 8192, 16384] {
+        assert_eq!(ring.inverse_power_two(divisor), Err(LayoutError::InvalidDegree));
+    }
+    for input in [vec![0; 8192], vec![65537; 8192], vec![u64::MAX; 8191]] {
+        let original = input.clone();
+        for length in [0, 8191, 8192] {
+            let mut out = vec![77; length];
+            let mut scratch = vec![88; 16384];
+            assert_eq!(ring.monomial(&input, i64::MIN, &mut out), Err(LayoutError::InvalidDegree));
+            assert_eq!(ring.interleave(&input, 1, 1, &mut out, &mut scratch), Err(LayoutError::InvalidDegree));
+            assert_eq!(ring.interleave(&input, 0, 0, &mut out, &mut scratch), Err(LayoutError::InvalidDegree));
+            assert_eq!(out, vec![77; length]);
+            assert_eq!(scratch, vec![88; 16384]);
+            assert_eq!(input, original);
+        }
+    }
+    for (stride, count) in [(1, 1), (0, 0), (8192, 256)] {
+        assert_eq!(ring.interleave_scratch_words(stride, count), Err(LayoutError::InvalidDegree));
+    }
+    for (shape, window, cap) in [([1; 3], [1; 3], usize::MAX), ([0; 3], [0; 3], 0), ([usize::MAX; 3], [usize::MAX; 3], 0)] {
+        assert_eq!(CoefficientLayout::new(ring, shape, window, cap), Err(LayoutError::InvalidDegree));
+    }
+    // Existing errors within the legacy domain retain their old order.
+    let legacy = CoefficientRing::new(16, 257).unwrap();
+    assert_eq!(legacy.inverse_power_two(3), Err(LayoutError::InvalidGeometry));
+    let mut out = [77; 16];
+    assert_eq!(legacy.monomial(&[257; 15], 0, &mut out), Err(LayoutError::BufferLength));
+    assert_eq!(legacy.monomial(&[257; 16], 0, &mut out), Err(LayoutError::NonCanonical));
+    assert_eq!(out, [77; 16]);
+    assert_eq!(CoefficientLayout::new(legacy, [usize::MAX; 3], [0; 3], 0), Err(LayoutError::InvalidGeometry));
+}
+
+#[test]
 fn invalid_buffers_are_atomic_including_noncanonical_padding() {
     let ring = CoefficientRing::new(16, 257).unwrap();
     let layout = CoefficientLayout::new(ring, [3, 2, 7], [2, 2, 3], usize::MAX).unwrap();

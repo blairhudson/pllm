@@ -9,6 +9,8 @@
 
 /// Preserve the existing coefficient-repacking degree and input-count bounds.
 pub const MAX_DEGREE: usize = 4096;
+/// Explicit public-algebra ceiling; does not enlarge legacy consumer profiles.
+pub const MAX_PUBLIC_DEGREE: usize = 8192;
 pub const MAX_INTERLEAVE_INPUTS: usize = 256;
 pub mod coordinates;
 pub(crate) mod modular;
@@ -27,6 +29,23 @@ pub enum LayoutError {
     Index,
 }
 
+/// Closed degree ceilings for validated coefficient-ring descriptors.
+/// No caller-supplied unbounded maximum is accepted.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DegreeBound {
+    Legacy4096,
+    Public8192,
+}
+
+impl DegreeBound {
+    pub const fn maximum(self) -> usize {
+        match self {
+            Self::Legacy4096 => MAX_DEGREE,
+            Self::Public8192 => MAX_PUBLIC_DEGREE,
+        }
+    }
+}
+
 /// One odd coefficient-modulus limb, not a plaintext or security parameter set.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CoefficientRing {
@@ -36,7 +55,17 @@ pub struct CoefficientRing {
 
 impl CoefficientRing {
     pub fn new(degree: usize, modulus: u64) -> Result<Self, LayoutError> {
-        if !degree.is_power_of_two() || degree > MAX_DEGREE {
+        Self::bounded(degree, modulus, DegreeBound::Legacy4096)
+    }
+
+    /// Explicitly bounded public algebra. Legacy methods retain their own
+    /// 4096-degree gates even when passed a larger validated descriptor.
+    pub fn bounded(
+        degree: usize,
+        modulus: u64,
+        maximum: DegreeBound,
+    ) -> Result<Self, LayoutError> {
+        if !degree.is_power_of_two() || degree > maximum.maximum() {
             return Err(LayoutError::InvalidDegree);
         }
         // Same limb bound as coefficient_repacking::divide_power_two.
@@ -67,6 +96,9 @@ impl CoefficientRing {
 
     /// Exact inverse in the odd coefficient ring, never ring-2^ell division.
     pub fn inverse_power_two(self, divisor: usize) -> Result<u64, LayoutError> {
+        if self.degree > MAX_DEGREE {
+            return Err(LayoutError::InvalidDegree);
+        }
         if !divisor.is_power_of_two() || divisor > self.degree {
             return Err(LayoutError::InvalidGeometry);
         }
@@ -83,6 +115,9 @@ impl CoefficientRing {
         exponent: i64,
         output: &mut [u64],
     ) -> Result<(), LayoutError> {
+        if self.degree > MAX_DEGREE {
+            return Err(LayoutError::InvalidDegree);
+        }
         if input.len() != self.degree || output.len() != self.degree {
             return Err(LayoutError::BufferLength);
         }
@@ -185,6 +220,9 @@ impl CoefficientLayout {
         window: [usize; 3],
         max_caller_bytes: usize,
     ) -> Result<Self, LayoutError> {
+        if ring.degree > MAX_DEGREE {
+            return Err(LayoutError::InvalidDegree);
+        }
         let [k, m, n] = shape;
         let [kw, mw, nw] = window;
         if shape.contains(&0)

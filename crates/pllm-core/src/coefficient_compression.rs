@@ -18,7 +18,7 @@ use crate::coefficient_layout::{CoefficientRing, LayoutError};
 pub const MAX_COMPRESSION_WORK: usize = 1 << 28;
 
 /// O(1) address/count algebra, independently usable for source-sized geometries.
-/// This does not admit execution at degrees unsupported by `CoefficientRing`.
+/// This does not enlarge the legacy 4096-degree compression execution profile.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CompressionGeometry {
     degree: usize,
@@ -80,6 +80,9 @@ pub struct CoefficientCompression {
 impl CoefficientCompression {
     pub fn new(ring: CoefficientRing, max_work: usize) -> Result<Self, LayoutError> {
         let n = ring.degree();
+        if n > crate::coefficient_layout::MAX_DEGREE {
+            return Err(LayoutError::InvalidDegree);
+        }
         let output_words = n.checked_mul(n).ok_or(LayoutError::Overflow)?;
         // Conservative coefficient-visit bound, including canonical scans,
         // copies, initialization, shared monomial validation and normalization.

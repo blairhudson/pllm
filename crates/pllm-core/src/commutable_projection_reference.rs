@@ -70,6 +70,9 @@ pub fn quote(
     max_work: usize,
 ) -> Result<Quote, Error> {
     let n = ring.degree();
+    if n > crate::coefficient_layout::MAX_DEGREE {
+        return Err(LayoutError::InvalidDegree.into());
+    }
     let (input_words, output_words, scratch_words, work) = match op {
         Operation::AddClientLayer | Operation::RemoveServerLayer => {
             let inputs = if op == Operation::AddClientLayer {

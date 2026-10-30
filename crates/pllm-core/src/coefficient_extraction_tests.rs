@@ -10,6 +10,44 @@ fn ordinary_quote_refuses_invalid_descriptor_without_admission() {
 }
 
 #[test]
+fn expanded_public_ring_does_not_expand_extraction_descriptor_admission() {
+    use crate::coefficient_layout::DegreeBound;
+    let ring = CoefficientRing::bounded(8192, 65537, DegreeBound::Public8192).unwrap();
+    let limb = Limb { id: 1, modulus: ring.modulus() };
+    let key = KeyDomain { label: 9, dimension: ring.degree() };
+    let scale = Scale { numerator: 1, denominator: 1 };
+    let case = Case {
+        source: Source {
+            degree: ring.degree(),
+            rank: 1,
+            limbs: [Some(limb), None],
+            limb_count: 1,
+            layout: Layout::OrderedLimbBA,
+            sign: Sign::BPlusAS,
+            scale,
+            key,
+        },
+        destination: Destination {
+            degree: ring.degree(),
+            rank: 1,
+            limb,
+            layout: Layout::ConstantBASecretOrder,
+            sign: Sign::BPlusAS,
+            scale,
+            key,
+        },
+        selected: 0,
+    };
+    assert_eq!(case.quote(), Err(Error::Descriptor));
+    assert_eq!(quote(&[case]), Err(Error::Descriptor));
+    let input = [u64::MAX];
+    let mut output = [77];
+    assert_eq!(extract(case, &input, &mut output).err(), Some(Error::Descriptor));
+    assert_eq!(input, [u64::MAX]);
+    assert_eq!(output, [77]);
+}
+
+#[test]
 fn ordinary_algebra_repeats_without_admission_and_cleans_output() {
     let limb = Limb { id: 1, modulus: 17 };
     let key = KeyDomain {

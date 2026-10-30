@@ -16,6 +16,7 @@ pub mod coefficient_compression;
 pub mod coefficient_conversion;
 pub mod coefficient_extraction;
 pub mod coefficient_layout;
+pub mod coefficient_ntt;
 pub mod coefficient_phase_reference;
 pub mod coefficient_repacking;
 pub mod coefficient_torus_conversion;
