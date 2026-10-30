@@ -123,39 +123,57 @@ y = r_m / b
 1 - x*y = (1 - x/b)^(2^m)
 ```
 
-Thus the exact-real relative residual is at most `rho^(2^m)` for
-`rho=1-a/b`. This algebra is not a CKKS proof or a recovered paper seed/count.
-The open interval `(0,1)` alone supplies no finite uniform `m`. Require a complete
-per-node certificate before choosing the smallest public integer `m_i` satisfying
-
+**Completed conditional error closure, not numerical/backend/key/lifecycle adoption.**
+Let source target be `D`, approximate denominator `x ∈ [a,b]`, `0<a<=b`,
+`|x-D|<=A<a`, and decoded input `|xhat-x|<=C<a`; then `D>=a-A>0`.
+E5 must supply `A,C` from all-active-group numerator bounds, reduction and mask
+errors, including prior approximation/CKKS errors; calibration cannot supply proof.
+For the simultaneous old-value reference above, define
+`q_k=(1-a/b)^(2^k)`, `R_k=prod_(i<k)(1+q_i)<=b/a` (empty product `R_0=1`).
+Then `|e_k|<=q_k`, `|r_k|<=R_k`; the open interval `(0,1)` alone gives no uniform `m`.
+Use nonnegative bounds `d_e,d_r` against these reference values. With encoded
+`|c_N-1/b|<=Q_N`, normalization multiply error `eta_N`, seed error `eta_seed`,
+and encoded-one/subtraction error `eta_init`, initialize and propagate:
 ```text
-rho_i^(2^m_i) + E_rel_i(m_i) <= tau_i
+d_e0 = C/b + (b+C)*Q_N + eta_N + eta_init; d_r0 = eta_seed
+t_hat = 1 + e_hat + xi_t, |xi_t| <= eta_t; h_k = d_ek + eta_tk
+d_r(k+1)^- = (1+q_k)*d_rk + R_k*h_k + d_rk*h_k + eta_rk
+d_e(k+1)^- = 2*q_k*d_ek + d_ek^2 + eta_ek
 ```
-
-Here `tau_i > 0` is a separately selected numerical tolerance, not Table 6's RMSE;
-`E_rel_i` includes all encoding, scaling, arithmetic, rescale and refresh errors.
-Actual `a_i,b_i,m_i,tau_i,E_rel_i` are **unknown**, not defaults. No feasible count
-within the actual depth/refresh/work/owner envelope means rejection, not aSOR,
-extra refresh, or a smaller private input domain.
-
-For example, a certification may propagate absolute accumulator errors using
-public bounds `|r_k|<=R_k`, `|e_k|<=E_k`:
-
+Every actual operation needs legal error-expanded ranges, scales, levels and
+no-wrap bounds; each `eta` includes its actual arithmetic/rescale/alignment errors.
+For **every** actual refresh on reference value `v`, certify map `B` Lipschitz
+gain `L` and identity bias `|B(v)-v|<=eta_B`; propagate `d^+=L*d^-+eta_B`.
+Its certified domain must contain the complete error neighborhood, not only `v`.
+No refresh resets error. With final encoded `|c_F-1/b|<=Q_F`, obtain
+`d_y^- = d_rm/b + (R_m+d_rm)*Q_F + eta_F`; propagate every actual final
+refresh/alignment to obtain `d_y`. Consequently:
 ```text
-delta_r_next <= (1+E_k)*delta_r + R_k*delta_e + delta_r*delta_e + eta_r_k
-delta_e_next <= 2*E_k*delta_e + delta_e^2 + eta_e_k
-delta_after_refresh <= L_boot*delta_before + eta_boot
-E_rel <= b*delta_y
+|yhat-1/x| <= B_x = d_y + q_m/a
+|yhat-1/D| <= B_D = d_y + q_m/a + A/[a*(a-A)]
+|1-x*yhat| <= S_x = q_m + b*d_y
+|1-D*yhat| <= S_D = q_m + (b+A)*d_y + A/a
 ```
-
-These are proposed proof obligations, not established backend constants. Include
-normalization/input error in the initial errors and final `1/b` encoding in
-`delta_y`; each refresh needs a certified input domain, gain and additive error.
-No refresh resets error to zero. Distinguish error against the chosen approximate
-exponential/denominator from error against ideal softmax and full-model quality.
-Bind the trace's integer error bounds to explicit public units and conservative
-upward conversion under `PublicCiphertextError.model_identity`; matching an
-identity string is not an error certificate.
+For source probability `z*/D`, `|zhat-z*|<=Z`, `|z*|<=M`, multiplication error
+`eta_p` gives error `<= (M+Z)*B_D + Z/(a-A) + eta_p`; then propagate actual
+output maps. Exact-real `q_m` alone is insufficient for approximate `D`.
+Select public `m` only with complete per-node bounds and separately selected
+`tau>0` (not Table 6 RMSE): strict residual requires `S<tau`, or outward `U>S`
+with `U<=tau`, using `S_x` or `S_D` for the declared target. Equality suffices only
+for a nonstrict claim. No feasible depth/refresh/work/owner envelope means rejection,
+not aSOR, extra refresh or a smaller private domain. All actual constants remain unknown.
+For externally specified positive error unit `u`, nonstrict conversion is
+`N=ceil(B/u)`, giving `error<=N*u`; a strict upper bound uses `floor(B/u)+1`.
+Check outward arithmetic and `u64` overflow; no automatic half-ULP assumption.
+Existing [`PublicCiphertextError`](../../crates/pllm-compiler/src/encrypted_level_schedule.rs#L471)
+has `model_identity` and `bound: Option<u64>`; capability [`error_assumption: Option<String>`](../../crates/pllm-compiler/src/encrypted_level_schedule.rs#L549)
+adds no dedicated units/gain fields. External contracts must supply units, target and all backend bounds.
+Cloneable metadata/string equality establish
+consistency only, not authority: bind exact source operator/map, context parameters,
+key epochs, coefficient bytes/order and refresh schedule to the original noncloneable owner.
+Unknown backend, noise model, domain, encoding or refresh identity bias blocks
+instantiation; invent neither deterministic bounds nor statistical confidence.
+This conditional proof defines no new protocol/API and adopts no numerical profile.
 
 Freeze coefficients as exact binary64 bit patterns plus reference targets, in
 ascending monomial-degree order. Proposed per-stage evaluation is descending
