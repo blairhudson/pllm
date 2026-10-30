@@ -161,8 +161,10 @@ def _render_prompt(messages, descriptor, *, template=None,
         row["role"] = "system" if row.get("role") == "developer" else str(row.get("role"))
         row["content"] = str(row.get("content", ""))
         rows.append(row)
-    selected = descriptor.get("chat_template") or template
-    if not selected:
+    selected = descriptor.get("chat_template")
+    if selected is None:
+        selected = template
+    if selected is None:
         suffix = "\nassistant:" if add_generation_prompt else ""
         return "\n".join(f"{row['role']}: {row['content']}" for row in rows) + suffix
     try:
@@ -208,8 +210,11 @@ def _prompt_request(body):
 
 
 def _prompt_source(model, config, descriptor, template=None, source_lock_digest=None):
+    selected = descriptor.get("chat_template")
+    if selected is None:
+        selected = template
     return _prompt_snapshot((model.to_spec(), config, descriptor,
-                             descriptor.get("chat_template") or template, source_lock_digest))
+                             selected, source_lock_digest))
 
 
 def _owned_prompt_source(source):

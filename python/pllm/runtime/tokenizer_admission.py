@@ -130,8 +130,8 @@ def _source_descriptor(raw, config, options, *, policy, vocabulary, max_entries,
     if inner.truncation is not None:
         raise error(f"{label} tokenizer must not silently truncate source input")
     template = options.get("chat_template")
-    if policy.value[1]:
-        template = template or manifest_template
+    if policy.value[1] and template is None:
+        template = manifest_template
     return {"type": "tokenizer_json", "model": raw, "vocab_size": vocabulary,
             "bos_token_id": bos, "eos_token_id": eos_ids[0], "chat_template": template,
             "bos_token": options.get("bos_token", ""), "eos_token": options.get("eos_token", ""),

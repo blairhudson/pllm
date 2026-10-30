@@ -351,6 +351,56 @@ def test_prepared_real_source_descriptor_matches_lease(tmp_path, monkeypatch, ki
     assert observed[0].closed == 1
 
 
+@pytest.mark.parametrize("template,rendered,expected_ids", [
+    ("", "", (0,)),
+    (None, "SYS hello", (0, 3, 4)),
+])
+def test_gkm_empty_source_template_overrides_manifest(tmp_path, monkeypatch,
+                                                     template, rendered, expected_ids):
+    from jinja2.sandbox import SandboxedEnvironment
+
+    manifest_template = "SYS {{ messages[0].content }}"
+    exp, manifest, cfg, core, owned = _real_prompt_metadata(
+        tmp_path, monkeypatch, "gkm", template=template, manifest_template=manifest_template)
+    observed = _observe_source_tokenizer(monkeypatch, owned)
+    rendered_templates = []
+    original = SandboxedEnvironment.from_string
+
+    def from_string(self, selected, *args, **kwargs):
+        rendered_templates.append(selected)
+        return original(self, selected, *args, **kwargs)
+
+    monkeypatch.setattr(SandboxedEnvironment, "from_string", from_string)
+    descriptor = owned.tokenizer_descriptor
+    selected = manifest_template if template is None else template
+    assert descriptor["chat_template"] == selected
+    assert descriptor["bos_token_id"] == 0 and descriptor["add_bos_token"] is True
+    association = _owned_prompt_source(owned)
+    assert _prompt_source(owned.model, cfg, descriptor, template=manifest_template,
+        source_lock_digest=owned.source_lock_digest) == association
+    assert _render_prompt(normalize_input("hello"), descriptor,
+        template=manifest_template) == rendered
+    lease = _source_prompt_lease(exp, manifest, cfg, core, owned)
+    request = {"input": "hello", "max_output_tokens": 4}
+    prepared = lease._admit_request(request)
+    try:
+        assert prepared._payload.source == association
+        assert prepared._payload.rendered == rendered
+        assert prepared._payload.ids == expected_ids
+        with core.tokenizer_scope():
+            direct_tokenizer, direct = core._encode(core._admit(dict(request)), owned)
+        assert direct_tokenizer is observed[1] and tuple(direct) == expected_ids
+        actual, ids = prepared.consume(request, association)
+        assert actual is observed[0] and ids == expected_ids
+        assert len(observed) == 2
+        assert [item.calls for item in observed] == [[(rendered, True)], [(rendered, True)]]
+        assert rendered_templates == [selected, selected, selected]
+    finally:
+        prepared.close()
+        core.close()
+    assert [item.closed for item in observed] == [1, 1]
+
+
 @pytest.mark.parametrize("ending", ["execution_boundary", "wrong_source", "wrong_template", "cancel"])
 def test_fss_prepared_ids_encode_once_and_retire(tmp_path, monkeypatch, ending):
     from dataclasses import replace
