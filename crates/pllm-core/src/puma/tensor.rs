@@ -132,6 +132,28 @@ pub struct Program {
 
 pub struct Builder(Program);
 
+/// Internal one-attempt custody, not a funded construction envelope. Callers
+/// must retain this owner outside the fallible/unwinding operation. Failed
+/// owners are cleanup-only; borrowed coefficient backing remains caller-owned.
+/// Wrapper/pending/overlap quotation and factory integration remain open.
+pub(crate) struct ResidentBuilder {
+    builder: Option<Builder>,
+    pending_affine: Vec<Affine>,
+    state: ResidentState,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ResidentState {
+    Ready,
+    Entering,
+    Failed,
+    Complete,
+    Transferred,
+}
+
+#[path = "tensor_resident_builder.rs"]
+mod resident_builder;
+
 #[path = "tensor_scale_work.rs"]
 mod scale_work;
 
@@ -241,6 +263,18 @@ impl Builder {
     }
 
     pub fn affine_lanes(&mut self, input: Value, coefficients: &[Affine]) -> Result<Value, Error> {
+        let mut table = Vec::new();
+        self.affine_lanes_with_pending(input, coefficients, &mut table)
+    }
+
+    // Shared native order and commit. Legacy callers keep a local Vec and its
+    // original destruction-on-error behavior; resident callers retain that Vec.
+    fn affine_lanes_with_pending(
+        &mut self,
+        input: Value,
+        coefficients: &[Affine],
+        table: &mut Vec<Affine>,
+    ) -> Result<Value, Error> {
         if coefficients.len() != self.node(input, false)?.lanes
             || self.0.public_affine_count == 2
             || self.0.len == MAX_NODES
@@ -250,17 +284,28 @@ impl Builder {
         let bounds = self.node(input, false)?.bounds;
         let bounds = rms_work::affine_bounds(bounds, coefficients.iter().copied())?;
         let slot = self.0.public_affine_count;
-        let mut table = Vec::new();
+        // Private invariants, established before reservation/push. Never replace
+        // an existing table or reuse failed pending backing as a fresh attempt.
+        let destination = self.0.public_affines.get(slot).ok_or(Error::Phase)?;
+        if !destination.is_empty()
+            || destination.capacity() != 0
+            || !table.is_empty()
+            || table.capacity() != 0
+        {
+            return Err(Error::Phase);
+        }
         table
             .try_reserve_exact(coefficients.len())
             .map_err(|_| Error::Allocation)?;
+        #[cfg(test)]
+        resident_builder::after_affine_reserve(table);
         if table.capacity() != coefficients.len() {
             return Err(Error::Allocation);
         }
         table.extend_from_slice(coefficients);
         // Failure cannot leave an instruction referring to an absent table.
         let output = self.push(Instruction::LaneAffine(input, slot as u8), bounds, false)?;
-        self.0.public_affines[slot] = table;
+        self.0.public_affines[slot] = std::mem::take(table);
         self.0.public_affine_count += 1;
         Ok(output)
     }
@@ -302,15 +347,25 @@ impl Builder {
     /// caller must AND every lane into request-wide sticky validity and disclose
     /// only that final aggregate to the client before releasing any tokens/state.
     pub fn finish_checked(mut self, output: Value, valid: Value) -> Result<Program, Error> {
-        rms_work::checked_output(&self, output, valid)?;
+        self.finish_checked_in_place(output, valid)?;
+        Ok(self.0)
+    }
+
+    fn finish_checked_in_place(&mut self, output: Value, valid: Value) -> Result<(), Error> {
+        rms_work::checked_output(self, output, valid)?;
         self.0.checked_validity = Some(valid);
         if self.0.numeric_profile != COMPACT_NONLINEAR_PROFILE {
             self.0.numeric_profile = CHECKED_RANGE_PROFILE;
         }
-        self.finish(output)
+        self.finish_in_place(output)
     }
 
     pub fn finish(mut self, output: Value) -> Result<Program, Error> {
+        self.finish_in_place(output)?;
+        Ok(self.0)
+    }
+
+    fn finish_in_place(&mut self, output: Value) -> Result<(), Error> {
         self.node(output, false)?;
         if output.0 == 0 || output.0 as usize + 1 != self.0.len {
             return Err(Error::Binding);
@@ -404,6 +459,8 @@ impl Builder {
             self.0.slots[i] = slot as u8;
             self.0.register_count = self.0.register_count.max(slot + 1);
             available_at[slot] = usize::from(self.0.last_use[i]).max(i) + 1;
+            #[cfg(test)]
+            resident_builder::after_schedule_slot(i);
         }
         self.0.work = self.0.nodes[..self.0.len]
             .iter()
@@ -411,7 +468,7 @@ impl Builder {
             .try_fold(WorkBudget::default(), |total, node| {
                 total.checked_add(self.0.instruction_work(*node)?)
             })?;
-        Ok(self.0)
+        Ok(())
     }
 }
 
