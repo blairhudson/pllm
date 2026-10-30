@@ -34,6 +34,12 @@ fn counter(p: &Publisher) -> OwnedBudget {
     };
     o.payload().unwrap().root.try_clone().unwrap()
 }
+fn observer_only_bytes() -> usize {
+    // One remaining OwnedBudget observer: original root metadata was refunded,
+    // its clone's metadata remains, as does the shared bootstrap/control block.
+    OwnedBudget::resources().unwrap().initial_reserved_bytes
+}
+
 
 #[test]
 fn compact_route_requires_two_epochs_and_real_experiment_before_collection() {
@@ -109,6 +115,44 @@ fn wrong_order_and_incomplete_seal_never_export_executable_manifest() {
     assert!(p.seal(&[0, 1, 1, 2]).is_err());
     assert!(p.manifest_checked().is_err());
     assert!(p.retired);
+}
+#[test]
+fn repeated_seal_preserves_actual_resident_sealed_owner_payload_program_and_charges() {
+    let (mut publisher, values) = fixture();
+    let budget = counter(&publisher);
+    collect(&mut publisher, &values);
+    publisher.seal(&[0, 1, 1, 2]).unwrap();
+    let compact = publisher.compact.as_mut().unwrap();
+    let Stage::Sealed(owner) = &compact.stage else {
+        panic!("genuine fixture did not seal")
+    };
+    let identities = (
+        owner as *const _,
+        owner.program().unwrap() as *const _,
+        owner.payload().unwrap() as *const _,
+        Arc::as_ptr(owner.directory().unwrap()),
+    );
+    assert!(std::ptr::eq(budget.budget(), owner.payload().unwrap().root.budget()));
+    assert_eq!(owner.program().unwrap().program().storage_kind(), "compact");
+    let charged = budget.budget().used_bytes();
+    assert!(charged > observer_only_bytes());
+    // Exercise the narrow CompactPublisher guard directly. This does not claim
+    // the outer legacy Publisher error path or consuming seal is repaired.
+    for ids in [&[0, 1, 1, 2][..], &[][..]] {
+        assert_eq!(compact.seal(ids).unwrap_err(), "compact publisher is not collecting");
+        let Stage::Sealed(owner) = &compact.stage else {
+            panic!("wrong-stage seal extracted the resident sealed owner")
+        };
+        assert_eq!((
+            owner as *const _,
+            owner.program().unwrap() as *const _,
+            owner.payload().unwrap() as *const _,
+            Arc::as_ptr(owner.directory().unwrap()),
+        ), identities);
+        assert!(std::ptr::eq(budget.budget(), owner.payload().unwrap().root.budget()));
+        assert_eq!(owner.program().unwrap().program().storage_kind(), "compact");
+        assert_eq!(budget.budget().used_bytes(), charged);
+    }
 }
 #[test]
 fn fallback_acceptance_repeats_original_constant_one_with_exact_bounds() {

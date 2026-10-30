@@ -473,6 +473,12 @@ impl CompactPublisher {
         result
     }
     pub(super) fn seal(&mut self, ids: &[u32]) -> Result<(), String> {
+        // Reject wrong-stage and failed collectors without extracting or
+        // dropping their existing owner. Fallible collecting transitions below
+        // still require the separate retained-ownership repair.
+        if !matches!(&self.stage, Stage::Collecting(owner) if owner.payload().is_ok()) {
+            return Err("compact publisher is not collecting".into());
+        }
         let stage = std::mem::replace(&mut self.stage, Stage::Retired);
         let Stage::Collecting(mut owner) = stage else {
             return Err("compact publisher is not collecting".into());
