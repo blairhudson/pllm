@@ -1492,7 +1492,59 @@ pub mod owned_backing {
     }
 }
 
+/// Validated public phase metadata, not native capability or resource admission.
+/// The retained/padded extent is constant; only causal activity grows per phase.
+/// No serialized plan field, graph construction, or allocation is involved.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DecoderPhaseGeometry {
+    input_tokens: usize,
+    outputs: usize,
+    padded_rows: usize,
+}
+
+impl DecoderPhaseGeometry {
+    pub fn input_tokens(self) -> usize {
+        self.input_tokens
+    }
+    pub fn outputs(self) -> usize {
+        self.outputs
+    }
+    pub fn padded_rows(self) -> usize {
+        self.padded_rows
+    }
+
+    /// Logical causal prefix, also the next feedback position when another
+    /// phase remains. This is not the number of rows to allocate or price.
+    pub fn active_rows(self, phase: usize) -> Option<usize> {
+        if phase >= self.outputs {
+            return None;
+        }
+        self.input_tokens.checked_add(phase)
+    }
+}
+
+#[cfg(test)]
+#[path = "decoder_phase_geometry_tests.rs"]
+mod decoder_phase_geometry_tests;
+
 impl DecoderPlan {
+    /// Validate request geometry independently of method-specific limits. Even
+    /// valid metadata must still pass native capability and cost admission.
+    pub fn validated_phase_geometry(
+        input_tokens: usize,
+        outputs: usize,
+    ) -> Option<DecoderPhaseGeometry> {
+        if input_tokens == 0 || outputs == 0 {
+            return None;
+        }
+        let padded_rows = input_tokens.checked_add(outputs - 1)?;
+        Some(DecoderPhaseGeometry {
+            input_tokens,
+            outputs,
+            padded_rows,
+        })
+    }
+
     pub fn digest(&self) -> Digest {
         canonical_digest("pllm.decoder_plan.v1", self)
     }
