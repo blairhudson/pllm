@@ -400,3 +400,81 @@ No receipt collection or independently authenticated source manifest was made.
 Review completed within the single 60-minute tranche. Documentation whitespace
 check returned no diagnostics; manual local link/path checks cover the three
 linked existing design documents. No passing crypto test or execution is claimed.
+
+## 10. Conditional computational masked-client-view lemma — review only
+
+Supplied independent Astra findings **291 and 295**, with output refinement
+**305**, support the following conditional lemma, not whole-circuit privacy,
+numeric correctness, parameter security or engine approval. This supplements
+§3's missing-proof obligation: fresh CBD zero encryption is not automatically
+insufficient computationally, but neither does freshness alone prove privacy.
+The earlier conditional statistical/support lower bound remains valid.
+
+**Premises and claim.** Let `a` be uniform in the actual `R_q`, and assume
+decisional RLWE for `(a,a*u+e)` with independent CBD(v=10) `u,e`, matching the
+actual ring and modulus. A PPT, challenge-compatible sampler `G(a)` must produce
+the full prior view `V`, evaluator input `B`, and evaluated components `F0,F1`,
+independently of fresh `u,e`. Let `Z0` be the corresponding fresh-zero first
+component and `R` an independent uniform full-ring mask. Then
+
+```text
+Y0 = F0+Z0+R,   Y1 = F1+a*u+e
+(V,Y0,Y1) ≈c (V,U0,U1),   U0,U1 independent uniform in R_q.
+```
+
+Full-ring masking makes `Y0` uniform independently of the remaining view, even
+when `Z0` and `Z1` correlate; RLWE replaces `a*u+e`, and translation by `F1`
+preserves uniformity. This is a joint, averaged-view computational statement,
+not a guarantee for every fixed `V`. Known secret `s` and previous client coins
+may belong to `V` **only if `G(a)` efficiently samples their actual joint law**.
+“All client coins” excludes the other role's fresh zero-encryption and mask
+coins: revealing fresh `u,e` directly reveals `F1=Y1-a*u-e`.
+
+**Source-distribution gate.** Supplied mapped F `bfv/public_key.rs` 69–79 has
+`Z1=a*u+e2`; earlier public-key level handling at 58–63 may change effective
+`a`. Mapped `bfv/keys/secret_key.rs` 125–148 instead retains a seed with
+`Expand(sigma)=a`. Exposing that seed while embedding an arbitrary RLWE
+challenge `a` is not samplable by the ordinary RLWE reduction. Application
+therefore needs an explicit reviewed seeded/effective-a assumption or a proof
+mapping the actual joint distribution. None is adopted here; these are supplied
+source locators, not new source verification or permission to change source.
+
+**Permitted-output refinement.** For known `s` and permitted client share
+`L=Down(Y0+s*Y1)`, a candidate ideal simulator samples `P` uniformly from the
+exact fiber `Down^-1(L)`, samples independent uniform `U1` in `R_q`, and returns
+`(P-s*U1,U1)`. With `L` drawn from the ideal joint output law, this preserves
+the joint averaged-view/output correlation; it is not a pointwise conditional
+indistinguishability claim for every fixed `V,L`. The ideal must also match the
+server's `-Down(R)` share (hence `Down(R)`) and later messages jointly. This
+client-marginal simulator alone does not establish that protocol-level law.
+
+Under the assumed coefficient map `Down(x)=floor(t*x/q+1/2) mod t`, canonical
+`0<=x<q`, fibers are balanced (sizes `floor(q/t)` or `ceil(q/t)`). Exact uniform
+fiber sampling can use weighted interval ranks, but requires an exact uniform
+integer primitive or expected-polynomial fair-bit sampling. Bounded exact
+fair-bit sampling is impossible for non-power-of-two fiber sizes. No such
+implementation is approved, and the actual Down convention/source binding
+still needs verification, rather than assuming this map is implemented.
+For `r=q mod t`,
+
+```text
+TV(Down(U_q),U_t) = r*(t-r)/(q*t) <= t/(4*q),
+TV for N coefficients <= N*t/(4*q).
+```
+
+The illustrative `q≈2^147`, `N=8192`, `t=2^64` gives about `2^-72`, not a
+parameter certificate or permission to replace the exact joint output law.
+
+**Scope and remaining gates.** Multiple fresh encryptions sharing `a` admit a
+hybrid only with fresh independent coins and efficient continuation sampling;
+the full view must retain reused-ciphertext and Galois-key correlations.
+Advantages add across hybrids; this proves neither statistical `2^-40` privacy
+nor concrete 128-bit security for the proposed parameters. Small-support
+distance from uniform conditional on `V` can remain near one information-
+theoretically without contradicting this computational lemma. This is a
+masked-client marginal, not ordinary unmasked-ciphertext circuit privacy.
+Flooding is not necessary for this conditional lemma; no engine clearance
+follows. Exact OLT joint outputs, rounding carry `0,±1`, and encrypted ±1
+correctness remain **OPEN**. No funding, pinned version, assumption adoption,
+implementation authorization or approval changes. **STOP EDIT: independent
+review required.**
