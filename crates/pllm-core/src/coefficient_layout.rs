@@ -11,6 +11,7 @@
 pub const MAX_DEGREE: usize = 4096;
 pub const MAX_INTERLEAVE_INPUTS: usize = 256;
 pub mod coordinates;
+pub(crate) mod modular;
 pub mod schedule;
 pub(crate) mod trace;
 

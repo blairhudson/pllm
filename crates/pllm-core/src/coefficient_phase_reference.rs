@@ -19,7 +19,7 @@ pub mod work;
 use crate::coefficient_layout::TwoPartyProductPlan;
 use coordinates::Coordinates;
 pub use wide::{Rns3, Wide};
-use wide::{mul, sub};
+use crate::coefficient_layout::modular::{mul, sub};
 
 pub const DEGREE: usize = 8192;
 pub const SHAPE: [usize; 3] = [3, 65, 129];

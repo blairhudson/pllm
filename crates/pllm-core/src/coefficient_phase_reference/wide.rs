@@ -1,5 +1,6 @@
 //! Fixed-capacity, non-constant-time clear integer/CRT arithmetic. No BigInt.
 use super::Error;
+use crate::coefficient_layout::modular::{mul, sub};
 use std::cmp::Ordering;
 
 /// Little-endian four-word unsigned integer. All four words are significant.
@@ -119,12 +120,6 @@ impl Wide {
     }
 }
 
-pub(super) fn mul(a: u64, b: u64, p: u64) -> u64 {
-    (u128::from(a) * u128::from(b) % u128::from(p)) as u64
-}
-pub(super) fn sub(a: u64, b: u64, p: u64) -> u64 {
-    if a >= b { a - b } else { p - (b - a) }
-}
 pub(super) fn inverse(a: u64, p: u64) -> Result<u64, Error> {
     let (mut r, mut s, mut x, mut y) = (i128::from(p), i128::from(a), 0_i128, 1_i128);
     for _ in 0..128 {
