@@ -209,22 +209,14 @@ pub(super) fn validate_set(
 
 impl BlockNorms {
     pub(super) fn validate(&self, rows: usize, columns: usize) -> Result<(), Error> {
-        MatrixScan::payload_bytes(self.block_rows, columns)?;
-        if (self.rows, self.columns) != (rows, columns)
-            || rows == 0
-            || self.blocks.len() != rows.div_ceil(self.block_rows)
-            || self.blocks.len() > MAX_BLOCKS
-            || self.metadata_bytes()? > MAX_METADATA_BYTES
-        {
-            return Err(Error::Shape);
-        }
-        for index in 0..self.blocks.len() {
-            let rows = self.block_rows.min(self.rows - index * self.block_rows);
-            self.block(index * self.block_rows, rows)
-                .ok_or(Error::Shape)?
-                .operator_squared()?;
-        }
-        Ok(())
+        validate_parts(
+            self.rows,
+            self.columns,
+            self.block_rows,
+            &self.blocks,
+            rows,
+            columns,
+        )
     }
 
     pub(super) fn geometry(&self) -> (usize, usize, usize) {
@@ -232,29 +224,85 @@ impl BlockNorms {
     }
 
     pub(super) fn block(&self, start: usize, rows: usize) -> Option<MatrixCertificate> {
-        if self.block_rows == 0 || start % self.block_rows != 0 || rows == 0 || start >= self.rows {
-            return None;
-        }
-        let record = *self.blocks.get(start / self.block_rows)?;
-        if rows != self.block_rows.min(self.rows - start) {
-            return None;
-        }
-        Some(MatrixCertificate {
+        block_parts(
+            self.rows,
+            self.columns,
+            self.block_rows,
+            &self.blocks,
+            start,
             rows,
-            columns: self.columns,
-            maximum_row_l1: record.maximum_row_l1,
-            maximum_column_l1: record.maximum_column_l1,
-            frobenius_squared: record.frobenius_squared,
-        })
+        )
     }
 
     pub(super) fn metadata_bytes(&self) -> Result<usize, Error> {
-        self.blocks
-            .capacity()
-            .checked_mul(std::mem::size_of::<Block>())
-            .and_then(|n| n.checked_add(std::mem::size_of::<Self>()))
-            .ok_or(Error::Bounds)
+        block_metadata_bytes(&self.blocks)
     }
+}
+
+// Vec, rather than a slice: retained capacity is part of the metadata bound.
+fn block_metadata_bytes(blocks: &Vec<Block>) -> Result<usize, Error> {
+    blocks
+        .capacity()
+        .checked_mul(std::mem::size_of::<Block>())
+        .and_then(|n| n.checked_add(std::mem::size_of::<BlockNorms>()))
+        .ok_or(Error::Bounds)
+}
+
+fn block_parts(
+    actual_rows: usize,
+    actual_columns: usize,
+    block_rows: usize,
+    blocks: &[Block],
+    start: usize,
+    rows: usize,
+) -> Option<MatrixCertificate> {
+    if block_rows == 0 || start % block_rows != 0 || rows == 0 || start >= actual_rows {
+        return None;
+    }
+    let record = *blocks.get(start / block_rows)?;
+    if rows != block_rows.min(actual_rows - start) {
+        return None;
+    }
+    Some(MatrixCertificate {
+        rows,
+        columns: actual_columns,
+        maximum_row_l1: record.maximum_row_l1,
+        maximum_column_l1: record.maximum_column_l1,
+        frobenius_squared: record.frobenius_squared,
+    })
+}
+
+fn validate_parts(
+    actual_rows: usize,
+    actual_columns: usize,
+    block_rows: usize,
+    blocks: &Vec<Block>,
+    rows: usize,
+    columns: usize,
+) -> Result<(), Error> {
+    MatrixScan::payload_bytes(block_rows, columns)?;
+    if (actual_rows, actual_columns) != (rows, columns)
+        || rows == 0
+        || blocks.len() != rows.div_ceil(block_rows)
+        || blocks.len() > MAX_BLOCKS
+        || block_metadata_bytes(blocks)? > MAX_METADATA_BYTES
+    {
+        return Err(Error::Shape);
+    }
+    for index in 0..blocks.len() {
+        let rows = block_rows.min(actual_rows - index * block_rows);
+        block_parts(
+            actual_rows,
+            actual_columns,
+            block_rows,
+            blocks,
+            index * block_rows,
+            rows,
+        )
+        .ok_or(Error::Shape)?
+        .operator_squared()?;
+    }
+    Ok(())
 }
 
 struct Pending {
@@ -270,7 +318,75 @@ struct Pending {
 /// Errors retire the entire scan; source import owns the enclosing transaction.
 pub(super) struct BlockScan(Option<Pending>);
 
+/// One-use finish custody. The caller must retain this owner and its output slot
+/// outside the fallible/unwinding operation. Refusal or unwind leaves the scan
+/// resident for cleanup only, never for retry. This is not a charge/guard proof;
+/// wrapper/state/output-slot quotation and native integration remain open.
+pub(super) struct ResidentBlockFinish {
+    scan: BlockScan,
+    state: FinishState,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FinishState {
+    Ready,
+    CleanupOnly,
+    Complete,
+}
+
+impl ResidentBlockFinish {
+    pub(super) fn finish_into(&mut self, out: &mut Option<BlockNorms>) -> Result<(), Error> {
+        let prior = std::mem::replace(&mut self.state, FinishState::CleanupOnly);
+        if out.is_some() {
+            return Err(Error::Binding);
+        }
+        if prior != FinishState::Ready {
+            return Err(Error::Binding);
+        }
+        let pending = self.scan.0.as_mut().ok_or(Error::Binding)?;
+        if pending.offset != pending.rows * pending.columns || pending.scan.is_some() {
+            return Err(Error::Shape);
+        }
+        validate_parts(
+            pending.rows,
+            pending.columns,
+            pending.block_rows,
+            &pending.blocks,
+            pending.rows,
+            pending.columns,
+        )?;
+        #[cfg(test)]
+        PANIC_FINISH_PRECOMMIT.with(|flag| {
+            if flag.replace(false) {
+                panic!("test resident block finish precommit unwind");
+            }
+        });
+
+        let rows = pending.rows;
+        let columns = pending.columns;
+        let block_rows = pending.block_rows;
+        // All preflight is complete. Transfer the original Vec into the known
+        // empty slot; no allocation, callback or fallible operation in commit.
+        let blocks = std::mem::take(&mut pending.blocks);
+        *out = Some(BlockNorms {
+            rows,
+            columns,
+            block_rows,
+            blocks,
+        });
+        self.state = FinishState::Complete;
+        Ok(())
+    }
+}
+
 impl BlockScan {
+    pub(super) fn into_resident_finish(self) -> ResidentBlockFinish {
+        ResidentBlockFinish {
+            scan: self,
+            state: FinishState::Ready,
+        }
+    }
+
     pub(super) fn payload_bytes(
         rows: usize,
         columns: usize,
@@ -444,3 +560,12 @@ pub(super) fn requests(
 #[cfg(test)]
 #[path = "source_norms_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+thread_local! {
+    static PANIC_FINISH_PRECOMMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+#[path = "source_norms_resident_finish_tests.rs"]
+mod resident_finish_tests;
