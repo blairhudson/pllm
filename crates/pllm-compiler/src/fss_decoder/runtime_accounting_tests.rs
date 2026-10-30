@@ -558,9 +558,263 @@ fn resource_fields(r: Resources) -> [usize; 11] {
         r.live_array_bytes_per_party, r.source_table_cache_bytes_per_role,
         r.peak_native_bytes, r.combined_reservation_bytes]
 }
+
+fn backing_plan<'b>(p: &Program, budget: &'b Budget, tensor: bool) -> Plan<'b> {
+    let plan = kernels::floor(kernels::Binding {
+        source_digest: p.source.digest(), contract_digest: p.digest,
+    }, Range::new(-100_000, 100_000).unwrap().gate(), 12, budget).unwrap().0;
+    if tensor { plan.repeat_tensor(17).unwrap() } else { plan }
+}
+
+fn lookup_backing_plan(budget: &Budget, tensor: bool) -> Plan<'_> {
+    let plan = gates::silu(gates::InputRange { min: 0, max: 4096 }, budget).unwrap().0;
+    assert!(plan.stored_lookup_chunks() > 0);
+    if tensor { plan.repeat_tensor(3).unwrap() } else { plan }
+}
+
+#[test]
+fn wave_lookup_tariff_is_additive_and_refusal_precedes_constructor_on_same_ledger() {
+    for tensor in [false, true] {
+        for meter in 0..4 {
+            let mut p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 1);
+            p.online = OnlineSchedule::WavefrontV1;
+            let budget = request_budget(&p).unwrap();
+            let tables = request_tables(&p, &budget).unwrap();
+            let plan = lookup_backing_plan(&budget, tensor);
+            let backing = wavefront::Schedule::backing_resources(&plan).unwrap();
+            let delta = 6 * (128 * plan.stored_lookup_chunks());
+            assert_eq!(delta, 768 * plan.stored_lookup_chunks());
+            let seed = tables.bootstrap;
+            let prefix = seed.work + 6 * backing.construction_work;
+            p.limits.max_work = prefix + delta;
+            p.limits.max_public_copy_bytes = seed.public_copy_bytes + 6 * backing.metadata_bytes;
+            // Original work/copy prefix refusals precede the new debit. A
+            // former exact prefix-only fit now refuses after spending delta.
+            if meter == 1 { p.limits.max_work = prefix - 1; }
+            if meter == 2 { p.limits.max_public_copy_bytes -= 1; }
+            if meter == 3 { p.limits.max_work = prefix; }
+            let mut state = Schedule::new(&p, context(&p), 0, None, &tables).unwrap();
+            let hash = <[u8; 32]>::from(state.hash.clone().finalize());
+            let before = budget.used_bytes();
+            let input = vec![0; plan.input_bits().len()];
+            let (result, entries) = wave_constructor_probe::scoped(|| {
+                state.run(&plan, &input, plan.output_count(), false).map(drop)
+            });
+            assert_eq!(result, Err(if meter == 0 { Error::Unsupported } else { Error::Resource }));
+            assert_eq!(entries, usize::from(meter == 0));
+            let expected_work = prefix + if meter == 0 || meter == 3 { delta } else { 0 };
+            assert_eq!(resource_fields(state.resources), resource_fields(Resources {
+                work: expected_work,
+                public_copy_bytes: seed.public_copy_bytes + 6 * backing.metadata_bytes,
+                ..seed
+            }));
+            assert_eq!(<[u8; 32]>::from(state.hash.clone().finalize()), hash);
+            assert_eq!(budget.used_bytes(), before);
+            // Retry borrows the SAME original spent counters, not bootstrap.
+            let (retry, entries) = wave_constructor_probe::scoped(|| {
+                state.run(&plan, &input, plan.output_count(), false).map(drop)
+            });
+            assert_eq!(retry, Err(Error::Resource));
+            assert_eq!(entries, 0);
+            assert_eq!(state.resources.work, expected_work + 6 * backing.construction_work);
+        }
+    }
+}
+
+#[test]
+fn wave_lookup_constructor_failure_keeps_delta_and_residual_never_subtracts_it() {
+    for tensor in [false, true] {
+        let mut p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 1);
+        p.online = OnlineSchedule::WavefrontV1;
+        let budget = request_budget(&p).unwrap();
+        let tables = request_tables(&p, &budget).unwrap();
+        let plan = lookup_backing_plan(&budget, tensor);
+        let backing = wavefront::Schedule::backing_resources(&plan).unwrap();
+        let delta = 768 * plan.stored_lookup_chunks();
+        let limit = resource_quote::Quote::available_per_role(
+            p.resources.metadata_bytes, p.resources.live_array_bytes_per_party).unwrap();
+        let occupied = budget.charge_external(limit - budget.used_bytes()
+            - backing.metadata_bytes - backing.depth_bytes + 1
+            - std::mem::size_of::<pllm_garble::shared_allocation::ExternalCharge<'_>>()).unwrap();
+        let before = budget.used_bytes();
+        let mut state = Schedule::new(&p, context(&p), 0, None, &tables).unwrap();
+        let seed = state.resources;
+        let input = vec![0; plan.input_bits().len()];
+        assert!(matches!(state.run(&plan, &input, plan.output_count(), false), Err(Error::Resource)));
+        assert_eq!(resource_fields(state.resources), resource_fields(Resources {
+            work: seed.work + 6 * backing.construction_work + delta,
+            public_copy_bytes: seed.public_copy_bytes + 6 * backing.metadata_bytes,
+            ..seed
+        }));
+        assert_eq!(budget.used_bytes(), before);
+        // Retry the same actual constructor with all original owners and the
+        // scarcity charge still live. Both debits fit unchanged meter caps, so
+        // refusal remains native reservation scarcity, not preadmission limits.
+        let retried = Resources {
+            work: seed.work + 2 * (6 * backing.construction_work + delta),
+            public_copy_bytes: seed.public_copy_bytes + 12 * backing.metadata_bytes,
+            ..seed
+        };
+        assert!(retried.work <= p.limits.max_work);
+        assert!(retried.public_copy_bytes <= p.limits.max_public_copy_bytes);
+        assert!(matches!(state.run(&plan, &input, plan.output_count(), false), Err(Error::Resource)));
+        assert_eq!(resource_fields(state.resources), resource_fields(retried));
+        assert_eq!(budget.used_bytes(), before);
+        drop(state);
+        drop(occupied);
+        let mut resources = quote_seed();
+        let seed = resources;
+        let prefix = resource_quote::Quote::wave_backing(
+            &mut resources, Limits::default(), &plan).unwrap();
+        assert_eq!(prefix, backing.construction_work); // Not W0 + metadata.
+        let schedule = wavefront::Schedule::new(&plan).unwrap();
+        let wave = schedule.resources();
+        let native = plan.resources();
+        drop(resource_quote::Quote::begin(&mut resources, Limits::default(),
+            Capacity::Capsule, native, Some((wave, prefix)), plan.input_bits().len(), false).unwrap());
+        assert_eq!(resources.work, seed.work + 6 * wave.construction_work + delta
+            + 2 * native.cumulative_work + 3 * native.template_copy_bytes);
+        assert_eq!(resources.public_copy_bytes, seed.public_copy_bytes
+            + 6 * wave.metadata_bytes + 3 * native.template_copy_bytes);
+        drop(schedule);
+        drop(plan);
+        drop(tables);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn wave_backing_prefix_refuses_before_constructor_and_exact_enters() {
+    for tensor in [false, true] {
+        for meter in 0..3 {
+            let mut p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 1);
+            p.online = OnlineSchedule::WavefrontV1;
+            let budget = request_budget(&p).unwrap();
+            let tables = request_tables(&p, &budget).unwrap();
+            let plan = backing_plan(&p, &budget, tensor);
+            assert_eq!(plan.stored_lookup_chunks(), 0); // Zero delta, not zero constructor work.
+            let backing = wavefront::Schedule::backing_resources(&plan).unwrap();
+            assert!(backing.construction_work > 0);
+            let seed = tables.bootstrap;
+            p.limits.max_work = seed.work + 6 * backing.construction_work;
+            p.limits.max_public_copy_bytes = seed.public_copy_bytes + 6 * backing.metadata_bytes;
+            if meter == 1 { p.limits.max_work -= 1; }
+            if meter == 2 { p.limits.max_public_copy_bytes -= 1; }
+            let mut state = Schedule::new(&p, context(&p), 0, None, &tables).unwrap();
+            let hash = <[u8; 32]>::from(state.hash.clone().finalize());
+            let before = budget.used_bytes();
+            let peak = budget.admitted_peak_bytes();
+            let input = vec![0; plan.input_bits().len()];
+            let (result, entries) = wave_constructor_probe::scoped(|| {
+                state.run(&plan, &input, plan.output_count(), false).map(drop)
+            });
+            assert_eq!(result, Err(if meter == 0 { Error::Unsupported } else { Error::Resource }));
+            assert_eq!(entries, usize::from(meter == 0));
+            let expected = Resources {
+                work: seed.work + 6 * backing.construction_work,
+                public_copy_bytes: seed.public_copy_bytes + 6 * backing.metadata_bytes,
+                ..seed
+            };
+            assert_eq!(resource_fields(state.resources), resource_fields(expected));
+            assert_eq!(<[u8; 32]>::from(state.hash.clone().finalize()), hash);
+            assert_eq!(budget.used_bytes(), before);
+            assert_eq!(budget.admitted_peak_bytes(), peak);
+        }
+    }
+}
+
+#[test]
+fn wave_backing_native_construction_failure_keeps_prefix_spent() {
+    let mut p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 1);
+    p.online = OnlineSchedule::WavefrontV1;
+    let budget = request_budget(&p).unwrap();
+    let tables = request_tables(&p, &budget).unwrap();
+    let plan = backing_plan(&p, &budget, true);
+    let backing = wavefront::Schedule::backing_resources(&plan).unwrap();
+    let limit = resource_quote::Quote::available_per_role(
+        p.resources.metadata_bytes, p.resources.live_array_bytes_per_party).unwrap();
+    // Force scratch reservation to fail AFTER metadata reservation succeeds.
+    // Occupancy belongs to the same original budget and is never reborrowed.
+    let occupied = budget.charge_external(limit - budget.used_bytes()
+        - backing.metadata_bytes - backing.depth_bytes + 1
+        - std::mem::size_of::<pllm_garble::shared_allocation::ExternalCharge<'_>>()).unwrap();
+    let before = budget.used_bytes();
+    let mut state = Schedule::new(&p, context(&p), 0, None, &tables).unwrap();
+    let seed = state.resources;
+    let hash = <[u8; 32]>::from(state.hash.clone().finalize());
+    let input = vec![0; plan.input_bits().len()];
+    assert!(matches!(state.run(&plan, &input, plan.output_count(), false), Err(Error::Resource)));
+    assert_eq!(resource_fields(state.resources), resource_fields(Resources {
+        work: seed.work + 6 * backing.construction_work,
+        public_copy_bytes: seed.public_copy_bytes + 6 * backing.metadata_bytes,
+        ..seed
+    }));
+    assert_eq!(<[u8; 32]>::from(state.hash.clone().finalize()), hash);
+    assert_eq!(budget.used_bytes(), before);
+    drop(state);
+    drop(occupied);
+    drop(plan);
+    drop(tables);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn wave_backing_overflow_precedes_constructor_and_residual_is_once_only() {
+    let p = embedding(Capacity::Capsule, false, false, 2, 2, 1, 1);
+    let budget = request_budget(&p).unwrap();
+    for tensor in [false, true] {
+        let plan = backing_plan(&p, &budget, tensor);
+        let backing = wavefront::Schedule::backing_resources(&plan).unwrap();
+        let before = budget.used_bytes();
+        for copy in [false, true] {
+            let mut resources = quote_seed();
+            if copy { resources.public_copy_bytes = usize::MAX; }
+            else { resources.work = usize::MAX; }
+            let seed = resources;
+            let mut entries = 0;
+            let result = (|| {
+                resource_quote::Quote::wave_backing(&mut resources, Limits::default(), &plan)?;
+                entries += 1;
+                wavefront::Schedule::new(&plan).map(drop).map_err(Error::from)
+            })();
+            assert_eq!(result, Err(Error::Resource));
+            assert_eq!(entries, 0);
+            assert_eq!(resources.work, if copy {
+                seed.work + 6 * backing.construction_work
+            } else { usize::MAX });
+            assert_eq!(resources.public_copy_bytes, seed.public_copy_bytes);
+            assert_eq!(budget.used_bytes(), before);
+        }
+        let mut resources = quote_seed();
+        let seed = resources;
+        let prefix = resource_quote::Quote::wave_backing(
+            &mut resources, Limits::default(), &plan).unwrap();
+        let schedule = wavefront::Schedule::new(&plan).unwrap();
+        let wave = schedule.resources();
+        let native = plan.resources();
+        let q = resource_quote::Quote::begin(&mut resources, Limits::default(),
+            Capacity::Capsule, native, Some((wave, prefix)), plan.input_bits().len(), false).unwrap();
+        drop(q);
+        assert_eq!(resources.work, seed.work + 6 * wave.construction_work
+            + 2 * native.cumulative_work + 3 * native.template_copy_bytes);
+        assert_eq!(resources.public_copy_bytes, seed.public_copy_bytes
+            + 6 * wave.metadata_bytes + 3 * native.template_copy_bytes);
+        assert_eq!(resources.kernels, seed.kernels + 1);
+        drop(schedule);
+        assert_eq!(budget.used_bytes(), before);
+    }
+    assert_eq!(budget.used_bytes(), 0);
+}
+
 fn small_quote(resources: &mut Resources, limits: Limits, cached: bool, wave: bool) -> Result<(), Error> {
+    // Supplied-record control for the relocated prefix, already spent before
+    // begin. These synthetic scalars are not a caller-facing admission API.
+    if wave {
+        resources.work += 6 * 11;
+        resources.public_copy_bytes += 6 * quote_wave().metadata_bytes;
+    }
     let mut q = resource_quote::Quote::begin(resources, limits, Capacity::Capsule,
-        quote_native(), wave.then(quote_wave), 2, cached)?;
+        quote_native(), wave.then(|| (quote_wave(), 11)), 2, cached)?;
     // Runtime supplies reference/miss/retained/payload deltas 3/1/5/7 and
     // lowered metadata already priced across three roles: 3*7=21.
     if cached {
@@ -676,11 +930,13 @@ fn quote_overflow_returns_resource() {
             4 => native.template_copy_bytes = usize::MAX / 3 + 1,
             5 => resources.public_copy_bytes = usize::MAX,
             6 => wave.construction_work = usize::MAX / 6 + 1,
-            7 => wave.metadata_bytes = usize::MAX / 6 + 1,
+            // Metadata copies are no longer charged by begin. A prefix larger
+            // than total construction work must reject, never wrap residual.
+            7 => wave.construction_work = 0,
             _ => native.secret_steps = usize::MAX,
         }
         assert!(matches!(resource_quote::Quote::begin(&mut resources, Limits::default(),
-            Capacity::Capsule, native, Some(wave), 2, true), Err(Error::Resource)), "begin {field}");
+            Capacity::Capsule, native, Some((wave, usize::from(field == 7))), 2, true), Err(Error::Resource)), "begin {field}");
     }
     for field in 0..11 {
         let mut resources = quote_seed();
@@ -728,7 +984,7 @@ fn quote_overflow_returns_resource() {
             _ => stats.metadata_reservation_bytes = usize::MAX,
         }
         let mut q = resource_quote::Quote::begin(&mut resources, Limits::default(),
-            Capacity::Capsule, native, Some(wave), 2, true).unwrap();
+            Capacity::Capsule, native, Some((wave, 0)), 2, true).unwrap();
         q.tables(stats, 3, 1, 5, 7, 21).unwrap();
         assert_eq!(q.finish(stats), Err(Error::Resource), "finish {field}");
     }

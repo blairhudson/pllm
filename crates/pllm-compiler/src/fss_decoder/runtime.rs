@@ -382,6 +382,11 @@ mod cache_constructor_probe {
     }
 }
 
+// Reuse the private thread-scoped boundary trap. Wave tests construct request
+// tables before entering the scope, so only this later boundary is observed.
+#[cfg(test)]
+use cache_constructor_probe as wave_constructor_probe;
+
 fn request_tables<'b>(
     program: &Program,
     budget: &'b Budget,
@@ -509,9 +514,14 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
         }
         let r = plan.resources();
         let wave = if self.program.online.uses_wavefront() && !plan.is_atomic_vector() {
+            let backing_work = resource_quote::Quote::wave_backing(
+                &mut self.resources, self.program.limits, plan,
+            )?;
+            #[cfg(test)]
+            wave_constructor_probe::enter()?;
             let schedule = wavefront::Schedule::new(plan)?;
             self.hash.update(schedule.digest());
-            Some(schedule.resources())
+            Some((schedule.resources(), backing_work))
         } else {
             None
         };

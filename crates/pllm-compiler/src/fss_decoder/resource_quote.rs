@@ -3,6 +3,8 @@
 //! Preparation borrows existing owners; schedule phases borrow live counters.
 //! No second ledger or Plan builder; constructor admission is not full execution
 //! work/material admission and does not enlarge the native geometry envelope.
+//! Wavefront preadmission covers backing and retained Lookup chunk metadata;
+//! actual-span work remains later. The additive tariff can refuse former fits.
 //! Logical accounting only, not physical-memory or full-capacity authority.
 use super::{cache, wavefront, Capacity, Error, Limits, Resources};
 use pllm_garble::fusefss_backend::composition;
@@ -29,6 +31,48 @@ pub(super) struct Quote<'a> {
 }
 
 impl<'a> Quote<'a> {
+    // Debit the existing six-role schedule backing tariff on the live compiler
+    // counters before construction. Native Plan custody continues to fund bytes.
+    // Failure is spent work, not a refundable credit or a second ledger.
+    pub(super) fn wave_backing(
+        resources: &mut Resources, limits: Limits, plan: &composition::Plan<'_>,
+    ) -> Result<usize, Error> {
+        let backing = wavefront::Schedule::backing_resources(plan)?;
+        resources.work = add(resources.work, mul(backing.construction_work, 6)?)?;
+        resources.public_copy_bytes = add(resources.public_copy_bytes,
+            mul(backing.metadata_bytes, 6)?)?;
+        if resources.work > limits.max_work
+            || resources.public_copy_bytes > limits.max_public_copy_bytes
+        {
+            return Err(Error::Resource);
+        }
+        // Preserve the original prefix and its cap refusal precedence above.
+        // Each successful constructor calls resources twice per stored Lookup:
+        // V = 2S chunk visits, at 64 logical metadata units per visit, Q = 128S.
+        // Fund ONLY the existing six-constructor allowance: delta = 6Q = 768S.
+        // Successful dealer + two-worker entrypoints currently construct twelve
+        // schedules (transport admission rewalks plus execution). Extra calls and
+        // compile preflight are NOT funded here. This is inventory taxonomy, not
+        // a CPU/time/physical bound or a conversion of NativeCost DCF-bit work.
+        // Other resource callers, fixed setup/tail, primitive internals and
+        // predicate/GELU remain held; actual-span residual stays unchanged below.
+        // Accepted totals increase: this delta is deliberately not ledger-neutral.
+        Self::wave_lookup_metadata(resources, limits, plan.stored_lookup_chunks())?;
+        Ok(backing.construction_work)
+    }
+
+    fn wave_lookup_metadata(
+        resources: &mut Resources, limits: Limits, stored_chunks: usize,
+    ) -> Result<(), Error> {
+        let per_constructor = mul(stored_chunks, 128)?;
+        let delta = mul(per_constructor, 6)?;
+        resources.work = add(resources.work, delta)?;
+        if resources.work > limits.max_work {
+            return Err(Error::Resource);
+        }
+        Ok(())
+    }
+
     // Borrowed census only: no serialization, digest, graph validation, or owner
     // construction may precede native construction admission.
     pub(super) fn plan_owned(plan: &DecoderPlan) -> Result<usize, Error> {
@@ -213,11 +257,12 @@ impl<'a> Quote<'a> {
         limits: Limits,
         capacity: Capacity,
         native: composition::Resources,
-        wave: Option<wavefront::Resources>,
+        wave: Option<(wavefront::Resources, usize)>,
         inputs: usize,
         cached: bool,
     ) -> Result<Self, Error> {
-        let mut quote = Self { resources, limits, capacity, native, wave, inputs, cached };
+        let mut quote = Self { resources, limits, capacity, native,
+            wave: wave.map(|(wave, _)| wave), inputs, cached };
         let r = &mut *quote.resources;
         r.kernels = add(r.kernels, 1)?;
         r.primitive_requests_per_party = add(r.primitive_requests_per_party, native.secret_steps)?;
@@ -227,10 +272,14 @@ impl<'a> Quote<'a> {
             quote.public_copy(copies)?;
             quote.resources.work = add(quote.resources.work, copies)?;
         }
-        if let Some(wave) = wave {
-            // Three roles, each with obligation-walk AND concrete-owner schedule.
-            quote.resources.work = add(quote.resources.work, mul(wave.construction_work, 6)?)?;
-            quote.public_copy(mul(wave.metadata_bytes, 6)?)?;
+        if let Some((wave, backing_work)) = wave {
+            // Only the residual is new: tensor virtual lookup/group/hash work
+            // uses actual spans, never span capacity. Backing copies were spent
+            // before construction under the existing six-constructor allowance.
+            // The additive chunk tariff is separate: NEVER subtract it here.
+            let residual = wave.construction_work.checked_sub(backing_work)
+                .ok_or(Error::Resource)?;
+            quote.resources.work = add(quote.resources.work, mul(residual, 6)?)?;
         }
         Ok(quote)
     }
@@ -323,5 +372,27 @@ impl<'a> Quote<'a> {
             return Err(Error::Resource);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod lookup_metadata_tests {
+    use super::*;
+
+    #[test]
+    fn checked_tariff_overflow_preserves_committed_original_prefix() {
+        // Private arithmetic controls only; production census always comes from
+        // the original Plan. No caller setter or replacement ledger is exposed.
+        let prefix = 37;
+        for chunks in [usize::MAX / 128 + 1, usize::MAX / 768 + 1] {
+            let mut resources = Resources { work: prefix, ..Resources::default() };
+            assert_eq!(Quote::wave_lookup_metadata(&mut resources, Limits::default(), chunks),
+                Err(Error::Resource));
+            assert_eq!(resources.work, prefix);
+        }
+        let mut resources = Resources { work: usize::MAX - 767, ..Resources::default() };
+        assert_eq!(Quote::wave_lookup_metadata(&mut resources, Limits::default(), 1),
+            Err(Error::Resource));
+        assert_eq!(resources.work, usize::MAX - 767);
     }
 }
