@@ -2,6 +2,11 @@
 //! not Budget, source/range certificates, runtime permits or request admission.
 use super::*;
 
+#[path = "tensor_resident_parameters.rs"]
+mod resident_parameters;
+use resident_parameters::EphemeralBoundLens;
+pub use resident_parameters::{ResidentFactorySource, ResidentNativeSchedule};
+
 #[cfg(test)]
 #[path = "tensor_work_preflight_silu_tests.rs"]
 mod silu_tests;
@@ -118,23 +123,35 @@ impl Construction {
         self,
         parameters: FactoryParameters<'_>,
     ) -> Result<ClosedFactory<'_>, WorkPreflightError> {
+        bind_core(&self, &parameters)?;
+        Ok(ClosedFactory {
+            construction: self,
+            parameters,
+        })
+    }
+}
+
+fn bind_core(
+    construction: &Construction,
+    parameters: &FactoryParameters<'_>,
+) -> Result<(), WorkPreflightError> {
         use FactoryParameters as P;
-        let compatible = match (&self, &parameters) {
-            (Self::Negative { .. }, P::Negative { .. })
-            | (Self::GuardedSilu { .. }, P::GuardedSilu { .. })
-            | (Self::EqualZero { .. }, P::EqualZero { .. })
-            | (Self::Builder { .. }, P::Rescale { .. })
-            | (Self::Builder { .. }, P::Scale18 { .. })
-            | (Self::CheckedRange { .. }, P::CheckedRange { .. })
-            | (Self::AllValid { .. }, P::AllValid)
-            | (Self::SoftmaxCertified { .. }, P::SoftmaxCertified { .. }) => true,
-            (Self::RmsNormCertified { gamma_len, .. }, P::RmsNormCertified { gamma, .. })
+        let compatible = match (construction, parameters) {
+            (Construction::Negative { .. }, P::Negative { .. })
+            | (Construction::GuardedSilu { .. }, P::GuardedSilu { .. })
+            | (Construction::EqualZero { .. }, P::EqualZero { .. })
+            | (Construction::Builder { .. }, P::Rescale { .. })
+            | (Construction::Builder { .. }, P::Scale18 { .. })
+            | (Construction::CheckedRange { .. }, P::CheckedRange { .. })
+            | (Construction::AllValid { .. }, P::AllValid)
+            | (Construction::SoftmaxCertified { .. }, P::SoftmaxCertified { .. }) => true,
+            (Construction::RmsNormCertified { gamma_len, .. }, P::RmsNormCertified { gamma, .. })
             | (
-                Self::RmsNormWithInputNorm { gamma_len, .. },
+                Construction::RmsNormWithInputNorm { gamma_len, .. },
                 P::RmsNormWithInputNorm { gamma, .. },
             ) => *gamma_len == gamma.len(),
             (
-                Self::RotaryHalf {
+                Construction::RotaryHalf {
                     cosine_len,
                     sine_len,
                     ..
@@ -142,15 +159,15 @@ impl Construction {
                 P::RotaryHalf { cosine, sine, .. },
             ) => *cosine_len == cosine.len() && *sine_len == sine.len(),
             (
-                Self::Negative { .. }
-                | Self::EqualZero { .. }
-                | Self::Builder { .. }
-                | Self::CheckedRange { .. }
-                | Self::AllValid { .. }
-                | Self::SoftmaxCertified { .. }
-                | Self::RmsNormCertified { .. }
-                | Self::RmsNormWithInputNorm { .. }
-                | Self::RotaryHalf { .. },
+                Construction::Negative { .. }
+                | Construction::EqualZero { .. }
+                | Construction::Builder { .. }
+                | Construction::CheckedRange { .. }
+                | Construction::AllValid { .. }
+                | Construction::SoftmaxCertified { .. }
+                | Construction::RmsNormCertified { .. }
+                | Construction::RmsNormWithInputNorm { .. }
+                | Construction::RotaryHalf { .. },
                 _,
             ) => false,
             _ => return Err(WorkPreflightError::Unsupported),
@@ -158,11 +175,7 @@ impl Construction {
         if !compatible {
             return Err(WorkPreflightError::ParameterBinding);
         }
-        Ok(ClosedFactory {
-            construction: self,
-            parameters,
-        })
-    }
+        Ok(())
 }
 
 /// Known retained inline slots ONLY. No whole phase/callframe/allocator/RSS
@@ -185,6 +198,14 @@ pub struct WorkPreflightResources {
 /// Success reuses storage; any error poisons until reset. Reset cannot refund a
 /// caller ledger. Public proof CPU/private callframes and caller input backing
 /// remain independently unpriced, not zero.
+///
+/// Resident source and schedule types are publicly nameable without binding native parameters.
+///
+/// ```
+/// use pllm_core::puma::multiply::tensor::{ResidentFactorySource, ResidentNativeSchedule, WorkPreflightWorkspace};
+/// let _slots: (Option<ResidentFactorySource<'static>>, ResidentNativeSchedule<'static>) =
+///     (None, WorkPreflightWorkspace::resident_schedule());
+/// ```
 pub struct WorkPreflightWorkspace {
     rms: RmsWorkWorkspace,
     softmax: SoftmaxWorkWorkspace,
@@ -272,12 +293,18 @@ impl<'a> ClosedFactory<'a> {
     ) -> Result<WorkPreflight<'a>, WorkPreflightError> {
         preflight(self, full_invocations, Some(tail), workspace)
     }
-    fn price(
-        &self,
-        workspace: &mut WorkPreflightWorkspace,
-    ) -> Result<(WorkBudget, ConstructionQuote), WorkPreflightError> {
+    fn build(self) -> Result<FactoryOutput, Error> {
+        build_core(&self.construction, &self.parameters)
+    }
+}
+
+fn price_core(
+    construction: &Construction,
+    parameters: &FactoryParameters<'_>,
+    workspace: &mut WorkPreflightWorkspace,
+) -> Result<(WorkBudget, ConstructionQuote), WorkPreflightError> {
         use FactoryParameters as P;
-        let work = match (&self.construction, &self.parameters) {
+        let work = match (construction, parameters) {
             (Construction::GuardedSilu { lanes }, P::GuardedSilu { input }) => {
                 Program::activation_guarded_work(
                     Activation::Silu,
@@ -360,16 +387,26 @@ impl<'a> ClosedFactory<'a> {
         };
         // Numeric validation FIRST: geometry-only quoting cannot change the
         // original constructor's Shape/Bounds/domain winner.
+        #[cfg(test)]
+        resident_parameters::test_hook(resident_parameters::TestStage::Price);
         Ok((
             work,
-            self.construction
+            construction
                 .quote()
                 .map_err(WorkPreflightError::Quote)?,
         ))
-    }
-    fn build(self) -> Result<FactoryOutput, Error> {
+}
+
+fn build_core(
+    construction: &Construction,
+    parameters: &FactoryParameters<'_>,
+) -> Result<FactoryOutput, Error> {
+        #[cfg(test)]
+        resident_parameters::test_hook(resident_parameters::TestStage::Build);
         use FactoryParameters as P;
-        let (program, certificate) = match (self.construction, self.parameters) {
+        // The ephemeral enum copies scalars and borrows original parameter rows;
+        // no retained owner moves into a consuming native factory.
+        let (program, certificate) = match (*construction, parameters.borrowed()) {
             (Construction::GuardedSilu { lanes }, P::GuardedSilu { input }) => (
                 Program::activation_guarded(Activation::Silu, lanes, input)?,
                 ProducedCertificate::None,
@@ -445,7 +482,6 @@ impl<'a> ClosedFactory<'a> {
             program,
             certificate,
         })
-    }
 }
 
 fn preflight<'a>(
@@ -454,47 +490,63 @@ fn preflight<'a>(
     tail: Option<ClosedFactory<'a>>,
     workspace: &mut WorkPreflightWorkspace,
 ) -> Result<WorkPreflight<'a>, WorkPreflightError> {
+    let summary = preflight_core(
+        EphemeralBoundLens::borrowed(&factory.construction, &factory.parameters),
+        count,
+        tail.as_ref().map(|factory| {
+            EphemeralBoundLens::borrowed(&factory.construction, &factory.parameters)
+        }),
+        workspace,
+    )?;
+    Ok(WorkPreflight {
+        full: Part {
+            factory,
+            summary: summary.full,
+        },
+        tail: tail
+            .zip(summary.tail)
+            .map(|(factory, summary)| Part { factory, summary }),
+        summary,
+    })
+}
+
+fn preflight_core(
+    factory: EphemeralBoundLens<'_>,
+    count: u64,
+    tail: Option<EphemeralBoundLens<'_>>,
+    workspace: &mut WorkPreflightWorkspace,
+) -> Result<WorkSummary, WorkPreflightError> {
     if workspace.poisoned {
         return Err(WorkPreflightError::WorkspacePoisoned);
     }
     let result = (|| {
-        let (unit, quote) = factory.price(workspace)?;
+        let (unit, quote) = price_core(factory.construction, &factory.parameters, workspace)?;
         if count == 0 {
             return Err(WorkPreflightError::EmptySchedule);
         }
-        let full = Part {
-            factory,
-            summary: FactoryWorkSummary {
-                invocations: count,
-                unit_work: unit,
-                construction: quote,
-            },
+        let full = FactoryWorkSummary {
+            invocations: count,
+            unit_work: unit,
+            construction: quote,
         };
         let mut work = unit.checked_mul(count)?;
         let tail = if let Some(factory) = tail {
-            let (unit, quote) = factory.price(workspace)?;
+            let (unit, quote) = price_core(factory.construction, &factory.parameters, workspace)?;
             work = work.checked_add(unit)?;
-            Some(Part {
-                factory,
-                summary: FactoryWorkSummary {
-                    invocations: 1,
-                    unit_work: unit,
-                    construction: quote,
-                },
+            Some(FactoryWorkSummary {
+                invocations: 1,
+                unit_work: unit,
+                construction: quote,
             })
         } else {
             None
         };
         let summary = WorkSummary {
             work,
-            full: full.summary,
-            tail: tail.as_ref().map(|p| p.summary),
-        };
-        Ok(WorkPreflight {
             full,
             tail,
-            summary,
-        })
+        };
+        Ok(summary)
     })();
     if result.is_err() {
         workspace.poisoned = true;
@@ -542,19 +594,24 @@ impl<'a> CallerWorkLedger<'a> {
         &mut self,
         ticket: WorkPreflight<'p>,
     ) -> Result<AdmittedWorkSchedule<'p>, WorkPreflightError> {
-        ticket.summary.work.admit(
-            self.total.operations(),
-            self.total.cursors(),
-            self.max_operations,
-            self.max_aes,
-        )?;
-        let combined = self.total.checked_add(ticket.summary.work)?;
-        *self.total = combined;
+        admit_core(self, ticket.summary.work)?;
         Ok(AdmittedWorkSchedule {
             full: AdmittedFactory(ticket.full),
             tail: ticket.tail.map(AdmittedFactory),
         })
     }
+}
+
+fn admit_core(ledger: &mut CallerWorkLedger<'_>, work: WorkBudget) -> Result<(), WorkPreflightError> {
+    work.admit(
+        ledger.total.operations(),
+        ledger.total.cursors(),
+        ledger.max_operations,
+        ledger.max_aes,
+    )?;
+    let combined = ledger.total.checked_add(work)?;
+    *ledger.total = combined;
+    Ok(())
 }
 
 /// No Clone/Copy or parameter-taking build. Numeric debit covers scheduled

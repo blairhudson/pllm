@@ -382,12 +382,7 @@ impl Program {
         cosine: &[i64],
         sine: &[i64],
     ) -> Result<Self, Error> {
-        #[cfg(test)]
-        rotary_work::entered_factory();
-        let lanes = rotary_work::geometry(rows, width, cosine.len(), sine.len())?;
-        let mut b = Builder::new(lanes, input)?;
-        rotary_work::validate_coefficients(cosine, sine)?;
-        let output = rotary_work::recipe(&mut b, width, cosine, sine)?;
+        let (b, output) = prepare_rotary_half(rows, width, input, cosine, sine)?;
         b.finish(output)
     }
 
@@ -750,6 +745,25 @@ fn softmax_keep<S: attention_work::SoftmaxSink>(b: &mut S, z: Value) -> Result<V
         b.sign(threshold)?
     };
     b.from_bit(keep)
+}
+
+// Shared prepare-through-recipe boundary only. Acquisition and any error/unwind
+// here still have legacy local custody; only the returned Builder can be moved
+// into a resident finish slot. Preserve geometry -> Builder -> domain -> recipe.
+pub(super) fn prepare_rotary_half(
+    rows: usize,
+    width: usize,
+    input: Interval,
+    cosine: &[i64],
+    sine: &[i64],
+) -> Result<(Builder, Value), Error> {
+    #[cfg(test)]
+    rotary_work::entered_factory();
+    let lanes = rotary_work::geometry(rows, width, cosine.len(), sine.len())?;
+    let mut b = Builder::new(lanes, input)?;
+    rotary_work::validate_coefficients(cosine, sine)?;
+    let output = rotary_work::recipe(&mut b, width, cosine, sine)?;
+    Ok((b, output))
 }
 
 /// The actual RMS factory, after its original geometry/profile initialization.

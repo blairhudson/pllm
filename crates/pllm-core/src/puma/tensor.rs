@@ -2000,8 +2000,9 @@ pub use rms_output_energy::{
 };
 pub use work_preflight::{
     AdmittedFactory, AdmittedWorkSchedule, CallerWorkLedger, ClosedFactory, FactoryOutput,
-    FactoryParameters, FactoryWorkSummary, ProducedCertificate, WorkPreflight, WorkPreflightError,
-    WorkPreflightResources, WorkPreflightWorkspace,
+    FactoryParameters, FactoryWorkSummary, ProducedCertificate, ResidentFactorySource,
+    ResidentNativeSchedule, WorkPreflight, WorkPreflightError, WorkPreflightResources,
+    WorkPreflightWorkspace,
 };
 
 #[cfg(test)]
