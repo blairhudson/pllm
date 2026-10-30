@@ -4,6 +4,9 @@ use super::*;
 use crate::coefficient_layout::{CoefficientRing, DegreeBound};
 use num_bigint::BigInt;
 
+#[path = "composition_tests.rs"]
+mod composition_tests;
+
 fn residue(value: BigInt, q: u64) -> u64 {
     let modulus = BigInt::from(q);
     let value = ((value % &modulus) + &modulus) % &modulus;

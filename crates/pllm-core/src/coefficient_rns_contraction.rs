@@ -13,6 +13,7 @@
 //! NTT. Copying source NTT ordinates across moduli is not this operation.
 
 use crate::coefficient_layout::modular::mul;
+use crate::coefficient_layout::{LayoutError, RoundedLimbDrop};
 use crate::coefficient_ntt::{LogicalOperations, NegacyclicNtt, Operation};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,6 +96,112 @@ pub struct Storage {
     pub total_bytes: usize,
 }
 
+/// Composition failures preserve every output and scratch word. Constructor
+/// errors retain the exact LayoutError, including Overflow, and target index.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CompositionError {
+    Contraction(Error),
+    ArithmeticCapacity,
+    BufferLength,
+    WorkLimit,
+    DropConstruction { limb: usize, error: LayoutError },
+}
+
+/// Simultaneously live logical u64 payloads only: 3N source, 24N rows,
+/// 6N output, 19N scratch; total 52N words / 416N bytes. Not minimal memory,
+/// physical peak, descriptor storage, caller tails, or control funding.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CompositionStorage {
+    pub source_words: usize,
+    pub row_words: usize,
+    pub output_words: usize,
+    pub scratch_words: usize,
+    pub total_words: usize,
+    pub total_bytes: usize,
+    spectra_words: usize,
+    coefficients_end: usize,
+    endpoints: [usize; 9],
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DropWork {
+    pub checks: u64,
+    pub residue_checks: u64,
+    pub moves: u64,
+    pub modular_subtractions: u64,
+    pub modular_multiplications: u64,
+    pub unsigned_reductions: u64,
+    pub ordinary_subtractions: u64,
+    pub ordinary_divisions: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DropConstructionWork {
+    pub checks: u64,
+    pub descriptor_stores: u64,
+    pub euclid_iterations: u64,
+    pub signed_divisions: u64,
+    pub signed_multiplications: u64,
+    pub signed_subtractions: u64,
+    pub signed_remainders: u64,
+    pub unsigned_remainders: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CompositionControlWork {
+    pub capacity_outcomes: u64,
+    pub adapters: u64,
+    pub result_inspections: u64,
+    pub ceiling_comparisons: u64,
+    pub length_comparisons: u64,
+    pub dispatches: u64,
+    pub selected_loop_polls: u64,
+    pub slice_partitions: u64,
+    pub selected_phase_calls: u64,
+}
+
+/// Extra logical work beyond the unchanged contraction Work. Nested NTT
+/// categories retain their owner's semantics and control exclusions. No scalar
+/// tariff, complete CPU inventory, allocation claim, or admission funding.
+/// Moves count primitive payload stores, not compiler/control-structure moves.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CompositionExtraWork {
+    pub inverse_ntts: LogicalOperations,
+    pub drop: DropWork,
+    pub construction: DropConstructionWork,
+    pub control: CompositionControlWork,
+}
+
+impl CompositionExtraWork {
+    /// Exactly 35 componentwise comparisons on a successful fit. Query work
+    /// before operation entry is unpriced; this counts the one internal fit.
+    pub fn fits(self, ceiling: Self) -> bool {
+        macro_rules! fits {
+            ($left:expr, $right:expr; $($field:ident),*) => {
+                true $( && $left.$field <= $right.$field )*
+            };
+        }
+        event_fields!(fits, self.inverse_ntts, ceiling.inverse_ntts)
+            && fits!(self.drop, ceiling.drop; checks, residue_checks, moves,
+                modular_subtractions, modular_multiplications, unsigned_reductions,
+                ordinary_subtractions, ordinary_divisions)
+            && fits!(self.construction, ceiling.construction; checks,
+                descriptor_stores, euclid_iterations, signed_divisions,
+                signed_multiplications, signed_subtractions, signed_remainders,
+                unsigned_remainders)
+            && fits!(self.control, ceiling.control; capacity_outcomes, adapters,
+                result_inspections, ceiling_comparisons, length_comparisons,
+                dispatches, selected_loop_polls, slice_partitions,
+                selected_phase_calls)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CompositionWork {
+    pub contraction: Work,
+    pub extra: CompositionExtraWork,
+}
+
 /// Public source spectra plus their asserted ordered transform contexts.
 /// This binding checks descriptor identity, not truth/provenance of supplied data.
 pub struct SourceSpectra<'a> {
@@ -140,6 +247,130 @@ impl<'a> RnsContraction<'a> {
 
     pub fn degree(&self) -> usize {
         self.sources[0].ring().degree()
+    }
+
+    /// Reported logical payload storage only; see CompositionStorage. Checks
+    /// every product, total, byte count and reused partition endpoint before
+    /// execution. Six word products + three sums + bytes + nine endpoints =
+    /// 19 checked capacity outcomes, adapters and Result inspections.
+    pub fn composition_storage(&self) -> Result<CompositionStorage, CompositionError> {
+        let n = self.degree();
+        let source_words = n.checked_mul(3).ok_or(CompositionError::ArithmeticCapacity)?;
+        let row_words = n.checked_mul(24).ok_or(CompositionError::ArithmeticCapacity)?;
+        let output_words = n.checked_mul(6).ok_or(CompositionError::ArithmeticCapacity)?;
+        let spectra_words = n.checked_mul(8).ok_or(CompositionError::ArithmeticCapacity)?;
+        let coefficients_end = n.checked_mul(16).ok_or(CompositionError::ArithmeticCapacity)?;
+        let scratch_words = n.checked_mul(19).ok_or(CompositionError::ArithmeticCapacity)?;
+        let total_words = source_words.checked_add(row_words)
+            .ok_or(CompositionError::ArithmeticCapacity)?;
+        let total_words = total_words.checked_add(output_words)
+            .ok_or(CompositionError::ArithmeticCapacity)?;
+        let total_words = total_words.checked_add(scratch_words)
+            .ok_or(CompositionError::ArithmeticCapacity)?;
+        let total_bytes = total_words.checked_mul(core::mem::size_of::<u64>())
+            .ok_or(CompositionError::ArithmeticCapacity)?;
+        let endpoints = [
+            n.checked_mul(0).ok_or(CompositionError::ArithmeticCapacity)?,
+            n.checked_mul(1).ok_or(CompositionError::ArithmeticCapacity)?,
+            n.checked_mul(2).ok_or(CompositionError::ArithmeticCapacity)?,
+            n.checked_mul(3).ok_or(CompositionError::ArithmeticCapacity)?,
+            n.checked_mul(4).ok_or(CompositionError::ArithmeticCapacity)?,
+            n.checked_mul(5).ok_or(CompositionError::ArithmeticCapacity)?,
+            n.checked_mul(6).ok_or(CompositionError::ArithmeticCapacity)?,
+            n.checked_mul(7).ok_or(CompositionError::ArithmeticCapacity)?,
+            n.checked_mul(8).ok_or(CompositionError::ArithmeticCapacity)?,
+        ];
+        Ok(CompositionStorage {
+            source_words, row_words, output_words, scratch_words, total_words,
+            total_bytes, spectra_words, coefficients_end, endpoints,
+        })
+    }
+
+    /// Extra logical-only bound, excluding the existing contraction quote.
+    /// Eight inverse quotes are summed fieldwise; their owner's control
+    /// exclusions remain in force. For B=(N/2)*log2(N), their sums are checks
+    /// 8N+16, residues 8N, moves 16N+16B, swaps 8*floor(N/2), additions and
+    /// subtractions 8B, products (N==1 ? 0 : 16B+24N).
+    ///
+    /// Actual additional control census (no wrapper traversal loops):
+    /// storage 19 capacities; quote 1 conversion + 80 field additions +
+    /// 7 drop products + 2 drop sums + 1 poll product + 1 poll sum = 92.
+    /// Thus 111 capacity outcomes, 110 ok_or + one conversion map_err;
+    /// add three internal inverse maps, three constructor maps, one contraction
+    /// map = 118 adapters. Result inspections: 111 capacity + two outer query
+    /// calls + six constructor internal/outer + sixteen inverse validation/
+    /// expect + six drop expects = 141. Twelve canonical Result inspections
+    /// are already in drop checks, never counted again here.
+    /// Dispatches: 24 NTT quote selections + two outer refusal predicates +
+    /// three inverse-error matches = 29. Extra fit compares 10+8+8+9 fields.
+    /// Selected polls: 18N+405. Slices: two immutable preflight views, one
+    /// mutable prefix, two splits, sixteen inverse and eighteen drop = 39.
+    /// Selected phase calls: storage + quote + eight NTT quotes + three
+    /// constructors + validated contraction + eight inverses + six drops +
+    /// three constructor inverses + twelve canonical scans = 43.
+    /// The old preflight caller's Result tag remains in its unchanged census.
+    /// No panic rollback guarantee; quote computation before entry is unpriced.
+    pub fn composition_extra_work(&self) -> Result<CompositionExtraWork, CompositionError> {
+        let n = u64::try_from(self.degree())
+            .map_err(|_| CompositionError::ArithmeticCapacity)?;
+        let mut inverse_ntts = LogicalOperations::default();
+        // Macros expand direct statements, not extra helper calls or Result tags.
+        macro_rules! add_fields {
+            ($left:expr, $right:expr; $($field:ident),*) => {
+                $( $left.$field = $left.$field.checked_add($right.$field)
+                    .ok_or(CompositionError::ArithmeticCapacity)?; )*
+            };
+        }
+        macro_rules! inverse_quote {
+            ($limb:expr) => {{
+                let quote = self.targets[$limb].operations(Operation::Inverse);
+                event_fields!(add_fields, inverse_ntts, quote);
+            }};
+        }
+        inverse_quote!(0);
+        inverse_quote!(1);
+        inverse_quote!(2);
+        inverse_quote!(3);
+        inverse_quote!(0);
+        inverse_quote!(1);
+        inverse_quote!(2);
+        inverse_quote!(3);
+        let drop = DropWork {
+            checks: n.checked_mul(18).ok_or(CompositionError::ArithmeticCapacity)?
+                .checked_add(30).ok_or(CompositionError::ArithmeticCapacity)?,
+            residue_checks: n.checked_mul(12).ok_or(CompositionError::ArithmeticCapacity)?,
+            moves: n.checked_mul(6).ok_or(CompositionError::ArithmeticCapacity)?,
+            modular_subtractions: n.checked_mul(12).ok_or(CompositionError::ArithmeticCapacity)?,
+            modular_multiplications: n.checked_mul(6).ok_or(CompositionError::ArithmeticCapacity)?,
+            unsigned_reductions: n.checked_mul(6).ok_or(CompositionError::ArithmeticCapacity)?,
+            ordinary_subtractions: n.checked_mul(6).ok_or(CompositionError::ArithmeticCapacity)?
+                .checked_add(6).ok_or(CompositionError::ArithmeticCapacity)?,
+            ordinary_divisions: 6,
+        };
+        let construction = DropConstructionWork {
+            checks: 390,
+            descriptor_stores: 15,
+            euclid_iterations: 384,
+            signed_divisions: 384,
+            signed_multiplications: 768,
+            signed_subtractions: 768,
+            signed_remainders: 3,
+            unsigned_remainders: 3,
+        };
+        let control = CompositionControlWork {
+            capacity_outcomes: 111,
+            adapters: 118,
+            result_inspections: 141,
+            ceiling_comparisons: 35,
+            length_comparisons: 2,
+            dispatches: 29,
+            selected_loop_polls: n.checked_mul(18)
+                .ok_or(CompositionError::ArithmeticCapacity)?
+                .checked_add(405).ok_or(CompositionError::ArithmeticCapacity)?,
+            slice_partitions: 39,
+            selected_phase_calls: 43,
+        };
+        Ok(CompositionExtraWork { inverse_ntts, drop, construction, control })
     }
 
     pub fn storage(&self, evaluation: Evaluation) -> Result<Storage, Error> {
@@ -361,6 +592,89 @@ impl<'a> RnsContraction<'a> {
         }
     }
 
+    /// Contract public spectra, inverse-transform both components under all
+    /// four targets, then rounded-drop p into coefficient output [2][3][N].
+    /// Components are (b,a), retained targets [q0,q1,q2]; this output is NOT NTT
+    /// spectra. The same p coefficient vector is reused for each retained limb.
+    /// Source/row views and all authority/profile/degree gates are unchanged.
+    ///
+    /// Exact 6N output and at least 19N scratch. Scratch is [S:8N,C:8N,W:3N];
+    /// all excess tail words remain untouched. Every Result refusal precedes
+    /// ANY mutable write, including all three fallible drop constructors in
+    /// q0,q1,q2 order. No public prepared token or mutation gap is exposed.
+    /// Canonical arithmetic and checked exact slices justify subsequent expects;
+    /// this is not a panic-rollback or physical peak-memory guarantee.
+    pub fn contract_drop_into(
+        &self,
+        source: SourceSpectra<'_>,
+        rows: RowSpectra<'_>,
+        out: &mut [u64],
+        scratch: &mut [u64],
+        ceiling: CompositionWork,
+    ) -> Result<(), CompositionError> {
+        // Whole-call preflight: storage/endpoints, quote, lengths, extra fit,
+        // exactly one existing preflight, then all constructors, then writes.
+        let storage = self.composition_storage()?;
+        let extra = self.composition_extra_work()?;
+        if out.len() != storage.output_words || scratch.len() < storage.scratch_words {
+            return Err(CompositionError::BufferLength);
+        }
+        if !extra.fits(ceiling.extra) {
+            return Err(CompositionError::WorkLimit);
+        }
+        self.preflight(
+            &source,
+            Some(&rows),
+            &scratch[..storage.spectra_words],
+            &scratch[storage.coefficients_end..storage.scratch_words],
+            ceiling.contraction,
+        ).map_err(CompositionError::Contraction)?;
+        let drop0 = RoundedLimbDrop::new(self.targets[0].ring(), self.targets[3].ring())
+            .map_err(|error| CompositionError::DropConstruction { limb: 0, error })?;
+        let drop1 = RoundedLimbDrop::new(self.targets[1].ring(), self.targets[3].ring())
+            .map_err(|error| CompositionError::DropConstruction { limb: 1, error })?;
+        let drop2 = RoundedLimbDrop::new(self.targets[2].ring(), self.targets[3].ring())
+            .map_err(|error| CompositionError::DropConstruction { limb: 2, error })?;
+
+        let e = storage.endpoints;
+        let (spectra_and_coefficients, work) = scratch[..storage.scratch_words]
+            .split_at_mut(storage.coefficients_end);
+        let (spectra, coefficients) = spectra_and_coefficients
+            .split_at_mut(storage.spectra_words);
+        self.contract_validated_into(source, rows, spectra, work);
+        macro_rules! inverse {
+            ($limb:expr, $at:expr) => {
+                self.targets[$limb].inverse_into(
+                    &spectra[e[$at]..e[$at + 1]],
+                    &mut coefficients[e[$at]..e[$at + 1]],
+                ).expect("validated contraction produces canonical spectra; buffers are exact");
+            };
+        }
+        inverse!(0, 0);
+        inverse!(1, 1);
+        inverse!(2, 2);
+        inverse!(3, 3);
+        inverse!(0, 4);
+        inverse!(1, 5);
+        inverse!(2, 6);
+        inverse!(3, 7);
+        macro_rules! project {
+            ($drop:expr, $retained:expr, $removed:expr, $output:expr) => {
+                $drop.apply_into(
+                    &coefficients[e[$retained]..e[$retained + 1]],
+                    &coefficients[e[$removed]..e[$removed + 1]],
+                    &mut out[e[$output]..e[$output + 1]],
+                ).expect("inverse outputs are canonical in matching rings; buffers are exact");
+            };
+        }
+        project!(drop0, 0, 3, 0);
+        project!(drop1, 1, 3, 1);
+        project!(drop2, 2, 3, 2);
+        project!(drop0, 4, 7, 3);
+        project!(drop1, 5, 7, 4);
+        project!(drop2, 6, 7, 5);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
