@@ -132,15 +132,20 @@ entries. This is not SourceTensor collection, whole-request peak/fit, installed
 SDK or checkpoint execution. The older 30-row Bounds baseline is **unrun**.
 
 **26 October 2026 — prompt/oracle evidence is not a new SDK qualification.** D51's
-eight-production-Python-file correction remains **unlanded** (115 pure passes,
-source clear); c634's older prompt cohort does not qualify it. The single pure
+then-unlanded eight-production-Python-file candidate had 115 pure passes and
+source clearance; c634's older prompt cohort does not qualify the changed prompt.
+The single pure
 integer-oracle file landed `2308ca1f`: five tests plus Ruff, with six authorings
 and six replays internal, not 12 extra passes. Explicit residue tapes produce
 complete accepted `world` `(0,0)`/`(1,1)`; `hello` `(4,4)` holds for three observed
 schedules, not universally. SemanticTape enforces name uniqueness, shapes,
-residues and exhaustion, not native chronological carry. Universal SDK proof is
-**in progress**; no new wheel/gateway/trained result, publication readiness or
-tenfold-memory measurement is established. Existing campaign estimates remain.
+residues and exhaustion, not native chronological carry. These remain historical
+oracle-cohort results, not universal SDK proof. Later shared prepared-prompt
+integration landed in `bcde781d`; zero-ID fixes landed in `23ff55f1`, with isolated
+regression source in `067994a3`. See [current coverage](../../paper/TEN-METHOD-COVERAGE.md#current-trained-execution-round--26-october-2026):
+current matching-wheel and dirty present-empty-template qualification remain
+**unproven**. No new SDK/gateway/trained result, publication readiness, failure-target
+claim or tenfold-memory measurement follows. Existing campaign estimates remain.
 
 **Installed evidence stays separate.** The older installed `923` run's 269 passes
 are historical. The broader installed `c938` rerun recorded 171 passes, four startup-admission refusals (the exact triggering predicate remains unresolved)

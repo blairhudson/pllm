@@ -87,10 +87,10 @@ next approval. Factory paths are relative to the repository root.
 
 | Method | Actual entry point and current status | First executable gap / distinct approval gates |
 | --- | --- | --- |
-| GKM | `examples/papers/gkm.py:experiment` / `seeded`, `compiled_gkm_v1`; existing complete ordinary two-worker SDK/benchmark chain. `examples/papers/gkm_quality.py:experiment` / `seeded` configures paired quality. | Obtain a coherent matching wheel and prepared-prompt integration: completed Sol61 preflight found the installed 18 October native lacks `lookup_batch`/`linear_batch`/`accept_batch` required by `4ac1cfb`. No launch/resource fit is established. Then resource-admit the **unrun** twelve-prompt FP32 diagnostic. Historical 4+2 full/seeded Q11 state checks and three-prompt FP32 smoke remain bounded; this is not a garbling/security hold or broader publication qualification. |
+| GKM | `examples/papers/gkm.py:experiment` / `seeded`, `compiled_gkm_v1`; existing complete ordinary two-worker SDK/benchmark chain. `examples/papers/gkm_quality.py:experiment` / `seeded` configures paired quality. | Qualify a coherent current wheel against landed prepared-prompt integration and the `lookup_batch`/`linear_batch`/`accept_batch` calls still required by current Python transport. The earlier 18 October installed-native mismatch is historical evidence, not a fresh installed-wheel finding; current matching-wheel qualification remains **unproven**. No launch/resource fit is established. Then resource-admit the **unrun** twelve-prompt FP32 diagnostic. Historical 4+2 full/seeded Q11 state checks and three-prompt FP32 smoke remain bounded; this is not a garbling/security hold or broader publication qualification. |
 | Maverick | `MaverickDelegatedLinear` and bounded batch primitives; no complete method SDK factory. | Implement source-bound fixed-eight protected continuation, including client-local nonlinear operations and original-dot window lifecycle with Protocol 2 trust. M-X/M-D adoption, actual-code security and no-wrap gates remain separate. |
 | SIGMA | Bounded native arithmetic/activation/normalization components; no trained method executor. | Implement the frozen four-lane LayerNorm → private-matrix handoff with consuming leases; current clarifications are source/design only. This is neither joint-view security qualification nor complete trained execution. |
-| FuseFSS | `examples/papers/fusefss.py:experiment` and checked smoke factories; complete generated dealer/two-holder SDK path. Three selections already have generic decoder support (limit four). | Integrate D51's corrected cohort and ordinary oversize refusal under unchanged caps. Cached source-template `hello` has 30 tokens: default `fss_decoder` sequence ≤16 and `fss_source._contract` rows+outputs−1 ≤16 reject before tape pricing; no new trained attempt fits this cohort. Historical legacy `user: hi` had three tokens; corrected `hi` is unknown. The old one-selection pressure stop never accepted and supplies no corrected-cohort evidence. |
+| FuseFSS | `examples/papers/fusefss.py:experiment` and checked smoke factories; complete generated dealer/two-holder SDK path. Three selections already have generic decoder support (limit four); shared prepared-prompt source integration is landed. | Qualify the current corrected cohort and ordinary oversize refusal with a coherent matching wheel under unchanged caps. Historically cached source-template `hello` had 30 tokens: default `fss_decoder` sequence ≤16 and `fss_source._contract` rows+outputs−1 ≤16 reject that cohort before tape pricing. Historical legacy `user: hi` had three tokens; current corrected `hi` is unknown. The old one-selection pressure stop never accepted and supplies no corrected-cohort evidence or trained fit. |
 | BumbleBee | `PrivateEmbeddingLookup(repacking="interleave")` is a bounded component; no complete method SDK factory. | Supply full encrypted OLT, distributed OT and nonlinear execution; B-N1 source/numerical mapping and backend/security selection remain held. Lookup controls do not complete the transformer. |
 | PUMA | `examples/papers/puma.py:experiment`; complete compact three-worker generated SDK/gateway path, not trained-qualified pinned full-prefix execution. | Execute an admitted actual trained prefix through accepted private feedback/output. Expanded private-fixture second-RMS refusal is valid for its propagated interval, not a proved propagation bug; compact gateway success does not remove trained-source/range gates. |
 | NEXUS | Bounded `PackedEncryptedSoftmax(method="repeated_squaring")` and clear Algorithm 5/shared-owner controls; no trained method SDK factory. | Build the confidential-server-weight dual-key whole executor with its numeric and selection profile. Clear Algorithm 5 is not encrypted trained execution; profile, key/security and lifecycle gates remain held. |
@@ -98,19 +98,24 @@ next approval. Factory paths are relative to the repository root.
 | CacheMir | Source/calibration descriptors and bounded state/numeric studies; no encrypted-KV method SDK factory. | Supply encrypted KV executor/backend with GQA mapping and numeric certificates. Source/calibration authority, encrypted kernels and complete feedback/selection remain independent held gates. |
 | ROSETTA | Source/placement/shared-owner references and clear algebra only; conversion specifications are not implemented encrypted conversion. No full encrypted method SDK factory. | Implement CKKS/LWE conversion and HomComp inside the complete encrypted executor. Conversion key/error graph, numeric/backend and author-parameter gates remain unresolved. |
 
-D51's prepared-prompt candidate is **not landed**; GKM/FSS/PUMA inherit the legacy
-`DelegatedClient._encode` path (`FssClient` inherits it). Cached Qwen `hello`
-produces **30 tokens under the source template**, versus legacy three; this is
-not a count for every text or corrected `hi`. D51’s unlanded eight-file candidate
-passed 115 pure checks; matching SDK checks passed 5/6, including both compact
-cases. Expanded private-fixture second-RMS refusal is sound for its declared
-interval; trained execution remains unqualified.
-Actual GKM/FSS descriptor-parity correction remains pending: zero BOS/EOS false
-fallback and FSS missing-BOS/template fallback repairs/tests are unapplied source work.
+D51's shared prepared-prompt integration **landed** in `bcde781d` (ancestor of
+current HEAD). Current `DelegatedClient._encode` consumes shared prepared prompts;
+FSS/PUMA inherit this integration, not the legacy rendering path. Shared GKM/FSS
+source-descriptor policies are also landed; zero BOS/EOS false fallback was fixed
+in `23ff55f1`, with isolated regression source in `067994a3` (both ancestors).
+These are source findings, not executed qualification. The present-empty-template
+correction is separate uncommitted work; no test result is claimed for it.
+D51's earlier eight-file candidate passed 115 pure checks and 5/6 matching SDK
+checks, including both compact cases: **historical candidate evidence only**, not
+qualification of the landed revision or current dirty source. Current coherent
+matching-wheel qualification remains **unproven**. Expanded private-fixture
+second-RMS refusal is sound for its declared interval; trained execution remains
+unqualified. Historically cached Qwen `hello` had **30 source-template tokens**
+versus legacy three; neither count establishes current corrected `hi` or a fit.
 D52's readout/summary
 metadata now matches the **already-existing LastToken graph**; it changes no
 arithmetic or execution optimizer and proves no checkpoint execution/whole fit.
-Do not substitute legacy three-token or four-token metadata for actual 30-token
+Do not substitute legacy three-token or four-token metadata for actual prepared-token
 admission. Prompt changes invalidate old cohort comparisons; source quotations
 alone cannot authorize another checkpoint.
 
