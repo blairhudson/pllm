@@ -11,6 +11,91 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+#[macro_use]
+mod config_schema;
+
+// One closed schema set, in source-role order. Defaults name existing functions
+// at the eventual struct invocation site; no default values live in this data.
+config_schema! {
+    $;
+    emit EMIT_QWEN2_CONFIG; derives eq_config; struct pub QwenConfig;
+    field_ids QwenConfigField;
+    defaults {}
+    fields {
+        pub model_type: required(Text);
+        pub hidden_size: required(U64);
+        pub intermediate_size: required(U64);
+        pub num_hidden_layers: required(U32);
+        pub num_attention_heads: required(U32);
+        pub num_key_value_heads: required(U32);
+        pub vocab_size: required(U64);
+        pub max_position_embeddings: required(U64);
+        pub hidden_act: required(Text);
+        pub rms_norm_eps: required(Decimal);
+        pub rope_theta: required(Integral);
+        pub tie_word_embeddings: required(Bool);
+        pub sliding_window: optional(U64, explicit, skip_none);
+        pub use_sliding_window: optional(Bool, explicit, skip_none);
+    }
+    emit EMIT_QWEN3_CONFIG; derives eq_config; struct Qwen3Config;
+    field_ids Qwen3ConfigField;
+    defaults {}
+    fields {
+        model_type: required(Text);
+        hidden_size: required(U64);
+        intermediate_size: required(U64);
+        num_hidden_layers: required(U32);
+        num_attention_heads: required(U32);
+        num_key_value_heads: required(U32);
+        vocab_size: required(U64);
+        max_position_embeddings: required(U64);
+        head_dim: required(U64);
+        hidden_act: required(Text);
+        rms_norm_eps: required(Decimal);
+        rope_theta: required(Integral);
+        tie_word_embeddings: required(Bool);
+        attention_bias: required(Bool);
+        attention_dropout: required(Decimal);
+        rope_scaling: optional(Json, implicit, keep);
+        sliding_window: optional(U64, implicit, keep);
+        use_sliding_window: required(Bool);
+        use_cache: required(Bool);
+        max_window_layers: required(U32);
+        // Earlier dense Qwen3 releases omit this field and declare full attention
+        // through the sliding-window knobs above instead.
+        layer_types: optional(StringList, implicit, keep);
+    }
+    emit EMIT_LLAMA_CONFIG; derives config; struct SourceConfig;
+    field_ids SourceConfigField;
+    defaults {
+        default_hidden_act => "default_hidden_act": Text = existing;
+        default_rms_norm_eps => "default_rms_norm_eps": Decimal = existing;
+        default_rope_theta => "default_rope_theta": Integral = existing;
+    }
+    fields {
+        model_type: required(Text);
+        hidden_size: required(U64);
+        intermediate_size: required(U64);
+        num_hidden_layers: required(U32);
+        num_attention_heads: required(U32);
+        num_key_value_heads: optional(U32, explicit, keep);
+        vocab_size: required(U64);
+        max_position_embeddings: required(U64);
+        hidden_act: named(default_hidden_act);
+        rms_norm_eps: named(default_rms_norm_eps);
+        rope_theta: named(default_rope_theta);
+        tie_word_embeddings: default(Bool);
+        head_dim: optional(U64, explicit, keep);
+        attention_bias: default(Bool);
+        mlp_bias: default(Bool);
+        attention_dropout: default(F64);
+        rope_scaling: optional(Json, explicit, keep);
+        sliding_window: optional(U64, explicit, keep);
+        use_cache: optional(Bool, explicit, keep);
+        pretraining_tp: optional(U32, explicit, keep);
+    }
+}
+
 mod absolute_position_decoder;
 mod dense_gated_source;
 mod fused_dense_decoder;
@@ -27,27 +112,7 @@ pub use source_budget::{
 
 pub const DECODER_PLAN_SCHEMA_VERSION: &str = "pllm.decoder_plan.v1";
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct QwenConfig {
-    pub model_type: String,
-    pub hidden_size: u64,
-    pub intermediate_size: u64,
-    pub num_hidden_layers: u32,
-    pub num_attention_heads: u32,
-    pub num_key_value_heads: u32,
-    pub vocab_size: u64,
-    pub max_position_embeddings: u64,
-    pub hidden_act: String,
-    #[serde(deserialize_with = "decimal_string")]
-    pub rms_norm_eps: String,
-    #[serde(deserialize_with = "integral_u64")]
-    pub rope_theta: u64,
-    pub tie_word_embeddings: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sliding_window: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub use_sliding_window: Option<bool>,
-}
+EMIT_QWEN2_CONFIG!();
 
 impl QwenConfig {
     pub fn from_json(bytes: &[u8]) -> Result<Self, ModelError> {
@@ -115,35 +180,7 @@ impl QwenConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-struct Qwen3Config {
-    model_type: String,
-    hidden_size: u64,
-    intermediate_size: u64,
-    num_hidden_layers: u32,
-    num_attention_heads: u32,
-    num_key_value_heads: u32,
-    vocab_size: u64,
-    max_position_embeddings: u64,
-    head_dim: u64,
-    hidden_act: String,
-    #[serde(deserialize_with = "decimal_string")]
-    rms_norm_eps: String,
-    #[serde(deserialize_with = "integral_u64")]
-    rope_theta: u64,
-    tie_word_embeddings: bool,
-    attention_bias: bool,
-    #[serde(deserialize_with = "decimal_string")]
-    attention_dropout: String,
-    rope_scaling: Option<Value>,
-    sliding_window: Option<u64>,
-    use_sliding_window: bool,
-    use_cache: bool,
-    max_window_layers: u32,
-    // Earlier dense Qwen3 releases omit this field and declare full attention
-    // through the sliding-window knobs above instead.
-    layer_types: Option<Vec<String>>,
-}
+EMIT_QWEN3_CONFIG!();
 
 impl Qwen3Config {
     fn from_json(bytes: &[u8]) -> Result<Self, ModelError> {

@@ -7,42 +7,7 @@ use pllm_types::canonical_digest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-struct SourceConfig {
-    model_type: String,
-    hidden_size: u64,
-    intermediate_size: u64,
-    num_hidden_layers: u32,
-    num_attention_heads: u32,
-    #[serde(default)]
-    num_key_value_heads: Option<u32>,
-    vocab_size: u64,
-    max_position_embeddings: u64,
-    #[serde(default = "default_hidden_act")]
-    hidden_act: String,
-    #[serde(default = "default_rms_norm_eps", deserialize_with = "decimal_string")]
-    rms_norm_eps: String,
-    #[serde(default = "default_rope_theta", deserialize_with = "integral_u64")]
-    rope_theta: u64,
-    #[serde(default)]
-    tie_word_embeddings: bool,
-    #[serde(default)]
-    head_dim: Option<u64>,
-    #[serde(default)]
-    attention_bias: bool,
-    #[serde(default)]
-    mlp_bias: bool,
-    #[serde(default)]
-    attention_dropout: f64,
-    #[serde(default)]
-    rope_scaling: Option<Value>,
-    #[serde(default)]
-    sliding_window: Option<u64>,
-    #[serde(default)]
-    use_cache: Option<bool>,
-    #[serde(default)]
-    pretraining_tp: Option<u32>,
-}
+EMIT_LLAMA_CONFIG!();
 
 fn default_hidden_act() -> String {
     "silu".into()
@@ -161,6 +126,10 @@ fn lower_config(
         workload,
     )
 }
+
+#[cfg(test)]
+#[path = "config_schema_tests.rs"]
+mod config_schema_tests;
 
 #[cfg(test)]
 mod tests {
