@@ -306,6 +306,228 @@ fn wrong_role_context_order_and_cancel_burn() {
     assert_eq!(budget.used_bytes(), p.resources().plan_reservation_bytes);
 }
 
+fn assert_lookup_cost_delta(b: &mut Builder<'_>, table: usize) -> Value {
+    let bits = b.tables[table].bits();
+    let native = b.tables[table].resources(1).unwrap();
+    let cost = NativeCost::lookup(native, bits).unwrap();
+    assert_eq!(cost.peak, native.issuance_reservation_bytes);
+    assert_eq!(cost.keys, native.dcf_keys_per_party);
+    assert_eq!(cost.evaluations, native.dcf_evaluations_per_party);
+    assert_eq!(cost.triples, 0);
+    assert_eq!(cost.frames, 1);
+    assert_eq!(cost.frame_bytes, native.peer_frame_bytes_per_party);
+    assert_eq!(
+        cost.private_bytes_total,
+        2 * native.private_key_bytes_per_party
+    );
+    assert_eq!(
+        cost.public_copy_bytes_total,
+        native.public_table_bytes_per_party * 2
+    );
+    assert_eq!(
+        cost.work,
+        native.dcf_evaluations_per_party * usize::from(bits)
+    );
+
+    let before = b.resources;
+    let instructions = b.code.len();
+    let registers = b.registers.len();
+    let output = b.lookup(0, table).unwrap();
+    let after = b.resources;
+    assert_eq!(b.code.len(), instructions + 1);
+    assert_eq!(b.registers.len(), registers + 1);
+    assert_eq!(after.secret_steps, before.secret_steps + 1);
+    assert_eq!(after.dcf_keys_per_party, before.dcf_keys_per_party + cost.keys);
+    assert_eq!(after.dcf_keys_total, before.dcf_keys_total + 2 * cost.keys);
+    assert_eq!(
+        after.dcf_evaluations_per_party,
+        before.dcf_evaluations_per_party + cost.evaluations
+    );
+    assert_eq!(
+        after.dcf_evaluations_total,
+        before.dcf_evaluations_total + 2 * cost.evaluations
+    );
+    assert_eq!(after.triples_per_party, before.triples_per_party);
+    assert_eq!(after.triples_total, before.triples_total);
+    assert_eq!(after.frames_per_party, before.frames_per_party + 1);
+    assert_eq!(after.frames_total, before.frames_total + 2);
+    assert_eq!(
+        after.frame_bytes_per_party,
+        before.frame_bytes_per_party + cost.frame_bytes
+    );
+    assert_eq!(
+        after.frame_bytes_total,
+        before.frame_bytes_total + 2 * cost.frame_bytes
+    );
+    assert_eq!(
+        after.private_material_bytes_total,
+        before.private_material_bytes_total + cost.private_bytes_total
+    );
+    assert_eq!(
+        after.public_table_copy_bytes_total,
+        before.public_table_copy_bytes_total + cost.public_copy_bytes_total
+    );
+    assert_eq!(after.cumulative_work, before.cumulative_work + cost.work + 1);
+    assert_eq!(
+        after.largest_primitive_reservation_bytes,
+        before.largest_primitive_reservation_bytes.max(cost.peak)
+    );
+    assert_eq!(
+        after.retained_frame_overlap_bytes,
+        before.retained_frame_overlap_bytes.max(2 * cost.frame_bytes)
+    );
+    assert_eq!(after.plan_reservation_bytes, before.plan_reservation_bytes);
+    assert_eq!(
+        after.public_table_reservation_bytes,
+        before.public_table_reservation_bytes
+    );
+    output
+}
+
+#[test]
+fn lookup_cost_matches_local_and_lowered_constructor_deltas() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    for bits in [1, 2, 8, 9, 17, 50] {
+        for entries in [1, 255, 256, 257] {
+            if entries as u64 > 1u64 << bits {
+                continue;
+            }
+            for lowered in [false, true] {
+                let mut b = builder(&[bits], &budget);
+                let values = vec![1; entries];
+                let table =
+                    lookup::Table::new_zero_extended(bits, &values, b.source, &budget).unwrap();
+                let table = if lowered {
+                    table.with_shared_chunks().unwrap()
+                } else {
+                    table
+                };
+                let table = b.retain_table(TableOwner::Local(table)).unwrap();
+                assert_lookup_cost_delta(&mut b, table);
+                let smaller = b.table(bits, &[1]).unwrap();
+                let output = assert_lookup_cost_delta(&mut b, smaller);
+                let p = b.finish(&[output]).unwrap();
+                assert_eq!(p.resources().instructions, 2);
+                assert_eq!(p.resources().registers, 3);
+                assert_eq!(p.resources().secret_steps, 2);
+            }
+        }
+    }
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn lookup_cost_matches_cached_lowered_constructor_deltas() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let cache = cache::SourceTableCache::new(
+        [9; 32],
+        cache::Limits {
+            max_entries: 1,
+            max_retained_bytes: MAX_PLAN_BYTES,
+        },
+        &budget,
+    )
+    .unwrap();
+    let mut b = builder(&[50], &budget);
+    let table = b.source_table(&cache, cache::Kind::Exp0).unwrap();
+    assert_lookup_cost_delta(&mut b, table);
+    let cached = b.source_table(&cache, cache::Kind::Exp0).unwrap();
+    let output = assert_lookup_cost_delta(&mut b, cached);
+    let p = b.finish(&[output]).unwrap();
+    assert_eq!(p.resources().instructions, 2);
+    assert_eq!(p.resources().registers, 3);
+    assert_eq!(p.resources().secret_steps, 2);
+}
+
+#[test]
+fn lookup_cost_checks_each_product_before_charging() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let table = lookup::Table::new_zero_extended(2, &[1], [7; 32], &budget).unwrap();
+    let native = table.resources(1).unwrap();
+    for resources in [
+        lookup::Resources {
+            private_key_bytes_per_party: usize::MAX / 2 + 1,
+            ..native
+        },
+        lookup::Resources {
+            public_table_bytes_per_party: usize::MAX / 2 + 1,
+            ..native
+        },
+        lookup::Resources {
+            dcf_evaluations_per_party: usize::MAX / 2 + 1,
+            ..native
+        },
+        // Public copy overflow must still precede work calculation.
+        lookup::Resources {
+            public_table_bytes_per_party: usize::MAX,
+            dcf_evaluations_per_party: usize::MAX,
+            ..native
+        },
+    ] {
+        assert!(matches!(
+            NativeCost::lookup(resources, 2),
+            Err(Error::Resource)
+        ));
+    }
+}
+
+#[test]
+fn lookup_rejection_preserves_precedence_and_charge_counters() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut b = builder(&[8], &budget);
+    let table = b.table(8, &[1]).unwrap();
+    let wrong_width = b.table(9, &[1]).unwrap();
+    let native = b.tables[table].resources(1).unwrap();
+    let work = NativeCost::lookup(native, 8).unwrap().work;
+    let initial = b.resources;
+    for resources in [
+        Resources {
+            cumulative_work: MAX_WORK - work,
+            ..initial
+        },
+        Resources {
+            cumulative_work: usize::MAX,
+            ..initial
+        },
+        Resources {
+            secret_steps: usize::MAX,
+            ..initial
+        },
+        Resources {
+            public_table_copy_bytes_total: usize::MAX,
+            ..initial
+        },
+        Resources {
+            frame_bytes_total: usize::MAX,
+            ..initial
+        },
+    ] {
+        b.resources = resources;
+        let before = format!("{:?}", b.resources);
+        assert_eq!(b.lookup(usize::MAX, table), Err(Error::Domain));
+        assert_eq!(b.lookup(0, usize::MAX), Err(Error::Domain));
+        assert_eq!(b.lookup(0, wrong_width), Err(Error::Domain));
+        assert_eq!(b.lookup(0, table), Err(Error::Resource));
+        assert_eq!(format!("{:?}", b.resources), before);
+        assert!(b.code.is_empty());
+        assert_eq!(b.registers.len(), 1);
+    }
+    // Charge admits native work at MAX_WORK - 1; push adds its own unit.
+    b.resources = Resources {
+        cumulative_work: MAX_WORK - work - 1,
+        ..initial
+    };
+    assert_eq!(b.lookup(0, table), Ok(1));
+    assert_eq!(b.resources.cumulative_work, MAX_WORK);
+
+    b.resources = initial;
+    b.registers[0].domain = Domain::Xor;
+    assert_eq!(b.lookup(0, table), Err(Error::Domain));
+    b.code.resize(MAX_INSTRUCTIONS, Instruction::Constant(0));
+    assert_eq!(b.lookup(usize::MAX, usize::MAX), Err(Error::Resource));
+    assert_eq!(b.lookup(0, table), Err(Error::Resource));
+}
+
 #[test]
 fn replay_and_failed_peer_frame_burn_without_refunding_live_frame() {
     let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();

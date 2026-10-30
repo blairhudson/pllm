@@ -40,6 +40,9 @@ impl Plan<'_> {
         if lanes == 1 {
             return Ok(self);
         }
+        // Check before touching retained arrays. Errors consume this Plan; no
+        // partially repeated Plan (or census) escapes on any later failure.
+        let lookup_chunks = self.lookup_chunks.checked_mul(lanes).ok_or(Error::Resource)?;
         let inputs = self.inputs.len();
         let code = self.code.len();
         let outputs = self.outputs.len();
@@ -155,6 +158,7 @@ impl Plan<'_> {
             .chain_update((lanes as u64).to_le_bytes())
             .finalize()
             .into();
+        self.lookup_chunks = lookup_chunks;
         Ok(self)
     }
 
@@ -219,6 +223,8 @@ impl Plan<'_> {
         drop(self.lease.split(saved)?);
         drop(overlap);
         self.lanes = lanes;
+        // Code remains one stored template, so lookup_chunks is unchanged even
+        // though the logical resource counts below multiply by lanes.
         let r = &mut self.resources;
         r.template_construction_bytes = construction;
         r.template_copy_bytes = new;

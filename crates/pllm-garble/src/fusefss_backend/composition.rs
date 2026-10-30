@@ -30,6 +30,10 @@ pub use runtime::{wire, Engine, Event, Material, OwnedRuntime, Runtime};
 #[path = "composition/compact_one_hot_tests.rs"]
 mod compact_one_hot_tests;
 
+#[cfg(test)]
+#[path = "composition/lookup_census_tests.rs"]
+mod lookup_census_tests;
+
 pub(crate) type Value = usize;
 pub const MAX_INSTRUCTIONS: usize = 32768;
 pub const MAX_REGISTERS: usize = 65536;
@@ -123,6 +127,27 @@ struct NativeCost {
     work: usize,
 }
 impl NativeCost {
+    fn lookup(c: lookup::Resources, bits: u8) -> Result<Self, Error> {
+        Ok(Self {
+            peak: c.issuance_reservation_bytes,
+            keys: c.dcf_keys_per_party,
+            evaluations: c.dcf_evaluations_per_party,
+            triples: 0,
+            frames: 1,
+            frame_bytes: c.peer_frame_bytes_per_party,
+            private_bytes_total: 2usize
+                .checked_mul(c.private_key_bytes_per_party)
+                .ok_or(Error::Resource)?,
+            public_copy_bytes_total: c
+                .public_table_bytes_per_party
+                .checked_mul(2)
+                .ok_or(Error::Resource)?,
+            work: c
+                .dcf_evaluations_per_party
+                .checked_mul(usize::from(bits))
+                .ok_or(Error::Resource)?,
+        })
+    }
     fn conversion(c: conversions::Resources, bits: u8) -> Self {
         Self {
             peak: c.combined_reservation_bytes,
@@ -146,6 +171,9 @@ pub struct Builder<'a> {
     registers: Vec<Register>,
     outputs: Vec<Value>,
     tables: Vec<TableOwner<'a>>,
+    // Sum of chunks_per_lane per stored Lookup occurrence, not per table.
+    // Inline scalar is covered by new()'s existing Builder/Plan size maximum.
+    lookup_chunks: usize,
     resources: Resources,
     lease: Lease<'a>,
 }
@@ -159,6 +187,7 @@ pub struct Plan<'a> {
     tables: Vec<TableOwner<'a>>,
     // A compact tensor retains one template, addressed by virtual lane/PC IDs.
     lanes: usize,
+    lookup_chunks: usize,
     resources: Resources,
     lease: Lease<'a>,
 }
@@ -274,6 +303,7 @@ impl<'a> Builder<'a> {
             code: allocate(MAX_INSTRUCTIONS, budget)?,
             outputs: allocate(MAX_REGISTERS, budget)?,
             tables: allocate(MAX_TABLES, budget)?,
+            lookup_chunks: 0,
             resources: Resources {
                 plan_reservation_bytes: bytes,
                 ..Resources::default()
@@ -637,27 +667,18 @@ impl<'a> Builder<'a> {
             return Err(Error::Domain);
         }
         let c = table.resources(1)?;
-        self.charge(NativeCost {
-            peak: c.issuance_reservation_bytes,
-            keys: c.dcf_keys_per_party,
-            evaluations: c.dcf_evaluations_per_party,
-            triples: 0,
-            frames: 1,
-            frame_bytes: c.peer_frame_bytes_per_party,
-            private_bytes_total: 2 * c.private_key_bytes_per_party,
-            public_copy_bytes_total: c
-                .public_table_bytes_per_party
-                .checked_mul(2)
-                .ok_or(Error::Resource)?,
-            work: c.dcf_evaluations_per_party * r.bits as usize,
-        })?;
-        self.push(
+        let lookup_chunks = self.lookup_chunks.checked_add(c.chunks_per_lane)
+            .ok_or(Error::Resource)?;
+        self.charge(NativeCost::lookup(c, r.bits)?)?;
+        let output = self.push(
             Instruction::Lookup(value, table_index),
             Register {
                 domain: Domain::Arithmetic,
                 ..r
             },
-        )
+        )?;
+        self.lookup_chunks = lookup_chunks;
+        Ok(output)
     }
     pub(crate) fn gelu(&mut self, value: Value) -> Result<Value, Error> {
         self.room(1)?;
@@ -732,6 +753,7 @@ impl<'a> Builder<'a> {
             outputs: self.outputs,
             tables: self.tables,
             lanes: 0,
+            lookup_chunks: self.lookup_chunks,
             resources: self.resources,
             lease: self.lease,
         })
@@ -804,6 +826,7 @@ impl<'a> Plan<'a> {
             outputs: Vec::new(),
             tables: Vec::new(),
             lanes: 0,
+            lookup_chunks: 0,
             resources: Resources {
                 template_construction_bytes: 0,
                 template_copy_bytes: 0,
@@ -857,6 +880,13 @@ impl<'a> Plan<'a> {
     }
     pub fn resources(&self) -> Resources {
         self.resources
+    }
+    /// Retained Lookup chunk census, counting reused tables once per stored op.
+    /// Expanded repetition multiplies this count; tensor templates retain it.
+    /// A successful wavefront constructor visits these chunks twice; early
+    /// failure visits at most twice. Other resource callers are not counted.
+    pub fn stored_lookup_chunks(&self) -> usize {
+        self.lookup_chunks
     }
     pub fn input_bits(&self) -> &[u8] {
         &self.inputs
