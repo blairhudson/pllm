@@ -27,6 +27,34 @@ impl<'a> Quote<'a> {
         add(mul(metadata, 3)?, mul(live, 2)?)
     }
 
+    // Borrow actual validated Program geometry and its last-use peak. This is
+    // only the existing per-party live-owner tariff, not cumulative admission.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn live_array_reservation(
+        peak: usize, sequence: usize, selections: usize, vocabulary: usize,
+        batch_rows: usize, nodes: usize, capacity: Capacity, wavefront: bool,
+    ) -> Result<usize, Error> {
+        let output = mul(mul(8, super::MAX_VALUES)?, 8)?;
+        let gather = if capacity == Capacity::Decoder {
+            // Complete compact one-hot batch plus the two shared-reader buffers;
+            // produced kernel/import owners remain in the native reservation.
+            output.max(add(mul(mul(batch_rows, vocabulary)?, 8)?,
+                mul(2, super::capacity::SOURCE_READ_BYTES)?)?)
+        } else {
+            output
+        };
+        let backing = mul(nodes,
+            std::mem::size_of::<Option<zeroize::Zeroizing<Vec<u64>>>>())?;
+        let live = add(add(add(peak, mul(8, add(sequence, selections)?)?)?, gather)?, backing)?;
+        if wavefront {
+            // Full tournament frontier and bounded lane-major gather/output.
+            add(live, add(mul(8, add(vocabulary, 1)?)?,
+                mul(mul(2, 8)?, composition::MAX_INPUTS)?)?)
+        } else {
+            Ok(live)
+        }
+    }
+
     pub(super) fn available_per_role(metadata: usize, live: usize) -> Result<usize, Error> {
         let compiler = Self::compiler_reservation(metadata, live)?;
         let available = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES

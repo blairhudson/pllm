@@ -6,6 +6,10 @@ use pllm_garble::fusefss_backend::{
 use pllm_models::{DecoderPlan, ModelOperation, ModelOperator as Op};
 use sha2::{Digest, Sha256};
 
+#[cfg(test)]
+#[path = "program_live_quote_tests.rs"]
+mod live_quote_tests;
+
 // Same thread-local / RAII pattern as runtime's cache_constructor_probe. Only
 // tests observe entry or request an early sentinel; production has no hook.
 #[cfg(test)]
@@ -1474,42 +1478,26 @@ impl Program {
         let mut peak = 0usize;
         for i in 0..program.nodes.len() {
             live = live
-                .checked_add(graph_elements(capacity, &program.nodes[i].shape)? * 8)
+                .checked_add(graph_elements(capacity, &program.nodes[i].shape)?
+                    .checked_mul(8).ok_or(Error::Resource)?)
                 .ok_or(Error::Resource)?;
             peak = peak.max(live);
             for j in 0..i {
                 if program.nodes[j].last_use == i {
-                    live -= graph_elements(capacity, &program.nodes[j].shape)? * 8;
+                    live = live.checked_sub(graph_elements(capacity, &program.nodes[j].shape)?
+                        .checked_mul(8).ok_or(Error::Resource)?)
+                        .ok_or(Error::Resource)?;
                 }
             }
         }
-        let gather_workspace = if capacity == Capacity::Decoder {
-            // Retain a bounded batch of complete compact one-hot exports so the
-            // shared reader scans the public embedding once for the whole batch.
-            // The just-produced kernel output/import copies remain separately
-            // included in that Plan's native reservation while copied here.
-            (8 * MAX_VALUES * 8).max(
-                program
-                    .embedding_batch_rows()?
-                    .checked_mul(vocabulary)
-                    .and_then(|n| n.checked_mul(8))
-                    .ok_or(Error::Resource)?
-                    + 2 * super::capacity::SOURCE_READ_BYTES,
-            )
-        } else {
-            8 * MAX_VALUES * 8
-        };
-        program.resources.live_array_bytes_per_party = peak
-            + 8 * (sequence + selections)
-            + gather_workspace
-            + program.nodes.len() * std::mem::size_of::<Option<zeroize::Zeroizing<Vec<u64>>>>();
-        if online.uses_wavefront() {
-            // Full tournament frontier plus bounded lane-major gather/output
-            // overlap. Public geometry only, allocated before any private use.
-            program.resources.live_array_bytes_per_party += 8 * (vocabulary + 1)
-                + 2 * 8 * pllm_garble::fusefss_backend::composition::MAX_INPUTS;
-        }
-        if 3 * program.resources.metadata_bytes + 2 * program.resources.live_array_bytes_per_party
+        program.resources.live_array_bytes_per_party =
+            super::resource_quote::Quote::live_array_reservation(
+                peak, sequence, selections, vocabulary, program.embedding_batch_rows()?,
+                program.nodes.len(), capacity, online.uses_wavefront(),
+            )?;
+        if super::resource_quote::Quote::compiler_reservation(
+            program.resources.metadata_bytes, program.resources.live_array_bytes_per_party,
+        )?
             > pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
         {
             return Err(Error::Resource);
