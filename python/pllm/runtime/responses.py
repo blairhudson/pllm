@@ -239,11 +239,31 @@ class _PreparedPromptUse:
 
     def __init__(self, payload, *, _metadata_owner=None):
         self._payload = payload
+        self._tokenizer = None if payload is None else payload.tokenizer
+        self._closed = False
         self._used = False
         self._binding_started = False
         self._metadata_owner = _metadata_owner
+        self._failure = None  # Inactive construction/count frames, retired before refund.
         self._claimed = False
         self._lock = threading.Lock()
+
+    @classmethod
+    def _empty(cls):
+        return cls(None)
+
+    def _adopt_tokenizer(self, tokenizer):
+        with self._lock:
+            if self._closed or self._tokenizer is not None or self._payload is not None:
+                raise ResponsesError("prepared prompt already owns a tokenizer or is retired")
+            self._tokenizer = tokenizer
+
+    def _complete_payload(self, payload):
+        with self._lock:
+            if self._closed or self._payload is not None or payload.tokenizer is not self._tokenizer:
+                raise ResponsesError("prepared prompt cannot complete its payload")
+            self._payload = payload
+        return self
 
     def claim(self):
         with self._lock:
@@ -295,21 +315,29 @@ class _PreparedPromptUse:
 
     def close(self):
         with self._lock:
-            if self._payload is not None:
-                close = getattr(self._payload.tokenizer, "close", None)
+            if self._failure is not None:
+                from .delegated_protocol import clear_failure_frames
+                clear_failure_frames(self._failure)
+            if self._tokenizer is not None:
+                close = getattr(self._tokenizer, "close", None)
                 if close is not None:
                     close()  # Failed close retains custody for an explicit retry.
-                self._payload = None
+                close = None  # Bound methods also retain the actual tokenizer.
+                self._tokenizer = None
+            self._payload = None
             if self._metadata_owner is not None:
                 self._metadata_owner.close()
                 self._metadata_owner = None
+            self._failure = None
+            self._closed = True
 
 
 _prepared_prompt_request = ContextVar("_prepared_prompt_request", default=None)
 
 
 def _prepare_prompt(body, *, descriptor, tokenizer, source, messages=None,
-                    template=None, tools=None, _pending_source=None, _metadata_owner=None):
+                    template=None, tools=None, _pending_source=None, _metadata_owner=None,
+                    _preparation_owner=None):
     body = copy.deepcopy(body)
     descriptor = copy.deepcopy(descriptor)
     messages = copy.deepcopy(messages)
@@ -322,9 +350,10 @@ def _prepare_prompt(body, *, descriptor, tokenizer, source, messages=None,
     ids = tuple(tokenizer.encode(rendered, add_bos=bool(descriptor.get("add_bos_token", True))))
     if not ids or any(type(item) is not int or item < 0 for item in ids):
         raise ResponsesError("tokenized input contains invalid prompt IDs", param="input")
-    return _PreparedPromptUse(_PreparedPrompt(
-        request, source, normalized, rendered, ids, tokenizer, _pending_source),
-        _metadata_owner=_metadata_owner)
+    payload = _PreparedPrompt(request, source, normalized, rendered, ids, tokenizer, _pending_source)
+    if _preparation_owner is not None:
+        return _preparation_owner._complete_payload(payload)
+    return _PreparedPromptUse(payload, _metadata_owner=_metadata_owner)
 
 
 def sse_event(event: ResponseEvent) -> bytes:

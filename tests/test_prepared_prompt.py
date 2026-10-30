@@ -537,6 +537,316 @@ def _forbid_full_source_work(monkeypatch):
         monkeypatch.setattr(_native, name, forbidden, raising=False)
 
 
+def _count_cleanup_fixture(monkeypatch, kind="gkm", case="success", failures=1):
+    import threading
+    from contextvars import ContextVar
+    from pllm.deployment import resources
+    from pllm.runtime import responses, tokenizer_admission
+    from pllm.runtime.delegated_client import DelegatedClient
+    from pllm.runtime.fss_client import FssClient
+    from pllm.runtime.replicated_client import ReplicatedClient
+
+    cls = {"gkm": DelegatedClient, "fss": FssClient, "puma": ReplicatedClient}[kind]
+    core = cls.__new__(cls)
+    core._lock = threading.RLock()
+    core._closing = False
+    core._active = core._compact_cleanup = core._failed_request_cleanup = None
+    core._count_preparation = None
+    core._fss_failure_observer = core._result_hook = None
+    core._tokenizer_scopes = set()
+    core._tokenizer_owner = ContextVar("count_cleanup_tokenizer", default=None)
+    core._capacity = "capsule"
+    core._source, core._source_checked = None, False
+    core.records = {"sentinel": "preserve until count retires"}
+    core.default_model = "fixture"
+    core._experiment_budget = SimpleNamespace(max_input_tokens=16, max_new_tokens=4)
+    s = source("hello")
+    core._declaration = SimpleNamespace(pipeline=SimpleNamespace(model=s.model))
+    descriptor = {**s.tokenizer_descriptor, "vocab_size": 256}
+    control = SimpleNamespace(failures=failures, close_hook=None, encode_hook=None)
+    tokenizer = Tokenizer()
+    attempts, reservations, originals, cleanup_errors = [], [], [], []
+    original_error = (ResponsesError("count render failed", param="input")
+                      if case == "render" else ValueError("count encode failed"))
+    original_error.add_note("original detail")
+
+    def encode(text, *, add_bos):
+        tokenizer.calls.append((text, add_bos))
+        if control.encode_hook is not None:
+            control.encode_hook()
+        if case == "encode":
+            raise original_error
+        return [4] * (17 if case == "over_budget" else 2)
+
+    def close():
+        import sys
+        slot = core._count_preparation
+        attempts.append((slot, slot.owner, slot.owner._metadata_owner, tokenizer))
+        originals.append(sys.exception())
+        if control.close_hook is not None:
+            control.close_hook()
+        if control.failures:
+            control.failures -= 1
+            error = RuntimeError("count tokenizer busy")
+            cleanup_errors.append(error)
+            raise error
+        tokenizer.closed += 1
+
+    tokenizer.encode, tokenizer.close = encode, close
+    snapshot = SimpleNamespace(config={}, tokenizer_descriptor=descriptor,
+        expected_source_lock=s.source_lock_digest, tokenizer=lambda: tokenizer,
+        association=lambda: _prompt_source(s.model, {}, descriptor))
+    monkeypatch.setattr(tokenizer_admission, "_capture_prompt_metadata", lambda *a, **k: snapshot)
+    if case == "render":
+        def render(*args, **kwargs):
+            raise original_error
+        monkeypatch.setattr(responses, "_render_prompt", render)
+
+    # Use the existing module ledger/reservation, fake only host observation.
+    capacity = resources._capacity
+    baseline = dict(capacity._owners)
+    monkeypatch.setattr(capacity, "observe", lambda: SimpleNamespace(
+        headroom_bytes=(1 << 40) - sum(capacity._owners.values())))
+    original_reserve = resources.reserve_incremental_memory
+
+    def reserve(amount):
+        assert core._count_preparation.state == "preparing"
+        assert core._count_preparation.owner._metadata_owner is not None
+        reservation = original_reserve(amount)
+        reservations.append(reservation)
+        return reservation
+
+    monkeypatch.setattr(resources, "reserve_incremental_memory", reserve)
+    _forbid_full_source_work(monkeypatch)
+    return SimpleNamespace(core=core, tokenizer=tokenizer, control=control,
+        attempts=attempts, reservations=reservations, capacity=capacity, baseline=baseline,
+        originals=originals, original_error=original_error, cleanup_errors=cleanup_errors)
+
+
+@pytest.mark.parametrize("kind", ["gkm", "fss", "puma"])
+@pytest.mark.parametrize("case", ["success", "over_budget", "render", "encode"])
+@pytest.mark.parametrize("failures", [1, 3])
+def test_count_cleanup_retains_actual_owner_and_reservation(monkeypatch, kind, case, failures):
+    from pllm.runtime.client import ProtocolError
+    from pllm.runtime.http_gateway import GatewayError
+
+    f = _count_cleanup_fixture(monkeypatch, kind, case, failures)
+    try:
+        expected = {"success": RuntimeError, "over_budget": GatewayError,
+                    "render": GatewayError, "encode": ValueError}[case]
+        with pytest.raises(expected) as caught:
+            f.core._response_input_tokens("fixture", "hello")
+        if case == "success":
+            assert caught.value is f.cleanup_errors[0]
+        elif case == "render":
+            assert caught.value.__cause__ is f.original_error is f.originals[0]
+            assert str(caught.value) == str(f.original_error)
+            assert caught.value.param == "input"
+        else:
+            assert caught.value is f.originals[0]
+            if case == "encode":
+                assert caught.value is f.original_error
+        primary = caught.value.__cause__ if case == "render" else caught.value
+        notes = list(getattr(primary, "__notes__", ()))
+        if case != "success":
+            assert notes[-1] == "token count cleanup retained owner: RuntimeError"
+            if case in {"render", "encode"}:
+                assert notes[0] == "original detail"
+        slot = f.core._count_preparation
+        owner, reservation = slot.owner, f.reservations[0]
+        metadata = owner._metadata_owner
+        assert slot.state == "pending" and slot.reservation is reservation
+        assert owner._tokenizer is f.tokenizer and metadata is not None
+        assert (owner._payload is None) == (case in {"render", "encode"})
+        assert reservation._failed == (owner,) and reservation.pending_retirement
+        assert reservation._token.retained is reservation
+        assert f.capacity._owners[reservation._token] == reservation._amount == 1 << 20
+        assert f.core.records and f.tokenizer.closed == 0
+        def assert_rejected():
+            attempts = len(f.attempts)
+            for admit in (
+                    lambda: f.core._response_input_tokens("fixture", "hello"),
+                    lambda: f.core.events({"model": "fixture", "input": "hello"}),
+                    lambda: f.core.tokenizer_scope().__enter__()):
+                with pytest.raises(ProtocolError, match="pending token count|closed"):
+                    admit()
+            assert len(f.reservations) == 1 and len(f.attempts) == attempts
+            assert f.core._active is None and not f.core._tokenizer_scopes
+            assert f.core._count_preparation is slot and slot.owner is owner
+            assert slot.reservation is reservation and owner._metadata_owner is metadata
+            assert reservation._failed == (owner,) and reservation.pending_retirement
+            assert reservation._token.retained is reservation
+            assert f.capacity._owners[reservation._token] == 1 << 20
+
+        assert_rejected()
+        for _ in range(failures - 1):
+            with pytest.raises(RuntimeError, match="count tokenizer busy"):
+                f.core.close()
+            assert f.core._count_preparation is slot and slot.state == "pending"
+            assert slot.owner is owner and owner._metadata_owner is metadata
+            assert reservation._failed == (owner,) and reservation.pending_retirement
+            assert reservation._token.retained is reservation
+            assert f.capacity._owners[reservation._token] == 1 << 20
+            assert f.core.records and f.tokenizer.closed == 0
+            assert_rejected()
+        f.core.close()
+        assert f.core._count_preparation is None and f.core._closing
+        assert owner._payload is owner._tokenizer is owner._metadata_owner is None
+        assert not reservation.pending_retirement and reservation._exited
+        assert reservation._token not in f.capacity._owners
+        assert f.capacity._owners == f.baseline
+        assert not f.core.records and f.tokenizer.closed == 1
+        assert len(f.attempts) == failures + 1
+        assert all(a[0] is slot and a[1] is owner and a[2] is metadata
+                   and a[3] is f.tokenizer for a in f.attempts)
+        assert getattr(primary, "__notes__", []) == notes
+        calls = len(f.attempts)
+        f.core.close()
+        assert len(f.attempts) == calls
+    finally:
+        f.control.failures = 0
+        f.core.close()
+
+
+@pytest.mark.parametrize("occupied", ["active", "scope", "compact", "request_cleanup", "closing"])
+def test_count_rejects_existing_owners_before_metadata(monkeypatch, occupied):
+    from pllm.runtime.client import ProtocolError
+
+    f = _count_cleanup_fixture(monkeypatch, failures=0)
+    if occupied == "active":
+        f.core._active = object()
+    elif occupied == "scope":
+        f.core._tokenizer_scopes.add(object())
+    elif occupied == "compact":
+        f.core._compact_cleanup = SimpleNamespace(closed=False)
+    elif occupied == "request_cleanup":
+        f.core._failed_request_cleanup = SimpleNamespace(pending_retirement=True)
+    else:
+        f.core._closing = True
+    try:
+        with pytest.raises(ProtocolError):
+            f.core._response_input_tokens("fixture", "hello")
+        assert f.core._count_preparation is None
+        assert f.reservations == f.attempts == f.tokenizer.calls == []
+        assert f.capacity._owners == f.baseline
+    finally:
+        f.core._active = f.core._compact_cleanup = f.core._failed_request_cleanup = None
+        f.core._tokenizer_scopes.clear()
+        f.core.close()
+
+
+def test_count_metadata_failure_retires_empty_preparation(monkeypatch):
+    from pllm.runtime import tokenizer_admission
+
+    f = _count_cleanup_fixture(monkeypatch, failures=0)
+    error = ValueError("count metadata unavailable")
+
+    def capture(*args, **kwargs):
+        slot = f.core._count_preparation
+        assert slot.state == "preparing" and slot.owner._payload is None
+        assert slot.owner._tokenizer is None and slot.owner._metadata_owner is not None
+        assert slot.reservation is f.reservations[0]
+        raise error
+
+    monkeypatch.setattr(tokenizer_admission, "_capture_prompt_metadata", capture)
+    try:
+        with pytest.raises(ValueError) as caught:
+            f.core._response_input_tokens("fixture", "hello")
+        assert caught.value is error and not getattr(error, "__notes__", ())
+        assert f.core._count_preparation is None and f.attempts == []
+        assert f.reservations[0]._exited and f.capacity._owners == f.baseline
+    finally:
+        f.core.close()
+
+
+@pytest.mark.parametrize("phase", ["preparing", "draining", "retry_draining"])
+def test_count_close_exclusion_uses_bounded_gates(monkeypatch, phase):
+    import threading
+    from pllm.runtime.client import ProtocolError
+
+    f = _count_cleanup_fixture(monkeypatch, failures=1 if phase == "retry_draining" else 0)
+    entered, release, done = threading.Event(), threading.Event(), threading.Event()
+    errors, counts = [], []
+    if phase == "retry_draining":
+        with pytest.raises(RuntimeError, match="count tokenizer busy"):
+            f.core._response_input_tokens("fixture", "hello")
+        original_slot = f.core._count_preparation
+
+    def gate():
+        entered.set()
+        assert release.wait(3), "count cleanup gate was not released"
+
+    if phase == "preparing":
+        f.control.encode_hook = gate
+    else:
+        f.control.close_hook = gate
+
+    def run():
+        try:
+            if phase == "retry_draining":
+                f.core.close()
+            else:
+                counts.append(f.core._response_input_tokens("fixture", "hello"))
+        except BaseException as error:
+            errors.append(error)
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=run, daemon=True)
+    try:
+        thread.start()
+        assert entered.wait(3), "count worker did not enter gate"
+        assert f.core._lock.acquire(timeout=3), "count retirement held core lock"
+        try:
+            slot = f.core._count_preparation
+            assert slot.state == ("preparing" if phase == "preparing" else "draining")
+            if phase == "retry_draining":
+                assert slot is original_slot
+            owner, reservation = slot.owner, slot.reservation
+            assert owner._tokenizer is f.tokenizer and owner._metadata_owner is not None
+        finally:
+            f.core._lock.release()
+        with pytest.raises(ProtocolError, match="pending token count|closed"):
+            f.core._response_input_tokens("fixture", "hello")
+        with pytest.raises(ProtocolError, match="pending token count|closed"):
+            f.core.events({"model": "fixture", "input": "hello"})
+        with pytest.raises(ProtocolError, match="busy; retry close"):
+            f.core.close()
+        assert f.core._closing is (phase == "retry_draining")
+        assert f.core._count_preparation is slot
+        assert slot.owner is owner and f.core.records and not done.is_set()
+        assert f.capacity._owners[reservation._token] == 1 << 20
+        assert f.tokenizer.closed == 0 and len(f.reservations) == 1
+        release.set()
+        thread.join(3)
+        assert not thread.is_alive(), "count worker did not drain"
+        assert errors == []
+        assert f.core._count_preparation is None and f.tokenizer.closed == 1
+        if phase != "retry_draining":
+            # Real admission after count success, not merely an open flag.
+            with f.core.tokenizer_scope():
+                assert len(f.core._tokenizer_scopes) == 1
+            attempt = f.core.events({"model": "fixture", "input": "hello"})
+            try:
+                assert f.core._active is attempt
+            finally:
+                attempt.close()
+            assert f.core._active is None and not f.core._closing
+    finally:
+        release.set()
+        if thread.ident is not None:
+            thread.join(3)
+        f.control.close_hook = f.control.encode_hook = None
+        f.control.failures = 0
+        if not thread.is_alive():
+            f.core.close()
+    assert not thread.is_alive(), "count worker did not drain"
+    assert errors == []
+    assert counts == ([] if phase == "retry_draining" else [2])
+    assert f.core._count_preparation is None and f.tokenizer.closed == 1
+    assert f.capacity._owners == f.baseline and not f.core.records
+
+
 @pytest.mark.parametrize("kind", ["gkm", "fss", "puma"])
 def test_cold_rendered_30_refuses_before_all_full_source_work(tmp_path, monkeypatch, kind):
     from pllm.runtime.http_gateway import GatewayError

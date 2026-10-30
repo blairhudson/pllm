@@ -345,6 +345,17 @@ class _Attempt:
             self._retire(delivered=False)
 
 
+class _CountPreparation:
+    """One count-only owner; no request seat or source admission authority."""
+
+    __slots__ = ("state", "owner", "reservation")
+
+    def __init__(self, owner):
+        self.state = "preparing"
+        self.owner = owner
+        self.reservation = None
+
+
 class DelegatedClient:
     """RuntimeClient-compatible, one active fixed-length greedy request at a time."""
 
@@ -396,6 +407,7 @@ class DelegatedClient:
         self._active = None
         self._compact_cleanup = None
         self._failed_request_cleanup = None
+        self._count_preparation = None
         self._fss_failure_observer = None
         self._tokenizer_owner = ContextVar("pllm_gkm_tokenizer_owner", default=None)
         self._tokenizer_scopes = set()
@@ -414,6 +426,8 @@ class DelegatedClient:
     def _check_open(self):
         if self._closing:
             raise ProtocolError("GKM client is closed", 409)
+        if getattr(self, "_count_preparation", None) is not None:
+            raise ProtocolError("client has pending token count preparation/cleanup", 409)
         failed = getattr(self, "_failed_request_cleanup", None)
         if failed is not None and failed.pending_retirement:
             raise ProtocolError("client has pending request cleanup", 409)
@@ -499,8 +513,48 @@ class DelegatedClient:
             self._check_open()
             return self._source if self._source_checked else None
 
+    def _prepare_count_prompt(self, body, slot):
+        from . import tokenizer_admission
+        from .responses import ResponsesError, _prepare_prompt, _owned_prompt_source
+
+        owner = slot.owner
+        if owner._closed or owner._failure is not None or owner._payload is not None:
+            raise ResponsesError("prompt preparation owner is unavailable")
+        # The count slot already owns its actual reservation. Borrow only an
+        # already checked source; this path never resolves or admits a source.
+        with self._lock:
+            source = self._source if self._source_checked else None
+        snapshot = None
+        if source is not None:
+            descriptor = source.tokenizer_descriptor
+            tokenizer = source.tokenizer()
+            owner._adopt_tokenizer(tokenizer)
+            association = _owned_prompt_source(source)
+        else:
+            from pllm.deployment.execution import _TokenizerView
+
+            snapshot = tokenizer_admission._capture_prompt_metadata(
+                self._declaration.pipeline.model, policy=self._prompt_descriptor_policy,
+                capacity=self._capacity, input_rows=self._experiment_budget.max_input_tokens,
+                outputs=self._experiment_budget.max_new_tokens,
+                manifest_template=None, expected_source_lock=None)
+            view = _TokenizerView._from_prompt_snapshot(snapshot)
+            descriptor = view.tokenizer_descriptor
+            tokenizer = view.tokenizer()
+            owner._adopt_tokenizer(tokenizer)
+            association = snapshot.association()
+        prepared = _prepare_prompt(body, descriptor=descriptor, tokenizer=tokenizer,
+            source=association, _pending_source=snapshot, _preparation_owner=owner)
+        ids = prepared._payload.ids
+        if (not 1 <= len(ids) <= self._experiment_budget.max_input_tokens
+                or any(i >= descriptor["vocab_size"] for i in ids)):
+            raise GatewayError("request input exceeds selected budget", param="input")
+        return prepared
+
     def _prepare_request_prompt(self, body, *, attempt=None, messages=None, tools=None,
-                                metadata_view=None, source=None):
+                                metadata_view=None, source=None, _count_slot=None):
+        if _count_slot is not None:
+            return self._prepare_count_prompt(body, _count_slot)
         from contextlib import ExitStack
         from . import tokenizer_admission
         from .responses import ResponsesError, _prepare_prompt, _owned_prompt_source
@@ -619,10 +673,53 @@ class DelegatedClient:
         return tokenizer, tuple(ids)
 
     def _response_input_tokens(self, model, input):
-        body = self._admit({"model": model, "input": input})
-        with self.tokenizer_scope():
-            _, ids = self._encode(body, self._ensure_source())
-            return len(ids)
+        from contextlib import ExitStack
+        from pllm.deployment.resources import reserve_incremental_memory
+        from . import tokenizer_admission
+        from .responses import _PreparedPromptUse
+
+        with self._lock:
+            body = self._admit({"model": model, "input": input})
+            cleanup = getattr(self, "_compact_cleanup", None)
+            if (self._active is not None or self._tokenizer_scopes
+                    or (cleanup is not None and not cleanup.closed)):
+                raise ProtocolError("client already owns request/tokenizer cleanup", 409)
+            slot = _CountPreparation(_PreparedPromptUse._empty())
+            self._count_preparation = slot
+        try:
+            slot.owner._metadata_owner = ExitStack()
+            slot.reservation = reserve_incremental_memory(
+                tokenizer_admission.DECODER_METADATA_MEMORY_BYTES
+                if self._capacity == "decoder" else 1 << 20)
+            slot.owner._metadata_owner.enter_context(slot.reservation)
+            prepared = self._prepare_request_prompt(body, _count_slot=slot)
+            count = len(prepared._payload.ids)
+        except BaseException as error:
+            # Constructor failures may own native/metadata temporaries only in
+            # inactive traceback frames. Retire those under the SAME allowance.
+            slot.owner._failure = error
+            self._retire_count_preparation(slot, primary=error)
+            if isinstance(error, ResponsesError):
+                raise GatewayError(str(error), param="input") from error
+            raise
+        self._retire_count_preparation(slot)
+        return count
+
+    def _retire_count_preparation(self, slot, *, primary=None):
+        with self._lock:
+            slot.state = "draining"
+        try:
+            slot.owner.close()
+        except BaseException as cleanup:
+            slot.reservation.retain_failed((slot.owner,))
+            with self._lock:
+                slot.state = "pending"
+            if primary is None:
+                raise
+            primary.add_note(f"token count cleanup retained owner: {type(cleanup).__name__}")
+        else:
+            with self._lock:
+                self._count_preparation = None
 
     def _validate_result(self, result, source, ids, count):
         """Check bounded transport shape; native finish is the verification authority."""
@@ -849,11 +946,25 @@ class DelegatedClient:
 
     def close(self):
         with self._lock:
+            count = getattr(self, "_count_preparation", None)
+            if count is not None:
+                if count.state != "pending":
+                    raise ProtocolError("token count preparation/cleanup is busy; retry close", 409)
+                count.state = "draining"
             self._closing = True
             self._fss_failure_observer = None
             active = self._active
             if active is not None:
                 active.cancel()
+        if count is not None:
+            try:
+                count.reservation.drain_failed()
+            except BaseException:
+                with self._lock:
+                    count.state = "pending"
+                raise
+            with self._lock:
+                self._count_preparation = None
         if active is not None:
             active.close()  # Cancellation is signalled before waiting for execution to drain.
             if active.running_thread == threading.get_ident():
@@ -878,6 +989,8 @@ class DelegatedClient:
 
     def _clear_owned_state(self):
         with self._lock:
+            if getattr(self, "_count_preparation", None) is not None:
+                return
             cleanup = getattr(self, "_compact_cleanup", None)
             if cleanup is not None and not cleanup.closed:
                 return  # _Attempt retirement cannot erase failed cleanup custody.
