@@ -31,6 +31,15 @@ pub struct Resources {
     pub additional_reservation_bytes: usize,
 }
 
+/// Allocation-free backing prefix, not a quote for the complete constructor.
+/// No reservation, work credit, or admission authority is carried by this census.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BackingResources {
+    pub metadata_bytes: usize,
+    pub depth_bytes: usize,
+    pub construction_work: usize,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Step {
     pc: usize,
@@ -117,23 +126,42 @@ fn online_cost(plan: &Plan<'_>, pc: usize) -> Result<(usize, usize), Error> {
 }
 
 impl<'p, 'a> Schedule<'p, 'a> {
-    pub fn new(plan: &'p Plan<'a>) -> Result<Self, Error> {
+    /// Borrow the original Plan's compact geometry without allocating or hashing.
+    /// Tensor virtual lookup/group/hash work depends on actual spans and is still
+    /// charged postconstruction; this prefix does not fund the whole constructor.
+    pub fn backing_resources(plan: &Plan<'_>) -> Result<BackingResources, Error> {
         if plan.is_atomic_vector() {
             return Err(Error::Unsupported);
         }
-        let budget = plan.lease.budget;
         let instructions = plan.code.len();
-        let registers = plan.registers.len();
         let span_capacity = if plan.is_tensor() { instructions } else { 0 };
-        let metadata = add(
+        let metadata_bytes = add(
             add(size_of::<Self>(), 4096)?,
             add(
                 mul(instructions, size_of::<Step>())?,
                 mul(span_capacity, size_of::<Span>())?,
             )?,
         )?;
+        let depth_bytes = mul(plan.registers.len(), size_of::<usize>())?;
+        let construction_work = add(
+            add(metadata_bytes, depth_bytes)?,
+            mul(
+                mul(instructions, 64)?,
+                (instructions.max(1).ilog2() as usize) + 2,
+            )?,
+        )?;
+        Ok(BackingResources { metadata_bytes, depth_bytes, construction_work })
+    }
+
+    pub fn new(plan: &'p Plan<'a>) -> Result<Self, Error> {
+        let backing = Self::backing_resources(plan)?;
+        let budget = plan.lease.budget;
+        let instructions = plan.code.len();
+        let registers = plan.registers.len();
+        let span_capacity = if plan.is_tensor() { instructions } else { 0 };
+        let metadata = backing.metadata_bytes;
         let lease = budget.reserve(metadata)?;
-        let _scratch = budget.reserve(mul(registers, size_of::<usize>())?)?;
+        let _scratch = budget.reserve(backing.depth_bytes)?;
         let mut depths = allocate(registers, budget)?;
         depths.resize(registers, 0usize);
         let mut steps = allocate(instructions, budget)?;
@@ -208,13 +236,7 @@ impl<'p, 'a> Schedule<'p, 'a> {
             metadata_bytes: metadata,
             ..Resources::default()
         };
-        r.construction_work = add(
-            add(metadata, mul(registers, size_of::<usize>())?)?,
-            mul(
-                mul(instructions, 64)?,
-                (instructions.max(1).ilog2() as usize) + 2,
-            )?,
-        )?;
+        r.construction_work = backing.construction_work;
         if plan.is_tensor() {
             // Price virtual address lookup, grouping and hashing separately from
             // the compact template's depth construction and sort.
@@ -272,7 +294,7 @@ impl<'p, 'a> Schedule<'p, 'a> {
             mul(8, plan.resources.registers + plan.output_count())?,
         )?;
         r.additional_reservation_bytes = add(
-            mul(3, add(metadata, mul(registers, size_of::<usize>())?)?)?,
+            mul(3, add(metadata, backing.depth_bytes)?)?,
             mul(
                 2,
                 add(

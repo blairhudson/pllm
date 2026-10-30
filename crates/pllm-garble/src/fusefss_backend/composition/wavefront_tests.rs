@@ -376,6 +376,7 @@ fn compact_schedule_failure_sweep_retires_depth_steps_and_spans() {
     .repeat_tensor(17)
     .unwrap();
     let baseline = budget.used_bytes();
+    let backing = Schedule::backing_resources(&plan).unwrap();
     let mut passed = false;
     for count in 0..128 {
         budget.fail_after.store(count, Ordering::SeqCst);
@@ -384,6 +385,11 @@ fn compact_schedule_failure_sweep_retires_depth_steps_and_spans() {
         passed = result.is_ok();
         if !passed {
             assert!(matches!(result, Err(Error::Allocation)));
+        } else {
+            let schedule = result.as_ref().unwrap();
+            assert!(std::ptr::eq(schedule._lease.budget, plan.lease.budget));
+            assert_eq!(schedule._lease.bytes, backing.metadata_bytes);
+            assert_eq!(budget.used_bytes(), baseline + backing.metadata_bytes);
         }
         drop(result);
         assert_eq!(budget.used_bytes(), baseline, "allocation {count}");
@@ -392,6 +398,90 @@ fn compact_schedule_failure_sweep_retires_depth_steps_and_spans() {
         }
     }
     assert!(passed);
+    drop(plan);
+    assert_eq!(budget.used_bytes(), 0);
+}
+
+#[test]
+fn backing_census_is_allocation_free_and_preserves_native_tariffs() {
+    use std::sync::atomic::Ordering;
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    for tensor in [false, true] {
+        let plan = product_plan(&budget, 2);
+        let plan = if tensor { plan.repeat_tensor(17).unwrap() } else { plan };
+        let before = budget.test_snapshot();
+        let updates = budget.test_accounting_updates();
+        budget.fail_after.store(0, Ordering::SeqCst);
+        let backing = Schedule::backing_resources(&plan).unwrap();
+        assert_eq!(budget.test_snapshot(), before);
+        assert_eq!(budget.test_accounting_updates(), updates);
+        assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+        budget.fail_after.store(-1, Ordering::SeqCst);
+        // Independent layout census over retained compact geometry, not virtual I.
+        let i = plan.code.len();
+        let m = size_of::<Schedule<'_, '_>>() + 4096 + i * size_of::<Step>()
+            + if tensor { i * size_of::<Span>() } else { 0 };
+        let d = plan.registers.len() * size_of::<usize>();
+        let w0 = m + d + 64 * i * (i.max(1).ilog2() as usize + 2);
+        assert_eq!(backing, BackingResources {
+            metadata_bytes: m, depth_bytes: d, construction_work: w0,
+        });
+        let schedule = Schedule::new(&plan).unwrap();
+        let r = schedule.resources();
+        let residual = if tensor {
+            64 * plan.resources.instructions
+                * (schedule.spans.len().max(1).ilog2() as usize + 2)
+        } else { 0 };
+        assert_eq!(r.construction_work, w0 + residual);
+        assert_eq!(r.metadata_bytes, m);
+        assert_eq!(r.additional_reservation_bytes,
+            3 * (m + d) + 2 * (r.runtime_owner_bytes
+                + r.retained_party_bytes + 3 * r.largest_frame_bytes));
+        assert_eq!(budget.used_bytes(), before.1 + m);
+        drop(schedule);
+        assert_eq!(budget.test_snapshot(), before);
+        drop(plan);
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn backing_exact_bytes_one_short_and_overflow_keep_original_custody() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let mut plan = product_plan(&budget, 2).repeat_tensor(17).unwrap();
+    let baseline = budget.used_bytes();
+    let backing = Schedule::backing_resources(&plan).unwrap();
+    for short in [true, false] {
+        // Leave precisely M+D, or one byte less, in the Plan's original budget.
+        let occupied = budget.reserve(MAX_ALLOCATION_BYTES - baseline
+            - backing.metadata_bytes - backing.depth_bytes + usize::from(short)).unwrap();
+        let before = budget.used_bytes();
+        let result = Schedule::new(&plan);
+        if short {
+            assert!(matches!(result, Err(Error::Resource)));
+        } else {
+            let schedule = result.as_ref().unwrap();
+            assert!(std::ptr::eq(schedule._lease.budget, &budget));
+            assert_eq!(schedule._lease.bytes, backing.metadata_bytes);
+            assert_eq!(budget.used_bytes(), before + backing.metadata_bytes);
+        }
+        drop(result);
+        assert_eq!(budget.used_bytes(), before);
+        drop(occupied);
+        assert_eq!(budget.used_bytes(), baseline);
+    }
+    // Robustness only: an impossible reservation record must fail the unchanged
+    // checked peak addition after backing allocations have been acquired.
+    let combined = plan.resources.combined_reservation_bytes;
+    plan.resources.combined_reservation_bytes = usize::MAX;
+    assert!(matches!(Schedule::new(&plan), Err(Error::Resource)));
+    assert_eq!(budget.used_bytes(), baseline);
+    plan.resources.combined_reservation_bytes = combined;
+    let schedule = Schedule::new(&plan).unwrap();
+    assert!(std::ptr::eq(schedule._lease.budget, plan.lease.budget));
+    assert_eq!(budget.used_bytes(), baseline + backing.metadata_bytes);
+    drop(schedule);
+    assert_eq!(budget.used_bytes(), baseline);
     drop(plan);
     assert_eq!(budget.used_bytes(), 0);
 }
