@@ -62,6 +62,230 @@ fn shared_phase_geometry_is_not_sdk_or_native_capacity_permission() {
         }
     }
 }
+
+#[test]
+fn construction_quote_preserves_sdk_preparation_weights_and_source_once() {
+    use super::super::{energy, program::Node, resource_quote::Quote, Source, Tensor, WeightDtype};
+    for (profile, capacity) in [
+        (GPT2_NUMERIC, Capacity::Capsule),
+        (DENSE_ROPE_NUMERIC, Capacity::Decoder),
+        (DENSE_ROPE_CHECKED_NUMERIC, Capacity::Capsule),
+    ] {
+        let config = if profile == GPT2_NUMERIC { absolute() } else { dense() };
+        let a = preflight_source_with_capacity(&canonical_bytes(&config), 2, 2, profile, capacity).unwrap();
+        let proofs = capacity == Capacity::Decoder || profile == DENSE_ROPE_CHECKED_NUMERIC;
+        let owned = Quote::plan_owned(&a.plan).unwrap();
+        let external = 4096 + 2 * std::mem::size_of::<SourceExecutionBinding>();
+        let count = a.plan.prefill.operations.len();
+        let proof_bytes = if proofs { energy::reservation_bound(count).unwrap() } else { 0 };
+        let expected = owned * 3 + super::super::MAX_BYTES
+            + count * (std::mem::size_of::<Node>() + 4 * 8) + proof_bytes
+            + MAX_NODES * 512 + MAX_CONFIG_BYTES * 3 + MAX_CONTRACT_BYTES + external
+            + if proofs { pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES / 3 } else { 0 };
+        assert_eq!(a.phase_admission.compile_prepare_peak_bound, expected);
+        assert_eq!(Quote::preparation_peak(&a.plan, super::super::MAX_BYTES, proofs).unwrap(), expected);
+        let source = Source::new_with_capacity(vec![
+            Tensor::from_ieee("quote", &[1], WeightDtype::F32, &[0]).unwrap(),
+        ], capacity).unwrap();
+        // Same pricing, native uses actual custody rather than SDK worst-case
+        // source bound. Source appears once, not once again as an extra owner.
+        assert_eq!(Quote::preparation_peak(&a.plan, source.reservation_bytes(), proofs).unwrap(),
+            expected - super::super::MAX_BYTES + source.reservation_bytes());
+        assert_eq!(Quote::preparation_peak(&a.plan, usize::MAX, proofs), Err(super::super::Error::Resource));
+    }
+}
+
+#[test]
+fn construction_quote_cache_edge_overflow_and_cache_lease_release() {
+    use super::super::{energy, program::Node, resource_quote::Quote, Error, Source, Tensor, WeightDtype};
+    use pllm_garble::fusefss_backend::{composition::cache, Budget};
+    let a = preflight_source_with_capacity(&canonical_bytes(&dense()), 2, 2,
+        DENSE_ROPE_NUMERIC, Capacity::Decoder).unwrap();
+    let source = Source::new_with_capacity(vec![
+        Tensor::from_ieee("quote", &[1], WeightDtype::F32, &[0]).unwrap(),
+    ], Capacity::Decoder).unwrap();
+    let count = a.plan.prefill.operations.len();
+    let base = source.reservation_bytes() + energy::reservation_bound(count).unwrap()
+        + count * (std::mem::size_of::<Node>() + 2 * std::mem::size_of::<Vec<usize>>() + 10 * 8)
+        + (count + a.plan.decode.operations.len()) * 4096;
+    let limits = cache::Limits { max_entries: cache::MAX_ENTRIES, max_retained_bytes: cache::MAX_RETAINED_BYTES };
+    let cache_bytes = cache::SourceTableCache::bootstrap_descriptor(source.digest(), limits).unwrap()
+        .metadata_reservation_bytes;
+    let cap = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
+    // Private arithmetic robustness case: these counters are not a claim that
+    // native metadata validation accepts >1 MiB strings. Two-byte price steps.
+    let strings = (cap / 3 - cache_bytes - base) / 2;
+    let admitted = Quote::construction_limit(&a.plan, &source, 0, strings).unwrap();
+    assert!(admitted >= cache_bytes && admitted <= cache_bytes + 1);
+    let energy_owner = energy::Ledger::new(source.digest(), a.plan.digest().as_str(), count).unwrap();
+    assert_eq!(energy_owner.resident_bytes(), energy::reservation_bound(count).unwrap());
+    drop(energy_owner);
+    assert_eq!(Quote::construction_limit(&a.plan, &source, 0, strings + 1), Err(Error::Resource));
+    for (nodes, bytes) in [(usize::MAX, 0), (0, usize::MAX)] {
+        assert_eq!(Quote::construction_limit(&a.plan, &source, nodes, bytes), Err(Error::Resource));
+    }
+    let budget = Budget::new(admitted).unwrap();
+    let failed = (|| -> Result<(), Error> {
+        let tables = cache::SourceTableCache::new(source.digest(), limits, &budget)?;
+        assert_eq!(budget.used_bytes(), cache_bytes);
+        drop(tables); // Same explicit retirement as Program, before preflight.
+        assert_eq!(budget.used_bytes(), 0);
+        let _tables = cache::SourceTableCache::new(source.digest(), limits, &budget)?;
+        Err(Error::Domain) // Synthetic cache-scope failure, not Program cancellation.
+    })();
+    assert_eq!(failed, Err(Error::Domain));
+    assert_eq!(budget.used_bytes(), 0);
+    assert_eq!(source.reservation_bytes(), base - energy::reservation_bound(count).unwrap()
+        - count * (std::mem::size_of::<Node>() + 2 * std::mem::size_of::<Vec<usize>>() + 10 * 8)
+        - (count + a.plan.decode.operations.len()) * 4096);
+}
+
+#[test]
+fn native_construction_refuses_borrowed_owner_peak_before_semantic_validation() {
+    use super::super::{Error, Limits, Program, Source, Tensor, WeightDtype};
+    use super::super::program::construction_probe;
+    let a = preflight_source_with_capacity(&canonical_bytes(&dense()), 2, 2,
+        DENSE_ROPE_NUMERIC, Capacity::Decoder).unwrap();
+    let mut plan = a.plan;
+    // Valid small custody, no checkpoint files. Deliberately invalid schema is
+    // semantic-validation sentinel: without early admission this returns Domain.
+    plan.schema_version = "invalid".into();
+    let source = || Source::new_with_capacity(vec![
+        Tensor::from_ieee("quote", &[1], WeightDtype::F32, &[0]).unwrap(),
+    ], Capacity::Decoder).unwrap();
+    let (result, entries) = construction_probe::scoped(None, ||
+        Program::compile(&plan, source(), 2, Limits::for_capacity(Capacity::Decoder)));
+    assert!(matches!(result, Err(Error::Domain)));
+    assert_eq!(entries, [1, 0, 0, 0]);
+    // Each sparse map entry retains the existing SDK 1024-byte owner weight.
+    // Recursive metadata nodes/string bytes still fit native lexical caps.
+    plan.prefill.operations[0].attributes = Value::Object((0..16000)
+        .map(|i| (format!("inert-{i}"), Value::Null)).collect());
+    let (result, entries) = construction_probe::scoped(None, ||
+        Program::compile(&plan, source(), 2, Limits::for_capacity(Capacity::Decoder)));
+    assert!(matches!(result, Err(Error::Resource)));
+    assert_eq!(entries, [0; 4]);
+}
+
+// Public, validated deserialization preserves the supplied String's capacity.
+// No private Digest layout assumptions, invalid digest, or production accessor.
+fn digest_with_capacity(identity: &str, capacity: usize) -> pllm_types::Digest {
+    let mut text = String::with_capacity(capacity);
+    text.push_str(identity);
+    let actual = text.capacity();
+    let digest = <pllm_types::Digest as serde::Deserialize>::deserialize(
+        serde::de::value::StringDeserializer::<serde::de::value::Error>::new(text),
+    ).unwrap();
+    assert_eq!(digest.backing_capacity_bytes(), actual);
+    digest
+}
+
+#[test]
+fn construction_census_retained_empty_methods_and_digest_backing_count_once() {
+    use super::super::{resource_quote::Quote, Error};
+    use pllm_models::{owned_backing::checked_array_bytes, AppliedMethod};
+    let mut a = preflight_source(&canonical_bytes(&dense()), 2, 2, DENSE_ROPE_NUMERIC).unwrap();
+    let base = Quote::plan_owned(&a.plan).unwrap();
+    let peak = Quote::preparation_peak(&a.plan, 0, false).unwrap();
+    let old_digest = a.plan.config_digest.backing_capacity_bytes();
+    let digest = digest_with_capacity(a.plan.config_digest.as_str(), 4096);
+    assert_eq!(digest.as_str(), a.plan.config_digest.as_str());
+    let digest_delta = digest.backing_capacity_bytes() - old_digest;
+    a.plan.config_digest = digest;
+    assert!(a.plan.transformations.is_empty());
+    let old_methods = checked_array_bytes::<AppliedMethod>(a.plan.transformations.capacity()).unwrap();
+    a.plan.transformations.reserve_exact(128);
+    let method_delta = checked_array_bytes::<AppliedMethod>(a.plan.transformations.capacity()).unwrap() - old_methods;
+    assert!(a.plan.transformations.is_empty());
+    assert_eq!(Quote::plan_owned(&a.plan).unwrap(), base + digest_delta + method_delta);
+    assert_eq!(Quote::preparation_peak(&a.plan, 0, false).unwrap(), peak + 3 * (digest_delta + method_delta));
+
+    // Existing source-byte arithmetic seam exercises exact global cap and +1,
+    // without changing a native cap or manufacturing impossible Vec capacities.
+    let cap = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
+    let floor = Quote::preparation_peak(&a.plan, 0, false).unwrap();
+    assert_eq!(Quote::preparation_peak(&a.plan, cap - floor, false), Ok(cap));
+    assert_eq!(Quote::preparation_peak(&a.plan, cap - floor + 1, false), Ok(cap + 1));
+    assert_eq!(Quote::preparation_peak(&a.plan, usize::MAX, false), Err(Error::Resource));
+    let method_size = std::mem::size_of::<AppliedMethod>();
+    let last_capacity = usize::MAX / method_size;
+    assert_eq!(checked_array_bytes::<AppliedMethod>(last_capacity).unwrap(), last_capacity * method_size);
+    assert!(checked_array_bytes::<AppliedMethod>(last_capacity + 1).is_err());
+    assert!(checked_array_bytes::<AppliedMethod>(usize::MAX).is_err());
+}
+
+#[test]
+fn native_constructor_boundaries_reject_retained_empty_methods_and_digest_capacity() {
+    use super::super::{Error, Limits, Program, Source, Tensor, WeightDtype};
+    use super::super::program::construction_probe::{self, Boundary};
+    let mut a = preflight_source_with_capacity(&canonical_bytes(&dense()), 2, 2,
+        DENSE_ROPE_NUMERIC, Capacity::Decoder).unwrap();
+    let source = || Source::new_with_capacity(vec![
+        Tensor::from_ieee("quote", &[1], WeightDtype::F32, &[0]).unwrap(),
+    ], Capacity::Decoder).unwrap();
+    let compile = |plan: &DecoderPlan| Program::compile(plan, source(), 2, Limits::for_capacity(Capacity::Decoder));
+    // Each positive control reaches its actual Program call site. Cache sentinel
+    // stops before cache allocation / node lowering / full runtime preflight.
+    for (stop, expected) in [
+        (Boundary::Validation, [1, 0, 0, 0]),
+        (Boundary::Vectors, [1, 1, 0, 0]),
+        (Boundary::Energy, [1, 1, 1, 0]),
+        (Boundary::Cache, [1, 1, 1, 1]),
+    ] {
+        let (result, entries) = construction_probe::scoped(Some(stop), || compile(&a.plan));
+        assert!(matches!(result, Err(Error::Unsupported)));
+        assert_eq!(entries, expected);
+    }
+    // Actual Program failure after all four entries: deliberately incomplete
+    // source inventory fails first tensor lookup. Entry observations alone do
+    // not assert lease retirement, backing destruction, or runtime cancellation.
+    let (result, entries) = construction_probe::scoped(None, || compile(&a.plan));
+    assert!(matches!(result, Err(Error::Domain)));
+    assert_eq!(entries, [1; 4]);
+
+    // No injectable native memory cap exists. AUTHORED ONLY under execution
+    // hold: this case reserves approximately 22 MiB, not a tiny-cap surrogate.
+    // Empty retained backing alone exceeds the existing 3*borrowed-plan tariff.
+    let cap = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
+    a.plan.transformations.reserve_exact(cap / 3 / std::mem::size_of::<pllm_models::AppliedMethod>() + 1);
+    assert!(a.plan.transformations.is_empty());
+    let (result, entries) = construction_probe::scoped(None, || compile(&a.plan));
+    assert!(matches!(result, Err(Error::Resource)));
+    assert_eq!(entries, [0; 4]);
+    // Independent nonempty-method rejection remains Unsupported, even with the
+    // same over-cap backing, and still enters no allocating constructor.
+    a.plan.transformations.push(pllm_models::AppliedMethod {
+        component: "unsupported".into(), implementation: "unsupported".into(), method_id: "unsupported".into(),
+        input_digest: a.plan.config_digest.clone(), configuration_digest: a.plan.config_digest.clone(),
+    });
+    let (result, entries) = construction_probe::scoped(None, || compile(&a.plan));
+    assert!(matches!(result, Err(Error::Unsupported)));
+    assert_eq!(entries, [0; 4]);
+    a.plan.transformations = Vec::new(); // Retire the large test backing first.
+
+    // Native three-byte tariff edge: <= cap, then one extra digest-capacity byte
+    // exceeds cap. About 14 MiB retained here; do not run under execution hold.
+    let identity = a.plan.config_digest.as_str().to_owned();
+    let old_capacity = a.plan.config_digest.backing_capacity_bytes();
+    let peak = super::super::resource_quote::Quote::preparation_peak(
+        &a.plan, source().reservation_bytes(), true,
+    ).unwrap();
+    let edge_capacity = old_capacity + (cap - peak) / 3;
+    a.plan.config_digest = digest_with_capacity(&identity, edge_capacity);
+    let edge_peak = super::super::resource_quote::Quote::preparation_peak(
+        &a.plan, source().reservation_bytes(), true,
+    ).unwrap();
+    assert!(edge_peak <= cap && cap - edge_peak < 3);
+    let (result, entries) = construction_probe::scoped(Some(Boundary::Validation), || compile(&a.plan));
+    assert!(matches!(result, Err(Error::Unsupported)));
+    assert_eq!(entries, [1, 0, 0, 0]);
+    a.plan.config_digest = digest_with_capacity(&identity, 64); // Retire large backing.
+    a.plan.config_digest = digest_with_capacity(&identity, edge_capacity + 1);
+    let (result, entries) = construction_probe::scoped(None, || compile(&a.plan));
+    assert!(matches!(result, Err(Error::Resource)));
+    assert_eq!(entries, [0; 4]);
+}
+
 #[test]
 fn wavefront_online_schedule_is_checked_policy_and_preserves_numeric_source_contract() {
     for capacity in [Capacity::Capsule, Capacity::Decoder] {

@@ -500,57 +500,9 @@ fn add_bytes(a: usize, b: usize) -> Result<usize, String> {
     a.checked_add(b)
         .ok_or_else(|| reject("phase ownership overflow"))
 }
-fn json_owned(value: &Value) -> Result<usize, String> {
-    match value {
-        Value::String(s) => Ok(s.capacity()),
-        Value::Array(a) => a
-            .iter()
-            .try_fold(a.capacity() * std::mem::size_of::<Value>(), |n, v| {
-                add_bytes(n, json_owned(v)?)
-            }),
-        Value::Object(m) => m.iter().try_fold(m.len() * 1024, |n, (k, v)| {
-            add_bytes(add_bytes(n, k.capacity())?, json_owned(v)?)
-        }),
-        _ => Ok(0),
-    }
-}
-fn plan_owned(plan: &DecoderPlan) -> Result<usize, String> {
-    let mut bytes = std::mem::size_of::<DecoderPlan>()
-        + plan.schema_version.capacity()
-        + plan.model_family.capacity()
-        + plan.adapter.capacity()
-        + 128;
-    for g in [&plan.prefill, &plan.decode] {
-        bytes = add_bytes(
-            bytes,
-            g.output.capacity() + g.operations.capacity() * std::mem::size_of::<ModelOperation>(),
-        )?;
-        for states in [&g.state_inputs, &g.state_outputs] {
-            bytes = add_bytes(
-                bytes,
-                states.capacity() * std::mem::size_of::<pllm_models::StateTensor>(),
-            )?;
-            for state in states {
-                bytes = add_bytes(bytes, state.id.capacity() + state.shape.capacity() * 8)?;
-            }
-        }
-        for op in &g.operations {
-            bytes = add_bytes(
-                bytes,
-                op.id.capacity()
-                    + op.inputs.capacity() * std::mem::size_of::<String>()
-                    + op.output_shape.capacity() * 8,
-            )?;
-            for input in &op.inputs {
-                bytes = add_bytes(bytes, input.capacity())?;
-            }
-            bytes = add_bytes(bytes, json_owned(&op.attributes)?)?;
-        }
-    }
-    Ok(bytes)
-}
 fn phase_admission(a: &SourcePreflight) -> Result<SourcePhaseAdmission, String> {
-    let plan = plan_owned(&a.plan)?;
+    use super::resource_quote::Quote;
+    let plan = Quote::plan_owned(&a.plan).map_err(|_| reject("phase ownership overflow"))?;
     let mut inventory = a.source_config_sha256.capacity()
         + a.source_shapes.len() * 1024
         + a.source_layouts.len() * 1024
@@ -581,32 +533,11 @@ fn phase_admission(a: &SourcePreflight) -> Result<SourcePhaseAdmission, String> 
             + scratch
             + a.source_certificate_peak_bytes,
     )?;
-    let external = add_bytes(
-        plan,
-        4096 + 2 * std::mem::size_of::<SourceExecutionBinding>(),
-    )?;
-    let native_nodes =
-        a.plan.prefill.operations.len() * (std::mem::size_of::<super::program::Node>() + 4 * 8);
-    let proof_bytes =
-        if a.capacity == Capacity::Decoder || a.numeric_profile == DENSE_ROPE_CHECKED_NUMERIC {
-            super::energy::reservation_bound(a.plan.prefill.operations.len())
-                .map_err(|_| reject("row proof owner overflow"))?
-        } else {
-            0
-        };
-    let mut preparation = add_bytes(
-        plan * 3,
-        super::MAX_BYTES + native_nodes + proof_bytes + scratch + external - plan,
-    )?;
-    if proof_bytes != 0 {
-        // Public ordered admission builds bounded native Plans/cache; weighted
-        // certificate scans share the same remaining construction allowance.
-        // Program limits that combined allowance to at most one third of 64 MiB.
-        preparation = add_bytes(
-            preparation,
-            pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES / 3,
-        )?;
-    }
+    let external = Quote::compile_external(plan).map_err(|_| reject("phase ownership overflow"))?;
+    let preparation = Quote::preparation_peak(
+        &a.plan, super::MAX_BYTES,
+        a.capacity == Capacity::Decoder || a.numeric_profile == DENSE_ROPE_CHECKED_NUMERIC,
+    ).map_err(|_| reject("phase ownership overflow"))?;
     let cap = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
     if serialization > cap || ingestion > cap || preparation > cap {
         return Err(reject(

@@ -285,6 +285,18 @@ fn dimensions(op: &ModelOperation, capacity: Capacity) -> Result<Vec<usize>, Err
     graph_elements(capacity, &out)?;
     Ok(out)
 }
+// Same domain/resource ordering as dimensions, without allocating shape scratch.
+fn borrowed_dimensions(shape: &[u64], capacity: Capacity) -> Result<(), Error> {
+    if shape.is_empty() || shape.len() > 4 || shape.contains(&0) {
+        return Err(Error::Domain);
+    }
+    shape.iter().try_fold(1usize, |n, &d| {
+        n.checked_mul(usize::try_from(d).map_err(|_| Error::Resource)?)
+            .filter(|&n| n <= capacity.max_graph_values())
+            .ok_or(Error::Resource)
+    })?;
+    Ok(())
+}
 fn field<'a>(op: &'a ModelOperation, key: &str) -> Result<&'a str, Error> {
     op.attributes[key]
         .as_str()
@@ -561,11 +573,7 @@ impl Program {
                 {
                     return Err(Error::Resource);
                 }
-                let mut shape = vector(state.shape.len())?;
-                for &n in &state.shape {
-                    shape.push(usize::try_from(n).map_err(|_| Error::Resource)?);
-                }
-                graph_elements(capacity, &shape)?;
+                borrowed_dimensions(&state.shape, capacity)?;
             }
             for op in &graph.operations {
                 if op.id.is_empty()
@@ -576,10 +584,16 @@ impl Program {
                 {
                     return Err(Error::Resource);
                 }
-                dimensions(op, capacity)?;
+                borrowed_dimensions(&op.output_shape, capacity)?;
                 metadata(&op.attributes, 0, &mut meta_nodes, &mut meta_bytes)?;
             }
         }
+        // Recompute from borrowed graph and custodied Source, never adopt SDK
+        // phase reporting as proof. Intentional earlier Resource refusal: even
+        // allocating semantic validation/digest scratch must fit preparation.
+        let construction_limit = super::resource_quote::Quote::construction_limit(
+            plan, &source, meta_nodes, meta_bytes,
+        )?;
         #[cfg(test)]
         construction_probe::enter(construction_probe::Boundary::Validation)?;
         plan.validate().map_err(|_| Error::Domain)?;
@@ -597,10 +611,14 @@ impl Program {
         {
             return Err(Error::Unsupported);
         }
+        #[cfg(test)]
+        construction_probe::enter(construction_probe::Boundary::Vectors)?;
         let mut ids = vector::<&str>(plan.prefill.operations.len())?;
         let mut originals = vector::<Vec<usize>>(plan.prefill.operations.len())?;
         let mut nodes: Vec<Node> = vector(plan.prefill.operations.len())?;
         let mut energy = if capacity == Capacity::Decoder || checked_ranges {
+            #[cfg(test)]
+            construction_probe::enter(construction_probe::Boundary::Energy)?;
             Some(super::energy::Ledger::new(
                 source.digest(),
                 plan.digest().as_str(),
@@ -614,36 +632,16 @@ impl Program {
         // cache is public, construction-local, and retired before the executable
         // schedule. It prevents later graph errors from hiding earlier conditional
         // normalization/activation obligations.
-        let (construction_budget, construction_limit) = if energy.is_some() {
-            let node_bytes = plan
-                .prefill
-                .operations
-                .len()
-                .checked_mul(
-                    std::mem::size_of::<Node>() + 2 * std::mem::size_of::<Vec<usize>>() + 10 * 8,
-                )
-                .ok_or(Error::Resource)?;
-            let metadata = source
-                .reservation_bytes()
-                .checked_add(energy.as_ref().ok_or(Error::Context)?.resident_bytes())
-                .and_then(|n| n.checked_add(node_bytes))
-                .and_then(|n| n.checked_add(meta_nodes * 128 + meta_bytes * 2))
-                .and_then(|n| {
-                    n.checked_add(
-                        (plan.prefill.operations.len() + plan.decode.operations.len()) * 4096,
-                    )
-                })
-                .ok_or(Error::Resource)?;
-            let available = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES
-                .checked_sub(metadata.checked_mul(3).ok_or(Error::Resource)?)
-                .ok_or(Error::Resource)?;
-            (Some(Budget::new(available / 3)?), available / 3)
+        let construction_budget = if energy.is_some() {
+            Some(Budget::new(construction_limit)?)
         } else {
-            (None, 0)
+            None
         };
         let construction_tables = construction_budget
             .as_ref()
             .map(|budget| {
+                #[cfg(test)]
+                construction_probe::enter(construction_probe::Boundary::Cache)?;
                 cache::SourceTableCache::new(
                     source.digest(),
                     cache::Limits {

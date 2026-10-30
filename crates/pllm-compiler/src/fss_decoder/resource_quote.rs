@@ -1,15 +1,21 @@
-//! Arithmetic for public resource records and fixed cache bootstrap facts.
+//! Arithmetic for public resource records, preparation and cache bootstrap facts.
 //! Bootstrap admits only an initial floor, not complete construction/peak cost.
-//! Schedule phases borrow the live counters; no second ledger or Plan builder.
+//! Preparation borrows existing owners; schedule phases borrow live counters.
+//! No second ledger or Plan builder; constructor admission is not full execution
+//! work/material admission and does not enlarge the native geometry envelope.
 //! Logical accounting only, not physical-memory or full-capacity authority.
 use super::{cache, wavefront, Capacity, Error, Limits, Resources};
 use pllm_garble::fusefss_backend::composition;
+use pllm_models::DecoderPlan;
 
 fn add(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_add(b).ok_or(Error::Resource)
 }
 fn mul(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_mul(b).ok_or(Error::Resource)
+}
+fn array_bytes<T>(capacity: usize) -> Result<usize, Error> {
+    pllm_models::owned_backing::checked_array_bytes::<T>(capacity).map_err(|_| Error::Resource)
 }
 
 pub(super) struct Quote<'a> {
@@ -23,6 +29,108 @@ pub(super) struct Quote<'a> {
 }
 
 impl<'a> Quote<'a> {
+    // Borrowed census only: no serialization, digest, graph validation, or owner
+    // construction may precede native construction admission.
+    pub(super) fn plan_owned(plan: &DecoderPlan) -> Result<usize, Error> {
+        fn json(value: &serde_json::Value, depth: usize) -> Result<usize, Error> {
+            if depth > 16 { return Err(Error::Resource); }
+            match value {
+                serde_json::Value::String(s) => Ok(s.capacity()),
+                serde_json::Value::Array(a) => a.iter().try_fold(
+                    array_bytes::<serde_json::Value>(a.capacity())?,
+                    |n, v| add(n, json(v, depth + 1)?)),
+                serde_json::Value::Object(m) => m.iter().try_fold(mul(m.len(), 1024)?,
+                    |n, (k, v)| add(add(n, k.capacity())?, json(v, depth + 1)?)),
+                _ => Ok(0),
+            }
+        }
+        // Inline fields (including both graph headers and digest/Vec handles)
+        // already live in DecoderPlan. Charge only their heap backing below.
+        let mut bytes = add(std::mem::size_of::<DecoderPlan>(), plan.config_digest.backing_capacity_bytes())?;
+        for s in [&plan.schema_version, &plan.model_family, &plan.adapter] {
+            bytes = add(bytes, s.capacity())?;
+        }
+        // Empty is semantically supported, but its retained capacity still owns
+        // memory. Native rejects nonempty methods before this census; SDK callers
+        // of the shared census must also account for each populated method.
+        bytes = add(bytes, array_bytes::<pllm_models::AppliedMethod>(plan.transformations.capacity())?)?;
+        for method in &plan.transformations {
+            for s in [&method.component, &method.implementation, &method.method_id] {
+                bytes = add(bytes, s.capacity())?;
+            }
+            bytes = add(add(bytes, method.input_digest.backing_capacity_bytes())?,
+                method.configuration_digest.backing_capacity_bytes())?;
+        }
+        for g in [&plan.prefill, &plan.decode] {
+            bytes = add(add(bytes, g.output.capacity())?,
+                array_bytes::<pllm_models::ModelOperation>(g.operations.capacity())?)?;
+            for states in [&g.state_inputs, &g.state_outputs] {
+                bytes = add(bytes, array_bytes::<pllm_models::StateTensor>(states.capacity())?)?;
+                for state in states {
+                    bytes = add(add(bytes, state.id.capacity())?, array_bytes::<u64>(state.shape.capacity())?)?;
+                }
+            }
+            for op in &g.operations {
+                bytes = add(add(add(bytes, op.id.capacity())?,
+                    array_bytes::<String>(op.inputs.capacity())?)?,
+                    array_bytes::<u64>(op.output_shape.capacity())?)?;
+                for input in &op.inputs { bytes = add(bytes, input.capacity())?; }
+                bytes = add(bytes, json(&op.attributes, 0)?)?;
+            }
+        }
+        Ok(bytes)
+    }
+
+    pub(super) fn compile_external(plan_bytes: usize) -> Result<usize, Error> {
+        add(plan_bytes, add(4096, mul(2, std::mem::size_of::<super::sdk::SourceExecutionBinding>())?)?)
+    }
+
+    // SDK reporting uses its conservative source bound; native recomputes from
+    // its custodied Source. Neither this estimate nor SourcePhaseAdmission is a
+    // caller-supplied admission token. Keep the existing preparation weights.
+    pub(super) fn preparation_peak(
+        plan: &DecoderPlan, source_bytes: usize, proofs: bool,
+    ) -> Result<usize, Error> {
+        let owned = Self::plan_owned(plan)?;
+        let nodes = mul(plan.prefill.operations.len(),
+            std::mem::size_of::<super::program::Node>() + 4 * 8)?;
+        let energy = if proofs { super::energy::reservation_bound(plan.prefill.operations.len())? } else { 0 };
+        let scratch = add(add(mul(super::MAX_NODES, 512)?, mul(super::sdk::MAX_CONFIG_BYTES, 3)?)?,
+            super::sdk::MAX_CONTRACT_BYTES)?;
+        let external_scratch = Self::compile_external(owned)?.checked_sub(owned).ok_or(Error::Resource)?;
+        let base = add(add(add(add(add(mul(owned, 3)?, source_bytes)?, nodes)?, energy)?, scratch)?, external_scratch)?;
+        add(base, if proofs { pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES / 3 } else { 0 })
+    }
+
+    pub(super) fn construction_limit(
+        plan: &DecoderPlan, source: &super::Source, meta_nodes: usize, meta_bytes: usize,
+    ) -> Result<usize, Error> {
+        let proofs = source.capacity() == Capacity::Decoder || source.checked_ranges();
+        let cap = pllm_garble::fusefss_backend::MAX_ALLOCATION_BYTES;
+        if Self::preparation_peak(plan, source.reservation_bytes(), proofs)? > cap {
+            return Err(Error::Resource);
+        }
+        // Preserve the old three compiler owners / three gate Budgets formula.
+        // Prospective energy reservation equals Ledger::resident_bytes after new.
+        let energy = if proofs { super::energy::reservation_bound(plan.prefill.operations.len())? } else { 0 };
+        let nodes = mul(plan.prefill.operations.len(),
+            std::mem::size_of::<super::program::Node>() + 2 * std::mem::size_of::<Vec<usize>>() + 10 * 8)?;
+        let metadata = add(add(add(add(source.reservation_bytes(), energy)?, nodes)?,
+            add(mul(meta_nodes, 128)?, mul(meta_bytes, 2)?)?)?,
+            mul(add(plan.prefill.operations.len(), plan.decode.operations.len())?, 4096)?)?;
+        let remainder = cap.checked_sub(mul(metadata, 3)?).ok_or(Error::Resource)? / 3;
+        if proofs {
+            let descriptor = cache::SourceTableCache::bootstrap_descriptor(source.digest(), cache::Limits {
+                max_entries: cache::MAX_ENTRIES,
+                max_retained_bytes: cache::MAX_RETAINED_BYTES,
+            })?;
+            if remainder == 0 || descriptor.metadata_reservation_bytes > remainder {
+                return Err(Error::Resource);
+            }
+        }
+        Ok(if proofs { remainder } else { 0 })
+    }
+
     pub(super) fn compiler_reservation(metadata: usize, live: usize) -> Result<usize, Error> {
         add(mul(metadata, 3)?, mul(live, 2)?)
     }
