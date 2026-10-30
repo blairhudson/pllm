@@ -332,13 +332,40 @@ pub fn source_scalar_summary(
     Ok(summary)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum SelectionFailure {
+    NoAdmittedFactory,
+    NoExpansionContract,
+    InvalidExpansion,
+}
+
+impl SelectionFailure {
+    pub(super) fn into_model_error(self) -> ModelError {
+        match self {
+            Self::NoAdmittedFactory => {
+                ModelError::Unsupported("source has no admitted Value factory".into())
+            }
+            Self::NoExpansionContract => {
+                ModelError::Unsupported("source has no bounded expansion contract".into())
+            }
+            Self::InvalidExpansion => ModelError::InvalidConfig(
+                "decoder source expansion budget exceeded or invalid".into(),
+            ),
+        }
+    }
+}
+
 fn rejected() -> ModelError {
-    ModelError::InvalidConfig("decoder source expansion budget exceeded or invalid".into())
+    SelectionFailure::InvalidExpansion.into_model_error()
 }
 
 fn positive(value: u64, ceiling: u64) -> Result<u64, ModelError> {
+    positive_fixed(value, ceiling).map_err(SelectionFailure::into_model_error)
+}
+
+fn positive_fixed(value: u64, ceiling: u64) -> Result<u64, SelectionFailure> {
     if value == 0 || value > ceiling {
-        return Err(rejected());
+        return Err(SelectionFailure::InvalidExpansion);
     }
     Ok(value)
 }
@@ -412,19 +439,30 @@ pub(super) fn preflight_dense_readout_source(
     head_width: HeadWidth,
     readout: ReadoutContract,
 ) -> Result<(), ModelError> {
-    let summary =
-        dense_scalar_summary(document, workload, head_width, readout).map_err(|_| rejected())?;
-    positive(summary.layers, budget.max_layers)?;
-    positive(summary.hidden, budget.max_feature_width)?;
-    positive(summary.intermediate, budget.max_feature_width)?;
-    positive(summary.attention_heads, budget.max_attention_heads)?;
-    positive(summary.kv_heads, budget.max_attention_heads)?;
-    positive(summary.head_dim, budget.max_feature_width)?;
-    positive(summary.vocabulary, budget.max_vocabulary)?;
-    positive(summary.query_width, budget.max_feature_width)?;
-    positive(summary.kv_width, budget.max_feature_width)?;
+    preflight_dense_readout_fixed(document, workload, budget, head_width, readout)
+        .map_err(SelectionFailure::into_model_error)
+}
+
+pub(super) fn preflight_dense_readout_fixed(
+    document: &Value,
+    workload: DecoderWorkload,
+    budget: DecoderExpansionBudget,
+    head_width: HeadWidth,
+    readout: ReadoutContract,
+) -> Result<(), SelectionFailure> {
+    let summary = dense_scalar_summary(document, workload, head_width, readout)
+        .map_err(|_| SelectionFailure::InvalidExpansion)?;
+    positive_fixed(summary.layers, budget.max_layers)?;
+    positive_fixed(summary.hidden, budget.max_feature_width)?;
+    positive_fixed(summary.intermediate, budget.max_feature_width)?;
+    positive_fixed(summary.attention_heads, budget.max_attention_heads)?;
+    positive_fixed(summary.kv_heads, budget.max_attention_heads)?;
+    positive_fixed(summary.head_dim, budget.max_feature_width)?;
+    positive_fixed(summary.vocabulary, budget.max_vocabulary)?;
+    positive_fixed(summary.query_width, budget.max_feature_width)?;
+    positive_fixed(summary.kv_width, budget.max_feature_width)?;
     for elements in summary.shape_elements {
-        positive(elements, budget.max_tensor_elements)?;
+        positive_fixed(elements, budget.max_tensor_elements)?;
     }
     Ok(())
 }

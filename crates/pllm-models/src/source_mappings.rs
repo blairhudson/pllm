@@ -1,7 +1,9 @@
 //! Source-format discovery. The registry selects a validated architectural
 //! capability set; lowering modules never dispatch on a model family name.
 
-use super::source_budget::{preflight_dense_readout_source, HeadWidth, ReadoutContract};
+use super::source_budget::{
+    preflight_dense_readout_source, HeadWidth, ReadoutContract, SelectionFailure,
+};
 use super::{
     absolute_position_decoder, dense_gated_source, fused_dense_decoder, hybrid_text_decoder,
     lower_qwen3_decoder, lower_qwen_decoder, shared_kv_decoder, DecoderExpansionBudget,
@@ -85,19 +87,34 @@ pub(super) fn admitted_lowerer(
     workload: DecoderWorkload,
     budget: DecoderExpansionBudget,
 ) -> Result<AdmittedLowering, ModelError> {
-    let source = document.get("model_type").and_then(Value::as_str);
-    let mapping = SOURCE_MAPPINGS
-        .iter()
-        .find(|mapping| Some(mapping.model_type) == source)
-        .ok_or_else(|| ModelError::Unsupported("source has no admitted Value factory".into()))?;
-    let lower = mapping
-        .lower_admitted
-        .ok_or_else(|| ModelError::Unsupported("source has no admitted Value factory".into()))?;
-    let preflight = mapping.preflight.ok_or_else(|| {
-        ModelError::Unsupported("source has no bounded expansion contract".into())
-    })?;
+    let (_, lower, preflight) =
+        eligible_mapping(document).map_err(SelectionFailure::into_model_error)?;
     preflight.check(document, workload, budget)?;
     Ok(lower)
+}
+
+fn eligible_mapping(
+    document: &Value,
+) -> Result<(&'static SourceMapping, AdmittedLowering, SourcePreflight), SelectionFailure> {
+    eligible_mapping_from(document, SOURCE_MAPPINGS)
+}
+
+// Keep the first registry entry itself alongside its resolved callbacks. This
+// selection core neither checks preflight nor invokes either source factory.
+fn eligible_mapping_from(
+    document: &Value,
+    mappings: &'static [SourceMapping],
+) -> Result<(&'static SourceMapping, AdmittedLowering, SourcePreflight), SelectionFailure> {
+    let source = document.get("model_type").and_then(Value::as_str);
+    let mapping = mappings
+        .iter()
+        .find(|mapping| Some(mapping.model_type) == source)
+        .ok_or(SelectionFailure::NoAdmittedFactory)?;
+    let lower = mapping
+        .lower_admitted
+        .ok_or(SelectionFailure::NoAdmittedFactory)?;
+    let preflight = mapping.preflight.ok_or(SelectionFailure::NoExpansionContract)?;
+    Ok((mapping, lower, preflight))
 }
 #[derive(Clone, Copy)]
 enum SourcePreflight {
@@ -561,6 +578,10 @@ fn lower_hybrid(
 ) -> Result<DecoderPlan, ModelError> {
     hybrid_text_decoder::lower_source_json(&document, workload, &HYBRID_TEXT)
 }
+
+#[cfg(test)]
+#[path = "source_fixed_preflight_tests.rs"]
+mod source_fixed_preflight_tests;
 
 #[cfg(test)]
 mod tests {
