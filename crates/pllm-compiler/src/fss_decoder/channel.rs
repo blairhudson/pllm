@@ -74,10 +74,8 @@ impl Geometry {
             || self.initial > hard.max_sequence
             || self.selections == 0
             || self.selections > hard.max_selections
-            || self
-                .initial
-                .checked_add(self.selections - 1)
-                .filter(|n| *n <= hard.max_sequence)
+            || pllm_models::DecoderPlan::validated_phase_geometry(self.initial, self.selections)
+                .filter(|geometry| geometry.padded_rows() <= hard.max_sequence)
                 .is_none()
             || self.vocabulary == 0
             // Structural framing ceiling only; no vocabulary-sized allocation.

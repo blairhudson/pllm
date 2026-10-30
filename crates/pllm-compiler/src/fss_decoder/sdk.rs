@@ -446,13 +446,13 @@ pub(crate) fn validate(document: &ExperimentDocument) -> Result<(), String> {
     Ok(())
 }
 
-fn sequence(rows: usize, outputs: usize) -> Result<usize, String> {
+fn sequence(rows: usize, outputs: usize) -> Result<pllm_models::DecoderPhaseGeometry, String> {
     let limits = Limits::default();
     if rows == 0 || outputs == 0 || outputs > limits.max_selections {
         return Err(reject("request rows/selections exceed native Limits"));
     }
-    rows.checked_add(outputs - 1)
-        .filter(|&n| n <= limits.max_sequence)
+    DecoderPlan::validated_phase_geometry(rows, outputs)
+        .filter(|geometry| geometry.padded_rows() <= limits.max_sequence)
         .ok_or_else(|| reject("complete-prefix sequence exceeds native Limits"))
 }
 
@@ -934,7 +934,8 @@ fn preflight_plan_with_capacity(
 ) -> Result<SourcePreflight, String> {
     let chosen = numeric(numeric_profile)?;
     let rows = usize::try_from(plan.prefill.query_sequence).map_err(|_| reject("row overflow"))?;
-    let maximum_sequence = sequence(rows, outputs)?;
+    let geometry = sequence(rows, outputs)?;
+    let maximum_sequence = geometry.padded_rows();
     if !plan.transformations.is_empty()
         || plan.prefill.batch != 1
         || plan.decode.batch != 1
@@ -957,8 +958,8 @@ fn preflight_plan_with_capacity(
         for op in &g.operations {
             count_limit(&op.output_shape, capacity.max_graph_values())?;
             allowed_attributes(op)?;
-            // Program executes all selections on a complete growing prefix.
-            // Price the largest active view, not merely the initial prefill.
+            // Every selection executes this full padded extent. Active causal
+            // prefixes do not discount shape/work pricing to a triangular sum.
             if g.mode == pllm_models::DecoderMode::Prefill {
                 let mut expanded = op.output_shape.clone();
                 if expanded.len() == 3 {

@@ -867,12 +867,17 @@ impl<'a, 'd, 'c, 'b> Schedule<'a, 'd, 'c, 'b> {
     }
     fn execute(&mut self, input: &[u64]) -> Result<Zeroizing<Vec<u64>>, Error> {
         let p = self.program;
+        let geometry = pllm_models::DecoderPlan::validated_phase_geometry(p.initial, p.selections)
+            .ok_or(Error::Domain)?;
+        if geometry.padded_rows() != p.sequence {
+            return Err(Error::Domain);
+        }
         let mut tokens = Zeroizing::new(zeros(p.sequence)?);
         tokens[..p.initial].copy_from_slice(input);
         let mut finals = Zeroizing::new(vector(p.selections)?);
         for selection in 0..p.selections {
             self.selection = selection;
-            let prefix = p.initial + selection;
+            let prefix = geometry.active_rows(selection).ok_or(Error::Domain)?;
             let mut arrays = vector::<Option<Zeroizing<Vec<u64>>>>(p.nodes.len())?;
             arrays.resize_with(p.nodes.len(), || None);
             for (index, node) in p.nodes.iter().enumerate() {

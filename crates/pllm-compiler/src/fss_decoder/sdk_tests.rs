@@ -1,6 +1,68 @@
 use super::*;
 
 #[test]
+fn shared_phase_geometry_is_not_sdk_or_native_capacity_permission() {
+    use super::super::{program::construction_probe, Error, Limits, Program, Source, Tensor, WeightDtype};
+    use construction_probe::Boundary;
+
+    let small = preflight_source(&canonical_bytes(&dense()), 2, 3, DENSE_ROPE_NUMERIC).unwrap();
+    assert_eq!(small.maximum_sequence, 4);
+    let geometry = sequence(2, 3).unwrap();
+    assert_eq!(geometry.padded_rows(), 4);
+    assert_eq!([geometry.active_rows(0), geometry.active_rows(1), geometry.active_rows(2)],
+        [Some(2), Some(3), Some(4)]);
+    for (input, outputs, padded) in [(30, 2, 31), (32, 2, 33), (64, 8, 71)] {
+        assert_eq!(DecoderPlan::validated_phase_geometry(input, outputs).unwrap().padded_rows(), padded);
+        assert!(sequence(input, outputs).is_err());
+        for capacity in [Capacity::Capsule, Capacity::Decoder] {
+            // Empty config is a later sentinel: native geometry refuses before
+            // parsing, graph expansion, or any SourceBuilder payload opening.
+            let error = preflight_source_with_capacity(b"", input, outputs,
+                DENSE_ROPE_NUMERIC, capacity).err().unwrap();
+            let message = if outputs > 4 { "request rows/selections exceed native Limits" }
+                else { "complete-prefix sequence exceeds native Limits" };
+            assert_eq!(error, reject(message));
+        }
+    }
+    for (input, outputs) in [(0, 2), (2, 0), (usize::MAX, 2), (2, usize::MAX), (16, 2), (1, 5)] {
+        assert!(sequence(input, outputs).is_err());
+    }
+    for capacity in [Capacity::Capsule, Capacity::Decoder] {
+        let hard = Limits::for_capacity(capacity);
+        assert_eq!((hard.max_sequence, hard.max_selections), (16, 4));
+        for (input, outputs, max_sequence, expected, entries) in [
+            (30, 2, 16, Error::Resource, [0; 4]),
+            (32, 2, 16, Error::Resource, [0; 4]),
+            (64, 8, 16, Error::Unsupported, [0; 4]),
+            (16, 2, 16, Error::Resource, [0; 4]),
+            (14, 4, 16, Error::Resource, [0; 4]),
+            (1, 5, 16, Error::Unsupported, [0; 4]),
+            (u64::MAX, 2, 16, Error::Resource, [0; 4]),
+            (2, usize::MAX, 16, Error::Unsupported, [0; 4]),
+            (0, 2, 0, Error::Resource, [0; 4]),
+            (0, 1, 16, Error::Domain, [0; 4]),
+            (2, 0, 16, Error::Unsupported, [0; 4]),
+            // Positive scalar-boundary controls stop at validation. These do
+            // not claim that edited graph metadata passes semantic validation.
+            (16, 1, 16, Error::Unsupported, [1, 0, 0, 0]),
+            (13, 4, 16, Error::Unsupported, [1, 0, 0, 0]),
+            (2, 3, 16, Error::Unsupported, [1, 0, 0, 0]),
+        ] {
+            let mut plan = small.plan.clone();
+            plan.prefill.query_sequence = input;
+            // Deliberately small metadata, no large geometry-sized allocations.
+            plan.decode.maximum_key_sequence = 16;
+            let source = Source::new_with_capacity(vec![
+                Tensor::from_ieee("geometry", &[1], WeightDtype::F32, &[0]).unwrap(),
+            ], capacity).unwrap();
+            let (result, actual_entries) = construction_probe::scoped(Some(Boundary::Validation), ||
+                Program::compile(&plan, source, outputs, Limits { max_sequence, ..hard }));
+            assert!(matches!(result, Err(error) if error == expected));
+            assert_eq!(actual_entries, entries);
+        }
+    }
+}
+#[test]
 fn wavefront_online_schedule_is_checked_policy_and_preserves_numeric_source_contract() {
     for capacity in [Capacity::Capsule, Capacity::Decoder] {
         let config = dense();

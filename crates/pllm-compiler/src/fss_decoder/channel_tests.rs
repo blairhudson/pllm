@@ -3,6 +3,26 @@
 //! TokenShares through two native Workers and fresh dealer-issued primitive keys.
 use super::*;
 
+#[test]
+fn shared_phase_geometry_keeps_channel_native_limits_and_combined_extent() {
+    let base = manifest(2, 3).geometry;
+    for (initial, selections) in [
+        (0, 1), (1, 0), (usize::MAX, 2), (1, usize::MAX),
+        (30, 2), (32, 2), (64, 8), (16, 2), (14, 4), (1, 5),
+    ] {
+        assert!(matches!(Manifest::from_geometry(Geometry { initial, selections, ..base }), Err(Error::Domain)));
+    }
+    for (initial, selections, padded) in [(16, 1, 16), (15, 2, 16), (13, 4, 16), (2, 3, 4)] {
+        let geometry = pllm_models::DecoderPlan::validated_phase_geometry(initial, selections).unwrap();
+        assert_eq!(geometry.padded_rows(), padded);
+        let manifest = manifest(initial, selections);
+        assert_eq!(manifest.initial_tokens(), initial);
+        assert_eq!(manifest.selections(), selections);
+        assert!(manifest.resources().input_frame_bytes <= MAX_INPUT_FRAME_BYTES);
+        assert!(manifest.resources().output_frame_bytes <= MAX_OUTPUT_FRAME_BYTES);
+    }
+}
+
 fn manifest(initial: usize, selections: usize) -> Manifest {
     Manifest::from_geometry(Geometry {
         contract: [1; 32],

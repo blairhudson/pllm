@@ -6,6 +6,55 @@ use pllm_garble::fusefss_backend::{
 use pllm_models::{DecoderPlan, ModelOperation, ModelOperator as Op};
 use sha2::{Digest, Sha256};
 
+// Same thread-local / RAII pattern as runtime's cache_constructor_probe. Only
+// tests observe entry or request an early sentinel; production has no hook.
+#[cfg(test)]
+pub(super) mod construction_probe {
+    use super::Error;
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub(in crate::fss_decoder) enum Boundary { Validation, Vectors, Energy, Cache }
+
+    #[derive(Clone, Copy)]
+    struct State { entries: [usize; 4], stop: Option<Boundary> }
+
+    thread_local! {
+        static STATE: std::cell::Cell<Option<State>> = const { std::cell::Cell::new(None) };
+    }
+
+    struct Reset {
+        previous: Option<State>,
+        _thread: std::marker::PhantomData<std::rc::Rc<()>>,
+    }
+    impl Drop for Reset {
+        fn drop(&mut self) { STATE.with(|state| state.set(self.previous)); }
+    }
+
+    pub(in crate::fss_decoder) fn scoped<T>(stop: Option<Boundary>, f: impl FnOnce() -> T) -> (T, [usize; 4]) {
+        let _reset = Reset {
+            previous: STATE.with(|state| state.replace(Some(State { entries: [0; 4], stop }))),
+            _thread: std::marker::PhantomData,
+        };
+        let result = f();
+        let entries = STATE.with(|state| state.get().expect("scoped construction probe").entries);
+        (result, entries)
+    }
+
+    pub(super) fn enter(boundary: Boundary) -> Result<(), Error> {
+        STATE.with(|cell| {
+            let Some(mut state) = cell.get() else { return Ok(()); };
+            let index = match boundary {
+                Boundary::Validation => 0, Boundary::Vectors => 1,
+                Boundary::Energy => 2, Boundary::Cache => 3,
+            };
+            state.entries[index] = state.entries[index].checked_add(1).expect("construction probe count");
+            cell.set(Some(state));
+            // Entry sentinel, not completed construction or cancellation proof.
+            if state.stop == Some(boundary) { Err(Error::Unsupported) } else { Ok(()) }
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OnlineSchedule {
     #[default]
@@ -467,12 +516,22 @@ impl Program {
             return Err(Error::Unsupported);
         }
         let initial = usize::try_from(plan.prefill.query_sequence).map_err(|_| Error::Resource)?;
-        let sequence = initial
-            .checked_add(selections - 1)
-            .filter(|&n| n <= limits.max_sequence)
+        // Preserve even the zero-input/tight-limit error order: the former
+        // extent check preceded the zero-input Domain check. selections > 0.
+        if initial == 0 {
+            return Err(if selections - 1 > limits.max_sequence {
+                Error::Resource
+            } else {
+                Error::Domain
+            });
+        }
+        let geometry = DecoderPlan::validated_phase_geometry(initial, selections)
             .ok_or(Error::Resource)?;
-        if initial == 0
-            || plan.prefill.batch != 1
+        let sequence = geometry.padded_rows();
+        if sequence > limits.max_sequence {
+            return Err(Error::Resource);
+        }
+        if plan.prefill.batch != 1
             || plan.decode.batch != 1
             || plan.decode.maximum_key_sequence < sequence as u64
         {
@@ -517,6 +576,8 @@ impl Program {
                 metadata(&op.attributes, 0, &mut meta_nodes, &mut meta_bytes)?;
             }
         }
+        #[cfg(test)]
+        construction_probe::enter(construction_probe::Boundary::Validation)?;
         plan.validate().map_err(|_| Error::Domain)?;
         let checked_ranges = source.checked_ranges();
         if checked_ranges

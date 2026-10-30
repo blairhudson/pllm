@@ -144,6 +144,144 @@ fn embedding_batches_complete_padded_scans_in_preflight_and_each_holder_walk() {
 }
 
 #[test]
+fn shared_phase_geometry_preserves_active_masks_last_row_feedback_and_padded_walk() {
+    // Synthetic clear Driver only: no keys, RNG or cryptographic claims. Every
+    // phase still runs four padded rows. These masks/rows are enumerated without
+    // calling the production geometry helper or reproducing its arithmetic.
+    let mut p = embedding(Capacity::Capsule, false, false, 7, 4, 2, 3);
+    p.nodes = vec![
+        Node {
+            code: p.nodes[0].code, shape: p.nodes[0].shape.clone(),
+            range: p.nodes[0].range, last_use: 2,
+        },
+        Node {
+            code: Code::Softmax(0), shape: vec![1, 1, 4, 4],
+            range: Range::new(0, 4096).unwrap(), last_use: 2,
+        },
+        Node {
+            code: Code::Last(0), shape: vec![1, 4],
+            range: p.nodes[0].range, last_use: 3,
+        },
+        Node {
+            code: Code::Argmax(2), shape: vec![1],
+            range: Range::new(0, 6).unwrap(), last_use: 3,
+        },
+    ];
+    let masks = [
+        [true, false, false, false], [true, true, false, false],
+        [true, true, false, false], [true, true, false, false],
+        [true, false, false, false], [true, true, false, false],
+        [true, true, true, false], [true, true, true, false],
+        [true, false, false, false], [true, true, false, false],
+        [true, true, true, false], [true, true, true, true],
+    ];
+    let reference_budget = request_budget(&p).unwrap();
+    let reference_tables = request_tables(&p, &reference_budget).unwrap();
+    let rs = ranges(4, p.nodes[0].range).unwrap();
+    let expected_masks: Vec<[u8; 32]> = masks.iter().map(|mask| {
+        gates::softmax_cached(&rs, mask, &reference_tables).unwrap().0.digest()
+    }).collect();
+    assert_ne!(expected_masks[1], expected_masks[6]);
+    assert_ne!(expected_masks[6], expected_masks[11]);
+    drop(reference_tables);
+    drop(reference_budget);
+
+    struct GeometryDriver {
+        masks: Vec<[u8; 32]>,
+        softmax_calls: usize,
+        selections: usize,
+        observations: usize,
+    }
+    impl Driver for GeometryDriver {
+        fn run(&mut self, _: Context, plan: &Plan<'_>, input: &[u64]) -> Result<NativeOutput, Error> {
+            let count = plan.output_count();
+            let mut values = Zeroizing::new(zeros(count)?);
+            match count {
+                7 => { // Clear one-hot selector, used only in this synthetic fixture.
+                    assert_eq!(input.len(), 1);
+                    values[input[0] as usize] = 1;
+                }
+                4 => {
+                    assert_eq!(plan.digest(), self.masks[self.softmax_calls]);
+                    self.softmax_calls += 1;
+                }
+                1 => {
+                    values[0] = [4, 5, 6][self.selections];
+                    self.selections += 1;
+                }
+                _ => panic!("unexpected synthetic kernel"),
+            }
+            Ok(NativeOutput { values })
+        }
+        fn observe(&mut self, selection: usize, node: usize, shape: &[usize], values: &[u64]) {
+            self.observations += 1;
+            // Exact public coefficient rows from the small tensor() fixture.
+            // Token feedback must replace row 2, then row 3, not the padded end
+            // in every phase. Last must select rows 1, 2, 3 respectively.
+            let first = [512, 1024, 1536, -1536].map(word);
+            let initial_last = [-1024, -512, 0, 512].map(word);
+            let unused = [-1536, -1024, -512, 0].map(word);
+            let feedback_a = [-512, 0, 512, 1024].map(word);
+            let feedback_b = [1536, -1536, -1024, -512].map(word);
+            if node == 0 {
+                assert_eq!(shape, [1, 4, 4]);
+                let rows = match selection {
+                    0 => [first, initial_last, unused, unused],
+                    1 => [first, initial_last, feedback_a, unused],
+                    2 => [first, initial_last, feedback_a, feedback_b],
+                    _ => panic!("unexpected selection"),
+                };
+                assert_eq!(values, rows.as_flattened());
+            } else if node == 2 {
+                assert_eq!(values, [initial_last, feedback_a, feedback_b][selection]);
+            }
+        }
+        fn cancel(&mut self) {}
+    }
+    let (expected, obligations) = walk(&p, 0, false);
+    assert_eq!(expected.kernels, 27); // 3 * (4 one-hots + 4 softmaxes + 1 argmax).
+    let budget = request_budget(&p).unwrap();
+    let tables = request_tables(&p, &budget).unwrap();
+    let mut driver = GeometryDriver {
+        masks: expected_masks, softmax_calls: 0, selections: 0, observations: 0,
+    };
+    let mut schedule = Schedule::new(&p, context(&p), 0, Some(&mut driver), &tables).unwrap();
+    assert_eq!(schedule.execute(&[1, 2]).unwrap().as_slice(), [4, 5, 6]);
+    assert_eq!(resource_fields(schedule.resources), resource_fields(expected));
+    assert_eq!(<[u8; 32]>::from(schedule.hash.clone().finalize()), obligations);
+    drop(schedule);
+    assert_eq!((driver.softmax_calls, driver.selections, driver.observations), (12, 3, 12));
+    for role in [0, 1] {
+        for driven in [false, true] {
+            let (actual, hash) = walk(&p, role, driven);
+            assert_eq!(resource_fields(actual), resource_fields(expected));
+            assert_eq!(hash, obligations);
+        }
+    }
+    preflight(&mut p).unwrap();
+    assert_eq!(resource_fields(p.resources), resource_fields(expected));
+    assert_eq!(p.obligations, obligations);
+}
+
+#[test]
+fn schedule_rejects_inconsistent_phase_extent_before_first_kernel() {
+    for (initial, selections, sequence) in [(0, 3, 4), (2, 0, 4), (2, 3, 3), (usize::MAX, 2, 4)] {
+        let mut p = embedding(Capacity::Capsule, false, false, 7, 1, 2, 3);
+        p.initial = initial;
+        p.selections = selections;
+        p.sequence = sequence;
+        let budget = request_budget(&p).unwrap();
+        let tables = request_tables(&p, &budget).unwrap();
+        let mut driver = ZeroDriver::default();
+        let mut schedule = Schedule::new(&p, context(&p), 0, Some(&mut driver), &tables).unwrap();
+        assert!(matches!(schedule.execute(&[0, 0]), Err(Error::Domain)));
+        assert_eq!(schedule.resources.kernels, 0);
+        drop(schedule);
+        assert_eq!(driver.calls, 0);
+    }
+}
+
+#[test]
 fn embedding_limit_rejects_before_even_the_first_kernel_or_file_scan() {
     for driven in [false, true] {
         let mut p = embedding(Capacity::Decoder, true, false, 17, 9, 2, 1);
