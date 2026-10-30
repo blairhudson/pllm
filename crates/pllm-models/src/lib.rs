@@ -3077,6 +3077,17 @@ fn validate_attention_operation(
             operation.id
         )));
     }
+    let group_size = operation
+        .attributes
+        .get("group_size")
+        .and_then(Value::as_u64)
+        .filter(|size| *size != 0)
+        .ok_or_else(|| {
+            ModelError::Incomplete(format!(
+                "operation {} attention group_size must be a nonzero u64",
+                operation.id
+            ))
+        })?;
     let Some(left) = operation.inputs.first().and_then(|input| shapes.get(input)) else {
         return Ok(());
     };
@@ -3089,22 +3100,25 @@ fn validate_attention_operation(
             operation.id
         )));
     }
-    let valid = match operation.operator {
-        ModelOperator::AttentionScores => {
-            let key_query = if right.len() == 5 { right[2] } else { left[2] };
-            left[0] == right[0]
-                && left[2] == key_query
-                && left[3] == right[right.len() - 1]
-                && operation.output_shape[..3] == left[..3]
-        }
-        ModelOperator::AttentionValues => {
-            let value_query = if right.len() == 5 { right[2] } else { left[2] };
-            left[0] == right[0]
-                && left[2] == value_query
-                && operation.output_shape == [left[0], left[1], left[2], right[right.len() - 1]]
-        }
-        _ => true,
-    };
+    let key_sequence = right[right.len() - 2];
+    let feature = right[right.len() - 1];
+    let valid = left[0] == right[0]
+        && (right.len() == 4 || left[2] == right[2])
+        && left[1] > 0
+        && right[1] > 0
+        && left[1].checked_rem(right[1]) == Some(0)
+        && left[1].checked_div(right[1]) == Some(group_size)
+        && match operation.operator {
+            ModelOperator::AttentionScores => {
+                left[3] == feature
+                    && operation.output_shape == [left[0], left[1], left[2], key_sequence]
+            }
+            ModelOperator::AttentionValues => {
+                left[3] == key_sequence
+                    && operation.output_shape == [left[0], left[1], left[2], feature]
+            }
+            _ => true,
+        };
     if !valid {
         return Err(ModelError::Incomplete(format!(
             "operation {} attention shapes are inconsistent",
@@ -3113,6 +3127,9 @@ fn validate_attention_operation(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod attention_contract_tests;
 
 fn validate_cache_update(
     graph_mode: DecoderMode,
