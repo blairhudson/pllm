@@ -798,6 +798,33 @@ pub(super) fn rms_recipe<S: rms_work::RmsSink>(
     Ok((output, squared))
 }
 
+/// E=sum(x_i^2)<=B in encoded-integer units implies |x_i|<=floor(sqrt(B)).
+/// This is a coordinate intersection, NOT a proof that a later row sum fits.
+/// No rescaling, rounding down of a real-valued source bound, or profile change.
+fn squared_norm_input_bounds(input: Interval, width: usize, bound: u128) -> Result<Interval, Error> {
+    let minimum = if input.lower() <= 0 && input.upper() >= 0 {
+        0
+    } else {
+        input.lower().unsigned_abs().min(input.upper().unsigned_abs())
+    };
+    if u128::from(minimum)
+        .pow(2)
+        .checked_mul(width as u128)
+        .ok_or(Error::Bounds)?
+        > bound
+    {
+        return Err(Error::Bounds);
+    }
+    // u128::isqrt fits i128 even when it does not fit a signed coordinate.
+    let radius = bound.isqrt() as i128;
+    let lower = i128::from(input.lower()).max(-radius);
+    let upper = i128::from(input.upper()).min(radius);
+    Interval::new(
+        i64::try_from(lower).map_err(|_| Error::Bounds)?,
+        i64::try_from(upper).map_err(|_| Error::Bounds)?,
+    )
+}
+
 pub(super) fn rms_normalization<S: rms_work::RmsSink>(
     b: &mut S,
     width: usize,
@@ -806,20 +833,19 @@ pub(super) fn rms_normalization<S: rms_work::RmsSink>(
     input_norm: Option<u128>,
 ) -> Result<(Value, u128), Error> {
     let x = b.input();
+    // Both native emission and fixed-work preflight enter this shared recipe.
+    // Refine BEFORE the first square: post-sum energy alone cannot rescue a
+    // product overflow. Every product/sum/truncation check below still applies.
+    let input = match input_norm {
+        Some(bound) => squared_norm_input_bounds(input, width, bound)?,
+        None => input,
+    };
+    if input_norm.is_some() {
+        b.refine(x, input);
+    }
     let square = b.square(x)?;
     let sum = b.row_map(square, width, RowMap::Sum)?;
     if let Some(squared_norm) = input_norm {
-        let minimum = if input.lower() <= 0 && input.upper() >= 0 {
-            0
-        } else {
-            input
-                .lower()
-                .unsigned_abs()
-                .min(input.upper().unsigned_abs())
-        };
-        if squared_norm < u128::from(minimum).pow(2) * width as u128 {
-            return Err(Error::Bounds);
-        }
         // s_i=TR(x_i^2), so sum(s_i)<=floor((B+n*(Q-1))/Q).
         // Keep the exact squares, ordered sum and original mean rescale.
         let upper = squared_norm
@@ -880,6 +906,18 @@ pub(super) fn rms_normalization<S: rms_work::RmsSink>(
                             .and_then(|v| v.checked_mul(width as u128))
                             .ok_or(Error::Bounds)?,
                     );
+                    // Both quantities bound E=sum(x_i^2) for THIS complete
+                    // ordered input row, in squared encoded-integer units (not
+                    // S=sum(TR(x_i^2)), nor a mean or a Q18 energy). The caller's
+                    // obligation E<=B holds in every denominator bucket too.
+                    // Intersect before inverse^2; do not round B into S again.
+                    // This final intersection changes only the returned radius,
+                    // never graph bounds, instructions, stochastic truncations
+                    // or rsqrt's domain.
+                    let sum_squares = match input_norm {
+                        Some(bound) => sum_squares.min(bound),
+                        None => sum_squares,
+                    };
                     let inverse = inverse.boxes[j].ok_or(Error::Bounds)?;
                     let inverse = u128::from(
                         inverse
@@ -1190,8 +1228,266 @@ pub(super) fn activation_bounds(kind: Activation, input: Interval) -> Result<Int
 mod rotary_tests;
 
 #[cfg(test)]
+#[path = "tensor_numeric_input_norm_tests.rs"]
+mod input_norm_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    // Pure integer evaluator: no owners, keys, PRSS, masks or observed values
+    // become certificates. Each bit chooses floor/ceil at one stochastic site;
+    // exact divisions still consume a bit, so all tapes have identical indexing.
+    fn rms_round(value: i128, shift: u8, tape: &mut u64) -> i128 {
+        let q = 1_i128 << shift;
+        let result = value.div_euclid(q)
+            + i128::from(*tape & 1 != 0 && value.rem_euclid(q) != 0);
+        *tape >>= 1;
+        result
+    }
+
+    fn rms_integer_oracle(row: &[i64], gamma: &[i64], mut tape: u64) -> Vec<i128> {
+        let q = 262_144_i128;
+        // Fixtures use widths 1 and 2, whose reciprocal is exactly representable.
+        assert!(matches!(row.len(), 1 | 2));
+        let sum: i128 = row.iter()
+            .map(|&x| rms_round(i128::from(x).pow(2), 18, &mut tape))
+            .sum();
+        let d = rms_round(sum * (q / row.len() as i128), 18, &mut tape) + 1;
+        assert!(0 < d && d < 1_i128 << 35);
+        let j = 127 - d.leading_zeros() as usize;
+        let u = rms_round(d * (1_i128 << (34 - j)), 18, &mut tape);
+        let u2 = rms_round(u * u, 18, &mut tape);
+        let u3 = rms_round(u2 * u, 18, &mut tape);
+        let u4 = rms_round(u3 * u, 18, &mut tape);
+        // Independently transcribed encoded polynomial, not proof helpers.
+        let p = 1_086_023 + rms_round(
+            -4_057_974 * u + 10_085_068 * u2 - 13_072_088 * u3 + 6_823_457 * u4,
+            18, &mut tape,
+        );
+        let compensation = (if j % 2 == 1 { 724 } else { 512 })
+            * (1_i128 << (17 - (j + 1) / 2));
+        let inverse = rms_round(p * compensation, 18, &mut tape);
+        let normalized: Vec<_> = row.iter()
+            .map(|&x| rms_round(i128::from(x) * inverse, 18, &mut tape))
+            .collect();
+        normalized.iter().zip(gamma)
+            .map(|(&x, &g)| rms_round(x * i128::from(g), 18, &mut tape))
+            .collect()
+    }
+
+    // Execute emitted public graph over mathematical integers, independently of
+    // interval/radius recipes. Check every eager arithmetic bound as well.
+    fn rms_integer_graph(program: &Program, row: &[i64], mut tape: u64) -> Vec<i128> {
+        let mut values: Vec<Vec<i128>> = Vec::new();
+        for node in program.nodes[..program.len].iter().map(|n| n.unwrap()) {
+            let get = |v: Value| &values[v.0 as usize];
+            let output: Vec<i128> = match node.instruction {
+                Instruction::Input => row.iter().map(|&x| i128::from(x)).collect(),
+                Instruction::Affine { left, right, coefficients: c } => get(left).iter()
+                    .enumerate().map(|(i, &x)| x * i128::from(c.left)
+                        + right.map_or(0, |r| get(r)[i]) * i128::from(c.right)
+                        + i128::from(c.constant)).collect(),
+                Instruction::Product { left, right, rescale, certified } => get(left).iter()
+                    .zip(get(right)).map(|(&x, &y)| {
+                        let raw = x * y;
+                        if let Some(bound) = certified {
+                            assert!((i128::from(bound.lower())..=i128::from(bound.upper()))
+                                .contains(&raw));
+                        }
+                        if rescale { rms_round(raw, 18, &mut tape) } else { raw }
+                    }).collect(),
+                Instruction::Rescale { input, shift } => get(input).iter()
+                    .map(|&x| rms_round(x, shift, &mut tape)).collect(),
+                Instruction::Bits(input) | Instruction::FromBit(input) => get(input).clone(),
+                Instruction::LowBits(input, width) => get(input).iter()
+                    .map(|&x| x & ((1_i128 << width) - 1)).collect(),
+                Instruction::BitMap(input, map) => get(input).iter().map(|&x| {
+                    let x = x as u64;
+                    i128::from(match map {
+                        BitMap::LowBits(n) => x & (u64::MAX >> (64 - n)),
+                        BitMap::ShiftRight(n) => x >> n,
+                        BitMap::ShiftLeft(n) => x << n,
+                        BitMap::ReverseLowBits(n) => (0..n).fold(0, |out, i|
+                            out | (((x >> i) & 1) << (n - 1 - i))),
+                        BitMap::FoldPairs => (0..32).fold(0, |out, i|
+                            out | ((((x >> (2 * i)) ^ (x >> (2 * i + 1))) & 1) << i)),
+                        BitMap::Parity(mask) => u64::from((x & mask).count_ones() % 2),
+                    })
+                }).collect(),
+                Instruction::BitOr(a, b) | Instruction::BitOrLow(a, b, _) => {
+                    let mask = match node.instruction {
+                        Instruction::BitOrLow(_, _, n) => (1_i128 << n) - 1,
+                        _ => -1,
+                    };
+                    get(a).iter().zip(get(b)).map(|(&a, &b)| (a | b) & mask).collect()
+                }
+                Instruction::BitXor(a, b) => get(a).iter().zip(get(b))
+                    .map(|(&a, &b)| a ^ b).collect(),
+                Instruction::RowMap(input, width, RowMap::Sum) => get(input)
+                    .chunks_exact(width).map(|r| r.iter().sum()).collect(),
+                Instruction::RowMap(input, width, RowMap::Broadcast) => get(input).iter()
+                    .flat_map(|&x| std::iter::repeat(x).take(width)).collect(),
+                Instruction::LaneAffine(input, table) => get(input).iter()
+                    .zip(&program.public_affines[table as usize]).map(|(&x, c)| {
+                        assert_eq!(c.right, 0);
+                        x * i128::from(c.left) + i128::from(c.constant)
+                    }).collect(),
+                other => panic!("unexpected RMS instruction: {other:?}"),
+            };
+            assert_eq!(output.len(), node.lanes);
+            if !node.bit {
+                for x in &output {
+                    assert!((i128::from(node.bounds.lower())..=i128::from(node.bounds.upper()))
+                        .contains(x), "{node:?}: {x}");
+                }
+            }
+            values.push(output);
+        }
+        values.pop().unwrap()
+    }
+
+    // Literal pre-tightening row-energy equations, using only public graph
+    // denominator bounds and the existing rsqrt primitive. No duplicate runtime.
+    fn rms_previous_energy(program: &Program, input: Interval, gamma: &[i64]) -> u128 {
+        let width = gamma.len() as u128;
+        let q = ONE as u128;
+        let denominator = program.nodes.iter().flatten().find(|n| matches!(
+            n.instruction, Instruction::Affine {
+                right: None, coefficients: Affine { left: 1, right: 0,
+                    constant: RMS_NORM_EPSILON_Q18 }, ..
+            }
+        )).unwrap().bounds;
+        let magnitude = u128::from(input.lower().unsigned_abs().max(input.upper().unsigned_abs()));
+        let mut workspace = SoftmaxWorkWorkspace::empty();
+        let mut radius = 0;
+        for j in 0..35 {
+            let lo = denominator.lower().max(1 << j);
+            let hi = denominator.upper().min((1 << (j + 1)) - 1);
+            if lo > hi { continue; }
+            assert!(matches!(width, 1 | 2));
+            let sum_max = (hi as u128 * q - 1) / (q / width);
+            let component = ((sum_max + 1) * q - 1).isqrt() as i64;
+            if input.lower().max(-component) > input.upper().min(component) { continue; }
+            let inverse = rms_energy_inverse_bounds(Interval::new(lo, hi).unwrap(), &mut workspace)
+                .unwrap();
+            let inverse = u128::from(inverse.lower().unsigned_abs().max(inverse.upper().unsigned_abs()));
+            let energy = (sum_max * q + width * (q - 1)).min(width * magnitude * magnitude);
+            radius = radius.max(ceil_sqrt(energy * inverse * inverse).div_ceil(q)
+                + ceil_sqrt(width));
+        }
+        let gamma = u128::from(gamma.iter().map(|g| g.unsigned_abs()).max().unwrap());
+        (radius * gamma).div_ceil(q).checked_add(ceil_sqrt(width)).unwrap().pow(2)
+    }
+
+    fn rms_assert_same_schedule(a: &Program, b: &Program) {
+        assert_eq!(a.len, b.len);
+        assert_eq!(a.numeric_profile, b.numeric_profile);
+        assert_eq!(a.work, b.work); // Includes every cursor and AES charge.
+        assert_eq!(a.last_use, b.last_use);
+        assert_eq!(a.slots, b.slots);
+        assert_eq!(a.register_count, b.register_count);
+        assert_eq!(a.bit_widths, b.bit_widths);
+        assert_eq!(a.public_affines, b.public_affines);
+        for (a, b) in a.nodes.iter().flatten().zip(b.nodes.iter().flatten()) {
+            assert_eq!((a.lanes, a.bit), (b.lanes, b.bit));
+            // Only certified intervals may differ: actual operands, operations,
+            // rescale flags and all constants must remain identical.
+            match (a.instruction, b.instruction) {
+                (Instruction::Product { left: al, right: ar, rescale: at, .. },
+                 Instruction::Product { left: bl, right: br, rescale: bt, .. }) =>
+                    assert_eq!((al, ar, at), (bl, br, bt)),
+                (a, b) => assert_eq!(a, b),
+            }
+        }
+    }
+
+    fn rms_check_row(row: &[i64], input: Interval, gamma: &[i64], obligation: u128) {
+        let width = row.len();
+        assert!(row.iter().map(|&x| i128::from(x).unsigned_abs().pow(2)).sum::<u128>()
+            <= obligation);
+        let (program, energy) = Program::rms_norm_with_input_norm(
+            1, width, input, gamma, obligation).unwrap();
+        let (compact, compact_energy) = Program::rms_norm_with_input_norm_compact(
+            1, width, input, gamma, obligation).unwrap();
+        assert_eq!(energy, compact_energy);
+        assert!(energy <= rms_previous_energy(&program, input, gamma));
+        let (absent, _) = Program::rms_norm_certified(1, width, input, gamma).unwrap();
+        let (compact_absent, _) = Program::rms_norm_certified_compact(
+            1, width, input, gamma).unwrap();
+        rms_assert_same_schedule(&absent, &program);
+        rms_assert_same_schedule(&compact_absent, &compact);
+        let mut workspace = RmsWorkWorkspace::empty();
+        assert_eq!(Program::rms_norm_with_input_norm_work(
+            1, width, input, gamma, obligation, &mut workspace).unwrap(), program.work);
+        workspace.assert_native_metadata(&program);
+        // Every lane's square, normalization and gamma rescale, plus mean and
+        // six rsqrt sites. This exhausts all stochastic possibilities, not seeds.
+        for tape in 0..1_u64 << (3 * width + 7) {
+            let expected = rms_integer_oracle(row, gamma, tape);
+            assert_eq!(rms_integer_graph(&program, row, tape), expected);
+            assert_eq!(rms_integer_graph(&compact, row, tape), expected);
+            assert!(expected.iter().map(|x| x.unsigned_abs().pow(2)).sum::<u128>() <= energy);
+        }
+    }
+
+    #[test]
+    fn rms_input_energy_exhaustive_bounded_rows_all_floor_ceil_and_signed_gamma() {
+        let input = Interval::new(-2, 2).unwrap();
+        // Public obligation fixed BEFORE enumerating rows. No measured row
+        // energy is promoted to a proof; include every row satisfying E<=B.
+        for obligation in [0, 1, 4, 8] {
+            for gamma in [[ONE, -ONE], [0, 0], [1 << 40, -(1 << 40)]] {
+                for a in -2_i64..=2 {
+                    for b in -2_i64..=2 {
+                        if (a * a + b * b) as u128 <= obligation {
+                            rms_check_row(&[a, b], input, &gamma, obligation);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rms_input_energy_exponent_edges_and_sparse_signed_rows_all_roundings() {
+        // d=1+TR(x^2/Q), with x around exact powers where d crosses buckets.
+        // Also hit largest admitted RMS denominator bucket (j=34), both signs.
+        for center in [0, 512, ONE / 2, ONE, 4 * ONE, 256 * ONE] {
+            let magnitude = center + 1;
+            let input = Interval::new(-magnitude, magnitude).unwrap();
+            let obligation = (magnitude as u128).pow(2);
+            for x in [center.saturating_sub(1), center, magnitude] {
+                for sign in [-1, 1] {
+                    rms_check_row(&[sign * x], input, &[-8 * ONE], obligation);
+                }
+            }
+        }
+        rms_check_row(&[ONE, 0], Interval::new(-ONE, ONE).unwrap(),
+            &[ONE, -ONE], (ONE as u128).pow(2));
+    }
+
+    #[test]
+    fn rms_input_energy_strict_improvement_and_absent_certificate_graph_unchanged() {
+        let input = Interval::new(-2, 2).unwrap();
+        let gamma = [ONE, -ONE];
+        let (tight, energy) = Program::rms_norm_with_input_norm(1, 2, input, &gamma, 0).unwrap();
+        assert!(energy < rms_previous_energy(&tight, input, &gamma));
+        let (absent, absent_energy) = Program::rms_norm_certified(1, 2, input, &gamma).unwrap();
+        assert_eq!(absent_energy, rms_previous_energy(&absent, input, &gamma));
+        // Redundant E<=n*M^2 neither refines S nor changes radius. Exact full
+        // node/digest equality proves instructions/constants/proof metadata same.
+        let (redundant, redundant_energy) = Program::rms_norm_with_input_norm(
+            1, 2, input, &gamma, 8).unwrap();
+        assert_eq!(absent_energy, redundant_energy);
+        assert_eq!(absent.nodes, redundant.nodes);
+        assert_eq!(absent.digest(), redundant.digest());
+        rms_assert_same_schedule(&absent, &tight);
+        for tape in 0..1_u64 << 13 {
+            assert_eq!(rms_integer_graph(&absent, &[0, 0], tape),
+                rms_integer_graph(&tight, &[0, 0], tape));
+        }
+    }
 
     #[test]
     fn reciprocal_mass_proof_covers_denominators_and_all_rounding_choices() {
