@@ -19,6 +19,7 @@ pub mod coefficient_layout;
 pub mod coefficient_ntt;
 pub mod coefficient_phase_reference;
 pub mod coefficient_repacking;
+pub mod coefficient_rns_contraction;
 pub mod coefficient_torus_conversion;
 pub mod column_product_reference;
 pub mod commutable_projection_reference;
