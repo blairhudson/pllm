@@ -116,6 +116,59 @@ Even conditionally using `S=32768,H=32,p=128` gives `t=8,G=1024`, not
 All active-group score reductions must preserve GQA head identity; V outputs
 must return to source Q-head order before `o_proj`.
 
+### Conditional encoder/automorphism join (D61 derivation only)
+
+This bounded algebra is not an actual encoder issuer, HE backend proof or
+integration approval. Let `N=2^k>=2`, `S=N/2`, `zeta` a primitive complex
+`2N`th root, and `E=(e_j)` one odd exponent representative per `±` pair modulo
+`2N`. For real `p in R[X]/(X^N+1)` and unit `g mod 2N`, define
+`Phi_E(p)[j]=p(zeta^e_j)`, `sigma_g(p)=p(X^g)` in the quotient, and
+`R_s(z)[j]=z[(j+s) mod S]`. Then
+
+```text
+for all p: Phi_E(sigma_g(p)) = R_s(Phi_E(p))
+    iff g*e_j = e_((j+s) mod S) (mod 2N), for every j.
+```
+
+Sufficiency is direct evaluation; necessity follows already from `p=X` and
+primitivity. Matching only the NEGATIVE exponent gives the conjugate slot, not
+the required slot (real polynomial coefficients do not make slots real).
+A sufficient cyclic construction requires UNITS `e0,u`, `ord(u)=S` and
+`-1 not in <u>`: take `E=(e0*u^j)` and `g_s=u^s`. These hypotheses give distinct
+representatives covering exactly one per `±` pair. Not every ordering `E`
+admits rotations. Boundary `N=2,S=1,u=1` works; `N=1` is excluded.
+
+**Stipulated example, not adopted packing:** `N=8`, `E=(1,3,9,11)` modulo 16,
+`u=3`, so `g_(+1)=3`, `g_(-1)=11`. Existing
+`crates/pllm-core/src/interleaved_kv_layout/placement.rs:7–8,276–279` uses `R_s`
+and emits `s=-r`: source slot `a` moves to destination `a+r`. Thus
+`g=3^(-r)` ONLY for this stipulated encoder/order/substitution convention.
+For `r=1`, slot impulse `(7,0,0,0)` maps correctly with `g=11` to `(0,7,0,0)`;
+wrong-direction `g=3` instead gives `(0,0,0,7)`.
+
+Other algebraic negative controls (not authored or executed regressions):
+
+- Wrong ordering `E'=(1,9,3,11)` makes `g=3` select indices `(2,3,1,0)`, not
+  `R_1`. A unit without its exponent order does not specify a slot rotation.
+- Conjugate `g=13=-3 mod 16` gives `conj(R_1(z))` for the stipulated `E`.
+  NONREAL slots distinguish it; a real impulse hides the error.
+- Wrong root `zeta^2` is not a root of `X^8+1`: that polynomial evaluates to
+  `2`, so evaluation does not descend to the quotient. Inverse orientation
+  `zeta^-1` instead conjugates the encoder identity; its internally consistent
+  rotation commutation still holds, so commutation alone cannot authenticate it.
+- Substitution is not monomial multiplication: `sigma_3(X^3)=X^9=-X`, whereas
+  `X*X^3=X^4` in this quotient.
+
+**Actual encoder issuer remains OPEN.** Before joining `MAP` to a real `ALT`,
+bind actual ring, slot packing, primitive root/orientation, exponent order
+(including FFT permutation and conjugate-half choice), API shift-to-unit map
+and substitution direction to the actual original issuer/context/version.
+`OriginalSourcePlan` config-factory/model provenance is NOT encoder
+authentication. Existing integer/layout tests and shared primitives supply no
+HE backend proof. These are conditional mathematical findings, not an issued
+capability, paper full-system claim, regression-authoring grant or integration
+approval. Source activation, native HOLD and cleanup **UNKNOWN** remain unchanged.
+
 ## 4. Concrete operator dependencies and exact missing evidence
 
 Each row is an edge group in one original model block, not an independent
