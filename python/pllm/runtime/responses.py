@@ -167,6 +167,8 @@ def _render_prompt(messages, descriptor, *, template=None,
     if selected is None:
         suffix = "\nassistant:" if add_generation_prompt else ""
         return "\n".join(f"{row['role']}: {row['content']}" for row in rows) + suffix
+    if not isinstance(selected, str):
+        raise ResponsesError("source chat template failed: expected a string", param="input")
     try:
         from jinja2 import StrictUndefined
         from jinja2.sandbox import SandboxedEnvironment
@@ -178,7 +180,7 @@ def _render_prompt(messages, descriptor, *, template=None,
             raise ResponsesError(str(message), param="input")
 
         environment.globals["raise_exception"] = raise_exception
-        return str(environment.from_string(str(selected)).render(
+        return str(environment.from_string(selected).render(
             messages=rows, add_generation_prompt=bool(add_generation_prompt),
             bos_token=descriptor.get("bos_token", ""),
             eos_token=descriptor.get("eos_token", ""), tools=tools))

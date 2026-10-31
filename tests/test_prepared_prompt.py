@@ -70,6 +70,13 @@ def test_present_broken_template_refuses_before_encode(template):
     assert tokenizer.calls == []
 
 
+@pytest.mark.parametrize("template", [False, 0, [], {}])
+@pytest.mark.parametrize("descriptor", [{}, {"chat_template": None}])
+def test_malformed_fallback_template_refuses(descriptor, template):
+    with pytest.raises(ResponsesError, match="template failed"):
+        _render_prompt(normalize_input("hello"), descriptor, template=template)
+
+
 def test_private_payload_immutable_encode_once_consume_once():
     prepared, tokenizer, s = prepare()
     assert len(tokenizer.calls) == 1
