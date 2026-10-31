@@ -11,6 +11,7 @@ import pytest
 
 from pllm import Experiment, OpenAI, _native
 from pllm.configuration import ConfigurationError
+from pllm.deployment import resources
 from pllm.protocols import OpenWeightVerifiableOutsourcing
 from pllm.runtime import delegated_source as source, delegated_transport as transport, delegated_worker
 from pllm.runtime.benchmark_memory import estimate_memory
@@ -19,6 +20,26 @@ from pllm.runtime.responses import normalize_input, prompt_text
 from test_delegated_decoder import clear_oracle
 from test_delegated_sdk import active_sessions, experiment_fixture
 from test_delegated_interfaces import gateway, run_cli
+
+
+_CAPACITY_FAILED_LEDGERS = set()
+
+
+def _forget_empty_ledger(capacity):
+    if type(capacity._owners) is dict and not capacity._owners:
+        _CAPACITY_FAILED_LEDGERS.discard(capacity)
+
+
+@pytest.fixture
+def _worker_admission_capacity(monkeypatch):
+    capacity = resources._ClientCapacity()
+    _CAPACITY_FAILED_LEDGERS.add(capacity)
+    try:
+        monkeypatch.setattr(resources, "_capacity", capacity)
+        monkeypatch.setattr(capacity, "observe", lambda: SimpleNamespace(headroom_bytes=1 << 40))
+        yield capacity
+    finally:
+        _forget_empty_ledger(capacity)
 
 
 def test_explicit_capacity_roundtrip_preserves_default_identity(tmp_path):
@@ -162,7 +183,8 @@ def test_capacity_native_reconstruction_does_not_change_default_contract():
 
 
 @pytest.mark.parametrize("outcome", ["accepted", "rejected", "cancelled", "cancelled_chained"])
-def test_worker_admission_retires_decoded_body_before_temporary_reservation(tmp_path, monkeypatch, outcome):
+def test_worker_admission_retires_decoded_body_before_temporary_reservation(
+        tmp_path, monkeypatch, _worker_admission_capacity, outcome):
     """Control-flow regression: source/native arithmetic is checked separately."""
     from starlette.testclient import TestClient
     from pllm.runtime.delegated_protocol import pack
@@ -170,8 +192,40 @@ def test_worker_admission_retires_decoded_body_before_temporary_reservation(tmp_
     experiment, _, _ = experiment_fixture(tmp_path)
     app = delegated_worker.create_delegated_worker_app(experiment, "worker_a", "a" * 32)
     owner = app.state.delegated_owner
-    decoded_refs, released = [], []
+    decoded_refs, requested, reservations, originals, completed, released = [], [], [], [], [], []
     original_unpack = delegated_worker.unpack_admission
+    capacity = _worker_admission_capacity
+    ledger = capacity._owners
+    hold = capacity.hold_bytes
+
+    @contextmanager
+    def checked_hold(size, *, _token):
+        with hold(size, _token=_token) as observation:
+            yield observation
+            if size == 4 * owner.admission_limit:
+                assert len(decoded_refs) == 1 and decoded_refs[0]() is None
+
+    monkeypatch.setattr(capacity, "hold_bytes", checked_hold)
+
+    def observe_completed_releases():
+        # These managers are retained by the fixture; this is not an independent GC proof.
+        assert capacity._owners is ledger and type(ledger) is dict
+        for manager, token, backend, amount in originals:
+            assert manager._capacity is capacity and manager._token is token
+            assert manager._manager is backend and manager._amount == amount
+            if token in ledger:
+                assert ledger[token] == amount
+                continue
+            assert token.retained is None and manager._exited
+            assert not manager._failed and not manager._draining
+            retirement = owner.retirement
+            if retirement is not None and retirement.manager is manager:
+                assert retirement.done and retirement.terminal and retirement.abort_ok
+                assert retirement.native is None and retirement.root_closed and retirement.exit_seen
+                assert retirement.root._references == 0
+            if not any(previous is manager for previous in completed):
+                completed.append(manager)
+                released.append(amount)
 
     class Decoded(dict):
         pass
@@ -181,14 +235,13 @@ def test_worker_admission_retires_decoded_body_before_temporary_reservation(tmp_
         decoded_refs.append(weakref.ref(value))
         return value
 
-    @contextmanager
     def reserve(size):
-        try:
-            yield
-        finally:
-            if size == 4 * owner.admission_limit:
-                assert len(decoded_refs) == 1 and decoded_refs[0]() is None
-            released.append(size)
+        requested.append(size)
+        manager = resources.reserve_incremental_memory(size)
+        assert manager._amount == size
+        originals.append((manager, manager._token, manager._manager, manager._amount))
+        reservations.append(manager)
+        return manager
 
     class Native:
         def request_id(self):
@@ -237,4 +290,21 @@ def test_worker_admission_retires_decoded_body_before_temporary_reservation(tmp_
         else:
             reply = client.post("/v1/delegation/admit", content=body)
             assert reply.status_code == (400 if outcome == "rejected" else 200)
+        observe_completed_releases()
+        assert requested == [4 * owner.admission_limit, 64 << 20]
+        assert len(reservations) == len(originals) == 2 and owner.retirement.manager is reservations[1]
+        if outcome == "accepted":
+            root_manager, root_token, root_backend, root_amount = originals[1]
+            assert root_manager is reservations[1] and root_manager._manager is root_backend
+            assert owner.active is not None and owner.reservation is owner.retirement.root
+            assert ledger[root_token] == root_amount == 64 << 20 and root_token.retained is root_manager
+            assert root_manager._failed is owner.retirement.custody
+            assert released == [4 * owner.admission_limit]
+        else:
+            assert owner.active is None and owner.retirement.done
+            assert len(released) == 2
+    observe_completed_releases()
     assert len(released) == 2 and owner.active is None and owner.reservation is None
+    assert sorted(released) == sorted(requested)
+    assert len(completed) == 2 and all(token not in ledger for _, token, _, _ in originals)
+    assert owner.retirement.done and not ledger

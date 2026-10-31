@@ -1,11 +1,12 @@
 """Bounded reproducers for the SDK audit; fixtures identify controlled owners."""
 
 import asyncio
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import threading
 import time
+from types import SimpleNamespace
 
 import anyio
 from fastapi.testclient import TestClient
@@ -13,12 +14,33 @@ import httpx
 import pytest
 
 from pllm import Model
+from pllm.deployment import resources
 from pllm.runtime import delegated_source, delegated_transport, delegated_worker, sidecar
 from pllm.runtime.client import AsyncResponsesResource, ProtocolError
 
 from test_delegated_client import harness as harness
 from test_delegated_sdk import experiment_fixture
 from test_delegated_source import write_source_fixture
+
+
+_LIFECYCLE_FAILED_LEDGERS = set()
+
+
+def _forget_empty_ledger(capacity):
+    if type(capacity._owners) is dict and not capacity._owners:
+        _LIFECYCLE_FAILED_LEDGERS.discard(capacity)
+
+
+@pytest.fixture
+def _worker_lifecycle_capacity(monkeypatch):
+    capacity = resources._ClientCapacity()
+    _LIFECYCLE_FAILED_LEDGERS.add(capacity)
+    try:
+        monkeypatch.setattr(resources, "_capacity", capacity)
+        monkeypatch.setattr(capacity, "observe", lambda: SimpleNamespace(headroom_bytes=1 << 40))
+        yield capacity
+    finally:
+        _forget_empty_ledger(capacity)
 
 
 @pytest.mark.parametrize("padding", [
@@ -202,10 +224,15 @@ async def test_gateway_disconnect_signals_before_execution_drain(harness, monkey
 
 @pytest.mark.parametrize("stale", ["0" * 64, "not-a-request"])
 @pytest.mark.parametrize("action", ["step", "cancel", "finish"])
-def test_worker_stale_routing_and_busy_admission_preserve_current_owner(tmp_path, stale, action):
+def test_worker_stale_routing_and_busy_admission_preserve_current_owner(
+        tmp_path, _worker_lifecycle_capacity, stale, action):
     experiment, _, _ = experiment_fixture(tmp_path)
     app = delegated_worker.create_delegated_worker_app(experiment, "worker_a", "a" * 32)
     owner = app.state.delegated_owner
+    capacity = _worker_lifecycle_capacity
+    ledger = capacity._owners
+    manager = resources.reserve_incremental_memory(64 << 20)
+    token, backend = manager._token, manager._manager
 
     class Native:
         aborted = 0
@@ -219,20 +246,51 @@ def test_worker_stale_routing_and_busy_admission_preserve_current_owner(tmp_path
             return b"accepted-by-controlled-owner"
 
     native = Native()
+
+    async def arm():
+        async with owner.lock:
+            retirement = delegated_worker._WorkerRetirement(
+                manager, asyncio.get_running_loop(), owner.lock)
+            owner.retirement = retirement
+            retirement.root = owner.reservation = delegated_worker._Reservation(retirement)
+            retirement.validate()
+            retirement.native = owner.active = native
+            owner.request = "a" * 64
+            owner.seen.add(owner.request)
+            owner.deadline = time.monotonic() + 10
+
+    def assert_charged():
+        assert capacity._owners is ledger and type(ledger) is dict
+        assert manager._capacity is capacity and manager._token is token
+        assert manager._manager is backend and manager._amount == 64 << 20
+        assert ledger[token] == manager._amount and token.retained is manager
+        assert manager._failed is custody and custody == (retirement,)
+        assert retirement.root is root and retirement.manager is manager
+        assert not retirement.done and not manager._exited
+
     with TestClient(app, headers={"authorization": "Bearer " + "a" * 32}) as client:
-        owner.active, owner.request = native, "a" * 64
-        # This controlled native owner bypasses /admit; supply its matching host
-        # root so successful responses follow the real lease lifecycle too.
-        owner.reservation = delegated_worker._Reservation(nullcontext())
-        owner.seen.add(owner.request)
-        owner.deadline = time.monotonic() + 10
+        client.portal.call(arm)
+        retirement, root, custody = owner.retirement, owner.reservation, manager._failed
+        assert_charged()
         assert client.post("/v1/delegation/admit", content=b"unrelated").status_code == 409
         assert client.post(f"/v1/delegation/{stale}/{action}", content=b"").status_code in (400, 404)
         assert owner.active is native and native.aborted == 0 and owner.seen == {"a" * 64}
+        assert owner.reservation is root and owner.retirement is retirement
+        assert_charged()
         result = client.post(f"/v1/delegation/{owner.request}/step", content=b"current")
         assert result.status_code == 200 and result.content == b"accepted-by-controlled-owner"
+        assert_charged()
         result = client.post(f"/v1/delegation/{owner.request}/step", content=b"bad")
         assert result.status_code == 400 and owner.active is None and native.aborted == 1
+        assert capacity._owners is ledger and token not in ledger
+        assert manager._capacity is capacity and manager._token is token and manager._manager is backend
+        assert token.retained is None and manager._exited and not manager._failed and not manager._draining
+        assert retirement.done and retirement.terminal and retirement.abort_ok and retirement.native is None
+        assert retirement.root is root and root._references == 0 and retirement.root_closed and retirement.exit_seen
+        assert owner.reservation is None and owner.seen == {"a" * 64}
+    assert native.aborted == 1  # Lifespan shutdown must not abort the retired shell again.
+    assert capacity._owners is ledger and token not in ledger
+    assert retirement.done and manager._exited and token.retained is None
 
 
 @contextmanager

@@ -124,9 +124,29 @@ class _PayloadResponse(Response):
             super().__init__(content, **kwargs)
         except BaseException as error:
             content = None
-            _clear_failure_frames(error)
+            self._clear_failure(error)
             self.close()
             raise
+
+    def _clear_failure(self, error):
+        root = self._lease._reservation if self._lease is not None else None
+        retirement = root._manager if root is not None else None
+        if not isinstance(retirement, _WorkerRetirement):
+            try:
+                _clear_failure_frames(error)
+            except BaseException:
+                pass  # Preserve established primary; no worker refund authority.
+            return
+        previous = retirement.uncertain
+        terminal = retirement.terminal
+        retirement.terminal = retirement.uncertain = True
+        try:
+            _clear_failure_frames(error)
+        except BaseException:
+            return  # Recording only; original charge remains nonrefundable.
+        retirement.uncertain = previous
+        if not previous:
+            retirement.terminal = terminal
 
     def close(self):
         # An explicit close cannot refund a body still borrowed by an active send.
@@ -152,7 +172,7 @@ class _PayloadResponse(Response):
         except BaseException as error:
             # Failed send frames can retain the message and its original body.
             # They must drain before close releases the last reservation claim.
-            _clear_failure_frames(error)
+            self._clear_failure(error)
             raise
         finally:
             self._sending = False
@@ -177,6 +197,169 @@ class _OperationSlot:
             owner.batch_operation_outstanding = False
 
 
+def _retirement_error(primary, error, phase):
+    """First established failure wins; no metadata hooks or added annotations."""
+    return error if primary is None else primary
+
+
+class _WorkerRetirement:
+    """One prearmed worker root; failed physical retirement is never retried.
+
+    Fixed controls use the existing native envelope plus 64MiB allowance (and
+    reservation control allowance >=64KiB), not a physical-byte qualification.
+    No destructor, exception cache, second token, payload copy or retry task.
+    Opaque resources from a constructor which never returns remain excluded.
+    """
+
+    __slots__ = ("manager", "root", "native", "loop", "lock", "custody",
+                 "armed", "terminal", "abort_ok", "root_closed", "exit_seen",
+                 "busy", "done", "started", "uncertain")
+
+    def __init__(self, manager, loop, lock):
+        self.manager, self.loop, self.lock = manager, loop, lock
+        self.root = self.native = None
+        self.custody = (self,)  # Allocate before acquiring the original charge.
+        self.armed = self.terminal = self.abort_ok = False
+        self.root_closed = self.exit_seen = self.busy = self.done = False
+        self.started = self.uncertain = False
+
+    def _on_loop(self):
+        try:
+            return asyncio.get_running_loop() is self.loop
+        except RuntimeError:
+            return False
+
+    def _published(self):
+        manager = self.manager
+        with manager._capacity.lock:
+            return (manager._capacity._owners.get(manager._token) == manager._amount
+                    and manager._token.retained is manager
+                    and manager._failed is self.custody)
+
+    def __enter__(self):
+        self.manager.__enter__()
+        try:
+            self.manager.retain_failed(self.custody)
+        finally:
+            # Publication can succeed before an injected failure. Inspect only;
+            # never replace foreign custody or manufacture ledger removal.
+            self.armed = self._published()
+        if not self.armed:
+            raise RuntimeError("GKM worker custody was not published")
+
+    def validate(self):
+        if not self.armed or not self._published():
+            raise RuntimeError("GKM worker custody identity changed")
+
+    def __exit__(self, *exc):
+        self.exit_seen = True
+        # Final reply release (including send-finally and __del__) cannot call
+        # a fallible backend. Keep full charge until locked proof consumption.
+        # Shared reply counters retain their existing single-loop contract.
+        return False
+
+    def close(self):
+        """Called by manager.drain_failed: proof check ONLY, never native abort."""
+        if (not self._on_loop() or self.uncertain or not self.terminal or not self.abort_ok
+                or self.native is not None
+                or not self.root_closed or not self.exit_seen
+                or (self.root is not None and (not self.root._closed
+                    or self.root._references != 0 or self.root._manager is not None))):
+            raise RuntimeError("GKM worker retirement is not refundable")
+        with self.manager._capacity.lock:
+            completed = (self.manager._exited
+                         and self.manager._token not in self.manager._capacity._owners
+                         and self.manager._token.retained is None
+                         and not self.manager._failed)
+        if self.manager._drain_finish_state is not None and not completed:
+            raise RuntimeError("GKM worker retirement finalization is ambiguous")
+        if self.armed and not completed:
+            self.validate()
+
+    def _finalize(self):
+        if self.uncertain:
+            raise RuntimeError("GKM worker retirement is not refundable")
+        if self.done:
+            return
+        if self.busy:
+            raise RuntimeError("GKM worker reservation exit is ambiguous")
+        self.close()
+        with self.manager._capacity.lock:
+            if (self.manager._exited
+                    and self.manager._token not in self.manager._capacity._owners):
+                self.done = True  # A direct proof-only manager drain completed.
+                return
+        self.busy = True
+        # Leave busy latched after ambiguous exit: a consumed generator is not
+        # refund evidence, and no later explicit drain may manufacture proof.
+        if self.armed:
+            self.manager.drain_failed()
+        else:
+            self.manager.__exit__(None, None, None)
+        with self.manager._capacity.lock:
+            if (not self.manager._exited
+                    or self.manager._token in self.manager._capacity._owners):
+                raise RuntimeError("GKM worker reservation exit is ambiguous")
+        self.done = True
+        self.busy = False
+
+    def completion(self):
+        """Inspect original proof only; never abort or retry a backend."""
+        if not self._on_loop():
+            return "FAILED/UNKNOWN"
+        if self.uncertain or self.busy:
+            return "FAILED/UNKNOWN"
+        if not self.terminal:
+            return "NOTREADY"
+        if not self.abort_ok or self.native is not None:
+            return "FAILED/UNKNOWN"
+        if (not self.root_closed or not self.exit_seen
+                or (self.root is not None and self.root._references != 0)):
+            return "NOTREADY"
+        if self.root is not None and (not self.root._closed or self.root._manager is not None):
+            return "FAILED/UNKNOWN"
+        with self.manager._capacity.lock:
+            completed = (self.manager._exited
+                         and self.manager._token not in self.manager._capacity._owners
+                         and self.manager._token.retained is None
+                         and not self.manager._failed)
+        if completed:
+            return "PROVEN"
+        if self.done:
+            return "FAILED/UNKNOWN"
+        if self.manager._drain_finish_state is not None:
+            return "FAILED/UNKNOWN"
+        if not self.armed or not self._published():
+            return "FAILED/UNKNOWN"
+        return "PROVEN"
+
+    def retire(self):
+        if not self._on_loop():
+            raise RuntimeError("GKM worker retirement requires its owning loop")
+        if self.started or self.uncertain:
+            return  # No automatic pending-abort retry, including shutdown.
+        self.terminal = True  # Fence BEFORE calling possibly failing native code.
+        self.started = True
+        if not self.abort_ok:
+            try:
+                if self.native is not None:
+                    self.native.abort()
+            except BaseException as error:
+                _retirement_error(error, error, "shutdown")
+                raise
+            self.abort_ok = True  # Witness precedes dropping native/root.
+            self.native = None
+        if not self.root_closed:
+            self.root_closed = True  # Original root close attempted ONCE.
+            if self.root is None:
+                # Acquisition/prearm failure: no native was imported, no leases.
+                self.exit_seen = True
+            else:
+                self.root.close()
+        if self.exit_seen and not self.done:
+            self._finalize()
+
+
 class _Owner:
     def __init__(self, experiment, role, api_key, *, ttl=300.0):
         if (role not in ROLES or type(api_key) is not str or not 16 <= len(api_key) <= 256
@@ -197,27 +380,94 @@ class _Owner:
         self.seen = set()
         self.closed = False
         self.reservation = None
+        self.retirement = None
         self.batch_selected = experiment.pipeline.components["linear"].params.get("execution") == BATCH_EXECUTION
         self.batch = None
         self.batch_index = 0
         self.batch_operation_outstanding = False
 
-    def retire(self):
+    def fence(self):
+        retirement = self.retirement
+        if retirement is None:
+            return
+        if not retirement._on_loop():
+            raise RuntimeError("GKM worker retirement requires its owning loop")
+        # No route may execute this request again, even if abort throws.
+        self.active = None
+        self.request = None
+        self.deadline = 0
+        self.batch = None
+        self.batch_index = 0
+        retirement.terminal = True
+
+    def clear_failure(self, error):
+        # Fence routing before fallible frame metadata access. Unproved clearing
+        # stays sticky on this original owner, including direct manager drains.
+        self.fence()
+        retirement = self.retirement
+        previous = retirement.uncertain if retirement is not None else False
+        if retirement is not None:
+            retirement.uncertain = True
         try:
-            if self.active is not None:
-                self.active.abort()
-        except BaseException as error:
             _clear_failure_frames(error)
-            raise
+        except BaseException:
+            return False
+        if retirement is not None:
+            retirement.uncertain = previous
+        return not previous
+
+    def retire(self):
+        retirement = self.retirement
+        if retirement is None:
+            return
+        self.fence()
+        try:
+            retirement.retire()
         finally:
-            self.active = None
-            self.request = None
-            self.deadline = 0
-            self.batch = None
-            self.batch_index = 0
-            if self.reservation is not None:
-                reservation, self.reservation = self.reservation, None
-                reservation.close()
+            if retirement.root_closed:
+                self.reservation = None
+
+    @property
+    def pending_retirement(self):
+        return (self.retirement is not None and self.retirement.terminal
+                and not self.retirement.done)
+
+    async def _drain_retirement(self):
+        retirement = self.retirement
+        if retirement is None:
+            return
+        if not retirement._on_loop():
+            raise RuntimeError("GKM worker drain requires its owning loop")
+        async with self.lock:
+            if not retirement.terminal:
+                raise RuntimeError("GKM worker request is not terminal")
+            if self._completion_state() == "PROVEN" and not retirement.done:
+                # Administrative drain preserves the first backend failure.
+                retirement._finalize()
+            if not retirement.done:
+                raise RuntimeError("GKM worker retirement incomplete or ambiguous")
+
+    def _completion_state(self):
+        """Shared proof inspection, without backend work or error conversion."""
+        retirement = self.retirement
+        if retirement is None:
+            return "NOTREADY"
+        if not retirement._on_loop() or not self.lock.locked():
+            raise RuntimeError("GKM worker completion requires its locked owning loop")
+        return retirement.completion()
+
+    def _consume_completion(self):
+        """Ingress classifies failure; explicit drain propagates its first error."""
+        state = self._completion_state()
+        retirement = self.retirement
+        if state == "PROVEN" and not retirement.done:
+            try:
+                retirement._finalize()
+            except AssertionError:
+                raise  # Never hide regression-oracle/test failures.
+            except BaseException:
+                return "FAILED/UNKNOWN"  # busy stays latched; no backend retry.
+        return state
 
     def expire(self):
         if self.active is not None and time.monotonic() >= self.deadline:
@@ -246,17 +496,59 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 async with owner.lock:
                     owner.expire()
         task = asyncio.create_task(expire())
+        primary = None
         try:
             yield
+        except BaseException as error:
+            primary = _retirement_error(error, error, "shutdown")
         finally:
-            task.cancel()
             try:
-                await task
-            except asyncio.CancelledError:
-                pass
-            async with owner.lock:
-                owner.closed = True
-                owner.retire()
+                task.cancel()
+                external_seen = False
+                while not task.done():
+                    try:
+                        # Same existing task; wait never forwards parent cancel.
+                        # No new task, shield, timeout or bounded latency claim.
+                        await asyncio.wait({task})
+                    except asyncio.CancelledError as error:
+                        if not external_seen:
+                            primary = _retirement_error(primary, error, "teardown")
+                            external_seen = True
+                        else:
+                            _retirement_error(error, error, "teardown")
+                if not task.cancelled():
+                    try:
+                        task.result()  # Retrieve terminal expiry failure ONCE.
+                    except BaseException as error:
+                        primary = _retirement_error(primary, error, "expiry")
+            finally:
+                task = None  # Do not retain a failed expiry task via primary TB.
+                # An expiry task which already failed cannot skip shutdown.
+                # retire() fences but NEVER retries an already terminal abort.
+                try:
+                    async with owner.lock:
+                        owner.closed = True
+                        owner.retire()
+                except BaseException as error:
+                    primary = _retirement_error(primary, error, "shutdown")
+                else:
+                    try:
+                        retirement = owner.retirement
+                        if retirement is not None and not retirement.done:
+                            if (not retirement.terminal or not retirement.abort_ok
+                                    or not retirement.root_closed or not retirement.exit_seen
+                                    or (retirement.root is not None
+                                        and retirement.root._references != 0)):
+                                raise RuntimeError("GKM worker retirement incomplete")
+                            # RELEASE owner.lock before drain reacquires it. A
+                            # terminal shortcut cannot silently leave full charge.
+                            await owner._drain_retirement()
+                            if not retirement.done:
+                                raise RuntimeError("GKM worker retirement incomplete")
+                    except BaseException as error:
+                        primary = _retirement_error(primary, error, "shutdown")
+            if primary is not None:
+                raise primary
 
     async def health(request):
         return JSONResponse({"role": "delegation-worker", "worker": role})
@@ -280,7 +572,12 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
         if not owner.authenticated(request):
             return Response(status_code=401)
         async with owner.lock:
+            completion = owner._consume_completion()
+            if completion == "FAILED/UNKNOWN" or owner.pending_retirement:
+                return Response(status_code=409)
             owner.expire()
+            if owner.pending_retirement:
+                return Response(status_code=409)
             # This admission owns no existing window. A busy/replayed caller
             # cannot cancel an unrelated request merely by attempting to start.
             if owner.closed or owner.active is not None or owner.batch_operation_outstanding:
@@ -289,6 +586,7 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 return Response(status_code=503)
             body_reservation = None
             raw = value = None
+            failed = False
             try:
                 if getattr(owner.source, "capacity", "capsule") == "decoder":
                     reservation = reserve_incremental_memory(4 * owner.admission_limit)
@@ -317,12 +615,18 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 batch = batch_contract(json.loads(contract)) if owner.batch_selected else None
                 if owner.batch_selected and batch is None:
                     raise ValueError("GKM native batch execution metadata is missing")
-                owner.reservation = _Reservation(
+                retirement = _WorkerRetirement(
                     reserve_incremental_memory(request_memory_bytes(owner.source, worker=True,
-                        **({"role": role} if batch is not None else {}))))
-                native = owner.source.load_transport(experiment, rows, outputs, worker=(
+                        **({"role": role} if batch is not None else {}))),
+                    asyncio.get_running_loop(), owner.lock)
+                owner.retirement = retirement
+                root = _Reservation(retirement)
+                retirement.root = owner.reservation = root
+                retirement.validate()  # Exact token/custody BEFORE native import.
+                retirement.native = owner.source.load_transport(experiment, rows, outputs, worker=(
                     value["publication"], value["pin"], ROLES.index(role), value["start"],
                 ))
+                native = retirement.native
                 owner.active, owner.request = native, rid
                 owner.batch, owner.batch_index = batch, 0
                 if native.request_id().hex() != rid:
@@ -334,11 +638,16 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                     "contract_sha256": hashlib.sha256(contract).hexdigest(), "epoch": owner.epoch}),
                     owner.reservation, limit=16 << 10, media_type="application/msgpack")
             except BaseException as error:
+                failed = True
                 # Reraised cancellation can retain source/import arguments in
                 # its traceback after this handler returns. Keep stack metadata,
                 # but release inactive frame locals while reservations still hold.
-                _clear_failure_frames(error)
-                owner.retire()
+                if owner.clear_failure(error):
+                    try:
+                        owner.retire()
+                    except BaseException as cleanup:
+                        owner.clear_failure(cleanup)
+                        # First primary wins, including cleanup interrupts.
                 if not isinstance(error, Exception):
                     raise
                 return Response(status_code=400)
@@ -347,13 +656,23 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 # releasing their temporary reservation, including failed imports.
                 raw = value = None
                 if body_reservation is not None:
-                    body_reservation.__exit__(None, None, None)
+                    try:
+                        body_reservation.__exit__(None, None, None)
+                    except BaseException as cleanup:
+                        owner.clear_failure(cleanup)
+                        if not failed:
+                            raise
 
     async def operation(request: Request):
         if not owner.authenticated(request):
             return Response(status_code=401)
         async with owner.lock:
+            completion = owner._consume_completion()
+            if completion == "FAILED/UNKNOWN" or owner.pending_retirement:
+                return Response(status_code=409)
             owner.expire()
+            if owner.pending_retirement:
+                return Response(status_code=409)
             try:
                 rid = digest(request.path_params["request"])
             except ValueError:
@@ -422,8 +741,11 @@ def create_delegated_worker_app(experiment: Experiment, role: str, api_key: str,
                 # Drain its payloads, then inactive body/native/response callees,
                 # before retire releases the request's reservation.
                 raw = result = receipt = response = None
-                _clear_failure_frames(error)
-                owner.retire()
+                if owner.clear_failure(error):
+                    try:
+                        owner.retire()
+                    except BaseException as cleanup:
+                        owner.clear_failure(cleanup)
                 if not isinstance(error, Exception):
                     raise
                 return Response(status_code=400)

@@ -1,7 +1,6 @@
 """Mocked source-stage HTTP seam; no new wheel or native value loading."""
 
 import asyncio
-from contextlib import contextmanager
 import copy
 import json
 import ssl
@@ -14,12 +13,22 @@ import httpx
 import pytest
 from starlette.requests import Request
 
+from pllm.deployment import resources
 from pllm.runtime import delegated_protocol as protocol
 from pllm.runtime import delegated_transport as transport
 from pllm.runtime import delegated_worker as worker
 from pllm.runtime import delegated_source as source_io
 from pllm.runtime import benchmark_memory
 from pllm.runtime.client import ProtocolError
+
+
+# Keep actual nonempty ledgers rooted; teardown never drains or refunds them.
+_BATCH_FAILED_LEDGERS = set()
+
+
+def _forget_empty_ledger(capacity):
+    if type(capacity._owners) is dict and not capacity._owners:
+        _BATCH_FAILED_LEDGERS.discard(capacity)
 
 
 def runtime():
@@ -435,14 +444,58 @@ def batch_worker(monkeypatch):
     monkeypatch.setattr(worker, "admit_source", lambda _: SimpleNamespace())
     app = worker.create_delegated_worker_app(experiment, "worker_a", "k" * 32)
     owner = app.state.delegated_owner
-    calls, refunds = [], []
+    calls = []
+    capacity = resources._ClientCapacity()
+    ledger = capacity._owners
+    _BATCH_FAILED_LEDGERS.add(capacity)
+    monkeypatch.setattr(resources, "_capacity", capacity)
+    monkeypatch.setattr(capacity, "observe", lambda: SimpleNamespace(headroom_bytes=1 << 40))
 
-    @contextmanager
-    def reserve():
-        try:
-            yield
-        finally:
-            refunds.append(True)
+    async def arm():
+        async with owner.lock:
+            assert owner.retirement is None and owner.active is None
+            manager = resources.reserve_incremental_memory(64 << 20)
+            h.manager, h.token = manager, manager._token
+            h.backend = manager._manager
+            retirement = worker._WorkerRetirement(manager, asyncio.get_running_loop(), owner.lock)
+            owner.retirement = retirement
+            retirement.root = owner.reservation = worker._Reservation(retirement)
+            retirement.validate()
+            h.custody = manager._failed
+            h.retirement, h.root = retirement, retirement.root
+            # Ledger custody precedes native construction/publication, including partial arm.
+            retirement.native = owner.active = Native()
+            owner.request, owner.deadline = "a" * 64, worker.time.monotonic() + 60
+            owner.batch = protocol.batch_contract(runtime())
+            assert_charged()
+
+    def assert_charged():
+        manager, token = h.manager, h.token
+        assert capacity._owners is ledger and type(ledger) is dict
+        assert manager._capacity is capacity and manager._token is token
+        assert manager._manager is h.backend and manager._amount == 64 << 20
+        assert ledger[token] == manager._amount and token.retained is manager
+        assert manager._failed is h.custody and h.custody == (h.retirement,)
+        assert h.retirement.manager is manager and h.retirement.root is h.root
+        assert not manager._exited and not h.retirement.done and not h.refunds
+
+    def observe_refunds():
+        # Post-call observation, never a backend-return timestamp or synthetic refund.
+        manager, token = h.manager, h.token
+        assert capacity._owners is ledger and type(ledger) is dict
+        assert manager._capacity is capacity and manager._token is token
+        assert manager._manager is h.backend and manager._amount == 64 << 20
+        if token in ledger:
+            assert_charged()
+            return
+        assert token.retained is None and manager._exited
+        assert not manager._failed and not manager._draining
+        assert h.retirement.manager is manager and h.retirement.root is h.root
+        assert h.retirement.done and h.retirement.terminal and h.retirement.abort_ok
+        assert h.retirement.native is None and h.retirement.root_closed and h.retirement.exit_seen
+        assert h.root._references == 0 and owner.reservation is None
+        if not h.refunds:
+            h.refunds.append(True)
 
     class Native:
         def execute(self, raw):
@@ -455,9 +508,6 @@ def batch_worker(monkeypatch):
         def finish(self):
             return b"{}"
 
-    owner.active, owner.request, owner.deadline = Native(), "a" * 64, worker.time.monotonic() + 60
-    owner.batch = protocol.batch_contract(runtime())
-    owner.reservation = worker._Reservation(reserve())
     endpoint = next(route.endpoint for route in app.routes if route.path.endswith("/{request}/{action}"))
 
     def request(length=7, authorized=True, rid="a" * 64, action="step"):
@@ -480,23 +530,39 @@ def batch_worker(monkeypatch):
         value.is_disconnected = connected
         return value, reads
 
-    return SimpleNamespace(owner=owner, endpoint=endpoint, request=request, calls=calls, refunds=refunds)
+    h = SimpleNamespace(owner=owner, endpoint=endpoint, request=request, calls=calls, refunds=[],
+        capacity=capacity, ledger=ledger, arm=arm, assert_charged=assert_charged,
+        observe_refunds=observe_refunds)
+    try:
+        yield h
+    finally:
+        _forget_empty_ledger(capacity)
 
 
 def test_outstanding_batch_reply_rejects_body_before_allocation(batch_worker):
     h = batch_worker
 
     async def run():
+        await h.arm()
         reply = await h.endpoint(h.request()[0])
+        h.observe_refunds()
         assert reply.status_code == 200 and reply.body == b"d" * 11
         assert h.owner.batch_operation_outstanding
         request, reads = h.request()
         assert (await h.endpoint(request)).status_code == 409 and not reads
+        h.observe_refunds()
         assert len(h.calls) == 1
-        h.owner.retire()
+        async with h.owner.lock:
+            h.owner.retire()
+        h.observe_refunds()
         assert not h.refunds  # Unsent response owns reservation and slot.
         reply.close()
-        assert not h.owner.batch_operation_outstanding and h.refunds == [True]
+        h.observe_refunds()
+        assert not h.owner.batch_operation_outstanding and not h.refunds
+        h.assert_charged()
+        await h.owner._drain_retirement()
+        h.observe_refunds()
+        assert h.refunds == [True]
 
     asyncio.run(run())
 
@@ -506,32 +572,58 @@ def test_batch_slot_survives_send_unwind(batch_worker, outcome):
     h = batch_worker
 
     async def run():
-        reply = await h.endpoint(h.request()[0])
-        started, proceed = asyncio.Event(), asyncio.Event()
+        task = primary = None
+        try:
+            await h.arm()
+            reply = await h.endpoint(h.request()[0])
+            h.observe_refunds()
+            started, proceed = asyncio.Event(), asyncio.Event()
 
-        async def send(message):
-            if message["type"] == "http.response.body":
-                started.set()
-                await proceed.wait()
-                if outcome == "error":
-                    raise ValueError("controlled send failure")
+            async def send(message):
+                if message["type"] == "http.response.body":
+                    started.set()
+                    await proceed.wait()
+                    if outcome == "error":
+                        raise ValueError("controlled send failure")
 
-        task = asyncio.create_task(reply({"type": "http"}, None, send))
-        await started.wait()
-        h.owner.retire()
-        reply.close()
-        assert h.owner.batch_operation_outstanding and not h.refunds
-        if outcome == "cancel":
-            task.cancel()
-        else:
-            proceed.set()
-        if outcome == "complete":
-            await task
-        else:
-            with pytest.raises(asyncio.CancelledError if outcome == "cancel" else ValueError):
+            task = asyncio.create_task(reply({"type": "http"}, None, send))
+            await started.wait()
+            async with h.owner.lock:
+                h.owner.retire()
+            h.observe_refunds()
+            reply.close()
+            h.observe_refunds()
+            assert h.owner.batch_operation_outstanding and not h.refunds
+            if outcome == "cancel":
+                task.cancel()
+            else:
+                proceed.set()
+            if outcome == "complete":
                 await task
-        assert not h.owner.batch_operation_outstanding and h.refunds == [True]
-        assert reply.body == b""
+            else:
+                with pytest.raises(asyncio.CancelledError if outcome == "cancel" else ValueError):
+                    await task
+            h.observe_refunds()
+            assert not h.owner.batch_operation_outstanding and not h.refunds
+            assert reply.body == b""
+            h.assert_charged()
+            await h.owner._drain_retirement()
+            h.observe_refunds()
+            assert h.refunds == [True]
+        except BaseException as error:
+            primary = error
+            raise
+        finally:
+            # Only this existing send task; no retirement retry or general GC proof.
+            if task is not None:
+                try:
+                    if not task.done():
+                        task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+                except Exception:
+                    if primary is None:
+                        raise
+                    # Preserve the selected primary; a new interruption still propagates.
 
     asyncio.run(run())
 
@@ -539,20 +631,38 @@ def test_batch_slot_survives_send_unwind(batch_worker, outcome):
 def test_worker_wrong_declared_length_rejects_before_fixed_allocation(batch_worker, monkeypatch):
     h = batch_worker
     monkeypatch.setattr(worker, "bytearray", lambda *a: pytest.fail("allocated wrong batch length"), raising=False)
-    request, reads = h.request(length=6)
-    assert asyncio.run(h.endpoint(request)).status_code == 400
-    assert not reads and not h.calls
-    assert not h.owner.batch_operation_outstanding and h.refunds == [True]
+
+    async def run():
+        await h.arm()
+        request, reads = h.request(length=6)
+        assert (await h.endpoint(request)).status_code == 400
+        h.observe_refunds()
+        assert not reads and not h.calls
+        assert not h.owner.batch_operation_outstanding and h.refunds == [True]
+
+    asyncio.run(run())
 
 
 def test_unproved_batch_host_rejects_without_touching_live_native(batch_worker):
     h = batch_worker
-    request, reads = h.request()
-    del request.scope["pllm.batch_http_backend"]
-    active = h.owner.active
-    assert asyncio.run(h.endpoint(request)).status_code == 503
-    assert not reads and h.owner.active is active and not h.calls and not h.refunds
-    h.owner.retire()
+
+    async def run():
+        await h.arm()
+        request, reads = h.request()
+        del request.scope["pllm.batch_http_backend"]
+        active = h.owner.active
+        assert (await h.endpoint(request)).status_code == 503
+        h.observe_refunds()
+        assert not reads and h.owner.active is active and not h.calls and not h.refunds
+        assert h.owner.request == "a" * 64 and h.owner.reservation is h.root
+        assert h.owner.retirement is h.retirement
+        h.assert_charged()
+        async with h.owner.lock:
+            h.owner.retire()
+        h.observe_refunds()
+        assert h.refunds == [True]
+
+    asyncio.run(run())
 
 
 @pytest.mark.parametrize("action", ["finish", "cancel"])
@@ -560,11 +670,18 @@ def test_terminal_batch_reply_also_holds_operation_slot(batch_worker, action):
     h = batch_worker
 
     async def run():
+        await h.arm()
         reply = await h.endpoint(h.request(length=0, action=action)[0])
+        h.observe_refunds()
         assert reply.status_code == 200 and h.owner.active is None
         assert h.owner.batch_operation_outstanding and not h.refunds
         reply.close()
-        assert not h.owner.batch_operation_outstanding and h.refunds == [True]
+        h.observe_refunds()
+        assert not h.owner.batch_operation_outstanding and not h.refunds
+        h.assert_charged()
+        await h.owner._drain_retirement()
+        h.observe_refunds()
+        assert h.refunds == [True]
 
     asyncio.run(run())
 
