@@ -10,6 +10,262 @@ fn context() -> Context {
     }
 }
 
+// Independent encoding oracle: enumerate actual boundary and coefficient rows,
+// not Table::intervals or the constant-time census. No private keys are needed.
+fn explicit_chunk_census(table: &Table<'_>) -> (usize, usize, usize, usize) {
+    let mut chunks = 0;
+    let mut intervals = 0;
+    let mut payload = 0;
+    let mut largest = 0;
+    for (chunk, values) in table.values.chunks(CHUNK_ENTRIES).enumerate() {
+        let start = chunk * CHUNK_ENTRIES;
+        let mut boundaries = vec![0];
+        let mut coefficients = Vec::new();
+        if start != 0 {
+            coefficients.push([0, 0]);
+            boundaries.push(start as u64);
+        }
+        for (offset, &value) in values.iter().enumerate() {
+            coefficients.push([value, 0]);
+            boundaries.push((start + offset + 1) as u64);
+        }
+        if *boundaries.last().unwrap() != 1u64 << table.bits {
+            coefficients.push([0, 0]);
+            boundaries.push(1u64 << table.bits);
+        }
+        let actual = table.chunk_buffers(chunk).unwrap();
+        assert_eq!(actual.0, boundaries);
+        assert_eq!(actual.1, coefficients);
+        if let Some(lowered) = &table.lowered {
+            assert_eq!(lowered.chunks[chunk].boundaries(), boundaries.as_slice());
+            assert_eq!(lowered.chunks[chunk].coefficients(), coefficients.as_slice());
+        }
+        assert_eq!(boundaries.len(), coefficients.len() + 1);
+        let bytes =
+            boundaries.len() * size_of::<u64>() + coefficients.len() * size_of::<[u64; 2]>();
+        chunks += 1;
+        intervals += coefficients.len();
+        payload += bytes;
+        largest = largest.max(bytes);
+    }
+    (chunks, intervals, payload, largest)
+}
+
+fn explicit_resources(
+    table: &Table<'_>,
+    lanes: usize,
+    census: (usize, usize, usize, usize),
+) -> Resources {
+    let (chunks, intervals, payload, largest) = census;
+    let dcf = RingComparison::resources(table.bits, table.bits).unwrap();
+    let keys = chunks * lanes;
+    let public = if table.lowered.is_some() {
+        keys * size_of::<Arc<RingTable>>() + size_of::<Arc<Lowered<'_>>>()
+    } else {
+        payload * lanes
+    };
+    let frame = HEADER_BYTES + keys * 8;
+    let output = lanes * 8;
+    let party = keys * (size_of::<Unit>() + dcf.key_capacity_bytes)
+        + public
+        + keys * 8
+        + frame
+        + output
+        + FIXED_BYTES
+        + dcf.issuance_scratch_bytes;
+    let backing = if table.lowered.is_some() {
+        size_of::<Lowered<'_>>()
+            + 2 * size_of::<usize>()
+            + chunks
+                * (size_of::<Arc<RingTable>>() + size_of::<RingTable>() + 2 * size_of::<usize>())
+            + payload
+    } else {
+        0
+    };
+    Resources {
+        entries: table.values.len(),
+        chunks_per_lane: chunks,
+        dcf_keys_per_party: keys,
+        dcf_evaluations_per_party: intervals * lanes,
+        private_key_bytes_per_party: keys * (dcf.encoded_key_bytes + 24),
+        public_table_bytes_per_party: public,
+        peer_frame_bytes_per_party: frame,
+        output_bytes_per_party: output,
+        table_reservation_bytes: size_of::<Table<'_>>() + table.values.len() * 8 + backing,
+        issuance_reservation_bytes: 2 * party
+            + 2 * largest
+            + 2 * FIXED_BYTES
+            + 2 * dcf.issuance_scratch_bytes,
+        party_reservation_bytes: party,
+    }
+}
+
+#[test]
+fn constant_time_census_matches_explicit_rows_and_complete_resource_records() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    for entries in [1usize, 255, 256, 257, 511, 512, 513, 131071, 131072] {
+        let values: Vec<_> = (0..entries).map(|i| (i & 1) as u64).collect();
+        for bits in 1..=50 {
+            if entries as u64 > 1u64 << bits {
+                continue;
+            }
+            let table = Table::new_zero_extended(bits, &values, [7; 32], &budget).unwrap();
+            let census = explicit_chunk_census(&table);
+            let geometry = table.geometry().unwrap();
+            assert_eq!(
+                (
+                    geometry.chunks,
+                    geometry.intervals,
+                    geometry.payload_bytes,
+                    geometry.largest_payload_bytes,
+                ),
+                census,
+                "entries={entries}, bits={bits}"
+            );
+            assert_eq!(table.lowered_payload_bytes(), census.2);
+            let backing = size_of::<Lowered<'_>>()
+                + 2 * size_of::<usize>()
+                + census.0
+                    * (size_of::<Arc<RingTable>>() + size_of::<RingTable>() + 2 * size_of::<usize>())
+                + census.2;
+            assert_eq!(table.lowered_reservation_bytes(), backing);
+            for lanes in 1..=4 {
+                assert_eq!(
+                    table.resources(lanes).unwrap(),
+                    explicit_resources(&table, lanes, census)
+                );
+            }
+            // Real shared owners at the smallest valid ring and at bit 50;
+            // reuse the raw fixture, never issue a large private-key fixture.
+            if bits == 50 || (bits == 1 || entries as u64 > 1u64 << (bits - 1)) {
+                let table = table.with_shared_chunks().unwrap();
+                assert_eq!(explicit_chunk_census(&table), census);
+                for lanes in 1..=4 {
+                    assert_eq!(
+                        table.resources(lanes).unwrap(),
+                        explicit_resources(&table, lanes, census)
+                    );
+                }
+            } else {
+                drop(table);
+            }
+            assert_eq!(budget.used_bytes(), 0);
+        }
+    }
+}
+
+#[test]
+fn public_census_validation_and_checked_overflow_never_allocate_or_mutate() {
+    let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let table = Table::new_zero_extended(50, &[5; 513], [1; 32], &budget).unwrap();
+    let before = (
+        budget.test_snapshot(),
+        budget.admitted_peak_bytes(),
+        budget.test_accounting_updates(),
+        table.digest(),
+        table.binding(2, context()),
+    );
+    budget.fail_after.store(0, Ordering::SeqCst);
+    for lanes in [0, MAX_LANES + 1, usize::MAX] {
+        assert_eq!(table.resources(lanes), Err(Error::Domain));
+        let mut overflow = context();
+        overflow.first_tensor_index = u64::MAX;
+        assert_eq!(table.issue(lanes, overflow).err(), Some(Error::Domain));
+    }
+    for lanes in 1..=4 {
+        assert!(table.resources(lanes).is_ok());
+    }
+    assert!(table.lowered_reservation_bytes() > table.lowered_payload_bytes());
+    assert_eq!(checked_add(usize::MAX, 1), Err(Error::Resource));
+    assert_eq!(checked_mul(usize::MAX, 2), Err(Error::Resource));
+    assert_eq!(checked_add(usize::MAX, 0), Ok(usize::MAX));
+    assert_eq!(checked_mul(usize::MAX, 1), Ok(usize::MAX));
+    assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        (
+            budget.test_snapshot(),
+            budget.admitted_peak_bytes(),
+            budget.test_accounting_updates(),
+            table.digest(),
+            table.binding(2, context()),
+        ),
+        before
+    );
+    assert!(table.lowered.is_none());
+    budget.fail_after.store(-1, Ordering::SeqCst);
+}
+
+#[test]
+fn census_issuance_exact_fit_and_one_short_preserve_real_owners() {
+    for shared in [false, true] {
+        let probe = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+        let table = Table::new_zero_extended(10, &[5; 257], [1; 32], &probe).unwrap();
+        let table = if shared {
+            table.with_shared_chunks().unwrap()
+        } else {
+            table
+        };
+        let r = explicit_resources(&table, 2, explicit_chunk_census(&table));
+        assert_eq!(table.resources(2).unwrap(), r);
+        drop(table);
+        assert_eq!(probe.used_bytes(), 0);
+        for short in [false, true] {
+            let budget = Budget::new(
+                r.table_reservation_bytes + r.issuance_reservation_bytes - usize::from(short),
+            )
+            .unwrap();
+            let table = Table::new_zero_extended(10, &[5; 257], [1; 32], &budget).unwrap();
+            let table = if shared {
+                table.with_shared_chunks().unwrap()
+            } else {
+                table
+            };
+            if short {
+                let before = (
+                    budget.test_snapshot(),
+                    budget.admitted_peak_bytes(),
+                    budget.test_accounting_updates(),
+                    table.digest(),
+                );
+                budget.fail_after.store(0, Ordering::SeqCst);
+                assert_eq!(table.issue(2, context()).err(), Some(Error::Resource));
+                assert_eq!(
+                    (
+                        budget.test_snapshot(),
+                        budget.admitted_peak_bytes(),
+                        budget.test_accounting_updates(),
+                        table.digest(),
+                    ),
+                    before
+                );
+                assert_eq!(budget.fail_after.load(Ordering::SeqCst), 0);
+                if let Some(lowered) = &table.lowered {
+                    assert_eq!(Arc::strong_count(lowered), 1);
+                    assert!(lowered.chunks.iter().all(|c| Arc::strong_count(c) == 1));
+                }
+                drop(table);
+            } else {
+                let [a, b] = table.issue(2, context()).unwrap();
+                assert_eq!(
+                    budget.admitted_peak_bytes(),
+                    r.table_reservation_bytes + r.issuance_reservation_bytes
+                );
+                let backing = if shared {
+                    table.lowered_reservation_bytes()
+                } else {
+                    0
+                };
+                drop(table);
+                assert_eq!(budget.used_bytes(), backing + 2 * r.party_reservation_bytes);
+                drop(a);
+                assert_eq!(budget.used_bytes(), backing + r.party_reservation_bytes);
+                drop(b);
+            }
+            assert_eq!(budget.used_bytes(), 0);
+        }
+    }
+}
+
 #[test]
 fn lowered_chunks_are_built_once_and_last_party_retains_exact_backing_lease() {
     let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();

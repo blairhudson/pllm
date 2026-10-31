@@ -75,6 +75,14 @@ fn checked_mul(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_mul(b).ok_or(Error::Resource)
 }
 
+// Derived only from validated public metadata; no allocation or cached authority.
+struct Geometry {
+    chunks: usize,
+    intervals: usize,
+    payload_bytes: usize,
+    largest_payload_bytes: usize,
+}
+
 impl<'a> Table<'a> {
     pub fn new_zero_extended(
         bits: u8,
@@ -141,23 +149,48 @@ impl<'a> Table<'a> {
         end - start + usize::from(start != 0) + usize::from((end as u64) < 1u64 << self.bits)
     }
 
-    pub(crate) fn lowered_reservation_bytes(&self) -> usize {
+    fn geometry(&self) -> Result<Geometry, Error> {
         let chunks = self.entries().div_ceil(CHUNK_ENTRIES);
+        // chunk_buffers emits one row per value, a zero prefix for every
+        // non-first chunk, and a zero suffix for every non-last chunk plus
+        // the last chunk iff the original table does not fill the ring.
+        // Each row costs 16 coefficient bytes and 8 boundary bytes; each
+        // chunk also owns the initial 8-byte boundary.
+        let intervals = checked_add(
+            checked_add(self.entries(), checked_mul(chunks - 1, 2)?)?,
+            usize::from((self.entries() as u64) < 1u64 << self.bits),
+        )?;
+        let payload_bytes = checked_add(checked_mul(intervals, 24)?, checked_mul(chunks, 8)?)?;
+        // All interior chunks have identical full-width geometry. Endpoints
+        // differ by their zero prefix/suffix and possibly a short final slice.
+        let mut largest = self.intervals(0).max(self.intervals(chunks - 1));
+        if chunks > 2 {
+            largest = largest.max(self.intervals(1));
+        }
+        Ok(Geometry {
+            chunks,
+            intervals,
+            payload_bytes,
+            largest_payload_bytes: checked_add(checked_mul(largest, 24)?, 8)?,
+        })
+    }
+
+    pub(crate) fn lowered_reservation_bytes(&self) -> usize {
+        // Constructor bounds (1..=MAX_TABLE_ENTRIES, bits 1..=50) make
+        // geometry overflow impossible, including on 32-bit targets.
+        let geometry = self.geometry().expect("validated public table geometry");
         size_of::<Lowered<'_>>()
             + 2 * size_of::<usize>()
-            + chunks * size_of::<Arc<RingTable>>()
-            + (0..chunks)
-                .map(|c| {
-                    size_of::<RingTable>() + 2 * size_of::<usize>() + self.intervals(c) * 24 + 8
-                })
-                .sum::<usize>()
+            + geometry.chunks
+                * (size_of::<Arc<RingTable>>() + size_of::<RingTable>() + 2 * size_of::<usize>())
+            + geometry.payload_bytes
     }
 
     #[cfg(test)]
     pub(crate) fn lowered_payload_bytes(&self) -> usize {
-        (0..self.entries().div_ceil(CHUNK_ENTRIES))
-            .map(|c| self.intervals(c) * 24 + 8)
-            .sum()
+        self.geometry()
+            .expect("validated public table geometry")
+            .payload_bytes
     }
 
     /// Request-local opt-in. Default constructors and codecs keep their original
@@ -213,26 +246,17 @@ impl<'a> Table<'a> {
         if !(1..=MAX_LANES).contains(&lanes) {
             return Err(Error::Domain);
         }
-        let chunks = self.entries().div_ceil(CHUNK_ENTRIES);
+        let geometry = self.geometry()?;
+        let chunks = geometry.chunks;
         let keys = checked_mul(chunks, lanes)?;
         let dcf = RingComparison::resources(self.bits, self.bits).map_err(primitive_error)?;
-        let mut public_bytes = 0;
-        let mut evaluations = 0;
-        let mut largest_public = 0;
-        for chunk in 0..chunks {
-            let intervals = self.intervals(chunk);
-            let bytes = checked_add(checked_mul(intervals, 24)?, 8)?;
-            public_bytes = checked_add(public_bytes, bytes)?;
-            evaluations = checked_add(evaluations, intervals)?;
-            largest_public = largest_public.max(bytes);
-        }
-        public_bytes = if self.lowered.is_some() {
+        let public_bytes = if self.lowered.is_some() {
             checked_add(
                 checked_mul(keys, size_of::<Arc<RingTable>>())?,
                 size_of::<Arc<Lowered<'_>>>(),
             )?
         } else {
-            checked_mul(public_bytes, lanes)?
+            checked_mul(geometry.payload_bytes, lanes)?
         };
         let frame = checked_add(HEADER_BYTES, checked_mul(keys, 8)?)?;
         let output = checked_mul(lanes, 8)?;
@@ -253,7 +277,7 @@ impl<'a> Table<'a> {
         // RingTable coexist. Its party copies are already included above. Fixed
         // metadata and both native comparison scratch contracts are charged too.
         let scratch = checked_add(
-            checked_mul(largest_public, 2)?,
+            checked_mul(geometry.largest_payload_bytes, 2)?,
             checked_add(2 * FIXED_BYTES, checked_mul(dcf.issuance_scratch_bytes, 2)?)?,
         )?;
         let issuance = checked_add(checked_mul(party, 2)?, scratch)?;
@@ -268,7 +292,7 @@ impl<'a> Table<'a> {
             entries: self.entries(),
             chunks_per_lane: chunks,
             dcf_keys_per_party: keys,
-            dcf_evaluations_per_party: checked_mul(evaluations, lanes)?,
+            dcf_evaluations_per_party: checked_mul(geometry.intervals, lanes)?,
             private_key_bytes_per_party: checked_mul(keys, dcf.encoded_key_bytes + 24)?,
             public_table_bytes_per_party: public_bytes,
             peer_frame_bytes_per_party: frame,
