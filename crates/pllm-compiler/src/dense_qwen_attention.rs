@@ -1584,7 +1584,7 @@ impl DenseQwenAttentionState {
 }
 
 fn decode_centered_q10(input: &[u32], role: &str) -> Result<Zeroizing<Vec<i16>>, String> {
-    let mut output = Vec::new();
+    let mut output = Zeroizing::new(Vec::new());
     output
         .try_reserve_exact(input.len())
         .map_err(|_| format!("dense-qwen attention {role} decode allocation failed"))?;
@@ -1594,16 +1594,16 @@ fn decode_centered_q10(input: &[u32], role: &str) -> Result<Zeroizing<Vec<i16>>,
                 .map_err(|_| format!("dense-qwen attention {role} is outside centered q10"))?,
         );
     }
-    Ok(Zeroizing::new(output))
+    Ok(output)
 }
 
 fn encode_centered_i16(input: &[i16]) -> Result<Zeroizing<Vec<u32>>, String> {
-    let mut output = Vec::new();
+    let mut output = Zeroizing::new(Vec::new());
     output
         .try_reserve_exact(input.len())
         .map_err(|_| "dense-qwen attention wrap32 encode allocation failed")?;
     output.extend(input.iter().map(|value| *value as i32 as u32));
-    Ok(Zeroizing::new(output))
+    Ok(output)
 }
 
 fn shape3(shape: &[u64], role: &str) -> Result<[usize; 3], String> {
@@ -1773,7 +1773,7 @@ fn pre_cache_forward(
         &block.weights.norm_q10,
     )?);
     check_activation(block, normalized_i32.len(), "normalized input")?;
-    let mut normalized = Vec::new();
+    let mut normalized = Zeroizing::new(Vec::new());
     normalized
         .try_reserve_exact(normalized_i32.len())
         .map_err(|_| "dense-qwen attention normalized input allocation failed")?;
@@ -1783,7 +1783,6 @@ fn pre_cache_forward(
                 .map_err(|_| "dense-qwen attention RMSNorm output is outside signed Q10 i16")?,
         );
     }
-    let normalized = Zeroizing::new(normalized);
     let normalized_wrap = encode_centered_i16(&normalized)?;
     let projection = |linear: &ModelLinearRegion,
                       rescale: &Q14ToQ10RescaleRegion,
@@ -2080,4 +2079,21 @@ pub fn execute_dense_qwen_attention_decode(
     )?;
     state.usable = true;
     Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn decode_centered_q10_rejects_out_of_range_after_valid_prefix() {
+        let error = super::decode_centered_q10(&[7, 32768], "input").unwrap_err();
+        assert_eq!(error, "dense-qwen attention input is outside centered q10");
+    }
+
+    #[test]
+    fn centered_i16_roundtrips_boundaries_and_unit_values() {
+        let input = [i16::MIN, i16::MAX, 0, -1, 1];
+        let encoded = super::encode_centered_i16(&input).unwrap();
+        let decoded = super::decode_centered_q10(&encoded, "input").unwrap();
+        assert_eq!(decoded.as_slice(), input.as_slice());
+    }
 }
