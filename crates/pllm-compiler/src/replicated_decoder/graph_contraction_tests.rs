@@ -520,6 +520,166 @@ fn original_contraction_full_byte_cap_stops_before_factory_and_retains_diagnosti
 }
 
 #[test]
+fn contraction_layout_needs_no_iterator_view_sink_or_hook() {
+    fn trap<T>() -> T {
+        panic!("type-only quote must not construct or invoke sink hooks")
+    }
+    struct TrapTokens;
+    impl Iterator for TrapTokens {
+        type Item = (usize, usize);
+        fn next(&mut self) -> Option<Self::Item> {
+            panic!("type-only quote must not advance an iterator")
+        }
+    }
+    struct TrapSink;
+    impl driver::ContractionSink for TrapSink {
+        type View = View;
+        type Source = SourceView;
+        type Words = Words;
+        type Token = (usize, usize);
+
+        fn source_shape(_: &SourceView) -> &[usize] {
+            trap()
+        }
+        fn public_weights(&self) -> bool {
+            trap()
+        }
+        fn lookup_policy(&self) -> policy::LookupPolicy {
+            trap()
+        }
+        fn tokens(_: &View) -> impl Iterator<Item = Self::Token> + '_ {
+            trap::<TrapTokens>()
+        }
+        fn table_bounds(&self, _: &SourceView) -> Interval {
+            trap()
+        }
+        fn trie(&mut self, _: &View, _: &SourceView, _: &[usize]) -> Result<View, Error> {
+            trap()
+        }
+        fn tiled(&mut self, _: &View, _: &SourceView, _: &[usize]) -> Result<View, Error> {
+            trap()
+        }
+        fn public_selectors(&mut self, _: Self::Token, _: usize) -> Result<Words, Error> {
+            trap()
+        }
+        fn private_selectors(
+            &mut self,
+            _: &mut Words,
+            _: Self::Token,
+            _: usize,
+            _: usize,
+        ) -> Result<(), Error> {
+            trap()
+        }
+        fn view(_: Words, _: &[usize]) -> View {
+            trap()
+        }
+        fn selector_view(_: Words, _: usize) -> View {
+            trap()
+        }
+        fn matrix(&mut self, _: &View, _: &SourceView, _: bool, _: bool) -> Result<View, Error> {
+            trap()
+        }
+        fn restore_table_bounds(&mut self, _: &View, _: Interval) {
+            trap()
+        }
+        fn append_row(_: &mut Words, _: View) {
+            trap()
+        }
+        fn len(_: &View) -> usize {
+            trap()
+        }
+        fn bias(
+            &mut self,
+            _: &mut View,
+            _: &SourceView,
+            _: driver::BiasIndices,
+        ) -> Result<(), Error> {
+            trap()
+        }
+        fn set_shape(_: &mut View, _: &[usize]) {
+            trap()
+        }
+        fn projection_energies(
+            &mut self,
+            _: &View,
+            _: &View,
+            _: &SourceView,
+            _: Option<&SourceView>,
+        ) -> Result<(), Error> {
+            trap()
+        }
+    }
+
+    // No value of any of these types is constructed. The explicit pairing is
+    // test-only; it supplies no production admission authority.
+    let quote = driver::contraction_control_layout::<TrapSink, TrapTokens>().unwrap();
+    assert!(quote.projection_bytes > 0 && quote.lookup_bytes > 0);
+    assert_eq!(quote.sink_owned_heap_bytes, None);
+    assert_eq!(quote.compiled_callframe_bytes, None);
+}
+
+#[test]
+fn builder_contraction_layout_matches_actual_iterator_quote() {
+    fn layout<I: Iterator<Item = (usize, usize)>>(_: &I) -> driver::ContractionControl {
+        driver::contraction_control_layout::<Builder, I>().unwrap()
+    }
+    let (_, tokens, _, _) = fixture(true, 2, 3, 3, 3);
+    let iterator = <Builder as driver::ContractionSink>::tokens(&tokens);
+    let expected = layout(&iterator);
+    let actual = driver::contraction_control::<Builder>(&tokens).unwrap();
+    assert_eq!(actual.projection_bytes, expected.projection_bytes);
+    assert_eq!(actual.lookup_bytes, expected.lookup_bytes);
+    assert_eq!(actual.sink_owned_heap_bytes, expected.sink_owned_heap_bytes);
+    assert_eq!(
+        actual.compiled_callframe_bytes,
+        expected.compiled_callframe_bytes
+    );
+}
+
+#[test]
+fn contraction_layout_prices_iterator_storage_only_in_lookup() {
+    use std::mem::{align_of, size_of};
+
+    struct SizedTokens<const N: usize> {
+        _storage: [u8; N],
+    }
+    impl<const N: usize> Iterator for SizedTokens<N> {
+        type Item = (usize, usize);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            panic!("type-only quote must not advance an iterator")
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            panic!("type-only quote must not inspect an iterator")
+        }
+    }
+
+    assert_eq!(size_of::<SizedTokens<0>>(), 0);
+    assert_eq!(size_of::<SizedTokens<1>>(), 1);
+    assert_eq!(size_of::<SizedTokens<17>>(), 17);
+    assert_eq!(align_of::<SizedTokens<0>>(), 1);
+    assert_eq!(align_of::<SizedTokens<1>>(), 1);
+    assert_eq!(align_of::<SizedTokens<17>>(), 1);
+
+    // No iterator value is constructed. Synthetic pairings exercise accounting
+    // sensitivity only, not compatibility with Builder's actual iterator.
+    let zero = driver::contraction_control_layout::<Builder, SizedTokens<0>>().unwrap();
+    let one = driver::contraction_control_layout::<Builder, SizedTokens<1>>().unwrap();
+    let seventeen = driver::contraction_control_layout::<Builder, SizedTokens<17>>().unwrap();
+    assert_eq!(one.projection_bytes, zero.projection_bytes);
+    assert_eq!(seventeen.projection_bytes, zero.projection_bytes);
+    // Independent literal oracle: two iterator slots in lookup, none in projection.
+    assert_eq!(one.lookup_bytes - zero.lookup_bytes, 2);
+    assert_eq!(seventeen.lookup_bytes - zero.lookup_bytes, 34);
+    for quote in [zero, one, seventeen] {
+        assert_eq!(quote.sink_owned_heap_bytes, None);
+        assert_eq!(quote.compiled_callframe_bytes, None);
+    }
+}
+
+#[test]
 fn original_projection_proof_growth_and_late_proof_failure_keep_published_owners() {
     let graph = semantics(Op::OutputHead, 2, 3, true);
     for missing_bias_proof in [false, true] {

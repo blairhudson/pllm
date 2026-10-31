@@ -432,6 +432,31 @@ pub(in crate::replicated_decoder) fn contraction_control<S: ContractionSink>(
     tokens: &S::View,
 ) -> Result<ContractionControl, Error> {
     let token_iterator = S::tokens(tokens);
+    contraction_control_for_iterator::<S, _>(&token_iterator)
+}
+
+fn contraction_control_for_iterator<S: ContractionSink, I: Iterator<Item = S::Token>>(
+    _iterator: &I,
+) -> Result<ContractionControl, Error> {
+    contraction_control_layout_bytes::<S, I>()
+}
+
+/// Selected logical slots only; constructs no sink, source, view or iterator.
+/// The caller must pair `I` with the concrete iterator used by `S::tokens`.
+/// An explicit generic argument alone is not proof of that correspondence or
+/// authority to replace an existing admission quote.
+#[cfg(test)]
+pub(in crate::replicated_decoder) fn contraction_control_layout<
+    S: ContractionSink,
+    I: Iterator<Item = S::Token>,
+>() -> Result<ContractionControl, Error> {
+    contraction_control_layout_bytes::<S, I>()
+}
+
+fn contraction_control_layout_bytes<
+    S: ContractionSink,
+    I: Iterator<Item = S::Token>,
+>() -> Result<ContractionControl, Error> {
     let add = |a: usize, b: usize| a.checked_add(b).ok_or(Error::Bounds);
     let twice = |n: usize| n.checked_mul(2).ok_or(Error::Bounds);
     let mut projection = std::mem::size_of::<S::View>();
@@ -485,7 +510,7 @@ pub(in crate::replicated_decoder) fn contraction_control<S: ContractionSink>(
         twice(std::mem::size_of::<Result<&S::Source, Error>>())?,
     )?;
     lookup = add(lookup, twice(std::mem::size_of::<Result<&usize, Error>>())?)?;
-    lookup = add(lookup, twice(std::mem::size_of_val(&token_iterator))?)?;
+    lookup = add(lookup, twice(std::mem::size_of::<I>())?)?;
     lookup = add(lookup, twice(std::mem::size_of::<Option<S::Token>>())?)?;
     lookup = add(lookup, std::mem::size_of::<S::Token>())?;
     lookup = add(
