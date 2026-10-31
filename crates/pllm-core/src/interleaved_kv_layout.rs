@@ -23,6 +23,10 @@ pub const MAX_READ_WORK: usize = 16 * 1024 * 1024;
 /// Exact test-domain bound, not a paper approximation range.
 pub const MAX_ABS_INPUT: i64 = 1 << 20;
 
+mod placement;
+pub use placement::{AppendPlacement, PlacementContribution, PlacementDestination, PlacementMask,
+    PlacementWork, PlacementPayloadWork};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LayoutError {
     Geometry,
@@ -491,3 +495,7 @@ impl DerivedView<'_> {
 #[cfg(test)]
 #[path = "interleaved_kv_layout_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "interleaved_kv_placement_tests.rs"]
+mod placement_tests;
