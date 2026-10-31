@@ -35,6 +35,44 @@ fn price(ring: CoefficientRing, op: Operation) -> Quote {
 }
 
 #[test]
+fn expanded_public_descriptor_refuses_before_pricing_buffers_or_debit() {
+    use crate::coefficient_layout::DegreeBound;
+    let ring = CoefficientRing::bounded(8192, 65537, DegreeBound::Public8192).unwrap();
+    let error = Err(Error::Layout(LayoutError::InvalidDegree));
+    for op in [
+        Operation::AddClientLayer,
+        Operation::RemoveServerLayer,
+        Operation::ComposeProjection([1; 3]),
+        Operation::ComposeProjection([0; 3]),
+        Operation::ComposeProjection([usize::MAX; 3]),
+    ] {
+        for (bytes, work) in [(0, 0), (usize::MAX, usize::MAX)] {
+            assert_eq!(quote(ring, op, bytes, work), Err(Error::Layout(LayoutError::InvalidDegree)));
+        }
+    }
+    // Full-sized canonical/noncanonical and malformed inputs: degree refusal
+    // wins, and the caller's original ledger and buffers remain unchanged.
+    let mut work = ledger(123);
+    for (length, value, cap) in [(1, u64::MAX, 0), (8192, 1, usize::MAX), (8192, 65537, usize::MAX)] {
+        let input = vec![value; length];
+        let noise = vec![0; length];
+        let mut out = vec![77; length];
+        let mut scratch = vec![88; length];
+        assert_eq!(add_client_layer(ring, &input, &input, &input, &noise, &mut out, &mut scratch, cap, cap, &mut work), error);
+        assert_eq!(remove_server_layer(ring, &input, &input, &input, &mut out, &mut scratch, cap, cap, &mut work), error);
+        for shape in [[1; 3], [0; 3], [usize::MAX; 3]] {
+            assert_eq!(compose_projection(ring, shape, &input, &input, &input, &mut out, cap, cap, &mut work), error);
+        }
+        assert_eq!(work.remaining(), 123);
+        assert_eq!(work.control_remaining(), 0);
+        assert_eq!(out, vec![77; length]);
+        assert_eq!(scratch, vec![88; length]);
+        assert_eq!(input, vec![value; length]);
+        assert_eq!(noise, vec![0; length]);
+    }
+}
+
+#[test]
 fn appendix_b_both_signed_noises_wrap_and_projection_are_distinct() {
     for q in [17_u64, 97, (1 << 61) - 1] {
         let ring = CoefficientRing::new(4, q).unwrap();
