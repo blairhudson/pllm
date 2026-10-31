@@ -15,6 +15,8 @@ pub enum Error {
     InvalidRoot,
     BufferLength,
     NonCanonical,
+    /// Element is zero, even, or outside the canonical range [1, 2N).
+    InvalidAutomorphism,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -23,6 +25,7 @@ pub enum Operation {
     Inverse,
     PointwiseAdd,
     PointwiseMul,
+    Automorphism,
 }
 
 /// Conservative event bounds, NOT scalar credits, complete work, or memory quote.
@@ -39,6 +42,10 @@ pub enum Operation {
 /// optional multiply are ALSO included in modular_multiplications: these are
 /// nested categories, not independent prices. MR witness squarings are included
 /// in modular_multiplications, outside exponent_steps. No ledger consumes this.
+/// Automorphism counts only checks, residue visits and output stores. Its public
+/// index arithmetic (per output: two products, one addition, one remainder,
+/// one subtraction and one division) is excluded, like other index/control
+/// instructions; these are NOT coefficient modular multiplications/reductions.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct LogicalOperations {
     pub checks: u64,
@@ -172,6 +179,12 @@ impl NegacyclicNtt {
         let butterflies = n / 2 * u64::from(self.ring.degree().trailing_zeros());
         let mut quote = LogicalOperations::default();
         match operation {
+            Operation::Automorphism => {
+                // Three element predicates, two lengths, and every residue.
+                quote.checks = 5 + n;
+                quote.residue_checks = n;
+                quote.moves = n;
+            }
             Operation::Forward | Operation::Inverse => {
                 quote.checks = 2 + n;
                 quote.residue_checks = n;
@@ -222,6 +235,41 @@ impl NegacyclicNtt {
     /// Natural-order inverse, including N^-1 and inverse twist.
     pub fn inverse_into(&self, input: &[u64], out: &mut [u64]) -> Result<(), Error> {
         self.transform(input, out, true)
+    }
+
+    /// Natural-order spectrum of sigma_g(f) = f(X^g) modulo X^N+1.
+    /// `input` is already in this descriptor's NTT domain; no transform occurs.
+    /// Requires canonical odd 1 <= g < 2N (not normalization modulo 2N).
+    /// Element, exact lengths, then ALL canonical residues are validated before
+    /// any store. Safe Rust requires immutable input and mutable output disjoint.
+    /// O(N), no allocation/scratch, coefficient arithmetic or root change.
+    ///
+    /// sigma_g(f)(psi^(2k+1)) = f(psi^(g*(2k+1))) gives the gather below.
+    /// Validated N <= 8192 implies 2N <= 16384 and g*(2k+1) <=
+    /// 16383^2 = 268402689 < 2^28. All index arithmetic fits u64 and the
+    /// resulting index < N fits usize on supported targets. Odd factors give
+    /// an odd nonzero remainder, so subtraction cannot underflow. Since N is
+    /// a power of two, every accepted g is invertible modulo 2N.
+    ///
+    /// Public algebra only: transforming ciphertext components changes the
+    /// secret domain to sigma_g(s). This is NOT a key switch, evaluation key,
+    /// encrypted execution capability, or noise/scale/ring-chain transition.
+    pub fn automorphism_into(
+        &self,
+        input: &[u64],
+        g: u64,
+        out: &mut [u64],
+    ) -> Result<(), Error> {
+        let two_n = 2 * self.ring.degree() as u64;
+        if g == 0 || g >= two_n || g & 1 == 0 {
+            return Err(Error::InvalidAutomorphism);
+        }
+        self.validate(&[input], out)?;
+        for (k, value) in out.iter_mut().enumerate() {
+            let source = ((g * (2 * k as u64 + 1)) % two_n - 1) / 2;
+            *value = input[source as usize];
+        }
+        Ok(())
     }
 
     fn transform(&self, input: &[u64], out: &mut [u64], inverse: bool) -> Result<(), Error> {
@@ -299,3 +347,7 @@ impl NegacyclicNtt {
 #[cfg(test)]
 #[path = "coefficient_ntt/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "coefficient_ntt_automorphism_tests.rs"]
+mod automorphism_tests;
