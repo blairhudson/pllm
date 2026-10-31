@@ -995,3 +995,12 @@ mod tests;
 #[cfg(test)]
 #[path = "coefficient_rns_contraction/galois_tests.rs"]
 mod galois_tests;
+
+// Unadopted public arithmetic prerequisite; no production executor calls it.
+#[allow(dead_code)]
+#[path = "coefficient_rns_contraction/olt_trace.rs"]
+mod olt_trace;
+
+#[cfg(test)]
+#[path = "coefficient_rns_contraction/olt_trace_tests.rs"]
+mod olt_trace_tests;
