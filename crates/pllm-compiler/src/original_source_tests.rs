@@ -139,6 +139,285 @@ fn attempts() -> usize {
     FACTORIES.with(|n| n.get())
 }
 
+// Regression fixtures for authenticated, untransformed registered output;
+// not a universal proof.
+#[derive(Default)]
+struct AttributeCounts {
+    values: usize,
+    keys: usize,
+    key_bytes: usize,
+    string_bytes: usize,
+    epsilons: usize,
+    depth: usize,
+}
+
+fn count_registered_attributes(
+    value: &serde_json::Value,
+    epsilon: bool,
+    depth: usize,
+    e: usize,
+) -> AttributeCounts {
+    use serde_json::Value;
+    assert!(depth <= 2);
+    let mut count = AttributeCounts {
+        values: 1,
+        depth,
+        ..AttributeCounts::default()
+    };
+    match value {
+        Value::Array(_) => panic!("registered attributes must not contain arrays"),
+        Value::Object(fields) => {
+            if depth == 0 {
+                assert!(fields.len() <= 9);
+            }
+            for (key, child) in fields {
+                assert!(key.len() <= 32);
+                count.keys += 1;
+                count.key_bytes += key.len();
+                let child = count_registered_attributes(child, key == "epsilon", depth + 1, e);
+                count.values += child.values;
+                count.keys += child.keys;
+                count.key_bytes += child.key_bytes;
+                count.string_bytes += child.string_bytes;
+                count.epsilons += child.epsilons;
+                count.depth = count.depth.max(child.depth);
+            }
+        }
+        Value::String(text) => {
+            assert!(text.len() <= if epsilon { e } else { 64 });
+            count.string_bytes += text.len();
+            count.epsilons += usize::from(epsilon);
+        }
+        _ => {}
+    }
+    count
+}
+
+fn registered_decoder_fixture(family: &str, layers: usize) -> serde_json::Value {
+    let mut config: serde_json::Value = serde_json::from_slice(RAW).unwrap();
+    config["model_type"] = serde_json::json!(family);
+    config["num_hidden_layers"] = serde_json::json!(layers);
+    config["tie_word_embeddings"] = serde_json::json!(layers == 1);
+    config["attention_bias"] = serde_json::json!(false);
+    if family == "qwen3" {
+        config["rms_norm_eps"] = serde_json::json!("0.000001");
+        config["head_dim"] = serde_json::json!(2);
+        config["attention_dropout"] = serde_json::json!("0");
+        config["use_cache"] = serde_json::json!(true);
+        config["max_window_layers"] = serde_json::json!(layers);
+    } else if family == "llama" {
+        config.as_object_mut().unwrap().remove("rms_norm_eps");
+        if layers == 2 {
+            config["rope_scaling"] = serde_json::json!({
+                "rope_type": "llama3", "factor": 8.0,
+                "original_max_position_embeddings": 4,
+                "low_freq_factor": 1.0, "high_freq_factor": 4.0
+            });
+        }
+    }
+    config
+}
+
+fn assert_registered_attribute_bounds(source: &OriginalSourcePlan, layers: usize) {
+    let plan = source.plan();
+    assert!(plan.transformations.is_empty());
+    assert!(matches!(
+        plan.model_family.as_str(),
+        "qwen2" | "qwen3" | "llama"
+    ));
+    assert!((1..=2).contains(&layers)); // Small fixtures keep arithmetic bounded.
+    let o_bound = 2 * (30 * layers + 6);
+    let e = source.raw_configuration().len().max(1024);
+    let mut total = AttributeCounts::default();
+    let mut operations = 0;
+    for graph in [&plan.prefill, &plan.decode] {
+        assert!(!graph.operations.is_empty());
+        let per_layer = if plan.model_family == "qwen3" {
+            30
+        } else {
+            28
+        };
+        assert_eq!(graph.operations.len(), per_layer * layers + 6);
+        let mut phase_epsilons = 0;
+        let mut empty_attributes = 0;
+        for operation in &graph.operations {
+            assert!(operation.attributes.is_object());
+            let count = count_registered_attributes(&operation.attributes, false, 0, e);
+            assert!(count.values <= 15);
+            assert!(count.keys <= 14);
+            empty_attributes += usize::from(count.keys == 0);
+            phase_epsilons += count.epsilons;
+            total.values += count.values;
+            total.keys += count.keys;
+            total.key_bytes += count.key_bytes;
+            total.string_bytes += count.string_bytes;
+            total.epsilons += count.epsilons;
+            operations += 1;
+        }
+        assert!(empty_attributes > 0);
+        let norms_per_layer = if plan.model_family == "qwen3" {
+            4
+        } else {
+            2
+        };
+        assert_eq!(phase_epsilons, norms_per_layer * layers + 1);
+    }
+    assert!(operations > 0 && operations <= o_bound);
+    assert!(total.values <= 15 * o_bound);
+    assert!(total.keys <= 14 * o_bound);
+    assert!(total.key_bytes <= 448 * o_bound);
+    assert!(total.string_bytes <= 896 * o_bound + (8 * layers + 2) * e);
+    assert!(total.epsilons > 0 && total.epsilons <= 8 * layers + 2);
+    assert!(total.values + total.keys <= 29 * o_bound);
+}
+
+#[test]
+fn registered_output_attribute_bounds_and_scaled_rope() {
+    for family in ["qwen2", "qwen3", "llama"] {
+        for layers in [1, 2] {
+            let config = registered_decoder_fixture(family, layers);
+            let raw = serde_json::to_vec(&config).unwrap();
+            let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let source = prepared(&root, &raw, 4, limits()).construct().unwrap();
+            assert_registered_attribute_bounds(&source, layers);
+            for graph in [&source.plan().prefill, &source.plan().decode] {
+                let attributes = |id: &str| {
+                    &graph
+                        .operations
+                        .iter()
+                        .find(|op| op.id == id)
+                        .unwrap()
+                        .attributes
+                };
+                let head = attributes("output_head");
+                assert_eq!(head["tied"], layers == 1);
+                assert_eq!(
+                    head["weight"],
+                    if layers == 1 {
+                        "model.embed_tokens.weight"
+                    } else {
+                        "lm_head.weight"
+                    }
+                );
+                let bias = &attributes("layer.0.q_linear")["bias"];
+                if family == "qwen2" {
+                    assert_eq!(bias, "model.layers.0.self_attn.q_proj.bias");
+                } else {
+                    assert!(bias.is_null());
+                }
+                assert_eq!(
+                    attributes("layer.0.input_norm")["epsilon"].as_str(),
+                    Some(if family == "qwen2" {
+                        "1e-6"
+                    } else {
+                        "0.000001"
+                    })
+                );
+                for layer in 0..layers {
+                    for suffix in ["rope_q", "rope_k"] {
+                        let rope = attributes(&format!("layer.{layer}.{suffix}"));
+                        if family == "llama" && layers == 2 {
+                            let count = count_registered_attributes(
+                                rope,
+                                false,
+                                0,
+                                raw.len().max(1024),
+                            );
+                            assert_eq!(rope.as_object().unwrap().len(), 9);
+                            assert_eq!((count.keys, count.values, count.depth), (14, 15, 2));
+                            let scaling = &rope["frequency_scaling"];
+                            assert_eq!(
+                                scaling,
+                                &serde_json::json!({
+                                    "kind": "wavelength_transition", "factor": 8.0,
+                                    "original_max_position_embeddings": 4,
+                                    "low_freq_factor": 1.0, "high_freq_factor": 4.0
+                                })
+                            );
+                            let fields = scaling.as_object().unwrap();
+                            assert_eq!(fields.len(), 5);
+                            assert!(fields.values().all(|v| !v.is_object() && !v.is_array()));
+                        } else {
+                            assert!(rope.get("frequency_scaling").is_none());
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn long_epsilon_uses_configuration_derived_allowance() {
+    // Trailing fractional zeroes preserve positive finite 1e-6, not an underflow
+    // literal. Existing parsing/semantic validation remains unchanged.
+    let epsilon = format!("0.000001{}", "0".repeat(1100));
+    assert!(epsilon.len() > 1024);
+    assert_eq!(epsilon.parse::<f64>().unwrap(), 0.000001);
+    let mut config = registered_decoder_fixture("qwen3", 2);
+    config["rms_norm_eps"] = serde_json::json!(epsilon);
+    let raw = serde_json::to_vec(&config).unwrap();
+    let mut policy = limits();
+    policy.factory.max_string_bytes = epsilon.len(); // Only test-local metadata allowance.
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let source = prepared(&root, &raw, 4, policy).construct().unwrap();
+    source.plan().validate().unwrap();
+    assert!(raw.len() > epsilon.len());
+    assert_registered_attribute_bounds(&source, 2);
+    for graph in [&source.plan().prefill, &source.plan().decode] {
+        let norms: Vec<_> = graph
+            .operations
+            .iter()
+            .filter_map(|op| op.attributes.get("epsilon"))
+            .collect();
+        assert_eq!(norms.len(), 9);
+        assert!(norms
+            .iter()
+            .all(|value| value.as_str() == Some(epsilon.as_str())));
+    }
+}
+
+#[test]
+fn nested_rotary_scalar_and_unsupported_mapping_refusals() {
+    let mut config = registered_decoder_fixture("llama", 2);
+    config["rope_scaling"]["factor"] = serde_json::json!({"nested": 8.0});
+    let scaling = config["rope_scaling"].as_object().unwrap();
+    assert_eq!(scaling.len(), 5);
+    for key in [
+        "rope_type",
+        "factor",
+        "original_max_position_embeddings",
+        "low_freq_factor",
+        "high_freq_factor",
+    ] {
+        assert!(scaling.contains_key(key));
+    }
+    // Five required fields pass source_descriptor's field gate; genuine factory
+    // clones nested factor into descriptor before scalar validation refuses it.
+    let raw = serde_json::to_vec(&config).unwrap();
+    let root = OwnedBudget::new(MAX_ALLOCATION_BYTES).unwrap();
+    let pending = prepared(&root, &raw, 4, limits());
+    let before = attempts();
+    assert!(matches!(pending.construct(), Err(Error::Factory)));
+    assert_eq!(attempts(), before + 1);
+
+    config["model_type"] = serde_json::json!("not_a_registered_mapping");
+    let raw = serde_json::to_vec(&config).unwrap();
+    let source = imported(&root, &raw);
+    let control = bootstrap_bytes(&source, limits()).unwrap();
+    let before = attempts();
+    assert!(matches!(
+        quote(
+            source,
+            root.charge_external(control).unwrap(),
+            workload(4),
+            limits()
+        ),
+        Err(Error::Quote)
+    ));
+    assert_eq!(attempts(), before);
+}
+
 // Ordinary independent structural oracle. It never constructs a production
 // Header or blesses a digest/parsed plan as source custody.
 fn assert_actual_header(source: &OriginalSourcePlan) {
