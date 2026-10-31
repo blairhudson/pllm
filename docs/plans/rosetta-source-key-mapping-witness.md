@@ -81,6 +81,37 @@ These source bodies are RECOVERED; remaining blockers are concrete conversion,
 key-return, error and dependency contracts. TFHEpp parameter/key and recovery
 bodies are not all recovered; the exact encrypted chain remains unqualified.
 
+### 1.2. Forward clear-reference adapter accounting — design only
+
+Beside the reusable owners above, Astra author `ses_e7b0710b6ffeWZV3qwlTm8gEgw`
+and independent auditor `ses_e7b05bcaaffekPm9KaEkpsYqCF` record necessary accounting,
+not approved fees, adapter implementation, reverse conversion or security qualification.
+The [conversion kernel](../../crates/pllm-core/src/coefficient_torus_conversion.rs#L115-L122)
+quotes `64(n+1)+128`; [actual extraction admission](../../crates/pllm-compiler/src/coefficient_extraction_reference.rs#L175-L195)
+costs `(8ℓ+64)n+2128`, including its own attempt32. Proposed forward adapter adds
+one attempt32; preflight `P`, initialization `I`, cleanup `Z` and control `C` remain unpriced.
+On the **same original ClearInputs ledger**, necessary combined work is
+`(8ℓ+128)n+2352+construction+builder+other+P+I+Z+C ≤ L ≤ 65536`.
+Ignoring all additional costs gives bare `n≤464` (ℓ=1), `n≤438` (ℓ=2), hence
+power-of-two `n≤256`: **necessary bounds, not fit or adoption**.
+Frozen encrypted degree2048 **cannot fit this proposed same-ClearInputs-ledger path**;
+this is not engine-failure proof or permission to reduce encrypted degree, raise caps
+or reset ledgers. Original consumed attempts burn; work never refunds.
+Required future order is **begin/burn → debit32 → funded preflight P → validation
+→ remaining debit → reservation → allocation**, never P before begin; actual
+[attempt burn/debit](../../crates/pllm-compiler/src/clear_input_owner.rs#L529-L537) precedes fallible validation.
+[Extraction storage](../../crates/pllm-compiler/src/coefficient_extraction_reference.rs#L189-L195)
+retains scratch plus words: `16(n+1)+32768+wrappers`, including two relation words
+inside [Buffers](../../crates/pllm-compiler/src/coefficient_extraction_reference.rs#L53-L77).
+New output adds `8(n+1)`; complete wrapper/capacity-transition inventory remains unpriced.
+Existing extraction double wipes are priced [there](../../crates/pllm-compiler/src/coefficient_extraction_reference.rs#L163-L168),
+with [borrowed scratch cleanup then retained output](../../crates/pllm-compiler/src/coefficient_extraction_reference.rs#L224-L240);
+that pricing cannot transfer to a hypothetical recursive wrapper wipe.
+[Capacity mismatch before initialization](../../crates/pllm-compiler/src/coefficient_extraction_reference.rs#L87-L94)
+frees allocated capacity on cleanup; it does **not** prove whole-capacity wiping.
+No conversion wrapper implementation exists; future RAII, ordering and wipe contracts
+remain **UNPROVEN**. This design/accounting note grants no execution or adoption.
+
 ## 2. Frozen proposal, not recovered author identity
 
 Scope: **one scalar, four segments ×2048 entries**, full/small degrees65536/2048,
