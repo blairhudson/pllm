@@ -16,7 +16,10 @@ fn caps() -> Caps { Caps { f64_values: 8, u64_values: 0, tensors: 2, operations:
 
 // Cases change original descriptors, never mutate/adopt a derived buffer.
 fn fixture(work: usize, budget: usize, case: usize, factor: f64) -> ClearInputs {
-    let mut b = ClearInputBuilder::new(OwnedBudget::new(budget).unwrap(), caps(), work).unwrap();
+    fixture_with_budget(work, OwnedBudget::new(budget).unwrap(), case, factor)
+}
+fn fixture_with_budget(work: usize, budget: OwnedBudget, case: usize, factor: f64) -> ClearInputs {
+    let mut b = ClearInputBuilder::new(budget, caps(), work).unwrap();
     let mut q = QUERY;
     let mut k = KEY;
     if case == 10 { q[0] = f64::MAX; } // producer product overflow
@@ -140,6 +143,47 @@ fn private_binding_rejects_same_shaped_cross_owner_and_other_graph_operation() {
 }
 
 #[test]
+fn private_binding_rejects_distinct_original_owners_sharing_budget_without_work_refund() {
+    let root = OwnedBudget::new(1 << 20).unwrap();
+    let budget_a = root.try_clone().unwrap();
+    let budget_b = root.try_clone().unwrap();
+    assert!(std::ptr::eq(root.budget(), budget_a.budget()));
+    assert!(std::ptr::eq(root.budget(), budget_b.budget()));
+    let a = fixture_with_budget(MAX_WORK, budget_a, 0, 0.5);
+    let b = fixture_with_budget(MAX_WORK, budget_b, 0, 0.5);
+    assert!(!std::ptr::eq(&a, &b));
+    // Shared accounting membership is not original-owner authority.
+    let baseline = root.budget().used_bytes();
+    let a_work = a.consumed_work();
+    let b_work = b.consumed_work();
+    let q = geometry().quote(limits()).unwrap();
+    // One producer attempt: original ticket, metadata, storage cleanup and core.
+    let debit = 32 + 2 * CONTROL + 4 * (q.workspace_cells + 2 * q.output_cells) + q.visits;
+    let output = execute(&b, 0, 0, 1, geometry(), limits()).unwrap();
+    let bytes = output.inner.phase_bytes();
+    assert!(bytes > 0);
+    assert_eq!(root.budget().used_bytes(), baseline + bytes);
+    assert!(std::ptr::eq(output.original(), &b));
+    assert_eq!(a.consumed_work(), a_work);
+    assert_eq!(b.consumed_work(), b_work + debit);
+    let edge = validate_scale_edge(&a, ops(), [1,1,2,2], 0.5).unwrap();
+    assert!(matches!(edge.bind(output), Err(())));
+    assert_eq!(root.budget().used_bytes(), baseline);
+    assert_eq!(a.consumed_work(), a_work);
+    assert_eq!(b.consumed_work(), b_work + debit);
+    let spent = b.consumed_work();
+    let output = execute(&b, 0, 0, 1, geometry(), limits()).unwrap();
+    assert!(std::ptr::eq(output.original(), &b));
+    assert_eq!(root.budget().used_bytes(), baseline + bytes);
+    assert_eq!(b.consumed_work(), b_work + 2 * debit);
+    assert!(b.consumed_work() > spent);
+    drop(output);
+    assert_eq!(root.budget().used_bytes(), baseline);
+    assert_eq!(a.consumed_work(), a_work);
+    assert_eq!(b.consumed_work(), b_work + 2 * debit);
+}
+
+#[test]
 fn wrong_edge_shape_layer_operator_namespace_attributes_and_policy_refuse() {
     for case in [1,2,3,4,5,6,8,9] {
         let input = fresh(case, 0.5);
@@ -183,6 +227,52 @@ fn whole_construction_and_composition_work_exact_one_short_and_no_replay_refill(
         assert!(matches!(quote(&input, 0.5), Err(Refusal::Owner(owner::Error::Work))));
         assert!(input.remaining_work() <= before);
     }
+}
+
+#[test]
+fn short_primitive_work_cap_then_corrected_retry_spends_same_original_owner() {
+    let construction = construction_work(0);
+    // quote_scaled burns both tickets before prepay pays metadata CONTROL;
+    // the primitive cap then refuses before storage/core/consumer payment.
+    let refused_work = 2 * 32 + CONTROL;
+    let allowance = refused_work + work();
+    assert_eq!(refused_work, 1088);
+    assert_eq!(work(), 13740);
+    assert_eq!(allowance, 14828);
+    let input = fixture(construction + allowance, exact_bytes(), 0, 0.5);
+    assert_eq!(input.consumed_work(), construction);
+    assert_eq!(input.remaining_work(), allowance);
+    let mut short = limits();
+    short.max_work = geometry().quote(limits()).unwrap().visits - 1;
+    let before = observe::snapshot();
+    assert!(matches!(
+        quote_scaled(&input, ops(), geometry(), short, Binary64PublicScale { factor: 0.5 }),
+        Err(Refusal::Owner(owner::Error::Work))
+    ));
+    assert_eq!(input.consumed_work(), construction + refused_work);
+    assert_eq!(input.remaining_work(), 13740);
+    assert_eq!(observe::snapshot(), before); // no reservations OR factories
+
+    // Correct only the primitive limit; retain the actual original owner/ledger.
+    let admitted = quote(&input, 0.5).unwrap();
+    assert_eq!(admitted.resources().additional_work, work());
+    assert_eq!(admitted.resources().cumulative_work, construction + allowance);
+    assert_eq!(input.consumed_work(), construction + allowance);
+    assert_eq!(input.remaining_work(), 0);
+    let output = execute_scaled(admitted).unwrap();
+    assert!(std::ptr::eq(output.original(), &input));
+    assert!(std::ptr::eq(output.scores().original(), &input));
+    assert_eq!(output.values(), &[-3.5, -11.5, 19.5, 5.5]);
+    assert_eq!(input.consumed_work(), construction + allowance);
+    assert_eq!(input.remaining_work(), 0);
+    drop(output);
+    assert_eq!(input.consumed_work(), construction + allowance);
+    assert_eq!(input.remaining_work(), 0);
+    let before = observe::snapshot();
+    assert!(matches!(quote(&input, 0.5), Err(Refusal::Owner(owner::Error::Work))));
+    assert_eq!(observe::snapshot(), before);
+    assert_eq!(input.consumed_work(), construction + allowance);
+    assert_eq!(input.remaining_work(), 0);
 }
 
 #[test]
