@@ -320,6 +320,261 @@ fn simultaneous_outputs_share_original_budget_and_admit_only_one_when_full() {
 }
 
 #[test]
+fn pending_prepayment_excludes_sibling_then_extracts_without_additional_work() {
+    let c = case(1, 3);
+    let q = quote(&[c]).unwrap();
+    // One limb, degree one: 512 + (4 * 2 + 48 * 1 + 512) word ops.
+    assert_eq!((q.input_words, q.oracle_words, q.output_words), (2, 1, 2));
+    assert_eq!(q.word_ops, 1080);
+    let cost = 32 + PREFLIGHT + q.word_ops + 16 * q.output_words + 32;
+    assert_eq!(cost, 2200);
+    let payload = q.owner_bytes - 8 * (q.input_words + q.oracle_words)
+        + 8 * q.output_words
+        + size_of::<Buffers>();
+    let phase_bytes = payload
+        + size_of::<BorrowedOutput<'static, Buffers>>()
+        + size_of::<owner::Prepared<'static>>()
+        + size_of::<ExternalCharge<'static>>();
+    let (input, observer) = fixture(&[1, 2], &[2], owner::MAX_WORK, phase_bytes);
+    let baseline = observer.budget().used_bytes();
+    let before = input.remaining_work();
+    let consumed = input.consumed_work();
+    let original = &input as *const ClearInputs;
+    let backing = input.u64_tensor(0).unwrap().as_ptr();
+
+    let first = prepay(&input, c, 0, 1).unwrap();
+    assert!(std::ptr::eq(first.input, original));
+    assert_eq!(first.input.u64_tensor(0).unwrap().as_ptr(), backing);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    assert_eq!(input.remaining_work(), before - cost);
+    assert_eq!(input.consumed_work(), consumed + cost);
+
+    // The first ticket is still pending: refusal is shared-root capacity,
+    // after the sibling has burned its attempt, preflight and numeric debit.
+    assert!(matches!(prepay(&input, c, 0, 1), Err(Error::Resource)));
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    assert_eq!(input.remaining_work(), before - 2 * cost);
+    assert_eq!(input.consumed_work(), consumed + 2 * cost);
+
+    let output = first.extract().unwrap();
+    assert_eq!(output.words(), &[1, 2]);
+    assert_eq!(output.public_relation(), (2, 2));
+    assert!(std::ptr::eq(output.original(), original));
+    assert_eq!(output.original().u64_tensor(0).unwrap().as_ptr(), backing);
+    // Phase internals are private; inspect retained charge size and unchanged
+    // root usage across ticket -> result, alongside original-owner identity.
+    assert_eq!(output.inner.phase_bytes(), phase_bytes);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    assert_eq!(input.remaining_work(), before - 2 * cost);
+    assert_eq!(input.consumed_work(), consumed + 2 * cost);
+
+    drop(output);
+    assert_eq!(observer.budget().used_bytes(), baseline);
+    assert_eq!(input.remaining_work(), before - 2 * cost);
+    assert_eq!(input.consumed_work(), consumed + 2 * cost);
+}
+
+#[test]
+fn pending_ticket_survives_descriptor_refusal_before_capacity_check() {
+    let c = case(1, 3);
+    let q = quote(&[c]).unwrap();
+    assert_eq!((q.input_words, q.oracle_words, q.output_words), (2, 1, 2));
+    assert_eq!(q.word_ops, 1080);
+    let cost = 32 + PREFLIGHT + q.word_ops + 16 * q.output_words + 32;
+    let descriptor_cost = 32 + PREFLIGHT;
+    assert_eq!(cost, 2200);
+    assert_eq!(descriptor_cost, 1056);
+    assert_eq!(cost + descriptor_cost, 3256);
+    let payload = q.owner_bytes - 8 * (q.input_words + q.oracle_words)
+        + 8 * q.output_words
+        + size_of::<Buffers>();
+    let phase_bytes = payload
+        + size_of::<BorrowedOutput<'static, Buffers>>()
+        + size_of::<owner::Prepared<'static>>()
+        + size_of::<ExternalCharge<'static>>();
+    let (input, observer) = fixture(&[1, 2], &[2], owner::MAX_WORK, phase_bytes);
+    let baseline = observer.budget().used_bytes();
+    let before = input.remaining_work();
+    let consumed = input.consumed_work();
+    let original = &input as *const ClearInputs;
+    let backing = input.u64_tensor(0).unwrap().as_ptr();
+    let oracle = input.u64_tensor(1).unwrap().as_ptr();
+
+    let pending = prepay(&input, c, 0, 1).unwrap();
+    assert!(std::ptr::eq(pending.input, original));
+    assert_eq!(pending.input.u64_tensor(0).unwrap().as_ptr(), backing);
+    assert_eq!(pending.input.u64_tensor(1).unwrap().as_ptr(), oracle);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    assert_eq!(input.remaining_work(), before - cost);
+    assert_eq!(input.consumed_work(), consumed + cost);
+
+    // The pending ticket leaves insufficient headroom for another phase. Validation
+    // refuses before capacity reservation and burns only attempt + preflight.
+    let mut bad = c;
+    bad.destination.key.label += 1;
+    assert!(matches!(prepay(&input, bad, 0, 1), Err(Error::Descriptor)));
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    assert_eq!(input.remaining_work(), before - cost - descriptor_cost);
+    assert_eq!(input.consumed_work(), consumed + cost + descriptor_cost);
+    assert!(std::ptr::eq(pending.input, original));
+    assert_eq!(pending.input.u64_tensor(0).unwrap().as_ptr(), backing);
+    assert_eq!(pending.input.u64_tensor(1).unwrap().as_ptr(), oracle);
+    assert_eq!(&*pending.input.u64_tensor(0).unwrap(), &[1, 2]);
+    assert_eq!(&*pending.input.u64_tensor(1).unwrap(), &[2]);
+
+    let output = pending.extract().unwrap();
+    assert_eq!(output.words(), &[1, 2]);
+    assert_eq!(output.public_relation(), (2, 2));
+    assert!(std::ptr::eq(output.original(), original));
+    assert_eq!(output.original().u64_tensor(0).unwrap().as_ptr(), backing);
+    assert_eq!(output.original().u64_tensor(1).unwrap().as_ptr(), oracle);
+    assert_eq!(output.inner.phase_bytes(), phase_bytes);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    assert_eq!(input.remaining_work(), before - cost - descriptor_cost);
+    assert_eq!(input.consumed_work(), consumed + cost + descriptor_cost);
+
+    drop(output);
+    assert_eq!(observer.budget().used_bytes(), baseline);
+    assert_eq!(input.remaining_work(), before - cost - descriptor_cost);
+    assert_eq!(input.consumed_work(), consumed + cost + descriptor_cost);
+}
+
+#[test]
+fn foreign_same_budget_refusal_preserves_pending_original_owner() {
+    let c = case(1, 3);
+    let q = quote(&[c]).unwrap();
+    assert_eq!((q.input_words, q.oracle_words, q.output_words), (2, 1, 2));
+    assert_eq!(q.word_ops, 1080);
+    let cost = 32 + PREFLIGHT + q.word_ops + 16 * q.output_words + 32;
+    assert_eq!(cost, 2200);
+    let descriptor_cost = 32 + PREFLIGHT;
+    assert_eq!(descriptor_cost, 1056);
+    let payload = q.owner_bytes - 8 * (q.input_words + q.oracle_words)
+        + 8 * q.output_words
+        + size_of::<Buffers>();
+    let phase_bytes = payload
+        + size_of::<BorrowedOutput<'static, Buffers>>()
+        + size_of::<owner::Prepared<'static>>()
+        + size_of::<ExternalCharge<'static>>();
+    let caps = caps(3);
+    let resources = ClearInputBuilder::resources(caps).unwrap();
+    // One root/observer, two separately constructed owners, exactly one phase.
+    // Builder root handles retire on construction; their temporary metadata
+    // fits within the quoted phase headroom, not an invented capacity allowance.
+    let limit = resources.minimum_fresh_budget_bytes
+        + resources.charged_owner_bytes
+        + phase_bytes;
+    let observer = OwnedBudget::new(limit).unwrap();
+    let build = |budget| {
+        let mut builder = ClearInputBuilder::new(budget, caps, owner::MAX_WORK).unwrap();
+        builder.add_u64_tensor("source", &[2], &[1, 2]).unwrap();
+        builder.add_u64_tensor("public_oracle", &[1], &[2]).unwrap();
+        builder.finish().unwrap()
+    };
+    let a = build(observer.try_clone().unwrap());
+    let b = build(observer.try_clone().unwrap());
+    let baseline = observer.budget().used_bytes();
+    assert_eq!(baseline + phase_bytes, limit);
+    assert_eq!(a.charged_bytes(), resources.charged_owner_bytes);
+    assert_eq!(b.charged_bytes(), resources.charged_owner_bytes);
+    let a_original = &a as *const ClearInputs;
+    let b_original = &b as *const ClearInputs;
+    let a_backing = a.u64_tensor(0).unwrap().as_ptr();
+    let b_backing = b.u64_tensor(0).unwrap().as_ptr();
+    let a_oracle = a.u64_tensor(1).unwrap().as_ptr();
+    let b_oracle = b.u64_tensor(1).unwrap().as_ptr();
+    assert_ne!(a_original, b_original);
+    assert_ne!(a_backing, b_backing);
+    assert_ne!(a_oracle, b_oracle);
+    let a_before = a.remaining_work();
+    let b_before = b.remaining_work();
+    let a_consumed = a.consumed_work();
+    let b_consumed = b.consumed_work();
+
+    let pending_a = prepay(&a, c, 0, 1).unwrap();
+    assert!(std::ptr::eq(pending_a.input, a_original));
+    assert_eq!(pending_a.input.u64_tensor(0).unwrap().as_ptr(), a_backing);
+    assert_eq!(pending_a.input.u64_tensor(1).unwrap().as_ptr(), a_oracle);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    assert_eq!(a.remaining_work(), a_before - cost);
+    assert_eq!(a.consumed_work(), a_consumed + cost);
+    assert_eq!(b.remaining_work(), b_before);
+    assert_eq!(b.consumed_work(), b_consumed);
+
+    assert!(matches!(prepay(&b, c, 0, 1), Err(Error::Resource)));
+    assert_eq!(b.remaining_work(), b_before - cost);
+    assert_eq!(b.consumed_work(), b_consumed + cost);
+    assert_eq!(a.remaining_work(), a_before - cost);
+    assert_eq!(a.consumed_work(), a_consumed + cost);
+    assert!(std::ptr::eq(pending_a.input, a_original));
+    assert_eq!(pending_a.input.u64_tensor(0).unwrap().as_ptr(), a_backing);
+    assert_eq!(pending_a.input.u64_tensor(1).unwrap().as_ptr(), a_oracle);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+
+    drop(pending_a);
+    assert_eq!(observer.budget().used_bytes(), baseline);
+    assert_eq!(a.remaining_work(), a_before - cost);
+    assert_eq!(a.consumed_work(), a_consumed + cost);
+    assert_eq!(b.remaining_work(), b_before - cost);
+    assert_eq!(b.consumed_work(), b_consumed + cost);
+
+    let pending_b = prepay(&b, c, 0, 1).unwrap();
+    assert!(std::ptr::eq(pending_b.input, b_original));
+    assert_eq!(b.remaining_work(), b_before - 2 * cost);
+    assert_eq!(b.consumed_work(), b_consumed + 4400);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    let output = pending_b.extract().unwrap();
+    assert_eq!(output.words(), &[1, 2]);
+    assert_eq!(output.public_relation(), (2, 2));
+    assert!(std::ptr::eq(output.original(), b_original));
+    assert_eq!(output.original().u64_tensor(0).unwrap().as_ptr(), b_backing);
+    assert_eq!(output.original().u64_tensor(1).unwrap().as_ptr(), b_oracle);
+    assert_eq!(output.inner.phase_bytes(), phase_bytes);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    assert_eq!(b.remaining_work(), b_before - 2 * cost);
+    assert_eq!(b.consumed_work(), b_consumed + 4400);
+    assert_eq!(a.remaining_work(), a_before - cost);
+    assert_eq!(a.consumed_work(), a_consumed + cost);
+    drop(output);
+    assert_eq!(observer.budget().used_bytes(), baseline);
+    assert_eq!(b.remaining_work(), b_before - 2 * cost);
+    assert_eq!(b.consumed_work(), b_consumed + 4400);
+
+    let mut bad = c;
+    bad.destination.key.label += 1;
+    for attempt in 1..=30 {
+        assert!(matches!(prepay(&b, bad, 0, 1), Err(Error::Descriptor)));
+        assert_eq!(b.remaining_work(), b_before - 2 * cost - attempt * descriptor_cost);
+        assert_eq!(b.consumed_work(), b_consumed + 4400 + attempt * descriptor_cost);
+        assert_eq!(a.remaining_work(), a_before - cost);
+        assert_eq!(a.consumed_work(), a_consumed + cost);
+        assert_eq!(observer.budget().used_bytes(), baseline);
+    }
+    assert!(matches!(prepay(&b, c, 0, 1), Err(Error::Burned)));
+    assert_eq!(b.remaining_work(), b_before - 2 * cost - 30 * descriptor_cost);
+    assert_eq!(b.consumed_work(), b_consumed + 4400 + 30 * descriptor_cost);
+    assert_eq!(observer.budget().used_bytes(), baseline);
+
+    // B's refusal and exhausted attempts cannot spend A's remaining attempts.
+    let pending_a = prepay(&a, c, 0, 1).unwrap();
+    assert!(std::ptr::eq(pending_a.input, a_original));
+    assert_eq!(pending_a.input.u64_tensor(0).unwrap().as_ptr(), a_backing);
+    assert_eq!(pending_a.input.u64_tensor(1).unwrap().as_ptr(), a_oracle);
+    assert_eq!(a.remaining_work(), a_before - 2 * cost);
+    assert_eq!(a.consumed_work(), a_consumed + 2 * cost);
+    assert_eq!(b.remaining_work(), b_before - 2 * cost - 30 * descriptor_cost);
+    assert_eq!(b.consumed_work(), b_consumed + 4400 + 30 * descriptor_cost);
+    assert_eq!(observer.budget().used_bytes(), baseline + phase_bytes);
+    drop(pending_a);
+    assert_eq!(observer.budget().used_bytes(), baseline);
+    drop(a);
+    assert_eq!(observer.budget().used_bytes(), baseline - resources.charged_owner_bytes);
+    drop(b);
+    assert_eq!(observer.budget().used_bytes(), baseline - 2 * resources.charged_owner_bytes);
+    drop(observer);
+}
+
+#[test]
 fn two_simultaneous_outputs_retain_same_backing_and_no_oracle_reexecution() {
     let (input, observer) = fixture(&[1, 2], &[2], owner::MAX_WORK, 131072);
     let baseline = observer.budget().used_bytes();
