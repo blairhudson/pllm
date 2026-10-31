@@ -186,6 +186,78 @@ def centered_reply_to_bf16_bits(residue: int) -> int:
     return round_bf16_bits(Fraction(centered_reply(residue), 65536))
 
 
+@dataclass(frozen=True)
+class CompleteLinearResult:
+    """Complete clear matvec diagnostics, never a no-wrap certificate."""
+
+    weight_encoding: str
+    integer_dots: tuple[int, ...]
+    signed_no_wrap: tuple[bool, ...]
+    residues: tuple[int, ...]
+    bf16_bits: tuple[int, ...]
+
+
+def complete_linear_oracle(
+    *, rows: int, columns: int, activation_bf16, weight_encoding: str,
+    weights, scales_bf16=None,
+) -> CompleteLinearResult:
+    """Independent complete row-major matvec; no partition or runtime imports.
+
+    D32 changes scale storage only: exact BF16 promotion, then R32(product),
+    then exact Q8. Original BF16 head and activation go directly to exact Q8.
+    Scale <= 2**45 is this oracle's conditional premise, deliberately stricter
+    than native positive_bf16_scale; it adds no runtime rejection rule.
+    D45 atomic verification excludes any common BF16 projection/Q8 bridge.
+    Complete unbounded dots precede the diagnostic bound and modular reply;
+    partial sums may cross the centered bound and cancel. Neither a true nor
+    false diagnostic authenticates source, model, funding, privacy or no-wrap.
+    """
+    for dimension in (rows, columns):
+        if type(dimension) is not int:
+            raise TypeError("dimensions must be integers, not Booleans")
+        if dimension <= 0 or dimension % 128:
+            raise ValueError("dimensions must be positive multiples of 128")
+    if weight_encoding not in ("d32-fp8-bf16-scales", "original-bf16-head"):
+        raise ValueError("unknown weight encoding")
+    activation = tuple(activation_bf16)
+    source = tuple(weights)
+    if len(activation) != columns or len(source) != rows * columns:
+        raise ValueError("activation or row-major weight length mismatch")
+    if weight_encoding == "original-bf16-head":
+        if scales_bf16 is not None:
+            raise ValueError("original BF16 head does not accept scales")
+        scales = None
+    else:
+        if scales_bf16 is None:
+            raise ValueError("FP8 requires the global BF16 scale grid")
+        scales = tuple(scales_bf16)
+        if len(scales) != (rows // 128) * (columns // 128):
+            raise ValueError("global scale grid length mismatch")
+        for scale in scales:
+            validate_scale_bf16(scale)
+    inputs = tuple(q8_i64(decode_bf16(word).value) for word in activation)
+    dots = []
+    for row in range(rows):
+        dot = 0
+        for column, input_q8 in enumerate(inputs):
+            word = source[row * columns + column]
+            if scales is None:
+                coefficient = q8_i64(decode_bf16(word).value)
+            else:
+                scale = scales[(row // 128) * (columns // 128) + column // 128]
+                coefficient = projection_q8(word, scale)
+            dot += coefficient * input_q8
+        dots.append(dot)
+    integer_dots = tuple(dots)
+    signed_no_wrap = tuple(abs(dot) <= 1_006_632_960 for dot in integer_dots)
+    residues = tuple(dot % BABYBEAR for dot in integer_dots)
+    bf16_bits = tuple(centered_reply_to_bf16_bits(residue) for residue in residues)
+    return CompleteLinearResult(
+        weight_encoding=weight_encoding, integer_dots=integer_dots,
+        signed_no_wrap=signed_no_wrap, residues=residues, bf16_bits=bf16_bits,
+    )
+
+
 def diagnostic_vectors() -> list[dict[str, int]]:
     """Small reusable direct-vs-double-rounding vectors, not a model experiment."""
     n = (1 << 24) + (1 << 16) + 1

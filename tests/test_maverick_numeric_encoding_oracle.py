@@ -210,6 +210,143 @@ class MaverickNumericEncodingOracleTests(unittest.TestCase):
         true_sum = 2_013_265_922
         self.assertNotEqual(self.o.centered_reply(true_sum % 2_013_265_921), true_sum)
 
+    def test_complete_fp8_global_scale_axes(self):
+        result = self.o.complete_linear_oracle(
+            rows=256, columns=256, activation_bf16=[0x3f80] * 256,
+            weight_encoding="d32-fp8-bf16-scales", weights=[0x38] * (256 * 256),
+            scales_bf16=[0x3f80, 0x4000, 0x4040, 0x4080],
+        )
+        self.assertEqual(result.weight_encoding, "d32-fp8-bf16-scales")
+        self.assertEqual(result.integer_dots, (25_165_824,) * 128 + (58_720_256,) * 128)
+        self.assertEqual(result.residues, (25_165_824,) * 128 + (58_720_256,) * 128)
+        self.assertEqual(result.bf16_bits, (0x43c0,) * 128 + (0x4460,) * 128)
+        self.assertEqual(result.signed_no_wrap, (True,) * 256)
+        for field in (result.integer_dots, result.signed_no_wrap, result.residues, result.bf16_bits):
+            self.assertIs(type(field), tuple)
+        from dataclasses import FrozenInstanceError
+        with self.assertRaises(FrozenInstanceError):
+            result.weight_encoding = "original-bf16-head"
+        for byte, expected in zip((0x01, 0x03, 0x05, 0x81, 0x83, 0x85), (0, 2, 2, 0, -2, -2)):
+            self.assertEqual(self.o.projection_q8(byte, 0x3f80), expected)
+        self.assertEqual(self.o.projection_q8(0x7e, 0x5600), 7 << 59)
+        self.assertEqual(self.o.projection_q8(0x7e, 0x0001), 0)
+        # Both allowed extreme scales also pass the complete API, not just scalars.
+        for scale in (0x0001, 0x5600):
+            weights = [0] * (128 * 128)
+            weights[0] = 0x7e
+            extreme = self.o.complete_linear_oracle(
+                rows=128, columns=128, activation_bf16=[0] * 128,
+                weight_encoding="d32-fp8-bf16-scales", weights=weights, scales_bf16=[scale],
+            )
+            self.assertEqual(extreme.integer_dots, (0,) * 128)
+            self.assertEqual(extreme.residues, (0,) * 128)
+            self.assertEqual(extreme.bf16_bits, (0,) * 128)
+            self.assertEqual(extreme.signed_no_wrap, (True,) * 128)
+
+    def test_complete_original_head_signed_ties(self):
+        result = self.o.complete_linear_oracle(
+            rows=128, columns=128, activation_bf16=[0x3bc0] * 128,
+            weight_encoding="original-bf16-head",
+            weights=[0x3f80] * (64 * 128) + [0xbf80] * (64 * 128),
+        )
+        self.assertEqual(result.weight_encoding, "original-bf16-head")
+        self.assertEqual(result.integer_dots, (65_536,) * 64 + (-65_536,) * 64)
+        self.assertEqual(result.residues, (65_536,) * 64 + (2_013_200_385,) * 64)
+        self.assertEqual(result.bf16_bits, (0x3f80,) * 64 + (0xbf80,) * 64)
+        self.assertEqual(result.signed_no_wrap, (True,) * 128)
+        for word, expected in zip(
+            (0x3b00, 0x3bc0, 0x3c20, 0xbb00, 0xbbc0, 0xbc20), (0, 2, 2, 0, -2, -2),
+        ):
+            self.assertEqual(self.o.q8_i64(self.o.decode_bf16(word).value), expected)
+
+    def test_complete_dot_wrap_and_cancellation(self):
+        for prefix, dot, residue, bits, no_wrap in (
+            ([0x4a80, 0xca80, 0x4380], 65_536, 65_536, 0x3f80, True),
+            ([0x4a80], 1_073_741_824, 1_073_741_824, 0xc660, False),
+        ):
+            result = self.o.complete_linear_oracle(
+                rows=128, columns=128, activation_bf16=[0x3b80] * 128,
+                weight_encoding="original-bf16-head",
+                weights=(prefix + [0] * (128 - len(prefix))) * 128,
+            )
+            self.assertEqual(result.integer_dots, (dot,) * 128)
+            self.assertEqual(result.residues, (residue,) * 128)
+            self.assertEqual(result.bf16_bits, (bits,) * 128)
+            self.assertEqual(result.signed_no_wrap, (no_wrap,) * 128)
+        self.assertEqual(self.o.centered_reply(1_073_741_824), -939_524_097)
+        self.assertNotEqual(self.o.round_bf16_bits(F(1_073_741_824, 65536)), 0xc660)
+
+    def test_complete_dot_rejects_partial_rounding(self):
+        result = self.o.complete_linear_oracle(
+            rows=128, columns=128, activation_bf16=[0x3f80] * 128,
+            weight_encoding="original-bf16-head",
+            weights=([0x3f80, 0x3b80, 0x3b80] + [0] * 125) * 128,
+        )
+        self.assertEqual(result.integer_dots, (66_048,) * 128)
+        self.assertEqual(result.residues, (66_048,) * 128)
+        self.assertEqual(result.bf16_bits, (0x3f81,) * 128)
+        self.assertEqual(result.signed_no_wrap, (True,) * 128)
+        partial = F(0)
+        for contribution in (F(1), F(1, 256), F(1, 256)):
+            partial = self.o.decode_bf16(self.o.round_bf16_bits(partial + contribution)).value
+        self.assertEqual(self.o.round_bf16_bits(partial), 0x3f80)
+        # Literal complete signed examples retain the forbidden F32-bridge witness.
+        for prefix, dot, residue, bits, wrong in (
+            ([0x4780, 0x4380, 0x3b80], 16_842_753, 16_842_753, 0x4381, 0x4380),
+            ([0xc780, 0xc380, 0xbb80], -16_842_753, 1_996_423_168, 0xc381, 0xc380),
+        ):
+            complete = self.o.complete_linear_oracle(
+                rows=128, columns=128, activation_bf16=[0x3b80] * 128,
+                weight_encoding="original-bf16-head", weights=(prefix + [0] * 125) * 128,
+            )
+            self.assertEqual(complete.integer_dots, (dot,) * 128)
+            self.assertEqual(complete.residues, (residue,) * 128)
+            self.assertEqual(complete.bf16_bits, (bits,) * 128)
+            bridge = self.o.decode_f32(self.o.round_f32_bits(F(dot, 65536))).value
+            self.assertEqual(self.o.round_bf16_bits(bridge), wrong)
+
+    def test_complete_matrix_rejects_malformed_inputs(self):
+        base = dict(rows=128, columns=128, activation_bf16=[0x3f80] * 128,
+                    weight_encoding="original-bf16-head", weights=[0] * (128 * 128))
+        for changes, error in (
+            ({"rows": True}, TypeError), ({"columns": False}, TypeError),
+            ({"rows": 128.0}, TypeError), ({"columns": "128"}, TypeError),
+            ({"rows": 0}, ValueError), ({"columns": -128}, ValueError),
+            ({"rows": 127}, ValueError), ({"columns": 129}, ValueError),
+            ({"activation_bf16": []}, ValueError), ({"weights": []}, ValueError),
+            ({"activation_bf16": [0] * 129}, ValueError),
+            ({"weights": [0] * (128 * 128 + 1)}, ValueError),
+            ({"weight_encoding": "fp8"}, ValueError),
+            ({"weight_encoding": None}, ValueError),
+            ({"scales_bf16": []}, ValueError), ({"scales_bf16": [0x3f80]}, ValueError),
+        ):
+            with self.subTest(changes=changes), self.assertRaises(error):
+                self.o.complete_linear_oracle(**(base | changes))
+        for field, length in (("activation_bf16", 128), ("weights", 128 * 128)):
+            for bad, error in ((True, TypeError), (1.0, TypeError), (-1, ValueError),
+                               (65536, ValueError), (0x7f80, ValueError),
+                               (0xff80, ValueError), (0x7fc1, ValueError),
+                               (0xffc1, ValueError), (0x5b00, OverflowError),
+                               (0xdb01, OverflowError)):
+                words = [0] * length
+                words[-1] = bad
+                with self.subTest(field=field, bad=bad), self.assertRaises(error):
+                    self.o.complete_linear_oracle(**(base | {field: words}))
+        fp8 = base | dict(weight_encoding="d32-fp8-bf16-scales", scales_bf16=[0x3f80])
+        for scales, error in ((None, ValueError), ([], ValueError),
+                              ([0x3f80, 0x3f80], ValueError), ([True], TypeError)):
+            with self.subTest(scales=scales), self.assertRaises(error):
+                self.o.complete_linear_oracle(**(fp8 | {"scales_bf16": scales}))
+        for bad in (0x5601, 0, 0x8000, 0x8001, 0xbf80, 0x7f80, 0xff80, 0x7fc1, 0xffc1, -1, 65536):
+            with self.subTest(scale=bad), self.assertRaises(ValueError):
+                self.o.complete_linear_oracle(**(fp8 | {"scales_bf16": [bad]}))
+        for bad, error in ((True, TypeError), (-1, ValueError), (256, ValueError),
+                           (0x7f, ValueError), (0xff, ValueError)):
+            words = [0] * (128 * 128)
+            words[-1] = bad
+            with self.subTest(byte=bad), self.assertRaises(error):
+                self.o.complete_linear_oracle(**(fp8 | {"weights": words}))
+
     def test_rejects_nonexact_inputs_and_noncanonical_storage(self):
         for bad in (True, 1.0, "1"):
             with self.subTest(bad=bad), self.assertRaises(TypeError):
