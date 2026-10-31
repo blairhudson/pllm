@@ -154,6 +154,9 @@ enum ResidentState {
 #[path = "tensor_resident_builder.rs"]
 mod resident_builder;
 
+#[path = "tensor_rms_resident.rs"]
+mod rms_resident;
+
 #[path = "tensor_scale_work.rs"]
 mod scale_work;
 

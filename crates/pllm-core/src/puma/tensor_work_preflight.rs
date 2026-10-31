@@ -8,6 +8,11 @@ use resident_parameters::EphemeralBoundLens;
 pub use resident_parameters::{ResidentFactorySource, ResidentNativeSchedule};
 
 #[cfg(test)]
+pub(super) fn arm_resident_build_panic(invocation: usize) {
+    resident_parameters::arm_build_panic(invocation);
+}
+
+#[cfg(test)]
 #[path = "tensor_work_preflight_silu_tests.rs"]
 mod silu_tests;
 
@@ -695,6 +700,27 @@ pub struct FactoryOutput {
     program: Program,
     certificate: ProducedCertificate,
 }
+
+// All refusals precede ownership transfer. The map/assignment gap cannot fail,
+// allocate or invoke a hook; the original affine backing moves exactly once.
+pub(super) fn commit_rms_output(
+    program: &mut Option<Program>,
+    squared: u128,
+    out: &mut Option<FactoryOutput>,
+) -> Result<(), Error> {
+    if out.is_some() {
+        return Err(Error::Binding);
+    }
+    if program.is_none() {
+        return Err(Error::Phase);
+    }
+    *out = program.take().map(|program| FactoryOutput {
+        program,
+        certificate: ProducedCertificate::GeneralOutputRowSquared(squared),
+    });
+    Ok(())
+}
+
 impl FactoryOutput {
     pub fn program(&self) -> &Program {
         &self.program

@@ -112,6 +112,7 @@ thread_local! {
 
 #[cfg(test)]
 pub(super) fn after_affine_reserve(table: &Vec<Affine>) {
+    super::rms_resident::observe_affine(table);
     PANIC_AFTER_AFFINE_RESERVE.with(|flag| {
         if flag.replace(false) {
             RESERVED_AFFINE.with(|observed| observed.set((table.as_ptr(), table.capacity())));
@@ -151,6 +152,16 @@ pub(super) fn arm_finish_panic(invocation: usize) {
 #[cfg(test)]
 pub(super) fn finish_hook_counts() -> (usize, usize) {
     (FINISH_HOOK_FIRES.with(|count| count.get()), FINISH_HOOK_PANICS.with(|count| count.get()))
+}
+
+#[cfg(test)]
+pub(super) fn arm_affine_reserve_panic() {
+    PANIC_AFTER_AFFINE_RESERVE.with(|flag| assert!(!flag.replace(true)));
+}
+
+#[cfg(test)]
+pub(super) fn reserved_affine() -> (*const Affine, usize) {
+    RESERVED_AFFINE.with(|observed| observed.get())
 }
 
 #[cfg(test)]

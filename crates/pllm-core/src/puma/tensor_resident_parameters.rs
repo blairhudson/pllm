@@ -124,14 +124,16 @@ enum Phase {
     Complete,
 }
 
-/// Opaque retained parameter and rotary-finish custody. Keep owner/output slots
+/// Opaque retained parameter, RMS recipe and rotary-finish custody. Keep slots
 /// resident outside unwind frames. Entered/failed/burned stages cannot retry,
 /// including after scratch reset. Numeric summaries cannot grant permission.
 /// Rotary finish custody starts ONLY after recipe success and installation in
-/// the private slot. Prepare/recipe errors and unwinds, first acquisition,
-/// nonrotary native custody and whole-attempt cleanup remain open. Two inline
-/// finish slots enlarge this owner: wrapper layout, temporary/result overlap and
-/// original native parameter backing require prepayment review before composition.
+/// the private slot. RMS installs its empty-header Builder before recipe entry;
+/// recipe/pending/partial-finish backing stays resident on error/unwind. Rotary
+/// prepare/recipe, other native custody, first acquisition, compiler publication
+/// and funding remain open. Full/tail inline slots enlarge this owner: layout,
+/// temporary/result overlap and original native parameter backing require
+/// prepayment review before composition.
 /// No funded capacity or cap-fit claim follows from this storage.
 /// Abort, OOM termination and double panic are not protected.
 pub struct ResidentNativeSchedule<'a> {
@@ -151,15 +153,30 @@ pub struct ResidentNativeSchedule<'a> {
 struct NativeFinishSlot {
     builder: Option<ResidentBuilder>,
     program: Option<Program>,
+    rms: rms_resident::RmsResidentSlot,
 }
 
 impl NativeFinishSlot {
     const fn empty() -> Self {
-        Self { builder: None, program: None }
+        Self { builder: None, program: None, rms: rms_resident::RmsResidentSlot::empty() }
     }
 
     fn build_into(&mut self, lens: EphemeralBoundLens<'_>, out: &mut Option<FactoryOutput>) -> Result<(), Error> {
         match (*lens.construction, &lens.parameters) {
+            (Construction::RmsNormCertified { rows, width, .. }, FactoryParameters::RmsNormCertified { input, gamma }) => {
+                #[cfg(test)]
+                test_hook(TestStage::Build);
+                self.rms.build_into(&rms_resident::RmsArgs {
+                    rows, width, input: *input, gamma, input_norm: None,
+                }, out)
+            }
+            (Construction::RmsNormWithInputNorm { rows, width, .. }, FactoryParameters::RmsNormWithInputNorm { input, gamma, squared_norm }) => {
+                #[cfg(test)]
+                test_hook(TestStage::Build);
+                self.rms.build_into(&rms_resident::RmsArgs {
+                    rows, width, input: *input, gamma, input_norm: Some(*squared_norm),
+                }, out)
+            }
             (Construction::RotaryHalf { rows, width, .. }, FactoryParameters::RotaryHalf { input, cosine, sine }) => {
                 #[cfg(test)]
                 test_hook(TestStage::Build);
@@ -280,8 +297,9 @@ impl<'a> ResidentNativeSchedule<'a> {
     /// Burn before native fallibility. Build borrows parameters, NEVER consumes
     /// their retained owners. Caller must keep outputs resident through later
     /// failures, and retire associated backing before any enclosing charge.
-    /// Full success is installed before attempting tail; no all-or-none result
-    /// custody, whole-Builder cleanup, postcheck rescue or refund is claimed.
+    /// Full success is installed before attempting tail. RMS errors keep native
+    /// Builder/Program custody; this does not repair other factories or compiler
+    /// postchecks/publication. No all-or-none result or refund is claimed.
     pub fn build_into(
         &mut self,
         full_out: &mut Option<FactoryOutput>,
@@ -327,6 +345,12 @@ pub(super) fn test_hook(stage: TestStage) {
             }
         }
     });
+}
+
+#[cfg(test)]
+pub(super) fn arm_build_panic(invocation: usize) {
+    assert!(invocation > 0);
+    PANIC_STAGE.with(|pending| assert!(pending.replace(Some((TestStage::Build, invocation))).is_none()));
 }
 
 #[cfg(test)]
