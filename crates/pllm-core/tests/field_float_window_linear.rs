@@ -93,6 +93,155 @@ impl Storage {
     }
 }
 
+// Source packing only; expected answers below never use this helper or native
+// conversion/modular/decode helpers as an oracle. No runtime policy changes.
+enum CompleteFixture<'a> {
+    Fp8 { weights: &'a [u8], scales: &'a [u16] },
+    Head(&'a [u16]),
+}
+
+fn complete_fixture(
+    rows: usize,
+    columns: usize,
+    activation: &[u16],
+    source: CompleteFixture<'_>,
+    bands: &[(usize, usize)],
+    widths: &[usize],
+) -> (Vec<u32>, Vec<u16>) {
+    let geometry = Block128Geometry::new(rows, columns).unwrap();
+    let work = LinearSession::required_work(geometry).unwrap();
+    let mut prepared = vec![91; columns + 1];
+    let input = QuantizedInput::new(geometry, activation, &mut prepared, 3 * columns).unwrap();
+    let mut fields = vec![92; rows];
+    let mut output = vec![FIELD_SENTINEL; rows];
+    let mut bf16 = vec![BF16_SENTINEL; rows];
+    let mut session =
+        LinearSession::new(&input, &mut fields, &mut output, &mut bf16, work).unwrap();
+    for &(row_start, band_rows) in bands {
+        let mut storage = Storage::new(columns, band_rows, band_rows * widths.iter().max().unwrap());
+        let mut band = session
+            .band(geometry, &input, row_start, band_rows, storage.scratch())
+            .unwrap();
+        let mut column_start = 0;
+        for &width in widths {
+            let region = window(row_start, band_rows, column_start, width);
+            band = match &source {
+                CompleteFixture::Fp8 { weights, scales } => {
+                    let mut packed = Vec::with_capacity(band_rows * width);
+                    for row in row_start..row_start + band_rows {
+                        packed.extend_from_slice(
+                            &weights[row * columns + column_start..row * columns + column_start + width],
+                        );
+                    }
+                    // Rectangle of globally touched cells, not a local retile.
+                    let mut touched = Vec::new();
+                    for sr in row_start / 128..=(row_start + band_rows - 1) / 128 {
+                        for sc in column_start / 128..=(column_start + width - 1) / 128 {
+                            touched.push(scales[sr * (columns / 128) + sc]);
+                        }
+                    }
+                    band.append_fp8(region, &packed, &touched).unwrap()
+                }
+                CompleteFixture::Head(weights) => {
+                    let mut packed = Vec::with_capacity(band_rows * width);
+                    for row in row_start..row_start + band_rows {
+                        packed.extend_from_slice(
+                            &weights[row * columns + column_start..row * columns + column_start + width],
+                        );
+                    }
+                    band.append_bf16(region, &packed).unwrap()
+                }
+            };
+            column_start += width;
+        }
+        assert_eq!(column_start, columns);
+        session = band.finish().unwrap();
+        storage.cleared();
+        storage.unpublished();
+        assert!(storage.coefficients.iter().all(|&x| x == 0));
+    }
+    let result = session.finish().unwrap();
+    assert_eq!(result.row_start, 0);
+    let actual = (result.field.to_vec(), result.bf16.to_vec());
+    assert!(fields.iter().all(|&x| x == 0));
+    drop(input);
+    assert!(prepared[..columns].iter().all(|&x| x == 0));
+    assert_eq!(prepared[columns], 91);
+    actual
+}
+
+#[test]
+fn complete_fp8_matrix_partition_invariance_two_bands() {
+    let weights = vec![0x38; 256 * 256];
+    let scales = [0x3f80, 0x4000, 0x4040, 0x4080];
+    let expected_field: Vec<u32> = [vec![25_165_824; 128], vec![58_720_256; 128]].concat();
+    let expected_bf16: Vec<u16> = [vec![0x43c0; 128], vec![0x4460; 128]].concat();
+    for bands in [&[(0, 256)][..], &[(0, 127), (127, 129)][..]] {
+        for widths in [&[256][..], &[128, 128][..], &[127, 2, 127][..]] {
+            let actual = complete_fixture(
+                256, 256, &[0x3f80; 256],
+                CompleteFixture::Fp8 { weights: &weights, scales: &scales },
+                bands, widths,
+            );
+            assert_eq!(actual.0, expected_field);
+            assert_eq!(actual.1, expected_bf16);
+        }
+    }
+}
+
+#[test]
+fn complete_head_matrix_partition_invariance_two_bands() {
+    let weights = [vec![0x3f80; 64 * 128], vec![0xbf80; 64 * 128]].concat();
+    let expected_field: Vec<u32> = [vec![65_536; 64], vec![2_013_200_385; 64]].concat();
+    let expected_bf16: Vec<u16> = [vec![0x3f80; 64], vec![0xbf80; 64]].concat();
+    for bands in [&[(0, 128)][..], &[(0, 63), (63, 65)][..]] {
+        for widths in [&[128][..], &[63, 65][..]] {
+            let actual = complete_fixture(
+                128, 128, &[0x3bc0; 128], CompleteFixture::Head(&weights), bands, widths,
+            );
+            assert_eq!(actual.0, expected_field);
+            assert_eq!(actual.1, expected_bf16);
+        }
+    }
+}
+
+#[test]
+fn complete_session_partial_rounding_counterexample() {
+    // All answers independently literal. First case: 1 + 1/256 + 1/256
+    // rounds ONCE to 0x3f81, not sequential-partial-rounding 0x3f80.
+    // Cancellation crosses the centered bound after the first column; only
+    // complete dots matter. Wrapped case is not an honest-integer certificate.
+    for (activation, prefix, residue, bits) in [
+        (0x3f80, vec![0x3f80, 0x3b80, 0x3b80], 66_048, 0x3f81),
+        (0x3b80, vec![0x4a80, 0xca80, 0x4380], 65_536, 0x3f80),
+        (0x3b80, vec![0x4a80], 1_073_741_824, 0xc660),
+        (0x3b80, vec![0x4780, 0x4380, 0x3b80], 16_842_753, 0x4381),
+        (0x3b80, vec![0xc780, 0xc380, 0xbb80], 1_996_423_168, 0xc381),
+    ] {
+        let mut row = vec![0; 128];
+        row[..prefix.len()].copy_from_slice(&prefix);
+        let weights = row.repeat(128);
+        for bands in [&[(0, 128)][..], &[(0, 63), (63, 65)][..]] {
+            for widths in [&[128][..], &[1, 1, 126][..], &[63, 65][..]] {
+                let actual = complete_fixture(
+                    128, 128, &[activation; 128], CompleteFixture::Head(&weights), bands, widths,
+                );
+                assert_eq!(actual.0, vec![residue; 128]);
+                assert_eq!(actual.1, vec![bits; 128]);
+                if residue == 66_048 {
+                    assert_ne!(actual.1, vec![0x3f80; 128]);
+                }
+                if residue == 16_842_753 {
+                    assert_ne!(actual.1, vec![0x4380; 128]);
+                }
+                if residue == 1_996_423_168 {
+                    assert_ne!(actual.1, vec![0xc380; 128]);
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn global_scale_rectangle_crosses_both_axes_without_local_retiling() {
     let geometry = Block128Geometry::new(256, 256).unwrap();
