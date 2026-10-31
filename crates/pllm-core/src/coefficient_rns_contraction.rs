@@ -385,27 +385,78 @@ impl<'a> RnsContraction<'a> {
     /// inverse NTTs, 3N signed modular additions and 6N final stores. No inverse
     /// power-of-two extraction. Quote construction before entry is unpriced.
     ///
-    /// Wrapper control bounds (not exact CPU counts): own full canonical scans
-    /// visit 30N residues; descriptor equality <=217 scalar checks, g has three
-    /// predicates, four lengths, three fit calls (11+35+46 comparisons). These
-    /// fit 30N+1024 validation checks, with capacity/Result handling separately
-    /// enumerated. Additional storage/query work has <512 capacity outcomes,
-    /// <512 adapters, <1024 Result inspections (including helper calls and
-    /// duplicate drop constructors); use 1024/1024/2048 conservative ceilings.
-    /// Two borrowed component visits, <=256 slice partitions, <=128 selected
-    /// phase calls, and <=40N+1024 selected loop polls cover wrapper scans,
-    /// signed substitution, queries and fit-field visits. NTT internal loops
-    /// and old composition selected polls retain their owner's exclusions.
+    /// Wrapper control is a selected logical inventory, not all Rust calls,
+    /// instructions, a scalar tariff, runtime funding, or physical memory.
+    /// Own scans visit 30N residues. Descriptor equality uses <=217 scalar
+    /// checks; g has three predicates, lengths four, and the three fits compare
+    /// 11+35+46=92 fields. These fit 30N+1024 validation checks. Capacity and
+    /// Result handling remain separate: additional storage/query work and
+    /// duplicate-constructor handling fit 1024 capacity outcomes, 1024 adapters
+    /// and 2048 Result inspections. Two component helper visits are selected.
     ///
-    /// Index census includes the NTT owner's excluded spectral gather arithmetic:
-    /// 6N products, 3N additions/remainders/subtractions/divisions, plus signed
-    /// coefficient scatter 6N products (exponent and destination offset), 3N
-    /// remainders/wrap comparisons and <=3N
-    /// subtractions. Fixed slice/scan/loop indices fit 256 extra events per
-    /// category; 12N+256 additions conservatively cover wrapper loop indices.
-    /// These categories are logical, may overlap checks, and are never summed
-    /// as a scalar price. Compiler/library internals and complete loop machinery
-    /// are not claimed. Descriptor construction outside operation is excluded.
+    /// Selected phase calls are invocation markers, NOT inclusive body prices.
+    /// Complete list, counted only in this wrapper and its earlier queries:
+    /// galois_storage and galois_work (2); storage's composition_storage (1);
+    /// galois_work's work and composition_extra_work (2); work's scaled calls
+    /// (5), operations calls (15), and add_ntt calls (15); extra query's eight
+    /// expanded operations calls (8); Galois query's operations calls (6) and
+    /// scaled calls (11); the three fits (3); component helpers (2); duplicate
+    /// RoundedLimbDrop::new calls and their modular::inverse calls (3+3);
+    /// automorphism_into and its validate calls (3+3); contract_drop_into entry
+    /// (1); original-c0 inverse_into, transform and validate calls (3+3+3);
+    /// final copy_from_slice invocation (1). Total 93 <=128.
+    ///
+    /// Selected iterator polls count yielded items plus exhaustion if reached.
+    /// Complete list: component loop 3, its limb loops 8, input scan loops
+    /// 6(N+1), row loop 25, row scans 24(N+1), duplicate-constructor loop 4,
+    /// its three Euclid loops <=387, gather limb loop 4, inverse/scatter limb
+    /// loop 4, scatter loops 3(N+1), earlier work query's source/target loops
+    /// 4+15, and Galois quote context loop 4. Total <=33N+491 <=40N+1024 for
+    /// 1<=N<=8192. Fit-field comparisons are NOT polls; macros generate no
+    /// traversal loops. NTT-internal loops are excluded from this selection.
+    ///
+    /// Selected partitions are explicit range views and split calls only:
+    /// component helper ranges 2, scan ranges 6+24, scratch prefix and splits
+    /// 1+3, gather argument ranges 6, inverse input ranges 3: 45 <=256.
+    /// Element indexing/borrowing is not a range partition. Whole-slice
+    /// arguments and validation input arrays add no selected partitions.
+    ///
+    /// Selected index events count explicit address arithmetic only, with NO
+    /// implicit range/iterator/enumerate increments. Import spectral gather's
+    /// excluded address expression: 6N products and 3N each additions,
+    /// remainders, subtractions and divisions. Scatter adds 6N products, 3N
+    /// additions/remainders/comparisons and <=3N index subtractions. Signed
+    /// value negation/correction stays in signed_modular_additions.
+    /// Fixed address arithmetic: two component ranges contribute 4 products
+    /// and 2 additions; wrapper 2*N contributes 1 product; six input ranges
+    /// contribute 12 products and 6 additions; row target selection contributes
+    /// 24 remainders; 24 row ranges contribute 48 products and 24 additions;
+    /// six gather ranges contribute 12 products and 6 additions; three inverse
+    /// ranges contribute 6 products and 3 additions; three gather 2*N values
+    /// contribute 3 products. Thus totals are 12N+86 products, 6N+41 additions,
+    /// 6N+24 remainders, 3N comparisons, <=6N subtractions and 3N divisions.
+    /// These fit respectively 12N+256, 12N+256, 6N+256, 3N+256, 6N+256 and
+    /// 3N+256 for every legal degree. Other validation predicates are not
+    /// imported as index comparisons. Query arithmetic is not address work.
+    ///
+    /// This finite selection excludes getter/accessor calls, casts, local or
+    /// default initialization, iterator adapters, implicit counter advances,
+    /// bounds-check/compiler machinery and library internals. Only the listed
+    /// final copy invocation is selected, not its library body. Checked
+    /// arithmetic, conversions, Option/Result adapters, their callbacks and
+    /// Result inspections keep their existing categories, not phase-call
+    /// markers. Listed scaled closure invocations are selected; macro
+    /// invocations are not calls. Categories may overlap and are not summed.
+    ///
+    /// Repeated earlier queries are real work distinct from nested execution.
+    /// Nested composition execution retains its quote once; its internal
+    /// queries, constructors and control are not re-imported here. NTT numeric
+    /// checks/stores retain their owner; NTT internal index/control exclusions
+    /// remain except the explicitly imported gather arithmetic. Descriptor
+    /// construction outside operation entry is excluded. Unselected work is
+    /// not physically free: complete caller/control/native funding is open.
+    /// Preflight runs before ceiling acceptance; this logical inventory creates
+    /// neither a prepaid caller nor a ledger/refill or physical-fit guarantee.
     pub fn galois_work(&self) -> Result<GaloisWork, GaloisError> {
         let composition = CompositionWork {
             contraction: self.work(Evaluation::Contract)
