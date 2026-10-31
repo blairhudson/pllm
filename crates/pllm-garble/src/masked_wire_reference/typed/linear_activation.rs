@@ -1189,3 +1189,6 @@ fn transition_workspace_bytes() -> usize {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod silu_contract_tests;
