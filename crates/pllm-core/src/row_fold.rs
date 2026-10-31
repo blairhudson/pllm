@@ -196,6 +196,39 @@ fn program(g: Geometry) -> ([Instruction; MAX_OPERATIONS], usize) {
     (p, n)
 }
 
+/// Immutable original instruction plan, without clear arrays or an invocation.
+/// Construction debits the original cumulative ledger before generating control
+/// storage. This does not admit ciphertexts, public operands, or native work.
+///
+/// ```compile_fail
+/// use pllm_core::row_fold::{Geometry, InstructionPlan, WorkLedger};
+/// let mut work = WorkLedger::new(65536, 65536);
+/// let g = Geometry::new(1, 2, 1).unwrap();
+/// let mut plan = InstructionPlan::new(g, &mut work).unwrap();
+/// let instructions = plan.instructions();
+/// plan = InstructionPlan::new(g, &mut work).unwrap();
+/// assert_eq!(instructions.len(), 18); // Cannot replace a borrowed original plan.
+/// ```
+pub struct InstructionPlan {
+    geometry: Geometry,
+    instructions: [Instruction; MAX_OPERATIONS],
+    count: usize,
+}
+impl InstructionPlan {
+    pub fn new(g: Geometry, ledger: &mut WorkLedger) -> Result<Self, Error> {
+        // Fixed-array initialization, generation, moves and terminating advances.
+        // Same bounded generator as Invocation; no public/pool initialization.
+        ledger.debit(0, 8 * MAX_OPERATIONS + 32)?;
+        Ok(Self::prepaid(g))
+    }
+    fn prepaid(geometry: Geometry) -> Self {
+        let (instructions, count) = program(geometry);
+        Self { geometry, instructions, count }
+    }
+    pub fn geometry(&self) -> Geometry { self.geometry }
+    pub fn instructions(&self) -> &[Instruction] { &self.instructions[..self.count] }
+}
+
 #[derive(Debug, Default, PartialEq, Eq)]
 pub enum State {
     #[default]
@@ -323,7 +356,8 @@ impl<'a> Invocation<'a> {
     ) -> Result<Self, Error> {
         let q = g.quote()?;
         *state = State::Poisoned; // Remains poisoned through errors and unwinding.
-        let (instructions, count) = program(g);
+        // Existing whole-invocation control prepayment covers this extraction.
+        let InstructionPlan { instructions, count, .. } = InstructionPlan::prepaid(g);
         let mut result = Self {
             geometry: g,
             input,
