@@ -88,6 +88,68 @@ The second pair is applied in product coordinates as `Rot(mu2;n*H)` and
 line 14's subtraction remains valid. Heads never mix: every shift is a
 multiple of `H`.
 
+### Reviewed conditional physical embedding and literal source routing
+
+Independent Astra51 algebra review and Astra56 read-only source recovery supply
+this conditional attachment, pinned to commit
+`b513c06aaabccc04b560721e35e9a98008428c25`:
+[`src/thor/linear.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/linear.py),
+[`src/thor/bert.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/bert.py).
+Astra56 fetched source text; neither source recovery nor the parent session
+executed it. This is current derivation only, not an extension of D25 approval.
+
+**Zero-filled embedding.** For 12 logical heads in 16 physical lanes define
+`E(v)[16*u+h]=v[12*u+h]` for `0<=h<12`, with lanes `12..15` zero and
+`u mod 2048`. Write `R_d(v)[x]=v[(x+d) mod len(v)]`. For every integer `k`,
+`R_(16*k) E = E R_(12*k)`: both sides read logical group `u+k`, head `h`;
+holes remain holes. Source-aligned rotations, pointwise multiplication,
+addition/subtraction, conjugation and multiplication by `i` preserve this image
+when operands are E-images. Residue-constant plaintext masks need NOT be zero
+at holes: multiplying a zero-filled operand still preserves its zero holes.
+This excludes arbitrary nonzero holes; CKKS error is independently OPEN.
+
+**Literal routing under ideal slots.** Use `c=16,n=128`, physical address
+`2048*r+16*t+h`, and `M=m/16`. General algebra assumes `16 | m | 128`;
+source methods instantiate fixed cases, not arbitrary admitted `M`. For diagonal
+`l`, put `b=l%16`, `q=floor(l/16)`, `rrot=-16*(l-128*b)`. The literal input
+rotation is by `-rrot`; mask time threshold is `2048-16*l`. Delayed mask
+columns 1 and 3 use `R_(-2048)`, reading local diagonal `r-1` modulo 16.
+The four-mask selector is `f=(j-q-[r<b]) mod M`, with source coordinates
+`((r-b) mod 16,(t+l) mod 128,h)`, matching the logical coordinate proof above.
+For `b=0` only two masks are needed; otherwise mask 3 is `1-M0-M1-M2`.
+The zero-diagonal product `P_(j,0)` is separate: score loops use `l=1..63`,
+context loops `l=1..127`, both excluding zero.
+
+**Packed literal cases.** Scores pack eight real frames into four ciphertexts
+(`p=4`); context packs four real frames into two (`p=2`). Set
+`k=q+[r<b]`, `f=(j-k) mod (2*p)`: select source ciphertext `f mod p`, swapping
+components iff `f>=p`. Context's `(l//16)%4` correctly wraps for `l>=64`.
+Columns 2 and 3 collect swapped contributions. For REAL component frames,
+`i*conj(a+i*b)=b+i*a`. The RHS must be REAL and SHARED by both paired
+components; otherwise product swapping conjugates the RHS and this argument
+fails. Actual codec, RHS replication, zero holes and source-entry premises
+remain required. `he_softmax1/2`, the actual context-RHS producers, are outside
+these two retrieved files; this attachment does not establish their output
+representation or the complete source-to-codec chain.
+
+**Scaling boundary — zero diagonal only.** Literal `scale_pt` applies ONLY to
+`l=0`, not the nonzero-diagonal masked terms. Score halves that zero-diagonal
+scale when `bootstrap=True`; context halves it when `complex=False`, but still
+returns complex ciphertexts. After rescale and optional bootstrap, score
+extraction is exactly `z+conj(z)=2*Re(z)` and
+`i*(conj(z)-z)=2*Im(z)`; context returns rescaled complex `z`.
+Supplied scale/flags therefore cannot be described as uniformly scaling the
+WHOLE product. Actual call-site encoder factors and arithmetic-helper contracts
+are required before asserting a dense-output identity. This is distinct from,
+and does not rewrite or contradict, the FFN scaling audit below.
+
+Remaining helper obligations include `CkksEngine.encode`,
+`pt_ct_mult_extended`, `mult_int_scalar_triplet`, rescale semantics for the
+hardcoded `2**41` complement alignment, and `cc_add` with `None` accumulators.
+No encrypted-qualified rotations/program, encoder issuer, CKKS error bound,
+security or adoption follows. No Qwen/decoder or D25 extension, code, tests or
+execution is authorized. Native HOLD and cleanup UNKNOWN remain unchanged.
+
 ## Smallest proposed change
 
 Retain line 7 and product labels indexed by original input frame. In lines
