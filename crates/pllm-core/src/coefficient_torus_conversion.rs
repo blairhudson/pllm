@@ -23,9 +23,26 @@
 //! phase-error <1/8192 guarantee (incoming E must also be bounded).
 //! Kernel quotes are NOT custody authority: shared admission must still charge
 //! original source/key/output owners and all transport/scheduling when integrated.
+//! Quotes are per-call arithmetic limits, not cumulative debits. The original
+//! caller must pay both directional calls and failed attempts, and retain all
+//! required input/source/key/output owners itself. Output wrappers borrow only
+//! their output buffers; they neither retain input custody nor authorize release.
 //! Safe Rust slices enforce disjoint input/output. All refusals precede writes.
 //! Valid calls have public fixed scan/write counts; division is NOT claimed
 //! constant-time, and malformed public descriptors can refuse early.
+//!
+//! Reverse is a generic arithmetic utility, NOT adopted ROSETTA HomComp encoding,
+//! security or a numeric profile. U(x)=RNE(q*x/2^64) mod q uses ties-to-even;
+//! (B,A) maps to (U(B),-U(A) mod q): round BEFORE negating, including half ties.
+//! Circular reverse error is <=(h+1)/2 q-units, plus q*E_T/2^64 for incoming
+//! torus phase error E_T (torus WORD units). Forward/reverse composition adds
+//! q*(h+1)/(2*2^64) q-units only when E_T excludes that forward contribution;
+//! original coefficient error E_C contributes E_C, not q*E_C/2^64. These are
+//! circular bounds, not exact phases.
+//! Unchanged forward components recover canonical originals: forward error
+//! <=1/2 torus unit rescales to <=q/(2*2^64)<1/4 q-unit. This also holds
+//! after the forward mask negation. Arbitrary reverse/forward is not identity.
+//! Neither direction removes noise or restores uniform masks.
 
 use crate::coefficient_extraction::{Destination, Layout, Sign, MAX_OWNER_BYTES, MAX_WORD_OPS};
 pub use crate::coefficient_layout::LayoutError as Error;
@@ -59,11 +76,37 @@ pub struct Torus64Ciphertext<'a> {
     words: &'a mut [u64],
 }
 
+/// Borrowed reverse output (b,a), phase b+sum(a_i*s_i), in the original domain.
+/// No allocation, ownership transfer or zero-on-drop: caller retains cleanup.
+/// The descriptor is consistency metadata, not authenticated custody or a new
+/// scale authority. Its scale applies only to the bound unchanged-scale view.
+/// This arithmetic view borrows output only, not input custody or dependencies.
+pub struct CoefficientCiphertext<'a> {
+    source: Destination,
+    words: &'a mut [u64],
+}
+
+impl CoefficientCiphertext<'_> {
+    pub fn descriptor(&self) -> Destination {
+        self.source
+    }
+    pub fn words(&self) -> &[u64] {
+        self.words
+    }
+}
+
 impl Torus64Ciphertext<'_> {
     pub fn source_descriptor(&self) -> Destination {
         self.source
     }
     pub fn words(&self) -> &[u64] {
+        self.words
+    }
+    /// Edit components while retaining the original borrowed descriptor.
+    /// This does not certify an operation, key, scale, error or custody change.
+    /// Reverse scale interpretation requires unchanged scale/domain/convention;
+    /// callers must establish those semantics independently of this raw access.
+    pub fn words_mut(&mut self) -> &mut [u64] {
         self.words
     }
 }
@@ -98,6 +141,11 @@ impl Torus64Conversion {
         u128::from(q - 1).checked_mul(TORUS)
             .and_then(|v| v.checked_add(u128::from(q / 2)))
             .ok_or(Error::Overflow)?;
+        // Reverse accepts every torus word, not only forward images. Prove its
+        // largest numerator, doubled remainder and possible upward quotient.
+        u128::from(q).checked_mul(u128::from(u64::MAX)).ok_or(Error::Overflow)?;
+        (TORUS - 1).checked_mul(2).ok_or(Error::Overflow)?;
+        u128::from(q - 1).checked_add(1).ok_or(Error::Overflow)?;
         Ok(Self {
             source,
             quote: Quote {
@@ -120,6 +168,19 @@ impl Torus64Conversion {
         self.quote
     }
 
+    /// Reverse has two live buffers and both borrowed wrappers plus this plan.
+    /// The same conservative 64 ops/word +128 covers length/descriptor/cap
+    /// preflight, each checked multiply/divide/remainder/tie test, negation/write.
+    /// No canonical scan is needed: every u64 is a valid torus component.
+    /// Additional retained forward inputs/owners require external accounting.
+    pub fn reverse_quote(self) -> Quote {
+        Quote {
+            descriptor_bytes: self.quote.descriptor_bytes
+                + std::mem::size_of::<CoefficientCiphertext<'static>>(),
+            ..self.quote
+        }
+    }
+
     /// Exact unreduced rational scale in torus units; no f64 conversion.
     pub fn torus_scale(self) -> (u128, u128) {
         // u64 * 2^64 and u64 * q (<2^63) both fit u128.
@@ -129,7 +190,8 @@ impl Torus64Conversion {
 
     /// Checked local work/storage admission, not prepayment or owner authority.
     /// Exact slice lengths required. Input is canonical (b,a), output is (B,A).
-    /// Both caps include the complete quote; one-short refusal leaves output intact.
+    /// Caps cover quoted work/caller buffers, not separately reported wrapper
+    /// bytes or cumulative admission; one-short refusal leaves output intact.
     pub fn convert_into<'a>(
         self,
         input: &[u64],
@@ -157,6 +219,52 @@ impl Torus64Conversion {
             output[i] = self.round_canonical(input[i]).wrapping_neg();
         }
         Ok(Torus64Ciphertext { source: self.source, words: output })
+    }
+
+    /// Reverse only a view bound to this exact original descriptor, not raw
+    /// words with a newly supplied scale/key. All descriptor/length/cap checks
+    /// precede writes; safe disjoint caller slices, no scratch or cleanup change.
+    /// Caps cover reverse_quote's work and caller buffers; descriptor_bytes is
+    /// separately quoted wrapper storage, as in the forward API.
+    pub fn reverse_into<'a>(
+        self,
+        input: &Torus64Ciphertext<'_>,
+        output: &'a mut [u64],
+        max_word_ops: usize,
+        max_caller_bytes: usize,
+    ) -> Result<CoefficientCiphertext<'a>, Error> {
+        if input.source != self.source {
+            return Err(Error::InvalidGeometry);
+        }
+        let quote = self.reverse_quote();
+        if input.words.len() != quote.input_words || output.len() != quote.output_words {
+            return Err(Error::BufferLength);
+        }
+        if max_word_ops < quote.word_ops || max_caller_bytes < quote.caller_bytes {
+            return Err(Error::ResourceLimit);
+        }
+        // Constructor's q<2^63 proves q*u64::MAX <2^127, twice remainder
+        // <2^65, and rounded quotient <=q. No fallible operation after writes.
+        output[0] = self.round_torus(input.words[0]);
+        for i in 1..quote.output_words {
+            let rounded = self.round_torus(input.words[i]);
+            output[i] = if rounded == 0 { 0 } else { self.source.limb.modulus - rounded };
+        }
+        Ok(CoefficientCiphertext { source: self.source, words: output })
+    }
+
+    fn round_torus(self, x: u64) -> u64 {
+        let q = u128::from(self.source.limb.modulus);
+        let numerator = q.checked_mul(u128::from(x))
+            .expect("torus numerator capacity proved by constructor");
+        let quotient = numerator / TORUS;
+        let twice_remainder = (numerator % TORUS).checked_mul(2)
+            .expect("twice torus remainder fits u128");
+        let increment = twice_remainder > TORUS
+            || (twice_remainder == TORUS && quotient & 1 != 0);
+        let rounded = quotient.checked_add(u128::from(increment))
+            .expect("rounded quotient at most q");
+        (rounded % q) as u64
     }
 
     fn round_canonical(self, x: u64) -> u64 {
