@@ -1,8 +1,9 @@
 //! Public unsigned coefficient-digit embedding and three-row RNS contraction.
 //!
-//! No ciphertext/producer authority, keys, automorphism,
+//! No ciphertext/producer authority, keys,
 //! backend activation, parameter adoption, or encrypted orchestration. Inputs
-//! may represent public c = sigma(c1), but this module does not compute sigma.
+//! may represent public c = sigma(c1). The optional Galois composition computes
+//! sigma on public buffers; synthetic rows are NOT authenticated evaluation keys.
 //! Variable-time clear algebra only. Existing legacy degree gates are unchanged;
 //! degree 8192 requires explicitly Public8192-bounded NTT descriptors.
 //!
@@ -202,6 +203,119 @@ pub struct CompositionWork {
     pub extra: CompositionExtraWork,
 }
 
+/// Public spectra [2][3][N], component order (c0,c1). Asserted descriptor
+/// identity is checked, including roots; this is not ciphertext provenance.
+pub struct ComponentSpectra<'a> {
+    pub contexts: &'a [NegacyclicNtt; 3],
+    pub values: &'a [u64],
+}
+
+impl<'a> ComponentSpectra<'a> {
+    // Only called after exact full length/capacity checks. Two borrowed helper
+    // visits, no copying or implied ownership/provenance transition.
+    fn component(&self, component: usize, words: usize) -> SourceSpectra<'_> {
+        SourceSpectra {
+            contexts: self.contexts,
+            values: &self.values[component * words..(component + 1) * words],
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum GaloisError {
+    Composition(CompositionError),
+    ContextMismatch,
+    InvalidAutomorphism,
+    BufferLength,
+    NonCanonical,
+    ArithmeticCapacity,
+    WorkLimit,
+}
+
+/// Payload prefixes: input 6N, rows 24N, output 6N, scratch 29N = 65N
+/// words / 520N bytes. Scratch: substituted c1 3N, old composition 19N,
+/// staged result 6N, original-c0 inverse temporary N. Not physical memory,
+/// descriptor/control storage, caller tails, or a minimal-storage claim.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GaloisStorage {
+    pub source_words: usize,
+    pub row_words: usize,
+    pub output_words: usize,
+    pub scratch_words: usize,
+    pub total_words: usize,
+    pub total_bytes: usize,
+    component_words: usize,
+    composition_end: usize,
+    result_end: usize,
+}
+
+/// Separate logical validation/index/control envelopes. Not scalar funding.
+/// These deliberately conservative bounds include wrapper query work and
+/// preflight; nested composition and NTT execution retain their own quotes.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct GaloisControlWork {
+    pub validation_checks: u64,
+    pub residue_checks: u64,
+    pub capacity_outcomes: u64,
+    pub adapters: u64,
+    pub result_inspections: u64,
+    pub ceiling_comparisons: u64,
+    pub borrowed_component_visits: u64,
+    pub selected_loop_polls: u64,
+    pub slice_partitions: u64,
+    pub phase_calls: u64,
+    pub index_products: u64,
+    pub index_additions: u64,
+    pub index_remainders: u64,
+    pub index_comparisons: u64,
+    pub index_subtractions: u64,
+    pub index_divisions: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct GaloisExtraWork {
+    pub automorphisms: LogicalOperations,
+    pub inverse_ntts: LogicalOperations,
+    /// 3N signed modular additions, each bundling optional negation and
+    /// canonical sum correction; 6N final output copies counted separately.
+    pub signed_modular_additions: u64,
+    pub final_copies: u64,
+    /// Duplicate preflight constructors, before any mutable write. The old
+    /// composition's own three constructors remain in its unchanged quote.
+    pub construction: DropConstructionWork,
+    pub control: GaloisControlWork,
+}
+
+impl GaloisExtraWork {
+    pub fn fits(self, ceiling: Self) -> bool {
+        macro_rules! fits {
+            ($left:expr, $right:expr; $($field:ident),*) => {
+                true $( && $left.$field <= $right.$field )*
+            };
+        }
+        event_fields!(fits, self.automorphisms, ceiling.automorphisms)
+            && event_fields!(fits, self.inverse_ntts, ceiling.inverse_ntts)
+            && self.signed_modular_additions <= ceiling.signed_modular_additions
+            && self.final_copies <= ceiling.final_copies
+            && fits!(self.construction, ceiling.construction; checks,
+                descriptor_stores, euclid_iterations, signed_divisions,
+                signed_multiplications, signed_subtractions, signed_remainders,
+                unsigned_remainders)
+            && fits!(self.control, ceiling.control; validation_checks,
+                residue_checks, capacity_outcomes, adapters, result_inspections,
+                ceiling_comparisons, borrowed_component_visits,
+                selected_loop_polls, slice_partitions, phase_calls,
+                index_products, index_additions, index_remainders,
+                index_comparisons, index_subtractions, index_divisions)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct GaloisWork {
+    pub composition: CompositionWork,
+    pub extra: GaloisExtraWork,
+}
+
 /// Public source spectra plus their asserted ordered transform contexts.
 /// This binding checks descriptor identity, not truth/provenance of supplied data.
 pub struct SourceSpectra<'a> {
@@ -247,6 +361,203 @@ impl<'a> RnsContraction<'a> {
 
     pub fn degree(&self) -> usize {
         self.sources[0].ring().degree()
+    }
+
+    pub fn galois_storage(&self) -> Result<GaloisStorage, GaloisError> {
+        let old = self.composition_storage().map_err(GaloisError::Composition)?;
+        let capacity = GaloisError::ArithmeticCapacity;
+        let source_words = old.source_words.checked_mul(2).ok_or(capacity)?;
+        let composition_end = old.source_words.checked_add(old.scratch_words).ok_or(capacity)?;
+        let result_end = composition_end.checked_add(old.output_words).ok_or(capacity)?;
+        let scratch_words = result_end.checked_add(self.degree()).ok_or(capacity)?;
+        let total_words = source_words.checked_add(old.row_words).ok_or(capacity)?
+            .checked_add(old.output_words).ok_or(capacity)?
+            .checked_add(scratch_words).ok_or(capacity)?;
+        let total_bytes = total_words.checked_mul(core::mem::size_of::<u64>()).ok_or(capacity)?;
+        Ok(GaloisStorage {
+            source_words, row_words: old.row_words, output_words: old.output_words,
+            scratch_words, total_words, total_bytes, component_words: old.source_words,
+            composition_end, result_end,
+        })
+    }
+
+    /// Old composition plus three spectral automorphisms, three original-c0
+    /// inverse NTTs, 3N signed modular additions and 6N final stores. No inverse
+    /// power-of-two extraction. Quote construction before entry is unpriced.
+    ///
+    /// Wrapper control bounds (not exact CPU counts): own full canonical scans
+    /// visit 30N residues; descriptor equality <=217 scalar checks, g has three
+    /// predicates, four lengths, three fit calls (11+35+46 comparisons). These
+    /// fit 30N+1024 validation checks, with capacity/Result handling separately
+    /// enumerated. Additional storage/query work has <512 capacity outcomes,
+    /// <512 adapters, <1024 Result inspections (including helper calls and
+    /// duplicate drop constructors); use 1024/1024/2048 conservative ceilings.
+    /// Two borrowed component visits, <=256 slice partitions, <=128 selected
+    /// phase calls, and <=40N+1024 selected loop polls cover wrapper scans,
+    /// signed substitution, queries and fit-field visits. NTT internal loops
+    /// and old composition selected polls retain their owner's exclusions.
+    ///
+    /// Index census includes the NTT owner's excluded spectral gather arithmetic:
+    /// 6N products, 3N additions/remainders/subtractions/divisions, plus signed
+    /// coefficient scatter 6N products (exponent and destination offset), 3N
+    /// remainders/wrap comparisons and <=3N
+    /// subtractions. Fixed slice/scan/loop indices fit 256 extra events per
+    /// category; 12N+256 additions conservatively cover wrapper loop indices.
+    /// These categories are logical, may overlap checks, and are never summed
+    /// as a scalar price. Compiler/library internals and complete loop machinery
+    /// are not claimed. Descriptor construction outside operation is excluded.
+    pub fn galois_work(&self) -> Result<GaloisWork, GaloisError> {
+        let composition = CompositionWork {
+            contraction: self.work(Evaluation::Contract)
+                .map_err(|error| GaloisError::Composition(CompositionError::Contraction(error)))?,
+            extra: self.composition_extra_work().map_err(GaloisError::Composition)?,
+        };
+        let n = u64::try_from(self.degree()).map_err(|_| GaloisError::ArithmeticCapacity)?;
+        let scaled = |factor: u64, constant: u64| {
+            n.checked_mul(factor).and_then(|v| v.checked_add(constant))
+                .ok_or(GaloisError::ArithmeticCapacity)
+        };
+        let mut automorphisms = LogicalOperations::default();
+        let mut inverse_ntts = LogicalOperations::default();
+        macro_rules! add_fields {
+            ($left:expr, $right:expr; $($field:ident),*) => {
+                $( $left.$field = $left.$field.checked_add($right.$field)
+                    .ok_or(GaloisError::ArithmeticCapacity)?; )*
+            };
+        }
+        for context in self.sources {
+            let spectral = context.operations(Operation::Automorphism);
+            event_fields!(add_fields, automorphisms, spectral);
+            let inverse = context.operations(Operation::Inverse);
+            event_fields!(add_fields, inverse_ntts, inverse);
+        }
+        let control = GaloisControlWork {
+            validation_checks: scaled(30, 1024)?,
+            residue_checks: scaled(30, 0)?,
+            capacity_outcomes: 1024,
+            adapters: 1024,
+            result_inspections: 2048,
+            ceiling_comparisons: 92,
+            borrowed_component_visits: 2,
+            selected_loop_polls: scaled(40, 1024)?,
+            slice_partitions: 256,
+            phase_calls: 128,
+            index_products: scaled(12, 256)?,
+            index_additions: scaled(12, 256)?,
+            index_remainders: scaled(6, 256)?,
+            index_comparisons: scaled(3, 256)?,
+            index_subtractions: scaled(6, 256)?,
+            index_divisions: scaled(3, 256)?,
+        };
+        let extra = GaloisExtraWork {
+            automorphisms, inverse_ntts,
+            signed_modular_additions: scaled(3, 0)?,
+            final_copies: scaled(6, 0)?,
+            construction: composition.extra.construction,
+            control,
+        };
+        Ok(GaloisWork { composition, extra })
+    }
+
+    /// Public-buffer sigma/key-switch/drop composition, NOT authenticated key
+    /// evaluation or encrypted adoption. Input [c0,c1][q0,q1,q2][N], synthetic
+    /// row spectra [3][b,a][q0,q1,q2,p][N], coefficient output [b,a][3][N].
+    /// Computes (Dp(sum unsigned_digits(sigma(c1))*b_i)+sigma(c0),
+    ///           Dp(sum unsigned_digits(sigma(c1))*a_i)).
+    /// c0 is added ONLY AFTER rounded drop. Accepted g is odd, 1 <= g < 2N.
+    /// Exact input/rows/output lengths; scratch >=29N, excess tail untouched.
+    /// All Result refusals preserve complete output AND scratch, including tails.
+    /// All nested refusal conditions, capacities and ceilings are discharged
+    /// before first store. Expects below express validated invariants, not panic
+    /// rollback. Safe borrowing requires mutable buffers disjoint from inputs.
+    pub fn galois_contract_drop_into(
+        &self,
+        source: ComponentSpectra<'_>,
+        rows: RowSpectra<'_>,
+        g: u64,
+        out: &mut [u64],
+        scratch: &mut [u64],
+        ceiling: GaloisWork,
+    ) -> Result<(), GaloisError> {
+        let storage = self.galois_storage()?;
+        let work = self.galois_work()?;
+        let n = self.degree();
+        let two_n = 2 * n as u64;
+        // Validated descriptor bound N<=8192 proves these public index products
+        // fit u64/usize; storage above checks all payload products/endpoints.
+        if source.contexts != self.sources || rows.contexts != self.targets {
+            return Err(GaloisError::ContextMismatch);
+        }
+        if g == 0 || g >= two_n || g & 1 == 0 {
+            return Err(GaloisError::InvalidAutomorphism);
+        }
+        if source.values.len() != storage.source_words || rows.values.len() != storage.row_words
+            || out.len() != storage.output_words || scratch.len() < storage.scratch_words
+        {
+            return Err(GaloisError::BufferLength);
+        }
+        if !work.composition.contraction.fits(ceiling.composition.contraction)
+            || !work.composition.extra.fits(ceiling.composition.extra)
+            || !work.extra.fits(ceiling.extra)
+        {
+            return Err(GaloisError::WorkLimit);
+        }
+        let c0 = source.component(0, storage.component_words);
+        let c1 = source.component(1, storage.component_words);
+        let mut invalid = false;
+        for component in [&c0, &c1] {
+            for (limb, context) in self.sources.iter().enumerate() {
+                for &value in &component.values[limb * n..(limb + 1) * n] {
+                    invalid |= value >= context.ring().modulus();
+                }
+            }
+        }
+        for polynomial in 0..24 {
+            let q = self.targets[polynomial % 4].ring().modulus();
+            for &value in &rows.values[polynomial * n..(polynomial + 1) * n] {
+                invalid |= value >= q;
+            }
+        }
+        if invalid { return Err(GaloisError::NonCanonical); }
+        // Discharge deterministic constructor failures before mutating scratch.
+        // Nested composition repeats these same constructors under same contexts.
+        for limb in 0..3 {
+            RoundedLimbDrop::new(self.targets[limb].ring(), self.targets[3].ring())
+                .map_err(|error| GaloisError::Composition(
+                    CompositionError::DropConstruction { limb, error }))?;
+        }
+
+        let (prefix, c0_coefficients) = scratch[..storage.scratch_words]
+            .split_at_mut(storage.result_end);
+        let (prefix, result) = prefix.split_at_mut(storage.composition_end);
+        let (substituted, composition_scratch) = prefix.split_at_mut(storage.component_words);
+        for limb in 0..3 {
+            self.sources[limb].automorphism_into(
+                &c1.values[limb * n..(limb + 1) * n], g,
+                &mut substituted[limb * n..(limb + 1) * n],
+            ).expect("whole-call preflight validated g, contexts, residues and exact buffers");
+        }
+        self.contract_drop_into(
+            SourceSpectra { contexts: self.sources, values: substituted }, rows,
+            result, composition_scratch, ceiling.composition,
+        ).expect("whole-call preflight discharged every nested composition refusal");
+        for limb in 0..3 {
+            let context = &self.sources[limb];
+            let q = context.ring().modulus();
+            context.inverse_into(&c0.values[limb * n..(limb + 1) * n], c0_coefficients)
+                .expect("whole-call preflight validated original c0 spectrum and exact temporary");
+            for (j, &value) in c0_coefficients.iter().enumerate() {
+                let exponent = (j as u64 * g) % two_n;
+                let negative = exponent >= n as u64;
+                let at = if negative { exponent as usize - n } else { exponent as usize };
+                let signed = if negative && value != 0 { q - value } else { value };
+                let destination = &mut result[limb * n + at];
+                let sum = *destination + signed;
+                *destination = if sum >= q { sum - q } else { sum };
+            }
+        }
+        out.copy_from_slice(result);
+        Ok(())
     }
 
     /// Reported logical payload storage only; see CompositionStorage. Checks
@@ -680,3 +991,7 @@ impl<'a> RnsContraction<'a> {
 #[cfg(test)]
 #[path = "coefficient_rns_contraction/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "coefficient_rns_contraction/galois_tests.rs"]
+mod galois_tests;
