@@ -703,9 +703,36 @@ class _NativeExchange:
         self.native.abort()
 
 
+class _NativeAbortOwner:
+    """Adapt one assigned native request to existing failed-reservation custody.
+
+    Failed abort may be retried by explicit reservation drain. Successful abort
+    drops the native reference and is never repeated, even if peer drain fails.
+    This does not own resources from a constructor which never returned.
+    """
+
+    __slots__ = ("native", "closed")
+
+    def __init__(self):
+        self.native = None
+        self.closed = False
+
+    def close(self):
+        if self.closed:
+            return
+        if self.native is not None:
+            self.native.abort()
+        self.closed = True
+        self.native = None
+
+
 def execute_request(experiment, source, token_ids, output_tokens, connections, timeout, cancelled,
                     *, decode_tokens=None):
-    """Return complete accepted state; all error paths retire local and remote owners."""
+    """Return accepted state only after cleanup; retain failed assigned owners.
+
+    Opaque native constructor resources never returned remain outside custody.
+    Remote retirement is best effort, not acknowledged destruction.
+    """
     capacity = getattr(source, "capacity", "capsule")
     expanded = capacity == "decoder"
     if (type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 3600
@@ -730,13 +757,36 @@ def execute_request(experiment, source, token_ids, output_tokens, connections, t
             raise ProtocolError("GKM batch HTTP metadata differs from Experiment")
         _check_batch_http_connections(connections.values())
     result_payload_limit(source.contract, capacity=capacity)
-    native = peers = decoder = record = None
-    with reserve_incremental_memory(request_memory_bytes(source)):
+    native = native_owner = peers = decoder = exchange = record = result = None
+    operation_error = primary = None
+    native_abort_attempted, native_abort_error = False, None
+    cleanup_errors = []  # bounded3: native, peers, audit; never retained on owners
+    unretired = []  # bounded2: assigned native adapter and/or assigned peers
+    reservation = reserve_incremental_memory(request_memory_bytes(source))
+    with reservation:
         try:
+            def abort_native():
+                # Synchronous decoder cleanup must not mask the operation's
+                # exception or retry a failed abort. Keep ONE failure on this
+                # request stack only, never on the retained adapter/native.
+                nonlocal native_abort_attempted, native_abort_error
+                if native_abort_attempted:
+                    return
+                native_abort_attempted = True
+                try:
+                    native_owner.close()
+                except BaseException as error:
+                    native_abort_error = error
+
             try:
                 if cancelled():
                     raise ProtocolError("GKM request cancelled", 499)
-                native = source.load_transport(experiment, len(token_ids), output_tokens, cancelled=cancelled)
+                # Allocate the adapter before construction; capture the returned
+                # owner before its first fallible post-constructor validation.
+                native_owner = _NativeAbortOwner()
+                native_owner.native = source.load_transport(
+                    experiment, len(token_ids), output_tokens, cancelled=cancelled)
+                native = native_owner.native
                 if native.contract() != contract_bytes:
                     raise ProtocolError("GKM client native admission differs from the source contract")
                 decoder = json.loads(native.decoder())
@@ -744,26 +794,79 @@ def execute_request(experiment, source, token_ids, output_tokens, connections, t
                                **({"batch": batch} if batch is not None else {}))
                 peers.admit(contract_bytes, native.publication(), native.publication_digest(),
                             native.starts(), experiment, source, native.request_id(), len(token_ids), output_tokens)
-                return _execute_verified_window(
-                    _NativeExchange(native, peers, len(decoder["matrices"]) - 1),
+                exchange = _NativeExchange(native, peers, len(decoder["matrices"]) - 1)
+                # Capture decoder-finally retirement failure without replacing
+                # its operation error. Only explicit reservation drain may retry.
+                exchange.abort = abort_native
+                result = _execute_verified_window(
+                    exchange,
                     decoder, tuple(token_ids), cancelled=cancelled, decode_tokens=decode_tokens,
                 )
-            finally:
+            except BaseException as error:
+                operation_error = error
+
+            # Run independently, outside the operation's exception handler so
+            # cleanup failures cannot implicitly chain onto its payload frames.
+            if native_abort_attempted:
+                if native_abort_error is not None:
+                    cleanup_errors.append(native_abort_error)
+                    unretired.append(native_owner)
+            elif native_owner is not None:
                 try:
-                    if native is not None:
-                        native.abort()
+                    native_owner.close()
+                except BaseException as error:
+                    cleanup_errors.append(error)
+                    unretired.append(native_owner)
+            if peers is not None:
+                try:
+                    peers.close()
+                except BaseException as error:
+                    cleanup_errors.append(error)
+                    unretired.append(peers)
+                # Audit is not an ownership retirement. Audit failure alone must
+                # not retain already retired owners or their admission charge.
+                try:
+                    record = getattr(cancelled, "record_audit", None)
+                    if record is not None:
+                        record(peers.audit())
+                except BaseException as error:
+                    cleanup_errors.append(error)
+
+            primary = operation_error if operation_error is not None else (
+                cleanup_errors[0] if cleanup_errors else None)
+            if unretired:
+                # The ORIGINAL admitted token roots failed owners before any
+                # optional client-seat handoff, even for callable-only callers.
+                reservation.retain_failed(tuple(unretired))
+                try:
+                    owner = getattr(cancelled, "owner", None)
+                    handoff = getattr(owner, "_retain_failed_request_reservation", None)
+                    if handoff is not None:
+                        handoff(cancelled, reservation)
+                except BaseException as error:
+                    primary.add_note(f"GKM cleanup handoff failed: {type(error).__name__[:80]}")
+                    clear_failure_frames(error)
                 finally:
-                    if peers is not None:
-                        try:
-                            peers.close()
-                        finally:
-                            record = getattr(cancelled, "record_audit", None)
-                            if record is not None:
-                                record(peers.audit())
-        except BaseException as error:
-            # Joined I/O and unwound decoder/import frames may otherwise keep
-            # tentative payloads in a propagated exception after budget refund.
-            clear_failure_frames(error)
-            raise
+                    owner = handoff = None
+
+            if primary is not None:
+                for error in cleanup_errors:
+                    if error is not primary:
+                        primary.add_note(f"GKM cleanup failed: {type(error).__name__[:80]}")
+                    # Custody is established first. Only inactive frames are
+                    # cleared; primary type/message/cause/context stay intact.
+                    clear_failure_frames(error)
+                clear_failure_frames(primary)
+                # Raising outside our handlers avoids linking cleanup failures;
+                # preserve the selected error's context even if our caller is
+                # itself handling some unrelated exception.
+                saved_context = primary.__context__
+                try:
+                    raise primary
+                finally:
+                    primary.__context__ = saved_context
+            return result
         finally:
-            native = peers = decoder = record = None
+            native = native_owner = peers = decoder = exchange = record = result = None
+            unretired = cleanup_errors = operation_error = primary = reservation = None
+            abort_native = native_abort_error = error = saved_context = None
