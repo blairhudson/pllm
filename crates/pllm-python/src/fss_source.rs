@@ -67,14 +67,15 @@ pub struct NativeSourceBuilder {
 
 impl NativeSourceBuilder {
     fn take(&mut self) -> PyResult<SourceBuilder> {
-        let owner = self
-            .owner
-            .take()
-            .ok_or_else(|| invalid("FuseFSS source builder retired"))?;
+        if self.owner.is_none() {
+            return Err(invalid("FuseFSS source builder retired"));
+        }
         if self.pid != std::process::id() {
             return Err(invalid("FuseFSS source owner cannot cross fork"));
         }
-        Ok(owner)
+        self.owner
+            .take()
+            .ok_or_else(|| invalid("FuseFSS source builder retired"))
     }
 }
 
@@ -386,4 +387,117 @@ pub fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<NativeProgram>()?;
     module.add_function(wrap_pyfunction!(fss_source_contract, module)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pyo3::exceptions::PyValueError;
+
+    fn builder(pid: u32) -> NativeSourceBuilder {
+        // Same tiny real-constructor geometry as fss_decoder/import_tests.rs.
+        // No checkpoint payload, completed import, or cleanup proof is minted.
+        let config = pllm_types::canonical_bytes(&json!({
+            "model_type":"gpt2", "n_embd":2, "n_head":1, "n_layer":1,
+            "n_positions":4, "vocab_size":3, "n_inner":2
+        }));
+        let owner = SourceBuilder::new_with_capacity(
+            &config,
+            1,
+            2,
+            sdk::GPT2_NUMERIC,
+            Capacity::Capsule,
+        )
+        .unwrap();
+        NativeSourceBuilder {
+            owner: Some(owner),
+            pid,
+        }
+    }
+
+    fn shape_allocation(owner: &SourceBuilder) -> *const usize {
+        let shape = owner
+            .admitted()
+            .unwrap()
+            .source_shapes
+            .values()
+            .next()
+            .unwrap();
+        assert!(!shape.is_empty());
+        shape.as_ptr()
+    }
+
+    fn assert_take_error(py: Python<'_>, builder: &mut NativeSourceBuilder, message: &str) {
+        let error = match builder.take() {
+            Err(error) => error,
+            Ok(_) => panic!("source owner unexpectedly transferred"),
+        };
+        assert!(error.is_instance_of::<PyValueError>(py));
+        assert_eq!(error.value(py).str().unwrap().to_str().unwrap(), message);
+    }
+
+    #[test]
+    fn take_empty_same_pid_is_retired() {
+        Python::initialize();
+        Python::attach(|py| {
+            let mut builder = NativeSourceBuilder {
+                owner: None,
+                pid: std::process::id(),
+            };
+            assert_take_error(py, &mut builder, "FuseFSS source builder retired");
+            assert!(builder.owner.is_none());
+        });
+    }
+
+    #[test]
+    fn take_empty_wrong_pid_is_still_retired() {
+        Python::initialize();
+        Python::attach(|py| {
+            let mut builder = NativeSourceBuilder {
+                owner: None,
+                pid: std::process::id().wrapping_add(1),
+            };
+            assert_take_error(py, &mut builder, "FuseFSS source builder retired");
+            assert!(builder.owner.is_none());
+        });
+    }
+
+    #[test]
+    fn take_live_wrong_pid_retains_owner_then_transfers_once() {
+        Python::initialize();
+        Python::attach(|py| {
+            let pid = std::process::id();
+            let mut builder = builder(pid.wrapping_add(1));
+            let owner = builder.owner.as_ref().unwrap();
+            let address = std::ptr::from_ref(owner);
+            let allocation = shape_allocation(owner);
+            for _ in 0..2 {
+                assert_take_error(py, &mut builder, "FuseFSS source owner cannot cross fork");
+                let retained = builder.owner.as_ref().unwrap();
+                assert_eq!(std::ptr::from_ref(retained), address);
+                assert_eq!(shape_allocation(retained), allocation);
+            }
+            // Only the stored PID changes; no real fork or native cleanup probe.
+            builder.pid = pid;
+            let transferred = builder.take().unwrap();
+            assert!(builder.owner.is_none());
+            assert_eq!(shape_allocation(&transferred), allocation);
+            assert_take_error(py, &mut builder, "FuseFSS source builder retired");
+            assert_eq!(shape_allocation(&transferred), allocation);
+        });
+    }
+
+    #[test]
+    fn take_live_same_pid_transfers_once() {
+        Python::initialize();
+        Python::attach(|py| {
+            let mut builder = builder(std::process::id());
+            let allocation = shape_allocation(builder.owner.as_ref().unwrap());
+            let transferred = builder.take().unwrap();
+            assert!(builder.owner.is_none());
+            assert_eq!(shape_allocation(&transferred), allocation);
+            assert_take_error(py, &mut builder, "FuseFSS source builder retired");
+            assert_eq!(shape_allocation(&transferred), allocation);
+        });
+    }
 }
