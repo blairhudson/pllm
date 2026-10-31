@@ -249,10 +249,29 @@ class _PreparedPromptUse:
         self._failure = None  # Inactive construction/count frames, retired before refund.
         self._claimed = False
         self._lock = threading.Lock()
+        self._close_thread = None
+        self._close_event = None
+        self._close_failed = False
+        self._close_failure_serial = 0
+        self._close_error = None
 
     @classmethod
     def _empty(cls):
         return cls(None)
+
+    def _reserve_metadata(self, amount):
+        from pllm.deployment.resources import reserve_incremental_memory
+
+        with self._lock:
+            if self._closed or self._metadata_owner is not None:
+                raise ResponsesError("prepared prompt already owns metadata or is retired")
+        reservation = reserve_incremental_memory(amount)
+        with self._lock:
+            if self._closed or self._close_thread is not None or self._metadata_owner is not None:
+                raise ResponsesError("prepared prompt already owns metadata or is retired")
+            # The attempt/lease roots self BEFORE entering the actual manager.
+            self._metadata_owner = reservation
+        reservation.__enter__()
 
     def _adopt_tokenizer(self, tokenizer):
         with self._lock:
@@ -294,44 +313,109 @@ class _PreparedPromptUse:
             if self._binding_started:
                 raise ResponsesError("prepared prompt binding already attempted")
             self._binding_started = True
-            try:
-                if self._payload.request != _prompt_request(body):
-                    raise ResponsesError("prepared request association changed")
-                pending.check_source(source)
-                self._payload = replace(self._payload,
-                    source=_owned_prompt_source(source), pending_source=None)
-            except BaseException:
+            original = self._payload
+        replacement = None
+        try:
+            if original.request != _prompt_request(body):
+                raise ResponsesError("prepared request association changed")
+            pending.check_source(source)
+            replacement = replace(original,
+                source=_owned_prompt_source(source), pending_source=None)
+            with self._lock:
+                if (self._closed or self._close_thread is not None or self._used
+                        or self._payload is not original):
+                    raise ResponsesError("prepared prompt binding lost original custody")
+                self._payload = replacement
+        except BaseException:
+            with self._lock:
                 self._used = True  # Failure/unwind cannot retry a different source.
-                raise
+            raise
+        finally:
+            original = replacement = pending = None  # Final decrefs outside lock.
     def consume(self, body, source):
         with self._lock:
             if self._payload is None or self._used:
                 raise ResponsesError("prepared prompt already consumed or retired")
             self._used = True  # Mismatch burns this attempt too.
-            if self._payload.pending_source is not None:
-                raise ResponsesError("prepared prompt still needs original source admission")
             payload = self._payload
-            if payload.request != _prompt_request(body) or payload.source != source:
-                raise ResponsesError("prepared prompt request/source association changed")
-            return payload.tokenizer, payload.ids
+        if payload.pending_source is not None:
+            raise ResponsesError("prepared prompt still needs original source admission")
+        if payload.request != _prompt_request(body) or payload.source != source:
+            raise ResponsesError("prepared prompt request/source association changed")
+        return payload.tokenizer, payload.ids
 
     def close(self):
+        ident = threading.get_ident()
+        previous_generation = None
         with self._lock:
-            if self._failure is not None:
+            if self._closed:
+                return
+            if self._close_thread == ident:
+                raise ResponsesError("prepared prompt cleanup is already running")
+            waiting = self._close_thread is not None
+            if waiting:
+                event = self._close_event
+            else:
+                previous_generation = self._close_event
+                self._close_thread = ident
+                self._close_event = event = threading.Event()
+                event._error = None
+        previous_generation = None
+        if waiting:
+            event.wait()
+            if event._error is not None:
+                raise event._error
+            return
+        tokenizer = payload = reservation = failure = close = None
+        try:
+            failure = self._failure
+            previous = self._close_error
+            if failure is not None or previous is not None:
                 from .delegated_protocol import clear_failure_frames
-                clear_failure_frames(self._failure)
-            if self._tokenizer is not None:
-                close = getattr(self._tokenizer, "close", None)
+                if failure is not None:
+                    clear_failure_frames(failure)
+                if previous is not None and previous is not failure:
+                    clear_failure_frames(previous)
+            previous = None
+            tokenizer = self._tokenizer
+            if tokenizer is not None:
+                close = getattr(tokenizer, "close", None)
                 if close is not None:
                     close()  # Failed close retains custody for an explicit retry.
-                close = None  # Bound methods also retain the actual tokenizer.
-                self._tokenizer = None
-            self._payload = None
-            if self._metadata_owner is not None:
-                self._metadata_owner.close()
-                self._metadata_owner = None
-            self._failure = None
-            self._closed = True
+                with self._lock:
+                    self._tokenizer = None
+            close = tokenizer = None  # Bound methods also retain the tokenizer.
+            with self._lock:
+                payload = self._payload
+                self._payload = None
+            payload = None  # Destruction MUST finish before actual refund.
+            reservation = self._metadata_owner
+            if reservation is not None:
+                reservation.close()
+                with self._lock:
+                    self._metadata_owner = None
+            with self._lock:
+                self._failure = None
+                self._closed = True
+                self._close_failed = False
+                previous = self._close_error
+                self._close_error = None
+            previous = None
+        except BaseException as error:
+            with self._lock:
+                self._close_failed = True
+                self._close_failure_serial += 1
+                previous = self._close_error
+                self._close_error = error
+                event._error = error
+            previous = None
+            raise
+        finally:
+            # Last decrefs and all callbacks occur outside the state lock.
+            tokenizer = payload = reservation = failure = close = None
+            with self._lock:
+                self._close_thread = None
+                event.set()
 
 
 _prepared_prompt_request = ContextVar("_prepared_prompt_request", default=None)

@@ -279,21 +279,94 @@ class _MemoryReservation:
         self._manager = capacity.hold_bytes(amount, _token=self._token)
         self._failed = ()
         self._exited = self._draining = False
+        self._acquisition_started = self._acquired = self._acquisition_failed = False
+        self._closed = False
         self._finish_lock = threading.Lock()
+        self._exit_thread = self._exit_event = self._exit_error = None
+        self._exit_failure_serial = 0
         self._drain_finish_state = None
 
     def __enter__(self):
-        return self._manager.__enter__()
+        if self._acquisition_started or self._exited or self._closed:
+            raise NetworkError("CLIENT_MEMORY_ACQUISITION_UNAVAILABLE")
+        self._acquisition_started = True
+        try:
+            result = self._manager.__enter__()
+        except BaseException:
+            self._acquisition_failed = True
+            raise
+        finally:
+            # Observe the actual token, including a backend which charges and
+            # then fails before returning telemetry. Never manufacture a refund.
+            with self._capacity.lock:
+                self._acquired = self._token in self._capacity._owners
+        return result
+
+    def close(self):
+        """Retry actual retirement; a consumed generator is not refund proof.
+
+        Partial backend side effects may be permanently unresolved. Leave that
+        reservation in its caller's custody rather than editing the ledger here.
+        Legacy __exit__/retain_failed callers keep their original protocol.
+        """
+        if self._closed:
+            return
+        self.__exit__(None, None, None)
+        with self._capacity.lock:
+            if not self._exited or self._token in self._capacity._owners:
+                raise NetworkError("CLIENT_MEMORY_RETIREMENT_INCOMPLETE")
+            self._closed = True
 
     def __exit__(self, *exc):
+        # retain_failed/drain_failed still exclusively own their committed
+        # protocol. Ordinary ExitStack callbacks must not wait on that backend.
+        if self._token.retained is not None:
+            return False
+        ident = threading.get_ident()
+        previous_generation = None
         with self._finish_lock:
             if self._token.retained is not None:
-                return False  # failure is NOT retirement, including on caller GC
-            if not self._exited:
-                result = self._manager.__exit__(*exc)
+                return False  # NOT retirement, including on caller GC.
+            if self._exited:
+                return False
+            if not self._acquisition_started:
                 self._exited = True
-                return result
+                return False
+            if self._exit_thread == ident:
+                raise NetworkError("CLIENT_MEMORY_RETIREMENT_BUSY")
+            waiting = self._exit_thread is not None
+            if waiting:
+                event = self._exit_event
+            else:
+                previous_generation = self._exit_event
+                self._exit_thread = ident
+                self._exit_event = event = threading.Event()
+                event._error = None  # Outcome belongs to THIS existing generation.
+        previous_generation = None  # Superseded event/error decrefs outside lock.
+        if waiting:
+            event.wait()
+            if event._error is not None:
+                raise event._error
             return False
+        previous = None
+        try:
+            result = self._manager.__exit__(*exc)  # No finish/capacity lock.
+            with self._finish_lock:
+                self._exited = True
+                previous, self._exit_error = self._exit_error, None
+            return result
+        except BaseException as error:
+            with self._finish_lock:
+                previous = self._exit_error
+                self._exit_error = error
+                self._exit_failure_serial += 1
+                event._error = error  # Publish selected outcome before wakeup.
+            raise
+        finally:
+            previous = None
+            with self._finish_lock:
+                self._exit_thread = None
+                event.set()
 
     def retain_failed(self, owners):
         if type(owners) is not tuple or not 1 <= len(owners) <= 2 or self._amount < 64 << 10:

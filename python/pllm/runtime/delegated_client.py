@@ -40,6 +40,89 @@ from .responses import (normalize_input, _owned_prompt_source, _prepare_prompt,
 from .types import Response, response_events
 
 
+_delegated_stack = threading.local()
+
+
+class _DelegatedExtent:
+    """Actual physical call stack, NOT retirement/completion authority."""
+
+    def __init__(self, core, attempt=None):
+        self.core, self.attempt = core, attempt
+        self.parent = None
+        self.active = self.failed = False
+        self.normal_stop = False
+        self.tickets = []
+        self.generation = (attempt._generation if attempt is not None
+                           else getattr(core, "_attempt_generation", 0))
+
+    def __enter__(self):
+        return self
+
+    def activate(self):
+        self.parent = getattr(_delegated_stack, "frame", None)
+        _delegated_stack.frame = self
+        self.active = True
+
+    def __exit__(self, kind, primary, traceback):
+        if not self.active:
+            return False
+        assert _delegated_stack.frame is self
+        _delegated_stack.frame = self.parent
+        self.active = False
+        if self.failed or (primary is not None and not self.normal_stop):
+            parent = self.parent
+            while parent is not None:
+                parent.failed = True
+                parent = parent.parent
+            for lease, ticket in self.tickets:
+                lease._fail_deferred_close(ticket)
+            return False
+        # No attempt execution lock or live same-core boundary remains here.
+        for lease, ticket in self.tickets:
+            try:
+                lease._resume_deferred_close(ticket, self.core, self.generation)
+            except BaseException as cleanup:
+                # Service runs AFTER pop: poison every still-live ancestor,
+                # including other cores and ancestors without a ticket yet.
+                parent = self.parent
+                while parent is not None:
+                    parent.failed = True
+                    parent = parent.parent
+                if primary is None:
+                    raise
+                primary.add_note(f"deferred lease cleanup failed: {type(cleanup).__name__}")
+        return False
+
+
+def _defer_delegated_close(core, lease):
+    """Recognize only a live inherited next/retire/core-close on THIS thread."""
+    frame = getattr(_delegated_stack, "frame", None)
+    outer = attempt = None
+    while frame is not None:
+        if frame.active and frame.core is core:
+            outer = frame
+            if attempt is None and type(frame.attempt) is _Attempt and frame.attempt.owner is core:
+                attempt = frame.attempt
+        frame = frame.parent
+    if outer is None:
+        return False
+    ticket = lease._defer_from_delegated(core, attempt, outer.generation)
+    if not any(owner is lease and saved is ticket for owner, saved in outer.tickets):
+        outer.tickets.append((lease, ticket))
+    if attempt is not None:
+        attempt.cancel()  # Original only; never reread/cancel a later active seat.
+    return True
+
+
+def _has_delegated_extent(core):
+    frame = getattr(_delegated_stack, "frame", None)
+    while frame is not None:
+        if frame.active and frame.core is core:
+            return True
+        frame = frame.parent
+    return False
+
+
 _BODY_BYTES = 64 << 10
 _OUTPUT_BYTES = 1 << 20
 _RECORD_BYTES = 4 << 20
@@ -205,6 +288,8 @@ class _Attempt:
 
     def __init__(self, owner, body):
         self.owner = owner
+        owner._attempt_generation = getattr(owner, "_attempt_generation", 0) + 1
+        self._generation = owner._attempt_generation
         self.body = body
         self.streaming = body.get("stream", False)
         self.lock = threading.RLock()
@@ -213,6 +298,11 @@ class _Attempt:
         self.buffer = None
         self.response_id = None
         self.closed = False
+        self._state_lock = threading.Lock()
+        self._completion = threading.Event()
+        self._retired = False
+        self._outstanding_calls = 0
+        self._invocation_owner = self._invocation_thread = None
         self.running_thread = None
         self.transport_audit = None
         self._fss_control_boundary = self._fss_control_origin = None
@@ -293,56 +383,170 @@ class _Attempt:
     def __iter__(self):
         return self
 
-    def __next__(self):
-        with self.lock:
-            if self.closed:
-                raise StopIteration
-            self.running_thread = threading.get_ident()
-            try:
-                self.check_cancelled()
-                if self.buffer is None:
-                    self.buffer = iter(self.owner._produce(self))
-                self.check_cancelled()
-                event = next(self.buffer)
-                if event.type in {"response.completed", "response.incomplete"}:
-                    self._retire(delivered=True)
-                return event
-            except BaseException:
-                try:
-                    self.fail_control_boundary()  # Also covers errors from retirement.
-                except BaseException:
-                    pass
-                self._retire(delivered=False)
-                raise
-            finally:
-                self.running_thread = None
+    def _register_invocation(self):
+        # Include waiters and post-unlock finalizers, not only published owners.
+        with self._state_lock:
+            if type(self.owner) is DelegatedClient and self._completion.is_set():
+                return False
+            self._outstanding_calls += 1
+            return True
 
+    def _finish_invocation(self, token, parent_token, parent_thread, parent_running):
+        displaced = None
+        with self._state_lock:
+            if self._invocation_owner is token:
+                displaced = self._invocation_owner
+                self._invocation_owner = parent_token
+                self._invocation_thread = parent_thread
+                self.running_thread = parent_running
+            self._outstanding_calls -= 1
+            if (type(self.owner) is DelegatedClient and self._retired
+                    and self._outstanding_calls == 0):
+                self._completion.set()
+        displaced = None  # Superseded references drop outside the state mutex.
+
+    def __next__(self):
+        token = object()  # Private per-call identity, allocated before state lock.
+        registered = acquired = released = False
+        parent_token = parent_thread = parent_running = previous = None
+        with _DelegatedExtent(self.owner, self) as extent:
+            try:
+                registered = self._register_invocation()
+                if not registered:
+                    extent.normal_stop = True
+                    raise StopIteration
+                acquired = self.lock.acquire()  # Never under _state_lock.
+                if not acquired:
+                    raise RuntimeError("attempt mutex acquisition did not succeed")
+                extent.activate()
+                ident = threading.get_ident()
+                with self._state_lock:
+                    previous = self._invocation_owner
+                    if previous is not None and self._invocation_thread == ident:
+                        parent_token, parent_thread = previous, self._invocation_thread
+                        parent_running = self.running_thread
+                    # A foreign previous owner is stale, NOT a recursive parent.
+                    self._invocation_owner = token
+                    self._invocation_thread = ident
+                    self.running_thread = ident if not self.closed else parent_running
+                return self._advance_locked(extent)
+            finally:
+                try:
+                    if acquired:
+                        self.lock.release()
+                        released = True
+                finally:
+                    # An unobserved/broken release is NOT successful drain.
+                    if registered and (not acquired or released):
+                        self._finish_invocation(token, parent_token, parent_thread, parent_running)
+
+    def _advance_locked(self, extent):
+        if self.closed:
+            extent.normal_stop = True
+            raise StopIteration
+        retiring = False
+        try:
+            self.check_cancelled()
+            if self.buffer is None:
+                self.buffer = iter(self.owner._produce(self))
+            self.check_cancelled()
+            event = next(self.buffer)
+            if event.type in {"response.completed", "response.incomplete"}:
+                retiring = True
+                self._retire(delivered=True)
+            return event
+        except BaseException as error:
+            try:
+                self.fail_control_boundary()
+            except BaseException:
+                extent.failed = True
+                pass
+            if type(self.owner) is not DelegatedClient:
+                # HEAD legacy selection, INCLUDING terminal retirement failure:
+                # its existing second cleanup may replace the first exception.
+                self._retire(delivered=False)
+            elif not retiring:
+                try:
+                    self._retire(delivered=False)
+                except BaseException as cleanup:
+                    extent.failed = True
+                    if cleanup is error:
+                        raise
+                    error.add_note(f"attempt cleanup retained owner: {type(cleanup).__name__}")
+            if isinstance(error, StopIteration) and not retiring and not extent.failed:
+                extent.normal_stop = True  # Only after actual retirement succeeded.
+            raise
     def _retire(self, *, delivered):
         if self.closed:
             return
         if self._prepared_prompt is not None:
             self._prepared_prompt.close()
             self._prepared_prompt = None
-        self.closed = True
+        gkm = type(self.owner) is DelegatedClient
+        if not gkm:
+            self.closed = True
         self._fss_control_boundary = self._fss_control_origin = None
         self.body = self.buffer = self.transport_audit = None
         self.cancellation.unregister(self)
         with self.owner._lock:
             if not delivered and self.response_id is not None:
                 self.owner.evict_response(self.response_id)
-            if self.owner._active is self:
+            if not gkm and self.owner._active is self:
                 self.owner._active = None
             if self.owner._closing:
                 self.owner._clear_owned_state()
+            if gkm and self.owner._active is self:
+                self.owner._active = None
+        if gkm:
+            with self._state_lock:
+                self.closed = self._retired = True
 
     def close(self):
         self.cancel()
-        with self.lock:
-            # A private observation hook can request cancellation, but must not
-            # release the seat while the executing stack still owns its result.
-            if self.running_thread == threading.get_ident():
-                return
-            self._retire(delivered=False)
+        prepared = self._prepared_prompt
+        generation = None
+        if prepared is not None:
+            with prepared._lock:
+                if prepared._close_thread is not None:
+                    generation = prepared._close_event
+        token = object()
+        registered = acquired = released = False
+        parent_token = parent_thread = parent_running = previous = None
+        with _DelegatedExtent(self.owner, self) as extent:
+            try:
+                registered = self._register_invocation()
+                if not registered:
+                    if generation is not None and generation._error is not None:
+                        raise generation._error
+                    return
+                acquired = self.lock.acquire()
+                if not acquired:
+                    raise RuntimeError("attempt mutex acquisition did not succeed")
+                extent.activate()
+                if generation is not None and generation._error is not None:
+                    raise generation._error
+                ident = threading.get_ident()
+                with self._state_lock:
+                    previous = self._invocation_owner
+                    recursive = previous is not None and self._invocation_thread == ident
+                    if not recursive:
+                        self._invocation_owner = token
+                        self._invocation_thread = ident
+                        # Legacy close has no GKM running/completion semantics.
+                        self.running_thread = None
+                    if not recursive and type(self.owner) is DelegatedClient:
+                        self.running_thread = ident
+                if recursive:
+                    return  # Cancellation-only; do not replace the live parent.
+                self._retire(delivered=False)
+            finally:
+                try:
+                    if acquired:
+                        self.lock.release()
+                        released = True
+                finally:
+                    if registered and (not acquired or released):
+                        self._finish_invocation(token, parent_token, parent_thread, parent_running)
 
 
 class _CountPreparation:
@@ -405,6 +609,7 @@ class DelegatedClient:
         self._lock = threading.RLock()
         self._closing = False
         self._active = None
+        self._drain_attempt = None
         self._compact_cleanup = None
         self._failed_request_cleanup = None
         self._count_preparation = None
@@ -552,35 +757,46 @@ class DelegatedClient:
         return prepared
 
     def _prepare_request_prompt(self, body, *, attempt=None, messages=None, tools=None,
-                                metadata_view=None, source=None, _count_slot=None):
+                                metadata_view=None, source=None, _count_slot=None,
+                                _preparation_owner=None):
         if _count_slot is not None:
             return self._prepare_count_prompt(body, _count_slot)
-        from contextlib import ExitStack
         from . import tokenizer_admission
-        from .responses import ResponsesError, _prepare_prompt, _owned_prompt_source
+        from .responses import ResponsesError, _PreparedPromptUse, _prepare_prompt, _owned_prompt_source
 
         if attempt is not None and attempt._prepared_prompt is not None:
-            return attempt._prepared_prompt
-        source = self._prompt_metadata_owner() if source is None else source
-        metadata_owner = None
+            owner = attempt._prepared_prompt
+            if (owner._payload is None or owner._failure is not None or owner._closed
+                    or owner._used or (_preparation_owner is not None and _preparation_owner is not owner)):
+                raise ResponsesError("attempt already owns incomplete or retired prompt preparation")
+            return owner
+        if attempt is not None:
+            owner = _PreparedPromptUse._empty() if _preparation_owner is None else _preparation_owner
+            attempt._prepared_prompt = owner  # Real attempt roots BEFORE acquisition/construction.
+        else:
+            if _preparation_owner is None:
+                raise ResponsesError("prompt preparation requires a caller-rooted owner")
+            owner = _preparation_owner
+        if owner._closed or owner._failure is not None or owner._payload is not None:
+            raise ResponsesError("prompt preparation owner is unavailable")
         tokenizer = snapshot = view = prepared = None
         try:
+            source = self._prompt_metadata_owner() if source is None else source
             if source is not None:
                 if metadata_view is not None:
                     metadata_view._check_owned_prompt_metadata(source, self._declaration.pipeline.model)
                 descriptor = source.tokenizer_descriptor
                 tokenizer = source.tokenizer()
+                owner._adopt_tokenizer(tokenizer)
                 association = _owned_prompt_source(source)
             else:
                 # Existing metadata allowances, held until the prepared owner
                 # retires. No source inventory/contract/payload admission yet.
-                from pllm.deployment.resources import reserve_incremental_memory
                 from pllm.deployment.execution import _TokenizerView
 
-                metadata_owner = ExitStack()
-                metadata_owner.enter_context(reserve_incremental_memory(
+                owner._reserve_metadata(
                     tokenizer_admission.DECODER_METADATA_MEMORY_BYTES
-                    if self._capacity == "decoder" else 1 << 20))
+                    if self._capacity == "decoder" else 1 << 20)
                 snapshot = tokenizer_admission._capture_prompt_metadata(
                     self._declaration.pipeline.model, policy=self._prompt_descriptor_policy,
                     capacity=self._capacity, input_rows=self._experiment_budget.max_input_tokens,
@@ -592,28 +808,22 @@ class DelegatedClient:
                 view = _TokenizerView._from_prompt_snapshot(snapshot)
                 descriptor = view.tokenizer_descriptor
                 tokenizer = view.tokenizer()
+                owner._adopt_tokenizer(tokenizer)
                 association = snapshot.association()
             prepared = _prepare_prompt(body, descriptor=descriptor, tokenizer=tokenizer,
                 source=association, messages=messages, tools=tools,
-                _pending_source=snapshot, _metadata_owner=metadata_owner)
+                _pending_source=snapshot, _preparation_owner=owner)
             ids = prepared._payload.ids
             if (not 1 <= len(ids) <= self._experiment_budget.max_input_tokens
                     or any(i >= descriptor["vocab_size"] for i in ids)):
                 raise GatewayError("request input exceeds selected budget", param="input")
             if attempt is not None:
-                attempt._prepared_prompt = prepared.claim()
+                prepared.claim()
             return prepared
-        except BaseException:
-            if prepared is not None:
-                tokenizer = snapshot = view = descriptor = association = None
-                prepared.close()
-            else:
-                close = getattr(tokenizer, "close", None)
-                if close is not None:
-                    close()
-                tokenizer = snapshot = view = None
-                if metadata_owner is not None:
-                    metadata_owner.close()
+        except BaseException as error:
+            # Preserve failure on the already rooted owner. Actual attempt/count/
+            # lease retirement runs AFTER these constructor/render frames unwind.
+            owner._failure = error
             raise
     @contextmanager
     def tokenizer_scope(self):
@@ -834,8 +1044,14 @@ class DelegatedClient:
                 raise ProtocolError("client has pending compact cleanup", 409)
             if self._active is not None:
                 raise ProtocolError("GKM client already owns an exclusive request", 409)
+            if type(self) is DelegatedClient:
+                previous = getattr(self, "_drain_attempt", None)
+                if previous is not None and not previous._completion.is_set():
+                    raise ProtocolError("GKM request execution has not drained", 409)
             attempt = _Attempt(self, self._admit(body))
             self._active = attempt
+            if type(self) is DelegatedClient:
+                self._drain_attempt = attempt
             attempt.cancellation.register(attempt)
         return attempt
 
@@ -944,7 +1160,32 @@ class DelegatedClient:
             # module ledger token, not this client/callback/exception reference.
             self._failed_request_cleanup = reservation
 
+    def _lease_drain_snapshot(self, attempt=None, *, seal=False):
+        """Exact original attempt status, independent of its execution lock.
+
+        Sealing precedes lease close so no new request can appear between capture
+        and cancellation. The last attempt survives removal from _active.
+        """
+        if type(self) is not DelegatedClient:
+            raise ProtocolError("lease drain requires the exact delegated client", 409)
+        with self._lock:
+            if seal:
+                self._closing = True
+            if attempt is None:
+                attempt = self._active or getattr(self, "_drain_attempt", None)
+            if attempt is not None and (type(attempt) is not _Attempt or attempt.owner is not self):
+                raise ProtocolError("lease drain requires the original request attempt", 409)
+        if attempt is None:
+            return None, None, None, False
+        with attempt._state_lock:
+            return attempt, attempt.running_thread, attempt._completion, attempt._retired
+
     def close(self):
+        with _DelegatedExtent(self) as extent:
+            extent.activate()
+            self._close_owners()
+
+    def _close_owners(self):
         with self._lock:
             count = getattr(self, "_count_preparation", None)
             if count is not None:
@@ -954,6 +1195,10 @@ class DelegatedClient:
             self._closing = True
             self._fss_failure_observer = None
             active = self._active
+            if active is None and type(self) is DelegatedClient:
+                previous = getattr(self, "_drain_attempt", None)
+                if previous is not None and not previous._completion.is_set():
+                    active = previous
             if active is not None:
                 active.cancel()
         if count is not None:
