@@ -6046,6 +6046,60 @@ mod constructor_quote_tests {
     use super::*;
     use std::mem::size_of;
 
+    // Prospective named iterator, deliberately test-only until layout compatibility
+    // is checked. Production tokens/quotes retain the original literal Map.
+    struct CompactTokens<'v> {
+        indices: std::ops::Range<usize>,
+        input: &'v ContractionView,
+    }
+
+    impl Iterator for CompactTokens<'_> {
+        type Item = (usize, usize, usize);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let index = self.indices.next()?;
+            let (owner, lane) = self
+                .input
+                .view
+                .word(index)
+                .expect("validated original token view");
+            Some((index, owner, lane))
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.indices.size_hint()
+        }
+    }
+
+    fn compact_tokens(input: &ContractionView) -> CompactTokens<'_> {
+        CompactTokens {
+            indices: 0..input.view.lanes,
+            input,
+        }
+    }
+
+    // Correct sink/token pairing for the candidate only. This is not a quote for
+    // the currently adopted anonymous iterator until compatibility is verified.
+    fn compact_contraction_control_layout() -> Result<graph::driver::ContractionControl, Error> {
+        graph::driver::contraction_control_layout::<
+            CompactContractionSink<'_, '_, '_>,
+            CompactTokens<'_>,
+        >()
+    }
+
+    // Literal old iterator is a regression oracle, not a production layout quote.
+    fn original_compact_tokens(
+        input: &ContractionView,
+    ) -> impl Iterator<Item = (usize, usize, usize)> + '_ {
+        (0..input.view.lanes).map(move |index| {
+            let (owner, lane) = input
+                .view
+                .word(index)
+                .expect("validated original token view");
+            (index, owner, lane)
+        })
+    }
+
     // Independent caller-only inventory. Native Builder/Program/finish slots
     // must come from Construction, never a compiler reconstruction of that path.
     fn native_slots() -> usize {
@@ -6105,6 +6159,10 @@ mod constructor_quote_tests {
             <CompactContractionSink<'_, '_, '_> as graph::driver::ContractionSink>::tokens(
                 &original,
             );
+        lookup_controls_with_iterator_bytes(std::mem::size_of_val(&iterator))
+    }
+
+    fn lookup_controls_with_iterator_bytes(iterator_bytes: usize) -> usize {
         2 * size_of::<ContractionWords>()
             + 2 * size_of::<ContractionView>()
             + 2 * size_of::<Result<ContractionView, Error>>()
@@ -6112,7 +6170,7 @@ mod constructor_quote_tests {
             + 2 * size_of::<Result<(), Error>>()
             + 2 * size_of::<Result<&SourceTensor, Error>>()
             + 2 * size_of::<Result<&usize, Error>>()
-            + 2 * std::mem::size_of_val(&iterator)
+            + 2 * iterator_bytes
             + 2 * size_of::<Option<(usize, usize, usize)>>()
             + size_of::<(usize, usize, usize)>()
             + 2 * size_of::<std::iter::StepBy<std::ops::Range<usize>>>()
@@ -6422,6 +6480,151 @@ mod constructor_quote_tests {
                 .unwrap();
             graph
         }
+    }
+
+    #[test]
+    fn compact_tokens_preserve_order_empty_and_size_hint() {
+        let fixture = Fixture::new(129, false, false);
+        let graph = fixture.graph(0);
+        let published = graph
+            .frontier
+            .value(&fixture.region.operations[0].inputs[0])
+            .unwrap();
+        let mut input = ContractionView::new(published.clone(), ContractionStage::Input);
+        let expected: Vec<_> = (0..input.view.lanes)
+            .map(|index| {
+                let (owner, lane) = input.view.word(index).unwrap();
+                (index, owner, lane)
+            })
+            .collect();
+        {
+            let mut old = original_compact_tokens(&input);
+            let mut named = compact_tokens(&input);
+            for expected in expected {
+                assert_eq!(named.size_hint(), old.size_hint());
+                assert_eq!(old.next(), Some(expected));
+                assert_eq!(named.next(), Some(expected));
+            }
+            assert_eq!(named.size_hint(), (0, Some(0)));
+            assert_eq!(old.next(), None);
+            assert_eq!(named.next(), None);
+        }
+
+        // A malformed starting offset is never inspected by an empty iterator.
+        input.view.lanes = 0;
+        input.view.start = usize::MAX;
+        let mut old = original_compact_tokens(&input);
+        let mut named = compact_tokens(&input);
+        assert_eq!(old.size_hint(), named.size_hint());
+        assert_eq!(named.size_hint(), (0, Some(0)));
+        assert_eq!(old.next(), None);
+        assert_eq!(named.next(), None);
+    }
+
+    #[test]
+    fn compact_tokens_preserve_lazy_invalid_word_panic_timing() {
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let fixture = Fixture::new(129, false, false);
+        let graph = fixture.graph(0);
+        let published = graph
+            .frontier
+            .value(&fixture.region.operations[0].inputs[0])
+            .unwrap();
+        let mut input = ContractionView::new(published.clone(), ContractionStage::Input);
+        let (owner, _) = input.view.word(0).unwrap();
+        // Test-only corruption: first dense word succeeds; the next checked
+        // offset addition fails. No source authority or caps are changed.
+        input.view.mapping = Mapping::Dense(owner);
+        input.view.start = usize::MAX;
+        input.view.lanes = 3;
+        let mut old = original_compact_tokens(&input);
+        let mut named = compact_tokens(&input);
+        assert_eq!(named.size_hint(), old.size_hint());
+        assert_eq!(old.next(), Some((0, owner, usize::MAX)));
+        assert_eq!(named.next(), Some((0, owner, usize::MAX)));
+        for panic in [
+            catch_unwind(AssertUnwindSafe(|| old.next())),
+            catch_unwind(AssertUnwindSafe(|| named.next())),
+        ] {
+            let panic = panic.unwrap_err();
+            let message = panic
+                .downcast_ref::<String>()
+                .map(String::as_str)
+                .or_else(|| panic.downcast_ref::<&str>().copied())
+                .unwrap();
+            assert!(message.starts_with("validated original token view"));
+        }
+        // Both advance the range before the failed word lookup.
+        assert_eq!(old.size_hint(), (1, Some(1)));
+        assert_eq!(named.size_hint(), old.size_hint());
+        assert!(compact_contraction_control_layout().is_ok());
+    }
+
+    #[test]
+    fn compact_tokens_layout_compatibility_and_independent_quote_totals() {
+        fn actual_layout<I: Iterator<Item = (usize, usize, usize)>>(
+            _: &I,
+        ) -> graph::driver::ContractionControl {
+            graph::driver::contraction_control_layout::<CompactContractionSink<'_, '_, '_>, I>()
+                .unwrap()
+        }
+
+        let fixture = Fixture::new(129, false, false);
+        let graph = fixture.graph(0);
+        let published = graph
+            .frontier
+            .value(&fixture.region.operations[0].inputs[0])
+            .unwrap();
+        let input = ContractionView::new(published.clone(), ContractionStage::Input);
+        let old = original_compact_tokens(&input);
+        let actual =
+            <CompactContractionSink<'_, '_, '_> as graph::driver::ContractionSink>::tokens(&input);
+        let old_quote = actual_layout(&old);
+        let actual_quote = actual_layout(&actual);
+        let current =
+            graph::driver::contraction_control::<CompactContractionSink<'_, '_, '_>>(&input).unwrap();
+        let named_quote = compact_contraction_control_layout().unwrap();
+        let named_actual = actual_layout(&compact_tokens(&input));
+        assert_eq!(named_quote.lookup_bytes, named_actual.lookup_bytes);
+        assert_eq!(named_quote.projection_bytes, named_actual.projection_bytes);
+        // Independent former projection inventory for these concrete types.
+        // Ordinary fixed-fixture sums check slots, not generic overflow behavior
+        // or a complete workspace/funding envelope.
+        let projection_total = size_of::<ContractionView>()
+            + 2 * size_of::<Result<ContractionView, Error>>()
+            + 3 * size_of::<Result<&SourceTensor, Error>>()
+            + size_of::<Result<Option<&SourceTensor>, Error>>()
+            + 2 * size_of::<Result<(), Error>>()
+            + 2 * size_of::<Result<&ContractionView, Error>>()
+            + 2 * size_of::<Result<&usize, Error>>()
+            + 2 * size_of::<graph::driver::BiasIndices>()
+            + size_of::<(
+                &mut CompactContractionSink<'_, '_, '_>,
+                &pllm_models::ModelOperation,
+                &[usize],
+                Option<&ContractionView>,
+                &BTreeMap<String, SourceTensor>,
+            )>();
+        assert_eq!(old_quote.projection_bytes, projection_total);
+        assert_eq!(current.projection_bytes, projection_total);
+        assert_eq!(named_quote.projection_bytes, projection_total);
+        let extras = size_of::<CompactContractionSink<'_, '_, '_>>()
+            + 2 * size_of::<Result<ContractionResult<'_>, Error>>();
+        let old_total = lookup_controls_with_iterator_bytes(std::mem::size_of_val(&old));
+        let named_total = lookup_controls_with_iterator_bytes(size_of::<CompactTokens<'_>>());
+        assert_eq!(old_quote.lookup_bytes + extras, old_total);
+        assert_eq!(named_quote.lookup_bytes + extras, named_total);
+        assert_eq!(current.lookup_bytes, actual_quote.lookup_bytes);
+        assert_eq!(current.projection_bytes, actual_quote.projection_bytes);
+        assert_eq!(current.lookup_bytes, old_quote.lookup_bytes);
+        assert_eq!(current.projection_bytes, named_quote.projection_bytes);
+        assert_eq!(named_quote.sink_owned_heap_bytes, None);
+        assert_eq!(named_quote.compiled_callframe_bytes, None);
+        // Target/compiler-specific compatibility gate, not portable proof: UNRUN.
+        // Production must not adopt the candidate if either layout or total differs.
+        assert_eq!(std::mem::size_of_val(&old), size_of::<CompactTokens<'_>>());
+        assert_eq!(old_total, named_total);
     }
 
     #[test]
