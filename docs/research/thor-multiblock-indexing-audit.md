@@ -439,9 +439,10 @@ Remaining identity issues are specific, not an absent-config claim:
 1. HE `nonlinear/layernorm.py:5–12` defaults to `var_e=1e-5`; recovered config
    says `1e-12`. Native HE callers (`bert.py:113,643–647`) use these helpers
    without a `var_e` override.
-   This does not alone establish effective epsilon after all numerator/variance
-   scaling; that needs the full LayerNorm algebra. It is not permission to
-   replace either literal.
+   The conditional ideal-payload derivation below gives effective epsilon
+   `1e-5/768^2` relative to the undoubled residual, not the helper literal alone.
+   This differs from the config, but establishes neither a numerical bug nor
+   reconciliation, and is not permission to replace either literal.
 2. `utils/model.py:4–12` does **not** consume archived config. It constructs an
    unrevisioned `bert-base-uncased` model and loads the fine-tuned state dict.
    The recovered config therefore cannot establish that loader's exact runtime.
@@ -468,6 +469,304 @@ with paper §7.2.2 p.12's MRPC microbenchmark range `[-44.19,50.25]` and
 its bound state (`softmax.py:122–160`); it does not merely execute Appendix C's
 printed literal factor sequence. Full softmax scale/denominator reconciliation
 is outside the small polynomial experiment below.
+
+#### Recovered LayerNorm payload algebra and inverse-square-root proof gaps
+
+Two independent Astra recoveries agree on this documentation-only source
+attachment at `crypto-starlab/THOR@b513c06aaabccc04b560721e35e9a98008428c25`:
+[`nonlinear/layernorm.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/nonlinear/layernorm.py),
+[`bert.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/bert.py),
+[`model_encoder.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/model_encoder.py),
+[`ckks.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/ckks.py).
+These are existing artifact sources, not added dependencies. Source text was
+inspected, not executed; this derivation is not an authorized reconciliation.
+
+**Conditional reduction geometry.** Assume 32,768 physical slots, the intended
+real-lane support and left-rotation semantics, and ideal payload arithmetic.
+For one token, the eight input ciphertexts each contribute sixteen stride-2048
+positions with six live residues per group of sixteen: `n=8*16*6=768`.
+`CkksEngine.rotsum(...,2048)` then sums the sixteen positions. Successive
+additions of rotations `+1,+2,+4` sum **eight**, not six, residues; the
+residue-zero result is the intended six-value sum only because residues 6 and 7
+are zero after the first mask. The residue-zero mask retains that sum, and
+rotations `-1,-2,-4` broadcast it over residues 0 through 7. The same reduction
+is used for squared inputs, and the inverse-square-root result is broadcast
+likewise. This is a conditional source layout argument, not qualification of
+physical rotations, support preservation or the earlier matrix indexing gates.
+
+Let `r` be the **undoubled residual** for that token, with population statistics
+`mu=sum(r)/n` and `v=sum((r-mu)^2)/n`. Write helper input as `g*r`, its live
+mask coefficient as `s/sqrt(C)`, and `t=s*g`, where
+
+```text
+e = 1e-5
+C = (1.05*max_var + e)*n^2
+N = n*t*(r-mu)/sqrt(C)
+D = (n^2*t^2*v + e)/C
+```
+
+The numerator is `n` times the masked input minus its reduced sum. The
+denominator input is `n*sum(masked_input^2)-sum(masked_input)^2+e/C`, not
+population variance plus the unscaled literal `e`. Let `R(D)` denote the
+returned inverse-square-root payload, including its actual recurrence factors,
+and define `rho(D)=sqrt(D)*R(D)`. `_encode_b` stores gamma and beta payloads
+with a half; `he_layernorm`'s final affine doubling cancels **both** halves.
+Consequently, for `t>0` and `D>0`, exact ideal-payload algebra gives
+
+```text
+y = gamma*N*R(D) + beta
+  = gamma*(r-mu)*rho(D)/sqrt(v + e/(n^2*t^2)) + beta
+```
+
+Here gamma and beta mean the intended unhalved affine parameters. No assertion
+that `rho(D)=1` is made.
+
+| Caller boundary | Conditional gain and effective epsilon |
+| --- | --- |
+| Attention (`bert.py`, residual addition before `self.layernorm`) | `g=1`, `s=1`, hence `t=1`. |
+| FF (`bert.py:680–688`, both FF profiles) | Residual is added **before** bootstrap; merge/extraction has no preceding half. Identity-on-payload bootstrap and conjugate extraction double **both residual branches**, so `g=2`; LayerNorm's half mask gives `s=1/2`, hence `t=1`. |
+
+Thus both paths have ideal effective epsilon `e/n^2=1e-5/768^2`, approximately
+`1.69542e-11`, relative to their respective **undoubled** residual. Relative
+to the FF helper input itself (`2*r`), it is instead `4*e/n^2`. The recovered
+config's `1e-12` is different; this does not identify the intended evaluated
+function, establish a numerical bug or authorize epsilon replacement.
+
+This simplification is not bit-exact source floating-point algebra. If `b` is
+the actual rounded live mask coefficient and `d` the source-computed additive
+scalar `e/C`, the corresponding ideal-operation ratio is
+`epsilon_ratio=d/(n^2*b^2*g^2)`. Independent rounding of these scalars need not
+preserve the symbolic cancellation above; CKKS encoding and arithmetic add
+further unqualified effects.
+
+**Pinned normalization attachment.** The FF profiles are `(a,M)=(0.2,150)`
+and `(0.75,2500)`, with `e=1e-5`, `n=768`
+([lines 8–12](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/nonlinear/layernorm.py#L8-L12)).
+Source sets `eta=a/M`, `C=(1.05*M+e)*n**2` and live mask coefficient
+`1/C**(1/2)`, then divides the FF mask by two; this is exponentiation syntax,
+not `np.sqrt`
+([lines 21–27](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/nonlinear/layernorm.py#L21-L27)).
+The denominator is `D=n*sum(masked_x^2)-sum(masked_x)^2+e/C`.
+LayerNorm passes `enc_one` and `alpha=0.001`
+([lines 65–75](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/nonlinear/layernorm.py#L65-L75));
+`he_invsqrt` requires `alpha`, with no default.
+
+**Inverse-square-root caveat 1 — constants and invariant.** On a retained real
+lane, the general helper starts `A=D=denominator`, `B=N=numerator`, and bound
+state `eta`; only LayerNorm's `enc_one` specializes `N=1`. The pinned
+[helper, lines 104–130](https://github.com/crypto-starlab/THOR/blob/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/nonlinear/layernorm.py#L104-L130)
+selects the **unsorted second returned root**
+`k=np.roots([1-eta**3,6*eta**2-6,9-9*eta])[1]` and separately computes
+`p=k**(3/2)/2`, `q=k**3/4`, `h=3/k`. Its optional bootstrap scales `A` by
+64, bootstraps and divides by 64; it also bootstraps the already-scaled `p*B`.
+Under intended reduction support and payload-preserving bootstrap, rescale and
+alignment, the ideal lane updates are
+
+```text
+B' = (p*B)*(h-A)
+A' = (q*A)*(h-A)^2                 (both use OLD A)
+eta' = k*eta*(3-k*eta)^2/4
+```
+
+To avoid assuming a numerator of one or dividing by a possibly zero payload,
+define `R_0=1`, `R'=p*R*(h-A)`. Then literal helper output is `B=N*R`,
+including `N=0`. With `E=A-D*R^2`, exact algebra gives
+
+```text
+E' = (h-A)^2 * [q*E + (q-p^2)*D*R^2]
+A_m = D*R_m^2 * product_{j=0}^{m-1}(q_j/p_j^2)
+```
+
+The product identity assumes finite, defined constants and every `p_j!=0`;
+it divides by no `D`, `N` or `R`. Exact positive-`k` constants satisfy `q=p^2`
+and yield the familiar invariant `A=D*R^2`, not general-helper `A=D*B^2`.
+Separate floating evaluations permit, but do not prove, `q!=p^2` or an actual
+nonzero propagated defect. Root ordering/choice, positivity and finite floating
+constant instantiation have not been measured or qualified. The bound-state
+update and stopping condition `eta>=0.999` for this caller are not recurrence
+accuracy certificates for `R(D)` or `rho(D)`.
+
+**Conditional finite ideal-payload residual proof.** Astra9's independent review
+conditionally verifies the algebra, but did not find a local pinned
+`layernorm.py`; source alignment here relies on the existing audit transcription,
+not fresh upstream verification.
+
+Subsequent read-only review directly inspected the pinned LayerNorm helpers,
+attention/FF caller gains and affine half encoding at the same revision, finding
+no scalar-transcription discrepancy. That closes source attachment for these
+symbols only; rounded-value premises and runtime qualification remain
+unestablished.
+
+Fix a finite iteration count `m`, `D>0`,
+`A_0=D`, `R_0=1`, and iteration-indexed finite real constants `q_j>0`,
+`p_j!=0`, `h_j`, `k_j`. Assume finite scalar trace `e_j` (the helper's bound
+state `eta`) and defined ideal-payload updates using old `A_j`:
+
+```text
+A_{j+1} = q_j*A_j*(h_j-A_j)^2
+R_{j+1} = p_j*R_j*(h_j-A_j)
+G_j(x) = k_j*x*(3-k_j*x)^2/4
+r_j = e_{j+1}-G_j(e_j)
+F_j(x) = q_j*x*(h_j-x)^2
+s_j = F_j(e_j)-e_{j+1}
+    = e_j*[(q_j*h_j^2-9*k_j/4)
+           +(-2*q_j*h_j+3*k_j^2/2)*e_j
+           +(q_j-k_j^3/4)*e_j^2]-r_j
+Delta_j = A_j-e_j
+H_j = q_j*[h_j^2-2*h_j*(A_j+e_j)+A_j^2+A_j*e_j+e_j^2]
+Delta_{j+1} = H_j*Delta_j+s_j
+Delta_m = (D-e_0)*prod_{j=0}^{m-1} H_j
+          + sum_{i=0}^{m-1} s_i*prod_{j=i+1}^{m-1} H_j
+```
+
+Here `r_j` includes scalar evaluation rounding, not merely rounded constants;
+the payload updates themselves remain ideal real operations. The difference
+factorization `F_j(A_j)-F_j(e_j)=H_j*(A_j-e_j)` proves the recurrence and finite
+variation expression, with empty products equal to 1 and empty sums to 0.
+Define `P_m=prod_{j=0}^{m-1}(q_j/p_j^2)>0`. Induction gives
+`A_m=D*R_m^2*P_m`, hence `rho_m=sqrt(D)*R_m` satisfies
+`rho_m^2=(e_m+Delta_m)/P_m`, even when `R_m=0`. To bound distance from **+1**,
+also require `rho_m>=0`: every `p_j*(h_j-A_j)>=0` suffices; nonnegative terminal
+product of those factors is a weaker sufficient condition.
+
+The stop threshold must be the **actual finite floating comparison operand**
+`t`, not exact-real `1-alpha`. If the finite comparison really exits with
+`e_m>=t`, put `alpha_stop=(1-t)_+`, where `x_+=max(x,0)`. Then
+
+```text
+|rho_m-1| = |rho_m^2-1|/(rho_m+1)
+          <= [alpha_stop+(e_m-1)_+ + |Delta_m|+|P_m-1|]/P_m.
+```
+
+This uses `|e_m-1|<=(1-t)_+ +(e_m-1)_+`; it assumes no `e_j<=1` invariant.
+NaN comparison failure is not convergence. Initial shortfall `D-e_0`, terminal
+overshoot and product drift remain explicit. For general output `B_m=N*R_m`
+and additive encrypted output error `xi`, the numerator-relative normalized
+error obeys
+`|sqrt(D)*(B_m+xi)-N| <= |N|*|rho_m-1|+sqrt(D)*|xi|`.
+Only live `enc_one` lanes specialize `N=1`, giving the normalized live bound
+above plus `sqrt(D)*|xi|`. No bound on `xi` is supplied here.
+
+**Smaller direct interval route, still unfinished.** Rather than bounding every
+defect term, ordinary future proof/tests could certify actual root selection,
+rounded constants, finite scalar trace and stop comparisons; establish the
+positive actual rounded normalization domain
+`D(v)=768^2*b^2*g^2*v+d` from rounded mask `b`, caller gain `g` and additive
+scalar `d`, without symbolic ideal cancellation; and propagate an enclosing
+interval `I_j` through `F_j`. Its extrema require endpoints **and any contained
+stationary points `h_j/3`, `h_j`**, since
+`F_j'(x)=q_j*(h_j-x)*(h_j-3*x)`. Sign control and positive bounds for `P_m`
+remain necessary. For a desired `0<=tau<1`, the resulting enclosure must satisfy
+`A_m/P_m subset [(1-tau)^2,(1+tau)^2]` together with `rho_m>=0`.
+This is a smaller proof route than the defect route, not an executed
+implementation or benchmark. No tolerance is adopted or rounded BERT certificate
+completed; no source-model variance coverage, CKKS, security or runtime accuracy
+qualification follows. The symbolic initial-coverage shortfall below remains
+relevant and is not erased by this conditional proof.
+
+**Inverse-square-root caveat 2 — initial interval coverage.** Under the preceding
+FF gain-two/half-mask cancellation (`t=1`), treating source decimals as exact
+symbolic rationals gives
+
+```text
+delta = e/n^2 = 1/58982400000
+D(v) = (v+delta)/(21*M/20+1/100000)
+L = D(a), U = D(M), eta = a/M
+```
+
+Assuming **undoubled residual** variance `v` lies in `[a,M]`, the two FF profiles
+satisfy the independently checked positive-denominator cross-multiplication bounds:
+
+| Exact symbolic profile | Lower endpoint | Upper endpoint |
+| --- | --- | --- |
+| `a=1/5`, `M=150` | `1/788 < L < 1/787 < eta=1/750` | `19/20 < U < 20/21` |
+| `a=3/4`, `M=2500` | `1/3501 < L < 1/3500 < eta=3/10000` | `19/20 < U < 20/21` |
+
+For example, the second profile's `L<1/3500` reduces to
+`3500*delta<1/100000`. Thus the assumed symbolic variance interval is not fully
+covered by the helper's initial `[eta,1]`. The earlier attention profile
+`(a,M)=(0.15,10)` also has `D(a)<eta`: in general this is equivalent to
+`e*M/n^2 < 0.05*a*M+a*e`, and `e/n^2<0.05*a` suffices for all three profiles.
+These are ideal equation/proof-gap observations only, not actual model bugs or
+rounded CKKS-profile failures. Rounded masks and decimals are not certified by
+these exact rational bounds. Recurrence accuracy and finite-constant/root-choice
+instantiation remain unproved; no epsilon, bounds or profile change follows.
+
+All conclusions remain conditional on bootstrap identity/gain, payload
+rescale and level semantics, gamma/beta level compatibility, and physical
+rotation/support mapping. In particular, `ckks.py::pc_add` warns that different
+plaintext/ciphertext levels give incorrect results; source affine half
+cancellation does not prove compatible levels. No CKKS qualification, protocol
+activation, security claim, numerical-profile adoption or new decision follows.
+Existing mask findings and logical indexing scopes remain unchanged.
+
+#### Recovered tokenizer and attention-mask dataflow (Astra29)
+
+Provenance: `crypto-starlab/THOR@b513c06aaabccc04b560721e35e9a98008428c25`;
+the following immutable raw sources supply line citations and **zero-based**
+notebook cell citations, not evidence of an evaluated run:
+[`src/thor/data.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/data.py),
+[`forward.ipynb`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/forward.ipynb),
+[`src/thor/bert.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/bert.py),
+[`src/thor/nonlinear/softmax.py`](https://raw.githubusercontent.com/crypto-starlab/THOR/b513c06aaabccc04b560721e35e9a98008428c25/src/thor/nonlinear/softmax.py).
+
+- **Tokenizer/input boundary:** `data.py:34,146–150` uses
+  `AutoTokenizer.from_pretrained(self.checkpoint, model_max_length=128)` and
+  paired MRPC tokenization with `max_length=128`, `padding='max_length'`,
+  `truncation=True`. Neither `return_attention_mask`, padding side nor truncation
+  side is explicitly set. Lines 138–143 set Torch format; lines 41–44 use
+  `DataCollatorWithPadding(tokenizer=self.tokenizer)` and validation batch size 1.
+  Notebook cells 13/15/18 select MRPC sample 0 and pass only `input_ids` and
+  `token_type_ids` to `embed_data` (`data.py:129–132`); encrypted embeddings must
+  have shape `(128,768)` (`data.py:46–51`). Fixed physical extent alone does not
+  establish tokenizer-side defaults or logical token support.
+- **Actual mask producer:** cell 18 passes
+  `attention_mask.cpu().numpy().squeeze().T` to
+  `data_encryptor.encode_attention_mask(..., level=15)`, not the standalone
+  helper defined in cell 17. Cells 3/15/18 import `ThorDataEncryptor`, instantiate
+  the receiver and call its instance method. Independent Astra review
+  (`ses_e7a018385ffePGPIGe5noYsw8E`) verifies the pinned class method
+  `ThorDataEncryptor.encode_attention_mask` (`data.py:69–88`): it validates shape
+  `(128,)`, takes `k=np.count_nonzero(attention_mask)` and constructs eight
+  pre-encoding messages. For `0<=i<8`, `0<=j<16`, `0<=t<128`, `0<=h<12`,
+  it writes
+  `M_i[2048*j+16*t+h] = 1[((16*i+j+t)%128)<k]`; the other four head lanes
+  remain zero, then it calls `self.engine.encode(msg, level)`. Support is
+  reconstructed from the count, not copied from the original positions. It
+  preserves original support only when valid positions are exactly prefix
+  `[0,k)`; arbitrary holes or left padding are not preserved. This attaches the
+  mapping to the pinned class source and notebook instance target/source import,
+  not independently inspected runtime package re-export resolution or evaluated
+  execution. The distinct `encrypt_attention_mask` method has no modulo and is
+  not this attachment.
+- **Notebook consumer:** uncommented layer cells 33 onward call cell 28's
+  `forward_layer`: Q/K scores, score bootstrap, then
+  `thor_attention.softmax(x=sftmx_in, attention_mask=thor_attention_mask, ...)`.
+  `bert.py:112` selects `he_softmax2` only at zero-based layer 2, otherwise
+  `he_softmax1`; wrappers are `nonlinear/softmax.py:7–12`. Lines 22–34 first
+  approximate the exponential, then apply
+  `rescale(pt_ct_mult(attention_mask[i], exp_u[i]))`, before denominator
+  accumulation and `rotsum`. `update_inv_D`, line 84, reapplies the mask to
+  the inverse. Static `[1]*12+[0]*4` masks select head lanes, **not** token
+  support. The separate top-level `ThorBert.forward` also forwards a mask
+  (`bert.py:76,163`), but is not this notebook's layer runner.
+- **Distinct plaintext comparison:** cell 21's helper calls
+  `get_extended_attention_mask(attention_mask,768)`, adds its result to scores
+  **before** Torch softmax. The exact additive sentinel and upstream defaults
+  remain unbound; this is not the HE post-exponential multiplication path.
+  No equivalence or new reference identity is adopted. Null execution counts
+  and absent saved outputs still do not prove evaluation of either runner.
+
+**Unresolved gates specific to this boundary:** bind tokenizer revision/defaults
+and establish the valid-prefix condition before claiming support fidelity;
+reconcile the two masking paths without silently adopting numerical equivalence.
+The verified class-method mapping makes this source plaintext-mask boundary
+communicate count-derived support to the evaluator.
+An explicit leakage/view contract must be approved
+before protected execution; physical length 128 alone does not erase `k`.
+This is a source dataflow observation, not a deployed privacy-attack claim or
+evidence that the project declares actual `k` public. Existing coefficient,
+epsilon, helper-profile and evaluated-context qualifications remain unchanged.
 
 ### Ordered HE-prime source: recovered artifact cache, evaluated binding missing
 
