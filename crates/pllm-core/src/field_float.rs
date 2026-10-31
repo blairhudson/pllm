@@ -20,6 +20,12 @@ pub use rsqrt::{rsqrt_rn32, RSQRT_WORK};
 mod finite_r32;
 pub use finite_r32::{add_rn32, div_rn32, mul_rn32, FINITE_R32_WORK};
 
+mod local_bf16;
+pub use local_bf16::{
+    add_bf16_into, add_bf16_work, dot_bf16_rn32, dot_bf16_rn32_work,
+    mul_bf16_into, mul_bf16_work, rope_bf16_supplied_into, rope_bf16_supplied_work,
+};
+
 mod rms_norm;
 pub use rms_norm::{rms_norm_bf16_row_into, rms_norm_bf16_row_work};
 
