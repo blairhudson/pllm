@@ -3,6 +3,11 @@ use pllm_models::{DecoderExpansionBudget, DecoderGraph, DecoderWorkload, ModelOp
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+// Pure aggregate-energy algebra only. No production caller or certificate issuer.
+#[cfg(test)]
+#[path = "row_energy.rs"]
+mod row_energy;
+
 #[path = "private_matrix_driver.rs"]
 pub(super) mod private_matrix_driver;
 
