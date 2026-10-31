@@ -44,7 +44,7 @@ def test_sdk_binds_authenticated_epochs_before_setup_and_retires(monkeypatch, ch
             events.append("publisher_closed")
 
     class Peers:
-        def __init__(self, *args, **kwargs):
+        def start(self, *args, **kwargs):
             self.live = [False] * 3
             self.counts = {}
             self.request_id = None

@@ -223,14 +223,14 @@ async def endpoint(cluster, monkeypatch):
 
     monkeypatch.setattr(delegated_transport.httpx, "AsyncClient", http_client)
     actual_peers = delegated_transport._Peers
+    actual_start = actual_peers.start
 
-    def peers(*args, **kwargs):
-        value = actual_peers(*args, **kwargs)
+    def start(value, *args, **kwargs):
+        actual_start(value, *args, **kwargs)
         assert type(value) is actual_peers and type(value.io) is delegated_transport._IOOwner
         state.peers.append(value)
-        return value
 
-    monkeypatch.setattr(client, "_Peers", peers)  # Observe construction, no method replacement.
+    monkeypatch.setattr(actual_peers, "start", start)  # Observe start; close/post unchanged.
 
     async def gate():
         if state.mode not in {"job_failure", "caller_cancel"}:

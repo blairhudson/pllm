@@ -1525,7 +1525,7 @@ def test_replicated_transport_preserves_work_error_and_cleans_peers_after_close_
     class Peers:
         refuses = True
 
-        def __init__(self, *args, **kwargs):
+        def start(self, *args, **kwargs):
             references.append(weakref.ref(self))
 
         def post(self, *args, **kwargs):
@@ -1619,7 +1619,7 @@ def test_only_actual_rooted_compact_publisher_can_release_outer_after_close_fail
     class Peers:
         refuses = peer_failure
 
-        def __init__(self, *args, **kwargs):
+        def start(self, *args, **kwargs):
             pass
 
         def post(self, *args, **kwargs):

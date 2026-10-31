@@ -409,8 +409,9 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
     # Validate origins/credentials before creating a native input-share owner.
     connections = dict(zip(ROLES, _connections(connections, roles=ROLES), strict=True))
     deadline = time.monotonic() + timeout
-    peers = native = manifests = frame = frames = raw = value = storage = None
-    with reserve_incremental_memory(client_memory_bytes(capacity)):
+    peers = native = manifests = frame = frames = raw = value = storage = payload = None
+    reservation = reserve_incremental_memory(client_memory_bytes(capacity))
+    with reservation:
         def boundary(role, action, status):
             try:
                 record = getattr(attempt, "record_control_boundary", None)
@@ -440,7 +441,8 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
             if remaining <= 0:
                 raise ProtocolError("FuseFSS request timed out", 499)
             boundary("client", "channels", "entered")
-            peers = _Peers(connections, remaining, attempt, roles=ROLES, namespace="fss")
+            peers = _Peers()
+            peers.start(connections, remaining, attempt, roles=ROLES, namespace="fss")
             # Channel construction also spends the original request budget.
             peers.deadline = min(peers.deadline, deadline)
             peers.request_id = secrets.token_hex(32)
@@ -535,39 +537,66 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
             return FssResult(selected)
         except BaseException as error:
             failure()
-            frame = frames = raw = value = storage = None
+            frame = frames = raw = value = storage = payload = None
             clear_failure_frames(error)
             raise
         finally:
+            payload = None
             # A failed attempt's frozen marker cannot be overwritten by cleanup.
             boundary("client", "retire", "entered")
             frame = frames = raw = value = storage = manifests = None
+            unretired = []  # bounded2: only owners whose close actually fails
             try:
-                if native is not None:
-                    native.close()
-            except BaseException:
-                # Observe before the existing finally continues peer cleanup.
-                failure()
-                raise
-            finally:
                 try:
-                    if peers is not None:
-                        peers.close()
-                        audit = peers.audit()
-                        for key in ("generation_prefill_online_body_bytes", "generation_decode_online_body_bytes",
-                                    "prefill_remote_linear_calls", "decode_remote_linear_calls",
-                                    "prefill_remote_linear_server_seconds", "decode_remote_linear_server_seconds",
-                                    "online_steps", "inference_stage_calls", "inference_server_ns"):
-                            audit.pop(key, None)
-                        # Missing directed receipts do not become zero-cost links.
-                        if not all(key in peers.counts for key in PEER_COUNTERS):
-                            for key in PEER_COUNTERS:
-                                audit.pop(key, None)
-                        record = getattr(attempt, "record_audit", None)
-                        if record is not None:
-                            record(audit)
-                    native = peers = None
+                    if native is not None:
+                        native.close()
                 except BaseException:
+                    unretired.append(native)
+                    # Observe before the existing finally continues peer cleanup.
                     failure()
                     raise
+                finally:
+                    try:
+                        if peers is not None:
+                            try:
+                                peers.close()
+                            except BaseException:
+                                unretired.append(peers)
+                                raise
+                            audit = peers.audit()
+                            for key in ("generation_prefill_online_body_bytes", "generation_decode_online_body_bytes",
+                                        "prefill_remote_linear_calls", "decode_remote_linear_calls",
+                                        "prefill_remote_linear_server_seconds", "decode_remote_linear_server_seconds",
+                                        "online_steps", "inference_stage_calls", "inference_server_ns"):
+                                audit.pop(key, None)
+                            # Missing directed receipts do not become zero-cost links.
+                            if not all(key in peers.counts for key in PEER_COUNTERS):
+                                for key in PEER_COUNTERS:
+                                    audit.pop(key, None)
+                            record = getattr(attempt, "record_audit", None)
+                            if record is not None:
+                                record(audit)
+                    except BaseException:
+                        failure()
+                        raise
+            except BaseException as error:
+                if unretired:
+                    # Root the SAME charged token before optional client-seat
+                    # handoff. Context exit cannot refund failed retirement.
+                    reservation.retain_failed(tuple(unretired))
+                    try:
+                        attempt.owner._retain_failed_request_reservation(attempt, reservation)
+                    except BaseException as handoff_error:
+                        # Diagnostics are optional, unlike same-token retention.
+                        # Never iterate foreign note storage or replace cleanup
+                        # precedence with a failing attribute/note implementation.
+                        try:
+                            notes = getattr(error, "__notes__", None)
+                            if notes is None or (type(notes) is list and all(type(note) is str for note in notes)):
+                                error.add_note(f"FuseFSS cleanup handoff failed: {type(handoff_error).__name__}")
+                        except BaseException:
+                            pass
+                raise
+            finally:
+                native = peers = None
             boundary("client", "retire", "validated")

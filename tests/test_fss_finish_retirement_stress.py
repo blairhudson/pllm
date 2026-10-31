@@ -109,6 +109,7 @@ def requests(monkeypatch):
                    view_retired=threading.Event(), active=0, cancellations=0, cancel_snapshots=[],
                    frozen=None, probes=[], parsed=[], http=[], clients=[],
                    original=ValueError("first holder failure"), cleanup_error=RuntimeError("late read cleanup"),
+                   close_failed=False,
                    data=bytearray(receipt(p.HOLDERS[1 - failing])))
         current = state
 
@@ -125,7 +126,8 @@ def requests(monkeypatch):
 
         owner._fss_failure_observer = freeze
         with resources.reserve_incremental_memory(p.CLIENT_MEMORY):
-            peers = io_transport._Peers(
+            peers = io_transport._Peers()
+            peers.start(
                 {role: (f"http://127.0.0.1:{7300 + index}", str(index) * 32)
                  for index, role in enumerate(p.ROLES)}, 23, attempt, roles=p.ROLES, namespace="fss")
             peers.request_id = "a" * 64
@@ -138,7 +140,11 @@ def requests(monkeypatch):
             finally:
                 state.release.set()
                 try:
-                    peers.close()
+                    if state.close_failed:
+                        with pytest.raises(ProtocolError, match="previously failed"):
+                            peers.close()
+                    else:
+                        peers.close()
                 finally:
                     attempt.close()
                     owner.close()
@@ -292,6 +298,7 @@ def test_caller_interrupt_during_global_close_waits_for_exact_view_retirement(re
         monkeypatch.setattr(Future, "result", interrupt_once)
         with pytest.raises(KeyboardInterrupt) as caught:
             state.peers.close()
+        state.close_failed = True
         assert caught.value is interrupted and injected == [1]
         assert state.view_retired.is_set() and not state.active
         assert state.peers.io.closed and not state.peers.io._fss_finish_pending
@@ -318,6 +325,7 @@ def test_pool_cleanup_resisting_repeated_cancels_is_joined_before_timeout_error(
         monkeypatch.setattr(client, "aclose", delayed_pool)
         with pytest.raises(ProtocolError, match="pool retirement timed out"):
             state.peers.close()
+        state.close_failed = True
         assert len(cancelled) == 4 and client.is_closed
         assert state.view_retired.is_set() and state.active == 0
         assert not state.peers.io.thread.is_alive() and not state.peers.io._fss_finish_pending

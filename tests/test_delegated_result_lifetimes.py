@@ -70,7 +70,7 @@ def test_failed_client_drains_tentative_frames_before_reservation_release(monkey
             events.append("aborted")
 
     class Peers:
-        def __init__(self, *args, **kwargs):
+        def start(self, *args, **kwargs):
             pass
 
         def admit(self, *args):

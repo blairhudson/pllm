@@ -233,7 +233,7 @@ async def test_three_worker_stream_waves_bindings_conservation_and_retirement(mo
                     pass
 
             class BridgePeers:
-                def __init__(self, *args, **kwargs):
+                def start(self, *args, **kwargs):
                     self.request_id = None
                     self.live = [False] * 3
                     self.counts = {}

@@ -36,9 +36,9 @@ async def test_client_budget_covers_setup_and_imports_longer_than_300_seconds(cl
     monkeypatch.setattr(client_route.source, "runtime_contract", runtime_contract)
     peers_type = client._Peers
     class SlowChannelConstruction(peers_type):
-        def __init__(self, *args, **kwargs):
+        def start(self, *args, **kwargs):
             clock.now += 50
-            super().__init__(*args, **kwargs)
+            super().start(*args, **kwargs)
     monkeypatch.setattr(client, "_Peers", SlowChannelConstruction)
     def setup_delay(role, action, content):
         if action == "manifest": clock.now += 25

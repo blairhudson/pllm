@@ -124,7 +124,7 @@ async def client_route(cluster, monkeypatch):
         def close(self): self.closed = True
 
     class Peers:
-        def __init__(self, connections_map, timeout, cancelled, **kwargs):
+        def start(self, connections_map, timeout, cancelled, **kwargs):
             assert kwargs == {"roles": p.ROLES, "namespace": "fss"}
             assert set(connections_map) == set(p.ROLES)
             self.request_id, self.live, self.counts = None, [False] * 3, {}
@@ -135,6 +135,7 @@ async def client_route(cluster, monkeypatch):
             # loop retirement; never stop it or create a second I/O thread.
             class IO:
                 closed = False
+                _state = "running"
                 run = _IOOwner.run
             self.io = IO()
             self.io.loop = loop

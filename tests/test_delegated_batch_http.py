@@ -157,16 +157,20 @@ def test_batch_https_rejects_before_io_backend_or_tls_setup(monkeypatch, role):
                    "worker_b": ("http://127.0.0.1:2", "b" * 32)}
     origin, key = connections[role]
     connections[role] = (origin.replace("http:", "https:"), key)
+    peers = transport._Peers()
     with pytest.raises(ValueError, match="batch TLS is unsupported"):
-        transport._Peers(connections, 1, lambda: False, batch=protocol.batch_contract(runtime()))
+        peers.start(connections, 1, lambda: False, batch=protocol.batch_contract(runtime()))
+    peers.close()
 
 
 def test_batch_remote_plaintext_remains_forbidden(monkeypatch):
     monkeypatch.setattr(transport, "_IOOwner", lambda: pytest.fail("remote plaintext reached I/O"))
+    peers = transport._Peers()
     with pytest.raises(ValueError, match="remote worker channels require HTTPS"):
-        transport._Peers({"worker_a": ("http://192.0.2.1", "a" * 32),
+        peers.start({"worker_a": ("http://192.0.2.1", "a" * 32),
                           "worker_b": ("http://127.0.0.1:2", "b" * 32)},
                          1, lambda: False, batch=protocol.batch_contract(runtime()))
+    peers.close()
 
 
 def test_scalar_https_keeps_verified_tls_setup_and_skips_batch_gate(monkeypatch):
@@ -184,7 +188,8 @@ def test_scalar_https_keeps_verified_tls_setup_and_skips_batch_gate(monkeypatch)
     monkeypatch.setattr(ssl, "create_default_context", observed)
     monkeypatch.setattr(transport, "_check_batch_http_connections", forbidden)
     monkeypatch.setattr(transport, "_batch_http_transport", forbidden)
-    peers = transport._Peers({"worker_a": ("https://127.0.0.1:1", "a" * 32),
+    peers = transport._Peers()
+    peers.start({"worker_a": ("https://127.0.0.1:1", "a" * 32),
                               "worker_b": ("https://127.0.0.1:2", "b" * 32)}, 1, lambda: False)
     peers.close()
     assert contexts and all(context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
@@ -708,7 +713,8 @@ def test_batch_backend_streams_large_raw_frames_and_drains_io_owner():
     thread.start()
     peers = None
     try:
-        peers = transport._Peers({"worker_a": (f"http://127.0.0.1:{server.server_port}", "a" * 32),
+        peers = transport._Peers()
+        peers.start({"worker_a": (f"http://127.0.0.1:{server.server_port}", "a" * 32),
                                   "worker_b": ("http://127.0.0.1:1", "b" * 32)},
                                  2, lambda: False, batch=protocol.batch_contract(runtime()))
         peers.request_id = "a" * 64
@@ -759,7 +765,8 @@ def test_batch_cancellation_drains_bounded_backend_and_collector_with_retained_e
     thread.start()
     peers = None
     try:
-        peers = transport._Peers({"worker_a": (f"http://127.0.0.1:{server.server_port}", "a" * 32),
+        peers = transport._Peers()
+        peers.start({"worker_a": (f"http://127.0.0.1:{server.server_port}", "a" * 32),
                                   "worker_b": ("http://127.0.0.1:1", "b" * 32)},
                                  2, cancelled.is_set, batch=protocol.batch_contract(runtime()))
         peers.request_id = "a" * 64

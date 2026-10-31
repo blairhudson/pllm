@@ -80,12 +80,15 @@ def barrier(monkeypatch):
             pass
 
     class Peers(delegated_transport._Peers):
-        def __init__(self, connections, timeout, cancelled, **options):
+        def start(self, connections, timeout, cancelled, **options):
+            self._close_gate = threading.Lock()
+            self._close_succeeded = False
             assert options == {"roles": p.ROLES, "namespace": "fss"}
             self.roles, self.namespace = p.ROLES, "fss"
             self.deadline = transport.time.monotonic() + timeout
             self.cancelled = cancelled
             self.io = delegated_transport._IOOwner()
+            self.io.start()
             self.closed = False
             self.clients = [Client() for _ in p.ROLES]
             self.live, self.counts = [False] * 3, {}
@@ -229,7 +232,13 @@ def barrier(monkeypatch):
 
     monkeypatch.setattr(transport, "_Peers", Peers)
     monkeypatch.setattr(transport, "_native", NS(FssClientRequest=Native))
-    monkeypatch.setattr(transport, "reserve_incremental_memory", lambda size: nullcontext())
+    class Reservation(nullcontext):
+        # This joined-I/O fixture has no admission ledger. Real failed-token
+        # custody is covered separately in test_fss_failed_retirement_custody.
+        def retain_failed(self, owners):
+            pass
+
+    monkeypatch.setattr(transport, "reserve_incremental_memory", lambda size: Reservation())
     original_receipt = transport._receipt
 
     def parsed(raw, role, **options):

@@ -22,7 +22,8 @@ def execute_request(experiment, source, ids, outputs, connections, timeout, atte
     peers = publisher = result = manifest = chunk = shares = frame = frames = raw = value = None
     operation_error = None
     try:
-        peers = _Peers(connections, timeout, attempt, roles=ROLES, namespace="replicated")
+        peers = _Peers()
+        peers.start(connections, timeout, attempt, roles=ROLES, namespace="replicated")
         publisher, manifest = source.publisher(experiment, ids, outputs, attempt)
         peers.request_id = digest(bytes(json.loads(manifest)["session"]).hex())
         streams = execution_policy(experiment)["peer_transport"] == "streams"

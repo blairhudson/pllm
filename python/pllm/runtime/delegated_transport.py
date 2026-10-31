@@ -184,21 +184,47 @@ class _NetworkLoop(asyncio.SelectorEventLoop):
 
 
 class _IOOwner:
-    """One response-local selector thread; no caller-loop or executor ownership."""
+    """One response-local selector thread; no caller-loop or executor ownership.
+
+    Each shared peer/I/O pair owns two fixed close locks and success witnesses.
+    These ownership controls live inside the callers' existing coarse transport
+    envelopes (GKM/FSS 64 MiB, replicated 192 MiB; FSS decoder/tokenizer extra).
+    They create no separate reservation or allowance increase; this is not an
+    exact physical allocation or spare-byte claim.
+    """
 
     def __init__(self):
-        self.loop = _NetworkLoop()
+        self._close_gate = threading.Lock()
+        self._close_succeeded = False
         self.closed = False
         self._closing = False
-        self.thread = threading.Thread(target=self.loop.run_forever, name="pllm-gkm-io", daemon=False)
+        self.loop = self.thread = None
+        self._state = "never-acquired"
+        self._entered = self._exited = False
+
+    def start(self):
+        """Acquire only after the caller has published this close-ready shell."""
+        if self._state != "never-acquired" or self.closed or self._closing:
+            raise ProtocolError("GKM I/O owner startup is unavailable")
+        self._state = "acquisition-ambiguous"
+        self.loop = _NetworkLoop()
+        self._state = "acquired"
+        self.thread = threading.Thread(target=self._serve, name="pllm-gkm-io", daemon=False)
+        # start() may launch and then raise, including interruption before return.
+        # Neither a false is_alive() nor a missing ident proves it never launched.
+        self._state = "start-ambiguous"
+        self.thread.start()
+        self._state = "running"
+
+    def _serve(self):
+        self._entered = True
         try:
-            self.thread.start()
-        except BaseException:
-            self.loop.close()
-            raise
+            self.loop.run_forever()
+        finally:
+            self._exited = True
 
     def run(self, coroutine, *, timeout):
-        if self.closed or getattr(self, "_closing", False):
+        if self.closed or getattr(self, "_closing", False) or self._state != "running":
             coroutine.close()
             raise ProtocolError("GKM I/O owner is retired")
         try:
@@ -222,11 +248,50 @@ class _IOOwner:
             raise
 
     def close(self, clients):
-        if self.closed:
+        # Reject self-join before admission, even during partial construction or
+        # after success. Rejected callers never alter the admitted closer.
+        if threading.current_thread() is getattr(self, "thread", None):
+            raise ProtocolError("GKM I/O owner cannot retire on its own thread") from None
+        try:
+            caller_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            caller_loop = None
+        if caller_loop is not None and caller_loop is self.loop:
+            raise ProtocolError("GKM I/O owner cannot retire on its own loop") from None
+        if not self._close_gate.acquire(blocking=False):
+            raise ProtocolError("GKM I/O owner retirement is already active") from None
+        try:
+            if self._close_succeeded:
+                return
+            if self._closing or self.closed:
+                raise ProtocolError("GKM I/O owner retirement previously failed") from None
+            self._closing = True
+            self._close_owned(clients)
+            self._close_succeeded = True
+            self._state = "retired"
+            self.closed = True
+        finally:
+            self._close_gate.release()
+
+    def _close_owned(self, clients):
+        # Resolve before creating a coroutine on a partially built owner.
+        loop = self.loop
+        if self._state == "never-acquired":
             return
-        if self._closing or threading.current_thread() is self.thread:
-            raise ProtocolError("GKM I/O owner retirement is already active")
-        self._closing = True
+        if loop is None:
+            raise ProtocolError("GKM I/O loop acquisition is unconfirmed")
+        if self._state == "acquired" or (self._state == "acquisition-ambiguous" and self.thread is None):
+            # No start attempt: thread may exist but must not be joined.
+            loop.close()
+            return
+        if self._state == "start-ambiguous" and not self._entered:
+            raise ProtocolError("GKM I/O thread startup is unconfirmed")
+        if self._exited:
+            # Entry/exit and join prove thread retirement, not that pending loop
+            # tasks, callbacks or finalizers drained. Do not synthesize success
+            # on an already exited loop, even with no published HTTP clients.
+            self.thread.join(_IO_DRAIN_TIMEOUT)
+            raise ProtocolError("GKM I/O exited before drain confirmation")
 
         async def cancel_and_join(tasks):
             pending = {task for task in tasks if not task.done()}
@@ -251,6 +316,7 @@ class _IOOwner:
                     _, unfinished = await asyncio.wait(closing, timeout=_IO_DRAIN_TIMEOUT)
                 await cancel_and_join(closing)
                 results = [None if task.cancelled() else task.exception() for task in closing]
+                pool_cancelled = any(task.cancelled() for task in closing)
                 finalizer = asyncio.create_task(self.loop.shutdown_asyncgens())
                 try:
                     _, pending = await asyncio.wait((finalizer,), timeout=_IO_DRAIN_TIMEOUT)
@@ -265,6 +331,10 @@ class _IOOwner:
                 for result in results:
                     if isinstance(result, BaseException):
                         raise result
+                # Cancellation is not evidence of pool/finalizer retirement.
+                # Preserve existing finalizer, timeout and pool-error precedence.
+                if pool_cancelled or finalizer.cancelled():
+                    raise ProtocolError("GKM I/O retirement task was cancelled")
             finally:
                 await cancel_and_join(asyncio.all_tasks() - {asyncio.current_task()})
 
@@ -275,7 +345,7 @@ class _IOOwner:
             # this same cleanup Future and original request charge until joined.
             # A backend ignoring cancellation forever cannot be safely refunded;
             # it has no hard wall-time guarantee. No request/peer lease is renewed.
-            future = asyncio.run_coroutine_threadsafe(drain(), self.loop)
+            future = asyncio.run_coroutine_threadsafe(drain(), loop)
             while True:
                 try:
                     future.result()
@@ -297,7 +367,28 @@ class _IOOwner:
 
 
 class _Peers:
-    def __init__(self, connections, timeout, cancelled, *, capacity="capsule", roles=_ROLES, namespace="delegation", batch=None):
+    def __init__(self):
+        self._close_gate = threading.Lock()
+        self._close_succeeded = False
+        self.closed = False
+        self._state = "never-acquired"
+        self.io = None
+        self.clients = []
+        self._client_acquisition = None
+        self.keys = []
+        self.request_id = None
+        self.live = []
+        self.counts = {}
+        self.phase_bytes = {"prefill": 0, "decode": 0}
+        self.unknown = set()
+        self.calls = self.server_ns = 0
+        self.server_known = self.calls_known = True
+        self.batch = None
+
+    def start(self, connections, timeout, cancelled, *, capacity="capsule", roles=_ROLES, namespace="delegation", batch=None):
+        if self._state != "never-acquired" or self.closed:
+            raise ProtocolError("GKM worker channel startup is unavailable")
+        self._state = "acquired"
         # Admit both origins before constructing clients or any I/O owner.
         connections = _connections(connections, roles)
         if batch is not None:
@@ -306,11 +397,10 @@ class _Peers:
         self.batch_index = self.batch_exchanges = self.scalar_claims = 0
         self.roles, self.namespace = roles, namespace
         self.frame_limit, self.admission_limit = limits(capacity)
-        self.io = _IOOwner()
-        self.closed = False
-        self.clients = []
-        self.keys = []
-        self.request_id = None
+        # Reserve client slots before constructors: no fallible append after an
+        # acquired client has returned. Unfilled slots own nothing.
+        self.clients = [None] * len(connections)
+        self.keys = [key for _, key in connections]
         self.live = [False] * len(roles)
         self.cancelled = cancelled
         self.deadline = time.monotonic() + timeout
@@ -322,18 +412,18 @@ class _Peers:
         self.unknown = set()
         self.calls = self.server_ns = 0
         self.server_known = self.calls_known = True
-        try:
-            for origin, key in connections:
-                self.clients.append(httpx.AsyncClient(
-                    base_url=origin, timeout=timeout, verify=True, trust_env=False, follow_redirects=False,
-                    limits=httpx.Limits(max_connections=1, max_keepalive_connections=1),
-                    headers={"authorization": f"Bearer {key}", "accept-encoding": "identity"},
-                    **({"transport": _batch_http_transport()} if batch is not None else {}),
-                ))
-                self.keys.append(key)
-        except BaseException:
-            self.close()
-            raise
+        self.io = _IOOwner()
+        self.io.start()
+        for index, (origin, key) in enumerate(connections):
+            self._client_acquisition = index
+            self.clients[index] = httpx.AsyncClient(
+                base_url=origin, timeout=timeout, verify=True, trust_env=False, follow_redirects=False,
+                limits=httpx.Limits(max_connections=1, max_keepalive_connections=1),
+                headers={"authorization": f"Bearer {key}", "accept-encoding": "identity"},
+                **({"transport": _batch_http_transport()} if batch is not None else {}),
+            )
+            self._client_acquisition = None
+        self._state = "running"
 
     def check(self):
         if self.cancelled() or time.monotonic() >= self.deadline:
@@ -572,9 +662,43 @@ class _Peers:
         return snapshot
 
     def close(self):
-        if self.closed:
+        if threading.current_thread() is getattr(getattr(self, "io", None), "thread", None):
+            raise ProtocolError("GKM worker channels cannot retire on their I/O thread") from None
+        try:
+            caller_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            caller_loop = None
+        if caller_loop is not None and caller_loop is getattr(getattr(self, "io", None), "loop", None):
+            raise ProtocolError("GKM worker channels cannot retire on their I/O loop") from None
+        if not self._close_gate.acquire(blocking=False):
+            raise ProtocolError("GKM worker channel retirement is already active") from None
+        try:
+            if self._close_succeeded:
+                return
+            if self.closed:
+                raise ProtocolError("GKM worker channel retirement previously failed") from None
+            self.closed = True
+            self._close_owned()
+            self._close_succeeded = True
+            self._state = "retired"
+        finally:
+            self._close_gate.release()
+
+    def _close_owned(self):
+        # Remote retirement remains best effort, not acknowledged destruction.
+        # The success witness covers this local close path only.
+        if self.io is None:
             return
-        self.closed = True
+        clients = [client for client in self.clients if client is not None]
+        if not any(self.live):
+            self.io.close(clients)
+            pending = self._client_acquisition
+            if pending is not None and self.clients[pending] is None:
+                # A third-party constructor never returned: retiring known I/O
+                # is not proof about its unpublished partial allocations. Keep
+                # this shell and its ORIGINAL charge; never retry construction.
+                raise ProtocolError("GKM HTTP client acquisition is unconfirmed")
+            return
         deadline = time.monotonic() + _RETIRE_TIMEOUT
 
         async def retire(index):
@@ -603,7 +727,7 @@ class _Peers:
         try:
             self.io.run(retire_all(), timeout=deadline - time.monotonic())
         finally:
-            self.io.close(self.clients)
+            self.io.close(clients)
 
 
 class _NativeExchange:
@@ -790,7 +914,8 @@ def execute_request(experiment, source, token_ids, output_tokens, connections, t
                 if native.contract() != contract_bytes:
                     raise ProtocolError("GKM client native admission differs from the source contract")
                 decoder = json.loads(native.decoder())
-                peers = _Peers(connections, timeout, cancelled, capacity=capacity,
+                peers = _Peers()
+                peers.start(connections, timeout, cancelled, capacity=capacity,
                                **({"batch": batch} if batch is not None else {}))
                 peers.admit(contract_bytes, native.publication(), native.publication_digest(),
                             native.starts(), experiment, source, native.request_id(), len(token_ids), output_tokens)

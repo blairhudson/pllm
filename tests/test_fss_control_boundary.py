@@ -81,13 +81,14 @@ def route(monkeypatch):
     attempt.record_audit = audit
 
     class Peers:
-        def __init__(self, connections, timeout, cancelled, **options):
+        def start(self, connections, timeout, cancelled, **options):
             assert options == {"roles": p.ROLES, "namespace": "fss"}
             assert cancelled is attempt and 0 < timeout <= 23
             self.deadline = transport.time.monotonic() + timeout
             self.live, self.counts = [False] * 3, {}
             self.closed = False
             self.io = delegated_transport._IOOwner()
+            self.io.start()
 
         def check(self):
             pass

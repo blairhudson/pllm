@@ -341,7 +341,8 @@ def test_trickled_http_body_cannot_extend_exchange_or_cleanup(monkeypatch, reaso
     cancelled = threading.Event()
     monkeypatch.setattr(delegated_transport, "_RETIRE_TIMEOUT", 0.2)
     with slow_peer(cancelled=cancelled if reason == "cancellation" else None) as (origin, _):
-        peers = delegated_transport._Peers({"worker_a": (origin, "a" * 32),
+        peers = delegated_transport._Peers()
+        peers.start({"worker_a": (origin, "a" * 32),
             "worker_b": ("http://127.0.0.1:1", "b" * 32)}, 3, cancelled.is_set)
         peers.request_id = "a" * 64
         if reason == "deadline":
@@ -360,7 +361,8 @@ def test_trickled_http_body_cannot_extend_exchange_or_cleanup(monkeypatch, reaso
 
 def test_truncated_online_reply_keeps_compute_unknown():
     with slow_peer(truncated=True) as (origin, _):
-        peers = delegated_transport._Peers({"worker_a": (origin, "a" * 32),
+        peers = delegated_transport._Peers()
+        peers.start({"worker_a": (origin, "a" * 32),
             "worker_b": ("http://127.0.0.1:1", "b" * 32)}, 3, lambda: False)
         peers.request_id = "a" * 64
         try:
