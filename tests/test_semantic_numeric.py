@@ -12,7 +12,12 @@ import torch
 
 from pllm.modeling import lower_model
 from pllm.runtime.semantic_executor import SemanticDecoderRuntime
-from pllm.runtime.semantic_numeric import SemanticNumericError, round_bfloat16
+from pllm.runtime.semantic_numeric import (
+    SemanticNumericError,
+    bfloat16_rms_norm,
+    bfloat16_scale,
+    round_bfloat16,
+)
 from pllm.runtime.transformer_client import TransformerClientError
 
 
@@ -121,6 +126,106 @@ def test_bfloat16_normalization_uses_declared_weight_offset_and_optional_scale(
     runtime.bundle = SimpleNamespace(arrays={"gamma": weights[:3]})
     with pytest.raises(TransformerClientError, match="wrong shape"):
         runtime._local(norm, {norm["inputs"][0]: source}, {}, {})
+
+
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+@pytest.mark.parametrize("overflow", ["warn", "raise"])
+@pytest.mark.parametrize("weighted", [False, True])
+def test_bfloat16_rms_norm_rejects_float32_reduction_overflow(
+    weighted: bool, overflow: str,
+) -> None:
+    # Each BF16 input and FP32 square is finite; four squares sum to 2**128.
+    source = np.full((1, 4), 2**63, dtype=np.float32)
+    weight = np.ones(4, dtype=np.float32) if weighted else None
+    with np.errstate(over=overflow):
+        with pytest.raises(SemanticNumericError, match="variance exceeds the numeric domain"):
+            bfloat16_rms_norm(source, epsilon="1e-6", weight=weight, offset=0)
+
+
+@pytest.mark.filterwarnings("error::RuntimeWarning")
+@pytest.mark.parametrize("overflow", ["warn", "raise"])
+@pytest.mark.parametrize("weighted", [False, True])
+def test_bfloat16_rms_norm_rejects_float32_epsilon_addition_overflow(
+    weighted: bool, overflow: str,
+) -> None:
+    # One square (2**126) and epsilon (3e38) are finite, but their FP32 sum is not.
+    source = np.asarray([[2**63]], dtype=np.float32)
+    weight = np.ones(1, dtype=np.float32) if weighted else None
+    with np.errstate(over=overflow):
+        with pytest.raises(SemanticNumericError, match="variance exceeds the numeric domain"):
+            bfloat16_rms_norm(source, epsilon="3e38", weight=weight, offset=0)
+
+
+@pytest.mark.parametrize("weighted", [False, True])
+def test_bfloat16_rms_norm_rejects_one_overflowing_row_in_mixed_batch(weighted: bool) -> None:
+    source = np.asarray([[1.0] * 4, [2**63] * 4], dtype=np.float32)
+    weight = np.ones(4, dtype=np.float32) if weighted else None
+    with np.errstate(over="raise"):
+        with pytest.raises(SemanticNumericError, match="variance exceeds the numeric domain"):
+            bfloat16_rms_norm(source, epsilon="1e-6", weight=weight, offset=0)
+
+
+def test_bfloat16_rms_norm_accepts_large_finite_single_lane() -> None:
+    source = np.asarray([[2**63]], dtype=np.float32)
+    with np.errstate(over="raise"):
+        result = bfloat16_rms_norm(source, epsilon="1e-6", weight=None, offset=0)
+    np.testing.assert_array_equal(result, np.ones((1, 1), dtype=np.float32))
+
+
+@pytest.mark.parametrize(("width", "epsilon"), [(4, "1e-6"), (1, "3e38")])
+def test_local_bfloat16_rms_norm_translates_variance_overflow(width: int, epsilon: str) -> None:
+    operation = {
+        "operator": "rms_norm",
+        "inputs": ["source"],
+        "attributes": {
+            "compute_dtype": "float32", "output_dtype": "bfloat16",
+            "with_scale": False, "weight_offset": 0, "epsilon": epsilon,
+        },
+    }
+    with np.errstate(over="raise"):
+        with pytest.raises(TransformerClientError, match="variance exceeds the numeric domain") as error:
+            _local(operation, np.full((1, width), 2**63, dtype=np.float32))
+    assert isinstance(error.value.__cause__, SemanticNumericError)
+
+
+@pytest.mark.parametrize("kind", ["rational", "sqrt", "inverse_sqrt"])
+def test_bfloat16_scale_translates_scalar_conversion_overflow(kind: str) -> None:
+    factor = {
+        "kind": kind, "factor_rounding_dtype": "bfloat16",
+        "compute_dtype": "bfloat16", "output_dtype": "bfloat16",
+        "factor_source_dtype": "exact_integer" if kind == "rational" else "python_float64",
+        "numerator": 10**400, "denominator": 1, "radicand": 10**400,
+    }
+    with pytest.raises(SemanticNumericError, match="factor exceeds the numeric domain") as error:
+        bfloat16_scale(np.asarray([[1.0]], dtype=np.float32), factor)
+    assert isinstance(error.value.__cause__, OverflowError)
+
+
+def test_local_bfloat16_scale_translates_scalar_conversion_overflow() -> None:
+    operation = {
+        "operator": "scale",
+        "inputs": ["source"],
+        "attributes": {"factor": {
+            "kind": "rational", "factor_source_dtype": "exact_integer",
+            "factor_rounding_dtype": "bfloat16", "compute_dtype": "bfloat16",
+            "output_dtype": "bfloat16", "numerator": 10**400, "denominator": 1,
+        }},
+    }
+    with pytest.raises(TransformerClientError, match="factor exceeds the numeric domain") as error:
+        _local(operation, np.asarray([[1.0]], dtype=np.float32))
+    assert isinstance(error.value.__cause__, SemanticNumericError)
+    assert isinstance(error.value.__cause__.__cause__, OverflowError)
+
+
+def test_bfloat16_scale_accepts_huge_exact_integer_unit_ratio() -> None:
+    factor = {
+        "kind": "rational", "factor_source_dtype": "exact_integer",
+        "factor_rounding_dtype": "bfloat16", "compute_dtype": "bfloat16",
+        "output_dtype": "bfloat16", "numerator": 10**400, "denominator": 10**400,
+    }
+    source = np.asarray([[1.001, -0.753, 0.125]], dtype=np.float32)
+    expected = source.astype(ml_dtypes.bfloat16).astype(np.float32)
+    np.testing.assert_array_equal(bfloat16_scale(source, factor), expected)
 
 
 def test_bfloat16_softmax_handles_masked_queries_without_nan(operations: dict[str, dict]) -> None:

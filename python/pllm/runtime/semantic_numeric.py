@@ -44,7 +44,10 @@ def bfloat16_scale(value: np.ndarray, factor: dict[str, Any], weight: np.ndarray
         radicand = factor.get("radicand")
         if type(radicand) is not int or radicand <= 0:
             raise SemanticNumericError("semantic scale radicand must be positive")
-        coefficient = math.sqrt(radicand)
+        try:
+            coefficient = math.sqrt(radicand)
+        except OverflowError as exc:
+            raise SemanticNumericError("semantic scale factor exceeds the numeric domain") from exc
         if kind == "inverse_sqrt":
             coefficient = 1.0 / coefficient
     elif kind == "rational":
@@ -53,7 +56,10 @@ def bfloat16_scale(value: np.ndarray, factor: dict[str, Any], weight: np.ndarray
         numerator, denominator = factor.get("numerator"), factor.get("denominator")
         if type(numerator) is not int or type(denominator) is not int or denominator <= 0:
             raise SemanticNumericError("semantic rational scale requires bounded integers")
-        coefficient = numerator / denominator
+        try:
+            coefficient = numerator / denominator
+        except OverflowError as exc:
+            raise SemanticNumericError("semantic scale factor exceeds the numeric domain") from exc
     elif kind == "checkpoint_scalar":
         if (
             factor.get("factor_source_dtype") != "bfloat16"
@@ -109,11 +115,19 @@ def bfloat16_rms_norm(
     source = round_bfloat16(value)
     if source.ndim < 1 or source.shape[-1] < 1:
         raise SemanticNumericError("BF16 normalization requires nonempty feature width")
-    squared = source * source
+    with np.errstate(over="ignore"):
+        squared = source * source
     if not np.all(np.isfinite(squared)):
         raise SemanticNumericError("BF16 normalization variance exceeds the numeric domain")
-    variance = np.mean(squared, axis=-1, keepdims=True, dtype=np.float32)
-    normalized = source / np.sqrt(variance + epsilon_value)
+    with np.errstate(over="ignore"):
+        variance = np.mean(squared, axis=-1, keepdims=True, dtype=np.float32)
+    if not np.all(np.isfinite(variance)):
+        raise SemanticNumericError("BF16 normalization variance exceeds the numeric domain")
+    with np.errstate(over="ignore"):
+        adjusted_variance = variance + epsilon_value
+    if not np.all(np.isfinite(adjusted_variance)):
+        raise SemanticNumericError("BF16 normalization variance exceeds the numeric domain")
+    normalized = source / np.sqrt(adjusted_variance)
     if weight is None:
         if offset != 0:
             raise SemanticNumericError("unweighted BF16 normalization requires zero weight offset")
