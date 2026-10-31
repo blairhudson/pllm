@@ -378,6 +378,135 @@ struct TransitionControls<'a, C: AllocationContext> {
     native_scalar: Zeroizing<u64>,
 }
 
+// Candidate additive upper-bound inventories, never instantiated or admitted.
+// In particular these are NOT evaluator-safe replacement states: original keeps
+// its entire secret graph, source/table/keeper, ledger and native child owners.
+mod retained_layout {
+    use super::*;
+    use coordinate::retained_layout::{
+        CoordinateMaskLayout, CoordinatePartyLayout, CoordinateStepLayout, LateCell,
+        ModularFrameLayout, ModularMaskLayout, ModularPartyLayout, RetainedFrame,
+    };
+    use crate::masked_wire_reference::typed::layernorm4::retained_layout::{
+        ProducedMaskLayout, ProducedValueLayout,
+    };
+
+    enum FrameOwnerLayout<C: AllocationContext> {
+        Legacy(FrameOwner<C>),
+        Coordinate(RetainedFrame<C>),
+        Modular(ModularFrameLayout<C>),
+    }
+    struct RowMaterialLayout<C: AllocationContext> {
+        original: RowMaterial<C>,
+        masks: [Option<ProducedMaskLayout<C>>; SLOTS],
+        modular: ModularMaskLayout<C>,
+        coordinate: CoordinateMaskLayout<C>,
+    }
+    // Full new containing storage is conservatively additional to original,
+    // NOT a field-replacement credit. Legacy alternatives inside candidate enums
+    // also keep original backing sizes. Later integration must choose actual
+    // storage/alternatives and price it, rather than summing graph paths.
+    struct InitializerStateLayout<C: AllocationContext> {
+        original: InitializerState<C>,
+        values: [Option<ProducedValueLayout<C>>; SLOTS],
+        modular: ModularPartyLayout<C>,
+        coordinate: CoordinatePartyLayout<C>,
+        frames: [Option<FrameOwnerLayout<C>>; 17],
+        keeper: Arc<RowMaterialLayout<C>>,
+    }
+    struct RoleSlotLayout<C: AllocationContext> {
+        state: Mutex<InitializerStateLayout<C>>,
+        lease: LeaseFor<C>,
+    }
+    struct CoordinationLayout<C: AllocationContext> {
+        control: Mutex<SplitControl>,
+        slots: [Arc<RoleSlotLayout<C>>; 2],
+        original_run: Option<LeaseFor<C>>,
+        additional: LeaseFor<C>,
+    }
+    // One row backing, two actual inline role-slot bodies, one coordinator body.
+    // Its two Arc HANDLES above are not two more inline states/allocations.
+    // Arc headers/allocator boundaries and the separate three base backings
+    // still need review; no numerical ABI total follows from this record.
+    struct RowStorageLayout<C: AllocationContext> {
+        material: RowMaterialLayout<C>,
+        role_slots: [RoleSlotLayout<C>; 2],
+        coordination: CoordinationLayout<C>,
+    }
+    struct InitializerHandleLayout<C: AllocationContext> {
+        coordination: Arc<CoordinationLayout<C>>,
+        role: u8,
+        handed_off: bool,
+    }
+    struct FrameHandleLayout<C: AllocationContext> {
+        coordination: Arc<CoordinationLayout<C>>,
+        role: u8,
+        slot: u8,
+    }
+    struct ShareHandleLayout<C: AllocationContext> {
+        coordination: Arc<CoordinationLayout<C>>,
+        role: u8,
+    }
+    enum RowStepLayout<C: AllocationContext> {
+        Frame(FrameHandleLayout<C>),
+        Ready,
+    }
+    struct IssuedRowLayout<C: AllocationContext> {
+        material: Arc<RowMaterialLayout<C>>,
+        parties: [InitializerHandleLayout<C>; 2],
+    }
+
+    // One outer inventory, preserving all original 24 split Results, native
+    // arrays, partials and return slots. These named additions expose candidate
+    // inline/Option/Result/move storage; they do not implement a new phase-return
+    // owner or an input-independent preprocessing/contribution API.
+    struct IssuanceLayout<'a, C: AllocationContext> {
+        original: IssuanceControls<'a, C>,
+        incremental_split: Result<LeaseFor<C>, Error>,
+        incremental_anchor: Arc<LeaseFor<C>>,
+        incremental_anchor_result: Result<Arc<LeaseFor<C>>, Error>,
+        modular_aggregate_split: Result<LeaseFor<C>, Error>,
+        original_dealer_split: Result<LeaseFor<C>, Error>,
+        original_anchor: Arc<LeaseFor<C>>,
+        original_anchor_result: Result<Arc<LeaseFor<C>>, Error>,
+        declaration_clone: paired::DeclarationHandleFor<C>,
+        cell_inline: LateCell<C>,
+        cell_result: Result<Arc<LateCell<C>>, Error>,
+        cell_move: Arc<LateCell<C>>,
+        material: Option<RowMaterialLayout<C>>,
+        material_return: Result<Arc<RowMaterialLayout<C>>, Error>,
+        parties: Option<[InitializerStateLayout<C>; 2]>,
+        slots: [Arc<RoleSlotLayout<C>>; 2],
+        coordination: Result<Arc<CoordinationLayout<C>>, Error>,
+        masks: [Option<ProducedMaskLayout<C>>; SLOTS],
+        values: [[Option<ProducedValueLayout<C>>; SLOTS]; 2],
+        modular: Result<(ModularMaskLayout<C>, [ModularPartyLayout<C>; 2]), Error>,
+        coordinate: Result<(CoordinateMaskLayout<C>, [CoordinatePartyLayout<C>; 2]), Error>,
+        returned: Result<IssuedRowLayout<C>, Error>,
+    }
+    // Two per-role inventories. Original retains real operation/state/loan
+    // guards and all native/norm13 results. Begin/advance are alternative calls;
+    // stored frames/TR/index and inverse failure controls may still coexist.
+    struct TransitionLayout<'a, C: AllocationContext> {
+        original: TransitionControls<'a, C>,
+        frame: Result<Option<FrameOwnerLayout<C>>, Error>,
+        frame_move: Option<FrameOwnerLayout<C>>,
+        coordinate_step: Result<CoordinateStepLayout<C>, Error>,
+        value: Result<ProducedValueLayout<C>, Error>,
+        value_move: Option<ProducedValueLayout<C>>,
+        begin: Result<FrameHandleLayout<C>, Error>,
+        advance: Result<RowStepLayout<C>, Error>,
+        moving_share: Option<gapars_terminal::ShareFor<C>>,
+        share_return: Result<ShareHandleLayout<C>, Error>,
+    }
+    // Future construction only: enlarged ORIGINAL reservation first; incremental
+    // outer anchor first, original-cover outer anchor second, covered secrets
+    // afterward. Outer anchors never move into these Result/move slots or cell:
+    // only future authentic clones could fill those slots. Both outer anchors
+    // remain through errors/unwind, independently of any late cell lifetime.
+    // This records no allocation/clone/drop/attempt cost or abort cleanup proof.
+}
+
 /// Allocation-free actual-layout aggregate. Native child factories consume
 /// these exact slices; no child independently reserves/refunds the full cap.
 #[allow(dead_code)] // Closed native component query; no outward registration.

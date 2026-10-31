@@ -92,6 +92,40 @@ struct ProducedValueFor<C: AllocationContext> {
     lease: LeaseFor<C>,
 }
 
+// Candidate storage inventories ONLY: no factory returns these types and no live
+// backing enum/dispatch or size-based admission includes them. Legacy alternatives
+// preserve actual original/native owners; nothing here grants source authority.
+mod retained_layout {
+    use super::*;
+    use parent::coordinate::retained_layout::{
+        RetainedLocal, RetainedOutput, RetainedOutputMasks,
+    };
+
+    pub(super) enum MaskBackingLayout<C: AllocationContext> {
+        Legacy(MaskBacking<C>),
+        Local(RetainedLocal<C>),
+        Arithmetic(RetainedOutputMasks<C>),
+    }
+    pub(super) enum ValueBackingLayout<C: AllocationContext> {
+        Legacy(ValueBacking<C>),
+        Local(RetainedLocal<C>),
+        Arithmetic(RetainedOutput<C>),
+    }
+    pub(super) struct ProducedMaskLayout<C: AllocationContext> {
+        backing: MaskBackingLayout<C>,
+        binding: Binding,
+        source: Arc<SourceFor<C>>,
+        lease: LeaseFor<C>,
+    }
+    pub(super) struct ProducedValueLayout<C: AllocationContext> {
+        backing: ValueBackingLayout<C>,
+        binding: Binding,
+        role: u8,
+        source: Arc<SourceFor<C>>,
+        lease: LeaseFor<C>,
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(in crate::masked_wire_reference) struct Norm13Binding(Binding);
 

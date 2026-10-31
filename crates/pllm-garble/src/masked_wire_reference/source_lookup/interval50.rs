@@ -58,6 +58,15 @@ struct DeclarationFor<C: AllocationContext> {
     source: Arc<SourceFor<C>>,
     lease: LeaseFor<C>,
 }
+
+// Candidate retained-layout handle only, not an issuer or a declaration importer.
+// Future attachment must use the ORIGINAL MasksFor.source inside this module;
+// entries, equal digests or a same-budget source cannot manufacture that identity.
+// Deliberately no constructor, accessor, Clone or ownership escape.
+pub(in crate::masked_wire_reference) struct DeclarationHandleFor<C: AllocationContext> {
+    original: Arc<DeclarationFor<C>>,
+}
+
 fn declaration_bytes<C: AllocationContext>() -> Result<usize, Error> {
     let layout = Layout::new::<[AtomicUsize; 2]>()
         .extend(Layout::new::<DeclarationFor<C>>())

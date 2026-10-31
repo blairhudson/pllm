@@ -181,6 +181,156 @@ pub(super) struct Resources {
     coordinate_party: usize,
     coordinate_dealer: usize,
 }
+
+// Candidate additive upper-bound storage, NOT runtime owners or a separated ABI.
+// No resource query, issuance path or evaluator constructs/references these records.
+pub(in crate::masked_wire_reference::typed::layernorm4) mod retained_layout {
+    use super::*;
+    use crate::masked_wire_reference::typed::layernorm4::retained_layout::{
+        ProducedMaskLayout, ProducedValueLayout,
+    };
+
+    // FUTURE order only: validate the enlarged original aggregate; split and
+    // establish incremental outer anchor FIRST, original modular/dealer-cover
+    // outer anchor SECOND, covered secret locals AFTER both. Both outer anchors
+    // stay UNMOVED through errors/unwind; a late cell shares both, never supplies
+    // sole early cover. Existing equality/second dealer split needs later repair.
+    // No construction, cloning, splitting or cleanup is implemented here.
+    pub(in crate::masked_wire_reference::typed::layernorm4) struct LateCell<C: AllocationContext> {
+        source: Arc<SourceFor<C>>,
+        declaration: interval::DeclarationHandleFor<C>,
+        energy: Binding,
+        output: Binding,
+        original_cover: Arc<LeaseFor<C>>,
+        incremental_cover: Arc<LeaseFor<C>>,
+    }
+
+    // Normal completion field order only, not erasure on panic/abort or physical
+    // through-deallocation coverage. No arbitrary-B constructor or methods.
+    pub(in crate::masked_wire_reference::typed::layernorm4) struct Retained<B, C: AllocationContext, R> {
+        backing: B,
+        retention: R,
+        control: LeaseFor<C>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4) type RetainedFrame<C> =
+        Retained<arithmetic::FrameFor<C>, C, Arc<LateCell<C>>>;
+    pub(in crate::masked_wire_reference::typed::layernorm4) type RetainedOutput<C> =
+        Retained<arithmetic::MaskedOutputFor<C>, C, Arc<LateCell<C>>>;
+    pub(in crate::masked_wire_reference::typed::layernorm4) type RetainedOutputMasks<C> =
+        Retained<arithmetic::OutputMasksFor<C>, C, Arc<LateCell<C>>>;
+    pub(in crate::masked_wire_reference::typed::layernorm4) type RetainedLocal<C> =
+        Retained<Zeroizing<Vec<u64>>, C, Arc<LateCell<C>>>;
+
+    // Each original owner occurs once in its inventory. Arc fields name separate
+    // pointee storage, not another inline body/allocation. Creation is the dealer
+    // attachment; ModularMask's creation handle does not add a second cell edge.
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct ModularCreationLayout<C: AllocationContext> {
+        original: ModularCreation<C>,
+        retention: Arc<LateCell<C>>,
+        control: LeaseFor<C>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct ModularMaskLayout<C: AllocationContext> {
+        original: ModularMask<C>,
+        creation: Arc<ModularCreationLayout<C>>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct ModularInputsLayout<C: AllocationContext> {
+        original: ModularInputs<C>,
+        retention: Arc<LateCell<C>>,
+        control: LeaseFor<C>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct ModularPartyLayout<C: AllocationContext> {
+        original: ModularParty<C>,
+        retention: Arc<LateCell<C>>,
+        control: LeaseFor<C>,
+        inputs: Option<Arc<ModularInputsLayout<C>>>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct ModularFrameLayout<C: AllocationContext> {
+        original: ModularFrame<C>,
+        inputs: Arc<ModularInputsLayout<C>>,
+        retention: Arc<LateCell<C>>,
+        control: LeaseFor<C>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct ModularValueLayout<C: AllocationContext> {
+        original: ModularValue<C>,
+        inputs: Arc<ModularInputsLayout<C>>,
+        retention: Arc<LateCell<C>>,
+        control: LeaseFor<C>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct CoordinateMaskLayout<C: AllocationContext> {
+        original: CoordinateMask<C>,
+        retention: Arc<LateCell<C>>,
+        control: LeaseFor<C>,
+        dealer_index: Option<ProducedMaskLayout<C>>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct CoordinatePartyLayout<C: AllocationContext> {
+        original: CoordinateParty<C>,
+        input: Option<ModularValueLayout<C>>,
+        retained_tr: Option<RetainedOutput<C>>,
+        retention: Arc<LateCell<C>>,
+        control: LeaseFor<C>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) enum CoordinateStepLayout<C: AllocationContext> {
+        Frame(RetainedFrame<C>),
+        Index(ProducedValueLayout<C>),
+    }
+
+    // Controls are named storage inventories, not coexistent runtime aggregates.
+    // Existing five split Results remain in original. Extra slots below model
+    // only the distinct future early-anchor sequence; no hidden split reuse.
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct ProductIssueLayout<C: AllocationContext> {
+        original: ProductIssueControls<C>,
+        incremental_split: Result<LeaseFor<C>, Error>,
+        modular_aggregate_split: Result<LeaseFor<C>, Error>,
+        original_dealer_split: Result<LeaseFor<C>, Error>,
+        incremental_anchor: Arc<LeaseFor<C>>,
+        original_anchor: Arc<LeaseFor<C>>,
+        incremental_anchor_move: Result<Arc<LeaseFor<C>>, Error>,
+        original_anchor_move: Result<Arc<LeaseFor<C>>, Error>,
+        declaration_clone: interval::DeclarationHandleFor<C>,
+        cell_inline: LateCell<C>,
+        cell_result: Result<Arc<LateCell<C>>, Error>,
+        cell_move: Arc<LateCell<C>>,
+        creation: ModularCreationLayout<C>,
+        creation_result: Result<Arc<ModularCreationLayout<C>>, Error>,
+        mask: ModularMaskLayout<C>,
+        parties: [ModularPartyLayout<C>; 2],
+        result: Result<(ModularMaskLayout<C>, [ModularPartyLayout<C>; 2]), Error>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct CoordinateIssueLayout<C: AllocationContext> {
+        original: CoordinateIssueControls<C>,
+        mask: CoordinateMaskLayout<C>,
+        parties: [CoordinatePartyLayout<C>; 2],
+        index: Option<ProducedMaskLayout<C>>,
+        index_move: Result<ProducedMaskLayout<C>, Error>,
+        result: Result<(CoordinateMaskLayout<C>, [CoordinatePartyLayout<C>; 2]), Error>,
+    }
+    // Begin and finish are different calls; their Result/move slots are explicit
+    // alternatives for later peak review. Native/input owners stay in original.
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct ProductEvaluatorLayout<'a, C: AllocationContext> {
+        original: ProductEvaluatorControls<'a, C>,
+        inputs: ModularInputsLayout<C>,
+        inputs_arc: Arc<ModularInputsLayout<C>>,
+        inputs_result: Result<Arc<ModularInputsLayout<C>>, Error>,
+        begin: Result<ModularFrameLayout<C>, Error>,
+        frame_move: ModularFrameLayout<C>,
+        finish: Result<ModularValueLayout<C>, Error>,
+        value_move: ModularValueLayout<C>,
+    }
+    pub(in crate::masked_wire_reference::typed::layernorm4::parent) struct CoordinateEvaluatorLayout<'a, C: AllocationContext> {
+        original: CoordinateEvaluatorControls<'a, C>,
+        input: ModularValueLayout<C>,
+        begin: Result<RetainedFrame<C>, Error>,
+        frame_move: RetainedFrame<C>,
+        step: Result<CoordinateStepLayout<C>, Error>,
+        retained_tr: Option<RetainedOutput<C>>,
+        index_split: Result<LeaseFor<C>, Error>,
+        index: Result<ProducedValueLayout<C>, Error>,
+        index_move: ProducedValueLayout<C>,
+    }
+    // TR is installed before the fallible index split. Cancellation does not
+    // retire inputs/TR. Those owners can overlap inverse/failure controls.
+}
+
 pub(super) fn resources<C: AllocationContext>() -> Result<Resources, Error> {
     let p = product::resources_for::<C>(1)?;
     let t = arithmetic::resources_for_context::<C>(tr_spec())?;
