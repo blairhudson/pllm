@@ -280,6 +280,7 @@ class _MemoryReservation:
         self._failed = ()
         self._exited = self._draining = False
         self._finish_lock = threading.Lock()
+        self._drain_finish_state = None
 
     def __enter__(self):
         return self._manager.__enter__()
@@ -311,34 +312,148 @@ class _MemoryReservation:
                     and self._token.retained is self and bool(self._failed))
 
     def drain_failed(self):
-        with self._capacity.lock:
-            if self._exited:
-                return
-            if self._draining or self._token.retained is not self:
-                raise NetworkError("CLIENT_FAILED_RETIREMENT_NOT_DRAINABLE")
-            self._draining = True
-            owners = self._failed
-        remaining, errors = [], []
-        for owner in owners:
+        # One external async BaseException per operation may dominate ordinary
+        # failure, with available original context under Python's rules.
+        # No universal bytecode/repeated-interruption/broken-lock guarantee.
+        # One constant attempt object uses existing controls, not a new price.
+        attempt = object()
+        capacity = self._capacity
+        body_error = None
+        owner_error = None  # First known owner primary; never replaced by a secondary.
+        first_pass_done = False
+        try:
             try:
-                owner.close()  # outside admission lock; explicit ONE attempt
+                with capacity.lock:  # drain admission
+                    # Snapshot BEFORE any terminal clear; locals survive admission,
+                    # finish, commit/recovery AND finalizer lock releases. Last shell
+                    # decrefs therefore occur outside all reservation locks.
+                    token, manager = self._token, self._manager
+                    amount, owners = self._amount, self._failed
+                    if self._draining:
+                        raise NetworkError("CLIENT_FAILED_RETIREMENT_NOT_DRAINABLE")
+                    recovering = (self._drain_finish_state in ("committing", "committed")
+                                  and token not in capacity._owners)
+                    if not recovering:
+                        if self._drain_finish_state is not None:
+                            raise NetworkError("CLIENT_FAILED_RETIREMENT_NOT_DRAINABLE")
+                        if self._exited:
+                            return
+                        if (capacity is not _capacity or token.retained is not self
+                                or not owners or type(amount) is not int
+                                or capacity._owners.get(token) != amount):
+                            raise NetworkError("CLIENT_FAILED_RETIREMENT_NOT_DRAINABLE")
+                    self._draining = attempt
+                if recovering:  # admission published; no owner/backend work yet
+                    with self._finish_lock:
+                        with capacity.lock:
+                            if (self._capacity is not capacity or self._token is not token
+                                    or self._manager is not manager or self._draining is not attempt
+                                    or token in capacity._owners
+                                    or self._drain_finish_state not in ("committing", "committed")):
+                                raise NetworkError("CLIENT_FAILED_RETIREMENT_NOT_DRAINABLE")
+                            # Original refund already linearized. Recovery ONLY
+                            # finishes terminal bookkeeping; never owner/backend,
+                            # second refund, new credit, reinsertion or re-rooting.
+                            self._exited = True  # terminal exited
+                            self._drain_finish_state = "committed"  # terminal state
+                            token.retained = None  # terminal token
+                            self._failed = ()  # terminal custody
+                    return
+
+                remaining, errors = [], []
+                for owner in owners:
+                    try:
+                        # Count owners close an ExitStack containing THIS
+                        # reservation: neither capacity nor finish lock may be held.
+                        owner.close()
+                    except BaseException as error:
+                        # Capture BEFORE append/format/tuple/note allocations.
+                        if owner_error is None:
+                            owner_error = error
+                        remaining.append(owner)
+                        errors.append(error)
+                if errors:
+                    # All aggregation/optional diagnostics must finish before
+                    # publishing a reduced tuple. Ordinary failure anywhere here
+                    # retains ORIGINAL custody, including unvisited/retired owners.
+                    first = owner_error
+                    for error in errors[1:]:
+                        first.add_note(f"retirement also failed: {type(error).__name__}")
+                    failed_owners = tuple(remaining)
+                    with capacity.lock:
+                        self._failed = failed_owners
+                    raise first
+
+                with self._finish_lock:
+                    with capacity.lock:
+                        # A failed precommit validation is sealed too. Owner failure
+                        # above, or latch cleanup alone, does NOT seal the backend.
+                        self._drain_finish_state = "precommit"
+                        if (self._capacity is not capacity or capacity is not _capacity
+                                or self._token is not token or self._manager is not manager
+                                or type(self._amount) is not int or self._amount != amount
+                                or capacity._owners.get(token) != amount
+                                or token.retained is not self or self._draining is not attempt
+                                or self._failed is not owners or remaining or self._exited):
+                            raise NetworkError("CLIENT_FAILED_RETIREMENT_NOT_DRAINABLE")
+                        self._drain_finish_state = "backend_attempted"
+                    # ORIGINAL backend ONCE, retaining ORIGINAL ledger/custody.
+                    # Return truthiness has no suppression meaning. The existing
+                    # hold_bytes finally defers refund while token.retained is self.
+                    # Ordinary backend __exit__ re-entry under finish lock remains
+                    # inherited/unsupported, NOT newly made deadlock-safe here.
+                    manager.__exit__(None, None, None)
+                    with capacity.lock:
+                        if (self._capacity is not capacity or capacity is not _capacity
+                                or self._token is not token or self._manager is not manager
+                                or type(self._amount) is not int or self._amount != amount
+                                or capacity._owners.get(token) != amount
+                                or token.retained is not self or self._draining is not attempt
+                                or self._failed is not owners or remaining or self._exited
+                                or self._drain_finish_state != "backend_attempted"):
+                            raise NetworkError("CLIENT_FAILED_RETIREMENT_NOT_DRAINABLE")
+                        self._drain_finish_state = "committing"
+                        # Sole irreversible refund/COMMITTED linearization point.
+                        # No fallible payload callback/allocation after removal.
+                        # Interrupted assignments leave uncleared fields rooted;
+                        # explicit recovery completes them, never refunds again.
+                        capacity._owners.pop(token)
+                        self._exited = True  # terminal exited
+                        self._drain_finish_state = "committed"  # terminal state
+                        token.retained = None  # terminal token
+                        self._failed = ()  # terminal custody
             except BaseException as error:
-                remaining.append(owner)
-                errors.append(error)
-        with self._capacity.lock:
-            self._failed = tuple(remaining)
-            self._draining = False
-            if not remaining:
-                self._token.retained = None
-        # Retired payload references cleared BEFORE refund; no destructor under
-        # admission lock. A failed payload remains rooted/fully charged.
-        owners = owner = None
-        if errors:
-            first = errors[0]
-            for error in errors[1:]:
-                first.add_note(f"retirement also failed: {type(error).__name__}")
-            raise first
-        self.__exit__(None, None, None)
+                body_error = error
+                # Existing handler guards ordinary aggregation/lookup/format/
+                # note failures. Keep first owner primary immutable; no frame
+                # clearing or arbitrary callback/CPU guarantee. Process-control
+                # BaseExceptions retain selected Python interruption precedence.
+                if (owner_error is not None and isinstance(error, Exception)
+                        and error is not owner_error):
+                    body_error = owner_error
+                    raise owner_error from error
+                raise
+            finally:
+                # Fallback protection is already armed BEFORE admission. An
+                # interruption at entry to this first pass cannot skip pass 2.
+                with capacity.lock:  # latch cleanup pass 1 acquire
+                    if self._draining is attempt:
+                        self._draining = False  # latch cleanup pass 1 reset
+                first_pass_done = True  # latch cleanup pass 1 released
+        except BaseException as cleanup_error:
+            # Bounded TWO passes, never a generic retry loop. Reset/release may
+            # have let another drain publish its OWN flag: never clear that flag.
+            if not first_pass_done:
+                with capacity.lock:  # latch cleanup pass 2 acquire
+                    if self._draining is attempt:
+                        self._draining = False  # latch cleanup pass 2 reset
+            if body_error is not None and body_error is not cleanup_error:
+                # Only this established guarded association preserves exact body
+                # primary with cleanup as explicit cause. External async errors
+                # elsewhere may dominate, with available original context.
+                # No universal bytecode protection or repeated-interruption claim.
+                raise body_error from cleanup_error
+            raise
 
 
 class _CleanupSlot:
