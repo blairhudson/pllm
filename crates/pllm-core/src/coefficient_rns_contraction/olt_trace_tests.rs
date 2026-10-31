@@ -3,9 +3,11 @@
 //! recursive tree (not production schedule), direct DFT fixture encoding.
 //! Expected arithmetic never calls production NTT/contraction/trace kernels.
 //! Synthetic row errors are public, not source key provenance or HE evidence.
-//! Distinct error-row payloads do not establish source-related rotation keys or
-//! a whole-trace phase/error law. Ideal selector rows intentionally remain
-//! exponent-independent; inverse-group/order mutants need separate witnesses.
+//! Existing selector/marker payloads do not establish a source relation or phase
+//! law. The separate phase_ fixture below checks a public deterministic TEST
+//! convention only: unadopted c0+c1*s / forward-g, not a B-N1 decision, paper key
+//! orientation, RLWE/issuer/security evidence or noise-admission claim.
+//! Ideal selector rows remain exponent-independent; order needs other witnesses.
 use super::olt_trace::*;
 use super::*;
 use crate::coefficient_layout::{CoefficientRing, DegreeBound};
@@ -303,6 +305,449 @@ impl Fixture {
             }
         }
         tree(self, &lanes, 0, 1, mutation)
+    }
+}
+
+// Purpose-sized independent N8 phase arithmetic. No candidate/schedule/recursive
+// oracle supplies expected components, digits, remainders, phases or errors.
+type PhasePair = [Vec<BigInt>; 2];
+
+fn phase_poly(values: &[i64]) -> Vec<BigInt> {
+    assert!(values.len() <= 8);
+    let mut out = vec![BigInt::from(0); 8];
+    for (out, &value) in out.iter_mut().zip(values) { *out = BigInt::from(value); }
+    out
+}
+
+fn phase_pair(c0: &[i64], c1: &[i64]) -> PhasePair {
+    [phase_poly(c0), phase_poly(c1)]
+}
+
+fn phase_add(a: &[BigInt], b: &[BigInt], subtract: bool) -> Vec<BigInt> {
+    assert_eq!(a.len(), 8);
+    assert_eq!(b.len(), 8);
+    a.iter().zip(b).map(|(a, b)| if subtract { a-b } else { a+b }).collect()
+}
+
+fn phase_scale(a: &[BigInt], scalar: &BigInt) -> Vec<BigInt> {
+    a.iter().map(|a| a*scalar).collect()
+}
+
+fn phase_sigma(a: &[BigInt], g: usize) -> Vec<BigInt> {
+    let mut out = phase_poly(&[]);
+    for (j, value) in a.iter().enumerate() {
+        let degree = j*g;
+        if degree/8%2 == 0 { out[degree%8] += value; }
+        else { out[degree%8] -= value; }
+    }
+    out
+}
+
+fn phase_x(a: &[BigInt]) -> Vec<BigInt> {
+    schoolbook(a, &[0, 1, 0, 0, 0, 0, 0, 0])
+}
+
+fn phase_pair_add(a: &PhasePair, b: &PhasePair, subtract: bool) -> PhasePair {
+    core::array::from_fn(|i| phase_add(&a[i], &b[i], subtract))
+}
+
+fn phase_value(c: &PhasePair) -> Vec<BigInt> {
+    phase_add(&c[0], &schoolbook(&c[1], &[1, 1, 0, 0, 0, 0, 0, 0]), false)
+}
+
+fn phase_encode(f: &Fixture, c: &PhasePair) -> Vec<u64> {
+    (0..6).flat_map(|poly| c[poly/3].iter().map(move |v| residue(v.clone(), f.q[poly%3]))).collect()
+}
+
+fn phase_linf(a: &[BigInt]) -> BigInt {
+    a.iter().map(|v| if *v < BigInt::from(0) { -v } else { v.clone() }).max().unwrap()
+}
+
+fn phase_l1(a: &[BigInt]) -> BigInt {
+    a.iter().map(|v| if *v < BigInt::from(0) { -v } else { v.clone() }).sum()
+}
+
+fn phase_assert_law(f: &Fixture, c: &PhasePair, ideal: &[BigInt], h: &[BigInt]) {
+    let phase = phase_value(c);
+    let expected = phase_add(ideal, h, false);
+    for &q in &f.q[..3] {
+        for j in 0..8 { assert_eq!(residue(phase[j].clone(), q), residue(expected[j].clone(), q)); }
+    }
+}
+
+fn phase_fixture(error: i64) -> Fixture {
+    assert!(error == 0 || error == 65);
+    let mut f = Fixture::new(8, 4, 2, [17, 97, 113, 193], 1, false);
+    assert_eq!(f.exponents, [5, 9]); // discovery is only a separate constraint
+    for &q in &f.q {
+        let mut divisor = 2;
+        while divisor*divisor <= q {
+            assert_ne!(q%divisor, 0, "tiny literal must be prime");
+            divisor += 1;
+        }
+        assert_eq!(q%16, 1);
+    }
+    f.roots = f.q.map(|q| (2..q).find(|&psi| {
+        power(psi, 8, q) == q-1 && power(psi, 16, q) == 1
+    }).unwrap());
+    for (i, &psi) in f.roots.iter().enumerate() {
+        let q = f.q[i];
+        assert_eq!(power(psi, 8, q), q-1);
+        assert_eq!(power(psi, 16, q), 1);
+        assert!((2..psi).all(|r| power(r, 8, q) != q-1 || power(r, 16, q) != 1));
+    }
+    f.targets = core::array::from_fn(|i| NegacyclicNtt::new(
+        CoefficientRing::bounded(8, f.q[i], DegreeBound::Public8192).unwrap(), f.roots[i],
+    ).unwrap());
+    f.sources = core::array::from_fn(|i| f.targets[i].clone());
+    assert_eq!(f.crt_modulus, BigInt::from(35_963_041));
+    assert_eq!(17_u64*97*113, 186_337);
+    let projectors = [43_844_i64, 97_971, 44_523];
+    assert_eq!(projectors.iter().sum::<i64>(), 186_338);
+    for (i, &projector) in projectors.iter().enumerate() {
+        for j in 0..3 { assert_eq!(residue(BigInt::from(projector), f.q[j]), u64::from(i == j)); }
+    }
+    for i in 0..4 {
+        for j in 0..4 { assert_eq!(residue(f.crt_weights[i].clone(), f.q[j]), u64::from(i == j)); }
+    }
+    let s = phase_poly(&[1, 1]);
+    let rows = [5, 9].into_iter().map(|g| {
+        let image = phase_sigma(&s, g);
+        assert_eq!(image, if g == 5 { phase_poly(&[1, 0, 0, 0, 0, 1]) } else { phase_poly(&[1, -1]) });
+        let mut rows = vec![0; 24*8];
+        for (source, &projector) in projectors.iter().enumerate() {
+            let rhs = phase_add(&phase_scale(&image, &BigInt::from(193*projector)), &phase_poly(&[error]), false);
+            let b = phase_add(&rhs, &s, true);
+            let a = phase_poly(&[1]);
+            for target in 0..4 {
+                let q = f.q[target];
+                let b_limb: Vec<_> = b.iter().map(|v| residue(v.clone(), q)).collect();
+                let a_limb: Vec<_> = a.iter().map(|v| residue(v.clone(), q)).collect();
+                // Verify the actual coefficient row in ALL FOUR limbs, BEFORE
+                // replace_rows performs any spectral encoding.
+                let lhs = phase_add(&b_limb.iter().copied().map(BigInt::from).collect::<Vec<_>>(),
+                    &schoolbook(&s, &a_limb), false);
+                for j in 0..8 { assert_eq!(residue(lhs[j].clone(), q), residue(rhs[j].clone(), q)); }
+                let at = (source*2*4+target)*8;
+                rows[at..at+8].copy_from_slice(&b_limb);
+                let at = ((source*2+1)*4+target)*8;
+                rows[at..at+8].copy_from_slice(&a_limb);
+            }
+        }
+        rows
+    }).collect();
+    f.replace_rows(rows); // no scaffold selector/marker rows survive
+    f.input = [phase_pair(&[0, -4, 4], &[4]), phase_pair(&[4, -4, 4], &[4])]
+        .iter().flat_map(|c| phase_encode(&f, c)).collect();
+    f
+}
+
+struct PhaseWitness {
+    components: PhasePair,
+    digits: [Vec<BigInt>; 3],
+    v: PhasePair,
+    r: PhasePair,
+    dropped: PhasePair,
+    e: Vec<BigInt>,
+    numerator: Vec<BigInt>,
+    xi: Vec<BigInt>,
+}
+
+fn phase_switch_witness(f: &Fixture, c: &PhasePair, g: usize, error: i64) -> PhaseWitness {
+    assert!(g == 5 || g == 9);
+    let row = &f.row_coefficients[if g == 5 { 0 } else { 1 }];
+    // Encode current lifts per qi BEFORE direct substitution and unsigned digit
+    // extraction. Earlier errors are carried in c, not replaced by ideal input.
+    let digits: [Vec<BigInt>; 3] = core::array::from_fn(|i| {
+        let encoded: Vec<_> = c[1].iter().map(|v| BigInt::from(residue(v.clone(), f.q[i]))).collect();
+        phase_sigma(&encoded, g).into_iter().map(|v| BigInt::from(residue(v, f.q[i]))).collect()
+    });
+    let contracted: Vec<Vec<u64>> = (0..8).map(|poly| {
+        let component = poly/4;
+        let target = poly%4;
+        let mut sum = phase_poly(&[]);
+        for source in 0..3 {
+            let at = ((source*2+component)*4+target)*8;
+            sum = phase_add(&sum, &schoolbook(&digits[source], &row[at..at+8]), false);
+        }
+        sum.into_iter().map(|v| residue(v, f.q[target])).collect()
+    }).collect();
+    let mut v: PhasePair = [phase_poly(&[]), phase_poly(&[])];
+    let mut r = v.clone();
+    let mut dropped = v.clone();
+    let p = BigInt::from(193);
+    for component in 0..2 {
+        for j in 0..8 {
+            let limbs = core::array::from_fn(|i| contracted[component*4+i][j]);
+            let sum: BigInt = limbs.iter().zip(&f.crt_weights).map(|(&v, w)| BigInt::from(v)*w).sum();
+            let canonical = ((sum % &f.crt_modulus)+&f.crt_modulus)%&f.crt_modulus;
+            let remainder = residue(canonical.clone(), 193);
+            let centered = BigInt::from(remainder) - if remainder > 96 { p.clone() } else { BigInt::from(0) };
+            assert!(centered >= BigInt::from(-96) && centered <= BigInt::from(96));
+            let numerator = &canonical-&centered;
+            assert_eq!(&numerator%&p, BigInt::from(0));
+            let quotient = numerator/&p;
+            let rounded = (&canonical+BigInt::from(96))/&p;
+            let existing = f.drop_global(limbs, Mutation::None);
+            for i in 0..3 {
+                assert_eq!(residue(quotient.clone(), f.q[i]), residue(rounded.clone(), f.q[i]));
+                assert_eq!(residue(quotient.clone(), f.q[i]), existing[i]);
+            }
+            // Center the quotient modulo Q only to choose small component lifts;
+            // this is NOT a claim that global CRT/intermediate values never wrap.
+            let q = BigInt::from(186_337);
+            let canonical_q = ((quotient%&q)+&q)%&q;
+            dropped[component][j] = if canonical_q > BigInt::from(93_168) { canonical_q-&q } else { canonical_q };
+            v[component][j] = canonical;
+            r[component][j] = centered;
+        }
+    }
+    let mut e = phase_poly(&[]);
+    for digit in &digits { e = phase_add(&e, &phase_scale(digit, &BigInt::from(error)), false); }
+    let numerator = phase_add(&phase_add(&e, &r[0], true),
+        &schoolbook(&r[1], &[1, 1, 0, 0, 0, 0, 0, 0]), true);
+    let xi: Vec<_> = numerator.iter().map(|v| {
+        assert_eq!(v%&p, BigInt::from(0));
+        v/&p
+    }).collect();
+    let components = [phase_add(&dropped[0], &phase_sigma(&c[0], g), false), dropped[1].clone()];
+    let image = phase_sigma(&phase_value(c), g);
+    phase_assert_law(f, &components, &image, &xi);
+    let secret_l1 = phase_l1(&phase_poly(&[1, 1]));
+    assert_eq!(secret_l1, BigInt::from(2));
+    let rhs: BigInt = digits.iter().map(|d| phase_l1(d)*BigInt::from(error)).sum::<BigInt>()
+        + BigInt::from(96)*(BigInt::from(1)+secret_l1);
+    assert!(BigInt::from(193)*phase_linf(&xi) <= rhs);
+    if error == 65 { assert_eq!(rhs, BigInt::from(if g == 5 { 483 } else { 678 })); }
+    PhaseWitness { components, digits, v, r, dropped, e, numerator, xi }
+}
+
+// Candidate adapter ONLY: direct DFT encodes inputs; no output is used to
+// manufacture any expected value in phase_switch_witness or the explicit path.
+fn phase_actual_switch(f: &Fixture, c: &PhasePair, g: usize) -> Vec<u64> {
+    let encoded = phase_encode(f, c);
+    let spectra: Vec<_> = (0..6).flat_map(|poly| {
+        direct_dft(&encoded[poly*8..(poly+1)*8], f.roots[poly%3], f.q[poly%3])
+    }).collect();
+    let contraction = RnsContraction::new(&f.sources, &f.targets).unwrap();
+    let storage = contraction.galois_storage().unwrap();
+    let work = contraction.galois_work().unwrap();
+    let mut out = vec![u64::MAX; storage.output_words];
+    let mut scratch = vec![u64::MAX; storage.scratch_words];
+    assert!(g == 5 || g == 9);
+    contraction.galois_contract_drop_into(
+        ComponentSpectra { contexts: &f.sources, values: &spectra },
+        RowSpectra { contexts: &f.targets, values: &f.row_spectra[if g == 5 { 0 } else { 1 }] },
+        g as u64, &mut out, &mut scratch, work,
+    ).unwrap();
+    assert_eq!(out.len(), 48);
+    out
+}
+
+fn phase_assert_witness(w: &PhaseWitness, merge: bool, error: i64) {
+    let noisy = error == 65;
+    let digit = if merge { phase_poly(&[1, 1]) } else { phase_poly(&[1]) };
+    for d in &w.digits { assert_eq!(*d, digit); }
+    assert_eq!(w.e, phase_scale(&digit, &BigInt::from(3*error)));
+    let m = 35_963_041;
+    let v0 = if merge {
+        if noisy { phase_poly(&[385, 189, m-196]) } else { phase_poly(&[190, m-6, m-196]) }
+    } else if noisy { phase_poly(&[385, m-3, 0, 0, 0, 193]) }
+    else { phase_poly(&[190, m-3, 0, 0, 0, 193]) };
+    assert_eq!(w.v[0], v0);
+    assert_eq!(w.v[1], phase_scale(&digit, &BigInt::from(3)));
+    let r0 = if merge {
+        if noisy { phase_poly(&[-1, -4, -3]) } else { phase_poly(&[-3, -6, -3]) }
+    } else if noisy { phase_poly(&[-1, -3]) } else { phase_poly(&[-3, -3]) };
+    assert_eq!(w.r[0], r0);
+    assert_eq!(w.r[1], phase_scale(&digit, &BigInt::from(3)));
+    let xi = if noisy { digit } else { phase_poly(&[]) };
+    assert_eq!(w.numerator, phase_scale(&xi, &BigInt::from(193)));
+    assert_eq!(w.xi, xi);
+    let drop0 = if merge {
+        if noisy { phase_poly(&[2, 1, -1]) } else { phase_poly(&[1, 0, -1]) }
+    } else if noisy { phase_poly(&[2, 0, 0, 0, 0, 1]) }
+    else { phase_poly(&[1, 0, 0, 0, 0, 1]) };
+    assert_eq!(w.dropped, [drop0, phase_poly(&[])]);
+}
+
+struct PhasePath {
+    components: PhasePair,
+    ideal: Vec<BigInt>,
+    h: Vec<BigInt>,
+    prior: [Vec<BigInt>; 2],
+    merge_xi: Vec<BigInt>,
+}
+
+fn phase_three_switch_path(f: &Fixture, error: i64) -> PhasePath {
+    let noisy = error == 65;
+    let raw = [phase_pair(&[0, -4, 4], &[4]), phase_pair(&[4, -4, 4], &[4])];
+    let normalized = [phase_pair(&[0, -1, 1], &[1]), phase_pair(&[1, -1, 1], &[1])];
+    let mut ideals = [phase_poly(&[1, 0, 1]), phase_poly(&[2, 0, 1])];
+    let mut h = [phase_poly(&[]), phase_poly(&[])];
+    let mut traced = normalized.clone();
+    for lane in 0..2 {
+        assert_eq!(&f.input[lane*48..(lane+1)*48], phase_encode(f, &raw[lane]));
+        assert_eq!(phase_value(&raw[lane]), if lane == 0 { phase_poly(&[4, 0, 4]) } else { phase_poly(&[8, 0, 4]) });
+        // Modular inversion is independent, not an assumption of real division.
+        let encoded = phase_encode(f, &raw[lane]);
+        let normalized_words: Vec<_> = encoded.iter().enumerate().map(|(at, &v)| {
+            let q = f.q[(at/8)%3];
+            let inverse = BigInt::from(4).modinv(&BigInt::from(q)).unwrap();
+            assert_eq!(residue(BigInt::from(4)*&inverse, q), 1);
+            residue(BigInt::from(v)*inverse, q)
+        }).collect();
+        assert_eq!(normalized_words, phase_encode(f, &normalized[lane]));
+        phase_assert_law(f, &normalized[lane], &ideals[lane], &h[lane]);
+        let w = phase_switch_witness(f, &normalized[lane], 5, error);
+        phase_assert_witness(&w, false, error);
+        let literal = phase_pair(&[if noisy { 2+lane as i64 } else { 1+lane as i64 }, 0, -1], &[]);
+        assert_eq!(w.components, literal);
+        let candidate = phase_actual_switch(f, &normalized[lane], 5);
+        assert_eq!(candidate, phase_encode(f, &w.components));
+        assert_eq!(candidate, phase_encode(f, &literal)); // all 48 words
+        traced[lane] = phase_pair_add(&normalized[lane], &w.components, false);
+        ideals[lane] = phase_add(&ideals[lane], &phase_sigma(&ideals[lane], 5), false);
+        h[lane] = phase_add(&phase_add(&h[lane], &phase_sigma(&h[lane], 5), false), &w.xi, false);
+        assert_eq!(traced[lane], phase_pair(&[if noisy { 2+2*lane as i64 } else { 1+2*lane as i64 }, -1], &[1]));
+        assert_eq!(ideals[lane], phase_poly(&[2+2*lane as i64]));
+        assert_eq!(h[lane], phase_poly(&[if noisy { 1 } else { 0 }]));
+        assert_eq!(phase_linf(&w.xi), BigInt::from(if noisy { 1 } else { 0 }));
+        assert_eq!(phase_linf(&h[lane]), BigInt::from(if noisy { 1 } else { 0 }));
+        phase_assert_law(f, &traced[lane], &ideals[lane], &h[lane]);
+        assert_eq!(phase_encode(f, &traced[lane]), f.plus(&normalized_words, &candidate, false));
+    }
+    let shifted = core::array::from_fn(|i| phase_x(&traced[1][i]));
+    let difference = phase_pair_add(&traced[0], &shifted, true);
+    assert_eq!(difference, if noisy { phase_pair(&[2, -5, 1], &[1, -1]) }
+        else { phase_pair(&[1, -4, 1], &[1, -1]) });
+    let p_difference = phase_add(&ideals[0], &phase_x(&ideals[1]), true);
+    let h_difference = phase_add(&h[0], &phase_x(&h[1]), true);
+    assert_eq!(p_difference, phase_poly(&[2, -4]));
+    assert_eq!(h_difference, if noisy { phase_poly(&[1, -1]) } else { phase_poly(&[]) });
+    phase_assert_law(f, &difference, &p_difference, &h_difference);
+    assert_eq!(phase_encode(f, &difference), f.plus(&phase_encode(f, &traced[0]),
+        &f.shift(&phase_encode(f, &traced[1]), 1), true));
+    let w = phase_switch_witness(f, &difference, 9, error);
+    phase_assert_witness(&w, true, error);
+    let switch_literal = if noisy { phase_pair(&[4, 6], &[]) } else { phase_pair(&[2, 4], &[]) };
+    assert_eq!(w.components, switch_literal);
+    let candidate = phase_actual_switch(f, &difference, 9);
+    assert_eq!(candidate, phase_encode(f, &w.components));
+    assert_eq!(candidate, phase_encode(f, &switch_literal));
+    let components = phase_pair_add(&phase_pair_add(&traced[0], &shifted, false), &w.components, false);
+    let ideal = phase_add(&phase_add(&ideals[0], &phase_x(&ideals[1]), false), &phase_sigma(&p_difference, 9), false);
+    let final_h = phase_add(&phase_add(&h[0], &phase_x(&h[1]), false),
+        &phase_add(&phase_sigma(&h_difference, 9), &w.xi, false), false);
+    assert_eq!(components, if noisy { phase_pair(&[6, 9, -1], &[1, 1]) }
+        else { phase_pair(&[3, 6, -1], &[1, 1]) });
+    assert_eq!(ideal, phase_poly(&[4, 8]));
+    assert_eq!(final_h, if noisy { phase_poly(&[3, 3]) } else { phase_poly(&[]) });
+    phase_assert_law(f, &components, &ideal, &final_h);
+    assert_eq!(phase_linf(&w.xi), BigInt::from(if noisy { 1 } else { 0 }));
+    let recurrence_bound = BigInt::from(2)*(phase_linf(&h[0])+phase_linf(&h[1]))+phase_linf(&w.xi);
+    assert_eq!(recurrence_bound, BigInt::from(if noisy { 5 } else { 0 }));
+    assert!(phase_linf(&final_h) <= recurrence_bound);
+    // Literal binding sequence constrains wrapper only; no expectation came
+    // from these bindings. Stage additions above are NOT wrapper observations.
+    assert_eq!(f.bindings(4, 2).iter().map(|b| b.exponent).collect::<Vec<_>>(), [5, 5, 9]);
+    assert_eq!(actual(f, 4, 2), phase_encode(f, &components));
+    PhasePath { components, ideal, h: final_h, prior: h, merge_xi: w.xi }
+}
+
+fn phase_actual_value(f: &Fixture, words: &[u64]) -> [Vec<u64>; 3] {
+    assert_eq!(words.len(), 48);
+    core::array::from_fn(|i| {
+        let c0: Vec<_> = words[i*8..(i+1)*8].iter().copied().map(BigInt::from).collect();
+        let c1: Vec<_> = words[(3+i)*8..(4+i)*8].iter().copied().map(BigInt::from).collect();
+        phase_value(&[c0, c1]).into_iter().map(|v| residue(v, f.q[i])).collect()
+    })
+}
+
+#[test]
+fn source_related_n8_three_switch_stage_components_and_recursive_phase() {
+    let f = phase_fixture(65);
+    let path = phase_three_switch_path(&f, 65);
+    assert_eq!(phase_value(&path.components), phase_poly(&[7, 11]));
+    assert_eq!(phase_linf(&path.h), BigInt::from(3));
+    let words = actual(&f, 4, 2); // complete actual TracePlan::apply
+    assert_eq!(words, phase_encode(&f, &phase_pair(&[6, 9, -1], &[1, 1])));
+    let phase = phase_actual_value(&f, &words);
+    for i in 0..3 {
+        assert_eq!(phase[i], phase_poly(&[7, 11]).into_iter().map(|v| residue(v, f.q[i])).collect::<Vec<_>>());
+    }
+    // Reconstruct ACTUAL phase over Q, then center the ideal difference. Only
+    // this final difference has a no-wrap assertion; not each qi or global V.
+    let projectors = [43_844, 97_971, 44_523];
+    let mut centered = phase_poly(&[]);
+    for j in 0..8 {
+        let reconstructed: BigInt = (0..3).map(|i| BigInt::from(phase[i][j])*BigInt::from(projectors[i])).sum();
+        let difference = residue(reconstructed-&path.ideal[j], 186_337);
+        centered[j] = BigInt::from(difference)-if difference > 93_168 { BigInt::from(186_337) } else { BigInt::from(0) };
+    }
+    assert_eq!(centered, phase_poly(&[3, 3]));
+    assert!(BigInt::from(2)*phase_linf(&centered) < BigInt::from(186_337));
+}
+
+#[test]
+fn source_related_n8_frozen_local_error_controls_and_noise_free_trace() {
+    let f = phase_fixture(65);
+    let path = phase_three_switch_path(&f, 65);
+    assert_eq!(path.prior, [phase_poly(&[1]), phase_poly(&[1])]);
+    assert_eq!(path.merge_xi, phase_poly(&[1, 1]));
+    let words = actual(&f, 4, 2);
+    let actual_phase = phase_actual_value(&f, &words);
+    let base = phase_add(&path.prior[0], &phase_x(&path.prior[1]), false);
+    let branch = phase_sigma(&phase_add(&path.prior[0], &phase_x(&path.prior[1]), true), 9);
+    let propagated = phase_add(&base, &branch, false);
+    assert_eq!(propagated, phase_poly(&[2, 2]));
+    // ORACLE-ONLY recurrence mutations, NOT mutated candidate executions.
+    // Freeze actual independent local xi. Earlier b-only errors leave c1,
+    // later digits and contracted remainders unchanged in this fixture.
+    // The last two bad predictions coincide: separately discriminate against
+    // actual output, NOT mutually identifiable, nor coverage of all sign/digit
+    // or profile faults.
+    for i in 0..3 {
+        let q = f.q[i];
+        let correct = phase_add(&path.ideal, &path.h, false);
+        let correct: Vec<_> = correct.into_iter().map(|v| residue(v, q)).collect();
+        assert_eq!(actual_phase[i], correct);
+        let drop_prior = path.merge_xi.clone();
+        let inverse_two = BigInt::from(2).modinv(&BigInt::from(q)).unwrap();
+        assert_eq!(residue(BigInt::from(2)*&inverse_two, q), 1);
+        let halve_prior = phase_add(&phase_scale(&propagated, &inverse_two), &path.merge_xi, false);
+        let omit_branch = phase_add(&base, &path.merge_xi, false);
+        for (name, bad_h, literal_h, literal_phase, literal_difference) in [
+            ("ORACLE-ONLY drop both prior errors", drop_prior, phase_poly(&[1, 1]), phase_poly(&[5, 9]), phase_poly(&[2, 2])),
+            ("ORACLE-ONLY halve propagated prior errors", halve_prior, phase_poly(&[2, 2]), phase_poly(&[6, 10]), phase_poly(&[1, 1])),
+            ("ORACLE-ONLY omit switched-difference branch", omit_branch, phase_poly(&[2, 2]), phase_poly(&[6, 10]), phase_poly(&[1, 1])),
+        ] {
+            let bad_phase = phase_add(&path.ideal, &bad_h, false);
+            let mut difference = Vec::new();
+            for j in 0..8 {
+                assert_eq!(residue(bad_h[j].clone(), q), residue(literal_h[j].clone(), q), "{name}");
+                let bad = residue(bad_phase[j].clone(), q);
+                assert_eq!(bad, residue(literal_phase[j].clone(), q), "{name}");
+                difference.push(residue(BigInt::from(actual_phase[i][j])-BigInt::from(bad), q));
+            }
+            assert_eq!(difference, literal_difference.into_iter().map(|v| residue(v, q)).collect::<Vec<_>>(), "{name}");
+            assert!(difference.iter().any(|&v| v != 0), "{name}");
+        }
+    }
+    // Separate genuinely related zero-e rows; NEVER Mutation::NoErrors (which
+    // would reconstruct selector rows). Zero noise is not generally zero drop
+    // error; this particular fixture independently proves zero local xi.
+    let zero = phase_fixture(0);
+    let zero_path = phase_three_switch_path(&zero, 0);
+    assert_eq!(zero_path.h, phase_poly(&[]));
+    assert_eq!(zero_path.merge_xi, phase_poly(&[]));
+    assert_eq!(zero_path.components, phase_pair(&[3, 6, -1], &[1, 1]));
+    assert_eq!(phase_value(&zero_path.components), phase_poly(&[4, 8]));
+    let zero_words = actual(&zero, 4, 2);
+    assert_eq!(zero_words, phase_encode(&zero, &zero_path.components));
+    let zero_phase = phase_actual_value(&zero, &zero_words);
+    for i in 0..3 {
+        assert_eq!(zero_phase[i], zero_path.ideal.iter().map(|v| residue(v.clone(), zero.q[i])).collect::<Vec<_>>());
     }
 }
 
