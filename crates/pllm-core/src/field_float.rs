@@ -26,6 +26,11 @@ pub use local_bf16::{
     mul_bf16_into, mul_bf16_work, rope_bf16_supplied_into, rope_bf16_supplied_work,
 };
 
+mod attention_bf16;
+pub use attention_bf16::{
+    context_row_bf16_into, context_row_bf16_work, score_row_bf16_into, score_row_bf16_work,
+};
+
 mod rms_norm;
 pub use rms_norm::{rms_norm_bf16_row_into, rms_norm_bf16_row_work};
 

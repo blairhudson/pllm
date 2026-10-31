@@ -1,0 +1,227 @@
+{
+  "contract": "27 manually derived IEEE RNE finite BF16/F32 contraction cases, including distinct NONFUSED/FMA equations and a nondistinguishing underflow control; no model/source authority. Oracle authored independently; execution remains unclaimed.",
+  "case_count": 27,
+  "cases": [
+    {
+      "name": "score_rn32_product_before_final_r16_counterexample",
+      "kind": "score",
+      "query": ["3f81"],
+      "keys": ["3f80"],
+      "alpha": "3f7f01fd",
+      "output": ["3f80"],
+      "derivation": "Dot=129/128; alpha=(2^24-65027)/2^24. Exact product=257/256+125/2^31, less than half an F32 ulp above BF16 midpoint. RN32 gives 257/256, R16 ties to 1; direct real-to-BF16 would wrongly give 3f81."
+    },
+    {
+      "name": "score_cast_before_scale_counterexample",
+      "kind": "score",
+      "query": ["3f80", "3f80"],
+      "keys": ["3f80", "3b80"],
+      "alpha": "3f810000",
+      "output": ["3f81"],
+      "derivation": "D32=257/256, first R16 ties to 1; alpha=129/128. Omitting first R16 gives 33153/32768, above midpoint 259/256, hence wrong 3f82."
+    },
+    {
+      "name": "score_odd_midpoint_rounds_up",
+      "kind": "score",
+      "query": ["3f80", "3f80"],
+      "keys": ["3f80", "3c40"],
+      "alpha": "3f800000",
+      "output": ["3f82"],
+      "derivation": "1+3/256=259/256 is midpoint; lower BF16 3f81 is odd."
+    },
+    {
+      "name": "score_coordinate_order",
+      "kind": "score",
+      "query": ["3f80", "3f80", "3f80"],
+      "keys": ["4c00", "3f80", "cc00", "4c00", "cc00", "3f80"],
+      "alpha": "3f800000",
+      "output": ["0000", "3f80"],
+      "derivation": "2^25+1 rounds back to 2^25 before cancellation; cancellation before +1 retains 1."
+    },
+    {
+      "name": "score_subnormal_half_ties_signed_zero",
+      "kind": "score",
+      "query": ["0001"],
+      "keys": ["3f80", "bf80"],
+      "alpha": "3f000000",
+      "output": ["0000", "8000"],
+      "derivation": "+/-2^-133 times 1/2 yields +/-2^-134; R16 ties to signed zero."
+    },
+    {
+      "name": "score_negative_zero_alpha",
+      "kind": "score",
+      "query": ["8000"],
+      "keys": ["3f80"],
+      "alpha": "80000000",
+      "output": ["8000"],
+      "derivation": "D32 starts +0, +0 + -0 is +0; +0 times -0 is -0."
+    },
+    {
+      "name": "score_subnormal_normal_maxfinite",
+      "kind": "score",
+      "query": ["3f80"],
+      "keys": ["0001", "0080", "7f7f", "ff7f"],
+      "alpha": "3f800000",
+      "output": ["0001", "0080", "7f7f", "ff7f"],
+      "derivation": "Multiplication by 1 and accumulation from +0 are exact."
+    },
+    {
+      "name": "score_f32_min_subnormal_alpha",
+      "kind": "score",
+      "query": ["3f80"],
+      "keys": ["3f80", "bf80"],
+      "alpha": "00000001",
+      "output": ["0000", "8000"],
+      "derivation": "Exact +/-2^-149 RN32 product rounds to signed BF16 zero."
+    },
+    {
+      "name": "score_nonfinite_query",
+      "kind": "score",
+      "query": ["7fc1"],
+      "keys": ["0000"],
+      "alpha": "00000000",
+      "error": "NonFinite"
+    },
+    {
+      "name": "score_nonfinite_key",
+      "kind": "score",
+      "query": ["0000"],
+      "keys": ["ff80"],
+      "alpha": "00000000",
+      "error": "NonFinite"
+    },
+    {
+      "name": "score_nonfinite_alpha",
+      "kind": "score",
+      "query": ["0000"],
+      "keys": ["0000"],
+      "alpha": "7fc00001",
+      "error": "NonFinite"
+    },
+    {
+      "name": "score_product_overflow_not_rescued_by_zero_alpha",
+      "kind": "score",
+      "query": ["7f7f"],
+      "keys": ["4000"],
+      "alpha": "00000000",
+      "error": "NonFinite"
+    },
+    {
+      "name": "score_first_bf16_cast_overflow_not_rescued",
+      "kind": "score",
+      "query": ["7f7f", "7b00"],
+      "keys": ["3f80", "3f80"],
+      "alpha": "00000000",
+      "error": "NonFinite",
+      "derivation": "D32=2^128-2^119 is finite F32, exactly BF16 overflow midpoint; first R16 must refuse before alpha=0."
+    },
+    {
+      "name": "score_final_bf16_cast_overflow",
+      "kind": "score",
+      "query": ["7f7f"],
+      "keys": ["3f80"],
+      "alpha": "3f808000",
+      "error": "NonFinite",
+      "derivation": "(2^128-2^120)*(1+2^-8)=2^128-2^112, finite F32 but above BF16 overflow midpoint."
+    },
+    {
+      "name": "score_alpha_multiply_f32_overflow",
+      "kind": "score",
+      "query": ["7f7f"],
+      "keys": ["3f80"],
+      "alpha": "40000000",
+      "error": "NonFinite"
+    },
+    {
+      "name": "context_strided_no_renormalization",
+      "kind": "context",
+      "probabilities": ["3f00", "3e80"],
+      "values": ["4000", "4080", "4080", "4100"],
+      "output": ["4000", "4080"],
+      "derivation": "Probabilities sum to 3/4. Row-major [[2,4],[4,8]] gives [2,4], NOT [8/3,16/3]."
+    },
+    {
+      "name": "context_visible_row_order_and_stride",
+      "kind": "context",
+      "probabilities": ["3f80", "3f80", "3f80"],
+      "values": ["4c00", "4c00", "3f80", "cc00", "cc00", "3f80"],
+      "output": ["0000", "3f80"],
+      "derivation": "Columns respectively [2^25,1,-2^25] and [2^25,-2^25,1]."
+    },
+    {
+      "name": "context_underflow_nondistinguishing_fma_control",
+      "kind": "context",
+      "probabilities": ["0001", "0001"],
+      "values": ["3f00", "3700"],
+      "output": ["0000"],
+      "derivation": "Products 2^-134 and 2^-150. Separate second product RN32 ties to +0. Fused second add RN32(32768.5*2^-149) ties to even 32768*2^-149. Both finish R16(2^-134)=0000; useful underflow control, NOT an FMA discriminator."
+    },
+    {
+      "name": "context_nonfused_vs_fma_three_term_witness",
+      "kind": "context",
+      "probabilities": ["0001", "0001", "0001"],
+      "values": ["3f00", "3780", "b700"],
+      "output": ["0001"],
+      "derivation": "Exact products 2^-134, 2^-149, -2^-150. NONFUSED last product RN32=-0, leaving 32769*2^-149, above BF16 midpoint, hence 0001. Fused last add RN32(32768.5*2^-149) ties to even 32768*2^-149, then BF16 midpoint ties to 0000. Independent Fraction equations assert both paths."
+    },
+    {
+      "name": "context_signed_zero_accumulator",
+      "kind": "context",
+      "probabilities": ["8000"],
+      "values": ["3f80", "bf80"],
+      "output": ["0000", "0000"],
+      "derivation": "D32 starts +0; neither +0+-0 nor +0++0 retains a negative zero."
+    },
+    {
+      "name": "context_subnormal_half_ties_even",
+      "kind": "context",
+      "probabilities": ["3f00"],
+      "values": ["0001", "8001", "0003", "8003"],
+      "output": ["0000", "8000", "0002", "8002"],
+      "derivation": "Half of odd subnormal significands 1 and 3 ties to even 0 and 2; sign preserved."
+    },
+    {
+      "name": "context_identity_extremes",
+      "kind": "context",
+      "probabilities": ["3f80"],
+      "values": ["0001", "0080", "7f7f", "ff7f"],
+      "output": ["0001", "0080", "7f7f", "ff7f"]
+    },
+    {
+      "name": "context_nonfinite_probability_even_with_zero_value",
+      "kind": "context",
+      "probabilities": ["7f80"],
+      "values": ["0000"],
+      "error": "NonFinite"
+    },
+    {
+      "name": "context_nonfinite_value_even_with_zero_probability",
+      "kind": "context",
+      "probabilities": ["0000"],
+      "values": ["7fc1"],
+      "error": "NonFinite"
+    },
+    {
+      "name": "context_product_overflow",
+      "kind": "context",
+      "probabilities": ["4000"],
+      "values": ["7f7f"],
+      "error": "NonFinite"
+    },
+    {
+      "name": "context_intermediate_sum_overflow_before_cancellation",
+      "kind": "context",
+      "probabilities": ["3f80", "3f80", "3f80"],
+      "values": ["7f7f", "7f7f", "ff7f"],
+      "error": "NonFinite"
+    },
+    {
+      "name": "context_final_bf16_overflow",
+      "kind": "context",
+      "probabilities": ["3f80", "3f80"],
+      "values": ["7f7f", "7b00"],
+      "error": "NonFinite",
+      "derivation": "Finite F32 sum at BF16 overflow midpoint 2^128-2^119."
+    }
+  ]
+}
