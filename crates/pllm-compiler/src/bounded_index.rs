@@ -5,8 +5,8 @@
 //! Input owners, nested element backing, initializer/comparator state, allocator
 //! overhead and dependency/native call stacks remain the enclosing owner's job.
 
+use pllm_core::exact_buffer as backing;
 use std::cmp::Ordering;
-use std::mem::{ManuallyDrop, MaybeUninit};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Error {
@@ -26,9 +26,15 @@ pub(crate) fn checked_mul(a: u128, b: u128) -> Result<u128, Error> {
 }
 
 pub(crate) fn layout_bytes<T>(count: usize) -> Result<usize, Error> {
-    std::alloc::Layout::array::<T>(count)
-        .map(|layout| layout.size())
-        .map_err(|_| Error::Overflow)
+    backing::layout_bytes::<T>(count).map_err(buffer_error)
+}
+
+fn buffer_error(error: backing::Error) -> Error {
+    match error {
+        backing::Error::Overflow => Error::Overflow,
+        backing::Error::Allocation => Error::Capacity,
+        backing::Error::Incomplete => Error::Incomplete,
+    }
 }
 
 /// Explicit driver visits, comparisons, swaps and charged key spans. Not CPU
@@ -148,11 +154,9 @@ thread_local! {
     static FACTORIES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-/// Exact array backing and an initialized prefix. No geometric growth, shrinking
-/// or backing copy on finish. Element-owned backing is deliberately not inferred.
+/// Compiler-local error/counter adapter over the shared exact prefix owner.
 pub(crate) struct ExactBuffer<T> {
-    slots: Box<[MaybeUninit<T>]>,
-    initialized: usize,
+    backing: backing::ExactBuffer<T>,
 }
 
 impl<T> ExactBuffer<T> {
@@ -161,68 +165,33 @@ impl<T> ExactBuffer<T> {
         #[cfg(test)]
         FACTORIES.with(|count| count.set(count.get() + 1));
         Ok(Self {
-            slots: Box::<[T]>::new_uninit_slice(count),
-            initialized: 0,
+            backing: backing::ExactBuffer::new(count).map_err(buffer_error)?,
         })
     }
 
+    /// Preserve the compiler's existing consuming refusal: a rejected incoming
+    /// value is dropped here. The shared core API instead returns that value.
     pub(crate) fn push(&mut self, value: T) -> Result<(), Error> {
-        let slot = self
-            .slots
-            .get_mut(self.initialized)
-            .ok_or(Error::Capacity)?;
-        slot.write(value);
-        self.initialized += 1;
-        Ok(())
+        self.backing.push(value).map_err(|_value| Error::Capacity)
     }
 
     pub(crate) fn finish(self) -> Result<Box<[T]>, Error> {
-        if self.initialized != self.slots.len() {
-            return Err(Error::Incomplete);
-        }
-        let this = ManuallyDrop::new(self);
-        // SAFETY: move the backing out exactly once, suppressing prefix Drop.
-        let slots = unsafe { std::ptr::read(&this.slots) };
-        // SAFETY: every slot was initialized; no new allocation or copy.
-        Ok(unsafe { slots.assume_init() })
-    }
-}
-
-impl<T> Drop for ExactBuffer<T> {
-    fn drop(&mut self) {
-        // SAFETY: exactly this prefix contains live T values. Slice drop glue
-        // also cleans the rest of the prefix if one element's destructor panics.
-        unsafe {
-            std::ptr::drop_in_place(std::ptr::slice_from_raw_parts_mut(
-                self.slots.as_mut_ptr().cast::<T>(),
-                self.initialized,
-            ));
-        }
+        self.backing.finish().map_err(buffer_error)
     }
 }
 
 /// Original grouping factory for Copy rows, including its exact allocation and
-/// initializer order. The general prefix owner above additionally supports
-/// non-Copy metadata and rollback; this fast path needs no push/result per row.
+/// initializer order, using the same fallible backing constructor as non-Copy
+/// metadata. Compiler Usage/accounting remains the enclosing caller's job.
 pub(crate) fn exact_box<T: Copy>(
     count: usize,
     mut make: impl FnMut(usize) -> T,
 ) -> Result<Box<[T]>, Error> {
-    layout_bytes::<T>(count)?;
-    #[cfg(test)]
-    FACTORIES.with(|count| count.set(count.get() + 1));
-    let mut allocation = ExactBuffer {
-        slots: Box::<[T]>::new_uninit_slice(count),
-        initialized: 0,
-    };
-    while allocation.initialized < count {
-        allocation.slots[allocation.initialized].write(make(allocation.initialized));
-        allocation.initialized += 1;
+    let mut allocation = ExactBuffer::new(count)?;
+    for index in 0..count {
+        allocation.push(make(index))?;
     }
-    // SAFETY: all slots contain Copy values. Transfer backing without reallocating.
-    let allocation = ManuallyDrop::new(allocation);
-    let slots = unsafe { std::ptr::read(&allocation.slots) };
-    Ok(unsafe { slots.assume_init() })
+    allocation.finish()
 }
 
 // This complete keyed facade is exercised by focused tests; production runtime

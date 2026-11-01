@@ -28,6 +28,7 @@ pub mod compact;
 pub mod compact_product;
 pub mod digit_gemm;
 pub mod edge_contract;
+pub mod exact_buffer;
 pub mod field_float;
 pub mod fixed_file;
 pub mod fixed_point;

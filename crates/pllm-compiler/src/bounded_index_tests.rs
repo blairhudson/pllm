@@ -12,6 +12,58 @@ fn factories() -> usize {
     FACTORIES.with(Cell::get)
 }
 
+#[test]
+fn exact_box_preserves_initializer_order_values_and_factory_count() {
+    for count in [0, 1, 5, 32] {
+        reset_factories();
+        let mut visits = Vec::new();
+        let rows = exact_box(count, |index| {
+            visits.push(index);
+            (index, count - index)
+        })
+        .unwrap();
+        assert_eq!(visits, (0..count).collect::<Vec<_>>());
+        assert_eq!(rows.len(), count);
+        let expected: Vec<_> = (0..count).map(|index| (index, count - index)).collect();
+        assert_eq!(rows.as_ref(), expected.as_slice());
+        assert_eq!(factories(), 1);
+    }
+    reset_factories();
+    let mut visited = false;
+    assert!(matches!(
+        exact_box::<u64>(usize::MAX, |_| {
+            visited = true;
+            0
+        }),
+        Err(Error::Overflow)
+    ));
+    assert!(!visited);
+    assert_eq!(factories(), 0);
+}
+
+#[test]
+fn exact_box_initializer_panic_stops_at_original_ordinal() {
+    reset_factories();
+    let mut visits = Vec::new();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = exact_box(5, |index| {
+            visits.push(index);
+            assert_ne!(index, 2, "initializer failure");
+            index
+        });
+    }));
+    assert!(result.is_err());
+    assert_eq!(visits, [0, 1, 2]);
+    assert_eq!(factories(), 1);
+}
+
+#[test]
+fn shared_buffer_errors_keep_compiler_mapping() {
+    assert_eq!(buffer_error(backing::Error::Overflow), Error::Overflow);
+    assert_eq!(buffer_error(backing::Error::Allocation), Error::Capacity);
+    assert_eq!(buffer_error(backing::Error::Incomplete), Error::Incomplete);
+}
+
 // Frozen pre-extraction runtime driver. Compare traces as well as output/work;
 // equal keys may permute under heapsort, so sorted-value parity alone is weaker.
 fn original_grouping_sort<T>(
@@ -576,9 +628,7 @@ fn exact_prefix_storage_cleans_error_panic_and_transfer_paths() {
     buffer.push(DropProbe(drops.clone())).unwrap();
     assert_eq!(buffer.push(DropProbe(drops.clone())), Err(Error::Capacity));
     assert_eq!(drops.get(), 3); // Rejected owned argument cleaned before return.
-    let address = buffer.slots.as_ptr().cast::<DropProbe>();
     let complete = buffer.finish().unwrap();
-    assert_eq!(complete.as_ptr(), address);
     drop(complete);
     assert_eq!(drops.get(), 4);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
