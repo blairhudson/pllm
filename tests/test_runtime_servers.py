@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import threading
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from types import SimpleNamespace
@@ -465,6 +465,578 @@ def test_supervised_role_group_startup_interrupt_rolls_back_owned_child(
     assert state.processes[0].returncode == -9
     assert charge.token not in charge.capacity._owners
     assert topology.closed and not topology.started
+
+
+class _SupervisedFailure(BaseException):
+    pass
+
+
+class _HostileExceptionHooks:
+    def __str__(self):
+        raise AssertionError("exception formatting is not cleanup")
+
+    def __bool__(self):
+        raise AssertionError("exception truthiness is not first-error selection")
+
+    def add_note(self, _note):
+        raise AssertionError("exception annotation is not cleanup")
+
+
+class _HostileRuntimeError(_HostileExceptionHooks, RuntimeError):
+    pass
+
+
+class _HostileBaseException(_HostileExceptionHooks, BaseException):
+    pass
+
+
+@pytest.fixture
+def supervised_exception_boundary(supervised_boundary, monkeypatch):
+    state = supervised_boundary
+
+    @contextmanager
+    def deferred():
+        yield  # No real signal handler installation or forwarding.
+
+    monkeypatch.setattr(servers, "defer_termination_signals", deferred)
+    ports = iter((9101, 9102))
+    monkeypatch.setattr(LocalTopology, "_free_port", staticmethod(lambda excluded: next(ports)))
+    credentials = iter(("mock-inference", "mock-preparation", "mock-push"))
+    monkeypatch.setattr(LocalTopology, "_credential", lambda self, used: next(credentials))
+    monkeypatch.setattr(LocalTopology, "_commands", lambda self, ports: {
+        role: ["unused", role] for role in self._role_ids})
+    monkeypatch.setattr(LocalTopology, "_environment", lambda self, role: {})
+    state.refunds = []
+    token = object()
+    state.charge = SimpleNamespace(token=token, close=lambda: state.refunds.append(token))
+    state.topology._capacity_reservations = state.charge
+    return state
+
+
+@pytest.mark.parametrize("failure_type", [RuntimeError, KeyboardInterrupt, SystemExit, _SupervisedFailure])
+def test_supervised_start_partial_init_preserves_primary_and_unknown_owner(
+    supervised_exception_boundary, monkeypatch, failure_type,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    primary = failure_type("partial initialization")
+    state.init_error = primary
+    raw_calls = []
+
+    def forbidden(*args, **kwargs):
+        raw_calls.append((args, kwargs))
+        raise AssertionError("uninitialized raw owner must remain UNKNOWN")
+
+    for method in ("poll", "wait", "terminate", "kill"):
+        monkeypatch.setattr(servers.UsagePopen, method, forbidden)
+    token = state.charge.token
+    with pytest.raises(failure_type) as caught:
+        topology.start()
+    assert caught.value is primary
+    assert primary.__cause__ is None and primary.__context__ is None
+    owner = topology._role_process_owners["inference"]
+    assert owner.process is state.processes[0]
+    assert type(owner.process) is servers.UsagePopen
+    assert not topology._ready_role_owners and not topology._processes
+    assert topology._starting is False
+    assert topology.closed and not topology.started
+    assert topology._capacity_reservations is state.charge
+    assert state.charge.token is token
+    assert not raw_calls and not state.refunds and not state.events
+    # Apparently dead fields still do not authorize retirement on later close.
+    owner.process.returncode = 0
+    owner.process.pid = 9999
+    with pytest.raises(TopologyError, match="construction unresolved"):
+        topology.close()
+    assert topology._role_process_owners["inference"] is owner
+    assert not topology._ready_role_owners and not raw_calls and not state.refunds
+
+
+def test_supervised_start_observer_and_rollback_cannot_replace_readiness_primary(
+    supervised_exception_boundary, monkeypatch,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    primary = _HostileRuntimeError()
+    cause, context = RuntimeError("existing cause"), RuntimeError("existing context")
+    primary.__cause__, primary.__context__ = cause, context
+    diagnostic, cleanup = _HostileBaseException(), _HostileBaseException()
+    attempts = []
+
+    def readiness(*args):
+        raise primary
+
+    def observer():
+        attempts.append("observer")
+        raise diagnostic
+
+    def stop(self, processes, *, _owners):
+        attempts.append("stop")
+        assert tuple(processes) == (state.processes[0],)
+        assert _owners[0] is topology._role_process_owners["inference"]
+        raise cleanup
+
+    topology._failure_observer = observer
+    monkeypatch.setattr(LocalTopology, "_wait", readiness)
+    monkeypatch.setattr(LocalTopology, "_stop_all", stop)
+    with pytest.raises(_HostileRuntimeError) as caught:
+        topology.start()
+    assert caught.value is primary
+    assert primary.__cause__ is cause and primary.__context__ is context
+    assert attempts == ["observer", "stop"]
+    assert topology._starting is False and topology.closed
+    assert topology._role_process_owners["inference"].process is state.processes[0]
+    assert topology._processes["inference"] is state.processes[0]
+    assert topology._ready_role_owners == {"inference"}
+    assert topology._capacity_reservations is state.charge and not state.refunds
+
+
+def test_supervised_initializer_primary_survives_reader_close_failure(
+    supervised_exception_boundary, monkeypatch,
+):
+    from pllm.runtime import fss_child_status
+
+    state = supervised_exception_boundary
+    topology = state.topology
+    primary, secondary = _HostileRuntimeError(), _HostileBaseException()
+    state.init_error = primary
+    topology._privacy_mode = "fss_public"
+    topology._role_ids = ("worker_a",)
+    attempts = []
+
+    class Reader:
+        child = SimpleNamespace(fileno=lambda: 7)
+
+        def __init__(self, *args):
+            pass
+
+        def start(self):
+            pass
+
+        def close(self):
+            attempts.append("reader-close")
+            raise secondary
+
+    monkeypatch.setattr(fss_child_status, "StatusReader", Reader)
+    raw_calls = []
+
+    def forbidden(*args, **kwargs):
+        raw_calls.append((args, kwargs))
+        raise AssertionError("uninitialized owner must remain UNKNOWN")
+
+    for method in ("poll", "wait", "terminate", "kill"):
+        monkeypatch.setattr(servers.UsagePopen, method, forbidden)
+    with pytest.raises(_HostileRuntimeError) as caught:
+        topology._spawn("worker_a", ["unused"])
+    assert caught.value is primary
+    assert primary.__cause__ is None and primary.__context__ is None
+    reader = topology._child_source_status["worker_a"]
+    owner = topology._role_process_owners["worker_a"]
+    assert owner.process is state.processes[0]
+    with pytest.raises(TopologyError, match="construction unresolved"):
+        topology.close()
+    assert topology._child_source_status["worker_a"] is reader
+    assert topology._role_process_owners["worker_a"] is owner
+    assert not topology._ready_role_owners and not topology._processes
+    assert attempts == ["reader-close", "reader-close"]  # Existing spawn and close boundaries.
+    assert topology._capacity_reservations is state.charge
+    assert not raw_calls and not state.refunds
+
+
+@pytest.mark.parametrize("first_failure", ["stop", "reader", "log", "engine"])
+def test_supervised_close_first_failure_attempts_independent_finalizers(
+    supervised_exception_boundary, monkeypatch, first_failure,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    process = topology._spawn("inference", ["unused"])
+    owner = topology._role_process_owners["inference"]
+    failures = {phase: _HostileBaseException() for phase in ("stop", "reader", "log", "engine")}
+    order = ("stop", "reader", "log", "engine")
+    attempts = []
+
+    def finalize(phase):
+        attempts.append(phase)
+        if order.index(phase) >= order.index(first_failure):
+            raise failures[phase]
+
+    def stop(self, processes, *, _owners):
+        assert tuple(processes) == (process,) and _owners == (owner,)
+        finalize("stop")
+
+    reader = SimpleNamespace(close=lambda: finalize("reader"))
+    later_reader = SimpleNamespace(close=lambda: attempts.append("later-reader"))
+    log = SimpleNamespace(closed=False, close=lambda: finalize("log"))
+    later_log = SimpleNamespace(closed=False, close=lambda: attempts.append("later-log"))
+    engine = SimpleNamespace(models=SimpleNamespace(clear=lambda: finalize("engine")))
+    topology._child_source_status = {"inference": reader, "preparation": later_reader}
+    topology._logs = {"inference": log, "preparation": later_log}
+    topology._local_engine = engine
+    topology._inference_key = topology._preparation_key = topology._push_key = "mock-secret"
+    topology._role_credentials = {"inference": "mock-secret"}
+    topology._peer_credentials = {("inference", "preparation"): "mock-secret"}
+    topology._source_pins = {"mock": "pin"}
+    monkeypatch.setattr(LocalTopology, "_stop_all", stop)
+    with pytest.raises(_HostileBaseException) as caught:
+        topology.close()
+    primary = failures[first_failure]
+    assert caught.value is primary
+    assert primary.__cause__ is None and primary.__context__ is None
+    assert attempts == ["stop", "reader", "later-reader", "log", "later-log", "engine"]
+    if first_failure in ("stop", "reader"):
+        assert topology._child_source_status == {"inference": reader}
+    else:
+        assert not topology._child_source_status
+    assert topology._logs["inference"] is log
+    assert topology._local_engine is engine  # Failed engine finalization also keeps its owner.
+    assert topology._capacity_reservations is state.charge and not state.refunds
+    assert topology._role_process_owners["inference"] is owner
+    assert topology._processes["inference"] is process
+    assert topology._ready_role_owners == {"inference"}
+    assert topology._inference_key == topology._preparation_key == topology._push_key == ""
+    assert not topology._role_credentials and not topology._peer_credentials
+    assert topology._source_pins is None
+
+
+@pytest.mark.parametrize("body_fails", [False, True])
+def test_supervised_context_exit_preserves_body_or_raises_close_only(
+    supervised_exception_boundary, monkeypatch, body_fails,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    topology._started = True
+    primary, secondary = _HostileBaseException(), _HostileRuntimeError()
+    cause, context = RuntimeError("body cause"), RuntimeError("body context")
+    primary.__cause__, primary.__context__ = cause, context
+    secondary.__cause__ = RuntimeError("close cause")
+    secondary.__context__ = RuntimeError("close context")
+    attempts = []
+
+    def close(self):
+        assert self is topology
+        attempts.append("close")
+        raise secondary
+
+    monkeypatch.setattr(LocalTopology, "close", close)
+    expected = primary if body_fails else secondary
+    expected_cause, expected_context = expected.__cause__, expected.__context__
+    with pytest.raises(type(expected)) as caught:
+        with topology:
+            if body_fails:
+                raise primary
+    assert caught.value is expected
+    assert attempts == ["close"]
+    assert expected.__cause__ is expected_cause and expected.__context__ is expected_context
+    assert topology._capacity_reservations is state.charge and not state.refunds
+
+
+@pytest.mark.parametrize("earlier_failure", [False, True])
+def test_supervised_deferred_scope_exit_preserves_first_cleanup_failure(
+    supervised_exception_boundary, monkeypatch, earlier_failure,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    primary, secondary = _HostileRuntimeError(), _HostileBaseException()
+    for error in (primary, secondary):
+        error.__cause__ = RuntimeError("deferred existing cause")
+        error.__context__ = RuntimeError("deferred existing context")
+    attempts = []
+
+    @contextmanager
+    def deferred():
+        try:
+            yield
+        finally:
+            attempts.append("scope-exit")
+            raise secondary
+
+    def stop(self, processes):
+        attempts.append("stop")
+        if earlier_failure:
+            raise primary
+
+    monkeypatch.setattr(servers, "defer_termination_signals", deferred)
+    monkeypatch.setattr(LocalTopology, "_stop_all", stop)
+    if not earlier_failure:
+        # Scope-exit-only interruption follows otherwise successful cleanup.
+        topology._capacity_reservations = None
+    expected = primary if earlier_failure else secondary
+    expected_cause, expected_context = expected.__cause__, expected.__context__
+    with pytest.raises(type(expected)) as caught:
+        topology.close()
+    assert caught.value is expected
+    assert attempts == ["stop", "scope-exit"]
+    assert expected.__cause__ is expected_cause and expected.__context__ is expected_context
+    if earlier_failure:
+        assert topology._capacity_reservations is state.charge and not state.refunds
+
+
+@pytest.mark.parametrize("signal_fails", [False, True])
+def test_supervised_stop_poll_and_wait_baseexceptions_never_prove_retirement(
+    supervised_exception_boundary, monkeypatch, signal_fails,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    first = topology._spawn("inference", ["unused-a"])
+    second = topology._spawn("preparation", ["unused-b"])
+    owners = dict(topology._role_process_owners)
+    primary, poll_error, wait_error = _HostileRuntimeError(), _HostileBaseException(), _SupervisedFailure()
+    calls = []
+
+    def poll(process):
+        calls.append(("poll", process))
+        # Reverse role order: signal primary is selected before this later poll.
+        if process is first:
+            raise poll_error
+        return None
+
+    def terminate(process):
+        calls.append(("terminate", process))
+        if process is second and signal_fails:
+            raise primary
+
+    def kill(process):
+        calls.append(("kill", process))
+
+    def wait(process, timeout):
+        calls.append(("wait", process, timeout))
+        state.clock += min(1.0, timeout)
+        raise wait_error
+
+    monkeypatch.setattr(servers.UsagePopen, "poll", poll)
+    monkeypatch.setattr(servers.UsagePopen, "terminate", terminate)
+    monkeypatch.setattr(servers.UsagePopen, "kill", kill)
+    monkeypatch.setattr(servers.UsagePopen, "wait", wait)
+    expected = primary if signal_fails else poll_error
+    with pytest.raises(type(expected)) as caught:
+        topology.close()
+    assert caught.value is expected
+    assert expected.__cause__ is None and expected.__context__ is None
+    assert [event for event in calls if event[0] in ("terminate", "kill")] == [
+        ("terminate", second), ("terminate", first), ("kill", second), ("kill", first)]
+    assert [event[2] for event in calls if event[0] == "wait"] == [5.0, 4.0, 2.0, 1.0]
+    assert len([event for event in calls if event[0] == "poll"]) == 4
+    assert first.returncode is None and second.returncode is None
+    assert topology._role_process_owners["inference"] is owners["inference"]
+    assert topology._role_process_owners["preparation"] is owners["preparation"]
+    assert topology._processes == {"inference": first, "preparation": second}
+    assert topology._ready_role_owners == {"inference", "preparation"}
+    assert topology._capacity_reservations is state.charge and not state.refunds
+
+
+@pytest.mark.parametrize("already_closed", [False, True])
+@pytest.mark.parametrize("exit_fails", [False, True])
+def test_supervised_reservation_failure_precedes_deferred_exit(
+    supervised_exception_boundary, monkeypatch, already_closed, exit_fails,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    process = topology._spawn("inference", ["unused"])
+    owner = topology._role_process_owners["inference"]
+    topology._closed = already_closed
+    process.returncode = 0  # The existing later-close fast path is eligible.
+    primary, secondary = _HostileRuntimeError(), _HostileBaseException()
+    primary.__cause__ = RuntimeError("reservation cause")
+    primary.__context__ = RuntimeError("reservation context")
+    cause, context = primary.__cause__, primary.__context__
+    attempts = []
+
+    def refund():
+        attempts.append("reservation")
+        raise primary
+
+    @contextmanager
+    def deferred():
+        try:
+            yield
+        finally:
+            attempts.append("scope-exit")
+            if exit_fails:
+                raise secondary
+
+    state.charge.close = refund
+    monkeypatch.setattr(servers, "defer_termination_signals", deferred)
+    with pytest.raises(_HostileRuntimeError) as caught:
+        topology.close()
+    assert caught.value is primary
+    assert primary.__cause__ is cause and primary.__context__ is context
+    assert attempts == ["reservation", "scope-exit"]
+    assert topology._capacity_reservations is state.charge and not state.refunds
+    assert topology._role_process_owners["inference"] is owner
+    assert topology._processes["inference"] is process
+    assert topology._ready_role_owners == {"inference"}
+
+
+@pytest.mark.parametrize("stop_fails", [False, True])
+@pytest.mark.parametrize("failure", [
+    "reader-collection", "reader-iterator-before", "reader-iterator-after",
+    "reader-removal", "log-collection", "log-iterator-before", "log-iterator-after",
+])
+def test_supervised_collection_failure_preserves_custody_and_independent_groups(
+    supervised_exception_boundary, monkeypatch, stop_fails, failure,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    process = topology._spawn("inference", ["unused"])
+    owner = topology._role_process_owners["inference"]
+    stop_error, collection_error, exit_error = (
+        _HostileRuntimeError(), _HostileBaseException(), _SupervisedFailure())
+    for error in (stop_error, collection_error):
+        error.__cause__ = RuntimeError("existing cause")
+        error.__context__ = RuntimeError("existing context")
+    expected = stop_error if stop_fails else collection_error
+    cause, context = expected.__cause__, expected.__context__
+    attempts = []
+
+    def interrupted(entries, group):
+        if failure.endswith("after"):
+            yield next(iter(entries))
+        attempts.append(group + "-iterator")
+        raise collection_error
+
+    class ReaderOwners(dict):
+        def items(self):
+            if failure == "reader-collection":
+                attempts.append("reader-collection")
+                raise collection_error
+            if failure.startswith("reader-iterator"):
+                return interrupted(super().items(), "reader")
+            return super().items()
+
+        def __delitem__(self, role):
+            if failure == "reader-removal" and role == "inference":
+                attempts.append("reader-removal")
+                raise collection_error
+            super().__delitem__(role)
+
+    class LogOwners(dict):
+        def values(self):
+            if failure == "log-collection":
+                attempts.append("log-collection")
+                raise collection_error
+            if failure.startswith("log-iterator"):
+                return interrupted(super().values(), "log")
+            return super().values()
+
+    first_reader = SimpleNamespace(close=lambda: attempts.append("reader-first"))
+    second_reader = SimpleNamespace(close=lambda: attempts.append("reader-second"))
+    first_log = SimpleNamespace(closed=False, close=lambda: attempts.append("log-first"))
+    second_log = SimpleNamespace(closed=False, close=lambda: attempts.append("log-second"))
+    readers = ReaderOwners(inference=first_reader, preparation=second_reader)
+    logs = LogOwners(inference=first_log, preparation=second_log)
+    topology._child_source_status = readers
+    topology._logs = logs
+    topology._local_engine = SimpleNamespace(
+        models=SimpleNamespace(clear=lambda: attempts.append("engine")))
+
+    def stop(self, processes, *, _owners):
+        assert tuple(processes) == (process,) and _owners == (owner,)
+        attempts.append("stop")
+        if stop_fails:
+            raise stop_error
+
+    @contextmanager
+    def deferred():
+        try:
+            yield
+        finally:
+            attempts.append("scope-exit")
+            raise exit_error
+
+    monkeypatch.setattr(LocalTopology, "_stop_all", stop)
+    monkeypatch.setattr(servers, "defer_termination_signals", deferred)
+    with pytest.raises(type(expected)) as caught:
+        topology.close()
+    assert caught.value is expected
+    assert expected.__cause__ is cause and expected.__context__ is context
+    if failure == "reader-collection":
+        reader_attempts = ["reader-collection"]
+    elif failure.startswith("reader-iterator"):
+        # Snapshot construction fails; no partial snapshot is finalized/retried.
+        reader_attempts = ["reader-iterator"]
+    elif failure == "reader-removal":
+        reader_attempts = ["reader-first", "reader-removal", "reader-second"]
+    else:
+        reader_attempts = ["reader-first", "reader-second"]
+    if failure == "log-collection":
+        log_attempts = ["log-collection"]
+    elif failure.startswith("log-iterator"):
+        log_attempts = (["log-first"] if failure.endswith("after") else []) + ["log-iterator"]
+    else:
+        log_attempts = ["log-first", "log-second"]
+    assert attempts == ["stop", *reader_attempts, *log_attempts, "engine", "scope-exit"]
+    assert topology._child_source_status is readers and topology._logs is logs
+    if failure.startswith("reader"):
+        assert readers["inference"] is first_reader
+        if failure != "reader-removal":
+            assert readers["preparation"] is second_reader
+        else:
+            assert "preparation" not in readers
+    else:
+        assert not readers
+    assert logs["inference"] is first_log and logs["preparation"] is second_log
+    assert topology._local_engine is None
+    assert topology._capacity_reservations is state.charge and not state.refunds
+    assert topology._role_process_owners["inference"] is owner
+    assert topology._processes["inference"] is process
+    assert topology._ready_role_owners == {"inference"}
+
+
+@pytest.mark.parametrize("failure", ["process-collection", "fastpath-poll"])
+def test_supervised_close_body_failure_precedes_deferred_exit(
+    supervised_exception_boundary, monkeypatch, failure,
+):
+    state = supervised_exception_boundary
+    topology = state.topology
+    process = topology._spawn("inference", ["unused"])
+    owner = topology._role_process_owners["inference"]
+    published = topology._processes
+    primary, secondary = _HostileBaseException(), _HostileRuntimeError()
+    primary.__cause__ = RuntimeError("body existing cause")
+    primary.__context__ = RuntimeError("body existing context")
+    cause, context = primary.__cause__, primary.__context__
+    attempts = []
+
+    def fail():
+        attempts.append(failure)
+        raise primary
+
+    if failure == "process-collection":
+        class UnavailableProcesses:
+            def keys(self):
+                return fail()
+
+        topology._processes = UnavailableProcesses()
+    else:
+        topology._closed = True
+        monkeypatch.setattr(servers.UsagePopen, "poll", lambda self: fail())
+    retained = topology._processes
+    log = SimpleNamespace(closed=False, close=lambda: attempts.append("log"))
+    topology._logs = {"inference": log}
+    topology._local_engine = SimpleNamespace(
+        models=SimpleNamespace(clear=lambda: attempts.append("engine")))
+
+    @contextmanager
+    def deferred():
+        try:
+            yield
+        finally:
+            attempts.append("scope-exit")
+            raise secondary
+
+    monkeypatch.setattr(servers, "defer_termination_signals", deferred)
+    with pytest.raises(_HostileBaseException) as caught:
+        topology.close()
+    assert caught.value is primary
+    assert primary.__cause__ is cause and primary.__context__ is context
+    assert attempts == [failure, "log", "engine", "scope-exit"]
+    assert topology._capacity_reservations is state.charge and not state.refunds
+    assert topology._processes is retained
+    assert published["inference"] is process
+    assert topology._role_process_owners["inference"] is owner
+    assert topology._ready_role_owners == {"inference"}
+    assert topology._logs["inference"] is log and topology._local_engine is None
+    assert not state.events
 
 
 def test_build_roles_is_side_effect_free_and_validates_inputs(monkeypatch) -> None:

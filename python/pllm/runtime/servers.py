@@ -191,12 +191,18 @@ def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]], *,
     """Signal every role before waiting, with one grace/kill budget for the graph."""
     processes = tuple(processes)
     supervised = {id(owner.process) for owner in _owners if owner.supervised}
-    error: Exception | None = None
+    error: BaseException | None = None
     for sig, seconds in ((signal.SIGTERM, 5.0), (signal.SIGKILL, 2.0)):
         deadline = time.monotonic() + seconds
         for process in processes:
-            if process.poll() is not None:
-                continue
+            try:
+                if process.poll() is not None:
+                    continue
+            except BaseException as exc:
+                if error is None:
+                    error = exc
+                # An unavailable poll is not evidence of exit. Still attempt
+                # the existing signal and wait passes for this initialized owner.
             try:
                 if os.name == "posix" and id(process) not in supervised:
                     os.killpg(process.pid, sig)
@@ -206,16 +212,18 @@ def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]], *,
                     process.kill()
             except ProcessLookupError:
                 pass
-            except Exception as exc:
-                error = error or exc
+            except BaseException as exc:
+                if error is None:
+                    error = exc
         for process in processes:
             try:
                 process.wait(timeout=max(0.0, deadline - time.monotonic()))
             except subprocess.TimeoutExpired:
-                if sig == signal.SIGKILL:
-                    error = error or TopologyError("local role process did not stop")
-            except Exception as exc:
-                error = error or exc
+                if sig == signal.SIGKILL and error is None:
+                    error = TopologyError("local role process did not stop")
+            except BaseException as exc:
+                if error is None:
+                    error = exc
     if error is not None:
         raise error
 
@@ -1002,8 +1010,12 @@ class LocalTopology:
                     self._ready_role_owners.add(role)
             except BaseException:
                 if reader is not None:
-                    reader.close()
-                    self._child_source_status.pop(role, None)
+                    try:
+                        reader.close()
+                    except BaseException:
+                        pass  # Keep the reader owner and the initializer primary.
+                    else:
+                        self._child_source_status.pop(role, None)
                 raise
             if reader is not None:
                 reader.spawned()
@@ -1307,21 +1319,19 @@ class LocalTopology:
                 self._starting = False
                 self._startup_breadcrumbs.update(phase="ready", role=None)
             return self
-        except BaseException as exc:
-            self._observe_failure()
+        except BaseException:
+            try:
+                self._observe_failure()
+            except BaseException:
+                pass  # Diagnostics cannot replace the startup primary or rollback.
             try:
                 self.close()
-            except Exception as close_exc:
-                with self._process_lock:
-                    self._starting = False
-                raise TopologyError(
-                    "local topology startup failed and role cleanup did not complete"
-                ) from close_exc
+            except BaseException:
+                pass  # Failed cleanup retains its existing owners and charges.
+            raise
+        finally:
             with self._process_lock:
                 self._starting = False
-            if not isinstance(exc, Exception) or isinstance(exc, TopologyError):
-                raise
-            raise TopologyError(f"local topology startup failed: {type(exc).__name__}") from exc
 
     def is_healthy(self) -> bool:
         if not self._started or self._closed:
@@ -1491,64 +1501,108 @@ class LocalTopology:
         self.request_stop()
         # The pressure guard, startup rollback and foreground caller can all
         # arrive here. One owner signals/reaps; other callers wait for retirement.
-        with defer_termination_signals(), self._close_lock:
-            with self._process_lock:
-                processes = dict(self._processes)
-                owners = tuple(getattr(self, "_role_process_owners", {}).values())
-                unresolved = tuple(owner for owner in owners
-                                   if owner.role not in self._ready_role_owners)
-                # Pending publication and published dictionaries retain the SAME
-                # raw objects. Deduplicate by object identity, never by PID.
-                ordered = []
-                seen = set()
-                for role in reversed(self._role_ids):
-                    owner = getattr(self, "_role_process_owners", {}).get(role)
-                    candidates = (processes.get(role),
-                                  owner.process if owner is not None
-                                  and owner.role in self._ready_role_owners else None)
-                    for process in candidates:
-                        if process is not None and id(process) not in seen:
-                            ordered.append(process)
-                            seen.add(id(process))
-            if (self._closed and not unresolved
-                    and all(process.poll() is not None for process in ordered)):
-                if self._capacity_reservations is not None:
-                    self._capacity_reservations.close()
-                    self._capacity_reservations = None
-                return
-            self._closed = True
-            try:
-                if any(owner.supervised for owner in owners):
-                    self._stop_all(ordered, _owners=owners)
-                else:
-                    self._stop_all(ordered)
-                if unresolved:
-                    # Never poll/wait a partially initialized object, or infer
-                    # no physical child from missing pid/locks/_child_created.
-                    raise TopologyError("local role construction unresolved; custody retained")
-            finally:
-                with self._process_lock:
-                    readers = tuple(getattr(self, "_child_source_status", {}).values())
-                    getattr(self, "_child_source_status", {}).clear()
-                for reader in readers:
-                    reader.close()
-                for log in self._logs.values():
-                    if not log.closed:
-                        log.close()
-                if self._local_engine is not None:
-                    self._local_engine.models.clear()
-                    self._local_engine = None
-                self._inference_key = ""
-                self._preparation_key = ""
-                self._push_key = ""
-                self._role_credentials.clear()
-                self._peer_credentials.clear()
-                self._source_pins = None
-            # Only refund after all child owners have actually retired. A failed
-            # stop retains leases for a later close attempt.
-            if self._capacity_reservations is not None:
-                self._capacity_reservations.close()
-                self._capacity_reservations = None
+        error: BaseException | None = None
+        try:
+            with defer_termination_signals():
+                try:
+                    with self._close_lock:
+                        try:
+                            with self._process_lock:
+                                processes = dict(self._processes)
+                                owners = tuple(getattr(self, "_role_process_owners", {}).values())
+                                unresolved = tuple(owner for owner in owners
+                                                   if owner.role not in self._ready_role_owners)
+                                # Pending publication and published dictionaries retain the SAME
+                                # raw objects. Deduplicate by object identity, never by PID.
+                                ordered = []
+                                seen = set()
+                                for role in reversed(self._role_ids):
+                                    owner = getattr(self, "_role_process_owners", {}).get(role)
+                                    candidates = (processes.get(role),
+                                                  owner.process if owner is not None
+                                                  and owner.role in self._ready_role_owners else None)
+                                    for process in candidates:
+                                        if process is not None and id(process) not in seen:
+                                            ordered.append(process)
+                                            seen.add(id(process))
+                            if (self._closed and not unresolved
+                                    and all(process.poll() is not None for process in ordered)):
+                                if self._capacity_reservations is not None:
+                                    self._capacity_reservations.close()
+                                    self._capacity_reservations = None
+                                return
+                            self._closed = True
+                            if any(owner.supervised for owner in owners):
+                                self._stop_all(ordered, _owners=owners)
+                            else:
+                                self._stop_all(ordered)
+                            if unresolved:
+                                # Never poll/wait a partially initialized object, or infer
+                                # no physical child from missing pid/locks/_child_created.
+                                raise TopologyError("local role construction unresolved; custody retained")
+                        except BaseException as exc:
+                            if error is None:
+                                error = exc
+                        try:
+                            with self._process_lock:
+                                readers = tuple(getattr(self, "_child_source_status", {}).items())
+                        except BaseException as exc:
+                            if error is None:
+                                error = exc
+                        else:
+                            for role, reader in readers:
+                                try:
+                                    reader.close()
+                                    with self._process_lock:
+                                        if self._child_source_status.get(role) is reader:
+                                            del self._child_source_status[role]
+                                except BaseException as exc:
+                                    if error is None:
+                                        error = exc
+                        try:
+                            for log in self._logs.values():
+                                try:
+                                    if not log.closed:
+                                        log.close()
+                                except BaseException as exc:
+                                    if error is None:
+                                        error = exc
+                                    # Logs already remain owned by the existing map.
+                        except BaseException as exc:
+                            if error is None:
+                                error = exc
+                            # Collection/iteration failed. Do not resume an unknown
+                            # iterator; independent engine cleanup still follows.
+                        if self._local_engine is not None:
+                            try:
+                                self._local_engine.models.clear()
+                            except BaseException as exc:
+                                if error is None:
+                                    error = exc
+                            else:
+                                self._local_engine = None
+                        self._inference_key = ""
+                        self._preparation_key = ""
+                        self._push_key = ""
+                        self._role_credentials.clear()
+                        self._peer_credentials.clear()
+                        self._source_pins = None
+                        # Secondary finalizer failures are not permission to refund.
+                        if error is None and self._capacity_reservations is not None:
+                            self._capacity_reservations.close()
+                            self._capacity_reservations = None
+                except BaseException as exc:
+                    # Record body failures (including reservation/fast-path
+                    # failures) before deferred signal forwarding can raise.
+                    if error is None:
+                        error = exc
+        except BaseException as exc:
+            # Includes deferred signal forwarding on scope exit. Raise only after
+            # leaving this handler, without linking a secondary into the primary.
+            if error is None:
+                error = exc
+        if error is not None:
+            raise error
 
     def __enter__(self) -> LocalTopology:
         if self._started and not self._closed:
@@ -1556,7 +1610,13 @@ class LocalTopology:
         return self.start()
 
     def __exit__(self, _type: Any, _value: Any, _traceback: Any) -> None:
-        self.close()
+        if _value is None:
+            self.close()
+        else:
+            try:
+                self.close()
+            except BaseException:
+                pass  # Returning None preserves the body primary unchanged.
 
 
 def build_roles(
