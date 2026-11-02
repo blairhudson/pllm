@@ -22,6 +22,60 @@ CONTRACTION_COLUMNS = 128
 INPUT_BOUND = 1 << 31
 
 
+def corrected_prompt_workspace_estimate(config, *, prefill=30, executed=31, selections=2):
+    """Extra-owner allocation estimate, NOT a physical/allocator memory bound.
+
+    Price ALL prefill rows (not only the last head row), full active KV at every
+    layer and complete expected/accepted results. Prompt tokenizer retires before
+    decoder work; final text decoding can overlap retained complete state.
+    The caller keeps the historical 512 MiB allowance cap and refuses a larger
+    estimate. Audit, BLAS and tokenizer allowances are heuristic ESTIMATES: no
+    allocator, thread-pool or retained-arena ceiling is derived or enforced here.
+    Shared reservations/admission/watchdog remain necessary, not launch permission.
+    """
+    if (prefill, executed, selections) != (30, 31, 2):
+        raise ValueError("corrected prompt requires 30 prefill/31 executed/two selections")
+    hidden, intermediate = config["hidden_size"], config["intermediate_size"]
+    heads, kv_heads = config["num_attention_heads"], config["num_key_value_heads"]
+    width = config.get("head_dim", hidden // heads)
+    layers, vocabulary = config["num_hidden_layers"], config["vocab_size"]
+    columns = max(hidden, intermediate, heads * width, kv_heads * width)
+    # Read/conversion/rint/i16 overlap, including the last loop's live block.
+    blocks = 32 * ROW_BLOCK * columns + 2 * FRAME_BYTES
+    # Int64 inputs, full f32 linear output, checked accumulation's masks/indexed
+    # copies and binary64 operand/chunk overlap. Head output has ONE input row.
+    contractions = (8 * prefill * columns
+                    + 4 * max(prefill * columns, vocabulary)
+                    + 96 * prefill * ROW_BLOCK
+                    + 16 * CONTRACTION_COLUMNS * (prefill + ROW_BLOCK))
+    # clear_oracle retains loop locals across layers/steps. Include norm/rotary,
+    # residuals, qkv, both MLP branches, sigmoid boolean indexing, exp, attention
+    # scores/mask/probability and temporary einsum output for EVERY position.
+    activations = 4 * (32 * prefill * hidden + 16 * prefill * intermediate
+                       + 16 * heads * prefill * executed
+                       + 16 * prefill * kv_heads * width)
+    # Four complete-state owners cover caches + concat/old overlap, final byte
+    # conversion, retained expected and accepted state. Audit consumes rows only.
+    complete_state = 4 * (8 * layers * executed * kv_heads * width
+                          + 4 * selections * vocabulary)
+    components = {
+        "weight_blocks_bytes": blocks,
+        "contractions_bytes": contractions,
+        "all_position_activations_bytes": activations,
+        "complete_state_bytes": complete_state,
+        "audit_scratch_estimate_bytes": 64 << 20,
+        "blas_workspace_estimate_bytes": 64 << 20,
+    }
+    # Reuse ordinary metadata allowance SIZE, not a claimed tokenizer hard limit.
+    # Final decoding overlaps retained results; arenas may outlive parsed objects.
+    # This phase model does not prove allocator reclamation between phases.
+    components["tokenizer_phase_estimate_bytes"] = (384 << 20) + complete_state
+    decoder = sum(value for key, value in components.items()
+                  if key != "tokenizer_phase_estimate_bytes")
+    components["required_estimate_bytes"] = max(components["tokenizer_phase_estimate_bytes"], decoder)
+    return components
+
+
 def _round_q11(value):
     value = np.asarray(value)
     if value.dtype != np.dtype("float32") or not np.all(np.isfinite(value)):
