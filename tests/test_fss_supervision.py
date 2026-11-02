@@ -67,7 +67,8 @@ def launch(tmp_path, monkeypatch):
         state.events.append("price")
         return object()
 
-    def spawn(command, *, environment, stdout, stderr, pass_fds=()):
+    def spawn(command, *, environment, stdout, stderr, _supervised, pass_fds=()):
+        assert _supervised is False
         role = command[command.index("--role") + 1]
         assert state.events[:2] == ["pins", "price"]
         assert value._source_pins == PINS

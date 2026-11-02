@@ -26,7 +26,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from pllm.configuration import Experiment, Model, Pipeline
-from pllm.runtime.process_usage import provider_popen_factory
+from pllm.runtime.process_usage import UsagePopen, provider_popen_factory
 from pllm.runtime.shutdown import defer_termination_signals
 
 
@@ -121,6 +121,27 @@ def role_client(experiment, connections):
     raise TopologyError("UNSUPPORTED_NETWORK_GRAPH: no admitted role client")
 
 
+def _supervised_role_group() -> bool:
+    value = os.environ.get("PLLM_SUPERVISED_ROLE_GROUP", "0")
+    if value not in ("0", "1"):
+        raise ValueError("PLLM_SUPERVISED_ROLE_GROUP must be exactly 0 or 1")
+    return value == "1"
+
+
+def _supervised_role_factory():
+    factory = provider_popen_factory(subprocess.Popen)
+    if factory is not UsagePopen or UsagePopen.__new__ is not object.__new__:
+        raise TopologyError("supervised roles require the existing exact UsagePopen owner")
+    return factory
+
+
+@dataclass(frozen=True, slots=True)
+class _RoleProcessOwner:
+    role: str
+    supervised: bool
+    process: subprocess.Popen[Any]
+
+
 def _spawn_role_process(
     command: list[str],
     *,
@@ -129,28 +150,47 @@ def _spawn_role_process(
     stderr: Any = None,
     discard_output: bool = False,
     pass_fds: tuple[int, ...] = (),
+    _owner: _RoleProcessOwner | None = None,
+    _supervised: bool | None = None,
+    _factory: Any = None,
 ) -> subprocess.Popen[Any]:
-    """All local role children share one process-group and credential boundary."""
+    """Common local-role launch boundary; supervised groups belong to the parent."""
+    supervised = _supervised_role_group() if _supervised is None else _supervised
+    if supervised:
+        factory = _factory if _factory is not None else _supervised_role_factory()
+    else:
+        factory = provider_popen_factory(subprocess.Popen)
+    if supervised and (_owner is None or not _owner.supervised
+                       or type(_owner.process) is not UsagePopen or factory is not UsagePopen
+                       or UsagePopen.__new__ is not object.__new__):
+        raise TopologyError("supervised launch requires a prepublished topology owner")
     if discard_output:
         stdout = subprocess.DEVNULL
         stderr = subprocess.DEVNULL
     # This synchronous Popen is the sole owner of provider reaping (including
     # health polls). Never apply the usage hook to multiprocessing/asyncio owners.
-    return provider_popen_factory(subprocess.Popen)(
-        command,
+    options = dict(
         cwd=Path.cwd(),
         env=environment,
         stdin=subprocess.DEVNULL,
         stdout=stdout,
         stderr=stderr,
-        start_new_session=True,
+        start_new_session=not supervised,
         **({"pass_fds": pass_fds} if pass_fds else {}),
     )
+    if supervised:
+        # The actual topology already retains this exact raw object. Do not wrap
+        # or subclass it: lifetime metrics and the sole reaper require its type.
+        UsagePopen.__init__(_owner.process, command, **options)
+        return _owner.process
+    return factory(command, **options)
 
 
-def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]]) -> None:
+def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]], *,
+                         _owners: Iterable[_RoleProcessOwner] = ()) -> None:
     """Signal every role before waiting, with one grace/kill budget for the graph."""
     processes = tuple(processes)
+    supervised = {id(owner.process) for owner in _owners if owner.supervised}
     error: Exception | None = None
     for sig, seconds in ((signal.SIGTERM, 5.0), (signal.SIGKILL, 2.0)):
         deadline = time.monotonic() + seconds
@@ -158,7 +198,7 @@ def _stop_role_processes(processes: Iterable[subprocess.Popen[Any]]) -> None:
             if process.poll() is not None:
                 continue
             try:
-                if os.name == "posix":
+                if os.name == "posix" and id(process) not in supervised:
                     os.killpg(process.pid, sig)
                 elif sig == signal.SIGTERM:
                     process.terminate()
@@ -219,6 +259,10 @@ class LocalTopology:
         "_process_lock",
         "_privacy_mode",
         "_processes",
+        "_role_process_owners",
+        "_ready_role_owners",
+        "_supervised_role_group",
+        "_role_popen_factory",
         "_progress",
         "_proprietary_protocol",
         "_requires_preparation",
@@ -294,6 +338,13 @@ class LocalTopology:
         memory_safety_margin_percent: int = 25,
         memory_enforced_wan: bool = False,
     ) -> None:
+        # Launch configuration only; no permission, slot or group-ownership proof.
+        # Capture before any startup acquisition, including source qualification.
+        self._supervised_role_group = _supervised_role_group()
+        # Resolve once from the CURRENT launcher, not a second factory after
+        # allocation. Foreign launchers keep their ordinary constructor path.
+        self._role_popen_factory = (_supervised_role_factory()
+                                    if self._supervised_role_group else None)
         from .benchmark_memory import _memory_budget, _memory_margin
 
         memory_budget_bytes = _memory_budget(memory_budget_bytes)
@@ -348,6 +399,8 @@ class LocalTopology:
         self._startup_timeout = startup_timeout
         self._progress = progress
         self._processes: dict[str, subprocess.Popen[Any]] = {}
+        self._role_process_owners: dict[str, _RoleProcessOwner] = {}
+        self._ready_role_owners: set[str] = set()
         self._process_lock = threading.Lock()
         self._close_lock = threading.Lock()
         self._logs: dict[str, Any] = {}
@@ -896,6 +949,14 @@ class LocalTopology:
         with self._process_lock:
             if self._stopping.is_set():
                 raise TopologyError("local topology stopped during startup")
+            supervised = getattr(self, "_supervised_role_group", False)
+            if supervised and role not in self._role_ids:
+                raise TopologyError("local role is not admitted")
+            if supervised and role in self._role_process_owners:
+                raise TopologyError("local role process already owned")
+            if supervised and (self._role_popen_factory is not UsagePopen
+                               or UsagePopen.__new__ is not object.__new__):
+                raise TopologyError("supervised roles require the existing exact UsagePopen owner")
             stdout: Any = None
             stderr: Any = None
             if self._log_dir is not None:
@@ -925,8 +986,20 @@ class LocalTopology:
                         environment.pop(ENV, None)
                         options.clear()  # Diagnostics unavailable, never weaker guards.
             try:
+                if supervised:
+                    raw = object.__new__(UsagePopen)
+                    owner = _RoleProcessOwner(role, True, raw)
+                    self._role_process_owners[role] = owner
+                    options["_owner"] = owner
+                    options["_factory"] = self._role_popen_factory
+                options["_supervised"] = supervised
                 process = _spawn_role_process(command, environment=environment,
                                               stdout=stdout, stderr=stderr, **options)
+                # Only a returned initializer establishes a usable Popen owner.
+                # Interrupted/failed construction remains sticky UNKNOWN, even if
+                # some of its fields later look like a dead process.
+                if supervised:
+                    self._ready_role_owners.add(role)
             except BaseException:
                 if reader is not None:
                     reader.close()
@@ -1410,8 +1483,9 @@ class LocalTopology:
         return create_sidecar_app(**options, **self._boundary_options(), **overrides)
 
     @staticmethod
-    def _stop_all(processes: Iterable[subprocess.Popen[Any]]) -> None:
-        _stop_role_processes(processes)
+    def _stop_all(processes: Iterable[subprocess.Popen[Any]], *,
+                  _owners: Iterable[_RoleProcessOwner] = ()) -> None:
+        _stop_role_processes(processes, _owners=_owners)
 
     def close(self) -> None:
         self.request_stop()
@@ -1420,14 +1494,38 @@ class LocalTopology:
         with defer_termination_signals(), self._close_lock:
             with self._process_lock:
                 processes = dict(self._processes)
-            if self._closed and all(process.poll() is not None for process in processes.values()):
+                owners = tuple(getattr(self, "_role_process_owners", {}).values())
+                unresolved = tuple(owner for owner in owners
+                                   if owner.role not in self._ready_role_owners)
+                # Pending publication and published dictionaries retain the SAME
+                # raw objects. Deduplicate by object identity, never by PID.
+                ordered = []
+                seen = set()
+                for role in reversed(self._role_ids):
+                    owner = getattr(self, "_role_process_owners", {}).get(role)
+                    candidates = (processes.get(role),
+                                  owner.process if owner is not None
+                                  and owner.role in self._ready_role_owners else None)
+                    for process in candidates:
+                        if process is not None and id(process) not in seen:
+                            ordered.append(process)
+                            seen.add(id(process))
+            if (self._closed and not unresolved
+                    and all(process.poll() is not None for process in ordered)):
                 if self._capacity_reservations is not None:
                     self._capacity_reservations.close()
                     self._capacity_reservations = None
                 return
             self._closed = True
             try:
-                self._stop_all(processes[role] for role in reversed(self._role_ids) if role in processes)
+                if any(owner.supervised for owner in owners):
+                    self._stop_all(ordered, _owners=owners)
+                else:
+                    self._stop_all(ordered)
+                if unresolved:
+                    # Never poll/wait a partially initialized object, or infer
+                    # no physical child from missing pid/locks/_child_created.
+                    raise TopologyError("local role construction unresolved; custody retained")
             finally:
                 with self._process_lock:
                     readers = tuple(getattr(self, "_child_source_status", {}).values())
