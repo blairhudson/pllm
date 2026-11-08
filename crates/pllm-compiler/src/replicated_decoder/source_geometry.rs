@@ -4,6 +4,7 @@ use super::*;
 use pllm_models::DecoderPlan;
 
 // Inactive candidate only. No ingress/request caller or owner-layout change.
+#[path = "source_geometry/metadata.rs"]
 mod metadata;
 
 #[cfg(test)]
