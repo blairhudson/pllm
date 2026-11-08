@@ -219,6 +219,59 @@ Primary files: native `replicated_decoder/{program.rs,runtime.rs,public_source.r
 `puma/{tensor.rs,work.rs}`, the replicated Python worker/transport, shared role
 supervision, `benchmark_memory.py` and `benchmark_targets.py`.
 
+#### Source-only compact publication obligations
+
+**Status: static source only.** The following inventory records branches,
+representations and unresolved coverage obligations in
+[`compact_request_sealed.rs`](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs).
+It establishes no fees, admission result, native entry funding or execution
+qualification.
+
+| Source lines | Reached operation or boundary | Coverage obligation |
+| --- | --- | --- |
+| [543](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L543) | Completed-state refusal before quotation or growth. | Cover the executed check and its reached cleanup under prior owners. |
+| [547–566](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L547-L566) | Layout construction and checked quotation refusals before growth. | The executed prefix needs prior coverage; its calculated demand is not an advance debit. |
+| [579](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L579) | Lease-growth refusal. | Future prepayment cannot retrofund the reached prefix or refusal cleanup. |
+| [583–588](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L583-L588) | Publication and retained-resolution prepayment failures. | Original owners remain retained through the reached cleanup; complete coverage remains to be shown. |
+| [589](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L589) | Output reservation failure. | Include reservation work, retained owners and reached destruction. |
+| [597–608](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L597-L608) | Custody `Box` and Program `Arc` construction. | Separate allocation, initialization and cleanup obligations; these are not ordinary returned-`Result` refusal branches. |
+| [609–627](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L609-L627) | Conditional binding access, declared-digest, schedule-length, custody-presence and public-source check refusals. | Count each complete reached path, including its prefix and cleanup. |
+| [628–636](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L628-L636) | Mutable `Arc` projection, missing custody and installed-variant refusal. | Preserve the actual installed owner and its still-uncommitted attempt through refusal. |
+| [637–638](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L637-L638) | Commit the same installed `Attempt` and return the Program. | Preserve the identity and publication boundary; this source inventory supplies no execution result. |
+
+The quotation at
+[line 562](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L562)
+includes two `Result<&mut Self, Error>` representations; lease growth occurs later
+at line 579. One installed-projection chain is identified: the resident match at
+[192–196](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L192-L196)
+through the call and destination at 632–636. The second representation remains
+**unassigned**. This supplies no fungibility, call/return aliasing or work-credit
+inference.
+
+Local sealed-field destruction follows the declaration order at
+[53–58](../../crates/pllm-compiler/src/replicated_decoder/compact_request_sealed.rs#L53-L58):
+`Attempt`, recipes, finalized-owner `Arc`, then covering charge. In
+[`request_schedule.rs:317–341`](../../crates/pllm-compiler/src/replicated_decoder/request_schedule.rs#L317-L341),
+an uncommitted `Attempt` stores `BURNED` before its origin `Arc` field retires.
+This is local ordering only, not final backing release, global final-guard ordering
+or whole-cleanup funding proof.
+
+The public-source check at
+[`public_source.rs:429–477`](../../crates/pllm-compiler/src/replicated_decoder/public_source.rs#L429-L477)
+performs **both binding checks before actual input traversal**: the `filter_map`
+iterator is lazy. Traversal then inspects all input recipes, filters public
+descriptors, performs keyed file lookup and digest/size checks, and checks a
+nonzero exact descriptor count. The all-input count and the yielded
+public-descriptor count are distinct obligations; neither can stand in for the
+other.
+
+Independently established dynamic `N`/`M` pricing remains separate and does not
+cover unresolved leaves by implication. The historical 64-visit metadata
+allowance remains **unproved**: neither adequacy nor a counterexample or overrun
+has been established here. Normative leaf checks, resize and destruction coverage,
+and prior-prefix funding remain open. This inventory changes no rates, caps,
+completion status or permissions; execution HOLD continues.
+
 ### P3 — actual checkpoint execution and independent correctness
 
 1. Extend the existing independent stochastic-integer oracle to the complete
