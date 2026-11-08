@@ -81,7 +81,7 @@ fn native_bootstrap_policy_fee_matches_legacy_without_json_recharge_or_ledger_re
     let phase = admission.reserve_bootstrap_phase(
         root.charge_external(original_source::OriginalSourcePlan::primitive_attempt_control_bytes().unwrap()).unwrap(), 23,
     ).unwrap();
-    let original = root.charge_external(config_bytes.len()).unwrap()
+    let original = root.charge_external(config_bytes.capacity()).unwrap()
         .try_build(|_| Ok(config_bytes)).unwrap();
     let prepared = phase.prepare_configuration(original,
         root.charge_external(json::bootstrap_bytes().unwrap()).unwrap()).unwrap();
