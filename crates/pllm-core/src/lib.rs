@@ -32,6 +32,7 @@ pub mod exact_buffer;
 pub mod field_float;
 pub mod fixed_file;
 pub mod fixed_point;
+pub mod fp32_activations;
 mod freivalds;
 pub mod gkm;
 pub mod head_index;
