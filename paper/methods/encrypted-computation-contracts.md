@@ -325,6 +325,19 @@ dominance reduction. Test nonmonotone measured costs as well as the source's
 monotonicity assumption. Audit F4 records the exact counterexample; it is not a
 benchmark result or permission to claim the printed optimizer was reproduced.
 
+**Narrow released-source recovery:** independent static inspection recovered
+`Cachemir_ae/llama.go` (`DecoderThor`, `DecoderMsg`, `Model`) and
+`Cachemir_ae/main.go` dispatch in the official [v0.1.2-ae archive](https://zenodo.org/api/records/23377151/files/Cachemir_ae.zip/content).
+[Numeric packet §1](/docs/plans/cachemir-numeric-state-packet.md#1-governing-evidence-and-the-conflict-this-proposal-preserves)
+binds archive bytes, not a commit/evaluated run; [operator join §4](/docs/plans/cachemir-source-capability-join.md#4-concrete-operator-dependencies-and-exact-missing-evidence)
+records connected decoder wiring, caller targets 9/7/13/7 and internal refreshes.
+The synthetic default uses adaptive reciprocal and fixed THOR fits, not Appendix E's
+selected standard Goldschmidt; names prove neither evaluated-method nor ablation
+identity. Released caller-definition recovery is closed; evaluated checkpoint,
+per-layer binding, token feedback, paper-aligned numerics, backend/runtime security
+and funding remain open. No execution/profile adoption, cap or HOLD change follows;
+Appendix E requirements above and the §6.4 minimum slice remain unchanged.
+
 ### 6.4 Output gaps, hardware, and minimum slice
 
 The paper describes KV append and decoder blocks but does not fully specify initial private token lookup, complete output head placement, private argmax/sampler, token re-embedding, EOS, cancellation, continuation, or replay. Its statement that the client encrypts/decrypts only at boundaries cannot be silently replaced with per-layer client refresh. Decide whether repeated-token functionality remains entirely encrypted or uses an approved per-token client boundary; freeze output leakage before implementation.
@@ -347,6 +360,16 @@ Source execution scope:
 R §§2.3–2.4 pp.4–5 targets **one-token decode with retained KV**, private input, confidential server-held weights, public architecture, and honest-but-curious client/server. It uses CKKS for arithmetic and TFHE-style scalar/LUT operations selectively. All required secret keys must remain with the client; the server receives evaluation/conversion material. The paper does not fully enumerate the cross-domain key graph, which is a mandatory implementation gate. No malicious-result verification is established.
 
 R §5.1 pp.10–11 freezes CKKS `R=2^16`, `S=2^15`, 1,763-bit modulus, usable `L=13`, bootstrap depth 15, CtS/StC depths 4/3, depth-eight modular reduction, sparse secret Hamming weight 192 with encapsulation, and approximate RNS prime sizes 53 then 41 bits. TFHE uses **LWE dimension 1024, blind-rotation ring degree 2048, and 53-bit ciphertext modulus**. All are claimed 128-bit secure. Exact primes, errors, gadget decomposition, key distributions/relationships, failure probabilities and fixed-point scales are still required.
+
+Exact **evaluated** modulus `q` and the evaluated parameter manifest are required
+for evaluated-build reproduction; matching bit widths do not establish identity.
+D65 separately permits an independently parameterized odd-modulus specification
+study preserving paper algorithm, ownership and security targets, not `q` selection.
+An independently derived exact `q` still requires a complete derived manifest,
+independent review and explicit adoption before implementation. Existing proposed
+scales/knobs remain unselected; no backend/profile adoption, implementation/execution
+or unavailable evaluated-constant/parity claim follows. Original funding, custody,
+source, admission, Native HOLDs and caps remain unchanged.
 
 In particular, extracting from the 2048-dimensional small ring does not by itself explain the final 1024-dimensional LWE key domain. Freeze the necessary key switching/secret relation explicitly; do not treat raw RLWE coefficient extraction as complete CKKS–TFHE conversion.
 
@@ -463,7 +486,7 @@ The HE extra currently pins `tenseal==0.3.17` in [pyproject.toml](../../pyprojec
 | Decision | Faithful recommendation | Qualification required before implementation |
 | --- | --- | --- |
 | B1: leveled SEAL versus full HE | Retain bounded SEAL operators as historical components; add a genuinely bootstrap-capable backend boundary for full methods. | No current SEAL bootstrap. Choose an independently implemented refresh or an approved general-purpose library primitive; do not link FHE-MP-CNN or authors' modified inference trees. |
-| B2: CacheMir/ROSETTA CPU | Qualify a pinned **Lattigo v6** release as the initial common CPU candidate, with independent PLLM packing, lookup, scheduling and state code. | Exact APIs for sparse-secret encapsulation, CtS-first refresh, raw RLWE/blind rotation, ring switching and target-level recovery; supported parameters; license; native ownership/FFI or separate-process boundary. CacheMir does not pin its original Lattigo version. |
+| B2: CacheMir/ROSETTA CPU | Qualify a pinned **Lattigo v6** release as the initial common CPU candidate, with independent PLLM packing, lookup, scheduling and state code; backend choice remains unselected. | Exact APIs for sparse-secret encapsulation, CtS-first refresh, raw RLWE/blind rotation, ring switching and target-level recovery; supported parameters; license; native ownership/FFI or separate-process boundary. Official v0.1.2-ae release declares Lattigo v6.1.1; historical evaluated-run identity, resolved dependency contents/build graph and effective bootstrap defaults remain unverified. This declaration does not adopt v6.1.1 for PLLM; see [release details](/docs/plans/cachemir-numeric-state-packet.md#1-governing-evidence-and-the-conflict-this-proposal-preserves). |
 | B3: NEXUS/THOR algorithm port | Preserve each method's parameters, layouts, approximation schedule and output semantics even if backend adapters differ. | NEXUS's dual-key operations, scale propagation and 21 usable levels; THOR's deferred kernels/complexification and source bootstrap. A different generic backend is a recorded execution adaptation requiring approval. |
 | B4: GPU | Implement and qualify CPU algorithms first; treat source GPU reproduction as a separately budgeted target. | Do not call a CPU implementation a reproduction of four-A100 NEXUS, single-A100 THOR, or customized-Phantom speedups. Qualify general GPU dependencies separately; independently implement required kernels/customizations. |
 | B5: alternative full-HE library | Consider only if it can demonstrate the same primitive/key/layout semantics and precision at the intended security target. | A library advertising CKKS bootstrapping or CKKS–TFHE switching does not establish ROSETTA's encrypted-accumulator and ring-conversion contract. No silent switch to a fixed low-precision LUT or client refresh. |

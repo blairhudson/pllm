@@ -1318,6 +1318,97 @@ This is not permission for unbounded snapshots, caller-controlled admission,
 trained-checkpoint/tensor-model jobs or downloads, numerical/wire/profile changes,
 cap increases, HE keys, FSS inference, or joint-privacy/source-authentication upgrades.
 
+**User-approved logical-slot and callback-inventory convention:** This addendum
+selects a source-level accounting convention under D26; it adopts no numeric total
+F or physical Rust stack-layout claim. Source-only event tables and pure checked
+component helpers are permitted; helpers remain unused by admission and establish
+partial components, not total funding.
+
+Count one typed logical slot per named binding/control, plus explicit caller
+result and destination slots. Count aggregate inline fields once, not again beside
+their aggregate. Consumed relocation shares a slot only with proven nonoverlap;
+otherwise count separately. Sequential work sums; exclusive complete paths use
+their maximum, including executed prefix and cleanup. Count shared backing once
+by authenticated allocation identity, original owner and root partition; common
+budget identity does not make owners interchangeable.
+
+Include incoming `Self` and callback environments in end-to-end ownership inventory
+under their original caller owners. They already exist before callee quotation:
+demand is not new debit, and later growth cannot retrofund them. Advance
+caller-capacity evidence and reservation for future uncovered controls remain
+required. This grants no payer transfer, new authority, replay, restore, reset,
+refund or reacquisition credit.
+
+Compiler-wide inspection found three resident HRTB closure call sites, all in
+[test code](../../crates/pllm-compiler/src/replicated_decoder/resident_input_tests.rs);
+no production resident caller was found. Their advance entry/capture funding
+witness remains unknown. These closures do not establish a production factory
+profile or adopt/prove a native entry witness.
+
+Unit rates and caps remain unchanged. Standard-map/equality work-model expansion,
+root 64-visit census, new result controls and quotation work remain unproved.
+Complete work counts, entry funding, fresh native-worker qualification, immutable
+snapshot qualification and an explicit command grant remain open; execution HOLD
+continues. D26/D49 ownership, identity, lifecycle, publication and qualification
+gates remain in force; this source-only approval releases none of them.
+
+**Further source-only arithmetic and inspection grants:** The user explicitly
+approves authoring owning and generic context-quotation APIs returning
+`Result<usize, Error>`, with every product and addition checked and `Error::Bounds`
+replacing ordinary unchecked overflow, plus error propagation at the four existing
+callers. The nonoverflow coefficient table remains unchanged. This extends the
+earlier pure-unused-helper grant because the checked shared formula is
+production-used source. A private owning/loan maximum component remains unused by
+admission. Ordinary arithmetic regression source and independent static review are
+approved; implementation and review completion are not asserted. No current
+maximum-reservation wiring, funding, lifetime or typed-acceptance claim follows.
+
+The user also selects occurrence-labelled nonlookup envelopes for source tables
+and pure checked helpers only: logical tags and length headers are separate;
+dimensions and scalars are field visits, string and digest operands are bytes,
+and pointer-identity operands are operands. Count conservative full extents of
+both operands for each reached equality, including present norm payloads in
+mixed-`Option` comparisons, while preserving outer short-circuiting. Count
+`Code`-variant branch control once, not in each key/digest leaf. The three map
+lookup boundaries and owner-search bounds remain unselected: registry records
+with `&String`, inputs with `&str`, and builder norms with `&usize`. No universal
+opaque-one, full-scan or pinned-standard-library assumption is adopted. Helper
+implementation is not asserted. This selects no new rates, F or numeric F total,
+admission/debit/prepayment wiring, production algorithm, authentic funding or
+native execution grant. Existing caps, rates, defaults, Legacy behavior and
+request refusal remain unchanged. Native execution HOLD and fresh-worker,
+immutable-snapshot and explicit-command gates remain; test execution, builds,
+formatting, commits and activation are excluded.
+
+**Occurrence-labelled nonlookup source table:** The following rows describe the
+selected conservative operand envelopes, not actual equality instruction counts.
+The private [inspection extent helpers](../../crates/pllm-compiler/src/replicated_decoder/source_inspection_extent.rs)
+accept synthetic lengths/counts only; they establish no authenticated demand or
+funding witness. Vectors below are `(tag visits, length-header visits, field
+visits, operand bytes, pointer operands)`, with no flat sum or fee conversion.
+
+| Source/function occurrence | Reach condition | Operands | Category vector | Exclusions |
+| --- | --- | --- | --- | --- |
+| [RequestSources::check_prepared_maps](../../crates/pllm-compiler/src/replicated_decoder/request_origin.rs), `view.shape != record.shape` | This iteration's input and node lookups succeed and `view.owner == owner` | Both shape lengths `L`, `R` | `(0, 2, L+R, 0, 0)` | Lookups, owner comparison and prior loop/count work; full extents even if length/element mismatch stops equality early |
+| Same function, `builder.public_norms.get(&owner) != norm` equality only | Owner and shape comparisons pass; builder-norm lookup produces its option | Optional block counts `l`, `r`; each present operand has three scalar fields and three fields per block | `(2, number of present operands, sum over present n of (3+3n), 0, 0)` | Lookup itself; fields are visits, not `u128` bytes. Mixed options include present payload conservatively, not as an actual inspection claim |
+| Same function, `Code::PublicInput` variant branch | Owner, shape and norm predicates pass | One `Code` discriminant | `(1, 0, 0, 0, 0)` | Count this branch-control occurrence once; neither key nor digest leaf repeats it; no helper getter or runtime branch is added |
+| Same function, `k == key` | Preceding predicates pass and node is `Code::PublicInput` | Both key byte lengths `L`, `R` | `(0, 2, 0, L+R, 0)` | Variant control, map lookup comparisons and digest; full operands despite early equality stop |
+| Same function, `*digest == record.digest` | Node is `Code::PublicInput` and key equality passes after preceding predicates | Two 32-byte digests | `(0, 0, 0, 64, 0)` | Variant/key control; 64 operand bytes is not a 64-unit fee |
+| [DeclarationReceiver::check_drain](../../crates/pllm-compiler/src/replicated_decoder/request_origin.rs), `builder.original_inputs.iter().any(...)` pointer-identity scan | On the combined resident-drain path, [resident_commit::drain](../../crates/pllm-compiler/src/replicated_decoder/source_entry.rs) first succeeds in `check_transport`, including `check_prepared_maps`; all earlier `check_drain` predicates through token-shape equality also pass | Two pointer operands per actually visited entry `v`; alternatively explicitly label an `M`-entry upper bound | `(0, 0, 0, 0, 2v)`; labelled bound `(0, 0, 0, 0, 2M)` | `any()` stops at first match; `M` is not a measured visit count. No pointer-search bound or other pointer-comparison occurrence is discharged |
+
+Outer short-circuit reach is preserved: an unreached leaf contributes no reached
+occurrence. Full two-operand helper envelopes do not assert that an early-stopping
+comparison inspects every operand. These rows are not a complete function census.
+In particular, the three map-lookup boundaries remain excluded: the
+[SourceRegistry::records](../../crates/pllm-compiler/src/replicated_decoder/source_registry.rs)
+iterator's norm lookup with `&String`, `inputs.get` with `&str`, and
+`builder.public_norms.get` with `&usize`. The `records().count()` traversal and
+subsequent `records()` loop are distinct occurrences requiring separate coverage,
+including repeated iterator work and their own lookup occurrences. No universal
+opaque-one, full-scan or pinned-standard-library lookup model is selected. The
+helpers remain unwired; no rates, total F, payer authority, admission, debit,
+prepayment, current funding or native HOLD release follows.
+
 ## D50. Isolated versioned sampling Source preparation
 
 **Explicitly approved on 25 October 2026 (user61296):** source-only preparation
@@ -1622,6 +1713,63 @@ D58's separately labelled cohort and historical measurements retain their scope.
 Approval establishes neither implemented prefix support, admitted cached-checkpoint
 execution nor SDK, security, quality or complete-method qualification.
 
+## D65. Separately labelled odd-modulus ROSETTA specification study
+
+**Explicitly approved on 4 November 2026 (user83579):** commission a separately
+labelled, independently parameterized **odd-modulus ROSETTA specification study**.
+Preserve the paper algorithm, role/key ownership and security targets; derive an
+exact parameter manifest and obtain independent review. Do not claim unavailable
+evaluated constants, evaluated-build identity or parity with the evaluated source.
+
+This approves study only, **not modulus, backend or profile adoption**. Existing
+proposed scales, constants and other knobs remain unselected. Exact independently
+derived parameters still require review and explicit adoption before implementation.
+No implementation or execution is authorized. Original funding, custody, source,
+admission, Native HOLDs and all existing caps remain unchanged.
+
+## D66. Research-only nonresumable SIGMA bridge lifecycle
+
+**Explicitly selected on 4 November 2026 (user83579):** use a **research-only,
+nonresumable lifecycle for the next security review**. Exclude rollback and cloning
+of issuer, evaluator, decision-authority and consumer state. Permanently abandon
+uncertain instances and uses; **no reissue or refund**. This is a scope restriction,
+not a rollback-resistant construction or production antirollback qualification.
+
+A separately authenticated, durable, non-equivocating decision authority remains
+required. Its construction/API and the authenticated-two-role alternative remain
+**UNSELECTED**. D63's independent protocol/security review remains mandatory;
+preserve original funding, custody, admission, masks, arithmetic and HOLDs. No
+implementation, execution or security qualification follows from this selection.
+
+## D67. BumbleBee wider full-U exact-Down design target
+
+**Explicitly selected on 5 November 2026:** the substantial-adaptation DESIGN
+family `bumblebee.olt-wide3x60-p35-fullU-exactDown.v1`. Fix N=8192, t=2^64 and
+ordered `[q1,q2,q3,p]`, with prospective distinct primes `q_i in [2^59,2^60)`
+and `p in [2^34,2^35)`, all 1 modulo 16384. The design uses data level 1/key
+level 0, full-U, the retained 31-switch/469 trace and exact CRT/Down REPLACEMENT,
+not equality with the upstream approximate decoder. Under the recorded premises,
+the conditional circular bound is ±1 per direction/±2 after assembly for every
+mask and supported noise; this is NOT a whole-model tolerance qualification.
+
+This authorizes candidate-bound COMMON original-issuer → consuming-decode
+admission **DESIGN ONLY**, recorded in the [OLT packet, §§16–18](../../docs/plans/bumblebee-encrypted-olt-closure.md#16-selected-deterministic-parameter-repair-design-family).
+The existing §17 **Untimed reuse / Residue classes** selection is unchanged.
+D7's final-paper/evaluated-profile mapping remains separately unresolved.
+Concrete primes, backend, storage (including §17.3.2), trust/disclosure, security,
+funding, source implementation and execution are NOT selected. Original custody,
+admission, caps and HOLDs remain unchanged; the concrete numerical profile remains
+UNADOPTED.
+
+**5 November 2026 user follow-up — logical design choice:** select row-major
+valid output cells, direction descriptors `(0,1)` then `(1,0)` and the paper's
+party-local D/S share roles, excluding padding, as specified in
+[OLT §18.1](../../docs/plans/bumblebee-encrypted-olt-closure.md#181-selected-logical-output-mapping).
+This selects LOGICAL mapping only, not physical storage, execution/wire order,
+extra disclosure, partial/atomic delivery or authenticated-entitlement enforcement.
+All prior D67 limits remain: no numerical-lineage extension, backend, funding,
+security, source implementation or execution qualification; D7 mapping stays open.
+
 ## Decision record
 
 | ID | State | Blocks |
@@ -1690,6 +1838,9 @@ execution nor SDK, security, quality or complete-method qualification.
 | D62 | Approved: reusable method layers over qualified general-purpose native Rust crypto | Refresh/conversion/encrypted selection/custody; independent capability/security/numerical review before method mapping. Poulpy qualification is not a method; research implementations reference-only, no implicit backend pin/adoption. |
 | D63 | Approved conditionally: SIGMA exact-share to common-mask consuming contract | Contract first, independent protocol/security review next, conditional implementation/bounded tests after gates and fresh grants; charge openings/randomness/custody/cleanup. No implicit reconstruction, reuse, privacy weakening or unreviewed activation. |
 | D64 | Approved: fully costed FuseFSS actual/configured prefix support | Actual 30-token prompt plus feedback and configured ≤32+2 envelope, potentially 33 prefix positions, not blind cap31. Preserve arithmetic/security/global caps; complete admission and independent review, no signed-SiLU construction-gate bypass or fit/execution claim. |
+| D65 | Approved: separately labelled independently parameterized odd-modulus ROSETTA specification study | Preserve paper algorithm/ownership/security targets; derive exact manifest and obtain independent review, then separate adoption before implementation. No evaluated-constant/parity claim, modulus/backend/profile adoption or implementation/execution; original funding/custody/source/admission/Native HOLDs and caps remain. |
+| D66 | Selected: research-only nonresumable SIGMA bridge lifecycle for next security review | Exclude issuer/evaluator/authority/consumer rollback/cloning; permanently abandon uncertain instances/uses, no reissue/refund. Separate authenticated durable non-equivocating authority required; construction/API and two-role alternative unselected. D63 review and original funding/custody/admission/masks/arithmetic/HOLDs remain; no production antirollback, security qualification or implementation/execution grant. |
+| D67 | Selected: BumbleBee wider full-U exact-Down DESIGN family | `bumblebee.olt-wide3x60-p35-fullU-exactDown.v1`; candidate-bound COMMON issuer → consuming-decode admission design only. Conditional directional ±1/assembly ±2 under recorded premises, not whole-model tolerance. D7 mapping remains open; §17 selection unchanged. No concrete primes/backend/storage/trust/disclosure/security/funding/source implementation/execution adoption; caps/HOLDs unchanged. |
 
 D6/D8 settle only their explicitly named source-derived interpretations. BumbleBee
 final-paper mapping, NEXUS numerical conflicts and any further adaptation still

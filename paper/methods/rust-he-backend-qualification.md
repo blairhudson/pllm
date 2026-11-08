@@ -2,6 +2,8 @@
 
 Review date: **17 October 2026**. Status: **bounded Poulpy qualification approved; eager-key profile blocked before allocation; no HE execution**.
 
+**Current OpenFHE direction (4 November 2026):** candidate direction approved; adoption/implementation unapproved. See §1.1; the Poulpy decisions below remain historical decisions, unchanged.
+
 ## 1. Decision
 
 **Poulpy v0.9.0 is the strongest native-Rust CKKS candidate found in this review. It already contains CKKS bootstrapping, including public component stages, sparse-secret encapsulation, and Apple-silicon CPU support.** A claim that Rust has no CKKS bootstrap would be incorrect for the inspected current sources. However, Poulpy uses **bivariate power-of-two torus arithmetic, not the papers' RNS prime chains**. It is a candidate for an explicitly approved backend adaptation, not an already qualified source-profile replacement.
@@ -23,6 +25,47 @@ qualification remain open.
 
 This review supplements [encrypted-computation-contracts.md](encrypted-computation-contracts.md) and [encrypted-inference.md](../reproduction-contracts/encrypted-inference.md). Their Lattigo recommendations were proposals, not adoption. Their older library pins remain historical evidence, not current release claims. This work owns this report, [its source manifest](rust-he-backend-sources.json), `benchmarks/native/poulpy_refresh/` and `scripts/qualify_rust_ckks_refresh.py`; root Cargo files and other agents' lifecycle/GKM files are outside its scope.
 
+### 1.1 OpenFHE candidate-direction approval — 4 November 2026
+
+**User choice and scope.** The user approved reviewing generic **OpenFHE v1.6.1**, commit `b59e1f291965f14fbee5172cd83a20f5b856204f`, as a foreign candidate for shared THOR/CacheMir primitives through Rust. This is an exception to the native-Rust preference **for candidate direction only**: **candidate direction approved; adoption/implementation unapproved**. It grants no dependency addition, installation, build, Rust wrapper, code or execution. Permission to recover source mathematics is not a backend grant; paper runtimes remain reference oracles only, not implementation dependencies. No Poulpy historical approval or blocked result is superseded.
+
+**Implemented primitives, not qualified behavior.** The pinned [`cryptocontext.h`][O8] and [`ckksrns-fhe.cpp`][O9] provide standard complex-slot RNS-CKKS encoding/arithmetic, two-component automorphisms (rotations/conjugation), and an implemented ciphertext-only bootstrap evaluation API, with client-side key generation. Complex decode must explicitly select `COMPLEX`. Bootstrap requires `HYBRID`. `FIXEDMANUAL` permits delayed rescale but does not eliminate internal automatic scale/level adjustments; the exact THOR operation trace still needs proof. Source-profile complex-refresh preservation and error remain **UNRUN**. Bootstrap can return an input clone when capacity does not improve: invocation alone is not evidence of actual refresh. The v1.6.1 uniform-ternary decryption fix **#1364** is an [upstream release claim][O-release], not a local regression result. A mutable release tag is not binary attestation; the immutable source pin does not identify a built artifact.
+
+In the same [pinned `src/pke/lib/scheme/ckksrns/ckksrns-fhe.cpp`][O9],
+`EvalBootstrap` with `BTSlotsEncoding=true` selects `EvalBootstrapStCFirst`.
+The ordinary full-slot (`slots=M/4`, with `M` the cyclotomic order) path performs
+CtS, conjugate sum/difference, two Chebyshev evaluations and two double-angle
+chains, monomial recombination, then StC. StC-first's imaginary branch runs only
+when `GetCKKSDataType()==COMPLEX`; matching precompute/setup and `flagPack` are
+part of that path's contract. Sparse `COMPLEX` currently also uses **two**
+ciphertext approximation branches, versus one for `REAL`. Two internal branches
+alone do not prove correctness for arbitrary paired payloads. Required material
+includes `M-1` conjugation and bootstrap rotation keys, plus `M-4`/`M-2` switching
+keys for `SPARSE_ENCAPSULATED`; multiplication/relinearization material remains
+additional to these in the full key graph. Pre-normalization by `N`, the
+secret-distribution-dependent CtS overflow bound, coefficient table, and scalar/
+correction restoration all matter. Clone-return tower-count checks do not prove
+usable capacity restored; `FIXEDMANUAL` can change noise degree.
+
+**Conditional paired qualification.** For packed `z=x+i*y`, require output in
+the **same ordered `(x,y)` channels**, joint component-error bounds on jointly
+perturbed admitted domains (no independence assumption), and actual restored
+level, scale, noise degree, keys and full operation trace—not a bootstrap label
+or one-real-operation pricing. The [THOR audit's paired-channel caller analysis](../../docs/research/thor-multiblock-indexing-audit.md)
+retains `z+conj(z)=2Re(z)` and `i*(conj(z)-z)=2Im(z)`: pre-GELU packing has a
+preceding half, residual packing does not; no implicit normalization is allowed.
+This extends primitive evidence only, not a THOR-qualified profile or source run.
+
+**Exact basis/profile still unresolved.** `CCParams`/`GenCryptoContext` [generate Q][O10] and [P/derived CRT tables][O11], rather than accepting arbitrary ordered source Q/P arrays. Lower-level `CryptoParametersCKKSRNS`/`ILDCRTParams` can represent explicit Q, but `PrecomputeCRTTables` generates P; equality with source P is unknown. Reversing source Q and separating P require proofs of basis order, roots, rounding and HYBRID partition semantics, not a list reversal alone. This establishes neither adapter feasibility nor impossibility. The [THOR audit](../../docs/research/thor-multiblock-indexing-audit.md) recovered **30 Q + 4 P, 1759 total bits** from an artifact; binding to the evaluated run remains missing. CacheMir's residual **Q14/P4**, bootstrap **Q29/P5**, and **13 usable levels + 15 bootstrap depth** are different profile facts, not automatically OpenFHE depth 28.
+
+**Reuse and funding boundary.** Reuse or extend shared `Budget`, `OriginalSourcePlan`, `PrimitiveAttempt`, move capsules and level-DAG contracts; their existence does not establish HE debit coverage. [`shared_allocation::Budget`](../../crates/pllm-garble/src/shared_allocation.rs) limits **each counter to 64 MiB**, not the global host or RSS. The pinned [`PKERNS::EncryptZeroCore(publicKey, params)`][O12] retains two public-key polynomials while `v`, `e0`, `e1` are populated: a coefficient-payload floor is `N*w*(2*Lpk + 3*ell)`, where `Lpk` is retained key limb count and `ell` is encryption limb count. With `N=65536`, `w=8`, and `Lpk=ell`, THOR Q30 gives **75 MiB**, CacheMir full bootstrap Q29 **72.5 MiB**, and residual Q14 **35 MiB**. The residual figure assumes a residual-sized retained key; a full-basis key increases it. These exclude P and other live owners. Nonfit follows **only if the full-basis route is charged to one original counter**; the actual HE root binding is unselected. Neither cap changes nor counter splitting are authorized; total actual peak is unknown.
+
+Missing admission proofs include complete physical capacities, caches, aliases, scratch and overlap; exception-path funding, scoped payer and opaque foreign-owner custody; and expanded-length bounds checked **before Cereal allocation/deserialization**. Byte-payload accounting is neither physical RSS coverage nor erasure. Required guards must retain original source/work custody through foreign calls, failures and destruction; caller byte labels cannot supply that authority.
+
+**Security and disclosure remain independent gates.** The parameter generator's `HEStd_128` check includes actual QP for HYBRID; it does not prove security of the full key graph. Preserve sparse-secret laws, encapsulation relationships, source parameter differences and **sigma 3.2 versus `3.19f`** explicitly. Unbounded sampling paths still require a bound/refusal design: three provider attempts do not cap all RNG work, and no Maverick-32 allowance transfers here. [CacheMir §2.3](https://arxiv.org/html/2602.11470v1#S2.SS3) requires privacy of **client input and server weights**, while the client holds the secret key. IND-CPA and client-side decryption noise flooding do not establish circuit privacy. The experimental [CKKS noise-flooding mode][O13] does not provide a supported bootstrap composition. THOR's exact privacy clause remains unresolved; no public-weight adaptation is selected.
+
+**Before any backend implementation:** obtain an explicit grant plus complete profile, numerical, funding, custody and security proofs. Pin transitive dependencies/notices and qualify C++ ABI, exception containment and Apple-Silicon artifacts. Any later approved build must use standard uv/Maturin commands and ordinary tests; no bespoke build wrappers, evidence archives or copied source trees. This update is documentation/source review only: no execution or local cryptographic result.
+
 ## 2. Requirements used for qualification
 
 The contracts' §§3, 8.2 and G1 require explicit scheme/key/layout/scale/level identity, ciphertext-only server evaluation, client-held secret keys, and a complete parameter/evaluation-key graph. A library name or a successful plaintext approximation cannot satisfy those gates.
@@ -31,7 +74,7 @@ The contracts' §§3, 8.2 and G1 require explicit scheme/key/layout/scale/level 
 | --- | --- |
 | CKKS refresh | Actual encrypted refresh with legal entry scale/range and restored usable capacity; public evaluation material only. Modulus raising alone is insufficient. |
 | Representation and kernels | Explicit physical slots/coefficients, rotations/conjugation, scale and modulus control; NEXUS coefficient/dual-key operations; THOR deferred rescale/relinearization and complex packing. |
-| Source parameter class | Degree 65536 and 32768 standard complex slots. NEXUS: roughly 1763 modulus bits, scale 50 bits, total depth 35/bootstrap depth 14. CacheMir/ROSETTA: 13 usable levels, bootstrap depth 15, approximate 53/41-bit prime sizes, weight-192 sparse secret with encapsulation. THOR's complete chain remains unresolved. Rounded sizes are not exact primes or security evidence. |
+| Source parameter class | Degree 65536 and 32768 standard complex slots. NEXUS: roughly 1763 modulus bits, scale 50 bits, total depth 35/bootstrap depth 14. CacheMir/ROSETTA: 13 usable levels, bootstrap depth 15, approximate 53/41-bit prime sizes, weight-192 sparse secret with encapsulation. THOR's 30 Q + 4 P chain (1759 total bits) is recovered from an artifact, not bound to a qualified evaluated run; see §1.1. Rounded sizes are not exact primes or security evidence. |
 | ROSETTA conversion | StC → 65536-to-2048 ring conversion → RLWE plus LWE extraction/key switching → encrypted segmented lookup → reverse ring conversion → ModRaise + CtS + EvalMod. LWE dimension 1024 does not follow from extracting a degree-2048 rank-one GLWE. |
 | ROSETTA selection | Blind rotation of coefficients containing encrypted `a*x+b`, not merely a fixed public LUT. Four segments require 3 HomComp calls, 5 plaintext–ciphertext multiplications, 6 blind rotations and 5 traces, excluding conversion and HomComp's internal PBS. |
 | CPU and provenance | Native ARM64/macOS path, pinned code/license/toolchain, explicit key/scratch residency. Published upstream performance is not a PLLM measurement. |
@@ -48,7 +91,7 @@ The contracts' §§3, 8.2 and G1 require explicit scheme/key/layout/scale/level 
 | **fhe.rs**, default-branch snapshot 16 Oct 2026; `98a087f1bf5f7fa95196ebe16b0e1b0eeb632442` | Native Rust; MIT | Current checkout declares `fhe` **0.2.0**, but registry latest observed is **0.1.1**. README and exported modules implement RNS-BFV/experimental multiparty BFV, not CKKS bootstrap. | BFV/RNS substrate does not establish the requested TFHE/CKKS bridge | Inspected CI is Ubuntu; no Apple-M qualification established here. Experimental/unaudited per its README. Not the requested CKKS dependency. [F1–F3] |
 | **Fheanor 0.11.9**, `2ba00539204cc03816dd258b57fad94904f54d41` | Rust toolkit; MIT declared in README/Cargo; optional foreign Intel HEXL acceleration | BFV, BGV, CLPX; bootstrap for **BFV/BGV**, not evidence of CKKS bootstrap | Useful ring/gadget/RNS building blocks; no qualified requested hybrid pipeline | Research/alpha, single-threaded per README; Apple-M support not established by inspected evidence. Does not meet this full-backend/maturity gate. [H1–H2] |
 | **FairMath OpenFHE-rs 0.3.2**, `a60b38a101e9cccbada7629245c6a79a4c65741e` | **Rust wrapper over C++**, BSD-2-Clause | Wrapper exposes `EvalBootstrap`, `EvalCKKStoFHEW`, `EvalFHEWtoCKKS` | Its inspected bindings do not expose the raw accumulator API discussed below | WIP wrapper; C++/CXX/OpenMP integration and exact upstream-version compatibility require qualification. Not native Rust. [O1–O3] |
-| **OpenFHE v1.6.1**, release 9 Oct 2026; `b59e1f291965f14fbee5172cd83a20f5b856204f` | **C++**, BSD-2-Clause | Current upstream has RNS-CKKS bootstrap, CKKS↔FHEW/TFHE and additional vectorized functional-bootstrap paths | Public CGGI `EvalAcc(..., RLWECiphertext& acc, ...)` is concrete encrypted-accumulator evidence. Still no demonstrated ROSETTA round trip at its source parameters. | Upstream macOS build documentation; reviewed page cites Mojave, not an Apple-M validation receipt. Mature foreign-library fallback candidate only after explicit approval. [O4–O7] |
+| **OpenFHE v1.6.1**, release 9 Oct 2026; `b59e1f291965f14fbee5172cd83a20f5b856204f` | **C++**, BSD-2-Clause | Standard complex-slot RNS-CKKS and implemented ciphertext-only bootstrap; source-profile refresh/error UNRUN. CKKS↔FHEW/TFHE and vectorized functional-bootstrap paths present. | Public CGGI `EvalAcc(..., RLWECiphertext& acc, ...)` is concrete encrypted-accumulator evidence. Still no demonstrated ROSETTA round trip at its source parameters. | Upstream macOS documentation, not local Apple-M validation. Shared THOR/CacheMir through-Rust **candidate direction approved; adoption/implementation unapproved** (§1.1). [O4–O13] |
 | **Sunscreen `seal_fhe` 0.8.1**, `f8ee4a0dc32418f2acd9e176c6f0af73cdf68d40` | **Rust SEAL wrapper**, AGPL-3.0-only for this crate | Inspected crate explicitly says CKKS is unsupported and exports BFV evaluator/encoders | No requested refresh/conversion evidence | A Rust API does not make SEAL native Rust. Not suitable for this slice. Its pinned SEAL submodule is `8426f35e35a67d382fa76451e2d8ff2940098bed`, not current SEAL. [S1–S2] |
 | **LIT Protocol `openfhe-rs` 0.1.0**, `b0b901d0a1f6afb59387e778cbbc6c2fbb483fc9` | Separately named Rust port; Cargo declares Apache-2.0 OR MIT | No complete CKKS capability qualified here | Not confused with FairMath's wrapper | Current README says **archived, no longer maintained, educational/reference only**. Reject as the mature dependency candidate without asserting it contains no useful code. [L1–L2] |
 
@@ -137,7 +180,7 @@ License: [T6] is **BSD-3-Clause-Clear**, whose line 19 grants no patent license.
 
 **fhe.rs and Fheanor were checked at current source snapshots, not dismissed from historical memory.** fhe.rs's actual `lib.rs` exports `bfv` and feature-gated `mbfv`; Fheanor's README explicitly names BFV/BGV bootstrapping and research/alpha status. Their RNS machinery could support new cryptographic development, but writing a CKKS bootstrap on it is a substantially different proposal from selecting an existing mature CKKS backend. [F1–F3, H1–H2]
 
-**OpenFHE deserves a current, stronger description than “advertises scheme switching.”** v1.6.1 has public CKKS bootstrap setup/keygen/evaluation and raw homomorphic CtS/StC declarations. Its CGGI accumulator's public `EvalAcc` accepts a mutable `RLWECiphertext`, and the implementation updates its existing elements. [O5–O6] FairMath's Rust wrapper exposes high-level bootstrap and both switch directions through `cxx::bridge`, but its inspected bindings do not expose `EvalAcc`; `build.rs` links `OPENFHEpke`, `OPENFHEbinfhe` and `OPENFHEcore`. [O2–O3] The wrapper snapshot predates v1.6.1, so compatibility is unproved. A Rust wrapper around this mature C++ primitive remains a foreign-backend choice and would need explicit approval and low-level binding qualification.
+**OpenFHE deserves a current, stronger description than “advertises scheme switching.”** v1.6.1 has public CKKS bootstrap setup/keygen/evaluation and raw homomorphic CtS/StC declarations. Its CGGI accumulator's public `EvalAcc` accepts a mutable `RLWECiphertext`, and the implementation updates its existing elements. [O5–O6] FairMath's Rust wrapper exposes high-level bootstrap and both switch directions through `cxx::bridge`, but its inspected bindings do not expose `EvalAcc`; `build.rs` links `OPENFHEpke`, `OPENFHEbinfhe` and `OPENFHEcore`. [O2–O3] The wrapper snapshot predates v1.6.1, so compatibility is unproved. Current shared THOR/CacheMir through-Rust status is **candidate direction approved; adoption/implementation unapproved** (§1.1). This remains a foreign backend; a wrapper and low-level binding qualification require a separate explicit grant.
 
 Per-method blockers remain:
 
@@ -177,7 +220,7 @@ A successful result would establish an owned Rust evaluator with real refresh an
 | **Representation/profile adaptation** | A distinctly named torus qualification profile is approved. Source-method representation mapping is expressly not approved and needs a separate decision. |
 | **Execution** | Dependency resolution/build is allowed, jobs ≤2, pinned nightly without changing global default. Parent owns serial actual qualification. Current eager-key profile is rejected at 8 GiB; changed key residency needs a reviewed complete bound before execution. |
 | **Changed method behavior, if necessary** | Obtain approval before alternative index-bit conversion, altered trace/recovery arithmetic, different bootstrap/approximation schedules or changed compiler cost semantics. Faithful resolution of missing source constants should be researched first. |
-| **Foreign-backend fallback, only if chosen** | Separately approve C++/OpenFHE with a qualified Rust binding, or Go/Lattigo. Neither is inferred from failure to qualify a native candidate. |
+| **Foreign-backend fallback, only if chosen** | OpenFHE for shared THOR/CacheMir through Rust: **candidate direction approved; adoption/implementation unapproved** (§1.1). Separately approve backend implementation and qualify the binding. Go/Lattigo remains unapproved; no adoption follows from native-candidate failure. |
 
 The existing source numerical, key-ownership, circuit-privacy, output/feedback and persistent-cache gates remain. Those implementation areas belong to their respective owners; this review neither implements nor changes them.
 
@@ -271,6 +314,12 @@ All code/document locators below resolve under the commits in the manifest. Rele
 [O6-impl]: https://github.com/openfheorg/openfhe-development/blob/b59e1f291965f14fbee5172cd83a20f5b856204f/src/binfhe/lib/rgsw-acc-cggi.cpp#L208-L217
 [O7]: https://github.com/openfheorg/openfhe-development/blob/b59e1f291965f14fbee5172cd83a20f5b856204f/docs/sphinx_rsts/intro/installation/macos.rst
 [O-release]: https://github.com/openfheorg/openfhe-development/releases/tag/v1.6.1
+[O8]: https://github.com/openfheorg/openfhe-development/blob/b59e1f291965f14fbee5172cd83a20f5b856204f/src/pke/include/cryptocontext.h
+[O9]: https://github.com/openfheorg/openfhe-development/blob/b59e1f291965f14fbee5172cd83a20f5b856204f/src/pke/lib/scheme/ckksrns/ckksrns-fhe.cpp
+[O10]: https://github.com/openfheorg/openfhe-development/blob/b59e1f291965f14fbee5172cd83a20f5b856204f/src/pke/lib/scheme/ckksrns/ckksrns-parametergeneration.cpp
+[O11]: https://github.com/openfheorg/openfhe-development/blob/b59e1f291965f14fbee5172cd83a20f5b856204f/src/pke/lib/schemerns/rns-cryptoparameters.cpp
+[O12]: https://github.com/openfheorg/openfhe-development/blob/b59e1f291965f14fbee5172cd83a20f5b856204f/src/pke/lib/schemerns/rns-pke.cpp
+[O13]: https://github.com/openfheorg/openfhe-development/blob/b59e1f291965f14fbee5172cd83a20f5b856204f/src/pke/examples/CKKS_NOISE_FLOODING.md
 [S1]: https://github.com/Sunscreen-tech/Sunscreen/blob/f8ee4a0dc32418f2acd9e176c6f0af73cdf68d40/seal_fhe/src/lib.rs#L4-L14
 [S2]: https://github.com/Sunscreen-tech/Sunscreen/blob/f8ee4a0dc32418f2acd9e176c6f0af73cdf68d40/seal_fhe/Cargo.toml
 [S3]: https://github.com/microsoft/SEAL/blob/79ad62fb50fb59880c7b717275c82fe497634639/README.md
