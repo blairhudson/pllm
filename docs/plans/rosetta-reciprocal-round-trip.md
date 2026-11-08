@@ -1,8 +1,14 @@
 # ROSETTA: proposed four-segment reciprocal round trip
 
 **D37 / R-S design only, 24 October 2026; source baseline `7fa07d74`.**
+**4 November 2026 — D65:** separately labelled, independently parameterized
+odd-modulus specification study approved; preserve paper algorithm, ownership and
+security targets. Existing proposed constants/scales/knobs remain unselected;
+derive exact manifest and obtain independent review, then separate adoption before
+implementation. No unavailable evaluated-constant/parity claim or modulus/backend/
+profile adoption; original funding/custody/source/admission/Native HOLDs and caps stay.
 No backend adoption, numeric deployment, key generation, build, encrypted test or
-method-completion claim. Memory-campaign metrics/claims remain unchanged.
+method-completion claim or implementation/execution grant. Memory-campaign metrics/claims remain unchanged.
 **Executable specification incomplete:** HomComp internals, phase-faithful index
 quantization, exact cryptographic manifest, joint security/error analysis and
 complete owner bounds are missing.
