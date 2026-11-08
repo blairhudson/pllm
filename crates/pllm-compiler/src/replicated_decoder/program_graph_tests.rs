@@ -288,6 +288,8 @@ fn expanded_graph_regression_snapshots() {
     assert!(capture || !EXPECTED.is_empty(),
         "D26 BASELINE NOT FROZEN: run explicit capture-only command, review output, then populate EXPECTED before extraction");
     let mut seen = BTreeSet::new();
+    let mut mismatches = Vec::new();
+    let mut numeric_passed = 0usize;
     let mut check = |name: String, program: Program| {
         assert!(seen.insert(name.clone()));
         let actual = snapshot(&program);
@@ -303,10 +305,10 @@ fn expanded_graph_regression_snapshots() {
                 .unwrap_or_else(|| panic!("missing independent frozen graph snapshot: {name}"));
             let serialized = serde_json::to_string(&actual).unwrap();
             let fingerprint = hex(Sha256::digest(serialized.as_bytes()).into());
-            assert_eq!(
-                fingerprint, expected.1,
-                "expanded graph changed: {name}\nactual snapshot: {serialized}"
-            );
+            println!("expanded graph snapshot: {name}\n{serialized}");
+            if fingerprint != expected.1 {
+                mismatches.push((name, fingerprint, expected.1));
+            }
         }
     };
     for &(family, active, expected) in FROZEN {
@@ -326,6 +328,10 @@ fn expanded_graph_regression_snapshots() {
             expected,
             "independent frozen identity: {family}, active={active}"
         );
+        numeric_passed += 1;
+        if !capture {
+            println!("independent frozen identity PASS: {family}, active={active}, digest={expected}");
+        }
         assert_eq!(program.outputs.len(), 2); // Real compiler feedback, not synthetic repeated sites.
         check(format!("frozen_{family}_active_{active}"), program);
     }
@@ -440,6 +446,18 @@ fn expanded_graph_regression_snapshots() {
             seen.len(),
             EXPECTED.len(),
             "stale/missing frozen graph cases"
+        );
+        assert_eq!(numeric_passed, FROZEN.len());
+        println!(
+            "expanded graph summary: numeric_passed={numeric_passed}/{} snapshots={}/{} json_mismatch_count={}",
+            FROZEN.len(),
+            seen.len(),
+            EXPECTED.len(),
+            mismatches.len()
+        );
+        assert!(
+            mismatches.is_empty(),
+            "expanded graph JSON mismatches (name, actual, expected): {mismatches:?}"
         );
     }
 }
