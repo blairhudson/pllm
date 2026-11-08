@@ -1,10 +1,12 @@
 //! Exhaustive dynamic allocation-index failures, using real GlobalAlloc nulls.
-//! One test, one thread. Fixed Arc::new metadata allocations are NOT failed.
+//! Instrument only the sweep thread; embedded tests may run concurrently.
+//! Fixed Arc::new metadata allocations are NOT failed.
 #[allow(dead_code, unused_imports)]
 #[path = "../src/maverick_batch/mod.rs"]
 mod maverick_batch;
 
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::Cell;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
@@ -39,7 +41,36 @@ static FAIL_AT: AtomicUsize = AtomicUsize::new(usize::MAX);
 static INDEX: AtomicUsize = AtomicUsize::new(0);
 static HIT: AtomicBool = AtomicBool::new(false);
 
+thread_local! {
+    static AUDIT_OWNER: Cell<bool> = const { Cell::new(false) };
+}
+
+fn audit_owner() -> bool {
+    AUDIT_OWNER.try_with(Cell::get).unwrap_or(false)
+}
+
+struct AuditOwner;
+impl AuditOwner {
+    fn start() -> Self {
+        AUDIT_OWNER
+            .try_with(|owner| {
+                assert!(!owner.get(), "allocation audit owner must not nest");
+                owner.set(true);
+            })
+            .expect("allocation audit owner TLS unavailable");
+        Self
+    }
+}
+impl Drop for AuditOwner {
+    fn drop(&mut self) {
+        let _ = AUDIT_OWNER.try_with(|owner| owner.set(false));
+    }
+}
+
 fn fail_allocation() -> bool {
+    if !audit_owner() {
+        return false;
+    }
     if testing::allocation_context().is_some() && ACTIVE.load(Ordering::Relaxed) {
         let index = INDEX.fetch_add(1, Ordering::Relaxed);
         if index == FAIL_AT.load(Ordering::Relaxed) {
@@ -51,7 +82,7 @@ fn fail_allocation() -> bool {
 }
 
 fn record(pointer: *mut u8, layout: Layout) {
-    if pointer.is_null() {
+    if !audit_owner() || pointer.is_null() {
         return;
     }
     if let Some((counter, charge)) = testing::allocation_context() {
@@ -102,7 +133,7 @@ unsafe impl GlobalAlloc for FailingAllocator {
         pointer
     }
     unsafe fn dealloc(&self, pointer: *mut u8, layout: Layout) {
-        {
+        if audit_owner() {
             let mut live = LIVE.lock().unwrap();
             if let Some(index) = live.iter().position(|e| e.pointer == pointer as usize) {
                 let entry = live[index];
@@ -139,7 +170,7 @@ unsafe impl GlobalAlloc for FailingAllocator {
     }
     unsafe fn realloc(&self, pointer: *mut u8, layout: Layout, size: usize) -> *mut u8 {
         // Native Words never grows after its initial exact reservation.
-        if testing::allocation_context().is_some() {
+        if audit_owner() && testing::allocation_context().is_some() {
             BAD.store(true, Ordering::Relaxed);
             return std::ptr::null_mut();
         }
@@ -598,6 +629,7 @@ fn cancellation_rejection_and_partial_entropy_keep_lease_until_free(
 
 #[test]
 fn every_dynamic_allocation_index_fails_closed_with_exact_refunds_and_erasure() {
+    let _audit_owner = AuditOwner::start();
     let fixture = Fixture::new();
     let plan = AllocationPlan::bounded().unwrap();
     let master = preprocess(plan, fixture.source()).unwrap();
