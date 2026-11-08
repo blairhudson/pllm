@@ -13,7 +13,7 @@ pub use crate::shared_allocation::{Budget, Error};
 pub use selection::Boundary;
 use sha2::{Digest, Sha256};
 use std::mem::size_of;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 mod correction;
 use correction::{
@@ -720,6 +720,123 @@ fn correction(role: u8, signed_count: i64) -> u64 {
     } else {
         (2 - (4 - signed_count.rem_euclid(4)) / 2).rem_euclid(2) as u64
     }
+}
+
+// Prepared only: begin_inner intentionally still uses its admitted materialized
+// scan. Neither this fold nor the candidate inventory confers source authority.
+struct FoldTotals {
+    sum: Zeroizing<u64>,
+    count: Zeroizing<i64>,
+}
+impl Drop for FoldTotals {
+    fn drop(&mut self) {
+        self.sum.zeroize();
+        self.count.zeroize();
+        #[cfg(test)]
+        {
+            assert_eq!(*self.sum, 0);
+            assert_eq!(*self.count, 0);
+            ERASED_FOLDS.with(|n| n.set(n.get() + 1));
+        }
+    }
+}
+#[cfg(test)]
+std::thread_local! {
+    static ERASED_FOLDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static PANIC_FOLD_AT: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+}
+
+struct FoldVisitor<'a> {
+    table: &'a [u64],
+    rotation: usize,
+    totals: FoldTotals,
+}
+impl FoldVisitor<'_> {
+    fn visit(&mut self, index: usize, bit: &gpu127::VisitBit) {
+        *self.totals.count += i64::from(*bit.value());
+        *self.totals.sum = self.totals.sum.wrapping_add(
+            self.table[(index + self.rotation) & (self.table.len() - 1)]
+                .wrapping_mul(u64::from(*bit.value())),
+        );
+        #[cfg(test)]
+        PANIC_FOLD_AT.with(|at| {
+            if at.get() == Some(index) {
+                at.set(None);
+                panic!("injected bounded fold unwind");
+            }
+        });
+    }
+}
+
+#[allow(dead_code)] // Candidate control/move overlap, not active admission.
+struct FoldControls<'a, C: AllocationContext> {
+    owner: &'a PartyFor<C>,
+    state: &'a Execution,
+    lane: usize,
+    key: &'a GpuKey,
+    table: &'a [u64],
+    spec: Spec,
+    role: u8,
+    index: u64,
+    traversal_result: Result<(), gpu127::Error>,
+    returned: Result<FoldTotals, Error>,
+    result_move: FoldTotals,
+}
+
+/// Positive candidate ADDITION to the old scan reservation, never buffer credit.
+/// Closure size comes from the same constructor as the fold (including padding).
+/// This inventories logical slots, NOT an approved bound on compiler/AES stack.
+#[allow(dead_code)]
+fn fold_layout_bytes<C: AllocationContext>(index_bits: u8) -> Result<usize, Error> {
+    let mut visitor = FoldVisitor {
+        table: &[], rotation: 0,
+        totals: FoldTotals { sum: Zeroizing::new(0), count: Zeroizing::new(0) },
+    };
+    let callback = fold_callback(&mut visitor);
+    add(&[
+        gpu127::visit_layout_bytes(index_bits).map_err(gpu_error)?,
+        size_of::<FoldVisitor<'_>>(),
+        size_of::<FoldControls<'_, C>>(),
+        std::mem::size_of_val(&callback),
+        size_of::<&mut FoldVisitor<'_>>(), // callback argument/move overlap
+        size_of::<usize>(), // callback public index argument
+        size_of::<&gpu127::VisitBit>(), // borrowed callback bit, no owned u8 parameter
+    ])
+}
+
+fn fold_callback<'borrow, 'table: 'borrow>(
+    visitor: &'borrow mut FoldVisitor<'table>,
+) -> impl FnMut(usize, &gpu127::VisitBit) + 'borrow + use<'borrow, 'table> {
+    move |index, bit| visitor.visit(index, bit)
+}
+
+#[allow(dead_code)] // Prepared for a separately reviewed production delta.
+fn bounded_fold<C: AllocationContext>(owner: &PartyFor<C>, lane: usize, index: u64)
+    -> Result<FoldTotals, Error>
+{
+    // Private owning party, not a caller's role label or arbitrary KeyView.
+    // Party equality checks issued pairing consistency, not authentication:
+    // decode accepts caller framing; authority stays with issue_parts/owners.
+    let spec = owner.spec;
+    spec.validate()?;
+    let state = owner.state.as_ref().ok_or(Error::Consumed)?;
+    let key = &state.lanes.get(lane).ok_or(Error::Domain)?.key;
+    if key.profile().bits() != spec.index_bits || owner.role > 1
+        || !key.matches_party(owner.role)
+        || index & !mask(spec.index_bits) != 0 || state.table.len() != spec.entries()
+    {
+        return Err(Error::Domain);
+    }
+    let mut visitor = FoldVisitor {
+        table: &state.table, rotation: index as usize,
+        totals: FoldTotals { sum: Zeroizing::new(0), count: Zeroizing::new(0) },
+    };
+    key.preparation_visit(fold_callback(&mut visitor)).map_err(gpu_error)?;
+    if owner.role == 1 {
+        *visitor.totals.sum = 0u64.wrapping_sub(*visitor.totals.sum);
+        *visitor.totals.count = -*visitor.totals.count;
+    }
+    Ok(visitor.totals)
 }
 
 impl<C: AllocationContext> PartyFor<C> {

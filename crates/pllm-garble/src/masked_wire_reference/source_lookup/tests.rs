@@ -1,6 +1,346 @@
 use super::*;
 use crate::shared_allocation::Lease;
 
+fn scalar_signed_scan(bits: &[u8], table: &[u64], rotation: usize, role: u8) -> (u64, i64) {
+    let mut sum = 0u64;
+    let mut count = 0i64;
+    for (index, &bit) in bits.iter().enumerate() {
+        sum = sum.wrapping_add(table[(index + rotation) % table.len()].wrapping_mul(u64::from(bit)));
+        count += i64::from(bit);
+    }
+    if role == 1 { (0u64.wrapping_sub(sum), -count) } else { (sum, count) }
+}
+
+#[test]
+fn prepared_fold_scalar_source_first_frames_and_masked_outputs_both_boundaries() {
+    use crate::compact_dpf::gpu127::tests::source_bits;
+    for width in [8, 10] {
+        let entries = 1usize << width;
+        let points = [0u64, 127, 128, (entries - 1) as u64];
+        let rin = points.map(|p| 0u64.wrapping_sub(p) & (entries - 1) as u64);
+        let indices = [(entries - 1) as u64, 0, 127, 128];
+        for boundary in [Boundary::Deferred, Boundary::Reconstructed] {
+            for phase in [0u8, 1] {
+                for kind in 0..3 {
+                    let s = Spec { index_bits: width, output_bits: 64, lanes: 4, boundary };
+                    let table: Vec<_> = (0..entries).map(|i| match kind {
+                        0 => (i as u64).wrapping_mul(7919).wrapping_add((i as u64).pow(3)),
+                        1 => if i == 127 { u64::MAX } else { 0 },
+                        _ => u64::MAX,
+                    }).collect();
+                    let budget = Budget::new(resources(s).unwrap().combined_reservation_bytes).unwrap();
+                    let mut random = rng(8731);
+                    let (masks, [mut a, mut b]) = issue_with(s, context(), &table, &rin, &budget, |bytes| {
+                        random(bytes)?;
+                        // GPU issuance's second root control; applies to every
+                        // 32-byte draw without changing draw count/order/length.
+                        if bytes.len() == 32 { bytes[16] = (bytes[16] & !1) | phase; }
+                        Ok(())
+                    }).unwrap();
+                    let mut expected_frames = Vec::new();
+                    for party in [&a, &b] {
+                        let mut expected = Vec::new();
+                        for (lane, &rotation) in indices.iter().enumerate() {
+                            let key = &party.state.as_ref().unwrap().lanes[lane].key;
+                            let bits = source_bits(key);
+                            let (sum, count) = scalar_signed_scan(&bits, &table, rotation as usize, party.role);
+                            let before = gpu127::measured_aes_blocks();
+                            let folded = bounded_fold(party, lane, rotation).unwrap();
+                            assert_eq!(gpu127::measured_aes_blocks() - before, if width == 8 { 2 } else { 14 });
+                            assert_eq!((*folded.sum, *folded.count), (sum, count));
+                            let local = party.correction.masks[lane];
+                            // Literal source modulo-four equations, not correction().
+                            let c = if party.role == 0 {
+                                ((count + 1).rem_euclid(4) / 2) as u64
+                            } else {
+                                (2 - (4 - count.rem_euclid(4)) / 2).rem_euclid(2) as u64
+                            };
+                            expected.extend_from_slice(&sum.wrapping_add(local[0]).to_le_bytes());
+                            expected.extend_from_slice(&(c ^ local[1]).to_le_bytes());
+                        }
+                        expected_frames.push(expected);
+                    }
+                    let af = a.begin(&indices).unwrap();
+                    let bf = b.begin(&indices).unwrap();
+                    assert_eq!(&af.as_bytes()[HEADER..], &expected_frames[0]);
+                    assert_eq!(&bf.as_bytes()[HEADER..], &expected_frames[1]);
+                    let ao = a.advance(bf.as_bytes()).unwrap();
+                    let bo = b.advance(af.as_bytes()).unwrap();
+                    let values: Vec<u64> = match (ao, bo) {
+                        (StepFor::Deferred(ao), StepFor::Deferred(bo)) => ao.values().iter().zip(bo.values())
+                            .map(|(&x, &y)| x.wrapping_add(y)).collect(),
+                        (StepFor::Frame(af2), StepFor::Frame(bf2)) => {
+                            let ao = must_common(a.advance(bf2.as_bytes()).unwrap());
+                            let bo = must_common(b.advance(af2.as_bytes()).unwrap());
+                            assert_eq!(ao.values(), bo.values());
+                            ao.values().to_vec()
+                        }
+                        _ => panic!("wrong boundary"),
+                    };
+                    for lane in 0..s.lanes {
+                        let x = indices[lane].wrapping_sub(rin[lane]) & (entries - 1) as u64;
+                        assert_eq!(values[lane], table[x as usize].wrapping_add(masks.values()[lane]));
+                    }
+                    drop((af, bf, a, b, masks));
+                    assert_eq!(budget.used_bytes(), 0);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn prepared_fold_preflight_unwind_erasure_and_positive_unadmitted_layout() {
+    for width in [8, 10] {
+        let s = Spec { index_bits: width, output_bits: 64, lanes: 1, boundary: Boundary::Deferred };
+        let entries = s.entries();
+        let table: Vec<_> = (0..entries).map(|i| u64::MAX - i as u64).collect();
+        let budget = Budget::new(resources(s).unwrap().combined_reservation_bytes).unwrap();
+        let (masks, [mut a, mut b]) = issue_with(s, context(), &table, &[0], &budget, rng(71)).unwrap();
+        let before = gpu127::measured_aes_blocks();
+        for invalid in [7, 9, 11, 13, 63] {
+            a.spec.index_bits = invalid;
+            assert!(matches!(bounded_fold(&a, 0, 0), Err(Error::Domain)));
+            a.spec = s;
+            assert!(fold_layout_bytes::<&Budget>(invalid).is_err());
+        }
+        a.role = 2;
+        assert!(matches!(bounded_fold(&a, 0, 0), Err(Error::Domain)));
+        a.role = 0;
+        let output_masks = Zeroizing::new(masks.values().to_vec());
+        for (party, issued_role) in [(&mut a, 0u8), (&mut b, 1u8)] {
+            let state = party.state.as_ref().unwrap();
+            assert!(state.lanes[0].key.matches_party(issued_role));
+            let sums = Zeroizing::new(state.sums.to_vec());
+            let counts = Zeroizing::new(state.counts.to_vec());
+            let correction_masks = Zeroizing::new(party.correction.masks.to_vec());
+            let used = budget.used_bytes();
+            let erased = ERASED_FOLDS.with(|n| n.get());
+            party.role = issued_role ^ 1;
+            // Existing first-visit trap witnesses no callbacks in ascending
+            // traversal; existing AES counter must also remain unchanged.
+            PANIC_FOLD_AT.with(|at| at.set(Some(0)));
+            assert!(matches!(bounded_fold(party, 0, 0), Err(Error::Domain)));
+            PANIC_FOLD_AT.with(|at| assert_eq!(at.replace(None), Some(0)));
+            assert_eq!(gpu127::measured_aes_blocks(), before);
+            assert_eq!(ERASED_FOLDS.with(|n| n.get()), erased);
+            let state = party.state.as_ref().unwrap();
+            assert_eq!(state.lanes.len(), 1);
+            assert!(state.lanes[0].key.matches_party(issued_role));
+            assert_eq!(&state.sums[..], &sums[..]);
+            assert_eq!(&state.counts[..], &counts[..]);
+            assert_eq!(&party.correction.masks[..], &correction_masks[..]);
+            assert_eq!(masks.values(), &output_masks[..]);
+            assert_eq!(budget.used_bytes(), used);
+            party.role = issued_role;
+        }
+        assert!(matches!(bounded_fold(&a, 1, 0), Err(Error::Domain)));
+        assert!(matches!(bounded_fold(&a, 0, entries as u64), Err(Error::Domain)));
+        let last = a.state.as_mut().unwrap().table.pop().unwrap();
+        assert!(matches!(bounded_fold(&a, 0, 0), Err(Error::Domain)));
+        a.state.as_mut().unwrap().table.push(last);
+        assert_eq!(gpu127::measured_aes_blocks(), before);
+        a.spec.index_bits = if width == 8 { 10 } else { 8 };
+        assert!(matches!(bounded_fold(&a, 0, 0), Err(Error::Domain)));
+        a.spec = s;
+        assert_eq!(gpu127::measured_aes_blocks(), before);
+        let layout = fold_layout_bytes::<&Budget>(width).unwrap();
+        assert!(layout > gpu127::visit_layout_bytes(width).unwrap());
+        // Ordinary checked proposal retains ALL old scan bytes. Not live quote.
+        let q = resources(s).unwrap();
+        let proposed_party = q.party_reservation_bytes.checked_add(layout).unwrap();
+        let proposed_combined = q.combined_reservation_bytes.checked_add(layout.checked_mul(2).unwrap()).unwrap();
+        assert!(proposed_party > q.party_reservation_bytes);
+        assert!(proposed_combined > q.combined_reservation_bytes);
+        assert_eq!(q.full_expansion_scratch_bytes, entries);
+        for at in [0, 127, 128, entries - 1] {
+            let erased = ERASED_FOLDS.with(|n| n.get());
+            PANIC_FOLD_AT.with(|n| n.set(Some(at)));
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                bounded_fold(&a, 0, 0)
+            }));
+            assert!(outcome.is_err());
+            assert_eq!(ERASED_FOLDS.with(|n| n.get()), erased + 1);
+        }
+        let erased = ERASED_FOLDS.with(|n| n.get());
+        drop(bounded_fold(&b, 0, 0).unwrap());
+        assert_eq!(ERASED_FOLDS.with(|n| n.get()), erased + 1);
+        drop((a, b, masks));
+        assert_eq!(budget.used_bytes(), 0);
+    }
+}
+
+#[test]
+fn independent_first_frames_own_output_subtraction_party_mutation_controls() {
+    for width in [8, 10] {
+        for boundary in [Boundary::Deferred, Boundary::Reconstructed] {
+            let s = Spec { index_bits: width, output_bits: 64, lanes: 2, boundary };
+            let table: Vec<_> = (0..s.entries()).map(|i| (i as u64).wrapping_mul(7919)).collect();
+            let budget = Budget::new(MAX_ALLOCATION_BYTES).unwrap();
+            let mut random = rng(31);
+            let mut coins = Zeroizing::new(Vec::new());
+            let (masks, [mut a, mut b]) = issue_with(s, context(), &table, &[1, 127], &budget, |bytes| {
+                random(bytes)?;
+                if bytes.len() == 8 {
+                    coins.push(u64::from_le_bytes(bytes.try_into().unwrap()));
+                }
+                Ok(())
+            }).unwrap();
+            // Original issuance: four correction draws/lane, then Select's
+            // nonce and six full-ring draws/lane (rz, five LEFT shares). Retain
+            // coins from THIS owner before begin consumes its material. No
+            // duplicate owner or Select evaluation derives expected shares.
+            assert_eq!(coins.len(), 10 * s.lanes);
+            let mut words = Zeroizing::new(vec![[[0u64; 5]; 2]; s.lanes]);
+            for lane in 0..s.lanes {
+                let beta = a.correction.masks[lane][1] ^ b.correction.masks[lane][1];
+                let rx = a.correction.masks[lane][0].wrapping_add(b.correction.masks[lane][0]);
+                let draw = &coins[4 * s.lanes + 6 * lane..4 * s.lanes + 6 * (lane + 1)];
+                let correlation = [beta, rx, beta.wrapping_mul(rx).wrapping_add(draw[0]),
+                    beta.wrapping_mul(2), 0u64.wrapping_sub(beta.wrapping_mul(2).wrapping_mul(rx))];
+                for j in 0..5 {
+                    words[lane][0][j] = draw[j + 1];
+                    words[lane][1][j] = correlation[j].wrapping_sub(draw[j + 1]);
+                }
+            }
+            let af = a.begin(&[0, 128]).unwrap();
+            let bf = b.begin(&[0, 128]).unwrap();
+            let opened_r: Vec<_> = (0..2).map(|lane| {
+                let offset = HEADER + lane * 16;
+                u64::from_le_bytes(af.as_bytes()[offset..offset + 8].try_into().unwrap())
+                    .wrapping_add(u64::from_le_bytes(bf.as_bytes()[offset..offset + 8].try_into().unwrap()))
+            }).collect();
+            let opened_c: Vec<_> = (0..2).map(|lane| {
+                let offset = HEADER + lane * 16 + 8;
+                u64::from_le_bytes(af.as_bytes()[offset..offset + 8].try_into().unwrap())
+                    ^ u64::from_le_bytes(bf.as_bytes()[offset..offset + 8].try_into().unwrap())
+            }).collect();
+            let mut z = Zeroizing::new(vec![[0u64; 2]; s.lanes]);
+            for lane in 0..s.lanes {
+                for role in 0..2 {
+                    let [a, big_b, c, d1, d2] = words[lane][role];
+                    let bhat = opened_c[lane];
+                    let xhat = opened_r[lane];
+                    // Literal integer source Select equation, no helper calls.
+                    z[lane][role] = c.wrapping_sub(a.wrapping_mul(xhat))
+                        .wrapping_sub(big_b.wrapping_mul(bhat))
+                        .wrapping_add(if bhat == 0 { d1.wrapping_mul(xhat).wrapping_add(d2) } else { 0 })
+                        .wrapping_add(if role == 1 { bhat.wrapping_mul(xhat) } else { 0 });
+                }
+            }
+            match boundary {
+                Boundary::Deferred => {
+                    let ao = must_deferred(a.advance(bf.as_bytes()).unwrap());
+                    let bo = must_deferred(b.advance(af.as_bytes()).unwrap());
+                    for lane in 0..2 {
+                        let r = opened_r[lane];
+                        assert_ne!(r, 0, "non-vacuous fixture {width}/{boundary:?}/{lane}");
+                        assert_eq!(ao.values()[lane], z[lane][0].wrapping_mul(2).wrapping_sub(r));
+                        assert_eq!(bo.values()[lane], z[lane][1].wrapping_mul(2));
+                        // Mutation: subtract opened arithmetic from role ONE.
+                        assert_ne!(ao.values()[lane], z[lane][0].wrapping_mul(2));
+                        assert_ne!(bo.values()[lane], z[lane][1].wrapping_mul(2).wrapping_sub(r));
+                    }
+                }
+                Boundary::Reconstructed => {
+                    let af2 = must_frame(a.advance(bf.as_bytes()).unwrap());
+                    let bf2 = must_frame(b.advance(af.as_bytes()).unwrap());
+                    let ao = must_common(a.advance(bf2.as_bytes()).unwrap());
+                    let bo = must_common(b.advance(af2.as_bytes()).unwrap());
+                    for lane in 0..2 {
+                        let common_z = z[lane][0].wrapping_add(z[lane][1]);
+                        assert_ne!(opened_r[lane], 0, "non-vacuous fixture {width}/{boundary:?}/{lane}");
+                        let expected = common_z.wrapping_mul(2).wrapping_sub(opened_r[lane]);
+                        assert_eq!(ao.values()[lane], expected);
+                        assert_eq!(bo.values()[lane], expected);
+                        assert_ne!(bo.values()[lane], common_z.wrapping_mul(2));
+                    }
+                }
+            }
+            drop((af, bf, a, b, masks));
+            assert_eq!(budget.used_bytes(), 0);
+        }
+    }
+}
+
+#[test]
+fn prepared_fold_each_width_party_actual_wrong_algebra_has_own_finite_witness() {
+    use crate::compact_dpf::gpu127::tests::source_bits;
+    for width in [8, 10] {
+        for role in 0..2 {
+            for kind in ["reverse-leaves", "skip", "wrong-sign", "wrong-rotation"] {
+                let mut witness = None;
+                // Finite deterministic PUBLIC TEST fixtures only. No adaptive
+                // production traversal, mutation or extra-rotation harness.
+                for salt in 0..64 {
+                    let s = Spec { index_bits: width, output_bits: 64, lanes: 1, boundary: Boundary::Deferred };
+                    let entries = s.entries();
+                    let budget = Budget::new(resources(s).unwrap().combined_reservation_bytes).unwrap();
+                    let table = vec![0; entries];
+                    let mut random = rng(919 + salt);
+                    let (masks, mut owners) = issue_with(s, context(), &table, &[0], &budget, |bytes| {
+                        random(bytes)?;
+                        if bytes.len() == 32 { bytes[16] = (bytes[16] & !1) | role as u8; }
+                        Ok(())
+                    }).unwrap();
+                    let party = &mut owners[role];
+                    let bits = source_bits(&party.state.as_ref().unwrap().lanes[0].key);
+                    let reversed = |i: usize| (entries / 128 - 1 - i / 128) * 128 + i % 128;
+                    let selected = match kind {
+                        "reverse-leaves" => (0..entries).find(|&i| bits[i] != bits[reversed(i)]),
+                        "wrong-rotation" => (0..entries).find(|&i| bits[i] != bits[(i + entries - 1) % entries]),
+                        _ => bits.iter().position(|&b| b == 1),
+                    };
+                    if let Some(index) = selected {
+                        // Explicit finite single-hot counterexample. Only this
+                        // test fixture's public table changes; no live issuance
+                        // or source declaration acquires authority from it.
+                        let mut basis = vec![0; entries];
+                        basis[index] = 1;
+                        party.state.as_mut().unwrap().table.copy_from_slice(&basis);
+                        let expected = scalar_signed_scan(&bits, &basis, 0, role as u8);
+                        let correct = bounded_fold(party, 0, 0).unwrap();
+                        assert_eq!((*correct.sum, *correct.count), expected);
+                        let mut wrong = FoldVisitor {
+                            table: &basis,
+                            // ACTUAL wrong algebra: T[(i + rotation + 1) mod N].
+                            rotation: usize::from(kind == "wrong-rotation"),
+                            totals: FoldTotals { sum: Zeroizing::new(0), count: Zeroizing::new(0) },
+                        };
+                        let key = &party.state.as_ref().unwrap().lanes[0].key;
+                        let mut actual_bits = Vec::new();
+                        let before = gpu127::measured_aes_blocks();
+                        key.preparation_visit(|i, bit| {
+                            assert_eq!(i, actual_bits.len());
+                            actual_bits.push(*bit.value());
+                            if kind != "skip" || i != index {
+                                wrong.visit(if kind == "reverse-leaves" { reversed(i) } else { i }, bit);
+                            }
+                        }).unwrap();
+                        assert_eq!(actual_bits, bits); // Full independent scalar-AES vector.
+                        assert_eq!(gpu127::measured_aes_blocks() - before, if width == 8 { 2 } else { 14 });
+                        if role == 1 {
+                            *wrong.totals.sum = 0u64.wrapping_sub(*wrong.totals.sum);
+                            *wrong.totals.count = -*wrong.totals.count;
+                        }
+                        if kind == "wrong-sign" {
+                            *wrong.totals.sum = 0u64.wrapping_sub(*wrong.totals.sum);
+                            *wrong.totals.count = -*wrong.totals.count;
+                        }
+                        assert_ne!((*wrong.totals.sum, *wrong.totals.count), expected,
+                            "independent witness {width}/{role}/{kind}/{salt}/{index}");
+                        witness = Some((salt, index));
+                    }
+                    drop((owners, masks));
+                    assert_eq!(budget.used_bytes(), 0);
+                    if witness.is_some() { break; }
+                }
+                assert!(witness.is_some(), "missing finite counterexample {width}/{role}/{kind}");
+            }
+        }
+    }
+}
+
 #[test]
 fn private_build_aggregate_splits_and_both_dealer_guards_in_both_contexts() {
     fn check<C: AllocationContext>(s: Spec, budget: &Budget, lease: LeaseFor<C>) {
