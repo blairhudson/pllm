@@ -252,14 +252,14 @@ fn complete_8192_both_directions_all_cells_actual_phase_and_residual() {
         + 64 * 31 * 40
         + 47 * 4608
         + 256 * 7691
-        + 10 * 3348
+        + 10 * (2 * 1544 + 2 * 35 + 26 + 64) // inverses, multiplies, remainder, control
         + 8192 * 40
         + 201 * 46;
-    assert_eq!(helper_envelope, 3_313_958);
+    assert_eq!(helper_envelope, 3_312_958);
     for (name, visits, units_per_visit) in [
         ("quote/predebit construction", 13, 46_728),
         ("trace schedule construction/iterator/control", 6, 4608),
-        ("registered finite helper observers", 1, 3_313_958),
+        ("registered finite helper observers", 1, 3_312_958),
         ("convolution pairs", 9_513_234, 17),
         ("all 31 automorphisms", 6 * 31 * 8192, 18),
         ("seven merge prepasses", 6 * 7 * 8192, 19),
