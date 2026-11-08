@@ -135,6 +135,50 @@ pub struct OriginalSourcePlan {
     inner: Arc<OwnedCharged<Context>>,
 }
 
+/// Separate, opt-in entry quote. No default quote/control layout depends on it.
+pub(crate) struct MetadataEntryQuote {
+    extended: source_work::ExtendedMetadataQuote,
+}
+
+/// Non-Clone, one-use custody; no constructor exists while entry is unpriced.
+/// PrimitiveAttempt retains the genuine ORIGINAL Context Arc and controller.
+/// Context never retains a permit. No new ledger, sibling issuance or refund.
+pub(crate) struct MetadataEntryPermit {
+    attempt: PrimitiveAttempt,
+    selected: bool,
+}
+
+pub(crate) fn quote_metadata_entry() -> Result<MetadataEntryQuote, Error> {
+    source_work::extended_metadata_quote()
+        .map(|extended| MetadataEntryQuote { extended })
+        .map_err(|_| Error::Quote)
+}
+
+impl MetadataEntryPermit {
+    pub(crate) fn select(&mut self, original: &OriginalSourcePlan) -> Result<(), Error> {
+        // Counter equality alone cannot bind source custody. A genuine derived
+        // plan uses its original root, not its derived Context allocation.
+        if !Arc::ptr_eq(&self.attempt.root, original.root()) {
+            return Err(Error::Counter);
+        }
+        if self.selected { return Err(Error::Burned); }
+        self.attempt.check_usable()?;
+        self.selected = true;
+        Ok(())
+    }
+}
+
+impl OriginalSourcePlan {
+    pub(crate) fn enter_metadata(
+        &self, quote: MetadataEntryQuote,
+    ) -> Result<MetadataEntryPermit, Error> {
+        // Uninhabited guard, not an unfunded Arc clone/attempt. No controller is
+        // borrowed from legacy geometry. Future issuance needs independently
+        // prepaid entry/lifecycle on this root BEFORE constructing the permit.
+        match quote.extended {}
+    }
+}
+
 /// Single-use, funded primitive transition. Source custody comes only from the
 /// actual original root, never the funding controller. No public construction,
 /// cloning, ledger access, reset, or adoption path exists.
@@ -944,7 +988,7 @@ fn add(a: usize, b: usize) -> Result<usize, Error> {
     a.checked_add(b).ok_or(Error::Overflow)
 }
 
-fn arc_header_bytes<T>() -> Result<usize, Error> {
+pub(crate) fn arc_header_bytes<T>() -> Result<usize, Error> {
     // Same named Arc control/padding policy as OwnedBudget::resources. Not an
     // observation of allocator overhead or a compiled/native stack quotation.
     let (layout, offset) = Layout::new::<[AtomicUsize; 2]>()

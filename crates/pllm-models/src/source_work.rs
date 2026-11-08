@@ -25,6 +25,23 @@ use std::{fmt, mem::size_of};
 /// Legacy source metadata depth 0..=16 corresponds to native JSON depth 1..=17.
 pub const SOURCE_FRAME_SLOTS: usize = 17;
 
+/// Separate opt-in quotation domain for a future metadata entry. Deliberately
+/// uninhabited: no tariff, zero-work fallback, caller-supplied price or test
+/// constructor exists. Existing SourceWorkBootstrap/SourceWorkQuote stay intact.
+/// A future implementation must inventory and prepay bootstrap + entry + permit
+/// lifecycle BEFORE issuing custody, then body work BEFORE reading cached header
+/// scalars, quoting the checker or constructing any caller pool.
+pub enum ExtendedMetadataQuote {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct UnpricedMetadata;
+
+/// No source argument: refusal cannot resolve a plan or traverse a configuration
+/// merely to discover that entry is unpriced. This is not a published tariff.
+pub fn extended_metadata_quote() -> Result<ExtendedMetadataQuote, UnpricedMetadata> {
+    Err(UnpricedMetadata)
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct SourceInputLimits {
     pub max_nodes: usize,
@@ -37,6 +54,32 @@ pub struct SourceInputLimits {
     pub max_traversal_work: usize,
     pub max_total_work: u64,
     pub max_workspace_bytes: usize,
+}
+
+/// Method-neutral native traversal limits. Unlike `bootstrap`, this describes
+/// no decoder factory, lookup fee, source owner, or protected custody phase.
+pub fn traversal_limits(input: SourceInputLimits) -> Result<json::Limits, SourceWorkError> {
+    if input.max_nodes == 0 || input.max_depth == 0 || input.max_depth > SOURCE_FRAME_SLOTS {
+        return Err(SourceWorkError::InputLimit);
+    }
+    let resources = Traversal::resources_for_native_slots(SOURCE_FRAME_SLOTS)
+        .map_err(SourceWorkError::Json)?;
+    if resources.logical_workspace_bytes > input.max_workspace_bytes {
+        return Err(SourceWorkError::Workspace);
+    }
+    Ok(json::Limits {
+        max_nodes: input.max_nodes, max_depth: input.max_depth,
+        max_bytes: input.max_payload_bytes, max_string_bytes: input.max_string_bytes,
+        max_key_bytes: input.max_key_bytes, max_work: input.max_traversal_work,
+        max_workspace_bytes: resources.logical_workspace_bytes,
+    })
+}
+
+/// Shared linear native traversal work cover: transitions/keys/number bytes.
+/// This is a checked structural envelope, not the decoder-specific bootstrap fee.
+pub fn traversal_work_envelope(nodes: usize, payload: usize) -> Result<usize, SourceWorkError> {
+    nodes.checked_mul(16).and_then(|n| payload.checked_mul(4).and_then(|p| n.checked_add(p)))
+        .and_then(|n| n.checked_add(16)).ok_or(SourceWorkError::Overflow)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
