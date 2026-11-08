@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from pllm import OpenAI
-from pllm.metrics import BenchmarkCase, BenchmarkSuite, BenchmarkTarget, Sampling, Scenario, benchmark_suite
+from pllm.metrics import BenchmarkCase, BenchmarkRun, BenchmarkSuite, BenchmarkTarget, Sampling, Scenario, benchmark_suite
 from pllm.runtime import delegated_transport
 from pllm.runtime.sidecar import create_sidecar_app
 
@@ -148,6 +148,14 @@ def test_ordinary_response_target_owns_workers_and_keeps_decode_rate_unknown(tmp
         assert metrics[f"{role}.cold_cpu"]["value"] > 0
         assert metrics[f"{role}.peak_rss"]["value"] > 0
     assert Path(tmp_path / "benchmark.json").is_file()
+    loaded = BenchmarkRun.load(tmp_path / "benchmark.json")
+    persisted = loaded.to_dict()
+    assert loaded.digest == report.digest
+    assert persisted == report.to_dict()
+    assert persisted["complete"] is True
+    assert len(persisted["results"]) == 1
+    assert persisted["results"][0] == value
+    assert persisted["results"][0]["execution"]["case"] == suite.cases[0].to_spec()
 
 
 @pytest.mark.parametrize("stream", [False, True])
