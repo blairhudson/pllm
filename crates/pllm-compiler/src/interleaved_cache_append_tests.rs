@@ -2168,8 +2168,34 @@ fn produced_binding_foreign_same_names_swaps_duplicates_stale_and_incomplete_ref
         let foreign = produced_fixture();
         let (k, v) = f.parents();
         let r = produced_replacements(f);
-        let c = produced_capacity();
-        let mut metadata = MetadataLedger::new(6 * (c.max_work + quote.trace_work()));
+        let mut c = produced_capacity();
+        // Independent upper bound, not measured algorithm fuel: preflight's
+        // inventory has 286 records. Search charges one initialization quantum,
+        // at most max_states expanded prefixes (including root), and one final
+        // quantum. Keep shared capacity and production costs unchanged.
+        let quantum = 128 * 286_usize.pow(3) + 16_384 * 286;
+        assert_eq!(quantum, 2_999_073_792);
+        assert_eq!(c.max_states, 32);
+        let search_bound = (32 + 1 + 1) * quantum;
+        assert_eq!(search_bound, 101_968_508_928);
+        c.max_work = 101_968_508_928;
+        assert_eq!(c.max_work, search_bound);
+        assert_eq!(quote.trace_work(), 1_435_321_344);
+        let total = c.max_work + quote.trace_work();
+        assert_eq!(total, 103_403_830_272);
+        let requested = 6 * total;
+        assert_eq!(requested, 620_422_981_632);
+        assert!(requested < 30_068_627_962_880);
+        let mut metadata = MetadataLedger::new(requested);
+        assert_eq!(metadata.remaining(), requested);
+        let expected = [
+            Refusal::StaleParents,
+            Refusal::StaleParents,
+            Refusal::StaleParents,
+            Refusal::Geometry,
+            Refusal::StaleParents,
+            Refusal::StaleParents,
+        ];
         for fault in 0..6 {
             let mut updates = produced_updates(f);
             let mut descriptor = produced_descriptor();
@@ -2183,6 +2209,16 @@ fn produced_binding_foreign_same_names_swaps_duplicates_stale_and_incomplete_ref
                 }
                 _ => updates[0].capability = &foreign.original.capabilities[1],
             }
+            let construction = control_allowance(
+                &f.original,
+                &Parents {
+                    keys: &k,
+                    values: &v,
+                },
+                &r,
+                c.trace.max_records,
+            )
+            .unwrap();
             let mut binding = bind_produced_updates(
                 produced_geometry(),
                 descriptor,
@@ -2195,17 +2231,41 @@ fn produced_binding_foreign_same_names_swaps_duplicates_stale_and_incomplete_ref
                 &updates,
             );
             let before = budget.budget().used_bytes();
+            let work_before = control.core_work().remaining();
+            let control_before = control.core_work().control_remaining();
             GRAPH_FACTORIES.with(|n| n.set(0));
-            assert!(
+            MATCH_PREDICATES.with(|n| n.set(0));
+            assert_eq!(
                 analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c)
-                    .is_err()
+                    .err()
+                    .unwrap(),
+                expected[fault],
+                "fault {fault}"
+            );
+            assert!(binding.pending.is_none());
+            assert_eq!(metadata.remaining(), (6 - fault - 1) * total);
+            assert_eq!(control.core_work().remaining(), work_before - construction);
+            assert_eq!(
+                control.core_work().control_remaining(),
+                control_before - construction
             );
             assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+            assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
             assert_eq!(budget.budget().used_bytes(), before);
             assert!(matches!(
                 analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
                 Err(Refusal::Consumed)
             ));
+            assert!(binding.pending.is_none());
+            assert_eq!(metadata.remaining(), (6 - fault - 1) * total);
+            assert_eq!(control.core_work().remaining(), work_before - construction);
+            assert_eq!(
+                control.core_work().control_remaining(),
+                control_before - construction
+            );
+            assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+            assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+            assert_eq!(budget.budget().used_bytes(), before);
         }
         assert_eq!(metadata.remaining(), 0);
     });
@@ -2215,8 +2275,35 @@ fn produced_binding_foreign_same_names_swaps_duplicates_stale_and_incomplete_ref
 fn produced_unknown_cost_error_missing_capability_ambiguous_output_and_parent_refuse_before_factory()
  {
     with_produced_quote(|_, quote, budget, control, _| {
-        let c = produced_capacity();
-        let mut metadata = MetadataLedger::new(8 * (c.max_work + quote.trace_work()));
+        let mut c = produced_capacity();
+        // Independent upper bound, not measured algorithm fuel: 286 preflight
+        // inventory records; max_states includes root. Initialization and
+        // finalization each add one quantum to the expanded-prefix bound.
+        let quantum = 128 * 286_usize.pow(3) + 16_384 * 286;
+        assert_eq!(quantum, 2_999_073_792);
+        assert_eq!(c.max_states, 32);
+        let search_bound = (32 + 1 + 1) * quantum;
+        assert_eq!(search_bound, 101_968_508_928);
+        c.max_work = 101_968_508_928;
+        assert_eq!(c.max_work, search_bound);
+        assert_eq!(quote.trace_work(), 1_435_321_344);
+        let total = c.max_work + quote.trace_work();
+        assert_eq!(total, 103_403_830_272);
+        let requested = 8 * total;
+        assert_eq!(requested, 827_230_642_176);
+        assert!(requested < 30_068_627_962_880);
+        let mut metadata = MetadataLedger::new(requested);
+        assert_eq!(metadata.remaining(), requested);
+        let expected = [
+            Refusal::Unknown,
+            Refusal::Unknown,
+            Refusal::Capability,
+            Refusal::StaleParents,
+            Refusal::StaleParents,
+            Refusal::Capability,
+            Refusal::Capability,
+            Refusal::Unknown,
+        ];
         for fault in 0..8 {
             let mut f = produced_fixture();
             match fault {
@@ -2244,6 +2331,16 @@ fn produced_unknown_cost_error_missing_capability_ambiguous_output_and_parent_re
             let (k, v) = f.parents();
             let r = produced_replacements(&f);
             let updates = produced_updates(&f);
+            let construction = control_allowance(
+                &f.original,
+                &Parents {
+                    keys: &k,
+                    values: &v,
+                },
+                &r,
+                c.trace.max_records,
+            )
+            .unwrap();
             let mut binding = bind_produced_updates(
                 produced_geometry(),
                 produced_descriptor(),
@@ -2255,12 +2352,42 @@ fn produced_unknown_cost_error_missing_capability_ambiguous_output_and_parent_re
                 &r,
                 &updates,
             );
+            let before = budget.budget().used_bytes();
+            let work_before = control.core_work().remaining();
+            let control_before = control.core_work().control_remaining();
             GRAPH_FACTORIES.with(|n| n.set(0));
-            assert!(
+            MATCH_PREDICATES.with(|n| n.set(0));
+            assert_eq!(
                 analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c)
-                    .is_err()
+                    .err()
+                    .unwrap(),
+                expected[fault],
+                "fault {fault}"
+            );
+            assert!(binding.pending.is_none());
+            assert_eq!(metadata.remaining(), (8 - fault - 1) * total);
+            assert_eq!(control.core_work().remaining(), work_before - construction);
+            assert_eq!(
+                control.core_work().control_remaining(),
+                control_before - construction
             );
             assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+            assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+            assert_eq!(budget.budget().used_bytes(), before);
+            assert!(matches!(
+                analyze_produced_append(&mut binding, quote, budget, &mut metadata, control, c),
+                Err(Refusal::Consumed)
+            ));
+            assert!(binding.pending.is_none());
+            assert_eq!(metadata.remaining(), (8 - fault - 1) * total);
+            assert_eq!(control.core_work().remaining(), work_before - construction);
+            assert_eq!(
+                control.core_work().control_remaining(),
+                control_before - construction
+            );
+            assert_eq!(GRAPH_FACTORIES.with(|n| n.get()), 0);
+            assert_eq!(MATCH_PREDICATES.with(|n| n.get()), 0);
+            assert_eq!(budget.budget().used_bytes(), before);
         }
         assert_eq!(metadata.remaining(), 0);
     });
