@@ -121,6 +121,7 @@ class SQLitePreprocessingBurnLedger:
         with self._lock:
             try:
                 with self._connection:
+                    self._connection.execute("BEGIN IMMEDIATE")
                     row = self._connection.execute(
                         "SELECT security_bits, per_element_bits, budget, used "
                         "FROM truncation_sessions WHERE session_id = ? AND party = ?",

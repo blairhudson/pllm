@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sqlite3
+from threading import Barrier, Thread
+
 import msgpack
 import numpy as np
 import pytest
@@ -88,6 +91,176 @@ def test_sqlite_burn_ledger_survives_runtime_restart(tmp_path) -> None:
             left[0], right[0], triples[0], "second"
         )
     restarted.close()
+
+
+def test_sqlite_truncation_quota_read_is_protected_across_instances_and_restart(tmp_path) -> None:
+    path = tmp_path / "burns.sqlite3"
+    profile = (64, 64, 2)
+    seed = SQLitePreprocessingBurnLedger(path)
+    try:
+        seed.burn_truncation("session", 0, "seed", profile, 1)
+    finally:
+        seed.close()
+
+    start = Barrier(3, timeout=10)
+    results, traces, errors = {}, {}, []
+
+    def burn(material_id):
+        ledger = None
+        try:
+            ledger = SQLitePreprocessingBurnLedger(path)
+            connection = ledger._connection
+            trace = []
+            traces[material_id] = trace
+            connection.set_trace_callback(
+                lambda sql: trace.append((sql, connection.in_transaction))
+            )
+            start.wait()
+            try:
+                ledger.burn_truncation("session", 0, material_id, profile, 1)
+            except SharedMPCError as error:
+                results[material_id] = error
+            else:
+                results[material_id] = None
+        except BaseException as error:
+            errors.append(error)
+            start.abort()
+        finally:
+            if ledger is not None:
+                try:
+                    ledger.close()
+                except BaseException as error:
+                    errors.append(error)
+
+    threads = [Thread(target=burn, args=(material,), daemon=True) for material in ("first", "second")]
+    started = []
+    try:
+        for thread in threads:
+            thread.start()
+            started.append(thread)
+        start.wait()
+    except BaseException as error:
+        errors.append(error)
+        start.abort()
+    finally:
+        for thread in started:
+            thread.join(timeout=30)
+    assert all(not thread.is_alive() for thread in started), "SQLite burn thread did not exit"
+    if errors:
+        raise errors[0]
+    assert set(results) == set(traces) == {"first", "second"}
+    for trace in traces.values():
+        reads = [index for index, (sql, _) in enumerate(trace)
+                 if sql.startswith("SELECT security_bits, per_element_bits, budget, used ")]
+        assert len(reads) == 1
+        index, = reads
+        assert index > 0 and trace[index - 1][0] == "BEGIN IMMEDIATE"
+        assert trace[index][1] is True
+    winners = [material for material, error in results.items() if error is None]
+    failures = [error for error in results.values() if error is not None]
+    assert len(winners) == len(failures) == 1
+    assert str(failures[0]) == "truncation session opening budget exhausted"
+
+    restarted = SQLitePreprocessingBurnLedger(path)
+    try:
+        assert restarted._connection.execute(
+            "SELECT * FROM truncation_sessions"
+        ).fetchall() == [("session", 0, 64, 64, 2, 2)]
+        expected = sorted(("session", 0, "truncation", material)
+                          for material in ("seed", winners[0]))
+        assert restarted._connection.execute(
+            "SELECT * FROM burned ORDER BY material_id"
+        ).fetchall() == expected
+        with pytest.raises(SharedMPCError, match="^truncation session opening budget exhausted$"):
+            restarted.burn_truncation("session", 0, "fresh", profile, 1)
+        assert restarted._connection.in_transaction is False
+        assert restarted._connection.execute("SELECT used FROM truncation_sessions").fetchall() == [(2,)]
+        assert restarted._connection.execute(
+            "SELECT * FROM burned ORDER BY material_id"
+        ).fetchall() == expected
+    finally:
+        restarted.close()
+
+
+def test_sqlite_truncation_rollback_and_error_precedence(tmp_path) -> None:
+    ledger = SQLitePreprocessingBurnLedger(tmp_path / "burns.sqlite3")
+    connection = ledger._connection
+    profile = (64, 64, 3)
+
+    def state():
+        return (connection.execute("SELECT * FROM truncation_sessions").fetchall(),
+                connection.execute("SELECT * FROM burned ORDER BY material_id").fetchall())
+
+    try:
+        ledger.burn_truncation("session", 0, "seed", profile, 1)
+        seeded = state()
+        with pytest.raises(SharedMPCError) as mismatch:
+            ledger.burn_truncation("session", 0, "mismatch", (63, 64, 3), 1)
+        assert str(mismatch.value) == "truncation masks use inconsistent session security accounting"
+        assert connection.in_transaction is False
+        assert state() == seeded
+        with pytest.raises(SharedMPCError) as duplicate:
+            ledger.burn_truncation("session", 0, "seed", profile, 1)
+        assert str(duplicate.value) == "truncation preprocessing was already consumed"
+        assert isinstance(duplicate.value.__cause__, sqlite3.IntegrityError)
+        assert connection.in_transaction is False
+        assert state() == seeded
+        ledger.burn_truncation("session", 0, "fresh", profile, 2)
+        exhausted = state()
+        assert exhausted == ([("session", 0, 64, 64, 3, 3)],
+                             [("session", 0, "truncation", "fresh"),
+                              ("session", 0, "truncation", "seed")])
+        with pytest.raises(SharedMPCError) as exhausted_mismatch:
+            ledger.burn_truncation("session", 0, "seed", (63, 64, 3), 1)
+        assert str(exhausted_mismatch.value) == "truncation masks use inconsistent session security accounting"
+        assert connection.in_transaction is False
+        assert state() == exhausted
+        with pytest.raises(SharedMPCError) as quota:
+            ledger.burn_truncation("session", 0, "seed", profile, 1)
+        assert str(quota.value) == "truncation session opening budget exhausted"
+        assert quota.value.__cause__ is None
+        assert connection.in_transaction is False
+        assert state() == exhausted
+    finally:
+        ledger.close()
+
+
+def test_sqlite_truncation_writer_busy_error_and_same_connection_recovery(tmp_path) -> None:
+    path = tmp_path / "burns.sqlite3"
+    ledger = SQLitePreprocessingBurnLedger(path)
+    holder = None
+    try:
+        profile = (64, 64, 2)
+        ledger.burn_truncation("session", 0, "seed", profile, 1)
+        connection = ledger._connection
+        connection.execute("PRAGMA busy_timeout=20")
+        holder = sqlite3.connect(path)
+        try:
+            holder.execute("BEGIN IMMEDIATE")
+            with pytest.raises(sqlite3.OperationalError) as busy:
+                ledger.burn_truncation("session", 0, "fresh", profile, 1)
+            assert busy.value.sqlite_errorcode == sqlite3.SQLITE_BUSY
+            assert connection.in_transaction is False
+            assert connection.execute("SELECT * FROM truncation_sessions").fetchall() == [
+                ("session", 0, 64, 64, 2, 1)
+            ]
+            assert connection.execute("SELECT * FROM burned").fetchall() == [
+                ("session", 0, "truncation", "seed")
+            ]
+        finally:
+            holder.rollback()
+        ledger.burn_truncation("session", 0, "fresh", profile, 1)
+        assert connection.in_transaction is False
+        assert connection.execute("SELECT * FROM truncation_sessions").fetchall() == [
+            ("session", 0, 64, 64, 2, 2)
+        ]
+        assert connection.execute("SELECT * FROM burned ORDER BY material_id").fetchall() == [
+            ("session", 0, "truncation", "fresh"), ("session", 0, "truncation", "seed")
+        ]
+    finally:
+        if holder is not None:
+            holder.close()
+        ledger.close()
 
 
 def test_opening_frame_is_bound_and_bounded() -> None:
