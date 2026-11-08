@@ -369,17 +369,8 @@ fn preconstruction_metadata_quote_matches_independent_phase_inventory() {
     }
     let core = EdgeContractResourceQuote::checked().unwrap();
     let activation = ActivationSpec::checked_logical_resources().unwrap();
-    let dimensions = size_of::<Result<(usize, usize, usize, usize), Error>>();
-    let geometry = size_of::<matrix::Spec>()
-        + size_of::<
-            Result<pllm_core::streamed_matrix::MatrixGeometry, pllm_core::streamed_matrix::Error>,
-        >()
-        + size_of::<Result<pllm_core::streamed_matrix::MatrixGeometry, Error>>();
-    let native_matrix = size_of::<matrix::Spec>()
-        + size_of::<Result<matrix::party::Resources, Error>>()
-        + size_of::<matrix::Spec>()
-        + dimensions
-        + size_of::<[usize; 3]>().max(geometry);
+    // Shared native inventory has independent owner-level slot checks.
+    let native_matrix = matrix::party::PartyFor::<&Budget>::NATIVE_CALC.unwrap();
     let matrix = size_of::<matrix::party::Resources>() + native_matrix.max(size_of::<[usize; 3]>());
     let numeric = core
         .numeric_construction_bytes
@@ -447,22 +438,8 @@ fn metadata_sums_check_overflow_instead_of_wrapping() {
 fn resource_calculation_quote_matches_independent_phase_inventory() {
     use crate::compact_dpf::gpu127;
     let q = LinearActivationSpec::checked_resource_calculation_resources().unwrap();
-    let geometry = size_of::<matrix::Spec>()
-        + size_of::<
-            Result<pllm_core::streamed_matrix::MatrixGeometry, pllm_core::streamed_matrix::Error>,
-        >()
-        + size_of::<Result<pllm_core::streamed_matrix::MatrixGeometry, Error>>();
-    let dimensions = size_of::<matrix::Spec>()
-        + size_of::<Result<(usize, usize, usize, usize), Error>>()
-        + size_of::<[usize; 3]>().max(geometry);
-    let native_matrix = size_of::<matrix::Spec>()
-        + size_of::<Result<matrix::party::Resources, Error>>()
-        + dimensions;
-    assert_eq!(matrix_resource_calculation_bytes().unwrap(), native_matrix);
-    let matrix = size_of::<matrix::Spec>()
-        + size_of::<matrix::party::Resources>()
-        + size_of::<Result<usize, Error>>()
-        + native_matrix;
+    // Shared typed inventory has independent owner-level slot checks.
+    let matrix = MatrixPartyFor::<&Budget>::TYPED_CALC.unwrap();
     let arithmetic_geometry = size_of::<arithmetic::Spec>()
         + size_of::<Result<(gpu127::Profile, u8, usize), Error>>()
         + size_of::<Result<gpu127::Profile, gpu127::Error>>()
@@ -1059,11 +1036,35 @@ fn incremental_inventory_counts_each_existing_inline_owner_once() {
         + 4 * size_of::<CommonMasked<'static, Ring>>()
         + 2 * size_of::<DealerMask<'static, Ring>>()
         + 2 * size_of::<RootInput<'static>>();
+    fn h<T>() -> usize {
+        size_of::<T>() + std::mem::align_of::<T>() - 1
+    }
+    type C = &'static Budget;
+    type G = CommonMaskedFor<C, Ring>;
+    type T = OpaqueTyped<C>;
+    // Finish-transfer slots cover distinct return boundaries and destructured
+    // predecessors, not separate charges for fields embedded in those owners.
+    let transfer = 4 * h::<Result<G, Error>>()
+        + h::<G>()
+        + h::<CommonBackingFor<C>>()
+        + h::<matrix::party::MaskedOutputFor<C>>()
+        + h::<matrix::party::OpaqueNative<C>>()
+        + 2 * h::<T>()
+        + 2 * h::<Result<T, Error>>()
+        + h::<Binding>()
+        + h::<u8>()
+        + h::<std::marker::PhantomData<Ring>>()
+        + h::<LeaseFor<C>>()
+        + h::<Error>()
+        + h::<&mut MatrixPartyFor<C>>()
+        + h::<&[u8]>();
+    assert_eq!(MatrixPartyFor::<C>::FINISHED_TRANSFER_BYTES, Some(transfer));
     let matrix = matrix::party::resources(s.matrix)
         .unwrap()
         .reservation_bytes
         + 2 * size_of::<MatrixParty<'static>>()
         + 2 * size_of::<CommonMasked<'static, Ring>>()
+        + 2 * transfer
         + 8 * n
         + ALLOCATOR
         + size_of::<DealerMask<'static, Ring>>();

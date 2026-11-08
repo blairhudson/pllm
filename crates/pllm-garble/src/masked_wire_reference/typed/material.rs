@@ -186,7 +186,8 @@ pub struct MatrixImportPermit<'b> {
     operation: [u8; 32],
     role: u8,
     descriptor: MatrixMaterialDescriptor,
-    // Original output/wrapper charge never leaves this ownership chain.
+    // Original enlarged output/wrapper/finished-slot charge never leaves this
+    // borrowed ownership chain. Enclosing layouts above are measured, not assumed.
     lease: Lease<'b>,
     material_lease: Lease<'b>,
 }

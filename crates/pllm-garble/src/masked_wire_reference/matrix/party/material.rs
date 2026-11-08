@@ -24,9 +24,20 @@ pub(crate) fn handoff_resources(spec: Spec) -> Result<HandoffResources, Error> {
     let cost = resources(spec)?;
     let body = cost.party_material_payload_bytes;
     let packet = ENVELOPE_BYTES.checked_add(body).ok_or(Error::Resource)?;
-    let metadata = size_of::<ImportPermit<'static>>() + size_of::<Packet<'static>>();
-    let incremental = packet + metadata + ALLOCATOR + HASH_STACK;
-    if cost.party_reservation_bytes + incremental > MAX_ALLOCATION_BYTES {
+    // Actual permit/packet layouts include revised Live and Option<Live> owners.
+    // The original enlarged party lease (including finished slots) stays intact.
+    let metadata = size_of::<ImportPermit<'static>>()
+        .checked_add(size_of::<Packet<'static>>())
+        .ok_or(Error::Resource)?;
+    let incremental = packet
+        .checked_add(metadata)
+        .and_then(|n| n.checked_add(ALLOCATOR))
+        .and_then(|n| n.checked_add(HASH_STACK))
+        .ok_or(Error::Resource)?;
+    let combined = cost.party_reservation_bytes
+        .checked_add(incremental)
+        .ok_or(Error::Resource)?;
+    if combined > MAX_ALLOCATION_BYTES {
         return Err(Error::Resource);
     }
     Ok(HandoffResources {

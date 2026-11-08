@@ -137,23 +137,30 @@ fn split(
     Ok([left, value.wrapping_sub(left) & mask(bits)])
 }
 
-// Zero-sized thread marker preserves the existing one-thread native profile and
-// legacy metadata quote; static counting adds no heap control allocation.
-struct Live(PhantomData<Rc<()>>);
+// Release alone owns the process-global obligation. Ordinary owners additionally
+// retain their thread-confinement marker; moving a finished obligation never forks.
+struct Release;
+struct Live {
+    release: Release,
+    _thread: PhantomData<Rc<()>>,
+}
 impl Live {
     fn acquire() -> Result<Self, Error> {
         LIVE.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
             .map_err(|_| Error::Resource)?;
         LIVE_HANDLES.store(1, Ordering::SeqCst);
-        Ok(Self(PhantomData))
+        Ok(Self { release: Release, _thread: PhantomData })
     }
     // Only existing owners may fork; no secret or sibling access is shared.
     fn fork(&self) -> Self {
         LIVE_HANDLES.fetch_add(1, Ordering::SeqCst);
-        Self(PhantomData)
+        Self { release: Release, _thread: PhantomData }
+    }
+    fn into_release(self) -> Release {
+        self.release
     }
 }
-impl Drop for Live {
+impl Drop for Release {
     fn drop(&mut self) {
         if LIVE_HANDLES.fetch_sub(1, Ordering::SeqCst) == 1 {
             LIVE.store(false, Ordering::SeqCst);

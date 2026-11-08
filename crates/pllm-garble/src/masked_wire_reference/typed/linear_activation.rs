@@ -68,8 +68,10 @@ struct LinearActivationIntervals {
 /// Results include their payload and error discriminant/padding. The return
 /// phase covers the origin declaration and destination Result explicitly.
 ///
+/// Matrix resource calculation includes the shared native scalar/reference/control
+/// slot inventory. Other phases exclude scalar evaluation locals and references.
 /// Caller-retained descriptors/specs/domain arrays, existing dealer, borrowed
-/// data/static tables, scalar evaluation locals, references, ABI-only copies,
+/// data/static tables, ABI-only copies,
 /// dependency-private SHA scratch, native stack and RSS are excluded. This is
 /// a conservative logical slot reservation, not exact optimized stack usage.
 /// Native operation reservations do NOT include this preconstruction quote:
@@ -102,12 +104,14 @@ impl LinearActivationSpec {
         let input_bytes = size_of::<LinearActivationConstructionInput>();
         // Only the resource record is owned here, NOT the native payload or
         // stack/allocator allowances described by values inside that record.
-        // Matrix resource calculation first validates dimensions/geometry. Its
-        // returned record and the later element-cap array are sequential with
-        // those helper Results; no native reservation value is charged here.
+        // Shared native inventory includes dimensions/geometry and its additional
+        // scalar/reference/control slots. Calculation and the later element-cap
+        // array are sequential; no native reservation value is charged here.
         let matrix_resources_phase_bytes = metadata_sum(&[
             size_of::<matrix::party::Resources>(), // named cost destination
-            matrix_resource_calculation_bytes()?.max(size_of::<[usize; 3]>()), // later element-cap check
+            matrix::party::PartyFor::<&Budget>::NATIVE_CALC
+                .ok_or(Error::Resource)?
+                .max(size_of::<[usize; 3]>()), // later element-cap check
         ])?;
         let geometry_phase_bytes = size_of::<LinearActivationGeometry>();
         let numeric_validation_phase_bytes = core
@@ -385,8 +389,10 @@ impl LinearActivationResources {
 /// not metadata. No allocation, hashing, entropy or declaration is needed here.
 ///
 /// Same exclusions as `ActivationResourceCalculationResources`: caller originals
-/// and retained quote records must be added separately; borrowed data, reference
-/// and scalar/control locals, ABI-only moves, dependency-private SHA scratch,
+/// and retained quote records must be added separately. The matrix phase includes
+/// its frozen scalar/reference/control slot inventory; other phases still exclude
+/// borrowed data, reference and scalar/control locals, ABI-only moves,
+/// dependency-private SHA scratch,
 /// machine stack/RSS and existing execution/dealer owners are excluded. This
 /// does not establish source provenance or open the certified facade.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -401,28 +407,6 @@ pub struct LinearActivationResourceCalculationResources {
     pub peak_bytes: usize,
 }
 
-// Calculation-only inventory, including core dimensions -> geometry. These
-// are explicit public record/array/Result slots, not native stack allowances.
-fn matrix_resource_calculation_bytes() -> Result<usize, Error> {
-    let geometry = metadata_sum(&[
-        size_of::<matrix::Spec>(), // geometry's Copy input
-        size_of::<
-            Result<pllm_core::streamed_matrix::MatrixGeometry, pllm_core::streamed_matrix::Error>,
-        >(),
-        size_of::<Result<pllm_core::streamed_matrix::MatrixGeometry, Error>>(),
-    ])?;
-    let dimensions = metadata_sum(&[
-        size_of::<matrix::Spec>(), // dimensions' Copy input
-        size_of::<Result<(usize, usize, usize, usize), Error>>(),
-        size_of::<[usize; 3]>().max(geometry),
-    ])?;
-    metadata_sum(&[
-        size_of::<matrix::Spec>(), // party::resources input
-        size_of::<Result<matrix::party::Resources, Error>>(),
-        dimensions,
-    ])
-}
-
 impl LinearActivationSpec {
     /// Fixed PRECALCULATION quote, separate from `checked_logical_resources`.
     /// A caller retaining its original spec adds that owner to `peak_bytes`.
@@ -431,12 +415,10 @@ impl LinearActivationSpec {
         let activation = ActivationSpec::checked_resource_calculation_resources()?;
         let input_bytes = size_of::<Self>();
         let root_array_bytes = size_of::<[usize; 2]>();
-        let matrix_phase_bytes = metadata_sum(&[
-            size_of::<matrix::Spec>(), // matrix_reservation_bytes Copy input
-            size_of::<matrix::party::Resources>(), // named native destination
-            size_of::<Result<usize, Error>>(),
-            matrix_resource_calculation_bytes()?,
-        ])?;
+        let matrix_phase_bytes = match MatrixPartyFor::<&Budget>::TYPED_CALC {
+            Some(value) => value,
+            None => return Err(Error::Resource),
+        };
         let rescale_phase_bytes = metadata_sum(&[
             size_of::<arithmetic::Spec>(), // arithmetic_reservation_bytes input
             size_of::<Result<usize, Error>>(),
